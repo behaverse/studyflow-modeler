@@ -130,7 +130,7 @@ enumerations:
 
 types:
   - name: Robot
-    description: The robot as a pool of the steps it performs and the device settings they share.
+    description: The robot as a pool of the steps it performs and the device settings they share; on the lower band of a cognitive task, the actor who takes it.
     superClass:
       - bpmn:Participant
     meta:
@@ -167,6 +167,15 @@ types:
         meta:
           order: 6
           optional: true
+      # The seat listens here; a task whose message flow reaches this robot sends its trials to the same address.
+      - name: bridge
+        description: Where the seated robot takes a task's trials (a WebSocket URL on the machine running the study); the task's runner sends them there.
+        isAttr: true
+        type: String
+        default: ws://localhost:8765
+        meta:
+          order: 7
+          optional: true
       - name: language
         description: Language the robot speaks and listens in, as a BCP-47 tag (`en-US`).
         isAttr: true
@@ -191,7 +200,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify mdi--account-voice
+      icon: iconify ph--user-sound
     properties:
       - name: text
         description: What the robot says; `{{name}}` placeholders are filled in at run time.
@@ -207,7 +216,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify mdi--hand-wave-outline
+      icon: iconify ph--hand-waving
     properties:
       - name: move
         description: Recorded move to play; any move name in the dataset is also accepted.
@@ -233,7 +242,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify mdi--axis-arrow
+      icon: iconify ph--arrows-out-cardinal
     properties:
       # Head orientation.
       - name: roll
@@ -336,7 +345,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify mdi--music-note
+      icon: iconify ph--music-note
     properties:
       - name: file
         description: Sound file name in the robot's library (`chime.wav`).
@@ -352,10 +361,10 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify mdi--eye-outline
+      icon: iconify ph--eye
     properties:
       - name: target
-        description: What to orient toward; tracking holds until another step moves the head. A `{{ name }}` placeholder takes a gaze the study state holds, such as the result of an earlier `screen` look.
+        description: What to orient toward; tracking holds until another step moves the head. A `screen` look remembers where it found the screen, so a later one starts there.
         isAttr: true
         type: LookTargetEnum
         default: face
@@ -379,7 +388,7 @@ types:
     superClass:
       - bpmn:ReceiveTask
     meta:
-      icon: iconify mdi--ear-hearing
+      icon: iconify ph--ear
     properties:
       - name: timeout
         description: Give up when no speech starts within this long.
@@ -398,7 +407,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify mdi--forum-outline
+      icon: iconify ph--chats
     properties:
       - name: model
         description: Model that drives the dialogue (`claude-haiku-4-5`, `ollama/llama3.3`).
@@ -432,7 +441,7 @@ types:
     superClass:
       - bpmn:UserTask
     meta:
-      icon: iconify mdi--gamepad-variant-outline
+      icon: iconify ph--joystick
     properties:
       - name: instructions
         description: What the operator does at this step, in markdown.
@@ -448,7 +457,7 @@ types:
     superClass:
       - bpmn:ExclusiveGateway
     meta:
-      icon: iconify mdi--eye-check-outline
+      icon: iconify ph--binoculars
     properties:
       - name: channel
         description: Perception feed the branch conditions read.
@@ -463,7 +472,7 @@ types:
     superClass:
       - bpmn:IntermediateCatchEvent
     meta:
-      icon: iconify mdi--motion-sensor
+      icon: iconify ph--person-simple-walk
     properties:
       - name: trigger
         description: What the robot listens or watches for; a custom trigger is also accepted.
@@ -483,13 +492,23 @@ types:
             body:
               trigger: wake_word
 
+  # The robot's own step when a task on the screen is drawn in another pool and message flows carry the trials
+  # to the robot and its answers back: the step is the receiving end, and the walk runs the two together.
+  # Its instructions come in as an `agentic:Prompt` data edge; the vision model is the Robot pool's.
+  - name: Participate
+    description: The robot takes the task another pool presents; each trial the message flow brings, it looks, asks its vision model what it sees, answers, and signals with its antennas.
+    superClass:
+      - bpmn:ReceiveTask
+    meta:
+      icon: iconify ph--game-controller
+
   # A Dataset, not a Timeseries: video, audio, transcript, and motion share one record.
   - name: InteractionRecording
     description: The multimodal record of an interaction, what was seen, heard, said, and moved.
     superClass:
       - studyflow:Dataset
     meta:
-      icon: iconify mdi--record-rec
+      icon: iconify ph--record
     properties:
       # Plain strings, one per entry: a non-attribute enum list cannot serialize through moddle.
       - name: streams
@@ -506,7 +525,7 @@ templates:
       bpmn:documentation: |
         Idle until the wake word, turn toward the speaker, then converse until
         the stop phrase or the turn budget ends it.
-      icon: iconify mdi--forum-outline
+      icon: iconify ph--chats
       keywords:
         - reachy
         - conversation

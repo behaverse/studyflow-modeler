@@ -15,10 +15,12 @@ browser, starts the task through the build's `RunCognitiveTask` entry point, and
 `studyflow:TaskCompleted`. The page relays what the build reports back to this process:
 every `studyflow:Event` to `<cache>/<element>.events.jsonl`, each answered trial to the
 terminal, and the completion, which becomes the element's `result`. A human plays the task
-as in the browser runner. A bot with `ResponseSource: external` has each awaiting trial
+as in the browser runner. A bot task that exchanges messages with another pool (a message flow
+drawn to or from it), or whose bot says `ResponseSource: external`, has each awaiting trial
 forwarded by the page to the response bridge (`BridgeUrl`, default ws://localhost:8765,
-e.g. `skills/reachy/local.py --participant`), random when nothing answers; `--auto` turns every
-task into a bot task so a run needs nobody at the screen.
+e.g. `skills/reachy/local.py --participant`), random when nothing answers; an `agentic:Prompt`
+wired into the task is the player's instructions. `--auto` turns every task into a bot task so a
+run needs nobody at the screen.
 
 The build is looked for at `$UNITY_BUILD_PATH`, then `<repo>/run/assessment-unity/Build/WebGL`,
 the same places the browser runner's dev server looks.
@@ -71,17 +73,23 @@ def mapping_of(text: Any, what: str, element_id: str) -> dict[str, Any]:
     return parsed
 
 
-def task_payload(element: dict[str, Any], auto: bool = False) -> dict[str, Any]:
-    """The `RunCognitiveTask` payload, built as the browser runner's parser.ts builds it."""
+def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+    """The `RunCognitiveTask` payload, built as the browser runner's parser.ts builds it; `plan` is every element
+    of the digest, for what the diagram wires into this task."""
     element_id = str(element.get("id"))
     attrs = (behaverse_extension(element) or {}).get("attributes") or {}
     scene = str(attrs.get("behaverseScene") or "")
     if not scene:
         raise ValueError(f"BehaverseTask {element_id!r} has no behaverseScene; set it to a task the Unity build ships")
-    agent = "bot" if auto else str(attrs.get("agentType") or "human")
+    # Who takes the task is its participant (band, message flow, or pool): a person, or a bot of some kind.
+    actor = actor_of(element, plan or {})
+    parameters = mapping_of(attrs.get("configurations"), "configurations", element_id)
+    # `Bot:` is not GameConfig: how a bot plays the task, sent to Unity as the payload's own `bot`.
+    bot_settings = parameters.pop("Bot", None)
+    bot_settings = bot_settings if isinstance(bot_settings, dict) else {}
+    agent = "bot" if auto or actor["kind"] not in ("", "human") or bot_settings.get("ResponseSource") else "human"
     payload: dict[str, Any] = {"scene": scene, "agentType": agent, "configMode": "builtin",
                                "metadata": {"studyflowNodeId": element_id}}
-    parameters = mapping_of(attrs.get("configurations"), "configurations", element_id)
     timelines = parameters.get("Timelines")
     if isinstance(timelines, dict):
         if timelines:
@@ -96,10 +104,131 @@ def task_payload(element: dict[str, Any], auto: bool = False) -> dict[str, Any]:
         payload["configMode"] = "inline"
         payload["parameters"] = parameters
     if agent == "bot":
-        bot = mapping_of(attrs.get("botConfigurations"), "botConfigurations", element_id)
+        bot = bot_settings
+        if actor["kind"] == "robot" or (actor["kind"] == "agent" and actor["model"] != "random"):
+            bot["ResponseSource"] = "external"  # answered over the response bridge by whoever sits there
+            if actor["bridge"] and not bot.get("BridgeUrl"):
+                bot["BridgeUrl"] = actor["bridge"]  # where that partner said it listens
+        elif actor["kind"] == "agent":
+            bot.pop("ResponseSource", None)  # the build's own random bot
+        elif actor["kind"] == "llm":
+            bot["ResponseSource"] = "llm"
+            if actor["model"]:
+                provider, model = split_model(actor["model"])
+                bot["LLM"] = {"Provider": provider, "Model": model}
+        prompt = prompt_of(element, plan or {})  # the one way to instruct whoever takes the task
+        if prompt and not bot.get("Prompt"):
+            bot["Prompt"] = prompt
         if bot:
             payload["bot"] = bot
     return payload
+
+
+AGENTIC = "https://w3id.org/studyflow/agentic"
+REACHY = "https://w3id.org/studyflow/reachy"
+EMPTY_ACTOR: dict[str, Any] = {"kind": "", "model": "", "bridge": ""}
+
+
+def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Who takes the task, from what the diagram draws, most explicit first: the task's receiving band; else the
+    other end of a message flow touching it (a pool, or a step's pool); else the pool the task sits in. A
+    `reachy:Robot` is a robot; a `cognitive:Actor` is what its `actorType` says, with its `identifier` as the
+    model. `kind` is empty when no one is named any of those ways."""
+    initiating = (element.get("attributes") or {}).get("initiatingParticipantRef")
+    candidates = [p for p in element.get("participants") or [] if p != initiating]
+    if not candidates:
+        candidates = message_partners(element, plan)
+    if not candidates:
+        candidates = pool_participants(element_process(element, plan), plan)
+    for participant_id in candidates:
+        for ext in (plan.get(str(participant_id)) or {}).get("extensions") or []:
+            attributes = ext.get("attributes") or {}
+            if ext.get("namespace") == REACHY and str(ext.get("type", "")).lower() == "robot":
+                # `bridge` is where the robot takes trials; the schema's default is the bridge's own default.
+                return {"kind": "robot", "model": "", "bridge": str(attributes.get("bridge") or "")}
+            if ext.get("namespace") == COGNITIVE and str(ext.get("type", "")).lower() == "actor":
+                return {"kind": str(attributes.get("actorType") or "human"), "model": str(attributes.get("identifier") or ""), "bridge": ""}
+    return dict(EMPTY_ACTOR)
+
+
+def element_process(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
+    """The process the element belongs to: its `parent`, followed outward while the parent is itself an element."""
+    current = str(element.get("parent") or "")
+    while current in plan and plan[current].get("parent"):
+        current = str(plan[current]["parent"])
+    return current
+
+
+def pool_participants(process_id: str, plan: dict[str, dict[str, Any]]) -> list[str]:
+    """The participants whose pool holds the process."""
+    return [pid for pid, p in plan.items()
+            if p.get("type") == "participant" and (p.get("attributes") or {}).get("processRef") == process_id]
+
+
+# The messages this runner's task exchanges, as a message flow's `messageRef` → `itemRef` → `structureRef` names them.
+TRIAL, RESPONSE = "behaverse:Trial", "behaverse:Response"
+
+
+def message_structure(flow: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
+    """What a message flow carries: its message's item definition (`structureRef`), '' when it names none."""
+    message = plan.get(str((flow.get("attributes") or {}).get("messageRef") or "")) or {}
+    item = plan.get(str((message.get("attributes") or {}).get("itemRef") or "")) or {}
+    return str((item.get("attributes") or {}).get("structureRef") or "")
+
+
+def message_partners(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> list[str]:
+    """The participants at the other end of the message flows touching the element: a pool itself, or the
+    pool of the step the flow ends at. A flow that names its message outranks one that does not, and counts
+    only when it carries a trial out of the task or a response back into it; more than one partner left is
+    an ambiguity to fix in the diagram, not an order to guess."""
+    typed: list[str] = []
+    untyped: list[str] = []
+    for flow_id, flow in plan.items():
+        attrs = flow.get("attributes") or {}
+        if flow.get("type") != "messageFlow" or element.get("id") not in (attrs.get("sourceRef"), attrs.get("targetRef")):
+            continue
+        outgoing = attrs.get("sourceRef") == element.get("id")
+        structure = message_structure(flow, plan)
+        if structure and structure not in (TRIAL, RESPONSE):
+            continue  # another skill's exchange (a marker to an EEG pool, say)
+        if structure and (structure == TRIAL) != outgoing:
+            raise ValueError(f"message flow {flow_id!r} carries {structure} the wrong way: trials leave the task, responses come back")
+        other = attrs["targetRef"] if outgoing else attrs.get("sourceRef")
+        end = plan.get(str(other)) or {}
+        found = [str(other)] if end.get("type") == "participant" else pool_participants(element_process(end, plan), plan)
+        into = typed if structure else untyped
+        into += [pid for pid in found if pid not in into]
+    partners = typed or untyped
+    if len(partners) > 1:
+        raise ValueError(f"{element.get('id')} exchanges messages with {', '.join(partners)}: name the message each flow "
+                         f"carries (messageRef, {TRIAL} or {RESPONSE}), or keep one partner")
+    return partners
+
+
+def events_uri(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
+    """Where the task's events go: the `uri` of a data element its output edge targets, else `<id>.events.jsonl`."""
+    for binding in element.get("outputs") or []:
+        uri = ((plan.get(str(binding.get("target"))) or {}).get("attributes") or {}).get("uri")
+        if uri and not str(uri).endswith("/"):
+            return str(uri)
+    return f"{element['id']}.events.jsonl"
+
+
+def split_model(identifier: str) -> tuple[str, str]:
+    """`provider:model` as written, a bare `claude-*` name as Claude's, anything else as Ollama's."""
+    if ":" in identifier:
+        provider, model = identifier.split(":", 1)
+        return provider, model
+    return ("claude" if identifier.startswith("claude") else "ollama"), identifier
+
+
+def prompt_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
+    """The `agentic:Prompt` data object wired into the element, as its template text."""
+    for binding in element.get("inputs") or []:
+        for ext in (plan.get(str(binding.get("source"))) or {}).get("extensions") or []:
+            if ext.get("namespace") == AGENTIC and str(ext.get("type", "")).lower() == "prompt":
+                return str((ext.get("attributes") or {}).get("template") or "")
+    return ""
 
 
 def bot_for_unity(bot: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -375,9 +504,9 @@ def build_dir(explicit: Path | None) -> Path:
     return Path(__file__).resolve().parents[1] / "run" / "assessment-unity" / "Build" / "WebGL"
 
 
-def perform(element: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
+def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """One task: serve, open, wait for the completion; the keys a hand-off merges into the state."""
-    payload = task_payload(element, auto=args.auto)
+    payload = task_payload(element, auto=args.auto, plan=plan)
     build = build_dir(args.build)
     if not (build / "index.html").is_file():
         raise FileNotFoundError(f"no Unity WebGL build at {build} — set UNITY_BUILD_PATH (or --build) to the Build/WebGL folder")
@@ -385,7 +514,8 @@ def perform(element: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]
     # The run directory, not its `.cache`: studyflow-run-local sweeps the cache when the run ends.
     run_dir = cache.parent if cache.name == ".cache" else cache
     run_dir.mkdir(parents=True, exist_ok=True)
-    events = run_dir / f"{element['id']}.events.jsonl"
+    events = run_dir / events_uri(element, plan)
+    events.parent.mkdir(parents=True, exist_ok=True)
     events.unlink(missing_ok=True)
     stage = Stage(args.port, build, stage_page(payload), events)
     threading.Thread(target=stage.serve_forever, daemon=True).start()
@@ -451,11 +581,13 @@ def main() -> int:
         element = elements.get(args.element)
         if element is None or behaverse_extension(element) is None:
             raise KeyError(f"no BehaverseTask {args.element!r} in the diagram")
-        result = perform(element, args)
+        result = perform(element, args, elements)
     except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
         result = {"error": f"{type(error).__name__}: {error}"}
     cache.mkdir(parents=True, exist_ok=True)
-    handoff.write_text(json.dumps({**state, **result}, default=str))
+    # Its own result under its id too, so a later step can cite it (`{Play.trials}`).
+    captured = {args.element: result["result"]} if "result" in result else {}
+    handoff.write_text(json.dumps({**state, **captured, **result}, default=str))
     return 1 if "error" in result else 0
 
 

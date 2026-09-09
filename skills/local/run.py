@@ -41,6 +41,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import threading
 import time
 import zlib
 
@@ -61,6 +62,14 @@ def studyflow_attr(element: ET.Element, name: str) -> str | None:
 
 def studyflow_child(element: ET.Element, name: str) -> ET.Element | None:
     return element.find(f"{{{STUDYFLOW}}}{name}")
+
+
+def carries_study(process: ET.Element) -> bool:
+    """Whether the process holds the `studyflow:Study` extension: it is then the study's own pool."""
+    return any(
+        ext.tag == f"{{{STUDYFLOW}}}study"
+        for holder in process if local(holder) == "extensionElements" for ext in holder
+    )
 
 
 # `property` included: a property without a `uri` passes in memory; with one it persists like any artifact.
@@ -161,7 +170,12 @@ class TeeStream:
 
 @contextmanager
 def captured_output(indent: str = ""):
-    """Captured lines land as DEBUG, so the INFO console handler never prints them a second time."""
+    """Captured lines land as DEBUG, so the INFO console handler never prints them a second time.
+    Only the main thread captures: another pool's thread would fight it over `sys.stdout`, and a
+    hand-off's output is relayed line by line by `PartialRunner.element` either way."""
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
     out = TeeStream(sys.stdout, passthrough=not QUIET)
     err = TeeStream(sys.stderr, passthrough=not QUIET)
     try:
@@ -300,7 +314,15 @@ class Studyflow:
     def __init__(self, definitions: ET.Element, plan: str = "") -> None:
         self.definitions = definitions
         self.plan = plan
-        self.process = self._find_process()
+        # Every pool with a flow is walked, all at once; the study's own process is the one carrying
+        # `studyflow:Study` (its id, name, seed, and properties are the run's), else the first.
+        self.processes = [
+            element for element in definitions
+            if local(element) == "process" and any(local(c) == "sequenceFlow" for c in element)
+        ]
+        if not self.processes:
+            raise ValueError("no process with a sequence flow to walk")
+        self.process = next((p for p in self.processes if carries_study(p)), self.processes[0])
 
         self.elements: dict[str, ET.Element] = {}
         self.outgoing: dict[str, list[ET.Element]] = {}
@@ -330,22 +352,34 @@ class Studyflow:
                 else:
                     declare(element)
 
-        index(self.process)
+        for process in self.processes:
+            index(process)
 
+        # Message flows between two steps of different pools: the target waits until its source is reached.
+        self.message_sources: dict[str, list[str]] = {}
+        for collaboration in definitions:
+            if local(collaboration) != "collaboration":
+                continue
+            for flow in collaboration:
+                source, target = flow.get("sourceRef"), flow.get("targetRef")
+                if local(flow) == "messageFlow" and source in self.elements and target in self.elements:
+                    self.message_sources.setdefault(target, []).append(source)
+
+        # Identifier-shaped names, every one of them, for the staleness rules (over-broad by design); an
+        # ambiguous name, one two elements share or one that is also an element's id, binds no value.
         self.names: dict[str, str] = {}
         for element_id, element in self.elements.items():
             name = element.get("name")
             if name and re.fullmatch(r"[A-Za-z_]\w*", name):
                 self.names[element_id] = name
+        taken = list(self.names.values())
+        self.ambiguous: set[str] = {
+            name for eid, name in self.names.items() if taken.count(name) > 1 or (name in self.elements and name != eid)
+        }
+        self.bound_names: dict[str, str] = {eid: name for eid, name in self.names.items() if name not in self.ambiguous}
 
         self._consumers: tuple[set[str], str] | None = None
         self._products: set[str] | None = None
-
-    def _find_process(self) -> ET.Element:
-        for element in self.definitions:
-            if local(element) == "process" and any(local(c) == "sequenceFlow" for c in element):
-                return element
-        raise ValueError("no process with a sequence flow to walk")
 
 
     def activity_dependencies(self, element: ET.Element) -> tuple[set[str], str]:
@@ -659,6 +693,8 @@ def element_digest(element: ET.Element) -> dict[str, Any]:
         "ioSlots": io_slots,
         "inputs": inputs,
         "outputs": outputs,
+        # A choreography task's bands, in order; `initiatingParticipantRef` is among the attributes.
+        "participants": [text_of(child) for child in element if local(child) == "participantRef" and text_of(child)],
     }
 
 
@@ -674,22 +710,26 @@ def study_dependencies(studyflow: Studyflow) -> list[str]:
 
 
 def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
-    """The plan as one JSON document for partial runners: the study, every element by id (pool participants
-    included), and the directories a boundary input may be staged from. A runner reads this, never the diagram."""
+    """The plan as one JSON document for partial runners: the study, every element by id (pool participants and
+    message flows included), and the directories a boundary input may be staged from. A runner reads this, never the diagram."""
     elements = {element_id: element_digest(element) for element_id, element in studyflow.elements.items()}
     for element_id, digest in elements.items():
         digest["parent"] = studyflow.parents.get(element_id)  # the container, for lexical `{name}` lookups outward
     process = studyflow.process
     title = process.get("name")
-    for collaboration in studyflow.definitions:
-        if local(collaboration) != "collaboration":
+    for root in studyflow.definitions:
+        # A message (`messageRef` on a flow) and its item definition say what a message flow carries.
+        if local(root) in ("message", "itemDefinition") and root.get("id"):
+            elements[root.get("id")] = element_digest(root)
+        if local(root) != "collaboration":
             continue
-        for participant in collaboration:
-            if local(participant) != "participant" or not participant.get("id"):
+        for child in root:
+            # A message flow to another pool is how a runner learns that a step exchanges messages with it.
+            if local(child) not in ("participant", "messageFlow") or not child.get("id"):
                 continue
-            elements[participant.get("id")] = element_digest(participant)
-            if not title and participant.get("processRef") == process.get("id"):
-                title = participant.get("name")
+            elements[child.get("id")] = element_digest(child)
+            if not title and local(child) == "participant" and child.get("processRef") == process.get("id"):
+                title = child.get("name")
     return {
         "study": {
             "id": process.get("id"), "name": title or process.get("id"), "seed": studyflow_attr(process, "seed"),
@@ -697,6 +737,8 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
         },
         "sources": [str(path) for path in sources],
         "elements": elements,
+        # The names a placeholder may cite (`{Play.trials}`): one element each, never an id's twin.
+        "names": studyflow.bound_names,
     }
 
 
@@ -803,7 +845,11 @@ class Runner:
         self.branched = branched
         self.values: dict[str, Any] = {}
         self.state = State(PROV.read_state(studyflow.plan) if PROV is not None else {})
-        self.depth = 0
+        self._thread = threading.local()  # each pool walks on its own thread, at its own depth
+        self.lock = threading.RLock()  # the values, the state tree, and the repository are shared by the pools
+        self.arrived = threading.Condition(self.lock)  # where a message flow's target waits for its source
+        self.arrived_at: set[str] = set()  # reached this run; `_meta.reached` counts across runs and cannot say
+        self.failed: BaseException | None = None
         self._deferred: list[tuple[str, str, int, str]] | None = None
         self.prior_records = {} if fresh or PROV is None else PROV.element_records(studyflow)
         self.completed: dict[str, str] = {}
@@ -822,6 +868,14 @@ class Runner:
             run=self.repo_dir.name,
             who=PROV.current_user(),
         ) if PROV is not None else NoRecord()
+
+    @property
+    def depth(self) -> int:
+        return getattr(self._thread, "depth", 0)
+
+    @depth.setter
+    def depth(self, value: int) -> None:
+        self._thread.depth = value
 
     @property
     def indent(self) -> str:
@@ -858,19 +912,21 @@ class Runner:
         """Record entries since the last checkpoint ride in the commit body; git is their only home."""
         if self.repo is None:
             return
-        steps = self.record.steps_since(self.recorded)
-        trailers = {"Prov-Run": self.repo_dir.name, "Prov-When": when, **(extra_trailers or {})}
-        self.repo.commit(subject, trailers, when=when, body=json.dumps(steps, default=str) if steps else None)
-        self.recorded = len(self.record.entries)
+        with self.lock:  # one commit at a time: the pools share the repository
+            steps = self.record.steps_since(self.recorded)
+            trailers = {"Prov-Run": self.repo_dir.name, "Prov-When": when, **(extra_trailers or {})}
+            self.repo.commit(subject, trailers, when=when, body=json.dumps(steps, default=str) if steps else None)
+            self.recorded = len(self.record.entries)
 
     def store(self, element_id: str, value: Any) -> None:
-        self.values[element_id] = value
+        with self.lock:
+            self.values[element_id] = value
 
     def namespace(self) -> dict[str, Any]:
         space: dict[str, Any] = {"state": self.state}
-        for element_id, value in self.values.items():
+        for element_id, value in list(self.values.items()):
             space[element_id] = value
-            name = self.studyflow.names.get(element_id)
+            name = self.studyflow.bound_names.get(element_id)
             if name:
                 space[name] = value
         return space
@@ -950,14 +1006,15 @@ class Runner:
     def json_values(self) -> dict:
         """The JSON-able shadow of the run's values, for a partial runner's placeholders and intents."""
         shadow: dict[str, Any] = {}
-        for element_id, value in self.values.items():
-            try:
-                json.dumps(plain(value))
-            except (TypeError, ValueError):
-                continue
-            shadow[element_id] = plain(value)
-        # The state tree itself, under the one key no element may take: `state.<scope>.<property>` and `state._meta`.
-        shadow["state"] = json.loads(json.dumps(self.state.tree, default=str))
+        with self.lock:  # another pool may be adopting a hand-off into the same values and tree
+            for element_id, value in list(self.values.items()):
+                try:
+                    json.dumps(plain(value))
+                except (TypeError, ValueError):
+                    continue
+                shadow[element_id] = plain(value)
+            # The state tree itself, under the one key no element may take: `state.<scope>.<property>` and `state._meta`.
+            shadow["state"] = json.loads(json.dumps(self.state.tree, default=str))
         return shadow
 
     def stale_inputs(self, element: ET.Element) -> bool:
@@ -1163,14 +1220,15 @@ class Runner:
         sent = self.json_values()
         reported = runner.element(element_id, sent)
         entry["_runnerMs"] = reported.get("durationMs")
-        for key, value in reported.items():
-            if key == "state" and isinstance(value, dict):
-                # Properties the runner wrote (a data edge into a `bpmn:Property`): scope by scope, `_meta` stays ours.
-                for scope, held in value.items():
-                    if scope != "_meta" and isinstance(held, dict) and held != (sent.get("state") or {}).get(scope):
-                        self.state.tree.setdefault(scope, {}).update(held)
-            elif key not in ("result", "durationMs", "error") and sent.get(key, ...) != value:
-                self.store(key, value)
+        with self.lock:
+            for key, value in reported.items():
+                if key == "state" and isinstance(value, dict):
+                    # Properties the runner wrote (a data edge into a `bpmn:Property`): scope by scope, `_meta` stays ours.
+                    for scope, held in value.items():
+                        if scope != "_meta" and isinstance(held, dict) and held != (sent.get("state") or {}).get(scope):
+                            self.state.tree.setdefault(scope, {}).update(held)
+                elif key not in ("result", "durationMs", "error") and sent.get(key, ...) != value:
+                    self.store(key, value)
         targets = output_targets(element)
         if targets:
             entry["generated"] = targets
@@ -1312,12 +1370,56 @@ class Runner:
             f"  rootSeed {self.record.seed}  repo {self.repo_dir}",
             level=logging.DEBUG,
         )
+        for name in sorted(self.studyflow.ambiguous):
+            log_event(
+                "name.ambiguous",
+                f"  {name} names more than one element, or is also an id: `{{{name}.…}}` cites nothing until it is unique",
+                level=logging.WARNING,
+            )
         # Study-scoped properties persist across runs, so only ones the tree lacks take their `value`;
         # a plain element's properties live with the study (`Excluded (n={count})` counts across runs).
         for scope in self.studyflow.properties:
             if local(self.studyflow.elements.get(scope, process)) not in CONTAINER_TAGS:
                 self.start_scope(scope, reset=False)
-        self.walk(self.studyflow.start_event(), max_steps=max_steps)
+        pools = self.studyflow.processes
+        if len(pools) == 1:
+            self.walk(self.studyflow.start_event(), max_steps=max_steps)
+            return
+        # Every pool runs at once, each on its own token; the message flows are where they wait for each other.
+        threads = [
+            threading.Thread(target=self.walk_pool, args=(pool, max_steps), name=pool.get("id") or "pool")
+            for pool in pools
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        if self.failed is not None:
+            raise self.failed
+
+    def walk_pool(self, pool: ET.Element, max_steps: int) -> None:
+        try:
+            self.walk(self.studyflow.start_event(pool), max_steps=max_steps)
+        except BaseException as error:  # noqa: BLE001 - the first pool to fail ends the run; the others notice while waiting
+            with self.arrived:
+                self.failed = self.failed or error
+                self.arrived.notify_all()
+
+    def await_messages(self, element_id: str) -> None:
+        """A step with incoming message flows starts once each source step has been reached, so two steps
+        with flows both ways start together and exchange messages while they run (a task on the screen
+        sending each trial to a robot and taking its answer back)."""
+        sources = self.studyflow.message_sources.get(element_id) or []
+        with self.arrived:
+            self.arrived_at.add(element_id)
+            self.arrived.notify_all()  # this element is reached: whoever waits for it may go
+            pending = [source for source in sources if source not in self.arrived_at]
+            if pending:
+                self.event("message.waiting", f"◐ {element_id}  (waiting for {', '.join(pending)})")
+            while any(source not in self.arrived_at for source in sources):
+                if self.failed is not None:
+                    raise RuntimeError(f"{element_id}: its message source will never arrive, another pool failed")
+                self.arrived.wait()
 
     def walk(self, element, depth: int = 0, max_steps: int = 1000) -> None:
         """A sub-process is walked one level in, but values are not scoped with it (BPMN §10.4.7)."""
@@ -1333,6 +1435,7 @@ class Runner:
                 self.state.trace.append(element_id)
                 reached = self.state.tree.setdefault("_meta", {}).setdefault("reached", {})
                 reached[element_id] = reached.get(element_id, 0) + 1
+                self.await_messages(element_id)
                 tag = local(element)
                 name = self.studyflow.name_of(element_id)
 
@@ -1524,6 +1627,8 @@ def main() -> int:
 
     who = PROV.current_user() if PROV is not None else ""
     repo = PROV.RunRepo(repo_dir) if PROV is not None else NoRepo()
+    # A run interrupted mid-commit leaves git's lock behind; nothing else commits into a run repository.
+    (repo_dir / ".git" / "index.lock").unlink(missing_ok=True)
     repo.open()
     # A repository created just now has nothing to attribute to anyone: its baseline is the `started` commit.
     if not repo.created and repo.dirty():

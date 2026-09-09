@@ -335,7 +335,11 @@ class Compiler {
     if (this.computingOwnAttrs.has(qualified)) return [];
     this.computingOwnAttrs.add(qualified);
 
-    const own = (found.raw.properties ?? []).map((p) => this.compileAttribute(found.prefix, p));
+    // A property holding BPMN elements (data associations, an io specification) is structure the canvas draws,
+    // not an attribute the inspector edits; expression and documentation bodies are the inspector's to edit.
+    const structural = (p: SchemaPropertyModel): boolean => !p.isAttr && typeof p.type === 'string'
+      && p.type.startsWith('bpmn:') && !['bpmn:Expression', 'bpmn:FormalExpression', 'bpmn:Documentation'].includes(p.type);
+    const own = (found.raw.properties ?? []).filter((p) => !structural(p)).map((p) => this.compileAttribute(found.prefix, p));
 
     this.computingOwnAttrs.delete(qualified);
     this.ownAttrCache.set(qualified, own);

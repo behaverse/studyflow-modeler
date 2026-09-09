@@ -86,7 +86,9 @@ test.describe('studyflow YAML format', () => {
     const ext = process.flowElements.Warmup_1Back.extensionElements[0];
     expect(ext.type).toBe('cognitive:BehaverseTask');
     expect(ext.configurations.Blocks.Demo5_Warmup.Parameters.NValue).toBe(1);
-    expect(ext.botConfigurations.LLM.Provider).toBe('ollama');
+    // Who plays is the task's participant, an actor the collaboration declares, not a bot setting on the task.
+    expect(process.flowElements.Warmup_1Back.participantRef).toEqual(['Actor_Ollama__gemma4_e2b_mlx']);
+    expect(doc.Demo5_OllamaBot_Actors.participants.Actor_Ollama__gemma4_e2b_mlx.extensionElements[0].identifier).toBe('ollama:gemma4:e2b-mlx');
 
     // Geometry is one line per DI node: `x y width height`, and `x,y x,y` for a route.
     const start = process.flowElements.Start;
@@ -307,6 +309,49 @@ P:
     const xml2 = await studyflowToXml(yaml1, moddle3);
     const moddle4 = new BpmnModdle(structuredClone(packages)) as any;
     expect(await xmlToStudyflow(xml2, moddle4)).toBe(yaml1);
+  });
+
+  test('a message flow names its message, and the message its item definition, through a round trip', async () => {
+    const text = `id: msg
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Screen:
+      processRef: S
+    Robot:
+      processRef: R
+  messageFlows:
+    Msg_Trial:
+      sourceRef: Play
+      targetRef: Answer
+      messageRef: Trial
+Trial:
+  type: Message
+  itemRef: Trial_Item
+Trial_Item:
+  type: ItemDefinition
+  structureRef: behaverse:Trial
+S:
+  type: Process
+  flowElements:
+    Play:
+      type: Task
+R:
+  type: Process
+  flowElements:
+    Answer:
+      type: ReceiveTask
+`;
+    const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
+    expect(xml).toContain('messageRef="Trial"');
+    expect(xml).toContain('<bpmn:message id="Trial" itemRef="Trial_Item" />');
+    expect(xml).toContain('<bpmn:itemDefinition id="Trial_Item" structureRef="behaverse:Trial" />');
+    const back = await xmlToStudyflow(xml, new BpmnModdle(structuredClone(packages)) as any);
+    expect(back).toContain('messageRef: Trial\n');
+    expect(back).toContain('Trial:\n  type: Message\n  itemRef: Trial_Item\n');
+    expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');
   });
 
   test('sniffer distinguishes XML from YAML', () => {

@@ -62,35 +62,24 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
     }
   }
 
-  if (payload.agentType === 'bot') {
-    const raw = readBehaverseAttribute(node.businessObject, 'botConfigurations');
-    if (raw && raw.trim()) {
-      let parsed: unknown;
-      try {
-        parsed = yaml.load(raw);
-      } catch (err) {
-        issues.push({
-          nodeId: node.id,
-          message: `botConfigurations on '${payload.scene}' is not valid YAML: ${(err as Error).message}. Check the indentation and quoting.`,
-        });
-        return issues;
-      }
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        issues.push({
-          nodeId: node.id,
-          message: `botConfigurations on '${payload.scene}' must be a mapping of setting names to values, `
-            + `one per line (got ${Array.isArray(parsed) ? 'a list' : typeof parsed}).`,
-        });
-        return issues;
-      }
+  // `Bot:` reaches Unity's per-task Bot field by field, so it must be one flat mapping (runner-only keys aside).
+  const bot = authored?.Bot;
+  if (bot != null) {
+    if (typeof bot !== 'object' || Array.isArray(bot)) {
+      issues.push({
+        nodeId: node.id,
+        message: `Bot under configurations on '${payload.scene}' must be a mapping of setting names to values, `
+          + `one per line (got ${Array.isArray(bot) ? 'a list' : typeof bot}).`,
+      });
+    } else {
       const runnerOnly = new Set<string>(RUNNER_ONLY_BOT_KEYS);
-      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      for (const [k, v] of Object.entries(bot as Record<string, unknown>)) {
         if (runnerOnly.has(k)) continue;
         if (v !== null && typeof v === 'object') {
           issues.push({
             nodeId: node.id,
-            message: `botConfigurations on '${payload.scene}' must stay flat, but '${k}' holds a nested ${Array.isArray(v) ? 'list' : 'mapping'}. `
-              + 'Move its entries up to top-level settings.',
+            message: `Bot under configurations on '${payload.scene}' must stay flat, but '${k}' holds a nested ${Array.isArray(v) ? 'list' : 'mapping'}. `
+              + 'Move its entries up to top-level Bot settings.',
           });
           break;
         }

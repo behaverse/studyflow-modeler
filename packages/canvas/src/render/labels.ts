@@ -4,7 +4,9 @@
  * inline editor.
  */
 
+import { isTypedChoreography } from '@canvas/model/choreography.ts';
 import type { Bounds, Point, SceneEdge, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
+import { categoryOf } from '@canvas/render/shapes.ts';
 import { append, create } from '@canvas/render/svg.ts';
 
 export const LABEL_FONT = '"IBM Plex Sans", Helvetica, sans-serif';
@@ -17,6 +19,8 @@ const PAD = 2;
 const ELLIPSIS = '…';
 /** Height of the strip an expanded container's caption sits in. */
 export const TOP_STRIP = 24;
+/** The rows a task keeps clear of its name: the type glyph's at the top, the markers' at the bottom. */
+export const CHROME = { head: 30, foot: 20 } as const;
 
 /** The box a line of text needs (heuristic; includes the padding `wrap` leaves). */
 export function textWidth(text: string, fontSize: number): number {
@@ -90,38 +94,35 @@ export function drawLines(
 
 // --- internal labels (drawn inside the shape) --------------------------------
 
-function internalLines(node: SceneNode, name: string, fontSize: number): string[] {
-  const maxLines = Math.max(1, Math.min(4, Math.floor(node.height / LINE_HEIGHT)));
-  return wrap(name, node.width - 4, fontSize, maxLines);
-}
-
-/** An expanded container captions its top strip; everything else centres its name. */
-function internalFirstY(node: SceneNode, lines: number): number {
-  if (node.isExpanded === true) return TOP_STRIP / 2;
-  return node.height / 2 - ((lines - 1) * LINE_HEIGHT) / 2;
-}
-
-export function drawInternalLabel(
-  container: SVGElement,
-  node: SceneNode,
-  name: string,
-  color: string,
-  fontSize: number = FONT.internal,
-): void {
+export function drawInternalLabel(container: SVGElement, node: SceneNode, name: string, color: string): void {
   if (!name) return;
-  const lines = internalLines(node, name, fontSize);
-  drawLines(container, lines, node.width / 2, internalFirstY(node, lines.length), {
-    fontSize,
-    color,
-    weight: WEIGHT.internal,
-  });
+  const region = internalLabelRegion(node, name);
+  const maxLines = Math.max(1, Math.min(4, Math.floor(region.height / LINE_HEIGHT)));
+  const lines = wrap(name, region.width - 4, FONT.internal, maxLines);
+  const firstY = region.y + region.height / 2 - ((lines.length - 1) * LINE_HEIGHT) / 2;
+  drawLines(container, lines, region.x + region.width / 2, firstY, { fontSize: FONT.internal, color, weight: WEIGHT.internal });
 }
 
-/** The node-local region an internal caption is edited in. */
-export function internalLabelRegion(node: SceneNode): Bounds {
-  return node.isExpanded === true
-    ? { x: 0, y: 0, width: node.width, height: TOP_STRIP }
-    : { x: 0, y: 0, width: node.width, height: node.height };
+/**
+ * The node-local box an internal caption is centred in (and edited in). An expanded
+ * container captions its top strip. A task's name sits between the glyph row and the
+ * marker row whether or not it carries either, so names line up across a row of tasks;
+ * a name that needs more lines than that band holds, or a shape too short for it, takes
+ * the next larger box. A plain choreography task has no glyph (its bands are its point),
+ * so its name takes the whole middle band.
+ */
+export function internalLabelRegion(node: SceneNode, name = ''): Bounds {
+  const { width, height } = node;
+  if (node.isExpanded === true) return { x: 0, y: 0, width, height: TOP_STRIP };
+  const category = categoryOf(node.type);
+  const bands = category === 'task' || (category === 'choreography' && isTypedChoreography(node.businessObject))
+    ? [[CHROME.head, height - CHROME.foot], [CHROME.head, height]]
+    : [];
+  const needed = Math.max(LINE_HEIGHT, wrap(name, width - 4, FONT.internal, 4).length * LINE_HEIGHT);
+  for (const [top, bottom] of bands) {
+    if (bottom - top >= needed) return { x: 0, y: top, width, height: bottom - top };
+  }
+  return { x: 0, y: 0, width, height };
 }
 
 // --- external labels (their own element) -------------------------------------

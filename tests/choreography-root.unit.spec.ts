@@ -131,3 +131,18 @@ test.describe('choreography wire format', () => {
     expect(process.extensionElements?.values?.[0]?.$type).toBe('studyflow:Study');
   });
 });
+
+/** A collaboration with no pool only holds actors for the process; a plane naming it is pointed at the process on load. */
+test('a plane naming a collaboration with no pool is pointed at the process on load; one with a pool is left alone', async () => {
+  const xml = (participant: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" id="Definitions_1">
+  <bpmn2:collaboration id="Actors">${participant}</bpmn2:collaboration>
+  <bpmn2:process id="Process_1" isExecutable="false"><bpmn2:startEvent id="Start" /></bpmn2:process>
+  <bpmndi:BPMNDiagram id="Diagram_1"><bpmndi:BPMNPlane id="Plane_1" bpmnElement="Actors" /></bpmndi:BPMNDiagram>
+</bpmn2:definitions>`;
+  const planeRoot = async (source: string) =>
+    (await moddle().fromXML(await fromWireXml(source, moddle()))).rootElement.diagrams[0].plane.bpmnElement.id;
+
+  expect(await planeRoot(xml('<bpmn2:participant id="Claude" name="Claude" />'))).toBe('Process_1');
+  expect(await planeRoot(xml('<bpmn2:participant id="Pool" name="Lab" processRef="Process_1" />'))).toBe('Actors');
+});

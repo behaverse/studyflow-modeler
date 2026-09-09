@@ -81,7 +81,8 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
     return () => {
       cancelled = true;
     };
-  }, []);
+    // Each is fixed for the node's mount: the runner keys a node by its job and hands it stable callbacks.
+  }, [job, session, log, complete, abort]);
 
   return (
     <div className={nodeStyles.behaverseStage}>

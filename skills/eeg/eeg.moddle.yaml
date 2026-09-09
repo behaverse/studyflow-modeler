@@ -94,7 +94,7 @@ types:
     superClass:
       - bpmn:Participant
     meta:
-      icon: iconify mdi--head-flash-outline
+      icon: iconify ph--head-circuit
     properties:
       # `device` infers the `acquisition` role; keep the name.
       - name: device
@@ -163,7 +163,7 @@ types:
     meta:
       roles:
         - acquisition
-      icon: iconify mdi--waveform
+      icon: iconify ph--waveform
     properties:
       # Same vocabulary as Session#modalities.
       - name: modalities
@@ -188,7 +188,7 @@ types:
 examples:
   - title: EEG session
     description: An EEG session - fit the cap, record a baseline, run a task, export.
-    icon: iconify mdi--head-flash-outline
+    icon: iconify ph--head-circuit
     studyflow:
       id: eeg_session
       definitions:
@@ -260,7 +260,7 @@ templates:
       type: Session
       bpmn:name: EEG session
       bpmn:documentation: An EEG session covering cap fitting through data export.
-      icon: iconify mdi--head-flash-outline
+      icon: iconify ph--head-circuit
       keywords:
         - eeg
         - session
@@ -282,7 +282,7 @@ templates:
         - id: eeg_mount
           type: bpmn:ManualTask
           bpmn:name: Mount cap & check impedance
-          icon: iconify mdi--head-plus-outline
+          icon: iconify ph--user-focus
           bpmn:documentation: |
             Fit the cap, place the electrodes, and check that every one of them
             makes good contact before recording starts.
@@ -291,7 +291,7 @@ templates:
         - id: eeg_baseline
           type: cognitive:Rest
           bpmn:name: Resting baseline
-          icon: iconify mdi--brain
+          icon: iconify ph--brain
           restDuration: 120
           eyes: closed
           x: 360
@@ -299,7 +299,7 @@ templates:
         - id: eeg_task
           type: cognitive:CognitiveTask
           bpmn:name: Cognitive task
-          icon: iconify mdi--puzzle-outline
+          icon: iconify ph--puzzle-piece
           instrument: psychopy
           configurations: |
             triggerChannel: markers  # stimulus marker stream sent with biosignals
@@ -308,7 +308,7 @@ templates:
         - id: eeg_export
           type: bpmn:ServiceTask
           bpmn:name: Export recording
-          icon: iconify mdi--database-arrow-down-outline
+          icon: iconify ph--download-simple
           bpmn:documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
           implementation: python://datatrove.pipeline.writers.ParquetWriter
           additionalArguments: "output_folder: bids/"
@@ -340,7 +340,7 @@ templates:
       bpmn:name: EEGPrep
       type: bpmn:ServiceTask
       bpmn:documentation: Filters, cleans, and normalizes BIDS EEG data (EEGLAB clean_rawdata, ASR, ICA + ICLabel).
-      icon: iconify mdi--sine-wave
+      icon: iconify ph--wave-sine
       keywords:
         - eeg
         - eegprep
@@ -360,7 +360,7 @@ templates:
       bpmn:name: MNE-BIDS-Pipeline
       type: bpmn:ServiceTask
       bpmn:documentation: Filtering, epoching, SSP/ICA artifact removal, and evoked responses, driven by one config file.
-      icon: iconify mdi--sine-wave
+      icon: iconify ph--wave-sine
       keywords:
         - eeg
         - meg
@@ -377,7 +377,7 @@ templates:
       bpmn:name: fMRIPrep
       type: bpmn:ServiceTask
       bpmn:documentation: Preprocesses BIDS fMRI data into normalized, denoised images.
-      icon: iconify mdi--brain
+      icon: iconify ph--brain
       keywords:
         - fmri
         - fmriprep

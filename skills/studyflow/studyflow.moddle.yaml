@@ -60,7 +60,7 @@ enumerations:
         icon: bids-dataset-icon
       - name: Psych-DS
         value: psych-ds
-        icon: iconify uil--flask
+        icon: iconify ph--flask
       - name: NWB (Neurodata Without Borders)
         value: nwb
   - name: BDMDataLevelEnum
@@ -307,6 +307,26 @@ types:
         type: String
         meta:
           pinned: true
+  # BPMN gives a choreography task no data of its own. A cognitive task is one (the study's software presents,
+  # the actor on the lower band responds), and it reads settings and writes records, so here it may.
+  - name: ChoreographyData
+    description: A choreography task that reads and writes data through data associations, as a cognitive task does.
+    extends:
+      - bpmn:ChoreographyTask
+    isAbstract: true
+    properties:
+      - name: dataInputAssociations
+        description: The data this exchange reads.
+        isMany: true
+        type: bpmn:DataInputAssociation
+      - name: dataOutputAssociations
+        description: The data this exchange writes.
+        isMany: true
+        type: bpmn:DataOutputAssociation
+      - name: ioSpecification
+        description: The standard BPMN form of the same, written on export.
+        type: bpmn:InputOutputSpecification
+
   - name: PropertyValue
     description: The initial value of a declared property; names starting with `_` are reserved for the runner.
     extends:
@@ -346,7 +366,7 @@ types:
         type: String
         meta:
           # Overlay icon drawn on the event when this attribute is set.
-          icon: iconify mdi--shield-check-outline
+          icon: iconify ph--shield-check
           optional: true
   - name: SequenceFlow
     extends:
@@ -375,7 +395,7 @@ types:
         meta:
           optional: true
           # Overlay icon drawn on the event when this attribute is set.
-          icon: iconify mdi--exit-to-app
+          icon: iconify ph--sign-out
       - name: completionCodeType
         description: How the completion code is produced.
         isAttr: true
@@ -429,7 +449,7 @@ types:
       - bpmn:ChoreographyTask
     isAbstract: true
     meta:
-      icon: iconify mdi--account-switch-outline
+      icon: iconify ph--users
 
   # ===========================================================================
   # Data elements. Each is a BPMN data reference with a layout: what kind of
@@ -441,7 +461,7 @@ types:
     superClass:
       - bpmn:DataObjectReference
     meta:
-      icon: iconify mdi--table-column
+      icon: iconify ph--columns
       # An attribute that references a Schema (`Dataset#schema`) edits it as text.
       editor: code
     properties:
@@ -552,7 +572,7 @@ types:
       - bpmn:DataObjectReference
     isAbstract: false
     meta:
-      icon: iconify mdi--table
+      icon: iconify ph--table
     properties:
       - name: format
         description: On-disk format of the table.
@@ -575,7 +595,7 @@ types:
       - bpmn:DataObjectReference
     isAbstract: false
     meta:
-      icon: iconify mdi--chart-line
+      icon: iconify ph--chart-line
     properties:
       - name: samplingRate
         description: Samples per second.
@@ -626,7 +646,7 @@ types:
       - bpmn:DataObjectReference
     isAbstract: false
     meta:
-      icon: iconify mdi--flash-outline
+      icon: iconify ph--lightning
     properties:
       - name: eventTypes
         description: Kinds of event the table holds, one per entry (`stimulus`, `response`).
@@ -877,7 +897,7 @@ types:
     superClass:
       - bpmn:DataObjectReference
     meta:
-      icon: iconify mdi--tune-variant
+      icon: iconify ph--sliders-horizontal
     properties:
       - name: values
         description: The configuration, as a YAML mapping.

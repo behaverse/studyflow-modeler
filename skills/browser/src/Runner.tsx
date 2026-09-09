@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { loadAllSchemas } from '@core/notation/loader';
 import { shouldRecordEvents, setRecordEvents } from '@runner/settings';
@@ -108,11 +108,12 @@ const DEMOS: Record<string, string> = Object.fromEntries(
 );
 
 export function Runner() {
-  const params = new URLSearchParams(window.location.search);
-  const diagram = params.get('diagram') ?? '';
-  const source = resolveRunSource(diagram, DEMOS);
-  const handoffId = source?.kind === 'handoff' ? source.id : '';
-  const parameters = readParameters(params);
+  // The query string is fixed for the page's life: read it once, so the effects below have stable inputs.
+  const { source, handoffId, parameters } = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    const found = resolveRunSource(params.get('diagram') ?? '', DEMOS);
+    return { source: found, handoffId: found?.kind === 'handoff' ? found.id : '', parameters: readParameters(params) };
+  }, []);
   const dataServerConfig = loadDataServerConfig();
 
   const [seed, setSeed] = useState<number | undefined>();
@@ -189,7 +190,7 @@ export function Runner() {
       );
       setPhase('error');
     });
-  }, [diagram]);
+  }, [source, addLog]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -302,7 +303,7 @@ export function Runner() {
         if (handoffId) clearDiagramHandoff(handoffId);
       }
     })();
-  }, [xml]);
+  }, [xml, addLog, handoffId, parameters]);
 
   if (!xml) return <Help onFileLoaded={setXml} />;
 

@@ -15,6 +15,7 @@ import {
   ChoreographyParticipantsSection,
   DataFlowSection,
   LoopSection,
+  MessageSection,
   StateSection,
 } from '@modeler/inspector/sections';
 import { inspector as s, field as fld } from '@modeler/inspector/styles';
@@ -102,7 +103,7 @@ const TAB_SECTIONS: Record<string, {
   extras?: ComponentType<ExtraSectionProps>[];
 }> = {
   Execution: { replace: ExecutionSection },
-  General: { extras: [ChoreographyParticipantsSection, WireTransformationSection] },
+  General: { extras: [ChoreographyParticipantsSection, WireTransformationSection, MessageSection] },
 };
 
 type Props = {

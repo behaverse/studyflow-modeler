@@ -176,7 +176,12 @@ test.describe('what the inspector reports for a step', () => {
 
   test('reads a pool\'s properties from the process it references', async () => {
     // In a collaboration the canvas offers the Collaboration and its pools, never the process itself.
-    const { definitions } = await read('reachy_participant.studyflow.png');
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const { rootElement: definitions } = await moddle.fromXML(`<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="C"><bpmn:participant id="Pool_Reachy" name="Reachy Mini" processRef="Reachy_Participant"/></bpmn:collaboration>
+  <bpmn:process id="Reachy_Participant"><bpmn:property id="P_screenGaze" name="screenGaze"/><bpmn:startEvent id="S"/></bpmn:process>
+</bpmn:definitions>`);
     const collaboration = definitions.rootElements.find((root: any) => root.$type === 'bpmn:Collaboration');
     const pool = collaboration.participants.find((p: any) => p.id === 'Pool_Reachy');
 

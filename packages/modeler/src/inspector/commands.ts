@@ -1,6 +1,9 @@
 import { isReservedStateKey } from '@core/document';
 import { setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
-import { ensureChoreographyParticipants } from '@modeler/shape/choreographyParticipants';
+import {
+  ensureChoreographyParticipants, nameNewActor, selectBandParticipant, setParticipantKind, type ParticipantKind,
+} from '@modeler/shape/choreographyParticipants';
+import { isTypedChoreography } from '@core/document';
 import { definitionsOf, getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
 
@@ -36,6 +39,7 @@ export type UpdateChoreographyParticipantsCommand = {
   element: any;
 } & (
   | { field: 'top' | 'bottom'; value: string }
+  | { field: 'top' | 'bottom'; select: any | null }
   | { field: 'initiator'; value: 'top' | 'bottom' }
 );
 
@@ -45,7 +49,8 @@ export function runUpdateChoreographyParticipants(
 ): void {
   const { canvas: mutate, model } = modeler;
   // `mutate` covers the `modeling` surface the helper uses; the factory shim maps `create` onto the facade.
-  const [top, bottom] = ensureChoreographyParticipants(command.element, mutate, { create: model.createBusinessObject });
+  const factory = { create: model.createBusinessObject };
+  const [top, bottom] = ensureChoreographyParticipants(command.element, mutate, factory);
 
   if (command.field === 'initiator') {
     const bo = toBusinessObject(command.element);
@@ -56,8 +61,30 @@ export function runUpdateChoreographyParticipants(
     return;
   }
 
+  if ('select' in command) {
+    selectBandParticipant(command.element, mutate, factory, command.field, command.select);
+    return;
+  }
   const participant = command.field === 'top' ? top : bottom;
+  // A typed task's actor that is a drawn pool keeps its name: typing another names a new actor for this task.
+  if (isTypedChoreography(toBusinessObject(command.element)) && participant?.processRef) {
+    nameNewActor(command.element, mutate, factory, command.value);
+    return;
+  }
   mutate.updateModdleProperties(command.element, participant, { name: command.value });
+}
+
+
+export type UpdateParticipantKindCommand = {
+  type: 'UpdateParticipantKind';
+  /** The choreography task whose band shows the participant; the edit is reported on it. */
+  element: any;
+  participant: any;
+  kind: ParticipantKind | '';
+};
+
+export function runUpdateParticipantKind(modeler: Editor, command: UpdateParticipantKindCommand): void {
+  setParticipantKind(command.element, modeler.canvas, modeler.model, command.participant, command.kind);
 }
 
 
@@ -216,6 +243,52 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
   const itemDefinition = ensureItemDefinition(modeler, element, businessObject, command.itemType);
   if (itemDefinition) {
     modeler.canvas.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: itemDefinition });
+  }
+}
+
+
+export type UpdateMessageCommand = {
+  type: 'UpdateMessage';
+  /** The message flow. */
+  element: any;
+  /** What the flow carries, as an item definition's `structureRef`; '' names no message. */
+  structureRef: string;
+};
+
+/** A message flow's `messageRef`: a `bpmn:Message` root per item definition, made on first use and dropped with its last flow. */
+export function runUpdateMessage(modeler: Editor, command: UpdateMessageCommand): void {
+  const { element } = command;
+  const flow = toBusinessObject(element);
+  const definitions = findDefinitions(modeler, flow);
+  if (!flow || !definitions) return;
+  const rootElements: any[] = definitions.rootElements ?? [];
+  const previous = flow.get?.('messageRef') ?? flow.messageRef;
+  const structureRef = command.structureRef.trim();
+
+  const itemDefinition = structureRef ? ensureItemDefinition(modeler, element, flow, structureRef) : null;
+  let message = itemDefinition
+    ? (definitions.rootElements ?? []).find((re: any) => re?.$type === 'bpmn:Message' && re.itemRef === itemDefinition)
+    : undefined;
+  if (itemDefinition && !message) {
+    const taken = new Set((definitions.rootElements ?? []).map((re: any) => re?.id));
+    const base = `Message_${structureRef.replace(/[^\w.-]/g, '_')}`;
+    let id = base;
+    for (let i = 2; taken.has(id); i += 1) id = `${base}_${i}`;
+    message = modeler.model.createBusinessObject('bpmn:Message', { id, itemRef: itemDefinition });
+    message.$parent = definitions;
+    modeler.canvas.updateModdleProperties(element, definitions, { rootElements: [...definitions.rootElements, message] });
+  }
+  if (message === previous) return;
+  modeler.canvas.updateModdleProperties(element, flow, { messageRef: message });
+
+  // The message the flow left behind goes when no other flow carries it; its item definition may still type a property.
+  const stillCarried = previous && rootElements.some((root: any) => (root?.messageFlows ?? []).some(
+    (other: any) => other !== flow && (other.get?.('messageRef') ?? other.messageRef) === previous,
+  ));
+  if (previous && !stillCarried) {
+    modeler.canvas.updateModdleProperties(element, definitions, {
+      rootElements: (definitions.rootElements ?? []).filter((re: any) => re !== previous),
+    });
   }
 }
 

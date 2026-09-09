@@ -34,7 +34,6 @@
   "behaverseScene": "Scene",
   "environment": "Environment",
   "authors": "Authors",
-  "botConfigurations": "Bot configurations",
   "agentType": "Agent Type",
   "configurations": "Configurations",
   "implementation": "Function",
@@ -145,5 +144,19 @@
   "optimizedBy": "Optimized by",
   "scope": "Scope",
   "backend": "Backend",
-  "maxItems": "Max items"
+  "maxItems": "Max items",
+  "participant": "Participant",
+  "participantTop": "Participant (top)",
+  "participantBottom": "Participant (bottom)",
+  "participantNone": "None",
+  "participantFromPool": "the pool it sits in",
+  "participantKind": "Kind",
+  "initiatingParticipant": "Initiating participant",
+  "messageRef": "Message",
+  "kindUntyped": "Untyped",
+  "kindHuman": "Human",
+  "kindLlm": "Language model",
+  "kindAgent": "Software agent",
+  "kindInstrument": "Instrument",
+  "kindRobot": "Reachy Mini"
 }

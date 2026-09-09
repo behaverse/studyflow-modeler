@@ -15,7 +15,7 @@ import { Gestures, ZOOM_STEP } from '@canvas/interaction/gestures.ts';
 import { edgesIntersecting, hitTest, isContainerNode, nodesIntersecting, orderedNodes, pointInNode, type HitOptions } from '@canvas/interaction/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, OUTLINE_CLASS, Selection } from '@canvas/interaction/selection.ts';
-import type { ParticipantBand } from '@canvas/model/choreography.ts';
+import { tasksReferencing, type ParticipantBand } from '@canvas/model/choreography.ts';
 import { dataAssociationEnds, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
 import { writeDi } from '@canvas/model/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/model/import.ts';
@@ -856,7 +856,12 @@ export class Canvas {
     const target = this.resolveElement(element);
     if (target && target.kind !== 'label') {
       mutator.touch(target);
-      if (touched) this.redrawElements([target]);
+      if (touched) {
+        // A participant's name is drawn on every choreography task it takes a band of, not only where it was edited.
+        const renamedParticipant = moddleElement.$type === 'bpmn:Participant' && 'name' in properties;
+        this.redrawElements(renamedParticipant && target.kind === 'node'
+          ? tasksReferencing(this.scene, moddleElement, target) : [target]);
+      }
     } else {
       mutator.record(isRootElement(element) ? element : this.getRoot());
     }

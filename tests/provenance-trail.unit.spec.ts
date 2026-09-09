@@ -117,7 +117,8 @@ test.describe('provenance trail', () => {
   });
 
   test('reads the drawn root, and omits unset facts from the entry', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('agent_eval_pool.studyflow.png')));
+    // A single-process example: agent_eval_pool now declares its actors in a collaboration beside the process.
+    const definitions = stripTrail(await definitionsOf(exampleXml('reachy_session.studyflow.png')));
     const root = primaryRoot(definitions);
     expect(root.id).toBe(definitions.diagrams[0].plane.bpmnElement.id);
 
@@ -135,9 +136,19 @@ test.describe('provenance trail', () => {
 test.describe('primary root agrees with the codec', () => {
   const poolDefinitions = () => {
     const process = moddle.create('bpmn:Process', { id: 'P_1', flowElements: [] });
-    const collaboration = moddle.create('bpmn:Collaboration', { id: 'C_1' });
+    const pool = moddle.create('bpmn:Participant', { id: 'Pool_1', processRef: process });
+    const collaboration = moddle.create('bpmn:Collaboration', { id: 'C_1', participants: [pool] });
     return moddle.create('bpmn:Definitions', { rootElements: [process, collaboration] });
   };
+
+  test('a collaboration with no pool, only actors that take bands, is not the subject: the process is', () => {
+    const process = moddle.create('bpmn:Process', { id: 'P_1', flowElements: [] });
+    const actor = moddle.create('bpmn:Participant', { id: 'Claude', name: 'Claude' });
+    const collaboration = moddle.create('bpmn:Collaboration', { id: 'C_1', participants: [actor] });
+    const definitions = moddle.create('bpmn:Definitions', { rootElements: [collaboration, process] });
+    expect(primaryRoot(definitions)).toBe(process);
+    expect(inferPlaneRoot(definitions)).toBe(process);
+  });
 
   test('a pool diagram resolves to the same root on both sides', () => {
     const definitions = poolDefinitions();

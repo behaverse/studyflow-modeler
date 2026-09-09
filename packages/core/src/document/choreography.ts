@@ -1,15 +1,44 @@
 import { BPMN } from '@core/constants';
 import { getProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
-import { applyXmlPasses } from '@core/document/format';
+import { applyXmlPasses, inferPlaneRoot, isHeadlessCollaboration } from '@core/document/format';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
 
 export const DEFAULT_TOP = 'Participant A';
 export const DEFAULT_BOTTOM = 'Participant B';
 
+/** A typed choreography task (a cognitive task) presents itself; its one participant reference is the actor. */
+export function isTypedChoreography(bo: ModdleElement): boolean {
+  return ((getProperty(bo, 'extensionElements')?.values ?? []) as unknown[]).length > 0;
+}
+
+/** What presents a typed task: the Behaverse scene, else the instrument, else the software. */
+export function presenterLabel(bo: ModdleElement): string {
+  const ext = (getProperty(bo, 'extensionElements')?.values ?? [])[0];
+  const read = (name: string): string => {
+    const value = ext?.[name] ?? ext?.$attrs?.[name];
+    return typeof value === 'string' ? value : '';
+  };
+  const scene = read('behaverseScene');
+  if (scene) return `Behaverse \u00b7 ${scene}`;
+  const instrument = read('instrument');
+  if (instrument) return instrument.charAt(0).toUpperCase() + instrument.slice(1);
+  return 'Task software';
+}
+
+/** The actor a typed task names: its participant that does not initiate, else its first. */
+export function actorOf(bo: ModdleElement): ModdleElement | undefined {
+  const refs: ModdleElement[] = getProperty(bo, 'participantRef') ?? [];
+  const initiating = getProperty(bo, 'initiatingParticipantRef');
+  return refs.find((participant) => participant !== initiating) ?? refs[0];
+}
+
 export function readChoreographyBands(
   bo: ModdleElement,
 ): { top: string; bottom: string; initiator: 'top' | 'bottom' } {
+  if (isTypedChoreography(bo)) {
+    return { top: presenterLabel(bo), bottom: actorOf(bo)?.name || DEFAULT_BOTTOM, initiator: 'top' };
+  }
   const refs = getProperty(bo, 'participantRef') ?? [];
   const top = refs[0];
   const bottom = refs[1];
@@ -53,6 +82,8 @@ function isPureChoreography(process: any): boolean {
   let hasChoreographyTask = false;
   for (const el of flowElements) {
     if (!CHOREOGRAPHY_FLOW_TYPES.has(el.$type)) return false;
+    // A typed one (a cognitive task, say) is a step of a process that happens to be an exchange, not a choreography.
+    if (isChoreographyTaskBo(el) && (el.extensionElements?.values ?? []).length > 0) return false;
     if (isChoreographyTaskBo(el)) hasChoreographyTask = true;
   }
   return hasChoreographyTask;
@@ -218,8 +249,18 @@ export function choreographyToProcessRoot(definitions: any): boolean {
   return true;
 }
 
+/** A plane naming a collaboration with no pool draws the process's flow: point it at the process, the root everywhere else. */
+export function headlessPlaneToProcessRoot(definitions: any): boolean {
+  const plane = definitions?.diagrams?.[0]?.plane;
+  if (!isHeadlessCollaboration(plane?.bpmnElement)) return false;
+  const root = inferPlaneRoot(definitions);
+  if (!root || root === plane.bpmnElement) return false;
+  plane.bpmnElement = root;
+  return true;
+}
+
 export async function fromWireXml(xml: string, moddle: Moddle): Promise<string> {
-  return applyXmlPasses(xml, moddle, [choreographyToProcessRoot]);
+  return applyXmlPasses(xml, moddle, [choreographyToProcessRoot, headlessPlaneToProcessRoot]);
 }
 
 export async function toWireXml(xml: string, moddle: Moddle): Promise<string> {

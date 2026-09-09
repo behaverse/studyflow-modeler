@@ -212,8 +212,8 @@ test('a behaverse task draws its scene abbreviation over the hex icon', async ()
   expect(glyph).toBeTruthy();
   expect(glyph.textContent).toBe('NB');
   // Centred on the icon box, monospace and bold, in the element's own stroke colour.
-  expect(glyph.getAttribute('x')).toBe('19');
-  expect(glyph.getAttribute('y')).toBe('17');
+  expect(glyph.getAttribute('x')).toBe('18');
+  expect(glyph.getAttribute('y')).toBe('18');
   expect(glyph.getAttribute('text-anchor')).toBe('middle');
   expect(glyph.getAttribute('font-weight')).toBe('bold');
   expect(glyph.getAttribute('font-family')).toContain('monospace');
@@ -420,11 +420,11 @@ test('a schema attribute declaring meta.icon badges a non-event shape top-right 
   try {
     const canvas = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
     // `Task_1` is a 100-wide user task whose `name` is set — the badge sits in the
-    // top-right corner (100 - 14 - 6), leftward of nothing else.
+    // top-right corner (100 - 16 - 6), leftward of nothing else, on the type glyph's centre line.
     const badge = graphics(canvas, 'Task_1').querySelector('svg.sf-icon[data-icon-key="iconify mdi--test-badge"]');
     expect(badge).toBeTruthy();
-    expect(badge!.getAttribute('x')).toBe('80');
-    expect(badge!.getAttribute('y')).toBe('6');
+    expect(badge!.getAttribute('x')).toBe('78');
+    expect(badge!.getAttribute('y')).toBe('10');
   } finally {
     setCatalog(real);
   }
@@ -449,11 +449,11 @@ test('an event whose centre holds a definition symbol moves its attribute badge 
   });
   const g = graphics(canvas, 'End_1');
   const centre = g.querySelector('svg.sf-icon[data-icon-key="ErrorEventDefinition"]')!;
-  const badge = g.querySelector('svg.sf-icon[data-icon-key="iconify mdi--exit-to-app"]')!;
-  expect(centre.getAttribute('x')).toBe('9');
+  const badge = g.querySelector('svg.sf-icon[data-icon-key="iconify ph--sign-out"]')!;
+  expect(centre.getAttribute('x')).toBe('8');
   expect(badge).toBeTruthy();
-  expect(Number(badge.getAttribute('x'))).toBeGreaterThan(9);
-  expect(Number(badge.getAttribute('y'))).toBeLessThan(9);
+  expect(Number(badge.getAttribute('x'))).toBeGreaterThan(8);
+  expect(Number(badge.getAttribute('y'))).toBeLessThan(8);
 });
 
 test('a format-less data store draws no glyph: the schema type carries no meta.icon', async () => {

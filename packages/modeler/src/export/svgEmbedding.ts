@@ -29,6 +29,21 @@ export function embedStudyflowIntoSvg(svg: string, xml: string): string {
   return new XMLSerializer().serializeToString(svgDoc);
 }
 
+/**
+ * An icon the cache never resolved is still a `<foreignObject>` CSS placeholder on the canvas
+ * (`draw/iconCache.ts` swaps in the glyph when it arrives). It means nothing without the app's
+ * stylesheet, and rasterizing an SVG that holds one taints the canvas so no PNG can be read back:
+ * the export leaves such icons out.
+ */
+export function dropUnresolvedIcons(svg: string): string {
+  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  const placeholders = [...doc.querySelectorAll('[class~="icon-container"]')]
+    .filter((el) => el.localName === 'foreignObject');
+  if (placeholders.length === 0) return svg;
+  for (const el of placeholders) el.remove();
+  return new XMLSerializer().serializeToString(doc);
+}
+
 
 const EXPORT_PADDING = 8;
 

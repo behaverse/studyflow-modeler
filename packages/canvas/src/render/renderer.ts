@@ -29,6 +29,7 @@ import {
   categoryOf,
   choreographyBandHeight,
   CORNER_RADIUS,
+  dataStoreRim,
   drawDataObject,
   drawDataStore,
   drawDiamond,
@@ -51,10 +52,14 @@ const EDGE_TYPES = new Set<string>([
   BPMN.SequenceFlow, BPMN.MessageFlow, BPMN.Association, 'bpmn:DataInputAssociation', 'bpmn:DataOutputAssociation',
 ]);
 
-const TYPE_ICON = { x: 10, y: 8, size: 18 };
+/** The type glyph, tucked into the top-left corner; its row is what `CHROME.head` keeps clear. */
+const TYPE_ICON = { x: 6, y: 6, size: 24 };
 const MARKER_SIZE = 16;
-const OVERLAY_ICON_SIZE = 14;
-const EVENT_ICON_SIZE = 18;
+const OVERLAY_ICON_SIZE = 16;
+/** Badges share the glyph row's centre line. */
+const OVERLAY_ICON_Y = TYPE_ICON.y + (TYPE_ICON.size - OVERLAY_ICON_SIZE) / 2;
+const EVENT_ICON_SIZE = 20;
+const DATA_ICON_SIZE = 20;
 const ANNOTATION_PADDING = 7;
 
 /** A behaverse task's scene abbreviation (`NB`, `SART`), drawn over its icon. */
@@ -222,10 +227,26 @@ export class Renderer {
         this.drawDataIcons(g, node, iconColor);
         this.drawOverlayIcons(g, node, iconColor);
         break;
-      case 'choreography':
-        this.drawChoreography(g, node, style, name);
+      case 'choreography': {
+        const scene = behaverseScene(node.businessObject);
+        const typed = (((node.businessObject as any)?.extensionElements?.values ?? []) as unknown[]).length > 0;
+        if (!typed || (prop(node.businessObject, 'participantRef') as unknown[] | undefined)?.length) {
+          // Bands name the parties; the type glyph sits in the middle band, where the task's own name is.
+          this.drawChoreography(g, node, style, name);
+          const inner = append(g, group(0, choreographyBandHeight(node.height)));
+          this.drawTypeIcon(inner, node, iconColor);
+          drawIconText(inner, scene, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
+        } else {
+          // A typed one (a cognitive task) naming no party: the study's own participant takes it, and it is drawn
+          // as the plain task it reads as. A plain choreography task keeps its default bands, which are its point.
+          drawTask(g, node.width, node.height, style, false);
+          this.drawTypeIcon(g, node, iconColor);
+          drawIconText(g, scene, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
+          drawInternalLabel(g, node, name, INK.text);
+        }
         this.drawOverlayIcons(g, node, iconColor);
         break;
+      }
       case 'group':
         drawGroup(g, node.width, node.height, style);
         this.drawGroupLabel(g, node, INK.muted);
@@ -309,7 +330,7 @@ export class Renderer {
     }
     // Attribute badges (consent form, redirect) take the centre of a plain event;
     // once a glyph sits there they move to the top-right rim, like on other shapes.
-    if (centreTaken) this.drawOverlayIcons(g, node, color, -2);
+    if (centreTaken) this.drawOverlayIcons(g, node, color, -2, -2);
     else {
       for (const key of overlayIconsOf(bo)) {
         if (resolver(key)) drawIcon(g, key, x, y, EVENT_ICON_SIZE, color, resolver);
@@ -318,33 +339,32 @@ export class Renderer {
   }
 
   /** Schema-attribute badges in the top-right corner, stacking leftward. */
-  private drawOverlayIcons(g: SVGGElement, node: SceneNode, color: string, inset = 6): void {
+  private drawOverlayIcons(g: SVGGElement, node: SceneNode, color: string, inset = 6, y = OVERLAY_ICON_Y): void {
     const resolver = this.iconResolver;
     if (!resolver) return;
     let x = node.width - OVERLAY_ICON_SIZE - inset;
     for (const key of overlayIconsOf(node.businessObject)) {
       if (!resolver(key)) continue;
-      drawIcon(g, key, x, inset, OVERLAY_ICON_SIZE, color, resolver);
-      x -= OVERLAY_ICON_SIZE + 2;
+      drawIcon(g, key, x, y, OVERLAY_ICON_SIZE, color, resolver);
+      x -= OVERLAY_ICON_SIZE + 4;
     }
   }
 
   private drawDataIcons(g: SVGGElement, node: SceneNode, color: string): void {
     const resolver = this.iconResolver;
     if (!resolver) return;
-    if (isDataStore(node.type)) {
-      const key = formatIconOf(node.businessObject);
-      if (key) {
-        const def = SVG_ICON_PATHS[key];
-        if (def) drawSvgPaths(g, def, 4, node.height - 22, node.width - 8, 14, color, key);
-        else drawIcon(g, key, (node.width - 18) / 2, node.height - 22, 18, color, resolver);
-        return;
-      }
+    const key = (isDataStore(node.type) && formatIconOf(node.businessObject)) || toLocalName(node.type);
+    if (!key) return;
+    // A data store's glyph is centred on the cylinder's body, below the rim.
+    const cy = isDataStore(node.type) ? (2 * dataStoreRim(node.height) + node.height) / 2 : node.height / 2;
+    const def = SVG_ICON_PATHS[key];
+    if (def) {
+      drawSvgPaths(g, def, 4, cy - 7, node.width - 8, 14, color, key);
+      return;
     }
-    const key = toLocalName(node.type);
-    if (!key || !resolver(key, node.businessObject)) return;
-    const size = 18;
-    drawIcon(g, key, (node.width - size) / 2, (node.height - size) / 2, size, color, resolver, node.businessObject);
+    if (!resolver(key, node.businessObject)) return;
+    const size = DATA_ICON_SIZE;
+    drawIcon(g, key, (node.width - size) / 2, cy - size / 2, size, color, resolver, node.businessObject);
   }
 
   private drawGatewayGlyph(g: SVGGElement, node: SceneNode, color: string): void {
@@ -397,7 +417,7 @@ export class Renderer {
     }
     if (markers.length === 0) return;
     const gap = 4;
-    const y = node.height - MARKER_SIZE - 6;
+    const y = node.height - MARKER_SIZE - 4;
     const startX = (node.width - markers.length * MARKER_SIZE - (markers.length - 1) * gap) / 2;
     markers.forEach((marker, i) => {
       drawIcon(g, marker, startX + i * (MARKER_SIZE + gap), y, MARKER_SIZE, color, this.iconResolver, bo);
@@ -554,8 +574,10 @@ export function ensureArrowMarkers(defs: SVGDefsElement): void {
   const slash = marker('sf-marker-default', 0, 5);
   append(slash, create('path', { d: 'M3,2 L7,8', fill: 'none', stroke: 'context-stroke', 'stroke-width': 1.5 }));
   defs.appendChild(slash);
+  // BPMN's message flow starts with a hollow circle. Its paint is an attribute, like every other colour the
+  // renderer draws: an exported SVG carries no stylesheet, and a CSS variable there would fill it black.
   const circle = marker('sf-marker-message-start', 1.5, 5);
-  append(circle, create('circle', { cx: 5, cy: 5, r: 3, fill: 'var(--sf-canvas-fill-color)', stroke: 'context-stroke', 'stroke-width': 1 }));
+  append(circle, create('circle', { cx: 5, cy: 5, r: 3, fill: INK.fill, stroke: 'context-stroke', 'stroke-width': 1 }));
   defs.appendChild(circle);
 }
 

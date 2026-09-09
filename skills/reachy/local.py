@@ -9,10 +9,13 @@ Usage:
     studyflow run --runtime local <diagram> [--sim] [--auto]     # studyflow-run-local walks, this runner performs
     skills/reachy/local.py --participant [--sim] [--port N] [--vlm ollama:gemma4:12b-it-qat] [--frames DIR]
 
-A study whose task expects an external participant (`ResponseSource: external`) needs no second command: the
-walk seats the robot itself, in the background, and the end event dismisses it. Text attributes may cite the
-study state as the modeler does, `{name}` from the element outward or `{state.scope.name}`; a `screen` look's
-gaze reaches the state through a data edge into a declared property, and a later look can take it as its target.
+A cognitive task inside the Robot pool (or with the robot on its lower band) is the robot's to take, and needs no
+second command: the walk seats the robot itself, in the background, at the first robot step, and the robot pool's
+end event dismisses it. The task's runner forwards each trial to the seat, with the instructions wired into the
+task (an `agentic:Prompt`); what the robot judged from and decided on each trial (`frames/`, `reasoning.jsonl`) goes
+to the folder the step's data output names in the run, `reachy/` when it names none. Text attributes may cite the
+study state as the modeler does, `{name}` from the element outward, `{state.scope.name}`, or `{Play.trials}` for
+an earlier element's result. A `screen` look remembers where it found the screen, so a later one starts there.
 
 A partial runner: studyflow-run-local walks the diagram and hands this script one
 `reachy:*` element at a time (`<plan.json> --element <id> --cache <dir>`), with the
@@ -58,7 +61,7 @@ REACHY = "https://w3id.org/studyflow/reachy"
 # The schema's defaults; moddle omits an attribute whose value equals its default.
 DEFAULTS: dict[str, dict[str, Any]] = {
     "robot": {"variant": "wireless", "host": "reachy-mini.local", "voice": "", "language": "", "volume": "80",
-              "vision": "ollama:gemma4:12b-it-qat"},
+              "vision": "ollama:gemma4:12b-it-qat", "bridge": "ws://localhost:8765"},
     "say": {"text": ""},
     "gesture": {"move": "cheerful1", "dataset": "pollen-robotics/reachy-mini-emotions-library"},
     "goto": {"roll": "0", "pitch": "0", "yaw": "0", "x": "0", "y": "0", "z": "0",
@@ -71,7 +74,12 @@ DEFAULTS: dict[str, dict[str, Any]] = {
     "teleoperation": {"instructions": ""},
     "senseEvent": {"trigger": "wake_word", "wakeWord": "Hey Reachy"},
     "perceptionGateway": {"channel": "face_count"},
+    "participate": {},
 }
+
+AGENTIC = "https://w3id.org/studyflow/agentic"
+# The messages a seated robot exchanges with a task, as a message flow's `messageRef` → `itemRef` → `structureRef` names them.
+TRIAL, RESPONSE = "behaverse:Trial", "behaverse:Response"
 
 AUTO_SAMPLES = {"face_count": "1", "sound_angle": "1.57", "speech_detected": "1", "speech_intent": "chat"}
 AUTO_LINES = ["It went well — the second block was hard!", "goodbye"]
@@ -81,9 +89,24 @@ def reachy_extension(element: dict[str, Any]) -> dict[str, Any] | None:
     return next((ext for ext in element.get("extensions") or [] if ext.get("namespace") == REACHY), None)
 
 
+def is_cognitive_task(element: dict[str, Any]) -> bool:
+    """A `cognitive:*Task` (a Behaverse task, or any cognitive task) an actor can take."""
+    return any(
+        "cognitive" in str(ext.get("namespace", "")) and str(ext.get("type", "")).lower().endswith("task")
+        for ext in element.get("extensions") or []
+    )
+
+
 def settings_of(ext: dict[str, Any]) -> dict[str, Any]:
     """The schema's defaults, overlaid by what the diagram says."""
     return {**DEFAULTS.get(ext["type"], {}), **(ext.get("attributes") or {})}
+
+
+def bridge_port(url: str) -> int:
+    """The port of the robot's `bridge` URL; the default bridge's when it names none."""
+    from urllib.parse import urlparse
+
+    return urlparse(str(url)).port or 8765
 
 
 class Plan:
@@ -93,10 +116,30 @@ class Plan:
         self.study: dict[str, Any] = digest.get("study") or {}
         self.elements: dict[str, dict[str, Any]] = digest.get("elements") or {}
         self.parents: dict[str, str] = {eid: el["parent"] for eid, el in self.elements.items() if el.get("parent")}
-        self.names = {
+        # The digest's `names` cite one element each; a digest without them (a hand-written one) binds every identifier-shaped name.
+        self.names: dict[str, str] = digest["names"] if "names" in digest else {
             eid: el["name"] for eid, el in self.elements.items()
             if el.get("name") and re.fullmatch(r"[A-Za-z_]\w*", el["name"])
         }
+
+    def message_structure(self, flow: dict[str, Any]) -> str:
+        """What a message flow carries: its message's item definition (`structureRef`), '' when it names none."""
+        message = self.elements.get(str((flow.get("attributes") or {}).get("messageRef") or "")) or {}
+        item = self.elements.get(str((message.get("attributes") or {}).get("itemRef") or "")) or {}
+        return str((item.get("attributes") or {}).get("structureRef") or "")
+
+    def recording_uri(self) -> str:
+        """Where the seated robot keeps what it saw and decided: the `uri` a `reachy:Participate` step's data
+        output names, else `reachy/`."""
+        for element in self.elements.values():
+            ext = reachy_extension(element)
+            if ext is None or ext["type"] != "participate":
+                continue
+            for target in output_targets(element):
+                uri = ((self.elements.get(target) or {}).get("attributes") or {}).get("uri")
+                if uri:
+                    return str(uri)
+        return "reachy/"
 
     def scope_chain(self, element_id: str) -> list[str]:
         """The element, then its containers outward to the process."""
@@ -115,12 +158,45 @@ class Plan:
     def has_robot(self) -> bool:
         return any(reachy_extension(element) is not None for element in self.elements.values())
 
+    def robot_participants(self) -> set[str]:
+        """The participants that are Reachy Minis: a pool of robot steps, or a band on a cognitive task."""
+        return {
+            element_id for element_id, element in self.elements.items()
+            if element.get("type") == "participant" and reachy_extension(element) is not None
+        }
+
     def wants_participant(self) -> bool:
-        """A task whose bot answers from outside (`ResponseSource: external`) wants the robot in the seat."""
-        return self.has_robot() and any(
-            re.search(r'ResponseSource\W+external', json.dumps(element))  # on the task's extension, as written
-            for element in self.elements.values()
-        )
+        """A cognitive task the robot takes wants the robot in the seat: the robot on the task's band, a message
+        flow between the task and the robot's pool (or a step in it), or the task inside the robot's own pool."""
+        robots, pools = self.robot_participants(), self.robot_processes()
+        if not robots:
+            return False
+        tasks = {eid for eid, el in self.elements.items() if is_cognitive_task(el)}
+
+        def robot_end(element_id: str) -> bool:
+            return element_id in robots or self.scope_chain(element_id)[-1] in pools
+
+        for element_id, element in self.elements.items():
+            attrs = element.get("attributes") or {}
+            if element_id in tasks and (robots & set(element.get("participants") or []) or robot_end(element_id)):
+                return True
+            if element.get("type") == "messageFlow":
+                ends = (str(attrs.get("sourceRef")), str(attrs.get("targetRef")))
+                # A flow naming its message seats the robot only when that message is a trial or a response.
+                structure = self.message_structure(element)
+                if structure and structure not in (TRIAL, RESPONSE):
+                    continue
+                if any(end in tasks for end in ends) and any(robot_end(end) for end in ends):
+                    return True
+        return False
+
+    def instructions_of(self, element: dict[str, Any]) -> str:
+        """The `agentic:Prompt` data object wired into the element, as its template text."""
+        for binding in element.get("inputs") or []:
+            for ext in (self.elements.get(str(binding.get("source"))) or {}).get("extensions") or []:
+                if ext.get("namespace") == AGENTIC and str(ext.get("type", "")).lower() == "prompt":
+                    return str((ext.get("attributes") or {}).get("template") or "")
+        return ""
 
     def robot_config(self) -> dict[str, Any]:
         for element in self.elements.values():
@@ -128,6 +204,25 @@ class Plan:
             if ext is not None and ext["type"] == "robot":
                 return settings_of(ext)
         return dict(DEFAULTS["robot"])
+
+    def robot_processes(self) -> set[str]:
+        """The processes of the Robot pools: their end events are the robot's, another pool's are not."""
+        return {
+            str((element.get("attributes") or {}).get("processRef"))
+            for element in self.elements.values()
+            if element.get("type") == "participant" and reachy_extension(element) is not None
+            and (element.get("attributes") or {}).get("processRef")
+        }
+
+def claimed(studyflow: Plan) -> list[str]:
+    """Every element carrying a reachy extension this runner has a handler for, and when the diagram has a
+    robot, the end events of its own pool (reaching one tells the seated robot the study is over)."""
+    pools = studyflow.robot_processes()
+    return [
+        element_id for element_id, element in studyflow.elements.items()
+        if ((ext := reachy_extension(element)) is not None and ext["type"] in HANDLERS)
+        or (studyflow.has_robot() and element.get("type") == "endEvent" and (not pools or element.get("parent") in pools))
+    ]
 
 
 # --- robots: the terminal robot only narrates; the sim robot also moves ---
@@ -139,8 +234,7 @@ class TerminalRobot:
     def gesture(self, move: str, dataset: str | None = None) -> None: ...
     def goto(self, spec: dict[str, Any]) -> None: ...
     def play_sound(self, file: str) -> None: ...
-    def look_at(self, target: str) -> dict[str, float] | None: ...
-    def look_at_gaze(self, gaze: dict[str, float]) -> None: ...
+    def look_at(self, target: str) -> None: ...
     def signal(self, side: str) -> None: ...
     def listening(self) -> None: ...
     def perk(self) -> None: ...
@@ -179,9 +273,11 @@ class SimRobot:
         self._pose = create_head_pose
         self._ensure_daemon(self.host)
         local_only = self.host in ("localhost", "127.0.0.1")
+        # Straight to the unit named in the diagram: "auto" would go through a Reachy Mini Control app's
+        # localhost proxy when one is open, and lose the link when it does.
         self.mini = ReachyMini(
             host=self.host,
-            connection_mode="localhost_only" if local_only else "auto",
+            connection_mode="localhost_only" if local_only else "network",
             media_backend=self.media_backend,
             log_level="WARNING",
         )
@@ -203,6 +299,7 @@ class SimRobot:
                 return False
 
         if up():
+            self._ensure_backend(host)
             return
         if host not in ("localhost", "127.0.0.1"):
             raise ConnectionError(f"no Reachy daemon answers on {host}:8000 ({last_error[0]!r})")
@@ -223,6 +320,36 @@ class SimRobot:
             time.sleep(0.5)
         self.close()
         raise ConnectionError("timed out waiting for the sim daemon")
+
+    def _ensure_backend(self, host: str) -> None:
+        """A daemon that answers may still have its backend stopped (nothing moves, no state streams, so the
+        SDK never connects): start it, waking the robot, and wait until it reports running."""
+        import urllib.request
+
+        def status() -> dict[str, Any]:
+            with urllib.request.urlopen(f"http://{host}:8000/api/daemon/status", timeout=5) as response:
+                return json.load(response)
+
+        try:
+            state = status().get("state")
+        except Exception:
+            return  # not a daemon that reports; the SDK will say what is wrong
+        if state == "running":
+            return
+        print(f"    the robot's backend is {state or 'stopped'}: starting it…")
+        if state != "starting":
+            urllib.request.urlopen(urllib.request.Request(
+                f"http://{host}:8000/api/daemon/start?wake_up=true", method="POST"), timeout=30)
+        deadline = time.monotonic() + 90
+        while time.monotonic() < deadline:
+            current = status()
+            if current.get("state") == "running":
+                time.sleep(1)  # let the state stream start
+                return
+            if current.get("error"):
+                raise ConnectionError(f"the robot's backend failed to start: {current['error']}")
+            time.sleep(2)
+        raise ConnectionError("timed out waiting for the robot's backend to start")
 
     def _go(self, head: dict | None, antennas: list[float] | None, duration: float, body_yaw: float | None) -> None:
         self.mini.goto_target(
@@ -352,12 +479,12 @@ class SimRobot:
         except Exception as error:
             print(f"    (sound failed: {error})")
 
-    def look_at(self, target: str) -> dict[str, float] | None:
+    def look_at(self, target: str) -> None:
         try:
             if target == "screen":
-                if find_screen(self, parse_vlm(self.vision)):
-                    return dict(LAST_GAZE or {})
-                self.mini.look_at_world(0.5, 0.0, 0.25, duration=0.7)  # no camera, or nothing found: straight ahead, a little up
+                # A repeat look starts where the screen was last found (`find_screen` remembers it).
+                if not find_screen(self, parse_vlm(self.vision)):
+                    self.mini.look_at_world(0.5, 0.0, 0.25, duration=0.7)  # no camera, or nothing found: straight ahead, a little up
             elif target == "face":
                 self.mini.look_at_world(0.4, 0.0, 0.15, duration=0.7)
             elif target == "sound":
@@ -367,12 +494,6 @@ class SimRobot:
         except Exception as error:
             print(f"    (sim motion failed: {error})")
         return None
-
-    def look_at_gaze(self, gaze: dict[str, float]) -> None:
-        """Aim where the study state says the screen is, and remember it as the gaze to come back to."""
-        global LAST_GAZE
-        LAST_GAZE = {"yaw": float(gaze["yaw"]), "pitch": float(gaze["pitch"])}
-        restore_gaze(self)
 
     def signal(self, side: str) -> None:
         """Answer with the antennas, outward: the left one for the left option, the right one for the right, both
@@ -441,7 +562,8 @@ class Run:
 
     # Placeholders as the modeler resolves them: `{path}`, a dotted lookup from the element outward through its
     # containers (`{count}`, `{screenGaze}`), a single name also as the runner's counter `_meta.<name>.<scope>`,
-    # and `{state.a.b}` absolute. Unresolved, a placeholder stays as written.
+    # `{state.a.b}` absolute, and last an element's result by id or name (`{Play.trials}`). Unresolved, a
+    # placeholder stays as written.
     def resolve(self, path: str) -> Any:
         keys = [key.strip() for key in path.split(".") if key.strip()]
         if not keys:
@@ -454,18 +576,11 @@ class Run:
                 value = lookup(self.tree, ["_meta", keys[0], scope])
             if value is not None:
                 return value
-        return self.namespace().get(keys[0]) if len(keys) == 1 else None  # an element's result, by id or name
+        result = self.namespace().get(keys[0])
+        return lookup(result, keys[1:]) if len(keys) > 1 else result
 
     def fill(self, text: str) -> str:
         return re.sub(r"\{([^{}]+)\}", lambda m: str(v) if (v := self.resolve(m.group(1))) is not None else m.group(0), text)
-
-    def value_of(self, text: str) -> Any:
-        """An attribute that is one `{path}` placeholder resolves to that value itself; any other text stays text."""
-        match = re.fullmatch(r"\s*\{([^{}]+)\}\s*", text)
-        if not match:
-            return text
-        value = self.resolve(match.group(1))
-        return text if value is None else value
 
     def namespace(self) -> dict[str, Any]:
         space: dict[str, Any] = {"state": SimpleNamespace(trace=self.trace)}
@@ -478,16 +593,28 @@ class Run:
 
     def store(self, element: dict[str, Any], value: Any) -> None:
         self.values[element.get("id")] = value
-        for target in output_targets(element):
+        for binding in element.get("outputs") or []:
+            target = binding.get("target")
+            if not target:
+                continue
+            # An output edge's `transformation` narrows the result (`result['trials']`), as the python runner's does.
+            expression = binding.get("transformation") or ""
+            bound = self.narrow(expression, value, binding.get("language")) if expression else value
             declared = self.studyflow.property_of(target)
             if declared:
                 # A data edge into a declared property writes the study state: `state.<scope>.<name>`.
                 scope, name = declared
-                self.tree.setdefault(scope, {})[name] = value
+                self.tree.setdefault(scope, {})[name] = bound
                 print(f"    → {name}  (state of {self.studyflow.names.get(scope) or scope})")
             else:
-                self.values[target] = value
+                self.values[target] = bound
                 print(f"    → {self.studyflow.names.get(target) or target}  (captured)")
+
+    def narrow(self, expression: str, result: Any, language: str | None) -> Any:
+        """A data edge's selection over the step's result, in Python; BPMN's per-expression `language` may say otherwise."""
+        if language and language.lower() not in ("py", "python"):
+            raise ValueError(f"a {language} expression on a data edge — this runner evaluates Python")
+        return eval(expression, {"__builtins__": {}}, {**self.namespace(), "result": result})  # noqa: S307 - an authored diagram's expression
 
 
 # --- dry-run handlers: one per reachy element, keyed by the extension's local name ---
@@ -517,15 +644,9 @@ def run_play_sound(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> A
 
 
 def run_look_at(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
-    target = run.value_of(str(spec["target"]))
-    if is_gaze(target):
-        # A gaze the study state holds, e.g. `{{ Look }}` from an earlier `screen` look.
-        print(f"    Reachy turns to the gaze the state holds: yaw {float(target['yaw']):+.0f}°, pitch {float(target['pitch']):+.0f}°")
-        run.robot.look_at_gaze(target)
-        return dict(target)
-    print(f"    Reachy turns toward: {target}")
-    gaze = run.robot.look_at(str(target))
-    return gaze or None  # the found gaze is this element's result: the study state keeps it for what follows
+    print(f"    Reachy turns toward: {spec['target']}")
+    run.robot.look_at(str(spec["target"]))
+    return None
 
 
 def run_listen(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
@@ -575,8 +696,45 @@ def sample_perception(run: Run, element: dict[str, Any], spec: dict[str, Any]) -
     return {channel: value}
 
 
+def run_participate(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
+    """Take the task another pool presents. The seated bridge answers each trial the message flow brings; this
+    step hands it the instructions wired in and waits for the task to end: how many trials, and what the robot
+    saw and decided on each. Without a seat (a dry run) the person at the terminal says when it is over."""
+    for flow in run.studyflow.elements.values():
+        if flow.get("type") == "messageFlow" and (flow.get("attributes") or {}).get("targetRef") == element.get("id"):
+            structure = run.studyflow.message_structure(flow)
+            if structure and structure != TRIAL:
+                raise ValueError(f"{element.get('id')} answers {TRIAL} messages; the flow into it carries {structure}")
+    instructions = run.studyflow.instructions_of(element)
+    print("    Reachy takes the task on the screen, trial by trial" + (" (with the instructions wired in)" if instructions else ""))
+    try:
+        return await_task(BRIDGE_PORT, instructions)
+    except OSError as error:
+        print(f"    (no seated participant to wait for: {error})")
+        run.ask("the task on the screen is over — press Enter", "done")
+        return {"trials": 0, "log": []}
+
+
+def await_task(port: int, instructions: str) -> dict[str, Any]:
+    """Give the seated robot its instructions and wait until the task on the screen is over."""
+    import asyncio
+
+    import websockets
+
+    async def send() -> dict[str, Any]:
+        async with websockets.connect(f"ws://localhost:{port}", open_timeout=3, max_size=None) as socket:
+            await socket.send(json.dumps({"type": "await", "prompt": instructions}))
+            while True:
+                reply = json.loads(await socket.recv())
+                if reply.get("type") == "completed":
+                    return {"trials": int(reply.get("trials") or 0), "log": reply.get("reasoning") or []}
+
+    return asyncio.run(send())
+
+
 # Every reachy element this runner claims, keyed by the extension's local name.
 HANDLERS: dict[str, Callable[[Run, dict[str, Any], dict[str, Any]], Any]] = {
+    "participate": run_participate,
     "say": run_say,
     "gesture": run_gesture,
     "goto": run_goto,
@@ -832,9 +990,10 @@ def match_option(reply: str, options: list[str]) -> str | None:
 
 def answer_trial(
     robot: Any, trial: dict[str, Any], history: list[str], frames: Path | None = None,
-    vlm: tuple[str, str] = ("ollama", "gemma4:12b-it-qat"),
+    vlm: tuple[str, str] = ("ollama", "gemma4:12b-it-qat"), log: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
-    """Perceive, decide, and pick a response option: (response, agent id)."""
+    """Perceive, decide, and pick a response option: (response, agent id). `log` collects what was seen and
+    decided, one entry per trial, for a `reachy:Participate` step waiting for the task to end."""
     options = [str(o) for o in trial.get("ResponseOptions", [])]
     robot.perk()
     # A robot with a camera plays from what it sees; the task's screenshot stands in when it has no camera, or
@@ -865,15 +1024,31 @@ def answer_trial(
         response = match_option(reply, options)
         if response is None:
             raise ValueError(f"reply named no option: {reply[:80]!r}")
-        seen = next((line.split(":", 1)[1].strip() for line in reply.splitlines()
-                     if line.strip().lower().startswith("seen:")), "?")
-        history.append(f"trial {trial.get('TrialIndex', '?')}: seen={seen}, answered={response}")
-        return response, f"reachy:{provider}:{model}"
+        seen, rule, agent = reply_line(reply, "seen"), reply_line(reply, "rule"), f"reachy:{provider}:{model}"
     except Exception as error:
         print(f"    (VLM unavailable: {error}) — answering at random")
-        response = random.choice(options)
-        history.append(f"trial {trial.get('TrialIndex', '?')}: seen=?, answered={response} (random)")
-        return response, "reachy:random"
+        response, seen, rule, agent = random.choice(options), "?", "?", "reachy:random"
+    history.append(f"trial {trial.get('TrialIndex', '?')}: seen={seen}, answered={response}"
+                   + (" (random)" if agent == "reachy:random" else ""))
+    entry = {"trial": trial.get("TrialIndex"), "seen": seen, "rule": rule, "answer": response, "agent": agent}
+    note_reasoning(frames, entry)
+    if log is not None:
+        log.append(entry)
+    return response, agent
+
+
+def reply_line(reply: str, key: str) -> str:
+    """The `Key:` line of a reply, or `?`."""
+    return next((line.split(":", 1)[1].strip() for line in reply.splitlines()
+                 if line.strip().lower().startswith(f"{key}:")), "?")
+
+
+def note_reasoning(frames: Path | None, entry: dict[str, Any]) -> None:
+    """One line per trial in `reasoning.jsonl` beside the frames: what the robot saw, the rule it applied, its answer."""
+    if frames:
+        frames.parent.mkdir(parents=True, exist_ok=True)
+        with (frames.parent / "reasoning.jsonl").open("a") as file:
+            file.write(json.dumps(entry) + "\n")
 
 
 BRIDGE_PORT = 8765  # set from --port; where a seated participant listens
@@ -883,9 +1058,6 @@ def parse_vlm(text: str) -> tuple[str, str]:
     """`provider:model` → (provider, model); a bare model is Ollama's."""
     return tuple(text.split(":", 1)) if ":" in text else ("ollama", text)  # type: ignore[return-value]
 
-
-def is_gaze(value: Any) -> bool:
-    return isinstance(value, dict) and {"yaw", "pitch"} <= set(value)
 
 ACTIONS = ("speak", "gesture", "goto", "play_sound", "look_at", "listening", "perk", "signal")
 
@@ -928,15 +1100,10 @@ class SeatedRobot:
     def play_sound(self, file: str) -> None:
         self.act("play_sound", file=file)
 
-    def look_at(self, target: str) -> dict[str, float] | None:
+    def look_at(self, target: str) -> None:
         reply = self.act("look_at", target=target)
         if target == "screen" and reply:
             print("    the seated participant " + ("found the screen" if reply.get("found") else "saw no screen"))
-            return reply.get("gaze") if reply.get("found") else None
-        return None
-
-    def look_at_gaze(self, gaze: dict[str, float]) -> None:
-        self.act("look_at", gaze={"yaw": float(gaze["yaw"]), "pitch": float(gaze["pitch"])})
 
     def signal(self, side: str) -> None:
         self.act("signal", side=side)
@@ -951,17 +1118,19 @@ class SeatedRobot:
         pass
 
 
-def seat_participant(args: argparse.Namespace, config: dict[str, Any]) -> bool:
+def seat_participant(args: argparse.Namespace, config: dict[str, Any], recording: str = "reachy/") -> bool:
     """Start the participant bridge in the background for this run, and wait until it answers on the port.
-    It logs to the run directory, keeps what the robot saw there, follows the run (it leaves when the walk's
-    process is gone), and the study's end event dismisses it."""
+    It logs to the run directory, keeps what the robot saw under `recording` there (the folder the diagram's
+    data output names), follows the run (it leaves when the walk's process is gone), and the study's end
+    event dismisses it."""
     import subprocess
 
     cache = args.cache or Path(".")
     run_dir = cache.parent if cache.name == ".cache" else cache  # the run directory, not its swept `.cache`
     run_dir.mkdir(parents=True, exist_ok=True)
+    # Everything the seated robot keeps (the frames it judged from, `reasoning.jsonl`) lands in that one folder.
     argv = [sys.executable, str(Path(__file__).resolve()), "--participant", "--port", str(args.port),
-            "--frames", str(run_dir / "frames"), "--vlm", str(config["vision"] or DEFAULTS["robot"]["vision"])]
+            "--frames", str(run_dir / recording / "frames"), "--vlm", str(config["vision"] or DEFAULTS["robot"]["vision"])]
     if os.environ.get("STUDYFLOW_RUN_PID"):  # the walk's pid (this process's parent is only its launcher)
         argv += ["--watch-pid", os.environ["STUDYFLOW_RUN_PID"]]
     if config["variant"] == "simulation":
@@ -1040,6 +1209,10 @@ def participant_loop(
 
         threading.Thread(target=read_stream, args=(robot,), daemon=True).start()
     history: list[str] = []
+    log: list[dict[str, Any]] = []  # what was seen and decided, per trial, for a `reachy:Participate` step in the walk
+    instructions = {"prompt": ""}  # that step's wired-in prompt: the default when a trial carries none
+    awaiting: list[Any] = []  # sockets of `await` requests, told when the task completes
+    completions: list[dict[str, Any]] = []  # completions no one awaited yet
     seat = asyncio.Lock()  # one trial at a time: the robot has one camera and the model one queue
     over: asyncio.Future[None] | None = None
 
@@ -1051,7 +1224,8 @@ def participant_loop(
             if limit and time.monotonic() - received > limit:
                 print(f"    trial {message.get('TrialIndex', '?')}: skipped — it aged out of its {limit:g}s window")
                 return
-            response, agent = await asyncio.to_thread(answer_trial, robot, message, history, frames, vlm)
+            message["Prompt"] = message.get("Prompt") or instructions["prompt"]
+            response, agent = await asyncio.to_thread(answer_trial, robot, message, history, frames, vlm, log)
             print(f"    trial {message.get('TrialIndex', '?')}: {response}  ({agent})")
             await socket.send(json.dumps({
                 "type": "response", "RequestId": message.get("RequestId"),
@@ -1073,11 +1247,7 @@ def participant_loop(
                 async with seat:
                     if kind == "look_at" and message.get("target") == "screen":
                         found = await asyncio.to_thread(find_screen, robot, vlm, frames)
-                        await socket.send(json.dumps({"type": "acted", "found": found, "gaze": LAST_GAZE if found else None}))
-                        continue
-                    if kind == "look_at" and is_gaze(message.get("gaze")):
-                        await asyncio.to_thread(robot.look_at_gaze, message["gaze"])
-                        await socket.send(json.dumps({"type": "acted", "gaze": LAST_GAZE}))
+                        await socket.send(json.dumps({"type": "acted", "found": found}))
                         continue
                     if kind == "signal":
                         await asyncio.to_thread(robot.signal, str(message.get("side")))
@@ -1101,11 +1271,27 @@ def participant_loop(
                 print("● the study is over — leaving the seat")
                 if over is not None and not over.done():
                     over.set_result(None)
+            elif message.get("type") == "await":
+                # A `reachy:Participate` step in the walk: its instructions, and a promise to say when the task is over.
+                instructions["prompt"] = str(message.get("prompt") or "")
+                if completions:
+                    await socket.send(json.dumps(completions.pop(0)))
+                else:
+                    awaiting.append(socket)
             elif message.get("type") == "completed":
-                print(f"● task complete — {message.get('TaskId') or 'done'}")
-                # In a thread: the SDK's play_move sync wrapper refuses to run on the event loop.
-                await asyncio.to_thread(robot.gesture, "cheerful1")
+                # What the robot feels about it is the diagram's to say (a gesture after the task), not this bridge's.
+                print(f"● task complete — {message.get('TaskId') or 'done'} after {len(log)} answered trials")
+                reply = {"type": "completed", "TaskId": message.get("TaskId"), "trials": len(log), "reasoning": list(log)}
                 history.clear()
+                log.clear()
+                if not awaiting:
+                    completions.append(reply)
+                for waiter in awaiting:
+                    try:
+                        await waiter.send(json.dumps(reply))
+                    except Exception as error:
+                        print(f"    (could not tell the walk the task is over: {error})")
+                awaiting.clear()
             elif message.get("type") == "trial":
                 asyncio.ensure_future(answer(socket, message))
 
@@ -1114,7 +1300,7 @@ def participant_loop(
         over = asyncio.get_running_loop().create_future()
         async with websockets.serve(handle, "localhost", port):
             print(f"Reachy participant ({robot.label}) — bridge on ws://localhost:{port}, Ctrl-C to leave the seat")
-            print("Run the study in the browser; the task's bot needs `ResponseSource: external`.")
+            print("Run the study in the browser; the task's bot needs `ResponseSource: external` there (a local run draws the exchange as a message flow instead).")
             if watch_pid:
                 # From the start, and a hard stop: an interrupted walk must not leave this bridge searching for
                 # the screen, driving the robot, and holding the port for the next run.
@@ -1165,7 +1351,7 @@ def main() -> int:
         "--participant", action="store_true",
         help="sit in the participant's seat: answer the browser task's trials from what the robot sees",
     )
-    parser.add_argument("--port", type=int, default=8765, help="participant bridge port (the runner's BridgeUrl)")
+    parser.add_argument("--port", type=int, default=None, help="participant bridge port (default: the robot's `bridge` in the diagram, else 8765)")
     parser.add_argument("--frames", type=Path, default=None, metavar="DIR", help="participant mode: keep what the robot saw, one JPEG per trial")
     parser.add_argument("--watch-pid", type=int, default=None, metavar="PID", help="participant mode: leave the seat when this process (the walk) is gone")
     parser.add_argument(
@@ -1191,21 +1377,23 @@ def main() -> int:
     studyflow = Plan(json.loads(args.plan.read_text()) if args.plan else {})
 
     if args.claims:
-        # This runner claims every element carrying a reachy extension it has a handler for, and when the
-        # diagram has a robot at all, its end events: reaching one tells the seated robot the study is over.
-        print(json.dumps([
-            element_id for element_id, element in studyflow.elements.items()
-            if ((ext := reachy_extension(element)) is not None and ext["type"] in HANDLERS)
-            or (studyflow.has_robot() and element.get("type") == "endEvent")
-        ]))
+        print(json.dumps(claimed(studyflow)))
         return 0
 
     config = studyflow.robot_config()
+    # The seat, the walk's steps, and the task's runner agree on the port through the diagram's `bridge`.
+    args.port = args.port or bridge_port(config["bridge"])
 
     robot: Any = TerminalRobot()
 
     def handle_stop(signum: int, frame: Any) -> None:
-        # A hard stop skips every `finally`, so fold the spawned sim daemon here before leaving.
+        # A hard stop skips every `finally`, so fold the spawned sim daemon here before leaving. The SDK's
+        # teardown can retry a lost link for a long while; the port must be free for the next run sooner.
+        import threading
+
+        deadline = threading.Timer(5.0, os._exit, args=(128 + signum,))
+        deadline.daemon = True
+        deadline.start()
         robot.close()
         os._exit(128 + signum)
 
@@ -1216,7 +1404,7 @@ def main() -> int:
     global BRIDGE_PORT
     BRIDGE_PORT = args.port
     if args.element and not args.sim and (
-        seated_participant(args.port) or (studyflow.wants_participant() and seat_participant(args, config))
+        seated_participant(args.port) or (studyflow.wants_participant() and seat_participant(args, config, studyflow.recording_uri()))
     ):
         robot = SeatedRobot(args.port, voice=str(config["voice"]))
     sim = args.sim or config["variant"] == "simulation"
@@ -1234,6 +1422,10 @@ def main() -> int:
             robot.connect()
         except Exception as error:
             robot.close()
+            if args.participant:
+                # A seat with no robot in it would answer the task from nothing; the walk must know.
+                print(f"robot unavailable ({error}) — not taking the seat")
+                return 1
             robot = TerminalRobot()
             print(f"robot unavailable ({error}) — carrying on as a dry run")
 

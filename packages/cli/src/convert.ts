@@ -82,6 +82,35 @@ async function exportPng(page: any): Promise<Buffer> {
   return readFileSync(await (await download).path());
 }
 
+/**
+ * Answer the modeler's glyph fetches (`export/iconSource.ts`, api.iconify.design) from the
+ * workspace's own `@iconify/json`: the same bodies, no network, and no rate limit across a
+ * batch of renders. Anything it cannot serve goes to the network as before.
+ */
+async function serveIconsLocally(page: any): Promise<void> {
+  const { createRequire } = await import('node:module');
+  const require = createRequire(import.meta.url);
+  const sets = new Map<string, any>();
+  await page.route('https://api.iconify.design/**', async (route: any) => {
+    const match = /^\/([^/]+)\/([^/]+)\.svg$/.exec(new URL(route.request().url()).pathname);
+    if (!match) return route.continue();
+    const [, prefix, name] = match;
+    try {
+      if (!sets.has(prefix)) sets.set(prefix, JSON.parse(await readFile(require.resolve(`@iconify/json/json/${prefix}.json`), 'utf8')));
+      const set = sets.get(prefix);
+      const icon = set.icons[name] ?? set.icons[set.aliases?.[name]?.parent];
+      if (!icon) return route.fulfill({ status: 404 });
+      const viewBox = `${icon.left ?? 0} ${icon.top ?? 0} ${icon.width ?? set.width ?? 16} ${icon.height ?? set.height ?? 16}`;
+      return route.fulfill({
+        contentType: 'image/svg+xml',
+        body: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${icon.body}</svg>`,
+      });
+    } catch {
+      return route.continue();
+    }
+  });
+}
+
 async function renderPng(input: string, xml: string, origin: string): Promise<Buffer> {
   let chromium: any;
   try {
@@ -98,6 +127,7 @@ async function renderPng(input: string, xml: string, origin: string): Promise<Bu
   try {
     const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();
+    await serveIconsLocally(page);
     // Headless Chromium has the File System Access pickers, and a native picker cannot be driven
     // from here. Hiding them puts the Save dialog on its download path, which is what we read.
     await page.addInitScript(() => {

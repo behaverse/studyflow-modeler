@@ -6,6 +6,7 @@ import { expect, test } from '@playwright/test';
 import { Canvas } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
+import { readChoreographyBands } from '@canvas/model/choreography.ts';
 
 import { freshModdle, installDocument, loadCanvas } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';
@@ -56,8 +57,8 @@ function translateOf(g: Element | undefined): { x: number; y: number } {
 
 const files = exampleNames;
 
-test('canvas render: exactly 18 studyflow example diagrams are present', () => {
-  expect(files.length).toBe(18);
+test('canvas render: exactly 19 studyflow example diagrams are present', () => {
+  expect(files.length).toBe(19);
 });
 
 for (const filename of files) {
@@ -296,15 +297,15 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
   expect(line.getAttribute('marker-end')).toBe('url(#sf-arrow-message)');
   expect(line.getAttribute('marker-start')).toBe('url(#sf-marker-message-start)');
 
-  // The marker is a real circle, filled with the canvas colour so the line does not
-  // show through its middle — the same token the resize handles use, so it follows a
-  // re-themed canvas.
+  // The marker is a real hollow circle: filled with the ink's fill so the line does not
+  // show through its middle, as an attribute so an exported SVG (no stylesheet, no CSS
+  // variables) paints it white rather than black.
   const marker = canvas.getSvg().querySelector('#sf-marker-message-start circle')!;
   expect(marker.getAttribute('r')).toBe('3');
   // Placed just past the docking point, not centred on it: the shape paints over the
   // edges at its depth, so a centred circle is half swallowed by its own source.
   expect(marker.parentElement!.getAttribute('refX')).toBe('1.5');
-  expect(marker.getAttribute('fill')).toBe('var(--sf-canvas-fill-color)');
+  expect(marker.getAttribute('fill')).toBe('#ffffff');
   expect(marker.getAttribute('stroke')).toBe('context-stroke');
 });
 
@@ -358,4 +359,16 @@ test('a `labelText` option resolves placeholders in drawn labels; the model keep
   const plain = await loadCanvas(STATE_XML);
   const plainLabel = plain.canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Excluded_Pre')!.id;
   expect(textsOf(plain.canvas, plainLabel).join(' ')).toBe('Excluded (n={count})');
+});
+
+test('a cognitive task presents itself, and renaming the pool on its band redraws it', async () => {
+  const canvas = await render('reachy_participant.studyflow.png');
+  const task = canvas.getScene()!.elementsById.get('Play') as any;
+  expect(readChoreographyBands(task.businessObject)).toEqual({ top: 'Behaverse \u00b7 WO', bottom: 'Reachy Mini', initiator: 'top' });
+  expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Behaverse \u00b7 WO', 'Reachy Mini']));
+
+  const pool = canvas.getScene()!.elementsById.get('Pool_Reachy') as any;
+  canvas.updateModdleProperties(pool, pool.businessObject, { name: 'Robot' });
+  expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Robot']));
+  expect(textsOf(canvas, 'Play')).not.toEqual(expect.arrayContaining(['Reachy Mini']));
 });

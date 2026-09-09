@@ -48,7 +48,8 @@ function End({ job, session, log, complete }: NodeProps<EndJob>) {
     if (redirectUrl) log('info', `Will redirect to: ${redirectUrl}`);
     // Signal the executor so it reaches the `done` phase; the component stays mounted for the user.
     complete();
-  }, []);
+    // Each is fixed for the node's mount: the runner keys a node by its job and hands it stable callbacks.
+  }, [code, redirectUrl, session, log, complete]);
 
   useEffect(() => {
     if (countdown === null) return;

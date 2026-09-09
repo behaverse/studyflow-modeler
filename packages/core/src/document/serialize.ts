@@ -1,5 +1,5 @@
 import { isModdleElement } from '@core/element/moddle';
-import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, inferPlaneRoot, type YamlDoc } from '@core/document/format';
+import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, inferPlaneRoot, isHeadlessCollaboration, type YamlDoc } from '@core/document/format';
 import { readState } from '@core/document/state';
 import {
   CHECKLIST_MARKER,
@@ -84,7 +84,11 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
 
 function serializeLeftoverDiagrams(definitions: any, ctx: SerializeContext): unknown[] {
   const diagrams: any[] = definitions.diagrams ?? [];
-  const inferredRootId = inferPlaneRoot(definitions)?.id;
+  // A plane naming the inferred root, or a collaboration with no pool (it draws that same root), says nothing.
+  const redundantRootIds = new Set<string | undefined>([
+    inferPlaneRoot(definitions)?.id,
+    ...(definitions?.rootElements ?? []).filter(isHeadlessCollaboration).map((root: any) => root.id),
+  ]);
   return diagrams.flatMap((diagram, index) => {
     const node = serializeElement(diagram, 'bpmndi:BPMNDiagram') as Record<string, any>;
     const plane = node.plane as Record<string, any> | undefined;
@@ -100,17 +104,17 @@ function serializeLeftoverDiagrams(definitions: any, ctx: SerializeContext): unk
         else delete plane.planeElement;
       }
     }
-    const redundant = index === 0 && diagrams.length === 1 && isRedundantDiagramNode(node, inferredRootId);
+    const redundant = index === 0 && diagrams.length === 1 && isRedundantDiagramNode(node, redundantRootIds);
     return redundant ? [] : [node];
   });
 }
 
-function isRedundantDiagramNode(node: Record<string, any>, inferredRootId: string | undefined): boolean {
+function isRedundantDiagramNode(node: Record<string, any>, redundantRootIds: Set<string | undefined>): boolean {
   if (Object.keys(node).some((key) => key !== 'id' && key !== 'plane')) return false;
   const plane = node.plane as Record<string, any> | undefined;
   if (!plane) return true;
   if (Object.keys(plane).some((key) => key !== 'id' && key !== 'bpmnElement')) return false;
-  return plane.bpmnElement === undefined || plane.bpmnElement === inferredRootId;
+  return plane.bpmnElement === undefined || redundantRootIds.has(plane.bpmnElement);
 }
 
 export function definitionsToYamlDoc(definitions: any): YamlDoc {

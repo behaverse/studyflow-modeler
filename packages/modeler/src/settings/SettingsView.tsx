@@ -311,7 +311,7 @@ const EXTENSION_SUMMARY: Record<string, string> = {
 function ExtensionsSection() {
   const { settings, update } = useSettings();
   const enabled = useMemo(() => new Set(settings.enabledSchemas), [settings.enabledSchemas]);
-  const initial = useMemo(() => new Set(settings.enabledSchemas), []);
+  const [initial] = useState(() => new Set(settings.enabledSchemas)); // what was enabled when the section opened
   const dirty = useMemo(() => {
     if (initial.size !== enabled.size) return true;
     for (const id of initial) if (!enabled.has(id)) return true;

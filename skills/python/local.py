@@ -54,7 +54,8 @@ class Plan:
         self.study: dict[str, Any] = digest.get("study") or {}
         self.sources: list[Path] = [Path(p) for p in digest.get("sources") or []]
         self.elements: dict[str, dict[str, Any]] = digest.get("elements") or {}
-        self.names = {
+        # The digest's `names` cite one element each; a digest without them (a hand-written one) binds every identifier-shaped name.
+        self.names: dict[str, str] = digest["names"] if "names" in digest else {
             eid: el["name"] for eid, el in self.elements.items()
             if el.get("name") and re.fullmatch(r"[A-Za-z_]\w*", el["name"])
         }
@@ -255,6 +256,8 @@ class Run:
             if name in ("self", "*"):
                 # Positional, not keyword: `self` is an unbound method's receiver, `*` feeds a `*args` callable.
                 receiver.append(value)
+            elif name in keywords:
+                raise ValueError(f"two data edges into {element['id']} fill the slot {name!r}; name the slot on one of them (`slot = selection`)")
             else:
                 keywords[name] = value
 

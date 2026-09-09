@@ -164,9 +164,12 @@ test.describe('catalog: type parity with moddle', () => {
         const qname = `${prefix}:${t.name}`;
         const descriptor = moddle.getElementDescriptor(moddle.create(qname));
 
+        // A property holding BPMN elements (a trait lending data associations, say) is structure, not an attribute.
+        const structural = (p: any): boolean => !p.isAttr && typeof p.type === 'string' && p.type.startsWith('bpmn:')
+          && !['bpmn:Expression', 'bpmn:FormalExpression', 'bpmn:Documentation'].includes(p.type);
         const moddleExtension = new Map<string, any>(
           (descriptor.properties ?? [])
-            .filter((p: any) => isExtensionPrefix(p.ns?.prefix))
+            .filter((p: any) => isExtensionPrefix(p.ns?.prefix) && !structural(p))
             .map((p: any) => [p.ns.name, p]),
         );
         const catalogSpecs = new Map(

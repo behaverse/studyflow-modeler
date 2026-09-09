@@ -1,6 +1,6 @@
 {
   "name": "@behaverse/studyflow-browser-skill",
-  "description": "The Behaverse Studyflow browser runner \u2014 executes the participant-facing half of a studyflow.",
+  "description": "The Behaverse Studyflow browser runner — executes the participant-facing half of a studyflow.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -19,13 +19,13 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
-    "@iconify/json": "^2.2.524",
+    "@iconify/json": "^2.2.526",
     "@iconify/tailwind4": "^1.2.3",
     "@tailwindcss/vite": "^4.3.3",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.5",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
+    "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^5.2.0",
     "tailwindcss": "^4.2.0",
     "typescript": "^5.9.3",

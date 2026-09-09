@@ -10,6 +10,11 @@ export const STUDY_EXTENSION_TYPE = 'studyflow:Study';
 
 export const YAML_DUMP_OPTIONS: yaml.DumpOptions = { noRefs: true, lineWidth: 120, quotingType: '"' };
 
+/** A collaboration with no pool, only actors that take bands: it holds participants for the process and draws nothing. */
+export function isHeadlessCollaboration(root: any): boolean {
+  return root?.$type === 'bpmn:Collaboration' && !(root.participants ?? []).some((p: any) => p?.processRef);
+}
+
 /** Every `bpmn:RootElement` that could be the diagram's subject, best candidate first. */
 export function primaryRoots(definitions: ModdleElement | null | undefined): ModdleElement[] {
   const roots: ModdleElement[] = definitions?.rootElements ?? [];
@@ -23,9 +28,10 @@ export function primaryRoots(definitions: ModdleElement | null | undefined): Mod
   };
 
   // The element the DI plane names outranks any type preference: it is what the canvas draws.
-  add(definitions?.diagrams?.[0]?.plane?.bpmnElement);
+  const named = definitions?.diagrams?.[0]?.plane?.bpmnElement;
+  if (!isHeadlessCollaboration(named)) add(named);
   for (const type of ['bpmn:Collaboration', 'bpmn:Process', 'bpmn:Choreography']) {
-    for (const root of roots) if (isType(root, type)) add(root);
+    for (const root of roots) if (isType(root, type) && !isHeadlessCollaboration(root)) add(root);
   }
   for (const root of roots) if (typeof root?.id === 'string') add(root);
   return ordered;

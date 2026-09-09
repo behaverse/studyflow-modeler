@@ -105,9 +105,14 @@ export function drawDataObject(parent: SVGElement, w: number, h: number, style: 
   return body;
 }
 
+/** Half-height of a data store's rim ellipse; its body runs from twice this to the bottom. */
+export function dataStoreRim(h: number): number {
+  return Math.min(h * 0.12, 8);
+}
+
 export function drawDataStore(parent: SVGElement, w: number, h: number, style: ShapeStyle): SVGElement {
   const rx = w / 2;
-  const ry = Math.min(h * 0.12, 8);
+  const ry = dataStoreRim(h);
   const body = append(parent, create('path', {
     d: `M0,${ry} A${rx},${ry} 0 0 0 ${w},${ry} L${w},${h - ry} A${rx},${ry} 0 0 1 0,${h - ry} Z`,
     fill: style.fill, stroke: style.stroke, 'stroke-width': widthOf(style), 'stroke-linejoin': 'round',

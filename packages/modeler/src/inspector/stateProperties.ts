@@ -22,7 +22,7 @@ export function definitionsOf(elementOrBo: any): any {
   return node?.$type === 'bpmn:Definitions' ? node : null;
 }
 
-function getDeclaredItemTypes(elementOrBo: any): string[] {
+export function getDeclaredItemTypes(elementOrBo: any): string[] {
   const rootElements: any[] = definitionsOf(elementOrBo)?.rootElements ?? [];
   const declared = rootElements
     .filter((re) => re?.$type === 'bpmn:ItemDefinition')
@@ -37,6 +37,23 @@ export function itemTypeOptions(elementOrBo: any): string[] {
     .filter((type) => !builtins.includes(type))
     .sort((a, b) => a.localeCompare(b));
   return [...builtins, ...declared];
+}
+
+/** What a message flow carries: the `structureRef` of its message's item definition, '' when it names none. */
+export function messageStructureOf(elementOrBo: any): string {
+  const flow = toBusinessObject(elementOrBo);
+  const message = flow?.get?.('messageRef') ?? flow?.messageRef;
+  const item = message?.get?.('itemRef') ?? message?.itemRef;
+  return typeof item?.structureRef === 'string' ? item.structureRef : '';
+}
+
+/** The structures a message may carry: the ones a loaded schema's `MessageStructureEnum` offers, then the file's own item definitions. */
+export function messageStructureOptions(elementOrBo: any): string[] {
+  const offered = (getCatalog().enumOf('MessageStructureEnum')?.literals ?? []).map((literal) => String(literal.value));
+  const declared = getDeclaredItemTypes(elementOrBo)
+    .filter((type) => !offered.includes(type) && !builtinItemTypes().includes(type))
+    .sort((a, b) => a.localeCompare(b));
+  return [...offered, ...declared];
 }
 
 /** Only these three may carry Properties in BPMN 2.0 (§10.3.1). */

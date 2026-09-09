@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { FlowNode } from '@runner/flow';
 import type { NodeProps } from '@runner/nodes/types';
 import { NodePanel } from '@runner/nodes/NodePanel';
@@ -76,7 +76,7 @@ function ImplementationPanel({ node }: { node: FlowNode }) {
 
 function Task({ job, log, complete }: NodeProps<TaskJob>) {
   const name = job.node.businessObject?.name || job.node.id;
-  const implementation = readImplementation(job.node);
+  const implementation = useMemo(() => readImplementation(job.node), [job.node]);
 
   useEffect(() => {
     if (implementation) {
@@ -84,7 +84,7 @@ function Task({ job, log, complete }: NodeProps<TaskJob>) {
     } else {
       log('skip', `Task '${job.node.id}' has no applied type, so it only shows a Continue button.`);
     }
-  }, [job.node.id]);
+  }, [implementation, job.node.id, log]);
 
   return (
     <NodePanel>

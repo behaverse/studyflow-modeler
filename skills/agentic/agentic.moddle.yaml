@@ -122,7 +122,7 @@ types:
     superClass:
       - bpmn:AdHocSubProcess
     meta:
-      icon: iconify mdi--robot-outline
+      icon: iconify ph--robot
     properties:
       - name: model
         description: Model identifier (`claude-opus-4-8`, `gpt-5`, `ollama/llama3.3`).
@@ -173,7 +173,7 @@ types:
     superClass:
       - bpmn:ExclusiveGateway
     meta:
-      icon: iconify mdi--sign-direction
+      icon: iconify ph--signpost
       branching: model
     properties:
       - name: model
@@ -196,7 +196,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify mdi--message-processing-outline
+      icon: iconify ph--chat-dots
     properties:
       - name: model
         description: Model identifier (`claude-haiku-4-5`, `gpt-5`, `ollama/llama3.3`).
@@ -251,7 +251,7 @@ types:
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify mdi--tools
+      icon: iconify ph--wrench
     properties:
       - name: kind
         description: What kind of capability this exposes.
@@ -281,7 +281,7 @@ types:
     superClass:
       - bpmn:UserTask
     meta:
-      icon: iconify mdi--account-check-outline
+      icon: iconify ph--user-check
     properties:
       - name: question
         description: What the reviewer is being asked, in markdown.
@@ -313,7 +313,7 @@ types:
     superClass:
       - bpmn:DataObjectReference
     meta:
-      icon: iconify mdi--text-box-outline
+      icon: iconify ph--article
     properties:
       - name: template
         description: The prompt text, in markdown, with `{{name}}` placeholders.
@@ -328,7 +328,7 @@ types:
     superClass:
       - bpmn:DataStoreReference
     meta:
-      icon: iconify mdi--memory
+      icon: iconify ph--memory
     properties:
       - name: kind
         description: How the memory holds and retrieves what it keeps.
@@ -354,7 +354,7 @@ templates:
       bpmn:documentation: |
         Each turn the model picks one of the tools drawn inside, until the
         completion condition holds or the turn budget runs out.
-      icon: iconify mdi--robot-outline
+      icon: iconify ph--robot
       keywords:
         - agent
         - autonomous
@@ -392,7 +392,7 @@ templates:
       bpmn:documentation: |
         A generator drafts, a judge scores the draft against a rubric, and the
         back-edge revises until the score clears the bar.
-      icon: iconify mdi--autorenew
+      icon: iconify ph--arrows-clockwise
       keywords:
         - evaluator
         - optimizer
@@ -441,7 +441,7 @@ templates:
       bpmn:documentation: |
         The model chooses among the labels of the outgoing flows; the flow
         marked `default` is taken when it is unsure.
-      icon: iconify mdi--sign-direction
+      icon: iconify ph--signpost
       keywords:
         - router
         - routing
@@ -460,7 +460,7 @@ templates:
       bpmn:documentation: |
         Independent calls run at once and their replies are joined; add a
         downstream call to vote or merge them.
-      icon: iconify mdi--call-split
+      icon: iconify ph--git-fork
       keywords:
         - parallel
         - parallelization
@@ -507,7 +507,7 @@ templates:
       type: HumanApproval
       bpmn:documentation: |
         Pauses the run until the reviewer answers.
-      icon: iconify mdi--account-check-outline
+      icon: iconify ph--user-check
       keywords:
         - approval
         - human
@@ -524,7 +524,7 @@ templates:
       bpmn:documentation: |
         Fixed steps in a set order, with a check on the intermediate result
         between them.
-      icon: iconify mdi--link-variant
+      icon: iconify ph--link
       keywords:
         - chain
         - prompt
@@ -540,7 +540,7 @@ templates:
           y: 140
         - id: chain_gate
           type: bpmn:ExclusiveGateway
-          icon: iconify mdi--gate-arrow-right
+          icon: iconify ph--sign-in
           bpmn:name: Complete?
           x: 340
           y: 145

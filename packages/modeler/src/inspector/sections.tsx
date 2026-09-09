@@ -17,13 +17,16 @@ import {
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
-import { readChoreographyBands } from '@core/document';
-import { getAttributeSpec } from '@core/element';
+import { actorOf, isTypedChoreography, readChoreographyBands } from '@core/document';
+import { PARTICIPANT_KINDS, listParticipants, participantKind, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
+import { StudyflowElement, getAttributeSpec, isExtensionPrefix } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
 import { useRequiredModeler } from '@modeler/app/useModeler';
-import { useInspectedElement } from '@modeler/inspector/state';
+import { InspectorContext, useInspectedElement } from '@modeler/inspector/state';
+import { AttributeInput } from '@modeler/inspector/registry';
+import { isAttributeVisible } from '@modeler/inspector/categories';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
-import { ExpressionRow } from '@modeler/inspector/inputs';
+import { ExpressionRow, PlainEnumSelect } from '@modeler/inspector/inputs';
 import {
   getInferredDataNeighbors,
   supportsDataAssociations,
@@ -41,12 +44,16 @@ import {
   getStateProperties,
   isScopeContainer,
   itemTypeOptions,
+  messageStructureOf,
+  messageStructureOptions,
 } from '@modeler/inspector/stateProperties';
 import { field as s } from '@modeler/inspector/styles';
 
 const TOP_HELP = 'Who takes the top band';
 const BOTTOM_HELP = 'Who takes the bottom band';
+const TAKER_HELP = 'Who takes this task: a drawn pool, or an actor declared for it. Empty, the pool the task sits in takes it.';
 const INITIATOR_HELP = 'Which participant starts the interaction; its band is drawn light, the other shaded.';
+const KIND_HELP = 'What takes this band: a person, a language model, a software agent, an instrument, or a Reachy Mini; the settings of that kind follow.';
 
 export function ChoreographyParticipantsSection({ element }: { element: any }) {
   const businessObject = element?.businessObject ?? element;
@@ -54,61 +61,155 @@ export function ChoreographyParticipantsSection({ element }: { element: any }) {
   return <ParticipantFields key={businessObject.id} element={element} />;
 }
 
-function ParticipantFields({ element }: { element: any }) {
+/** How a participant's kind reads: a drawn pool's is set on the pool, a band-only actor's on the band. */
+function kindLabel(kind: ParticipantKind | ''): string {
+  return t(kind ? `kind${kind.charAt(0).toUpperCase()}${kind.slice(1)}` : 'kindUntyped');
+}
+
+/**
+ * One band of a choreography-shaped task, the same for a plain choreography task and a typed one (a cognitive
+ * task): an editable select over every participant the file declares, text that names one or renames the band's
+ * own, and "None" to clear it. A typed task has one such band, who takes it; empty, the pool it sits in does.
+ */
+function ParticipantField({ element, field, participant, label, help, declared, typed, fallback = '' }: {
+  element: any; field: 'top' | 'bottom'; participant: any; label: string; help: string; declared: any[]; typed: boolean; fallback?: string;
+}) {
   const modeler = useRequiredModeler();
-  const bands = readChoreographyBands(element.businessObject ?? element);
-  const { top, bottom } = bands;
-
-  const commitBand = (field: 'top' | 'bottom', value: string) =>
-    executeCommand(modeler, { type: 'UpdateChoreographyParticipants', element, field, value });
-
-  const commitInitiator = (value: 'top' | 'bottom') =>
-    executeCommand(modeler, { type: 'UpdateChoreographyParticipants', element, field: 'initiator', value });
-
+  const [query, setQuery] = useState('');
+  const name = participant?.name ?? fallback; // a plain task's band reads its placeholder until someone is named
+  const kind = participantKind(participant);
+  // Typing narrows the list to matching participants, so Enter on a name no one has commits the text itself.
+  const q = query.trim().toLowerCase();
+  const options = q ? declared.filter((p: any) => String(p.name ?? p.id).toLowerCase().includes(q)) : declared;
+  const pick = (chosen: any | null) =>
+    executeCommand(modeler, { type: 'UpdateChoreographyParticipants', element, field, select: chosen });
+  const commitText = (text: string) => {
+    const typedText = text.trim();
+    if (!typedText || typedText === name) return;
+    const match = declared.find((p: any) => String(p.name ?? '').toLowerCase() === typedText.toLowerCase());
+    if (match) pick(match);
+    else executeCommand(modeler, { type: 'UpdateChoreographyParticipants', element, field, value: typedText });
+  };
   return (
     <>
       <Field className={s.field}>
         <Label className={s.label}>
-          Top participant
-          <HelpTooltip name="participantRef" description={TOP_HELP} />
+          {label}
+          <HelpTooltip name="participantRef" description={help} />
         </Label>
-        <Input
-          type="text"
-          name="choreography:top"
-          value={top}
-          onChange={(e) => commitBand('top', e.target.value)}
-          className={s.textInput}
-        />
+        <div className={s.selectWrapper}>
+          <Combobox
+            value={participant?.id ?? ''}
+            onChange={(id: string | null) => {
+              if (id === '') pick(null);
+              else if (id) pick(declared.find((p: any) => p.id === id) ?? null);
+            }}
+          >
+            <ComboboxInput
+              name={`choreography:${field}`}
+              aria-label={`${field} participant`}
+              className={s.comboInput}
+              placeholder={typed ? t('participantFromPool') : undefined}
+              displayValue={() => name}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { setQuery(''); commitText(e.currentTarget.value); } }}
+              onBlur={(e) => { setQuery(''); commitText(e.currentTarget.value); }}
+            />
+            <ComboboxButton className={s.comboChevronBtn} aria-label={`${field} participant choices`}>
+              <i className={s.comboChevronIcon} aria-hidden="true"></i>
+            </ComboboxButton>
+            <ComboboxOptions anchor="bottom start" className={s.comboOptions}>
+              {!q && <ComboboxOption value="" className={s.comboOption}>{t('participantNone')}</ComboboxOption>}
+              {options.map((p: any) => (
+                <ComboboxOption key={p.id} value={p.id} className={s.comboOption}>
+                  {p.name || p.id}{participantKind(p) ? ` (${kindLabel(participantKind(p))})` : ''}
+                </ComboboxOption>
+              ))}
+            </ComboboxOptions>
+          </Combobox>
+        </div>
       </Field>
+      {participant && (participant.processRef
+        ? (
+          <div className="mt-1 text-xs text-stone-500" data-testid={`choreography-${field}-kind`}>
+            {t('participantKind')}: {kindLabel(kind)}
+          </div>
+        )
+        : <ActorFields key={participant.id} element={element} field={field} participant={participant} kind={kind} />)}
+    </>
+  );
+}
+
+/** An actor that only takes bands has no shape to select: its kind, and the settings of that kind, are edited on the band. */
+function ActorFields({ element, field, participant, kind }: {
+  element: any; field: 'top' | 'bottom'; participant: any; kind: ParticipantKind | '';
+}) {
+  const modeler = useRequiredModeler();
+  const kinds = [{ name: kindLabel(''), value: '' }, ...PARTICIPANT_KINDS.map((k) => ({ name: kindLabel(k), value: k }))];
+  // Kind stands for `actorType`; the rest of the extension's General settings render as they would on a pool.
+  const attrDefs = StudyflowElement.fromBusinessObject(participant).extensionAttributes()
+    .filter((d) => (isExtensionPrefix(d.ns?.prefix) || !!d.redefines) && d.ns?.localName !== 'actorType')
+    .filter((d) => (d.meta?.categories ?? ['General']).includes('General'))
+    .sort((a, b) => (a.meta?.order ?? Infinity) - (b.meta?.order ?? Infinity));
+  return (
+    <InspectorContext.Provider value={{ element: participant }}>
       <Field className={s.field}>
         <Label className={s.label}>
-          Bottom participant
-          <HelpTooltip name="participantRef" description={BOTTOM_HELP} />
+          {t('participantKind')}
+          <HelpTooltip name="actorType" description={KIND_HELP} />
         </Label>
-        <Input
-          type="text"
-          name="choreography:bottom"
-          value={bottom}
-          onChange={(e) => commitBand('bottom', e.target.value)}
-          className={s.textInput}
-        />
+        <div data-testid={`choreography-${field}-kind`}>
+          <PlainEnumSelect
+            name={`choreography:${field}-kind`}
+            ariaLabel={`${field} participant kind`}
+            value={kind}
+            literalValues={kinds}
+            onCommit={(next) => executeCommand(modeler, { type: 'UpdateParticipantKind', element, participant, kind: next as ParticipantKind | '' })}
+          />
+        </div>
       </Field>
+      {attrDefs.filter((d) => isAttributeVisible(d, participant)).map((d) => (
+        <Field key={d.ns.name} className={s.field}><AttributeInput attrDef={d} /></Field>
+      ))}
+    </InspectorContext.Provider>
+  );
+}
+
+function ParticipantFields({ element }: { element: any }) {
+  const modeler = useRequiredModeler();
+  const bo = element.businessObject ?? element;
+  const bands = readChoreographyBands(bo);
+  const refs: any[] = bo.get?.('participantRef') ?? bo.participantRef ?? [];
+  const declared = listParticipants(bo);
+  const typed = isTypedChoreography(bo);
+  const commitInitiator = (value: 'top' | 'bottom') =>
+    executeCommand(modeler, { type: 'UpdateChoreographyParticipants', element, field: 'initiator', value });
+
+  if (typed) {
+    // A cognitive task presents itself (its upper band reads from the task); its one participant takes it.
+    return <ParticipantField element={element} field="bottom" participant={actorOf(bo)} label={t('participant')} help={TAKER_HELP} declared={declared} typed />;
+  }
+
+  return (
+    <>
+      <ParticipantField element={element} field="top" participant={refs[0]} label={t('participantTop')} help={TOP_HELP} declared={declared} typed={false} fallback={bands.top} />
+      <ParticipantField element={element} field="bottom" participant={refs[1]} label={t('participantBottom')} help={BOTTOM_HELP} declared={declared} typed={false} fallback={bands.bottom} />
       <Field className={s.field}>
         <Label className={s.label}>
-          Initiating participant
+          {t('initiatingParticipant')}
           <HelpTooltip name="initiatingParticipantRef" description={INITIATOR_HELP} />
         </Label>
         <div className={s.selectWrapper}>
           <Listbox value={bands.initiator} onChange={commitInitiator}>
             <ListboxButton aria-label="Initiating participant" className={s.listboxBtn}>
-              {bands.initiator === 'top' ? top : bottom}
+              {bands.initiator === 'top' ? bands.top : bands.bottom}
             </ListboxButton>
             <span className={s.comboChevronIndicator} aria-hidden="true">
               <i className={s.comboChevronIcon}></i>
             </span>
             <ListboxOptions anchor="bottom start" className={s.listboxOptions}>
-              <ListboxOption value="top" className={s.comboOption}>{top}</ListboxOption>
-              <ListboxOption value="bottom" className={s.comboOption}>{bottom}</ListboxOption>
+              <ListboxOption value="top" className={s.comboOption}>{bands.top}</ListboxOption>
+              <ListboxOption value="bottom" className={s.comboOption}>{bands.bottom}</ListboxOption>
             </ListboxOptions>
           </Listbox>
         </div>
@@ -196,14 +297,47 @@ export function StateSection() {
   );
 }
 
+const MESSAGE_DESCRIPTION = 'What this flow carries: the structure its message is an item of, the name a runner '
+  + 'recognises (`behaverse:Trial` out of a Behaverse task, `behaverse:Response` back). Unnamed, the flow is taken for either.';
+
+/** A message flow's `messageRef`, edited as the structure its message carries. */
+export function MessageSection({ element }: { element: any }) {
+  const modeler = useRequiredModeler();
+  const businessObject = element?.businessObject ?? element;
+  if (businessObject?.$type !== 'bpmn:MessageFlow') return null;
+
+  return (
+    <div className={s.field} data-testid="message-section">
+      <div className={s.label}>
+        {t('messageRef')}
+        <HelpTooltip name="messageRef" description={MESSAGE_DESCRIPTION} />
+      </div>
+      <div className={s.messageField}>
+        <ItemTypeField
+          propertyId={businessObject.id}
+          testId={`message-structure-${businessObject.id}`}
+          ariaLabel="Message"
+          placeholder="unnamed"
+          value={messageStructureOf(businessObject)}
+          options={messageStructureOptions(businessObject)}
+          onCommit={(structureRef) => executeCommand(modeler, { type: 'UpdateMessage', element, structureRef })}
+        />
+      </div>
+    </div>
+  );
+}
+
 type ItemTypeFieldProps = {
   propertyId: string;
   value: string;
   options: string[];
   onCommit: (itemType: string) => void;
+  testId?: string;
+  ariaLabel?: string;
+  placeholder?: string;
 };
 
-function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldProps) {
+function ItemTypeField({ propertyId, value, options, onCommit, testId, ariaLabel, placeholder = 'untyped' }: ItemTypeFieldProps) {
   const [query, setQuery] = useState('');
 
   const q = query.trim().toLowerCase();
@@ -227,9 +361,9 @@ function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldPr
         onClose={() => setQuery('')}
       >
         <ComboboxInput
-          data-testid={`property-type-${propertyId}`}
-          aria-label={`Item type (${propertyId})`}
-          placeholder="untyped"
+          data-testid={testId ?? `property-type-${propertyId}`}
+          aria-label={ariaLabel ?? `Item type (${propertyId})`}
+          placeholder={placeholder}
           title={value}
           className={s.stateTypeInput}
           displayValue={(type: string | null) => type ?? ''}
@@ -247,7 +381,7 @@ function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldPr
           )}
           {!q && (
             <ComboboxOption value="" className={s.stateTypeOption}>
-              <span className={s.stateTypeUntyped}>untyped</span>
+              <span className={s.stateTypeUntyped}>{placeholder}</span>
             </ComboboxOption>
           )}
           {matches.map((type) => (

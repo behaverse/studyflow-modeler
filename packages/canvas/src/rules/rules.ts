@@ -189,12 +189,14 @@ function isMessageTarget(type: string): boolean {
 
 /** Owns `dataInputAssociations`. */
 function isDataSink(type: string): boolean {
-  return isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:ThrowEvent');
+  return isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:ThrowEvent')
+    || isBpmnSubtypeOf(type, 'bpmn:ChoreographyTask');
 }
 
-/** Owns `dataOutputAssociations`. */
+/** Owns `dataOutputAssociations`; a choreography task does too, through `studyflow:ChoreographyData`. */
 function isDataSource(type: string): boolean {
-  return isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:CatchEvent');
+  return isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:CatchEvent')
+    || isBpmnSubtypeOf(type, 'bpmn:ChoreographyTask');
 }
 
 /** The structural verdict on a pair, and the connection type to mint. */

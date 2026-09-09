@@ -21,8 +21,7 @@ const PLAN = {
         namespace: COGNITIVE, type: 'behaverseTask',
         attributes: {
           behaverseScene: 'WO', agentType: 'bot',
-          configurations: 'Timelines:\n  SimonTask: null\n',
-          botConfigurations: 'ResponseSource: external\nIncludeScreenshot: true\nLLM:\n  Provider: claude\nPrompt: look\n',
+          configurations: 'Timelines:\n  SimonTask: null\nBot:\n  ResponseSource: external\n  IncludeScreenshot: true\n  LLM:\n    Provider: claude\n  Prompt: look\n',
         },
       }],
     },

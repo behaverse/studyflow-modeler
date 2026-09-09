@@ -142,7 +142,13 @@ test.describe('partial runner hand-off', () => {
   test('hands partial runners a JSON digest of the plan', async () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/cognitive/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:collaboration id="C"><bpmn:participant id="Pool" name="Lab" processRef="P"><bpmn:extensionElements><cognitive:actor kind="robot"/></bpmn:extensionElements></bpmn:participant></bpmn:collaboration>
+  <bpmn:collaboration id="C">
+    <bpmn:participant id="Pool" name="Lab" processRef="P"><bpmn:extensionElements><cognitive:actor kind="robot"/></bpmn:extensionElements></bpmn:participant>
+    <bpmn:participant id="Screen" name="Screen"/>
+    <bpmn:messageFlow id="M1" sourceRef="T" targetRef="Screen" messageRef="Trial"/>
+  </bpmn:collaboration>
+  <bpmn:message id="Trial" itemRef="Trial_Item"/>
+  <bpmn:itemDefinition id="Trial_Item" structureRef="behaverse:Trial"/>
   <bpmn:process id="P" studyflow:seed="7">
     <bpmn:extensionElements><studyflow:study runtime="local"><studyflow:dependencies>pandas>=2.0</studyflow:dependencies><studyflow:dependencies>joblib</studyflow:dependencies></studyflow:study></bpmn:extensionElements>
     <bpmn:startEvent id="Start"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
@@ -156,6 +162,8 @@ test.describe('partial runner hand-off', () => {
     </bpmn:task>
     <bpmn:dataObjectReference id="Dat" name="digits" studyflow:uri="digits.csv"/>
     <bpmn:dataObjectReference id="Out" name="model"/>
+    <bpmn:dataObjectReference id="Twin" name="model"/>
+    <bpmn:dataObjectReference id="Shadow" name="Done"/>
     <bpmn:endEvent id="Done"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
     <bpmn:sequenceFlow id="F1" sourceRef="Start" targetRef="T"/>
     <bpmn:sequenceFlow id="F2" sourceRef="T" targetRef="Done"/>
@@ -192,5 +200,71 @@ test.describe('partial runner hand-off', () => {
     expect(task.outputs).toEqual([{ target: 'Out', transformation: null, language: null }]);
     expect(digest.elements.Dat.attributes.uri).toBe('digits.csv');
     expect(digest.elements.Pool.extensions[0]).toEqual({ namespace: 'http://behaverse.org/schemas/cognitive/v1', type: 'actor', attributes: { kind: 'robot' } });
+    // A message flow names its message, and the message and its item definition ride along, so a runner can follow the chain.
+    expect(digest.elements.M1.attributes).toEqual({ sourceRef: 'T', targetRef: 'Screen', messageRef: 'Trial' });
+    expect(digest.elements.Trial).toMatchObject({ type: 'message', attributes: { itemRef: 'Trial_Item' } });
+    expect(digest.elements.Trial_Item).toMatchObject({ type: 'itemDefinition', attributes: { structureRef: 'behaverse:Trial' } });
+    // `names` binds a name to one element: `model` names two, and `Done` is another element's id, so neither is offered.
+    expect(digest.names).toEqual({ T: 'fit', Dat: 'digits' });
+  });
+
+  test('walks every pool at once, and steps joined by message flows start together', async () => {
+    // Two pools: the screen's task and the robot's answering step exchange messages both ways, so neither
+    // starts before the other is reached; the robot's greeting runs first, the task waits for it.
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="C">
+    <bpmn:participant id="Screen" name="Screen" processRef="S"/>
+    <bpmn:participant id="Robot" name="Robot" processRef="R"/>
+    <bpmn:messageFlow id="M1" sourceRef="Play" targetRef="Answer"/>
+    <bpmn:messageFlow id="M2" sourceRef="Answer" targetRef="Play"/>
+  </bpmn:collaboration>
+  <bpmn:process id="S">
+    <bpmn:startEvent id="S0"><bpmn:outgoing>SF1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Play" name="Play"><bpmn:incoming>SF1</bpmn:incoming><bpmn:outgoing>SF2</bpmn:outgoing></bpmn:task>
+    <bpmn:endEvent id="S9"><bpmn:incoming>SF2</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="SF1" sourceRef="S0" targetRef="Play"/>
+    <bpmn:sequenceFlow id="SF2" sourceRef="Play" targetRef="S9"/>
+  </bpmn:process>
+  <bpmn:process id="R">
+    <bpmn:extensionElements><studyflow:study runtime="local"/></bpmn:extensionElements>
+    <bpmn:startEvent id="R0"><bpmn:outgoing>RF1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Greet" name="Greet"><bpmn:incoming>RF1</bpmn:incoming><bpmn:outgoing>RF2</bpmn:outgoing></bpmn:task>
+    <bpmn:receiveTask id="Answer" name="Answer"><bpmn:incoming>RF2</bpmn:incoming><bpmn:outgoing>RF3</bpmn:outgoing></bpmn:receiveTask>
+    <bpmn:endEvent id="R9"><bpmn:incoming>RF3</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="RF1" sourceRef="R0" targetRef="Greet"/>
+    <bpmn:sequenceFlow id="RF2" sourceRef="Greet" targetRef="Answer"/>
+    <bpmn:sequenceFlow id="RF3" sourceRef="Answer" targetRef="R9"/>
+  </bpmn:process>
+</bpmn:definitions>`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-pools-'));
+    fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    const order = path.join(dir, 'order.log');
+    // A runner that claims every task, takes a moment on each, and notes when each began and ended.
+    fs.writeFileSync(path.join(dir, 'fake.py'), [
+      'import json, sys, time',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Greet', 'Play', 'Answer']))",
+      'else:',
+      '    eid = sys.argv[3]',
+      `    open(${JSON.stringify(order)}, 'a').write(f'start {eid} {time.monotonic()}\\n')`,
+      '    time.sleep(0.8)',
+      `    open(${JSON.stringify(order)}, 'a').write(f'end {eid} {time.monotonic()}\\n')`,
+      "    handoff = sys.argv[5] + '/' + eid + '.state.json'",
+      '    state = json.load(open(handoff))',
+      "    json.dump({**state, 'result': eid, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
+      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe' });
+
+    const moments = new Map(fs.readFileSync(order, 'utf8').trim().split('\n').map((line) => {
+      const [what, id, at] = line.split(' ');
+      return [`${what} ${id}`, Number(at)] as const;
+    }));
+    // The task waited for the greeting; then it and the answering step ran together.
+    expect(moments.get('start Play')!).toBeGreaterThanOrEqual(moments.get('end Greet')!);
+    expect(moments.get('start Answer')!).toBeLessThan(moments.get('end Play')!);
+    expect(moments.get('start Play')!).toBeLessThan(moments.get('end Answer')!);
   });
 });

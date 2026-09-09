@@ -26,7 +26,7 @@ A studyflow is a graph. The nodes are events, tasks, gateways, and data, and the
 |:--|:--|:--|
 | `bpmn:SequenceFlow` | activity <-> activity | order; optionally a `conditionExpression` deciding whether this branch is taken |
 | `bpmn:DataInputAssociation`, `bpmn:DataOutputAssociation` | data <-> step | one value in or out of the activity |
-| `bpmn:MessageFlow` | | an exchange of messages between two parties |
+| `bpmn:MessageFlow` | step <-> step, or a pool | an exchange of messages between two parties; `messageRef` names the `Message` it carries, whose `itemRef` names the `ItemDefinition` saying what that message is (`structureRef`) |
 
 A data edge can also describe a binding, written as `slot = selection`. The slot names which argument of the step's call the value fills, and the selection names which value arrives. Two slot names are positional: `self` binds a method's receiver, and `*` appends the value positionally.
 
@@ -101,12 +101,16 @@ A view is a projection. It keeps some of the elements of the diagram and drops t
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
 | `Questionnaire` | `bpmn:Task` | A self-report form: a standard instrument, or one of your own. | `instrument` |
-| `CognitiveTask` | `bpmn:Task` | A cognitive test, delivered by an experiment package. | `instrument`, `construct`, `implementation`, `configurations` |
-| `BehaverseTask` | `bpmn:Task` | A test from the Behaverse battery. A `CognitiveTask` whose instrument is fixed. | `behaverseScene`, `configurations`, `agentType`, `botConfigurations` |
+| `CognitiveTask` | `bpmn:ChoreographyTask` | A cognitive test: an exchange between the software that presents it (upper band, initiating) and the actor who takes it (lower band). With no actor named it is drawn as a plain task and the study's own participant takes it. | `instrument`, `construct`, `implementation`, `configurations` |
+| `BehaverseTask` | `bpmn:ChoreographyTask` | A test from the Behaverse battery. A `CognitiveTask` whose instrument is fixed. | `behaverseScene`, `configurations` (its `Bot:` entry, read when the participant is not a person, says how a bot plays) |
+
+Who takes a cognitive task is what the diagram draws, and a run follows it in this order, most explicit first: the participant on the task's receiving band; else the participant at the other end of a message flow touching the task, a pool itself or the pool of the step the flow ends at (a flow naming its message outranks one that does not, only a flow carrying the task's own messages counts, and two partners left is an error, not a draw); else the participant of the pool the task sits in. The participant's type says what kind of actor it is: a human, a model, or a software agent (`Actor`, whose `identifier` names the model), or a robot (`reachy:Robot`). A cognitive task presents itself: its upper band reads from the task (the Behaverse scene, or the instrument), so the task holds one reference, the actor who takes it, and names no participant for its own side. In the inspector every band of a choreography-shaped task is the same editable field, "Participant": its dropdown offers every participant the file declares, a drawn pool or an actor that only takes bands, "None" clears it, and typed text either names one of them or names a new actor for this task. What kind of actor a band holds comes from the participant it references. A drawn pool is typed through its own settings; an actor that only takes bands has no shape to select, so its kind (a person, a model, a software agent, an instrument, a robot) and the settings of that kind (`identifier`, a prompt template, a robot's host) are edited on the band itself. An actor no task refers to any more is dropped from the file, and renaming a pool renames it on every band that shows it. A `Prompt` data object wired into the task is that task's instructions for whoever takes it, and a cognitive task reads and writes data through data edges like any activity (`studyflow:ChoreographyData` lends a choreography task that ability).
+
+When the task is drawn in one pool and its taker has steps of its own in another, the taker's pool holds a step for the exchange, `reachy:Participate` for a robot, and the message flows join the two; the pools then run at once and the two steps start together, as described under "Who takes part".
 | `Instruction` | `bpmn:Task` | Text the participant reads. Nothing is recorded. | `content` |
 | `Rest` | `bpmn:Task` | A break, or a resting-state period. | `restDuration`, `eyes` (`open`, `closed`, `alternating`) |
 
-`instrument` names an experiment package (PsychoPy, jsPsych, lab.js, OpenSesame, PsyToolkit, Gorilla, Inquisit, E-Prime, Psychtoolbox, Presentation, Unity, Behaverse), or a scale, or an identifier of your own, and `configurations` is the YAML passed to that instrument. Setting `agentType` to `bot` has the same instrument answered by a model instead of a person, driven by `botConfigurations`. That is how the same file doubles as an AI evaluation.
+`instrument` names an experiment package (PsychoPy, jsPsych, lab.js, OpenSesame, PsyToolkit, Gorilla, Inquisit, E-Prime, Psychtoolbox, Presentation, Unity, Behaverse), or a scale, or an identifier of your own, and `configurations` is the YAML passed to that instrument. Naming a model, an agent, or a robot as the task's participant has the same instrument answered by it instead of a person, driven by the `Bot:` entry of `configurations`. That is how the same file doubles as an AI evaluation.
 
 ## Entry and exit
 
@@ -130,9 +134,25 @@ Screening and allocation are separate types because they answer to different sta
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Actor` | `bpmn:Participant` | A pool of participants: human, model, software agent, or instrument. | `actorType` (`human`, `llm`, `agent`, `instrument`), `spec`, `promptTemplate` |
+| `Actor` | `bpmn:Participant` | Who or what takes part: human, model, software agent, or instrument. A pool when it has steps of its own, a band on a cognitive task when it only takes that task. | `actorType` (`human`, `llm`, `agent`, `instrument`), `identifier`, `promptTemplate` |
 
 A pool stands for a group, not for one person. If you draw two pools that deal with each other, the file becomes a collaboration, with one choreography task per exchange. That is how you describe a dyadic experiment, or a study where a person and a model work together.
+
+When the pools have processes of their own, a run walks them all at once, each on its own token. A step with an incoming message flow starts only once the step it comes from has been reached in this run, so two steps joined both ways start together and exchange messages while they run: a task on the screen sends each trial to a robot in the participant's seat and takes its answer back. The runners read the edges, so neither step carries a setting for the exchange. What a flow carries is its `messageRef`: a `Message` whose `itemRef` names an `ItemDefinition`, and that item's `structureRef` is the name a runner recognises (`behaverse:Trial` out of a Behaverse task, `behaverse:Response` back into it). A flow that names no message is taken for either, which is enough with one partner; with several, name the messages. In the inspector a message flow has one field, "Message", offering the structures the loaded schemas declare and any item definition the file already holds; a name typed in declares a new one. Where the trials travel is the partner's to say: a robot's `bridge` (a WebSocket URL, `ws://localhost:8765` unless set) is where its seat listens and where the task's runner sends them.
+
+```yaml
+Collab:
+  type: Collaboration
+  messageFlows:
+    Msg_Trial: { sourceRef: Play, targetRef: Answer, messageRef: Trial }
+    Msg_Answer: { sourceRef: Answer, targetRef: Play, messageRef: Response }
+Trial:
+  type: Message
+  itemRef: Trial_Item
+Trial_Item:
+  type: ItemDefinition
+  structureRef: behaverse:Trial
+```
 
 ## When each step happens
 

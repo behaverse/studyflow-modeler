@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { exampleFile, exportDiagram, gotoModeler, readDownloadText } from './utils';
+import { exampleFile, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
 
 /**
  * Native SVG icons, end to end (parity addendum 6 §1–§2).
@@ -108,6 +108,25 @@ test.describe('native SVG icons', () => {
     // stays put (and is what a later arrival would replace).
     await expect(canvas.locator('foreignObject.icon-container').first()).toBeAttached();
     await expect(canvas.locator(`svg.sf-icon path[d="${GLYPH_PATH}"]`)).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
+  test('an icon that cannot be fetched is left out of the export, and the PNG still downloads', async ({ page }) => {
+    // The placeholder is a `<foreignObject>`; rasterizing an SVG that holds one taints the canvas,
+    // and a tainted canvas yields no PNG at all (seen when the Iconify API rate-limits with 429).
+    await routeIconify(page, false);
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(String(error)));
+
+    await gotoModeler(page);
+    await openIconRichExample(page);
+    await expect(page.getByTestId('modeler-canvas').locator('foreignObject.icon-container').first()).toBeAttached();
+
+    const png = await readDownload(await exportDiagram(page, 'png'));
+    expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+
+    const svg = await readDownloadText(await exportDiagram(page, 'svg'));
+    expect(svg).not.toContain('foreignObject');
     expect(errors).toEqual([]);
   });
 });

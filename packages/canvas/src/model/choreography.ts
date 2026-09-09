@@ -89,6 +89,9 @@ export interface ChoreographyBands {
  * fallback to the placeholder names when a participant carries none.
  */
 export function readChoreographyBands(bo: ModdleObject): ChoreographyBands {
+  if (isTypedChoreography(bo)) {
+    return { top: presenterLabel(bo), bottom: nameOf(actorOf(bo)) || DEFAULT_BOTTOM, initiator: 'top' };
+  }
   const list = participantRefs(bo);
   const top = list[0];
   const bottom = list[1];
@@ -103,6 +106,38 @@ export function readChoreographyBands(bo: ModdleObject): ChoreographyBands {
 /** The task's ordered `participantRef` list (possibly shorter than two, or empty). */
 export function participantRefs(bo: ModdleObject): ModdleObject[] {
   return asList(prop(bo, 'participantRef'));
+}
+
+/**
+ * A typed choreography task (a cognitive task, say) presents itself: its upper band names the software that
+ * runs it, and its one participant reference is the actor who takes it. Only a plain choreography task has
+ * two participants of its own.
+ */
+export function isTypedChoreography(bo: ModdleObject): boolean {
+  const holder = prop(bo, 'extensionElements') as ModdleObject | undefined;
+  return asList(holder ? prop(holder, 'values') : undefined).length > 0;
+}
+
+/** What presents a typed task, from its extension: the Behaverse scene, else the instrument, else the software. */
+export function presenterLabel(bo: ModdleObject): string {
+  const holder = prop(bo, 'extensionElements') as ModdleObject | undefined;
+  const ext = asList(holder ? prop(holder, 'values') : undefined)[0] as ModdleObject | undefined;
+  const read = (name: string): string => {
+    const value = ext ? (prop(ext, name) ?? (prop(ext, '$attrs') as Record<string, unknown> | undefined)?.[name]) : undefined;
+    return typeof value === 'string' ? value : '';
+  };
+  const scene = read('behaverseScene');
+  if (scene) return `Behaverse \u00b7 ${scene}`;
+  const instrument = read('instrument');
+  if (instrument) return instrument.charAt(0).toUpperCase() + instrument.slice(1);
+  return 'Task software';
+}
+
+/** The actor a typed task names: its participant that does not initiate, else its first. */
+export function actorOf(bo: ModdleObject): ModdleObject | undefined {
+  const list = participantRefs(bo);
+  const initiating = prop(bo, 'initiatingParticipantRef');
+  return list.find((participant) => participant !== initiating) ?? list[0];
 }
 
 /**
@@ -153,6 +188,11 @@ export function ensureChoreographyParticipants(
 ): [ModdleObject, ModdleObject] | undefined {
   const bo = node.businessObject;
   const list = participantRefs(bo);
+  const typed = isTypedChoreography(bo);
+  if (typed && list.length >= 1) {
+    const actor = actorOf(bo)!;
+    return [actor, actor];
+  }
   if (list.length >= 2) return [list[0], list[1]];
 
   const factory = modelOf(bo) ?? modelOf(definitionsAbove(bo));
@@ -164,6 +204,14 @@ export function ensureChoreographyParticipants(
     id: ids.nextPrefixed('Participant_'),
     name,
   });
+  if (typed) {
+    // One participant: the actor. The presenting side is the task itself and needs none.
+    const actor = make('Participant');
+    setParent(actor, holder);
+    setProp(holder, 'participants', [...asList(prop(holder, 'participants')), actor]);
+    setProp(bo, 'participantRef', [actor]);
+    return [actor, actor];
+  }
   const top = list[0] ?? make(DEFAULT_TOP);
   const bottom = list[1] ?? make(DEFAULT_BOTTOM);
   const fresh = [top, bottom].filter((_participant, i) => !list[i]);
@@ -200,7 +248,9 @@ export function applyBandName(
   name: string,
   ids: IdGenerator,
 ): BandWrite | undefined {
-  const minted = participantRefs(node.businessObject).length < 2;
+  const typed = isTypedChoreography(node.businessObject);
+  if (typed && band === 'top') return undefined; // the presenter's band reads from the task itself
+  const minted = participantRefs(node.businessObject).length < (typed ? 1 : 2);
   const pair = ensureChoreographyParticipants(node, ids);
   if (!pair) return undefined;
   const participant = band === 'top' ? pair[0] : pair[1];
@@ -218,6 +268,7 @@ export function applyInitiator(
   band: ParticipantBand,
   ids: IdGenerator,
 ): boolean {
+  if (isTypedChoreography(node.businessObject)) return false; // the presenter always initiates
   const pair = ensureChoreographyParticipants(node, ids);
   if (!pair) return false;
   const next = band === 'top' ? pair[0] : pair[1];

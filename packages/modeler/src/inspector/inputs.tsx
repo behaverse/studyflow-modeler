@@ -314,7 +314,7 @@ function OptionLabel({ option }: { option: Option }) {
   );
 }
 
-function PlainEnumSelect({ name, ariaLabel, value, literalValues, onCommit }: SubProps) {
+export function PlainEnumSelect({ name, ariaLabel, value, literalValues, onCommit }: SubProps) {
   const currentLabel = literalValues.find((l) => l.value === value)?.name ?? value;
   return (
     <div className={s.selectWrapper}>

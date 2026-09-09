@@ -5,7 +5,7 @@
  */
 
 import type { EventBus } from '@core/events/bus.ts';
-import { isChoreographyTask, readChoreographyBands } from '@canvas/model/choreography.ts';
+import { isChoreographyTask, isTypedChoreography, participantRefs, readChoreographyBands } from '@canvas/model/choreography.ts';
 import { hasExternalLabel } from '@canvas/model/labels.ts';
 import { nameOf } from '@canvas/model/moddle.ts';
 import type { Mutator } from '@canvas/model/mutator.ts';
@@ -70,7 +70,7 @@ export function labelPlacement(element: SceneNode | SceneEdge): LabelPlacement {
 export function choreographyBandAt(node: SceneNode, point: Point): LabelBand {
   const band = choreographyBandHeight(node.height);
   const rel = point.y - node.y;
-  if (rel <= band) return 'top';
+  if (rel <= band) return isTypedChoreography(node.businessObject) ? 'name' : 'top';
   if (rel >= node.height - band) return 'bottom';
   return 'name';
 }
@@ -83,10 +83,14 @@ export function labelBounds(element: SceneNode | SceneEdge, band: LabelBand): Bo
     const h = choreographyBandHeight(node.height);
     if (band === 'top') return { x: node.x, y: node.y, width: node.width, height: h };
     if (band === 'bottom') return { x: node.x, y: node.y + node.height - h, width: node.width, height: h };
-    return { x: node.x, y: node.y + h, width: node.width, height: node.height - 2 * h };
+    // The name is captioned inside the middle band, laid out like a task's (`renderer.ts drawChoreography`);
+    // a typed one naming no party is drawn as a plain task and captions the whole box.
+    const plain = isTypedChoreography(node.businessObject) && participantRefs(node.businessObject).length === 0;
+    const region = internalLabelRegion(plain ? node : { ...node, height: node.height - 2 * h }, nameOf(node.businessObject));
+    return { x: node.x + region.x, y: node.y + (plain ? 0 : h) + region.y, width: region.width, height: region.height };
   }
   if (hasExternalLabel(node)) return node.label ?? nodeLabelBox(node, nameOf(node.businessObject) || 'x');
-  const region = internalLabelRegion(node);
+  const region = internalLabelRegion(node, nameOf(node.businessObject));
   return { x: node.x + region.x, y: node.y + region.y, width: region.width, height: region.height };
 }
 

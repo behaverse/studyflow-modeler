@@ -1,6 +1,6 @@
 {
   "name": "@behaverse/studyflow-modeler",
-  "description": "The Behaverse Studyflow modeler \u2014 BPMN-based visual editor for scientific workflows.",
+  "description": "The Behaverse Studyflow modeler — BPMN-based visual editor for scientific workflows.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -11,9 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@behaverse/studyflow-browser-skill": "*",
     "@behaverse/studyflow-canvas": "*",
     "@behaverse/studyflow-core": "*",
-    "@behaverse/studyflow-browser-skill": "*",
     "@headlessui/react": "^2.2.10",
     "bpmn-auto-layout": "^1.3.0",
     "bpmn-moddle": "10.1.0",
@@ -25,14 +25,14 @@
     "react-simple-code-editor": "^0.14.1"
   },
   "devDependencies": {
-    "@iconify/json": "^2.2.524",
+    "@iconify/json": "^2.2.526",
     "@iconify/tailwind4": "^1.2.3",
     "@tailwindcss/vite": "^4.3.3",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.5",
     "@types/prismjs": "^1.26.6",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
+    "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^5.2.0",
     "bootstrap-icons": "^1.13.1",
     "tailwindcss": "^4.2.0",

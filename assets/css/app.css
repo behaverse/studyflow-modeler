@@ -5,7 +5,7 @@
 @import "tailwindcss" source("../../");
 
 @plugin "@iconify/tailwind4" {
- prefixes: bi, ri, mdi, uil, fluent, fluent-color, bpmn, material-symbols, flat-color-icons, tabler, solar, streamline-flex, mynaui, hugeicons, streamline;
+ prefixes: bi, ri, mdi, uil, ph, fluent, fluent-color, bpmn, material-symbols, flat-color-icons, tabler, solar, streamline-flex, mynaui, hugeicons, streamline;
 }
 
 /*

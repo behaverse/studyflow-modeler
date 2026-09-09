@@ -9,7 +9,12 @@ metadata:
     local: "uv run --script local.py"
 ---
 
-A runner-only skill: no vocabulary of its own, `cognitive:BehaverseTask` is what it executes.
+A runner-only skill: no vocabulary of its own, `cognitive:BehaverseTask` is what it executes. Its task's
+message flows carry `behaverse:Trial` out of the task and `behaverse:Response` back into it (the `structureRef`
+of an `ItemDefinition`, reached through the flow's `messageRef` and the message's `itemRef`); a flow naming another
+structure is some other skill's exchange, a flow naming none is taken for either, and two partners with no message
+named is an error rather than a guess. The task's trial records go to the `uri` its data output names, else
+`<id>.events.jsonl` in the run.
 
 - `browser/` is the browser runtime's node module: the Unity build in a frame, the bot players
   (an LLM, or an external bridge such as a robot), and its dev-server plugins (`vite.ts`).

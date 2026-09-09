@@ -4,7 +4,7 @@ import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
 import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/export/formats';
 import { buildExportModel } from '@modeler/export/model';
 import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
-import { embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
+import { dropUnresolvedIcons, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
 import type { Editor } from '@modeler/editor/port';
@@ -32,7 +32,7 @@ async function renderSvg(modeler: Editor): Promise<{ svg: string; xml: string }>
   const svg = modeler.canvas.toSVG();
   const compactXml = await toExportableXml(modeler);
   const xml = await toStandardBpmnXml(compactXml, modeler.model.moddle());
-  const cleaned = svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1');
+  const cleaned = dropUnresolvedIcons(svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1'));
   return { svg: cleaned, xml };
 }
 

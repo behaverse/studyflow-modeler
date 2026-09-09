@@ -19,6 +19,16 @@ categories:
     description: How a Behaverse task is delivered, and who answers it.
 
 enumerations:
+  # Offered on a message flow's Message field; any other item definition's `structureRef` is accepted too.
+  - name: MessageStructureEnum
+    description: What a message flow to or from a Behaverse task carries, as the structure its message is an item of.
+    literalValues:
+      - name: A trial
+        value: behaverse:Trial
+        description: One awaiting trial, out of the task to whoever answers it (its options, response window, and screenshot).
+      - name: A response
+        value: behaverse:Response
+        description: The answer to a trial, back into the task.
   - name: AllocationAlgorithmEnum
     description: How participants are allocated to arms.
     literalValues:
@@ -150,13 +160,6 @@ enumerations:
         value: UFOV
       - name: Which One (WO)
         value: WO
-  - name: AgentTypeEnum
-    description: Whether a human or a bot plays the task.
-    literalValues:
-      - name: Human
-        value: human
-      - name: Bot
-        value: bot
   - name: RestEyesEnum
     description: Eye condition during a rest period.
     literalValues:
@@ -174,18 +177,18 @@ types:
       - name: value
         isBody: true
         type: studyflow:YAMLString
-  - name: BotConfigurations
-    # Its own subclass so it serializes as `<cognitive:botConfigurations>`, not a second `configurations`.
-    description: How a bot plays a Behaverse task, as YAML.
-    superClass:
-      - Configurations
 
+  # A cognitive task is an exchange between the software that presents it and the actor who takes it: a human,
+  # a model (`Actor`), or a robot (`reachy:Robot`). The actor is what the diagram draws, most explicit first:
+  # the participant on the task's receiving band, else the other end of a message flow touching the task, else
+  # the pool the task sits in. A task naming no one on its bands is drawn as a plain task. Data edges still
+  # apply (`studyflow:ChoreographyData`).
   - name: CognitiveTask
-    description: A cognitive test a participant performs (working memory, attention, ...).
+    description: A cognitive test an actor takes (working memory, attention, ...), presented by the study's software.
     superClass:
-      - bpmn:Task
+      - bpmn:ChoreographyTask
     meta:
-      icon: iconify mdi--puzzle-outline
+      icon: iconify ph--puzzle-piece
     properties:
       - name: instrument
         description: Software that delivers the task and reads its configurations.
@@ -222,7 +225,7 @@ types:
     superClass:
       - bpmn:Task
     meta:
-      icon: iconify mdi--coffee-outline
+      icon: iconify ph--coffee
     properties:
       # Not `duration`: the Scheduling trait already puts a Gantt `duration` on every activity.
       - name: restDuration
@@ -246,7 +249,7 @@ types:
     superClass:
       - bpmn:Task
     meta:
-      icon: iconify mdi--clipboard-text-outline
+      icon: iconify ph--clipboard-text
     properties:
       - name: instrument
         description: A standard questionnaire, or a name of your own.
@@ -260,7 +263,7 @@ types:
     superClass:
       - bpmn:Task
     meta:
-      icon: iconify mdi--information-outline
+      icon: iconify ph--info
     properties:
       - name: content
         description: What the participant reads, in markdown.
@@ -298,32 +301,13 @@ types:
           categories:
             - Execution
       - name: configurations
-        description: 'The task''s `GameConfig` as YAML: a shipped timeline, or one defined inline.'
+        description: 'The task''s `GameConfig` as YAML: a shipped timeline, or one defined inline. `Bot:` says how a bot plays it (`Speed: 20`), read when the participant taking the task is not a person.'
         type: Configurations
         redefines: CognitiveTask#configurations
         meta:
           order: 2
           categories:
             - Execution
-      - name: agentType
-        description: Whether a human or a bot plays the task.
-        isAttr: true
-        type: AgentTypeEnum
-        default: human
-        meta:
-          order: 4
-          categories:
-            - Execution
-      - name: botConfigurations
-        description: 'How the bot plays, as YAML (`Speed: 100`).'
-        type: BotConfigurations
-        meta:
-          order: 5
-          categories:
-            - Execution
-          condition:
-            body:
-              agentType: bot
 
   # The browser runner performs only simple randomization with equal odds; it
   # warns about anything else (packages/runner/src/allocation.ts).
@@ -332,7 +316,7 @@ types:
     superClass:
       - bpmn:ExclusiveGateway
     meta:
-      icon: iconify mdi--dice-5-outline
+      icon: iconify ph--dice-five
       # The runner reads this and picks a branch at random instead of evaluating conditions.
       branching: random
     properties:
@@ -383,7 +367,7 @@ types:
     superClass:
       - bpmn:ExclusiveGateway
     meta:
-      icon: iconify mdi--filter-check-outline
+      icon: iconify ph--funnel
     properties:
       - name: inclusionCriteria
         description: What a participant must meet, one per entry (`Age 18 to 65`).
@@ -401,7 +385,7 @@ types:
     superClass:
       - bpmn:Participant
     meta:
-      icon: iconify mdi--account-group-outline
+      icon: iconify ph--users-three
     properties:
       - name: actorType
         description: Kind of actor this pool represents.
@@ -437,7 +421,7 @@ templates:
       bpmn:documentation: |
         Randomizes within each stratum of `stratifyBy`, in permuted blocks,
         so arms stay balanced on the covariate. List the strata one per entry.
-      icon: iconify mdi--layers-outline
+      icon: iconify ph--stack
       keywords:
         - stratified
         - allocation
@@ -458,7 +442,7 @@ templates:
       bpmn:documentation: |
         Set the game engine in `instrument` and its levels, difficulty, and
         scoring in `configurations`.
-      icon: iconify mdi--controller-classic-outline
+      icon: iconify ph--game-controller
       keywords:
         - game
         - videogame

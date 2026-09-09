@@ -31,8 +31,11 @@ export {
 export {
   DEFAULT_BOTTOM,
   DEFAULT_TOP,
+  actorOf,
   choreographyToProcessRoot,
   fromWireXml,
+  isTypedChoreography,
+  presenterLabel,
   readChoreographyBands,
   toWireXml,
 } from '@core/document/choreography';
