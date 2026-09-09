@@ -19,4 +19,4 @@ in, `behaverse:Response` out), or the task inside the Robot pool. The trials rea
 (`ws://localhost:8765` unless the pool says otherwise); the task's runner reads the same setting from the diagram. Wire an `agentic:Prompt` into the task, or into
 the `Participate` step, for the robot's instructions, and give the `Participate` step a data output whose `uri` is
 where the seated robot leaves what it judged from (`frames/`) and `reasoning.jsonl`; `reachy/` when it has none.
-`test_local.py` is its self-check.
+A `Say` step renders its line on this machine and plays it on the unit; it may name the renderer, `implementation: shell://say` with the sentence in `additionalArguments` `args` and flags as keys (`v: Alex`), a step the shell skill leaves to this runner. A `screen` look remembers where it found the screen (`~/.studyflow/reachy/gaze.json`, per robot host), so the next look, and the next run, start there. `test_local.py` is its self-check.

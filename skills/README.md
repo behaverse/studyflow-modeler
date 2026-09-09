@@ -26,7 +26,7 @@ What the vocabulary means and how to author with it.
 
 - **Vocabulary-only** skills declare a `schema` and nothing else (`eeg`, `agentic`).
 - **Runner-only** skills execute someone else's vocabulary (`python` runs `python://` implementations,
-  `behaverse` runs `cognitive:BehaverseTask`).
+  `shell` runs `shell://` ones, `behaverse` runs `cognitive:BehaverseTask`).
 - **Runtimes** are skills too: [`browser`](browser/SKILL.md) is the participant-facing app,
   [`local`](local/SKILL.md) the walk behind `studyflow run --runtime local`. A `runtimes.local`
   entry is a partial runner for the latter (the contract is in the

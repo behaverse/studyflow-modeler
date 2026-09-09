@@ -179,12 +179,15 @@ export function canContain(shapeType: string, containerType: string): boolean | 
   return false;
 }
 
+/** A choreography task drawn in a pool (a cognitive task) exchanges messages with the other pool's steps. */
 function isMessageSource(type: string): boolean {
-  return type === 'bpmn:Participant' || isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:ThrowEvent');
+  return type === 'bpmn:Participant' || isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:ThrowEvent')
+    || isBpmnSubtypeOf(type, 'bpmn:ChoreographyTask');
 }
 
 function isMessageTarget(type: string): boolean {
-  return type === 'bpmn:Participant' || isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:CatchEvent');
+  return type === 'bpmn:Participant' || isBpmnSubtypeOf(type, 'bpmn:Activity') || isBpmnSubtypeOf(type, 'bpmn:CatchEvent')
+    || isBpmnSubtypeOf(type, 'bpmn:ChoreographyTask');
 }
 
 /** Owns `dataInputAssociations`. */

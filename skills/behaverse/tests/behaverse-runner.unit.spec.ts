@@ -38,9 +38,15 @@ function scratch(): { dir: string; plan: string } {
 
 test('claims every BehaverseTask, and only those', () => {
   test.setTimeout(120_000);
-  const { plan } = scratch();
-  const out = execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims'], { stdio: 'pipe' }).toString();
+  const { dir, plan } = scratch();
+  const build = path.join(dir, 'build');
+  fs.mkdirSync(build);
+  fs.writeFileSync(path.join(build, 'index.html'), '<canvas id="unity-canvas"></canvas>');
+  const out = execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', build], { stdio: 'pipe' }).toString();
   expect(JSON.parse(out)).toEqual(['T']);
+  // Without a build the claim fails, before any other pool's runner starts its work.
+  expect(() => execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', path.join(dir, 'none')],
+    { stdio: 'pipe', env: { ...process.env, UNITY_BUILD_PATH: '' } })).toThrow(/no Unity WebGL build/);
 });
 
 test('serves the build and the stage, relays what the page reports, and records the completion', async () => {

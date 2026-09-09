@@ -504,12 +504,17 @@ def build_dir(explicit: Path | None) -> Path:
     return Path(__file__).resolve().parents[1] / "run" / "assessment-unity" / "Build" / "WebGL"
 
 
+def checked_build(explicit: Path | None) -> Path:
+    build = build_dir(explicit)
+    if not (build / "index.html").is_file():
+        raise FileNotFoundError(f"no Unity WebGL build at {build} — set UNITY_BUILD_PATH (or --build) to the Build/WebGL folder")
+    return build
+
+
 def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """One task: serve, open, wait for the completion; the keys a hand-off merges into the state."""
     payload = task_payload(element, auto=args.auto, plan=plan)
-    build = build_dir(args.build)
-    if not (build / "index.html").is_file():
-        raise FileNotFoundError(f"no Unity WebGL build at {build} — set UNITY_BUILD_PATH (or --build) to the Build/WebGL folder")
+    build = checked_build(args.build)
     cache = args.cache or Path(".")
     # The run directory, not its `.cache`: studyflow-run-local sweeps the cache when the run ends.
     run_dir = cache.parent if cache.name == ".cache" else cache
@@ -567,7 +572,13 @@ def main() -> int:
 
     elements: dict[str, dict[str, Any]] = json.loads(args.plan.read_text()).get("elements") or {}
     if args.claims:
-        print(json.dumps([eid for eid, element in elements.items() if behaverse_extension(element) is not None]))
+        claimed = [eid for eid, element in elements.items() if behaverse_extension(element) is not None]
+        if claimed:  # fail before the walk starts, not after another pool's robot has greeted
+            try:
+                checked_build(args.build)
+            except FileNotFoundError as error:
+                sys.exit(str(error))
+        print(json.dumps(claimed))
         return 0
     if not args.element:
         parser.error("this runner performs one element at a time: pass --element or --claims")

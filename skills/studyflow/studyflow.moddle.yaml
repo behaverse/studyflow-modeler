@@ -698,7 +698,7 @@ types:
     isAbstract: true
     properties:
       - name: bpmn:implementation
-        description: Software to run, as `<scheme>://<ref>[@<version>]` (`python://`, `docker://`).
+        description: Software to run, as `<scheme>://<ref>[@<version>]` (`python://`, `shell://`, `docker://`).
         isAttr: true
         type: String
         # One ref is enough: moddle resolves it per extended type.

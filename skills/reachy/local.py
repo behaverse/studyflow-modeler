@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11,<3.14"
-# dependencies = ["reachy-mini[mujoco]>=1.9", "websockets>=13", "pillow>=10"]
+# dependencies = ["reachy-mini[mujoco]>=1.9", "websockets>=13", "pillow>=10", "pyyaml>=6"]
 # ///
 """Run the Reachy Mini elements of a studyflow.
 
@@ -230,7 +230,7 @@ def claimed(studyflow: Plan) -> list[str]:
 class TerminalRobot:
     label = "dry run"
 
-    def speak(self, text: str) -> None: ...
+    def speak(self, text: str, renderer: list[str] | None = None) -> None: ...
     def gesture(self, move: str, dataset: str | None = None) -> None: ...
     def goto(self, spec: dict[str, Any]) -> None: ...
     def play_sound(self, file: str) -> None: ...
@@ -254,12 +254,13 @@ class SimRobot:
     participant mode a real unit whose daemon already answers on the host."""
 
     def __init__(self, host: str, media_backend: str = "no_media", sim: bool | None = None, voice: str = "",
-                 vision: str = DEFAULTS["robot"]["vision"]) -> None:
+                 vision: str = DEFAULTS["robot"]["vision"], volume: int | None = None) -> None:
         self.host = host
         self.media_backend = media_backend
         self.sim = media_backend == "no_media" if sim is None else sim
         self.voice = voice
         self.vision = vision
+        self.volume = volume  # the Robot pool's `volume`; None leaves the unit as it is
         self.label = "simulation" if self.sim else "robot"
         self.mini: Any = None
         self._pose: Any = None
@@ -272,6 +273,8 @@ class SimRobot:
 
         self._pose = create_head_pose
         self._ensure_daemon(self.host)
+        if not self.sim and self.volume is not None:
+            self._set_volume(self.volume)
         local_only = self.host in ("localhost", "127.0.0.1")
         # Straight to the unit named in the diagram: "auto" would go through a Reachy Mini Control app's
         # localhost proxy when one is open, and lose the link when it does.
@@ -366,29 +369,34 @@ class SimRobot:
         except Exception as error:
             print(f"    (sim motion failed: {error})")
 
-    def speak(self, text: str) -> None:
+    def speak(self, text: str, renderer: list[str] | None = None) -> None:
         # The antennas tap while the line prints; a real unit also says it, through its own speaker.
         self._act([(None, [0.25, -0.25], 0.15, None), (None, [0.0, 0.0], 0.15, None)])
         if self.sim:
             return
         try:
-            self._say(text)
+            self._say(text, renderer)
         except Exception as error:
             print(f"    (speech failed: {error})")
 
-    def _say(self, text: str) -> float:
-        """Render the line with the Mac's `say` and play it on the unit; how long it lasts."""
+    def _say(self, text: str, renderer: list[str] | None = None) -> float:
+        """Render the line on this machine with `say` (or the step's own `shell://` command and flags, one that
+        takes `-o <wav>` and the text like `say` does) and play it on the unit; how long it lasts."""
         import hashlib
         import subprocess
         import tempfile
 
-        if shutil.which("say") is None:
+        command, *flags = renderer or ["say"]
+        if shutil.which(command) is None:
+            print(f"    (no `{command}` on this machine to render the line)")
             return 0.0  # ponytail: macOS TTS only; a robot-side TTS app would replace this
-        name = f"studyflow-{hashlib.sha1((self.voice + text).encode()).hexdigest()[:12]}.wav"
+        if self.voice and "-v" not in flags:
+            flags += ["-v", self.voice]
+        name = f"studyflow-{hashlib.sha1(json.dumps([command, flags, text]).encode()).hexdigest()[:12]}.wav"
         path = Path(tempfile.gettempdir()) / name
         if not path.exists():
             subprocess.run(  # noqa: S603 - the study's own line
-                ["say", "-o", str(path), "--data-format=LEI16@22050", *(["-v", self.voice] if self.voice else []), text],
+                [command, "-o", str(path), "--data-format=LEI16@22050", *flags, text],
                 check=True, capture_output=True,
             )
         seconds = self._play_file(path)
@@ -445,6 +453,19 @@ class SimRobot:
         except Exception as error:
             print(f"    (sim move failed: {error})")
         restore_gaze(self)  # a recorded move starts and ends at rest: back to the screen
+
+    def _set_volume(self, volume: int) -> None:
+        """The unit's speaker at the pool's `volume`; only when it differs, as setting it plays a test sound."""
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen(f"http://{self.host}:8000/api/volume/current", timeout=5) as response:
+                current = json.load(response).get("volume")
+            if current != volume:
+                self._post("/api/volume/set", {"volume": volume})
+                print(f"    the unit's volume goes from {current} to {volume}")
+        except Exception as error:
+            print(f"    (could not set the volume: {error})")
 
     def _post(self, path: str, body: dict[str, Any] | None = None) -> None:
         import urllib.request
@@ -549,9 +570,9 @@ class Run:
         """The study's state tree, `state.<scope>.<property>` and `state._meta`, shared with the hand-off file."""
         return self.values.setdefault("state", {})
 
-    def say_line(self, text: str) -> None:
+    def say_line(self, text: str, renderer: list[str] | None = None) -> None:
         print(f'    Reachy ▶ "{text}"')
-        self.robot.speak(text)
+        self.robot.speak(text, renderer)
 
     def ask(self, prompt: str, default: str) -> str:
         if self.auto:
@@ -619,8 +640,27 @@ class Run:
 
 # --- dry-run handlers: one per reachy element, keyed by the extension's local name ---
 
+def renderer_of(element: dict[str, Any]) -> tuple[list[str] | None, str]:
+    """A Say step's `implementation: shell://<command>` with its `additionalArguments`, as the command and its
+    flags (`v: Alex` → `-v Alex`) and the line its `args` give; (None, '') for a step naming none."""
+    import yaml
+
+    implementation = str((element.get("attributes") or {}).get("implementation") or "")
+    if not implementation:
+        return None, ""
+    if not implementation.startswith("shell://"):
+        raise ValueError(f"{element.get('id')}: a Say step renders its line with a shell:// command, not {implementation}")
+    arguments = yaml.safe_load(element.get("additionalArguments") or "") or {}
+    renderer = [implementation[len("shell://"):].split("@")[0]]
+    for key, value in arguments.items():
+        if key != "args":
+            renderer += [f"-{key}" if len(str(key)) == 1 else f"--{key}", *([] if value is None else [str(value)])]
+    return renderer, " ".join(str(arg) for arg in arguments.get("args") or [])
+
+
 def run_say(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
-    run.say_line(run.fill(str(spec["text"])) or "(nothing to say)")
+    renderer, line = renderer_of(element)
+    run.say_line(run.fill(line or str(spec["text"])) or "(nothing to say)", renderer)
     return None
 
 
@@ -788,14 +828,15 @@ def read_stream(robot: Any) -> None:
         time.sleep(0.05)
 
 
-def camera_frame(robot: Any, wait: float = 4.0) -> Any:
-    """The camera's newest BGR frame, under a second old, waiting up to `wait` seconds for one; None without."""
+def camera_frame(robot: Any, wait: float = 4.0, after: float = 0.0) -> Any:
+    """The camera's newest BGR frame, under a second old and seen after the moment `after`, waiting up to `wait`
+    seconds for one; None without."""
     if not has_camera(robot):
         return None
     deadline = time.monotonic() + wait  # ponytail: covers the stream's warm-up after connecting; shorten if trials feel slow
     while True:
         seen, frame = LATEST_FRAME
-        if frame is not None and time.monotonic() - seen < 1.0:
+        if frame is not None and seen >= after and time.monotonic() - seen < 1.0:
             return frame
         if time.monotonic() >= deadline:
             print("    (camera gave no frame)")
@@ -803,13 +844,16 @@ def camera_frame(robot: Any, wait: float = 4.0) -> Any:
         time.sleep(0.05)
 
 
-def jpeg_data_url(frame: Any) -> str:
+def jpeg_data_url(frame: Any, width: int | None = None) -> str:
     import base64
     from io import BytesIO
     from PIL import Image
 
     buffer = BytesIO()
-    Image.fromarray(frame[:, :, ::-1]).save(buffer, format="JPEG", quality=85)  # BGR → RGB
+    image = Image.fromarray(frame[:, :, ::-1])  # BGR → RGB
+    if width and image.width > width:
+        image = image.resize((width, round(image.height * width / image.width)))
+    image.save(buffer, format="JPEG", quality=85)
     return "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
 
 
@@ -848,9 +892,29 @@ def screen_is_centred(where: tuple[int, int]) -> bool:
     return where == (0, 0)
 
 
-SEARCH_STEP_DEG = (12.0, 8.0)  # ponytail: one nudge of yaw and pitch per look; halve it if the head overshoots a small screen
+SEARCH_STEP_DEG = (20.0, 12.0)  # ponytail: one nudge of yaw and pitch per look, a third of the frame or so; halve it if the head overshoots a small far screen
 SEARCH_PITCH_DEG = -10.0  # ponytail: a desk robot looks up at a monitor; tune to the robot's perch (negative is up)
 LAST_GAZE: dict[str, float] | None = None  # where the screen was last found, so a repeat look starts (and a failed one ends) there
+GAZE_FILE = Path.home() / ".studyflow" / "reachy" / "gaze.json"  # the same, across runs, per robot host
+STREAM_LAG_S = 0.3  # ponytail: WebRTC delay between the head settling and the frame showing it; raise if search frames smear
+FOUND_AT = 0.0  # when (monotonic) the screen was last seen for real, in this seat
+RELOOK_S = 30.0  # ponytail: a look this soon after a find only turns back to it; lower if the screen or the robot gets moved mid-study
+
+
+def recall_gaze(robot: Any) -> dict[str, float] | None:
+    try:
+        return json.loads(GAZE_FILE.read_text()).get(str(getattr(robot, "host", ""))) or None
+    except (OSError, ValueError):
+        return None
+
+
+def remember_gaze(robot: Any, gaze: dict[str, float]) -> None:
+    try:
+        known = json.loads(GAZE_FILE.read_text()) if GAZE_FILE.exists() else {}
+    except (OSError, ValueError):
+        known = {}
+    GAZE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    GAZE_FILE.write_text(json.dumps({**known, str(getattr(robot, "host", "")): gaze}))
 
 
 def restore_gaze(robot: Any) -> None:
@@ -883,11 +947,10 @@ def find_screen(robot: Any, vlm: tuple[str, str], frames: Path | None = None) ->
 
     def glance(name: str) -> tuple[float, float] | None:
         """Where the screen sits in the current frame, as fractions; None when no screen is in view."""
-        time.sleep(1.0)  # let the head settle, or the frame smears
-        frame = camera_frame(robot)
+        frame = camera_frame(robot, after=time.monotonic() + STREAM_LAG_S)  # the head has settled: the next frame that shows it
         if frame is None:
             raise RuntimeError("no camera frame")
-        image = jpeg_data_url(frame)
+        image = jpeg_data_url(frame, width=640)  # which third holds the screen needs no more
         save_image(frames, name, image)
         return parse_screen_reply(vlm_call(provider)(model, ask, image))
 
@@ -896,7 +959,11 @@ def find_screen(robot: Any, vlm: tuple[str, str], frames: Path | None = None) ->
         # follows the gaze: the neck stays straight and the camera can turn all the way round.
         robot._act([(gaze, None, 1.0, math.radians(gaze["yaw"]))])
 
-    global LAST_GAZE
+    global LAST_GAZE, FOUND_AT
+    if LAST_GAZE and time.monotonic() - FOUND_AT < RELOOK_S:
+        aim(LAST_GAZE)  # just found: the walk's own look after the seat's search, or one look after another
+        return True
+    LAST_GAZE = LAST_GAZE or recall_gaze(robot)
     try:
         for yaw in (("last",) if LAST_GAZE else ()) + SCREEN_SWEEP_DEG:
             gaze = dict(LAST_GAZE) if yaw == "last" else {"yaw": float(yaw), "pitch": SEARCH_PITCH_DEG}
@@ -914,7 +981,8 @@ def find_screen(robot: Any, vlm: tuple[str, str], frames: Path | None = None) ->
                 aim(gaze)
                 where = glance(f"search-{yaw:+d}-{step + 1}") or where
             print(f"    found the screen: yaw {gaze['yaw']:+.0f}°, pitch {gaze['pitch']:+.0f}°")
-            LAST_GAZE = dict(gaze)
+            LAST_GAZE, FOUND_AT = dict(gaze), time.monotonic()
+            remember_gaze(robot, LAST_GAZE)
             return True
     except Exception as error:
         print(f"    (could not look for the screen: {error})")
@@ -1088,8 +1156,8 @@ class SeatedRobot:
             print(f"    (the seated participant could not {kind}: {error})")
             return {}
 
-    def speak(self, text: str) -> None:
-        self.act("speak", text=text)
+    def speak(self, text: str, renderer: list[str] | None = None) -> None:
+        self.act("speak", text=text, renderer=renderer)
 
     def gesture(self, move: str, dataset: str | None = None) -> None:
         self.act("gesture", move=move, dataset=dataset)
@@ -1137,15 +1205,16 @@ def seat_participant(args: argparse.Namespace, config: dict[str, Any], recording
         argv.append("--sim")
     log = (run_dir / "participant.log").open("ab")
     bridge = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)  # noqa: S603
-    print("    seating the robot as the participant (its log: participant.log in the run)")
+    print("    seating the robot as the participant: connecting, camera, vision model, finding the screen "
+          "(20 s warm, up to 3 min the first time; its log: participant.log in the run)")
     for tick in range(90):
         if seated_participant(args.port):
             return True
         if bridge.poll() is not None:
             print(f"    (the participant bridge exited with code {bridge.returncode} — see participant.log in the run)")
             return False
-        if tick and tick % 15 == 0:
-            print(f"    still seating the robot ({tick * 2}s: connecting, camera, vision model, finding the screen)")
+        if tick and tick % 5 == 0:
+            print(f"    still seating the robot ({tick * 2}s)")
         time.sleep(2)
     print("    (the participant bridge did not come up)")
     return False
@@ -1253,7 +1322,7 @@ def participant_loop(
                         await asyncio.to_thread(robot.signal, str(message.get("side")))
                     if kind == "speak":
                         robot.voice = message.get("voice") or ""
-                        await asyncio.to_thread(robot.speak, str(message.get("text", "")))
+                        await asyncio.to_thread(robot.speak, str(message.get("text", "")), message.get("renderer"))
                     elif kind == "gesture":
                         await asyncio.to_thread(robot.gesture, str(message.get("move")), message.get("dataset"))
                     elif kind == "goto":
@@ -1417,7 +1486,8 @@ def main() -> int:
     # walk a real unit only moves and speaks: the seated participant (the bridge) owns the camera.
     media = "no_media" if sim or not args.participant else ("default" if local_host else "webrtc")
     if not isinstance(robot, SeatedRobot):
-        robot = SimRobot(host=host, media_backend=media, sim=sim, voice=str(config["voice"]), vision=str(config["vision"] or DEFAULTS["robot"]["vision"]))
+        robot = SimRobot(host=host, media_backend=media, sim=sim, voice=str(config["voice"]), vision=str(config["vision"] or DEFAULTS["robot"]["vision"]),
+                         volume=int(config["volume"]) if str(config["volume"]).isdigit() else None)
         try:
             robot.connect()
         except Exception as error:

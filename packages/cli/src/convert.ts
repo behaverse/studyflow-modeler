@@ -123,7 +123,11 @@ async function renderPng(input: string, xml: string, origin: string): Promise<Bu
   }
 
   const stopServer = await startDevServer(origin);
-  const browser = await chromium.launch();
+  // Playwright's own Chromium when it is installed, else the Chrome on this machine.
+  const browser = await chromium.launch().catch((error: unknown) => {
+    if (!/Executable doesn't exist/.test(String(error))) throw error;
+    return chromium.launch({ channel: 'chrome' });
+  });
   try {
     const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 1440, height: 900 } });
     const page = await context.newPage();

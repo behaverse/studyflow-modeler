@@ -244,6 +244,13 @@ test.describe('canvas rules: message flow, associations, data associations', () 
     expect(rules.canConnect(poolA, poolB)).toEqual({ type: 'bpmn:MessageFlow' });
   });
 
+  test('a choreography task drawn in a pool (a cognitive task) exchanges messages with the other pool', () => {
+    const task = node('bpmn:ChoreographyTask', { parent: poolA });
+    const seat = node('bpmn:ReceiveTask', { parent: poolB });
+    expect(rules.canConnect(task, seat)).toEqual({ type: 'bpmn:MessageFlow' });
+    expect(rules.canConnect(seat, task)).toEqual({ type: 'bpmn:MessageFlow' });
+  });
+
   test('inside one pool it stays a sequence flow', () => {
     expect(rules.canConnect(node('bpmn:Task', { parent: poolA }), node('bpmn:Task', { parent: poolA }))).toEqual({
       type: 'bpmn:SequenceFlow',

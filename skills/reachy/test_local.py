@@ -122,3 +122,7 @@ narrowing = reachy.Plan({"elements": {
 run = reachy.Run(narrowing, auto=True)
 run.store(narrowing.elements["Answer"], {"trials": 5, "log": []})
 assert run.values["Seen"] == 5 and run.tree["Study"]["n"] == {"trials": 5, "log": []}
+# A Say step may name its renderer: `shell://say` with the line in `args`, flags as keys; the robot plays the result.
+said = {"id": "Greet", "attributes": {"implementation": "shell://say"}, "additionalArguments": "v: Alex\nargs:\n  - Hello there\n"}
+assert reachy.renderer_of(said) == (["say", "-v", "Alex"], "Hello there")
+assert reachy.renderer_of({"id": "Greet", "attributes": {}}) == (None, "")
