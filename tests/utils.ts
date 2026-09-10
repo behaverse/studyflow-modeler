@@ -122,16 +122,6 @@ export async function browseForDiagram(page: Page): Promise<void> {
   await page.getByTestId('open-dropzone').click();
 }
 
-export async function stubIconify(page: Page): Promise<void> {
-  await page.route('https://api.iconify.design/**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'image/svg+xml',
-      body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"></svg>',
-    });
-  });
-}
-
 export async function exportDiagram(page: Page, format: string): Promise<Download> {
   await runPaletteCommand(page, 'Save As...');
   await expect(page.getByTestId('save-dialog')).toBeVisible();

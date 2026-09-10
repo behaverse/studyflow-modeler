@@ -24,7 +24,7 @@ Example diagrams ship with the skill they exercise, in [skills/](skills/) (`skil
 
 ```bash
 npm install
-npm run dev        # modeler + browser runner
+npm run dev        # modeler + browser runner (`-- --host` to reach them from the LAN); dev:desktop for the desktop app
 npm run test       # unit + e2e (Playwright)
 npm run build
 ```

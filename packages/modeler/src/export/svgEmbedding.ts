@@ -1,15 +1,3 @@
-/**
- * A resolved icon glyph: the body of an `<svg>` plus the viewBox it is drawn in.
- * Fetched by `export/iconSource.ts` and cached by `draw/iconCache.ts`, which hands
- * it to the canvas renderer — so glyphs are drawn INTO the scene and an exported SVG
- * needs no icon substitution pass at all.
- */
-export type IconSvg = { content: string; viewBox: string };
-
-export interface IconSource {
-  resolve(iconClass: string): Promise<IconSvg | null>;
-}
-
 export function embedStudyflowIntoSvg(svg: string, xml: string): string {
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
@@ -30,10 +18,10 @@ export function embedStudyflowIntoSvg(svg: string, xml: string): string {
 }
 
 /**
- * An icon the cache never resolved is still a `<foreignObject>` CSS placeholder on the canvas
- * (`draw/iconCache.ts` swaps in the glyph when it arrives). It means nothing without the app's
- * stylesheet, and rasterizing an SVG that holds one taints the canvas so no PNG can be read back:
- * the export leaves such icons out.
+ * An icon class the stylesheet does not know is a `<foreignObject>` CSS placeholder on the canvas
+ * (`canvas/render/icons.ts` inlines the glyph for every class the stylesheet carries). It means
+ * nothing outside the app, and rasterizing an SVG that holds one taints the canvas so no PNG can
+ * be read back: the export leaves such icons out.
  */
 export function dropUnresolvedIcons(svg: string): string {
   const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');

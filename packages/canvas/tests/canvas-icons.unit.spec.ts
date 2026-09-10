@@ -15,7 +15,7 @@ import { loadCanvas } from './canvasHarness';
  * exported document had to have its icons substituted afterwards
  * (`export/svgEmbedding.embedIconsInSvg`, now deleted). The injected
  * {@link IconResolver} may instead answer with a glyph BODY (`{ content, viewBox }`,
- * exactly the shape `export/iconSource.ts` fetches), and the renderer draws it as a
+ * exactly the shape the stylesheet lookup yields), and the renderer draws it as a
  * real nested `<svg>`.
  *
  * What this spec pins: the drawn form for each kind of resolver answer, that
@@ -109,8 +109,7 @@ test('a marker glyph is drawn inline too, and `currentColor` takes the element c
 });
 
 test('a glyph arriving later replaces the placeholder on a re-draw', async () => {
-  // The app's icon cache is asynchronous: the first paint gets the CSS class, and the
-  // resolved body only exists a network round trip later (`draw/iconCache.ts`).
+  // A resolver may answer differently on a later paint; the re-draw must swap the placeholder out.
   let resolved = false;
   const canvas = await load(() => (
     resolved ? { content: GLYPH, viewBox: '0 0 24 24' } : { cssClass: 'iconify bi--person' }

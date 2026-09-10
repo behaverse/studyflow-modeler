@@ -203,8 +203,8 @@ diagram.
 
 Iconify classes must use a prefix enabled in `src/assets/css/app.css`
 (`@plugin "@iconify/tailwind4"` block); an unlisted prefix renders an empty
-box. PNG/SVG export fetches glyphs from `api.iconify.design` at export time
-and degrades (with a notice) when offline.
+box, and is left out of PNG/SVG exports; every listed icon is inlined from the
+stylesheet, so exports need no network.
 
 ## Reserved local names
 
@@ -218,4 +218,4 @@ schema tiles. The exclusion is namespace-qualified: your schema's own
 A file that fails to parse is quarantined (the app boots without it) and shown
 in Settings → Extensions with its error. Compile diagnostics (all of the
 checks above) print to the console at load and badge the schema's Settings
-row. `npm run lint:schemas` runs the CI-grade suite locally in about a second.
+row. `npm run test:unit -- schema catalog` runs that suite locally in about a second.

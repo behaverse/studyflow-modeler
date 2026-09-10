@@ -1,43 +1,199 @@
 /**
- * `npm run release:cli` — the CLI release, end to end, from this machine; nothing in CI writes to the repository.
+ * `npm run release` — the release, end to end, from this machine; nothing in CI writes to the repository.
  *
- * Bump `version` in the root package.json (the repo's one version), then run it: it builds every platform (writing Formula/studyflow.rb
- * from the same build, so the checksums match), commits those two files, tags, pushes, and creates the GitHub
- * release with the tarballs. Needs a clean tree otherwise, `bun`, and `gh` logged in.
+ * Picks the next version (`YY.M.N`: the month's counter climbs, or restarts at 1 in a new month; or pass one, e.g.
+ * `npm run release -- 26.10.1`) and writes it to the root package.json (the repo's one version). Then typecheck, lint,
+ * the unit tests, the CLI and the desktop app, every platform's binary, the tarballs with their checksums, and
+ * Formula/studyflow.rb from that same build (so the checksums match). Only once all of that is done does it commit
+ * `release YY.M.N`, tag `vYY.M.N`, push, and create the GitHub release with the tarballs. A failure anywhere before the
+ * commit puts the tree back as it was. Needs a clean tree on main, `bun` (a dev dependency of the CLI), and `gh` logged in.
+ *
+ * `--local`: keep the version, build the host platform only, and write a formula with file:// urls for a local
+ * `brew install`; nothing touches git or GitHub.
  */
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const cliDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoDir = resolve(cliDir, '../..');
-const { version } = JSON.parse(readFileSync(resolve(repoDir, 'package.json'), 'utf8'));
-const tag = `v${version}`;
-const releaseDir = resolve(cliDir, 'dist/release');
-const RELEASE_FILES = ['package.json', 'Formula/studyflow.rb'];
+const outDir = resolve(cliDir, 'dist/release');
+const repo = process.env.STUDYFLOW_REPO ?? 'behaverse/studyflow-modeler';
+const local = process.argv.includes('--local');
 
 const raw = (command, args) => execFileSync(command, args, { cwd: repoDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] });
 const out = (command, args) => raw(command, args).trim();
-const sh = (command, args) => execFileSync(command, args, { cwd: repoDir, stdio: 'inherit' });
+const sh = (command, args, cwd = repoDir) => execFileSync(command, args, { cwd, stdio: 'inherit' });
+const works = (command, args) => { try { execFileSync(command, args, { stdio: 'ignore' }); return true; } catch { return false; } };
 const fail = (message) => { console.error(message); process.exit(1); };
 
-if (out('git', ['branch', '--show-current']) !== 'main') fail('Release from main.');
-if (out('git', ['tag', '-l', tag]) || out('git', ['ls-remote', '--tags', 'origin', tag])) {
-  fail(`${tag} exists already — bump version in the root package.json first.`);
+/* Preconditions, before anything is written. */
+if (!works('bun', ['--version'])) fail('bun is missing: `npm install` (it is a dev dependency of the CLI).');
+if (!local) {
+  if (out('git', ['branch', '--show-current']) !== 'main') fail('Release from main.');
+  // The binaries are built from the working tree, so anything uncommitted would ship untagged.
+  if (raw('git', ['status', '--porcelain']).trim()) fail('Commit or stash first: the release commits only what it writes.');
+  if (!works('gh', ['auth', 'status'])) fail('gh is not logged in (`gh auth login`).');
 }
-// The binaries are built from the working tree, so anything uncommitted would ship untagged.
-const dirty = raw('git', ['status', '--porcelain']).split('\n').filter(Boolean)  // untrimmed: `XY path`, X may be a space
-  .filter((line) => !RELEASE_FILES.includes(line.slice(3)));
-if (dirty.length) fail(`Commit or stash first — only the version bump may be pending:\n${dirty.join('\n')}`);
 
-sh('npm', ['run', 'package', '-w', '@behaverse/studyflow-cli']);
-const assets = readdirSync(releaseDir).filter((name) => /\.tar\.gz(\.sha256)?$/.test(name)).map((name) => resolve(releaseDir, name));
-if (assets.length < 2) fail(`No release assets in ${releaseDir}.`);
+/* The version. YY.M.N, purely numeric: Homebrew scans it from the release url and orders it right; a suffix like
+ * -dev2 makes it read "64" out of "arm64" and rank that above every real version. */
+const current = JSON.parse(readFileSync(resolve(repoDir, 'package.json'), 'utf8')).version;
+const now = new Date();
+const month = `${now.getFullYear() % 100}.${now.getMonth() + 1}`;
+const requested = process.argv.slice(2).find((arg) => /^\d{2}\.\d{1,2}\.\d+$/.test(arg));
+const next = requested ?? (current.startsWith(`${month}.`) ? `${month}.${Number(current.split('.')[2]) + 1}` : `${month}.1`);
+const version = local ? current : next;
+const tag = `v${version}`;
+if (!local && (out('git', ['tag', '-l', tag]) || out('git', ['ls-remote', '--tags', 'origin', tag]))) fail(`${tag} exists already.`);
 
+/** Bun's cross-compilation targets, and what we call them in an asset name. */
+const PLATFORMS = [
+  { slug: 'darwin-arm64', bunTarget: 'bun-darwin-arm64', macho: true },
+  { slug: 'darwin-x64', bunTarget: 'bun-darwin-x64', macho: true },
+  { slug: 'linux-x64', bunTarget: 'bun-linux-x64', macho: false },
+  { slug: 'linux-arm64', bunTarget: 'bun-linux-arm64', macho: false },
+];
+const platforms = local ? PLATFORMS.filter((p) => p.slug === `${process.platform}-${process.arch}`) : PLATFORMS;
+
+// `studyflow run --runtime local` runs the skills: the local runtime, the prov module, and every skill's
+// `runners.local`, each read from its SKILL.md. The browser runtime and browser modules, examples, and tests stay out.
+const skillsDir = resolve(repoDir, 'skills');
+const SKIPPED = new Set(['browser', 'examples', 'tests', 'node_modules', '__pycache__']);
+const shipped = (src) => !relative(skillsDir, src).split(sep).some((part) => SKIPPED.has(part) || part.startsWith('.'));
+
+const urlFor = (asset) => (local ? `file://${resolve(outDir, asset)}` : `https://github.com/${repo}/releases/download/${tag}/${asset}`);
+const blockFor = (assets, slug, indent) => {
+  const found = assets.find((a) => a.slug === slug);
+  if (!found) return `${indent}# ${slug}: not built in this run`;
+  return `${indent}url "${urlFor(found.asset)}"\n${indent}sha256 "${found.sha256}"`;
+};
+
+// This repository is the tap: Homebrew reads `Formula/studyflow.rb` from its default branch.
+const formulaFor = (assets) => `# Generated by packages/cli/scripts/release.mjs — do not edit by hand.
+class Studyflow < Formula
+  desc "Command-line tool and desktop app for studyflow diagrams"
+  homepage "https://github.com/${repo}"
+${local
+    ? `  version "${version}" # a file:// url gives the scanner nothing to read the version from`
+    : `  # No \`version\`: Homebrew scans ${version} out of the release url, and audit calls a second copy redundant.`}
+  license "MIT"
+  # \`studyflow run --runtime local\` drives the skills in libexec with uv.
+  depends_on "uv"
+
+  on_macos do
+    on_arm do
+${blockFor(assets, 'darwin-arm64', '      ')}
+    end
+    on_intel do
+${blockFor(assets, 'darwin-x64', '      ')}
+    end
+  end
+
+  on_linux do
+    on_arm do
+${blockFor(assets, 'linux-arm64', '      ')}
+    end
+    on_intel do
+${blockFor(assets, 'linux-x64', '      ')}
+    end
+  end
+
+  def install
+    bin.install "studyflow"
+    # The skills (the local runtime among them), found from bin/studyflow as ../libexec/skills.
+    libexec.install "skills"
+    # The desktop app, served by \`studyflow edit\` from ../libexec/ui.
+    libexec.install "ui"
+  end
+
+  test do
+    (testpath/"minimal.studyflow").write <<~YAML
+      id: brew_test
+      definitions:
+        targetNamespace: http://bpmn.io/schema/bpmn
+      Brew_Test:
+        type: bpmn:Process
+        name: Brew test
+        flowElements:
+          Start:
+            type: bpmn:StartEvent
+          Done:
+            type: bpmn:EndEvent
+    YAML
+    assert_match version.to_s, shell_output("#{bin}/studyflow --version")
+    assert_match "OK", shell_output("#{bin}/studyflow validate #{testpath}/minimal.studyflow")
+    assert_match "Brew test", shell_output("#{bin}/studyflow info #{testpath}/minimal.studyflow")
+    port = free_port
+    pid = spawn bin/"studyflow", "edit", "--no-open", "--port", port.to_s, testpath/"minimal.studyflow"
+    sleep 2
+    assert_match "Studyflow", shell_output("curl -s http://127.0.0.1:#{port}/app")
+    assert_match "Brew test", shell_output("curl -s http://127.0.0.1:#{port}/open/minimal.studyflow")
+  ensure
+    Process.kill("TERM", pid) if pid
+  end
+end
+`;
+
+/* Everything from here writes. A failure puts the tree back and stops before any commit. */
+const RELEASE_FILES = ['package.json', 'package-lock.json', 'Formula/studyflow.rb'];
+try {
+  if (!local) sh('npm', ['version', version, '--no-git-tag-version']);
+  sh('npm', ['run', 'typecheck']);
+  sh('npm', ['run', 'lint']);
+  sh('npm', ['run', 'test:unit']);
+  sh('npm', ['run', 'build', '--', '--mode', 'desktop']);  // the CLI, and the desktop app (the modeler and the browser runner) into dist/
+
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
+  const assets = [];
+  for (const { slug, bunTarget, macho } of platforms) {
+    const stage = resolve(outDir, slug);
+    mkdirSync(stage, { recursive: true });
+    sh('bun', [
+      'build', 'dist/studyflow.mjs',
+      '--compile',
+      `--target=${bunTarget}`,
+      // `render` drives a browser; playwright stays a repo-workspace import that fails with an explanation.
+      '--external', '@playwright/test',
+      `--outfile=${resolve(stage, 'studyflow')}`,
+    ], cliDir);
+    if (macho && process.platform === 'darwin') sh('codesign', ['--force', '--sign', '-', resolve(stage, 'studyflow')]);
+    cpSync(skillsDir, resolve(stage, 'skills'), { recursive: true, filter: (src) => src === skillsDir || shipped(src) });
+    cpSync(resolve(repoDir, 'dist'), resolve(stage, 'ui'), { recursive: true });
+    copyFileSync(resolve(repoDir, 'LICENSE'), resolve(stage, 'LICENSE'));
+
+    const asset = `studyflow-${version}-${slug}.tar.gz`;
+    sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', 'skills', 'ui', 'LICENSE']);
+    rmSync(stage, { recursive: true, force: true });
+    const sha256 = createHash('sha256').update(readFileSync(resolve(outDir, asset))).digest('hex');
+    writeFileSync(resolve(outDir, `${asset}.sha256`), `${sha256}  ${asset}\n`);
+    assets.push({ slug, asset, sha256 });
+    console.log(`${asset}  ${sha256}`);
+  }
+
+  const formula = formulaFor(assets);
+  writeFileSync(resolve(outDir, 'studyflow.rb'), formula);
+  if (local) {
+    console.log(`\nLocal formula (file:// url) written. Test:`);
+    console.log('  brew tap-new --no-git local/studyflow-dev   # once');
+    console.log(`  cp ${resolve(outDir, 'studyflow.rb')} "$(brew --repository)/Library/Taps/local/homebrew-studyflow-dev/Formula/"`);
+    console.log('  brew install local/studyflow-dev/studyflow');
+    console.log('  brew test local/studyflow-dev/studyflow && brew uninstall studyflow');
+    process.exit(0);
+  }
+  writeFileSync(resolve(repoDir, 'Formula/studyflow.rb'), formula);
+} catch (err) {
+  if (!local) sh('git', ['checkout', '--', ...RELEASE_FILES]);
+  fail(`\nRelease ${version} aborted before any commit: ${err.message}`);
+}
+
+const assetFiles = platforms.flatMap(({ slug }) => [`studyflow-${version}-${slug}.tar.gz`, `studyflow-${version}-${slug}.tar.gz.sha256`]).map((a) => resolve(outDir, a));
 sh('git', ['add', ...RELEASE_FILES]);
-sh('git', ['commit', '-m', `studyflow ${tag}`]);
+sh('git', ['commit', '-m', `release ${version}`]);
 sh('git', ['tag', tag]);
 sh('git', ['push', 'origin', 'main', tag]);
-sh('gh', ['release', 'create', tag, '--title', tag, '--generate-notes', '--verify-tag', ...assets]);
+sh('gh', ['release', 'create', tag, '--title', tag, '--generate-notes', '--verify-tag', ...assetFiles]);
 console.log(`\n${tag} is out. Users: brew upgrade studyflow (or the install lines in the README).`);

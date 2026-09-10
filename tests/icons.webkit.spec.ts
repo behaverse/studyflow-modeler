@@ -7,10 +7,10 @@ import { gotoModeler, runPaletteCommand } from './utils';
  * background paints, and the glyph never appears. Iconify's classes paint with exactly that mask,
  * so every icon on the canvas vanished in Safari while Chromium showed them all.
  *
- * The canvas now draws a resolved glyph as a real nested `<svg>` (`render/icons.ts`), which WebKit
- * has no trouble with; a class it could not resolve still falls back to the `foreignObject`, and
- * `drawCssIcon` repaints that one as a background image. This test holds both halves of that line,
- * in the engine that cares.
+ * The canvas now reads every class's glyph out of the stylesheet and draws it as a real nested
+ * `<svg>` (`render/icons.ts`), which WebKit has no trouble with; only a class the stylesheet does
+ * not know is left as a `foreignObject`, and that one paints nothing anywhere. This test holds that
+ * line in the engine that cares.
  */
 test('every canvas icon paints something in WebKit — no masked glyph', async ({ page }) => {
   await gotoModeler(page);
@@ -32,7 +32,6 @@ test('every canvas icon paints something in WebKit — no masked glyph', async (
     }),
   }));
 
-  expect(icons.inline + icons.css.length, 'the battery draws several icons').toBeGreaterThan(3);
-  expect(icons.css.filter((icon) => icon.masked)).toEqual([]);
-  expect(icons.css.filter((icon) => !icon.painted)).toEqual([]);
+  expect(icons.inline, 'the battery draws several icons').toBeGreaterThan(3);
+  expect(icons.css).toEqual([]);
 });

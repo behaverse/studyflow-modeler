@@ -1,13 +1,13 @@
 import { defineConfig } from '@playwright/test';
+import base from './playwright.config';
 
-/** The fast lane (`test:unit`, `lint:schemas`): Node-side unit specs, no dev server. */
+/** The fast lane (`test:unit`): the unit project alone, browserless, without the dev server, fully parallel, unretried. */
 export default defineConfig({
-  // Project-wide specs in tests/, each package's under packages/<name>/tests/, each skill's under skills/<name>/tests/.
-  testDir: '.',
-  testIgnore: ['**/node_modules/**', '**/dist/**', 'playwright-report/**', 'test-results/**'],
-  testMatch: '**/*.unit.spec.ts',
+  ...base,
+  projects: base.projects!.filter((project) => project.name === 'unit'),
+  webServer: undefined,
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
   retries: 0,
+  workers: undefined,
   reporter: process.env.CI ? [['list'], ['html']] : 'list',
 });

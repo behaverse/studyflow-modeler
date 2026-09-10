@@ -9,7 +9,6 @@ import {
   readDownload,
   readDownloadText,
   runPaletteCommand,
-  stubIconify,
   uploadStudyflowDiagram,
 } from './utils';
 
@@ -162,7 +161,6 @@ test.describe('Studyflow modeler file flows', () => {
 
   test('exported SVG carries the studyflow source, and nothing else', async ({ page }) => {
     await gotoModeler(page);
-    await stubIconify(page);
 
     const svgText = await readDownloadText(await exportDiagram(page, 'svg'));
 
@@ -173,7 +171,6 @@ test.describe('Studyflow modeler file flows', () => {
 
   test('an exported image always carries its source, and only that', async ({ page }) => {
     await gotoModeler(page);
-    await stubIconify(page);
 
     const png = await readDownload(await exportDiagram(page, 'png'));
     expect(png.subarray(1, 4).toString('ascii')).toBe('PNG');

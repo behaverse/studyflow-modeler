@@ -43,6 +43,7 @@ studyflow validate study.studyflow.yaml --strict
 studyflow convert study.studyflow.yaml study.bpmn
 studyflow convert study.studyflow.yaml study.studyflow.png
 studyflow info study.studyflow.yaml --json
+studyflow edit study.studyflow.png              # the desktop app: the modeler served from this machine, opened on that file
 ```
 
 ## Running a study

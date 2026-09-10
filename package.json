@@ -11,23 +11,18 @@
     "node": ">=20.19"
   },
   "scripts": {
-    "dev": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler & npm run dev -w @behaverse/studyflow-browser-skill & wait",
-    "dev:lan": "trap 'kill 0' INT TERM; npm run dev -w @behaverse/studyflow-modeler -- --host & npm run dev -w @behaverse/studyflow-browser-skill & wait",
-    "build": "npm run build -w @behaverse/studyflow-modeler && npm run build -w @behaverse/studyflow-browser-skill",
+    "dev": "npm run dev -w @behaverse/studyflow-modeler --",
+    "dev:desktop": "npm run dev -- --mode desktop",
+    "build": "rm -rf dist && npm run build --workspaces --if-present --",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
-    "lint:schemas": "playwright test --config playwright.unit.config.ts schemas.unit catalog.unit schema-model.unit schema-primitives.unit",
-    "preview": "npm run preview -w @behaverse/studyflow-modeler",
-    "examples:render": "npm run build -w @behaverse/studyflow-cli && for f in skills/*/examples/*.studyflow.png; do node packages/cli/dist/studyflow.mjs convert --modeler \"$f\" \"$f\" || exit 1; done",
-    "package:cli": "npm run package -w @behaverse/studyflow-cli",
-    "release:cli": "node packages/cli/scripts/release.mjs",
     "test": "playwright test",
     "test:unit": "playwright test --config playwright.unit.config.ts",
     "test:e2e": "playwright test --project=e2e",
-    "test:e2e:headed": "playwright test --project=e2e --headed",
-    "test:e2e:ui": "playwright test --project=e2e --ui",
+    "examples:render": "node packages/cli/scripts/render-examples.mjs",
     "docs": "quarto preview docs --no-browser",
-    "docs:build": "quarto render docs"
+    "docs:build": "quarto render docs",
+    "release": "node packages/cli/scripts/release.mjs"
   },
   "devDependencies": {
     "@behaverse/studyflow-browser-skill": "*",

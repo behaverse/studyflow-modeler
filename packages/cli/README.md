@@ -1,6 +1,6 @@
 # @behaverse/studyflow-cli
 
-`studyflow` is the command-line tool to work with studyflow diagrams. It can convert between `.studyflow.yaml`, XML, and PNG, validate diagrams, inspect metadata, and execute them.
+`studyflow` is the command-line tool to work with studyflow diagrams. It can convert between `.studyflow.yaml`, XML, and PNG, validate diagrams, inspect metadata, execute them, and open them in the desktop app (`studyflow edit`, the modeler served from your machine).
 
 ## Install
 
@@ -17,6 +17,7 @@ Or from the source code (needs `uv` on PATH for `run`):
 ```bash
 npm run build -w @behaverse/studyflow-cli      # writes packages/cli/dist/studyflow.mjs
 node packages/cli/dist/studyflow.mjs --help
+npm run build -- --mode desktop                # the desktop app for `studyflow edit` (without --mode: the webapp)
 ```
 
 ## CLI
@@ -31,6 +32,8 @@ studyflow <command> --help
 ## Examples
 
 ```bash
+studyflow edit study.studyflow.png              # the desktop app: the modeler served from this machine, no network needed
+studyflow ui                                    # the same on a blank canvas
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
 studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png                # re-run (--repo DIR picks the run directory)
 studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png --from <ref>   # branch
@@ -61,13 +64,13 @@ UNITY_BUILD_PATH=path/to/Build/WebGL studyflow run --runtime local skills/reachy
 
 ## Releasing
 
-Versions are `YY.M.N`: year, month, and a counter that climbs within the month (`26.9.9`, `26.9.10`, then `26.10.1`). No suffixes: Homebrew misreads them and ranks them above real releases. The one `version` is the root `package.json`'s; every package and the CLI binary carry it. Bump it and run, from a clean macOS checkout with `gh` on PATH (`bun` comes with the CLI's dev dependencies):
+From a clean macOS checkout of `main` with `gh` logged in (`bun` comes with the CLI's dev dependencies):
 
 ```bash
-npm run release:cli
+npm run release
 ```
 
-It cross-compiles every platform, writes `Formula/studyflow.rb` from that same build so the checksums match, commits the two files, tags `v<version>`, pushes, and creates the GitHub release with the tarballs. Nothing in CI writes to this repository; the `Version check` workflow only fails a push to `main` whose CLI version has no tag yet.
+Versions are `YY.M.N`: year, month, and a counter that climbs within the month (`26.9.9`, `26.9.10`, then `26.10.1`), picked by the release itself (or given: `npm run release -- 26.10.1`). No suffixes: Homebrew misreads them and ranks them above real releases. The one `version` is the root `package.json`'s; every package and the CLI binary carry it. The release writes it, runs typecheck, lint and the unit tests, builds the CLI and the desktop app (`npm run build -- --mode desktop`), cross-compiles every platform, writes the tarballs and `Formula/studyflow.rb` from that same build so the checksums match, and only then commits `release YY.M.N`, tags `vYY.M.N`, pushes, and creates the GitHub release with the tarballs. Anything failing before the commit puts the tree back. Nothing in CI writes to this repository; the deploy workflow publishes the webapp from the tag the release pushes. `npm run release -- --local` builds the host platform only and writes a `file://` formula for a local `brew install`, without touching git.
 
 ## Extending CLI
 

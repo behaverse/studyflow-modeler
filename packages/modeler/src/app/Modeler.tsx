@@ -5,6 +5,8 @@ import { connectCommandBus, executeCommand } from '@modeler/commandBus';
 import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
 import { attachAutosave } from '@modeler/diagram/autosave';
 import { restoreLink } from '@modeler/diagram/fileHandle';
+import { notify } from '@modeler/app/noticeStore';
+import { openDiagramFile } from '@modeler/open/openFile';
 import { surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 import type { Editor } from '@modeler/editor/port';
@@ -18,6 +20,20 @@ const s = {
   bootErrorText: `max-w-prose text-sm ${text.muted}`,
   canvas: `grow ${surface.canvas}`,
 } as const;
+
+/** `?open=<url>` (what `studyflow edit <file>` passes) fetches that diagram onto the canvas, over any restored draft. */
+async function openFromUrl(editor: Editor): Promise<void> {
+  const url = new URLSearchParams(window.location.search).get('open');
+  if (!url) return;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+    const name = decodeURIComponent(new URL(url, window.location.href).pathname.split('/').pop() ?? '');
+    await openDiagramFile(editor, new File([await response.blob()], name));
+  } catch (err) {
+    notify('error', `Could not open ${url}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
 
 export function Modeler() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,6 +74,7 @@ export function Modeler() {
         // life); the app holds it from here on.
         setModeler(editor);
         setLoading(false);
+        openFromUrl(editor);
       })
       .catch((err: unknown) => {
         console.error('Error creating modeler:', err);

@@ -13,7 +13,6 @@ import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement, getRawAttribute } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
-import { lookupIcon, onIconResolved, primeIconCache } from '@modeler/draw/iconCache';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
@@ -25,11 +24,8 @@ export type MountEditorOptions = {
   extensionSchemas: Record<string, any>;
 };
 
-const ICON_REDRAW_DEBOUNCE_MS = 50;
-
-function iconFor(cssClass: string): IconDef {
-  return lookupIcon(cssClass) ?? { cssClass };
-}
+/** A class the app's stylesheet paints; the canvas inlines its glyph from the CSS. */
+const iconFor = (cssClass: string): IconDef => ({ cssClass });
 
 /**
  * The app's glyph pipeline as the canvas's icon resolver: a marker name or a BPMN
@@ -211,17 +207,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
   };
   options.container.addEventListener('keydown', onHistoryKey);
 
-  // Glyphs arrive asynchronously; one coalesced re-draw per burst.
-  primeIconCache();
-  let iconRedraw: ReturnType<typeof setTimeout> | undefined;
-  const stopIconWatch = onIconResolved(() => {
-    clearTimeout(iconRedraw);
-    iconRedraw = setTimeout(() => {
-      const nodes = canvas.all().filter((element) => element.kind === 'node');
-      if (nodes.length > 0) canvas.redrawElements(nodes);
-    }, ICON_REDRAW_DEBOUNCE_MS);
-  });
-
   return {
     revision: () => history.revision(),
     undo: () => history.undo(),
@@ -247,8 +232,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
       bus.off('ElementChanged', materializePending);
       bus.off('ElementsChanged', materializePending);
       history.dispose();
-      stopIconWatch();
-      clearTimeout(iconRedraw);
       canvas.destroy();
     },
   };

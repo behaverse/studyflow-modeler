@@ -22,9 +22,8 @@ async function toExportableXml(modeler: Editor): Promise<string> {
 /**
  * The diagram as a self-contained SVG, plus its XML.
  *
- * No icon substitution pass: the renderer draws resolved glyphs as real `<svg>`
- * bodies (`draw/iconCache.ts`), so what the canvas serializes
- * is already what the export carries.
+ * No icon substitution pass: the renderer inlines each glyph from the stylesheet as a
+ * real `<svg>` body, so what the canvas serializes is already what the export carries.
  */
 async function renderSvg(modeler: Editor): Promise<{ svg: string; xml: string }> {
   // The SVG first, synchronously: it is a snapshot of the canvas as it stands, and

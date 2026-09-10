@@ -42,7 +42,7 @@ Declared once, in `src/export/formats.ts`; a skill's `modeler.ts` adds to the In
 | Image | `.studyflow.svg`, `.studyflow.png`. Both embed the studyflow source *and* an editable draw.io diagram, so one figure reopens in either editor |
 | Interchange | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` |
 
-PNG and SVG export fetch icon glyphs from `api.iconify.design` at export time, and degrade with a notice when offline.
+PNG and SVG export carry every icon as inline SVG paths, read from the app's own stylesheet; nothing is fetched.
 
 ## The examples gallery
 

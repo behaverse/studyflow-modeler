@@ -1,14 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "types": ["node", "react", "json-schema", "vite/client"],
-    "paths": {
-      "@runner/*": ["./src/*"],
-      "@core/*": ["../../packages/core/src/*"],
-      "@skills/*": ["../../skills/*"],
-      "@tests/*": ["../../tests/*"],
-      "#assets/*": ["../../assets/*"]
-    }
+    "types": ["node", "react", "json-schema", "vite/client"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "../../packages/core/src/declarations.d.ts", "../*/browser/**/*.ts", "../*/browser/**/*.tsx", "tests/**/*.ts"]
 }

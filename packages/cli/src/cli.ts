@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { convert } from '@cli/convert';
 import { validate } from '@cli/validate';
 import { info } from '@cli/info';
+import { edit } from '@cli/edit';
 import { companionNames, findCompanion, runCompanion } from '@cli/plugin';
 
 const program = new Command();
@@ -52,6 +53,26 @@ program
     await run(input, runnerArgs, options);
   });
 
+type ServeOptions = { port: string; host: string; open: boolean };
+const serveOptions = (command: Command): Command => command
+  .option('--port <port>', 'port to listen on', '4174')
+  .option('--host <host>', 'address to bind', '127.0.0.1')
+  .option('--no-open', 'print the URL instead of opening a browser');
+
+serveOptions(program
+  .command('edit')
+  .description('Open a studyflow in the desktop app: the modeler served from this machine, no network needed.')
+  .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png'))
+  .action(async (file: string | undefined, options: ServeOptions) => {
+    await edit(file, { port: Number(options.port), host: options.host, open: options.open });
+  });
+
+serveOptions(program
+  .command('ui')
+  .description('Open the desktop app on a blank canvas (`studyflow edit` without a file).'))
+  .action(async (options: ServeOptions) => {
+    await edit(undefined, { port: Number(options.port), host: options.host, open: options.open });
+  });
 
 program
   .command('info')

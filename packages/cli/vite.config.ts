@@ -1,26 +1,12 @@
-import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
-import fs from 'node:fs'
+import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-
-const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as { version: string }  // one version for the repo
+import { aliases, define } from '../../vite.shared'
 
 // One self-contained Node executable: core is compiled in from source, the schema YAMLs are
 // inlined at build time (core's `import.meta.glob(?raw)`), and the binary resolves nothing from the repo at runtime.
-export default defineConfig({
-  define: {
-    'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),
-  },
-  resolve: {
-    alias: [
-      { find: '@core', replacement: resolve(__dirname, '../core/src') },
-      { find: '@cli', replacement: resolve(__dirname, 'src') },
-      { find: '@skills', replacement: resolve(__dirname, '../../skills') },
-      { find: '#assets', replacement: resolve(__dirname, '../../assets') },
-    ],
-  },
+export default defineConfig(({ mode }) => ({
+  define,
+  resolve: { alias: aliases(mode) },
   ssr: {
     noExternal: true,
     // `render` drives a browser; playwright stays an install-time optional.
@@ -32,7 +18,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      input: { studyflow: resolve(__dirname, 'src/cli.ts') },
+      input: { studyflow: resolve(import.meta.dirname, 'src/cli.ts') },
       output: {
         entryFileNames: '[name].mjs',
         banner: '#!/usr/bin/env node',
@@ -42,4 +28,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

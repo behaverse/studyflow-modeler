@@ -9,6 +9,7 @@
     "paths": {
         "@core/*": ["./packages/core/src/*"],
         "@canvas/*": ["./packages/canvas/src/*"],
+        "@cli/*": ["./packages/cli/src/*"],
         "@modeler/*": ["./packages/modeler/src/*"],
         "@runner/*": ["./skills/browser/src/*"],
         "@tests/*": ["./tests/*"],

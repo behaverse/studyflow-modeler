@@ -13,7 +13,6 @@ import {
   normalizeXml,
   readDownloadText,
   setSelectedElementName,
-  stubIconify,
 } from './utils';
 
 async function toYaml(xml: string): Promise<string> {
@@ -35,7 +34,6 @@ test.describe('Studyflow modeler palette flows', () => {
     await setSelectedElementName(page, 'Review Task');
     await expect(page.getByTestId('modeler-canvas')).toContainText('Review Task');
 
-    await stubIconify(page);
 
     const svgDownload = await exportDiagram(page, 'svg');
     const svgText = await readDownloadText(svgDownload);
@@ -65,7 +63,6 @@ test.describe('Studyflow modeler palette flows', () => {
     await addPaletteElement(page, 'Events', 'Start', { x: 120, y: 160 });
     await addSchemaPaletteElement(page, 'Behaverse', 'Task', { x: 320, y: 180 });
 
-    await stubIconify(page);
 
     const svgDownload = await exportDiagram(page, 'svg');
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));

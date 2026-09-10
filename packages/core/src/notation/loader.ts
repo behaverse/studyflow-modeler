@@ -45,7 +45,8 @@ function parseAll(): SchemaModel[] {
   for (const skill of SKILLS) {
     if (!skill.schema) continue;
     const sourceName = `${skill.name}/${skill.schema}`;
-    const key = Object.keys(yamlSources).find((path) => path.endsWith(`/${sourceName}`));
+    // `/<schema>` when the bundling app's own root is this skill's folder (the browser runtime), as with `/SKILL.md` above.
+    const key = Object.keys(yamlSources).find((path) => path.endsWith(`/${sourceName}`) || path === `/${skill.schema}`);
     if (!key) {
       SCHEMA_LOAD_FAILURES.push({ sourceName, message: `SKILL.md declares this schema, but there is no such file` });
       console.error(`[studyflow skill] ${sourceName} is declared but missing`);

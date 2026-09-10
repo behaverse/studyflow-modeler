@@ -67,6 +67,9 @@ const unityBuildPath = process.env.UNITY_BUILD_PATH
   ? resolve(process.env.UNITY_BUILD_PATH)
   : resolve(__dirname, '../../../run/assessment-unity/Build/WebGL')
 
+/** What these plugins answer outside the runner's own /run/: the modeler's dev server routes them here too. */
+export const DEV_ROUTES = ['/api/llm']
+
 export function behaverseDevPlugins(): Plugin[] {
-  return [unityBuildPlugin('/run/assessment-unity', unityBuildPath), claudeProxyPlugin()]
+  return [unityBuildPlugin('/run/assessment-unity', unityBuildPath), claudeProxyPlugin({ route: `${DEV_ROUTES[0]}/claude` })]
 }

@@ -1,61 +1,57 @@
-import { resolve, dirname } from 'path'
-import { fileURLToPath } from 'url'
-import fs from 'node:fs'
-import { defineConfig } from 'vite'
+import { resolve } from 'node:path'
+import { createServer, defineConfig, type Plugin } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { DEV_ROUTES } from '../../skills/behaverse/browser/vite'
+import { ROOT, aliases, assetsInclude, define } from '../../vite.shared'
 
-const __dirname = dirname(fileURLToPath(import.meta.url))
-
-const pkg = JSON.parse(fs.readFileSync(resolve(__dirname, '../../package.json'), 'utf-8')) as { version: string }  // one version for the repo
-
-// In dev the runner is a second Vite server, but the diagram hand-off rides on same-origin
-// localStorage, so the runner's paths are proxied through this origin, exactly as the merged
-// dist/ serves them in production.
-const RUNNER_PORT = Number(process.env.RUNNER_PORT ?? 5174)
-const RUNNER_PATHS = ['/run', '/api/llm']  // /run also covers /run/assessment-unity
+// The browser runner (skills/browser) is its own Vite app, served by this dev server under its paths, so dev is
+// one origin on one port, exactly as the merged dist/ is in production (the diagram hand-off rides on same-origin
+// localStorage). Its config runs in middleware mode here; HMR shares this server's socket, under /run/.
+const RUNNER_ROOT = resolve(ROOT, 'skills/browser')
+const RUNNER_PATHS = ['/run', ...DEV_ROUTES]  // /run also covers /run/assessment-unity
+const runner = (): Plugin => ({
+  name: 'studyflow:runner',
+  apply: 'serve',
+  async configureServer(server) {
+    const child = await createServer({
+      root: RUNNER_ROOT,  // not the cwd this server was started from
+      mode: server.config.mode,  // the same target (`npm run dev:desktop`)
+      configFile: resolve(RUNNER_ROOT, 'vite.config.ts'),
+      server: { middlewareMode: true, hmr: { server: server.httpServer! } },
+    })
+    server.httpServer!.on('close', () => { child.close() })
+    server.middlewares.use((req, res, next) => (
+      RUNNER_PATHS.some((path) => req.url?.startsWith(path)) ? child.middlewares(req, res, next) : next()
+    ))
+  },
+})
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   base: '',  // relative
-  define: {
-    'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),
-  },
+  define,
   plugins: [
     tailwindcss(),
     react(),
+    runner(),
   ],
-  resolve: {
-    alias: [
-      // Workspace packages are consumed as TypeScript source (see root vite.config note).
-      { find: '@core', replacement: resolve(__dirname, '../core/src') },
-      { find: '@canvas', replacement: resolve(__dirname, '../canvas/src') },
-      { find: '@modeler', replacement: resolve(__dirname, 'src') },
-      { find: '@skills', replacement: resolve(__dirname, '../../skills') },
-      { find: '#assets', replacement: resolve(__dirname, '../../assets') },
-    ],
-  },
+  resolve: { alias: aliases(mode) },
   server: {
     port: 5173,
-    fs: { allow: [resolve(__dirname, '../..')] },
-    proxy: Object.fromEntries(
-      // 'localhost', not 127.0.0.1: the runner may bind only the IPv6 loopback.
-      RUNNER_PATHS.map((path) => [path, { target: `http://localhost:${RUNNER_PORT}`, ws: true }]),
-    ),
+    fs: { allow: [ROOT] },
   },
   build: {
     outDir: '../../dist',
-    emptyOutDir: true,
+    // The runner writes dist/run: the root `build` clears dist/ once, so the order of the two builds does not matter.
+    emptyOutDir: false,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        modeler: resolve(__dirname, 'app.html'),
+        main: resolve(import.meta.dirname, 'index.html'),
+        modeler: resolve(import.meta.dirname, 'app.html'),
       },
     },
   },
-  assetsInclude: [
-    '**/*.png', '**/*.bpmn', '**/*.studyflow', '**/*.jpeg', '**/*.gif',
-    '**/*.svg', '**/*.ico', '**/*.webp', '**/*.yaml',
-  ],
-})
+  assetsInclude,
+}))

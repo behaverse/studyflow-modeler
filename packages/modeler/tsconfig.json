@@ -1,14 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "types": ["node", "react", "json-schema", "./src/declarations"],
-    "paths": {
-      "@modeler/*": ["./src/*"],
-      "@canvas/*": ["../canvas/src/*"],
-      "@core/*": ["../core/src/*"],
-      "@skills/*": ["../../skills/*"],
-      "#assets/*": ["../../assets/*"]
-    }
+    "types": ["node", "react", "json-schema", "./src/declarations"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "../core/src/declarations.d.ts"]
 }

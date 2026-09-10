@@ -17,7 +17,7 @@ export interface InlineSvgIconDef {
   content: string;
 }
 
-/** A class the host paints; the placeholder form while a glyph body is still loading. */
+/** A class the host's stylesheet paints; drawn inline when the stylesheet carries its glyph, else as a placeholder. */
 export interface CssIconDef {
   cssClass: string;
 }
@@ -77,7 +77,12 @@ export function drawIcon(
   if (answer === null) return undefined;
   const resolved: IconDef | undefined = answer ?? SVG_ICON_PATHS[iconKey];
   if (resolved) {
-    if (isCssIcon(resolved)) return drawCssIcon(container, resolved.cssClass, x, y, size, color, iconKey);
+    if (isCssIcon(resolved)) {
+      const inline = stylesheetIcon(resolved.cssClass);
+      return inline
+        ? drawInlineSvgIcon(container, inline, x, y, size, color, iconKey)
+        : drawCssIcon(container, resolved.cssClass, x, y, size, color, iconKey);
+    }
     if (isInlineIcon(resolved)) return drawInlineSvgIcon(container, resolved, x, y, size, color, iconKey);
     return drawSvgPaths(container, resolved, x, y, size, size, color, iconKey);
   }
@@ -102,14 +107,25 @@ export function drawInlineSvgIcon(
   return svg;
 }
 
-/**
- * WebKit will not paint a CSS mask inside a `<foreignObject>`, so an iconify
- * class's `--svg` source is read once and painted as a tinted background image.
- */
-const ICON_SOURCES = new Map<string, string | undefined>();
+/** Quarter-turn rotations expressed as Tailwind utility classes on an icon. */
+const ROTATIONS: Record<string, number> = {
+  'rotate-90': 90,
+  'rotate-180': 180,
+  'rotate-270': 270,
+  '-rotate-90': -90,
+};
 
-function iconSvgSource(iconClass: string): string | undefined {
-  if (ICON_SOURCES.has(iconClass)) return ICON_SOURCES.get(iconClass);
+const STYLESHEET_ICONS = new Map<string, InlineSvgIconDef | undefined>();
+
+/**
+ * The glyph an iconify class paints, read straight out of the host's stylesheet: the
+ * Tailwind iconify plugin compiles every icon into a `--svg` data URI on its class, so
+ * the body is available synchronously and the drawn scene carries real paths (an
+ * export is then self-contained, and a `foreignObject` never taints the PNG canvas).
+ * `undefined` for a class the stylesheet does not know.
+ */
+function stylesheetIcon(iconClass: string): InlineSvgIconDef | undefined {
+  if (STYLESHEET_ICONS.has(iconClass)) return STYLESHEET_ICONS.get(iconClass);
   const doc = ownerDocument();
   const body = doc.body;
   const view = doc.defaultView;
@@ -121,23 +137,20 @@ function iconSvgSource(iconClass: string): string | undefined {
   const raw = view.getComputedStyle(probe).getPropertyValue('--svg').trim();
   probe.remove();
   const source = /^url\(\s*(['"]?)data:image\/svg\+xml,([\s\S]*?)\1\s*\)$/.exec(raw)?.[2];
-  ICON_SOURCES.set(iconClass, source ? decodeURIComponent(source) : undefined);
-  return ICON_SOURCES.get(iconClass);
+  const match = source && /<svg[^>]*\sviewBox=['"]([^'"]+)['"][^>]*>([\s\S]*)<\/svg>/.exec(decodeURIComponent(source));
+  STYLESHEET_ICONS.set(iconClass, match ? rotated(iconClass, {
+    viewBox: match[1],
+    content: match[2].replace(/(fill|stroke)=(['"])black\2/g, '$1=$2currentColor$2'),
+  }) : undefined);
+  return STYLESHEET_ICONS.get(iconClass);
 }
 
-const tint = (svgText: string, color: string): string =>
-  svgText.replace(/(fill|stroke)=(['"])black\2/g, `$1=$2${color}$2`);
-
-function paintIconAsBackground(div: HTMLElement, iconClass: string, color: string): void {
-  const source = iconSvgSource(iconClass);
-  if (!source) return;
-  const url = `url("data:image/svg+xml,${encodeURIComponent(tint(source, color))}")`;
-  div.style.setProperty('mask-image', 'none', 'important');
-  div.style.setProperty('-webkit-mask-image', 'none', 'important');
-  div.style.setProperty('background-color', 'transparent', 'important');
-  div.style.setProperty('background-image', url, 'important');
-  div.style.setProperty('background-size', '100% 100%', 'important');
-  div.style.setProperty('background-repeat', 'no-repeat', 'important');
+/** A `rotate-90` utility class rotated the placeholder box; a raw body gets the turn baked in instead. */
+function rotated(iconClass: string, icon: InlineSvgIconDef): InlineSvgIconDef {
+  const turn = iconClass.split(' ').map((part) => ROTATIONS[part]).find((deg) => deg !== undefined);
+  if (!turn) return icon;
+  const [minX = 0, minY = 0, width = 24, height = 24] = icon.viewBox.split(/[\s,]+/).map(Number);
+  return { ...icon, content: `<g transform="rotate(${turn} ${minX + width / 2} ${minY + height / 2})">${icon.content}</g>` };
 }
 
 export function drawCssIcon(
@@ -168,7 +181,6 @@ export function drawCssIcon(
   });
   div.setAttribute('data-icon-class', cssClass);
   div.setAttribute('data-icon-color', color || '');
-  paintIconAsBackground(div, cssClass, color || 'currentColor');
   foreignObject.appendChild(div);
   append(container, foreignObject);
   return foreignObject;
