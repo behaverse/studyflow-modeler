@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
+import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { buildCatalog } from '@core/notation';
@@ -41,6 +42,7 @@ test.describe('schema model: moddle package generation', () => {
     for (const type of model.types) {
       if (isValueType(type)) valueTypes.add(`${model.prefix}:${type.name}`);
     }
+    for (const enumeration of model.enumerations) valueTypes.add(`${model.prefix}:${enumeration.name}`);
   }
 
   for (const { prefix } of SCHEMAS) {
@@ -86,6 +88,20 @@ test.describe('schema model: moddle package generation', () => {
     const systemPrompt = prop(byPrefix.agentic, 'Agent', 'systemPrompt');
     expect(systemPrompt.type).toBe('String');
     expect(systemPrompt.valueType).toBe('studyflow:MarkdownString');
+  });
+
+  test('an enum-typed list rides as String and round-trips through XML', async () => {
+    const byPrefix = Object.fromEntries(models.map((m) => [m.prefix, toModdlePackages(m, models)]));
+    const streams = byPrefix.reachy.types.find((t: any) => t.name === 'InteractionRecording')
+      .properties.find((p: any) => p.name === 'streams');
+    expect(streams.type).toBe('String');
+    expect(streams.valueType).toBe('reachy:StreamEnum');
+
+    const moddle = new BpmnModdle(structuredClone(byPrefix)) as any;
+    const recording = moddle.create('reachy:InteractionRecording', { id: 'Rec', streams: ['video', 'motion'] });
+    const { xml } = await moddle.toXML(recording, { format: true });
+    const { rootElement } = await moddle.fromXML(xml, 'reachy:InteractionRecording');
+    expect(rootElement.streams).toEqual(['video', 'motion']);
   });
 
   test('generated packages are fresh objects per call (moddle mutates them)', () => {

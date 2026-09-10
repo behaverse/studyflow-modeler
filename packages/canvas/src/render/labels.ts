@@ -20,7 +20,7 @@ const ELLIPSIS = '…';
 /** Height of the strip an expanded container's caption sits in. */
 export const TOP_STRIP = 24;
 /** The rows a task keeps clear of its name: the type glyph's at the top, the markers' at the bottom. */
-export const CHROME = { head: 30, foot: 20 } as const;
+export const CHROME = { head: 27, foot: 20 } as const;
 
 /** The box a line of text needs (heuristic; includes the padding `wrap` leaves). */
 export function textWidth(text: string, fontSize: number): number {

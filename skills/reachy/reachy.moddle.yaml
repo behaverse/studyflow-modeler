@@ -128,6 +128,18 @@ enumerations:
         value: speech_intent
         description: What the participant's last utterance asked for.
 
+  - name: StreamEnum
+    description: A stream an interaction recording captures.
+    literalValues:
+      - name: Video
+        value: video
+      - name: Audio
+        value: audio
+      - name: Transcript
+        value: transcript
+      - name: Motion
+        value: motion
+
 types:
   - name: Robot
     description: The robot as a pool of the steps it performs and the device settings they share; on the lower band of a cognitive task, the actor who takes it.
@@ -510,12 +522,11 @@ types:
     meta:
       icon: iconify ph--record
     properties:
-      # Plain strings, one per entry: a non-attribute enum list cannot serialize through moddle.
       - name: streams
-        description: Streams captured, one per entry (`video`, `audio`, `transcript`, `motion`).
+        description: Streams captured.
         isAttr: false
         isMany: true
-        type: String
+        type: StreamEnum
 
 templates:
   - description: Wake-word conversation - wait for the wake word, face the speaker, talk, sign off.

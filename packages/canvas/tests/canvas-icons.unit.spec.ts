@@ -212,8 +212,8 @@ test('a behaverse task draws its scene abbreviation over the hex icon', async ()
   expect(glyph).toBeTruthy();
   expect(glyph.textContent).toBe('NB');
   // Centred on the icon box, monospace and bold, in the element's own stroke colour.
-  expect(glyph.getAttribute('x')).toBe('18');
-  expect(glyph.getAttribute('y')).toBe('18');
+  expect(glyph.getAttribute('x')).toBe('15');
+  expect(glyph.getAttribute('y')).toBe('15');
   expect(glyph.getAttribute('text-anchor')).toBe('middle');
   expect(glyph.getAttribute('font-weight')).toBe('bold');
   expect(glyph.getAttribute('font-family')).toContain('monospace');
@@ -424,7 +424,7 @@ test('a schema attribute declaring meta.icon badges a non-event shape top-right 
     const badge = graphics(canvas, 'Task_1').querySelector('svg.sf-icon[data-icon-key="iconify mdi--test-badge"]');
     expect(badge).toBeTruthy();
     expect(badge!.getAttribute('x')).toBe('78');
-    expect(badge!.getAttribute('y')).toBe('10');
+    expect(badge!.getAttribute('y')).toBe('7');
   } finally {
     setCatalog(real);
   }

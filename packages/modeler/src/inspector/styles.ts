@@ -90,8 +90,6 @@ export const field = {
 
   stateRow: 'flex items-stretch rounded-md border border-black/[0.20] bg-cream-200 overflow-hidden focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[hsl(205,100%,45%)]',
   stateNameInput: 'flex-1 min-w-0 px-2 py-1 bg-transparent border-0 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-none',
-  /* A message flow's one field: the state row's type box, full width, on its own. */
-  messageField: 'flex items-stretch rounded-md border border-black/[0.08] [&>*]:w-full [&>*]:border-l-0',
   stateTypeField: 'relative shrink-0 flex items-stretch w-[8rem] border-l border-black/[0.08] bg-black/[0.03] focus-within:bg-black/[0.05]',
   stateTypeInput: 'w-full min-w-0 pl-2 pr-6 py-1 bg-transparent border-0 font-mono text-sm/6 text-stone-600 placeholder-stone-400 placeholder:italic focus:outline-none',
   stateTypeChevronBtn: 'absolute top-0 right-0 h-full w-5 flex items-center justify-center text-stone-500 hover:text-stone-900 cursor-pointer',

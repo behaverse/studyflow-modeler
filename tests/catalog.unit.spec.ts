@@ -21,12 +21,14 @@ const packages: Record<string, any> = Object.fromEntries(
 );
 const moddle = new BpmnModdle(packages) as any;
 
+/** Value types and enumerations: both ride as `String` off an attribute (see toModdlePackages). */
 const VALUE_TYPES = new Set(
-  models.flatMap((model) =>
-    model.types
+  models.flatMap((model) => [
+    ...model.types
       .filter((t) => (t.superClass ?? []).some((sc) => MODDLE_SIMPLE_TYPES.has(sc)))
       .map((t) => `${model.prefix}:${t.name}`),
-  ),
+    ...model.enumerations.map((e) => `${model.prefix}:${e.name}`),
+  ]),
 );
 
 function isExtensionPrefix(prefix: string | undefined): boolean {

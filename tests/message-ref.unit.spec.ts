@@ -6,7 +6,7 @@ import { buildCatalog, setCatalog } from '@core/notation';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import type { Editor } from '@modeler/editor/port';
 import { runUpdateMessage } from '@modeler/inspector/commands';
-import { messageStructureOf, messageStructureOptions } from '@modeler/inspector/stateProperties';
+import { messageStructureOf } from '@modeler/inspector/stateProperties';
 import { loadSchemaModels } from './schemas';
 
 /** A message flow's Message field: `messageRef` -> `bpmn:Message` -> `itemRef` -> `bpmn:ItemDefinition.structureRef`. */
@@ -58,8 +58,6 @@ test('the Message field makes one message per structure, shares it, and drops it
   const editor = editorOver(m);
   const roots = (type: string) => definitions.rootElements.filter((re: any) => re.$type === type);
 
-  // The schema's structures come first; the file's own item definitions follow.
-  expect(messageStructureOptions(trial)).toEqual(['behaverse:Trial', 'behaverse:Response']);
   expect(messageStructureOf(trial)).toBe('');
 
   runUpdateMessage(editor, { type: 'UpdateMessage', element: trial, structureRef: 'behaverse:Trial' });
@@ -67,12 +65,11 @@ test('the Message field makes one message per structure, shares it, and drops it
   expect(roots('bpmn:Message')).toHaveLength(1);
   expect(roots('bpmn:ItemDefinition').map((re: any) => re.structureRef)).toEqual(['behaverse:Trial']);
 
-  // A second flow with the same structure shares the message; a structure typed in gets one of its own.
+  // A second flow with the same structure shares the message; another structure gets one of its own.
   runUpdateMessage(editor, { type: 'UpdateMessage', element: answer, structureRef: 'behaverse:Trial' });
   expect(answer.messageRef).toBe(trial.messageRef);
   runUpdateMessage(editor, { type: 'UpdateMessage', element: answer, structureRef: 'lab:Ping' });
   expect(roots('bpmn:Message')).toHaveLength(2);
-  expect(messageStructureOptions(trial)).toEqual(['behaverse:Trial', 'behaverse:Response', 'lab:Ping']);
 
   // Clearing drops the message no flow carries any more; its item definition stays (a property may be typed by it).
   runUpdateMessage(editor, { type: 'UpdateMessage', element: answer, structureRef: '' });

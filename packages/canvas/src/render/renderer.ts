@@ -53,7 +53,7 @@ const EDGE_TYPES = new Set<string>([
 ]);
 
 /** The type glyph, tucked into the top-left corner; its row is what `CHROME.head` keeps clear. */
-const TYPE_ICON = { x: 6, y: 6, size: 24 };
+const TYPE_ICON = { x: 3, y: 3, size: 24 };
 const MARKER_SIZE = 16;
 const OVERLAY_ICON_SIZE = 16;
 /** Badges share the glyph row's centre line. */

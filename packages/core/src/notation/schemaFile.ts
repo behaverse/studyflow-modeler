@@ -116,12 +116,14 @@ export function isValueType(type: SchemaTypeModel): boolean {
   return (type.superClass ?? []).some((ref) => MODDLE_SIMPLE_TYPES.has(ref));
 }
 
+/** Value types and enumerations: moddle-xml inlines a non-attribute (list) value only for its built-in simple types, so both ride as `String`. */
 function collectValueTypes(models: SchemaModel[]): Set<string> {
   const valueTypes = new Set<string>();
   for (const model of models) {
     for (const type of model.types) {
       if (isValueType(type)) valueTypes.add(`${model.prefix}:${type.name}`);
     }
+    for (const enumeration of model.enumerations) valueTypes.add(`${model.prefix}:${enumeration.name}`);
   }
   return valueTypes;
 }

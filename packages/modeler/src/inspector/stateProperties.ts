@@ -47,15 +47,6 @@ export function messageStructureOf(elementOrBo: any): string {
   return typeof item?.structureRef === 'string' ? item.structureRef : '';
 }
 
-/** The structures a message may carry: the ones a loaded schema's `MessageStructureEnum` offers, then the file's own item definitions. */
-export function messageStructureOptions(elementOrBo: any): string[] {
-  const offered = (getCatalog().enumOf('MessageStructureEnum')?.literals ?? []).map((literal) => String(literal.value));
-  const declared = getDeclaredItemTypes(elementOrBo)
-    .filter((type) => !offered.includes(type) && !builtinItemTypes().includes(type))
-    .sort((a, b) => a.localeCompare(b));
-  return [...offered, ...declared];
-}
-
 /** Only these three may carry Properties in BPMN 2.0 (§10.3.1). */
 function supportsStateProperties(element: any): boolean {
   if (!element) return false;

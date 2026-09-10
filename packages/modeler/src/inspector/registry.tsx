@@ -3,7 +3,7 @@ import type { ChangeEvent, ComponentType } from 'react';
 import { Checkbox, Input, Label, Textarea } from '@headlessui/react';
 import { EDITOR_NAMES, type AttributeSpec, type EditorName } from '@core/notation';
 import { t } from '@modeler/i18n';
-import { ArrayInput, ChecklistInput, EnumInput, ExpressionInput } from '@modeler/inspector/inputs';
+import { ArrayInput, ChecklistInput, EnumInput, EnumListInput, ExpressionInput } from '@modeler/inspector/inputs';
 import { CodeEditor, SchemaEditor } from '@modeler/inspector/editors';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { useAttributeState, useInspectedElement } from '@modeler/inspector/state';
@@ -176,6 +176,7 @@ function pickInput(attrDef: AttributeSpec) {
 
   if (isOptionalString) return OptionalStringInput;
   if (isStringList) return ArrayInput;
+  if (attrDef.isEnum && attrDef.isMany) return EnumListInput;
   if (attrDef.isEnum) return EnumInput;
   if (declaredType === 'Boolean') return BooleanInput;
 

@@ -26,7 +26,8 @@ import { InspectorContext, useInspectedElement } from '@modeler/inspector/state'
 import { AttributeInput } from '@modeler/inspector/registry';
 import { isAttributeVisible } from '@modeler/inspector/categories';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
-import { ExpressionRow, PlainEnumSelect } from '@modeler/inspector/inputs';
+import { getCatalog } from '@core/notation';
+import { ExpressionRow, PlainEnumSelect, toOptions } from '@modeler/inspector/inputs';
 import {
   getInferredDataNeighbors,
   supportsDataAssociations,
@@ -45,7 +46,6 @@ import {
   isScopeContainer,
   itemTypeOptions,
   messageStructureOf,
-  messageStructureOptions,
 } from '@modeler/inspector/stateProperties';
 import { field as s } from '@modeler/inspector/styles';
 
@@ -128,14 +128,14 @@ function ParticipantField({ element, field, participant, label, help, declared, 
             </ComboboxOptions>
           </Combobox>
         </div>
-      </Field>
-      {participant && (participant.processRef
-        ? (
+        {participant?.processRef && (
           <div className="mt-1 text-xs text-stone-500" data-testid={`choreography-${field}-kind`}>
             {t('participantKind')}: {kindLabel(kind)}
           </div>
-        )
-        : <ActorFields key={participant.id} element={element} field={field} participant={participant} kind={kind} />)}
+        )}
+      </Field>
+      {participant && !participant.processRef
+        && <ActorFields key={participant.id} element={element} field={field} participant={participant} kind={kind} />}
     </>
   );
 }
@@ -300,11 +300,12 @@ export function StateSection() {
 const MESSAGE_DESCRIPTION = 'What this flow carries: the structure its message is an item of, the name a runner '
   + 'recognises (`behaverse:Trial` out of a Behaverse task, `behaverse:Response` back). Unnamed, the flow is taken for either.';
 
-/** A message flow's `messageRef`, edited as the structure its message carries. */
+/** A message flow's `messageRef`, picked among the structures the loaded schemas' `MessageStructureEnum` declares. */
 export function MessageSection({ element }: { element: any }) {
   const modeler = useRequiredModeler();
   const businessObject = element?.businessObject ?? element;
   if (businessObject?.$type !== 'bpmn:MessageFlow') return null;
+  const structures = [{ name: 'unnamed', value: '' }, ...toOptions(getCatalog().enumOf('MessageStructureEnum')?.literals)];
 
   return (
     <div className={s.field} data-testid="message-section">
@@ -312,17 +313,13 @@ export function MessageSection({ element }: { element: any }) {
         {t('messageRef')}
         <HelpTooltip name="messageRef" description={MESSAGE_DESCRIPTION} />
       </div>
-      <div className={s.messageField}>
-        <ItemTypeField
-          propertyId={businessObject.id}
-          testId={`message-structure-${businessObject.id}`}
-          ariaLabel="Message"
-          placeholder="unnamed"
-          value={messageStructureOf(businessObject)}
-          options={messageStructureOptions(businessObject)}
-          onCommit={(structureRef) => executeCommand(modeler, { type: 'UpdateMessage', element, structureRef })}
-        />
-      </div>
+      <PlainEnumSelect
+        name="messageRef"
+        ariaLabel="Message"
+        value={messageStructureOf(businessObject)}
+        literalValues={structures}
+        onCommit={(structureRef) => executeCommand(modeler, { type: 'UpdateMessage', element, structureRef })}
+      />
     </div>
   );
 }
@@ -332,12 +329,9 @@ type ItemTypeFieldProps = {
   value: string;
   options: string[];
   onCommit: (itemType: string) => void;
-  testId?: string;
-  ariaLabel?: string;
-  placeholder?: string;
 };
 
-function ItemTypeField({ propertyId, value, options, onCommit, testId, ariaLabel, placeholder = 'untyped' }: ItemTypeFieldProps) {
+function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldProps) {
   const [query, setQuery] = useState('');
 
   const q = query.trim().toLowerCase();
@@ -361,9 +355,9 @@ function ItemTypeField({ propertyId, value, options, onCommit, testId, ariaLabel
         onClose={() => setQuery('')}
       >
         <ComboboxInput
-          data-testid={testId ?? `property-type-${propertyId}`}
-          aria-label={ariaLabel ?? `Item type (${propertyId})`}
-          placeholder={placeholder}
+          data-testid={`property-type-${propertyId}`}
+          aria-label={`Item type (${propertyId})`}
+          placeholder="untyped"
           title={value}
           className={s.stateTypeInput}
           displayValue={(type: string | null) => type ?? ''}
@@ -381,7 +375,7 @@ function ItemTypeField({ propertyId, value, options, onCommit, testId, ariaLabel
           )}
           {!q && (
             <ComboboxOption value="" className={s.stateTypeOption}>
-              <span className={s.stateTypeUntyped}>{placeholder}</span>
+              <span className={s.stateTypeUntyped}>untyped</span>
             </ComboboxOption>
           )}
           {matches.map((type) => (

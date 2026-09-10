@@ -1,5 +1,6 @@
 import type { AttributeSpec, EnumLiteral } from '@core/notation';
 import {
+  Checkbox,
   Combobox,
   ComboboxButton,
   ComboboxInput,
@@ -23,7 +24,7 @@ import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from
 import { executeCommand } from '@modeler/commandBus';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { useAttributeState, useInspectedElement } from '@modeler/inspector/state';
-import { HelpTooltip } from '@modeler/inspector/widgets';
+import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { field as s } from '@modeler/inspector/styles';
 
 type Props = { attrDef: AttributeSpec };
@@ -104,6 +105,39 @@ function toArray(raw: any): string[] {
   if (Array.isArray(raw)) return raw.map((item) => (item == null ? '' : String(item)));
   if (raw == null || raw === '') return [];
   return [String(raw)];
+}
+
+/** An enum list: one checkbox per literal, kept in the schema's order; values the schema does not name are kept too. */
+export function EnumListInput({ attrDef }: Props) {
+  const { value: values, commit } = useAttributeState<string[]>(attrDef, toArray);
+  const name = attrDef.ns.name;
+  const options = toOptions(getCatalog().enumOf(attrDef.type)?.literals);
+  const named = options.map((option) => option.value);
+
+  const toggle = (literal: string) => {
+    const selected = new Set(values);
+    if (!selected.delete(literal)) selected.add(literal);
+    commit([...named.filter((v) => selected.has(v)), ...values.filter((v) => !named.includes(v))]);
+  };
+
+  return (
+    <>
+      <Label className={s.label}>
+        {t(name)}
+        <HelpTooltip name={name} description={attrDef?.description} wide={false} />
+      </Label>
+      <div className={s.arrayList}>
+        {options.map((option) => (
+          <Field key={option.value} className={s.booleanGroup}>
+            <Checkbox checked={values.includes(option.value)} onChange={() => toggle(option.value)} className={s.checkbox}>
+              <CheckIcon />
+            </Checkbox>
+            <Label className="text-sm/6 text-stone-800 cursor-pointer" title={option.description}>{option.name}</Label>
+          </Field>
+        ))}
+      </div>
+    </>
+  );
 }
 
 export function ArrayInput({ attrDef }: Props) {
@@ -288,7 +322,7 @@ export function EnumInput({ attrDef }: Props) {
 
 type Option ={ name: string; value: string; description?: string };
 
-function toOptions(literals: EnumLiteral[] | undefined): Option[] {
+export function toOptions(literals: EnumLiteral[] | undefined): Option[] {
   return (literals ?? []).map((literal) => ({
     name: literal.name,
     value: String(literal.value),
