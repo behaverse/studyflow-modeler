@@ -18,6 +18,7 @@ jobs:
         with:
           node-version: 'latest'
           cache: 'npm'
+      - uses: astral-sh/setup-uv@v10  # the local runtime's unit tests drive uv
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
