@@ -60,7 +60,7 @@ export default [
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@runner/*', '!@runner/settings', '!@runner/storage'], message: 'modeler/ may not import from runner/, except its settings and storage. Move shared model code into packages/core/.' },
+          { group: ['@runner/*'], message: 'modeler/ may not import from runner/. Move shared code into packages/core/.' },
         ],
       }],
     },

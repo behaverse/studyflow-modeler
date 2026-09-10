@@ -1,5 +1,5 @@
 import { RUNNER_ONLY_BOT_KEYS, type BehaverseBotPayload, type BehaverseTaskPayload } from '@skills/behaverse/browser/types';
-import { getLLMSettings } from '@runner/settings';
+import { getLLMSettings } from '@core/settings';
 import type { LLMProviderConfig } from '@skills/behaverse/browser/llm/types';
 
 export function readResponseSource(bot: BehaverseTaskPayload['bot']): 'internal' | 'external' | 'llm' {

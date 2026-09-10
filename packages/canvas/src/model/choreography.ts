@@ -37,6 +37,7 @@
  */
 
 import { BPMN } from '@core/constants.ts';
+import { actorOf, DEFAULT_BOTTOM, DEFAULT_TOP, isTypedChoreography, readChoreographyBands } from '@core/document/index.ts';
 
 import { IdGenerator } from '@canvas/model/ids.ts';
 import {
@@ -55,16 +56,8 @@ import type { ModdleObject, Scene, SceneElement, SceneNode } from '@canvas/model
 /** One of the two participant bands of a choreography task. */
 export type ParticipantBand = 'top' | 'bottom';
 
-/**
- * Placeholder band names for a choreography task with no participants yet. Mirrors
- * `@core/document/choreography`'s `DEFAULT_TOP`/`DEFAULT_BOTTOM` — kept as local
- * constants (and pinned by a test) rather than imported, because that core module
- * pulls the whole document/format layer, and its `bpmn-moddle` types, into a package
- * that must stay a leaf.
- */
-export const DEFAULT_TOP = 'Participant A';
-/** @see DEFAULT_TOP */
-export const DEFAULT_BOTTOM = 'Participant B';
+/** The readers this module inverts, from core: what the bands say, and who a typed task names. */
+export { actorOf, DEFAULT_BOTTOM, DEFAULT_TOP, isTypedChoreography, readChoreographyBands };
 
 /** Whether `type` is drawn as a choreography task (two bands + a name band). */
 export function isChoreographyType(type: string): boolean {
@@ -76,68 +69,9 @@ export function isChoreographyTask(node: SceneNode): boolean {
   return isChoreographyType(node.type);
 }
 
-/** What the three bands of a choreography task read, and which side initiates. */
-export interface ChoreographyBands {
-  top: string;
-  bottom: string;
-  initiator: ParticipantBand;
-}
-
-/**
- * The two band names of a choreography task plus which side initiates — a local
- * mirror of `@core/document/choreography`'s `readChoreographyBands`, including its
- * fallback to the placeholder names when a participant carries none.
- */
-export function readChoreographyBands(bo: ModdleObject): ChoreographyBands {
-  if (isTypedChoreography(bo)) {
-    return { top: presenterLabel(bo), bottom: nameOf(actorOf(bo)) || DEFAULT_BOTTOM, initiator: 'top' };
-  }
-  const list = participantRefs(bo);
-  const top = list[0];
-  const bottom = list[1];
-  const initiating = prop(bo, 'initiatingParticipantRef');
-  return {
-    top: nameOf(top) || DEFAULT_TOP,
-    bottom: nameOf(bottom) || DEFAULT_BOTTOM,
-    initiator: initiating && initiating === bottom && bottom !== top ? 'bottom' : 'top',
-  };
-}
-
 /** The task's ordered `participantRef` list (possibly shorter than two, or empty). */
 export function participantRefs(bo: ModdleObject): ModdleObject[] {
   return asList(prop(bo, 'participantRef'));
-}
-
-/**
- * A typed choreography task (a cognitive task, say) presents itself: its upper band names the software that
- * runs it, and its one participant reference is the actor who takes it. Only a plain choreography task has
- * two participants of its own.
- */
-export function isTypedChoreography(bo: ModdleObject): boolean {
-  const holder = prop(bo, 'extensionElements') as ModdleObject | undefined;
-  return asList(holder ? prop(holder, 'values') : undefined).length > 0;
-}
-
-/** What presents a typed task, from its extension: the Behaverse scene, else the instrument, else the software. */
-export function presenterLabel(bo: ModdleObject): string {
-  const holder = prop(bo, 'extensionElements') as ModdleObject | undefined;
-  const ext = asList(holder ? prop(holder, 'values') : undefined)[0] as ModdleObject | undefined;
-  const read = (name: string): string => {
-    const value = ext ? (prop(ext, name) ?? (prop(ext, '$attrs') as Record<string, unknown> | undefined)?.[name]) : undefined;
-    return typeof value === 'string' ? value : '';
-  };
-  const scene = read('behaverseScene');
-  if (scene) return `Behaverse \u00b7 ${scene}`;
-  const instrument = read('instrument');
-  if (instrument) return instrument.charAt(0).toUpperCase() + instrument.slice(1);
-  return 'Task software';
-}
-
-/** The actor a typed task names: its participant that does not initiate, else its first. */
-export function actorOf(bo: ModdleObject): ModdleObject | undefined {
-  const list = participantRefs(bo);
-  const initiating = prop(bo, 'initiatingParticipantRef');
-  return list.find((participant) => participant !== initiating) ?? list[0];
 }
 
 /**
@@ -190,7 +124,7 @@ export function ensureChoreographyParticipants(
   const list = participantRefs(bo);
   const typed = isTypedChoreography(bo);
   if (typed && list.length >= 1) {
-    const actor = actorOf(bo)!;
+    const actor = actorOf(bo) as ModdleObject;
     return [actor, actor];
   }
   if (list.length >= 2) return [list[0], list[1]];

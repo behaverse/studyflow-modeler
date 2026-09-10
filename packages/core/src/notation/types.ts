@@ -39,7 +39,7 @@ export interface TypeMeta {
   [key: string]: unknown;
 }
 
-/** Declared as `meta.roles` and inherited by subtypes, or inferred from the type's shape (`inferRoles`). */
+/** Declared as `meta.roles` and inherited by subtypes; `data-element` alone follows from the BPMN attach point (`inferRoles`). */
 export type TypeRole =
   | 'data-element'
   | 'signal'

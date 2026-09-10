@@ -20,6 +20,7 @@ metadata:
   runtimes:                                   # what it gives each runtime to execute its elements, in any language
     local: "uv run --script local.py"         #   the local runtime: a command run in this folder
     browser: "browser/index.tsx"              #   the browser runtime: a module it imports, which registers its node
+  modeler: "modeler.ts"                       # what it gives the modeler: projections it exports, foreign formats it opens
 ---
 What the vocabulary means and how to author with it.
 ```
@@ -27,6 +28,10 @@ What the vocabulary means and how to author with it.
 - **Vocabulary-only** skills declare a `schema` and nothing else (`eeg`, `agentic`).
 - **Runner-only** skills execute someone else's vocabulary (`python` runs `python://` implementations,
   `shell` runs `shell://` ones, `behaverse` runs `cognitive:BehaverseTask`).
+- **Modeler modules** are a skill's `modeler.ts`, named by `modeler`: its default export lists the
+  projections the modeler writes (`eeg` adds the ARTEM-IS report) and the foreign formats "Open"
+  converts on the way in (`jspsych` opens a timeline). The contract is `ModelerModule` in
+  `packages/modeler/src/skillModules.ts`.
 - **Runtimes** are skills too: [`browser`](browser/SKILL.md) is the participant-facing app,
   [`local`](local/SKILL.md) the walk behind `studyflow run --runtime local`. A `runtimes.local`
   entry is a partial runner for the latter (the contract is in the
@@ -85,7 +90,10 @@ expression traits) a domain pack must not copy.
 | `bpmnType` | Which BPMN element the type is created as (shape, palette, templates). Validated against the known BPMN table; a typo is a diagnostic and the type becomes non-creatable. |
 | `icon` | Canvas + palette + append-menu glyph (Iconify class). The top-level `icon:` on a type is a legacy fallback. |
 | `editor` (on a value type) | Default editor for every attribute *of that type* (see editor names below). |
-| `roles` | Adds to the shape-inferred roles (`data-element`, `instrument`, …). Declare only what inference misses; the lint rejects restatements. |
+| `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; the lint rejects restating it. |
+| `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {behaverseScene}"`), read raw. Empty or absent, the band reads "Task software". |
+| `glyph` | The attribute whose value is drawn as text over the type icon (`behaverseScene`); the value `undefined` draws nothing. |
+| `participantKind` (on a `bpmn:Participant` type) | What a band-only actor can be: the name of one of the type's enum attributes, one kind per literal (`actorType`), or the label of the one kind the type itself is (`Reachy Mini`). |
 | `branching` | Runner gateway semantics (`random`, `condition`, `model`); the allowed set is pinned by tests. |
 | `categories` | Palette-group override (rarely needed: groups derive from the BPMN ancestor). Distinct from *property-level* `categories`, which are inspector tabs. |
 | `connectsTo` | Connection-rule allow-list; wired but currently exercised only by tests. |

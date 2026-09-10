@@ -23,7 +23,7 @@ One folder per feature. Everything the palette is lives in `src/palette/`: its d
 | `src/palette/` `src/popup/` `src/commandPalette/` | the three ways to place an element |
 | `src/inspector/` | the attribute panel: tabs, editors, sections, data neighbors |
 | `src/draw/` `src/shape/` | icon and choreography-band geometry the canvas reads, and how an element's business object is built |
-| `src/export/` `src/import/` | the file formats below, plus jsPsych import |
+| `src/export/` `src/skillModules.ts` | the file formats below, and the projections and foreign imports skills add through their `modeler.ts` |
 | `src/diagram/` `src/templates/` `src/examples/` | file open/save and auto-layout, the template gallery, the examples gallery |
 | `src/provenance/` `src/checklist/` `src/gantt/` | the three views over a diagram's metadata |
 | `src/simulation/` | token simulation, which animates the graph's shape and proves nothing about a run |
@@ -34,7 +34,7 @@ Inside a feature, three file names recur: `commands.ts` (its bus handlers), `Pas
 
 ## Export formats
 
-Declared once, in `src/export/formats.ts`.
+Declared once, in `src/export/formats.ts`; a skill's `modeler.ts` adds to the Interchange group (`.artemis.json` is the `eeg` skill's) and can open a foreign format (`.json` jsPsych timelines are the `jspsych` skill's).
 
 | Group | Formats |
 | --- | --- |

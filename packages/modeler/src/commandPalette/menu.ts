@@ -37,7 +37,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       label: 'Open File...',
       icon: ICONS.folderOpen,
       shortcut: '2',
-      // Takes any diagram format, and a jsPsych timeline, which it converts on the way in.
+      // Takes any diagram format, and the foreign ones skills open, converted on the way in.
       action: () => openDialog('open'),
     },
     // Format and destination live here; this is where an unlinked diagram gets its file.

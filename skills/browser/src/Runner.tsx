@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { loadAllSchemas } from '@core/notation/loader';
-import { shouldRecordEvents, setRecordEvents } from '@runner/settings';
-import { clearDiagramHandoff, readDiagramHandoff } from '@runner/storage';
+import { shouldRecordEvents, setRecordEvents } from '@core/settings';
+import { clearDiagramHandoff, readDiagramHandoff } from '@core/storage';
 import { readParameters, resolveRunSource } from '@runner/source';
 import { Studyflow } from '@runner/studyflow';
 import { Session } from '@runner/session';

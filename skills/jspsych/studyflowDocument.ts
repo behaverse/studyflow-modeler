@@ -2,7 +2,8 @@ import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { YAML_DUMP_OPTIONS, xmlToStudyflow } from '@core/document';
-import type { ImportedStudy, ImportedTask } from '@modeler/import/jspsych';
+
+import { importJsPsychTimeline, type ImportedStudy, type ImportedTask, type JsPsychImportOptions, type JsPsychTimelineInput } from './timeline';
 
 const LAYOUT = {
   startX: 160,
@@ -86,6 +87,16 @@ export async function buildStudyflowYaml(study: ImportedStudy, packages: Record<
   const xml = await buildStudyflowXml(study, packages);
   const moddle = new BpmnModdle(structuredClone(packages)) as any;
   return xmlToStudyflow(xml, moddle);
+}
+
+export async function jsPsychToStudyflow(
+  input: JsPsychTimelineInput,
+  packages: Record<string, any>,
+  options: JsPsychImportOptions = {},
+): Promise<{ studyflow: string; study: ImportedStudy }> {
+  const study = importJsPsychTimeline(input, options);
+  const studyflow = await buildStudyflowYaml(study, packages);
+  return { studyflow, study };
 }
 
 function buildTask(moddle: any, task: ImportedTask): any {

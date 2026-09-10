@@ -8,7 +8,7 @@ import {
   sweepDiagramHandoffs,
   takeDiagramHandoff,
   writeStored,
-} from '@runner/storage';
+} from '@core/storage';
 
 /** Codecs, degraded-environment writes, and the hand-off envelope, against a fake `window.localStorage`. */
 

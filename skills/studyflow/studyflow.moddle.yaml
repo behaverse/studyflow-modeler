@@ -596,6 +596,8 @@ types:
     isAbstract: false
     meta:
       icon: iconify ph--chart-line
+      roles:
+        - signal
     properties:
       - name: samplingRate
         description: Samples per second.

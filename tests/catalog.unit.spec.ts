@@ -298,7 +298,7 @@ test.describe('catalog: renderer semantics', () => {
 });
 
 test.describe('catalog: schema-declared vocabulary', () => {
-  test('roles are inferred from the BPMN attach point and declared attributes', () => {
+  test('roles come from the BPMN attach point and the schemas\' meta.roles', () => {
     const dataElements = new Set(catalog.typesWithRole('data-element').map((type) => type.name));
     for (const name of ['studyflow:Dataset', 'studyflow:Table', 'studyflow:Timeseries']) {
       expect(dataElements, name).toContain(name);
@@ -320,7 +320,7 @@ test.describe('catalog: schema-declared vocabulary', () => {
     for (const entry of catalog.allTypes()) {
       const declared = entry.meta?.roles;
       if (!Array.isArray(declared)) continue;
-      const inferred = new Set(inferRoles(entry.bpmnType, entry.attributes));
+      const inferred = new Set(inferRoles(entry.bpmnType));
       const added = declared.filter((role: string) => !inferred.has(role));
       expect(added, `${entry.name} declares roles it already infers`).not.toHaveLength(0);
     }

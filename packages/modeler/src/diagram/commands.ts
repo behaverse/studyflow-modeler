@@ -5,9 +5,8 @@ import { setAttribute } from '@core/element';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { extractXmlFromSvg, filenameStem } from '@modeler/diagram/file';
 import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
-import { importableFormatFor, JSPSYCH_EXTENSION } from '@modeler/export/formats';
+import { importableFormatFor, openerFor } from '@modeler/export/formats';
 import { extractXmlFromPng } from '@core/document/png';
-import { buildStudyflowXml, importJsPsychTimeline } from '@modeler/import';
 import { notify } from '@modeler/app/noticeStore';
 import { resetTrailStamping } from '@modeler/provenance/trail';
 import { getSettings } from '@modeler/settings/store';
@@ -30,19 +29,6 @@ export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand
   const result = await importXml(modeler, { xml: new_diagram });
   modeler.canvas.zoomToFit();
   return result;
-}
-
-
-/** A jsPsych timeline, converted to a studyflow on the way in. Foreign format, same "Open". */
-async function jsPsychToXml(filename: string, content: string): Promise<string> {
-  const study = importJsPsychTimeline(content, { name: filenameStem(filename) });
-  for (const warning of study.warnings) console.warn(`jsPsych import: ${warning}`);
-  if (study.warnings.length > 0) {
-    notify('warning',
-      `The jsPsych import made ${study.warnings.length} adjustment${study.warnings.length === 1 ? '' : 's'}. `
-      + `Check in the inspector:\n• ${study.warnings.join('\n• ')}`);
-  }
-  return buildStudyflowXml(study, await loadSchemas(getSettings().enabledSchemas));
 }
 
 
@@ -88,7 +74,15 @@ async function toXml(modeler: Editor, filename: string, content: string | ArrayB
   const text = typeof content === 'string' ? content : new TextDecoder().decode(content);
   if (format?.id === 'svg') return extractXmlFromSvg(text);
   if (looksLikeXml(text)) return text;
-  if (filename.toLowerCase().endsWith(JSPSYCH_EXTENSION)) return jsPsychToXml(filename, text);
+  // A foreign format a skill opens (a jsPsych timeline): converted to a studyflow on the way in, same "Open".
+  const opener = openerFor(filename);
+  if (opener) {
+    return opener.toXml(text, {
+      name: filenameStem(filename),
+      packages: await loadSchemas(getSettings().enabledSchemas),
+      warn: (message) => notify('warning', message),
+    });
+  }
   return studyflowToXml(text, modeler.model.moddle());
 }
 

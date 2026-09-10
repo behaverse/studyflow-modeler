@@ -23,6 +23,8 @@ export type SkillManifest = {
    * partial-runner contract; for `browser` a module the browser runtime imports. The `prov` skill's `local`
    * entry is the module the local runtime loads in-process for its records instead. */
   runtimes?: Record<string, string>;
+  /** `modeler`: a module the modeler imports (`modeler.ts`), exporting the projections it writes and the foreign formats it opens. */
+  modelerModule?: string;
 };
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
@@ -52,6 +54,7 @@ export function parseSkillManifest(markdown: string, folder?: string): SkillMani
     description,
     schema: meta.schema === undefined ? undefined : String(meta.schema),
     runtimes: byRuntime('runtimes'),
+    modelerModule: meta['modeler'] === undefined ? undefined : String(meta['modeler']),
   };
 }
 

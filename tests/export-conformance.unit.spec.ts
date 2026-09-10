@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { exportToArtemis } from '@modeler/export/artemis';
+import { exportToArtemis } from '@skills/eeg/modeler';
 import { exportToLinkML } from '@modeler/export/linkml';
 import { exportToNidm } from '@modeler/export/nidm';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';

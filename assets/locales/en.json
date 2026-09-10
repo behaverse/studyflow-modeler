@@ -153,10 +153,5 @@
   "participantKind": "Kind",
   "initiatingParticipant": "Initiating participant",
   "messageRef": "Message",
-  "kindUntyped": "Untyped",
-  "kindHuman": "Human",
-  "kindLlm": "Language model",
-  "kindAgent": "Software agent",
-  "kindInstrument": "Instrument",
-  "kindRobot": "Reachy Mini"
+  "kindUntyped": "Untyped"
 }

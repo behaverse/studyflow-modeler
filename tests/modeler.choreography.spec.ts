@@ -131,8 +131,8 @@ test('a cognitive task names who takes it: a declared pool, a new actor, or no o
 
   // A band-only actor has no shape to select: its kind and that kind's settings are set here and reach the file.
   await inspector.getByRole('button', { name: 'bottom participant kind' }).click();
-  await page.getByRole('option', { name: 'Language model' }).click();
-  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Language model');
+  await page.getByRole('option', { name: 'Large language model' }).click();
+  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Large language model');
   const identifier = inspector.locator('input[name="cognitive:identifier"]');
   await identifier.fill('claude:claude-haiku-4-5');
   await identifier.blur();

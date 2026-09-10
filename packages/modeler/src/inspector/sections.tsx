@@ -18,7 +18,7 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
 import { actorOf, isTypedChoreography, readChoreographyBands } from '@core/document';
-import { PARTICIPANT_KINDS, listParticipants, participantKind, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
+import { listParticipants, participantKind, participantKinds, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { StudyflowElement, getAttributeSpec, isExtensionPrefix } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
 import { useRequiredModeler } from '@modeler/app/useModeler';
@@ -53,7 +53,7 @@ const TOP_HELP = 'Who takes the top band';
 const BOTTOM_HELP = 'Who takes the bottom band';
 const TAKER_HELP = 'Who takes this task: a drawn pool, or an actor declared for it. Empty, the pool the task sits in takes it.';
 const INITIATOR_HELP = 'Which participant starts the interaction; its band is drawn light, the other shaded.';
-const KIND_HELP = 'What takes this band: a person, a language model, a software agent, an instrument, or a Reachy Mini; the settings of that kind follow.';
+const KIND_HELP = 'What takes this band, among the kinds the loaded extensions declare; the settings of that kind follow.';
 
 export function ChoreographyParticipantsSection({ element }: { element: any }) {
   const businessObject = element?.businessObject ?? element;
@@ -62,8 +62,8 @@ export function ChoreographyParticipantsSection({ element }: { element: any }) {
 }
 
 /** How a participant's kind reads: a drawn pool's is set on the pool, a band-only actor's on the band. */
-function kindLabel(kind: ParticipantKind | ''): string {
-  return t(kind ? `kind${kind.charAt(0).toUpperCase()}${kind.slice(1)}` : 'kindUntyped');
+function kindLabel(kind: ParticipantKind | undefined): string {
+  return kind?.label ?? t('kindUntyped');
 }
 
 /**
@@ -142,13 +142,13 @@ function ParticipantField({ element, field, participant, label, help, declared, 
 
 /** An actor that only takes bands has no shape to select: its kind, and the settings of that kind, are edited on the band. */
 function ActorFields({ element, field, participant, kind }: {
-  element: any; field: 'top' | 'bottom'; participant: any; kind: ParticipantKind | '';
+  element: any; field: 'top' | 'bottom'; participant: any; kind: ParticipantKind | undefined;
 }) {
   const modeler = useRequiredModeler();
-  const kinds = [{ name: kindLabel(''), value: '' }, ...PARTICIPANT_KINDS.map((k) => ({ name: kindLabel(k), value: k }))];
-  // Kind stands for `actorType`; the rest of the extension's General settings render as they would on a pool.
+  const kinds = [{ name: kindLabel(undefined), value: '' }, ...participantKinds().map((k) => ({ name: k.label, value: k.id }))];
+  // Kind stands for the attribute that picks it; the rest of the extension's General settings render as they would on a pool.
   const attrDefs = StudyflowElement.fromBusinessObject(participant).extensionAttributes()
-    .filter((d) => (isExtensionPrefix(d.ns?.prefix) || !!d.redefines) && d.ns?.localName !== 'actorType')
+    .filter((d) => (isExtensionPrefix(d.ns?.prefix) || !!d.redefines) && d.ns?.localName !== kind?.attribute)
     .filter((d) => (d.meta?.categories ?? ['General']).includes('General'))
     .sort((a, b) => (a.meta?.order ?? Infinity) - (b.meta?.order ?? Infinity));
   return (
@@ -156,15 +156,15 @@ function ActorFields({ element, field, participant, kind }: {
       <Field className={s.field}>
         <Label className={s.label}>
           {t('participantKind')}
-          <HelpTooltip name="actorType" description={KIND_HELP} />
+          <HelpTooltip name="participantKind" description={KIND_HELP} />
         </Label>
         <div data-testid={`choreography-${field}-kind`}>
           <PlainEnumSelect
             name={`choreography:${field}-kind`}
             ariaLabel={`${field} participant kind`}
-            value={kind}
+            value={kind?.id ?? ''}
             literalValues={kinds}
-            onCommit={(next) => executeCommand(modeler, { type: 'UpdateParticipantKind', element, participant, kind: next as ParticipantKind | '' })}
+            onCommit={(next) => executeCommand(modeler, { type: 'UpdateParticipantKind', element, participant, kind: next })}
           />
         </div>
       </Field>
@@ -297,8 +297,8 @@ export function StateSection() {
   );
 }
 
-const MESSAGE_DESCRIPTION = 'What this flow carries: the structure its message is an item of, the name a runner '
-  + 'recognises (`behaverse:Trial` out of a Behaverse task, `behaverse:Response` back). Unnamed, the flow is taken for either.';
+const MESSAGE_DESCRIPTION = 'What this flow carries: the structure its message is an item of, by the name a runner '
+  + 'recognises. Unnamed, the flow is taken for whichever fits.';
 
 /** A message flow's `messageRef`, picked among the structures the loaded schemas' `MessageStructureEnum` declares. */
 export function MessageSection({ element }: { element: any }) {

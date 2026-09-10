@@ -95,8 +95,9 @@ types:
       - bpmn:Participant
     meta:
       icon: iconify ph--head-circuit
+      roles:
+        - acquisition
     properties:
-      # `device` infers the `acquisition` role; keep the name.
       - name: device
         description: Amplifier or headset used; any other system name is accepted.
         isAttr: true
@@ -154,8 +155,8 @@ types:
           order: 6
           unit: kΩ
 
-  # Sampling rate, channel count, units, duration, and on-disk format come
-  # from `studyflow:Timeseries`; `samplingRate` already infers the `signal` role.
+  # Sampling rate, channel count, units, duration, on-disk format, and the
+  # `signal` role come from `studyflow:Timeseries`.
   - name: Recording
     description: The biosignal recording a session produces.
     superClass:

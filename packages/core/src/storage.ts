@@ -1,3 +1,4 @@
+/** The `localStorage` the modeler and the browser runtime share: its keys, codecs, and the diagram hand-off from one to the other. */
 const STORAGE_PREFIX = 'studyflow-modeler:';
 
 const k = (name: string) => `${STORAGE_PREFIX}${name}`;

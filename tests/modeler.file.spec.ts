@@ -47,7 +47,7 @@ test.describe('Studyflow modeler file flows', () => {
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'flanker.timeline.json',
       mimeType: 'application/json',
-      buffer: readFileSync(path.join(process.cwd(), 'tests/fixtures/flanker.timeline.json')),
+      buffer: readFileSync(path.join(process.cwd(), 'skills/jspsych/tests/fixtures/flanker.timeline.json')),
     });
 
     await expect(page.getByTitle('Click to edit diagram name')).toHaveText('flanker.timeline');

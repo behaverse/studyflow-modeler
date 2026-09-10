@@ -200,10 +200,9 @@ function sceneGlyph(canvas: Canvas, id: string): SVGTextElement | null {
 }
 
 test('a behaverse task draws its scene abbreviation over the hex icon', async () => {
-  // The two-letter glyph is a hardcoded display convention of the behaverse
-  // instrument (`draw/Renderer.drawActivity` before the canvas migration): the hex
-  // icon alone does not say WHICH assessment a task runs, and every shipped battery
-  // is a row of otherwise identical hexagons.
+  // `cognitive:BehaverseTask` declares `meta.glyph: behaverseScene`: the hex icon
+  // alone does not say WHICH assessment a task runs, and every shipped battery is
+  // a row of otherwise identical hexagons.
   const canvas = await loadCanvas(BEHAVERSE_XML, {
     iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
   }).then((loaded) => loaded.canvas);

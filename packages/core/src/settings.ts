@@ -1,4 +1,5 @@
-import { STORAGE_KEYS, jsonCodec, persisted, stringCodec } from '@runner/storage';
+/** The settings both apps read: the LLM the runtime talks to, the account key, and whether runs report events. */
+import { STORAGE_KEYS, jsonCodec, persisted, stringCodec } from '@core/storage';
 
 export type LLMProvider = 'claude' | 'ollama';
 

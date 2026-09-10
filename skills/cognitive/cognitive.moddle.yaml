@@ -189,6 +189,10 @@ types:
       - bpmn:ChoreographyTask
     meta:
       icon: iconify ph--puzzle-piece
+      roles:
+        - instrument
+      # The upper band of the task: a template over its attributes, read raw.
+      presenter: "{instrument}"
     properties:
       - name: instrument
         description: Software that delivers the task and reads its configurations.
@@ -250,6 +254,8 @@ types:
       - bpmn:Task
     meta:
       icon: iconify ph--clipboard-text
+      roles:
+        - instrument
     properties:
       - name: instrument
         description: A standard questionnaire, or a name of your own.
@@ -276,6 +282,9 @@ types:
       - CognitiveTask
     meta:
       icon: iconify bi--hexagon
+      presenter: "Behaverse · {behaverseScene}"
+      # The attribute drawn as text over the icon: the hex alone does not say which assessment.
+      glyph: behaverseScene
     properties:
       - name: instrument
         default: behaverse
@@ -386,6 +395,8 @@ types:
       - bpmn:Participant
     meta:
       icon: iconify ph--users-three
+      # What an actor that only takes bands can be: one kind per literal of this enum attribute.
+      participantKind: actorType
     properties:
       - name: actorType
         description: Kind of actor this pool represents.

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { SCHEMAS, SCHEMA_LOAD_FAILURES } from '@core/notation/loader';
 import { schemaDiagnostics } from '@core/notation';
-import { setRecordEvents, shouldRecordEvents } from '@runner/settings';
+import { setRecordEvents, shouldRecordEvents } from '@core/settings';
 import { ICONS } from '@modeler/icons';
 import { URLS } from '@modeler/constants';
 import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
@@ -297,17 +297,6 @@ function diagnosticsFor(prefix: string): string[] {
   return schemaDiagnostics().filter((diagnostic) => diagnostic.startsWith(`[${prefix} `) || diagnostic.startsWith(`[${prefix}]`));
 }
 
-/** One line per extension, kept short for the row; the schema files carry the longer prose. */
-const EXTENSION_SUMMARY: Record<string, string> = {
-  studyflow: 'The study, its events, flows, data elements, and execution details.',
-  prov: 'Provenance timeline: who changed this studyflow, with which tool, when.',
-  functional: 'Data operations — transform, map, reduce, filter — and ready-made presets.',
-  cognitive: 'Cognitive tasks, questionnaires, instructions, rest, actors, and assignment gateways.',
-  agentic: 'Agent steps: model calls, tools, routing, memory, and human approval.',
-  ml: 'Presets for splitting, fitting, cross-validating, evaluating, and saving models.',
-  eeg: 'EEG sessions, the recordings they produce, and preprocessing presets.',
-};
-
 function ExtensionsSection() {
   const { settings, update } = useSettings();
   const enabled = useMemo(() => new Set(settings.enabledSchemas), [settings.enabledSchemas]);
@@ -361,7 +350,7 @@ function ExtensionsSection() {
 
       {SCHEMAS.map((schema) => {
         const diagnostics = diagnosticsFor(schema.prefix);
-        const help = EXTENSION_SUMMARY[schema.prefix] ?? schema.description;
+        const help = schema.description;
         // `(always on)` rather than `(core)`: the studyflow schema is itself named "Core".
         const label = schema.core ? `${schema.name} (always on)` : schema.name;
         return (

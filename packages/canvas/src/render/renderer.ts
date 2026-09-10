@@ -62,14 +62,18 @@ const EVENT_ICON_SIZE = 20;
 const DATA_ICON_SIZE = 20;
 const ANNOTATION_PADDING = 7;
 
-/** A behaverse task's scene abbreviation (`NB`, `SART`), drawn over its icon. */
-function behaverseScene(bo: ModdleObject | undefined): string | undefined {
-  if (getAttribute(bo, 'instrument') !== 'behaverse') return undefined;
+/**
+ * The attribute a type's `meta.glyph` names (a Behaverse scene: `NB`, `SART`), drawn as text over the
+ * type icon. A custom icon replaces it, and the value `undefined` is the not-chosen-yet sentinel.
+ */
+function iconGlyph(bo: ModdleObject | undefined): string | undefined {
   const element = StudyflowElement.fromBusinessObject(bo);
+  const name = getCatalog().getType(element.extensionType)?.meta?.glyph;
+  if (typeof name !== 'string') return undefined;
   if (getRawAttribute(element.extension ?? bo, 'icon')) return undefined;
-  const scene = getAttribute(bo, 'behaverseScene');
-  if (typeof scene !== 'string' || !scene) return undefined;
-  const glyph = scene.toUpperCase();
+  const value = getAttribute(bo, name);
+  if (typeof value !== 'string' || !value) return undefined;
+  const glyph = value.toUpperCase();
   return glyph === 'UNDEFINED' ? undefined : glyph;
 }
 
@@ -208,7 +212,7 @@ export class Renderer {
       }
       case 'task': {
         drawTask(g, node.width, node.height, style, THICK_ACTIVITY.has(node.type));
-        const scene = behaverseScene(node.businessObject);
+        const scene = iconGlyph(node.businessObject);
         this.drawTypeIcon(g, node, iconColor);
         drawIconText(g, scene, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
         this.drawMarkers(g, node, iconColor);
@@ -228,7 +232,7 @@ export class Renderer {
         this.drawOverlayIcons(g, node, iconColor);
         break;
       case 'choreography': {
-        const scene = behaverseScene(node.businessObject);
+        const scene = iconGlyph(node.businessObject);
         const typed = (((node.businessObject as any)?.extensionElements?.values ?? []) as unknown[]).length > 0;
         if (!typed || (prop(node.businessObject, 'participantRef') as unknown[] | undefined)?.length) {
           // Bands name the parties; the type glyph sits in the middle band, where the task's own name is.

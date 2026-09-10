@@ -3,7 +3,7 @@ import { Modal } from '@modeler/ui/Modal';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
 import { droppedHandle, openDiagramFile } from '@modeler/open/openFile';
-import { extensionsOf, IMPORTABLE_FORMATS, JSPSYCH_EXTENSION } from '@modeler/export/formats';
+import { extensionsOf, IMPORTABLE_FORMATS, OPENERS } from '@modeler/export/formats';
 import { radius, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
@@ -87,10 +87,12 @@ export function OpenDialog({ isOpen, onClose, onBrowse }: Props) {
               <span className={s.rowExt}>{extensionsOf(format).join(' ')}</span>
             </li>
           ))}
-          <li className={s.row}>
-            <span className={s.rowLabel}>jsPsych timeline</span>
-            <span className={s.rowExt}>{JSPSYCH_EXTENSION}</span>
-          </li>
+          {OPENERS.map((opener) => (
+            <li key={opener.extension} className={s.row}>
+              <span className={s.rowLabel}>{opener.label}</span>
+              <span className={s.rowExt}>{opener.extension}</span>
+            </li>
+          ))}
         </ul>
         <p className={s.note}>
           An SVG or PNG opens only if studyflow is embedded in it.

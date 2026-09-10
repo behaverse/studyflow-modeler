@@ -10,7 +10,7 @@ description: "The programs that read studyflow files, how to build and run them,
 | the local runtime | the `local` skill: walks the diagram, records, and hands each element to the skill that claims it | [`skills/local`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/local) |
 | the command line | `studyflow` with `convert`, `validate`, `info`, and `run` | [`packages/cli`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli) |
 | the core | the object model they all share: YAML to BPMN and back, element access | [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core) |
-| the skills | one folder each, declared by its `SKILL.md`: a BPMN extension (vocabulary), runners that execute it per runtime, examples, tests; any part may be missing | [`skills`](https://github.com/behaverse/studyflow-modeler/tree/main/skills) |
+| the skills | one folder each, declared by its `SKILL.md`: a BPMN extension (vocabulary), runners that execute it per runtime, a modeler module (exports, imports), examples, tests; any part may be missing | [`skills`](https://github.com/behaverse/studyflow-modeler/tree/main/skills) |
 
 
 Install the command line with Homebrew:

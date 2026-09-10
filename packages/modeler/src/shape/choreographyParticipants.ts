@@ -1,4 +1,6 @@
 import { DEFAULT_BOTTOM, DEFAULT_TOP, actorOf, isTypedChoreography } from '@core/document';
+import { getAttribute } from '@core/element';
+import { getCatalog } from '@core/notation';
 
 function definitionsOf(bo: any): any {
   while (bo && bo.$type !== 'bpmn:Definitions') bo = bo.$parent;
@@ -86,9 +88,35 @@ export function swapChoreographyInitiator(element: any, modeling: any, bpmnFacto
 
 /* --- Choosing who takes a band, and what kind of actor that is --- */
 
-/** How a participant is typed: the actor kinds of `cognitive:Actor`, or a Reachy Mini. */
-export const PARTICIPANT_KINDS = ['human', 'llm', 'agent', 'instrument', 'robot'] as const;
-export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
+/**
+ * A kind an actor that only takes bands can be, from a `bpmn:Participant` type's `meta.participantKind`: the name
+ * of one of its enum attributes (one kind per literal) or the label of the one kind the type itself is.
+ */
+export type ParticipantKind = {
+  /** The picker's value: the literal's, or the type's name. */
+  id: string;
+  label: string;
+  /** The extension that types the participant. */
+  type: string;
+  /** The attribute and literal that pick this kind among its type's, when the type has more than one. */
+  attribute?: string;
+  value?: string;
+};
+
+/** Every kind the loaded schemas declare, in catalog order. */
+export function participantKinds(): ParticipantKind[] {
+  const catalog = getCatalog();
+  return catalog.allTypes().flatMap((type) => {
+    const key = type.meta?.participantKind;
+    if (typeof key !== 'string' || type.isAbstract || type.bpmnType !== 'bpmn:Participant') return [];
+    const attribute = type.attributes.find((spec) => spec.ns.localName === key);
+    const literals = attribute ? catalog.enumOf(attribute.type, type.ns.prefix)?.literals : undefined;
+    if (!literals) return [{ id: type.name, label: key, type: type.name }];
+    return literals.map((literal) => ({
+      id: String(literal.value), label: literal.name, type: type.name, attribute: key, value: String(literal.value),
+    }));
+  });
+}
 
 /** Every participant the file declares: the pools drawn on the canvas and the actors that only take bands. */
 export function listParticipants(bo: any): any[] {
@@ -98,40 +126,38 @@ export function listParticipants(bo: any): any[] {
     .flatMap((holder: any) => holder.get?.('participants') ?? holder.participants ?? []);
 }
 
-/** The participant's kind from its extension: `reachy:Robot` is a robot, `cognitive:Actor` says its `actorType`. */
-export function participantKind(participant: any): ParticipantKind | '' {
+/** The participant's kind from its extension: the type it carries and, among that type's kinds, the one its attribute picks (its default when unset). */
+export function participantKind(participant: any): ParticipantKind | undefined {
+  const kinds = participantKinds();
   for (const ext of participant?.extensionElements?.values ?? []) {
-    const type = String(ext?.$type ?? '').toLowerCase();
-    if (type === 'reachy:robot') return 'robot';
-    if (type === 'cognitive:actor') {
-      const kind = String(ext.actorType ?? ext.$attrs?.actorType ?? 'human');
-      return (PARTICIPANT_KINDS as readonly string[]).includes(kind) ? (kind as ParticipantKind) : 'human';
-    }
+    const ofType = kinds.filter((kind) => kind.type.toLowerCase() === String(ext?.$type ?? '').toLowerCase());
+    if (ofType.length === 0) continue;
+    const attribute = ofType[0].attribute;
+    if (!attribute) return ofType[0];
+    const value = String(getAttribute(participant, attribute) ?? '');
+    return ofType.find((kind) => kind.value === value) ?? ofType[0];
   }
-  return '';
+  return undefined;
 }
 
-const EXTENSION_BY_KIND: Record<ParticipantKind, string> = {
-  human: 'cognitive:Actor', llm: 'cognitive:Actor', agent: 'cognitive:Actor', instrument: 'cognitive:Actor', robot: 'reachy:Robot',
-};
-
 /**
- * Type a participant that only takes bands: a `cognitive:Actor` of `kind`, a `reachy:Robot`, or untyped (`''`).
- * The edit is reported on `element`, the task whose band shows the participant, since the participant has no shape.
+ * Type a participant that only takes bands as the kind `id` names, or untype it (`''`). The edit is reported on
+ * `element`, the task whose band shows the participant, since the participant has no shape.
  */
-export function setParticipantKind(element: any, modeling: any, model: { create(type: string, properties?: Record<string, unknown>): any }, participant: any, kind: ParticipantKind | ''): void {
-  if (!participant || participantKind(participant) === kind) return;
-  if (!kind) {
+export function setParticipantKind(element: any, modeling: any, model: { create(type: string, properties?: Record<string, unknown>): any }, participant: any, id: string): void {
+  if (!participant || (participantKind(participant)?.id ?? '') === id) return;
+  if (!id) {
     modeling.updateModdleProperties(element, participant, { extensionElements: undefined });
     return;
   }
-  const type = EXTENSION_BY_KIND[kind];
-  const current = (participant.extensionElements?.values ?? []).find((ext: any) => String(ext?.$type ?? '').toLowerCase() === type.toLowerCase());
-  if (current) { // the same extension, another actor kind
-    modeling.updateModdleProperties(element, current, { actorType: kind });
+  const kind = participantKinds().find((candidate) => candidate.id === id);
+  if (!kind) return;
+  const current = (participant.extensionElements?.values ?? []).find((ext: any) => String(ext?.$type ?? '').toLowerCase() === kind.type.toLowerCase());
+  if (current && kind.attribute) { // the same extension, another of its kinds
+    modeling.updateModdleProperties(element, current, { [kind.attribute]: kind.value });
     return;
   }
-  const wrapper = model.create(type, type === 'reachy:Robot' ? {} : { actorType: kind });
+  const wrapper = model.create(kind.type, kind.attribute ? { [kind.attribute]: kind.value } : {});
   const container = model.create('bpmn:ExtensionElements', { values: [wrapper] });
   wrapper.$parent = container;
   container.$parent = participant;

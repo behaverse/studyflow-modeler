@@ -6,7 +6,6 @@
       "@modeler/*": ["./src/*"],
       "@canvas/*": ["../canvas/src/*"],
       "@core/*": ["../core/src/*"],
-      "@runner/*": ["../../skills/browser/src/*"],
       "@skills/*": ["../../skills/*"],
       "#assets/*": ["../../assets/*"]
     }

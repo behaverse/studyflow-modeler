@@ -4,21 +4,17 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import {
-  importJsPsychTimeline,
-  jsPsychToStudyflow,
-  parseTimeline,
-  type JsPsychNode,
-} from '@modeler/import';
+import { importJsPsychTimeline, parseTimeline, type JsPsychNode } from '@skills/jspsych/timeline';
+import { jsPsychToStudyflow } from '@skills/jspsych/studyflowDocument';
 import { parseImplementationRef } from '@core/implementation';
 import { parseStudyflow } from '@runner/studyflow';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { looksLikeXml } from '@core/document';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels } from '@tests/schemas';
 
 /** jsPsych -> Studyflow importer. */
 
-const FIXTURES_DIR = path.join(process.cwd(), 'tests/fixtures');
+const FIXTURES_DIR = path.join(process.cwd(), 'skills/jspsych/tests/fixtures');
 
 const models = loadSchemaModels();
 // BpmnModdle mutates its packages in place, so hand every consumer its own clone.

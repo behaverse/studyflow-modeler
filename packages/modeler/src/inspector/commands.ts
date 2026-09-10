@@ -1,7 +1,7 @@
 import { isReservedStateKey } from '@core/document';
 import { setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
 import {
-  ensureChoreographyParticipants, nameNewActor, selectBandParticipant, setParticipantKind, type ParticipantKind,
+  ensureChoreographyParticipants, nameNewActor, selectBandParticipant, setParticipantKind,
 } from '@modeler/shape/choreographyParticipants';
 import { isTypedChoreography } from '@core/document';
 import { definitionsOf, getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
@@ -80,7 +80,8 @@ export type UpdateParticipantKindCommand = {
   /** The choreography task whose band shows the participant; the edit is reported on it. */
   element: any;
   participant: any;
-  kind: ParticipantKind | '';
+  /** A kind's id, or `''` to untype. */
+  kind: string;
 };
 
 export function runUpdateParticipantKind(modeler: Editor, command: UpdateParticipantKindCommand): void {

@@ -147,6 +147,8 @@ types:
       - bpmn:Participant
     meta:
       icon: *reachy-icon
+      # The one kind this type is, as the band's kind picker names it.
+      participantKind: Reachy Mini
     properties:
       - name: variant
         description: Which Reachy Mini build runs the session; a custom id is also accepted.

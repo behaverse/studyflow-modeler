@@ -1,5 +1,6 @@
 import { BPMN } from '@core/constants';
 import { getProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
+import { getCatalog, hasCatalog } from '@core/notation';
 import { applyXmlPasses, inferPlaneRoot, isHeadlessCollaboration } from '@core/document/format';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
@@ -12,18 +13,22 @@ export function isTypedChoreography(bo: ModdleElement): boolean {
   return ((getProperty(bo, 'extensionElements')?.values ?? []) as unknown[]).length > 0;
 }
 
-/** What presents a typed task: the Behaverse scene, else the instrument, else the software. */
+const DEFAULT_PRESENTER = 'Task software';
+
+/**
+ * What presents a typed task: its type's `meta.presenter`, a template over the extension's attributes
+ * (`Behaverse \u00b7 {behaverseScene}`, `{instrument}`), read raw. A type that declares none, or a template
+ * that comes out empty, presents as the study's software.
+ */
 export function presenterLabel(bo: ModdleElement): string {
   const ext = (getProperty(bo, 'extensionElements')?.values ?? [])[0];
-  const read = (name: string): string => {
+  const template = hasCatalog() ? getCatalog().getType(ext?.$type)?.meta?.presenter : undefined;
+  if (typeof template !== 'string') return DEFAULT_PRESENTER;
+  const label = template.replace(/\{(\w+)\}/g, (_match, name: string) => {
     const value = ext?.[name] ?? ext?.$attrs?.[name];
     return typeof value === 'string' ? value : '';
-  };
-  const scene = read('behaverseScene');
-  if (scene) return `Behaverse \u00b7 ${scene}`;
-  const instrument = read('instrument');
-  if (instrument) return instrument.charAt(0).toUpperCase() + instrument.slice(1);
-  return 'Task software';
+  }).trim();
+  return label || DEFAULT_PRESENTER;
 }
 
 /** The actor a typed task names: its participant that does not initiate, else its first. */

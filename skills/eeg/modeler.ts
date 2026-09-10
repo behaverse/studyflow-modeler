@@ -1,5 +1,7 @@
+/** What the eeg skill gives the modeler: the ARTEM-IS export, an EEG methods report over the diagram's acquisition, signal, and instrument elements. */
 import type { ExportFormat } from '@modeler/export/formats';
 import { hasRole, type ExportedElement, type ExportModel } from '@modeler/export/model';
+import type { ModelerModule } from '@modeler/skillModules';
 
 type GenericRecord = Record<string, unknown>;
 
@@ -100,3 +102,5 @@ export const format: ExportFormat = {
   id: 'artemis', group: 'Interchange', label: 'ARTEM-IS', extension: '.artemis.json', mimeType: 'application/json;charset=utf-8',
   encode: ({ exportModel }) => exportToArtemis(exportModel()),
 };
+
+export default { exports: [format] } satisfies ModelerModule;

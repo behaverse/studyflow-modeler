@@ -4,8 +4,11 @@ description: "Biosignal recording, preprocessing, and analysis steps as a BPMN e
 license: MIT
 metadata:
   schema: "eeg.moddle.yaml"
+  modeler: "modeler.ts"
 ---
 
-Vocabulary only, and the one to copy when starting a new skill: inheritance from core types,
+Vocabulary, and the one to copy when starting a new skill: inheritance from core types,
 wrapper and trait styles, enums, roles, implementation-bound templates, and a schema-embedded
-example. Nothing executes these elements yet.
+example. Its `modeler.ts` adds the ARTEM-IS export (`.artemis.json`), an EEG methods report
+drawn from the diagram's acquisition, signal, and instrument elements. Nothing executes these
+elements yet.

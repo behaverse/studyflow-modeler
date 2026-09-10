@@ -54,7 +54,7 @@ const rules = new Rules();
 // --- element builders -------------------------------------------------------
 
 interface NodeOptions {
-  /** Schema type carried in `extensionElements` (`lab:Consent`, `studyflow:Instruction`). */
+  /** Schema type carried in `extensionElements` (`lab:Consent`, `cognitive:Instruction`). */
   extension?: string;
   parent?: RuleElement;
   isExpanded?: boolean;

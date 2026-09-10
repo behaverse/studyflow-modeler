@@ -1,4 +1,4 @@
-import { getCatalog } from '@core/notation';
+import { getCatalog, hasCatalog } from '@core/notation';
 import {
   CHECKLIST_SPEC,
   getAttributeSpec,
@@ -22,7 +22,8 @@ export type { ModdleElement } from '@core/element/moddle';
 /** Derived, not stored; shared by the canvas marker and the NIDM/Artemis exporters so it cannot drift. */
 export function isDataOperationActivity(elementOrBO: any): boolean {
   if (!elementOrBO) return false;
-  if (getAttribute(elementOrBO, 'instrument')) return false;
+  const extensionType = getExtensionType(elementOrBO);
+  if (extensionType && hasCatalog() && getCatalog().hasRole(extensionType, 'instrument')) return false;
   const implementation = getAttribute(elementOrBO, 'implementation');
   return typeof implementation === 'string' && implementation.trim() !== '';
 }

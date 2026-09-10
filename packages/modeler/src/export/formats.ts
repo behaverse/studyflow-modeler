@@ -1,9 +1,9 @@
 import type { Editor } from '@modeler/editor/port';
 import type { ExportModel } from '@modeler/export/model';
-import { format as artemis } from '@modeler/export/artemis';
 import { format as drawio } from '@modeler/export/drawio';
 import { format as linkml } from '@modeler/export/linkml';
 import { format as nidm } from '@modeler/export/nidm';
+import { SKILL_EXPORT_FORMATS, SKILL_OPENERS, type Opener } from '@modeler/skillModules';
 
 /** The formats that carry the diagram itself, encoded by `export/commands.ts`. */
 export type DiagramFormatId = 'studyflow' | 'bpmn' | 'svg' | 'png';
@@ -34,8 +34,8 @@ export type ExportFormat = {
   encode?: (ctx: EncodeContext) => BlobPart | Promise<BlobPart>;
 };
 
-/** One file per projection, listed here and nowhere else; the file carries its descriptor and its encoder. */
-const PROJECTIONS: ExportFormat[] = [drawio, linkml, nidm, artemis];
+/** One file per projection, the modeler's own here and a skill's in its `modeler.ts`; the file carries its descriptor and its encoder. */
+const PROJECTIONS: ExportFormat[] = [drawio, linkml, nidm, ...SKILL_EXPORT_FORMATS];
 
 const EXPORT_FORMATS: ExportFormat[] = [
   {
@@ -84,14 +84,11 @@ export const IMPORTABLE_EXTENSIONS: string[] = EXPORT_FORMATS
   .filter((format) => format.importable)
   .flatMap((format) => [format.extension, ...(format.alsoReads ?? [])]);
 
-/**
- * A jsPsych timeline is not an export format — nothing here writes one — but opening one converts
- * it to a studyflow, so the open picker has to offer it alongside the formats it round-trips.
- */
-export const JSPSYCH_EXTENSION = '.json';
+/** The foreign formats skills open (a jsPsych timeline): converted to a studyflow on the way in, so the open picker offers them too. */
+export const OPENERS: Opener[] = SKILL_OPENERS;
 
 /** Everything "Open" accepts, which is every importable format plus the foreign ones it converts. */
-export const OPENABLE_EXTENSIONS: string[] = [...IMPORTABLE_EXTENSIONS, JSPSYCH_EXTENSION];
+export const OPENABLE_EXTENSIONS: string[] = [...IMPORTABLE_EXTENSIONS, ...OPENERS.map((opener) => opener.extension)];
 
 /** The formats "Open" round-trips, for telling the user what this app will take. */
 export const IMPORTABLE_FORMATS: ExportFormat[] = EXPORT_FORMATS.filter((format) => format.importable);
@@ -107,7 +104,7 @@ export const COMPOUND_EXTENSIONS: string[] = EXPORT_FORMATS
   .sort((a, b) => b.length - a.length);
 
 /** MIME essence: the file pickers reject a type that carries parameters such as `;charset=utf-8`. */
-const mimeEssence = (format: ExportFormat): string => format.mimeType.split(';')[0];
+const mimeEssence = (format: { mimeType: string }): string => format.mimeType.split(';')[0];
 
 /** Every extension the open picker should offer, grouped the way `FilePickerAcceptType` wants it. */
 export const OPENABLE_ACCEPT: Record<string, string[]> = EXPORT_FORMATS
@@ -116,7 +113,17 @@ export const OPENABLE_ACCEPT: Record<string, string[]> = EXPORT_FORMATS
     const mime = mimeEssence(format);
     accept[mime] = [...(accept[mime] ?? []), format.extension, ...(format.alsoReads ?? [])];
     return accept;
-  }, { 'application/json': [JSPSYCH_EXTENSION] });
+  }, OPENERS.reduce<Record<string, string[]>>((accept, opener) => {
+    const mime = mimeEssence(opener);
+    accept[mime] = [...(accept[mime] ?? []), opener.extension];
+    return accept;
+  }, {}));
+
+/** The skill that opens `filename`, if a foreign format claims its extension. */
+export function openerFor(filename: string): Opener | undefined {
+  const lower = filename.toLowerCase();
+  return OPENERS.find((opener) => lower.endsWith(opener.extension.toLowerCase()));
+}
 
 /** Whether the file carries the diagram itself, rather than being a document derived from it. */
 export const carriesDiagram = (format: ExportFormat): boolean =>

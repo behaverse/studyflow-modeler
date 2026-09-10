@@ -5,11 +5,13 @@
 import { notify } from '@modeler/app/noticeStore';
 import { executeCommand } from '@modeler/commandBus';
 import { linkOpenedFile } from '@modeler/diagram/fileHandle';
-import { OPENABLE_EXTENSIONS } from '@modeler/export/formats';
+import { IMPORTABLE_FORMATS, OPENABLE_EXTENSIONS, OPENERS } from '@modeler/export/formats';
 import type { Editor } from '@modeler/editor/port';
 
-export const OPEN_INVALID_MESSAGE =
-  'Choose a .studyflow.yaml, .bpmn, .svg, .png, or jsPsych .json file.';
+export const OPEN_INVALID_MESSAGE = `Choose a ${[
+  ...IMPORTABLE_FORMATS.map((format) => format.extension),
+  ...OPENERS.map((opener) => `${opener.label} ${opener.extension}`),
+].join(', ')} file.`;
 
 export const OPEN_FAILURE_MESSAGE =
   'Could not open that file. Check it is a studyflow or BPMN diagram, then try again.';

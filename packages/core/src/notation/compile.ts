@@ -127,24 +127,9 @@ function compileCategories(raw: unknown): CategoryEntry[] {
     }));
 }
 
-/** Attribute a type declares -> the role that declaration implies, so most types never spell `meta.roles`. */
-const ROLE_BY_ATTRIBUTE: Record<string, TypeRole> = {
-  instrument: 'instrument',
-  samplingRate: 'signal',
-  device: 'acquisition',
-};
-
-export function inferRoles(bpmnType: string | null, attributes: AttributeSpec[]): TypeRole[] {
-  const roles = new Set<TypeRole>();
-
-  if (bpmnType && isBpmnSubtypeOf(bpmnType, 'bpmn:ItemAwareElement')) roles.add('data-element');
-
-  for (const spec of attributes) {
-    const role = ROLE_BY_ATTRIBUTE[spec.ns.localName];
-    if (role) roles.add(role);
-  }
-
-  return [...roles];
+/** The one role a type's BPMN attach point implies; every other role is a skill's to declare in `meta.roles`. */
+export function inferRoles(bpmnType: string | null): TypeRole[] {
+  return bpmnType && isBpmnSubtypeOf(bpmnType, 'bpmn:ItemAwareElement') ? ['data-element'] : [];
 }
 
 class Compiler {
@@ -200,7 +185,7 @@ class Compiler {
       attributes,
       defaults,
       roles: [...new Set([
-        ...inferRoles(bpmnType, attributes),
+        ...inferRoles(bpmnType),
         ...this.effectiveRoles(qualified),
       ])],
       hiddenFromPalette: isHiddenFromPalette(qualified, rawType, style),
