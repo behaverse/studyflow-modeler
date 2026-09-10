@@ -16,8 +16,8 @@ Or from the source code (needs `uv` on PATH for `run`):
 
 ```bash
 npm run build -w @behaverse/studyflow-cli      # writes packages/cli/dist/studyflow.mjs
+npm run build                                  # also the desktop app's ui for `studyflow edit` (dist/, the webapp's own build)
 node packages/cli/dist/studyflow.mjs --help
-npm run build -- --mode desktop                # the desktop app for `studyflow edit` (without --mode: the webapp)
 ```
 
 ## CLI
@@ -32,7 +32,7 @@ studyflow <command> --help
 ## Examples
 
 ```bash
-studyflow edit study.studyflow.png              # the desktop app: the modeler served from this machine, no network needed
+studyflow edit study.studyflow.png              # the desktop app: the modeler served from this machine, no network needed, in a window of its own (Chrome, Chromium, Brave or Edge; else the default browser)
 studyflow ui                                    # the same on a blank canvas
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
 studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png                # re-run (--repo DIR picks the run directory)
@@ -70,7 +70,7 @@ From a clean macOS checkout of `main` with `gh` logged in (`bun` comes with the 
 npm run release
 ```
 
-Versions are `YY.M.N`: year, month, and a counter that climbs within the month (`26.9.9`, `26.9.10`, then `26.10.1`), picked by the release itself (or given: `npm run release -- 26.10.1`). No suffixes: Homebrew misreads them and ranks them above real releases. The one `version` is the root `package.json`'s; every package and the CLI binary carry it. The release writes it, runs typecheck, lint and the unit tests, builds the CLI and the desktop app (`npm run build -- --mode desktop`), cross-compiles every platform, writes the tarballs and `Formula/studyflow.rb` from that same build so the checksums match, and only then commits `release YY.M.N`, tags `vYY.M.N`, pushes, and creates the GitHub release with the tarballs. Anything failing before the commit puts the tree back. Nothing in CI writes to this repository; the deploy workflow publishes the webapp from the tag the release pushes. `npm run release -- --local` builds the host platform only and writes a `file://` formula for a local `brew install`, without touching git.
+Versions are `YY.M.N`: year, month, and a counter that climbs within the month (`26.9.9`, `26.9.10`, then `26.10.1`), picked by the release itself (or given: `npm run release -- 26.10.1`). No suffixes: Homebrew misreads them and ranks them above real releases. The one `version` is the root `package.json`'s; every package and the CLI binary carry it. The release writes it, runs typecheck, lint and the unit tests, builds the CLI and the desktop app (`npm run build`), cross-compiles every platform, writes the tarballs and `Formula/studyflow.rb` from that same build so the checksums match, and only then commits `release YY.M.N`, tags `vYY.M.N`, pushes, and creates the GitHub release with the tarballs. Anything failing before the commit puts the tree back. Nothing in CI writes to this repository; the deploy workflow publishes the webapp from the tag the release pushes. `npm run release -- --local` builds the host platform only and writes a `file://` formula for a local `brew install`, without touching git.
 
 ## Extending CLI
 

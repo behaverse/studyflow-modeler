@@ -1,0 +1,6 @@
+{
+  "name": "@behaverse/studyflow-desktop",
+  "description": "The desktop app: the modeler served from this machine in a window of its own (`studyflow edit`).",
+  "private": true,
+  "type": "module"
+}

@@ -27,7 +27,7 @@ jobs:
           cache: 'npm'
       - uses: quarto-dev/quarto-actions/setup@v2
       - run: npm ci
-      - run: npm run build  # the webapp; `-- --mode desktop` is the desktop app, shipped with the CLI release instead
+      - run: npm run build
       - run: npm run docs:build
       - name: Fetch Unity WebGL build (latest release)
         # Pulls the WebGL build published by `./build.sh publish` in

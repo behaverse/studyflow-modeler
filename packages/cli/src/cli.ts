@@ -3,7 +3,7 @@ import { Command } from 'commander';
 import { convert } from '@cli/convert';
 import { validate } from '@cli/validate';
 import { info } from '@cli/info';
-import { edit } from '@cli/edit';
+import { edit } from '@desktop/edit';
 import { companionNames, findCompanion, runCompanion } from '@cli/plugin';
 
 const program = new Command();
@@ -57,11 +57,11 @@ type ServeOptions = { port: string; host: string; open: boolean };
 const serveOptions = (command: Command): Command => command
   .option('--port <port>', 'port to listen on', '4174')
   .option('--host <host>', 'address to bind', '127.0.0.1')
-  .option('--no-open', 'print the URL instead of opening a browser');
+  .option('--no-open', 'print the URL instead of opening a window');
 
 serveOptions(program
   .command('edit')
-  .description('Open a studyflow in the desktop app: the modeler served from this machine, no network needed.')
+  .description('Open a studyflow in the desktop app: the modeler served from this machine, no network needed, in a window of its own (needs a Chromium: Chrome, Chromium, Brave or Edge; else the default browser).')
   .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png'))
   .action(async (file: string | undefined, options: ServeOptions) => {
     await edit(file, { port: Number(options.port), host: options.host, open: options.open });

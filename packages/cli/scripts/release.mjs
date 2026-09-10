@@ -144,7 +144,7 @@ try {
   sh('npm', ['run', 'typecheck']);
   sh('npm', ['run', 'lint']);
   sh('npm', ['run', 'test:unit']);
-  sh('npm', ['run', 'build', '--', '--mode', 'desktop']);  // the CLI, and the desktop app (the modeler and the browser runner) into dist/
+  sh('npm', ['run', 'build']);  // the CLI, and the desktop app's ui (the modeler and the browser runner, the webapp's own build) into dist/
 
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });

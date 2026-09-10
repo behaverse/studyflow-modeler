@@ -10,6 +10,7 @@
         "@core/*": ["./packages/core/src/*"],
         "@canvas/*": ["./packages/canvas/src/*"],
         "@cli/*": ["./packages/cli/src/*"],
+        "@desktop/*": ["./packages/desktop/*"],
         "@modeler/*": ["./packages/modeler/src/*"],
         "@runner/*": ["./skills/browser/src/*"],
         "@tests/*": ["./tests/*"],

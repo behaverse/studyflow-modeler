@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { resolveFile, serveUi } from '../packages/cli/src/serve';
+import { resolveFile, serveUi } from '../packages/desktop/serve';
 
 /** `studyflow edit` (and `ui`) serves dist/ the way a static host does: `/app` is app.html, `/run/` is run/index.html,
  * `/run` redirects to it (its relative assets need the slash), and nothing outside the root is reachable. */

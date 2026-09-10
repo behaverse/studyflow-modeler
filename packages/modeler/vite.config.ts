@@ -3,6 +3,7 @@ import { createServer, defineConfig, type Plugin } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { DEV_ROUTES } from '../../skills/behaverse/browser/vite'
+import { openWindow } from '../desktop/edit'
 import { ROOT, aliases, assetsInclude, define } from '../../vite.shared'
 
 // The browser runner (skills/browser) is its own Vite app, served by this dev server under its paths, so dev is
@@ -16,7 +17,6 @@ const runner = (): Plugin => ({
   async configureServer(server) {
     const child = await createServer({
       root: RUNNER_ROOT,  // not the cwd this server was started from
-      mode: server.config.mode,  // the same target (`npm run dev:desktop`)
       configFile: resolve(RUNNER_ROOT, 'vite.config.ts'),
       server: { middlewareMode: true, hmr: { server: server.httpServer! } },
     })
@@ -24,6 +24,20 @@ const runner = (): Plugin => ({
     server.middlewares.use((req, res, next) => (
       RUNNER_PATHS.some((path) => req.url?.startsWith(path)) ? child.middlewares(req, res, next) : next()
     ))
+  },
+})
+
+// `npm run dev:desktop` (`--mode desktop`): this server opened the way `studyflow edit` opens dist/, in a Chromium's app
+// window, and closed with it. The page styles itself as the desktop app there (assets/css/desktop.css).
+const desktop = (): Plugin => ({
+  name: 'studyflow:desktop',
+  apply: 'serve',
+  configureServer(server) {
+    server.httpServer!.once('listening', () => {
+      const address = server.httpServer!.address()
+      const port = typeof address === 'object' && address ? address.port : server.config.server.port
+      openWindow(`http://localhost:${port}/app.html`).then(() => server.close())
+    })
   },
 })
 
@@ -35,8 +49,9 @@ export default defineConfig(({ mode }) => ({
     tailwindcss(),
     react(),
     runner(),
+    mode === 'desktop' && desktop(),
   ],
-  resolve: { alias: aliases(mode) },
+  resolve: { alias: aliases },
   server: {
     port: 5173,
     fs: { allow: [ROOT] },

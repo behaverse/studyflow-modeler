@@ -6,7 +6,7 @@ import { behaverseDevPlugins } from '../behaverse/browser/vite'
 import { ROOT, aliases, assetsInclude, define } from '../../vite.shared'
 
 // https://vite.dev/config/
-export default defineConfig(({ command, mode }) => ({
+export default defineConfig(({ command }) => ({
   // Deployed the app lives under <site>/run/ (the root build merges it into dist/run), so built asset URLs stay
   // relative; in dev the same /run/ prefix is where the modeler's dev server hosts this one (its `runner` plugin).
   base: command === 'serve' ? '/run/' : '',
@@ -16,7 +16,7 @@ export default defineConfig(({ command, mode }) => ({
     react(),
     ...behaverseDevPlugins(),
   ],
-  resolve: { alias: aliases(mode) },
+  resolve: { alias: aliases },
   server: {
     fs: { allow: [ROOT] },
   },

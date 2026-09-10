@@ -1,15 +1,16 @@
-/* The desktop app's style (`studyflow edit`), on top of assets/css/app.css (the baseline): what makes it feel like a
- * window of the system's rather than a web page. No network: the typeface is the system's. */
+/* The desktop app's style (`studyflow edit`, packages/desktop), on top of assets/css/app.css: what makes it feel like a
+ * window of the system's rather than a web page. The app entries set `desktop` on <html> when the page is a window of its
+ * own (`display-mode: standalone`); in a browser tab none of this applies. */
 
 /* The system's own typeface, as native apps use (SF on macOS, Segoe on Windows, the desktop's own on Linux). A plain rule,
- * so it wins over the theme. */
-:root { --font-sans: system-ui, -apple-system, "Segoe UI", Ubuntu, Cantarell, "Noto Sans", sans-serif; }
+ * so it wins over the theme. No network: nothing waits on assets/css/fonts.css. */
+html.desktop { --font-sans: system-ui, -apple-system, "Segoe UI", Ubuntu, Cantarell, "Noto Sans", sans-serif; }
 
 /* A window, not a page: no rubber-band bounce or swipe-to-navigate at the edges. */
-html, body { overscroll-behavior: none; }
+html.desktop, .desktop body { overscroll-behavior: none; }
 
 /* Chrome is furniture: labels and controls are not text to select or point at with an I-beam. Fields, the code editor,
  * and whatever is being edited in place still are. */
-body { user-select: none; cursor: default; }
-body :is(input, textarea, select, [contenteditable="true"], pre, code) { user-select: text; cursor: auto; }
-body :is(button, a, [role="button"], [role="menuitem"], [role="option"], [role="tab"], summary, label) { cursor: default; }
+.desktop body { user-select: none; cursor: default; }
+.desktop body :is(input, textarea, select, [contenteditable="true"], pre, code) { user-select: text; cursor: auto; }
+.desktop body :is(button, a, [role="button"], [role="menuitem"], [role="option"], [role="tab"], summary, label) { cursor: default; }

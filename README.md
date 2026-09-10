@@ -24,12 +24,12 @@ Example diagrams ship with the skill they exercise, in [skills/](skills/) (`skil
 
 ```bash
 npm install
-npm run dev        # modeler + browser runner (`-- --host` to reach them from the LAN); dev:desktop for the desktop app
+npm run dev        # modeler + browser runner (`-- --host` to reach them from the LAN); dev:desktop opens it as the desktop app
 npm run test       # unit + e2e (Playwright)
 npm run build
 ```
 
-The workspace: [packages/core](packages/core/) is the shared model, [packages/modeler](packages/modeler/) the editor, [skills/browser](sackages/runner/) the browser runner, and [packages/cli](packages/cli/) the CLI with the local runners.
+The workspace: [packages/core](packages/core/) is the shared model, [packages/modeler](packages/modeler/) the editor, [skills/browser](skills/browser/) the browser runner, [packages/cli](packages/cli/) the CLI with the local runners, and [packages/desktop](packages/desktop/) the desktop app (`studyflow edit`).
 
 ## Contributing
 

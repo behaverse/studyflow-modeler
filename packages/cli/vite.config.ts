@@ -4,9 +4,9 @@ import { aliases, define } from '../../vite.shared'
 
 // One self-contained Node executable: core is compiled in from source, the schema YAMLs are
 // inlined at build time (core's `import.meta.glob(?raw)`), and the binary resolves nothing from the repo at runtime.
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   define,
-  resolve: { alias: aliases(mode) },
+  resolve: { alias: aliases },
   ssr: {
     noExternal: true,
     // `render` drives a browser; playwright stays an install-time optional.
@@ -28,4 +28,4 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-}))
+})

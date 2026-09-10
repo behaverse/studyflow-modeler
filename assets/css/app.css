@@ -1,5 +1,6 @@
-/* The baseline, shared by the webapp and the desktop app; each adds its own on top (vite.shared.ts). */
-@import '#target.css';
+/* The app's style, the webapp's and the desktop app's alike; desktop.css adds what only the desktop app's window does. */
+@import './fonts.css';
+@import './desktop.css';
 
 /* Scan from the repo root: icon classes also live outside the app packages,
  * e.g. `icon: iconify ...` entries in skills/<name>/<name>.moddle.yaml. */
