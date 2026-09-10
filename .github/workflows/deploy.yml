@@ -1,8 +1,9 @@
 name: Deploy
 
+
 on:
   push:
-    tags: ['v*']  # what `npm run release` pushes: the site deploys per release, not per commit
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
