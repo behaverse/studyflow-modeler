@@ -124,7 +124,19 @@ export class TypeCatalog {
         if (!merged.has(category.name)) merged.set(category.name, category);
       }
     }
+    // Every schema that does not declare General gets a tab of its own name right after it: where its attributes file by default.
+    const afterGeneral = (merged.get('General')?.order ?? 0) + 1;
+    for (const schema of this.schemas) {
+      if (this.defaultCategoryOf(schema.prefix) === 'General' || merged.has(schema.name)) continue;
+      merged.set(schema.name, { name: schema.name, order: afterGeneral, description: schema.description, synthetic: false });
+    }
     return [...merged.values()].sort((a, b) => a.order - b.order);
+  }
+
+  /** The tab an attribute of this schema files under when it names none: General for the schema declaring that tab, else the schema's own. */
+  defaultCategoryOf(prefix: string | undefined): string {
+    const schema = this.schemaFor(prefix);
+    return schema && !schema.categories.some((category) => category.name === 'General') ? schema.name : 'General';
   }
 
   /** The schema's own `connection.create` rule. `'defer'` means the source declares no allow-list, leaving BPMN's own rules to decide. */

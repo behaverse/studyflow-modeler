@@ -228,7 +228,8 @@ export async function parseStudyflow(
   };
 }
 
-const PARAMETER_REF = /\$\{\s*([^}\s]+)\s*\}/g;
+/** `{name}`, the placeholder every runner reads; an identifier-shaped name only, so YAML and JSON braces in a value stay put. */
+const PARAMETER_REF = /\{\s*([A-Za-z_][\w.]*)\s*\}/g;
 const PARAMETERS_TYPE = 'studyflow:Parameters';
 
 export type BoundParameters = {
@@ -238,7 +239,7 @@ export type BoundParameters = {
   overridden: string[];
   /** Supplied, but declared by no `studyflow:Parameters`, `bpmn:Property`, or attribute of the study. */
   undeclared: string[];
-  /** `${name}` references nothing has bound; the study cannot run until they are given. */
+  /** `{name}` references nothing has bound; the study cannot run until they are given. */
   unbound: string[];
 };
 

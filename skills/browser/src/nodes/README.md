@@ -4,7 +4,7 @@ A node kind the runner can execute (start, end, instruction, questionnaire, task
 choreography) is **one folder**: `src/nodes/<kind>/`. Its React component, its pure
 validator, and anything else it needs all live there. A skill's node module is the same
 folder under `skills/<name>/browser/` at the repo root, beside the schema it executes
-(`skills/behaverse/browser/` runs `cognitive:BehaverseTask`).
+(`skills/behaverse/browser/` runs `behaverse:Task`).
 
 Auto-discovery (`import.meta.glob` in [`index.ts`](./index.ts)) imports every
 `<kind>/index.tsx` here and every `skills/*/browser/index.tsx` at startup; each one

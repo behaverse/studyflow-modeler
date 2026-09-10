@@ -18,7 +18,7 @@ icon: &reachy-icon "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'
 order: 104
 xml:
   tagAlias: lowerCase
-version: 26.0902
+version: 26.0910
 
 enumerations:
   - name: VariantEnum
@@ -174,10 +174,10 @@ types:
           order: 2
           optional: true
       - name: vision
-        description: The vision model the robot sees with, as `provider:model` (`ollama:gemma4:12b-it-qat`, `claude:claude-haiku-4-5`); it finds the screen and answers a task's trials.
+        description: The vision model the robot sees with, as `<scheme>://<ref>` (`ollama://gemma4:12b-it-qat`, `claude://claude-haiku-4-5`); it finds the screen and answers a task's trials.
         isAttr: true
         type: String
-        default: ollama:gemma4:12b-it-qat
+        default: ollama://gemma4:12b-it-qat
         meta:
           order: 6
           optional: true
@@ -217,7 +217,7 @@ types:
       icon: iconify ph--user-sound
     properties:
       - name: text
-        description: What the robot says; `{{name}}` placeholders are filled in at run time.
+        description: What the robot says; `{name}` placeholders are filled in at run time.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
@@ -424,7 +424,7 @@ types:
       icon: iconify ph--chats
     properties:
       - name: model
-        description: Model that drives the dialogue (`claude-haiku-4-5`, `ollama/llama3.3`).
+        description: Model that drives the dialogue, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://llama3.3`).
         isAttr: true
         type: String
         meta:

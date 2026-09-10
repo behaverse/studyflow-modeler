@@ -1,6 +1,6 @@
 export type BehaverseBotPayload = Record<string, unknown>;
 
-export const BEHAVERSE_TASK_TYPE = 'cognitive:BehaverseTask';
+export const BEHAVERSE_TASK_TYPE = 'behaverse:Task';
 
 // Relative path so the iframe resolves under any Pages base; the Unity build lives inside the runner's /run/ prefix (deploy unpacks it into dist/run).
 export const BEHAVERSE_RUNTIME_URL = './assessment-unity';

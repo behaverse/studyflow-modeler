@@ -133,12 +133,12 @@ test('a cognitive task names who takes it: a declared pool, a new actor, or no o
   await inspector.getByRole('button', { name: 'bottom participant kind' }).click();
   await page.getByRole('option', { name: 'Large language model' }).click();
   await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Large language model');
-  const identifier = inspector.locator('input[name="cognitive:identifier"]');
-  await identifier.fill('claude:claude-haiku-4-5');
+  const identifier = inspector.locator('input[name="cognitive:implementation"]');
+  await identifier.fill('claude://claude-haiku-4-5');
   await identifier.blur();
   let studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
   expect(studyflowText).toContain('actorType: llm');
-  expect(studyflowText).toContain('identifier: claude:claude-haiku-4-5');
+  expect(studyflowText).toContain('implementation: claude://claude-haiku-4-5');
 
   // None clears the band: the task draws plain and the pool it sits in takes it; the unused actor leaves the file.
   await inspector.locator('button[aria-label="bottom participant choices"]').click();

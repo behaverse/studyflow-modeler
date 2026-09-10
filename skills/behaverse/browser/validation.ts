@@ -29,7 +29,7 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
     return [{
       nodeId: node.id,
       message: `The Unity build ships no task called '${payload.scene}'. `
-        + `Set behaverseScene to one of: ${manifest.tasks.map((t) => t.id).join(', ')}.`,
+        + `Set scene to one of: ${manifest.tasks.map((t) => t.id).join(', ')}.`,
     }];
   }
 

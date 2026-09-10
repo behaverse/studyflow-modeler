@@ -74,7 +74,7 @@ test('the inspector offers implementation on the native types, script on script 
   expect(script).not.toContain('implementation');
 });
 
-test('a Behaverse task names its software through behaverseScene, not implementation', () => {
+test('a Behaverse task names its software through scene, not implementation', () => {
   // The extension carries the fields; the host is a plain `bpmn:Task`.
   const fieldsOf = (extensionType: string, properties: Record<string, unknown> = {}) => {
     const task = moddle.create('bpmn:Task', { id: 'T_3' });
@@ -89,7 +89,7 @@ test('a Behaverse task names its software through behaverseScene, not implementa
   // The contrast is the point: the parent offers it, the Behaverse subtype pins it away.
   expect(fieldsOf('cognitive:CognitiveTask')).toContain('implementation');
 
-  const behaverse = fieldsOf('cognitive:BehaverseTask', { behaverseScene: 'NB' });
-  expect(behaverse).toContain('behaverseScene');
-  expect(behaverse, 'pinned out: behaverseScene says it instead').not.toContain('implementation');
+  const behaverse = fieldsOf('behaverse:Task', { scene: 'NB' });
+  expect(behaverse).toContain('scene');
+  expect(behaverse, 'pinned out: scene says it instead').not.toContain('implementation');
 });

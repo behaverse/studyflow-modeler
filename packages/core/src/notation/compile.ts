@@ -47,7 +47,7 @@ export function buildCatalog(models: SchemaModel[]): TypeCatalog {
     const raw = rawSchemas[prefix];
 
     const types = raw.types.map((rawType) => compiler.compileType(prefix, rawType));
-    const enums = raw.enumerations.map((rawEnum) => compileEnum(prefix, rawEnum));
+    const enums = raw.enumerations.filter(isOwnEnum).map((rawEnum) => compileEnum(prefix, rawEnum));
 
     const schema: SchemaEntry = {
       prefix,
@@ -77,9 +77,36 @@ export function buildCatalog(models: SchemaModel[]): TypeCatalog {
     schema.templates = compileTemplates(schema.prefix, rawSchemas[schema.prefix], catalog);
   }
 
+  extendEnums(rawSchemas, catalog);
   checkAttributeMeta(catalog);
 
   return catalog;
+}
+
+/** An entry that declares an enum of its own, as opposed to one that only extends another's. */
+function isOwnEnum(rawEnum: SchemaEnumModel): rawEnum is SchemaEnumModel & { name: string } {
+  return typeof rawEnum.name === 'string';
+}
+
+/** Literals a schema adds to another's enum (`extends: cognitive:ActorTypeEnum`), so a small skill grows a shared list instead of redeclaring it. */
+function extendEnums(rawSchemas: Record<string, SchemaModel>, catalog: TypeCatalog): void {
+  for (const [prefix, raw] of Object.entries(rawSchemas)) {
+    for (const rawEnum of raw.enumerations) {
+      if (typeof rawEnum.extends !== 'string') continue;
+      const target = catalog.enumOf(rawEnum.extends, prefix);
+      if (!target) {
+        catalog.diagnostics.push(`[${prefix}] enumeration extends unknown enum '${rawEnum.extends}'; its literals are dropped`);
+        continue;
+      }
+      for (const lit of rawEnum.literalValues ?? []) {
+        if (target.literals.some((existing) => existing.value === lit.value)) {
+          catalog.diagnostics.push(`[${prefix}] ${rawEnum.extends} already has a literal '${String(lit.value)}'`);
+          continue;
+        }
+        target.literals.push({ name: lit.name, value: lit.value, icon: lit.icon, description: lit.description });
+      }
+    }
+  }
 }
 
 /** Author-typo checks needing the full catalog; deduped because an effective attribute repeats on every subtype. */
@@ -150,7 +177,7 @@ class Compiler {
         this.rawByName.set(`${prefix}:${rawType.name}`, { prefix, raw: rawType });
       }
       for (const rawEnum of schema.enumerations) {
-        this.enumNames.add(`${prefix}:${rawEnum.name}`);
+        if (isOwnEnum(rawEnum)) this.enumNames.add(`${prefix}:${rawEnum.name}`);
       }
     }
   }
@@ -422,7 +449,7 @@ class Compiler {
   }
 }
 
-function compileEnum(prefix: string, rawEnum: SchemaEnumModel): EnumEntry {
+function compileEnum(prefix: string, rawEnum: SchemaEnumModel & { name: string }): EnumEntry {
   return {
     name: `${prefix}:${rawEnum.name}`,
     ns: { name: `${prefix}:${rawEnum.name}`, prefix, localName: rawEnum.name },

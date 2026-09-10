@@ -159,24 +159,24 @@ test('every drawn glyph carries the icon KEY it was asked for', async () => {
 
 /**
  * Behaverse tasks: a two-letter scene (`NB`), a long one (`SART`), and the
- * not-chosen-yet sentinel. The scene lives on the `cognitive:behaverseTask`
+ * not-chosen-yet sentinel. The scene lives on the `behaverse:task`
  * extension; `instrument` is the schema default `behaverse`, never written out.
  */
 const BEHAVERSE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
     xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
     xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"
+    xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse"
     id="Defs_B" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="Process_B" isExecutable="false">
     <bpmn:task id="Task_NB" name="N-Back">
-      <bpmn:extensionElements><cognitive:behaverseTask behaverseScene="NB" /></bpmn:extensionElements>
+      <bpmn:extensionElements><behaverse:task scene="NB" /></bpmn:extensionElements>
     </bpmn:task>
     <bpmn:task id="Task_SART" name="SART">
-      <bpmn:extensionElements><cognitive:behaverseTask behaverseScene="SART" /></bpmn:extensionElements>
+      <bpmn:extensionElements><behaverse:task scene="SART" /></bpmn:extensionElements>
     </bpmn:task>
     <bpmn:task id="Task_None" name="Not chosen">
-      <bpmn:extensionElements><cognitive:behaverseTask behaverseScene="undefined" /></bpmn:extensionElements>
+      <bpmn:extensionElements><behaverse:task scene="undefined" /></bpmn:extensionElements>
     </bpmn:task>
   </bpmn:process>
   <bpmndi:BPMNDiagram id="Diag_B">
@@ -200,7 +200,7 @@ function sceneGlyph(canvas: Canvas, id: string): SVGTextElement | null {
 }
 
 test('a behaverse task draws its scene abbreviation over the hex icon', async () => {
-  // `cognitive:BehaverseTask` declares `meta.glyph: behaverseScene`: the hex icon
+  // `behaverse:Task` declares `meta.glyph: scene`: the hex icon
   // alone does not say WHICH assessment a task runs, and every shipped battery is
   // a row of otherwise identical hexagons.
   const canvas = await loadCanvas(BEHAVERSE_XML, {

@@ -22,7 +22,7 @@ const rawSchemas = new Map<string, RawSchema>(
 function localNames(schema: RawSchema): Set<string> {
   return new Set([
     ...(schema.types ?? []).map((t: any) => t.name),
-    ...(schema.enumerations ?? []).map((e: any) => e.name),
+    ...(schema.enumerations ?? []).map((e: any) => e.name).filter(Boolean),
   ]);
 }
 
@@ -104,17 +104,19 @@ test.describe('schema lint', () => {
       test('type and enumeration names are unique and PascalCase', () => {
         const names = [
           ...(schema.types ?? []).map((t: any) => t.name),
-          ...(schema.enumerations ?? []).map((e: any) => e.name),
+          ...(schema.enumerations ?? []).map((e: any) => e.name).filter(Boolean),
         ];
         expect(new Set(names).size, `duplicate names in ${names}`).toBe(names.length);
         for (const n of names) expect(n, 'PascalCase').toMatch(/^[A-Z][A-Za-z0-9]*$/);
       });
 
       // No `isAbstract` assertion: `compileEnum` copies only name/description/literalValues, so it would be a no-op.
-      test('enumeration literals are named', () => {
+      test('enumeration literals are named, and an extension names an enum of another schema', () => {
         for (const e of schema.enumerations ?? []) {
+          expect(typeof e.name === 'string' || typeof e.extends === 'string', 'an enumeration has a name or extends one').toBe(true);
+          if (e.extends) expect(resolves(e.extends, schema), `${e.extends} extended by ${schema.prefix}`).toBe(true);
           for (const lit of e.literalValues ?? []) {
-            expect(typeof lit.name, `${e.name} literal name`).toBe('string');
+            expect(typeof lit.name, `${e.name ?? e.extends} literal name`).toBe('string');
           }
         }
       });

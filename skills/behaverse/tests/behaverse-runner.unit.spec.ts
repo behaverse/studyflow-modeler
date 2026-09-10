@@ -10,7 +10,7 @@ import { expect, test } from '@playwright/test';
  * protocol is exercised by hand, as the page itself would. */
 
 const RUNNER = path.resolve(__dirname, '../local.py');
-const COGNITIVE = 'http://behaverse.org/schemas/studyflow/cognitive';
+const BEHAVERSE = 'http://behaverse.org/schemas/studyflow/behaverse';
 
 const PLAN = {
   study: { id: 'S' },
@@ -18,9 +18,9 @@ const PLAN = {
     T: {
       id: 'T', type: 'task', name: 'Play', attributes: {},
       extensions: [{
-        namespace: COGNITIVE, type: 'behaverseTask',
+        namespace: BEHAVERSE, type: 'task',
         attributes: {
-          behaverseScene: 'WO', agentType: 'bot',
+          scene: 'WO', agentType: 'bot',
           configurations: 'Timelines:\n  SimonTask: null\nBot:\n  ResponseSource: external\n  IncludeScreenshot: true\n  LLM:\n    Provider: claude\n  Prompt: look\n',
         },
       }],

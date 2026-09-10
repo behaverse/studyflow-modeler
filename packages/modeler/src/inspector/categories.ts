@@ -10,12 +10,18 @@ export function isAttributeVisible(attrDef: AttributeSpec | undefined, element: 
   if (!attrDef.meta?.condition) return true;
 
   const conditions = attrDef.meta.condition.body || {};
-  return Object.entries(conditions).every(([key, expected]) => {
-    const actual = getAttribute(element, key);
-    if (expected === '$set') return actual != null;
+  const matches = (actual: unknown, expected: unknown): boolean => {
+    if (expected === '$set') return actual != null && actual !== '';
     if (Array.isArray(expected)) return expected.includes(actual);
+    if (expected && typeof expected === 'object' && '$not' in expected) return !matches(actual, (expected as { $not: unknown }).$not);
     return actual === expected;
-  });
+  };
+  return Object.entries(conditions).every(([key, expected]) => matches(getAttribute(element, key), expected));
+}
+
+/** The tabs an attribute files under: the ones it names, else its schema's default (`TypeCatalog.defaultCategoryOf`). */
+export function categoriesOf(attrDef: AttributeSpec): string[] {
+  return attrDef.meta?.categories ?? [getCatalog().defaultCategoryOf(attrDef.ns?.prefix)];
 }
 
 function declaredCategories(): Map<string, { order: number; synthetic: boolean }> {
@@ -63,7 +69,7 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
       if (seen.has(key)) return;
       seen.add(key);
 
-      (attrDef.meta?.categories ?? ['General']).forEach((category: string) => {
+      categoriesOf(attrDef).forEach((category: string) => {
         (byCategory[category] ??= []).push(attrDef);
       });
     });

@@ -111,7 +111,7 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
   test('pinned wrapper defaults win over stale business-object values', () => {
     const task = moddle.create('bpmn:Task', { id: 'NBack_1' });
     task.set('instrument', 'stale');
-    StudyflowElement.fromBusinessObject(task).ensureExtension('cognitive:BehaverseTask', moddle, {});
+    StudyflowElement.fromBusinessObject(task).ensureExtension('behaverse:Task', moddle, {});
     expect(getAttribute(task, 'instrument')).toBe('behaverse');
   });
 

@@ -9,9 +9,24 @@ icon: iconify tabler--hexagon-letter-e
 order: 101
 xml:
   tagAlias: lowerCase
-version: 26.0902
+version: 26.0910
 
 enumerations:
+  # Biosignal recording formats, added to the core's general-purpose ones.
+  - extends: studyflow:TimeseriesFormatEnum
+    literalValues:
+      - name: EDF (European Data Format)
+        value: edf
+      - name: BDF (Biosemi Data Format)
+        value: bdf
+      - name: BrainVision (vhdr/vmrk/eeg)
+        value: brainvision
+      - name: FIF (MNE/Elekta)
+        value: fif
+      - name: SET (EEGLAB)
+        value: set
+      - name: XDF (Lab Streaming Layer)
+        value: xdf
   # Amplifiers and headsets in common use; the attribute is editable, so any
   # other system name is accepted as free text.
   - name: DeviceEnum

@@ -91,7 +91,7 @@ A view is a projection. It keeps some of the elements of the diagram and drops t
 
 ![CognitiveTask](assets/img/elements/cognitive_task.svg){width="110" fig-alt="A rounded rectangle with a jigsaw-piece icon in its top-left corner."}
 
-![BehaverseTask](assets/img/elements/behaverse_task.svg){width="110" fig-alt="A rounded rectangle with a hexagon icon in its top-left corner, labelled Behaverse Task."}
+![behaverse:Task](assets/img/elements/behaverse_task.svg){width="110" fig-alt="A rounded rectangle with a hexagon icon in its top-left corner, labelled Behaverse Task."}
 
 ![Instruction](assets/img/elements/instruction.svg){width="110" fig-alt="A rounded rectangle with an information icon in its top-left corner, labelled Instruction."}
 
@@ -102,9 +102,9 @@ A view is a projection. It keeps some of the elements of the diagram and drops t
 |:--|:--|:--|:--|
 | `Questionnaire` | `bpmn:Task` | A self-report form: a standard instrument, or one of your own. | `instrument` |
 | `CognitiveTask` | `bpmn:ChoreographyTask` | A cognitive test: an exchange between the software that presents it (upper band, initiating) and the actor who takes it (lower band). With no actor named it is drawn as a plain task and the study's own participant takes it. | `instrument`, `construct`, `implementation`, `configurations` |
-| `BehaverseTask` | `bpmn:ChoreographyTask` | A test from the Behaverse battery. A `CognitiveTask` whose instrument is fixed. | `behaverseScene`, `configurations` (its `Bot:` entry, read when the participant is not a person, says how a bot plays) |
+| `behaverse:Task` | `bpmn:ChoreographyTask` | A test from the Behaverse battery. A `CognitiveTask` whose instrument is fixed. | `scene`, `configurations` (its `Bot:` entry, read when the participant is not a person, says how a bot plays) |
 
-Who takes a cognitive task is what the diagram draws, and a run follows it in this order, most explicit first: the participant on the task's receiving band; else the participant at the other end of a message flow touching the task, a pool itself or the pool of the step the flow ends at (a flow naming its message outranks one that does not, only a flow carrying the task's own messages counts, and two partners left is an error, not a draw); else the participant of the pool the task sits in. The participant's type says what kind of actor it is: a human, a model, or a software agent (`Actor`, whose `identifier` names the model), or a robot (`reachy:Robot`). A cognitive task presents itself: its upper band reads from the task (the Behaverse scene, or the instrument), so the task holds one reference, the actor who takes it, and names no participant for its own side. In the inspector every band of a choreography-shaped task is the same editable field, "Participant": its dropdown offers every participant the file declares, a drawn pool or an actor that only takes bands, "None" clears it, and typed text either names one of them or names a new actor for this task. What kind of actor a band holds comes from the participant it references. A drawn pool is typed through its own settings; an actor that only takes bands has no shape to select, so its kind (a person, a model, a software agent, an instrument, a robot) and the settings of that kind (`identifier`, a prompt template, a robot's host) are edited on the band itself. An actor no task refers to any more is dropped from the file, and renaming a pool renames it on every band that shows it. A `Prompt` data object wired into the task is that task's instructions for whoever takes it, and a cognitive task reads and writes data through data edges like any activity (`studyflow:ChoreographyData` lends a choreography task that ability).
+Who takes a cognitive task is what the diagram draws, and a run follows it in this order, most explicit first: the participant on the task's receiving band; else the participant at the other end of a message flow touching the task, a pool itself or the pool of the step the flow ends at (a flow naming its message outranks one that does not, only a flow carrying the task's own messages counts, and two partners left is an error, not a draw); else the participant of the pool the task sits in. The participant's type says what kind of actor it is: a human, a program, a device, or a model (`Actor`, whose `implementation` names the program, device, or model as `<scheme>://<ref>`), or a robot (`reachy:Robot`). A cognitive task presents itself: its upper band reads from the task (the Behaverse scene, or the instrument), so the task holds one reference, the actor who takes it, and names no participant for its own side. In the inspector every band of a choreography-shaped task is the same editable field, "Participant": its dropdown offers every participant the file declares, a drawn pool or an actor that only takes bands, "None" clears it, and typed text either names one of them or names a new actor for this task. What kind of actor a band holds comes from the participant it references. A drawn pool is typed through its own settings; an actor that only takes bands has no shape to select, so its kind (a person, a program, a device, a model, a robot) and the settings of that kind (`implementation`, a robot's host) are edited on the band itself. An actor no task refers to any more is dropped from the file, and renaming a pool renames it on every band that shows it. A `Prompt` data object wired into the task is that task's instructions for whoever takes it, and a cognitive task reads and writes data through data edges like any activity (`studyflow:ChoreographyData` lends a choreography task that ability).
 
 When the task is drawn in one pool and its taker has steps of its own in another, the taker's pool holds a step for the exchange, `reachy:Participate` for a robot, and the message flows join the two; the pools then run at once and the two steps start together, as described under "Who takes part".
 | `Instruction` | `bpmn:Task` | Text the participant reads. Nothing is recorded. | `content` |
@@ -134,7 +134,7 @@ Screening and allocation are separate types because they answer to different sta
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Actor` | `bpmn:Participant` | Who or what takes part: human, model, software agent, or instrument. A pool when it has steps of its own, a band on a cognitive task when it only takes that task. | `actorType` (`human`, `llm`, `agent`, `instrument`), `identifier`, `promptTemplate` |
+| `Actor` | `bpmn:Participant` | Who or what takes part: a human, a program, or a device; the agentic skill adds the language model. A pool when it has steps of its own, a band on a cognitive task when it only takes that task. | `actorType` (`human`, `software`, `hardware`; `llm` with agentic), `implementation` (`claude://claude-haiku-4-5`, `ollama://gemma4`) |
 
 A pool stands for a group, not for one person. If you draw two pools that deal with each other, the file becomes a collaboration, with one choreography task per exchange. That is how you describe a dyadic experiment, or a study where a person and a model work together.
 
@@ -173,16 +173,16 @@ These attributes describe the study's schedule in visits and days, which is what
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Dataset` | `bpmn:DataStoreReference` | A collection the study reads or produces, under a declared standard. | `format`, `schema`, `catalog`, `storage`; `bdmDataLevel` or `bidsDataType` |
+| `Dataset` | `bpmn:DataStoreReference` | A collection the study reads or produces, under a declared standard. | `format`, `schema`, `uri`, `catalog`; `bidsDataType` for BIDS |
 | `Schema` | `bpmn:DataObjectReference` | How data are laid out: columns, types, requiredness. | `format` (`csvw`, `linkml`, `jsonschema`), `body` |
 | `Table` | `bpmn:DataObjectReference` | Rows and columns, with that structure committed to. | `format`, `schema` |
 | `Timeseries` | `bpmn:DataObjectReference` | A continuously sampled recording. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
 | `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording. | `eventType`, `eventOnset`, `eventOffset`, `eventCount` |
 | `Parameters` | `bpmn:DataObjectReference` | Settings wired into the steps that read them, so a variant of the study is a value change, not a redraw. | `values` |
-| `DataCatalog` | not drawn | A listing a dataset is published in; a dataset names one. | `url` |
+| `DataCatalog` | not drawn | A registry a dataset is published in; the dataset's `catalog` names it. | `uri` |
 | any of them | - | Where the value lives. Unset, it only passes between steps. | `uri` |
 
-`format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), which adds `bdmDataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which adds `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `nwb` ([NWB](https://www.nwb.org/)).
+`format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), from the behaverse skill, whose `behaverse:Dataset` adds `dataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which adds `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `nwb` ([NWB](https://www.nwb.org/)).
 
 ## What a step runs
 

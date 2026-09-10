@@ -7,5 +7,5 @@ metadata:
 ---
 
 The default research elements. `Instruction` and `Questionnaire` are executed by the
-[browser](../browser/SKILL.md) runtime's own node modules; `BehaverseTask` by the
+[browser](../browser/SKILL.md) runtime's own node modules; `behaverse:Task` by the
 [behaverse](../behaverse/SKILL.md) skill's runners.

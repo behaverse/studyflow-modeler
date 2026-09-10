@@ -63,7 +63,7 @@ test.describe('Studyflow modeler palette flows', () => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Events', 'Start', { x: 120, y: 160 });
-    await addSchemaPaletteElement(page, 'Cognitive', 'Behaverse Task', { x: 320, y: 180 });
+    await addSchemaPaletteElement(page, 'Behaverse', 'Task', { x: 320, y: 180 });
 
     await stubIconify(page);
 
@@ -71,15 +71,15 @@ test.describe('Studyflow modeler palette flows', () => {
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
 
-    // BehaverseTask's pinned default (instrument="behaverse") stays implicit in the schema, not serialized onto the element.
+    // behaverse:Task's pinned default (instrument="behaverse") stays implicit in the schema, not serialized onto the element.
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:task\b/);
     expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
-    expect(normalizedEmbeddedStudyflow).toContain('<cognitive:behaverseTask');
+    expect(normalizedEmbeddedStudyflow).toContain('<behaverse:task');
 
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
-    expect(studyflowText).toContain('type: cognitive:BehaverseTask');
+    expect(studyflowText).toContain('type: behaverse:Task');
     expect(studyflowText).toContain('instrument: behaverse');
     expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
   });

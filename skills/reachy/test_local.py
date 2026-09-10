@@ -22,10 +22,10 @@ end = {"type": "endEvent"}
 assert reachy.Plan({"elements": {"pool": robot, "done": end}}).has_robot()
 assert not reachy.Plan({"elements": {"done": end}}).has_robot()
 # A cognitive task is a choreography: the robot on its lower band is the actor who takes it, and wants the seat.
-screen = {"type": "participant", "attributes": {}, "extensions": [{"namespace": "cognitive", "type": "actor", "attributes": {"actorType": "instrument"}}]}
+screen = {"type": "participant", "attributes": {}, "extensions": [{"namespace": "cognitive", "type": "actor", "attributes": {"actorType": "hardware"}}]}
 pool = {"type": "participant", "attributes": {"processRef": "R"}, "extensions": robot["extensions"]}
 task = {"type": "choreographyTask", "parent": "R", "attributes": {"initiatingParticipantRef": "screen"}, "participants": ["screen", "pool"],
-        "extensions": [{"namespace": "cognitive", "type": "BehaverseTask", "attributes": {}}]}
+        "extensions": [{"namespace": "behaverse", "type": "task", "attributes": {}}]}
 seated = reachy.Plan({"elements": {"pool": pool, "screen": screen, "t": task, "r_end": {"type": "endEvent", "parent": "R"},
                                    "s_end": {"type": "endEvent", "parent": "S"}}})
 assert seated.robot_participants() == {"pool"} and seated.wants_participant()
@@ -69,7 +69,7 @@ tmp = Path(tempfile.mkdtemp())
 reachy.note_reasoning(tmp / "frames", {"trial": 1, "answer": "Right"})
 reachy.note_reasoning(None, {"trial": 2})  # no frames dir: nothing kept
 assert (tmp / "reasoning.jsonl").read_text() == '{"trial": 1, "answer": "Right"}\n'
-assert reachy.parse_vlm("ollama:gemma4:12b-it-qat") == ("ollama", "gemma4:12b-it-qat") and reachy.parse_vlm("gemma4") == ("ollama", "gemma4")
+assert reachy.parse_vlm("ollama://gemma4:12b-it-qat") == ("ollama", "gemma4:12b-it-qat") and reachy.parse_vlm("gemma4") == ("ollama", "gemma4")
 assert reachy.answer_side("Right", ["Left", "Right"]) == "right" and reachy.answer_side("Left", ["Left", "Right"]) == "left"
 assert reachy.answer_side("B", ["A", "B", "C"]) == "both"
 plan = reachy.Plan({"elements": {

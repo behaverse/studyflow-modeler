@@ -16,12 +16,19 @@ icon: iconify tabler--hexagon-letter-a
 order: 102
 xml:
   tagAlias: lowerCase
-version: 26.0902
+version: 26.0910
 
-# Model identifiers are provider-prefixed where the provider is not implied by
-# the name: `claude-opus-4-8`, `claude-haiku-4-5`, `gpt-5`, `ollama/llama3.3`.
+# A model is `<scheme>://<ref>` (`claude://claude-opus-4-8`, `ollama://llama3.3`); a bare
+# `claude-*` name reads as Claude's.
 
 enumerations:
+  # What an actor pool can be, beyond cognitive's human, software, and hardware.
+  - extends: cognitive:ActorTypeEnum
+    literalValues:
+      - name: Large language model
+        value: llm
+        description: A model answers each trial; `implementation` names it (`claude://claude-haiku-4-5`, `ollama://llama3.3`).
+
   - name: ToolChoiceEnum
     description: How freely the model may call the tools available to it.
     literalValues:
@@ -125,7 +132,7 @@ types:
       icon: iconify ph--robot
     properties:
       - name: model
-        description: Model identifier (`claude-opus-4-8`, `gpt-5`, `ollama/llama3.3`).
+        description: The model, as `<scheme>://<ref>` (`claude://claude-opus-4-8`, `ollama://llama3.3`); a bare `claude-*` name is Claude's.
         isAttr: true
         type: String
         meta:
@@ -199,13 +206,13 @@ types:
       icon: iconify ph--chat-dots
     properties:
       - name: model
-        description: Model identifier (`claude-haiku-4-5`, `gpt-5`, `ollama/llama3.3`).
+        description: The model, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://llama3.3`); a bare `claude-*` name is Claude's.
         isAttr: true
         type: String
         meta:
           order: 1
       - name: prompt
-        description: The prompt, in markdown, with `{{name}}` placeholders.
+        description: The prompt, in markdown, with `{name}` placeholders.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
@@ -316,7 +323,7 @@ types:
       icon: iconify ph--article
     properties:
       - name: template
-        description: The prompt text, in markdown, with `{{name}}` placeholders.
+        description: The prompt text, in markdown, with `{name}` placeholders.
         isAttr: false
         type: studyflow:MarkdownString
         meta:
@@ -547,7 +554,7 @@ templates:
         - id: chain_b
           type: LLMCall
           bpmn:name: Summarize
-          model: ollama/llama3.3
+          model: ollama://llama3.3
           temperature: 0
           x: 460
           y: 140

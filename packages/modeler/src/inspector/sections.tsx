@@ -24,7 +24,7 @@ import { executeCommand } from '@modeler/commandBus';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { InspectorContext, useInspectedElement } from '@modeler/inspector/state';
 import { AttributeInput } from '@modeler/inspector/registry';
-import { isAttributeVisible } from '@modeler/inspector/categories';
+import { categoriesOf, isAttributeVisible } from '@modeler/inspector/categories';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { getCatalog } from '@core/notation';
 import { ExpressionRow, PlainEnumSelect, toOptions } from '@modeler/inspector/inputs';
@@ -146,10 +146,10 @@ function ActorFields({ element, field, participant, kind }: {
 }) {
   const modeler = useRequiredModeler();
   const kinds = [{ name: kindLabel(undefined), value: '' }, ...participantKinds().map((k) => ({ name: k.label, value: k.id }))];
-  // Kind stands for the attribute that picks it; the rest of the extension's General settings render as they would on a pool.
+  // Kind stands for the attribute that picks it; the rest of the extension's default-tab settings render as they would on a pool.
   const attrDefs = StudyflowElement.fromBusinessObject(participant).extensionAttributes()
     .filter((d) => (isExtensionPrefix(d.ns?.prefix) || !!d.redefines) && d.ns?.localName !== kind?.attribute)
-    .filter((d) => (d.meta?.categories ?? ['General']).includes('General'))
+    .filter((d) => categoriesOf(d).includes(getCatalog().defaultCategoryOf(d.ns?.prefix)))
     .sort((a, b) => (a.meta?.order ?? Infinity) - (b.meta?.order ?? Infinity));
   return (
     <InspectorContext.Provider value={{ element: participant }}>

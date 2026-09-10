@@ -37,9 +37,9 @@ function taskXml(configurations: string): string {
     </bpmn2:extensionElements>
     <bpmn2:task id="TheTask" name="The task">
       <bpmn2:extensionElements>
-        <cognitive:behaverseTask behaverseScene="NB" agentType="bot">
+        <behaverse:task scene="NB" agentType="bot">
           <cognitive:configurations>${indented}</cognitive:configurations>
-        </cognitive:behaverseTask>
+        </behaverse:task>
       </bpmn2:extensionElements>
     </bpmn2:task>
   </bpmn2:process>
@@ -122,13 +122,13 @@ function bandsXml(actor: string, options: { bands?: boolean | 'actor'; pool?: bo
   return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:agentic="https://w3id.org/studyflow/agentic" xmlns:reachy="https://w3id.org/studyflow/reachy" id="bands_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:collaboration id="Actors">
-    <bpmn2:participant id="Screen" name="Screen"><bpmn2:extensionElements><cognitive:actor actorType="instrument" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:participant id="Screen" name="Screen"><bpmn2:extensionElements><cognitive:actor actorType="hardware" /></bpmn2:extensionElements></bpmn2:participant>
     ${taker}
   </bpmn2:collaboration>
   <bpmn2:process id="BandsFixture" name="Bands fixture">
     <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
     <bpmn2:choreographyTask id="TheTask" name="The task"${bands === true ? ' initiatingParticipantRef="Screen"' : ''}>
-      <bpmn2:extensionElements><cognitive:behaverseTask behaverseScene="NB"><cognitive:configurations>Bot: {Speed: 20}</cognitive:configurations></cognitive:behaverseTask></bpmn2:extensionElements>
+      <bpmn2:extensionElements><behaverse:task scene="NB"><cognitive:configurations>Bot: {Speed: 20}</cognitive:configurations></behaverse:task></bpmn2:extensionElements>
       ${bands === true ? '<bpmn2:participantRef>Screen</bpmn2:participantRef><bpmn2:participantRef>Taker</bpmn2:participantRef>' : bands === 'actor' ? '<bpmn2:participantRef>Taker</bpmn2:participantRef>' : ''}
       ${prompt ? '<bpmn2:dataInputAssociation id="In1"><bpmn2:sourceRef>Instructions</bpmn2:sourceRef></bpmn2:dataInputAssociation>' : ''}
     </bpmn2:choreographyTask>
@@ -137,7 +137,7 @@ function bandsXml(actor: string, options: { bands?: boolean | 'actor'; pool?: bo
 </bpmn2:definitions>`;
 }
 
-const CLAUDE = '<cognitive:actor actorType="llm" identifier="claude:claude-haiku-4-5" />';
+const CLAUDE = '<cognitive:actor actorType="llm" implementation="claude://claude-haiku-4-5" />';
 
 test('the actor on the lower band decides who answers: a model, a robot, or a person', async () => {
   const llm = (await payloadsOf(bandsXml(CLAUDE))).get('TheTask')!;
@@ -170,11 +170,11 @@ test('a message flow between the task and an actor pool names who answers, befor
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="flows_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:collaboration id="C">
     <bpmn2:participant id="Lab" name="Lab" processRef="P"><bpmn2:extensionElements><cognitive:actor actorType="human" /></bpmn2:extensionElements></bpmn2:participant>
-    <bpmn2:participant id="Claude" name="Claude"><bpmn2:extensionElements><cognitive:actor actorType="llm" identifier="claude:claude-haiku-4-5" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:participant id="Claude" name="Claude"><bpmn2:extensionElements><cognitive:actor actorType="llm" implementation="claude://claude-haiku-4-5" /></bpmn2:extensionElements></bpmn2:participant>
     <bpmn2:messageFlow id="M1" sourceRef="TheTask" targetRef="Claude" />
   </bpmn2:collaboration>
   <bpmn2:process id="P"><bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
-    <bpmn2:choreographyTask id="TheTask" name="The task"><bpmn2:extensionElements><cognitive:behaverseTask behaverseScene="NB" /></bpmn2:extensionElements></bpmn2:choreographyTask>
+    <bpmn2:choreographyTask id="TheTask" name="The task"><bpmn2:extensionElements><behaverse:task scene="NB" /></bpmn2:extensionElements></bpmn2:choreographyTask>
   </bpmn2:process>
 </bpmn2:definitions>`;
   const task = (await payloadsOf(xml)).get('TheTask')!;
@@ -189,8 +189,8 @@ function partnersXml(flows: string): string {
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="partners_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:collaboration id="C">
     <bpmn2:participant id="Lab" name="Lab" processRef="P"><bpmn2:extensionElements><cognitive:actor actorType="human" /></bpmn2:extensionElements></bpmn2:participant>
-    <bpmn2:participant id="Claude" name="Claude"><bpmn2:extensionElements><cognitive:actor actorType="llm" identifier="claude:claude-haiku-4-5" /></bpmn2:extensionElements></bpmn2:participant>
-    <bpmn2:participant id="Agent" name="Agent"><bpmn2:extensionElements><cognitive:actor actorType="agent" identifier="my-agent" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:participant id="Claude" name="Claude"><bpmn2:extensionElements><cognitive:actor actorType="llm" implementation="claude://claude-haiku-4-5" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:participant id="Agent" name="Agent"><bpmn2:extensionElements><cognitive:actor actorType="software" implementation="my-agent" /></bpmn2:extensionElements></bpmn2:participant>
     ${flows}
   </bpmn2:collaboration>
   <bpmn2:message id="Trial" itemRef="Trial_Item" />
@@ -198,7 +198,7 @@ function partnersXml(flows: string): string {
   <bpmn2:itemDefinition id="Trial_Item" structureRef="behaverse:Trial" />
   <bpmn2:itemDefinition id="Marker_Item" structureRef="eeg:Marker" />
   <bpmn2:process id="P"><bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
-    <bpmn2:choreographyTask id="TheTask" name="The task"><bpmn2:extensionElements><cognitive:behaverseTask behaverseScene="NB" /></bpmn2:extensionElements></bpmn2:choreographyTask>
+    <bpmn2:choreographyTask id="TheTask" name="The task"><bpmn2:extensionElements><behaverse:task scene="NB" /></bpmn2:extensionElements></bpmn2:choreographyTask>
   </bpmn2:process>
 </bpmn2:definitions>`;
 }

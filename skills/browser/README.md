@@ -48,8 +48,8 @@ run?diagram=https://example.org/study.studyflow.png&seed=42
 | `diagram` | a URL: anything with a scheme, a slash, or a studyflow extension | fetched, then run |
 | `diagram` | a hand-off id (a bare 8-character uuid slice) | runs what the modeler just handed over; expires after an hour |
 | `seed` | an integer | binds the study's `seed`, fixing the gateway draws |
-| any other name | text, converted to the declared type | binds a `Parameters` entry, a `bpmn:Property`, or a field of the study, and substitutes wherever `${name}` is written. An undeclared name still binds, and is logged as undeclared. |
-| — | a `${name}` nothing binds | stops the run, naming it |
+| any other name | text, converted to the declared type | binds a `Parameters` entry, a `bpmn:Property`, or a field of the study, and substitutes wherever `{name}` is written. An undeclared name still binds, and is logged as undeclared. |
+| — | a `{name}` nothing binds | stops the run, naming it |
 
 ## The node kinds
 
@@ -59,7 +59,7 @@ run?diagram=https://example.org/study.studyflow.png&seed=42
 | `end/` | `bpmn:EndEvent` | the completion code and the redirect countdown |
 | `instruction/` | `cognitive:Instruction` | the `content` text, verbatim |
 | `questionnaire/` | `cognitive:Questionnaire` | a built-in item set, or a free-text box |
-| `skills/behaverse/browser/` (a skill's node module, at the repo root) | `cognitive:BehaverseTask` | the Behaverse Unity build in a frame |
+| `skills/behaverse/browser/` (a skill's node module, at the repo root) | `behaverse:Task` | the Behaverse Unity build in a frame |
 | `choreography/` | `bpmn:ChoreographyTask` | the two parties, and which one initiates |
 | `task/` | any task no folder above claimed | the step's name, any declared call, and *Continue* |
 

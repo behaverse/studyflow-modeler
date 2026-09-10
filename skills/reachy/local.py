@@ -7,7 +7,7 @@
 
 Usage:
     studyflow run --runtime local <diagram> [--sim] [--auto]     # studyflow-run-local walks, this runner performs
-    skills/reachy/local.py --participant [--sim] [--port N] [--vlm ollama:gemma4:12b-it-qat] [--frames DIR]
+    skills/reachy/local.py --participant [--sim] [--port N] [--vlm ollama://gemma4:12b-it-qat] [--frames DIR]
 
 A cognitive task inside the Robot pool (or with the robot on its lower band) is the robot's to take, and needs no
 second command: the walk seats the robot itself, in the background, at the first robot step, and the robot pool's
@@ -61,7 +61,7 @@ REACHY = "https://w3id.org/studyflow/reachy"
 # The schema's defaults; moddle omits an attribute whose value equals its default.
 DEFAULTS: dict[str, dict[str, Any]] = {
     "robot": {"variant": "wireless", "host": "reachy-mini.local", "voice": "", "language": "", "volume": "80",
-              "vision": "ollama:gemma4:12b-it-qat", "bridge": "ws://localhost:8765"},
+              "vision": "ollama://gemma4:12b-it-qat", "bridge": "ws://localhost:8765"},
     "say": {"text": ""},
     "gesture": {"move": "cheerful1", "dataset": "pollen-robotics/reachy-mini-emotions-library"},
     "goto": {"roll": "0", "pitch": "0", "yaw": "0", "x": "0", "y": "0", "z": "0",
@@ -92,7 +92,7 @@ def reachy_extension(element: dict[str, Any]) -> dict[str, Any] | None:
 def is_cognitive_task(element: dict[str, Any]) -> bool:
     """A `cognitive:*Task` (a Behaverse task, or any cognitive task) an actor can take."""
     return any(
-        "cognitive" in str(ext.get("namespace", "")) and str(ext.get("type", "")).lower().endswith("task")
+        "behaverse" in str(ext.get("namespace", "")) and str(ext.get("type", "")).lower() == "task"
         for ext in element.get("extensions") or []
     )
 
@@ -1123,8 +1123,8 @@ BRIDGE_PORT = 8765  # set from --port; where a seated participant listens
 
 
 def parse_vlm(text: str) -> tuple[str, str]:
-    """`provider:model` → (provider, model); a bare model is Ollama's."""
-    return tuple(text.split(":", 1)) if ":" in text else ("ollama", text)  # type: ignore[return-value]
+    """`<scheme>://<model>` → (provider, model); a bare model is Ollama's."""
+    return tuple(text.split("://", 1)) if "://" in text else ("ollama", text)  # type: ignore[return-value]
 
 
 ACTIONS = ("speak", "gesture", "goto", "play_sound", "look_at", "listening", "perk", "signal")
@@ -1424,8 +1424,8 @@ def main() -> int:
     parser.add_argument("--frames", type=Path, default=None, metavar="DIR", help="participant mode: keep what the robot saw, one JPEG per trial")
     parser.add_argument("--watch-pid", type=int, default=None, metavar="PID", help="participant mode: leave the seat when this process (the walk) is gone")
     parser.add_argument(
-        "--vlm", default="ollama:gemma4:12b-it-qat", metavar="PROVIDER:MODEL",
-        help="participant mode: the vision model that finds the screen and answers trials whose bot names none (claude:… or ollama:…)",
+        "--vlm", default="ollama://gemma4:12b-it-qat", metavar="SCHEME://MODEL",
+        help="participant mode: the vision model that finds the screen and answers trials whose bot names none (claude://… or ollama://…)",
     )
     parser.add_argument(
         "--element", metavar="ID", default=None,

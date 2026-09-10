@@ -9,7 +9,7 @@ Usage:
     studyflow run <diagram> --runtime local [--auto]      # studyflow-run-local walks, this runner performs
     UNITY_BUILD_PATH=<dir> skills/behaverse/local.py plan.json --element <id> --cache <dir>
 
-A partial runner: it claims every `cognitive:BehaverseTask`, and per hand-off serves the
+A partial runner: it claims every `behaverse:Task`, and per hand-off serves the
 Unity WebGL build and a small stage page from a local port, opens the page in the default
 browser, starts the task through the build's `RunCognitiveTask` entry point, and waits for
 `studyflow:TaskCompleted`. The page relays what the build reports back to this process:
@@ -47,6 +47,7 @@ from urllib.parse import unquote
 import yaml
 
 COGNITIVE = "http://behaverse.org/schemas/studyflow/cognitive"
+BEHAVERSE = "http://behaverse.org/schemas/studyflow/behaverse"
 BUILD_MOUNT = "/assessment-unity"
 DEFAULT_BRIDGE_URL = "ws://localhost:8765"
 # Bot keys this side reads and Unity's `BotReflection.Apply` refuses (the browser runner's types.ts).
@@ -57,7 +58,7 @@ MIME = {".wasm": "application/wasm", ".data": "application/octet-stream", ".unit
 
 def behaverse_extension(element: dict[str, Any]) -> dict[str, Any] | None:
     return next((ext for ext in element.get("extensions") or []
-                 if ext.get("namespace") == COGNITIVE and str(ext.get("type", "")).lower() == "behaversetask"), None)
+                 if ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "task"), None)
 
 
 def mapping_of(text: Any, what: str, element_id: str) -> dict[str, Any]:
@@ -67,9 +68,9 @@ def mapping_of(text: Any, what: str, element_id: str) -> dict[str, Any]:
     try:
         parsed = yaml.safe_load(text)
     except yaml.YAMLError as error:
-        raise ValueError(f"{what} on BehaverseTask {element_id!r} is not valid YAML: {error}") from None
+        raise ValueError(f"{what} on behaverse:Task {element_id!r} is not valid YAML: {error}") from None
     if not isinstance(parsed, dict):
-        raise ValueError(f"{what} on BehaverseTask {element_id!r} must be a mapping of setting names to values")
+        raise ValueError(f"{what} on behaverse:Task {element_id!r} must be a mapping of setting names to values")
     return parsed
 
 
@@ -78,9 +79,9 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
     of the digest, for what the diagram wires into this task."""
     element_id = str(element.get("id"))
     attrs = (behaverse_extension(element) or {}).get("attributes") or {}
-    scene = str(attrs.get("behaverseScene") or "")
+    scene = str(attrs.get("scene") or "")
     if not scene:
-        raise ValueError(f"BehaverseTask {element_id!r} has no behaverseScene; set it to a task the Unity build ships")
+        raise ValueError(f"behaverse:Task {element_id!r} has no scene; set it to a task the Unity build ships")
     # Who takes the task is its participant (band, message flow, or pool): a person, or a bot of some kind.
     actor = actor_of(element, plan or {})
     parameters = mapping_of(attrs.get("configurations"), "configurations", element_id)
@@ -105,11 +106,11 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
         payload["parameters"] = parameters
     if agent == "bot":
         bot = bot_settings
-        if actor["kind"] == "robot" or (actor["kind"] == "agent" and actor["model"] != "random"):
+        if actor["kind"] == "robot" or (actor["kind"] == "software" and actor["model"] != "random"):
             bot["ResponseSource"] = "external"  # answered over the response bridge by whoever sits there
             if actor["bridge"] and not bot.get("BridgeUrl"):
                 bot["BridgeUrl"] = actor["bridge"]  # where that partner said it listens
-        elif actor["kind"] == "agent":
+        elif actor["kind"] == "software":
             bot.pop("ResponseSource", None)  # the build's own random bot
         elif actor["kind"] == "llm":
             bot["ResponseSource"] = "llm"
@@ -132,7 +133,7 @@ EMPTY_ACTOR: dict[str, Any] = {"kind": "", "model": "", "bridge": ""}
 def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Who takes the task, from what the diagram draws, most explicit first: the task's receiving band; else the
     other end of a message flow touching it (a pool, or a step's pool); else the pool the task sits in. A
-    `reachy:Robot` is a robot; a `cognitive:Actor` is what its `actorType` says, with its `identifier` as the
+    `reachy:Robot` is a robot; a `cognitive:Actor` is what its `actorType` says, with its `implementation` as the
     model. `kind` is empty when no one is named any of those ways."""
     initiating = (element.get("attributes") or {}).get("initiatingParticipantRef")
     candidates = [p for p in element.get("participants") or [] if p != initiating]
@@ -147,7 +148,7 @@ def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[s
                 # `bridge` is where the robot takes trials; the schema's default is the bridge's own default.
                 return {"kind": "robot", "model": "", "bridge": str(attributes.get("bridge") or "")}
             if ext.get("namespace") == COGNITIVE and str(ext.get("type", "")).lower() == "actor":
-                return {"kind": str(attributes.get("actorType") or "human"), "model": str(attributes.get("identifier") or ""), "bridge": ""}
+                return {"kind": str(attributes.get("actorType") or "human"), "model": str(attributes.get("implementation") or ""), "bridge": ""}
     return dict(EMPTY_ACTOR)
 
 
@@ -214,12 +215,12 @@ def events_uri(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
     return f"{element['id']}.events.jsonl"
 
 
-def split_model(identifier: str) -> tuple[str, str]:
-    """`provider:model` as written, a bare `claude-*` name as Claude's, anything else as Ollama's."""
-    if ":" in identifier:
-        provider, model = identifier.split(":", 1)
+def split_model(ref: str) -> tuple[str, str]:
+    """`<scheme>://<model>` as written, a bare `claude-*` name as Claude's, anything else as Ollama's."""
+    if "://" in ref:
+        provider, model = ref.split("://", 1)
         return provider, model
-    return ("claude" if identifier.startswith("claude") else "ollama"), identifier
+    return ("claude" if ref.startswith("claude") else "ollama"), ref
 
 
 def prompt_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
@@ -591,7 +592,7 @@ def main() -> int:
     try:
         element = elements.get(args.element)
         if element is None or behaverse_extension(element) is None:
-            raise KeyError(f"no BehaverseTask {args.element!r} in the diagram")
+            raise KeyError(f"no behaverse:Task {args.element!r} in the diagram")
         result = perform(element, args, elements)
     except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
         result = {"error": f"{type(error).__name__}: {error}"}

@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
+
+# No elements of its own: this runtime adds itself to the study's `runtime` choices.
+name: Browser runtime
+prefix: browser
+description: >-
+  In the participant's browser, one session at a time.
+uri: https://w3id.org/studyflow/browser
+icon: iconify tabler--hexagon-letter-b
+order: 200
+xml:
+  tagAlias: lowerCase
+version: 26.0910
+
+types: []
+
+enumerations:
+  - extends: studyflow:RuntimeEnum
+    literalValues:
+      - name: Browser
+        value: browser
+        description: In the participant's browser, one session at a time.

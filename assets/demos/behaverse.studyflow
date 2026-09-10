@@ -23,14 +23,14 @@ Behaverse_Demo:
             timeline: XCIT_BCS_02
     Task:
       type: bpmn:Task
-      name: ${task} / ${timeline}
+      name: "{task} / {timeline}"
       dataInputAssociations:
         In_Config:
           sourceRef:
             - Config
       extensionElements:
-        - type: cognitive:BehaverseTask
-          behaverseScene: ${task}
+        - type: behaverse:Task
+          scene: "{task}"
           configurations: |
             Timelines:
-              ${timeline}:
+              {timeline}:

@@ -84,11 +84,11 @@ test.describe('studyflow YAML format', () => {
     expect(process.extensionElements[0].type).toBe('studyflow:Study');
 
     const ext = process.flowElements.Warmup_1Back.extensionElements[0];
-    expect(ext.type).toBe('cognitive:BehaverseTask');
+    expect(ext.type).toBe('behaverse:Task');
     expect(ext.configurations.Blocks.Demo5_Warmup.Parameters.NValue).toBe(1);
     // Who plays is the task's participant, an actor the collaboration declares, not a bot setting on the task.
     expect(process.flowElements.Warmup_1Back.participantRef).toEqual(['Actor_Ollama__gemma4_e2b_mlx']);
-    expect(doc.Demo5_OllamaBot_Actors.participants.Actor_Ollama__gemma4_e2b_mlx.extensionElements[0].identifier).toBe('ollama:gemma4:e2b-mlx');
+    expect(doc.Demo5_OllamaBot_Actors.participants.Actor_Ollama__gemma4_e2b_mlx.extensionElements[0].implementation).toBe('ollama://gemma4:e2b-mlx');
 
     // Geometry is one line per DI node: `x y width height`, and `x,y x,y` for a route.
     const start = process.flowElements.Start;
@@ -165,8 +165,8 @@ elements:
         id: T1
         extensionElements:
           values:
-            - type: cognitive:BehaverseTask
-              behaverseScene: NB
+            - type: behaverse:Task
+              scene: NB
               configurations:
                 value: |
                   Timelines:

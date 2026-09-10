@@ -10,25 +10,9 @@ icon: iconify tabler--hexagon-letter-c
 order: 3
 xml:
   tagAlias: lowerCase
-version: 26.0909
-
-# Tabs this schema adds to the ones `studyflow` declares (see the note there).
-categories:
-  - name: Behaverse
-    order: 15
-    description: How a Behaverse task is delivered, and who answers it.
+version: 26.0910
 
 enumerations:
-  # Offered on a message flow's Message field; any other item definition's `structureRef` is accepted too.
-  - name: MessageStructureEnum
-    description: What a message flow to or from a Behaverse task carries, as the structure its message is an item of.
-    literalValues:
-      - name: A trial
-        value: behaverse:Trial
-        description: One awaiting trial, out of the task to whoever answers it (its options, response window, and screenshot).
-      - name: A response
-        value: behaverse:Response
-        description: The answer to a trial, back into the task.
   - name: AllocationAlgorithmEnum
     description: How participants are allocated to arms.
     literalValues:
@@ -69,8 +53,6 @@ enumerations:
         value: presentation
       - name: Unity
         value: unity
-      - name: Behaverse
-        value: behaverse
   - name: QuestionnaireInstrumentEnum
     description: Standardized questionnaires in common use.
     literalValues:
@@ -100,66 +82,18 @@ enumerations:
         value: nasa-tlx
       - name: SF-36 (health-related quality of life)
         value: sf-36
+  # Coarse on purpose: a skill adds the kinds it knows with `extends: cognitive:ActorTypeEnum` (agentic adds `llm`).
   - name: ActorTypeEnum
     description: What a participant pool stands for.
     literalValues:
       - name: Human
         value: human
-      - name: Large language model
-        value: llm
-      - name: Software agent
-        value: agent
-        description: A non-LLM agent, such as an RL policy or a rule-based bot.
-      - name: Instrument
-        value: instrument
+      - name: Software
+        value: software
+        description: A program that takes part, such as an RL policy or a rule-based bot.
+      - name: Hardware
+        value: hardware
         description: A device that takes part, such as an amplifier sending triggers.
-  - name: BehaverseSceneEnum
-    description: Behaverse assessment delivered by a Behaverse task.
-    literalValues:
-      - name: Belval Card Sorting (BCS)
-        value: BCS
-      - name: Belval Matrices (BM)
-        value: BM
-      - name: Button Spatial Attention Cueing (BSAC)
-        value: BSAC
-      - name: Digit Span (DS)
-        value: DS
-      - name: Monkey Ladder (ML)
-        value: ML
-      - name: Multiple Object Tracking (MOT)
-        value: MOT
-      - name: N-Back (NB)
-        value: NB
-      - name: Ordered Click (OC)
-        value: OC
-      - name: Odd One Out (OOO)
-        value: OOO
-      - name: Polygon Comparison (PC)
-        value: PC
-      - name: Regular Expression (RE)
-        value: RE
-      - name: Reflexive Spatial Attention Cueing (RSAC)
-        value: RSAC
-      - name: Sustained Attention to Response Task (SART)
-        value: SART
-      - name: Symbolic Matrix Comparison (SMC)
-        value: SMC
-      - name: Self-Ordered Search (SOS)
-        value: SOS
-      - name: Stimulus-Response Mapping (SRM)
-        value: SRM
-      - name: Serial Reaction Time (SRT)
-        value: SRT
-      - name: Spatial Span (SS)
-        value: SS
-      - name: Target Hit (TH)
-        value: TH
-      - name: Test of Variable Attention (TOVA)
-        value: TOVA
-      - name: Useful Field of View (UFOV)
-        value: UFOV
-      - name: Which One (WO)
-        value: WO
   - name: RestEyesEnum
     description: Eye condition during a rest period.
     literalValues:
@@ -276,50 +210,6 @@ types:
         isAttr: true
         type: studyflow:MarkdownString
 
-  - name: BehaverseTask
-    description: A task from the Behaverse assessment battery.
-    superClass:
-      - CognitiveTask
-    meta:
-      icon: iconify bi--hexagon
-      presenter: "Behaverse · {behaverseScene}"
-      # The attribute drawn as text over the icon: the hex alone does not say which assessment.
-      glyph: behaverseScene
-    properties:
-      - name: instrument
-        default: behaverse
-        type: String
-        isAttr: true
-        redefines: CognitiveTask#instrument
-        meta:
-          order: 0
-          pinned: true
-      - name: implementation
-        description: Unused here; the scene says what runs.
-        isAttr: true
-        type: String
-        redefines: CognitiveTask#implementation
-        meta:
-          pinned: true
-      - name: behaverseScene
-        description: Which Behaverse assessment runs (`NB`, `UFOV`, `DS`).
-        isAttr: true
-        type: BehaverseSceneEnum
-        meta:
-          order: 1
-          categories:
-            - Execution
-      - name: configurations
-        description: 'The task''s `GameConfig` as YAML: a shipped timeline, or one defined inline. `Bot:` says how a bot plays it (`Speed: 20`), read when the participant taking the task is not a person.'
-        type: Configurations
-        redefines: CognitiveTask#configurations
-        meta:
-          order: 2
-          categories:
-            - Execution
-
-  # The browser runner performs only simple randomization with equal odds; it
-  # warns about anything else (packages/runner/src/allocation.ts).
   - name: RandomGateway
     description: Allocates each participant to one outgoing branch at random.
     superClass:
@@ -403,25 +293,15 @@ types:
         isAttr: true
         type: ActorTypeEnum
         default: human
-      - name: identifier
-        description: Which model, agent, or device (`claude-opus-4-8`, an LSL stream).
+      - name: implementation
+        description: The program, model, or device, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://gemma4`, `lsl://triggers`).
         isAttr: true
         type: String
         meta:
           condition:
             body:
               actorType:
-                - llm
-                - agent
-                - instrument
-      - name: promptTemplate
-        description: Prompt sent to the model each turn, with `{{stimulus}}` placeholders.
-        isAttr: true
-        type: studyflow:MarkdownString
-        meta:
-          condition:
-            body:
-              actorType: llm
+                $not: human
 
 templates:
   # Stratified allocation is a RandomGateway with `stratifyBy` set, not its own type.
@@ -464,43 +344,3 @@ templates:
         levels:
         difficulty:
         scoring:
-  # Behaverse assessment-task presets.
-  - description: N-Back running a timeline that ships with the Behaverse build.
-    object:
-      type: BehaverseTask
-      bpmn:name: N-Back (XCIT_NB_01)
-      behaverseScene: NB
-      configurations: |
-        Timelines:
-          XCIT_NB_01:
-  - description: N-Back with an inline timeline; author only the blocks that differ from the defaults.
-    object:
-      type: BehaverseTask
-      bpmn:name: N-Back (inline)
-      behaverseScene: NB
-      configurations: |
-        Blocks:
-          LabLink_InlineBlock:
-            Name: LabLink_InlineBlock
-            Inherits: Default
-            Parameters:
-              NValue: 1
-              Feature: Letters
-              Streams:
-                - Feature:
-                    Reference: Feature
-                  StimulusValue:
-                    Generate: OncePerBlock
-                    Sequence:
-                      Type: Ordered
-                      Values: [3, 1, 2, 1, 3, 2, 3, 2]
-              StreamSize: 8
-              FeatureValuesCount: 3
-              MaxResponseTime: 3
-              StimulusDisplayDuration: 0.5
-              InterStimulusInterval: 2.2
-        Timelines:
-          LabLink_Inline:
-            Name: LabLink_Inline
-            blocks:
-              - name: LabLink_InlineBlock

@@ -36,8 +36,11 @@ export type SchemaEnumLiteralModel = {
 };
 
 export type SchemaEnumModel = {
-  name: string;
+  /** Absent when the entry only extends another schema's enum. */
+  name?: string;
   description?: string;
+  /** Qualified name of an enum, in any schema, that these literals are added to (`cognitive:ActorTypeEnum`). */
+  extends?: string;
   literalValues?: SchemaEnumLiteralModel[];
 };
 
@@ -123,7 +126,7 @@ function collectValueTypes(models: SchemaModel[]): Set<string> {
     for (const type of model.types) {
       if (isValueType(type)) valueTypes.add(`${model.prefix}:${type.name}`);
     }
-    for (const enumeration of model.enumerations) valueTypes.add(`${model.prefix}:${enumeration.name}`);
+    for (const enumeration of model.enumerations) if (enumeration.name) valueTypes.add(`${model.prefix}:${enumeration.name}`);
   }
   return valueTypes;
 }

@@ -38,11 +38,11 @@ export function readBehaverseAttribute(bo: any, attributeName: string): string |
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
   if (node.extensionType !== BEHAVERSE_TASK_TYPE) return null;
 
-  const scene = readBehaverseAttribute(node.businessObject, 'behaverseScene') ?? '';
+  const scene = readBehaverseAttribute(node.businessObject, 'scene') ?? '';
   if (!scene || scene === 'undefined') {
     throw new Error(
-      `BehaverseTask '${node.id}' has no scene, so the browser runner cannot tell which task to load. `
-      + 'Set behaverseScene to a task the Unity build ships.',
+      `behaverse:Task '${node.id}' has no scene, so the browser runner cannot tell which task to load. `
+      + 'Set scene to a task the Unity build ships.',
     );
   }
 
@@ -54,13 +54,13 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
       parsed = yaml.load(configurations);
     } catch (err) {
       throw new Error(
-        `configurations on BehaverseTask '${node.id}' is not valid YAML: ${(err as Error).message}. `
+        `configurations on behaverse:Task '${node.id}' is not valid YAML: ${(err as Error).message}. `
         + 'Check the indentation and quoting.',
       );
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new Error(
-        `configurations on BehaverseTask '${node.id}' must be a mapping of setting names to values `
+        `configurations on behaverse:Task '${node.id}' must be a mapping of setting names to values `
         + `(got ${Array.isArray(parsed) ? 'a list' : typeof parsed}).`,
       );
     }
@@ -103,10 +103,10 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
 
   if (agentType === 'bot') {
     const bot = botSettings ?? {};
-    if (actor.kind === 'robot' || (actor.kind === 'agent' && actor.model !== 'random')) {
+    if (actor.kind === 'robot' || (actor.kind === 'software' && actor.model !== 'random')) {
       bot.ResponseSource = 'external'; // answered over the response bridge by whoever sits there
       if (actor.bridge && !bot.BridgeUrl) bot.BridgeUrl = actor.bridge; // where that partner said it listens
-    } else if (actor.kind === 'agent') {
+    } else if (actor.kind === 'software') {
       delete bot.ResponseSource; // the build's own random bot
     } else if (actor.kind === 'llm') {
       bot.ResponseSource = 'llm';
@@ -127,7 +127,7 @@ type Actor = { kind: string; model: string; bridge: string };
 
 /** Who takes the task, from what the diagram draws, most explicit first: the task's receiving band; else the
  * other end of a message flow touching it (a pool, or a step's pool); else the pool the task sits in. A
- * `reachy:Robot` is a robot; a `cognitive:Actor` is what its `actorType` says, with its `identifier` as the
+ * `reachy:Robot` is a robot; a `cognitive:Actor` is what its `actorType` says, with its `implementation` as the
  * model. `kind` is empty when no one is named any of those ways. */
 export function actorOf(bo: any): Actor {
   const initiating = bo?.initiatingParticipantRef;
@@ -143,7 +143,7 @@ export function actorOf(bo: any): Actor {
         // Read through the participant: the catalog resolves a wrapper's attributes from its element.
         return {
           kind: String(getAttribute(participant, 'actorType') ?? 'human'),
-          model: String(getAttribute(participant, 'identifier') ?? ''),
+          model: String(getAttribute(participant, 'implementation') ?? ''),
           bridge: '',
         };
       }
@@ -222,9 +222,9 @@ export function promptOf(bo: any): string {
   return '';
 }
 
-/** `provider:model` as written, a bare `claude-*` name as Claude's, anything else as Ollama's. */
-export function splitModel(identifier: string): [string, string] {
-  const colon = identifier.indexOf(':');
-  if (colon > 0) return [identifier.slice(0, colon), identifier.slice(colon + 1)];
-  return [identifier.startsWith('claude') ? 'claude' : 'ollama', identifier];
+/** `<scheme>://<model>` as written, a bare `claude-*` name as Claude's, anything else as Ollama's. */
+export function splitModel(ref: string): [string, string] {
+  const at = ref.indexOf('://');
+  if (at > 0) return [ref.slice(0, at), ref.slice(at + 3)];
+  return [ref.startsWith('claude') ? 'claude' : 'ollama', ref];
 }

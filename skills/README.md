@@ -27,7 +27,9 @@ What the vocabulary means and how to author with it.
 
 - **Vocabulary-only** skills declare a `schema` and nothing else (`eeg`, `agentic`).
 - **Runner-only** skills execute someone else's vocabulary (`python` runs `python://` implementations,
-  `shell` runs `shell://` ones, `behaverse` runs `cognitive:BehaverseTask`).
+  `shell` runs `shell://` ones). A skill can be both: `behaverse` declares `behaverse:Task` and runs it.
+- **Runtime** skills with no elements still declare a schema, if only to add themselves to the study's
+  `runtime` choices (`browser`, `local` each extend `studyflow:RuntimeEnum`).
 - **Modeler modules** are a skill's `modeler.ts`, named by `modeler`: its default export lists the
   projections the modeler writes (`eeg` adds the ARTEM-IS report) and the foreign formats "Open"
   converts on the way in (`jspsych` opens a timeline). The contract is `ModelerModule` in
@@ -66,6 +68,8 @@ expression traits) a domain pack must not copy.
 - A plain YAML scalar cannot contain `: `; quote a description that does.
 - Attribute names are camelCase nouns. Put a unit in the in the meta (`samplingRate.meta.unit = 'Hz'`). Do not put units in the attribute name (`samplingRateHz` is wrong).
 - An enum attribute that allows values outside its list is `meta.editable: true`.
+- A placeholder in a value is `{name}` (dotted paths allowed: `{Play.trials}`); every runner reads that form and nothing reads `${name}` or `{{name}}`.
+- A reference to software, a model, or a device is `<scheme>://<ref>` (`python://`, `claude://claude-haiku-4-5`, `ollama://gemma4`), whatever attribute holds it.
 - Icons come from the iconify (Bootstrap Icons, Fluent UI, `mdi` or `tabler`) sets unless an icon exists only elsewhere. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
 - Reuse core types by inheritance rather than restating fields: a biosignal recording is a `studyflow:Timeseries`, a battery task a `cognitive:CognitiveTask`.
 
@@ -79,7 +83,7 @@ expression traits) a domain pack must not copy.
 | `order` | Load/display order; unordered schemas sort after ordered ones, then by prefix. |
 | `version` | `YY.MMDD` string (lint-enforced). |
 | `xml.tagAlias` | moddle pass-through (`lowerCase`). |
-| `categories` | Inspector tab declarations, **core schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`). |
+| `categories` | Inspector tab declarations, **core schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`). Every other schema gets a tab of its own `name`, right after General, where its attributes file by default. |
 | `types`, `enumerations`, `templates` | The content; below. |
 | `examples` | Complete studyflows offered in the New Diagram gallery; below. |
 
@@ -91,8 +95,8 @@ expression traits) a domain pack must not copy.
 | `icon` | Canvas + palette + append-menu glyph (Iconify class). The top-level `icon:` on a type is a legacy fallback. |
 | `editor` (on a value type) | Default editor for every attribute *of that type* (see editor names below). |
 | `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; the lint rejects restating it. |
-| `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {behaverseScene}"`), read raw. Empty or absent, the band reads "Task software". |
-| `glyph` | The attribute whose value is drawn as text over the type icon (`behaverseScene`); the value `undefined` draws nothing. |
+| `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {scene}"`), read raw. Empty or absent, the band reads "Task software". |
+| `glyph` | The attribute whose value is drawn as text over the type icon (`scene`); the value `undefined` draws nothing. |
 | `participantKind` (on a `bpmn:Participant` type) | What a band-only actor can be: the name of one of the type's enum attributes, one kind per literal (`actorType`), or the label of the one kind the type itself is (`Reachy Mini`). |
 | `branching` | Runner gateway semantics (`random`, `condition`, `model`); the allowed set is pinned by tests. |
 | `categories` | Palette-group override (rarely needed: groups derive from the BPMN ancestor). Distinct from *property-level* `categories`, which are inspector tabs. |
@@ -106,13 +110,13 @@ onto the BPMN element), `superClass` = **wrapper** (its own element inside
 
 | Key | Consumer |
 | --- | --- |
-| `categories` | Inspector tab (default `General`; omit rather than restate it). |
+| `categories` | Inspector tab. Omitted, an attribute files under its schema's own tab (`Cognitive`, `EEG`), and a core one under `General`, so General stays identity plus core fields. |
 | `order` | Sort within the tab. |
 | `pinned` | Fixed value, never rendered; also wins read precedence on double-stored values. |
 | `optional` | Renders the opt-in checkbox editor (String attributes; declarative intent elsewhere). |
 | `editable` | Enum that also accepts free text. |
 | `readonly` | Run-record field: shown, never edited. |
-| `condition.body` | Visibility predicate over sibling attributes (`{attr: value}`, `$set`, arrays). |
+| `condition.body` | Visibility predicate over sibling attributes (`{attr: value}`, `$set` for a non-empty value, arrays, `{$not: value}`). |
 | `editor` | Named editor override. Known names (checked at compile): `csvw-table`, `code`, `markdown`, `checklist`; the list lives in `core/notation/types.ts` (`EDITOR_NAMES`) and the inspector registry is typed off it. |
 | `expression` | Stored as a BPMN expression element; renders the expression row with a per-expression language picker. |
 | `languageAttr` | Sibling attribute holding the code editor's language (e.g. `bpmn:scriptFormat`). |
@@ -156,6 +160,19 @@ genuinely declares the attribute, as `studyflow:Implementation` redefines
 input; may name a raw-SVG key from `modeler/draw/icons.ts`'s `SVG_ICON_PATHS`).
 A property `default` on an enum-typed attribute must be one of the literal
 values — checked at compile.
+
+An enum is open: another schema adds literals to it with an entry that
+`extends` it instead of declaring a `name`, so a small skill grows a shared
+list rather than redeclaring it. A literal whose value the target already has
+is dropped with a diagnostic, as is an `extends` that resolves to no enum.
+
+```yaml
+enumerations:
+  - extends: cognitive:ActorTypeEnum
+    literalValues:
+      - name: Large language model
+        value: llm
+```
 
 ## Templates
 

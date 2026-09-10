@@ -252,15 +252,17 @@ test.describe('catalog: templates and enums', () => {
     }
   });
 
-  test('enumerations carry their literals', () => {
-    for (const { prefix } of SCHEMAS) {
-      for (const e of packages[prefix].enumerations ?? []) {
-        const entry = catalog.enumOf(`${prefix}:${e.name}`);
-        expect(entry, `${prefix}:${e.name}`).toBeTruthy();
-        expect(entry!.literals.map((l) => l.value)).toEqual(
-          (e.literalValues ?? []).map((l: any) => l.value),
-        );
-      }
+  test('enumerations carry their literals, own first, then what other schemas extend them with', () => {
+    const allEnums = SCHEMAS.flatMap(({ prefix }) => (packages[prefix].enumerations ?? []).map((e: any) => ({ prefix, ...e })));
+    const extensionsOf = (qualified: string) => allEnums.filter((e) => e.extends === qualified).flatMap((e) => e.literalValues ?? []);
+    expect(extensionsOf('cognitive:ActorTypeEnum').map((l: any) => l.value)).toContain('llm');
+    for (const e of allEnums.filter((e) => e.name)) {
+      const qualified = `${e.prefix}:${e.name}`;
+      const entry = catalog.enumOf(qualified);
+      expect(entry, qualified).toBeTruthy();
+      expect(entry!.literals.map((l) => l.value)).toEqual(
+        [...(e.literalValues ?? []), ...extensionsOf(qualified)].map((l: any) => l.value),
+      );
     }
   });
 });
@@ -309,7 +311,7 @@ test.describe('catalog: schema-declared vocabulary', () => {
 
     const instruments = new Set(catalog.typesWithRole('instrument').map((type) => type.name));
     expect(instruments).toContain('cognitive:CognitiveTask');
-    expect(instruments, 'inherited from CognitiveTask').toContain('cognitive:BehaverseTask');
+    expect(instruments, 'inherited from CognitiveTask').toContain('behaverse:Task');
 
     for (const role of ['data-element', 'signal', 'instrument', 'acquisition']) {
       expect(catalog.typesWithRole(role).length, `no type carries "${role}"`).toBeGreaterThan(0);
@@ -337,15 +339,20 @@ test.describe('catalog: schema-declared vocabulary', () => {
 
     expect(categories.filter((c) => c.synthetic).map((c) => c.name)).toEqual(['Execution']);
 
-    // `Behaverse` is the one tab a non-core schema declares (cognitive); the rest come from studyflow.
-    expect(names).toEqual(['General', 'Behaverse', 'Documentation', 'Gantt', 'Data', 'Execution']);
+    // Declared tabs come from studyflow; every other schema gets a tab of its own name right after General, in schema order.
+    const schemaTabs = catalog.schemas.filter((s) => s.prefix !== 'studyflow').map((s) => s.name);
+    expect(schemaTabs.length).toBeGreaterThan(1);
+    expect(names).toEqual(['General', ...schemaTabs, 'Documentation', 'Gantt', 'Data', 'Execution']);
+    expect(catalog.defaultCategoryOf('studyflow')).toBe('General');
+    expect(catalog.defaultCategoryOf('cognitive')).toBe('Cognitive');
+    expect(catalog.defaultCategoryOf('bpmn')).toBe('General');
   });
 
   test('a value type declares the editor its attributes render with', () => {
     // `meta.editor` on `studyflow:YAMLString` reaches every attribute of the type, even through a body wrapper.
-    const configurations = catalog.instanceAttributesOf('cognitive:BehaverseTask')
+    const configurations = catalog.instanceAttributesOf('behaverse:Task')
       .find((spec) => spec.ns.localName === 'configurations');
-    expect(configurations, 'cognitive:BehaverseTask#configurations').toBeTruthy();
+    expect(configurations, 'behaverse:Task#configurations').toBeTruthy();
     expect(configurations!.typeEditor, 'resolved through the Configurations wrapper').toBe('code');
   });
 

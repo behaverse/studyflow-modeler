@@ -3,6 +3,8 @@ name: local
 description: "The reference runner behind `studyflow run --runtime local`: walks the diagram, evaluates values, records, and hands each element to the skill that claims it. Use when running the data-facing half of a study on a machine."
 license: MIT
 compatibility: "Python 3.10+ through uv."
+metadata:
+  schema: "local.moddle.yaml"
 ---
 
 `run.py` is the walk. It never executes an element itself: each skill's `runtimes.local`

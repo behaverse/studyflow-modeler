@@ -26,7 +26,7 @@ icon: iconify tabler--hexagon-letter-s
 order: 1
 xml:
   tagAlias: lowerCase
-version: 26.0902
+version: 26.0910
 
 # Inspector tabs, in the order they appear; an attribute joins one by naming it in `meta.categories`.
 # A `synthetic` tab is drawn by its own section rather than from attributes.
@@ -52,9 +52,6 @@ enumerations:
   - name: DatasetFormatEnum
     description: Data standard the dataset is organized by.
     literalValues:
-      - name: BDM (Behaverse Data Model)
-        value: bdm
-        icon: iconify bi--hexagon
       - name: BIDS (Brain Imaging Data Structure)
         value: bids
         icon: bids-dataset-icon
@@ -63,18 +60,6 @@ enumerations:
         icon: iconify ph--flask
       - name: NWB (Neurodata Without Borders)
         value: nwb
-  - name: BDMDataLevelEnum
-    description: Level of the BDM hierarchy the data sits at.
-    literalValues:
-      - name: Events
-        value: events
-        description: Every recorded occurrence, as it happened.
-      - name: Trials
-        value: trials
-        description: One row per trial, derived from events.
-      - name: Models
-        value: models
-        description: Fitted parameters and scores, derived from trials.
   - name: BIDSDataTypeEnum
     description: BIDS data type (the modality folder).
     literalValues:
@@ -119,21 +104,10 @@ enumerations:
         value: jsonl
       - name: Excel (xlsx)
         value: xlsx
+  # The general-purpose formats; the biosignal ones (EDF, BrainVision, XDF, …) come from `eeg` by `extends`.
   - name: TimeseriesFormatEnum
     description: On-disk format of a time-series recording.
     literalValues:
-      - name: EDF (European Data Format)
-        value: edf
-      - name: BDF (Biosemi Data Format)
-        value: bdf
-      - name: BrainVision (vhdr/vmrk/eeg)
-        value: brainvision
-      - name: FIF (MNE/Elekta)
-        value: fif
-      - name: SET (EEGLAB)
-        value: set
-      - name: XDF (Lab Streaming Layer)
-        value: xdf
       - name: NWB (Neurodata Without Borders)
         value: nwb
       - name: Parquet
@@ -172,18 +146,13 @@ enumerations:
       - name: Dynamic
         value: dynamic
         description: A code the platform supplies at run time (Prolific, MTurk).
+  # The hosted environments; each runtime skill adds its own by `extends` (`browser`, `local`).
   - name: RuntimeEnum
     description: Environment the study runs in.
     literalValues:
-      - name: Browser
-        value: browser
-        description: In the participant's browser, one session at a time.
       - name: Cloud
         value: cloud
         description: On a hosted engine.
-      - name: Local
-        value: local
-        description: On the researcher's machine.
       - name: HPC
         value: hpc
         description: On a cluster, through a job scheduler.
@@ -496,18 +465,6 @@ types:
           order: 1
           categories:
             - Data
-      - name: bdmDataLevel
-        description: Level of the BDM hierarchy.
-        isAttr: true
-        type: BDMDataLevelEnum
-        default: events
-        meta:
-          order: 2
-          categories:
-            - Data
-          condition:
-            body:
-              format: bdm
       - name: bidsDataType
         description: BIDS data type.
         isAttr: true
@@ -528,15 +485,6 @@ types:
           order: 3
           categories:
             - Data
-      - name: identifier
-        description: Persistent identifier (DOI, OpenNeuro accession).
-        isAttr: true
-        type: String
-        meta:
-          order: 4
-          optional: true
-          categories:
-            - Data
       - name: catalog
         description: Registry the dataset is published in.
         isAttr: true
@@ -545,22 +493,14 @@ types:
           order: 5
           categories:
             - Data
-      - name: storage
-        description: Data store the dataset physically lives in.
-        isAttr: true
-        type: bpmn:DataStoreReference
-        meta:
-          order: 6
-          categories:
-            - Data
   - name: DataCatalog
     description: A registry datasets are published in (OpenNeuro, Behaverse).
     superClass:
       - bpmn:BaseElement
     isAbstract: false
     properties:
-      - name: url
-        description: Base URL of the catalog.
+      - name: uri
+        description: Where the registry is (`https://openneuro.org`).
         isAttr: true
         type: String
         meta:
@@ -853,6 +793,8 @@ types:
         redefines: bpmn:AdHocSubProcess#completionCondition
         meta:
           expression: true
+          categories:
+            - Execution
 
   - name: LoopCondition
     description: The standard-loop marker's condition, authored as a flat string.
@@ -884,11 +826,13 @@ types:
     isAbstract: true
     properties:
       - name: uri
-        description: Where the bytes live (`results/model.joblib`, `s3://...`, a URL); unset stays in memory.
+        description: Where the data lives (`data/raw/`, `results/model.joblib`, `s3://bucket/study`, a DOI or URL); unset stays in memory.
         isAttr: true
         type: String
         meta:
           order: 1
+          categories:
+            - Data
 
   # ===========================================================================
   # A named configuration group the engine passes to steps like any other

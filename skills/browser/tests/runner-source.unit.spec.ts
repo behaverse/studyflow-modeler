@@ -38,7 +38,7 @@ Needs_Task:
   flowElements:
     Task:
       type: bpmn:Task
-      name: \${task}
+      name: "{task}"
 `;
 
 test('`diagram` tells a demo name, a URL, and a hand-off id apart', () => {
@@ -134,11 +134,11 @@ Two_Steps:
             label: from-config
     First:
       type: bpmn:Task
-      name: \${label}
+      name: "{label}"
 ${association}      outgoing: [Flow]
     Second:
       type: bpmn:Task
-      name: \${label}
+      name: "{label}"
       incoming: [Flow]
     Flow:
       type: bpmn:SequenceFlow
@@ -152,7 +152,7 @@ test('config wired into one step is read by that step and no other', async () =>
   const study = await parseStudyflow(TWO_STEPS(WIRED_TO_FIRST), packages, {});
 
   expect(study.flowNodes.get('First')?.businessObject?.name).toBe('from-config');
-  expect(study.flowNodes.get('Second')?.businessObject?.name, 'nothing wires it here').toBe('${label}');
+  expect(study.flowNodes.get('Second')?.businessObject?.name, 'nothing wires it here').toBe('{label}');
   expect(study.parameters.unbound).toEqual(['label']);
 });
 
