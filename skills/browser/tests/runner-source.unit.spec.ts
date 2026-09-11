@@ -191,6 +191,30 @@ Redirects:
   expect(study.flowNodes.get('Done')?.businessObject?.redirectTo).toContain('cc={COMPLETION_CODE}');
 });
 
+test('every kind of task is a step the run reaches', async () => {
+  const study = await parseStudyflow(`id: all_tasks
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+All_Tasks:
+  type: bpmn:Process
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+    Receive:
+      type: bpmn:ReceiveTask
+    Rule:
+      type: bpmn:BusinessRuleTask
+    End:
+      type: bpmn:EndEvent
+    F1: Start -> Receive
+    F2: Receive -> Rule
+    F3: Rule -> End
+`, packages, {});
+
+  expect(study.flowNodes.get('Receive')?.outgoing).toEqual(['F2']);
+  expect(study.flowNodes.get('Rule')?.incoming).toEqual(['F2']);
+});
+
 test('a parameter the study declares nowhere still binds, and is named as undeclared', async () => {
   const study = await parseStudyflow(demoSource, packages, { arm: 'control' });
 

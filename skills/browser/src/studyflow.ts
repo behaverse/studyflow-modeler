@@ -6,16 +6,12 @@ import { BPMN, isDeclaredProperty } from '@core/constants';
 import type { FlowNode, SequenceFlow } from '@runner/flow';
 import type { PropertyDecl, Scope } from '@runner/scope';
 
-/** The `bpmn:FlowNode` subtypes a run can reach; anything else in the process is ignored. */
+/** What a run can reach besides tasks (every `bpmn:Task` subtype is one); anything else in the process is ignored. */
 const FLOW_NODE_TYPES: ReadonlySet<string> = new Set<string>([
   BPMN.StartEvent,
   BPMN.EndEvent,
-  BPMN.Task,
-  BPMN.UserTask,
-  BPMN.ServiceTask,
-  BPMN.ScriptTask,
-  BPMN.ManualTask,
   BPMN.ChoreographyTask,
+  BPMN.CallActivity,
   BPMN.SubProcess,
   BPMN.ExclusiveGateway,
   BPMN.InclusiveGateway,
@@ -158,7 +154,7 @@ export async function parseStudyflow(
 
     for (const el of children) {
       if (el.$type === 'bpmn:SequenceFlow') continue;
-      if (!FLOW_NODE_TYPES.has(el.$type)) continue;
+      if (!FLOW_NODE_TYPES.has(el.$type) && !el.$instanceOf?.(BPMN.Task)) continue;
 
       flowNodes.set(el.id, {
         id: el.id,
