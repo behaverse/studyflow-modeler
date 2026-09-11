@@ -1,6 +1,7 @@
 import type { ExportFormat } from '@modeler/export/formats';
 import { exportDiagramName } from '@modeler/export/common';
 import { readChoreographyBands } from '@core/document';
+import { isCollapsed, isHidden } from '@canvas/model/tree.ts';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 import type { Editor } from '@modeler/editor/port';
 
@@ -96,7 +97,7 @@ function paintRank(element: any): number {
   if (element.type === 'bpmn:Group') return 1;
   const isSubProcess = element.type === 'bpmn:SubProcess' || element.type === 'bpmn:Transaction'
     || element.type === 'bpmn:AdHocSubProcess';
-  const collapsed = element.collapsed ?? element.isExpanded === false;
+  const collapsed = isCollapsed(element);
   const isFrame = CONTAINER_TYPES.has(element.type) || (isSubProcess && !collapsed);
   return isFrame ? 0 : 2;
 }
@@ -178,7 +179,7 @@ function shapeStyle(element: any, bo: any): string {
   if (type === 'bpmn:SubProcess' || type === 'bpmn:Transaction' || type === 'bpmn:AdHocSubProcess') {
     // `bpmnShapeType` only for the transaction: draw.io reads its `subprocess` value as an *event* sub-process.
     const transaction = type === 'bpmn:Transaction' ? 'bpmnShapeType=transaction;' : '';
-    const collapsed = (element.collapsed ?? element.isExpanded === false)
+    const collapsed = isCollapsed(element)
       ? 'isLoopSub=1;' : 'verticalAlign=top;';
     return `${ACTIVITY_BASE}taskMarker=abstract;${transaction}${collapsed}${activityMarkers(bo)}`;
   }
@@ -285,13 +286,14 @@ function edgeCell(element: any, known: Set<string>): string {
 
 export function exportToDrawio(modeler: Editor): string {
   const root = modeler.canvas.getRoot();
+  const scope = modeler.canvas.getScope();
   const shapes: any[] = [];
   const connections: any[] = [];
 
   modeler.canvas.all().forEach((element: any) => {
-    if (element.kind === 'label' || element.type === 'label' || !element.businessObject) return;
-    // Only what is on screen: the elements of the drilled-into container, or the root plane.
-    if (modeler.canvas.rootOf(element) !== root) return;
+    if (element.kind === 'label' || !element.businessObject) return;
+    // Only what is on screen: the drilled-into container's contents, and nothing folded inside a collapsed one.
+    if (isHidden(element, scope)) return;
     if (element.waypoints) connections.push(element);
     else if (Number.isFinite(element.x) && Number.isFinite(element.y)) shapes.push(element);
   });

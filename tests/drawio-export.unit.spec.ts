@@ -11,11 +11,11 @@ type ShapeSpec = {
   type: string;
   bo?: Record<string, unknown>;
   parent?: any;
-  collapsed?: boolean;
+  isExpanded?: boolean;
   di?: Record<string, string>;
 };
 
-function shape({ id, type, bo = {}, parent = ROOT, collapsed, di }: ShapeSpec): any {
+function shape({ id, type, bo = {}, parent = ROOT, isExpanded, di }: ShapeSpec): any {
   return {
     id,
     type,
@@ -23,7 +23,7 @@ function shape({ id, type, bo = {}, parent = ROOT, collapsed, di }: ShapeSpec): 
     y: 200,
     width: 100,
     height: 80,
-    collapsed,
+    isExpanded,
     parent,
     businessObject: { $type: type, ...bo },
     fill: di?.['color:background-color'] ?? di?.['bioc:fill'],
@@ -43,28 +43,13 @@ function flow(id: string, type: string, source: any, target: any, bo: Record<str
   };
 }
 
-/**
- * `Editor.elements.findRoot`: the topmost ancestor of `element` — the plane it
- * is drawn on. A shape nested in a sub-process still answers ROOT; one parented to
- * another plane's root answers that plane, which is how `exportToDrawio` drops
- * everything the current plane does not depict.
- */
-function findRoot(element: any): any {
-  let cursor = element;
-  const guard = new Set<any>();
-  while (cursor?.parent && !guard.has(cursor)) {
-    guard.add(cursor);
-    cursor = cursor.parent;
-  }
-  return cursor;
-}
-
-function fakeModeler(elements: any[]): any {
+/** The canvas as the export reads it; `scope` is the container the view is drilled into. */
+function fakeModeler(elements: any[], scope?: any): any {
   return {
     canvas: {
       all: () => elements,
-      getRoot: () => ROOT,
-      rootOf: findRoot,
+      getRoot: () => scope ?? ROOT,
+      getScope: () => scope,
     },
   };
 }
@@ -146,10 +131,10 @@ test.describe('draw.io export', () => {
   test('a sub-process is a solid frame; only a transaction sets bpmnShapeType', () => {
     const xml = exportToDrawio(fakeModeler([
       ROOT,
-      shape({ id: 'Sub', type: 'bpmn:SubProcess', collapsed: true }),
+      shape({ id: 'Sub', type: 'bpmn:SubProcess', isExpanded: false }),
       shape({ id: 'Open', type: 'bpmn:SubProcess' }),
-      shape({ id: 'Tx', type: 'bpmn:Transaction', collapsed: true }),
-      shape({ id: 'Loop', type: 'bpmn:SubProcess', collapsed: true, bo: { loopCharacteristics: { $type: 'bpmn:MultiInstanceLoopCharacteristics' } } }),
+      shape({ id: 'Tx', type: 'bpmn:Transaction', isExpanded: false }),
+      shape({ id: 'Loop', type: 'bpmn:SubProcess', isExpanded: false, bo: { loopCharacteristics: { $type: 'bpmn:MultiInstanceLoopCharacteristics' } } }),
     ]));
 
     // draw.io reads bpmnShapeType=subprocess as an *event* sub-process (dashed border), so a plain one omits it.
@@ -268,15 +253,28 @@ test.describe('draw.io export', () => {
     expect(xml).toContain('<mxCell id="Grp" value="Enrolment"');
   });
 
-  test('skips labels and anything on another drilldown plane', () => {
-    const otherPlane = { id: 'Sub_plane', type: 'bpmn:SubProcess', businessObject: {} };
+  test('skips labels and anything folded inside a collapsed container', () => {
+    const collapsed = shape({ id: 'Sub', type: 'bpmn:SubProcess', isExpanded: false });
     const xml = exportToDrawio(fakeModeler([
       ROOT,
       shape({ id: 'T1', type: 'bpmn:Task' }),
-      { id: 'T1_label', type: 'label', x: 0, y: 0, width: 10, height: 10, parent: ROOT, businessObject: {} },
-      shape({ id: 'Hidden', type: 'bpmn:Task', parent: otherPlane }),
+      { id: 'T1_label', kind: 'label', x: 0, y: 0, width: 10, height: 10, parent: ROOT, businessObject: {} },
+      collapsed,
+      shape({ id: 'Hidden', type: 'bpmn:Task', parent: collapsed }),
     ]));
 
-    expect(cellIds(xml)).toEqual(['T1']);
+    expect(cellIds(xml)).toEqual(['T1', 'Sub']);
+  });
+
+  test('drilled into an expanded container, exports what the view shows: its contents', () => {
+    const sub = shape({ id: 'Sub', type: 'bpmn:SubProcess' });
+    const xml = exportToDrawio(fakeModeler([
+      ROOT,
+      sub,
+      shape({ id: 'Outside', type: 'bpmn:Task' }),
+      shape({ id: 'Inside', type: 'bpmn:Task', parent: sub }),
+    ], sub));
+
+    expect(cellIds(xml)).toEqual(['Inside']);
   });
 });
