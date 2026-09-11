@@ -239,7 +239,7 @@ export type BoundParameters = {
   overridden: string[];
   /** Supplied, but declared by no `studyflow:Parameters`, `bpmn:Property`, or attribute of the study. */
   undeclared: string[];
-  /** `{name}` references nothing has bound; the study cannot run until they are given. */
+  /** Declared names a `{name}` reference needs and nothing has bound; the study cannot run until they are given. */
   unbound: string[];
 };
 
@@ -304,7 +304,19 @@ function declaredAttributes(businessObject: any): Map<string, string | undefined
   return attributes;
 }
 
-/** Binds what a run was launched with to what the study declares, then substitutes `${name}` wherever it is written. */
+/** Every name the study declares a value for, at any depth: `studyflow:Parameters` keys, `bpmn:Property` names, study attributes. */
+function declaredNames(container: any, attributes: Map<string, unknown>): Set<string> {
+  const names = new Set<string>(attributes.keys());
+  const visit = (node: any): void => {
+    for (const values of readParameterObjects(node).values()) for (const name of Object.keys(values)) names.add(name);
+    for (const property of readProperties(node)) names.add(property.name);
+    for (const element of node?.flowElements ?? []) if (element.flowElements) visit(element);
+  };
+  visit(container);
+  return names;
+}
+
+/** Binds what a run was launched with to what the study declares, then substitutes `{name}` wherever it is written. */
 function bindParameters(
   definitions: any,
   businessObject: any,
@@ -345,7 +357,16 @@ function bindParameters(
     }
   }
 
+  // A `{name}` the study declares nowhere is someone else's placeholder (the end event's `{COMPLETION_CODE}`,
+  // a run-state `{count}`) and stays as written; a declared one left without a value blocks the run.
+  const declared = declaredNames(businessObject, attributes);
   const unbound = new Set<string>();
+  const substitute = (text: string, scope: Record<string, unknown>): string => text.replace(PARAMETER_REF, (ref, name: string) => {
+    const bound = scope[name];
+    if (bound !== undefined && bound !== '') return String(bound);
+    if (declared.has(name)) unbound.add(name);
+    return ref;
+  });
 
   const substituteIn = (node: any, scope: Record<string, unknown>, seen: Set<object>): void => {
     if (!node || typeof node !== 'object' || seen.has(node)) return;
@@ -360,28 +381,14 @@ function bindParameters(
       if (key.startsWith('$') || key === 'flowElements' || byName[key]?.isReference) continue;
       const value = node[key];
       if (typeof value === 'string') {
-        node[key] = value.replace(PARAMETER_REF, (ref, name: string) => {
-          const bound = scope[name];
-          if (bound === undefined || bound === '') {
-            unbound.add(name);
-            return ref;
-          }
-          return String(bound);
-        });
+        node[key] = substitute(value, scope);
       } else {
         substituteIn(value, scope, seen);
       }
     }
     for (const [key, value] of Object.entries(node.$attrs ?? {})) {
       if (typeof value !== 'string') continue;
-      node.$attrs[key] = value.replace(PARAMETER_REF, (ref, name: string) => {
-        const bound = scope[name];
-        if (bound === undefined || bound === '') {
-          unbound.add(name);
-          return ref;
-        }
-        return String(bound);
-      });
+      node.$attrs[key] = substitute(value, scope);
     }
   };
 

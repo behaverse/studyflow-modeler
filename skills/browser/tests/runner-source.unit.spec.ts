@@ -170,6 +170,27 @@ test('a reference nothing has bound is reported, not silently emptied', async ()
   expect(study.parameters.unbound).toEqual(['task']);
 });
 
+/** `{COMPLETION_CODE}` belongs to the end event and `{count}` to the run state: neither is asked of the link. */
+test('a placeholder that names no declared parameter is left as written, not demanded', async () => {
+  const study = await parseStudyflow(`id: redirects
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Redirects:
+  type: bpmn:Process
+  flowElements:
+    Trial:
+      type: bpmn:Task
+      name: "Trial {count}"
+    Done:
+      type: bpmn:EndEvent
+      redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
+`, packages, {});
+
+  expect(study.parameters.unbound).toEqual([]);
+  expect(study.flowNodes.get('Trial')?.businessObject?.name).toBe('Trial {count}');
+  expect(study.flowNodes.get('Done')?.businessObject?.redirectTo).toContain('cc={COMPLETION_CODE}');
+});
+
 test('a parameter the study declares nowhere still binds, and is named as undeclared', async () => {
   const study = await parseStudyflow(demoSource, packages, { arm: 'control' });
 
