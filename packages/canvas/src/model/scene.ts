@@ -89,6 +89,9 @@ export interface SceneLabel extends Base {
 
 export type SceneElement = SceneNode | SceneEdge | SceneLabel;
 
+/** What has a business object of its own: nodes and edges, not the labels that caption them. */
+export type Drawable = SceneNode | SceneEdge;
+
 /** The document root (process / collaboration) projected onto an element shape. */
 export interface RootElement {
   readonly id: string;

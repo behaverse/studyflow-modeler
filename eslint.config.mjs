@@ -90,7 +90,7 @@ export default [
       // Import bans miss services passed in as `any`; ban the names too.
       'no-restricted-syntax': ['error', {
         selector: 'Identifier[name=/^(modeling|bpmnFactory|elementRegistry|commandStack|eventBus|modeler|injector|popupMenu|contextPad)$/]',
-        message: 'core/ is the domain layer: it may not name a bpmn-js service, even as `any`. Accept a port (see `Writer`) and let modeler/ pass the adapter.',
+        message: 'core/ is the domain layer: it may not name a bpmn-js service, even as `any`. Accept a port (see `AttributeUpdater`) and let the caller pass the adapter.',
       }],
     },
   },

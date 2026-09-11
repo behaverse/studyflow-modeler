@@ -34,7 +34,7 @@ import { APPEND_MENU, COLOR_MENU, REPLACE_MENU } from '@modeler/popup/PopupMenus
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';
-import type { Rect } from '@canvas/index.ts';
+import type { Bounds } from '@canvas/index.ts';
 import { is, type EditorElement, type Editor } from '@modeler/editor/port';
 
 /** Gap between the selection OUTLINE's right edge and the pad (ux-spec §4). */
@@ -107,10 +107,10 @@ function ownerOf(element: EditorElement): EditorElement {
 }
 
 /** The union bbox of `elements` in screen coordinates, skipping off-plane ones. */
-function selectionBBox(editor: Editor, elements: EditorElement[]): Rect | undefined {
-  let box: Rect | undefined;
+function selectionBBox(editor: Editor, elements: EditorElement[]): Bounds | undefined {
+  let box: Bounds | undefined;
   for (const element of elements) {
-    let next: Rect;
+    let next: Bounds;
     try {
       next = editor.canvas.getAbsoluteBBox(element);
     } catch {

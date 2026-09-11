@@ -4,7 +4,6 @@
  * choreography band. Enter commits, Escape abandons.
  */
 
-import type { EventBus } from '@canvas/bus.ts';
 import { isChoreographyTask, isTypedChoreography, participantRefs, readChoreographyBands } from '@canvas/model/choreography.ts';
 import { hasExternalLabel } from '@canvas/model/labels.ts';
 import { nameOf } from '@canvas/model/moddle.ts';
@@ -27,22 +26,14 @@ import type { Viewport } from '@canvas/view/viewport.ts';
 export type LabelBand = 'name' | 'top' | 'bottom';
 export type LabelPlacement = 'internal' | 'external';
 
-export interface DirectEditingEvent {
-  element: SceneNode | SceneEdge;
-  band: LabelBand;
-  initial: string;
-  value?: string;
-}
-
 export interface LabelEditingOptions {
   container: HTMLElement;
   viewport: Viewport;
-  bus: EventBus;
   getMutator: () => Mutator | undefined;
   redraw: (elements: SceneElement[]) => void;
   restoreFocus?: () => void;
-  /** Hide the drawn text while the transparent editor stands in for it. */
-  setLabelHidden?: (element: SceneElement, hidden: boolean) => void;
+  /** An edit opened or closed on `element`: the host hides its drawn text while the transparent editor stands in for it. */
+  onEditing?: (element: SceneNode | SceneEdge, editing: boolean) => void;
 }
 
 export interface LabelEditingSession {
@@ -148,10 +139,8 @@ export class LabelEditing {
     const initial = this.textOf(element, band);
     const session: LabelEditingSession = { element, band, initial, bounds: labelBounds(element, band) };
     this.session = session;
-    this.options.setLabelHidden?.(element.kind === 'node' || element.kind === 'edge' ? element.label ?? element : element, true);
-    if (element.label && labelPlacement(element) === 'external') this.options.setLabelHidden?.(element.label, true);
+    this.options.onEditing?.(element, true);
     this.input = this.createInput(session);
-    this.options.bus.fire('DirectEditingActivate', { element, band, initial } satisfies DirectEditingEvent);
     return true;
   }
 
@@ -161,7 +150,6 @@ export class LabelEditing {
     if (!session) return false;
     this.close();
     const affected = this.write(session, value);
-    this.options.bus.fire('DirectEditingComplete', { element: session.element, band: session.band, initial: session.initial, value } satisfies DirectEditingEvent);
     if (affected.length > 0) this.options.redraw(affected);
     return affected.length > 0;
   }
@@ -170,16 +158,12 @@ export class LabelEditing {
     const session = this.session;
     if (!session) return;
     this.close();
-    this.options.bus.fire('DirectEditingCancel', { element: session.element, band: session.band, initial: session.initial } satisfies DirectEditingEvent);
   }
 
   private close(): void {
     this.closing = true;
     const session = this.session;
-    if (session) {
-      this.options.setLabelHidden?.(session.element, false);
-      if (session.element.label) this.options.setLabelHidden?.(session.element.label, false);
-    }
+    if (session) this.options.onEditing?.(session.element, false);
     const input = this.input;
     if (input) {
       input.removeEventListener('keydown', this.onKeyDown);

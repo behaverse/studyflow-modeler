@@ -10,9 +10,10 @@ import { nameOf } from '@canvas/model/moddle.ts';
 import { visibleEndpointOf, withDescendants } from '@canvas/model/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/render/labels.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
-import { freeMoveEnd, moveBendpoint, moveTerminal } from '@canvas/routing/edit.ts';
+import { freeMoveEnd, moveBendpoint, moveTerminal, samePoints } from '@canvas/routing/edit.ts';
 import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
 import type { ResizeHandle } from '@canvas/interaction/selection.ts';
+import type { Size } from '@canvas/rules/rules.ts';
 
 export const DEFAULT_GRID_SIZE = 10;
 export const DEFAULT_MIN_SIZE = 20;
@@ -28,16 +29,11 @@ export interface GridAxes {
 
 const BOTH_AXES: GridAxes = { x: true, y: true };
 
-export interface MinSize {
-  width: number;
-  height: number;
-}
-
 export interface DragOptions {
   mutator: Mutator;
   redraw: (elements: SceneElement[]) => void;
   snapToGrid?: boolean;
-  minSizeFor?: (node: SceneNode) => MinSize;
+  minSizeFor?: (node: SceneNode) => Size;
   /** Boxes a live re-route steers around, asked once per move. */
   obstacles?: (moving: readonly SceneNode[]) => Bounds[];
   getScope?: () => SceneNode | undefined;
@@ -69,7 +65,7 @@ interface ResizeState {
   target: Movable;
   handle: ResizeHandle;
   bounds: Bounds;
-  min: MinSize;
+  min: Size;
   labelOrigin?: Point;
   edges: SceneEdge[];
   edgeOrigins: Map<SceneEdge, Point[]>;
@@ -94,7 +90,7 @@ export function snapTo(value: number, step: number): number {
 export class Drag {
   private readonly mutator: Mutator;
   private readonly redraw: (elements: SceneElement[]) => void;
-  private readonly minSizeOf?: (node: SceneNode) => MinSize;
+  private readonly minSizeOf?: (node: SceneNode) => Size;
   private readonly obstaclesFor?: (moving: readonly SceneNode[]) => Bounds[];
   private readonly getScope?: () => SceneNode | undefined;
   private snap: boolean;
@@ -386,10 +382,6 @@ function movedFrom(state: DragState, element: SceneElement): boolean {
     return b.x !== element.x || b.y !== element.y || b.width !== element.width || b.height !== element.height;
   }
   return true;
-}
-
-function samePoints(a: readonly Point[], b: readonly Point[]): boolean {
-  return a.length === b.length && a.every((p, i) => p.x === b[i].x && p.y === b[i].y);
 }
 
 function restoreMove(state: MoveState): SceneElement[] {

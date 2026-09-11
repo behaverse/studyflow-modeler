@@ -5,6 +5,7 @@
 
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { depthOf, isHidden } from '@canvas/model/tree.ts';
+import { distanceToSegment } from '@canvas/routing/edit.ts';
 
 export interface HitOptions {
   /** An element the predicate rejects is invisible to the query. */
@@ -65,7 +66,7 @@ export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): S
   for (let i = nodes.length - 1; i >= 0; i -= 1) {
     const node = nodes[i];
     if (accept && !accept(node)) continue;
-    if (!pointInNode(point, node)) continue;
+    if (!pointInBox(point, node)) continue;
     if (!isContainerNode(node)) return node;
     if (!container || outranksFrame(node, container)) container = node;
   }
@@ -107,10 +108,6 @@ export function isContainerNode(node: SceneNode): boolean {
 export function pointInBox(point: Point, box: Bounds, padding = 0): boolean {
   return point.x >= box.x - padding && point.x <= box.x + box.width + padding
     && point.y >= box.y - padding && point.y <= box.y + box.height + padding;
-}
-
-export function pointInNode(point: Point, node: SceneNode, padding = 0): boolean {
-  return pointInBox(point, node, padding);
 }
 
 export function nodesIntersecting(scene: Scene, rect: Bounds): SceneNode[] {
@@ -164,18 +161,9 @@ export function distanceToPolyline(point: Point, waypoints: readonly Point[]): n
   if (waypoints.length === 1) return Math.hypot(point.x - waypoints[0].x, point.y - waypoints[0].y);
   let min = Infinity;
   for (let i = 0; i < waypoints.length - 1; i += 1) {
-    min = Math.min(min, pointToSegment(point, waypoints[i], waypoints[i + 1]));
+    min = Math.min(min, distanceToSegment(waypoints[i], waypoints[i + 1], point));
   }
   return min;
-}
-
-function pointToSegment(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
-  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
 export function normalizeRect(r: Bounds): Bounds {

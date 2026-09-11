@@ -5,7 +5,7 @@
  */
 
 import type { Bounds, Point } from '@canvas/model/scene.ts';
-import { categoryOf } from '@canvas/render/shapes.ts';
+import { categoryOf, dataObjectFold, dataStoreRim } from '@canvas/render/shapes.ts';
 import { isDataStore } from '@canvas/rules/rules.ts';
 
 export interface CroppableShape extends Bounds {
@@ -14,10 +14,6 @@ export interface CroppableShape extends Bounds {
 
 export type Outline = 'rect' | 'ellipse' | 'diamond' | 'dataObject' | 'dataStore';
 
-/** Must match `render/shapes.ts`. */
-const DATA_FOLD_RATIO = 0.32;
-const DATA_STORE_CAP_RATIO = 0.12;
-const DATA_STORE_MAX_CAP = 8;
 const EPSILON = 1e-9;
 
 export function outlineFor(type: string | undefined): Outline {
@@ -70,12 +66,11 @@ export function containsPoint(shape: CroppableShape, point: Point): boolean {
 }
 
 function foldConstant(shape: Bounds): number {
-  const fold = Math.min(shape.width, shape.height) * DATA_FOLD_RATIO;
-  return shape.x + shape.width - fold - shape.y;
+  return shape.x + shape.width - dataObjectFold(shape.width, shape.height) - shape.y;
 }
 
 function capHeight(shape: Bounds): number {
-  return Math.min(shape.height * DATA_STORE_CAP_RATIO, DATA_STORE_MAX_CAP);
+  return dataStoreRim(shape.height);
 }
 
 /** Where the ray from `from` (inside `shape`) toward `towards` leaves the outline. */

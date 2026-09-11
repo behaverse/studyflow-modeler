@@ -40,6 +40,7 @@ import {
 import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/model/remove.ts';
 import type {
   Bounds,
+  Drawable,
   ElementColors,
   ModdleObject,
   Point,
@@ -60,10 +61,10 @@ import {
   isExpandable,
 } from '@canvas/model/tree.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
+import { samePoints } from '@canvas/routing/edit.ts';
 import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
 import { containerFor } from '@canvas/rules/rules.ts';
 
-type Drawable = SceneNode | SceneEdge;
 
 export interface PartialBounds {
   x?: number;
@@ -165,10 +166,6 @@ export function redockToOutline(node: SceneNode, scope?: SceneNode): SceneEdge[]
     if (!samePoints(before, edge.waypoints)) changed.push(edge);
   }
   return changed;
-}
-
-function samePoints(a: readonly Point[], b: readonly Point[]): boolean {
-  return a.length === b.length && a.every((p, i) => p.x === b[i].x && p.y === b[i].y);
 }
 
 /** Move nodes, edges and pinned labels by `(dx, dy)`. */
@@ -439,8 +436,8 @@ export class Mutator {
 
   // --- creation -----------------------------------------------------------------
 
-  addShape(spec: AddShapeSpec): SceneNode {
-    const scene = this.scene;
+  /** The business object for a new element: the one `spec` hands in, or one minted from it; its id claimed, its extension ensured. */
+  private businessObjectFor(spec: Pick<AddShapeSpec, 'type' | 'businessObject' | 'attrs' | 'extensionType' | 'id'>) {
     const factory = this.factory ?? modelOf(spec.businessObject);
     const bo = spec.businessObject ?? mint(factory, spec.type, { ...(spec.attrs ?? {}) });
     if (spec.businessObject && spec.attrs) {
@@ -453,6 +450,12 @@ export class Mutator {
     if (spec.extensionType && factory?.create && !getExtensionType(bo)) {
       StudyflowElement.fromBusinessObject(bo).ensureExtension(spec.extensionType, factory as never, getDefaults(spec.extensionType));
     }
+    return { bo, type, id, factory };
+  }
+
+  addShape(spec: AddShapeSpec): SceneNode {
+    const scene = this.scene;
+    const { bo, type, id, factory } = this.businessObjectFor(spec);
 
     const parentNode = spec.attachTo ? spec.attachTo.parent : spec.parent;
     if (spec.attachTo) setRef(bo, 'attachedToRef', spec.attachTo.businessObject);
@@ -497,18 +500,7 @@ export class Mutator {
 
   addConnection(spec: AddConnectionSpec): SceneEdge {
     const scene = this.scene;
-    const factory = this.factory ?? modelOf(spec.businessObject);
-    const bo = spec.businessObject ?? mint(factory, spec.type, { ...(spec.attrs ?? {}) });
-    if (spec.businessObject && spec.attrs) {
-      for (const [name, value] of Object.entries(spec.attrs)) setProp(bo, name, value);
-    }
-    const type = typeof bo.$type === 'string' ? bo.$type : spec.type;
-    const id = spec.id ?? (typeof bo.id === 'string' && bo.id ? bo.id : this.ids.next(spec.extensionType ?? type, bo));
-    bo.id = id;
-    this.ids.claim(id);
-    if (spec.extensionType && factory?.create && !getExtensionType(bo)) {
-      StudyflowElement.fromBusinessObject(bo).ensureExtension(spec.extensionType, factory as never, getDefaults(spec.extensionType));
-    }
+    const { bo, type, id } = this.businessObjectFor(spec);
 
     const dataEnds = isDataAssociationType(type) && spec.source.kind === 'node'
       ? dataAssociationEnds(spec.source, spec.target)

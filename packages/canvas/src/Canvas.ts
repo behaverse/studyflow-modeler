@@ -12,13 +12,13 @@ import { Connect } from '@canvas/interaction/connect.ts';
 import { boundsFor, Create, createShape, defaultSizeFor, type CreatePrototype, type ShapeDescriptor } from '@canvas/interaction/create.ts';
 import { DEFAULT_GRID_SIZE, Drag, snapTo, type Movable } from '@canvas/interaction/drag.ts';
 import { Gestures, ZOOM_STEP } from '@canvas/interaction/gestures.ts';
-import { edgesIntersecting, hitTest, isContainerNode, nodesIntersecting, orderedNodes, pointInNode, type HitOptions } from '@canvas/interaction/hit.ts';
+import { edgesIntersecting, hitTest, isContainerNode, nodesIntersecting, orderedNodes, pointInBox, type HitOptions } from '@canvas/interaction/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, OUTLINE_CLASS, Selection } from '@canvas/interaction/selection.ts';
 import { tasksReferencing } from '@canvas/model/choreography.ts';
 import { writeDi } from '@canvas/model/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/model/import.ts';
-import { syncLabel } from '@canvas/model/labels.ts';
+import { labelIdOf, syncLabel } from '@canvas/model/labels.ts';
 import { eventDefinitionTypeOf, prop, setProp } from '@canvas/model/moddle.ts';
 import { Mutator } from '@canvas/model/mutator.ts';
 import { isRootElement, type Bounds, type ElementColors, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
@@ -47,7 +47,6 @@ export interface CanvasViewbox extends Viewbox {
   outer: { width: number; height: number };
 }
 
-export type Rect = Bounds;
 export type Root = RootElement | SceneNode;
 
 const EXPORT_MARGIN = 4;
@@ -110,19 +109,16 @@ export class Canvas {
     this.labelEditing = new LabelEditing({
       container: this.container,
       viewport: this.viewport,
-      bus: this.bus,
       getMutator: () => this.mutator,
       redraw: (elements) => this.redrawElements(elements),
       restoreFocus: () => this.focus(),
-      setLabelHidden: (element, hidden) => {
-        if (hidden) this.selection.addMarker(element.id, 'sf-label-hidden');
-        else this.selection.removeMarker(element.id, 'sf-label-hidden');
+      // While its text is edited in place, an element drops its outline and its drawn text: the caption, else its own.
+      onEditing: (element, editing) => {
+        const mark = editing ? this.selection.addMarker.bind(this.selection) : this.selection.removeMarker.bind(this.selection);
+        mark(element.id, EDITING_MARKER);
+        mark((element.label ?? element).id, 'sf-label-hidden');
       },
     });
-    this.bus.on<{ element: SceneElement }>('DirectEditingActivate', ({ element }) => this.selection.addMarker(element.id, EDITING_MARKER));
-    const endEditing = ({ element }: { element: SceneElement }) => this.selection.removeMarker(element.id, EDITING_MARKER);
-    this.bus.on('DirectEditingComplete', endEditing);
-    this.bus.on('DirectEditingCancel', endEditing);
 
     this.create = new Create({
       getScene: () => this.scene,
@@ -363,7 +359,7 @@ export class Canvas {
   }
 
   /** The screen-space box of `element`. */
-  getAbsoluteBBox(element: unknown): Rect {
+  getAbsoluteBBox(element: unknown): Bounds {
     const target = this.resolveElement(element);
     return this.viewport.getAbsoluteBBox((target && boundsOf([target])) ?? { x: 0, y: 0, width: 0, height: 0 });
   }
@@ -486,7 +482,7 @@ export class Canvas {
       if (!this.renderer.redraw(element)) continue;
       this.selection.restoreMarkers(element.id);
       if (!label) {
-        const labelId = `${element.id}_label`;
+        const labelId = labelIdOf(element);
         if (this.renderer.erase(labelId)) {
           this.selection.forget(labelId);
           if (this.selection.isSelected(labelId)) this.selection.select(this.selection.get().filter((e) => e.id !== labelId));
@@ -626,7 +622,7 @@ export class Canvas {
     const onNode = nodesIntersecting(this.scene, bounds).some((node) => {
       if (node === from) return false;
       if (!isContainerNode(node)) return true;
-      return origin !== undefined && !pointInNode(origin, node);
+      return origin !== undefined && !pointInBox(origin, node);
     });
     if (onNode) return true;
     return edgesIntersecting(this.scene, bounds).some((edge) => edge !== from);
@@ -804,12 +800,7 @@ export class Canvas {
     this.updateModdleProperties(element, bo, properties);
   }
 
-  /** `AttributeUpdater` for `@core/element`: a write on any moddle object reachable from `element`. */
-  update(element: unknown, target: object, properties: Record<string, unknown>): void {
-    this.updateModdleProperties(element, target, properties);
-  }
-
-  /** Write `properties` on any moddle object reachable from `element` and record the edit. */
+  /** Write `properties` on any moddle object reachable from `element` and record the edit (core's `AttributeUpdater`). */
   updateModdleProperties(element: unknown, moddle: object, properties: Record<string, unknown>): void {
     const mutator = this.mutator;
     const moddleElement = moddle as ModdleObject;
@@ -912,7 +903,7 @@ export class Canvas {
     ));
     for (const element of removed) {
       this.renderer.erase(element.id);
-      this.renderer.erase(`${element.id}_label`);
+      this.renderer.erase(labelIdOf(element));
       this.selection.forget(element.id);
     }
     this.selection.select(keep.length > 0 ? keep : null);

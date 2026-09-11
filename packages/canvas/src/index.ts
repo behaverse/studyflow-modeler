@@ -3,7 +3,7 @@
  * Deep imports (`@canvas/routing/crop.ts`) are fine; this barrel is the stable surface.
  */
 
-export { Canvas, type CanvasOptions, type CanvasViewbox, type Rect, type Root } from './Canvas.ts';
+export { Canvas, type CanvasOptions, type CanvasViewbox, type Root } from './Canvas.ts';
 export type {
   Bounds,
   ElementColors,

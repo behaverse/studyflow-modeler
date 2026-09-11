@@ -10,6 +10,7 @@ import { getCatalog } from '@core/notation/index.ts';
 
 import { isTypedChoreography, readChoreographyBands } from '@canvas/model/choreography.ts';
 import { normalizeColor } from '@canvas/model/color.ts';
+import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
 import { nameOf, prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { isCollapsed, isHidden, zRankOf } from '@canvas/model/tree.ts';
@@ -51,7 +52,7 @@ import { INK } from '@canvas/view/theme.ts';
 
 const THICK_ACTIVITY = new Set<string>([BPMN.CallActivity, 'bpmn:Transaction']);
 const EDGE_TYPES = new Set<string>([
-  BPMN.SequenceFlow, BPMN.MessageFlow, BPMN.Association, 'bpmn:DataInputAssociation', 'bpmn:DataOutputAssociation',
+  BPMN.SequenceFlow, BPMN.MessageFlow, BPMN.Association, DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION,
 ]);
 
 /** The type glyph, tucked into the top-left corner; its row is what `CHROME.head` keeps clear. */
@@ -522,7 +523,7 @@ function round(value: number): number {
 
 export function edgeDashArray(type: string): string | null {
   if (type === BPMN.MessageFlow) return '8,6';
-  if (type === BPMN.Association || type === 'bpmn:DataInputAssociation' || type === 'bpmn:DataOutputAssociation') return '2,5';
+  if (type === BPMN.Association || isDataAssociationType(type)) return '2,5';
   return null;
 }
 

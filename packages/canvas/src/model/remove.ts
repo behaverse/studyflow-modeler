@@ -18,10 +18,9 @@ import {
   setProp,
   unfile,
 } from '@canvas/model/moddle.ts';
-import type { ModdleObject, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import type { Drawable, ModdleObject, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { depthOf } from '@canvas/model/tree.ts';
 
-type Drawable = SceneNode | SceneEdge;
 
 function attachedIndex(scene: Scene): Map<ModdleObject, SceneNode[]> {
   const index = new Map<ModdleObject, SceneNode[]>();

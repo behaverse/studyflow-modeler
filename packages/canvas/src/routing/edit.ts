@@ -22,6 +22,11 @@ function roundPath(points: readonly Point[]): Point[] {
   return points.map((p) => ({ x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }));
 }
 
+/** Two paths with exactly the same points. */
+export function samePoints(a: readonly Point[], b: readonly Point[]): boolean {
+  return a.length === b.length && a.every((p, i) => p.x === b[i].x && p.y === b[i].y);
+}
+
 export function distanceToSegment(a: Point, b: Point, p: Point): number {
   const dx = b.x - a.x;
   const dy = b.y - a.y;

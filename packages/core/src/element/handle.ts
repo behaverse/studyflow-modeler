@@ -11,12 +11,13 @@ import {
   toBusinessObject,
 } from '@core/element/attributes';
 
+/** Where a write goes: straight onto moddle by default; the canvas implements it to redraw and record the edit. */
 export interface AttributeUpdater {
-  update(element: any, target: ModdleElement, props: Record<string, any>): void;
+  updateModdleProperties(element: any, target: ModdleElement, props: Record<string, any>): void;
 }
 
 const directUpdater: AttributeUpdater = {
-  update(_element, target, props) {
+  updateModdleProperties(_element, target, props) {
     for (const [name, value] of Object.entries(props)) setProperty(target, name, value);
   },
 };
@@ -221,7 +222,7 @@ export class StudyflowElement {
   setExpressionLanguage(attributeName: string, language: string | undefined): void {
     const expression = this.expressionElement(attributeName);
     if (!expression) return;
-    this.updater.update(this.element ?? expression, expression, { language: language || undefined });
+    this.updater.updateModdleProperties(this.element ?? expression, expression, { language: language || undefined });
   }
 
   setAttribute(attributeName: string, value: any): void {
@@ -238,28 +239,28 @@ export class StudyflowElement {
       if (attrDef?.isMany) {
         const { checklist: kept, prose } = documentationEntries(getProperty(r.target, r.attributeName));
         if (value == null || value === '') {
-          this.updater.update(this.element, r.target, { [r.attributeName]: kept.length > 0 ? kept : undefined });
+          this.updater.updateModdleProperties(this.element, r.target, { [r.attributeName]: kept.length > 0 ? kept : undefined });
           return;
         }
         if (prose.length === 1 && typeof prose[0] === 'object' && prose[0].$type) {
-          this.updater.update(this.element, prose[0], { [bodyProp]: value });
+          this.updater.updateModdleProperties(this.element, prose[0], { [bodyProp]: value });
           return;
         }
         const model = r.target?.$model ?? bo?.$model;
         if (model && attrDef?.type) {
           const child = model.create(attrDef.type, { [bodyProp]: value });
           child.$parent = r.target;
-          this.updater.update(this.element, r.target, { [r.attributeName]: [child, ...kept] });
+          this.updater.updateModdleProperties(this.element, r.target, { [r.attributeName]: [child, ...kept] });
           return;
         }
       }
       if (value == null || value.trim() === '') {
-        this.updater.update(this.element, r.target, { [r.attributeName]: undefined });
+        this.updater.updateModdleProperties(this.element, r.target, { [r.attributeName]: undefined });
         return;
       }
       const existing = getProperty(r.target, r.attributeName);
       if (existing && typeof existing === 'object' && existing.$type) {
-        this.updater.update(this.element, existing, { [bodyProp]: value });
+        this.updater.updateModdleProperties(this.element, existing, { [bodyProp]: value });
         return;
       }
       // A bare string under a wrapper property does not serialize; moddle needs the declared element, and `bpmn:Expression` is abstract.
@@ -272,7 +273,7 @@ export class StudyflowElement {
       }
     }
 
-    this.updater.update(this.element, r.target, { [r.attributeName]: value });
+    this.updater.updateModdleProperties(this.element, r.target, { [r.attributeName]: value });
   }
 
   private getChecklist(): any {
@@ -287,18 +288,18 @@ export class StudyflowElement {
     const text = typeof value === 'string' ? value : '';
     if (!text.trim()) {
       if (entry) {
-        this.updater.update(this.element, bo, { ['documentation']: prose.length > 0 ? prose : undefined });
+        this.updater.updateModdleProperties(this.element, bo, { ['documentation']: prose.length > 0 ? prose : undefined });
       }
       return;
     }
     if (entry) {
-      this.updater.update(this.element, entry, { text });
+      this.updater.updateModdleProperties(this.element, entry, { text });
       return;
     }
     const model = bo?.$model;
     if (!model) return;
     const created = model.create(DOCUMENTATION_TYPE, { [CHECKLIST_MARKER]: true, text });
     created.$parent = bo;
-    this.updater.update(this.element, bo, { ['documentation']: [...prose, created] });
+    this.updater.updateModdleProperties(this.element, bo, { ['documentation']: [...prose, created] });
   }
 }

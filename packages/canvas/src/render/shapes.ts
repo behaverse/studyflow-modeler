@@ -85,8 +85,13 @@ export function drawDiamond(parent: SVGElement, w: number, h: number, style: Sha
   }));
 }
 
+/** Side of a data object's folded corner. */
+export function dataObjectFold(w: number, h: number): number {
+  return Math.min(w, h) * 0.32;
+}
+
 export function drawDataObject(parent: SVGElement, w: number, h: number, style: ShapeStyle): SVGElement {
-  const fold = Math.min(w, h) * 0.32;
+  const fold = dataObjectFold(w, h);
   const body = append(parent, create('path', {
     d: `M0,0 L${w - fold},0 L${w},${fold} L${w},${h} L0,${h} Z`,
     fill: style.fill, stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-linejoin': 'round',
