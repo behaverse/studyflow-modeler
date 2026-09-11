@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Modal } from '@modeler/ui/Modal';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { collectChecklistGroups } from '@modeler/checklist/groups';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
@@ -8,7 +8,7 @@ import { DialogHelp } from '@modeler/ui/DialogHelp';
 type Props = { isOpen: boolean; onClose: () => void };
 
 export function ChecklistDialog({ isOpen, onClose }: Props) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const groups = useMemo(() => (isOpen ? collectChecklistGroups(modeler) : []), [isOpen, modeler]);
 
   const totalCheckboxes = groups.reduce(

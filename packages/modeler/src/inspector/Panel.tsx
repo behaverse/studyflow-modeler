@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { ICONS } from '@modeler/icons';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { InspectorContext } from '@modeler/inspector/state';
 import { CategoryTabs } from '@modeler/inspector/CategoryTabs';
 import { getAttributesByCategory } from '@modeler/inspector/categories';
@@ -65,7 +65,7 @@ function useSelectedElement(editor: Editor): any {
 }
 
 export function Panel() {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const element = useSelectedElement(modeler);
   // Below 900px an open panel leaves no canvas worth drawing on (the same
   // threshold `--inspector-gutter` uses), so it starts out of the way. The

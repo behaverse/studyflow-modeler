@@ -3,7 +3,7 @@ import { INK, type FontPatch, type TextAlign } from '@canvas/index.ts';
 import { getExtensionType } from '@core/element';
 import { eventDefinitionTypeOf } from '@canvas/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
 import { ICONS } from '@modeler/icons';
@@ -60,7 +60,7 @@ function pointerEventFor(event: ReactMouseEvent, anchor: PopupPosition): MouseEv
 }
 
 export function PopupMenus() {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const [open, setOpen] = useState<OpenMenu | null>(null);
   /** Bumped on every edit: the style menu stays open, so its toggles must re-read the font. */
   const [revision, setRevision] = useState(0);

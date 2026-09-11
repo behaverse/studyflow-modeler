@@ -3,10 +3,8 @@ import type { Editor } from '@modeler/editor/port';
 
 const noop = () => {};
 
-export const ModelerContext = createContext<{
-  modeler: Editor | undefined;
-  setModeler: (modeler: Editor | undefined) => void;
-}>({ modeler: undefined, setModeler: noop });
+/** The editor, once booted; App renders nothing that reads it before then. */
+export const ModelerContext = createContext<Editor | undefined>(undefined);
 
 export const SettingsViewContext = createContext<{
   openSettings: () => void;

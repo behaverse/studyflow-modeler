@@ -35,8 +35,8 @@ test('the colour picker really does dispatch `SetColor` with the editor', () => 
   const source = read('popup/PopupMenus.tsx');
 
   expect(source).toMatch(/executeCommand\(\s*modeler\s*,\s*\{\s*type:\s*'SetColor'/);
-  expect(source, 'the editor is what the React tree holds, from `useRequiredModeler`')
-    .toMatch(/const modeler = useRequiredModeler\(\)/);
+  expect(source, 'the editor is what the React tree holds, from `useModeler`')
+    .toMatch(/const modeler = useModeler\(\)/);
 });
 
 test('every command the app boots with tolerates a null modeler', () => {

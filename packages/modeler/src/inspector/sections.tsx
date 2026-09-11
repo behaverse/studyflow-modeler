@@ -21,7 +21,7 @@ import { actorOf, isTypedChoreography, readChoreographyBands } from '@core/docum
 import { listParticipants, participantKind, participantKinds, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { StudyflowElement, getAttributeSpec, isExtensionPrefix } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { InspectorContext, useInspectedElement } from '@modeler/inspector/state';
 import { AttributeInput } from '@modeler/inspector/registry';
 import { categoriesOf, isAttributeVisible } from '@modeler/inspector/categories';
@@ -74,7 +74,7 @@ function kindLabel(kind: ParticipantKind | undefined): string {
 function ParticipantField({ element, field, participant, label, help, declared, typed, fallback = '' }: {
   element: any; field: 'top' | 'bottom'; participant: any; label: string; help: string; declared: any[]; typed: boolean; fallback?: string;
 }) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const [query, setQuery] = useState('');
   const name = participant?.name ?? fallback; // a plain task's band reads its placeholder until someone is named
   const kind = participantKind(participant);
@@ -144,7 +144,7 @@ function ParticipantField({ element, field, participant, label, help, declared, 
 function ActorFields({ element, field, participant, kind }: {
   element: any; field: 'top' | 'bottom'; participant: any; kind: ParticipantKind | undefined;
 }) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const kinds = [{ name: kindLabel(undefined), value: '' }, ...participantKinds().map((k) => ({ name: k.label, value: k.id }))];
   // Kind stands for the attribute that picks it; the rest of the extension's default-tab settings render as they would on a pool.
   const attrDefs = StudyflowElement.fromBusinessObject(participant).extensionAttributes()
@@ -176,7 +176,7 @@ function ActorFields({ element, field, participant, kind }: {
 }
 
 function ParticipantFields({ element }: { element: any }) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const bo = element.businessObject ?? element;
   const bands = readChoreographyBands(bo);
   const refs: any[] = bo.get?.('participantRef') ?? bo.participantRef ?? [];
@@ -223,7 +223,7 @@ const SCOPE_DESCRIPTION =
 
 export function StateSection() {
   const element = useInspectedElement();
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
 
   if (!isScopeContainer(element)) return null;
 
@@ -302,7 +302,7 @@ const MESSAGE_DESCRIPTION = 'What this flow carries: the structure its message i
 
 /** A message flow's `messageRef`, picked among the structures the loaded schemas' `MessageStructureEnum` declares. */
 export function MessageSection({ element }: { element: any }) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const businessObject = element?.businessObject ?? element;
   if (businessObject?.$type !== 'bpmn:MessageFlow') return null;
   const structures = [{ name: 'unnamed', value: '' }, ...toOptions(getCatalog().enumOf('MessageStructureEnum')?.literals)];
@@ -407,7 +407,7 @@ function expressionText(value: any): string {
 
 export function LoopSection() {
   const element = useInspectedElement();
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
 
   const loopCharacteristics = getLoopCharacteristics(element);
   const kind = loopKindOf(element);
@@ -547,7 +547,7 @@ type Direction = 'input' | 'output';
 
 export function DataFlowSection({ direction }: { direction: Direction }) {
   const element = useInspectedElement();
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
 
   const [, setRevision] = useState(0);
   useEffect(() => {

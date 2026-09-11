@@ -22,7 +22,7 @@ import { getCatalog } from '@core/notation';
 import { getAttribute, getExpressionLanguage } from '@core/element';
 import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from '@core/document';
 import { executeCommand } from '@modeler/commandBus';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { useAttributeState, useInspectedElement } from '@modeler/inspector/state';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { field as s } from '@modeler/inspector/styles';
@@ -71,7 +71,7 @@ export function ExpressionRow({ name, placeholder, value, language, onCommit, on
 
 export function ExpressionInput({ attrDef }: { attrDef: AttributeSpec }) {
   const element = useInspectedElement();
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const attributeName = attrDef.ns?.name ?? attrDef.name;
 
   const raw = getAttribute(element, attributeName);

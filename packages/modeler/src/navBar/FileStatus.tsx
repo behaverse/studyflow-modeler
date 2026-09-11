@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { getLink, subscribeLink, type LinkState } from '@modeler/diagram/fileHandle';
 import { saveLinkedFile } from '@modeler/diagram/save';
 import { autoSavable } from '@modeler/export/formats';
@@ -31,7 +31,7 @@ const EXPLANATION: Record<LinkState, string> = {
 const IMAGE_NEEDS_EXPLICIT_SAVE = `Unsaved edits. Rendering an image is too slow to repeat on every edit, so ${MOD_LABEL}S writes @.`;
 
 export function FileStatus() {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const link = useSyncExternalStore(subscribeLink, getLink, getLink);
   const file = link.file;
 

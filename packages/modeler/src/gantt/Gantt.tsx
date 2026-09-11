@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Modal } from '@modeler/ui/Modal';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { collectGanttRows, groupBySwimlane } from '@modeler/gantt/rows';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
@@ -16,7 +16,7 @@ const BAR_FILL = '#c8b8a9';
 const BAR_STROKE = '#7c6f64';
 
 export function GanttDialog({ isOpen, onClose }: Props) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const rows = useMemo(() => (isOpen ? collectGanttRows(modeler) : []), [isOpen, modeler]);
 
   const { minOnset, maxOnset, hasScale } = useMemo(() => {

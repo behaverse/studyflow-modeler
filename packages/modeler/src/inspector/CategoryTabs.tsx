@@ -4,7 +4,7 @@ import { Field, Label, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@head
 import type { AttributeSpec } from '@core/notation';
 import { t } from '@modeler/i18n';
 import { executeCommand } from '@modeler/commandBus';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { useInspectedElement } from '@modeler/inspector/state';
 import { isAttributeVisible } from '@modeler/inspector/categories';
 import { elementKey } from '@modeler/inspector/element';
@@ -62,7 +62,7 @@ const TRANSFORMATION_DESCRIPTION = '`slot = selection` with '
 const ASSOCIATION_TYPES = new Set(['bpmn:DataInputAssociation', 'bpmn:DataOutputAssociation']);
 
 function WireTransformationSection({ element }: { element: any }) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const businessObject = element?.businessObject ?? element;
   if (!ASSOCIATION_TYPES.has(businessObject?.$type)) return null;
 

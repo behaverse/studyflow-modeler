@@ -13,7 +13,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { MOD_LABEL, URLS } from '@modeler/constants';
 import { getLinkedFileName, subscribeLink } from '@modeler/diagram/fileHandle';
@@ -70,7 +70,7 @@ export function CommandPalette({ ref }: Props) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [dialog, setDialog] = useState<{ id: PaletteDialogId; scopeId?: string } | null>(null);
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const { openSettings } = useContext(SettingsViewContext);
   const { openReplay } = useContext(ReplayContext);
   const isSimulating = useIsSimulating(modeler);
@@ -144,7 +144,7 @@ export function CommandPalette({ ref }: Props) {
       }
       // `p` on a selected element opens its provenance, the way the inspector follows the selection.
       if (isBareKey(e, 'p') && !isOpen && !dialog && !isTyping(e.target)) {
-        const selected = modeler ? modeler.selection.get() : [];
+        const selected = modeler.selection.get();
         const scopeId = selected.length === 1 ? selected[0]?.businessObject?.id : undefined;
         if (!scopeId) return;
         e.preventDefault();

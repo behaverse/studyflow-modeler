@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { openPopupMenu } from '@modeler/editor/popupMenus';
 import { contextPadEntries, type ContextPadAppend, type ContextPadEntry, type ContextPadIcon } from '@modeler/contextPad/entries';
@@ -133,7 +133,7 @@ function selectionBBox(editor: Editor, elements: EditorElement[]): Bounds | unde
 }
 
 export function ContextPad() {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const isSimulating = useIsSimulating(modeler);
   const [elements, setElements] = useState<EditorElement[]>([]);
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -327,7 +327,6 @@ export function ContextPad() {
 
   const run = useCallback((entry: ContextPadEntry) => {
     clearPreview();
-    if (!modeler) return;
     switch (entry.action) {
       case 'append.end-event':
       case 'append.text-annotation':

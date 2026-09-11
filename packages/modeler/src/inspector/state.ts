@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { AttributeSpec } from '@core/notation';
 import { getAttribute } from '@core/element';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 
 export const InspectorContext = createContext<{ element: any | undefined }>({
@@ -19,7 +19,7 @@ export function useAttributeState<T>(
   options?: { debounceMs?: number },
 ) {
   const element = useInspectedElement();
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const attributeName = attrDef.ns?.name ?? attrDef.name;
   const debounceMs = options?.debounceMs ?? 0;
 

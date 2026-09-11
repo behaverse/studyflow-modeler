@@ -1,6 +1,6 @@
 import { useState, type DragEvent } from 'react';
 import { Modal } from '@modeler/ui/Modal';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
 import { droppedHandle, openDiagramFile } from '@modeler/open/openFile';
 import { extensionsOf, IMPORTABLE_FORMATS, OPENERS } from '@modeler/export/formats';
@@ -34,7 +34,7 @@ type Props = {
 };
 
 export function OpenDialog({ isOpen, onClose, onBrowse }: Props) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
 

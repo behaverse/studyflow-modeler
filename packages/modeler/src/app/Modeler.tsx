@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, useContext } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-import { ModelerContext } from '@modeler/app/contexts';
 import { connectCommandBus, executeCommand } from '@modeler/commandBus';
 import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
 import { attachAutosave } from '@modeler/diagram/autosave';
@@ -35,9 +34,9 @@ async function openFromUrl(editor: Editor): Promise<void> {
   }
 }
 
-export function Modeler() {
+/** The canvas and the boot that puts an editor on it; `onReady` hands the editor to the app. */
+export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { setModeler } = useContext(ModelerContext);
   const [isLoading, setLoading] = useState(true);
   const [bootError, setBootError] = useState<string | undefined>();
 
@@ -72,7 +71,7 @@ export function Modeler() {
         }
         // One facade per editor (so its revision counter spans the editor's whole
         // life); the app holds it from here on.
-        setModeler(editor);
+        onReady(editor);
         setLoading(false);
         openFromUrl(editor);
       })
@@ -88,7 +87,7 @@ export function Modeler() {
       detach?.();
       created?.destroy?.();
     };
-  }, [setModeler]);
+  }, [onReady]);
 
   return (
     <div className={s.root}>

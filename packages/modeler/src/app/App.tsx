@@ -20,7 +20,7 @@ export function App() {
   const isSimulating = useIsSimulating(modeler);
 
   return (
-    <ModelerContext.Provider value={{ modeler, setModeler }}>
+    <ModelerContext.Provider value={modeler}>
       <ReplayContext.Provider value={{ openReplay: () => setIsReplaying(true) }}>
       <SettingsViewContext.Provider value={{ openSettings: () => setIsSettingsOpen(true) }}>
         <div className={`App flex flex-col h-screen${isSimulating ? ' simulation-active' : ''}${isReplaying ? ' replay-active' : ''}`} data-testid="modeler-app">
@@ -29,7 +29,7 @@ export function App() {
           <div className="w-full h-full">
             <div className="flex flex-row h-full overflow-hidden relative">
               {modeler && <Palette className="md:flex studyflow-palette" />}
-              <Modeler />
+              <Modeler onReady={setModeler} />
             </div>
           </div>
           {modeler && !isReplaying && (

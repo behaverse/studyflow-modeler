@@ -1,6 +1,6 @@
 import logo_image from '#assets/img/logo.png';
 import { useState, useRef } from 'react';
-import { useModeler, useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { openRunnerTab } from '@modeler/app/commands';
 import { notify } from '@modeler/app/noticeStore';
@@ -45,7 +45,7 @@ const SIMULATE_ACTIVE = 'bg-red-700 hover:bg-red-800';
 const SIMULATE_IDLE = button.accentFill;
 
 function SimulateButton() {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const isSimulating = useIsSimulating(modeler);
 
   return (
@@ -100,7 +100,7 @@ function RunButton() {
 }
 
 export function NavBar() {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const { diagramName, rename } = useDiagramName(modeler);
   // Local draft while editing; the model is written once on Enter/blur (one undo step).
   const [nameDraft, setNameDraft] = useState<string | null>(null);
@@ -124,20 +124,16 @@ export function NavBar() {
         </a>
 
         <div className={navbar.shell}>
-          {modeler && (
-            <>
-              <CommandPalette ref={paletteRef} />
-              <button
-                type="button"
-                title={`Menu (${OPEN_PALETTE_SHORTCUT_LABEL})`}
-                aria-label="Open command palette"
-                className={navBurgerBtnCls}
-                onClick={() => paletteRef.current?.open()}
-              >
-                <i className={`${ICONS.list} text-lg`}></i>
-              </button>
-            </>
-          )}
+          <CommandPalette ref={paletteRef} />
+          <button
+            type="button"
+            title={`Menu (${OPEN_PALETTE_SHORTCUT_LABEL})`}
+            aria-label="Open command palette"
+            className={navBurgerBtnCls}
+            onClick={() => paletteRef.current?.open()}
+          >
+            <i className={`${ICONS.list} text-lg`}></i>
+          </button>
 
           <div className={navbar.diagramSlot}>
             {isEditingDiagramName ? (
@@ -162,16 +158,14 @@ export function NavBar() {
                 {diagramName}
               </span>
             )}
-            {modeler && <FileStatus />}
+            <FileStatus />
           </div>
 
-          {modeler && (
-            <div className="hidden sm:flex items-center flex-shrink-0">
-              <div className={navDividerCls} />
-              <SimulateButton />
-              <RunButton />
-            </div>
-          )}
+          <div className="hidden sm:flex items-center flex-shrink-0">
+            <div className={navDividerCls} />
+            <SimulateButton />
+            <RunButton />
+          </div>
         </div>
     </>
   );

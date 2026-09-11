@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useState, Fragment } from 'react';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { goToCrumb, planeCrumbs, type Crumb } from '@modeler/drilldown/commands';
 import { breadcrumbs as s } from '@modeler/drilldown/styles';
 
@@ -33,7 +33,7 @@ import { breadcrumbs as s } from '@modeler/drilldown/styles';
 const TOP = 56;
 
 export function Breadcrumbs() {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const [crumbs, setCrumbs] = useState<Crumb[]>([]);
   const [anchor, setAnchor] = useState<{ left: number; top: number } | undefined>(undefined);
 

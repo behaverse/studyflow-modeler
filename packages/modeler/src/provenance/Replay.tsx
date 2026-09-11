@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import {
   applyStatuses,
   assignLanes,
@@ -295,7 +295,7 @@ const scopeName = (r: ProvenanceRecord) =>
   (r.isDocument ? (r.action === 'executed' ? r.scopeId : 'document') : r.scopeId);
 
 export function ReplayPanel({ onClose }: Props) {
-  const editor = useRequiredModeler();
+  const editor = useModeler();
   // `importXML` fires no `CommandStackChanged`, so we bump a separate version to force a new timeline when the document changes.
   const [docVersion, bumpDocVersion] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
@@ -306,7 +306,7 @@ export function ReplayPanel({ onClose }: Props) {
 }
 
 function ReplayTimeline({ onClose }: Props) {
-  const editor = useRequiredModeler();
+  const editor = useModeler();
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     editor.events.on('CommandStackChanged', bumpRevision);

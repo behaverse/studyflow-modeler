@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useReducer, useState } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { ReplayContext } from '@modeler/app/contexts';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { getStoredUserEmail } from '@modeler/settings/store';
 import {
@@ -26,7 +26,7 @@ const laneX = (lane: number) => lane * LANE_W + 4.5;
 const ICON_GUTTER = 22;
 
 export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const { openReplay } = useContext(ReplayContext);
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {

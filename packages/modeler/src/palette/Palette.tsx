@@ -6,7 +6,7 @@ import {
   type MouseEventHandler,
   type ReactNode,
 } from 'react';
-import { useRequiredModeler } from '@modeler/app/useModeler';
+import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { PALETTE_GROUPS } from '@modeler/palette/groups';
 import { t } from '@modeler/i18n';
@@ -56,7 +56,6 @@ function usePaletteSchemas(modeler: Editor): PaletteSchema[] {
   const [schemas, setSchemas] = useState<PaletteSchema[]>([]);
 
   useEffect(() => {
-    if (!modeler) return;
     let cancelled = false;
 
     executeCommand(modeler, { type: 'ResolvePaletteSchemas' })
@@ -75,7 +74,7 @@ function usePaletteSchemas(modeler: Editor): PaletteSchema[] {
 }
 
 export function Palette({ className = '' }: { className?: string }) {
-  const modeler = useRequiredModeler();
+  const modeler = useModeler();
   const schemas = usePaletteSchemas(modeler);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [pinnedGroup, setPinnedGroup] = useState<string | null>(null);
@@ -115,7 +114,6 @@ export function Palette({ className = '' }: { className?: string }) {
   };
 
   const handleMoreElementsClick = (e: ReactMouseEvent<HTMLButtonElement>) => {
-    if (!modeler) return;
     e.preventDefault();
     executeCommand(modeler, {
       type: 'PaletteOpenPopup',
