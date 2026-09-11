@@ -107,5 +107,3 @@ export const ICONS = {
   alignCenter: 'iconify ph--text-align-center',
   alignRight: 'iconify ph--text-align-right',
 } as const;
-
-export type IconName = keyof typeof ICONS;
