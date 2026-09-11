@@ -9,12 +9,6 @@ export const nodeStyles = {
     'bg-fuchsia-800 hover:bg-fuchsia-900 text-white text-sm font-medium px-4 py-2 rounded transition-colors',
   secondaryButton:
     'bg-stone-200 hover:bg-stone-300 text-stone-800 text-sm font-medium px-4 py-2 rounded transition-colors',
-  behaverseStage: 'relative flex-1 bg-black h-full w-full',
-  behaverseIframe: 'absolute inset-0 w-full h-full border-0',
-  behaverseCover:
-    'absolute inset-0 flex items-center justify-center bg-black/85 text-white text-sm transition-opacity duration-300',
-  behaverseCoverHidden: 'opacity-0 pointer-events-none',
-  behaverseCoverShown: 'opacity-100',
   formItem: 'flex flex-col gap-2 border-b border-stone-100 pb-3 last:border-b-0',
   formPrompt: 'text-sm text-stone-800',
   scaleRow: 'flex flex-wrap gap-2',

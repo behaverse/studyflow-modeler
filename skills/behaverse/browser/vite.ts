@@ -73,9 +73,7 @@ const unityBuildPath = process.env.UNITY_BUILD_PATH
   ? resolve(process.env.UNITY_BUILD_PATH)
   : (UNITY_BUILD_DEFAULTS.find((dir) => fs.existsSync(dir)) ?? UNITY_BUILD_DEFAULTS[0])
 
-/** What these plugins answer outside the runner's own /run/: the modeler's dev server routes them here too. */
-export const DEV_ROUTES = ['/api/llm']
-
-export function behaverseDevPlugins(): Plugin[] {
-  return [unityBuildPlugin('/run/assessment-unity', unityBuildPath), claudeProxyPlugin({ route: `${DEV_ROUTES[0]}/claude` })]
+/** The runner's dev server picks this up (skills/browser/vite.config.ts `skillDevPlugins`). */
+export function devPlugins(): Plugin[] {
+  return [unityBuildPlugin('/run/assessment-unity', unityBuildPath), claudeProxyPlugin({ route: '/api/llm/claude' })]
 }

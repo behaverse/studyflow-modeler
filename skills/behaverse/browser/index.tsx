@@ -12,8 +12,16 @@ import {
 import { runOnUnity, waitForReady } from '@skills/behaverse/browser/unityRuntime';
 import { getBehaverseTaskPayload, withRunIdentity } from '@skills/behaverse/browser/parser';
 import { fetchManifest, validateBehaverseNode } from '@skills/behaverse/browser/validation';
-import { nodeStyles } from '@runner/nodes/styles';
 import { registerNode } from '@runner/nodes/registry';
+
+/** The Unity stage: the task's iframe, under a cover until Unity says it is ready. */
+const stage = {
+  root: 'relative flex-1 bg-black h-full w-full',
+  iframe: 'absolute inset-0 w-full h-full border-0',
+  cover: 'absolute inset-0 flex items-center justify-center bg-black/85 text-white text-sm transition-opacity duration-300',
+  coverHidden: 'opacity-0 pointer-events-none',
+  coverShown: 'opacity-100',
+};
 
 declare module '@runner/jobs' {
   interface JobsByType {
@@ -85,16 +93,16 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
   }, [job, session, log, complete, abort]);
 
   return (
-    <div className={nodeStyles.behaverseStage}>
+    <div className={stage.root}>
       <iframe
         ref={iframeRef}
         title="Behaverse Assessment"
-        className={nodeStyles.behaverseIframe}
+        className={stage.iframe}
         allow="autoplay; fullscreen"
       />
       <div
-        className={`${nodeStyles.behaverseCover} ${
-          stageReady ? nodeStyles.behaverseCoverHidden : nodeStyles.behaverseCoverShown
+        className={`${stage.cover} ${
+          stageReady ? stage.coverHidden : stage.coverShown
         }`}
       >
         <span>{statusLine}</span>

@@ -2,7 +2,6 @@ import { resolve } from 'node:path'
 import { createServer, defineConfig, type Plugin } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { DEV_ROUTES } from '../../skills/behaverse/browser/vite'
 import { openWindow } from '../desktop/edit'
 import { ROOT, aliases, define } from '../../vite.shared'
 
@@ -10,7 +9,8 @@ import { ROOT, aliases, define } from '../../vite.shared'
 // one origin on one port, exactly as the merged dist/ is in production (the diagram hand-off rides on same-origin
 // localStorage). Its config runs in middleware mode here; HMR shares this server's socket, under /run/.
 const RUNNER_ROOT = resolve(ROOT, 'skills/browser')
-const RUNNER_PATHS = ['/run', ...DEV_ROUTES]  // /run also covers /run/assessment-unity
+// /api: the dev endpoints the runner's skills serve (the LLM proxy); /run also covers what they mount under it.
+const RUNNER_PATHS = ['/run', '/api']
 const runner = (): Plugin => ({
   name: 'studyflow:runner',
   apply: 'serve',
