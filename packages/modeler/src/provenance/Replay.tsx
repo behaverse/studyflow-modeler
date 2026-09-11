@@ -12,22 +12,11 @@ import {
   shortWhen,
 } from '@modeler/provenance/records';
 import { computeSegLengths, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
-import { isHidden, type Point } from '@canvas/index.ts';
+import { isHidden, type Point, type SceneEdge } from '@canvas/index.ts';
 import { tokenAnchor } from '@modeler/simulation/flowWalk';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
 
-/** The element lookups the replay reads off the canvas. */
-type Registry = { get: (id: string) => any; filter: (fn: (el: any) => boolean) => any[]; root: () => any; findRoot: (el: any) => any };
-
-function registryOf(canvas: Canvas): Registry {
-  return {
-    get: (id) => canvas.get(id),
-    filter: (fn) => canvas.all().filter(fn),
-    root: () => canvas.getRoot(),
-    findRoot: (el) => canvas.rootOf(el),
-  };
-}
 import { ICONS } from '@modeler/icons';
 
 const SPEEDS = [
@@ -38,11 +27,11 @@ const SPEEDS = [
 
 
 /** An element the editor knows for this record: its own scope, or the flow its `what` mentions. */
-function elementsOf(record: ProvenanceRecord, elements: Registry): any[] {
+function elementsOf(record: ProvenanceRecord, canvas: Canvas): any[] {
   const found: any[] = [];
-  if (!record.isDocument && elements.get(record.scopeId)) found.push(elements.get(record.scopeId));
+  if (!record.isDocument && canvas.get(record.scopeId)) found.push(canvas.get(record.scopeId));
   // `what` is a flow id on gateway decisions, a timestamp elsewhere; only the former resolves.
-  if (record.what && elements.get(record.what)) found.push(elements.get(record.what));
+  if (record.what && canvas.get(record.what)) found.push(canvas.get(record.what));
   return found;
 }
 
@@ -64,9 +53,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
 
   useEffect(() => {
     const { canvas } = editor;
-    const elements = registryOf(canvas);
     return () => {
-      for (const [id, m] of marked.current) if (elements.get(id)) canvas.removeMarker(id, m);
+      for (const [id, m] of marked.current) if (canvas.get(id)) canvas.removeMarker(id, m);
       marked.current = [];
       if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
       glideFrame.current = null;
@@ -81,27 +69,26 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
 
   useEffect(() => {
     const { canvas } = editor;
-    const registry = registryOf(canvas);
     const viewport = canvas.getViewport();
 
     const touched = new Set<string>();
     const newest = new Map<string, ProvenanceRecord>();
     for (const r of shown) {
-      for (const el of elementsOf(r, registry)) {
+      for (const el of elementsOf(r, canvas)) {
         touched.add(el.id);
         if (el.label?.id) touched.add(el.label.id);
       }
       if (!r.isDocument && r.action === 'executed') newest.set(r.scopeId, r);
     }
     // A flow between two lit elements is part of the story even when no record names it.
-    for (const conn of registry.filter((el: any) => el.waypoints && el.source && el.target)) {
-      if (touched.has(conn.source.id) && touched.has(conn.target.id)) touched.add(conn.id);
+    for (const conn of canvas.all()) {
+      if (conn.kind === 'edge' && conn.source && conn.target && touched.has(conn.source.id) && touched.has(conn.target.id)) touched.add(conn.id);
     }
 
-    for (const [id, m] of marked.current) if (registry.get(id)) canvas.removeMarker(id, m);
+    for (const [id, m] of marked.current) if (canvas.get(id)) canvas.removeMarker(id, m);
     marked.current = [];
     const add = (id: string, m: string) => {
-      if (!registry.get(id)) return;
+      if (!canvas.get(id)) return;
       canvas.addMarker(id, m);
       marked.current.push([id, m]);
     };
@@ -110,7 +97,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
 
     // The token: a pulsing circle on the element the newest record activates or mentions.
     const current = shown[shown.length - 1];
-    const target = current ? elementsOf(current, registry).find((el) => el.width) : undefined;
+    const target = current ? elementsOf(current, canvas).find((el) => el.width) : undefined;
     const layer = canvas.getHostLayer('provenance-replay', 1000);
     if (!tokenRef.current) {
       tokenRef.current = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -146,7 +133,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     token.style.display = '';
     token.style.opacity = '';
     const to = tokenAnchor(target);
-    const newRoot = registry.findRoot(target);
+    const newRoot = canvas.rootOf(target);
     const rootId = newRoot?.id;
     const from = tokenPos.current;
 
@@ -176,12 +163,12 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       }
       // The doorway: the collapsed shape being entered (on the old plane), or the shape the old
       // plane belongs to (on the new one); the camera flies through it, so the move is visible.
-      const shapeOf = (root: any) => (root?.businessObject?.id ? registry.get(root.businessObject.id) : undefined);
-      const oldRoot = registry.root();
+      const shapeOf = (root: any): any => (root?.businessObject?.id ? canvas.get(root.businessObject.id) : undefined);
+      const oldRoot = canvas.getRoot();
       const doorIn = shapeOf(newRoot);
       const doorOut = shapeOf(oldRoot);
-      const inward = !!doorIn?.width && registry.findRoot(doorIn) === oldRoot;
-      const outward = !inward && !!doorOut?.width && registry.findRoot(doorOut) === newRoot;
+      const inward = !!doorIn?.width && canvas.rootOf(doorIn) === oldRoot;
+      const outward = !inward && !!doorOut?.width && canvas.rootOf(doorOut) === newRoot;
       const doorway = (shape: any) => {
         const vb = canvas.getViewbox();
         const scale = Math.min(3, vb.outer.width / (shape.width * 1.5), vb.outer.height / (shape.height * 1.5));
@@ -261,9 +248,9 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     }
     if (from.x === to.x && from.y === to.y) return;
     // Follow the sequence flow when one directly links the two steps, either way around.
-    const fromEl = registry.get(from.elId);
-    const flow = registry.filter((el: any) => el.waypoints
-      && ((el.source === fromEl && el.target === target) || (el.source === target && el.target === fromEl)))[0];
+    const fromEl = canvas.get(from.elId);
+    const flow = canvas.all().find((el): el is SceneEdge => el.kind === 'edge'
+      && ((el.source === fromEl && el.target === target) || (el.source === target && el.target === fromEl)));
     const waypoints: Point[] = (flow?.waypoints ?? []).map((wp: any) => ({ x: wp.x, y: wp.y }));
     if (flow?.source === target) waypoints.reverse();
     const points = [{ x: from.x, y: from.y }, ...waypoints, to].filter((p, i, all) =>
