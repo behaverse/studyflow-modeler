@@ -43,10 +43,10 @@ program
 
 program
   .command('run')
-  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` dispatches to studyflow-run.')
+  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` runs the local runtime (skills/local/run.py, needs uv).')
   .passThroughOptions()
   .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png')
-  .argument('[runnerArgs...]', 'forwarded to studyflow-run (e.g. --repo, --fresh, --sim, --auto)')
+  .argument('[runnerArgs...]', 'forwarded to the local runtime (e.g. --repo, --fresh, --sim, --auto)')
   .option('--runtime <runtime>', 'override the document: browser | cloud | local | hpc')
   .action(async (input: string, runnerArgs: string[], options: { runtime?: string }) => {
     const { run } = await import('@cli/run');

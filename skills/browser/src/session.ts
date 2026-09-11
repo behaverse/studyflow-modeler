@@ -8,13 +8,12 @@ import type { Studyflow } from '@runner/studyflow';
 import { BPMN } from '@core/constants';
 import { META_KEY, type StateTree } from '@core/document';
 
+/** Nodes that route without a step of their own; the parse never keeps a ComplexGateway or a flow as a node. */
 const ROUTING_TYPES: ReadonlySet<string> = new Set<string>([
   BPMN.ExclusiveGateway,
   BPMN.InclusiveGateway,
   BPMN.ParallelGateway,
   BPMN.EventBasedGateway,
-  BPMN.ComplexGateway,
-  BPMN.SequenceFlow,
 ]);
 
 export type SessionContext = {

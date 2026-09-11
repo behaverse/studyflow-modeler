@@ -374,7 +374,6 @@ class Studyflow:
         }
         self.bound_names: dict[str, str] = {eid: name for eid, name in self.names.items() if name not in self.ambiguous}
 
-        self._consumers: tuple[set[str], str] | None = None
         self._products: set[str] | None = None
 
 
@@ -410,27 +409,6 @@ class Studyflow:
                             products.add(child.text.strip())
             self._products = products
         return element_id in self._products
-
-    def consumes(self, element_id: str) -> bool:
-        """Textual by id and name, deliberately over-broad: a false positive costs a load, never a wrong skip."""
-        if self._consumers is None:
-            sources: set[str] = set()
-            texts: list[str] = []
-            for node in self.definitions.iter():
-                tag = local(node)
-                if tag == "dataInputAssociation":
-                    for child in node:
-                        if local(child) == "sourceRef" and child.text:
-                            sources.add(child.text.strip())
-                elif tag in ("transformation", "conditionExpression", "additionalArguments"):
-                    if node.text:
-                        texts.append(node.text)
-            self._consumers = (sources, " ".join(texts))
-        sources, expressions = self._consumers
-        if element_id in sources or element_id in expressions:
-            return True
-        name = self.names.get(element_id)
-        return bool(name and name in expressions)
 
     def start_event(self, container: ET.Element | None = None) -> ET.Element:
         for element in container if container is not None else self.process:
@@ -798,10 +776,9 @@ class Runner:
         started: datetime | None = None,
         seed: str | None = None,
         fresh: bool = False,
-        repo: RunRepo | None = None,
+        repo: Any = None,  # prov's RunRepo, loaded at run time (`load_prov`)
         branched: bool = False,
-        runners: dict[str, str] | None = None,
-        plan_path: Path | None = None,
+        runners: dict[str, tuple[str, Path | None]] | None = None,
         debug: bool = False,
     ) -> None:
         self.studyflow = studyflow
@@ -809,13 +786,13 @@ class Runner:
         # Partial runners claim elements, not schemas: each is asked once which ids it will run.
         # Partial runners never open the diagram: they read `.cache/plan.json`, the plan as one JSON digest.
         handoff_plan = repo_dir / ".cache" / "plan.json"
-        if plan_path is not None and runners:
+        if runners:
             handoff_plan.parent.mkdir(parents=True, exist_ok=True)
             handoff_plan.write_text(json.dumps(plan_digest(studyflow, input_sources or [Path.cwd()]), indent=1))
         self.runners = {
             name: PartialRunner(name, command, handoff_plan, repo_dir, debug=debug, cwd=cwd)
             for name, (command, cwd) in (runners or {}).items()
-        } if plan_path is not None else {}
+        }
         self.claimed: dict[str, PartialRunner] = {}
         # Live elements are interaction: they never skip or replay. A claims answer that is a plain
         # array is live; `{"elements": [...], "live": false}` marks replayable ones (the python skill).
@@ -1702,7 +1679,7 @@ def main() -> int:
         started=started,
         seed=seed, fresh=args.fresh,
         repo=repo, branched=branched,
-        runners=runners, plan_path=args.studyflow, debug=args.debug,
+        runners=runners, debug=args.debug,
     )
     # The trailers of a commit that stamps no element are the document stamp's own attributes.
     document_stamp = {

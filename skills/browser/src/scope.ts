@@ -31,26 +31,6 @@ export class ScopeChain {
     if (this.frames.length > 1) this.frames.pop();
   }
 
-  get depth(): number {
-    return this.frames.length;
-  }
-
-  get currentScopeId(): string | undefined {
-    return this.frames[this.frames.length - 1]?.scope.id;
-  }
-
-  visibleDeclarations(): PropertyDecl[] {
-    const byName = new Map<string, PropertyDecl>();
-    for (const frame of this.frames) {
-      for (const decl of frame.scope.properties) byName.set(decl.name, decl);
-    }
-    return [...byName.values()];
-  }
-
-  declares(name: string): boolean {
-    return this.frames.some((frame) => frame.scope.properties.some((p) => p.name === name));
-  }
-
   read(name: string): unknown {
     for (let i = this.frames.length - 1; i >= 0; i -= 1) {
       const frame = this.frames[i];

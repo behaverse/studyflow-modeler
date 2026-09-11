@@ -57,7 +57,6 @@ export function evaluateCondition(
   try {
     return { value: Boolean(compiled(scope)) };
   } catch (error) {
-    if (error instanceof UndeclaredReference) return { value: false, error: error.message };
     return { value: false, error: (error as Error).message };
   }
 }

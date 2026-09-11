@@ -9,7 +9,7 @@ import { declaredRuntime } from '@core/document';
 import { onPath } from '@cli/plugin';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
 
-/* `studyflow run`, specified in packages/cli/README.md. */
+/* `studyflow run`: hand the study to the runtime it declares; this CLI runs `local` itself (skills/local/run.py). */
 
 export type RunOptions = {
   runtime?: string;
@@ -33,14 +33,10 @@ function runnerScriptCandidates(): string[] {
   return candidates;
 }
 
-/** The runner, in the CLI README's order: `STUDYFLOW_RUN_PY`, an installed `studyflow-run-local`
- * companion, then the local runtime shipped with this CLI (needs `uv`). */
+/** The local runtime: `STUDYFLOW_RUN_PY` when set, else the one shipped with this CLI; both need `uv`. */
 function runnerCommand(): { command: string; args: string[] } {
   const override = process.env.STUDYFLOW_RUN_PY;
   if (override) return { command: 'uv', args: ['run', '--script', override] };
-
-  const companion = onPath('studyflow-run-local');
-  if (companion) return { command: companion, args: [] };
 
   if (onPath('uv')) {
     for (const script of runnerScriptCandidates()) {
