@@ -4,6 +4,8 @@
  */
 
 import { buildBusinessObject } from '@modeler/palette/build';
+import { APPEND_MENU, openPopupMenu } from '@modeler/editor/popupMenus';
+import { t } from '@modeler/i18n';
 import type { Editor, EditorElement } from '@modeler/editor/port';
 
 /** A boundary event needs an explicit host, so it can never be auto-placed. */
@@ -59,16 +61,11 @@ export type OpenAppendMenuCommand = {
   elements: EditorElement[];
 };
 
-export type AppendMenuAnchor = {
-  element: EditorElement;
-  position: { x: number; y: number; cursor: { x: number; y: number } };
-};
-
-/** The canvas's `a` key: work out where the menu opens; `PopupMenus` opens it on `CommandDone`. */
-export function runOpenAppendMenu(modeler: Editor, command: OpenAppendMenuCommand): AppendMenuAnchor | undefined {
+/** The canvas's `a` key (a bus command, since the canvas cannot import the modeler): the append menu, beside the first element. */
+export function runOpenAppendMenu(modeler: Editor, command: OpenAppendMenuCommand): void {
   const element = command.elements[0];
-  if (!element) return undefined;
+  if (!element) return;
   const box = modeler.canvas.getAbsoluteBBox(element);
   const x = box.x + box.width + 12;
-  return { element, position: { x, y: box.y, cursor: { x, y: box.y + box.height / 2 } } };
+  openPopupMenu(APPEND_MENU, { x, y: box.y, cursor: { x, y: box.y + box.height / 2 } }, { title: t('Append element') });
 }

@@ -9,7 +9,7 @@ import type { Editor } from '@modeler/editor/port';
 /** A handler touches the editor only through the {@link Editor} facade it is handed, never through
  * the backend itself — which is what lets a handler be exercised against a partial port, and what let the editor
  * be swapped underneath the app at all. `@modeler/commandBus` itself cannot be imported here: it
- * pulls in `app/commands.ts`, whose `?raw` asset import only resolves under Vite. So the contract is
+ * pulls in `diagram/commands.ts`, whose `?raw` asset import only resolves under Vite. So the contract is
  * tested where it lives, in a handler, and the call sites that depend on it are checked in the source. */
 
 const SRC = join(process.cwd(), 'packages/modeler/src');
@@ -37,24 +37,6 @@ test('the colour picker really does dispatch `SetColor` with the editor', () => 
   expect(source).toMatch(/executeCommand\(\s*modeler\s*,\s*\{\s*type:\s*'SetColor'/);
   expect(source, 'the editor is what the React tree holds, from `useModeler`')
     .toMatch(/const modeler = useModeler\(\)/);
-});
-
-test('every command the app boots with tolerates a null modeler', () => {
-  // Boot dispatches before a modeler exists (`app/Modeler.tsx`), so those handlers must accept
-  // null; that nullability is the only thing standing between boot and a crash.
-  const bootTypes = [...read('app/Modeler.tsx')
-    .matchAll(/executeCommand\(\s*null\s*,\s*\{\s*\n?\s*type:\s*'([A-Z]\w*)'/g)]
-    .map((match) => match[1]);
-
-  expect(bootTypes.length, 'no null dispatch found — has boot changed?').toBeGreaterThan(0);
-
-  const commands = read('app/commands.ts');
-  const notNullable = bootTypes.filter((type) => {
-    const signature = new RegExp(`function run${type}\\(\\s*_?\\w+:\\s*([^,)]+)`).exec(commands)?.[1] ?? '';
-    return !/\|\s*null/.test(signature);
-  });
-
-  expect(notNullable, 'dispatched with null at boot, but the handler does not accept null').toEqual([]);
 });
 
 test('a command is a topic with one answering listener on the same bus the notifications use', async () => {

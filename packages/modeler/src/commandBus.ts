@@ -29,25 +29,12 @@ type CommandResult<C extends ControllerCommand> = {
   [K in RunKey]: C extends Parameters<Handlers[K]>[1] ? Awaited<ReturnType<Handlers[K]>> : never;
 }[RunKey];
 
-function handlerFor(name: string): ((modeler: Editor | null, command: unknown) => unknown) | undefined {
-  const feature = FEATURES.find((f) => typeof (f as any)[name] === 'function');
-  return feature && (feature as any)[name];
-}
-
 /**
- * Dispatch `command`. With an {@link Editor} it goes over the editor's bus
- * (`events.send`), the same bus `ElementChanged` & co. travel on, so a finished
- * command lands on `CommandDone` beside them. `null` is boot (`DownloadSchemas`,
- * `CreateModeler`): there is no bus yet, so the handler is called directly.
+ * Dispatch `command` over the editor's bus (`events.send`), the same bus `ElementChanged` & co.
+ * travel on, so a finished command lands on `CommandDone` beside them.
  */
-export async function executeCommand<C extends ControllerCommand>(
-  modeler: Editor | null,
-  command: C,
-): Promise<CommandResult<C>> {
-  if (modeler) return modeler.events.send<CommandResult<C>>(command);
-  const run = handlerFor(`run${command.type}`);
-  if (!run) throw new Error(`No handler for command '${command.type}'`);
-  return (await run(null, command)) as CommandResult<C>;
+export async function executeCommand<C extends ControllerCommand>(modeler: Editor, command: C): Promise<CommandResult<C>> {
+  return modeler.events.send<CommandResult<C>>(command);
 }
 
 /**

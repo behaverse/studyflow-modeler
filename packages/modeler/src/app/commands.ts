@@ -1,19 +1,5 @@
-import new_diagram from '#assets/new_diagram.bpmn?raw';
-import { fromWireXml } from '@core/document';
-import { loadSchemas } from '@core/notation/loader';
-import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { clearDiagramHandoff, createDiagramHandoff } from '@core/storage';
-import { clearAutosavedDiagram, getSettings } from '@modeler/settings/store';
-import { mountEditor } from '@modeler/editor/mount';
 import type { Editor } from '@modeler/editor/port';
-
-export type DownloadSchemasCommand = {
-  type: 'DownloadSchemas';
-};
-
-export async function runDownloadSchemas(_modeler: Editor | null, _command: DownloadSchemasCommand): Promise<Record<string, any>> {
-  return loadSchemas(getSettings().enabledSchemas);
-}
 
 /** Bus commands rather than keybindings */
 export type UndoCommand = { type: 'Undo' };
@@ -89,40 +75,4 @@ export async function runOpenRunner(modeler: Editor, command: OpenRunnerCommand)
     clearDiagramHandoff(id);
     fail(POPUP_BLOCKED);
   }
-}
-
-export type CreateModelerCommand = {
-  type: 'CreateModeler';
-  container: any;
-  extensionSchemas: Record<string, any>;
-  initialDiagramXml?: string;
-};
-
-/**
- * Mount the editor into `container` and hand back the {@link Editor} facade the app
- * holds from here on (`editor/mount.ts`).
- */
-export async function runCreateModeler(_modeler: Editor | null, command: CreateModelerCommand): Promise<Editor> {
-  const editor = mountEditor({
-    container: command.container as HTMLElement,
-    extensionSchemas: command.extensionSchemas,
-  });
-
-  const provided = command.initialDiagramXml;
-  if (provided) {
-    try {
-      const moddle = editor.model.moddle();
-      await editor.importXML(await ensureDiagramLayout(await fromWireXml(provided, moddle), moddle));
-      return editor;
-    } catch (err) {
-      console.warn(
-        'Failed to import the initial diagram; falling back to a new diagram. ' +
-        'The autosaved entry (if any) has been cleared.',
-        err,
-      );
-      clearAutosavedDiagram();
-    }
-  }
-  await editor.importXML(new_diagram);
-  return editor;
 }

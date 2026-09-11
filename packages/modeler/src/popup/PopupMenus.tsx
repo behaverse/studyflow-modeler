@@ -5,24 +5,15 @@ import { eventDefinitionTypeOf } from '@canvas/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
-import { registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
+import { APPEND_MENU, COLOR_MENU, CREATE_MENU, REPLACE_MENU, registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
 import { ICONS } from '@modeler/icons';
 import { ELEMENT_COLORS, DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
 import { buildElementEntries } from '@modeler/popup/entries';
-import { mustDragToAppend, type AppendMenuAnchor } from '@modeler/popup/commands';
+import { mustDragToAppend } from '@modeler/popup/commands';
 import { PopupMenu, type PopupMenuModel, type PopupMenuItem } from '@modeler/popup/PopupMenu';
 import { t } from '@modeler/i18n';
 import type { EditorElement } from '@modeler/editor/port';
 
-export const CREATE_MENU = 'bpmn-create';
-export const APPEND_MENU = 'bpmn-append';
-export const REPLACE_MENU = 'bpmn-replace';
-/**
- * Element colours AND text styles in one menu — the paintbrush on the context pad
- * opens it. The id keeps its old spelling because the pad entry, the e2e specs and
- * the `registerPopupMenu` socket all name it.
- */
-export const COLOR_MENU = 'color-picker';
 
 const ALIGNMENTS: { align: TextAlign; glyph: string; label: string }[] = [
   { align: 'left', glyph: ICONS.alignLeft, label: 'Align left' },
@@ -83,18 +74,7 @@ export function PopupMenus() {
     const detach = [CREATE_MENU, APPEND_MENU, REPLACE_MENU, COLOR_MENU]
       .map((id) => registerPopupMenu(id, opener(id)));
 
-    // The canvas's `a` key requests `OpenAppendMenu`; the menu opens where it resolved.
-    const onCommandDone = (done: { command: { type: string }; result?: AppendMenuAnchor }): void => {
-      if (done.command.type !== 'OpenAppendMenu' || !done.result) return;
-      const { element, position } = done.result;
-      setOpen({ providerId: APPEND_MENU, position, options: { title: t('Append element') }, elements: [element] });
-    };
-    modeler.events.on('CommandDone', onCommandDone);
-
-    return () => {
-      detach.forEach((off) => off());
-      modeler.events.off('CommandDone', onCommandDone);
-    };
+    return () => detach.forEach((off) => off());
   }, [modeler]);
 
   // Any document replacement invalidates the snapshotted selection.

@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { connectCommandBus, executeCommand } from '@modeler/commandBus';
-import { getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
+import new_diagram from '#assets/new_diagram.bpmn?raw';
+import { fromWireXml } from '@core/document';
+import { loadSchemas } from '@core/notation/loader';
+import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
+import { mountEditor } from '@modeler/editor/mount';
+import { connectCommandBus } from '@modeler/commandBus';
+import { clearAutosavedDiagram, getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
 import { attachAutosave } from '@modeler/diagram/autosave';
 import { restoreLink } from '@modeler/diagram/fileHandle';
 import { notify } from '@modeler/app/noticeStore';
@@ -34,6 +39,23 @@ async function openFromUrl(editor: Editor): Promise<void> {
   }
 }
 
+/** Mount the editor in `container` with the enabled schemas, on the autosaved diagram if it opens, else a new one. */
+async function bootEditor(container: HTMLElement, autosaved: string | undefined): Promise<Editor> {
+  const editor = mountEditor({ container, extensionSchemas: await loadSchemas(getSettings().enabledSchemas) });
+  if (autosaved) {
+    try {
+      const moddle = editor.model.moddle();
+      await editor.importXML(await ensureDiagramLayout(await fromWireXml(autosaved, moddle), moddle));
+      return editor;
+    } catch (err) {
+      console.warn('Could not open the autosaved diagram; starting a new one, and the autosave is cleared.', err);
+      clearAutosavedDiagram();
+    }
+  }
+  await editor.importXML(new_diagram);
+  return editor;
+}
+
 /** The canvas and the boot that puts an editor on it; `onReady` hands the editor to the app. */
 export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,15 +68,9 @@ export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
     let created: Editor | undefined;
 
     const initialXml = getSettings().diagramAutoSave === 'local' ? loadAutosavedDiagram() : undefined;
-    executeCommand(null, { type: 'DownloadSchemas' })
-      .then((schemas: Record<string, any>) => executeCommand(null, {
-        type: 'CreateModeler',
-        container: containerRef.current,
-        extensionSchemas: schemas,
-        initialDiagramXml: initialXml,
-      }))
+    bootEditor(containerRef.current!, initialXml)
       .then((editor: Editor) => {
-        // `CreateModeler` is async: under StrictMode the cleanup below runs before this resolves.
+        // Boot is async: under StrictMode the cleanup below runs before this resolves.
         if (cancelled) {
           editor?.destroy?.();
           return;

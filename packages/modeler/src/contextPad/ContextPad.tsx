@@ -26,11 +26,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
-import { openPopupMenu } from '@modeler/editor/popupMenus';
+import { APPEND_MENU, COLOR_MENU, REPLACE_MENU, openPopupMenu } from '@modeler/editor/popupMenus';
 import { contextPadEntries, type ContextPadAppend, type ContextPadEntry, type ContextPadIcon } from '@modeler/contextPad/entries';
 import { ICONS } from '@modeler/icons';
 import { contextPad as s } from '@modeler/contextPad/styles';
-import { APPEND_MENU, COLOR_MENU, REPLACE_MENU } from '@modeler/popup/PopupMenus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';

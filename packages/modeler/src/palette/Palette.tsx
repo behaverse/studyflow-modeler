@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
+import { CREATE_MENU } from '@modeler/editor/popupMenus';
 import { PALETTE_GROUPS } from '@modeler/palette/groups';
 import { t } from '@modeler/i18n';
 import { usePaletteDrag } from '@modeler/palette/usePaletteDrag';
@@ -117,7 +118,7 @@ export function Palette({ className = '' }: { className?: string }) {
     e.preventDefault();
     executeCommand(modeler, {
       type: 'PaletteOpenPopup',
-      popupType: 'bpmn-create',
+      popupType: CREATE_MENU,
       position: getPopupPosition(e),
       title: t('Create BPMN element'),
     });

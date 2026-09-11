@@ -13,6 +13,12 @@
  * an unregistered menu must not take the app down.
  */
 
+export const CREATE_MENU = 'bpmn-create';
+export const APPEND_MENU = 'bpmn-append';
+export const REPLACE_MENU = 'bpmn-replace';
+/** Element colours and text styles in one menu, the context pad's paintbrush; the id keeps its old spelling for the e2e specs. */
+export const COLOR_MENU = 'color-picker';
+
 export type PopupPosition = {
   x: number;
   y: number;
