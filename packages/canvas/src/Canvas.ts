@@ -8,15 +8,14 @@ import { getExtensionType } from '@core/element/index.ts';
 import { EventBus } from '@core/events/bus.ts';
 
 import { appendElement as autoPlaceAppend, appendSourceBounds, freeAppendPosition } from '@canvas/interaction/autoplace.ts';
-import { Connect, type ConnectionEnd } from '@canvas/interaction/connect.ts';
+import { Connect } from '@canvas/interaction/connect.ts';
 import { boundsFor, Create, createShape, defaultSizeFor, type CreatePrototype, type ShapeDescriptor } from '@canvas/interaction/create.ts';
 import { DEFAULT_GRID_SIZE, Drag, snapTo, type Movable } from '@canvas/interaction/drag.ts';
 import { Gestures, ZOOM_STEP } from '@canvas/interaction/gestures.ts';
 import { edgesIntersecting, hitTest, isContainerNode, nodesIntersecting, orderedNodes, pointInNode, type HitOptions } from '@canvas/interaction/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, OUTLINE_CLASS, Selection } from '@canvas/interaction/selection.ts';
-import { tasksReferencing, type ParticipantBand } from '@canvas/model/choreography.ts';
-import { dataAssociationEnds, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
+import { tasksReferencing } from '@canvas/model/choreography.ts';
 import { writeDi } from '@canvas/model/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/model/import.ts';
 import { syncLabel } from '@canvas/model/labels.ts';
@@ -39,7 +38,6 @@ export interface CanvasOptions extends RendererOptions {
   container?: HTMLElement;
   onWarning?: ImportOptions['onWarning'];
   snapToGrid?: boolean;
-  rules?: Rules;
 }
 
 export interface CanvasViewbox extends Viewbox {
@@ -101,12 +99,11 @@ export class Canvas {
     }
     this.renderer = new Renderer(options);
     this.bus = new EventBus();
-    this.rules = options.rules ?? new Rules();
+    this.rules = new Rules();
     this.selection = new Selection({
       layer: this.layers.getLayer('selection'),
       getGraphics: (id) => this.renderer.graphicsById.get(id),
       bus: this.bus,
-      root: this.root,
       canResize: (target) => target.kind === 'label' || this.rules.canResize(target),
       resolve: (value) => this.resolveElement(value),
     });
@@ -168,10 +165,6 @@ export class Canvas {
     this.scene = undefined;
     this.mutator = undefined;
     this.drag = undefined;
-  }
-
-  isDestroyed(): boolean {
-    return this.destroyed;
   }
 
   // --- the document ---------------------------------------------------------------
@@ -345,10 +338,10 @@ export class Canvas {
 
   // --- view -------------------------------------------------------------------------
 
-  zoomToFit(padding = 40): void {
+  zoomToFit(): void {
     if (!this.scene) return;
     const visible = this.all().filter((element) => !isHidden(element, this.scene?.scope));
-    this.viewport.fitBounds(boundsOf(visible) ?? { x: 0, y: 0, width: 1000, height: 1000 }, padding);
+    this.viewport.fitBounds(boundsOf(visible) ?? { x: 0, y: 0, width: 1000, height: 1000 }, 40);
   }
 
   zoomIn(): number {
@@ -411,10 +404,6 @@ export class Canvas {
   setSnapToGrid(on: boolean): void {
     this.snapToGrid = on;
     this.drag?.setSnapToGrid(on);
-  }
-
-  isSnapToGrid(): boolean {
-    return this.snapToGrid;
   }
 
   /** @internal */
@@ -708,16 +697,6 @@ export class Canvas {
     this.appendPreview = undefined;
   }
 
-  hasAppendPreview(): boolean {
-    return this.appendPreview !== undefined;
-  }
-
-  reconnectElement(edge: SceneEdge, end: ConnectionEnd, node: SceneNode): boolean {
-    if (!this.connect.reconnect(edge, end, node)) return false;
-    this.redrawElements([edge]);
-    return true;
-  }
-
   /** @internal Move one waypoint and commit it. */
   moveWaypoint(edge: SceneEdge, index: number, point: Point): void {
     const mutator = this.mutator;
@@ -797,38 +776,6 @@ export class Canvas {
 
   canExpand(node: SceneNode): boolean {
     return isExpandable(node.type);
-  }
-
-  setMarkerVisible(node: SceneNode, visible: boolean): boolean {
-    if (!this.mutator?.setMarkerVisible(node, visible)) return false;
-    this.redrawElements([node]);
-    return true;
-  }
-
-  createDataAssociation(source: SceneNode, target: SceneNode): SceneEdge | undefined {
-    if (!dataAssociationEnds(source, target)) return undefined;
-    const verdict = this.rules.canConnect(source, target);
-    if (!verdict || !isDataAssociationType(verdict.type)) return undefined;
-    return this.connectElements(source, target);
-  }
-
-  setBandName(node: SceneNode, band: ParticipantBand, name: string): boolean {
-    const changed = this.mutator?.setBandName(node, band, name) ?? [];
-    if (changed.length === 0) return false;
-    this.redrawElements(changed);
-    return true;
-  }
-
-  setInitiator(node: SceneNode, band: ParticipantBand): boolean {
-    if (!this.mutator?.setInitiator(node, band)) return false;
-    this.redrawElements([node]);
-    return true;
-  }
-
-  swapInitiator(node: SceneNode): boolean {
-    if (!this.mutator?.swapInitiator(node)) return false;
-    this.redrawElements([node]);
-    return true;
   }
 
   setColor(elements: unknown, colors: ElementColors): SceneElement[] {

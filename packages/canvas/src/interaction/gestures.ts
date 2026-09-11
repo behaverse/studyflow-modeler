@@ -603,7 +603,6 @@ export class Gestures {
     const pt = this.eventPoint(ev);
     const element = canvas.hitTest(pt);
     if (!element) return;
-    canvas.getEventBus().fire('ElementDblClick', { element, originalEvent: ev, point: pt });
     const selected = canvas.getSelection().get();
     if (selected.length !== 1 || selected[0]?.id !== element.id) canvas.getSelection().select(element);
     if (element.kind === 'node' && isExpandable(element.type)) {

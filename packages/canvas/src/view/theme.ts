@@ -17,7 +17,6 @@ export const CANVAS_CSS = `
   --sf-accent-soft: rgba(192, 40, 176, 0.1);
   --sf-danger: #dc2626;
   --sf-danger-soft: rgba(220, 38, 38, 0.08);
-  --sf-canvas-fill-color: #faf9f6;
   cursor: grab;
   touch-action: none;
   user-select: none;

@@ -37,16 +37,10 @@ export function categoryOf(type: string): NodeCategory {
 export interface ShapeStyle {
   stroke: string;
   fill: string;
-  strokeWidth?: number;
-  dashArray?: string;
 }
 
 export const CORNER_RADIUS = 12;
 export const STROKE_WIDTH = 1.5;
-
-function widthOf(style: ShapeStyle): number {
-  return style.strokeWidth ?? STROKE_WIDTH;
-}
 
 export type EventKind = 'start' | 'end' | 'intermediateThrow' | 'intermediateCatch' | 'boundary';
 
@@ -61,14 +55,14 @@ export function drawEvent(parent: SVGElement, w: number, h: number, style: Shape
   const r = eventRadius(w, h);
   const dash = kind === 'boundary' ? '4,3' : null;
   // An end event is the same disc as a start event, drawn with a heavy ring.
-  const ring = kind === 'end' ? widthOf(style) * 2.5 : widthOf(style);
+  const ring = kind === 'end' ? STROKE_WIDTH * 2.5 : STROKE_WIDTH;
   const outer = append(parent, create('circle', {
-    cx, cy, r: kind === 'end' ? r - (ring - widthOf(style)) / 2 : r,
+    cx, cy, r: kind === 'end' ? r - (ring - STROKE_WIDTH) / 2 : r,
     fill: style.fill, stroke: style.stroke, 'stroke-width': ring, 'stroke-dasharray': dash,
   }));
   if (kind !== 'start' && kind !== 'end') {
     append(parent, create('circle', {
-      cx, cy, r: Math.max(0, r - 4), fill: 'none', stroke: style.stroke, 'stroke-width': widthOf(style), 'stroke-dasharray': dash,
+      cx, cy, r: Math.max(0, r - 4), fill: 'none', stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-dasharray': dash,
     }));
   }
   return outer;
@@ -77,8 +71,7 @@ export function drawEvent(parent: SVGElement, w: number, h: number, style: Shape
 export function drawTask(parent: SVGElement, w: number, h: number, style: ShapeStyle, thick = false): SVGElement {
   return append(parent, create('rect', {
     x: 0, y: 0, width: w, height: h, rx: CORNER_RADIUS, ry: CORNER_RADIUS,
-    fill: style.fill, stroke: style.stroke, 'stroke-width': thick ? widthOf(style) * 2 : widthOf(style),
-    'stroke-dasharray': style.dashArray ?? null,
+    fill: style.fill, stroke: style.stroke, 'stroke-width': thick ? STROKE_WIDTH * 2 : STROKE_WIDTH,
   }));
 }
 
@@ -87,7 +80,7 @@ export function drawDiamond(parent: SVGElement, w: number, h: number, style: Sha
   const cy = h / 2;
   return append(parent, create('polygon', {
     points: `${cx},0 ${w},${cy} ${cx},${h} 0,${cy}`,
-    fill: style.fill, stroke: style.stroke, 'stroke-width': widthOf(style),
+    fill: style.fill, stroke: style.stroke, 'stroke-width': STROKE_WIDTH,
     'stroke-linecap': 'round', 'stroke-linejoin': 'round',
   }));
 }
@@ -96,11 +89,11 @@ export function drawDataObject(parent: SVGElement, w: number, h: number, style: 
   const fold = Math.min(w, h) * 0.32;
   const body = append(parent, create('path', {
     d: `M0,0 L${w - fold},0 L${w},${fold} L${w},${h} L0,${h} Z`,
-    fill: style.fill, stroke: style.stroke, 'stroke-width': widthOf(style), 'stroke-linejoin': 'round',
+    fill: style.fill, stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-linejoin': 'round',
   }));
   append(parent, create('path', {
     d: `M${w - fold},0 L${w - fold},${fold} L${w},${fold}`,
-    fill: 'none', stroke: style.stroke, 'stroke-width': widthOf(style), 'stroke-linejoin': 'round',
+    fill: 'none', stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-linejoin': 'round',
   }));
   return body;
 }
@@ -115,11 +108,11 @@ export function drawDataStore(parent: SVGElement, w: number, h: number, style: S
   const ry = dataStoreRim(h);
   const body = append(parent, create('path', {
     d: `M0,${ry} A${rx},${ry} 0 0 0 ${w},${ry} L${w},${h - ry} A${rx},${ry} 0 0 1 0,${h - ry} Z`,
-    fill: style.fill, stroke: style.stroke, 'stroke-width': widthOf(style), 'stroke-linejoin': 'round',
+    fill: style.fill, stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-linejoin': 'round',
   }));
   append(parent, create('path', {
     d: `M0,${ry} A${rx},${ry} 0 0 0 ${w},${ry} A${rx},${ry} 0 0 0 0,${ry} Z`,
-    fill: 'none', stroke: style.stroke, 'stroke-width': widthOf(style),
+    fill: 'none', stroke: style.stroke, 'stroke-width': STROKE_WIDTH,
   }));
   return body;
 }
@@ -127,7 +120,7 @@ export function drawDataStore(parent: SVGElement, w: number, h: number, style: S
 export function drawGroup(parent: SVGElement, w: number, h: number, style: ShapeStyle): SVGElement {
   return append(parent, create('rect', {
     x: 0, y: 0, width: w, height: h, rx: CORNER_RADIUS, ry: CORNER_RADIUS,
-    fill: 'none', stroke: style.stroke, 'stroke-width': widthOf(style), 'stroke-dasharray': style.dashArray ?? '6,4',
+    fill: 'none', stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-dasharray': '6,4',
   }));
 }
 
@@ -135,7 +128,7 @@ export function drawTextAnnotation(parent: SVGElement, w: number, h: number, sty
   const arm = Math.min(w * 0.4, 10);
   return append(parent, create('path', {
     d: `M${arm},0 L0,0 L0,${h} L${arm},${h}`,
-    fill: 'none', stroke: style.stroke, 'stroke-width': widthOf(style), 'stroke-linejoin': 'round',
+    fill: 'none', stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-linejoin': 'round',
   }));
 }
 
@@ -143,10 +136,10 @@ export const PARTICIPANT_BAND = 30;
 
 export function drawParticipant(parent: SVGElement, w: number, h: number, style: ShapeStyle): SVGElement {
   const rect = append(parent, create('rect', {
-    x: 0, y: 0, width: w, height: h, rx: 4, ry: 4, fill: style.fill, stroke: style.stroke, 'stroke-width': widthOf(style),
+    x: 0, y: 0, width: w, height: h, rx: 4, ry: 4, fill: style.fill, stroke: style.stroke, 'stroke-width': STROKE_WIDTH,
   }));
   const band = Math.min(PARTICIPANT_BAND, w);
-  append(parent, create('line', { x1: band, y1: 0, x2: band, y2: h, stroke: style.stroke, 'stroke-width': widthOf(style) }));
+  append(parent, create('line', { x1: band, y1: 0, x2: band, y2: h, stroke: style.stroke, 'stroke-width': STROKE_WIDTH }));
   return rect;
 }
 

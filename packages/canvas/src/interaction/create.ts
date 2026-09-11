@@ -120,10 +120,6 @@ export class Create {
     return this.state !== undefined;
   }
 
-  getPrototype(): CreatePrototype | undefined {
-    return this.state?.prototype;
-  }
-
   start(prototype: CreatePrototype, center: Point): boolean {
     if (!this.options.getScene()) return false;
     this.state = { prototype, center: { ...center }, target: { verdict: false } };

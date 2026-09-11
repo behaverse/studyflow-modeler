@@ -97,14 +97,6 @@ function boundsOf(definitions: any, id: string): { x: number; y: number } {
   throw new Error(`no BPMNShape for ${id}`);
 }
 
-test('grid snapping is on out of the box (addendum 7)', async () => {
-  const { canvas } = await load();
-  expect(canvas.isSnapToGrid()).toBe(true);
-  // …and the documented escape hatch is still the only switch there is.
-  canvas.setSnapToGrid(false);
-  expect(canvas.isSnapToGrid()).toBe(false);
-});
-
 test('a drag within 7 units of a neighbour\'s centre lands EXACTLY on it, grid or no grid', async () => {
   const { canvas, definitions } = await load();
   const task = node(canvas, 'Task_1');

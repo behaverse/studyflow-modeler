@@ -217,19 +217,6 @@ test('an endpoint dragged along its own run leaves no elbow behind', async () =>
   expect(isOrthogonal(flow.waypoints)).toBe(true);
 });
 
-// --- the programmatic path ---------------------------------------------------
-
-test('reconnectElement without a drop point keeps the plain centre-anchored route', async () => {
-  const { canvas } = await load();
-  const flow = edge(canvas, 'Flow_1');
-  const target = node(canvas, 'Task_2');
-
-  expect(canvas.reconnectElement(flow, 'target', target)).toBe(true);
-  expect(flow.target?.id).toBe('Task_2');
-  expect(last(flow).x).toBe(target.x);
-  expect(isOrthogonal(flow.waypoints)).toBe(true);
-});
-
 test('a reconnect drop lands on the grid, like every other waypoint gesture', async () => {
   // The dock follows the DROP, and a drop is a waypoint position: it snaps to the
   // grid, exactly as a bendpoint drag does. Two drops inside the same grid cell

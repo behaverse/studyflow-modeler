@@ -10,9 +10,7 @@ import type { EventBus } from '@core/events/bus.ts';
 
 import {
   applyBandName,
-  applyInitiator,
   isChoreographyTask,
-  readChoreographyBands,
   tasksReferencing,
   type ParticipantBand,
 } from '@canvas/model/choreography.ts';
@@ -21,7 +19,6 @@ import { formatFont, mergeFont, type FontPatch } from '@canvas/model/font.ts';
 import {
   dataAssociationEnds,
   isDataAssociationType,
-  typeForDirection,
   wireDataAssociation,
 } from '@canvas/model/dataAssociation.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';
@@ -49,7 +46,6 @@ import type {
   Scene,
   SceneEdge,
   SceneElement,
-  SceneLabel,
   SceneNode,
 } from '@canvas/model/scene.ts';
 import {
@@ -284,13 +280,6 @@ export class Mutator {
     this.finish([edge]);
   }
 
-  /** Pin a caption to `bounds`. */
-  setLabelBounds(label: SceneLabel, bounds: Bounds): void {
-    Object.assign(label, bounds);
-    label.pinned = true;
-    this.finish([label.owner]);
-  }
-
   /** Commit geometry the caller already wrote into the scene (a drag drop). */
   commit(elements: SceneElement[]): void {
     if (elements.length > 0) this.finish(elements);
@@ -330,32 +319,16 @@ export class Mutator {
     return { changed, contents };
   }
 
-  toggleExpanded(node: SceneNode): { changed: SceneElement[]; contents: SceneElement[] } {
-    return this.setExpanded(node, node.isExpanded === false);
-  }
-
-  setMarkerVisible(node: SceneNode, visible: boolean): boolean {
-    if (node.isMarkerVisible === visible) return false;
-    node.isMarkerVisible = visible;
-    this.finish([node]);
-    return true;
-  }
-
   // --- names and choreography bands -------------------------------------------
 
-  /**
-   * Write `name` on `target` (default: the first element's own business object) and
-   * report the edit as a change to `elements`. A no-op edit writes nothing.
-   */
-  setName(elements: Drawable | Drawable[], name: string, target?: ModdleObject): boolean {
-    const list = Array.isArray(elements) ? elements : [elements];
-    const bo = target ?? list[0]?.businessObject;
-    if (!bo || list.length === 0) return false;
+  /** Write `name` on `element`'s business object; a no-op edit writes nothing. */
+  setName(element: Drawable, name: string): boolean {
+    const bo = element.businessObject;
     const current = prop(bo, 'name');
     if ((typeof current === 'string' ? current : '') === name) return false;
     setProp(bo, 'name', name);
-    for (const element of list) syncLabel(this.scene, element);
-    this.finish(list);
+    syncLabel(this.scene, element);
+    this.finish([element]);
     return true;
   }
 
@@ -378,18 +351,6 @@ export class Mutator {
     const affected = tasksReferencing(this.scene, write.participant, node);
     this.finish(affected);
     return affected;
-  }
-
-  setInitiator(node: SceneNode, band: ParticipantBand): boolean {
-    if (!isChoreographyTask(node) || !applyInitiator(node, band, this.ids)) return false;
-    this.finish([node]);
-    return true;
-  }
-
-  swapInitiator(node: SceneNode): boolean {
-    if (!isChoreographyTask(node)) return false;
-    const current = readChoreographyBands(node.businessObject).initiator;
-    return this.setInitiator(node, current === 'top' ? 'bottom' : 'top');
   }
 
   // --- colour -------------------------------------------------------------------
@@ -585,12 +546,6 @@ export class Mutator {
     syncLabel(scene, edge);
     this.finish([edge, spec.source, spec.target]);
     return edge;
-  }
-
-  addDataAssociation(source: SceneNode, target: SceneNode, waypoints?: Point[]): SceneEdge | undefined {
-    const ends = dataAssociationEnds(source, target);
-    if (!ends) return undefined;
-    return this.addConnection({ type: typeForDirection(ends.direction), source, target, waypoints });
   }
 
   /** Move one or both ends of `edge`, rewriting the references; `waypoints` replaces the route. */

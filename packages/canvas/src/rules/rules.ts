@@ -23,13 +23,9 @@ export interface RuleElement {
   readonly isExpanded?: boolean;
 }
 
-export type RuleContext = Record<string, unknown>;
-
 export interface ConnectionSpec {
   type: string;
 }
-
-export type RuleVerdict = boolean | 'attach' | ConnectionSpec;
 
 export interface Size {
   width: number;
@@ -340,10 +336,6 @@ export class Rules {
     return canContain(shapeType, containerType);
   }
 
-  canAttach(shape: RuleElement | undefined, parent?: RuleElement): 'attach' | false {
-    return this.canCreate(shape, parent) === 'attach' ? 'attach' : false;
-  }
-
   /** May a sequence-flow successor follow this element? */
   canAppend(source: RuleElement | undefined): boolean {
     if (!source) return false;
@@ -381,49 +373,4 @@ export class Rules {
     const containerType = container ? bpmnTypeOf(container, this.catalog) : 'bpmn:Process';
     return canContain(targetType, containerType) === true;
   }
-
-  /** `allowed(action, context)` string dispatch; unknown actions answer `true`. */
-  allowed(action: string, context: RuleContext = {}): RuleVerdict {
-    switch (action) {
-      case 'connection.create':
-        return this.canConnect(asElement(context.source), asElement(context.target));
-      case 'connection.start':
-        return this.canStartConnection(asElement(context.source ?? context.element));
-      case 'connection.reconnect':
-      case 'connection.reconnectStart':
-      case 'connection.reconnectEnd':
-        return this.canReconnect(asElement(context.connection), asElement(context.source), asElement(context.target));
-      case 'shape.resize':
-        return this.canResize(asElement(context.shape), asBounds(context.newBounds));
-      case 'shape.create':
-        return this.canCreate(asElement(context.shape), asElement(context.parent ?? context.target), { root: asElement(context.root) });
-      case 'shape.attach':
-        return this.canAttach(asElement(context.shape), asElement(context.parent ?? context.target));
-      case 'shape.append':
-        return this.canAppendType(
-          asElement(context.source ?? context.element ?? context.shape),
-          typeof context.targetType === 'string' ? context.targetType : undefined,
-        );
-      case 'shape.replace':
-        return this.canReplace(asElement(context.element ?? context.shape), typeof context.targetType === 'string' ? context.targetType : undefined);
-      case 'elements.move': {
-        const target = asElement(context.target ?? context.parent);
-        if (!target) return true;
-        const shapes = Array.isArray(context.shapes) ? context.shapes : [];
-        return this.canMove(shapes.map(asElement), target);
-      }
-      default:
-        return true;
-    }
-  }
-}
-
-export const defaultRules = new Rules();
-
-function asElement(value: unknown): RuleElement | undefined {
-  return value && typeof value === 'object' ? (value as RuleElement) : undefined;
-}
-
-function asBounds(value: unknown): Partial<Bounds> | undefined {
-  return value && typeof value === 'object' ? (value as Partial<Bounds>) : undefined;
 }

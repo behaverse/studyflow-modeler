@@ -82,12 +82,9 @@ export function clear<E extends Node>(element: E): E {
   return element;
 }
 
-/** Apply a `translate(x,y)` (optionally `scale`) transform to a group. */
-export function transform(element: SVGElement, x: number, y: number, scale?: number): void {
-  const t = scale !== undefined && scale !== 1
-    ? `translate(${x}, ${y}) scale(${scale})`
-    : `translate(${x}, ${y})`;
-  element.setAttribute('transform', t);
+/** Apply a `translate(x,y)` transform to a group. */
+export function transform(element: SVGElement, x: number, y: number): void {
+  element.setAttribute('transform', `translate(${x}, ${y})`);
 }
 
 /** Create a `<g>` translated to `(x, y)`, optionally carrying `attrs`. */
@@ -95,9 +92,4 @@ export function group(x = 0, y = 0, attrs?: Record<string, AttrValue>): SVGGElem
   const g = create('g', attrs) as SVGGElement;
   if (x || y) transform(g, x, y);
   return g;
-}
-
-/** Add space-separated class tokens to an element. */
-export function classed(element: Element, ...names: string[]): void {
-  for (const name of names) if (name) element.classList.add(name);
 }

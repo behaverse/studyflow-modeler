@@ -20,7 +20,6 @@ export interface SelectionOptions {
   layer: SVGGElement;
   getGraphics: (id: string) => SVGGElement | undefined;
   bus: EventBus;
-  root?: Element;
   canResize?: (target: Resizable) => boolean;
   /** Turns whatever a caller names an element by (an id, a stale copy) into the scene element. */
   resolve?: (value: unknown) => SceneElement | undefined;
@@ -34,7 +33,6 @@ export const OUTLINE_OFFSET = 4;
 export const OUTLINE_CLASS = 'sf-outline';
 export const RESIZING_MARKER = 'sf-resizing';
 export const EDITING_MARKER = 'sf-editing';
-const MULTI_SELECT_CLASS = 'sf-multi-select';
 
 export interface HandleHit {
   target: Resizable;
@@ -52,7 +50,6 @@ export class Selection {
   private readonly layer: SVGGElement;
   private readonly getGraphics: (id: string) => SVGGElement | undefined;
   private readonly bus: EventBus;
-  private readonly root?: Element;
   private readonly canResize: (target: Resizable) => boolean;
   private readonly resolve: (value: unknown) => SceneElement | undefined;
   private selected: SceneElement[] = [];
@@ -64,7 +61,6 @@ export class Selection {
     this.layer = options.layer;
     this.getGraphics = options.getGraphics;
     this.bus = options.bus;
-    this.root = options.root;
     this.canResize = options.canResize ?? (() => true);
     this.resolve = options.resolve ?? ((value) => value as SceneElement | undefined);
   }
@@ -230,7 +226,6 @@ export class Selection {
     for (const el of next) this.getGraphics(el.id)?.classList.add('selected');
     this.selected = next;
     for (const el of next) this.applyOutline(el);
-    this.root?.classList.toggle(MULTI_SELECT_CLASS, next.length > 1);
     this.drawOverlay();
     const event: SelectionChangedEvent = { newSelection: next.slice(), oldSelection: old.slice() };
     this.bus.fire('SelectionChanged', event);

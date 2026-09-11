@@ -38,10 +38,6 @@ export function distance(a: Point, b: Point): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
-export function boxContains(box: Bounds, point: Point): boolean {
-  return point.x >= box.x && point.x <= box.x + box.width && point.y >= box.y && point.y <= box.y + box.height;
-}
-
 export function containsPoint(shape: CroppableShape, point: Point): boolean {
   const { x, y, width: w, height: h } = shape;
   if (w <= 0 || h <= 0) return false;

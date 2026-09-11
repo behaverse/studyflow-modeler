@@ -159,18 +159,6 @@ export function edgesAffectedBy(elements: Iterable<SceneElement>): SceneEdge[] {
   return [...out];
 }
 
-export function nodesOf(scene: Scene): SceneNode[] {
-  const out: SceneNode[] = [];
-  for (const element of scene.elementsById.values()) if (element.kind === 'node') out.push(element);
-  return out;
-}
-
-export function edgesOf(scene: Scene): SceneEdge[] {
-  const out: SceneEdge[] = [];
-  for (const element of scene.elementsById.values()) if (element.kind === 'edge') out.push(element);
-  return out;
-}
-
 /** Nodes and edges (no labels), in scene order. */
 export function drawablesOf(scene: Scene): (SceneNode | SceneEdge)[] {
   const out: (SceneNode | SceneEdge)[] = [];

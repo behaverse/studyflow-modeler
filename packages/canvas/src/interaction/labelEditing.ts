@@ -27,12 +27,6 @@ import type { Viewport } from '@canvas/view/viewport.ts';
 export type LabelBand = 'name' | 'top' | 'bottom';
 export type LabelPlacement = 'internal' | 'external';
 
-export interface ElementDblClickEvent {
-  element: SceneElement;
-  originalEvent?: MouseEvent;
-  point: Point;
-}
-
 export interface DirectEditingEvent {
   element: SceneNode | SceneEdge;
   band: LabelBand;
@@ -134,14 +128,6 @@ export class LabelEditing {
 
   getSession(): LabelEditingSession | undefined {
     return this.session;
-  }
-
-  getInput(): HTMLTextAreaElement | undefined {
-    return this.input;
-  }
-
-  getValue(): string | undefined {
-    return this.input?.value;
   }
 
   setValue(text: string): void {

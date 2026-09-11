@@ -90,7 +90,6 @@ test('destroy removes every listener the canvas installed and detaches the SVG',
 
   canvas.destroy();
 
-  expect(canvas.isDestroyed()).toBe(true);
   expect(tracked.live(), 'the container is handed back clean').toEqual([]);
   expect(rootTracked.live(), 'pointerdown/dblclick come off the root too').toEqual([]);
   expect(host.contains(canvas.getSvg() as unknown as Node)).toBe(false);

@@ -112,7 +112,6 @@ test.describe('canvas rules: connection.create matches @core catalog.connectionR
         const expected = schema === 'defer' ? !!structural : schema;
 
         expect(!!rules.canConnect(source, target)).toBe(expected);
-        expect(!!rules.allowed('connection.create', { source, target })).toBe(expected);
       });
     }
   }
@@ -189,7 +188,6 @@ test.describe('canvas rules: sequence-flow restrictions', () => {
   test('a missing endpoint is never connectable', () => {
     expect(rules.canConnect(undefined, node('bpmn:Task'))).toBe(false);
     expect(rules.canConnect(node('bpmn:Task'), undefined)).toBe(false);
-    expect(rules.allowed('connection.create', {})).toBe(false);
   });
 
   test('sequence flow does not leave its container', () => {
@@ -379,10 +377,8 @@ test.describe('canvas rules: shape.create containment', () => {
   test('a boundary event attaches to an activity and nothing else', () => {
     const task = node('bpmn:Task');
     expect(rules.canCreate(node('bpmn:BoundaryEvent'), task)).toBe('attach');
-    expect(rules.canAttach(node('bpmn:BoundaryEvent'), task)).toBe('attach');
-    expect(rules.allowed('shape.attach', { shape: node('bpmn:BoundaryEvent'), parent: task })).toBe('attach');
     expect(rules.canCreate(node('bpmn:BoundaryEvent'))).toBe(false);
-    expect(rules.canAttach(node('bpmn:Task'), task)).toBe(false);
+    expect(rules.canCreate(node('bpmn:Task'), task)).toBe(false);
   });
 
   test('a drop onto a group is judged against the group container', () => {
@@ -445,8 +441,7 @@ test.describe('canvas rules: shape.resize', () => {
     expect(rules.canResize(task, { width: 100, height: 80 })).toBe(true);
     expect(rules.canResize(task, { width: 99, height: 80 })).toBe(false);
     expect(rules.canResize(task, { width: 100, height: 79 })).toBe(false);
-    expect(rules.allowed('shape.resize', { shape: task, newBounds: { x: 0, y: 0, width: 40, height: 30 } }))
-      .toBe(false);
+    expect(rules.canResize(task, { x: 0, y: 0, width: 40, height: 30 })).toBe(false);
   });
 
   test('an override replaces the built-in floor', () => {
@@ -457,7 +452,6 @@ test.describe('canvas rules: shape.resize', () => {
 
   test('a missing shape never resizes', () => {
     expect(rules.canResize(undefined)).toBe(false);
-    expect(rules.allowed('shape.resize', {})).toBe(false);
   });
 });
 
@@ -479,11 +473,6 @@ test.describe('canvas rules: shape.append', () => {
     expect(rules.canAppend(undefined)).toBe(false);
   });
 
-  test('the AppendMenuProvider context key (`element`) is honoured', () => {
-    expect(rules.allowed('shape.append', { element: node('bpmn:Task') })).toBe(true);
-    expect(rules.allowed('shape.append', { element: node('bpmn:EndEvent') })).toBe(false);
-  });
-
   test('connection.start is wider than append: everything that can start ANY edge', () => {
     // `shape.append` asks about sequence flow alone. The pad's connect handle has to
     // cover every edge that can leave an element, or the flow simply cannot be drawn:
@@ -494,7 +483,7 @@ test.describe('canvas rules: shape.append', () => {
       'bpmn:Task', 'bpmn:DataObjectReference', 'bpmn:DataStoreReference',
       'bpmn:EndEvent', 'bpmn:Participant', 'bpmn:TextAnnotation',
     ]) {
-      expect(rules.allowed('connection.start', { source: node(type) }), type).toBe(true);
+      expect(rules.canStartConnection(node(type)), type).toBe(true);
     }
     // Offering the handle is not promising a target: what the drag may LAND on is
     // still `canConnect`'s call, and an end event has few legal ones.
@@ -509,25 +498,16 @@ test.describe('canvas rules: shape.append', () => {
   });
 });
 
-// --- the diagram-js-shaped entry point --------------------------------------
+// --- move ------------------------------------------------------------------
 
-test.describe('canvas rules: allowed(action, context)', () => {
-  test('an ungated action is allowed, as in diagram-js', () => {
-    expect(rules.allowed('connection.updateWaypoints', {})).toBe(true);
-    expect(rules.allowed('something.nobody.registered')).toBe(true);
-  });
-
-  test('elements.move checks every shape against the drop target', () => {
+test.describe('canvas rules: canMove', () => {
+  test('a move checks every shape against the drop target', () => {
     const pool = node('bpmn:Participant');
-    expect(rules.allowed('elements.move', { shapes: [node('bpmn:Task'), node('bpmn:StartEvent')], target: pool }))
-      .toBe(true);
-    expect(rules.allowed('elements.move', { shapes: [node('bpmn:Task'), node('bpmn:Participant')], target: pool }))
-      .toBe(false);
-    // No target: a plain move within the current parent is ungated.
-    expect(rules.allowed('elements.move', { shapes: [node('bpmn:Participant')] })).toBe(true);
+    expect(rules.canMove([node('bpmn:Task'), node('bpmn:StartEvent')], pool)).toBe(true);
+    expect(rules.canMove([node('bpmn:Task'), node('bpmn:Participant')], pool)).toBe(false);
   });
 
-  test('elements.move refuses a drop that would drag a sequence flow across a boundary', () => {
+  test('a move refuses a drop that would drag a sequence flow across a boundary', () => {
     // BPMN: a sequence flow lives in ONE `flowElements` container and may not cross a
     // sub-process (or pool) boundary — the same rule `structuralConnection` applies
     // when the flow is drawn. Dragging a connected shape in or out would produce that
@@ -539,14 +519,14 @@ test.describe('canvas rules: allowed(action, context)', () => {
     (moving as any).incoming = [flow];
     (outside as any).outgoing = [flow];
 
-    expect(rules.allowed('elements.move', { shapes: [moving], target: sub })).toBe(false);
+    expect(rules.canMove([moving], sub)).toBe(false);
     // Both ends moving together stay in one container, so that drop is fine…
-    expect(rules.allowed('elements.move', { shapes: [moving, outside], target: sub })).toBe(true);
+    expect(rules.canMove([moving, outside], sub)).toBe(true);
     // …and so is a flow whose other end is ALREADY inside the container.
     const inner = node('bpmn:Task', { parent: sub });
     const inFlow = edge('bpmn:SequenceFlow', inner, moving);
     (moving as any).incoming = [inFlow];
-    expect(rules.allowed('elements.move', { shapes: [moving], target: sub })).toBe(true);
+    expect(rules.canMove([moving], sub)).toBe(true);
   });
 
   test('a shape moved inside the container it already lives in is not re-judged', () => {
@@ -559,7 +539,7 @@ test.describe('canvas rules: allowed(action, context)', () => {
     const stale = edge('bpmn:SequenceFlow', outside, inner);
     (inner as any).incoming = [stale];
 
-    expect(rules.allowed('elements.move', { shapes: [inner], target: sub })).toBe(true);
+    expect(rules.canMove([inner], sub)).toBe(true);
   });
 
   test('an ARTIFACT association may cross the boundary a sequence flow may not', () => {
@@ -571,15 +551,6 @@ test.describe('canvas rules: allowed(action, context)', () => {
     const assoc = edge('bpmn:Association', task, note);
     (note as any).incoming = [assoc];
 
-    expect(rules.allowed('elements.move', { shapes: [note], target: sub })).toBe(true);
-  });
-
-  test('every verdict collapses to the boolean the Editor.rules adapter needs', () => {
-    const verdicts = [
-      rules.allowed('connection.create', { source: node('bpmn:Task'), target: node('bpmn:EndEvent') }),
-      rules.allowed('shape.attach', { shape: node('bpmn:BoundaryEvent'), parent: node('bpmn:Task') }),
-      rules.allowed('shape.append', { source: node('bpmn:Task') }),
-    ];
-    expect(verdicts.map((verdict) => !!verdict)).toEqual([true, true, true]);
+    expect(rules.canMove([note], sub)).toBe(true);
   });
 });

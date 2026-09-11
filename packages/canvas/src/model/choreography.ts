@@ -1,39 +1,16 @@
 /**
- * Choreography band writeback — the **inverse** of `@core/document/choreography`'s
- * `readChoreographyBands` (design §1, §2 "ChoreographyTask — two participant bands
- * + middle name band", §6 P5).
+ * Choreography band writes: the inverse of core's `readChoreographyBands`.
  *
- * A choreography task is drawn as three stacked bands: the top participant, the
- * task's own name, the bottom participant. Only the middle band's text belongs to
- * the task — the two outer bands render `participantRef[0].name` and
- * `participantRef[1].name`, and which of the two is *initiating* decides the band
- * shading (`initiatingParticipantRef`). So editing a band is never a `name` write on
- * the element under the pointer; it is a write on a `bpmn:Participant` that the task
- * merely references, and that its siblings usually reference too.
+ * A choreography task draws three bands: the top participant, its own name, the
+ * bottom participant. The outer bands show `participantRef[0|1].name`, so editing one
+ * renames a `bpmn:Participant` the task references (its siblings may reference it
+ * too), minting the pair, and in a process-rooted document the `bpmn:Collaboration`
+ * holding it, on the first edit. Band geometry is derived from the task's bounds
+ * (`render/shapes.ts` `choreographyBandHeight`) and `messageFlowRef` is rebuilt on save
+ * (core's `processToChoreographyRoot`), so neither is written here.
  *
- * What this module owns, and what it deliberately does not:
- *
- * - **Owns** the three writes that make up the inverse of `readChoreographyBands` —
- *   `participantRef` (the ordered pair), the participants' `name`, and
- *   `initiatingParticipantRef` — plus minting the pair (and, in a process-rooted
- *   document, the `bpmn:Collaboration` that holds it) the first time a band is
- *   edited. Ported from the modeler's `bpmn/choreographyParticipants.ts`, minus its
- *   `modeling`/`bpmnFactory` services: everything is mutated in place through moddle.
- * - **Does not** touch geometry. Band geometry is *derived*, never stored: the DI
- *   carries one `dc:Bounds` for the whole task and `render/shapes.ts`
- *   `choreographyBandHeight(height) = min(20, ⌊height/3⌋)` splits it. There is no
- *   per-band `BPMNShape` in a studyflow document (unlike the optional BPMN-DI
- *   participant-band shapes), so a rename cannot desynchronize band geometry, and a
- *   resize keeps all three bands proportional for free — the `bpmn:ChoreographyActivity`
- *   floor in `rules/rules.ts` `MIN_SIZES` (100×80) keeps every band drawable.
- * - **Does not** touch `messageFlowRef`. The app strips message flows on import and
- *   rebuilds them on save (`@core/document/choreography.ts`
- *   `choreographyToProcessRoot` / `processToChoreographyRoot`), so a canvas-side
- *   write would be overwritten at best and duplicated at worst.
- *
- * Like `model/remove.ts` and `model/expand.ts` this module is pure with respect to
- * the scene bookkeeping: it mutates the moddle tree and reports what changed, while
- * the revision bump and the bus events stay in `model/writeback.ts`.
+ * Pure with respect to the scene: it mutates the moddle tree and reports what changed;
+ * the revision bump and the events are the Mutator's.
  */
 
 import { BPMN } from '@core/constants.ts';
@@ -191,26 +168,6 @@ export function applyBandName(
   const renamed = nameOf(participant) !== name;
   if (renamed) setProp(participant, 'name', name);
   return { participant, minted, renamed };
-}
-
-/**
- * Point `initiatingParticipantRef` at the participant of `band` — the inverse of
- * `readChoreographyBands`'s `initiator`. Returns whether anything was written.
- */
-export function applyInitiator(
-  node: SceneNode,
-  band: ParticipantBand,
-  ids: IdGenerator,
-): boolean {
-  if (isTypedChoreography(node.businessObject)) return false; // the presenter always initiates
-  const pair = ensureChoreographyParticipants(node, ids);
-  if (!pair) return false;
-  const next = band === 'top' ? pair[0] : pair[1];
-  // A pair minted just now already points at the top one, which is still a change
-  // when the caller asked for the bottom.
-  if (prop(node.businessObject, 'initiatingParticipantRef') === next) return false;
-  setProp(node.businessObject, 'initiatingParticipantRef', next);
-  return true;
 }
 
 /**

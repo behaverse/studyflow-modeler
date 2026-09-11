@@ -31,10 +31,6 @@ export function asList(value: unknown): ModdleObject[] {
   return value.map(asModdle).filter((item): item is ModdleObject => !!item);
 }
 
-export function listProp(owner: ModdleObject | undefined, name: string): ModdleObject[] {
-  return asList(prop(owner, name));
-}
-
 export function nameOf(target: ModdleObject | undefined): string {
   const value = prop(target, 'name');
   return typeof value === 'string' ? value : '';

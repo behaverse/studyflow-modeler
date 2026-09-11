@@ -7,14 +7,12 @@ import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNo
 import { depthOf, isHidden } from '@canvas/model/tree.ts';
 
 export interface HitOptions {
-  /** How close a point must be to an edge to hit it. Default `5`. */
-  tolerance?: number;
-  nodePadding?: number;
   /** An element the predicate rejects is invisible to the query. */
   accept?: (element: SceneElement) => boolean;
 }
 
-const DEFAULT_TOLERANCE = 5;
+/** How close a point must be to an edge to hit it. */
+const EDGE_TOLERANCE = 5;
 
 interface DrawOrder {
   revision: number;
@@ -67,11 +65,11 @@ export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): S
   for (let i = nodes.length - 1; i >= 0; i -= 1) {
     const node = nodes[i];
     if (accept && !accept(node)) continue;
-    if (!pointInNode(point, node, options.nodePadding ?? 0)) continue;
+    if (!pointInNode(point, node)) continue;
     if (!isContainerNode(node)) return node;
     if (!container || outranksFrame(node, container)) container = node;
   }
-  return nearestEdge(scene, point, options.tolerance ?? DEFAULT_TOLERANCE, accept) ?? container;
+  return nearestEdge(scene, point, EDGE_TOLERANCE, accept) ?? container;
 }
 
 /** The smaller frame is the inner one; on a tie, the deeper. */

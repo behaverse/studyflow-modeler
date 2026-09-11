@@ -37,7 +37,6 @@ export interface DragOptions {
   mutator: Mutator;
   redraw: (elements: SceneElement[]) => void;
   snapToGrid?: boolean;
-  gridSize?: number;
   minSizeFor?: (node: SceneNode) => MinSize;
   /** Boxes a live re-route steers around, asked once per move. */
   obstacles?: (moving: readonly SceneNode[]) => Bounds[];
@@ -95,7 +94,6 @@ export function snapTo(value: number, step: number): number {
 export class Drag {
   private readonly mutator: Mutator;
   private readonly redraw: (elements: SceneElement[]) => void;
-  private readonly gridSize: number;
   private readonly minSizeOf?: (node: SceneNode) => MinSize;
   private readonly obstaclesFor?: (moving: readonly SceneNode[]) => Bounds[];
   private readonly getScope?: () => SceneNode | undefined;
@@ -106,7 +104,6 @@ export class Drag {
   constructor(options: DragOptions) {
     this.mutator = options.mutator;
     this.redraw = options.redraw;
-    this.gridSize = options.gridSize ?? DEFAULT_GRID_SIZE;
     this.minSizeOf = options.minSizeFor;
     this.snap = options.snapToGrid ?? true;
     this.obstaclesFor = options.obstacles;
@@ -123,10 +120,6 @@ export class Drag {
 
   setSnapToGrid(on: boolean): void {
     this.snap = on;
-  }
-
-  isSnapToGrid(): boolean {
-    return this.snap;
   }
 
   /** Begin moving nodes (contents come along) and captions from `origin`. */
@@ -263,7 +256,7 @@ export class Drag {
   }
 
   private maybeSnap(value: number, axis: 'x' | 'y'): number {
-    return this.snap && this.axes[axis] ? snapTo(value, this.gridSize) : value;
+    return this.snap && this.axes[axis] ? snapTo(value, DEFAULT_GRID_SIZE) : value;
   }
 
   private applyMove(state: MoveState, rawDx: number, rawDy: number): SceneElement[] {
@@ -274,8 +267,8 @@ export class Drag {
       if (lead) {
         const from = lead.kind === 'node' ? state.nodeOrigins.get(lead) : state.labelOrigins.get(lead);
         if (from) {
-          if (this.axes.x) dx = snapTo(from.x + rawDx, this.gridSize) - from.x;
-          if (this.axes.y) dy = snapTo(from.y + rawDy, this.gridSize) - from.y;
+          if (this.axes.x) dx = snapTo(from.x + rawDx, DEFAULT_GRID_SIZE) - from.x;
+          if (this.axes.y) dy = snapTo(from.y + rawDy, DEFAULT_GRID_SIZE) - from.y;
         }
       }
     }

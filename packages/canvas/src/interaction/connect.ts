@@ -126,18 +126,18 @@ export class Connect {
   }
 
   /**
-   * Move `end` of `edge` onto `node`. `at` re-docks the end where it was dropped; a
-   * bent route dropped back on the shape it already named keeps its bends.
+   * Move `end` of `edge` onto `node`, docking it where it was dropped (`at`); a bent
+   * route dropped back on the shape it already named keeps its bends.
    */
-  reconnect(edge: SceneEdge, end: ConnectionEnd, node: SceneNode, at?: Point): boolean {
+  private reconnect(edge: SceneEdge, end: ConnectionEnd, node: SceneNode, at: Point): boolean {
     const mutator = this.options.getMutator();
     if (!mutator || !this.reconnectVerdict(edge, end, node)) return false;
     const source = end === 'source' ? node : edge.source;
     const target = end === 'target' ? node : edge.target;
-    let waypoints = at !== undefined && isRedock(edge, end, node)
+    let waypoints = isRedock(edge, end, node)
       ? edge.waypoints.map((p) => ({ x: p.x, y: p.y }))
       : source && target ? routeFor(edge.type, source, target, this.options.routeOptions?.()) : undefined;
-    if (waypoints && at) waypoints = redockEnd(waypoints, end, node, at, { source, target });
+    if (waypoints) waypoints = redockEnd(waypoints, end, node, at, { source, target });
     mutator.reconnect(edge, end === 'source' ? { source: node } : { target: node }, waypoints);
     return true;
   }
