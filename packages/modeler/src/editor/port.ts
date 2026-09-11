@@ -29,6 +29,8 @@ export type EditorEventListener = (event: any) => any;
 /** Schema-aware document model access (bpmn-moddle). */
 export interface EditorModel {
   moddle(): Moddle;
+  /** The schema packages the moddle was built from, untouched: a converted document is built with the same ones. */
+  packages(): Record<string, any>;
   create(type: string, properties?: Record<string, unknown>): ModelElement;
   /** An id-assigning business object. */
   createBusinessObject(type: string, properties?: Record<string, unknown>): ModelElement;

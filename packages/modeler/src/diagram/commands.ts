@@ -1,6 +1,5 @@
 import new_diagram from '#assets/new_diagram.bpmn?raw';
 import { fromWireXml, looksLikeXml, studyflowToXml } from '@core/document';
-import { loadSchemas } from '@core/notation/loader';
 import { setAttribute } from '@core/element';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { extractXmlFromSvg, filenameStem } from '@modeler/diagram/file';
@@ -9,7 +8,6 @@ import { importableFormatFor, openerFor } from '@modeler/export/formats';
 import { extractXmlFromPng } from '@core/document/png';
 import { notify } from '@modeler/app/noticeStore';
 import { resetTrailStamping } from '@modeler/provenance/trail';
-import { getSettings } from '@modeler/settings/store';
 import type { Editor } from '@modeler/editor/port';
 
 export type ResetZoomCommand = {
@@ -76,7 +74,7 @@ async function toXml(modeler: Editor, filename: string, content: string | ArrayB
   if (opener) {
     return opener.toXml(text, {
       name: filenameStem(filename),
-      packages: await loadSchemas(getSettings().enabledSchemas),
+      packages: modeler.model.packages(),
       warn: (message) => notify('warning', message),
     });
   }

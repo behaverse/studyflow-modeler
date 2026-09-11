@@ -55,7 +55,8 @@ export function mountEditor(options: MountEditorOptions): Editor {
     // `{count}` in a label draws its run-state value; the model, the file and the inspector keep the raw text.
     labelText: (bo, name) => resolvePlaceholders(name, canvas.getDefinitions() as any, bo?.id ?? ''),
   });
-  const moddle = new BpmnModdle(options.extensionSchemas) as any;
+  // moddle rewrites the property descriptors it registers, so it gets a copy: `packages()` hands out the original.
+  const moddle = new BpmnModdle(structuredClone(options.extensionSchemas)) as any;
 
   // Before the first import there is no scene-wide generator; a standalone one covers the palette.
   const preImportIds = new IdGenerator();
@@ -68,6 +69,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
 
   const model: EditorModel = {
     moddle: () => moddle,
+    packages: () => options.extensionSchemas,
     create: (type, properties) => moddle.create(type, properties),
     createBusinessObject: (type, properties) => {
       const element = moddle.create(type, properties);
