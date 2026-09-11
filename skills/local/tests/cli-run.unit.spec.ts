@@ -152,6 +152,18 @@ S:
     }
     expect(log).toContain('Split: a parallel split');
   });
+  test('refuses to start without the prov skill', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    const { STUDYFLOW_PROV_PY: _, ...env } = process.env;
+    let stderr = '';
+    try {
+      execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), '--help'], { cwd: dir, stdio: 'pipe', env });
+    } catch (error: any) {
+      stderr = String(error.stderr);
+    }
+    expect(stderr).toContain('no prov skill in reach');
+  });
 });
 
 /** What a partial runner is handed: `plan.json`, the plan as one JSON digest, never the diagram. */
@@ -214,7 +226,7 @@ test.describe('partial runner hand-off', () => {
       "    json.dump({**state, 'result': 1, 'durationMs': 0}, open(handoff, 'w'))",
     ].join('\n'));
     execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet', '--debug',
-      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe' });
+      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
 
     const digest = JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'plan.json.seen'), 'utf8'));
     expect(digest.study).toEqual({ id: 'P', name: 'Lab', seed: '7', dependencies: ['pandas>=2.0', 'joblib'] });
@@ -285,7 +297,7 @@ test.describe('partial runner hand-off', () => {
       "    json.dump({**state, 'result': eid, 'durationMs': 0}, open(handoff, 'w'))",
     ].join('\n'));
     execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
-      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe' });
+      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
 
     const moments = new Map(fs.readFileSync(order, 'utf8').trim().split('\n').map((line) => {
       const [what, id, at] = line.split(' ');

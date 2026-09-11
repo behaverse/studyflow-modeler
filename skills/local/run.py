@@ -16,8 +16,8 @@ partial-runner hand-offs. A skill is a folder beside this one whose `SKILL.md`
 declares what it contributes: a schema saying what its elements are, and as
 `runtimes.local` the command that claims and executes them here, run in the
 skill's folder (`python://` elements belong to the python skill). The prov
-skill's module adds the run repository, the records, and the prov timeline;
-without it a run executes bare.
+skill's module keeps the run repository, the records, and the prov timeline;
+a run refuses to start without it.
 
 A run writes a run directory, `--repo DIR` or else `~/.studyflow/runs/<id>/` (YYMMDD plus a codename, e.g. `260821heron/`), or the one the diagram handed
 to it already lives in: the artifacts the `uri`s name, a copy of the studyflow
@@ -294,7 +294,7 @@ def literal(text: str | None) -> Any:
 def read_studyflow(path: Path, stamp: dict[str, str] | None = None) -> Studyflow:
     """`stamp` is this run's record, appended to `state._meta.prov` in the plan text (the copy runs from it)."""
     xml = studyflow_from_png(path) if path.suffix.lower() == ".png" else path.read_text()
-    if stamp and PROV is not None:
+    if stamp:
         process_id = Studyflow(ET.fromstring(xml)).process.get("id") or ""
         record = {name: stamp[name] for name in PROV.TIMELINE_FIELDS if stamp.get(name)}
         seed = literal(record.get("seed"))
@@ -511,7 +511,10 @@ def load_prov():
         module = (read_manifest(folder).get("runtimes") or {}).get("local") if folder else None
         candidate = folder / module if module else None
     if candidate is None or not candidate.exists():
-        return None
+        raise SystemExit(
+            "no prov skill in reach: the local runtime needs skills/prov beside skills/local, "
+            "or STUDYFLOW_PROV_PY naming prov.py",
+        )
     spec = importlib.util.spec_from_file_location("studyflow_prov", candidate)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -521,60 +524,6 @@ def load_prov():
 
 
 PROV = load_prov()
-
-
-class NoRecord:
-    """Stands in when studyflow-prov is absent: the walk runs, nothing is recorded."""
-
-    def __init__(self) -> None:
-        self.plan_digest = ""
-        self.seed = None
-        self.started = datetime.now(timezone.utc)
-        self.status = "ok"
-        self.entries: list[dict] = []
-
-    def begin(self, element_id: str, name: str, element_type: str) -> dict:
-        return {"node": element_id, "status": "ok", "_clock": time.perf_counter()}
-
-    def end(self, entry: dict) -> None:
-        entry["durationMs"] = round((time.perf_counter() - entry.pop("_clock", time.perf_counter())) * 1000, 1)
-
-    def fail(self, entry: dict, error: BaseException) -> None:
-        entry["status"] = "error"
-        self.status = "error"
-        entry.pop("_clock", None)
-
-    def finish(self, status: str) -> None:
-        self.status = status
-
-    def header(self) -> dict:
-        return {}
-
-    def summary(self) -> dict:
-        return {"status": self.status}
-
-    def steps_since(self, index: int) -> list[dict]:
-        return []
-
-
-class NoRepo:
-    """Stands in when studyflow-prov is absent: the run directory stays a plain folder."""
-
-    active = False
-    created = True
-
-    def open(self) -> None: ...
-
-    def dirty(self) -> bool:
-        return False
-
-    def commit(self, *args: Any, **kwargs: Any) -> None: ...
-
-    def branch(self, *args: Any, **kwargs: Any) -> bool:
-        return False
-
-    def current_branch(self) -> str:
-        return ""
 
 
 def discover_runners(runner_flags: list[str], dependencies: list[str] = ()) -> dict[str, tuple[str, Path | None]]:
@@ -817,14 +766,14 @@ class Runner:
         self.repo = repo
         self.branched = branched
         self.values: dict[str, Any] = {}
-        self.state = State(PROV.read_state(studyflow.plan) if PROV is not None else {})
+        self.state = State(PROV.read_state(studyflow.plan))
         self._thread = threading.local()  # each pool walks on its own thread, at its own depth
         self.lock = threading.RLock()  # the values, the state tree, and the repository are shared by the pools
         self.arrived = threading.Condition(self.lock)  # where a message flow's target waits for its source
         self.arrived_at: set[str] = set()  # reached this run; `_meta.reached` counts across runs and cannot say
         self.failed: BaseException | None = None
         self._deferred: list[tuple[str, str, int, str]] | None = None
-        self.prior_records = {} if fresh or PROV is None else PROV.element_records(studyflow)
+        self.prior_records = {} if fresh else PROV.element_records(studyflow)
         self.completed: dict[str, str] = {}
         self.reached: dict[str, str] = {}
         self.decisions: dict[str, tuple[str, str]] = {}
@@ -840,7 +789,7 @@ class Runner:
             started or datetime.now(timezone.utc),
             run=self.repo_dir.name,
             who=PROV.current_user(),
-        ) if PROV is not None else NoRecord()
+        )
 
     @property
     def depth(self) -> int:
@@ -1510,13 +1459,12 @@ class Runner:
         }
         stamped = self.studyflow.plan
         run = self.repo_dir.name
-        if PROV is not None:
-            stamped = PROV.write_state(stamped, self.state.tree, self.studyflow.process.get("id") or "")
-            for element_id, action, extra in entries:
-                stamped = PROV.insert_element_entry(
-                    stamped, element_id, replace_action=replaced(action, element_id),
-                    action=action, when=moments[element_id], run=run, **extra,
-                )
+        stamped = PROV.write_state(stamped, self.state.tree, self.studyflow.process.get("id") or "")
+        for element_id, action, extra in entries:
+            stamped = PROV.insert_element_entry(
+                stamped, element_id, replace_action=replaced(action, element_id),
+                action=action, when=moments[element_id], run=run, **extra,
+            )
         plan = self.repo_dir / source.name
         write_plan_copy(source, plan, stamped)
         self.event("diagram.archived", f"  → {shown(plan)}", level=logging.DEBUG)
@@ -1598,15 +1546,8 @@ def main() -> int:
     repo_dir = resolve_repo_dir(args.repo, args.studyflow, started)
     run_id = repo_dir.name
     start_logging(repo_dir, args.quiet)
-    if PROV is None:
-        log_event(
-            "prov.missing",
-            "  no prov skill in reach — executing without a repository, records, or reuse",
-            level=logging.WARNING,
-        )
-
-    who = PROV.current_user() if PROV is not None else ""
-    repo = PROV.RunRepo(repo_dir) if PROV is not None else NoRepo()
+    who = PROV.current_user()
+    repo = PROV.RunRepo(repo_dir)
     # A run interrupted mid-commit leaves git's lock behind; nothing else commits into a run repository.
     (repo_dir / ".git" / "index.lock").unlink(missing_ok=True)
     repo.open()
@@ -1647,7 +1588,7 @@ def main() -> int:
     })
     # The diagram is read before the fork below, because forking reverts the copy this may be reading from.
     # Branching has first claim on the run's branch name; a detached HEAD only attaches without one.
-    invalidated = PROV.invalidated_elements(probe) if PROV is not None else []
+    invalidated = PROV.invalidated_elements(probe)
     branched = False
     if repo.active and (args.from_ref or invalidated):
         point = PROV.branch_point(repo, invalidated, args.from_ref)

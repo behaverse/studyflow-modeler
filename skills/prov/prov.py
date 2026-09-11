@@ -1,8 +1,7 @@
 """The prov skill's module: the run repository, the records, and the prov timeline.
 
 The local runtime (`skills/local/run.py`) loads this module as `SKILL.md` declares it (or `STUDYFLOW_PROV_PY`)
-and overrides `log_event` and `shown` with its own; without this file a run
-still executes, with no repository, no records, and no reuse.
+and overrides `log_event` and `shown` with its own; the runtime refuses to run without it.
 """
 
 from __future__ import annotations
