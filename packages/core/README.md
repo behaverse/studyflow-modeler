@@ -1,39 +1,10 @@
 # @behaverse/studyflow-core
 
-The headless studyflow document model: what a studyflow *is*, with no React, no bpmn-js, and no DOM requirement. The modeler, the browser runner, and the CLI are its three consumers. (The [Python runners](../cli/) are self-contained scripts and read the BPMN XML themselves.)
-
-## Contract
-
-- It owns the **notation**: the schema catalog, the `.studyflow.yaml` ⇄ BPMN XML round trip, PNG embedding, and attribute access on one element.
-- It is **framework-free**: no React, no bpmn-js or diagram-js, no imports from either app, and no bpmn-js service named even as `any`. ESLint enforces every one of those (`eslint.config.js`); a boundary crossing is a lint error, not a review comment.
-- It knows nothing about pixels or participants. Anything that renders or executes belongs in a consumer.
-- Each folder has **one entry module** that is its public API: `@core/notation`, `@core/document`, `@core/element`. Nothing outside a folder imports past its `index.ts`.
-- The catalog is a boot-order singleton: `loader` parses the YAML once, `loadSchemas` filters, `buildCatalog` builds the catalog, and `setCatalog` installs it. `getCatalog()` throws before that rather than answering queries with silent blanks.
-- Schemas are **inlined at build time** (`import.meta.glob(..., ?raw)`), so nothing resolves `assets/` at run time and a published build stays self-contained.
-
-## Where things are
-
-| Folder | What it holds |
-| --- | --- |
-| `src/notation/` | what a studyflow can contain: the `*.moddle.yaml` schemas in [`skills/`](../../skills/schemas/) parsed (`schemaFile`, `loader`, `manifest`) and compiled into the queryable type index (`compile` → `query`, `types`, `bpmn`, `palette`, `templates`) |
-| `src/document/` | reading and writing studyflow files: YAML ⇄ BPMN XML (`serialize`, `deserialize`, `format`, `shorthand`, `checklist`, `png`) plus the two round-trip transforms (`choreography`, `io-specification`) |
-| `src/element/` | attribute access on one element (`handle`, `attributes`, `moddle`) |
-| `src/*.ts` | `constants` `naming` `implementation` `settings` `storage`, including the envelope for the modeler's hand-off to the browser runner |
-
-## Consuming it
-
-Consumers import the package as TypeScript source. Each consumer's bundler maps two specifiers (see the root `vite.config.ts` and `tsconfig.json`):
-
-- `@core/*` → `packages/core/src/*`
-- `#assets/*` → `assets/*` (repo root)
+The studyflow core model: the schema catalog, the `.studyflow.yaml` <-> BPMN XML round trip, PNG embedding, and attribute access on one element. No React, no bpmn-js, no DOM. The modeler, the browser runner, and the CLI consume it as TypeScript source (`@core/*`).
 
 ```bash
 npm run typecheck -w @behaverse/studyflow-core
+npm run test:unit -- schema catalog
 ```
 
-## More
-
-- [Reference](../../docs/reference.qmd): the formats this package reads and writes.
-- [Specification](../../docs/specification.qmd): what the document model is a model of.
-- [Architecture](../../README.md#architecture-in-short): the two boundaries, and why framework-freedom earns a second lint rule.
-- [skills/README.md](../../skills/README.md): the schema vocabulary the catalog compiles.
+The schemas it compiles are the skills' `*.moddle.yaml` files: [skills/SCHEMAS.md](../../skills/SCHEMAS.md). The file formats: [docs/reference.qmd](../../docs/reference.qmd#the-file).

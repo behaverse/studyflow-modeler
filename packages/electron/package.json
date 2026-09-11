@@ -1,0 +1,16 @@
+{
+  "name": "@behaverse/studyflow-electron",
+  "description": "Local only, not a workspace: the modeler in an Electron window, for screenshots and demos. `npm install` here to enable; delete the folder to remove.",
+  "private": true,
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "44.3.0"
+  },
+  "allowScripts": {
+    "electron@44.3.0": true
+  }
+}

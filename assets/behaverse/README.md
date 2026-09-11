@@ -1,51 +1,10 @@
-# JSON Schema for task configs
+# Behaverse task configs
 
-`game-config.schema.json` describes the shape of a Behaverse task config and
-its discriminator-typed children (`ValueSpace`, `Distribution`, `Sequence`,
-`AdaptiveAlgorithm`, `ExitRule`). One schema covers one self-contained
-config file per task (`Resources/Configs/<TaskId>/<TaskId>.json`). Wiring it
-into your editor gives you auto-complete on `Type` strings and inline
-errors on missing required fields or unknown property names.
+Reference copies from the Unity project, beside the `behaverse` skill that runs its tasks:
 
-## VS Code
+- [`config-format.md`](config-format.md): the shape of a task config, the JSON that drives a cognitive task's run (trials, parameter sampling, adaptive logic, block exits).
+- [`game-config.schema.json`](game-config.schema.json): that shape as a JSON Schema, with its discriminator-typed children (`ValueSpace`, `Distribution`, `Sequence`, `AdaptiveAlgorithm`, `ExitRule`). One schema covers one self-contained config file per task.
 
-Add to `.vscode/settings.json`:
+Wire the schema into an editor for auto-complete on `Type` strings and errors on missing or unknown properties, with a `json.schemas` entry (VS Code) or a `$schema` key at the top of a config file, pointing at it.
 
-```jsonc
-{
-  "json.schemas": [
-    {
-      "fileMatch": [
-        "Assets/Scenes/*/Resources/*.json"
-      ],
-      "url": "./schema/game-config.schema.json"
-    }
-  ]
-}
-```
-
-## Per-file `$schema:` reference (alternative)
-
-If you prefer per-file wiring, add this as the first key of any config file:
-
-```jsonc
-{
-  "$schema": "../../../../../schema/game-config.schema.json",
-  ...
-}
-```
-
-(Path is relative to the config file. Adjust depth as needed.)
-
-## Limits of this schema
-
-- The schema is **deliberately permissive**: the polymorphic shapes are loose
-  (`additionalProperties` not set on inner objects) so that task-specific extensions
-  in `Parameters` blocks don't trip false-positives.
-- It cannot catch broken cross-references (e.g. a timeline naming a block
-  that doesn't exist). Use **Behaverse > Validate All Configs** in Unity Editor
-  for that - it runs the same merge + deserialize pipeline as runtime and
-  reports broken refs.
-- Obsolete `Type` values (`exponential`, `markov`, `deltaruleupdate`, `nullonly`)
-  are accepted but the schema description flags them as obsolete; see
-  `docs/cleanup-removed-types.md`.
+Limits: the schema is deliberately permissive (inner objects allow extra properties, so task-specific `Parameters` do not trip it), it cannot catch broken cross-references (a timeline naming a block that does not exist; Unity's **Behaverse › Validate All Configs** does), and obsolete `Type` values are accepted but flagged in their description.

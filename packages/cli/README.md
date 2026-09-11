@@ -1,79 +1,40 @@
 # @behaverse/studyflow-cli
 
-`studyflow` is the command-line tool to work with studyflow diagrams. It can convert between `.studyflow.yaml`, XML, and PNG, validate diagrams, inspect metadata, execute them, and open them in the desktop app (`studyflow edit`, the modeler served from your machine).
+`studyflow` is the command-line tool for studyflow diagrams: convert between `.studyflow.yaml`, BPMN XML, and PNG; validate; inspect; execute; and open the offline modeler app.
 
 ## Install
 
-Using Homebrew (macOS or Linux):
-
 ```bash
-brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted (by URL for a custom remote)
+brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted
 brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
 brew install studyflow
 ```
 
-Or from the source code (needs `uv` on PATH for `run`):
+From a checkout (`run` needs `uv` on PATH):
 
 ```bash
-npm run build -w @behaverse/studyflow-cli      # writes packages/cli/dist/studyflow.mjs
-npm run build                                  # also the desktop app's ui for `studyflow edit` (dist/, the webapp's own build)
+npm run build
 node packages/cli/dist/studyflow.mjs --help
 ```
 
-## CLI
-
-Use `--help` to see the commands and options:
+## Use
 
 ```bash
-studyflow --help
-studyflow <command> --help
-```
-
-## Examples
-
-```bash
-studyflow edit study.studyflow.png              # the desktop app: the modeler served from this machine, no network needed, in a window of its own (Chrome, Chromium, Brave or Edge; else the default browser)
-studyflow ui                                    # the same on a blank canvas
+studyflow validate study.studyflow.yaml --strict
+studyflow convert study.studyflow.yaml study.studyflow.png
+studyflow info study.studyflow.yaml --json
+studyflow edit study.studyflow.png              # the desktop app on that file; `studyflow ui` for a blank canvas
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
-studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png                # re-run (--repo DIR picks the run directory)
-studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png --from <ref>   # branch
-studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png --fresh        # re-run all
-
-# Reachy Mini example, auto-answered
-studyflow run skills/reachy/examples/reachy_session.studyflow.png --auto
-
-# Reachy Mini as the participant: a study whose task's bot says `ResponseSource:
-# external` seats the robot by itself. The walk starts the participant bridge in the
-# background (its log and what the robot saw land in the run directory), the robot
-# turns until its camera finds the screen and answers each trial from what it sees
-# (the sim has no camera and uses the screenshot the task attaches), the study's own
-# reachy elements (say, gesture, look at the screen…) are performed through it, and
-# the end event dismisses it. The Robot pool's `vision` names the model. A `screen`
-# look's result is the gaze: a data edge into a declared property (`screenGaze` on the
-# process) keeps it in the study state, and a later look can take `target: "{screenGaze}"`. To seat it by hand instead, e.g. for the browser runner
-# or another vision model (default ollama:gemma4:12b-it-qat):
-skills/reachy/local.py --participant --frames runs/frames --vlm ollama:gemma4:26b   # from the repo root
-
-# Behaverse (Unity WebGL) tasks from the CLI: each task opens full screen in a
-# Chromium window of its own (app mode, throwaway profile; the default browser
-# without one), closed when the task completes, served from the build at
-# UNITY_BUILD_PATH; trials of a bot with `ResponseSource: external` go to the
-# response bridge above.
-UNITY_BUILD_PATH=path/to/Build/WebGL studyflow run --runtime local skills/reachy/examples/reachy_participant.studyflow.png
+studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png --from <ref>   # re-run from an earlier step; --fresh for all
+studyflow run skills/reachy/examples/reachy_session.studyflow.png --auto        # every task answered by a bot
 ```
 
-## Releasing
+`studyflow <command> --help` lists the options. Behaverse (Unity) tasks need the WebGL build at `UNITY_BUILD_PATH`; in a checkout, the `assessment-unity` repo beside this one is found by itself. How a skill executes elements is in [skills/local/SKILL.md](../../skills/local/SKILL.md).
 
-From a clean macOS checkout of `main` with `gh` logged in (`bun` comes with the CLI's dev dependencies):
+## Release
 
 ```bash
-npm run release
+npm run release                 # the next version; `-- 26.10.1` for a given one, `-- --local` for a local brew install
 ```
 
-Versions are `YY.M.N`: year, month, and a counter that climbs within the month (`26.9.9`, `26.9.10`, then `26.10.1`), picked by the release itself (or given: `npm run release -- 26.10.1`). No suffixes: Homebrew misreads them and ranks them above real releases. The one `version` is the root `package.json`'s; every package and the CLI binary carry it. The release writes it, runs typecheck, lint and the unit tests, builds the CLI and the desktop app (`npm run build`), cross-compiles every platform, writes the tarballs and `Formula/studyflow.rb` from that same build so the checksums match, and only then commits `release YY.M.N`, tags `vYY.M.N`, pushes, and creates the GitHub release with the tarballs. Anything failing before the commit puts the tree back. Nothing in CI writes to this repository; the deploy workflow publishes the webapp from the tag the release pushes. `npm run release -- --local` builds the host platform only and writes a `file://` formula for a local `brew install`, without touching git.
-
-## Extending CLI
-
-A *skill* is one folder under [`skills/`](../../skills/) at the repo root, declared by its `SKILL.md` ([the format](../../skills/README.md)): a BPMN extension defines its elements (the vocabulary the modeler offers), and a *partial runner* per runtime executes them (`runtimes.local` for `studyflow run --runtime local`, `runtimes.browser` for the browser runtime). Either part can be missing: `eeg` is vocabulary only, `python` is a runner only. A partial runner is a program, in any language, that claims certain elements and executes them.
-
-`studyflow` runs every skill's `runtimes.local` command in that skill's folder (under the checkout, or `libexec/skills` as installed, plus any `STUDYFLOW_SKILLS` directory), and any executable named `studyflow-<name>` on PATH. It first asks your runner `<plan.json> --claims`; print the element ids you will run as one JSON array on stdout. It then invokes the runner once per claimed element with `<plan.json> --element <id> --cache <dir>`; end events can be claimed too, and are handed over as the walk reaches them, so a runner can fold what it started for the study; `STUDYFLOW_RUN_PID` in the environment is the walk's own pid, for anything a runner leaves running to follow. Each element digest names its `parent` container, and the state file carries the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`); a runner resolves `{name}` placeholders as the modeler does, from the element outward, writes a data edge's value into its target property under `state`, and the walk adopts the scopes that changed. A runner never opens the diagram: `plan.json` is a digest of the plan, written once per run, with `study` (`id`, `name`, `seed`, `dependencies`), `sources` (directories a boundary input may be staged from), and `elements` by id, each with its BPMN `type`, `name`, `attributes` (local names, as written), `extensions` (namespace, type, attributes, child text), `additionalArguments`, `ioSlots`, `inputs` and `outputs` (data associations with their `transformation`), and `participants` (a choreography task's bands, in order; `initiatingParticipantRef` is among its attributes). Pool participants and message flows (`sourceRef`, `targetRef`, `messageRef`) are in `elements` too, with the messages (`itemRef`) and item definitions (`structureRef`) a `messageRef` leads to; every pool with a process is walked at once, and an element with incoming message flows is handed over only once their sources have been reached in this run. `names` maps element ids to the names a placeholder may cite (`{Play.trials}`), one element each: a name two elements share, or one that is also an element's id, binds nothing. Nothing is inferred: an attribute the diagram omits is absent, and its default is the runner's to know. A runner launched as a `uv` script gets the study's `dependencies` installed (`uv run --with <each>`), so its own inline metadata lists only what the runner itself imports. The cache directory holds one file per call, named `<element_id>.state.json`. The file starts as `{state}`, and the runner updates it with the result, so it becomes the same state plus `result` (what the element produced), `durationMs`, and on failure `error` with a non-zero exit. The run log captures stdout; stdin and stderr stay on the terminal. [`skills/reachy/local.py`](../../skills/reachy/local.py) is a working example. It also works standalone on `reachy:` namespace elements. Only the reference runner (`studyflow-run-local.py`, with `studyflow-prov.py`) belongs to this package, in [`runners/`](runners/).
+Needs a clean `main` on macOS, `gh` logged in, and `bun` on PATH. Versions are `YY.M.N`. The release checks, builds, cross-compiles, writes the tarballs and `Formula/studyflow.rb`, then commits, tags, pushes, and creates the GitHub release; a failure before the commit puts the tree back. The deploy workflow publishes the webapp from the tag.

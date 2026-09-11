@@ -5,7 +5,9 @@ import type { Plugin } from 'vite'
 import { claudeProxyPlugin } from './llm/claude-proxy/index.mjs'
 
 /** What the browser runner's dev server adds for this skill: the Unity WebGL build under `/run/assessment-unity`
- * (from `UNITY_BUILD_PATH`, or the repo's `run/assessment-unity/Build/WebGL`) and the Claude proxy the LLM bot calls. */
+ * (from `UNITY_BUILD_PATH`, the repo's `run/assessment-unity/Build/WebGL`, or the assessment-unity checkout beside the
+ * repo) and the Claude proxy the LLM bot calls. Dev only: the deployed site gets the build copied into
+ * dist/run/assessment-unity by the deploy workflow, and `studyflow edit` serves dist/ as it is. */
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -29,7 +31,7 @@ function unityBuildPlugin(mountPath: string, buildDir: string): Plugin {
     configureServer(server) {
       if (!fs.existsSync(buildDir)) {
         server.config.logger.warn(
-          `[unity-build] ${buildDir} not found. Set UNITY_BUILD_PATH or build the WebGL player.`,
+          `[unity-build] no Unity WebGL build at ${buildDir}: set UNITY_BUILD_PATH, or check out assessment-unity beside this repo (or under run/).`,
         )
       }
       server.middlewares.use(mountPath, (req, res, next) => {
@@ -63,9 +65,13 @@ function unityBuildPlugin(mountPath: string, buildDir: string): Plugin {
   }
 }
 
+/** Where the build is, `UNITY_BUILD_PATH` aside: under the repo's run/, else the Unity checkout beside the repo (the
+ * first that exists; the first named in the warning when neither does). The local runner (../local.py) looks the same way. */
+const REPO = resolve(__dirname, '../../..')
+const UNITY_BUILD_DEFAULTS = [resolve(REPO, 'run/assessment-unity/Build/WebGL'), resolve(REPO, '../assessment-unity/Build/WebGL')]
 const unityBuildPath = process.env.UNITY_BUILD_PATH
   ? resolve(process.env.UNITY_BUILD_PATH)
-  : resolve(__dirname, '../../../run/assessment-unity/Build/WebGL')
+  : (UNITY_BUILD_DEFAULTS.find((dir) => fs.existsSync(dir)) ?? UNITY_BUILD_DEFAULTS[0])
 
 /** What these plugins answer outside the runner's own /run/: the modeler's dev server routes them here too. */
 export const DEV_ROUTES = ['/api/llm']

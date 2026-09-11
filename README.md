@@ -1,42 +1,43 @@
 # Behaverse Studyflow
 
-[Studyflow](https://behaverse.org/studyflow-modeler) is a visual notation to describe experiments for machines and humans, based on BPMN (Business Process Model and Notation). It is the canonical representation of a scientific experiment, from which every other representation derives. One file is at once the protocol, the runnable experiment, the analysis specification, and the publication figure, with no second copy to drift.
-
-The canonical format is `.studyflow.yaml`; a diagram can also be embedded in a PNG image, so the figure you publish is the file that runs.
+[Studyflow](https://behaverse.org/studyflow-modeler) is a visual notation for experiments, for machines and humans, based on BPMN. One diagram is the protocol, the runnable experiment, the analysis specification, and the publication figure. The canonical file is `.studyflow.yaml`; the same diagram embeds in a PNG, so the figure you publish is the file that runs.
 
 ## Use
 
-- **Modeler**: the visual editor, at [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler). Draw, validate, simulate, and export diagrams; `/run/` executes the participant-facing side in the browser.
-- **CLI**: `studyflow` converts, validates, inspects, and executes diagrams locally:
+- **Webapp**: [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler). Draw, validate, simulate, and export; `/run/` executes the participant-facing side in the browser.
+- **CLI**: `studyflow` converts, validates, inspects, and executes diagrams locally.
+- **Desktop app**: `studyflow ui`, or `studyflow edit <file>`, serves the modeler from your machine in a window of its own.
 
-  ```bash
-  brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted (by URL for a custom remote)
-  brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
-  brew install studyflow
-  studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
-  ```
+```bash
+brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted
+brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
+brew install studyflow
+studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
+```
 
-## Examples
-
-Example diagrams ship with the skill they exercise, in [skills/](skills/) (`skills/<name>/examples/`), and in the modeler's Examples gallery, one shelf per skill.
+Example diagrams are in `skills/<name>/examples/` and in the modeler's Examples gallery.
 
 ## Develop
 
 ```bash
 npm install
-npm run dev        # modeler + browser runner (`-- --host` to reach them from the LAN); dev:desktop opens it as the desktop app
-npm run test       # unit + e2e (Playwright)
-npm run build
+npm run dev            # modeler + browser runner at http://localhost:5173 (`-- --host` for the LAN)
+npm run dev:desktop    # the same, opened as the desktop app
+npm run test           # unit + e2e (Playwright)
+npm run build          # dist/: the webapp, and what the desktop app serves
 ```
 
-The workspace: [packages/core](packages/core/) is the shared model, [packages/modeler](packages/modeler/) the editor, [skills/browser](skills/browser/) the browser runner, [packages/cli](packages/cli/) the CLI with the local runners, and [packages/desktop](packages/desktop/) the desktop app (`studyflow edit`).
+| Where | What |
+| --- | --- |
+| [packages/core](packages/core/) | the document model |
+| [packages/canvas](packages/canvas/) | the SVG canvas |
+| [packages/modeler](packages/modeler/) | the editor, `/app.html` |
+| [skills/browser](skills/browser/) | the browser runner, `/run/` |
+| [packages/cli](packages/cli/) | the `studyflow` CLI |
+| [packages/desktop](packages/desktop/) | the desktop app |
+| [skills/](skills/) | the vocabularies and runners |
+| [docs/](docs/) | the site |
 
-## Contributing
+## Contributing and license
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## License
-
-MIT
-
-AI tools (Claude, Codex, Gemini) assisted with refactoring and improvements. The author reviewed and maintains all changes.
+See [CONTRIBUTING.md](CONTRIBUTING.md). MIT. AI tools assisted with refactoring and improvements; the author reviewed and maintains all changes.

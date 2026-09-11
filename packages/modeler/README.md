@@ -1,65 +1,11 @@
 # @behaverse/studyflow-modeler
 
-The visual editor for studyflows: a native SVG canvas ([`@behaverse/studyflow-canvas`](../canvas/)) inside a React shell. The app generates its palette, inspector, templates, and connection rules from the `*.moddle.yaml` schemas in [`assets/schemas/`](../../assets/schemas/). Served at `/app.html`.
-
-## Contract
-
-- It owns **authoring** and nothing else. What a studyflow *means* lives in [`@behaverse/studyflow-core`](../core/); what a studyflow *does* lives in the runners.
-- It never imports from the browser runtime ([`skills/browser`](../../skills/browser/)). ESLint refuses it. Shared code goes to core.
-- It hands a studyflow to the browser runner through `localStorage` under `studyflow-modeler:handoff:<id>` (an 8-character uuid slice, swept after an hour) and opens `/run/?diagram=<id>`. There is no code path between the two apps.
-- **Two UI technologies own different pixels**, split at the edge of the canvas: React outside it, the canvas package's own SVG inside. `src/editor/mount.ts` mounts that canvas and `src/editor/editor.ts` assembles the `Editor` facade over it — the right first pair of files to read for canvas behavior. `src/editor/port.ts` is the app's door onto the facade, and the only way app code reaches the editor.
-- **Views dispatch commands by name** and never call a handler directly: a command's `type` *is* its handler's name, so `{ type: 'SetColor' }` runs `runSetColor`, exported from a feature's `commands.ts`. Both sides of the pixel split dispatch onto the same bus, `src/commandBus.ts`.
-- **Adding an element type is a schema edit, not a code edit.** Dropping a `<name>/<name>.moddle.yaml` into `skills/` gives you a palette entry, inspector fields and tabs, connection rules, templates, and round-tripping, with no code here.
-- It updates the provenance timeline on export: `created` on a fresh diagram, `modified` afterwards, once per edit batch. It never writes `executed`. The only other entry it writes is the `invalidated`.
-
-## Where things are
-
-One folder per feature. Everything the palette is lives in `src/palette/`: its data, its React, its commands.
-
-| Folder | What it holds |
-| --- | --- |
-| `src/app/` | the shell: `App.tsx`, `Modeler.tsx`, contexts, notices, boot commands |
-| `src/editor/` | the editor facade: `port.ts` (the door), `editor.ts` (the assembly), `mount.ts` (canvas + app services), history, popup registry |
-| `src/palette/` `src/popup/` `src/commandPalette/` | the three ways to place an element |
-| `src/inspector/` | the attribute panel: tabs, editors, sections, data neighbors |
-| `src/draw/` `src/shape/` | icon and choreography-band geometry the canvas reads, and how an element's business object is built |
-| `src/export/` `src/skillModules.ts` | the file formats below, and the projections and foreign imports skills add through their `modeler.ts` |
-| `src/diagram/` `src/templates/` `src/examples/` | file open/save and auto-layout, the template gallery, the examples gallery |
-| `src/provenance/` `src/checklist/` `src/gantt/` | the three views over a diagram's metadata |
-| `src/simulation/` | token simulation, which animates the graph's shape and proves nothing about a run |
-| `src/publish/` `src/settings/` `src/navBar/` `src/ui/` | publishing to `api.behaverse.org`, settings, chrome |
-| `src/commandBus.ts` | the bus, and the `FEATURES` list a feature joins |
-
-Inside a feature, three file names recur: `commands.ts` (its bus handlers), `PascalCase.tsx` (one React view), and everything else named for what it does. Feature folders have no barrels. You import the path of the file you want. [Architecture](../../README.md#architecture-in-short) has the rules and the reasoning.
-
-## Export formats
-
-Declared once, in `src/export/formats.ts`; a skill's `modeler.ts` adds to the Interchange group (`.artemis.json` is the `eeg` skill's) and can open a foreign format (`.json` jsPsych timelines are the `jspsych` skill's).
-
-| Group | Formats |
-| --- | --- |
-| Diagram | `.studyflow.yaml` (canonical; `.studyflow` still reads), `.bpmn` |
-| Image | `.studyflow.svg`, `.studyflow.png`. Both embed the studyflow source *and* an editable draw.io diagram, so one figure reopens in either editor |
-| Interchange | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` |
-
-PNG and SVG export carry every icon as inline SVG paths, read from the app's own stylesheet; nothing is fetched.
-
-## The examples gallery
-
-`src/examples/` globs every skill's `examples/` folder and reads each card out of the diagram itself: the root's `name` is the title (falling back to its id, then the filename) and the first sentence of its `bpmn:documentation` is the blurb, both editable in the inspector's Documentation tab. The shelf is the folder the file sits in, so the diagram carries no category of its own; a schema's own `examples:` sit on a shelf named after the schema. The filter chips are whatever shelves are present.
-
-To add one, drop a `.studyflow.yaml` into the `examples/` folder of the skill it exercises (`skills/<name>/examples/`; the skill is its shelf) and run `npm run examples:render`; the PNG replaces it as the shipped file, and you can then delete the YAML.
+The visual editor: an SVG canvas ([packages/canvas](../canvas/)) in a React shell, with the palette, inspector, templates, and connection rules generated from the skills' schemas. Served at `/app.html`; the homepage and the examples gallery at `/`.
 
 ```bash
-npm run examples:render              # all of them, from the repo root
+npm run dev                          # from the repo root: http://localhost:5173/app.html
+npm run examples:render              # redraw every example PNG
 npm run examples:render kitchensink  # just this one
 ```
 
-Re-run it after editing an example (open the PNG, edit, export PNG over it) or after a change to how diagrams are drawn. It drives a headless Chromium through this app's own PNG export, so it needs network access for the icon glyphs.
-
-## More
-
-- [Specification](../../docs/specification.qmd#projections): what the checklist, Timeline, and provenance views are, and why they cannot contradict the file.
-- [Reference](../../docs/reference.qmd#the-file): every format this app reads and writes.
-- [Architecture](../../README.md#architecture-in-short): the packages, the two boundaries, the pixel split, the command bus.
-- [skills/README.md](../../skills/README.md): the schema vocabulary this app reads.
+To add an example, drop a `.studyflow.yaml` into `skills/<name>/examples/` and run `examples:render`; the PNG replaces it as the shipped file.

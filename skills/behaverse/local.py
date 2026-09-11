@@ -23,6 +23,7 @@ wired into the task is the player's instructions. `--auto` turns every task into
 run needs nobody at the screen.
 
 The build is looked for at `$UNITY_BUILD_PATH`, then `<repo>/run/assessment-unity/Build/WebGL`,
+then the assessment-unity checkout beside the repo (`<repo>/../assessment-unity/Build/WebGL`):
 the same places the browser runner's dev server looks.
 """
 
@@ -497,18 +498,22 @@ def profile_of(browser: subprocess.Popen) -> str:
     return next(arg.split("=", 1)[1] for arg in browser.args if str(arg).startswith("--user-data-dir="))
 
 
+REPO = Path(__file__).resolve().parents[2]  # skills/behaverse/local.py
+UNITY_BUILD_DEFAULTS = [REPO / "run" / "assessment-unity" / "Build" / "WebGL", REPO.parent / "assessment-unity" / "Build" / "WebGL"]
+
+
 def build_dir(explicit: Path | None) -> Path:
     if explicit is not None:
         return explicit
     if os.environ.get("UNITY_BUILD_PATH"):
         return Path(os.environ["UNITY_BUILD_PATH"])
-    return Path(__file__).resolve().parents[1] / "run" / "assessment-unity" / "Build" / "WebGL"
+    return next((d for d in UNITY_BUILD_DEFAULTS if (d / "index.html").is_file()), UNITY_BUILD_DEFAULTS[0])
 
 
 def checked_build(explicit: Path | None) -> Path:
     build = build_dir(explicit)
     if not (build / "index.html").is_file():
-        raise FileNotFoundError(f"no Unity WebGL build at {build} — set UNITY_BUILD_PATH (or --build) to the Build/WebGL folder")
+        raise FileNotFoundError(f"no Unity WebGL build at {build} — set UNITY_BUILD_PATH (or --build) to the Build/WebGL folder, or check out assessment-unity beside this repo")
     return build
 
 

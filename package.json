@@ -5,6 +5,7 @@
   "license": "MIT",
   "workspaces": [
     "packages/*",
+    "!packages/electron",
     "skills/browser"
   ],
   "engines": {
@@ -13,6 +14,7 @@
   "scripts": {
     "dev": "npm run dev -w @behaverse/studyflow-modeler --",
     "dev:desktop": "npm run dev -- --mode desktop",
+    "dev:electron": "npm start --prefix packages/electron -- --dev",
     "build": "rm -rf dist && npm run build --workspaces --if-present --",
     "typecheck": "tsc --noEmit && npm run typecheck --workspaces --if-present",
     "lint": "eslint .",
