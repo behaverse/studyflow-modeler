@@ -283,7 +283,7 @@ test.describe('moddle registration', () => {
     test(`${prefix}: templates only set declared properties`, () => {
       // Keys the template expander handles itself (RESERVED_TEMPLATE_KEYS in the compiler, plus flow-node keys).
       const STRUCTURAL = new Set([
-        'type', 'name', 'keywords', 'icon', 'attributes', 'mixins', 'flowElements',
+        'type', 'name', 'icon', 'attributes', 'mixins', 'flowElements',
         'x', 'y', 'id', 'sourceRef', 'targetRef',
       ]);
 

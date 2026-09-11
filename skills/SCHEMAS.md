@@ -129,7 +129,7 @@ enumerations:
 
 A template stamps a pre-configured element (or a small flow) into the canvas:
 `object.type` plus any declared property of that type, and optionally `icon`,
-`keywords`, `bpmn:name`, `bpmn:documentation`, `flowElements` (nodes with
+`bpmn:name`, `bpmn:documentation`, `flowElements` (nodes with
 `id/x/y`, connections with `sourceRef/targetRef`), `loopCharacteristics`,
 `eventDefinitions`, and `mixins` (pull in a named type's `defaults`).
 Undeclared properties fail the schema lint. Prefer templates over new classes:

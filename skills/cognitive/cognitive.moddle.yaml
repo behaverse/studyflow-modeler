@@ -313,12 +313,6 @@ templates:
         Randomizes within each stratum of `stratifyBy`, in permuted blocks,
         so arms stay balanced on the covariate. List the strata one per entry.
       icon: iconify ph--stack
-      keywords:
-        - stratified
-        - allocation
-        - randomization
-        - covariate
-        - balance
       algorithm: block
       stratifyBy: age_band
       strata:
@@ -334,11 +328,6 @@ templates:
         Set the game engine in `instrument` and its levels, difficulty, and
         scoring in `configurations`.
       icon: iconify ph--game-controller
-      keywords:
-        - game
-        - videogame
-        - paradigm
-        - instrument
       instrument: unity
       configurations: |
         levels:

@@ -3,7 +3,7 @@ import type { SchemaModel, SchemaTemplateModel } from '@core/notation/schemaFile
 import type { Template, TemplateFlowConnection, TemplateFlowElement, TemplateFlowNode } from '@core/notation/types';
 
 // Metadata keys, stripped before the rest flows onto the canvas as attributes.
-const RESERVED_TEMPLATE_KEYS = new Set(['type', 'name', 'keywords', 'icon', 'mixins', 'flowElements']);
+const RESERVED_TEMPLATE_KEYS = new Set(['type', 'name', 'icon', 'mixins', 'flowElements']);
 const RESERVED_FLOW_NODE_KEYS = new Set([...RESERVED_TEMPLATE_KEYS, 'id', 'x', 'y']);
 const RESERVED_FLOW_CONNECTION_KEYS = new Set(['id', 'type', 'bpmn:type', 'sourceRef', 'targetRef']);
 
@@ -52,7 +52,6 @@ export function compileTemplates(prefix: string, model: SchemaModel, catalog: Ty
       id: `${prefix}::${qualifiedName}::template:${index + 1}`,
       name: merged.name ?? merged['bpmn:name'] ?? typeName,
       description: template.description ?? entry?.description ?? '',
-      keywords: merged.keywords ?? [],
       extensionType: isBpmnRoot ? undefined : qualifiedName,
       bpmnType,
       iconClass: merged.icon ?? entry?.iconClass,

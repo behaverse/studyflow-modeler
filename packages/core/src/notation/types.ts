@@ -156,7 +156,6 @@ export interface Template {
   id: string;
   name: string;
   description?: string;
-  keywords?: string[];
   extensionType?: string;
   bpmnType: string;
   iconClass?: string;

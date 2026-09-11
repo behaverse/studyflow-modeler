@@ -539,12 +539,6 @@ templates:
         Idle until the wake word, turn toward the speaker, then converse until
         the stop phrase or the turn budget ends it.
       icon: iconify ph--chats
-      keywords:
-        - reachy
-        - conversation
-        - wake
-        - dialogue
-        - speech
       flowElements:
         - id: ww_wake
           type: SenseEvent

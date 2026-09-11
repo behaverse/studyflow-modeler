@@ -362,12 +362,6 @@ templates:
         Each turn the model picks one of the tools drawn inside, until the
         completion condition holds or the turn budget runs out.
       icon: iconify ph--robot
-      keywords:
-        - agent
-        - autonomous
-        - tools
-        - loop
-        - adhoc
       model: claude-opus-4-8
       systemPrompt: |
         You are a research assistant. Use the available tools to answer the
@@ -400,12 +394,6 @@ templates:
         A generator drafts, a judge scores the draft against a rubric, and the
         back-edge revises until the score clears the bar.
       icon: iconify ph--arrows-clockwise
-      keywords:
-        - evaluator
-        - optimizer
-        - critique
-        - refine
-        - loop
       flowElements:
         - id: eo_generate
           type: LLMCall
@@ -449,12 +437,6 @@ templates:
         The model chooses among the labels of the outgoing flows; the flow
         marked `default` is taken when it is unsure.
       icon: iconify ph--signpost
-      keywords:
-        - router
-        - routing
-        - classify
-        - dispatch
-        - handoff
       model: claude-haiku-4-5
       instructions: |
         Read the request and route it to exactly one branch, using the branch
@@ -468,12 +450,6 @@ templates:
         Independent calls run at once and their replies are joined; add a
         downstream call to vote or merge them.
       icon: iconify ph--git-fork
-      keywords:
-        - parallel
-        - parallelization
-        - fan-out
-        - sectioning
-        - voting
       flowElements:
         - id: par_split
           type: bpmn:ParallelGateway
@@ -515,12 +491,6 @@ templates:
       bpmn:documentation: |
         Pauses the run until the reviewer answers.
       icon: iconify ph--user-check
-      keywords:
-        - approval
-        - human
-        - hitl
-        - review
-        - interrupt
       question: |
         Review the proposed action and approve, edit, or reject it.
 
@@ -532,11 +502,6 @@ templates:
         Fixed steps in a set order, with a check on the intermediate result
         between them.
       icon: iconify ph--link
-      keywords:
-        - chain
-        - prompt
-        - sequential
-        - workflow
       flowElements:
         - id: chain_a
           type: LLMCall

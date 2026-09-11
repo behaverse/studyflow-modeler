@@ -277,12 +277,6 @@ templates:
       bpmn:name: EEG session
       bpmn:documentation: An EEG session covering cap fitting through data export.
       icon: iconify ph--head-circuit
-      keywords:
-        - eeg
-        - session
-        - biosignal
-        - acquisition
-        - amplifier
       device: brainproducts_actichamp
       modalities:
         - eeg
@@ -357,12 +351,6 @@ templates:
       type: bpmn:ServiceTask
       bpmn:documentation: Filters, cleans, and normalizes BIDS EEG data (EEGLAB clean_rawdata, ASR, ICA + ICLabel).
       icon: iconify ph--wave-sine
-      keywords:
-        - eeg
-        - eegprep
-        - preprocess
-        - cleanartifacts
-        - neuroimaging
       implementation: docker://sccn/eegprep
       additionalArguments: |
         flatline_criterion: 5    # seconds of flatline tolerated per channel
@@ -377,12 +365,6 @@ templates:
       type: bpmn:ServiceTask
       bpmn:documentation: Filtering, epoching, SSP/ICA artifact removal, and evoked responses, driven by one config file.
       icon: iconify ph--wave-sine
-      keywords:
-        - eeg
-        - meg
-        - mne
-        - preprocess
-        - bids
       implementation: python://mne_bids_pipeline@1.9.0
       additionalArguments: |
         config: config.py                  # bids_root, task, subjects, filters, ICA
@@ -394,12 +376,6 @@ templates:
       type: bpmn:ServiceTask
       bpmn:documentation: Preprocesses BIDS fMRI data into normalized, denoised images.
       icon: iconify ph--brain
-      keywords:
-        - fmri
-        - fmriprep
-        - preprocess
-        - bids
-        - neuroimaging
       implementation: docker://nipreps/fmriprep@23.2.0
       additionalArguments: |
         output_spaces: MNI152NLin2009cAsym   # normalized-output space(s)
