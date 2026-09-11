@@ -8,7 +8,7 @@ import { getAttribute, getRawAttribute, isDataOperationActivity, StudyflowElemen
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog } from '@core/notation/index.ts';
 
-import { readChoreographyBands } from '@canvas/model/choreography.ts';
+import { isTypedChoreography, readChoreographyBands } from '@canvas/model/choreography.ts';
 import { normalizeColor } from '@canvas/model/color.ts';
 import { nameOf, prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
@@ -235,7 +235,7 @@ export class Renderer {
         break;
       case 'choreography': {
         const scene = iconGlyph(node.businessObject);
-        const typed = (((node.businessObject as any)?.extensionElements?.values ?? []) as unknown[]).length > 0;
+        const typed = isTypedChoreography(node.businessObject);
         if (!typed || (prop(node.businessObject, 'participantRef') as unknown[] | undefined)?.length) {
           // Bands name the parties; the type glyph sits in the middle band, where the task's own name is.
           this.drawChoreography(g, node, style, name);

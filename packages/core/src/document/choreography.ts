@@ -1,5 +1,6 @@
 import { BPMN } from '@core/constants';
 import { getProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
+import { StudyflowElement } from '@core/element/handle';
 import { getCatalog, hasCatalog } from '@core/notation';
 import { applyXmlPasses, inferPlaneRoot, isHeadlessCollaboration } from '@core/document/format';
 
@@ -8,9 +9,14 @@ const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
 export const DEFAULT_TOP = 'Participant A';
 export const DEFAULT_BOTTOM = 'Participant B';
 
+/** The task's type wrapper, by the rule attribute reads use: a stamp such as a runner's `prov:activity` is not one. */
+function typeWrapperOf(bo: ModdleElement): ModdleElement | null {
+  return StudyflowElement.fromBusinessObject(bo).extension;
+}
+
 /** A typed choreography task (a cognitive task) presents itself; its one participant reference is the actor. */
 export function isTypedChoreography(bo: ModdleElement): boolean {
-  return ((getProperty(bo, 'extensionElements')?.values ?? []) as unknown[]).length > 0;
+  return typeWrapperOf(bo) !== null;
 }
 
 const DEFAULT_PRESENTER = 'Task software';
@@ -21,7 +27,7 @@ const DEFAULT_PRESENTER = 'Task software';
  * that comes out empty, presents as the study's software.
  */
 export function presenterLabel(bo: ModdleElement): string {
-  const ext = (getProperty(bo, 'extensionElements')?.values ?? [])[0];
+  const ext = typeWrapperOf(bo);
   const template = hasCatalog() ? getCatalog().getType(ext?.$type)?.meta?.presenter : undefined;
   if (typeof template !== 'string') return DEFAULT_PRESENTER;
   const label = template.replace(/\{(\w+)\}/g, (_match, name: string) => {
@@ -88,7 +94,7 @@ function isPureChoreography(process: any): boolean {
   for (const el of flowElements) {
     if (!CHOREOGRAPHY_FLOW_TYPES.has(el.$type)) return false;
     // A typed one (a cognitive task, say) is a step of a process that happens to be an exchange, not a choreography.
-    if (isChoreographyTaskBo(el) && (el.extensionElements?.values ?? []).length > 0) return false;
+    if (isChoreographyTaskBo(el) && isTypedChoreography(el)) return false;
     if (isChoreographyTaskBo(el)) hasChoreographyTask = true;
   }
   return hasChoreographyTask;

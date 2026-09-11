@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { fromWireXml, toWireXml } from '@core/document';
+import { fromWireXml, readChoreographyBands, toWireXml } from '@core/document';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 
@@ -130,6 +130,23 @@ test.describe('choreography wire format', () => {
     expect(process.documentation?.[0]?.text).toContain('two-participant');
     expect(process.extensionElements?.values?.[0]?.$type).toBe('studyflow:Study');
   });
+});
+
+/** A runner stamps `prov:activity` into every element it ran; a stamp is not a type, so the task stays a plain exchange. */
+test('a runner stamp on an untyped choreography task keeps its bands and its choreography root', async () => {
+  const stamped = CANVAS_XML.replace(
+    '<bpmn2:incoming>F1</bpmn2:incoming>',
+    '<bpmn2:extensionElements><prov:activity action="executed" /></bpmn2:extensionElements><bpmn2:incoming>F1</bpmn2:incoming>',
+  ).replace(
+    'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"',
+    'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:prov="https://w3id.org/studyflow/prov"',
+  );
+  const { rootElement } = await moddle().fromXML(await toWireXml(stamped, moddle()));
+  const choreography = rootElement.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
+  expect(choreography).toBeTruthy();
+  const task = choreography.flowElements.find((el: any) => el.$type === 'bpmn:ChoreographyTask');
+  expect(task.extensionElements.values[0].$type).toBe('prov:Activity');
+  expect(readChoreographyBands(task)).toEqual({ top: 'Subject', bottom: 'Experimenter', initiator: 'bottom' });
 });
 
 /** A collaboration with no pool only holds actors for the process; a plane naming it is pointed at the process on load. */
