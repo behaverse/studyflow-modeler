@@ -12,17 +12,12 @@ export type PaletteStartCreateTemplateCommand = {
 };
 
 export function runPaletteStartCreateTemplate(modeler: Editor, command: PaletteStartCreateTemplateCommand): any {
-  const template = modeler.templates.getAll().find((t: any) => t.id === command.templateId);
+  const template = modeler.templates.getAll().find((t) => t.id === command.templateId);
   if (!template) return undefined;
 
-  const created = modeler.templates.createElement(template);
-
-  // A template may describe several shapes; the create gesture drags the ROOT one
-  // and the rest are materialized once it lands (`editor/mount.ts`).
-  const root = Array.isArray(created) ? created[0] : created;
-  if (root) modeler.canvas.startCreate(command.event, root);
-
-  return created;
+  const shape = modeler.templates.createElement(template);
+  modeler.canvas.startCreate(command.event, shape);
+  return shape;
 }
 
 

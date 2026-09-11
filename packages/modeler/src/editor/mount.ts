@@ -5,7 +5,7 @@
  */
 
 import { BpmnModdle } from 'bpmn-moddle';
-import { Canvas, IdGenerator, defaultSizeFor, isRootElement } from '@canvas/index.ts';
+import { Canvas, IdGenerator, isRootElement } from '@canvas/index.ts';
 import type { IconDef, SceneElement } from '@canvas/index.ts';
 import { idPrefixFor, needsId } from '@canvas/model/ids.ts';
 import { SVG_ICON_PATHS } from '@canvas/render/icons.ts';
@@ -16,7 +16,8 @@ import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
-import { TEMPLATE_FLOW_ELEMENTS, createTemplateElement, materializeTemplateFlow } from '@modeler/templates/factory';
+import { createTemplateElement, materializeTemplateFlow } from '@modeler/templates/factory';
+import type { TemplateFlowElement } from '@core/notation';
 import type { Editor, EditorModel, EditorSimulation, EditorTemplates, ModelElement } from '@modeler/editor/port';
 
 export type MountEditorOptions = {
@@ -137,38 +138,14 @@ export function mountEditor(options: MountEditorOptions): Editor {
   bus.on('ElementsChanged', onSceneChanged);
   bus.on('ElementsRemoved', onSceneChanged);
 
-  // Templates: a detached shape per template; a nested flow is materialized once the root lands.
-  const elementFactory = {
-    create: (kind: 'shape' | 'connection', attrs: Record<string, any>) => {
-      const businessObject = model.createBusinessObject(attrs.type, {});
-      if (kind === 'connection') return { ...attrs, id: businessObject.id, businessObject };
-      const size = defaultSizeFor(attrs.type, attrs.isExpanded);
-      return { ...attrs, id: businessObject.id, businessObject, width: attrs.width ?? size.width, height: attrs.height ?? size.height };
-    },
-  };
-
-  let pendingTemplate: { businessObject: any; flowElements: any[] } | undefined;
-  const modelingShim = {
-    createShape: (shape: any, bounds: any) => canvas.createElement(shape, { x: bounds.x, y: bounds.y }),
-    createConnection: (source: any, target: any) => {
-      const from = canvas.resolveElement(source);
-      const to = canvas.resolveElement(target);
-      if (!from || from.kind === 'label' || !to || to.kind !== 'node') return undefined;
-      return canvas.connectElements(from, to);
-    },
-    resizeShape: (shape: any, bounds: any) => {
-      const node = canvas.resolveElement(shape);
-      if (node?.kind === 'node') canvas.resizeShape(node, bounds);
-    },
-  };
+  // Templates: the palette drags a template's shape; the flow it holds is laid out inside once it lands.
+  let pendingFlow: { businessObject: ModelElement; flowElements: TemplateFlowElement[] } | undefined;
   const materializePending = (): void => {
-    const pending = pendingTemplate;
-    if (!pending) return;
-    const placed = canvas.all().find((element) => element.kind !== 'label' && element.businessObject === pending.businessObject) as any;
-    if (!placed) return;
-    pendingTemplate = undefined;
-    placed[TEMPLATE_FLOW_ELEMENTS] = pending.flowElements;
-    materializeTemplateFlow({ modeling: modelingShim, elementFactory, moddle, shape: placed, hintKey: '__studyflowCreatingTemplateFlow' });
+    const pending = pendingFlow;
+    const placed = pending && canvas.getScene()?.byBusinessObject.get(pending.businessObject);
+    if (!pending || placed?.kind !== 'node') return;
+    pendingFlow = undefined;
+    materializeTemplateFlow(canvas, model, placed, pending.flowElements);
     canvas.getSelection().select(placed);
   };
   bus.on('ElementChanged', materializePending);
@@ -176,11 +153,9 @@ export function mountEditor(options: MountEditorOptions): Editor {
 
   const templates: EditorTemplates = {
     getAll: () => getCatalog().allTemplates(),
-    createElement: (template: any) => {
-      const shape = createTemplateElement(template, elementFactory, moddle);
-      const flowElements = shape[TEMPLATE_FLOW_ELEMENTS];
-      pendingTemplate = flowElements?.length ? { businessObject: shape.businessObject, flowElements } : undefined;
-      delete shape[TEMPLATE_FLOW_ELEMENTS];
+    createElement: (template) => {
+      const { shape, flowElements } = createTemplateElement(model, template);
+      pendingFlow = flowElements.length > 0 ? { businessObject: shape.businessObject, flowElements } : undefined;
       return shape;
     },
   };

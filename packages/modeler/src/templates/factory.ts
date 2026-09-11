@@ -1,23 +1,22 @@
+import { defaultSizeFor, isExpandable, type Canvas, type SceneNode, type ShapeDescriptor } from '@canvas/index.ts';
 import { StudyflowElement, getDefaults } from '@core/element';
 import { toPrefix } from '@core/naming';
 import { bpmnSelfAndAncestors } from '@core/notation';
 import type { Template, TemplateFlowConnection, TemplateFlowElement, TemplateFlowNode } from '@core/notation';
+import type { EditorModel, ModelElement } from '@modeler/editor/port';
 
-/** Stash key on a container shape for the nested flow elements to materialize once the root lands. */
-export const TEMPLATE_FLOW_ELEMENTS = '__studyflowTemplateFlowElements';
+/** A template's shape, built and sized but not on the canvas yet; `x`/`y` are where a template's flow lays it out. */
+export type TemplateShape = ShapeDescriptor & {
+  businessObject: ModelElement;
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+};
 
 const isFlowNode = (e: TemplateFlowElement): e is TemplateFlowNode => e.kind === 'node';
 const isFlowConnection = (e: TemplateFlowElement): e is TemplateFlowConnection =>
   e.kind === 'connection';
-
-type Box = { x: number; y: number; width: number; height: number };
-
-function createWaypoints(source: Box, target: Box): Array<{ x: number; y: number }> {
-  return [
-    { x: source.x + source.width / 2, y: source.y + source.height / 2 },
-    { x: target.x + target.width / 2, y: target.y + target.height / 2 },
-  ];
-}
 
 function toFiniteNumber(value: any): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -43,39 +42,10 @@ function takeSize(attributes: Record<string, any>): { width?: number; height?: n
   };
 }
 
-
-type CreateTemplateConnectionParams = {
-  elementFactory: any;
-  definition: {
-    id?: string;
-    bpmnType: string;
-    templateAttributes?: Record<string, any>;
-  };
-  source: any;
-  target: any;
-  parent: any;
-};
-
-export function createTemplateConnection(
-  command: CreateTemplateConnectionParams,
-): any {
-  const { elementFactory, definition, source, target, parent } = command;
+/** A template connection's business object, name and attributes written, for `connectElements` to file. */
+function createTemplateConnection(model: EditorModel, definition: TemplateFlowConnection): ModelElement {
+  const bo = model.createBusinessObject(definition.bpmnType);
   const attributes: Record<string, any> = { ...(definition.templateAttributes || {}) };
-
-  const connection = elementFactory.create('connection', {
-    type: definition.bpmnType,
-    source,
-    target,
-    parent,
-    waypoints: createWaypoints(source, target),
-  });
-
-  const bo = connection.businessObject;
-
-  if (definition.id) {
-    bo.set('id', definition.id);
-    connection.id = definition.id;
-  }
 
   const bpmnName = attributes['bpmn:name'];
   if (bpmnName !== undefined) {
@@ -88,89 +58,62 @@ export function createTemplateConnection(
     if (key.startsWith('bpmn:')) bo.set(key, value);
     else handle.setAttribute(key, value);
   }
-
-  return connection;
+  return bo;
 }
-
-
-type MaterializeTemplateFlowParams = {
-  modeling: any;
-  elementFactory: any;
-  moddle: any;
-  shape: any;
-  hintKey: string;
-};
 
 /** Left covers the pool's label band. */
 const POOL_PADDING = { left: 70, right: 40 };
 
-/** Participants hold their flow inline (no drilldown plane), so grow the pool around the template's bounding box and shift the nodes into it. */
-function fitParticipant(modeling: any, shape: any, nodeShapes: Box[]): { x: number; y: number } {
-  if (shape?.businessObject?.$type !== 'bpmn:Participant' || nodeShapes.length === 0) return { x: 0, y: 0 };
+/** Participants hold their flow inline (no drilldown), so grow the pool around the template's bounding box; returns the shift that moves the nodes into it. */
+function fitParticipant(canvas: Canvas, pool: SceneNode, shapes: TemplateShape[]): { x: number; y: number } {
+  if (pool.type !== 'bpmn:Participant' || shapes.length === 0) return { x: 0, y: 0 };
 
-  const minX = Math.min(...nodeShapes.map((n) => n.x));
-  const minY = Math.min(...nodeShapes.map((n) => n.y));
-  const bboxWidth = Math.max(...nodeShapes.map((n) => n.x + n.width)) - minX;
-  const bboxHeight = Math.max(...nodeShapes.map((n) => n.y + n.height)) - minY;
+  const minX = Math.min(...shapes.map((n) => n.x ?? 0));
+  const minY = Math.min(...shapes.map((n) => n.y ?? 0));
+  const bboxWidth = Math.max(...shapes.map((n) => (n.x ?? 0) + n.width)) - minX;
+  const bboxHeight = Math.max(...shapes.map((n) => (n.y ?? 0) + n.height)) - minY;
 
-  const width = Math.max(shape.width, bboxWidth + POOL_PADDING.left + POOL_PADDING.right);
-  const height = Math.max(shape.height, bboxHeight + 80);
-  modeling.resizeShape(shape, { x: shape.x, y: shape.y, width, height });
+  const width = Math.max(pool.width, bboxWidth + POOL_PADDING.left + POOL_PADDING.right);
+  const height = Math.max(pool.height, bboxHeight + 80);
+  canvas.resizeShape(pool, { x: pool.x, y: pool.y, width, height });
 
   return {
-    x: shape.x + POOL_PADDING.left - minX,
-    y: shape.y + Math.round((height - bboxHeight) / 2) - minY,
+    x: pool.x + POOL_PADDING.left - minX,
+    y: pool.y + Math.round((height - bboxHeight) / 2) - minY,
   };
 }
 
-export function materializeTemplateFlow(command: MaterializeTemplateFlowParams): void {
-  const { modeling, elementFactory, moddle, shape, hintKey } = command;
+/** Lay `flowElements` out inside `container`, the shape their template was dropped as. */
+export function materializeTemplateFlow(
+  canvas: Canvas,
+  model: EditorModel,
+  container: SceneNode,
+  flowElements: TemplateFlowElement[],
+): void {
+  const nodes = flowElements.filter(isFlowNode).map((node) => ({ id: node.id, shape: createTemplateShape(model, node) }));
+  const shift = fitParticipant(canvas, container, nodes.map((entry) => entry.shape));
 
-  const flowElements: TemplateFlowElement[] = shape[TEMPLATE_FLOW_ELEMENTS] ?? [];
-  if (flowElements.length === 0) return;
-
-  const nodesById = new Map<string, any>();
-  const nodeShapes = flowElements
-    .filter(isFlowNode)
-    .map((node) => ({ node, nodeShape: createTemplateShape({ elementFactory, moddle, ...node, parent: shape }) }));
-
-  const delta = fitParticipant(modeling, shape, nodeShapes.map((entry) => entry.nodeShape));
-
-  for (const { node, nodeShape } of nodeShapes) {
-    const created = modeling.createShape(
-      nodeShape,
-      { x: nodeShape.x + delta.x, y: nodeShape.y + delta.y, width: nodeShape.width, height: nodeShape.height },
-      shape,
-      { autoResize: false, [hintKey]: true },
-    );
-    nodesById.set(node.id, created);
+  const placed = new Map<string, SceneNode>();
+  for (const { id, shape } of nodes) {
+    const bounds = { x: (shape.x ?? 0) + shift.x, y: (shape.y ?? 0) + shift.y, width: shape.width, height: shape.height };
+    const node = canvas.addElement(shape, bounds, container);
+    if (node) placed.set(id, node);
   }
 
-  for (const conn of flowElements.filter(isFlowConnection)) {
-    const source = nodesById.get(conn.sourceRef);
-    const target = nodesById.get(conn.targetRef);
+  for (const connection of flowElements.filter(isFlowConnection)) {
+    const source = placed.get(connection.sourceRef);
+    const target = placed.get(connection.targetRef);
     if (!source || !target) {
-      console.warn(`[templates] Skipping connection '${conn.id ?? conn.bpmnType}' - source or target not found.`);
+      console.warn(`[templates] Skipping connection '${connection.id ?? connection.bpmnType}' - source or target not found.`);
       continue;
     }
-    const created = createTemplateConnection({ elementFactory, definition: conn, source, target, parent: shape });
-    modeling.createConnection(source, target, created, shape, { [hintKey]: true });
+    canvas.connectElements(source, target, createTemplateConnection(model, connection));
   }
-
-  delete shape[TEMPLATE_FLOW_ELEMENTS];
 }
 
 
-type CreateTemplateShapeParams = {
-  elementFactory: any;
-  moddle: any;
-  bpmnType: string;
-  extensionType?: string;
-  overrideIconClass?: string;
-  templateAttributes?: Record<string, any>;
-  x?: number;
-  y?: number;
-  parent?: any;
+type TemplateShapeSpec = Pick<TemplateFlowNode, 'bpmnType' | 'extensionType' | 'overrideIconClass' | 'templateAttributes' | 'x' | 'y'> & {
+  isExpanded?: boolean;
 };
 
 function writeFields(target: any, fields: Record<string, any>): void {
@@ -178,34 +121,23 @@ function writeFields(target: any, fields: Record<string, any>): void {
   for (const [name, value] of Object.entries(fields)) handle.setAttribute(name, value);
 }
 
-export function createTemplateShape(
-  command: CreateTemplateShapeParams,
-): any {
-  const {
-    elementFactory,
-    moddle,
-    bpmnType,
-    extensionType,
-    overrideIconClass,
-    templateAttributes,
-    x,
-    y,
-    parent,
-  } = command;
+function createTemplateShape(model: EditorModel, spec: TemplateShapeSpec): TemplateShape {
+  const { bpmnType, extensionType, overrideIconClass, templateAttributes, x, y, isExpanded } = spec;
 
   const defaults = extensionType ? getDefaults(extensionType) : {};
   const attributes: Record<string, any> = { ...defaults, ...(templateAttributes || {}) };
-  const size = takeSize(attributes);
+  const size = { ...defaultSizeFor(bpmnType, isExpanded), ...takeSize(attributes) };
 
-  const shape = elementFactory.create('shape', {
+  const bo = model.createBusinessObject(bpmnType);
+  const shape: TemplateShape = {
     type: bpmnType,
+    businessObject: bo,
     ...size,
     ...(x !== undefined ? { x } : {}),
     ...(y !== undefined ? { y } : {}),
-    ...(parent ? { parent } : {}),
-  });
+    ...(isExpanded !== undefined ? { isExpanded } : {}),
+  };
 
-  const bo = shape.businessObject;
   const bpmnName = attributes['bpmn:name'];
   if (bpmnName !== undefined) {
     delete attributes['bpmn:name'];
@@ -216,7 +148,7 @@ export function createTemplateShape(
   if (loop && typeof loop === 'object') {
     delete attributes['loopCharacteristics'];
     const { type: loopType = 'bpmn:StandardLoopCharacteristics', ...fields } = loop as Record<string, any>;
-    const lc = moddle.create(loopType, {});
+    const lc = model.create(loopType, {});
     lc.$parent = bo;
     writeFields(lc, fields);
     bo.set('loopCharacteristics', lc);
@@ -227,7 +159,7 @@ export function createTemplateShape(
     delete attributes['eventDefinitions'];
     bo.set('eventDefinitions', eventDefinitions.map((definition: Record<string, any>) => {
       const { type: definitionType, ...fields } = definition;
-      const eventDefinition = moddle.create(definitionType, {});
+      const eventDefinition = model.create(definitionType, {});
       eventDefinition.$parent = bo;
       writeFields(eventDefinition, fields);
       return eventDefinition;
@@ -235,12 +167,11 @@ export function createTemplateShape(
   }
 
   if (!extensionType) {
-    const handle = StudyflowElement.fromBusinessObject(bo);
-    for (const [name, value] of Object.entries(attributes)) handle.setAttribute(name, value);
+    writeFields(bo, attributes);
     return shape;
   }
 
-  const ext = StudyflowElement.fromBusinessObject(bo).ensureExtension(extensionType, moddle, attributes);
+  const ext = StudyflowElement.fromBusinessObject(bo).ensureExtension(extensionType, model.moddle(), attributes);
 
   if (overrideIconClass) {
     const extPrefix = toPrefix(extensionType);
@@ -250,18 +181,20 @@ export function createTemplateShape(
   return shape;
 }
 
-/** A detached shape for `template`; a nested flow is stashed under {@link TEMPLATE_FLOW_ELEMENTS} for the host to materialize. */
-export function createTemplateElement(template: Template, elementFactory: any, moddle: any): any {
-  const shape = createTemplateShape({
-    elementFactory,
-    moddle,
+/** The shape a palette drag drops for `template`, and the flow to lay out inside it once it lands. */
+export function createTemplateElement(
+  model: EditorModel,
+  template: Template,
+): { shape: TemplateShape; flowElements: TemplateFlowElement[] } {
+  const shape = createTemplateShape(model, {
     bpmnType: template.bpmnType,
     extensionType: template.extensionType,
     templateAttributes: template.templateAttributes,
     overrideIconClass: template.overrideIconClass,
+    // A container arrives collapsed, like a plain one from the palette; its flow is drawn once drilled into.
+    ...(isExpandable(template.bpmnType) ? { isExpanded: false } : {}),
   });
   const holdsFlow = template.bpmnType === 'bpmn:Participant'
     || bpmnSelfAndAncestors(template.bpmnType).includes('bpmn:SubProcess');
-  if (template.flowElements?.length && holdsFlow) shape[TEMPLATE_FLOW_ELEMENTS] = template.flowElements;
-  return shape;
+  return { shape, flowElements: holdsFlow ? template.flowElements ?? [] : [] };
 }

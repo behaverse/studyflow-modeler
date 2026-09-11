@@ -3,7 +3,8 @@
  * document model, undo history, templates, simulation). Built by `editor/mount.ts`.
  */
 
-import type { Canvas, EventBus, Selection } from '@canvas/index.ts';
+import type { Canvas, EventBus, Selection, ShapeDescriptor } from '@canvas/index.ts';
+import type { Template } from '@core/notation';
 
 export type { Canvas, EventBus, Selection };
 
@@ -40,8 +41,9 @@ export interface EditorModel {
 }
 
 export interface EditorTemplates {
-  getAll(): any[];
-  createElement(template: any): EditorElement | EditorElement[];
+  getAll(): Template[];
+  /** The shape a palette drag drops; a flow the template holds is laid out inside it once it lands. */
+  createElement(template: Template): ShapeDescriptor;
 }
 
 export interface EditorSimulation {

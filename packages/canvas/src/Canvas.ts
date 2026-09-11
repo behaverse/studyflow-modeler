@@ -591,6 +591,13 @@ export class Canvas {
     return node;
   }
 
+  /** Add a shape the host built (a template's inner flow) at `bounds` inside `parent`, as is: no rules, no selection, no label editor. */
+  addElement(descriptor: ShapeDescriptor, bounds: Bounds, parent?: SceneNode): SceneNode | undefined {
+    const node = this.mutator?.addShape({ ...descriptor, bounds, ...(parent ? { parent } : {}) });
+    if (node) this.mount(node);
+    return node;
+  }
+
   /** @internal A freshly created shape: drawn, selected, and (for a task-like shape) named. */
   placed(node: SceneNode): void {
     this.mount(node);
@@ -603,8 +610,9 @@ export class Canvas {
     return this.gestures.startConnect(source, event);
   }
 
-  connectElements(source: SceneNode | SceneEdge, target: SceneNode): SceneEdge | undefined {
-    const edge = this.connect.connect(source, target);
+  /** Connect `source` to `target` as the rules allow; `businessObject` is one the host built (a template's named flow). */
+  connectElements(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject): SceneEdge | undefined {
+    const edge = this.connect.connect(source, target, businessObject);
     if (!edge) return undefined;
     this.mount(edge);
     this.selection.select(edge);

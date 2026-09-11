@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
+import * as yaml from 'js-yaml';
 
 import { xmlToStudyflow } from '@core/document';
 import { fromModdleYaml, toModdlePackages } from '@core/notation/schemaFile';
@@ -99,6 +100,21 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowText).toContain('Mount cap & check impedance');
     expect(studyflowText).toContain('type: cognitive:Rest');
     expect(studyflowText).toContain('type: cognitive:CognitiveTask');
+  });
+
+  test('a subprocess template arrives collapsed with its flow inside, flows keeping their names and conditions', async ({ page }) => {
+    await gotoModeler(page);
+
+    await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 420, y: 300 });
+
+    const doc = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
+    const process = Object.values(doc).find((value) => value?.type === 'Process');
+    const sub = Object.values(process.flowElements).find((el: any) => el.type === 'SubProcess') as any;
+    expect(sub.isExpanded).toBe(false);
+    const inner = Object.values(sub.flowElements) as any[];
+    expect(inner.map((el) => el.name)).toEqual(expect.arrayContaining(['Draft', 'Judge the draft', 'Good enough?', 'revise']));
+    expect(inner.find((el) => el.name === 'revise').conditionExpression).toContain('score < 4');
+    expect(inner.find((el) => el.name === 'Draft').bounds).toBe('200 140 100 80');
   });
 
   test('applies default schema values for eeg EEGPrep elements', async ({ page }) => {

@@ -5,7 +5,7 @@
 
 import { freeMoveEnd, redockEnd } from '@canvas/routing/edit.ts';
 import type { Mutator } from '@canvas/model/mutator.ts';
-import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { markerEndFor, markerStartFor, previewEdge } from '@canvas/render/renderer.ts';
 import { append, create as svgCreate, remove } from '@canvas/render/svg.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
@@ -111,7 +111,7 @@ export class Connect {
   }
 
   /** Connect two elements without a gesture; `undefined` when the rules refuse. */
-  connect(source: SceneNode | SceneEdge, target: SceneNode): SceneEdge | undefined {
+  connect(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject): SceneEdge | undefined {
     const mutator = this.options.getMutator();
     if (!mutator) return undefined;
     const spec = this.options.rules.canConnect(source, target);
@@ -121,6 +121,7 @@ export class Connect {
       source,
       target,
       waypoints: routeFor(spec.type, routableEnd(source), target, this.options.routeOptions?.()),
+      ...(businessObject ? { businessObject } : {}),
     });
   }
 
