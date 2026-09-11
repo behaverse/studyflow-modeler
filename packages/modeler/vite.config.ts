@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { DEV_ROUTES } from '../../skills/behaverse/browser/vite'
 import { openWindow } from '../desktop/edit'
-import { ROOT, aliases, assetsInclude, define } from '../../vite.shared'
+import { ROOT, aliases, define } from '../../vite.shared'
 
 // The browser runner (skills/browser) is its own Vite app, served by this dev server under its paths, so dev is
 // one origin on one port, exactly as the merged dist/ is in production (the diagram hand-off rides on same-origin
@@ -68,5 +68,4 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  assetsInclude,
 }))

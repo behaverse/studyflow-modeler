@@ -14,11 +14,9 @@
   "dependencies": {
     "@behaverse/studyflow-core": "*",
     "bpmn-moddle": "10.1.0",
-    "commander": "^14.0.3",
-    "js-yaml": "^4.3.2"
+    "commander": "^14.0.3"
   },
   "devDependencies": {
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.6",
     "bun": "^1.4.2",
     "typescript": "^5.9.3",

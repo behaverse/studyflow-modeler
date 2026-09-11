@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { behaverseDevPlugins } from '../behaverse/browser/vite'
-import { ROOT, aliases, assetsInclude, define } from '../../vite.shared'
+import { ROOT, aliases, define } from '../../vite.shared'
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
@@ -30,5 +30,4 @@ export default defineConfig(({ command }) => ({
       },
     },
   },
-  assetsInclude,
 }))

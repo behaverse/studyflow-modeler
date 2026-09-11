@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 /* What the Vite apps (the modeler, the browser runner, the CLI) share: the repo's one
- * version, the source aliases, and the assets diagrams are. One build serves the webapp and the desktop app alike: the
+ * version and the source aliases. One build serves the webapp and the desktop app alike: the
  * desktop app tells itself apart at runtime (assets/css/desktop.css). */
 
 export const ROOT = import.meta.dirname
@@ -21,10 +21,4 @@ export const aliases = [
   { find: '@desktop', replacement: resolve(ROOT, 'packages/desktop') },
   { find: '@skills', replacement: resolve(ROOT, 'skills') },
   { find: '#assets', replacement: resolve(ROOT, 'assets') },
-]
-
-/** Diagrams and their pictures are assets, imported as URLs. */
-export const assetsInclude = [
-  '**/*.png', '**/*.bpmn', '**/*.studyflow', '**/*.jpeg', '**/*.gif',
-  '**/*.svg', '**/*.ico', '**/*.webp', '**/*.yaml',
 ]

@@ -24,11 +24,7 @@ test-results
 *.sln
 *.sw?
 
-# pixi environments
-.pixi
-*.egg-info
 *.drawio.bkp
-.docusaurus/
 .claude/
 
 tmp/

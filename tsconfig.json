@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "types": ["node", "react", "json-schema", "vite/client"],
+    "types": ["node", "react", "vite/client"],
     "target": "ES2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
