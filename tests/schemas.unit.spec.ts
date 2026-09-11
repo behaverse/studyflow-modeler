@@ -4,8 +4,8 @@ import * as yaml from 'js-yaml';
 
 import { studyflowToDefinitions } from '@core/document';
 import { bpmnSelfAndAncestors, buildCatalog, setCatalog } from '@core/notation';
-import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml, toModdlePackages } from '@core/notation/schemaFile';
-import { SCHEMAS, loadSchemaModels, schemaSource } from './schemas';
+import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml } from '@core/notation/schemaFile';
+import { SCHEMAS, loadSchemaModels, schemaSource, schemaPackages } from './schemas';
 
 /** Schema design rules, checked without a browser. */
 
@@ -225,9 +225,7 @@ test.describe('moddle registration', () => {
   const models = SCHEMAS.map(({ prefix }) =>
     fromModdleYaml(schemaSource(prefix)),
   );
-  const packages = Object.fromEntries(
-    models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-  );
+  const packages = schemaPackages(models);
   const moddle = new BpmnModdle(packages) as any;
 
   function knownProperties(qname: string): Set<string> {
@@ -330,9 +328,7 @@ test('the shipped schemas compile with no diagnostics', () => {
 test('schema examples are complete studyflows that compile to BPMN', async () => {
   const models = loadSchemaModels();
   setCatalog(buildCatalog(models));
-  const packages = Object.fromEntries(
-    models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-  );
+  const packages = schemaPackages(models);
 
   for (const model of models) {
     for (const [index, example] of (model.examples ?? []).entries()) {

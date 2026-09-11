@@ -6,8 +6,8 @@ import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '@core/notation';
 import { NON_BPMN_SUPER_CLASSES } from '@core/notation/query';
 import { inferRoles } from '@core/notation/compile';
 import { NON_EXTENSION_PREFIXES } from '@core/constants';
-import { MODDLE_SIMPLE_TYPES, toModdlePackages } from '@core/notation/schemaFile';
-import { SCHEMAS, loadSchemaModels } from './schemas';
+import { MODDLE_SIMPLE_TYPES } from '@core/notation/schemaFile';
+import { SCHEMAS, loadSchemaModels, schemaPackages } from './schemas';
 
 /** Cross-validates the compiled TypeCatalog against bpmn-moddle. */
 
@@ -16,9 +16,7 @@ const models = loadSchemaModels();
 
 // Catalog and moddle packages are built separately; they never share objects (moddle mutates in place).
 const catalog = buildCatalog(models);
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = new BpmnModdle(packages) as any;
 
 /** Value types and enumerations: both ride as `String` off an attribute (see toModdlePackages). */

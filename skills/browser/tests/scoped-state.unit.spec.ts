@@ -2,21 +2,18 @@
 import { expect, test } from '@playwright/test';
 
 import { buildCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { registerNode } from '@runner/nodes/registry';
 import { Session } from '@runner/session';
 import { Studyflow } from '@runner/studyflow';
 import { evaluateCondition, UndeclaredReference } from '@runner/branching';
 import type { FlowNode } from '@runner/flow';
-import { loadSchemaModels } from '@tests/schemas';
+import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /** Scoped state at run time. */
 
 
 const models = loadSchemaModels();
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const catalog = buildCatalog(models);
 
 // Real node modules are `.tsx` views discovered by a Vite glob; register stand-ins, the walk is under test.

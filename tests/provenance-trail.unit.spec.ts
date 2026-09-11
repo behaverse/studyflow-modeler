@@ -3,7 +3,6 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
 import { primaryRoot, readState, studyflowToXml, writeState, xmlToStudyflow } from '@core/document';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import {
   appendTrailEntry,
   readTrail,
@@ -11,7 +10,7 @@ import {
   stampTrailForExport,
   trailTimestamp,
 } from '@modeler/provenance/trail';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import { exampleXml } from './utils';
 import type { Editor } from '@modeler/editor/port';
 
@@ -19,9 +18,7 @@ import type { Editor } from '@modeler/editor/port';
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = new BpmnModdle(packages) as any;
 
 async function definitionsOf(xml: string): Promise<any> {

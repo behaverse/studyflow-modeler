@@ -4,19 +4,16 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { readParameters, resolveRunSource } from '@runner/source';
 import { parseStudyflow, Studyflow } from '@runner/studyflow';
 import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { FlowNode } from '@runner/flow';
-import { loadSchemaModels } from '@tests/schemas';
+import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
 
 const models = loadSchemaModels();
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 setCatalog(buildCatalog(models));
 
 const DEMOS = { behaverse: '/assets/demos/behaverse.studyflow' };

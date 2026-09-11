@@ -7,17 +7,14 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { declaredRuntime, studyflowToDefinitions, studyflowToXml } from '@core/document';
-import { loadSchemaModels } from '@tests/schemas';
+import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /** `studyflow run` reads `runtime` where the modeler writes it: on the `studyflow:Study` extension of the process. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = new BpmnModdle(packages) as any;
 
 function study(processBody: string): any {

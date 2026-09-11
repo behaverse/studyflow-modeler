@@ -2,19 +2,16 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { inlineIoSpecification } from '@core/document';
 import { getInferredDataNeighbors } from '@modeler/inspector/dataNeighbors';
 import { getPropertiesInScope, getStateProperties, isScopeContainer } from '@modeler/inspector/stateProperties';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import { exampleNames as examples, exampleXml } from './utils';
 
 /** A step's data contract and what the canvas draws are two readings of one file; they must agree. */
 
 const models = loadSchemaModels();
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 setCatalog(buildCatalog(models));
 
 type Model = { definitions: any; planes: Array<Map<string, any>>; edges: Set<string> };

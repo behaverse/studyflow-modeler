@@ -2,18 +2,15 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { StudyflowElement, getAttribute } from '@core/element';
 import { getAttributesByCategory } from '@modeler/inspector/categories';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 
 /** The executable surface across the task family. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = new BpmnModdle(packages) as any;
 
 const REF = 'python://analysis.summarize@1.2';

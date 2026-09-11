@@ -2,19 +2,16 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { fromWireXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '@core/document';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import { exampleStudyflow } from './utils';
 
 /** Exported `.bpmn` carries the full `ioSpecification`; reading it back folds to the compact `binding` form. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 
 function exampleYaml(filename: string): Promise<string> {
   return exampleStudyflow(filename, new BpmnModdle(structuredClone(packages)) as any);

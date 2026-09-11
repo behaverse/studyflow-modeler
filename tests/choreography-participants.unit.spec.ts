@@ -5,15 +5,12 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { readChoreographyBands } from '@core/document';
 import { IdGenerator, ensureChoreographyParticipants } from '@canvas/index.ts';
 import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 
 /** Choreography participant helpers: materializing two participants, and flipping `initiatingParticipantRef`. */
 
 const models = loadSchemaModels();
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 
 const updater = {
   updateModdleProperties: (_el: any, target: any, props: Record<string, any>) => {

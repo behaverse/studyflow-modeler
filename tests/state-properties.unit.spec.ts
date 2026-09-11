@@ -7,17 +7,14 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { studyflowToXml, xmlToStudyflow } from '@core/document';
 import { runUpdateStateProperties } from '@modeler/inspector/commands';
 import type { Editor } from '@modeler/editor/port';
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import { exampleStudyflow } from './utils';
 
 /** State as BPMN's own declared variables. */
 
 
 const models = loadSchemaModels();
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 
 const moddle = () => new BpmnModdle(structuredClone(packages)) as any;
 

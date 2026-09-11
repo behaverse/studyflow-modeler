@@ -3,19 +3,16 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToDefinitions, xmlToStudyflow } from '@core/document';
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import type { Editor } from '@modeler/editor/port';
 import { runUpdateMessage } from '@modeler/inspector/commands';
 import { messageStructureOf } from '@modeler/inspector/stateProperties';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 
 /** A message flow's Message field: `messageRef` -> `bpmn:Message` -> `itemRef` -> `bpmn:ItemDefinition.structureRef`. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = () => new BpmnModdle(structuredClone(packages)) as any;
 
 const FILE = `id: msg

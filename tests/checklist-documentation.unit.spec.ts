@@ -2,19 +2,16 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
 import { StudyflowElement } from '@core/element';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 
 /** The checklist is the `studyflow:checklist="true"`-marked entry of `bpmn:documentation`. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 
 const DOC = `id: checklist_probe
 definitions:

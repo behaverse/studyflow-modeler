@@ -3,9 +3,8 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { runUpdateLoopCharacteristics } from '@modeler/inspector/commands';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import {
   loopKindOf,
   supportsLoopCharacteristics,
@@ -18,9 +17,7 @@ import type { Editor } from '@modeler/editor/port';
 const models = loadSchemaModels();
 
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = new BpmnModdle(packages) as any;
 
 /**

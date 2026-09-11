@@ -3,16 +3,13 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { fromWireXml, readChoreographyBands, toWireXml } from '@core/document';
-import { toModdlePackages } from '@core/notation/schemaFile';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 
 /** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */
 
 
 const models = loadSchemaModels();
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 
 const moddle = () => new BpmnModdle(structuredClone(packages)) as any;
 

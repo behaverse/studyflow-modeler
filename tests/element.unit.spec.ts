@@ -4,10 +4,9 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
 import { studyflowToXml } from '@core/document';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { StudyflowElement, getAttribute, getDefaults } from '@core/element';
 import { extensionValueWins } from '@core/element/handle';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import { exampleStudyflow } from './utils';
 
 /** The StudyflowElement resolution table across business object, extension wrapper, and body-wrapped child. */
@@ -16,9 +15,7 @@ import { exampleStudyflow } from './utils';
 const models = loadSchemaModels();
 
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = new BpmnModdle(packages) as any;
 
 test.describe('StudyflowElement', () => {

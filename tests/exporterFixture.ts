@@ -2,18 +2,15 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 
 /** The interchange exporters' fixture: the compiled catalog and moddle, plus an element-registry stand-in. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
 
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 
 export const moddle: any = new BpmnModdle(packages) as any;
 

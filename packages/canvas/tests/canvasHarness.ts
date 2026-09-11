@@ -21,18 +21,15 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { JSDOM } from 'jsdom';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { Canvas, setDocument } from '@canvas/index.ts';
 import type { CanvasOptions } from '@canvas/index.ts';
-import { loadSchemaModels } from '@tests/schemas';
+import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
 
 /** `bpmn-moddle` package descriptors, one per shipped schema, keyed by prefix. */
-const packages: Record<string, unknown> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, unknown> = schemaPackages(models);
 
 /**
  * A moddle instance nothing else has parsed with. The packages are cloned per

@@ -3,7 +3,6 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { readState, writeState } from '@core/document';
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
 import {
@@ -11,16 +10,14 @@ import {
 } from '@modeler/provenance/records';
 import { primaryRoot } from '@core/document';
 import { appendTrailEntry } from '@modeler/provenance/trail';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import { exampleXml } from './utils';
 
 /** The document trail merged with the per-element `executed` records a run archives, oldest first. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = new BpmnModdle(packages) as any;
 
 async function definitionsOf(xml: string): Promise<any> {

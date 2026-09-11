@@ -8,9 +8,8 @@ import { importJsPsychTimeline, parseTimeline, type JsPsychNode } from '@skills/
 import { jsPsychToStudyflow } from '@skills/jspsych/studyflowDocument';
 import { parseImplementationRef } from '@core/implementation';
 import { parseStudyflow } from '@runner/studyflow';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { looksLikeXml } from '@core/document';
-import { loadSchemaModels } from '@tests/schemas';
+import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /** jsPsych -> Studyflow importer. */
 
@@ -19,7 +18,7 @@ const FIXTURES_DIR = path.join(process.cwd(), 'skills/jspsych/tests/fixtures');
 const models = loadSchemaModels();
 // BpmnModdle mutates its packages in place, so hand every consumer its own clone.
 const buildPackages = (): Record<string, any> =>
-  Object.fromEntries(models.map((model) => [model.prefix, toModdlePackages(model, models)]));
+  schemaPackages(models);
 
 const flankerTimeline = (): JsPsychNode[] =>
   JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'flanker.timeline.json'), 'utf8'));

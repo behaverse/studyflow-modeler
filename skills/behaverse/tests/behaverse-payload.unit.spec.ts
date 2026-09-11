@@ -1,19 +1,16 @@
 import { expect, test } from '@playwright/test';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { parseStudyflow } from '@runner/studyflow';
 import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { FlowNode } from '@runner/flow';
-import { loadSchemaModels } from '@tests/schemas';
+import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 import { exampleXml } from '@tests/utils';
 
 /** The `RunCognitiveTask` wire contract, from the runner side. */
 
 const models = loadSchemaModels();
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 // `getAttribute` resolves wrapper bodies through the catalog, so payload extraction needs it populated.
 setCatalog(buildCatalog(models));
 

@@ -5,17 +5,14 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToXml } from '@core/document';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { ensureDiagramLayout, hasDiagramInterchange } from '@modeler/diagram/autoLayout';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import { exampleXml, withoutDiagramInterchange } from './utils';
 
 /** Hand-written `.studyflow` files carry no BPMN DI, which bpmn-js alone aborts the import on. */
 
 const models = loadSchemaModels();
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 
 const layoutlessXml = () => {
   const text = readFileSync(path.join(process.cwd(), 'tests/fixtures/layoutless.studyflow'), 'utf8');

@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { buildCatalog, setCatalog } from '@core/notation';
 import {
   YAML_DUMP_OPTIONS,
@@ -15,15 +14,13 @@ import {
   writeState,
   xmlToStudyflow,
 } from '@core/document';
-import { loadSchemaModels } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 
 /** `state:` is the retrospective tree (docs/design/state.md): JSON on the Study extension, a mapping in the file. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const newModdle = () => new BpmnModdle(structuredClone(packages)) as any;
 
 const STATE = {

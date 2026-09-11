@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { fromModdleYaml, type SchemaModel } from '@core/notation/schemaFile';
+import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/schemaFile';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
 import { isCoreSkill, parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 
@@ -40,11 +40,12 @@ export const SCHEMA_MODELS: SchemaModel[] = sortSchemas(withSchema.map(readModel
 
 export const SCHEMAS: SchemaInfo[] = buildManifest(SCHEMA_MODELS);
 
-export function schemaPrefixes(): string[] {
-  return SCHEMA_MODELS.map((model) => model.prefix);
-}
-
 /** A fresh parse of every schema; moddle mutates the models it is handed. */
 export function loadSchemaModels(): SchemaModel[] {
   return sortSchemas(withSchema.map(readModel));
+}
+
+/** `models` as moddle packages, keyed by prefix: what `loader.ts loadSchemas` hands a `BpmnModdle`. */
+export function schemaPackages(models: SchemaModel[]): Record<string, any> {
+  return Object.fromEntries(models.map((model) => [model.prefix, toModdlePackages(model, models)]));
 }

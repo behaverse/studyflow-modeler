@@ -2,20 +2,17 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { toModdlePackages } from '@core/notation/schemaFile';
 import { StudyflowElement } from '@core/element';
 import { validateAllocation } from '@runner/allocation';
 import type { FlowNode } from '@runner/flow';
-import { loadSchemaModels } from '@tests/schemas';
+import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /** A RandomGateway's allocation attributes, against what the browser runner actually draws. */
 
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
-const packages: Record<string, any> = Object.fromEntries(
-  models.map((model) => [model.prefix, toModdlePackages(model, models)]),
-);
+const packages: Record<string, any> = schemaPackages(models);
 const moddle = new BpmnModdle(packages) as any;
 
 /** A RandomGateway carrying `attributes` on its extension wrapper, with two outgoing flows. */
