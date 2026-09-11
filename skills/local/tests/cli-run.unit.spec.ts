@@ -125,6 +125,43 @@ S:
   });
 });
 
+test.describe('the local walk', () => {
+  test.skip(!hasUv(), 'uv is not on PATH');
+
+  test('refuses a parallel split instead of walking only its first branch', async () => {
+    const xml = await studyflowToXml(`id: split
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+    Split:
+      type: ParallelGateway
+    A:
+      type: EndEvent
+    B:
+      type: EndEvent
+    F1: Start -> Split
+    F2: Split -> A
+    F3: Split -> B
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.writeFileSync(path.join(dir, 'split.bpmn'), xml);
+    let log = '';
+    try {
+      execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'split.bpmn'), '--repo', path.join(dir, 'run')], {
+        cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
+      });
+    } catch (error: any) {
+      log = String(error.stdout);
+    }
+    expect(log).toContain('Split: a parallel split');
+  });
+});
+
 /** What a partial runner is handed: `plan.json`, the plan as one JSON digest, never the diagram. */
 
 function hasPython(): boolean {

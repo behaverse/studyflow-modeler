@@ -1450,6 +1450,12 @@ class Runner:
                     self.event("event.reached", f"● {element_id}")
                     self.debug_state(element_id)
                     return
+                if tag == "parallelGateway" and len(self.studyflow.outgoing.get(element_id, [])) > 1:
+                    # Each pool is one path, as in the browser runtime; walking on would run the first branch only.
+                    raise RuntimeError(
+                        f"{element_id}: a parallel split, and a pool walks one path. "
+                        "Put the steps in sequence, or give each branch a pool of its own."
+                    )
                 if tag in GATEWAY_TAGS:
                     self.event("gateway.reached", f"◇ {element_id}")
                 elif tag in CONTAINER_TAGS:
