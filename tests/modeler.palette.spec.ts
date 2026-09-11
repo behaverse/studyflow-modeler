@@ -117,6 +117,25 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(inner.find((el) => el.name === 'Draft').bounds).toBe('200 140 100 80');
   });
 
+  test('a template keeps its ids where they are free, and a second drop rewrites its own references', async ({ page }) => {
+    await gotoModeler(page);
+
+    await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 300, y: 200 });
+    await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 300, y: 420 });
+
+    const doc = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
+    const process = Object.values(doc).find((value) => value?.type === 'Process');
+    const [first, second] = Object.values(process.flowElements).filter((el: any) => el.type === 'SubProcess') as any[];
+    const gateOf = (sub: any) => Object.keys(sub.flowElements).find((id) => sub.flowElements[id].name === 'Good enough?')!;
+    const guardOf = (sub: any) => (Object.values(sub.flowElements) as any[]).find((el) => el.name === 'revise').conditionExpression;
+
+    expect(gateOf(first)).toBe('eo_gate');
+    expect(guardOf(first)).toContain("state.trace.count('eo_gate')");
+    const gate = gateOf(second);
+    expect(gate).toMatch(/^eo_gate_/);
+    expect(guardOf(second)).toContain(`state.trace.count('${gate}')`);
+  });
+
   test('applies default schema values for eeg EEGPrep elements', async ({ page }) => {
     await gotoModeler(page);
 

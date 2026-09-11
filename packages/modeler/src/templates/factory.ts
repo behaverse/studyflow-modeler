@@ -43,8 +43,8 @@ function takeSize(attributes: Record<string, any>): { width?: number; height?: n
 }
 
 /** A template connection's business object, name and attributes written, for `connectElements` to file. */
-function createTemplateConnection(model: EditorModel, definition: TemplateFlowConnection): ModelElement {
-  const bo = model.createBusinessObject(definition.bpmnType);
+function createTemplateConnection(model: EditorModel, definition: TemplateFlowConnection, id?: string): ModelElement {
+  const bo = model.createBusinessObject(definition.bpmnType, id ? { id } : {});
   const attributes: Record<string, any> = { ...(definition.templateAttributes || {}) };
 
   const bpmnName = attributes['bpmn:name'];
@@ -83,6 +83,26 @@ function fitParticipant(canvas: Canvas, pool: SceneNode, shapes: TemplateShape[]
   };
 }
 
+/** The ids a template names, as this drop gets them: kept where the document has them free, else suffixed. */
+function instanceIds(model: EditorModel, flowElements: TemplateFlowElement[]): Map<string, string> {
+  const ids = new Map<string, string>();
+  for (const { id } of flowElements) {
+    if (id) ids.set(id, model.ids.assigned(id) ? model.ids.nextPrefixed(`${id}_`) : id);
+  }
+  return ids;
+}
+
+/** `value` with every renamed id rewritten, so an expression keeps pointing into its own instance (`state.trace.count('eo_gate')`). */
+function withIds(value: any, renamed: Map<string, string>): any {
+  if (renamed.size === 0) return value;
+  if (typeof value === 'string') return value.replace(/[\w-]+/g, (word) => renamed.get(word) ?? word);
+  if (Array.isArray(value)) return value.map((item) => withIds(item, renamed));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withIds(item, renamed)]));
+  }
+  return value;
+}
+
 /** Lay `flowElements` out inside `container`, the shape their template was dropped as. */
 export function materializeTemplateFlow(
   canvas: Canvas,
@@ -90,7 +110,12 @@ export function materializeTemplateFlow(
   container: SceneNode,
   flowElements: TemplateFlowElement[],
 ): void {
-  const nodes = flowElements.filter(isFlowNode).map((node) => ({ id: node.id, shape: createTemplateShape(model, node) }));
+  const ids = instanceIds(model, flowElements);
+  const renamed = new Map([...ids].filter(([from, to]) => from !== to));
+  const nodes = flowElements.filter(isFlowNode).map((node) => ({
+    id: node.id,
+    shape: createTemplateShape(model, { ...node, id: ids.get(node.id), templateAttributes: withIds(node.templateAttributes, renamed) }),
+  }));
   const shift = fitParticipant(canvas, container, nodes.map((entry) => entry.shape));
 
   const placed = new Map<string, SceneNode>();
@@ -107,12 +132,14 @@ export function materializeTemplateFlow(
       console.warn(`[templates] Skipping connection '${connection.id ?? connection.bpmnType}' - source or target not found.`);
       continue;
     }
-    canvas.connectElements(source, target, createTemplateConnection(model, connection));
+    const definition = { ...connection, templateAttributes: withIds(connection.templateAttributes, renamed) };
+    canvas.connectElements(source, target, createTemplateConnection(model, definition, connection.id && ids.get(connection.id)));
   }
 }
 
 
 type TemplateShapeSpec = Pick<TemplateFlowNode, 'bpmnType' | 'extensionType' | 'overrideIconClass' | 'templateAttributes' | 'x' | 'y'> & {
+  id?: string;
   isExpanded?: boolean;
 };
 
@@ -122,13 +149,13 @@ function writeFields(target: any, fields: Record<string, any>): void {
 }
 
 function createTemplateShape(model: EditorModel, spec: TemplateShapeSpec): TemplateShape {
-  const { bpmnType, extensionType, overrideIconClass, templateAttributes, x, y, isExpanded } = spec;
+  const { id, bpmnType, extensionType, overrideIconClass, templateAttributes, x, y, isExpanded } = spec;
 
   const defaults = extensionType ? getDefaults(extensionType) : {};
   const attributes: Record<string, any> = { ...defaults, ...(templateAttributes || {}) };
   const size = { ...defaultSizeFor(bpmnType, isExpanded), ...takeSize(attributes) };
 
-  const bo = model.createBusinessObject(bpmnType);
+  const bo = model.createBusinessObject(bpmnType, id ? { id } : {});
   const shape: TemplateShape = {
     type: bpmnType,
     businessObject: bo,
