@@ -1,5 +1,5 @@
 import new_diagram from '#assets/new_diagram.bpmn?raw';
-import { fromStandardBpmnXml, fromWireXml } from '@core/document';
+import { fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { clearAutosavedDiagram, clearDiagramHandoff, createDiagramHandoff, getSettings } from '@modeler/settings/store';
@@ -111,11 +111,7 @@ export async function runCreateModeler(_modeler: Editor | null, command: CreateM
   if (provided) {
     try {
       const moddle = editor.model.moddle();
-      const wireXml = await fromStandardBpmnXml(
-        await fromWireXml(provided, moddle),
-        moddle,
-      );
-      await editor.importXML(await ensureDiagramLayout(wireXml, moddle));
+      await editor.importXML(await ensureDiagramLayout(await fromWireXml(provided, moddle), moddle));
       return editor;
     } catch (err) {
       console.warn(

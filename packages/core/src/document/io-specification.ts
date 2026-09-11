@@ -172,7 +172,3 @@ export function inlineIoSpecification(definitions: any): boolean {
 export async function toStandardBpmnXml(xml: string, moddle: Moddle): Promise<string> {
   return applyXmlPasses(xml, moddle, [expandIoSpecification]);
 }
-
-export async function fromStandardBpmnXml(xml: string, moddle: Moddle): Promise<string> {
-  return applyXmlPasses(xml, moddle, [inlineIoSpecification]);
-}

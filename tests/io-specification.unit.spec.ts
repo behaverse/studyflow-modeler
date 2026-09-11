@@ -4,7 +4,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { buildCatalog, setCatalog } from '@core/notation';
-import { fromStandardBpmnXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '@core/document';
+import { fromWireXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '@core/document';
 import { loadSchemaModels } from './schemas';
 import { exampleStudyflow } from './utils';
 
@@ -75,7 +75,7 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
     expect(standard).toContain('<bpmn:dataInput id="Step_in_input" name="input" />');
     expect(standard).not.toContain('transformation');
 
-    const folded = await fromStandardBpmnXml(standard, new BpmnModdle(structuredClone(packages)) as any);
+    const folded = await fromWireXml(standard, new BpmnModdle(structuredClone(packages)) as any);
     expect(folded).not.toContain('transformation');
     expect(folded).not.toContain('ioSpecification');
 

@@ -270,10 +270,6 @@ export function headlessPlaneToProcessRoot(definitions: any): boolean {
   return true;
 }
 
-export async function fromWireXml(xml: string, moddle: Moddle): Promise<string> {
-  return applyXmlPasses(xml, moddle, [choreographyToProcessRoot, headlessPlaneToProcessRoot]);
-}
-
 export async function toWireXml(xml: string, moddle: Moddle): Promise<string> {
   return applyXmlPasses(xml, moddle, [processToChoreographyRoot]);
 }

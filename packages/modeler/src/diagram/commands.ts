@@ -1,5 +1,5 @@
 import new_diagram from '#assets/new_diagram.bpmn?raw';
-import { applyXmlPasses, choreographyToProcessRoot, inlineIoSpecification, looksLikeXml, studyflowToXml } from '@core/document';
+import { fromWireXml, looksLikeXml, studyflowToXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
 import { setAttribute } from '@core/element';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
@@ -42,11 +42,8 @@ async function importXml(modeler: Editor, command: ImportXmlPayload): Promise<an
   // again once it knows which file the new canvas actually came from.
   unlinkFile();
 
-  const wireXml = await applyXmlPasses(command.xml, modeler.model.moddle(), [
-    choreographyToProcessRoot,
-    inlineIoSpecification,
-  ]);
-  const xml = await ensureDiagramLayout(wireXml, modeler.model.moddle());
+  const moddle = modeler.model.moddle();
+  const xml = await ensureDiagramLayout(await fromWireXml(command.xml, moddle), moddle);
   const result = await modeler.importXML(xml);
   // `importXML` clears the command stack, so the trail bookkeeping has to restart with it.
   resetTrailStamping(modeler);
