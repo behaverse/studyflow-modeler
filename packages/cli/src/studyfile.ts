@@ -60,6 +60,10 @@ export async function parseSource(source: StudyflowSource): Promise<ParseResult>
     return { definitions, warnings };
   }
   const { rootElement, warnings: xmlWarnings } = await (moddle as any).fromXML(source.text);
-  warnings.push(...(xmlWarnings ?? []).map((w: any) => w?.message ?? String(w)));
+  // moddle names the element a warning is about; without its id, "unknown attribute <name>" points nowhere.
+  warnings.push(...(xmlWarnings ?? []).map((w: any) => {
+    const message = w?.message ?? String(w);
+    return w?.element?.id ? `${w.element.id}: ${message}` : message;
+  }));
   return { definitions: rootElement, warnings };
 }

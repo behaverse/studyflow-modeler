@@ -15,8 +15,6 @@ export type RunOptions = {
   runtime?: string;
 };
 
-const RUNTIMES = ['browser', 'cloud', 'local', 'hpc'];
-
 /** Where the local runtime, `skills/local/run.py` (which finds the other skills beside it), can be, best first:
  * the repo's `skills/` when this is the bundle in a checkout, Homebrew's `libexec/` next to `bin/studyflow`,
  * then beside the binary (the release tarball as unpacked). */
@@ -81,10 +79,8 @@ export async function run(input: string, passthrough: string[], options: RunOpti
   const source = await readSource(input);
   const { definitions } = await parseSource(source);
 
+  // No list of runtimes here: a skill may add one to `RuntimeEnum`, and one this CLI cannot run is refused below.
   const runtime = options.runtime ?? declaredRuntime(definitions);
-  if (!RUNTIMES.includes(runtime)) {
-    throw new Error(`Unknown runtime "${runtime}" — the studyflow schema knows: ${RUNTIMES.join(', ')}.`);
-  }
 
   if (runtime === 'local') {
     process.exitCode = await runLocal(input, source, passthrough);
