@@ -12,7 +12,7 @@
 brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted
 brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
 brew install studyflow
-studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
+studyflow run study.studyflow.png
 ```
 
 Example diagrams are in `skills/<name>/examples/` and in the modeler's Examples gallery.
@@ -33,10 +33,13 @@ npm run build          # dist/: the webapp, and what the desktop app serves
 | [packages/canvas](packages/canvas/) | the SVG canvas |
 | [packages/modeler](packages/modeler/) | the editor, `/app.html` |
 | [skills/browser](skills/browser/) | the browser runner, `/run/` |
+| [skills/local](skills/local/) | the local runner, `studyflow run` |
 | [packages/cli](packages/cli/) | the `studyflow` CLI |
 | [packages/desktop](packages/desktop/) | the desktop app |
 | [skills/](skills/) | the vocabularies and runners |
 | [docs/](docs/) | the site |
+
+[AGENTS.md](AGENTS.md) has the commands, the map in more detail, and the rules the code keeps.
 
 ## Contributing and license
 

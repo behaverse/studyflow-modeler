@@ -20,9 +20,13 @@ A partial runner is a program in any language that claims certain elements and e
 
 **Protocol.**
 
-1. `<plan.json> --claims`: print the ids of the elements you will run, as one JSON array on stdout. End events can be claimed too, and are handed over as the walk reaches them, so a runner can fold what it started.
+1. `<plan.json> --claims`: print the ids of the elements you will run, as JSON on stdout. A plain array marks them live: they run every time and never replay. `{"elements": [...], "live": false}` marks them replayable, so a re-run skips or reuses them as it does the walk's own records (the python skill answers this way). End events can be claimed too, and are handed over as the walk reaches them, so a runner can fold what it started.
 2. `<plan.json> --element <id> --cache <dir>`, once per claimed element. `STUDYFLOW_RUN_PID` in the environment is the walk's pid, for anything a runner leaves running to follow.
 3. The cache holds one file per call, `<element_id>.state.json`. It starts as `{state}`; the runner updates it with the result, so it becomes the same state plus `result`, `durationMs`, and on failure `error` with a non-zero exit. Stdout goes to the run log; stdin and stderr stay on the terminal.
+
+Every call also carries the run's `--sim` and `--auto` flags when it has them, so a runner must accept both, even to ignore them.
+
+What comes back: `result`, `durationMs` and `error` are recorded. Any other top-level key whose value changed becomes a value the next steps read, so a runner binds its own result by writing it under its element id (`{Play.trials}` then reads it). Scopes under `state` that changed are merged, `_meta` excepted. At a gateway the runner samples for, `result` is the bindings its conditions read; for a catch event, `result` is bound under the event's id.
 
 **The plan.** `plan.json` is a digest of the study, written once per run. A runner never opens the diagram.
 

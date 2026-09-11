@@ -21,7 +21,7 @@ node packages/cli/dist/studyflow.mjs --help
 
 ```bash
 studyflow validate study.studyflow.yaml --strict
-studyflow convert study.studyflow.yaml study.studyflow.png
+studyflow convert study.studyflow.yaml study.studyflow.png   # into that picture; --modeler draws a new one (in a checkout)
 studyflow info study.studyflow.yaml --json
 studyflow edit study.studyflow.png              # the desktop app on that file; `studyflow ui` for a blank canvas
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
