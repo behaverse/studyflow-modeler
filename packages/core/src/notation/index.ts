@@ -34,10 +34,8 @@ export function schemaDiagnostics(): string[] {
   return activeCatalog?.diagnostics ?? [];
 }
 
-export function namespaces(): { bpmn: string; core: string } {
-  const core = getCatalog().schemas.find((schema) => schema.core);
-  return {
-    bpmn: BPMN_NS,
-    core: core?.uri ?? '',
-  };
+/** The XML namespaces of BPMN and of studyflow's own vocabulary (`studyflow:study`, its attributes). */
+export function namespaces(): { bpmn: string; studyflow: string } {
+  const studyflow = getCatalog().schemas.find((schema) => schema.prefix === 'studyflow');
+  return { bpmn: BPMN_NS, studyflow: studyflow?.uri ?? '' };
 }

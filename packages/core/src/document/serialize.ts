@@ -1,5 +1,5 @@
 import { isModdleElement } from '@core/element/moddle';
-import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, inferPlaneRoot, isHeadlessCollaboration, type YamlDoc } from '@core/document/format';
+import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, primaryRoot, isHeadlessCollaboration, type YamlDoc } from '@core/document/format';
 import { readState } from '@core/document/state';
 import {
   CHECKLIST_MARKER,
@@ -86,7 +86,7 @@ function serializeLeftoverDiagrams(definitions: any, ctx: SerializeContext): unk
   const diagrams: any[] = definitions.diagrams ?? [];
   // A plane naming the inferred root, or a collaboration with no pool (it draws that same root), says nothing.
   const redundantRootIds = new Set<string | undefined>([
-    inferPlaneRoot(definitions)?.id,
+    primaryRoot(definitions)?.id,
     ...(definitions?.rootElements ?? []).filter(isHeadlessCollaboration).map((root: any) => root.id),
   ]);
   return diagrams.flatMap((diagram, index) => {

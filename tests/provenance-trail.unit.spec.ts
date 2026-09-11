@@ -2,11 +2,10 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { inferPlaneRoot, readState, studyflowToXml, writeState, xmlToStudyflow } from '@core/document';
+import { primaryRoot, readState, studyflowToXml, writeState, xmlToStudyflow } from '@core/document';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import {
   appendTrailEntry,
-  primaryRoot,
   readTrail,
   resetTrailStamping,
   stampTrailForExport,
@@ -32,7 +31,7 @@ async function definitionsOf(xml: string): Promise<any> {
 
 /** Shipped examples may already carry a trail (rendering stamps them); build premises from one with none. */
 function stripTrail(definitions: any): any {
-  const root = primaryRoot(definitions);
+  const root = primaryRoot(definitions)!;
   const ext = root.extensionElements;
   if (ext) ext.values = ext.values.filter((value: any) => value.$type !== 'prov:Activity');
   const tree = readState(definitions);
@@ -54,7 +53,7 @@ test.describe('provenance trail', () => {
 
     const { xml } = await moddle.toXML(definitions, { format: true });
     expect(xml).toContain('<studyflow:state>');
-    expect(primaryRoot(definitions).extensionElements.values.some((v: any) => v.$type === 'prov:Activity')).toBe(false);
+    expect(primaryRoot(definitions)!.extensionElements.values.some((v: any) => v.$type === 'prov:Activity')).toBe(false);
     expect(readState(definitions)._meta.prov).toHaveLength(1);
 
     const trail = readTrail(await definitionsOf(xml));
@@ -119,7 +118,7 @@ test.describe('provenance trail', () => {
   test('reads the drawn root, and omits unset facts from the entry', async () => {
     // A single-process example: agent_eval_pool now declares its actors in a collaboration beside the process.
     const definitions = stripTrail(await definitionsOf(exampleXml('reachy_session.studyflow.png')));
-    const root = primaryRoot(definitions);
+    const root = primaryRoot(definitions)!;
     expect(root.id).toBe(definitions.diagrams[0].plane.bpmnElement.id);
 
     const entry = appendTrailEntry(definitions, moddle, {
@@ -133,7 +132,7 @@ test.describe('provenance trail', () => {
   });
 });
 
-test.describe('primary root agrees with the codec', () => {
+test.describe('primary root', () => {
   const poolDefinitions = () => {
     const process = moddle.create('bpmn:Process', { id: 'P_1', flowElements: [] });
     const pool = moddle.create('bpmn:Participant', { id: 'Pool_1', processRef: process });
@@ -147,12 +146,6 @@ test.describe('primary root agrees with the codec', () => {
     const collaboration = moddle.create('bpmn:Collaboration', { id: 'C_1', participants: [actor] });
     const definitions = moddle.create('bpmn:Definitions', { rootElements: [collaboration, process] });
     expect(primaryRoot(definitions)).toBe(process);
-    expect(inferPlaneRoot(definitions)).toBe(process);
-  });
-
-  test('a pool diagram resolves to the same root on both sides', () => {
-    const definitions = poolDefinitions();
-    expect(primaryRoot(definitions)).toBe(inferPlaneRoot(definitions));
   });
 
   test('the element the DI plane names outranks the type order', () => {
@@ -162,7 +155,6 @@ test.describe('primary root agrees with the codec', () => {
     definitions.diagrams = [moddle.create('bpmndi:BPMNDiagram', { plane })];
 
     expect(primaryRoot(definitions)).toBe(process);
-    expect(inferPlaneRoot(definitions)).toBe(process);
   });
 
   test('a legacy trail on a non-primary root is still read, and migrated into `_meta.prov` on append', () => {

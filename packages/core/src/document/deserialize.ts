@@ -3,10 +3,10 @@ import * as yaml from 'js-yaml';
 import { isModdleElement, type Moddle } from '@core/element/moddle';
 import {
   RESERVED_DOC_KEYS,
-  inferPlaneRoot,
-  isPrimitiveTypeRef,
+  primaryRoot,
   type YamlDoc,
 } from '@core/document/format';
+import { MODDLE_BUILTIN_TYPES } from '@core/notation/schemaFile';
 import {
   CHECKLIST_MARKER,
   DI_NODE_TYPES,
@@ -15,9 +15,8 @@ import {
   expandDiNode,
   expandDocumentationEntry,
   expandExpressionBody,
-  expandInlineBody,
+  expandInline,
   expandInlineFlow,
-  expandInlineValue,
   extractInlineDi,
   impliedTypeName,
   isDocumentationProperty,
@@ -108,7 +107,7 @@ class ModdleBuilder {
       if (isYamlValueProperty(p)
           && raw && typeof raw === 'object' && !Array.isArray(raw)
           && qualifiesAsInlineValue(raw as Record<string, unknown>)) {
-        el.set(p.name, expandInlineValue(raw as Record<string, unknown>));
+        el.set(p.name, expandInline(raw as Record<string, unknown>));
         continue;
       }
 
@@ -143,7 +142,7 @@ class ModdleBuilder {
       diagram.set('plane', plane);
     }
     // A doc-provided bpmnElement wins: `resolveReferences` runs later and overwrites this default.
-    if (!plane.bpmnElement) plane.set('bpmnElement', inferPlaneRoot(definitions));
+    if (!plane.bpmnElement) plane.set('bpmnElement', primaryRoot(definitions));
 
     const planeElements = plane.get('planeElement');
     for (const { element, type, props } of this.inlineDi) {
@@ -191,7 +190,7 @@ class ModdleBuilder {
   }
 
   private buildValue(raw: unknown, declaredType: string | undefined): unknown {
-    const isElementType = !!declaredType && !isPrimitiveTypeRef(declaredType);
+    const isElementType = !!declaredType && !MODDLE_BUILTIN_TYPES.has(declaredType);
 
     if (Array.isArray(raw)) {
       const listProp = isElementType ? this.elementListPropertyOf(declaredType) : undefined;
@@ -204,7 +203,7 @@ class ModdleBuilder {
       if (!isElementType) return raw;
       const body = this.yamlBodyPropertyOf(declaredType);
       if (body && qualifiesAsInlineBody(node, this.descriptorOf(declaredType))) {
-        return this.build({ type: declaredType, [body.name]: expandInlineBody(node) }, declaredType);
+        return this.build({ type: declaredType, [body.name]: expandInline(node) }, declaredType);
       }
       return this.build(node, declaredType);
     }

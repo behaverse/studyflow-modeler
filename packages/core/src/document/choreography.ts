@@ -2,7 +2,7 @@ import { BPMN } from '@core/constants';
 import { getProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
 import { StudyflowElement } from '@core/element/handle';
 import { getCatalog, hasCatalog } from '@core/notation';
-import { applyXmlPasses, inferPlaneRoot, isHeadlessCollaboration } from '@core/document/format';
+import { applyXmlPasses, primaryRoot, isHeadlessCollaboration } from '@core/document/format';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
 
@@ -264,7 +264,7 @@ export function choreographyToProcessRoot(definitions: any): boolean {
 export function headlessPlaneToProcessRoot(definitions: any): boolean {
   const plane = definitions?.diagrams?.[0]?.plane;
   if (!isHeadlessCollaboration(plane?.bpmnElement)) return false;
-  const root = inferPlaneRoot(definitions);
+  const root = primaryRoot(definitions);
   if (!root || root === plane.bpmnElement) return false;
   plane.bpmnElement = root;
   return true;

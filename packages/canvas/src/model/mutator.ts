@@ -6,7 +6,7 @@
 
 import { getDefaults, getExtensionType, StudyflowElement } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
-import type { EventBus } from '@core/events/bus.ts';
+import type { EventBus } from '@canvas/bus.ts';
 
 import {
   applyBandName,

@@ -1,4 +1,4 @@
-import { META_KEY, primaryRoots, readState, writeState } from '@core/document';
+import { META_KEY, primaryRoot, primaryRoots, readState, writeState } from '@core/document';
 import type { Editor } from '@modeler/editor/port';
 
 export type TrailStamp = {
@@ -16,10 +16,6 @@ export type TrailStamp = {
 export type TrailRecord = TrailStamp;
 
 const RECORD_FIELDS = ['action', 'when', 'who', 'with', 'what', 'run', 'seed', 'note'] as const;
-
-export function primaryRoot(definitions: any): any | undefined {
-  return primaryRoots(definitions)[0];
-}
 
 /** The pre-`state` document trail: `prov:Activity` values on a root's `extensionElements`. */
 function legacyTrailRoot(definitions: any): any | undefined {

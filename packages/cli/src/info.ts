@@ -1,4 +1,4 @@
-import { primaryRoots } from '@core/document';
+import { primaryRoot } from '@core/document';
 import { parseSource, readSource, type StudyflowSource } from '@cli/studyfile';
 
 export type StudyInfo = {
@@ -18,7 +18,7 @@ export async function info(input: string): Promise<StudyInfo> {
   const source = await readSource(input);
   const { definitions, warnings } = await parseSource(source);
 
-  const root = primaryRoots(definitions)[0];
+  const root = primaryRoot(definitions);
   const elements: Record<string, number> = {};
   const count = (container: any): void => {
     for (const el of container?.flowElements ?? []) {

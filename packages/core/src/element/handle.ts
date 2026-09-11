@@ -121,14 +121,9 @@ export class StudyflowElement {
     this.updater = updater;
   }
 
-  static fromElement(element: any, updater?: AttributeUpdater): StudyflowElement {
-    const bo = toBusinessObject(element);
-    return new StudyflowElement(element, bo, updater ?? directUpdater);
-  }
-
-  static fromBusinessObject(businessObjectOrElement: any): StudyflowElement {
-    const bo = toBusinessObject(businessObjectOrElement);
-    return new StudyflowElement(bo, bo, directUpdater);
+  /** A handle on the business object of `elementOrBO`; writes go through `updater` (default: straight onto moddle), which is handed `elementOrBO`. */
+  static fromBusinessObject(elementOrBO: any, updater: AttributeUpdater = directUpdater): StudyflowElement {
+    return new StudyflowElement(elementOrBO, toBusinessObject(elementOrBO), updater);
   }
 
   get extension(): ModdleElement | null {

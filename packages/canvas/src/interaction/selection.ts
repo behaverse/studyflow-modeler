@@ -3,7 +3,7 @@
  * `<g>`, corner handles and bendpoints in the selection layer, marker classes.
  */
 
-import type { EventBus } from '@core/events/bus.ts';
+import type { EventBus } from '@canvas/bus.ts';
 import type { Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 

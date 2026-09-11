@@ -4,7 +4,7 @@
  * moddle tree and dropped from the scene.
  */
 
-import type { EventBus } from '@core/events/bus.ts';
+import type { EventBus } from '@canvas/bus.ts';
 import { activityOf, isDataAssociationType, pruneDataAssociation } from '@canvas/model/dataAssociation.ts';
 import { dropLabel } from '@canvas/model/labels.ts';
 import {

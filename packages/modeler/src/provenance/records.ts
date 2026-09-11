@@ -1,4 +1,5 @@
-import { primaryRoot, readTrail } from '@modeler/provenance/trail';
+import { primaryRoot } from '@core/document';
+import { readTrail } from '@modeler/provenance/trail';
 import { ICONS } from '@modeler/icons';
 
 /** Icons only where the shape says something at a glance: gateways, events, containers; the rest stay bare. */

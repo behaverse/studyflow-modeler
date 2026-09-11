@@ -5,7 +5,7 @@
 
 import { BPMN } from '@core/constants.ts';
 import { getExtensionType } from '@core/element/index.ts';
-import { EventBus } from '@core/events/bus.ts';
+import { EventBus } from '@canvas/bus.ts';
 
 import { appendElement as autoPlaceAppend, appendSourceBounds, freeAppendPosition } from '@canvas/interaction/autoplace.ts';
 import { Connect } from '@canvas/interaction/connect.ts';

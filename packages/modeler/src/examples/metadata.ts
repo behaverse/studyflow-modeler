@@ -5,10 +5,10 @@ import { filenameStem } from '@modeler/diagram/file';
 import { extractXmlFromPng } from '@core/document/png';
 
 /** Namespace URIs the XML metadata reader looks under. */
-type MetadataNamespaces = { bpmn: string; core: string };
+type MetadataNamespaces = { bpmn: string; studyflow: string };
 
 function studyflowAttribute(el: Element, ns: MetadataNamespaces, name: string): string | null {
-  return el.getAttributeNS(ns.core, name);
+  return el.getAttributeNS(ns.studyflow, name);
 }
 
 export type ExampleMetadata = {
@@ -34,7 +34,7 @@ function planeRootId(doc: Document): string | undefined {
 function rootsOf(doc: Document, ns: MetadataNamespaces): Element[] {
   const roots = [
     ...ROOT_TYPES.flatMap((type) => [...doc.getElementsByTagNameNS(ns.bpmn, type)]),
-    ...doc.getElementsByTagNameNS(ns.core, 'study'),
+    ...doc.getElementsByTagNameNS(ns.studyflow, 'study'),
   ]
     // A sub-process is a `bpmn:process` in name only when it is not a root.
     .filter((el) => el.parentElement?.localName === 'definitions');

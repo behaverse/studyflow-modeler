@@ -50,15 +50,9 @@ export function setExpressionLanguage(
   language: string | undefined,
   updater?: AttributeUpdater,
 ): void {
-  const handle = updater
-    ? StudyflowElement.fromElement(element, updater)
-    : StudyflowElement.fromBusinessObject(element);
-  handle.setExpressionLanguage(attributeName, language);
+  StudyflowElement.fromBusinessObject(element, updater).setExpressionLanguage(attributeName, language);
 }
 
 export function setAttribute(element: any, attributeName: string, value: any, updater?: AttributeUpdater): void {
-  const handle = updater
-    ? StudyflowElement.fromElement(element, updater)
-    : StudyflowElement.fromBusinessObject(element);
-  handle.setAttribute(attributeName, value);
+  StudyflowElement.fromBusinessObject(element, updater).setAttribute(attributeName, value);
 }

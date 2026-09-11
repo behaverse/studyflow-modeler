@@ -1,11 +1,28 @@
 import * as yaml from 'js-yaml';
 
 import { toLocalName } from '@core/naming';
-import { YAML_DUMP_OPTIONS, hasOnlyProperties, valueTypeOf } from '@core/document/format';
-import { getProperty, isModdleElement } from '@core/element/moddle';
+import { YAML_DUMP_OPTIONS } from '@core/document/format';
+import { getProperty, isModdleElement, type ModdleElement } from '@core/element/moddle';
 
 /* The short forms, in the order a reader meets them; each one is reversible, and the long form is always accepted.
    Specified for authors in docs/reference.qmd, "The file"; pinned by tests/studyflow-yaml.unit.spec.ts. */
+
+/** Whether `el` holds nothing but `keepNames`: every other property unset, empty or at its default. */
+function hasOnlyProperties(el: ModdleElement, keepNames: string[]): boolean {
+  for (const p of el.$descriptor?.properties ?? []) {
+    if (keepNames.includes(p.name)) continue;
+    const value = el[p.name];
+    if (value === undefined || value === null) continue;
+    if (p.default !== undefined && value === p.default) continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    return false;
+  }
+  return true;
+}
+
+function valueTypeOf(prop: any): string | undefined {
+  return prop.valueType ?? prop.type;
+}
 
 /* 1. yaml-body */
 
@@ -70,12 +87,9 @@ export function inlineYamlValue(value: any, prop: any): Mapping | undefined {
   return parsed;
 }
 
-export function expandInlineValue(raw: Mapping): string {
-  return yaml.dump(raw, YAML_DUMP_OPTIONS);
-}
-
-export function expandInlineBody(node: Mapping): string {
-  return yaml.dump(node, YAML_DUMP_OPTIONS);
+/** A folded mapping back to the YAML text its body stores. */
+export function expandInline(mapping: Mapping): string {
+  return yaml.dump(mapping, YAML_DUMP_OPTIONS);
 }
 
 /* 2. element-list */

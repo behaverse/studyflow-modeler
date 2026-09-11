@@ -4,7 +4,7 @@
  * choreography band. Enter commits, Escape abandons.
  */
 
-import type { EventBus } from '@core/events/bus.ts';
+import type { EventBus } from '@canvas/bus.ts';
 import { isChoreographyTask, isTypedChoreography, participantRefs, readChoreographyBands } from '@canvas/model/choreography.ts';
 import { hasExternalLabel } from '@canvas/model/labels.ts';
 import { nameOf } from '@canvas/model/moddle.ts';

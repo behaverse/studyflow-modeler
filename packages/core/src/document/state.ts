@@ -1,5 +1,5 @@
 import { getProperty, setProperty, type Moddle, type ModdleElement } from '@core/element/moddle';
-import { STUDY_EXTENSION_TYPE, primaryRoots, studyExtensionOf } from '@core/document/format';
+import { STUDY_EXTENSION_TYPE, primaryRoot, studyExtensionOf } from '@core/document/format';
 
 /**
  * The retrospective `state` tree (docs/developers.qmd, "What a run leaves behind"): keyed by element id, stored as a JSON string on
@@ -20,7 +20,7 @@ export function isReservedStateKey(name: string): boolean {
 export function ensureStudyExtension(definitions: ModdleElement, moddle: Moddle): ModdleElement | undefined {
   const existing = studyExtensionOf(definitions);
   if (existing) return existing;
-  const root: any = primaryRoots(definitions)[0];
+  const root: any = primaryRoot(definitions);
   if (!root) return undefined;
   let holder = root.extensionElements;
   if (!holder) {

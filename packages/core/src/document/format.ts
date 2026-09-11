@@ -45,11 +45,12 @@ export function declaredRuntime(definitions: ModdleElement | null | undefined): 
 
 /** The `studyflow:Study` extension of the primary root: where `runtime`, `state`, and the study's own fields live. */
 export function studyExtensionOf(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
-  const root: any = primaryRoots(definitions)[0];
+  const root: any = primaryRoot(definitions);
   return root?.extensionElements?.values?.find((ext: any) => ext?.$type === STUDY_EXTENSION_TYPE);
 }
 
-export function inferPlaneRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
+/** The study's root: the element the DI plane names, else the best candidate `primaryRoots` ranks first. */
+export function primaryRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
   return primaryRoots(definitions)[0];
 }
 
@@ -74,24 +75,4 @@ export async function applyXmlPasses(
   if (!changed) return xml;
 
   return (await moddle.toXML(rootElement, { format: true })).xml;
-}
-
-export function hasOnlyProperties(el: ModdleElement, keepNames: string[]): boolean {
-  for (const p of el.$descriptor?.properties ?? []) {
-    if (keepNames.includes(p.name)) continue;
-    const value = el[p.name];
-    if (value === undefined || value === null) continue;
-    if (p.default !== undefined && value === p.default) continue;
-    if (Array.isArray(value) && value.length === 0) continue;
-    return false;
-  }
-  return true;
-}
-
-export function valueTypeOf(prop: any): string | undefined {
-  return prop.valueType ?? prop.type;
-}
-
-export function isPrimitiveTypeRef(type: string): boolean {
-  return ['String', 'Boolean', 'Integer', 'Real', 'Element'].includes(type);
 }

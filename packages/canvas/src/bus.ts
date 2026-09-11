@@ -1,13 +1,8 @@
 /**
- * Minimal event bus (`@core/events/bus.ts`, shared by every package). A tiny publish/subscribe emitter
- * carrying the topic names the app subscribes to through the editor facade:
- * `SelectionChanged`, `ElementChanged`, `ElementsChanged`, plus whatever else the
- * canvas fires.
- *
- * This IS `Editor.events` — the facade publishes the bus itself rather than a
- * projection of it (`../editor.ts`). Listeners run in SUBSCRIPTION order: nothing
- * in the canvas or the app has ever needed to jump the queue, so there is no
- * priority to reason about.
+ * The canvas's event bus, a tiny publish/subscribe emitter: the canvas fires `SelectionChanged`,
+ * `ElementChanged`, `ElementsChanged` and the rest on it, and the app holds the same bus as
+ * `Editor.events` (`packages/modeler/src/editor/port.ts`). Listeners run in subscription order;
+ * nothing has needed a priority.
  */
 
 /**

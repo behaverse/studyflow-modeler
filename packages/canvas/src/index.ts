@@ -31,4 +31,4 @@ export { Rules } from './rules/rules.ts';
 export { setDocument, ownerDocument, remove as svgRemove } from './render/svg.ts';
 export { injectCanvasStyles, CANVAS_CSS, CANVAS_STYLE_ID, INK } from './view/theme.ts';
 export type { IconDef, IconResolver } from './render/icons.ts';
-export { EventBus } from '@core/events/bus.ts';
+export { EventBus } from '@canvas/bus.ts';

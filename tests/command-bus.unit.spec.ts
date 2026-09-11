@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { EventBus } from '@core/events/bus.ts';
+import { EventBus } from '@canvas/bus.ts';
 import { runSetColor } from '@modeler/shape/commands';
 import type { Editor } from '@modeler/editor/port';
 

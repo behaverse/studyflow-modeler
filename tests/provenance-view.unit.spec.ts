@@ -9,7 +9,8 @@ import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
 import {
   applyStatuses, assignLanes, collectProvenance, displayOrder, recordDetails, shapeIconOf,
 } from '@modeler/provenance/records';
-import { appendTrailEntry, primaryRoot } from '@modeler/provenance/trail';
+import { primaryRoot } from '@core/document';
+import { appendTrailEntry } from '@modeler/provenance/trail';
 import { loadSchemaModels } from './schemas';
 import { exampleXml } from './utils';
 
@@ -37,7 +38,7 @@ function stripTrail(definitions: any): any {
     }
     for (const child of el?.flowElements ?? []) strip(child);
   };
-  const root = primaryRoot(definitions);
+  const root = primaryRoot(definitions)!;
   strip(root);
   const tree = readState(definitions);
   delete tree._meta?.prov;
@@ -57,7 +58,7 @@ function stampElement(el: any, stamp: Record<string, string>): void {
 }
 
 function firstActivity(definitions: any): any {
-  const root = primaryRoot(definitions);
+  const root = primaryRoot(definitions)!;
   const el = root.flowElements.find((e: any) => /Task|SubProcess/.test(e.$type));
   expect(el, 'example should contain an activity to stamp').toBeTruthy();
   return el;
@@ -207,7 +208,7 @@ test.describe('provenance view model', () => {
 
   test('a runless marker voids any executed record; a foreign run voids none', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
-    const root = primaryRoot(definitions);
+    const root = primaryRoot(definitions)!;
     const events = root.flowElements.filter((e: any) => /Event$/.test(e.$type));
     expect(events.length).toBeGreaterThanOrEqual(2);
 
@@ -299,7 +300,7 @@ test.describe('provenance view model', () => {
 
   test('a consumed marker forks the graph at the invocation that superseded it', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
-    const root = primaryRoot(definitions);
+    const root = primaryRoot(definitions)!;
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
     const task = firstActivity(definitions);
@@ -327,7 +328,7 @@ test.describe('provenance view model', () => {
 
   test('two invalidations of the first branch open two separate lanes', async () => {
     const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
-    const root = primaryRoot(definitions);
+    const root = primaryRoot(definitions)!;
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-03T10:00:00Z', run: 'repo' });
