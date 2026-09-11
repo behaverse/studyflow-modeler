@@ -7,6 +7,14 @@ export function toBusinessObject(elementOrBO: any): ModdleElement {
   return elementOrBO?.businessObject ?? elementOrBO;
 }
 
+/** The `bpmn:Definitions` an element, or its business object, belongs to. */
+export function definitionsOf(elementOrBO: any): ModdleElement | undefined {
+  for (let node: ModdleElement | undefined = toBusinessObject(elementOrBO); node; node = node.$parent) {
+    if (node.$type === 'bpmn:Definitions') return node;
+  }
+  return undefined;
+}
+
 function typeNameOf(elementOrType: ModdleElement | string | null | undefined): string | undefined {
   if (typeof elementOrType === 'string') return elementOrType;
   const target = toBusinessObject(elementOrType);

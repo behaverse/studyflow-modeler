@@ -1,6 +1,6 @@
 import { ensureChoreographyParticipants, mintParticipant } from '@canvas/index.ts';
 import { DEFAULT_BOTTOM, DEFAULT_TOP, actorOf, isTypedChoreography } from '@core/document';
-import { getAttribute, toBusinessObject, type AttributeUpdater } from '@core/element';
+import { definitionsOf, getAttribute, toBusinessObject, type AttributeUpdater } from '@core/element';
 import { getCatalog } from '@core/notation';
 
 /* Who takes a choreography task's bands, as inspector edits: the participants themselves are minted by the
@@ -8,11 +8,6 @@ import { getCatalog } from '@core/notation';
 
 /** What mints participant ids: the editor's `model.ids`. */
 type Ids = { nextPrefixed(prefix: string): string };
-
-function definitionsOf(bo: any): any {
-  while (bo && bo.$type !== 'bpmn:Definitions') bo = bo.$parent;
-  return bo;
-}
 
 /** A new actor for a typed task, named as typed, put on its band in place of a drawn pool that must keep its name. */
 export function nameNewActor(element: any, updater: AttributeUpdater, ids: Ids, name: string): void {

@@ -1,6 +1,6 @@
 import { is } from '@modeler/editor/port';
 import { getCatalog } from '@core/notation';
-import { toBusinessObject, type ModdleElement } from '@core/element';
+import { definitionsOf, toBusinessObject, type ModdleElement } from '@core/element';
 import { isDeclaredProperty } from '@core/constants';
 
 export type StateProperty = {
@@ -14,12 +14,6 @@ export type StateProperty = {
 function builtinItemTypes(): string[] {
   return (getCatalog().enumOf('studyflow:ItemTypeEnum')?.literals ?? [])
     .map((literal) => String(literal.value));
-}
-
-export function definitionsOf(elementOrBo: any): any {
-  let node = toBusinessObject(elementOrBo);
-  while (node?.$parent) node = node.$parent;
-  return node?.$type === 'bpmn:Definitions' ? node : null;
 }
 
 export function getDeclaredItemTypes(elementOrBo: any): string[] {

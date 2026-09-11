@@ -4,6 +4,7 @@
  */
 
 import type { Canvas, EventBus, Selection, ShapeDescriptor } from '@canvas/index.ts';
+import { toBusinessObject } from '@core/element';
 import type { Template } from '@core/notation';
 
 export type { Canvas, EventBus, Selection };
@@ -73,10 +74,6 @@ export interface Editor extends EditorHistoryView {
 }
 
 export function is(element: EditorElement | ModelElement, type: string): boolean {
-  const bo = getBusinessObject(element);
+  const bo: any = toBusinessObject(element);
   return !!bo && typeof bo.$instanceOf === 'function' && bo.$instanceOf(type);
-}
-
-export function getBusinessObject(element: EditorElement): ModelElement {
-  return (element && element.businessObject) || element;
 }

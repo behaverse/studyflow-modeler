@@ -7,10 +7,12 @@ import { getStoredUserEmail } from '@modeler/settings/store';
 import {
   assignLanes,
   collectProvenance,
+  DETAIL_ICONS,
   displayOrder,
+  laneOf,
+  type ProvenanceRecord,
   recordDetails,
   shortWhen,
-  type ProvenanceRecord,
 } from '@modeler/provenance/records';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
@@ -18,25 +20,7 @@ import { ICONS } from '@modeler/icons';
 
 type Props = { isOpen: boolean; onClose: () => void; scopeId?: string };
 
-// Icons standing in for the `recordDetails` labels (who/with/run/seed/what).
-const DETAIL_ICONS: Record<string, string> = {
-  who: ICONS.person,
-  with: ICONS.cog,
-  run: ICONS.play,
-  seed: ICONS.asterisk,
-  what: ICONS.script,
-};
-
-// One color per branch
-const LANES = [
-  { dot: 'bg-stone-400', stroke: 'stroke-stone-300/70' },
-  { dot: 'bg-violet-500', stroke: 'stroke-violet-400/70' },
-  { dot: 'bg-sky-500', stroke: 'stroke-sky-400/70' },
-  { dot: 'bg-amber-500', stroke: 'stroke-amber-400/70' },
-  { dot: 'bg-emerald-500', stroke: 'stroke-emerald-400/70' },
-];
 const LANE_W = 12;
-const laneOf = (lane: number) => LANES[lane % LANES.length];
 const laneX = (lane: number) => lane * LANE_W + 4.5;
 // The element-shape icons sit in their own left column, outside the tree, so they align.
 const ICON_GUTTER = 22;

@@ -1,9 +1,9 @@
 import { isReservedStateKey } from '@core/document';
-import { setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
-import { ensureChoreographyParticipants } from '@canvas/index.ts';
+import { definitionsOf, setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
+import { associationPropertyFor, ensureChoreographyParticipants, typeForDirection } from '@canvas/index.ts';
 import { nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { isTypedChoreography } from '@core/document';
-import { definitionsOf, getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
+import { getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
 
 export type UpdateAttributeCommand = {
@@ -95,25 +95,35 @@ export type UpdateTransformationCommand = {
 );
 
 export function runUpdateTransformation(modeler: Editor, command: UpdateTransformationCommand): void {
-  const { canvas: mutate, model } = modeler;
   const association = toBusinessObject(command.element);
-  const expression = association.get?.('transformation') ?? association.transformation;
-
   if (command.field === 'language') {
-    if (expression) mutate.updateModdleProperties(command.element, expression, { language: command.value || undefined });
+    const expression = association.get?.('transformation') ?? association.transformation;
+    if (expression) modeler.canvas.updateModdleProperties(command.element, expression, { language: command.value || undefined });
     return;
   }
+  writeTransformation(modeler, command.element, association, command.value);
+}
 
-  const body = command.value.trim();
-  if (!body) {
-    mutate.updateModdleProperties(command.element, association, { transformation: undefined });
+/** A data association's transformation set to `body`, its expression reused; a blank one removes it. */
+function writeTransformation(modeler: Editor, element: any, association: any, body: string): void {
+  const text = body.trim();
+  const expression = association.get?.('transformation') ?? association.transformation;
+  if (!text) {
+    modeler.canvas.updateModdleProperties(element, association, { transformation: undefined });
   } else if (expression) {
-    mutate.updateModdleProperties(command.element, expression, { body });
+    modeler.canvas.updateModdleProperties(element, expression, { body: text });
   } else {
-    const created = model.create('bpmn:FormalExpression', { body });
+    const created = modeler.model.create('bpmn:FormalExpression', { body: text });
     created.$parent = association;
-    mutate.updateModdleProperties(command.element, association, { transformation: created });
+    modeler.canvas.updateModdleProperties(element, association, { transformation: created });
   }
+}
+
+/** `base`, else `base_2`, `base_3`…: the first id `taken` refuses. */
+function uniqueId(base: string, taken: (id: string) => boolean): string {
+  let id = base;
+  for (let n = 2; taken(id); n += 1) id = `${base}_${n}`;
+  return id;
 }
 
 
@@ -187,9 +197,7 @@ function ensureItemDefinition(editor: Editor, element: any, businessObject: any,
 
   const taken = new Set(rootElements.map((re) => re?.id));
   // A structureRef is free text but an id is an NCName, so non-NCName chars become underscores.
-  const base = `ItemDefinition_${structureRef.replace(/[^\w.-]/g, '_')}`;
-  let id = base;
-  for (let i = 2; taken.has(id); i += 1) id = `${base}_${i}`;
+  const id = uniqueId(`ItemDefinition_${structureRef.replace(/[^\w.-]/g, '_')}`, (candidate) => taken.has(candidate));
 
   const itemDefinition = editor.model.createBusinessObject('bpmn:ItemDefinition', { id, structureRef });
   itemDefinition.$parent = definitions;
@@ -269,9 +277,7 @@ export function runUpdateMessage(modeler: Editor, command: UpdateMessageCommand)
     : undefined;
   if (itemDefinition && !message) {
     const taken = new Set((definitions.rootElements ?? []).map((re: any) => re?.id));
-    const base = `Message_${structureRef.replace(/[^\w.-]/g, '_')}`;
-    let id = base;
-    for (let i = 2; taken.has(id); i += 1) id = `${base}_${i}`;
+    const id = uniqueId(`Message_${structureRef.replace(/[^\w.-]/g, '_')}`, (candidate) => taken.has(candidate));
     message = modeler.model.createBusinessObject('bpmn:Message', { id, itemRef: itemDefinition });
     message.$parent = definitions;
     modeler.canvas.updateModdleProperties(element, definitions, { rootElements: [...definitions.rootElements, message] });
@@ -300,18 +306,8 @@ export type UpdateDataBindingCommand = {
   | { action: 'set-binding'; direction: 'input' | 'output'; associationId: string; value: string }
 );
 
-const LIST_BY_DIRECTION = {
-  input: 'dataInputAssociations',
-  output: 'dataOutputAssociations',
-} as const;
-
-const TYPE_BY_DIRECTION = {
-  input: 'bpmn:DataInputAssociation',
-  output: 'bpmn:DataOutputAssociation',
-} as const;
-
 function associationsOf(businessObject: any, direction: 'input' | 'output'): any[] {
-  const listName = LIST_BY_DIRECTION[direction];
+  const listName = associationPropertyFor(direction);
   return businessObject?.get?.(listName) ?? businessObject?.[listName] ?? [];
 }
 
@@ -338,12 +334,10 @@ function nextAssociationId(
     [...associationsOf(businessObject, 'input'), ...associationsOf(businessObject, 'output')]
       .map((a: any) => a?.id),
   );
-  const taken = (id: string) => local.has(id) || Boolean(model.ids.assigned(id));
-
-  const base = `${direction === 'input' ? 'DataInput' : 'DataOutput'}_${propertyId}`;
-  let id = base;
-  for (let n = 2; taken(id); n += 1) id = `${base}_${n}`;
-  return id;
+  return uniqueId(
+    `${direction === 'input' ? 'DataInput' : 'DataOutput'}_${propertyId}`,
+    (id) => local.has(id) || Boolean(model.ids.assigned(id)),
+  );
 }
 
 export function runUpdateDataBinding(modeler: Editor, command: UpdateDataBindingCommand): void {
@@ -352,14 +346,14 @@ export function runUpdateDataBinding(modeler: Editor, command: UpdateDataBinding
   const businessObject = toBusinessObject(element);
   if (!businessObject) return;
 
-  const listName = LIST_BY_DIRECTION[direction];
+  const listName = associationPropertyFor(direction);
   const existing = associationsOf(businessObject, direction);
 
   if (command.action === 'bind') {
     const property = findPropertyInScope(businessObject, command.propertyId);
     if (!property) return;
 
-    const association = model.createBusinessObject(TYPE_BY_DIRECTION[direction], {
+    const association = model.createBusinessObject(typeForDirection(direction), {
       id: nextAssociationId(model, businessObject, command.propertyId, direction),
       ...(direction === 'input' ? { sourceRef: [property] } : { targetRef: property }),
     });
@@ -380,15 +374,5 @@ export function runUpdateDataBinding(modeler: Editor, command: UpdateDataBinding
     return;
   }
 
-  const value = command.value || undefined;
-  const expression = target.get?.('transformation') ?? target.transformation;
-  if (!value) {
-    mutate.updateModdleProperties(element, target, { transformation: undefined });
-  } else if (expression) {
-    mutate.updateModdleProperties(element, expression, { body: value });
-  } else {
-    const created = model.create('bpmn:FormalExpression', { body: value });
-    created.$parent = target;
-    mutate.updateModdleProperties(element, target, { transformation: created });
-  }
+  writeTransformation(modeler, element, target, command.value);
 }

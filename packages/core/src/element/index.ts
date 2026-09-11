@@ -1,6 +1,7 @@
 import { getCatalog, hasCatalog } from '@core/notation';
 import {
   CHECKLIST_SPEC,
+  definitionsOf,
   getAttributeSpec,
   getRawAttribute,
   isExtensionPrefix,
@@ -10,6 +11,7 @@ import { StudyflowElement, type AttributeUpdater } from '@core/element/handle';
 
 export {
   CHECKLIST_SPEC,
+  definitionsOf,
   getAttributeSpec,
   getRawAttribute,
   isExtensionPrefix,

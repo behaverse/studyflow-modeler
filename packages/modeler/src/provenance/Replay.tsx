@@ -4,10 +4,12 @@ import {
   applyStatuses,
   assignLanes,
   collectProvenance,
+  DETAIL_ICONS,
   displayOrder,
+  laneOf,
+  type ProvenanceRecord,
   recordDetails,
   shortWhen,
-  type ProvenanceRecord,
 } from '@modeler/provenance/records';
 import { computeSegLengths, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
 import { isHidden, type Point } from '@canvas/index.ts';
@@ -34,17 +36,6 @@ const SPEEDS = [
   { label: '2×', ms: 400 },
 ];
 
-// One color per branch lane, the hex twins of the Provenance dialog's `LANES` dot classes.
-const LANE_COLORS = ['#a8a29e', '#8b5cf6', '#0ea5e9', '#f59e0b', '#10b981'];
-
-// Icons standing in for the `recordDetails` labels, matching the Provenance dialog.
-const DETAIL_ICONS: Record<string, string> = {
-  who: ICONS.person,
-  with: ICONS.cog,
-  run: ICONS.play,
-  seed: ICONS.asterisk,
-  what: ICONS.script,
-};
 
 /** An element the editor knows for this record: its own scope, or the flow its `what` mentions. */
 function elementsOf(record: ProvenanceRecord, elements: Registry): any[] {
@@ -74,9 +65,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   useEffect(() => {
     const { canvas } = editor;
     const elements = registryOf(canvas);
-    canvas.getContainer()?.classList.add('replay-active');
     return () => {
-      canvas.getContainer()?.classList.remove('replay-active');
       for (const [id, m] of marked.current) if (elements.get(id)) canvas.removeMarker(id, m);
       marked.current = [];
       if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
@@ -132,7 +121,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     if (token.parentNode !== layer) layer.appendChild(token);
     // The token wears its branch's lane color; document run stamps switch it as a new branch starts.
     const lane = current ? assignLanes(displayOrder([...shown])).get(current)?.lane ?? 0 : 0;
-    token.style.fill = LANE_COLORS[lane % LANE_COLORS.length];
+    token.style.fill = laneOf(lane).hex;
 
     const setPos = (p: Point, elId: string, rootId?: string) => {
       token.setAttribute('cx', String(p.x));
@@ -487,7 +476,7 @@ function ReplayTimeline({ onClose }: Props) {
             {trail.map(({ record: r, lane }, i) => {
               // Run stamps read as tall section marks, invalidation markers as red, the rest by lane.
               const stamp = r.isDocument && r.action === 'executed';
-              const color = r.action === 'invalidated' ? '#ef4444' : LANE_COLORS[lane % LANE_COLORS.length];
+              const color = r.action === 'invalidated' ? '#ef4444' : laneOf(lane).hex;
               return (
                 <span
                   key={i}

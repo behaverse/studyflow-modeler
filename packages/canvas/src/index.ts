@@ -8,6 +8,7 @@ export type { Bounds, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, Sce
 export { isRootElement } from './model/scene.ts';
 export { ensureChoreographyParticipants, mintParticipant } from './model/choreography.ts';
 export { IdGenerator, idPrefixFor, needsId, prefixFor } from './model/ids.ts';
+export { associationPropertyFor, typeForDirection } from './model/dataAssociation.ts';
 export { attachEventDefinitions, eventDefinitionTypeOf } from './model/moddle.ts';
 export { CONTENT_PADDING, isCollapsed, isExpandable, isExpanded, isHidden } from './model/tree.ts';
 export { defaultSizeFor, type ShapeDescriptor } from './interaction/create.ts';

@@ -109,17 +109,16 @@
 .replay-active .studyflow-palette {
   display: none;
 }
-/* `Replay.tsx` puts `replay-active` on `view.getContainer()`, i.e. this div. */
-[data-testid="modeler-canvas"].replay-active {
+/* `App.tsx` puts `replay-active` on the app while the replay panel is open. */
+.replay-active [data-testid="modeler-canvas"] {
   box-shadow: inset 0 0 0 3px rgba(139, 92, 246, 0.6), inset 0 0 40px rgba(139, 92, 246, 0.08);
   transition: box-shadow 0.3s ease;
 }
 
 /*
- * Dim every rendered element, then light the touched ones back up. The canvas
- * puts `sf-shape` / `sf-connection` on each element's own `<g>` - the same `<g>`
- * `view.addMarker` writes `replay-touched` / `replay-voided` onto - which is
- * where diagram-js's `djs-element` used to sit.
+ * Dim every rendered element, then light the touched ones back up: `sf-shape` /
+ * `sf-connection` sit on each element's own `<g>`, where the replay's
+ * `canvas.addMarker` writes `replay-touched` / `replay-voided`.
  */
 .replay-active :is(.sf-shape, .sf-connection) {
   opacity: 0.22;

@@ -2,6 +2,26 @@ import { primaryRoot } from '@core/document';
 import { readTrail } from '@modeler/provenance/trail';
 import { ICONS } from '@modeler/icons';
 
+/** Icons standing in for the `recordDetails` labels, in the dialog and the replay alike. */
+export const DETAIL_ICONS: Record<string, string> = {
+  who: ICONS.person,
+  with: ICONS.cog,
+  run: ICONS.play,
+  seed: ICONS.asterisk,
+  what: ICONS.script,
+};
+
+/** One colour per branch lane: the dialog's Tailwind classes, and the same colour in hex for the replay's SVG token. */
+const LANES = [
+  { dot: 'bg-stone-400', stroke: 'stroke-stone-300/70', hex: '#a8a29e' },
+  { dot: 'bg-violet-500', stroke: 'stroke-violet-400/70', hex: '#8b5cf6' },
+  { dot: 'bg-sky-500', stroke: 'stroke-sky-400/70', hex: '#0ea5e9' },
+  { dot: 'bg-amber-500', stroke: 'stroke-amber-400/70', hex: '#f59e0b' },
+  { dot: 'bg-emerald-500', stroke: 'stroke-emerald-400/70', hex: '#10b981' },
+];
+
+export const laneOf = (lane: number) => LANES[lane % LANES.length];
+
 /** Icons only where the shape says something at a glance: gateways, events, containers; the rest stay bare. */
 export function shapeIconOf(el: any): string | undefined {
   if (el?.$instanceOf?.('bpmn:Gateway')) return ICONS.diamond;

@@ -7,9 +7,8 @@ import { ArrayInput, ChecklistInput, EnumInput, EnumListInput, ExpressionInput }
 import { CodeEditor, SchemaEditor } from '@modeler/inspector/editors';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { useAttributeState, useInspectedElement } from '@modeler/inspector/state';
-import { definitionsOf } from '@modeler/inspector/stateProperties';
 import { resolvePlaceholders } from '@core/document';
-import { toBusinessObject } from '@core/element';
+import { definitionsOf, toBusinessObject } from '@core/element';
 import { field as s } from '@modeler/inspector/styles';
 
 const TYPING_DEBOUNCE_MS = 400;

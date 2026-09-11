@@ -1,6 +1,6 @@
-import { getBusinessObject, is } from '@modeler/editor/port';
+import { StudyflowElement, toBusinessObject } from '@core/element';
 import { getCatalog, isBpmnSubtypeOf } from '@core/notation';
-import { StudyflowElement } from '@core/element';
+import { is } from '@modeler/editor/port';
 
 const DATA_BPMN_TYPES = [
   'bpmn:DataObject',
@@ -19,7 +19,7 @@ function isDataElement(element: any): boolean {
 }
 
 function nameOf(element: any): string | undefined {
-  const bo = getBusinessObject(element);
+  const bo = toBusinessObject(element);
   return bo?.name || bo?.id || element?.id;
 }
 
@@ -51,7 +51,7 @@ export type DataNeighbor = {
 };
 
 function containerOf(element: any): any {
-  let node = getBusinessObject(element)?.$parent;
+  let node = toBusinessObject(element)?.$parent;
   while (node && !is(node, 'bpmn:Process') && !is(node, 'bpmn:SubProcess')) node = node.$parent;
   return node;
 }
@@ -64,7 +64,7 @@ function outerScopeOf(element: any, dataElement: any): string | undefined {
 
 export function supportsDataAssociations(element: any, direction: 'inputs' | 'outputs'): boolean {
   const listName = direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations';
-  const properties: any[] = getBusinessObject(element)?.$descriptor?.properties ?? [];
+  const properties: any[] = toBusinessObject(element)?.$descriptor?.properties ?? [];
   return properties.some((property: any) => property?.name === listName);
 }
 
@@ -72,7 +72,7 @@ export function getInferredDataNeighbors(
   element: any,
   direction: 'inputs' | 'outputs',
 ): DataNeighbor[] {
-  const businessObject = getBusinessObject(element);
+  const businessObject = toBusinessObject(element);
   const listName = direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations';
   const associations: any[] = businessObject?.get?.(listName) ?? businessObject?.[listName] ?? [];
 
