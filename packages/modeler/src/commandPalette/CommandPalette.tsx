@@ -1,6 +1,7 @@
 import { Dialog, DialogPanel } from '@headlessui/react';
 import {
   createElement,
+  useCallback,
   useContext,
   useEffect,
   useImperativeHandle,
@@ -13,14 +14,12 @@ import {
 } from 'react';
 import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
 import { useRequiredModeler } from '@modeler/app/useModeler';
-import { executeCommand } from '@modeler/commandBus';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { MOD_LABEL, URLS } from '@modeler/constants';
-import { DIAGRAM_OPEN_ACCEPT, getLinkedFileName, linkOpenedFile, subscribeLink } from '@modeler/diagram/fileHandle';
+import { getLinkedFileName, subscribeLink } from '@modeler/diagram/fileHandle';
 import { saveLinkedFile } from '@modeler/diagram/save';
 import { commandPalette as cp } from '@modeler/commandPalette/styles';
-import { OPENABLE_EXTENSIONS } from '@modeler/export/formats';
-import { isBinaryDiagram, isOpenable, OPEN_FAILURE_MESSAGE, OPEN_INVALID_MESSAGE } from '@modeler/open/openFile';
+import { useDiagramPicker } from '@modeler/open/openFile';
 import { GalleryDialog } from '@modeler/gallery/Gallery';
 import { OpenDialog } from '@modeler/open/Open';
 import { SaveDialog } from '@modeler/export/Save';
@@ -34,7 +33,6 @@ import {
   type PaletteCommand,
   type PaletteDialogId,
 } from '@modeler/commandPalette/types';
-import { useFilePicker } from '@modeler/commandPalette/useFilePicker';
 import { ICONS } from '@modeler/icons';
 
 type SubDialogProps = { isOpen: boolean; onClose: () => void; scopeId?: string; onBrowse?: () => void };
@@ -82,24 +80,9 @@ export function CommandPalette({ ref }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const diagramPicker = useFilePicker({
-    accept: OPENABLE_EXTENSIONS.join(','),
-    picker: DIAGRAM_OPEN_ACCEPT,
-    // Links the picked file, so from here on saving writes back into it instead of downloading.
-    onPicked: linkOpenedFile,
-    testId: 'open-file-input',
-    isValid: isOpenable,
-    invalidMessage: OPEN_INVALID_MESSAGE,
-    isBinary: isBinaryDiagram,
-    failureMessage: OPEN_FAILURE_MESSAGE,
-    onText: async (filename, content) => {
-      if (content == null) throw new Error('Could not read the file. Try again.');
-      const result = await executeCommand(modeler, { type: 'OpenDiagram', filename, content });
-      // The pick may have been started from the Open dialog, which has nothing left to say.
-      setDialog(null);
-      return result;
-    },
-  });
+  // The pick may have been started from the Open dialog, which has nothing left to say once a file opens.
+  const closeDialog = useCallback(() => setDialog(null), []);
+  const diagramPicker = useDiagramPicker(modeler, closeDialog);
 
   const open = () => {
     setQuery('');
