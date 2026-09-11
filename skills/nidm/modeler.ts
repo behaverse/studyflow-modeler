@@ -1,4 +1,6 @@
+/** What the nidm skill gives the modeler: the diagram's data operations and data elements as NIDM-Results provenance. */
 import type { ExportFormat } from '@modeler/export/formats';
+import type { ModelerModule } from '@modeler/skillModules';
 import { toLocalName } from '@core/naming';
 import type { ExportedElement, ExportModel } from '@modeler/export/model';
 
@@ -88,3 +90,5 @@ export const format: ExportFormat = {
   id: 'nidm', group: 'Interchange', label: 'NIDM-Results', extension: '.nidm.ttl', mimeType: 'text/turtle;charset=utf-8',
   encode: ({ exportModel }) => exportToNidm(exportModel()),
 };
+
+export default { exports: [format] } satisfies ModelerModule;

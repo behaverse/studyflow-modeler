@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { exportToArtemis } from '@skills/eeg/modeler';
-import { exportToLinkML } from '@modeler/export/linkml';
-import { exportToNidm } from '@modeler/export/nidm';
+import { exportToLinkML } from '@skills/linkml/modeler';
+import { exportToNidm } from '@skills/nidm/modeler';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
 import { fakeModeler, makeModdle } from './exporterFixture';
 import { exampleNames as examples, exampleXml } from './utils';

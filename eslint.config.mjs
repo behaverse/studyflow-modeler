@@ -40,7 +40,7 @@ export default [
   },
   // Each app may import itself but not the other.
   {
-    files: ['packages/modeler/src/**/*.{ts,tsx}'],
+    files: ['packages/modeler/src/**/*.{ts,tsx}', 'skills/*/modeler.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [

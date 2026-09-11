@@ -2,8 +2,8 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { exportToLinkML } from '@modeler/export/linkml';
-import { fakeExportModel, moddle, wrapperElement } from './exporterFixture';
+import { exportToLinkML } from '@skills/linkml/modeler';
+import { fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
 
 /** Every catalog-declared attribute of a data element must appear in the exported linkml schema. */
 

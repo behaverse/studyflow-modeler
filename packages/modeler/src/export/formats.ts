@@ -1,8 +1,5 @@
 import type { Editor } from '@modeler/editor/port';
 import type { ExportModel } from '@modeler/export/model';
-import { format as drawio } from '@modeler/export/drawio';
-import { format as linkml } from '@modeler/export/linkml';
-import { format as nidm } from '@modeler/export/nidm';
 import { SKILL_EXPORT_FORMATS, SKILL_OPENERS, type Opener } from '@modeler/skillModules';
 
 /** The formats that carry the diagram itself, encoded by `export/commands.ts`. */
@@ -34,8 +31,6 @@ export type ExportFormat = {
   encode?: (ctx: EncodeContext) => BlobPart | Promise<BlobPart>;
 };
 
-/** One file per projection, the modeler's own here and a skill's in its `modeler.ts`; the file carries its descriptor and its encoder. */
-const PROJECTIONS: ExportFormat[] = [drawio, linkml, nidm, ...SKILL_EXPORT_FORMATS];
 
 const EXPORT_FORMATS: ExportFormat[] = [
   {
@@ -77,7 +72,8 @@ const EXPORT_FORMATS: ExportFormat[] = [
     importable: true,
     alsoReads: ['.png'],
   },
-  ...PROJECTIONS,
+  // A projection, a document derived for another tool, comes from a skill's `modeler.ts`, which carries its descriptor and its encoder.
+  ...SKILL_EXPORT_FORMATS,
 ];
 
 export const IMPORTABLE_EXTENSIONS: string[] = EXPORT_FORMATS

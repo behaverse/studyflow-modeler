@@ -215,7 +215,7 @@ An agent stops at its `completionCondition` and never runs past `maxTurns`. A gu
 
 # The file
 
-![The files that carry a study, and what converts into what. The thick arrows are the conversions that lose nothing.](assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png and .studyflow.svg, which carry two payloads beside the pixels: the same BPMN XML as embedded source, and a draw.io copy of the drawing. An image reopens in the modeler from its embedded source, never from its pixels. Dotted arrows leave the round trip: the draw.io payload downloads on its own as .drawio, and the modeler exports one way to LinkML, NIDM-Results, and ARTEM-IS."}
+![The files that carry a study, and what converts into what. The thick arrows are the conversions that lose nothing.](assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png and .studyflow.svg, which carry the same BPMN XML beside the pixels as embedded source. An image reopens in the modeler from its embedded source, never from its pixels. A dotted arrow leaves the round trip: skills export one way to .drawio, LinkML, NIDM-Results, and ARTEM-IS."}
 
 | File | Carries | Reopens as a studyflow |
 |:--|:--|:--|

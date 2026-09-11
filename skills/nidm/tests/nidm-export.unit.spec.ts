@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import { StudyflowElement } from '@core/element';
-import { exportToNidm } from '@modeler/export/nidm';
-import { fakeExportModel, moddle, wrapperElement } from './exporterFixture';
+import { exportToNidm } from '@skills/nidm/modeler';
+import { fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
 
 /** The NIDM-Results (Turtle) export, over hand-built business objects. */
 

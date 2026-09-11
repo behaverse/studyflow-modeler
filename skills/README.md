@@ -18,6 +18,6 @@ metadata:
 What the vocabulary means and how to author with it.
 ```
 
-A skill can be vocabulary only (`eeg`), a runner only (`python`), or both (`behaverse`). The runtimes are skills too: [`browser`](browser/SKILL.md) and [`local`](local/SKILL.md). `examples/` holds its example diagrams, `tests/` its tests. The core skills (`studyflow`, `prov`, `cognitive`) cannot be disabled.
+A skill can be vocabulary only (`eeg`), a runner only (`python`), both (`behaverse`), or only something the modeler exports or opens (`drawio`, `jspsych`). The runtimes are skills too: [`browser`](browser/SKILL.md) and [`local`](local/SKILL.md). `examples/` holds its example diagrams, `tests/` its tests. The core skills (`studyflow`, `prov`, `cognitive`) cannot be disabled.
 
 [SCHEMAS.md](SCHEMAS.md) is the schema authoring reference.
