@@ -82,7 +82,7 @@ function useApiKey(): {
 
   const setApiKey = useCallback((key: string | null | undefined) => {
     setStoredApiKey(key);
-    setApiKeyState(key && key !== GUEST ? key : GUEST);
+    setApiKeyState(key || GUEST);
   }, []);
 
   return { apiKey, setApiKey };
@@ -101,7 +101,7 @@ const API_BASE_ORIGIN: string | undefined = (() => {
 
 function AccountSection() {
   const { apiKey, setApiKey } = useApiKey();
-  const isGuest = apiKey === 'guest';
+  const isGuest = apiKey === GUEST;
   const [revealKey, setRevealKey] = useState(false);
   const [loginError, setLoginError] = useState<string | undefined>();
   const [loginPending, setLoginPending] = useState(false);
@@ -160,7 +160,7 @@ function AccountSection() {
   }
 
   function signOut() {
-    setApiKey('guest');
+    setApiKey(null);
     setStoredUserEmail(undefined);
     setEmail(undefined);
     setRevealKey(false);

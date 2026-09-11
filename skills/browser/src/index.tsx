@@ -1,5 +1,4 @@
 import { createRoot } from 'react-dom/client';
-import { migrateLegacyKeys } from '@core/storage';
 import '#assets/css/app.css';
 import { Runner } from '@runner/Runner';
 
@@ -9,7 +8,5 @@ document.documentElement.classList.toggle('desktop', matchMedia('(display-mode: 
 // The modeler keeps a handle on this tab to navigate it (`openRunnerTab`), so it cannot pass `noopener`;
 // the back-reference is dropped here instead. Nothing reads it.
 window.opener = null;
-
-migrateLegacyKeys();
 
 createRoot(document.getElementById('root')!).render(<Runner />);

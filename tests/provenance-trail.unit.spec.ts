@@ -153,21 +153,4 @@ test.describe('primary root', () => {
 
     expect(primaryRoot(definitions)).toBe(process);
   });
-
-  test('a legacy trail on a non-primary root is still read, and migrated into `_meta.prov` on append', () => {
-    const definitions = poolDefinitions();
-    const process = definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process');
-    // Simulate a file written under the old Process-first, `<prov:activity>`-on-the-root rule.
-    const existing = moddle.create('prov:Activity', { action: 'created', when: '2026-01-01T00:00:00+00:00', seed: 3 });
-    process.extensionElements = moddle.create('bpmn:ExtensionElements', { values: [existing] });
-
-    expect(readTrail(definitions)).toEqual([{ action: 'created', when: '2026-01-01T00:00:00+00:00', seed: 3 }]);
-
-    appendTrailEntry(definitions, moddle, { action: 'modified', when: '2026-01-02T00:00:00+00:00', seed: '42' });
-
-    expect(readTrail(definitions).map((r) => [r.action, r.seed])).toEqual([['created', 3], ['modified', 42]]);
-    // Moved, not copied: the legacy entries leave the root; `_meta.prov` now holds the whole trail.
-    expect(process.extensionElements.values).toHaveLength(0);
-    expect(readState(definitions)._meta.prov).toHaveLength(2);
-  });
 });

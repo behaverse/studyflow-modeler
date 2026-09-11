@@ -15,28 +15,6 @@ export function isHeadlessCollaboration(root: any): boolean {
   return root?.$type === 'bpmn:Collaboration' && !(root.participants ?? []).some((p: any) => p?.processRef);
 }
 
-/** Every `bpmn:RootElement` that could be the diagram's subject, best candidate first. */
-export function primaryRoots(definitions: ModdleElement | null | undefined): ModdleElement[] {
-  const roots: ModdleElement[] = definitions?.rootElements ?? [];
-  const isType = (root: any, type: string) => (
-    root?.$instanceOf ? root.$instanceOf(type) : root?.$type === type
-  );
-
-  const ordered: ModdleElement[] = [];
-  const add = (root: ModdleElement | undefined) => {
-    if (root && !ordered.includes(root)) ordered.push(root);
-  };
-
-  // The element the DI plane names outranks any type preference: it is what the canvas draws.
-  const named = definitions?.diagrams?.[0]?.plane?.bpmnElement;
-  if (!isHeadlessCollaboration(named)) add(named);
-  for (const type of ['bpmn:Collaboration', 'bpmn:Process', 'bpmn:Choreography']) {
-    for (const root of roots) if (isType(root, type) && !isHeadlessCollaboration(root)) add(root);
-  }
-  for (const root of roots) if (typeof root?.id === 'string') add(root);
-  return ordered;
-}
-
 /** Where the study is meant to run: `runtime` on the `studyflow:Study` extension of the process. Unset, the schema says `cloud`. */
 export function declaredRuntime(definitions: ModdleElement | null | undefined): string {
   const value = getProperty(studyExtensionOf(definitions), 'runtime');
@@ -49,9 +27,18 @@ export function studyExtensionOf(definitions: ModdleElement | null | undefined):
   return root?.extensionElements?.values?.find((ext: any) => ext?.$type === STUDY_EXTENSION_TYPE);
 }
 
-/** The study's root: the element the DI plane names, else the best candidate `primaryRoots` ranks first. */
+/** The study's root: the element the DI plane names (it is what the canvas draws), else the first
+ * collaboration, process or choreography, else the first root with an id. A collaboration without a process is never it. */
 export function primaryRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
-  return primaryRoots(definitions)[0];
+  const named = definitions?.diagrams?.[0]?.plane?.bpmnElement;
+  if (named && !isHeadlessCollaboration(named)) return named;
+  const roots: ModdleElement[] = definitions?.rootElements ?? [];
+  const isType = (root: any, type: string) => (root?.$instanceOf ? root.$instanceOf(type) : root?.$type === type);
+  for (const type of ['bpmn:Collaboration', 'bpmn:Process', 'bpmn:Choreography']) {
+    const root = roots.find((candidate) => isType(candidate, type) && !isHeadlessCollaboration(candidate));
+    if (root) return root;
+  }
+  return roots.find((root) => typeof root?.id === 'string');
 }
 
 export type XmlPass = (definitions: any) => boolean;

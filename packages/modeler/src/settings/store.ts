@@ -110,7 +110,7 @@ export function getStoredApiKey(): string | undefined {
 }
 
 export function setStoredApiKey(key: string | undefined | null): void {
-  if (!key || key === 'guest') apiKeyStore.clear();
+  if (!key) apiKeyStore.clear();
   else apiKeyStore.save(key);
 }
 

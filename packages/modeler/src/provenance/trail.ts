@@ -1,4 +1,4 @@
-import { META_KEY, primaryRoot, primaryRoots, readState, writeState } from '@core/document';
+import { META_KEY, primaryRoot, readState, writeState } from '@core/document';
 import type { Editor } from '@modeler/editor/port';
 
 export type TrailStamp = {
@@ -17,16 +17,6 @@ export type TrailRecord = TrailStamp;
 
 const RECORD_FIELDS = ['action', 'when', 'who', 'with', 'what', 'run', 'seed', 'note'] as const;
 
-/** The pre-`state` document trail: `prov:Activity` values on a root's `extensionElements`. */
-function legacyTrailRoot(definitions: any): any | undefined {
-  return primaryRoots(definitions).find((root) => legacyEntries(root).length > 0);
-}
-
-function legacyEntries(root: any): any[] {
-  const values: any[] = root?.extensionElements?.values ?? [];
-  return values.filter((value) => value?.$type === 'prov:Activity');
-}
-
 function toRecord(source: any): TrailRecord {
   const record: Record<string, any> = {};
   for (const field of RECORD_FIELDS) {
@@ -38,11 +28,10 @@ function toRecord(source: any): TrailRecord {
   return record as TrailRecord;
 }
 
-/** The study's run records, oldest first: `state._meta.prov`, else a legacy root trail (read-only). */
+/** The study's run records, oldest first: `state._meta.prov`. */
 export function readTrail(definitions: any): TrailRecord[] {
   const prov = readState(definitions)[META_KEY]?.prov;
-  if (Array.isArray(prov)) return prov;
-  return legacyEntries(legacyTrailRoot(definitions)).map(toRecord);
+  return Array.isArray(prov) ? prov : [];
 }
 
 /** ISO 8601 at second precision, in this machine's timezone. */
@@ -58,7 +47,7 @@ export function trailTimestamp(date: Date = new Date()): string {
   );
 }
 
-/** Appends to `state._meta.prov`, first moving any legacy root entries there. Returns the record. */
+/** Appends to `state._meta.prov`. Returns the record. */
 export function appendTrailEntry(
   definitions: any,
   moddle: any,
@@ -69,13 +58,6 @@ export function appendTrailEntry(
   const tree = readState(definitions);
   const meta = tree[META_KEY] && typeof tree[META_KEY] === 'object' ? tree[META_KEY] : (tree[META_KEY] = {});
   const prov: TrailRecord[] = Array.isArray(meta.prov) ? meta.prov : (meta.prov = []);
-
-  const legacyRoot = legacyTrailRoot(definitions);
-  if (legacyRoot) {
-    prov.push(...legacyEntries(legacyRoot).map(toRecord));
-    legacyRoot.extensionElements.values = legacyRoot.extensionElements.values
-      .filter((value: any) => value?.$type !== 'prov:Activity');
-  }
 
   const record = toRecord(stamp);
   prov.push(record);
