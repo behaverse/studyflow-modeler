@@ -253,8 +253,8 @@ def timeline_timestamp(moment: datetime) -> str:
 
 # Short words for a run id's codename tail, drawn from the run's exact start moment.
 ANIMALS = (
-    "cat", "dog", "bee", "crab", "deer", "dove", "elk", "finch", "fox", 
-    "ibis", "lark", "lynx", "mole", "moth", "otter", "owl", "seal", "sparrow", 
+    "cat", "dog", "bee", "crab", "deer", "dove", "elk", "finch", "fox",
+    "ibis", "lark", "lynx", "mole", "moth", "otter", "owl", "seal", "sparrow",
     "swan", "trout", "shark", "tiger", "toad", "tuna", "viper",
     "whale", "wolf", "zebra", "jellyfish", "kangaroo", "lemur", "monkey", "octopus"
 )
@@ -262,13 +262,9 @@ ANIMALS = (
 
 def run_stamp(moment: datetime) -> str:
     """Sortable, human-trackable id: YYMMDD plus a codename the start moment draws
-    (e.g. 260821heron). A default repo's name and a new branch read the same."""
+    (e.g. 260821otter). A default repo's name and a new branch read the same."""
     utc = moment.astimezone(timezone.utc)
-    return f"{utc.strftime('%y%m%d')}{ANIMALS[int(utc.timestamp() * 1000) % 32]}"
-
-
-
-
+    return f"{utc.strftime('%y%m%d')}{ANIMALS[int(utc.timestamp() * 1000) % len(ANIMALS)]}"
 
 
 def condition_text(flows: list[ET.Element]) -> str:
