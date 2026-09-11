@@ -8,20 +8,11 @@ import reactHooks from 'eslint-plugin-react-hooks'
 // and the modeler reaches the canvas through its index only.
 export default [
   { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results'] },
+  // The repo's JavaScript is Node scripts: the release, the example renderer, the Electron shell, a dev proxy.
   {
-    files: ['**/*.{js,jsx}'],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        ecmaFeatures: { jsx: true },
-        sourceType: 'module',
-      },
-    },
-    rules: {
-      ...js.configs.recommended.rules,
-    },
+    files: ['**/*.mjs'],
+    languageOptions: { globals: globals.node },
+    rules: js.configs.recommended.rules,
   },
 
   ...tseslint.configs.recommended.map((config) => ({
@@ -45,16 +36,9 @@ export default [
   {
     files: ['packages/modeler/src/**/*.{ts,tsx}', 'skills/browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
-    rules: {
-      ...reactHooks.configs['recommended-latest'].rules,
-      'no-restricted-imports': ['error', {
-        patterns: [
-          { group: ['@modeler/*', '@runner/*'], message: 'modeler/ and runner/ may not import each other. Move shared code into packages/core/.' },
-        ],
-      }],
-    },
+    rules: reactHooks.configs['recommended-latest'].rules,
   },
-  // Each app may of course import itself; re-allow its own prefix.
+  // Each app may import itself but not the other.
   {
     files: ['packages/modeler/src/**/*.{ts,tsx}'],
     rules: {
