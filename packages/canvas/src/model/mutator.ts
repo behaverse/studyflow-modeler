@@ -17,6 +17,7 @@ import {
   type ParticipantBand,
 } from '@canvas/model/choreography.ts';
 import { normalizeColors } from '@canvas/model/color.ts';
+import { formatFont, mergeFont, type FontPatch } from '@canvas/model/font.ts';
 import {
   dataAssociationEnds,
   isDataAssociationType,
@@ -410,6 +411,21 @@ export class Mutator {
         touched = true;
       }
       if (touched) changed.push(target);
+    }
+    if (changed.length > 0) this.finish(changed);
+    return changed;
+  }
+
+  /** Restyle captions; a label restyles the element it names. An omitted field is left alone, a falsy one clears. */
+  setFont(elements: readonly SceneElement[], patch: FontPatch): SceneElement[] {
+    const changed: SceneElement[] = [];
+    for (const element of elements) {
+      const target = element.kind === 'label' ? element.owner : element;
+      if (changed.includes(target)) continue;
+      const next = mergeFont(target.font, patch);
+      if (formatFont(next) === formatFont(target.font)) continue;
+      target.font = next;
+      changed.push(target);
     }
     if (changed.length > 0) this.finish(changed);
     return changed;

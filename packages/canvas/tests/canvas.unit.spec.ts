@@ -475,6 +475,24 @@ test('setColor paints the element and the colour survives the round trip', async
   expect(task.fill).toBeUndefined();
 });
 
+test('setFont restyles the caption and the font survives the round trip', async () => {
+  const loaded = await load();
+  const { canvas } = loaded;
+  const task = node(canvas, 'Task_1');
+  canvas.setFont([task, edge(canvas, 'Flow_2')], { bold: true, align: 'right', color: '#4a6f9c' });
+  expect(task.font).toEqual({ bold: true, align: 'right', color: '#4a6f9c' });
+  const text = canvas.getGraphics('Task_1')!.querySelector('text.sf-label')!;
+  expect([text.getAttribute('font-weight'), text.getAttribute('text-anchor'), text.getAttribute('fill')]).toEqual(['700', 'end', '#4a6f9c']);
+  // A flow's caption is an element of its own, painted from the flow's font.
+  expect(canvas.getGraphics('Flow_2_label')!.querySelector('text.sf-label')!.getAttribute('font-weight')).toBe('700');
+  const xml = await xmlOf(loaded);
+  expect(xml).toContain('studyflow:font="bold right #4a6f9c"');
+  const again = await loadCanvas(xml);
+  expect(node(again.canvas, 'Task_1').font).toEqual({ bold: true, align: 'right', color: '#4a6f9c' });
+  canvas.setFont([task], { bold: false, align: null, color: null });
+  expect(task.font).toBeUndefined();
+});
+
 test('replaceElement keeps the name and rewires the flows onto the new type', async () => {
   const { canvas } = await load();
   const replacement = canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:UserTask' })!;

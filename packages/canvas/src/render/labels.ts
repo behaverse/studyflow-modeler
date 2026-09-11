@@ -5,6 +5,7 @@
  */
 
 import { isTypedChoreography } from '@canvas/model/choreography.ts';
+import type { Font, TextAlign } from '@canvas/model/font.ts';
 import type { Bounds, Point, SceneEdge, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { categoryOf } from '@canvas/render/shapes.ts';
 import { append, create } from '@canvas/render/svg.ts';
@@ -61,7 +62,26 @@ export interface TextStyle {
   fontSize: number;
   color: string;
   weight?: string;
+  italic?: boolean;
   anchor?: 'start' | 'middle' | 'end';
+}
+
+/** `base` under whatever an element's `font` says; alignment is the caller's, it moves the anchor. */
+export function styled(base: TextStyle, font: Font | undefined): TextStyle {
+  if (!font) return base;
+  return {
+    ...base,
+    ...(font.color ? { color: font.color } : {}),
+    ...(font.bold ? { weight: '700' } : {}),
+    ...(font.italic ? { italic: true } : {}),
+  };
+}
+
+/** Where a line anchors inside `[x, x + width]` for `align`, and the anchor that goes with it. */
+export function alignedX(x: number, width: number, align: TextAlign): { x: number; anchor: NonNullable<TextStyle['anchor']> } {
+  if (align === 'left') return { x, anchor: 'start' };
+  if (align === 'right') return { x: x + width, anchor: 'end' };
+  return { x: x + width / 2, anchor: 'middle' };
 }
 
 export function textLine(content: string, x: number, y: number, style: TextStyle): SVGTextElement {
@@ -72,6 +92,7 @@ export function textLine(content: string, x: number, y: number, style: TextStyle
     fill: style.color,
     'font-size': style.fontSize,
     'font-weight': style.weight ?? WEIGHT.external,
+    'font-style': style.italic ? 'italic' : null,
     'font-family': LABEL_FONT,
     'text-anchor': style.anchor ?? 'middle',
     'dominant-baseline': 'middle',
@@ -81,15 +102,15 @@ export function textLine(content: string, x: number, y: number, style: TextStyle
   return el;
 }
 
-/** Draw `lines` centred on `cx`, the first line's centre at `firstY`. */
+/** Draw `lines` anchored at `x` (per `style.anchor`, centred by default), the first line's centre at `firstY`. */
 export function drawLines(
   container: SVGElement,
   lines: readonly string[],
-  cx: number,
+  x: number,
   firstY: number,
   style: TextStyle,
 ): void {
-  lines.forEach((line, i) => append(container, textLine(line, cx, firstY + i * LINE_HEIGHT, style)));
+  lines.forEach((line, i) => append(container, textLine(line, x, firstY + i * LINE_HEIGHT, style)));
 }
 
 // --- internal labels (drawn inside the shape) --------------------------------
@@ -100,7 +121,9 @@ export function drawInternalLabel(container: SVGElement, node: SceneNode, name: 
   const maxLines = Math.max(1, Math.min(4, Math.floor(region.height / LINE_HEIGHT)));
   const lines = wrap(name, region.width - 4, FONT.internal, maxLines);
   const firstY = region.y + region.height / 2 - ((lines.length - 1) * LINE_HEIGHT) / 2;
-  drawLines(container, lines, region.x + region.width / 2, firstY, { fontSize: FONT.internal, color, weight: WEIGHT.internal });
+  const at = alignedX(region.x + 2, region.width - 4, node.font?.align ?? 'center');
+  const style = styled({ fontSize: FONT.internal, color, weight: WEIGHT.internal, anchor: at.anchor }, node.font);
+  drawLines(container, lines, at.x, firstY, style);
 }
 
 /**
@@ -204,7 +227,9 @@ export function drawLabel(label: SceneLabel, name: string, color: string): SVGGE
   }) as SVGGElement;
   const lines = labelLines(label, name);
   const top = (label.height - lines.length * LINE_HEIGHT) / 2;
-  drawLines(g, lines, label.width / 2, top + LINE_HEIGHT / 2, { fontSize: FONT.external, color });
+  const font = label.owner.font;
+  const at = alignedX(0, label.width, font?.align ?? 'center');
+  drawLines(g, lines, at.x, top + LINE_HEIGHT / 2, styled({ fontSize: FONT.external, color, anchor: at.anchor }, font));
   return g;
 }
 
@@ -218,7 +243,8 @@ export function drawBandText(
   color: string,
   fontSize: number = FONT.band,
   weight: string = WEIGHT.external,
+  font?: Font,
 ): void {
   if (!content) return;
-  append(container, textLine(fit(content, maxWidth, fontSize), cx, cy, { fontSize, color, weight }));
+  append(container, textLine(fit(content, maxWidth, fontSize), cx, cy, styled({ fontSize, color, weight }, font)));
 }

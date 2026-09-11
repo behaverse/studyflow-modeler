@@ -85,7 +85,7 @@ const ICON_CLASSES: Record<ContextPadIcon, string> = {
 const MENU_TITLES: Record<string, string> = {
   [APPEND_MENU]: 'Append element',
   [REPLACE_MENU]: 'Change element',
-  [COLOR_MENU]: 'Set color',
+  [COLOR_MENU]: 'Style',
 };
 
 function isShapeElement(element: EditorElement): boolean {
@@ -302,7 +302,7 @@ export function ContextPad() {
     openPopupMenu(
       providerId,
       { ...anchor, cursor: { ...anchor } },
-      { title: t(MENU_TITLES[providerId] ?? 'Set color'), width: 260 },
+      { title: t(MENU_TITLES[providerId] ?? 'Style'), width: 260 },
     );
   }, []);
 

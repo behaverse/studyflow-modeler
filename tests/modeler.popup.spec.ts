@@ -106,7 +106,7 @@ test.describe('App popup menus', () => {
     await expect(page.getByTestId('context-pad-delete')).toBeVisible();
   });
 
-  test('the colour picker paints one element, and a whole multi-selection at once', async ({ page }) => {
+  test('the style menu paints one element, and a whole multi-selection at once', async ({ page }) => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Activities', 'Task', { x: 260, y: 200 });
@@ -115,6 +115,13 @@ test.describe('App popup menus', () => {
     await page.getByTestId('context-pad-set-color').click();
     await expect(popup(page)).toBeVisible();
     await page.getByTestId('popup-menu-entry-blue-color').click();
+    // The style menu stays up after a swatch: colour and text styles are set in one
+    // sitting, so it is dismissed deliberately rather than by the first click. It
+    // also reports what is now set, so a reopened menu shows the element's own colour.
+    await expect(popup(page)).toBeVisible();
+    await expect(page.getByTestId('popup-menu-entry-blue-color')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('popup-menu-entry-default-color')).toHaveAttribute('aria-pressed', 'false');
+    await page.keyboard.press('Escape');
     await expect(popup(page)).toHaveCount(0);
 
     let bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
@@ -128,6 +135,7 @@ test.describe('App popup menus', () => {
 
     await page.getByTestId('context-pad-set-color').click();
     await page.getByTestId('popup-menu-entry-green-color').click();
+    await page.keyboard.press('Escape');
     await expect(popup(page)).toHaveCount(0);
 
     bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));

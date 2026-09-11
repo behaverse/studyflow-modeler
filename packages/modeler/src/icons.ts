@@ -99,6 +99,13 @@ export const ICONS = {
   expand: 'iconify fluent--resize-16-regular',
   slash: 'iconify bi--slash-lg',
   swapVertical: 'iconify fluent--person-swap-16-regular',
+
+  /* Text-style bar */
+  textBold: 'iconify ph--text-b',
+  textItalic: 'iconify ph--text-italic',
+  alignLeft: 'iconify ph--text-align-left',
+  alignCenter: 'iconify ph--text-align-center',
+  alignRight: 'iconify ph--text-align-right',
 } as const;
 
 export type IconName = keyof typeof ICONS;

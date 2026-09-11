@@ -1,3 +1,4 @@
+import type { FontPatch } from '@canvas/index.ts';
 import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
 import type { EditorElement, Editor } from '@modeler/editor/port';
 
@@ -10,6 +11,17 @@ export type SetColorCommand = {
 /** A caption paints in its owner's colour, so colouring a label colours the element it names. */
 export function runSetColor(modeler: Editor, command: SetColorCommand): void {
   modeler.canvas.setColor(command.elements, command.color);
+}
+
+export type SetFontCommand = {
+  type: 'SetFont';
+  elements: any[];
+  font: FontPatch;
+};
+
+/** Restyle captions (weight, slant, alignment, ink); a label restyles the element it names. */
+export function runSetFont(modeler: Editor, command: SetFontCommand): void {
+  modeler.canvas.setFont(command.elements, command.font);
 }
 
 export type DeleteElementsCommand = {

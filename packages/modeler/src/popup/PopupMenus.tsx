@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { INK, type FontPatch, type TextAlign } from '@canvas/index.ts';
 import { getExtensionType } from '@core/element';
 import { eventDefinitionTypeOf } from '@canvas/model/moddle.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
+import { ICONS } from '@modeler/icons';
 import { ELEMENT_COLORS, DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
 import { buildElementEntries } from '@modeler/popup/entries';
 import { mustDragToAppend, type AppendMenuAnchor } from '@modeler/popup/commands';
@@ -15,7 +17,24 @@ import type { EditorElement } from '@modeler/editor/port';
 export const CREATE_MENU = 'bpmn-create';
 export const APPEND_MENU = 'bpmn-append';
 export const REPLACE_MENU = 'bpmn-replace';
+/**
+ * Element colours AND text styles in one menu — the paintbrush on the context pad
+ * opens it. The id keeps its old spelling because the pad entry, the e2e specs and
+ * the `registerPopupMenu` socket all name it.
+ */
 export const COLOR_MENU = 'color-picker';
+
+const ALIGNMENTS: { align: TextAlign; glyph: string; label: string }[] = [
+  { align: 'left', glyph: ICONS.alignLeft, label: 'Align left' },
+  { align: 'center', glyph: ICONS.alignCenter, label: 'Align center' },
+  { align: 'right', glyph: ICONS.alignRight, label: 'Align right' },
+];
+
+/** A caption's ink: the element palette's own strokes, plus the stock ink to clear back to. */
+const INKS: { label: string; color: string | undefined }[] = [
+  { label: 'Default', color: undefined },
+  ...ELEMENT_COLORS.flatMap((color) => (color.stroke ? [{ label: color.label, color: color.stroke }] : [])),
+];
 
 type OpenMenu = {
   providerId: string;
@@ -43,7 +62,15 @@ function pointerEventFor(event: ReactMouseEvent, anchor: PopupPosition): MouseEv
 export function PopupMenus() {
   const modeler = useRequiredModeler();
   const [open, setOpen] = useState<OpenMenu | null>(null);
+  /** Bumped on every edit: the style menu stays open, so its toggles must re-read the font. */
+  const [revision, setRevision] = useState(0);
   const close = useCallback(() => setOpen(null), []);
+
+  useEffect(() => {
+    const bump = (): void => setRevision((n) => n + 1);
+    modeler.events.on('ElementChanged', bump);
+    return () => modeler.events.off('ElementChanged', bump);
+  }, [modeler]);
 
   useEffect(() => {
 
@@ -85,24 +112,85 @@ export function PopupMenus() {
     const { providerId, position, options, elements } = open;
 
     if (providerId === COLOR_MENU) {
+      // A caption is styled through the element it names, which is what `SetFont`
+      // and `SetColor` both resolve a label to; read the state back the same way.
+      const first = elements[0];
+      const styled = first?.kind === 'label' ? first.owner : first;
+      const font = styled?.font;
+      const setFont = (patch: FontPatch): void => {
+        executeCommand(modeler, { type: 'SetFont', elements, font: patch });
+      };
+      const empty = elements.length === 0;
+      // A connection carries only a stroke, so that is the half of a swatch it is set to.
+      const painted = styled?.kind === 'edge' ? styled?.stroke : styled?.fill;
+      const paintOf = (color: { fill?: string; stroke?: string }): string | undefined =>
+        (styled?.kind === 'edge' ? color.stroke : color.fill)?.toLowerCase();
       return {
-        title: options?.title ?? t('Set color'),
+        title: options?.title ?? t('Style'),
         width: options?.width ?? 220,
         variant: 'swatches',
         emptyText: 'Select an element first',
-        sections: [{
-          id: 'colors',
-          items: elements.length === 0 ? [] : ELEMENT_COLORS.map((color): PopupMenuItem => ({
-            id: `${color.label.toLowerCase()}-color`,
-            label: color.label,
-            swatch: { fill: color.fill ?? DEFAULT_FILL, stroke: color.stroke ?? DEFAULT_STROKE },
-            onSelect: () => {
-              // The colour swatches are the app's only route to `SetColor`; the
-              // handler reaches the diagram through the `Editor` facade like every other.
-              executeCommand(modeler, { type: 'SetColor', elements, color });
-            },
-          })),
-        }],
+        sections: empty ? [] : [
+          {
+            id: 'element-colors',
+            name: t('Element'),
+            items: ELEMENT_COLORS.map((color): PopupMenuItem => ({
+              id: `${color.label.toLowerCase()}-color`,
+              label: color.label,
+              swatch: { fill: color.fill ?? DEFAULT_FILL, stroke: color.stroke ?? DEFAULT_STROKE },
+              pressed: (painted ?? undefined) === paintOf(color),
+              keepOpen: true,
+              onSelect: () => {
+                // The swatches are the app's only route to `SetColor`; the handler
+                // reaches the diagram through the `Editor` facade like every other.
+                executeCommand(modeler, { type: 'SetColor', elements, color });
+              },
+            })),
+          },
+          {
+            id: 'text-style',
+            name: t('Text'),
+            items: [
+              ...ALIGNMENTS.map(({ align, glyph, label }): PopupMenuItem => ({
+                id: `align-${align}`,
+                label: t(label),
+                glyph,
+                pressed: font?.align === align,
+                keepOpen: true,
+                // Picking the alignment it already has puts it back to the element's own default.
+                onSelect: () => setFont({ align: font?.align === align ? null : align }),
+              })),
+              {
+                id: 'bold',
+                label: t('Bold'),
+                glyph: ICONS.textBold,
+                pressed: !!font?.bold,
+                keepOpen: true,
+                onSelect: () => setFont({ bold: !font?.bold }),
+              },
+              {
+                id: 'italic',
+                label: t('Italic'),
+                glyph: ICONS.textItalic,
+                pressed: !!font?.italic,
+                keepOpen: true,
+                onSelect: () => setFont({ italic: !font?.italic }),
+              },
+            ],
+          },
+          {
+            id: 'text-colors',
+            name: t('Text color'),
+            items: INKS.map(({ label, color }): PopupMenuItem => ({
+              id: `${label.toLowerCase()}-text-color`,
+              label,
+              swatch: { fill: color ?? INK.text, stroke: color ?? INK.text },
+              pressed: (font?.color ?? undefined) === color?.toLowerCase(),
+              keepOpen: true,
+              onSelect: () => setFont({ color: color ?? null }),
+            })),
+          },
+        ],
       };
     }
 
@@ -227,7 +315,10 @@ export function PopupMenus() {
         }),
       })),
     };
-  }, [open, modeler]);
+    // `revision` is read for its dependency alone: it re-runs the build so the style
+    // menu's toggles show the font the last click wrote.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, modeler, revision]);
 
   if (!open || !menu) return null;
   return <PopupMenu anchor={open.position} menu={menu} onClose={close} />;

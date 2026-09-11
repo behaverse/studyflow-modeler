@@ -10,7 +10,9 @@
  * - `list` — grouped icon + label rows, searchable once the list is long enough,
  *   arrow-key navigable, and press-draggable (a row can start a create drag the
  *   same way a palette tile does);
- * - `swatches` — a colour grid.
+ * - `swatches` — rows of small square buttons, one row per section: a colour chip
+ *   where the item carries a `swatch`, a glyph where it carries one. The style menu
+ *   is all three at once (element colours, the text toggles, the text inks).
  *
  * Anchoring: `position` is in CLIENT coordinates (what `view.getAbsoluteBBox`
  * returns, and what the palette computes from a button rect), so the panel is
@@ -41,6 +43,16 @@ export type PopupMenuItem = {
   icon?: string;
   /** Fill/stroke pair — swatches variant only. `undefined` means "clear it". */
   swatch?: { fill?: string; stroke?: string };
+  /** Iconify class drawn in place of a chip — swatches variant only. */
+  glyph?: string;
+  /** A toggle's state, drawn as the pressed style and reported as `aria-pressed`. */
+  pressed?: boolean;
+  /**
+   * Leave the menu open after this item runs. What the style menu's every entry
+   * does: styling is iterative (bold, then italic, then an ink), and the pressed
+   * state it shows is only worth computing while the menu is still up to show it.
+   */
+  keepOpen?: boolean;
   /** Extra text the search box matches on top of `label`. */
   keywords?: string;
   onSelect: (event: ReactMouseEvent) => void;
@@ -50,7 +62,7 @@ export type PopupMenuItem = {
 
 export type PopupMenuSection = {
   id: string;
-  /** Omitted for a single unnamed section (the colour grid). */
+  /** Omitted for a single unnamed section. */
   name?: string;
   items: PopupMenuItem[];
 };
@@ -177,7 +189,7 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
       } else if (event.key === 'Enter' && active) {
         event.preventDefault();
         active.onSelect(event as unknown as ReactMouseEvent);
-        onClose();
+        if (!active.keepOpen) onClose();
       }
     };
     document.addEventListener('pointerdown', onPointerDown, true);
@@ -263,27 +275,42 @@ export function PopupMenu({ anchor, menu, onClose }: Props) {
       )}
 
       {variant === 'swatches' && flat.length > 0 && (
-        <div className={s.swatchGrid}>
-          {flat.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              title={item.title ?? item.label}
-              aria-label={item.title ?? item.label}
-              data-testid={`popup-menu-entry-${item.id}`}
-              className={`${s.swatchItem} ${index === activeIndex ? s.swatchItemActive : ''}`}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={(event) => { item.onSelect(event); onClose(); }}
-            >
-              <span
-                className={s.swatchChip}
-                style={{
-                  backgroundColor: item.swatch?.fill,
-                  borderColor: item.swatch?.stroke,
-                }}
-                aria-hidden="true"
-              />
-            </button>
+        <div className={s.swatchSections}>
+          {indexed.map((section) => (
+            <div key={section.id}>
+              {section.name && <div className={s.groupLabel}>{section.name}</div>}
+              <div className={s.swatchGrid}>
+                {section.items.map(({ item, index }) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    title={item.title ?? item.label}
+                    aria-label={item.title ?? item.label}
+                    {...(item.pressed === undefined ? {} : { 'aria-pressed': item.pressed })}
+                    data-testid={`popup-menu-entry-${item.id}`}
+                    className={`${s.swatchItem} ${index === activeIndex ? s.swatchItemActive : ''} ${item.pressed ? s.swatchItemPressed : ''}`}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onClick={(event) => {
+                      item.onSelect(event);
+                      if (!item.keepOpen) onClose();
+                    }}
+                  >
+                    {item.glyph
+                      ? <span className={`${item.glyph} ${s.swatchGlyph}`} aria-hidden="true" />
+                      : (
+                        <span
+                          className={s.swatchChip}
+                          style={{
+                            backgroundColor: item.swatch?.fill,
+                            borderColor: item.swatch?.stroke,
+                          }}
+                          aria-hidden="true"
+                        />
+                      )}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

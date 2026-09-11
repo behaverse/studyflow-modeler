@@ -6,7 +6,7 @@ description: >-
   The Behaverse assessment battery: its tasks, the trials and responses they
   exchange, and datasets in the Behaverse Data Model.
 uri: http://behaverse.org/schemas/studyflow/behaverse
-icon: iconify bi--hexagon
+icon: iconify tabler--hexagon-letter-b
 order: 4
 xml:
   tagAlias: lowerCase

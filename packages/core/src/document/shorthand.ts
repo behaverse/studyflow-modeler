@@ -104,6 +104,15 @@ export function inlineElementList(
 /** These point at other DI elements, whose ids are regenerated on load. */
 const NON_INLINABLE_DI_KEYS = new Set(['sourceElement', 'targetElement', 'choreographyActivityShape']);
 
+/**
+ * The caption's look, studyflow's own DI attribute: a foreign attribute on the shape
+ * or edge (`@canvas/model/font.ts` spells its value), read and written as `font`.
+ * Not a moddle extension of `bpmndi:BPMNShape`: a trait from the (lower-cased)
+ * studyflow package would rename every shape's tag.
+ */
+const FONT_ATTRIBUTE = 'studyflow:font';
+const FONT_KEY = 'font';
+
 export type DiType = 'bpmndi:BPMNShape' | 'bpmndi:BPMNEdge';
 
 function diTypeFor(keys: { has: (key: string) => boolean }, ownByName: Record<string, any>): DiType | undefined {
@@ -117,7 +126,7 @@ function foldablePayload(
   serializeElement: (el: any, declaredType: string) => Record<string, unknown>,
 ): Record<string, unknown> | undefined {
   if (pe.$type !== 'bpmndi:BPMNShape' && pe.$type !== 'bpmndi:BPMNEdge') return undefined;
-  if (Object.keys(pe.$attrs ?? {}).length > 0) return undefined;
+  if (Object.keys(pe.$attrs ?? {}).some((key) => key !== FONT_ATTRIBUTE)) return undefined;
   const node = serializeElement(pe, pe.$type);
   delete node.id; // regenerated as `<elementId>_di` on load
   delete node.bpmnElement;
@@ -157,7 +166,7 @@ export function extractInlineDi(
   const diByName = diPropertiesByName(diType);
   const diProps: Record<string, unknown> = {};
   for (const key of Object.keys(props)) {
-    if (key === 'id' || ownByName[key] || !diByName[key]) continue;
+    if (key === 'id' || ownByName[key] || !(diByName[key] || key === FONT_KEY)) continue;
     diProps[key] = props[key];
     delete props[key];
   }
@@ -288,7 +297,7 @@ export function longTypeName(name: string): string {
   return `${BPMN_PREFIX}${name.charAt(0).toUpperCase()}${name.slice(1)}`;
 }
 
-/* 8. geometry and colour on a DI node: `bounds: x y width height`, `waypoint: x,y x,y`, `fill` / `stroke` */
+/* 8. geometry, colour and font on a DI node: `bounds: x y width height`, `waypoint: x,y x,y`, `fill` / `stroke`, `font` */
 
 export const DI_NODE_TYPES = new Set(['bpmndi:BPMNShape', 'bpmndi:BPMNEdge']);
 
@@ -353,6 +362,10 @@ export function compactDiNode(node: Record<string, unknown>): void {
     delete node[biocKey];
     if (value !== undefined) node[role] = value;
   }
+  if (node[FONT_ATTRIBUTE] !== undefined) {
+    node[FONT_KEY] = node[FONT_ATTRIBUTE];
+    delete node[FONT_ATTRIBUTE];
+  }
 }
 
 /** The inverse, on the raw keys of a DI node: strings back to mappings, one colour into both vocabularies. */
@@ -374,6 +387,10 @@ export function expandDiNode(props: Record<string, unknown>): void {
     if (value === undefined) continue;
     delete props[role];
     for (const key of COLOR_KEYS[role]) props[key] = value;
+  }
+  if (props[FONT_KEY] !== undefined) {
+    props[FONT_ATTRIBUTE] = props[FONT_KEY];
+    delete props[FONT_KEY];
   }
 }
 

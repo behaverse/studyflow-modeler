@@ -7,6 +7,8 @@ export { Canvas, type CanvasOptions, type CanvasViewbox, type Rect, type Root } 
 export type {
   Bounds,
   ElementColors,
+  Font,
+  FontPatch,
   ModdleObject,
   Point,
   RootElement,
@@ -15,6 +17,7 @@ export type {
   SceneElement,
   SceneLabel,
   SceneNode,
+  TextAlign,
 } from './model/scene.ts';
 export { isRootElement } from './model/scene.ts';
 export { importDefinitions, type ImportOptions } from './model/import.ts';

@@ -234,10 +234,14 @@ export class LabelEditing {
     input.rows = 1;
     input.spellcheck = false;
     if (container.style.position === '') container.style.position = 'relative';
+    const font = session.band === 'name' ? session.element.font : undefined;
     Object.assign(input.style, {
       fontFamily: LABEL_FONT,
       fontSize: `${fontSizeFor(session.element, session.band) * this.scale()}px`,
-      fontWeight: placement === 'internal' ? WEIGHT.internal : WEIGHT.external,
+      fontWeight: font?.bold ? '700' : placement === 'internal' ? WEIGHT.internal : WEIGHT.external,
+      fontStyle: font?.italic ? 'italic' : '',
+      textAlign: font?.align ?? '',
+      color: font?.color ?? '',
     });
     this.place(input, session, session.initial);
     input.addEventListener('keydown', this.onKeyDown);

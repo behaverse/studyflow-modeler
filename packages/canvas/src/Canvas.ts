@@ -22,7 +22,7 @@ import { importDefinitions, type ImportOptions } from '@canvas/model/import.ts';
 import { syncLabel } from '@canvas/model/labels.ts';
 import { eventDefinitionTypeOf, prop, setProp } from '@canvas/model/moddle.ts';
 import { Mutator } from '@canvas/model/mutator.ts';
-import { isRootElement, type Bounds, type ElementColors, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
+import { isRootElement, type Bounds, type ElementColors, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
 import { boundsOf, contentsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, withDescendants, zRankOf } from '@canvas/model/tree.ts';
 import { categoryOf } from '@canvas/render/shapes.ts';
 import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer, type RendererOptions } from '@canvas/render/renderer.ts';
@@ -824,10 +824,22 @@ export class Canvas {
   }
 
   setColor(elements: unknown, colors: ElementColors): SceneElement[] {
-    const list = (Array.isArray(elements) ? elements : [elements]).map((el) => this.resolveElement(el)).filter((el): el is SceneElement => !!el);
-    const changed = this.mutator?.setColor(list, colors) ?? [];
+    const changed = this.mutator?.setColor(this.resolveElements(elements), colors) ?? [];
     if (changed.length > 0) this.redrawElements(changed);
     return changed;
+  }
+
+  /** Restyle captions: an omitted field is left alone, a falsy one clears; a label restyles the element it names. */
+  setFont(elements: unknown, font: FontPatch): SceneElement[] {
+    const changed = this.mutator?.setFont(this.resolveElements(elements), font) ?? [];
+    if (changed.length > 0) this.redrawElements(changed);
+    return changed;
+  }
+
+  private resolveElements(elements: unknown): SceneElement[] {
+    return (Array.isArray(elements) ? elements : [elements])
+      .map((el) => this.resolveElement(el))
+      .filter((el): el is SceneElement => !!el);
   }
 
   /** Write `properties` on an element's business object (or on the root) and record the edit. */

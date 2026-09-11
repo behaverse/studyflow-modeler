@@ -186,7 +186,8 @@ test('a text annotation draws its `text`, wrapped — not its `name`', async () 
   const first = canvas.getGraphics('Bd_Annotation')!.querySelector('text')!;
   // Top-left inside the bracket, inset by bpmn-js's TEXT_ANNOTATION_PADDING.
   expect(first.getAttribute('x')).toBe('7');
-  expect(first.getAttribute('text-anchor')).toBeNull();
+  // A note reads left by default, and says so: its `font` may align it otherwise.
+  expect(first.getAttribute('text-anchor')).toBe('start');
 });
 
 /**

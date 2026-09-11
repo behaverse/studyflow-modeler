@@ -228,6 +228,7 @@ P:
       bounds: 100 0 100 80
       fill: "#dbe8f5"
       stroke: "#4a6f9c"
+      font: "bold right #4a6f9c"
     End:
       type: EndEvent
       bounds: 300 0 36 36
@@ -259,10 +260,11 @@ P:
     expect(xml).toContain('bioc:fill="#dbe8f5"');
     expect(xml).toContain('color:border-color="#4a6f9c"');
     expect(xml).toContain('bioc:stroke="#4a6f9c"');
+    expect(xml).toContain('studyflow:font="bold right #4a6f9c"');
 
     const back: any = yaml.load(await xmlToStudyflow(xml, new BpmnModdle(structuredClone(packages)) as any));
     expect(back.P.type).toBe('Process');
-    expect(back.P.flowElements.T1).toEqual({ type: 'Task', name: 'Read', bounds: '100 0 100 80', fill: '#dbe8f5', stroke: '#4a6f9c' });
+    expect(back.P.flowElements.T1).toEqual({ type: 'Task', name: 'Read', bounds: '100 0 100 80', fill: '#dbe8f5', stroke: '#4a6f9c', font: 'bold right #4a6f9c' });
     expect(back.P.flowElements.End.label).toBe('290 40 56 14');
     expect(back.P.flowElements.F1).toBe('Start -> T1');
     expect(back.P.flowElements.F2).toEqual({ name: 'done', sourceRef: 'T1', targetRef: 'End', waypoint: '200,40 300,40' });

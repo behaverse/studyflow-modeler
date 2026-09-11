@@ -76,7 +76,7 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
   if (shape && context.canReplace) entries.push({ action: 'replace', title: 'Change element', icon: 'wrench' });
 
   entries.push({ action: 'delete', title: 'Delete', icon: 'trash' });
-  entries.push({ action: 'set-color', title: 'Set color', icon: 'palette' });
+  entries.push({ action: 'set-color', title: 'Style', icon: 'palette' });
 
   if (single && context.isConnection && context.canToggleDefault) {
     entries.push({

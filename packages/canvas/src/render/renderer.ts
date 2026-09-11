@@ -15,13 +15,15 @@ import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, S
 import { isCollapsed, isHidden, zRankOf } from '@canvas/model/tree.ts';
 import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver } from '@canvas/render/icons.ts';
 import {
+  alignedX,
   drawBandText,
   drawInternalLabel,
   drawLabel,
   FONT,
-  LABEL_CLASS,
-  LABEL_FONT,
   LINE_HEIGHT,
+  styled,
+  textLine,
+  WEIGHT,
   wrap,
 } from '@canvas/render/labels.ts';
 import {
@@ -43,7 +45,7 @@ import {
   type EventKind,
   type ShapeStyle,
 } from '@canvas/render/shapes.ts';
-import { append, create, group, remove } from '@canvas/render/svg.ts';
+import { append, attr, create, group, remove } from '@canvas/render/svg.ts';
 import { isDataStore } from '@canvas/rules/rules.ts';
 import { INK } from '@canvas/view/theme.ts';
 
@@ -433,45 +435,23 @@ export class Renderer {
     const categoryValue = prop(node.businessObject, 'categoryValueRef');
     const value = categoryValue && typeof categoryValue === 'object' ? prop(categoryValue as ModdleObject, 'value') : undefined;
     if (typeof value !== 'string' || !value) return;
-    drawBandText(g, value, node.width / 2, 10, node.width, color, FONT.external);
+    drawBandText(g, value, node.width / 2, 10, node.width, color, FONT.external, WEIGHT.external, node.font);
   }
 
   private drawAnnotationText(g: SVGGElement, node: SceneNode, content: string, color: string): void {
     if (!content) return;
-    const lines = wrap(content, Math.max(1, node.width - 2 * ANNOTATION_PADDING) + 8, FONT.annotation, 20);
-    lines.forEach((line, i) => {
-      const text = create('text', {
-        class: LABEL_CLASS,
-        x: ANNOTATION_PADDING,
-        y: ANNOTATION_PADDING + (i + 0.5) * LINE_HEIGHT,
-        'font-size': FONT.annotation,
-        'font-family': LABEL_FONT,
-        'dominant-baseline': 'middle',
-        fill: color,
-        'stroke-width': 0,
-      });
-      text.textContent = line;
-      append(g, text);
-    });
+    const width = Math.max(1, node.width - 2 * ANNOTATION_PADDING);
+    const lines = wrap(content, width + 8, FONT.annotation, 20);
+    const at = alignedX(ANNOTATION_PADDING, width, node.font?.align ?? 'left');
+    const style = styled({ fontSize: FONT.annotation, color, anchor: at.anchor }, node.font);
+    lines.forEach((line, i) => append(g, textLine(line, at.x, ANNOTATION_PADDING + (i + 0.5) * LINE_HEIGHT, style)));
   }
 
   private drawParticipantLabel(g: SVGGElement, node: SceneNode, name: string, color: string): void {
     if (!name) return;
     const x = PARTICIPANT_BAND / 2;
-    const text = create('text', {
-      class: LABEL_CLASS,
-      x,
-      y: node.height / 2,
-      transform: `rotate(-90, ${x}, ${node.height / 2})`,
-      'text-anchor': 'middle',
-      'dominant-baseline': 'central',
-      'font-size': FONT.internal,
-      'font-weight': '500',
-      'font-family': LABEL_FONT,
-      fill: color,
-      'stroke-width': 0,
-    });
-    text.textContent = name;
+    const text = textLine(name, x, node.height / 2, styled({ fontSize: FONT.internal, color, weight: WEIGHT.internal }, node.font));
+    attr(text, { transform: `rotate(-90, ${x}, ${node.height / 2})`, 'dominant-baseline': 'central' });
     append(g, text);
   }
 

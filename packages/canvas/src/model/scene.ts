@@ -6,6 +6,8 @@
  * everything semantic (names, references, containment, attributes).
  */
 
+import type { Font } from '@canvas/model/font.ts';
+
 export type ModdleObject = {
   readonly $type: string;
   id?: string;
@@ -28,6 +30,8 @@ export interface ElementColors {
   fill?: string | null;
   stroke?: string | null;
 }
+
+export type { Font, FontPatch, TextAlign } from '@canvas/model/font.ts';
 
 interface Base {
   readonly id: string;
@@ -53,6 +57,8 @@ export interface SceneNode extends Base {
   isMarkerVisible?: boolean;
   fill?: string;
   stroke?: string;
+  /** The caption's look, when it departs from the stock one. */
+  font?: Font;
 }
 
 export interface SceneEdge extends Base {
@@ -62,6 +68,7 @@ export interface SceneEdge extends Base {
   target?: SceneNode;
   label?: SceneLabel;
   stroke?: string;
+  font?: Font;
 }
 
 /**

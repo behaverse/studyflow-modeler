@@ -8,6 +8,7 @@
  */
 
 import { readColorsOf } from '@canvas/model/color.ts';
+import { FONT_PROPERTY, parseFont } from '@canvas/model/font.ts';
 import { mintLabel, syncLabel } from '@canvas/model/labels.ts';
 import { asList, asModdle, parentOf, prop, refBO } from '@canvas/model/moddle.ts';
 import type {
@@ -168,6 +169,8 @@ function buildNode(shape: ModdleObject, warn: (m: string) => void): SceneNode | 
     outgoing: [],
     ...readColorsOf(shape),
   };
+  const font = parseFont(prop(shape, FONT_PROPERTY));
+  if (font) node.font = font;
   const isExpanded = prop(shape, 'isExpanded');
   if (typeof isExpanded === 'boolean') node.isExpanded = isExpanded;
   const isMarkerVisible = prop(shape, 'isMarkerVisible');
@@ -195,6 +198,8 @@ function buildEdge(di: ModdleObject, warn: (m: string) => void): SceneEdge | und
   };
   const { stroke } = readColorsOf(di);
   if (stroke) edge.stroke = stroke;
+  const font = parseFont(prop(di, FONT_PROPERTY));
+  if (font) edge.font = font;
   (edge as { di?: ModdleObject }).di = di;
   return edge;
 }

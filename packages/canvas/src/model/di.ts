@@ -4,6 +4,7 @@
  */
 
 import { COLOR_PROPERTIES } from '@canvas/model/color.ts';
+import { FONT_PROPERTY, formatFont, type Font } from '@canvas/model/font.ts';
 import { asList, asModdle, mint, modelOf, prop, setParent, setProp, type ModdleFactory } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { drawablesOf, isExpandable } from '@canvas/model/tree.ts';
@@ -45,6 +46,7 @@ function shapeDi(node: SceneNode, factory: ModdleFactory | undefined): ModdleObj
   }
   if (node.isMarkerVisible !== undefined) setProp(di, 'isMarkerVisible', node.isMarkerVisible);
   writeColors(di, node.fill, node.stroke);
+  writeFont(di, node.font);
   writeLabel(di, node.label, factory);
   return di;
 }
@@ -57,6 +59,7 @@ function edgeDi(edge: SceneEdge, factory: ModdleFactory | undefined): ModdleObje
   });
   for (const point of asList(prop(di, 'waypoint'))) setParent(point, di);
   writeColors(di, undefined, edge.stroke);
+  writeFont(di, edge.font);
   writeLabel(di, edge.label, factory);
   return di;
 }
@@ -68,6 +71,11 @@ function bounds(factory: ModdleFactory | undefined, box: { x: number; y: number;
 function writeColors(di: ModdleObject, fill: string | undefined, stroke: string | undefined): void {
   if (fill) for (const name of COLOR_PROPERTIES.fill) setProp(di, name, fill);
   if (stroke) for (const name of COLOR_PROPERTIES.stroke) setProp(di, name, stroke);
+}
+
+function writeFont(di: ModdleObject, font: Font | undefined): void {
+  const text = formatFont(font);
+  if (text) setProp(di, FONT_PROPERTY, text);
 }
 
 function writeLabel(di: ModdleObject, label: SceneLabel | undefined, factory: ModdleFactory | undefined): void {
