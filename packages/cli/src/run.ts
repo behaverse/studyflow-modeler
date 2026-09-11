@@ -1,12 +1,11 @@
 import { spawn } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { accessSync, constants, existsSync, realpathSync } from 'node:fs';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { declaredRuntime } from '@core/document';
-import { onPath } from '@cli/plugin';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
 
 /* `studyflow run`: hand the study to the runtime it declares; this CLI runs `local` itself (skills/local/run.py). */
@@ -31,6 +30,18 @@ function runnerScriptCandidates(): string[] {
   } catch { /* execPath is unreadable on some sandboxes; the other candidates still stand */ }
 
   return candidates;
+}
+
+/** Where `binary` sits on PATH, if it is there and executable. */
+function onPath(binary: string): string | undefined {
+  for (const dir of (process.env.PATH ?? '').split(path.delimiter).filter(Boolean)) {
+    const candidate = path.join(dir, binary);
+    try {
+      accessSync(candidate, constants.X_OK);
+      return candidate;
+    } catch { /* not here; keep looking */ }
+  }
+  return undefined;
 }
 
 /** The local runtime: `STUDYFLOW_RUN_PY` when set, else the one shipped with this CLI; both need `uv`. */

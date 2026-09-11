@@ -21,9 +21,6 @@ brew tap behaverse/studyflow https://github.com/behaverse/studyflow-modeler
 brew install studyflow
 ```
 
-
-The command line is extensible. If `<name>` is not one of the builtin commands, `studyflow <name>` looks for a `studyflow-<name>` on your PATH.
-
 ## How to build and run
 
 ```bash
