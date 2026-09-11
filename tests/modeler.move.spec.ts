@@ -129,7 +129,7 @@ test.describe('Moving a shape', () => {
     // only way a shape can be placed off the 10-unit grid at all.
     await gotoModeler(page);
 
-    await runPaletteCommand(page, 'Settings...');
+    await runPaletteCommand(page, 'Settings');
     await page.getByText('Editor', { exact: true }).first().click();
     const toggle = page.getByRole('switch', { name: 'Snap to grid' });
     await expect(toggle).toBeVisible();

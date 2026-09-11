@@ -34,7 +34,7 @@ test('the Gantt view opens from the command palette', async ({ page }) => {
 
 test('the Settings view opens and its Extensions section lists every schema', async ({ page }) => {
   await gotoModeler(page);
-  await runPaletteCommand(page, 'Settings...');
+  await runPaletteCommand(page, 'Settings');
   await page.getByText('Extensions', { exact: true }).first().click();
   for (const schema of NODE_SCHEMAS) {
     await expect(page.getByRole('switch', { name: `Load the ${schema.name} elements` })).toBeAttached();

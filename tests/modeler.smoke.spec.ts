@@ -11,10 +11,9 @@ test.describe('Studyflow modeler smoke', () => {
 
     await openCommandPalette(page);
     const dialog = page.getByRole('dialog');
-    // Group headers ('Run' is skipped: it collides with the Run command label).
-    await expect(dialog.getByText('File', { exact: true })).toBeVisible();
+    // The File group is a row of tiles with no header; the others are headed ('Run' is skipped: it collides with the Run command label).
+    await expect(dialog.getByText('New...', { exact: true })).toBeVisible();
     await expect(dialog.getByText('View', { exact: true })).toBeVisible();
-    await expect(dialog.getByText('App', { exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
 

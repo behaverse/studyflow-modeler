@@ -108,7 +108,7 @@ test('the replay enters and leaves the plane of the element a record names', asy
   xml = stamped(xml, 'start_analysis', '2026-09-01T10:00:00Z');
   xml = stamped(xml, 'cross_validate', '2026-09-01T10:00:05Z');
   await openExample(page, 'sklearn_pipeline.studyflow.png', xml);
-  await runPaletteCommand(page, 'Replay');
+  await runPaletteCommand(page, 'Replay Provenance');
   const replay = page.getByTestId('provenance-replay');
   await replay.getByRole('button', { name: 'Jump to end' }).click();
 
