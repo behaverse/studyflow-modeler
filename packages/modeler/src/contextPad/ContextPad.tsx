@@ -4,7 +4,7 @@
  * The floating box beside the selection: append-anything, the colour picker, the
  * wrench, the trash, connect, and studyflow's own `choreography.swap-initiator`.
  *
- * The split is the usual one: `@canvas/rules/contextPadEntries.ts` decides WHAT is
+ * The split is the usual one: `contextPad/entries.ts` decides WHAT is
  * offered (pure, unit-tested), this file positions the box and wires each `action` to a command on
  * the bus. It reaches the editor only through the facade — `Editor.rules` for
  * its gates, `Editor.canvas.getAbsoluteBBox` for its anchor and
@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { openPopupMenu } from '@modeler/editor/popupMenus';
-import { contextPadEntries, type ContextPadAppend, type ContextPadEntry, type ContextPadIcon } from '@canvas/rules/contextPadEntries.ts';
+import { contextPadEntries, type ContextPadAppend, type ContextPadEntry, type ContextPadIcon } from '@modeler/contextPad/entries';
 import { ICONS } from '@modeler/icons';
 import { contextPad as s } from '@modeler/contextPad/styles';
 import { APPEND_MENU, COLOR_MENU, REPLACE_MENU } from '@modeler/popup/PopupMenus';

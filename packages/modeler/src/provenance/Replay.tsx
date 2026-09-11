@@ -9,10 +9,9 @@ import {
   shortWhen,
   type ProvenanceRecord,
 } from '@modeler/provenance/records';
-import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
-import { isHidden } from '@canvas/model/tree.ts';
+import { computeSegLengths, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
+import { isHidden, type Point } from '@canvas/index.ts';
 import { tokenAnchor } from '@modeler/simulation/flowWalk';
-import type { Point } from '@canvas/model/scene.ts';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
 

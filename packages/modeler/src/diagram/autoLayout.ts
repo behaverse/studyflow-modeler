@@ -1,7 +1,7 @@
 import { layoutProcess } from 'bpmn-auto-layout';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { layoutDataFlowTree, pickBounds } from '@canvas/model/dataFlowLayout.ts';
+import { layoutDataFlowTree, pickBounds } from '@modeler/diagram/dataFlowLayout';
 
 export function hasDiagramInterchange(xml: string): boolean {
   return /<(?:[\w.-]+:)?BPMNDiagram[\s/>]/.test(xml);

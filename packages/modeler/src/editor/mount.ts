@@ -5,10 +5,8 @@
  */
 
 import { BpmnModdle } from 'bpmn-moddle';
-import { Canvas, IdGenerator, isRootElement } from '@canvas/index.ts';
+import { Canvas, IdGenerator, SVG_ICON_PATHS, idPrefixFor, isRootElement, needsId } from '@canvas/index.ts';
 import type { IconDef, SceneElement } from '@canvas/index.ts';
-import { idPrefixFor, needsId } from '@canvas/model/ids.ts';
-import { SVG_ICON_PATHS } from '@canvas/render/icons.ts';
 import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement, getRawAttribute } from '@core/element';

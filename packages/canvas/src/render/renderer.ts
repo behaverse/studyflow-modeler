@@ -462,9 +462,9 @@ export class Renderer {
     const bandHeight = choreographyBandHeight(height);
     const { stroke, fill } = style;
     const bands = readChoreographyBands(node.businessObject);
-    const receivingFill = node.fill ? darken(node.fill) : '#f5f5f4';
-    const topFill = bands.initiator === 'top' ? '#ffffff' : receivingFill;
-    const bottomFill = bands.initiator === 'bottom' ? '#ffffff' : receivingFill;
+    const receivingFill = node.fill ? darken(node.fill) : INK.band;
+    const topFill = bands.initiator === 'top' ? INK.fill : receivingFill;
+    const bottomFill = bands.initiator === 'bottom' ? INK.fill : receivingFill;
 
     append(g, create('rect', { x: 0, y: 0, rx: CORNER_RADIUS, ry: CORNER_RADIUS, width, height, fill, stroke: 'none' }));
     append(g, create('path', { d: bandPath(width, bandHeight, height, 'top'), fill: topFill, stroke: 'none', 'data-band': 'top' }));

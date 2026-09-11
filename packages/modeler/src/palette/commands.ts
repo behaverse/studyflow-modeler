@@ -1,7 +1,7 @@
 import { isExpandable } from '@canvas/index.ts';
 import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
-import { buildBusinessObject } from '@canvas/model/build.ts';
+import { buildBusinessObject } from '@modeler/palette/build';
 import { openPopupMenu } from '@modeler/editor/popupMenus';
 import type { Editor } from '@modeler/editor/port';
 

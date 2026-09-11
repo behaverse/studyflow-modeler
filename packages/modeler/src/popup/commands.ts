@@ -3,7 +3,7 @@
  * beside its source and connect it; a drag reuses the palette's create gesture.
  */
 
-import { buildBusinessObject } from '@canvas/model/build.ts';
+import { buildBusinessObject } from '@modeler/palette/build';
 import type { Editor, EditorElement } from '@modeler/editor/port';
 
 /** A boundary event needs an explicit host, so it can never be auto-placed. */

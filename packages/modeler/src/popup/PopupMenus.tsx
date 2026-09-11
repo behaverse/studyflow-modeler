@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { INK, type FontPatch, type TextAlign } from '@canvas/index.ts';
 import { getExtensionType } from '@core/element';
-import { eventDefinitionTypeOf } from '@canvas/model/moddle.ts';
+import { eventDefinitionTypeOf } from '@canvas/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { useRequiredModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';

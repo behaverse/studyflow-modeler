@@ -7,6 +7,8 @@ export const INK = {
   text: '#1c1917',
   muted: '#78716c',
   accent: '#c028b0',
+  /** A choreography task's receiving band, shaded against the initiator's plain `fill`. */
+  band: '#f5f5f4',
 } as const;
 
 export const CANVAS_STYLE_ID = 'sf-canvas-style';

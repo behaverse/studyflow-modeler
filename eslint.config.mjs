@@ -3,9 +3,9 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 
-// Two enforced boundaries: core/ is framework-free and browser-free, and the modeler and the browser runtime
-// never import each other (shared model code goes to core/), except that the modeler reads the
-// runner's settings and storage: the two apps share one origin and one localStorage.
+// The enforced boundaries: core/ is framework-free and names no bpmn-js service; the modeler and the browser
+// runtime never import each other (what both need lives in core/, their shared localStorage in @core/storage);
+// and the modeler reaches the canvas through its index only.
 export default [
   { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results'] },
   {
@@ -61,6 +61,7 @@ export default [
       'no-restricted-imports': ['error', {
         patterns: [
           { group: ['@runner/*'], message: 'modeler/ may not import from runner/. Move shared code into packages/core/.' },
+          { group: ['@canvas/*', '!@canvas/index.ts'], message: 'The canvas\'s surface is packages/canvas/src/index.ts; export what the modeler needs there.' },
         ],
       }],
     },

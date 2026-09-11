@@ -2,12 +2,9 @@
 
 import { is } from '@modeler/editor/port';
 import type { Canvas, EditorElement, EventBus } from '@modeler/editor/port';
-import { isRootElement } from '@canvas/index.ts';
-import { isExpanded, isHidden } from '@canvas/model/tree.ts';
-import { create as svgCreate, attr as svgAttr, append as svgAppend, remove as svgRemove } from '@canvas/render/svg.ts';
+import { isExpanded, isHidden, isRootElement, svgAppend, svgAttr, svgCreate, svgRemove, type Point } from '@canvas/index.ts';
 import { containerOf, nextHops, startEventsIn, tokenAnchor } from '@modeler/simulation/flowWalk';
-import { computeSegLengths, samplePolyline, smootherstep } from '@canvas/routing/polyline.ts';
-import type { Point } from '@canvas/model/scene.ts';
+import { computeSegLengths, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
 
 export interface SimulationHost {
   events: Pick<EventBus, 'on' | 'off' | 'fire'>;

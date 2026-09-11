@@ -1,6 +1,5 @@
 import { is } from '@modeler/editor/port';
-import { CONTENT_PADDING, isExpandable, isExpanded } from '@canvas/model/tree.ts';
-import type { Point } from '@canvas/model/scene.ts';
+import { CONTENT_PADDING, isExpandable, isExpanded, type Point } from '@canvas/index.ts';
 
 export type Hop =
   | { kind: 'end' }

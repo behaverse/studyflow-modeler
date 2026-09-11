@@ -1,6 +1,5 @@
 import { getDefaults, StudyflowElement } from '@core/element';
-import { toLocalName } from '@core/naming';
-import { attachEventDefinitions } from '@canvas/model/moddle.ts';
+import { attachEventDefinitions, prefixFor } from '@canvas/index.ts';
 
 /** The document-model slice a palette needs to mint a business object. */
 export interface BusinessObjectModel {
@@ -21,8 +20,7 @@ export function buildBusinessObject(
   { attributes = {}, extensionType, id }: BuildBusinessObjectOptions = {},
 ): any {
   const hasIds = !!(model.moddle() as any)?.ids?.nextPrefixed;
-  const idBase = extensionType ?? bpmnType;
-  const idPrefix = `${toLocalName(idBase) ?? idBase}_`;
+  const idPrefix = prefixFor(extensionType ?? bpmnType);
   const generatedId = id
     ?? (attributes as { id?: string }).id
     ?? (hasIds ? model.ids.nextPrefixed(idPrefix, { $type: bpmnType }) : undefined);

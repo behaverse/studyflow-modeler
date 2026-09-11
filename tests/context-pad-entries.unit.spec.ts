@@ -8,7 +8,7 @@ import {
   TEXT_ANNOTATION_APPEND,
   type ContextPadAction,
   type ContextPadContext,
-} from '@canvas/rules/contextPadEntries.ts';
+} from '@modeler/contextPad/entries';
 
 /**
  * WHAT the per-shape context pad offers, as a table (parity spec addenda 4+5,
@@ -195,7 +195,7 @@ test('every entry carries a tooltip title and an icon key', () => {
 test('the entry table is locale-free and the pad translates at render time', () => {
   // The assertions above compare English strings verbatim, which is only safe while
   // `entries.ts` itself never translates. The pair has to hold together.
-  expect(read('packages/canvas/src/rules/contextPadEntries.ts'), 'the table imports no translator')
+  expect(read('packages/modeler/src/contextPad/entries.ts'), 'the table imports no translator')
     .not.toMatch(/from '@modeler\/i18n'/);
   expect(read('packages/modeler/src/contextPad/ContextPad.tsx'), 'the renderer puts each title through `t()`')
     .toMatch(/const title = t\(entry\.title\)/);

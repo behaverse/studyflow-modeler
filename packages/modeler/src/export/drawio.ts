@@ -1,8 +1,7 @@
 import type { ExportFormat } from '@modeler/export/formats';
 import { exportDiagramName } from '@modeler/export/common';
 import { readChoreographyBands } from '@core/document';
-import { isCollapsed, isHidden } from '@canvas/model/tree.ts';
-import { choreographyBandHeight } from '@canvas/render/shapes.ts';
+import { choreographyBandHeight, isCollapsed, isHidden } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 
 /** draw.io's connection points for a BPMN activity, as its palette emits them. */

@@ -3,7 +3,7 @@
  * that animates along a routed path (the token simulator, provenance replay).
  */
 
-import type { Point } from '@canvas/model/scene.ts';
+import type { Point } from '@canvas/index.ts';
 
 /** Perlin's smootherstep: zero first and second derivatives at both ends. */
 export function smootherstep(t: number): number {
