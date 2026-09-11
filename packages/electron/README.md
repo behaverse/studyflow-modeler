@@ -9,4 +9,4 @@ npm start --prefix packages/electron -- study.studyflow.png     # open it; witho
 npm run dev:electron                                            # the dev server inside the window
 ```
 
-To remove this module, delete this folder and the `!packages/electron` line in the root `package.json`.
+To remove this module, delete this folder, and the `!packages/electron` line and the `dev:electron` script in the root `package.json`.

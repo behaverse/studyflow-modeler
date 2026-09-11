@@ -37,4 +37,4 @@ studyflow run skills/reachy/examples/reachy_session.studyflow.png --auto        
 npm run release                 # the next version; `-- 26.10.1` for a given one, `-- --local` for a local brew install
 ```
 
-Needs a clean `main` on macOS, `gh` logged in, and `bun` on PATH. Versions are `YY.M.N`. The release checks, builds, cross-compiles, writes the tarballs and `Formula/studyflow.rb`, then commits, tags, pushes, and creates the GitHub release; a failure before the commit puts the tree back. The deploy workflow publishes the webapp from the tag.
+Needs a clean `main` on macOS and `gh` logged in (`bun` comes with the dev dependencies). Versions are `YY.M.N`. The release checks, builds, cross-compiles, writes the tarballs and `Formula/studyflow.rb`, then commits, tags, pushes, and creates the GitHub release; a failure before the commit puts the tree back. The deploy workflow publishes the webapp from the tag.

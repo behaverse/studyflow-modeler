@@ -114,7 +114,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
         .filter((element): element is SceneElement => !!element && !isRootElement(element));
       canvas.getSelection().select(reselect.length > 0 ? reselect : null);
     },
-    onChanged: () => bus.fire('CommandStackChanged', {}),
+    onChanged: () => bus.fire('HistoryChanged', {}),
   });
 
   const importXML = async (xml: string): Promise<{ warnings: unknown[] }> => {

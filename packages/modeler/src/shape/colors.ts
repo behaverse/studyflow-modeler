@@ -6,7 +6,7 @@
  *
  * `model/color.ts::normalizeColor` in the canvas accepts `#rgb`, `#rrggbb` and
  * `rgb(r,g,b)` and THROWS on anything else — never introduce a CSS colour name
- * here. `undefined` is the "clear it" value (`applyColors` reads falsy as "remove").
+ * here. `undefined` is the "clear it" value (the canvas's `setColor` reads falsy as "remove").
  */
 
 export type ElementColor = {

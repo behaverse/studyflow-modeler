@@ -59,7 +59,7 @@ const PLATFORMS = [
 const platforms = local ? PLATFORMS.filter((p) => p.slug === `${process.platform}-${process.arch}`) : PLATFORMS;
 
 // `studyflow run --runtime local` runs the skills: the local runtime, the prov module, and every skill's
-// `runners.local`, each read from its SKILL.md. The browser runtime and browser modules, examples, and tests stay out.
+// `runtimes.local`, each read from its SKILL.md. The browser runtime and browser modules, examples, and tests stay out.
 const skillsDir = resolve(repoDir, 'skills');
 const SKIPPED = new Set(['browser', 'examples', 'tests', 'node_modules', '__pycache__']);
 const shipped = (src) => !relative(skillsDir, src).split(sep).some((part) => SKIPPED.has(part) || part.startsWith('.'));
@@ -156,7 +156,7 @@ try {
       'build', 'dist/studyflow.mjs',
       '--compile',
       `--target=${bunTarget}`,
-      // `render` drives a browser; playwright stays a repo-workspace import that fails with an explanation.
+      // `convert --modeler` drives a browser; playwright stays a repo-workspace import that fails with an explanation.
       '--external', '@playwright/test',
       `--outfile=${resolve(stage, 'studyflow')}`,
     ], cliDir);

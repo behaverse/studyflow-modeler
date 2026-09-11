@@ -6,7 +6,7 @@ import { basename, extname } from 'node:path';
 import { embedStudyflowIntoPng } from '@core/document';
 import { asXml, asYaml, readSource, type StudyflowSource } from '@cli/studyfile';
 
-/* `studyflow convert`, specified in packages/cli/README.md. */
+/* `studyflow convert`: between .studyflow(.yaml), .bpmn/.xml and .studyflow.png, the format told by the extension. */
 
 type TargetFormat = 'yaml' | 'xml' | 'png';
 
@@ -26,7 +26,7 @@ export type ConvertOptions = {
   origin?: string;
 };
 
-/* Rendering is repo-bound: it needs the modeler's dev server, `@playwright/test`, and network for icon glyphs. */
+/* Rendering is repo-bound: it drives the modeler's dev server with `@playwright/test`. */
 
 async function serverIsUp(origin: string): Promise<boolean> {
   try {

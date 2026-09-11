@@ -86,9 +86,8 @@ export function appendTrailEntry(
 const lastStampedAt = new WeakMap<object, number>();
 
 export function resetTrailStamping(modeler: Editor): void {
-  // Import clears the edit history without moving the revision counter, so the
-  // baseline re-anchors to the current revision: a reopened trail-carrying
-  // document nobody edits is left untouched.
+  // Import resets the history (revision 0), so the baseline re-anchors to it: a
+  // reopened trail-carrying document nobody edits is left untouched.
   lastStampedAt.set(modeler, modeler.revision());
 }
 

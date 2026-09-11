@@ -1,19 +1,12 @@
 /**
- * The sub-process breadcrumb's look, measured off `edge-videos/sub/frame_04`.
+ * The sub-process breadcrumb's look: one floating pill, centred over the canvas, with a
+ * light chrome surface, rounded ends, a soft shadow, ~14px semibold text and muted `›`
+ * separators.
  *
- * A single floating pill bar, horizontally centred over the canvas and 12px down
- * from its top edge: a light chrome surface, fully rounded ends, a soft drop shadow,
- * and ~14px semibold text. Separators are muted `›` chevrons.
- *
- * The two crumb kinds must be told apart AT REST, not only under the pointer
- * (`sub/frame_02`): an ancestor is drawn in the drill-down blue — the same hue as
- * the badge that brought you here (`canvas/view/plane.ts` `BADGE_FILL`), darkened
- * to 38% lightness because 14px text needs 4.5:1 and the badge's 50% step is a
- * chrome colour, not a text colour — while the
- * plane you are ON is bold near-black. Styling both alike and relying on the hover
- * chip alone makes the only clickable thing in the bar invisible until it is already
- * found. Hover then does what `sub/frame_04` shows: the blue goes dark and a light
- * gray chip appears behind it.
+ * The two crumb kinds differ at rest, not only under the pointer: an ancestor, the only
+ * clickable thing in the bar, is the drill-down blue darkened to 38% lightness (14px text
+ * needs 4.5:1), and the scope you are in is bold near-black. Hover darkens the blue and
+ * puts a light gray chip behind it.
  *
  * z-order: it sits with the rest of the floating canvas chrome, below the palette
  * flyouts (300) and the popover (320) and just under the context pad (215) — nothing

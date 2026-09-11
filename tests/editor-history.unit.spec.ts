@@ -57,7 +57,7 @@ test('a recorded mutation bumps the revision and fires the change signal at once
   state.xml = '<b/>';
   history.record();
 
-  // Synchronous, because `CommandStackChanged` consumers (autosave, provenance,
+  // Synchronous, because `HistoryChanged` consumers (autosave, provenance,
   // the undo button) read these in the same turn as the mutation.
   expect(history.revision()).toBe(1);
   expect(state.changes).toBeGreaterThanOrEqual(1);

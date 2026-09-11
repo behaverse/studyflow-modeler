@@ -8,7 +8,7 @@ metadata:
 
 The vocabulary every diagram is written in. `studyflow.moddle.yaml` declares the app-wide powers
 (the inspector tab set, `bpmn:*` redefines, expression traits) that no other skill copies; the schema
-authoring reference is [../README.md](../README.md). Its elements are executed by the
+authoring reference is [../SCHEMAS.md](../SCHEMAS.md). Its elements are executed by the
 [browser](../browser/SKILL.md) and [local](../local/SKILL.md) runtimes themselves.
 
 `examples/` holds the demos every shelf of the gallery starts from (LabLink, CONSORT and SPIRIT

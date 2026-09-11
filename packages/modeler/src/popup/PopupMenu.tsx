@@ -14,7 +14,7 @@
  *   where the item carries a `swatch`, a glyph where it carries one. The style menu
  *   is all three at once (element colours, the text toggles, the text inks).
  *
- * Anchoring: `position` is in CLIENT coordinates (what `view.getAbsoluteBBox`
+ * Anchoring: `position` is in CLIENT coordinates (what `canvas.getAbsoluteBBox`
  * returns, and what the palette computes from a button rect), so the panel is
  * `position: fixed` and clamped into the viewport after measuring.
  */

@@ -53,12 +53,6 @@ export interface EditorHistoryView {
   canRedo(): boolean;
 }
 
-/** The app's undo store, which also owns the `CommandStackChanged` topic. */
-export interface EditorHistory extends EditorHistoryView {
-  record(): void;
-  reset(): void;
-}
-
 export interface Editor extends EditorHistoryView {
   importXML(xml: string): Promise<{ warnings: unknown[] }>;
   saveXML(options?: { format?: boolean }): Promise<{ xml: string }>;

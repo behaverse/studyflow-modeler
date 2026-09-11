@@ -2,14 +2,15 @@ import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import { aliases, define } from '../../vite.shared'
 
-// One self-contained Node executable: core is compiled in from source, the schema YAMLs are
-// inlined at build time (core's `import.meta.glob(?raw)`), and the binary resolves nothing from the repo at runtime.
+// One self-contained Node executable: core is compiled in from source and the schema YAMLs are inlined at build
+// time (core's `import.meta.glob(?raw)`). At run time it finds the local runtime and the modeler it serves beside
+// itself: skills/ and dist/ in a checkout, libexec/ in the Homebrew install.
 export default defineConfig({
   define,
   resolve: { alias: aliases },
   ssr: {
     noExternal: true,
-    // `render` drives a browser; playwright stays an install-time optional.
+    // `convert --modeler` drives a browser; playwright stays an install-time optional.
     external: ['@playwright/test'],
   },
   build: {

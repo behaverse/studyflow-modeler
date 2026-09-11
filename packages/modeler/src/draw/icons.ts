@@ -1,7 +1,7 @@
 import { BPMN } from '@core/constants';
 import { ICONS } from '@modeler/icons';
 
-/** Membership here also forces generic Task rendering in `drawActivity`, so markers belong in MARKER_ICONS instead. */
+/** The glyph a BPMN type draws when neither a template nor its extension type names one (`editor/mount.ts resolveIcon`); markers belong in MARKER_ICONS. */
 export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   [BPMN.ManualTask]:          `${ICONS.handLeft} rotate-90`,
   [BPMN.UserTask]:            ICONS.person,

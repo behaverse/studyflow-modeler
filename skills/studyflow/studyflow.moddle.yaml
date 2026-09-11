@@ -271,7 +271,7 @@ types:
         # A JSON string (not YAML) so a runner without a YAML library can read it; the
         # `.studyflow` file lifts it to the top-level `state:` mapping. `pinned` keeps it
         # out of the inspector: it is written by runners and never drawn.
-        description: Retrospective run state, a JSON tree keyed by element id (see docs/design/state.md).
+        description: Retrospective run state, a JSON tree keyed by element id.
         isAttr: false
         type: String
         meta:

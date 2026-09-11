@@ -1,7 +1,7 @@
 import { readString, type FlowNode } from '@runner/flow';
 import type { ValidationIssue } from '@runner/nodes/types';
 
-/* The only allocation a stateless browser session can honour; everything else is warned about, not performed (docs/guides/randomization.qmd). */
+/* The only allocation a stateless browser session can honour; everything else is warned about, not performed. */
 const HONORED_ALGORITHM = 'simple';
 
 /** `1:1`, `1:1:1`, ... : every arm the same size, which an equal-chance draw delivers in expectation. */

@@ -4,18 +4,14 @@
  * The floating box beside the selection: append-anything, the colour picker, the
  * wrench, the trash, connect, and studyflow's own `choreography.swap-initiator`.
  *
- * The split is the usual one: `contextPad/entries.ts` decides WHAT is
- * offered (pure, unit-tested), this file positions the box and wires each `action` to a command on
- * the bus. It reaches the editor only through the facade — `Editor.rules` for
- * its gates, `Editor.canvas.getAbsoluteBBox` for its anchor and
- * `Editor.gestures` for the two gestures it starts — and app chrome's own
- * `openPopupMenu` for the three menus its entries open.
+ * `contextPad/entries.ts` decides what is offered (pure, unit-tested); this file positions
+ * the box and wires each `action` to a command on the bus, or to `openPopupMenu` for the
+ * three menus its entries open. Its gates are the canvas's rules (`canvas.getRules()`).
  *
- * **Hover preview** (addendum 5): an entry that appends ONE known element previews
- * it — the editor draws a blue ghost of the shape at its auto-place position, with
- * the connection that would reach it, into its own overlay layer. Nothing is
- * committed, and because both the ghost and the click go through the same
- * `appendPosition`, what the hover shows is where the click lands.
+ * **Hover preview**: an entry that appends one known element previews it, a ghost of the
+ * shape at its auto-place position with the connection that would reach it
+ * (`canvas.previewAppend`). Nothing is committed, and the ghost and the click place the
+ * shape the same way, so what the hover shows is where the click lands.
  *
  * Positioning runs on an animation frame rather than an event, for the reason the
  * toolbar did: the canvas publishes no viewbox topic, and a pan, a zoom and a drag
@@ -36,7 +32,7 @@ import { t } from '@modeler/i18n';
 import type { Bounds } from '@canvas/index.ts';
 import { is, type EditorElement, type Editor } from '@modeler/editor/port';
 
-/** Gap between the selection OUTLINE's right edge and the pad (ux-spec §4). */
+/** Gap between the selection outline's right edge and the pad. */
 const OFFSET = 8;
 
 /**
@@ -198,11 +194,9 @@ export function ContextPad() {
      of them is a React state change. */
   useEffect(() => {
     if (!visible) return;
-    // The editor publishes the gesture in flight on its root as `data-gesture`; the
-    // pad goes away for the duration of one. `edge-videos/dnd/frame_01` and
-    // `frame_05` show a shape being dragged with NO pad riding along — which is the
-    // point: the pad would sit on top of the very ghost the user is aiming, and its
-    // trash would be under the cursor at the moment of the drop.
+    // The canvas publishes the gesture in flight on its root as `data-gesture`; the pad goes
+    // away for the duration of one, or it would sit on the ghost being aimed and put its
+    // trash under the cursor at the drop.
     const diagram = modeler.canvas.getContainer().querySelector('svg.sf-canvas');
     let frame = 0;
     let last = '';
@@ -306,7 +300,7 @@ export function ContextPad() {
     );
   }, []);
 
-  /** Show the transient ghost of what this entry would append (addendum 5). */
+  /** Show the transient ghost of what this entry would append. */
   const preview = useCallback((append: ContextPadAppend | undefined) => {
     // An entry that appends nothing still ENDS the previous ghost. `mouseleave`
     // already fires before the neighbour's `mouseenter`, so this is belt-and-braces
@@ -349,9 +343,8 @@ export function ContextPad() {
         return;
       case 'delete':
         // A caption is not an element of the document, so there is nothing to
-        // remove: what the trash means beside a selected label
-        // (`edge-videos/labels/frame_08`) is "take this text away", and the text is
-        // the OWNER's `name`. Clearing it is one undo step and round-trips as the
+        // remove: the trash beside a selected label means "take this text away", and
+        // the text is the owner's `name`. Clearing it is one undo step and round-trips as the
         // absence of the attribute, where deleting the label element would either be
         // a silent no-op or take the whole shape with it.
         if (label) {

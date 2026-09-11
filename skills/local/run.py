@@ -6,8 +6,8 @@
 """A reference runner for the studyflow execution contract.
 
 It keeps one claim honest: a studyflow is executable as it stands, with no
-companion script telling an engine what the boxes mean. See README.md for the
-contract this implements and the terms it writes.
+companion script telling an engine what the boxes mean. SKILL.md, beside this
+file, specifies the hand-off contract it implements.
 
     uv run --script run.py '../python/examples/sklearn_pipeline.studyflow.png'
 
@@ -24,8 +24,8 @@ to it already lives in: the artifacts the `uri`s name, a copy of the studyflow
 stamped `executed` (the copy carries its own run record), and `studyflow.log`;
 the detailed step records live in the run repository's commit bodies. Expressions run in the evaluating engine's own
 language (Python here, JavaScript in the browser runner) unless BPMN's per-expression
-`language` attribute says otherwise. The walk is one token: no parallel
-gateways, no multi-instance fan-out.
+`language` attribute says otherwise. Each pool is walked on its own thread, one
+path per pool: no parallel split inside a pool, no multi-instance fan-out.
 """
 
 from __future__ import annotations
@@ -437,7 +437,7 @@ class Studyflow:
 
 class State:
     """Readable by expressions as `state`, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8`.
-    `tree` is the document's `state` (see docs/design/state.md), reachable as `state.<element id>.<name>`;
+    `tree` is the document's `state` (docs/reference.qmd, "Run state"), reachable as `state.<element id>.<name>`;
     the runner counts every visit in `state._meta.reached.<element id>`, study-lifetime."""
 
     def __init__(self, tree: dict | None = None) -> None:
@@ -1176,9 +1176,10 @@ class Runner:
         if runner is not None:
             return self.execute_via_runner(element, entry, runner)
         if implementation:
+            scheme = implementation.split("://", 1)[0] if "://" in implementation else implementation
             raise RuntimeError(
-                f"no partial runner claims {element.get('id')} ({implementation}) — "
-                "python:// needs the python skill (or a studyflow-python on PATH)",
+                f"no partial runner claims {element.get('id')} ({implementation}): "
+                f"no skill in reach declares {scheme}:// elements (or a studyflow-{scheme} on PATH)",
             )
         self.event(
             "implementation.missing", "    (no implementation — nothing to call)",

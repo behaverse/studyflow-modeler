@@ -1,33 +1,21 @@
 /**
- * The document history the editor hangs its undo/redo off.
+ * The editor's undo history. The canvas has no command stack, so the app keeps XML snapshots.
  *
- * `Editor.revision()` and the `CommandStackChanged` topic are the app's
- * "the document moved" signals: autosave (`settings/attachAutosave.ts`), the
- * provenance trail (`provenance/trail.ts`) and the undo/redo buttons
- * (`provenance/Provenance.tsx`) all read them.
+ * Every committed canvas edit calls `record()` (`editor/mount.ts`): the revision goes up, `HistoryChanged`
+ * fires (what autosave and the provenance dialog listen to) and a snapshot is queued. Undo and redo
+ * re-import a snapshot into the live editor; `reset()`, on import, starts over at revision 0.
  *
- * The canvas has no command stack, so the app supplies one: each mutation is
- * bracketed by {@link DocumentHistory.record}, which bumps the revision, fires
- * `CommandStackChanged` and queues an XML snapshot of the moddle document;
- * undo/redo restore a snapshot by re-importing it into the live editor.
- *
- * {@link DocumentHistory} stays an interface rather than collapsing into the one
- * implementation: it is what `Editor` delegates to, and the topic names above
- * are the app's contract, not the canvas's. It IS `EditorHistory` — the dependency
- * the facade declares — plus the disposal only its owner performs.
- *
- * Snapshots are taken *after* the write, asynchronously (bpmn-moddle's `toXML` is
- * async while `mutate.*` is not), through a single promise queue so they land in
- * order. Consecutive snapshots with identical XML collapse, which is what makes the
- * two mutation signals `editor/mount.ts` wires up — the facade's own
- * per-mutation `record` and the scene's change events — safe to overlap.
+ * Snapshots are taken after the write, asynchronously (moddle's `toXML` is async), through one promise
+ * queue so they land in order. Consecutive identical snapshots collapse: a no-op edit is not an undo step.
  */
 
-import type { EditorHistory } from '@modeler/editor/port';
+import type { EditorHistoryView } from '@modeler/editor/port';
 
-/** The history slice the `Editor` delegates to, and the store that owns it. */
-export interface DocumentHistory extends EditorHistory {
-  /** Detach listeners / drop snapshots. */
+/** What the `Editor` exposes of its history, plus what only its owner (`editor/mount.ts`) calls. */
+export interface DocumentHistory extends EditorHistoryView {
+  record(): void;
+  reset(): void;
+  /** Drop the snapshots. */
   dispose(): void;
 }
 
@@ -39,7 +27,7 @@ export interface SnapshotHistoryOptions {
    * `Editor.importXML` — that resets the history it is restoring.
    */
   restore(xml: string): Promise<void>;
-  /** Fire `CommandStackChanged` (and anything else the app hangs off a mutation). */
+  /** Fire `HistoryChanged` (and anything else the app hangs off an edit). */
   onChanged?(): void;
   /** How many states to keep, newest first. Default 50. */
   limit?: number;
@@ -83,7 +71,7 @@ export function createSnapshotHistory(options: SnapshotHistoryOptions): Document
         while (entries.length > limit) entries.shift();
         index = entries.length - 1;
         // No `onChanged` here. The snapshot lands asynchronously, long after the
-        // mutation that caused it, and `CommandStackChanged` means "the document
+        // mutation that caused it, and `HistoryChanged` means "the document
         // moved" to everything listening — a second, out-of-band fire re-dirties a
         // document that was just marked saved, which is how opening a file used to
         // trigger an auto-save write of a diagram nobody had edited yet

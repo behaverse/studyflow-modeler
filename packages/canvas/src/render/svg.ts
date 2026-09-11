@@ -1,7 +1,6 @@
 /**
- * Tiny SVG DOM helpers (design §3 `render/svg.ts`) — a self-contained stand-in for
- * `tiny-svg` so the canvas ships no rendering dependency. `create`/`attr`/`append`/
- * `transform`/`clear`/`remove` cover everything the ported drawers need.
+ * Tiny SVG DOM helpers, so the canvas needs no rendering dependency: `create`, `attr`,
+ * `append`, `transform`, `clear` and `remove` cover everything the drawers do.
  *
  * SVG elements must be created in the SVG namespace; `foreignObject` children live
  * in the HTML namespace. The active {@link Document} defaults to the global one

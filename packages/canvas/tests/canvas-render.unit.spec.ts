@@ -311,7 +311,7 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
 });
 
 /**
- * `{count}` in a name draws its run-state value (docs/design/state.md): the host
+ * `{count}` in a name draws its run-state value (docs/reference.qmd, "Run state"): the host
  * passes `labelText`, the renderer routes both the internal caption and the external
  * label element through it, and the model keeps the raw name.
  */

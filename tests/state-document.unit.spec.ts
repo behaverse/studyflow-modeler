@@ -16,7 +16,7 @@ import {
 } from '@core/document';
 import { loadSchemaModels, schemaPackages } from './schemas';
 
-/** `state:` is the retrospective tree (docs/design/state.md): JSON on the Study extension, a mapping in the file. */
+/** `state:` is the retrospective tree (docs/reference.qmd, "Run state"): JSON on the Study extension, a mapping in the file. */
 
 const models = loadSchemaModels();
 setCatalog(buildCatalog(models));

@@ -58,7 +58,7 @@ export function attachAutosave(modeler: Editor): () => void {
     schedule();
   };
 
-  modeler.events.on('CommandStackChanged', onEdited);
+  modeler.events.on('HistoryChanged', onEdited);
   modeler.events.on('ImportDone', schedule);
 
   // Turning either destination on has to arm the timer; turning the local copy off also drops
@@ -75,7 +75,7 @@ export function attachAutosave(modeler: Editor): () => void {
   });
 
   return () => {
-    modeler.events.off('CommandStackChanged', onEdited);
+    modeler.events.off('HistoryChanged', onEdited);
     modeler.events.off('ImportDone', schedule);
     unsub();
     if (timer) window.clearTimeout(timer);

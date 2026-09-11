@@ -24,7 +24,7 @@ expression traits) a domain pack must not copy.
 - An enum attribute that allows values outside its list is `meta.editable: true`.
 - A placeholder in a value is `{name}` (dotted paths allowed: `{Play.trials}`); every runner reads that form and nothing reads `${name}` or `{{name}}`.
 - A reference to software, a model, or a device is `<scheme>://<ref>` (`python://`, `claude://claude-haiku-4-5`, `ollama://gemma4`), whatever attribute holds it.
-- Icons come from the iconify (Bootstrap Icons, Fluent UI, `mdi` or `tabler`) sets unless an icon exists only elsewhere. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
+- Element icons are iconify's Phosphor set (`iconify ph--<name>`): its 1.5px line matches the element outline, where `mdi`/`tabler` read twice as bold. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
 - Reuse core types by inheritance rather than restating fields: a biosignal recording is a `studyflow:Timeseries`, a battery task a `cognitive:CognitiveTask`.
 
 ## Schema-level keys
@@ -108,7 +108,7 @@ genuinely declares the attribute, as `studyflow:Implementation` redefines
 ## Enum literals
 
 `name`, `value`, `description`, and optional `icon` (rendered in the enum
-input; may name a raw-SVG key from `packages/modeler/src/draw/icons.ts`'s `SVG_ICON_PATHS`).
+input; may name a raw-SVG key from `packages/canvas/src/render/icons.ts`'s `SVG_ICON_PATHS`).
 A property `default` on an enum-typed attribute must be one of the literal
 values — checked at compile.
 

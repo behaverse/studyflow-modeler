@@ -35,12 +35,7 @@ export const contextPad = {
 
   entryIcon: 'text-lg',
 
-  /**
-   * Dark tooltip, hung down-and-right of the POINTER — the placement every
-   * reference frame shows (`edge-videos/preview/frame_04`, `frame_05`, `frame_08`),
-   * because the reference's tooltips are the browser's own `title` bubbles and
-   * those follow the cursor rather than the element.
-   */
+  /** Dark tooltip, hung down-and-right of the pointer, the way the browser's own `title` bubbles follow the cursor. */
   tooltip: `pointer-events-none fixed z-[216] px-2 py-1 whitespace-nowrap
             ${tooltipMaterial} text-xs`,
 } as const;

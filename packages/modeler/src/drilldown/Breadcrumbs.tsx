@@ -1,19 +1,12 @@
 /**
- * The sub-process breadcrumb trail (`scratchpad/subprocess-drilldown-spec.md` §3,
- * `edge-videos/sub/frame_04`).
+ * The sub-process breadcrumb trail: drilling into a collapsed sub-process shows only its
+ * contents (the canvas's scope), and this is the way back out. It is app chrome, a pill of
+ * text over the diagram, so a zoom never shrinks it.
  *
- * Drilling into a collapsed sub-process switches the canvas to that sub-process's
- * own `bpmndi:BPMNPlane`; this is the way back out. The trail is app chrome for the
- * reason the reference's is: it is a pill of text floating over the diagram, not
- * something drawn in diagram coordinates that a zoom would shrink.
- *
- * It knows nothing about planes beyond what the port publishes —
- * `view.planePath()` for the trail and `view.goToPlane()` for the trip — and it
- * renders nothing at the document root, where the trail is one crumb long.
- *
- * Navigation is VIEW-ONLY: no command, no undo step, no document write (plan
- * §5-D7). `RootSet` is what tells the trail it moved, the same topic an import
- * fires, so an import that lands on the root plane collapses the bar by itself.
+ * It reads `canvas.scopePath()` and moves with `canvas.goToScope()` (drilldown/commands.ts),
+ * and renders nothing at the document root, where the trail is one crumb long. Navigation
+ * writes nothing: no command, no undo step. `RootSet` tells the trail it moved, the same
+ * topic an import fires, so an import collapses the bar by itself.
  */
 
 import { useCallback, useEffect, useLayoutEffect, useState, Fragment } from 'react';
@@ -21,15 +14,7 @@ import { useModeler } from '@modeler/app/useModeler';
 import { goToCrumb, planeCrumbs, type Crumb } from '@modeler/drilldown/commands';
 import { breadcrumbs as s } from '@modeler/drilldown/styles';
 
-/**
- * Distance from the canvas's top edge down to the pill.
- *
- * The reference sits it 12px below the top of the diagram viewport
- * (`edge-videos/sub/frame_04`), but this app's canvas container runs the FULL height
- * of the window with the nav bar floating over it (`navBar/NavBar.tsx`: `fixed top-2
- * h-10`). 12px would put the trail underneath that bar, so it takes the first free
- * row below it: 8 + 40 (the bar) + 8.
- */
+/** Distance from the canvas's top edge to the pill: the canvas runs under the floating nav bar, so the first free row below it (8 + 40 + 8). */
 const TOP = 56;
 
 export function Breadcrumbs() {

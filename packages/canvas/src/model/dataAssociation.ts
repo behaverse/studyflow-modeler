@@ -1,8 +1,6 @@
 /**
- * Data associations — create/delete `bpmn:DataInputAssociation` and
- * `bpmn:DataOutputAssociation` between a data shape and an activity (design §1
- * "add edge … delete → remove BO from its container **and** its `planeElement`",
- * §2 "Data … data-input/output associations (dotted)", §6 P5).
+ * Data associations: create and delete `bpmn:DataInputAssociation` and
+ * `bpmn:DataOutputAssociation` between a data shape and an activity.
  *
  * A data association is the one connection that is **not** filed in a container.
  * It hangs off the activity itself — `activity.dataInputAssociations` /
@@ -35,9 +33,8 @@
  * from instead of leaving a declared-but-unassociated `dataInput` behind — which
  * would silently make the activity un-inlineable on the next save.
  *
- * As with `model/remove.ts` and `model/expand.ts`, this module only mutates the
- * moddle tree; the scene bookkeeping, revision bump and bus events stay in
- * `model/writeback.ts`.
+ * Like `model/remove.ts`, this module only mutates the moddle tree; the scene
+ * bookkeeping, the revision bump and the events are the Mutator's.
  */
 
 import { IdGenerator } from '@canvas/model/ids.ts';

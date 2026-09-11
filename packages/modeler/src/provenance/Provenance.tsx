@@ -30,8 +30,8 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const { openReplay } = useContext(ReplayContext);
   const [revision, bumpRevision] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    modeler.events.on('CommandStackChanged', bumpRevision);
-    return () => modeler.events.off('CommandStackChanged', bumpRevision);
+    modeler.events.on('HistoryChanged', bumpRevision);
+    return () => modeler.events.off('HistoryChanged', bumpRevision);
   }, [modeler]);
 
   // The dialog unmounts on close, so the scope filter re-arms from the prop on every open.

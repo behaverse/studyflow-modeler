@@ -7,7 +7,7 @@ import { filenameStem } from '@modeler/diagram/file';
 import { getSettings } from '@modeler/settings/store';
 
 /**
- * Each example is a PNG carrying its own studyflow (see `export/pngEmbedding`), so the picture on
+ * Each example is a PNG carrying its own studyflow (`@core/document/png`), so the picture on
  * the card is the file that opens. It ships with a skill, in its `examples/` folder, and that
  * skill is its gallery shelf.
  */
