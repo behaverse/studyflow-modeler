@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { readChoreographyBands } from '@core/document';
-import { ensureChoreographyParticipants, swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
+import { IdGenerator, ensureChoreographyParticipants } from '@canvas/index.ts';
+import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
 import { toModdlePackages } from '@core/notation/schemaFile';
 import { loadSchemaModels } from './schemas';
 
@@ -14,7 +15,7 @@ const packages: Record<string, any> = Object.fromEntries(
   models.map((model) => [model.prefix, toModdlePackages(model, models)]),
 );
 
-const fakeModeling = {
+const updater = {
   updateModdleProperties: (_el: any, target: any, props: Record<string, any>) => {
     for (const [k, v] of Object.entries(props)) target.set(k, v);
   },
@@ -28,14 +29,13 @@ function build() {
   task.$parent = process;
   process.$parent = definitions;
   definitions.$parent = null;
-  const bpmnFactory = { create: (type: string, attrs: any) => moddle.create(type, attrs) };
-  return { definitions, task, element: { businessObject: task }, bpmnFactory };
+  return { definitions, task, element: { businessObject: task }, ids: new IdGenerator() };
 }
 
 test('materializes two participants into a headless collaboration on first need', () => {
-  const { definitions, task, element, bpmnFactory } = build();
+  const { definitions, task, ids } = build();
 
-  const [top, bottom] = ensureChoreographyParticipants(element, fakeModeling, bpmnFactory);
+  const [top, bottom] = ensureChoreographyParticipants(task, ids)!;
   expect(top.name).toBe('Participant A');
   expect(bottom.name).toBe('Participant B');
 
@@ -47,19 +47,19 @@ test('materializes two participants into a headless collaboration on first need'
 
   expect(readChoreographyBands(task)).toEqual({ top: 'Participant A', bottom: 'Participant B', initiator: 'top' });
 
-  ensureChoreographyParticipants(element, fakeModeling, bpmnFactory);
+  ensureChoreographyParticipants(task, ids);
   expect(collaboration.get('participants')).toHaveLength(2);
 });
 
 test('swap flips the initiating participant', () => {
-  const { task, element, bpmnFactory } = build();
-  const [top, bottom] = ensureChoreographyParticipants(element, fakeModeling, bpmnFactory);
+  const { task, element, ids } = build();
+  const [top, bottom] = ensureChoreographyParticipants(task, ids)!;
   expect(task.get('initiatingParticipantRef')).toBe(top);
 
-  swapChoreographyInitiator(element, fakeModeling, bpmnFactory);
+  swapChoreographyInitiator(element, updater, ids);
   expect(task.get('initiatingParticipantRef')).toBe(bottom);
   expect(readChoreographyBands(task).initiator).toBe('bottom');
 
-  swapChoreographyInitiator(element, fakeModeling, bpmnFactory);
+  swapChoreographyInitiator(element, updater, ids);
   expect(task.get('initiatingParticipantRef')).toBe(top);
 });

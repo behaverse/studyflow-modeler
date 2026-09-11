@@ -33,6 +33,9 @@ import type { ModdleObject, Scene, SceneElement, SceneNode } from '@canvas/model
 /** One of the two participant bands of a choreography task. */
 export type ParticipantBand = 'top' | 'bottom';
 
+/** What mints the ids of new participants and of the collaboration that holds them. */
+type Ids = Pick<IdGenerator, 'nextPrefixed'>;
+
 /** The readers this module inverts, from core: what the bands say, and who a typed task names. */
 export { actorOf, DEFAULT_BOTTOM, DEFAULT_TOP, isTypedChoreography, readChoreographyBands };
 
@@ -57,7 +60,7 @@ export function participantRefs(bo: ModdleObject): ModdleObject[] {
  * document, a `bpmn:Collaboration` among the root elements. One is created (with no
  * DI plane, so its participants live in the XML without drawing) when neither exists.
  */
-function participantHolder(bo: ModdleObject, ids: IdGenerator): ModdleObject | undefined {
+function participantHolder(bo: ModdleObject, ids: Ids): ModdleObject | undefined {
   let current: ModdleObject | undefined = parentOf(bo);
   const seen = new Set<ModdleObject>();
   while (current && !seen.has(current)) {
@@ -83,21 +86,24 @@ function participantHolder(bo: ModdleObject, ids: IdGenerator): ModdleObject | u
   return created;
 }
 
+/** A new participant named `name`, filed with the task's other participants; `undefined` without a moddle factory. */
+export function mintParticipant(bo: ModdleObject, name: string, ids: Ids): ModdleObject | undefined {
+  const factory = modelOf(bo) ?? modelOf(definitionsAbove(bo));
+  const holder = factory?.create ? participantHolder(bo, ids) : undefined;
+  if (!factory || !holder) return undefined;
+  const participant = mint(factory, 'bpmn:Participant', { id: ids.nextPrefixed('Participant_'), name });
+  setParent(participant, holder);
+  setProp(holder, 'participants', [...asList(prop(holder, 'participants')), participant]);
+  return participant;
+}
+
 /**
- * The `[top, bottom]` participants of a choreography task, creating either that the
- * document lacks (ported from the modeler's `ensureChoreographyParticipants`, minus
- * its `modeling`/`bpmnFactory` services). A freshly minted pair is filed in the
- * holder's `participants`, referenced from the task's `participantRef` in band order,
- * and the top one becomes the initiator unless the task already named one.
- *
- * Returns `undefined` when the document offers no moddle factory to mint with, in
- * which case a band edit is skipped rather than silently dropped.
+ * The `[top, bottom]` participants of a choreography task, minting what the document lacks: a plain
+ * task gets two, the top one initiating unless the task names one; a typed task gets one, the actor
+ * (both bands answer it), and no initiator, since the presenting side is the task itself. The writes go
+ * straight onto moddle; the caller records the edit. `undefined` when there is no moddle factory.
  */
-export function ensureChoreographyParticipants(
-  node: SceneNode,
-  ids: IdGenerator,
-): [ModdleObject, ModdleObject] | undefined {
-  const bo = node.businessObject;
+export function ensureChoreographyParticipants(bo: ModdleObject, ids: Ids): [ModdleObject, ModdleObject] | undefined {
   const list = participantRefs(bo);
   const typed = isTypedChoreography(bo);
   if (typed && list.length >= 1) {
@@ -105,31 +111,16 @@ export function ensureChoreographyParticipants(
     return [actor, actor];
   }
   if (list.length >= 2) return [list[0], list[1]];
-
-  const factory = modelOf(bo) ?? modelOf(definitionsAbove(bo));
-  if (!factory?.create) return undefined;
-  const holder = participantHolder(bo, ids);
-  if (!holder) return undefined;
-
-  const make = (name: string): ModdleObject => mint(factory, 'bpmn:Participant', {
-    id: ids.nextPrefixed('Participant_'),
-    name,
-  });
   if (typed) {
-    // One participant: the actor. The presenting side is the task itself and needs none.
-    const actor = make('Participant');
-    setParent(actor, holder);
-    setProp(holder, 'participants', [...asList(prop(holder, 'participants')), actor]);
+    const actor = mintParticipant(bo, 'Participant', ids);
+    if (!actor) return undefined;
     setProp(bo, 'participantRef', [actor]);
+    setProp(bo, 'initiatingParticipantRef', undefined);
     return [actor, actor];
   }
-  const top = list[0] ?? make(DEFAULT_TOP);
-  const bottom = list[1] ?? make(DEFAULT_BOTTOM);
-  const fresh = [top, bottom].filter((_participant, i) => !list[i]);
-
-  for (const participant of fresh) setParent(participant, holder);
-  const held = asList(prop(holder, 'participants'));
-  setProp(holder, 'participants', [...held, ...fresh]);
+  const top = list[0] ?? mintParticipant(bo, DEFAULT_TOP, ids);
+  const bottom = list[1] ?? mintParticipant(bo, DEFAULT_BOTTOM, ids);
+  if (!top || !bottom) return undefined;
   setProp(bo, 'participantRef', [top, bottom]);
   setProp(bo, 'initiatingParticipantRef', prop(bo, 'initiatingParticipantRef') ?? top);
   return [top, bottom];
@@ -162,7 +153,7 @@ export function applyBandName(
   const typed = isTypedChoreography(node.businessObject);
   if (typed && band === 'top') return undefined; // the presenter's band reads from the task itself
   const minted = participantRefs(node.businessObject).length < (typed ? 1 : 2);
-  const pair = ensureChoreographyParticipants(node, ids);
+  const pair = ensureChoreographyParticipants(node.businessObject, ids);
   if (!pair) return undefined;
   const participant = band === 'top' ? pair[0] : pair[1];
   const renamed = nameOf(participant) !== name;

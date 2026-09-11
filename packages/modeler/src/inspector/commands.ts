@@ -1,8 +1,7 @@
 import { isReservedStateKey } from '@core/document';
 import { setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
-import {
-  ensureChoreographyParticipants, nameNewActor, selectBandParticipant, setParticipantKind,
-} from '@modeler/shape/choreographyParticipants';
+import { ensureChoreographyParticipants } from '@canvas/index.ts';
+import { nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { isTypedChoreography } from '@core/document';
 import { definitionsOf, getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
@@ -47,31 +46,29 @@ export function runUpdateChoreographyParticipants(
   modeler: Editor,
   command: UpdateChoreographyParticipantsCommand,
 ): void {
-  const { canvas: mutate, model } = modeler;
-  // `mutate` covers the `modeling` surface the helper uses; the factory shim maps `create` onto the facade.
-  const factory = { create: model.createBusinessObject };
-  const [top, bottom] = ensureChoreographyParticipants(command.element, mutate, factory);
+  const { canvas, model } = modeler;
+  const bo: any = toBusinessObject(command.element);
+  const pair = ensureChoreographyParticipants(bo, model.ids);
+  if (!pair) return;
+  const [top, bottom] = pair;
 
   if (command.field === 'initiator') {
-    const bo = toBusinessObject(command.element);
-    const next = command.value === 'bottom' ? bottom : top;
-    if (bo.get?.('initiatingParticipantRef') !== next) {
-      mutate.updateModdleProperties(command.element, bo, { initiatingParticipantRef: next });
-    }
+    // Written even when it stands: a pair minted just now is an edit to record.
+    canvas.updateModdleProperties(command.element, bo, { initiatingParticipantRef: command.value === 'bottom' ? bottom : top });
     return;
   }
 
   if ('select' in command) {
-    selectBandParticipant(command.element, mutate, factory, command.field, command.select);
+    selectBandParticipant(command.element, canvas, model.ids, command.field, command.select);
     return;
   }
   const participant = command.field === 'top' ? top : bottom;
   // A typed task's actor that is a drawn pool keeps its name: typing another names a new actor for this task.
-  if (isTypedChoreography(toBusinessObject(command.element)) && participant?.processRef) {
-    nameNewActor(command.element, mutate, factory, command.value);
+  if (isTypedChoreography(bo) && participant?.processRef) {
+    nameNewActor(command.element, canvas, model.ids, command.value);
     return;
   }
-  mutate.updateModdleProperties(command.element, participant, { name: command.value });
+  canvas.updateModdleProperties(command.element, participant, { name: command.value });
 }
 
 

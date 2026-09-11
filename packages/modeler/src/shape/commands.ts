@@ -63,7 +63,7 @@ export type SwapChoreographyInitiatorCommand = {
 };
 
 export function runSwapChoreographyInitiator(modeler: Editor, command: SwapChoreographyInitiatorCommand): void {
-  swapChoreographyInitiator(command.element, modeler.canvas, { create: modeler.model.createBusinessObject });
+  swapChoreographyInitiator(command.element, modeler.canvas, modeler.model.ids);
 }
 
 export type ToggleDefaultFlowCommand = {

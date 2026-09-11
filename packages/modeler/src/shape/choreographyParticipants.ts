@@ -1,62 +1,23 @@
+import { ensureChoreographyParticipants, mintParticipant } from '@canvas/index.ts';
 import { DEFAULT_BOTTOM, DEFAULT_TOP, actorOf, isTypedChoreography } from '@core/document';
-import { getAttribute } from '@core/element';
+import { getAttribute, toBusinessObject, type AttributeUpdater } from '@core/element';
 import { getCatalog } from '@core/notation';
+
+/* Who takes a choreography task's bands, as inspector edits: the participants themselves are minted by the
+   canvas (`ensureChoreographyParticipants`, `mintParticipant`), and each edit here is recorded through `updater`. */
+
+/** What mints participant ids: the editor's `model.ids`. */
+type Ids = { nextPrefixed(prefix: string): string };
 
 function definitionsOf(bo: any): any {
   while (bo && bo.$type !== 'bpmn:Definitions') bo = bo.$parent;
   return bo;
 }
 
-function participantHolder(definitions: any): any {
-  return (definitions?.get('rootElements') ?? []).find((re: any) => re.$type === 'bpmn:Collaboration');
-}
-
-/** The collaboration is created with no DI plane, so participants live in the XML without drawing on the canvas. */
-export function ensureChoreographyParticipants(element: any, modeling: any, bpmnFactory: any): [any, any] {
-  const bo = element.businessObject;
-  const refs: any[] = bo.get('participantRef') ?? [];
-  const typed = isTypedChoreography(bo);
-  if (typed && refs.length >= 1) {
-    const actor = actorOf(bo);
-    return [actor, actor];
-  }
-  if (refs.length >= 2) return [refs[0], refs[1]];
-
-  // A typed task presents itself: one participant, the actor. A plain one has two of its own.
-  const top = refs[0] ?? bpmnFactory.create('bpmn:Participant', { name: typed ? 'Participant' : DEFAULT_TOP });
-  const bottom = typed ? top : (refs[1] ?? bpmnFactory.create('bpmn:Participant', { name: DEFAULT_BOTTOM }));
-  const fresh = typed ? [top] : [top, bottom].filter((_p, i) => !refs[i]);
-  declareParticipants(element, modeling, bpmnFactory, fresh);
-  modeling.updateModdleProperties(element, bo, typed
-    ? { participantRef: [top], initiatingParticipantRef: undefined }
-    : { participantRef: [top, bottom], initiatingParticipantRef: bo.get('initiatingParticipantRef') ?? top });
-  return [top, bottom];
-}
-
-/** File participants in the collaboration that holds them, creating that collaboration (undrawn) when there is none. */
-function declareParticipants(element: any, modeling: any, bpmnFactory: any, fresh: any[]): void {
-  if (fresh.length === 0) return;
-  const definitions = definitionsOf(element.businessObject);
-  let collaboration = participantHolder(definitions);
-  if (!collaboration) {
-    collaboration = bpmnFactory.create('bpmn:Collaboration', { participants: [] });
-    collaboration.$parent = definitions;
-    modeling.updateModdleProperties(element, definitions, {
-      rootElements: [...(definitions.get('rootElements') ?? []), collaboration],
-    });
-  }
-  for (const p of fresh) p.$parent = collaboration;
-  modeling.updateModdleProperties(element, collaboration, {
-    participants: [...(collaboration.get('participants') ?? []), ...fresh],
-  });
-}
-
 /** A new actor for a typed task, named as typed, put on its band in place of a drawn pool that must keep its name. */
-export function nameNewActor(element: any, modeling: any, bpmnFactory: any, name: string): any {
-  const actor = bpmnFactory.create('bpmn:Participant', { name });
-  declareParticipants(element, modeling, bpmnFactory, [actor]);
-  selectBandParticipant(element, modeling, bpmnFactory, 'bottom', actor);
-  return actor;
+export function nameNewActor(element: any, updater: AttributeUpdater, ids: Ids, name: string): void {
+  const actor = mintParticipant(toBusinessObject(element) as any, name, ids);
+  if (actor) selectBandParticipant(element, updater, ids, 'bottom', actor);
 }
 
 /** Whether another choreography task in the file still shows `participant` on a band. */
@@ -67,22 +28,23 @@ function referencedElsewhere(definitions: any, participant: any, except: any): b
 }
 
 /** Drop a participant that only ever took bands and takes none any more; a pool on the canvas stays. */
-function dropIfOrphan(element: any, modeling: any, participant: any): void {
+function dropIfOrphan(element: any, updater: AttributeUpdater, participant: any): void {
   if (!participant || participant.processRef) return;
   const definitions = definitionsOf(participant);
   if (referencedElsewhere(definitions, participant, element.businessObject)) return;
   const holder = participant.$parent;
   const held: any[] = holder?.get?.('participants') ?? holder?.participants ?? [];
   if (!holder || !held.includes(participant)) return;
-  modeling.updateModdleProperties(element, holder, { participants: held.filter((p: any) => p !== participant) });
+  updater.updateModdleProperties(element, holder, { participants: held.filter((p: any) => p !== participant) });
 }
 
-export function swapChoreographyInitiator(element: any, modeling: any, bpmnFactory: any): void {
-  const bo = element.businessObject;
-  const [top, bottom] = ensureChoreographyParticipants(element, modeling, bpmnFactory);
-  const initiating = bo.get('initiatingParticipantRef');
-  modeling.updateModdleProperties(element, bo, {
-    initiatingParticipantRef: initiating === top ? bottom : top,
+export function swapChoreographyInitiator(element: any, updater: AttributeUpdater, ids: Ids): void {
+  const bo: any = toBusinessObject(element);
+  const pair = ensureChoreographyParticipants(bo, ids);
+  if (!pair) return;
+  const [top, bottom] = pair;
+  updater.updateModdleProperties(element, bo, {
+    initiatingParticipantRef: bo.get('initiatingParticipantRef') === top ? bottom : top,
   });
 }
 
@@ -144,52 +106,51 @@ export function participantKind(participant: any): ParticipantKind | undefined {
  * Type a participant that only takes bands as the kind `id` names, or untype it (`''`). The edit is reported on
  * `element`, the task whose band shows the participant, since the participant has no shape.
  */
-export function setParticipantKind(element: any, modeling: any, model: { create(type: string, properties?: Record<string, unknown>): any }, participant: any, id: string): void {
+export function setParticipantKind(element: any, updater: AttributeUpdater, model: { create(type: string, properties?: Record<string, unknown>): any }, participant: any, id: string): void {
   if (!participant || (participantKind(participant)?.id ?? '') === id) return;
   if (!id) {
-    modeling.updateModdleProperties(element, participant, { extensionElements: undefined });
+    updater.updateModdleProperties(element, participant, { extensionElements: undefined });
     return;
   }
   const kind = participantKinds().find((candidate) => candidate.id === id);
   if (!kind) return;
   const current = (participant.extensionElements?.values ?? []).find((ext: any) => String(ext?.$type ?? '').toLowerCase() === kind.type.toLowerCase());
   if (current && kind.attribute) { // the same extension, another of its kinds
-    modeling.updateModdleProperties(element, current, { [kind.attribute]: kind.value });
+    updater.updateModdleProperties(element, current, { [kind.attribute]: kind.value });
     return;
   }
   const wrapper = model.create(kind.type, kind.attribute ? { [kind.attribute]: kind.value } : {});
   const container = model.create('bpmn:ExtensionElements', { values: [wrapper] });
   wrapper.$parent = container;
   container.$parent = participant;
-  modeling.updateModdleProperties(element, participant, { extensionElements: container });
+  updater.updateModdleProperties(element, participant, { extensionElements: container });
 }
 
 /**
  * Put an existing participant (a pool, or an actor) on a band, or clear the band with `null`: a typed task then
  * falls back to the pool it sits in, a plain task gets a fresh placeholder. The initiator follows a replaced band.
  */
-export function selectBandParticipant(element: any, modeling: any, bpmnFactory: any, band: 'top' | 'bottom', participant: any | null): void {
-  const bo = element.businessObject;
+export function selectBandParticipant(element: any, updater: AttributeUpdater, ids: Ids, band: 'top' | 'bottom', participant: any | null): void {
+  const bo: any = toBusinessObject(element);
   if (isTypedChoreography(bo)) {
     const replaced = actorOf(bo);
     if (replaced === participant) return;
-    modeling.updateModdleProperties(element, bo, { participantRef: participant ? [participant] : [], initiatingParticipantRef: undefined });
-    dropIfOrphan(element, modeling, replaced);
+    updater.updateModdleProperties(element, bo, { participantRef: participant ? [participant] : [], initiatingParticipantRef: undefined });
+    dropIfOrphan(element, updater, replaced);
     return;
   }
-  const [top, bottom] = ensureChoreographyParticipants(element, modeling, bpmnFactory);
+  const pair = ensureChoreographyParticipants(bo, ids);
+  if (!pair) return;
+  const [top, bottom] = pair;
   const replaced = band === 'top' ? top : bottom;
   if (replaced === participant) return;
-  let next = participant;
-  if (!next) {
-    next = bpmnFactory.create('bpmn:Participant', { name: band === 'top' ? DEFAULT_TOP : DEFAULT_BOTTOM });
-    declareParticipants(element, modeling, bpmnFactory, [next]);
-  }
+  const next = participant ?? mintParticipant(bo, band === 'top' ? DEFAULT_TOP : DEFAULT_BOTTOM, ids);
+  if (!next) return;
   const refs = band === 'top' ? [next, bottom] : [top, next];
   const initiating = bo.get('initiatingParticipantRef');
-  modeling.updateModdleProperties(element, bo, {
+  updater.updateModdleProperties(element, bo, {
     participantRef: refs,
     initiatingParticipantRef: initiating === replaced ? next : initiating,
   });
-  dropIfOrphan(element, modeling, replaced);
+  dropIfOrphan(element, updater, replaced);
 }
