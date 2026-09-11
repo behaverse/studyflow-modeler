@@ -46,11 +46,6 @@ test.describe('declaredRuntime', () => {
     - type: studyflow:Study`);
     expect(declaredRuntime(definitions)).toBe('cloud');
   });
-
-  test('still honors a bare attribute on the process from older files', () => {
-    const definitions = study(`  runtime: browser`);
-    expect(declaredRuntime(definitions)).toBe('browser');
-  });
 });
 
 /** The Python runner keeps `state` (docs/developers.qmd, "What a run leaves behind"): `_meta.prov` run records, `_meta.reached` visit counts. */

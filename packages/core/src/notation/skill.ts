@@ -3,9 +3,6 @@ import * as yaml from 'js-yaml';
 /** The skills the modeler and the local runtime rely on to run BPMN at all; they load always and cannot be disabled. */
 export const CORE_SKILLS: ReadonlySet<string> = new Set(['studyflow', 'prov', 'cognitive']);
 
-/** Where a skill keeps the `.studyflow.png` diagrams it ships for the gallery. */
-export const EXAMPLES_FOLDER = 'examples';
-
 /** A skill's manifest, read from the YAML front matter of its `SKILL.md`. The file follows the Agent
  * Skills specification (https://agentskills.io/specification): `name`, `description`, and optional
  * `license`, `compatibility` (the runtime environment a runner needs), `metadata`, `allowed-tools`. What

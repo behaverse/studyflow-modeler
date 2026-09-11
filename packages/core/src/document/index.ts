@@ -8,13 +8,12 @@ import { inlineIoSpecification, expandIoSpecification } from '@core/document/io-
 import { choreographyToProcessRoot, headlessPlaneToProcessRoot } from '@core/document/choreography';
 import { studyflowToDefinitions } from '@core/document/deserialize';
 
-/* The package's whole surface: `@core/document` is the only path anything outside `core/document` imports. */
+/* The package's surface: outside `core/document`, only this barrel and `png.ts` are imported. */
 export { studyflowToDefinitions } from '@core/document/deserialize';
-export { STUDY_EXTENSION_TYPE, YAML_DUMP_OPTIONS, applyXmlPasses, declaredRuntime, inferPlaneRoot, primaryRoots, studyExtensionOf, type XmlPass, type YamlDoc } from '@core/document/format';
+export { YAML_DUMP_OPTIONS, applyXmlPasses, declaredRuntime, inferPlaneRoot, primaryRoots, studyExtensionOf } from '@core/document/format';
 export { CHECKLIST_MARKER, isChecklistMarkerValue } from '@core/document/shorthand';
 export {
   META_KEY,
-  ensureStudyExtension,
   isReservedStateKey,
   readState,
   resolvePlaceholders,
@@ -35,7 +34,6 @@ export {
   actorOf,
   choreographyToProcessRoot,
   isTypedChoreography,
-  presenterLabel,
   readChoreographyBands,
   toWireXml,
 } from '@core/document/choreography';

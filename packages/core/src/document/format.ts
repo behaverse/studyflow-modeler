@@ -37,14 +37,9 @@ export function primaryRoots(definitions: ModdleElement | null | undefined): Mod
   return ordered;
 }
 
-/**
- * Where the study is meant to run. The inspector stores `runtime` on the `studyflow:Study` extension of the
- * process; a bare attribute on the process itself is how older files spelled it. Unset, the schema says `cloud`.
- */
+/** Where the study is meant to run: `runtime` on the `studyflow:Study` extension of the process. Unset, the schema says `cloud`. */
 export function declaredRuntime(definitions: ModdleElement | null | undefined): string {
-  const root: any = primaryRoots(definitions)[0];
-  const study = studyExtensionOf(definitions);
-  const value = getProperty(study, 'runtime') ?? root?.runtime ?? root?.$attrs?.runtime ?? root?.$attrs?.['studyflow:runtime'];
+  const value = getProperty(studyExtensionOf(definitions), 'runtime');
   return typeof value === 'string' && value ? value : 'cloud';
 }
 

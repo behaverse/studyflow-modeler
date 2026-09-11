@@ -46,7 +46,7 @@ expression traits) a domain pack must not copy.
 | Key | Consumer |
 | --- | --- |
 | `bpmnType` | Which BPMN element the type is created as (shape, palette, templates). Validated against the known BPMN table; a typo is a diagnostic and the type becomes non-creatable. |
-| `icon` | Canvas + palette + append-menu glyph (Iconify class). The top-level `icon:` on a type is a legacy fallback. |
+| `icon` | Canvas + palette + append-menu glyph (Iconify class). |
 | `editor` (on a value type) | Default editor for every attribute *of that type* (see editor names below). |
 | `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; the lint rejects restating it. |
 | `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {scene}"`), read raw. Empty or absent, the band reads "Task software". |
@@ -85,15 +85,12 @@ in `packages/core/src/element/handle.ts` picks one, first match wins.
 
 | # | The attribute is | Resolved on | Under which name |
 | --- | --- | --- | --- |
-| 1 | declared by the wrapper with `redefines`/`replaces`, *and* declared on the element's own type or the element carries traits | the element | the local name after the `#` |
+| 1 | declared by the wrapper with `redefines`/`replaces` | the element | the local name after the `#` |
 | 2 | declared by the element's own type, traits included | the element | the declared name (`bpmn:id`/`bpmn:name` collapse to `id`/`name`) |
 | 3 | declared by the wrapper | the wrapper | the declared name |
-| 4 | declared by neither | the wrapper if there is one and the element carries no traits, else the element | the local name |
+| 4 | declared by neither | the element | the local name |
 
-With the shipped schemas every element carries traits (`studyflow:BaseElement`
-redefines `bpmn:documentation` onto `bpmn:BaseElement`), so rule 1 needs only the
-wrapper's redefine, and rule 4 always lands on the element. A write that resolves
-to no target is dropped with a console warning.
+A write that resolves to no target is dropped with a console warning.
 
 A *read* landing on the element while a wrapper exists still returns the wrapper's
 value when the wrapper's property is `meta.pinned`, or stores the value explicitly,

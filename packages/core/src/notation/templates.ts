@@ -48,13 +48,10 @@ export function compileTemplates(prefix: string, model: SchemaModel, catalog: Ty
     const attrs = extractAttributes(merged, RESERVED_TEMPLATE_KEYS);
 
     templates.push({
-      // Scoped by the *defining* prefix: root type + index collides across schemas, and `palette-start-create-template` resolves ids by first match.
+      // Scoped by the *defining* prefix: root type + index collides across schemas, and `PaletteStartCreateTemplate` resolves ids by first match.
       id: `${prefix}::${qualifiedName}::template:${index + 1}`,
       name: merged.name ?? merged['bpmn:name'] ?? typeName,
       description: template.description ?? entry?.description ?? '',
-      appliesTo: [bpmnType],
-      elementType: { value: bpmnType },
-      category: { id: prefix, name: capitalize(prefix) },
       keywords: merged.keywords ?? [],
       extensionType: isBpmnRoot ? undefined : qualifiedName,
       bpmnType,
@@ -62,8 +59,6 @@ export function compileTemplates(prefix: string, model: SchemaModel, catalog: Ty
       overrideIconClass: merged.icon,
       templateAttributes: Object.keys(attrs).length > 0 ? attrs : undefined,
       flowElements: normalizeFlowElements(merged, prefix, catalog, where),
-      templateSource: 'schema-template',
-      schemaPrefix: prefix.toLowerCase(),
     });
   }
 
@@ -224,8 +219,4 @@ function extractAttributes(definition: Record<string, any>, reservedKeys: Set<st
     if (!reservedKeys.has(key) && value !== undefined) attributes[key] = value;
   }
   return attributes;
-}
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
 }

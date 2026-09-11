@@ -200,10 +200,7 @@ class Compiler {
       name: qualified,
       ns: { name: qualified, prefix, localName: rawType.name },
       description: rawType.description,
-      icon: typeof rawType.icon === 'string' ? rawType.icon : undefined,
-      iconClass: typeof meta.icon === 'string'
-        ? meta.icon
-        : (typeof rawType.icon === 'string' ? rawType.icon : undefined),
+      iconClass: typeof meta.icon === 'string' ? meta.icon : undefined,
       isAbstract: rawType.isAbstract === true,
       style,
       extends: extendsRefs,

@@ -28,7 +28,6 @@ export class TypeCatalog {
   private enumsByName = new Map<string, EnumEntry>();
   private traitsByTarget = new Map<string, AttributeSpec[][]>();
   private traitCache = new Map<string, AttributeSpec[]>();
-  private typesByRole = new Map<TypeRole, TypeEntry[]>();
 
   private resolveIn<T>(byName: Map<string, T>, ref: string, ownerPrefix?: string): T | undefined {
     if (ref.includes(':')) return byName.get(ref);
@@ -108,10 +107,6 @@ export class TypeCatalog {
     return this.schemas.find((schema) => schema.prefix === prefix);
   }
 
-  typesWithRole(role: TypeRole): TypeEntry[] {
-    return this.typesByRole.get(role) ?? [];
-  }
-
   hasRole(typeName: string | undefined, role: TypeRole): boolean {
     if (!typeName) return false;
     return this.typesByName.get(typeName)?.roles.includes(role) === true;
@@ -161,11 +156,6 @@ export class TypeCatalog {
     this.schemas.push(schema);
     for (const type of schema.types) {
       this.typesByName.set(type.name, type);
-      for (const role of type.roles) {
-        const list = this.typesByRole.get(role) ?? [];
-        list.push(type);
-        this.typesByRole.set(role, list);
-      }
     }
     for (const enumEntry of schema.enums) this.enumsByName.set(enumEntry.name, enumEntry);
     for (const trait of traits) {

@@ -18,7 +18,6 @@ export type SchemaPropertyModel = {
 export type SchemaTypeModel = {
   name: string;
   description?: string;
-  icon?: string;
   isAbstract?: boolean;
   /** Inheritance refs; declaring one makes the type instantiable (wrapper style, see `TypeStyle`). */
   superClass?: string[];

@@ -1,5 +1,4 @@
 import { RUNNER_ONLY_BOT_KEYS, type BehaverseBotPayload, type BehaverseTaskPayload } from '@skills/behaverse/browser/types';
-import { getLLMSettings } from '@core/settings';
 import type { LLMProviderConfig } from '@skills/behaverse/browser/llm/types';
 
 export function readResponseSource(bot: BehaverseTaskPayload['bot']): 'internal' | 'external' | 'llm' {
@@ -14,8 +13,16 @@ export function readPrompt(bot: BehaverseTaskPayload['bot']): string {
   return typeof value === 'string' ? value : '';
 }
 
+/** The model a bot answers with unless its `bot.LLM` names another. */
+const LLM_DEFAULTS = {
+  provider: 'claude',
+  model: 'claude-haiku-4-5',
+  ollamaUrl: 'http://localhost:11434',
+  claudeProxyUrl: '/api/llm/claude',
+} as const;
+
 export function resolveLLMConfig(bot: BehaverseTaskPayload['bot']): LLMProviderConfig {
-  const settings = getLLMSettings();
+  const settings = LLM_DEFAULTS;
   const override = (bot && typeof bot === 'object' ? (bot as Record<string, unknown>).LLM : undefined);
   const llmOverride = override && typeof override === 'object' && !Array.isArray(override)
     ? (override as Record<string, unknown>)

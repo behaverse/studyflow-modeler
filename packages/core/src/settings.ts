@@ -1,31 +1,5 @@
-/** The settings both apps read: the LLM the runtime talks to, the account key, and whether runs report events. */
-import { STORAGE_KEYS, jsonCodec, persisted, stringCodec } from '@core/storage';
-
-export type LLMProvider = 'claude' | 'ollama';
-
-export type LLMRuntimeSettings = {
-  provider: LLMProvider;
-  model: string;
-  ollamaUrl: string;
-  claudeProxyUrl: string;
-};
-
-const DEFAULTS: LLMRuntimeSettings = {
-  provider: 'claude',
-  model: 'claude-haiku-4-5',
-  ollamaUrl: 'http://localhost:11434',
-  claudeProxyUrl: '/api/llm/claude',
-};
-
-const llmStore = persisted<Partial<LLMRuntimeSettings>>(
-  STORAGE_KEYS.llm,
-  jsonCodec<Partial<LLMRuntimeSettings>>(),
-  {},
-);
-
-export function getLLMSettings(): LLMRuntimeSettings {
-  return { ...DEFAULTS, ...llmStore.load() };
-}
+/** The settings both apps read: the account key, and whether runs report events. */
+import { STORAGE_KEYS, persisted, stringCodec } from '@core/storage';
 
 const apiKeyStore = persisted<string>(STORAGE_KEYS.apiKey, stringCodec, '');
 

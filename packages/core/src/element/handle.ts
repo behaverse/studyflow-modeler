@@ -40,38 +40,20 @@ function resolveName(name: string | undefined, attrDef: AttributeSpec | undefine
   return attrDef?.name ?? attrDef?.ns?.localName ?? toLocalName(name);
 }
 
-/** Reads layer one more rule on top of this: an explicitly stored wrapper value beats a BO default, in `extensionValueWins` and pinned by `tests/element.unit.spec.ts`. */
-function resolveAttribute(
-  bo: ModdleElement,
-  ext: ModdleElement | null,
-  attributeName: string,
-  hasTraits: boolean,
-): AttributeTarget {
+/**
+ * Where an attribute lives (skills/SCHEMAS.md, "Attribute precedence"): a wrapper attribute that
+ * redefines one of the element's lands on the element; else the element's own type, then the wrapper, then
+ * the element. Reads layer one more rule on top: an explicitly stored wrapper value beats a BO default
+ * (`extensionValueWins`, pinned by `tests/element.unit.spec.ts`).
+ */
+function resolveAttribute(bo: ModdleElement, ext: ModdleElement | null, attributeName: string): AttributeTarget {
   const boDef = getAttributeSpec(bo, attributeName);
   const extDef = getAttributeSpec(ext, attributeName);
 
-  if (extDef && ext) {
-    const redefined = extDef.redefinedName;
-    if (redefined && (boDef || hasTraits)) {
-      return { bo, ext, attributeName: redefined, target: bo };
-    }
-  }
-
-  if (boDef) {
-    return { bo, ext, attributeName: resolveName(attributeName, boDef), target: bo };
-  }
-
-  if (extDef && ext) {
-    return { bo, ext, attributeName: resolveName(attributeName, extDef), target: ext };
-  }
-
-  const useExt = !!ext && !hasTraits;
-  return {
-    bo,
-    ext,
-    attributeName: resolveName(attributeName, undefined),
-    target: useExt ? ext : bo,
-  };
+  if (ext && extDef?.redefinedName) return { bo, ext, attributeName: extDef.redefinedName, target: bo };
+  if (boDef) return { bo, ext, attributeName: resolveName(attributeName, boDef), target: bo };
+  if (ext && extDef) return { bo, ext, attributeName: resolveName(attributeName, extDef), target: ext };
+  return { bo, ext, attributeName: resolveName(attributeName, undefined), target: bo };
 }
 
 /** Whether the `bpmn:extensionElements` wrapper, not the business object, holds the value a read should return. */
@@ -157,10 +139,6 @@ export class StudyflowElement {
     return this.extension?.$type;
   }
 
-  get hasTraits(): boolean {
-    return this.attributes().some((spec) => isExtensionPrefix(spec.ns?.prefix) || !!spec.redefines);
-  }
-
   extensionAttributes(): AttributeSpec[] {
     const ext = this.extension;
     return ext ? getAttributeSpecs(ext) : [];
@@ -205,7 +183,7 @@ export class StudyflowElement {
     if (toLocalName(attributeName) === CHECKLIST_MARKER) return this.getChecklist();
     const bo = this.businessObject;
     const ext = findExtension(bo);
-    const r = resolveAttribute(bo, ext, attributeName, this.hasTraits);
+    const r = resolveAttribute(bo, ext, attributeName);
     if (!r.target || !r.attributeName) return undefined;
 
     if (r.ext && r.target === r.bo) {
@@ -224,7 +202,7 @@ export class StudyflowElement {
   private expressionElement(attributeName: string): ModdleElement | undefined {
     const bo = this.businessObject;
     const ext = findExtension(bo);
-    const r = resolveAttribute(bo, ext, attributeName, this.hasTraits);
+    const r = resolveAttribute(bo, ext, attributeName);
     if (r.target && r.attributeName) {
       const value = getProperty(r.target, r.attributeName);
       if (value && typeof value === 'object' && value.$type) return value;
@@ -255,7 +233,7 @@ export class StudyflowElement {
     if (toLocalName(attributeName) === CHECKLIST_MARKER) return this.setChecklist(value);
     const bo = this.businessObject;
     const ext = findExtension(bo);
-    const r = resolveAttribute(bo, ext, attributeName, this.hasTraits);
+    const r = resolveAttribute(bo, ext, attributeName);
     if (!r.target || !r.attributeName) return warnDroppedWrite(attributeName, bo);
 
     const attrDef = getAttributeSpec(r.target, r.attributeName);

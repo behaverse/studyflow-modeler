@@ -301,7 +301,8 @@ test.describe('catalog: renderer semantics', () => {
 
 test.describe('catalog: schema-declared vocabulary', () => {
   test('roles come from the BPMN attach point and the schemas\' meta.roles', () => {
-    const dataElements = new Set(catalog.typesWithRole('data-element').map((type) => type.name));
+    const typesWithRole = (role: string) => catalog.allTypes().filter((type) => type.roles.includes(role));
+    const dataElements = new Set(typesWithRole('data-element').map((type) => type.name));
     for (const name of ['studyflow:Dataset', 'studyflow:Table', 'studyflow:Timeseries']) {
       expect(dataElements, name).toContain(name);
     }
@@ -309,12 +310,12 @@ test.describe('catalog: schema-declared vocabulary', () => {
       .toContain('eeg:Recording');
     expect(dataElements).not.toContain('studyflow:DataCatalog');
 
-    const instruments = new Set(catalog.typesWithRole('instrument').map((type) => type.name));
+    const instruments = new Set(typesWithRole('instrument').map((type) => type.name));
     expect(instruments).toContain('cognitive:CognitiveTask');
     expect(instruments, 'inherited from CognitiveTask').toContain('behaverse:Task');
 
     for (const role of ['data-element', 'signal', 'instrument', 'acquisition']) {
-      expect(catalog.typesWithRole(role).length, `no type carries "${role}"`).toBeGreaterThan(0);
+      expect(typesWithRole(role).length, `no type carries "${role}"`).toBeGreaterThan(0);
     }
   });
 

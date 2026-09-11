@@ -90,7 +90,6 @@ export type TypeEntry = {
   name: string;
   ns: NsInfo;
   description?: string;
-  icon?: string;
   iconClass?: string;
   isAbstract: boolean;
   style: TypeStyle;
@@ -130,8 +129,6 @@ export type CategoryEntry = {
   synthetic: boolean;
 };
 
-/* Field names below are the create/append template contract, plus studyflow extras. */
-
 export interface TemplateFlowNode {
   id: string;
   kind: 'node';
@@ -159,9 +156,6 @@ export interface Template {
   id: string;
   name: string;
   description?: string;
-  appliesTo: string[];
-  elementType?: { value: string };
-  category?: { id: string; name: string };
   keywords?: string[];
   extensionType?: string;
   bpmnType: string;
@@ -169,6 +163,4 @@ export interface Template {
   overrideIconClass?: string;
   templateAttributes?: Record<string, any>;
   flowElements?: TemplateFlowElement[];
-  templateSource?: 'schema-template' | 'schema-type';
-  schemaPrefix?: string;
 }
