@@ -101,19 +101,19 @@ export function runUpdateTransformation(modeler: Editor, command: UpdateTransfor
     if (expression) modeler.canvas.updateModdleProperties(command.element, expression, { language: command.value || undefined });
     return;
   }
-  writeTransformation(modeler, command.element, association, command.value);
+  // Committed on blur, so the stored expression can be the trimmed one.
+  writeTransformation(modeler, command.element, association, command.value.trim());
 }
 
-/** A data association's transformation set to `body`, its expression reused; a blank one removes it. */
+/** A data association's transformation set to `body` as given, its expression reused; an empty one removes it. */
 function writeTransformation(modeler: Editor, element: any, association: any, body: string): void {
-  const text = body.trim();
   const expression = association.get?.('transformation') ?? association.transformation;
-  if (!text) {
+  if (!body) {
     modeler.canvas.updateModdleProperties(element, association, { transformation: undefined });
   } else if (expression) {
-    modeler.canvas.updateModdleProperties(element, expression, { body: text });
+    modeler.canvas.updateModdleProperties(element, expression, { body });
   } else {
-    const created = modeler.model.create('bpmn:FormalExpression', { body: text });
+    const created = modeler.model.create('bpmn:FormalExpression', { body });
     created.$parent = association;
     modeler.canvas.updateModdleProperties(element, association, { transformation: created });
   }
@@ -374,5 +374,6 @@ export function runUpdateDataBinding(modeler: Editor, command: UpdateDataBinding
     return;
   }
 
+  // Written on every keystroke of a controlled field: stored as typed, or a space would vanish as it is typed.
   writeTransformation(modeler, element, target, command.value);
 }

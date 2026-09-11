@@ -13,7 +13,11 @@ export const STORAGE_KEYS = {
   diagramHandoffPrefix: k('handoff:'),
 } as const;
 
+/** Keys an older build wrote and nothing reads any more; "clear all" still removes them. */
+const RETIRED_KEYS = [k('llm')];
+
 const OWNED_KEYS: string[] = [
+  ...RETIRED_KEYS,
   STORAGE_KEYS.settings,
   STORAGE_KEYS.autosaveDiagram,
   STORAGE_KEYS.inspectorWidth,
@@ -226,6 +230,7 @@ const LEGACY_KEYS: [legacy: string, current: string][] = [
   ['studyflow-modeler:settings:v1', STORAGE_KEYS.settings],
   ['studyflow-modeler:autosave-diagram:v1', STORAGE_KEYS.autosaveDiagram],
   ['studyflow-modeler:inspector-width:v1', STORAGE_KEYS.inspectorWidth],
+  ['studyflow-modeler:llm:v1', k('llm')],
   ['studyflow-modeler:api_key:v1', STORAGE_KEYS.apiKey],
   ['studyflow-modeler:user_email:v1', STORAGE_KEYS.userEmail],
   ['studyflow-modeler:should_record_events:v1', STORAGE_KEYS.recordEvents],
