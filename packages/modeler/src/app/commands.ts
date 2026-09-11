@@ -2,7 +2,8 @@ import new_diagram from '#assets/new_diagram.bpmn?raw';
 import { fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
-import { clearAutosavedDiagram, clearDiagramHandoff, createDiagramHandoff, getSettings } from '@modeler/settings/store';
+import { clearDiagramHandoff, createDiagramHandoff } from '@core/storage';
+import { clearAutosavedDiagram, getSettings } from '@modeler/settings/store';
 import { mountEditor } from '@modeler/editor/mount';
 import type { Editor } from '@modeler/editor/port';
 

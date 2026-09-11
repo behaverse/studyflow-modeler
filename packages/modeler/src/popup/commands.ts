@@ -6,12 +6,6 @@
 import { buildBusinessObject } from '@canvas/model/build.ts';
 import type { Editor, EditorElement } from '@modeler/editor/port';
 
-/** Whether a flow successor may follow `element` at all. */
-export function canAppendFrom(modeler: Editor, element: EditorElement | undefined): boolean {
-  const source = modeler.canvas.resolveElement(element);
-  return !!source && source.kind !== 'label' && modeler.canvas.getRules().canAppend(source);
-}
-
 /** A boundary event needs an explicit host, so it can never be auto-placed. */
 export function mustDragToAppend(bpmnType: string): boolean {
   return bpmnType === 'bpmn:BoundaryEvent';

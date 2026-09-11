@@ -16,16 +16,6 @@ export type ModelElement = any;
 
 export type Moddle = import('bpmn-moddle').BpmnModdle;
 
-export type Rect = { x: number; y: number; width: number; height: number };
-
-export type Viewbox = Rect & {
-  scale: number;
-  inner: Rect;
-  outer: { width: number; height: number };
-};
-
-export type EditorEventListener = (event: any) => any;
-
 /** Schema-aware document model access (bpmn-moddle). */
 export interface EditorModel {
   moddle(): Moddle;

@@ -1,6 +1,5 @@
 import { COMPOUND_EXTENSIONS } from '@modeler/export/formats';
 
-export { getDiagramName } from '@modeler/export/common';
 
 export function extractXmlFromSvg(svgText: string): string {
   const parser = new DOMParser();

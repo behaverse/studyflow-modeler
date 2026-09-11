@@ -5,8 +5,6 @@ export const URLS = {
   docs: './docs',
 } as const;
 
-export const MODELER_FONT_FAMILY = '"IBM Plex Sans", Helvetica, sans-serif';
-
 const IS_MAC =
   typeof navigator !== 'undefined' && /Mac|iPad|iPhone|iPod/.test(navigator.platform);
 

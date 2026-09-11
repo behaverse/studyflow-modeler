@@ -20,12 +20,6 @@ export const border = {
   control: 'border border-black/[0.45]',
 } as const;
 
-/** Focus indicator: the canvas selection blue (>=3:1 on cream), not cream-on-cream. */
-export const focus = {
-  ring: 'focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
-  within: 'focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[hsl(205,100%,45%)]',
-} as const;
-
 /** One tooltip material everywhere; callers add size, padding and positioning. */
 export const tooltip = 'bg-stone-900/90 backdrop-blur-md text-cream-50 rounded-lg shadow-[0_2px_8px_rgba(0,0,0,0.18)]';
 
@@ -78,7 +72,6 @@ export const dialog = {
   body: 'text-sm text-stone-600',
   bodyLink: 'text-stone-900 underline hover:no-underline',
 
-  fieldset: 'space-y-6',
   label: 'text-sm font-medium text-stone-800',
   input: `mt-2 block w-full ${radius.button} ${border.control} ${surface.card} py-2 px-3 font-mono text-sm/6 text-stone-900 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]`,
   helpText: 'text-xs text-stone-500 mt-1.5',

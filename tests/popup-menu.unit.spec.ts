@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { buildCatalog, setCatalog, type TypeEntry } from '@core/notation';
 import { buildElementEntries, isAppendable } from '@modeler/popup/entries';
-import { canAppendFrom, mustDragToAppend, runAppendElement, runStartAppendElement } from '@modeler/popup/commands';
+import { mustDragToAppend, runAppendElement, runStartAppendElement } from '@modeler/popup/commands';
 import { loadSchemaModels } from './schemas';
 
 /**
@@ -153,9 +153,4 @@ test.describe('append commands', () => {
     expect(mustDragToAppend('bpmn:Task')).toBe(false);
   });
 
-  test('the append affordance asks the editor, and answers no without a selection', () => {
-    const { port } = fakePort();
-    expect(canAppendFrom(port, source)).toBe(true);
-    expect(canAppendFrom(port, undefined)).toBe(false);
-  });
 });

@@ -13,10 +13,6 @@ export const commandPalette = {
   searchInput: `flex-1 bg-transparent text-sm ${text.primary} placeholder-stone-400 focus:outline-none`,
   githubLink: 'text-stone-400 hover:text-stone-900 text-base shrink-0 transition-colors focus:outline-none focus-visible:text-stone-900',
 
-  breadcrumbRow: 'px-3 py-1.5 text-[0.6875rem] text-stone-500 flex items-center gap-2 border-b border-black/[0.04]',
-  breadcrumbBack: 'hover:text-stone-900 inline-flex items-center gap-1',
-  breadcrumbDivider: 'text-stone-300',
-  breadcrumbLabel: 'text-stone-700 font-medium',
 
   list: 'max-h-[55vh] overflow-y-auto p-1.5',
   empty: 'text-sm text-stone-500 italic py-8 text-center',
@@ -42,5 +38,4 @@ export const commandPalette = {
   },
   itemActive: 'bg-black/[0.08] text-stone-900',
   itemHint: 'text-[0.6875rem] font-mono text-stone-500 shrink-0',
-  itemChevron: `${ICONS.chevronRight} text-stone-500 text-[0.6875rem] ml-1`,
 } as const;

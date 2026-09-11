@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { executeCommand } from '@modeler/commandBus';
-import { getDiagramName } from '@modeler/diagram/file';
+import { getDiagramName } from '@modeler/export/common';
 import type { Editor } from '@modeler/editor/port';
 
 const DEFAULT_DIAGRAM_NAME = 'Untitled Diagram';

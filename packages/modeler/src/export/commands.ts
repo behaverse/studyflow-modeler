@@ -1,5 +1,4 @@
 import { exportDiagramName } from '@modeler/export/common';
-import download from 'downloadjs';
 import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
 import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/export/formats';
 import { buildExportModel } from '@modeler/export/model';
@@ -90,5 +89,15 @@ export async function runExportDiagram(modeler: Editor, command: ExportDiagramCo
 
   const filename = exportFilename(exportDiagramName(modeler), format);
   const payload = await encodeDiagram(modeler, format);
-  download(new Blob([payload], { type: format.mimeType }), filename, format.mimeType);
+  saveBlob(new Blob([payload], { type: format.mimeType }), filename);
+}
+
+/** Hand `blob` to the browser as a download named `filename`. */
+function saveBlob(blob: Blob, filename: string): void {
+  const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  // Not revoked at once: some browsers read the URL after `click()` returns.
+  setTimeout(() => URL.revokeObjectURL(link.href), 250);
 }

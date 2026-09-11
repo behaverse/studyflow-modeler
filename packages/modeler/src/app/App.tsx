@@ -21,9 +21,9 @@ export function App() {
 
   return (
     <ModelerContext.Provider value={{ modeler, setModeler }}>
-      <ReplayContext.Provider value={{ isReplaying, openReplay: () => setIsReplaying(true), closeReplay: () => setIsReplaying(false) }}>
+      <ReplayContext.Provider value={{ openReplay: () => setIsReplaying(true) }}>
       <SettingsViewContext.Provider value={{ openSettings: () => setIsSettingsOpen(true) }}>
-        <div className={`App flex flex-col h-screen${isSimulating ? ' simulation-active' : ''}${isReplaying ? ' replay-active' : ''}`} data-testid="modeler-app" data-modeler-ready={modeler ? 'true' : 'false'}>
+        <div className={`App flex flex-col h-screen${isSimulating ? ' simulation-active' : ''}${isReplaying ? ' replay-active' : ''}`} data-testid="modeler-app">
           {modeler && <div data-testid="modeler-ready" aria-hidden="true" className="hidden" />}
           {modeler && <NavBar />}
           <div className="w-full h-full">

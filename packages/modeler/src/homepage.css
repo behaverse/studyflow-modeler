@@ -2,7 +2,7 @@
 
 @import "tailwindcss";
 
-/* Makes `hover:animate-wiggle` on the logo a real utility (see app.css note). */
+/* Makes `hover:animate-wiggle` on the logo a real utility. */
 @theme {
   --animate-wiggle: wiggle 0.2s ease-in-out infinite;
 }

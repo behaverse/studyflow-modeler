@@ -29,7 +29,6 @@ import { GanttDialog } from '@modeler/gantt/Gantt';
 import { ProvenanceDialog } from '@modeler/provenance/Provenance';
 import { buildPaletteCommands } from '@modeler/commandPalette/menu';
 import {
-  findCommand,
   groupCommands,
   searchCommands,
   type PaletteCommand,
@@ -72,7 +71,6 @@ export function CommandPalette({ ref }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
-  const [submenuId, setSubmenuId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<{ id: PaletteDialogId; scopeId?: string } | null>(null);
   const modeler = useRequiredModeler();
   const { openSettings } = useContext(SettingsViewContext);
@@ -106,7 +104,6 @@ export function CommandPalette({ ref }: Props) {
   const open = () => {
     setQuery('');
     setActiveIndex(0);
-    setSubmenuId(null);
     setIsOpen(true);
   };
   const close = () => setIsOpen(false);
@@ -127,16 +124,7 @@ export function CommandPalette({ ref }: Props) {
     [modeler, openSettings, isSimulating, openReplay, linkedFileName],
   );
 
-  const submenuParent = useMemo(
-    () => (submenuId ? findCommand(commands, submenuId) : null),
-    [submenuId, commands],
-  );
-
-  const filtered = useMemo(() => {
-    if (query.trim()) return searchCommands(commands, query);
-    if (submenuParent?.children) return submenuParent.children;
-    return commands;
-  }, [query, commands, submenuParent]);
+  const filtered = useMemo(() => searchCommands(commands, query), [query, commands]);
 
   const grouped = useMemo(() => groupCommands(filtered), [filtered]);
 
@@ -191,35 +179,13 @@ export function CommandPalette({ ref }: Props) {
   }, [activeIndex]);
 
   const runCommand = (c: PaletteCommand) => {
-    if (c.children) {
-      setSubmenuId(c.id);
-      setQuery('');
-      setActiveIndex(0);
-      requestAnimationFrame(() => inputRef.current?.focus());
-      return;
-    }
     close();
-    c.action?.();
-  };
-
-  const popSubmenu = () => {
-    setSubmenuId(null);
-    setQuery('');
-    setActiveIndex(0);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    c.action();
   };
 
   const handleKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
-    // `stopPropagation` keeps Escape from reaching the Dialog, which would close the whole palette.
-    if (submenuId && query === '' && (e.key === 'Backspace' || e.key === 'Escape')) {
-      e.preventDefault();
-      e.stopPropagation();
-      popSubmenu();
-      return;
-    }
     if (query === '' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
-      const shortcutSource = submenuParent?.children ?? commands;
-      const match = shortcutSource.find((c) => c.shortcut && isBareKey(e, c.shortcut));
+      const match = commands.find((c) => c.shortcut && isBareKey(e, c.shortcut));
       if (match) {
         e.preventDefault();
         runCommand(match);
@@ -243,8 +209,7 @@ export function CommandPalette({ ref }: Props) {
     const st = c.tile ? cp.tile : cp.row;
     const flatIndex = filtered.indexOf(c);
     const active = flatIndex === activeIndex;
-    const isParent = !!c.children;
-    const hint = c.shortcut?.toUpperCase() ?? (isParent ? undefined : c.hint);
+    const hint = c.shortcut?.toUpperCase() ?? c.hint;
     return (
       <button
         key={c.id}
@@ -257,7 +222,6 @@ export function CommandPalette({ ref }: Props) {
         <i className={`${c.icon} ${st.icon}`}></i>
         <span className={st.label}>{c.label}</span>
         {hint && <span className={`${cp.itemHint} ${st.hint}`}>{hint}</span>}
-        {isParent && <i className={cp.itemChevron} aria-hidden="true"></i>}
       </button>
     );
   };
@@ -288,9 +252,7 @@ export function CommandPalette({ ref }: Props) {
                   setActiveIndex(0);
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder={submenuParent
-                  ? `Search ${submenuParent.label.replace(/\.\.\.$/, '').toLowerCase()}...`
-                  : `Search commands... (${OPEN_PALETTE_SHORTCUT_LABEL} or "/" to toggle)`}
+                placeholder={`Search commands... (${OPEN_PALETTE_SHORTCUT_LABEL} or "/" to toggle)`}
                 className={cp.searchInput}
                 aria-label="Search commands"
               />
@@ -306,23 +268,6 @@ export function CommandPalette({ ref }: Props) {
                 <i className={ICONS.github}></i>
               </a>
             </div>
-            {submenuParent && (
-              <div className={cp.breadcrumbRow}>
-                <button
-                  type="button"
-                  onClick={popSubmenu}
-                  className={cp.breadcrumbBack}
-                  title="Back to main palette (Esc or Backspace)"
-                >
-                  <i className={ICONS.arrowLeft}></i>
-                  <span>Back</span>
-                </button>
-                <span className={cp.breadcrumbDivider}>/</span>
-                <span className={cp.breadcrumbLabel}>
-                  {submenuParent.label.replace(/\.\.\.$/, '')}
-                </span>
-              </div>
-            )}
             <div ref={listRef} className={cp.list}>
               {filtered.length === 0 ? (
                 <div className={cp.empty}>No matching commands.</div>

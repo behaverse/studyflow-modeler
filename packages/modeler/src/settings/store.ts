@@ -172,5 +172,3 @@ export function saveInspectorWidth(width: number): void {
   widthStore.save(width);
 }
 
-
-export { readDiagramHandoff, clearDiagramHandoff, takeDiagramHandoff, createDiagramHandoff } from '@core/storage';

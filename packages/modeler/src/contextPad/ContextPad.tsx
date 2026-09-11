@@ -34,7 +34,8 @@ import { APPEND_MENU, COLOR_MENU, REPLACE_MENU } from '@modeler/popup/PopupMenus
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';
-import { is, type EditorElement, type Editor, type Rect } from '@modeler/editor/port';
+import type { Rect } from '@canvas/index.ts';
+import { is, type EditorElement, type Editor } from '@modeler/editor/port';
 
 /** Gap between the selection OUTLINE's right edge and the pad (ux-spec §4). */
 const OFFSET = 8;

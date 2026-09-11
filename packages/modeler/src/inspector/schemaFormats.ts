@@ -68,9 +68,7 @@ export function parseBody(body: string): ParsedBody {
   } catch {
   }
 
-  if (body.trim()) return { columns: [], format: 'csvw', unparseable: true };
-
-  return { columns: [], format: 'csvw' };
+  return { columns: [], format: 'csvw', unparseable: true };
 }
 
 function serializeCsvw(columns: Column[]): string {

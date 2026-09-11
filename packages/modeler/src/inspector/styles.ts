@@ -76,8 +76,6 @@ export const field = {
   arrayRow: 'relative',
   arrayInput: 'px-2 py-1 pr-7 w-full rounded-md border border-black/[0.20] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
   arrayRemoveBtn: 'absolute top-1/2 right-1.5 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
-  arrayInferredInput: 'px-2 py-1 pr-16 w-full rounded-md border border-dashed border-black/[0.20] bg-cream-100 font-mono italic text-sm/6 text-stone-500 placeholder-stone-400 focus:outline-none focus:border-black/[0.20]',
-  arrayInferredLabel: 'pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 italic text-xs text-stone-500',
 
   dataFlowRow: 'flex items-center gap-1.5',
   /* Names wrap rather than truncate: an ellipsis eats exactly the name suffix a reader scans for. */
