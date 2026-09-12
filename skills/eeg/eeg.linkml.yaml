@@ -111,7 +111,6 @@ classes:
         rank: 0
         annotations:
           editable: true
-      # Plain strings, one per entry: a non-attribute enum list cannot serialize through moddle.
       # Vocabulary: eeg, meg, ieeg, emg, ecg, eog, eda, ppg, respiration, nirs,
       # eye_tracking, head_imu, motion, audio.
       modalities:

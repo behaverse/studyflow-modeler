@@ -13,10 +13,10 @@ ones it can check, and `npm run schemas:lint` runs the LinkML linter (`linkml-li
 its rules are in `.linkmllint.yaml`) over every schema.
 
 **Copying a file to start?** `eeg/eeg.linkml.yaml` is the domain pack to copy
-from: inheritance from core types, wrapper + trait styles, enums, roles, and
-templates. `studyflow.linkml.yaml` is the *core* schema.
-It declares app-wide powers (inspector tab set, `bpmn:*` redefines,
-expression traits) a domain pack must not copy.
+from: inheritance from core types, wrappers, enums, roles, and templates.
+`studyflow/studyflow.linkml.yaml` is the vocabulary every diagram uses. It alone
+declares app-wide powers (the inspector tab set, `bpmn:*` redefines, expression
+traits), which a domain pack must not copy; its `Scheduling` is the plainest trait.
 
 ## Conventions
 
@@ -43,7 +43,7 @@ expression traits) a domain pack must not copy.
 | `annotations.icon` | Iconify class (or URL) for the palette flyout header. |
 | `annotations.optional` | `false` for a core schema: it always loads, and the modeler's settings cannot switch it off. Left out, it is `true`: a skill the user can switch off. |
 | `annotations.templates` | The palette flyout entries; [Templates](#templates). |
-| `subsets` | Inspector tabs, **core schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`): `rank` orders them, `annotations.synthetic: true` marks a tab drawn by its own section. Every other schema gets a tab of its own `title`, right after General, where its attributes file by default. |
+| `subsets` | Inspector tabs, **studyflow schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`): `rank` orders them, `annotations.synthetic: true` marks a tab drawn by its own section. Every other schema gets a tab of its own `title`, right after General, where its attributes file by default. |
 | `classes`, `types`, `enums` | The content; below. |
 | `license`, `prefixes`, `default_prefix`, `default_range: string`, `imports` | LinkML's own: the linker and the linter read them, the app does not. |
 
@@ -61,7 +61,7 @@ The schema's `annotations` come last in the file: what it is, then what it decla
 | `attributes` | Its properties; below. |
 | `annotations` | Below. |
 
-A class with none of `implements`, `mixin`, `is_a` is a value holder other types point at (`prov:Activity`, `cognitive:Configurations`).
+A class with none of `implements`, `mixin`, `is_a` is a value holder other types point at (`prov:Activity`, `cognitive:Configurations`); `implements: [bpmn:BaseElement]` gives one BPMN's `id` and documentation but no place on the canvas (`studyflow:DataCatalog`).
 A `types` entry (`typeof: string`) is a value type: text an attribute holds, with an editor of its own (`MarkdownString`, `YAMLString`).
 
 ### Class annotations
@@ -69,7 +69,7 @@ A `types` entry (`typeof: string`) is a value type: text an attribute holds, wit
 | Key | Consumer |
 | --- | --- |
 | `icon` | Canvas + palette + append-menu glyph (Iconify class). |
-| `editor` (on a value type) | Default editor for every attribute *of that type* (see editor names below). |
+| `editor` (on a value type or a class) | Default editor for every attribute *of that type* (see editor names below). |
 | `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; the lint rejects restating it. |
 | `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {scene}"`), read raw. Empty or absent, the band reads "Task software". |
 | `glyph` | The attribute whose value is drawn as text over the type icon (`scene`); the value `undefined` draws nothing. |
@@ -88,11 +88,11 @@ An annotation value is a scalar, or, in LinkML's expanded form, any YAML: `roles
 | `multivalued: true` | A list. |
 | `ifabsent` | The default, as LinkML spells it: `string(csv)`, `int(3)`, `float(0.5)`, `'true'`. On an enum attribute it must be one of the enum's values (checked at compile). |
 | `rank` | Sort within the inspector tab. |
-| `in_subset: [Tab]` | The inspector tab. Omitted, an attribute files under its schema's own tab (`Cognitive`, `EEG`), and a core one under `General`, so General stays identity plus core fields. |
+| `in_subset: [Tab]` | The inspector tab. Omitted, an attribute files under its schema's own tab (`Cognitive`, `EEG`), and a studyflow one under `General`, so General stays identity plus core fields. |
 | `slot_uri: bpmn:x` | Keeps a BPMN attribute in the BPMN namespace (`implementation` redefining `bpmn:implementation`). |
-| `implements: [bpmn:X]` | The value is written as that BPMN element (`bpmn:Documentation`, `bpmn:Expression`); the attribute declares no `range`, and the inspector edits the element's text as a string. `bpmn:Expression` also gets the expression row with a per-expression language picker, and is written with its `xsi:type`. |
+| `implements: [bpmn:X]` | The value is written as that BPMN element, and the attribute declares no `range`. `bpmn:Documentation` and `bpmn:Expression` are text the inspector edits as a string (an expression also gets a language picker, and is written with its `xsi:type`); other BPMN elements (`bpmn:DataInputAssociation`) are structure the canvas draws, never an inspector field. |
 
-An attribute is an XML attribute, which holds one line. A list, an `implements` value, and an attribute annotated `element: true` are child elements instead: use `element` for multi-line text (`MarkdownString`, `YAMLString`, code).
+An attribute is an XML attribute, which holds one line. A list, an `implements` value, and an attribute annotated `element: true` are child elements instead: use `element` for multi-line text (`MarkdownString`, `YAMLString`, code), and to nest a value holder (`configurations`, ranged `Configurations`).
 
 ### Attribute annotations
 
@@ -198,8 +198,7 @@ stylesheet, so exports need no network.
 
 `studyflow:Study`, `studyflow:StartEvent`, `studyflow:EndEvent`, and
 `studyflow:SequenceFlow` are backed by the static palette groups instead of
-schema tiles. The exclusion is namespace-qualified: your schema's own
-`StartEvent` is unaffected.
+schema tiles.
 
 ## Failure surfacing
 

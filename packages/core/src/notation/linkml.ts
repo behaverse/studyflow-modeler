@@ -5,8 +5,9 @@
  *
  * Where LinkML has the same idea, it is used as LinkML spells it (`is_a`, `mixin`, `multivalued`,
  * `ifabsent`, `rank`, `in_subset`, `subsets`, `permissible_values`, `apply_to`, `implements`). What
- * belongs to BPMN or to the modeler alone rides in `annotations` (`redefines`, `replaces`, `element`,
- * `body`, `icon`, `roles`, `editor`, …) and lands in the type's or attribute's `meta`.
+ * belongs to BPMN or to the modeler alone rides in `annotations`: four become moddle's own property
+ * fields (`redefines`, `replaces`, `element`, `body`), the rest the type's or attribute's `meta`
+ * (`icon`, `roles`, `editor`, …).
  */
 import * as yaml from 'js-yaml';
 import { splitQName } from '@core/naming';
@@ -22,7 +23,7 @@ type Annotations = Record<string, any>;
 
 export type LinkmlSlot = {
   description?: string;
-  /** Omitted when `implements` names the BPMN element the value rides in. */
+  /** `string` when omitted (every schema's `default_range`); omitted as well when `implements` names the BPMN element. */
   range?: string;
   multivalued?: boolean;
   /** Default value, LinkML-spelled: `string(csv)`, `int(3)`, `float(0.5)`, `true`. */
@@ -33,7 +34,8 @@ export type LinkmlSlot = {
   in_subset?: string[];
   /** Keeps a BPMN attribute in the BPMN namespace (`bpmn:documentation`). */
   slot_uri?: string;
-  /** BPMN element the value is written as (`bpmn:Expression`); the value itself stays a flat string. */
+  /** BPMN element the value is written as: text the inspector edits (`bpmn:Expression`, `bpmn:Documentation`),
+   * or structure the canvas draws (`bpmn:DataInputAssociation`). */
   implements?: string[];
   annotations?: Annotations;
 };
@@ -72,7 +74,7 @@ export type LinkmlSchema = {
   version?: string;
   /** Load and display order among schemas. */
   rank?: number;
-  /** Inspector tabs, declared by the core schema; an attribute joins one with `in_subset`. */
+  /** Inspector tabs, declared by the studyflow schema alone; an attribute joins one with `in_subset`. */
   subsets?: Record<string, { description?: string; rank?: number; annotations?: Annotations }>;
   classes?: Record<string, LinkmlClass>;
   types?: Record<string, LinkmlType>;

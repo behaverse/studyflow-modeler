@@ -28,9 +28,6 @@ imports:
   - ../studyflow/studyflow.linkml
   - ../cognitive/cognitive.linkml
 
-# A model is `<scheme>://<ref>` (`claude://claude-opus-4-8`, `ollama://llama3.3`); a bare
-# `claude-*` name reads as Claude's.
-
 enums:
   AgenticActorTypes:
     description: What an actor pool can be, beyond cognitive's human, software, and hardware.

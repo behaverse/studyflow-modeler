@@ -1,20 +1,6 @@
 # yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
 
-# Authoring conventions (every schema in this directory follows them):
-# - A `description` is one sentence the inspector shows as a tooltip; keep it
-#   under ~100 characters. Rationale, engine notes, and endpoint details go in
-#   supplementary documentation, never in the description.
-# - Attribute names are camelCase nouns; a unit lives in the name only when
-#   the same quantity could sensibly carry another, else in
-#   the annotations (`samplingRate.annotations.unit = 'Hz'`).
-# - An enum that admits values outside its list is `editable: true`.
-# - Icons come from the iconify (Bootstrap Icons, Fluent UI, `mdi` or
-#   `tabler`) sets unless an icon exists only elsewhere. Verify a glyph
-#   exists before using it; an unknown name falls back to the BPMN ancestor's icon.
-# - Reuse core types by inheritance rather than restating fields:
-#   a biosignal recording is a `studyflow:Timeseries`, a battery task
-#   a `cognitive:CognitiveTask`.
-
+# The authoring conventions, and what every key means: skills/SCHEMAS.md.
 
 id: http://behaverse.org/schemas/studyflow/v1
 name: studyflow
@@ -562,7 +548,7 @@ classes:
         in_subset:
           - Execution
         annotations:
-          # One ref is enough: moddle resolves it per extended type.
+          # One ref is enough: moddle resolves it per type the trait implements.
           redefines: bpmn:ServiceTask#implementation
 
   Script:
