@@ -14,7 +14,7 @@ its rules are in `.linkmllint.yaml`) over every schema.
 
 **Copying a file to start?** `eeg/eeg.linkml.yaml` is the domain pack to copy
 from: inheritance from core types, wrapper + trait styles, enums, roles, and
-templates beside it. `studyflow.linkml.yaml` is the *core* schema.
+templates. `studyflow.linkml.yaml` is the *core* schema.
 It declares app-wide powers (inspector tab set, `bpmn:*` redefines,
 expression traits) a domain pack must not copy.
 
@@ -42,11 +42,12 @@ expression traits) a domain pack must not copy.
 | `rank` | Load/display order; unranked schemas sort after ranked ones, then by prefix. |
 | `annotations.icon` | Iconify class (or URL) for the palette flyout header. |
 | `annotations.optional` | `false` for a core schema: it always loads, and the modeler's settings cannot switch it off. Left out, it is `true`: a skill the user can switch off. |
+| `annotations.templates` | The palette flyout entries; [Templates](#templates). |
 | `subsets` | Inspector tabs, **core schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`): `rank` orders them, `annotations.synthetic: true` marks a tab drawn by its own section. Every other schema gets a tab of its own `title`, right after General, where its attributes file by default. |
 | `classes`, `types`, `enums` | The content; below. |
 | `license`, `prefixes`, `default_prefix`, `default_range: string`, `imports` | LinkML's own: the linker and the linter read them, the app does not. |
 
-Two files beside the schema hold what a LinkML schema cannot: `templates.yaml` and `examples.yaml` (below).
+The schema's `annotations` come last in the file: what it is, then what it declares, then what the palette offers.
 
 ## Classes
 
@@ -161,23 +162,30 @@ enums:
 
 ## Templates
 
-`templates.yaml`, beside the schema, is a list of palette flyout entries. Each has a `description` and
-`elements`: the elements a drop adds, id-keyed and spelled as in a `.studyflow.yaml` file. The first is the
-element dropped and what the palette shows (its `name`, and its own `studyflow:icon` or its type's); a
-pool's `processRef` names the process holding its flow. Prefer templates over new classes: a verb ("fit a
-model", "5-fold CV") is a template over a generic type, not a class; see `eeg/templates.yaml`.
+The schema's `templates` annotation, in the expanded form, lists its palette flyout entries. Each has a
+`description` and `elements`: the elements a drop adds, id-keyed and spelled as in a `.studyflow.yaml` file.
+The first is the element dropped and what the palette shows (its `name`, and its own `studyflow:icon` or its
+type's); a pool's `processRef` names the process holding its flow. Prefer templates over new classes: a verb
+("fit a model", "5-fold CV") is a template over a generic type, not a class; see the end of `eeg.linkml.yaml`.
+
+```yaml
+annotations:
+  icon: iconify tabler--hexagon-letter-e
+  templates:
+    value:
+      - description: Filter EEG data and remove artifacts in one step.
+        elements:
+          EEGPrep:
+            type: ServiceTask
+            …
+```
 
 ## Examples
 
-A skill may ship whole diagrams, not just elements. `examples.yaml`, beside the schema, lists them: each
-takes `title`, `description` (first sentence is the card blurb), optional `icon`, and `studyflow`: a
-complete document in the `.studyflow.yaml` format, either as a mapping or as raw YAML text. Its gallery
-shelf is the skill's name — an example declares no category of its own. `eeg/examples.yaml` has a worked one.
-
-The gallery's other cards are the PNGs in each skill's `examples/` folder, each a picture of a diagram with the diagram embedded
-in it. The skill is the shelf, so an example lands with the vocabulary or runner
-it exercises. `npm run examples:render` redraws every PNG from its own embedded
-diagram.
+A skill ships whole diagrams as PNGs in its `examples/` folder, each a picture of a diagram with the diagram
+embedded in it; the gallery shows them, and the skill is the shelf, so an example lands with the vocabulary
+or runner it exercises. `studyflow convert --modeler <file>.studyflow.yaml <name>.studyflow.png` draws a new
+one; `npm run examples:render` redraws every PNG from its own embedded diagram.
 
 ## Icons
 

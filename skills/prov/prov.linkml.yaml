@@ -17,9 +17,6 @@ prefixes:
   prov: https://w3id.org/studyflow/prov/
 imports:
   - linkml:types
-annotations:
-  icon: iconify tabler--history
-  optional: false
 
 classes:
   # Entries run oldest first. The document-level timeline (created, modified,
@@ -60,3 +57,7 @@ classes:
         description: One line of free text.
         annotations:
           optional: true
+
+annotations:
+  icon: iconify tabler--history
+  optional: false

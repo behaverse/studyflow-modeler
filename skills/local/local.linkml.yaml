@@ -18,9 +18,6 @@ prefixes:
 imports:
   - linkml:types
   - ../studyflow/studyflow.linkml
-annotations:
-  icon: iconify tabler--hexagon-letter-l
-  optional: false
 
 enums:
   LocalRuntime:
@@ -31,3 +28,7 @@ enums:
       local:
         title: Local
         description: On the researcher's machine.
+
+annotations:
+  icon: iconify tabler--hexagon-letter-l
+  optional: false

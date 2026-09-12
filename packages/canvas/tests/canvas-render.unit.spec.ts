@@ -57,8 +57,8 @@ function translateOf(g: Element | undefined): { x: number; y: number } {
 
 const files = exampleNames;
 
-test('canvas render: exactly 19 studyflow example diagrams are present', () => {
-  expect(files.length).toBe(19);
+test('canvas render: exactly 20 studyflow example diagrams are present', () => {
+  expect(files.length).toBe(20);
 });
 
 for (const filename of files) {

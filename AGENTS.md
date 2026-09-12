@@ -24,7 +24,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 | `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a feature's `commands.ts`; `src/commandBus.ts` lists the features. |
 | `packages/cli` | The `studyflow` CLI. `run` hands a local study to `skills/local/run.py`. |
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
-| `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (`*.linkml.yaml`, with `templates.yaml` and `examples.yaml` beside it), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
+| `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (`*.linkml.yaml`, its palette templates included), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
 | `skills/browser` | The browser runtime, served at `/run/`. |
 | `skills/local` | The local runtime (`run.py`); its `SKILL.md` is the contract every partial runner follows. |
 

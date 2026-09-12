@@ -18,8 +18,6 @@ prefixes:
 imports:
   - linkml:types
   - ../studyflow/studyflow.linkml
-annotations:
-  icon: iconify tabler--hexagon-letter-b
 
 enums:
   BrowserRuntime:
@@ -30,3 +28,6 @@ enums:
       browser:
         title: Browser
         description: In the participant's browser, one session at a time.
+
+annotations:
+  icon: iconify tabler--hexagon-letter-b

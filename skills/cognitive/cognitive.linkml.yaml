@@ -19,9 +19,6 @@ prefixes:
 imports:
   - linkml:types
   - ../studyflow/studyflow.linkml
-annotations:
-  icon: iconify tabler--hexagon-letter-c
-  optional: false
 
 enums:
   AllocationAlgorithmEnum:
@@ -265,3 +262,45 @@ classes:
             value:
               actorType:
                 $not: human
+
+annotations:
+  icon: iconify tabler--hexagon-letter-c
+  optional: false
+  # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
+  templates:
+    value:
+      # Stratified allocation is a RandomGateway with `stratifyBy` set, not its own type.
+      - description: Stratified block randomization, balanced within each stratum.
+        elements:
+          Stratified_allocation:
+            type: ExclusiveGateway
+            name: Stratified allocation
+            documentation: |
+              Randomizes within each stratum of `stratifyBy`, in permuted blocks,
+              so arms stay balanced on the covariate. List the strata one per entry.
+            extensionElements:
+              - type: cognitive:RandomGateway
+                studyflow:icon: iconify ph--stack
+                algorithm: block
+                stratifyBy: age_band
+                strata:
+                  - "age_band: 18-29"
+                  - "age_band: 30-44"
+                  - "age_band: 45-65"
+      # A video game is a CognitiveTask whose instrument is a game engine, not its own type.
+      - description: A video game used as a paradigm or measurement instrument.
+        elements:
+          Video_game:
+            type: ChoreographyTask
+            name: Video game
+            documentation: |
+              Set the game engine in `instrument` and its levels, difficulty, and
+              scoring in `configurations`.
+            extensionElements:
+              - type: cognitive:CognitiveTask
+                studyflow:icon: iconify ph--game-controller
+                instrument: unity
+                configurations: |
+                  levels:
+                  difficulty:
+                  scoring:

@@ -1,8 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import * as yaml from 'js-yaml';
-
 import { fromLinkml, parseLinkml } from '@core/notation/linkml';
 import { toModdlePackages, type SchemaModel } from '@core/notation/schemaFile';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
@@ -19,29 +17,15 @@ export const SKILLS: SkillManifest[] = readdirSync(SKILLS_DIR)
   .sort((a, b) => a.name.localeCompare(b.name));
 
 const withSchema = SKILLS.filter((skill) => skill.schema);
+const schemaFiles = withSchema.map((skill) => path.join(SKILLS_DIR, skill.name, skill.schema!));
 
-function sidecar<T>(skill: SkillManifest, name: string): T[] {
-  const file = path.join(SKILLS_DIR, skill.name, name);
-  return existsSync(file) ? (yaml.load(readFileSync(file, 'utf8')) as T[]) : [];
-}
-
+/** Every schema, converted together as `loader.ts` does, in `withSchema` order. */
 function readModels(): SchemaModel[] {
-  const docs = withSchema.map((skill) => parseLinkml(
-    readFileSync(path.join(SKILLS_DIR, skill.name, skill.schema!), 'utf8'),
-    `${skill.name}/${skill.schema}`,
-  ));
-  return fromLinkml(docs).map((model, index) => ({
-    ...model,
-    templates: sidecar(withSchema[index], 'templates.yaml'),
-    examples: sidecar(withSchema[index], 'examples.yaml'),
-  }));
+  return fromLinkml(schemaFiles.map((file) => parseLinkml(readFileSync(file, 'utf8'), file)));
 }
 
 /** Schema prefix → the file its skill declares. */
-const pathOfPrefix = new Map(readModels().map((model, index) => [
-  model.prefix,
-  path.join(SKILLS_DIR, withSchema[index].name, withSchema[index].schema!),
-]));
+const pathOfPrefix = new Map(readModels().map((model, index) => [model.prefix, schemaFiles[index]]));
 
 export function schemaPath(prefix: string): string {
   const found = pathOfPrefix.get(prefix);

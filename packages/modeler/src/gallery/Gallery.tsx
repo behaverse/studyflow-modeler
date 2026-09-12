@@ -102,7 +102,7 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
     if (!modeler || busy) return;
     setBusy(entry.filename);
     try {
-      const content = entry.content ?? await (await fetch(entry.url!)).arrayBuffer();
+      const content = await (await fetch(entry.url)).arrayBuffer();
       await executeCommand(modeler, {
         type: 'OpenDiagram',
         filename: entry.filename,
@@ -187,10 +187,8 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                       disabled={!!busy}
                       className={g.card}
                     >
-                      <div className={entry.url ? g.thumb : g.blankThumb}>
-                        {entry.url
-                          ? <img src={entry.url} alt="" loading="lazy" className={g.thumbImage} />
-                          : <i className={`${entry.iconClass ?? ICONS.fileNew} ${g.blankIcon}`}></i>}
+                      <div className={g.thumb}>
+                        <img src={entry.url} alt="" loading="lazy" className={g.thumbImage} />
                         {busy === entry.filename && (
                           <span className={g.thumbBusy}>
                             <i className={g.thumbSpinner}></i>

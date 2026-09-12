@@ -1,10 +1,6 @@
-import * as yaml from 'js-yaml';
-import { firstSentence } from '@core/naming';
-import { SCHEMA_MODELS, skillOfSchema } from '@core/notation/loader';
 import { compareExamples } from '@modeler/examples/catalog';
 import { basename, readExampleMetadata } from '@modeler/examples/metadata';
 import { filenameStem } from '@modeler/diagram/file';
-import { getSettings } from '@modeler/settings/store';
 
 /**
  * Each example is a PNG carrying its own studyflow (`@core/document/png`), so the picture on
@@ -18,34 +14,13 @@ const exampleFiles = import.meta.glob(
 
 export type ExampleEntry = {
   filename: string;
-  /** PNG examples only; schema examples carry `content` instead and draw an icon thumb. */
-  url?: string;
-  content?: string;
-  iconClass?: string;
+  url: string;
   title: string;
   summary: string;
-  /** Gallery shelf: the containing folder for a PNG, the schema's name for a schema example. */
+  /** Gallery shelf: the skill whose `examples/` folder holds the PNG. */
   category: string;
   error?: string;
 };
-
-/** The `examples:` each enabled schema ships, as gallery cards opening studyflow YAML directly. */
-function schemaExampleEntries(): ExampleEntry[] {
-  const enabled = new Set(getSettings().enabledSchemas);
-  return SCHEMA_MODELS
-    .filter((model) => model.core || enabled.has(model.prefix))
-    .flatMap((model) => (model.examples ?? []).map((example, index) => {
-      const title = example.title ?? `${model.name} example ${index + 1}`;
-      return {
-        filename: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '_')}.studyflow.yaml`,
-        content: typeof example.studyflow === 'string' ? example.studyflow : yaml.dump(example.studyflow),
-        iconClass: example.icon ?? model.icon,
-        title,
-        summary: firstSentence(example.description ?? ''),
-        category: skillOfSchema(model.prefix)?.name ?? model.name,
-      };
-    }));
-}
 
 /** Filenames alone, enough to draw the gallery before any PNG has been fetched. */
 export function buildInitialEntries(): ExampleEntry[] {
@@ -57,15 +32,13 @@ export function buildInitialEntries(): ExampleEntry[] {
       summary: '',
       category: path.split('/').at(-3) ?? '',
     }))
-    .sort((a, b) => a.filename.localeCompare(b.filename))
-    .concat(schemaExampleEntries());
+    .sort((a, b) => a.filename.localeCompare(b.filename));
 }
 
 /** The same entries with each PNG's embedded metadata read in; a failed read keeps the card and marks it. */
 export async function loadExampleEntries(): Promise<ExampleEntry[]> {
   const read = await Promise.all(
     buildInitialEntries().map(async (entry) => {
-      if (!entry.url) return entry; // schema examples arrive with their metadata already set
       try {
         const png = await fetch(entry.url).then((r) => r.arrayBuffer());
         return { ...entry, ...readExampleMetadata(entry.filename, png) };

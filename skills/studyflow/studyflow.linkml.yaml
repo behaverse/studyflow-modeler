@@ -33,9 +33,6 @@ prefixes:
   bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
 imports:
   - linkml:types
-annotations:
-  icon: iconify tabler--hexagon-letter-s
-  optional: false
 
 # Inspector tabs, in the order they appear; an attribute joins one by naming it in `in_subset`.
 # A `synthetic` tab is drawn by its own section rather than from attributes.
@@ -747,3 +744,7 @@ classes:
           - Data
         annotations:
           element: true
+
+annotations:
+  icon: iconify tabler--hexagon-letter-s
+  optional: false

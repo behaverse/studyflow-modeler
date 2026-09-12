@@ -26,9 +26,6 @@ prefixes:
 imports:
   - linkml:types
   - ../studyflow/studyflow.linkml
-annotations:
-  # The Reachy Mini silhouette, inlined so the badge needs no icon service or external host.
-  icon: &reachy-icon "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%233f3f46' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 8.5 6.5 2.5M22 8.5 25.5 2.5M15 14.5h2M10.5 21C8.3 23.6 7 26.3 7 29.2h18c0-2.9-1.3-5.6-3.5-8.2'/%3E%3Crect x='5' y='8' width='22' height='13' rx='5.5'/%3E%3Ccircle cx='12' cy='14.5' r='3'/%3E%3Ccircle cx='20' cy='14.5' r='3'/%3E%3C/svg%3E"
 
 enums:
   VariantEnum:
@@ -136,7 +133,8 @@ classes:
     implements:
       - bpmn:Participant
     annotations:
-      icon: *reachy-icon
+      # The Reachy Mini silhouette, inlined so the badge needs no icon service or external host.
+      icon: &reachy-icon "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%233f3f46' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 8.5 6.5 2.5M22 8.5 25.5 2.5M15 14.5h2M10.5 21C8.3 23.6 7 26.3 7 29.2h18c0-2.9-1.3-5.6-3.5-8.2'/%3E%3Crect x='5' y='8' width='22' height='13' rx='5.5'/%3E%3Ccircle cx='12' cy='14.5' r='3'/%3E%3Ccircle cx='20' cy='14.5' r='3'/%3E%3C/svg%3E"
       # The one kind this type is, as the band's kind picker names it.
       participantKind: Reachy Mini
     attributes:
@@ -469,3 +467,55 @@ classes:
         description: Streams captured.
         range: StreamEnum
         multivalued: true
+
+annotations:
+  icon: *reachy-icon
+  # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
+  templates:
+    value:
+      - description: Wake-word conversation - wait for the wake word, face the speaker, talk, sign off.
+        elements:
+          Wake_word_conversation:
+            type: SubProcess
+            name: Wake-word conversation
+            studyflow:icon: iconify ph--chats
+            documentation: |
+              Idle until the wake word, turn toward the speaker, then converse until
+              the stop phrase or the turn budget ends it.
+            flowElements:
+              ww_wake:
+                type: IntermediateCatchEvent
+                name: Wake word
+                extensionElements:
+                  - type: reachy:SenseEvent
+                    trigger: wake_word
+                    wakeWord: Hey Reachy
+                bounds: 140 162 36 36
+              ww_look:
+                type: ServiceTask
+                name: Face the speaker
+                extensionElements:
+                  - type: reachy:LookAt
+                    target: face
+                bounds: 240 140 100 80
+              ww_talk:
+                type: ServiceTask
+                name: Chat
+                extensionElements:
+                  - type: reachy:Converse
+                    model: claude-haiku-4-5
+                    persona: |
+                      You are Reachy, a small, curious desktop robot. Keep replies to one
+                      or two spoken sentences and never pretend to be human.
+                    stopPhrase: goodbye
+                bounds: 400 140 100 80
+              ww_bye:
+                type: ServiceTask
+                name: Sign off
+                extensionElements:
+                  - type: reachy:Gesture
+                    move: yes1
+                bounds: 560 140 100 80
+              Flow_ww_wake_ww_look: ww_wake -> ww_look
+              Flow_ww_look_ww_talk: ww_look -> ww_talk
+              Flow_ww_talk_ww_bye: ww_talk -> ww_bye

@@ -77,6 +77,7 @@ export type LinkmlSchema = {
   classes?: Record<string, LinkmlClass>;
   types?: Record<string, LinkmlType>;
   enums?: Record<string, LinkmlEnum>;
+  /** `icon`, `optional`, and `templates` (the palette flyout entries, a list in the expanded form). */
   annotations?: Annotations;
 };
 
@@ -102,7 +103,9 @@ export function parseLinkml(yamlText: string, sourceName?: string): LinkmlSchema
   return parsed as LinkmlSchema;
 }
 
-/** Every schema at once: a name declared by another schema resolves to it, as LinkML resolves an import. */
+/** Every schema at once, returned in the order given. A name declared by another schema resolves to it, as
+ * LinkML resolves an import; `imports` itself is not read, because no two schemas declare the same name
+ * (`tests/schemas.unit.spec.ts`), so one table of every schema's names answers the same way. */
 export function fromLinkml(docs: LinkmlSchema[]): SchemaModel[] {
   const owner = new Map<string, string>();
   for (const doc of docs) {
@@ -146,6 +149,7 @@ function toSchemaModel(doc: LinkmlSchema, owner: Map<string, string>): SchemaMod
       ...Object.entries(doc.classes ?? {}).map(([name, cls]) => toType(name, cls, prefix, qualify)),
     ],
     enumerations: Object.entries(doc.enums ?? {}).map(([name, entry]) => toEnum(name, entry, qualify)),
+    templates: Array.isArray(annotations.templates) ? annotations.templates : undefined,
   };
 }
 

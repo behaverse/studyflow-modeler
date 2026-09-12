@@ -54,15 +54,6 @@ export type SchemaTemplateModel = {
   elements?: Record<string, any>;
 };
 
-/** A complete studyflow shipped with the schema, offered in the New Diagram gallery. */
-export type SchemaExampleModel = {
-  title?: string;
-  description?: string;
-  icon?: string;
-  /** A full studyflow document (the `.studyflow.yaml` format), as a mapping or raw YAML text. */
-  studyflow?: Record<string, any> | string;
-};
-
 export type SchemaModel = {
   prefix: string;
   name: string;
@@ -79,8 +70,6 @@ export type SchemaModel = {
   enumerations: SchemaEnumModel[];
   /** Palette flyout entries: presets and design patterns dropped onto the canvas. */
   templates?: SchemaTemplateModel[];
-  /** Complete studyflows shown as cards in the New Diagram gallery. */
-  examples?: SchemaExampleModel[];
 };
 
 export type SchemaCategoryModel = {
