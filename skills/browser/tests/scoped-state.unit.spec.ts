@@ -1,11 +1,14 @@
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { expect, test } from '@playwright/test';
 
 import { buildCatalog } from '@core/notation';
 import { registerNode } from '@runner/nodes/registry';
 import { Session } from '@runner/session';
 import { Studyflow } from '@runner/studyflow';
-import { evaluateCondition, UndeclaredReference } from '@runner/branching';
+import { draw, evaluateCondition, UndeclaredReference } from '@runner/branching';
 import type { FlowNode } from '@runner/flow';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
@@ -307,6 +310,55 @@ test.describe('conditions over declared state', () => {
     await expect((async () => {
       for await (const _job of session.traverse()) { /* unreachable */ }
     })()).rejects.toThrow(/no start event/);
+  });
+});
+
+/** A gateway with no default flow whose one condition is false, and a flow without a condition to each of `bare`. */
+const NO_DEFAULT = (bare: string[]) => `${HEAD}Study:
+  type: bpmn:Process
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+      outgoing: [F1]
+    Gate:
+      type: bpmn:ExclusiveGateway
+      incoming: [F1]
+      outgoing: [F_No, ${bare.map((id) => `F_${id}`).join(', ')}]
+    No:
+      type: bpmn:EndEvent
+      incoming: [F_No]
+${bare.map((id) => `    ${id}:\n      type: bpmn:EndEvent\n      incoming: [F_${id}]\n`).join('')}    F1: Start -> Gate
+    F_No:
+      type: bpmn:SequenceFlow
+      sourceRef: Gate
+      targetRef: No
+      conditionExpression: 1 > 2
+${bare.map((id) => `    F_${id}: Gate -> ${id}\n`).join('')}`;
+
+test.describe('which branch a gateway takes', () => {
+  test('a seeded random gateway draws from the seed, the gateway and the visit', async () => {
+    const studyflow = await load(readFileSync(path.join(process.cwd(), 'tests/fixtures/random-loop.studyflow.yaml'), 'utf8'));
+    const session = new Session(studyflow, { catalog, seed: studyflow.seed });
+    const visited: string[] = [];
+    for await (const job of session.traverse()) visited.push(job.node.id);
+
+    const arms = [1, 2, 3, 4].map((visit) => ['A', 'B'][Math.floor(draw(6, 'Draw', visit) * 2)]);
+    expect(arms).toEqual(['A', 'A', 'B', 'A']);
+    expect(visited).toEqual(['Start', ...arms, 'Done']);
+  });
+
+  test('no condition held and no default: the one flow without a condition is taken', async () => {
+    const session = new Session(await load(NO_DEFAULT(['Otherwise'])), { catalog });
+    const visited: string[] = [];
+    for await (const job of session.traverse()) visited.push(job.node.id);
+    expect(visited).toEqual(['Start', 'Otherwise']);
+  });
+
+  test('no condition held, no default and two flows without a condition: the run stops', async () => {
+    const session = new Session(await load(NO_DEFAULT(['First', 'Second'])), { catalog });
+    await expect((async () => {
+      for await (const _job of session.traverse()) { /* stops at the gateway */ }
+    })()).rejects.toThrow(/No condition held at 'Gate'.*2 flows without a condition/);
   });
 });
 

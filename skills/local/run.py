@@ -491,6 +491,38 @@ def skill_dirs() -> list[Path]:
     return sorted(manifest.parent for root in roots for manifest in root.glob("*/SKILL.md"))
 
 
+def branching_modes() -> dict[str, str]:
+    """`meta.branching` from every skill's schema, by the XML tag of the type (`{uri}randomGateway`): how a gateway
+    of that type picks its branch, `random` or `model`. The browser runner reads the same key."""
+    modes: dict[str, str] = {}
+    for folder in skill_dirs():
+        schema = read_manifest(folder).get("schema")
+        if not schema or not (folder / schema).is_file():
+            continue
+        model = yaml.safe_load((folder / schema).read_text()) or {}
+        lower = (model.get("xml") or {}).get("tagAlias") == "lowerCase"
+        for declared in model.get("types") or []:
+            mode = (declared.get("meta") or {}).get("branching")
+            if mode:
+                name = declared["name"]
+                modes[f"{{{model['uri']}}}{name[:1].lower() + name[1:] if lower else name}"] = mode
+    return modes
+
+
+def draw(seed: int, gateway_id: str, visit: int) -> float:
+    """A random gateway's draw on one visit, in [0, 1): mulberry32 seeded with the FNV-1a hash of
+    `seed:gateway:visit`, bit for bit the browser runner's `draw` (skills/browser/src/branching.ts), so a seed
+    picks the same branches in both runtimes, in any order of the walk."""
+    mask = 0xFFFFFFFF
+    hashed = 0x811C9DC5
+    for byte in f"{seed}:{gateway_id}:{visit}".encode():
+        hashed = ((hashed ^ byte) * 0x01000193) & mask
+    a = (hashed + 0x6D2B79F5) & mask
+    t = ((a ^ (a >> 15)) * (a | 1)) & mask
+    t ^= (t + ((t ^ (t >> 7)) * (t | 61))) & mask
+    return ((t ^ (t >> 14)) & mask) / 4294967296
+
+
 def read_manifest(folder: Path) -> dict[str, Any]:
     """A skill's `metadata` (https://agentskills.io/specification), from the YAML front matter of its
     `SKILL.md`: what the skill contributes to studyflow (`schema`, `runtimes.<runtime>`)."""
@@ -732,6 +764,8 @@ class Runner:
     ) -> None:
         self.studyflow = studyflow
         self.debug = debug
+        self.seed = seed if seed is not None else studyflow_attr(studyflow.process, "seed")
+        self.branching = branching_modes()
         # Partial runners claim elements, not schemas: each is asked once which ids it will run.
         # Partial runners never open the diagram: they read `.cache/plan.json`, the plan as one JSON digest.
         handoff_plan = repo_dir / ".cache" / "plan.json"
@@ -785,7 +819,7 @@ class Runner:
         self.recorded = 0
         self.record = PROV.RunRecord(
             studyflow.plan,
-            seed if seed is not None else studyflow_attr(studyflow.process, "seed"),
+            self.seed,
             started or datetime.now(timezone.utc),
             run=self.repo_dir.name,
             who=PROV.current_user(),
@@ -1169,6 +1203,13 @@ class Runner:
             return None
 
         if local(element) in GATEWAY_TAGS:
+            branching = next((self.branching[ext.tag] for holder in element if local(holder) == "extensionElements"
+                              for ext in holder if ext.tag in self.branching), None)
+            if branching == "model":
+                raise RuntimeError(
+                    f"{element_id}: model-driven routing is not implemented, so it cannot pick a branch. "
+                    "Use a gateway with a condition on each outgoing flow, or a random gateway."
+                )
             # A clean gateway replays its recorded decision: same inputs, same seed, same verdict.
             # A condition edit is invisible to staleness: ✕ the gateway or `--fresh` forces re-evaluation.
             # A gateway a live runner samples decides live, so its decision never replays.
@@ -1183,7 +1224,28 @@ class Runner:
                     self.note_reuse(element_id, prior, f"skipped {element_id} ({prior['what']}, run {prior['run']})")
                     return self.studyflow.elements.get(flow.get("targetRef"))
             entry = self.record.begin(element_id, self.studyflow.name_of(element_id), bpmn_type(element))
-            default_id = element.get("default")
+
+            def take(flow: ET.Element, how: str, **marks: bool) -> ET.Element | None:
+                """Record the decision and how it was made, then follow `flow`."""
+                entry["taken"] = {"sequenceFlow": flow.get("id"), "name": flow.get("name"), **marks}
+                self.end_entry(entry)
+                when = self.moment()
+                self.decisions[element_id] = (flow.get("id"), when)
+                self.event("sequenceFlow.taken", f"    {how} → {flow.get('id')}")
+                self.checkpoint(
+                    f"executed {element_id}: {flow.get('id')}", when,
+                    {"Prov-Action": "executed", "Prov-Node": element_id, "Prov-What": flow.get("id")},
+                )
+                return self.studyflow.elements.get(flow.get("targetRef"))
+
+            if branching == "random":
+                # Seeded, each visit draws from the seed, the gateway and the visit number, as the browser runner does.
+                try:
+                    u = draw(int(self.seed), element_id, self.state.trace.count(element_id))
+                except (TypeError, ValueError):
+                    u = random.random()  # unseeded: a re-run replays the recorded decision instead
+                return take(flows[int(u * len(flows))], "drawn", random=True)
+
             bindings: dict[str, Any] = {}
             runner = self.runner_for(element)
             if runner is not None:
@@ -1213,50 +1275,28 @@ class Runner:
                         level=logging.DEBUG,
                     )
                     if verdict:
-                        entry["taken"] = {"sequenceFlow": flow.get("id"), "name": flow.get("name")}
-                        self.end_entry(entry)
-                        when = self.moment()
-                        self.decisions[element_id] = (flow.get("id"), when)
-                        self.event(
-                            "sequenceFlow.taken",
-                            f"    {expression} → {flow.get('id')}",
-                        )
-                        self.checkpoint(
-                            f"executed {element_id}: {flow.get('id')}", when,
-                            {"Prov-Action": "executed", "Prov-Node": element_id, "Prov-What": flow.get("id")},
-                        )
-                        return self.studyflow.elements.get(flow.get("targetRef"))
+                        return take(flow, expression)
             except BaseException as error:
                 self.record.fail(entry, error)
                 entry.pop("_runnerMs", None)
                 raise
 
-            chosen = next((f for f in flows if f.get("id") == default_id), None)
-            if chosen is None:
-                entry["status"] = "stuck"
-                self.end_entry(entry)
-                self.record.status = "error"
-                self.event(
-                    "gateway.stuck",
-                    f"    {element_id}: no conditionExpression held and no default flow",
-                    level=logging.ERROR,
-                )
-                return None
-            entry["taken"] = {
-                "sequenceFlow": chosen.get("id"), "name": chosen.get("name"), "default": True,
-            }
+            # No condition held: the default flow, else the one flow without a condition, as the browser runner decides.
+            chosen = next((f for f in flows if f.get("id") == element.get("default")), None)
+            if chosen is not None:
+                return take(chosen, "default", default=True)
+            bare = [f for f in flows if not any(local(c) == "conditionExpression" and (c.text or "").strip() for c in f)]
+            if len(bare) == 1:
+                return take(bare[0], "otherwise", otherwise=True)
+            entry["status"] = "stuck"
             self.end_entry(entry)
-            when = self.moment()
-            self.decisions[element_id] = (chosen.get("id"), when)
+            self.record.status = "error"
             self.event(
-                "sequenceFlow.taken",
-                f"    default → {chosen.get('id')}",
+                "gateway.stuck",
+                f"    {element_id}: no condition held, and there is no default flow or single flow without a condition",
+                level=logging.ERROR,
             )
-            self.checkpoint(
-                f"executed {element_id}: {chosen.get('id')}", when,
-                {"Prov-Action": "executed", "Prov-Node": element_id, "Prov-What": chosen.get("id")},
-            )
-            return self.studyflow.elements.get(chosen.get("targetRef"))
+            return None
 
         return self.studyflow.elements.get(flows[0].get("targetRef"))
 

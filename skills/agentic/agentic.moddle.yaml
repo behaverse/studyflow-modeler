@@ -174,7 +174,7 @@ types:
 
   # Routing: the model reads the input and picks one outgoing flow by its
   # label; the flow marked `default` is taken when it is unsure or fails.
-  # The runner refuses `meta.branching: model` at run time; not implemented yet.
+  # Both runners refuse `meta.branching: model` at run time; not implemented yet.
   - name: Router
     description: A branch the model picks, choosing among the outgoing flows' labels.
     superClass:

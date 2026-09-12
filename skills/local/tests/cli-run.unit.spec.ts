@@ -152,6 +152,57 @@ S:
     }
     expect(log).toContain('Split: a parallel split');
   });
+  test('a seeded random gateway takes the arms the browser runner takes', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    // The cognitive skill beside the copy, so the walk reads its schema's `meta.branching`; it runs nothing itself.
+    fs.mkdirSync(path.join(dir, 'skills', 'cognitive'), { recursive: true });
+    for (const file of ['SKILL.md', 'cognitive.moddle.yaml']) {
+      fs.copyFileSync(path.resolve(__dirname, '../../cognitive', file), path.join(dir, 'skills', 'cognitive', file));
+    }
+    const fixture = fs.readFileSync(path.resolve(__dirname, '../../../tests/fixtures/random-loop.studyflow.yaml'), 'utf8');
+    fs.writeFileSync(path.join(dir, 'loop.bpmn'), await studyflowToXml(fixture, moddle));
+    execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'loop.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
+      cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
+    });
+
+    // The same arms as skills/browser/tests/scoped-state.unit.spec.ts draws from the same seed.
+    const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
+    expect([...log.matchAll(/drawn → F_([AB])/g)].map((match) => match[1])).toEqual(['A', 'A', 'B', 'A']);
+  });
+
+  test('when no condition holds and there is no default, the one flow without a condition is taken', async () => {
+    const xml = await studyflowToXml(`id: otherwise
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+    Gate:
+      type: ExclusiveGateway
+    No:
+      type: EndEvent
+    Otherwise:
+      type: EndEvent
+    F1: Start -> Gate
+    F_No:
+      type: SequenceFlow
+      sourceRef: Gate
+      targetRef: No
+      conditionExpression: 1 > 2
+    F_Otherwise: Gate -> Otherwise
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.writeFileSync(path.join(dir, 'otherwise.bpmn'), xml);
+    execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'otherwise.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
+      cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
+    });
+    expect(archivedState(path.join(dir, 'run', 'otherwise.bpmn'))._meta.reached).toEqual({ Start: 1, Gate: 1, Otherwise: 1 });
+  });
+
   test('refuses to start without the prov skill', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));

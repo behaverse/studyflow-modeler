@@ -1,0 +1,35 @@
+# A random gateway looping four times over arms A and B, then out. Both runners walk it with seed 6
+# and must take the same arms (skills/browser/tests/scoped-state.unit.spec.ts, skills/local/tests/cli-run.unit.spec.ts).
+id: random_loop
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Study:
+  type: Process
+  seed: 6
+  flowElements:
+    Start:
+      type: StartEvent
+    Draw:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+    A:
+      type: Task
+    B:
+      type: Task
+    Again:
+      type: ExclusiveGateway
+      default: F_Out
+    Done:
+      type: EndEvent
+    F1: Start -> Draw
+    F_A: Draw -> A
+    F_B: Draw -> B
+    F_A2: A -> Again
+    F_B2: B -> Again
+    F_Back:
+      type: SequenceFlow
+      sourceRef: Again
+      targetRef: Draw
+      conditionExpression: state.trace.count('Draw') < 4
+    F_Out: Again -> Done

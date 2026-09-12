@@ -68,15 +68,15 @@ Gateways decide which branch a run takes, and each kind decides differently:
 
 | Gateway | Rule |
 |:--|:--|
-| An exclusive gateway, and `cognitive:EligibilityGateway` | the first outgoing edge whose condition holds, otherwise the edge marked `default` |
-| `cognitive:RandomGateway` | a seeded uniform draw over the outgoing edges |
+| An exclusive gateway, and `cognitive:EligibilityGateway` | the first outgoing edge whose condition holds, otherwise the edge marked `default`, otherwise the one edge without a condition; with none of these the run stops |
+| `cognitive:RandomGateway` | a uniform draw over the outgoing edges, seeded from the study's `seed`, the gateway and the visit |
 | A parallel gateway | every outgoing edge; the matching join waits for all of them |
 | An inclusive gateway | every outgoing edge whose condition holds |
 | `agentic:Router` | a label chosen by a model |
 
 - A runner that cannot evaluate a condition stops the run, rather than quietly taking the other branch.
 - A condition that names a value which is not in scope reports an exception, rather than evaluating to `false`.
-- Setting a `seed` on the study makes every gateway draw replay exactly.
+- Setting a `seed` on the study makes every gateway draw replay exactly, and both runners draw the same branches from it.
 
 | Element | Checked before the run | Browser runner | Python runner |
 |:--|:--|:--|:--|
@@ -86,8 +86,8 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | - | generic screen, and a way forward | - |
 | Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
 | `bpmn:SubProcess` | - | descends; opens its own scope | walks one level in; no separate scope |
-| `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions, then `default` | the same rule, in Python |
-| `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | seeded uniform draw | treated as exclusive |
+| `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions, then `default`, then the one edge without a condition | the same rule, in Python |
+| `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | seeded uniform draw | the same draw |
 | `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | - | - | loaded and saved wherever they carry a `uri` |
 | `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | - |
 | Timers, and multi-instance markers | - | not executed | not executed |

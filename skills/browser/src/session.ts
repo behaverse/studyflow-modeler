@@ -1,7 +1,7 @@
 import type { FlowNode } from '@runner/flow';
 import { getCatalog, type TypeCatalog } from '@core/notation';
 import { findByFlowNode } from '@runner/nodes/registry';
-import { mulberry32, evaluateCondition } from '@runner/branching';
+import { draw, evaluateCondition } from '@runner/branching';
 import { ScopeChain, type Scope } from '@runner/scope';
 import type { Job } from '@runner/jobs';
 import type { Studyflow } from '@runner/studyflow';
@@ -30,7 +30,7 @@ export class Session {
   agentId?: string;
   sessionId?: string;
 
-  private random: () => number;
+  private seed?: number;
   private scopes: ScopeChain;
   private catalog: TypeCatalog;
   private onDiagnostic?: (message: string) => void;
@@ -42,7 +42,7 @@ export class Session {
     this.studyflow = studyflow;
     this.agentId = context.agentId;
     this.sessionId = context.sessionId;
-    this.random = context.seed != null ? mulberry32(context.seed) : Math.random;
+    this.seed = context.seed;
     this.catalog = context.catalog ?? getCatalog();
     this.onDiagnostic = context.onDiagnostic;
 
@@ -186,12 +186,15 @@ export class Session {
     return this.studyflow.sequenceFlows.get(node.outgoing[0])?.targetId;
   }
 
+  /** Seeded, each visit draws from the seed, the gateway and the visit number (this one included), as run.py does. */
   private pickRandomBranch(node: FlowNode): string | undefined {
     const targets = node.outgoing
       .map((id) => this.studyflow.sequenceFlows.get(id)?.targetId)
       .filter((t): t is string => !!t);
     if (targets.length === 0) return undefined;
-    return targets[Math.floor(this.random() * targets.length)];
+    const visit = this.trace.filter((id) => id === node.id).length;
+    const u = this.seed != null ? draw(this.seed, node.id, visit) : Math.random();
+    return targets[Math.floor(u * targets.length)];
   }
 
   private pickConditionBranch(node: FlowNode): string | undefined {
@@ -205,17 +208,19 @@ export class Session {
     return undefined;
   }
 
-  private pickDefaultBranch(node: FlowNode): string | undefined {
-    const defaultFlowId = node.businessObject?.default?.id;
-    if (defaultFlowId) {
-      const flow = this.studyflow.sequenceFlows.get(defaultFlowId);
-      if (flow) return flow.targetId;
-    }
-    for (const flowId of node.outgoing) {
-      const flow = this.studyflow.sequenceFlows.get(flowId);
-      if (flow && !flow.conditionExpression) return flow.targetId;
-    }
-    return this.firstOutgoingTarget(node);
+  /** No condition held: the default flow, else the one flow without a condition; else the run stops, as run.py's does. */
+  private pickDefaultBranch(node: FlowNode): string {
+    const byDefault = this.studyflow.sequenceFlows.get(node.businessObject?.default?.id);
+    if (byDefault) return byDefault.targetId;
+    const otherwise = node.outgoing
+      .map((id) => this.studyflow.sequenceFlows.get(id))
+      .filter((flow) => flow && !flow.conditionExpression);
+    if (otherwise.length === 1) return otherwise[0]!.targetId;
+    throw new Error(
+      `No condition held at '${node.id}', and it has no default flow `
+      + `${otherwise.length > 1 ? `but ${otherwise.length} flows without a condition` : 'and no flow without a condition'}. `
+      + 'Mark one outgoing flow as the default in the modeler.',
+    );
   }
 
   private conditionBindings(): Record<string, unknown> {

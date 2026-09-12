@@ -67,7 +67,7 @@ When an argument of a `python://` call is one placeholder and nothing else, the 
 
 ## Well-formed diagrams
 
-A studyflow has to satisfy the usual rules of a BPMN diagram before anything can run it: every `sourceRef` and `targetRef` names an element that exists in the file, every path leaves a start event and reaches an end event, an exclusive gateway either covers every case in its conditions or marks one outgoing edge `default`, and every value a condition or a step reads is declared on the study or on a sub-process containing it.
+A studyflow has to satisfy the usual rules of a BPMN diagram before anything can run it: every `sourceRef` and `targetRef` names an element that exists in the file, every path leaves a start event and reaches an end event, an exclusive gateway covers every case in its conditions, marks one outgoing edge `default`, or leaves exactly one outgoing edge without a condition, and every value a condition or a step reads is declared on the study or on a sub-process containing it.
 
 `studyflow validate` reports what can be checked without running: whether the file parses, whether the sets it depends on loaded, and any name that no loaded set declares. The command reports warnings but does not fail on them unless you pass `--strict`. Everything else shows up when the study runs: a condition that can never hold, a data edge that arrives too late.
 
