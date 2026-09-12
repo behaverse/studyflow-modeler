@@ -355,177 +355,175 @@ types:
 templates:
 
   - description: Autonomous agent with tools; the model decides what to call and when.
-    object:
-      bpmn:name: Agent (tool loop)
-      type: Agent
-      bpmn:documentation: |
-        Each turn the model picks one of the tools drawn inside, until the
-        completion condition holds or the turn budget runs out.
-      icon: iconify ph--robot
-      model: claude-opus-4-8
-      systemPrompt: |
-        You are a research assistant. Use the available tools to answer the
-        question. Stop as soon as you can answer it.
-      toolChoice: auto
-      maxTurns: 12
-      completionCondition: answer != null
-      flowElements:
-        - id: agent_search
-          type: Tool
-          bpmn:name: Search Wikipedia
-          kind: search
-          purpose: |
-            Look up background facts the model does not already know.
-          parameters: |
-            type: object
-            properties:
-              query: {type: string, description: Search terms}
-            required: [query]
-          implementation: python://wikipedia.search
-          additionalArguments: "results: 5"
-          x: 200
-          y: 140
+    elements:
+      Agent:
+        type: AdHocSubProcess
+        name: Agent (tool loop)
+        documentation: |
+          Each turn the model picks one of the tools drawn inside, until the
+          completion condition holds or the turn budget runs out.
+        completionCondition: answer != null
+        extensionElements:
+          - type: agentic:Agent
+            studyflow:icon: iconify ph--robot
+            model: claude-opus-4-8
+            systemPrompt: |
+              You are a research assistant. Use the available tools to answer the
+              question. Stop as soon as you can answer it.
+            toolChoice: auto
+            maxTurns: 12
+        flowElements:
+          agent_search:
+            type: ServiceTask
+            name: Search Wikipedia
+            implementation: python://wikipedia.search
+            additionalArguments: "results: 5"
+            extensionElements:
+              - type: agentic:Tool
+                kind: search
+                purpose: |
+                  Look up background facts the model does not already know.
+                parameters: |
+                  type: object
+                  properties:
+                    query: {type: string, description: Search terms}
+                  required: [query]
+            bounds: 200 140 100 80
 
   - description: Evaluator-optimizer; generate, judge, revise until the score clears the bar.
-    object:
-      bpmn:name: Evaluator-optimizer
-      type: bpmn:SubProcess
-      bpmn:documentation: |
-        A generator drafts, a judge scores the draft against a rubric, and the
-        back-edge revises until the score clears the bar.
-      icon: iconify ph--arrows-clockwise
-      flowElements:
-        - id: eo_generate
-          type: LLMCall
-          bpmn:name: Draft
-          model: claude-haiku-4-5
-          temperature: 0.7
-          x: 200
-          y: 140
-        - id: eo_judge
-          type: LLMCall
-          bpmn:name: Judge the draft
-          model: claude-opus-4-8
-          responseFormat: json
-          prompt: |
-            Score the draft 1-5 against the rubric and name the deciding
-            criterion. Reply as `{"score": <n>, "reason": "<why>"}`.
-          x: 380
-          y: 140
-        - id: eo_gate
-          type: bpmn:ExclusiveGateway
-          bpmn:name: Good enough?
-          x: 560
-          y: 140
-        - type: bpmn:SequenceFlow
-          sourceRef: eo_generate
-          targetRef: eo_judge
-        - type: bpmn:SequenceFlow
-          sourceRef: eo_judge
-          targetRef: eo_gate
-        - type: bpmn:SequenceFlow
-          bpmn:name: revise
-          conditionExpression: score < 4 and state.trace.count('eo_gate') < 4
-          sourceRef: eo_gate
-          targetRef: eo_generate
+    elements:
+      Evaluator_optimizer:
+        type: SubProcess
+        name: Evaluator-optimizer
+        studyflow:icon: iconify ph--arrows-clockwise
+        documentation: |
+          A generator drafts, a judge scores the draft against a rubric, and the
+          back-edge revises until the score clears the bar.
+        flowElements:
+          eo_generate:
+            type: ServiceTask
+            name: Draft
+            extensionElements:
+              - type: agentic:LLMCall
+                model: claude-haiku-4-5
+                temperature: 0.7
+            bounds: 200 140 100 80
+          eo_judge:
+            type: ServiceTask
+            name: Judge the draft
+            extensionElements:
+              - type: agentic:LLMCall
+                model: claude-opus-4-8
+                responseFormat: json
+                prompt: |
+                  Score the draft 1-5 against the rubric and name the deciding
+                  criterion. Reply as `{"score": <n>, "reason": "<why>"}`.
+            bounds: 380 140 100 80
+          eo_gate:
+            type: ExclusiveGateway
+            name: Good enough?
+            bounds: 560 140 50 50
+          Flow_eo_generate_eo_judge: eo_generate -> eo_judge
+          Flow_eo_judge_eo_gate: eo_judge -> eo_gate
+          Flow_eo_gate_eo_generate:
+            name: revise
+            conditionExpression: score < 4 and state.trace.count('eo_gate') < 4
+            sourceRef: eo_gate
+            targetRef: eo_generate
 
   - description: Routing; a classifier model picks one of the outgoing branches.
-    object:
-      bpmn:name: Route by intent
-      type: Router
-      bpmn:documentation: |
-        The model chooses among the labels of the outgoing flows; the flow
-        marked `default` is taken when it is unsure.
-      icon: iconify ph--signpost
-      model: claude-haiku-4-5
-      instructions: |
-        Read the request and route it to exactly one branch, using the branch
-        labels on the outgoing flows. If none clearly applies, say so.
+    elements:
+      Route_by_intent:
+        type: ExclusiveGateway
+        name: Route by intent
+        documentation: |
+          The model chooses among the labels of the outgoing flows; the flow
+          marked `default` is taken when it is unsure.
+        extensionElements:
+          - type: agentic:Router
+            studyflow:icon: iconify ph--signpost
+            model: claude-haiku-4-5
+            instructions: |
+              Read the request and route it to exactly one branch, using the branch
+              labels on the outgoing flows. If none clearly applies, say so.
 
   - description: Parallelization; fan the same input out to several calls, then join.
-    object:
-      bpmn:name: Parallel calls
-      type: bpmn:SubProcess
-      bpmn:documentation: |
-        Independent calls run at once and their replies are joined; add a
-        downstream call to vote or merge them.
-      icon: iconify ph--git-fork
-      flowElements:
-        - id: par_split
-          type: bpmn:ParallelGateway
-          x: 160
-          y: 145
-        - id: par_a
-          type: LLMCall
-          bpmn:name: Call A
-          model: claude-haiku-4-5
-          x: 280
-          y: 60
-        - id: par_b
-          type: LLMCall
-          bpmn:name: Call B
-          model: claude-haiku-4-5
-          x: 280
-          y: 220
-        - id: par_join
-          type: bpmn:ParallelGateway
-          x: 460
-          y: 145
-        - type: bpmn:SequenceFlow
-          sourceRef: par_split
-          targetRef: par_a
-        - type: bpmn:SequenceFlow
-          sourceRef: par_split
-          targetRef: par_b
-        - type: bpmn:SequenceFlow
-          sourceRef: par_a
-          targetRef: par_join
-        - type: bpmn:SequenceFlow
-          sourceRef: par_b
-          targetRef: par_join
+    elements:
+      Parallel_calls:
+        type: SubProcess
+        name: Parallel calls
+        studyflow:icon: iconify ph--git-fork
+        documentation: |
+          Independent calls run at once and their replies are joined; add a
+          downstream call to vote or merge them.
+        flowElements:
+          par_split:
+            type: ParallelGateway
+            bounds: 160 145 50 50
+          par_a:
+            type: ServiceTask
+            name: Call A
+            extensionElements:
+              - type: agentic:LLMCall
+                model: claude-haiku-4-5
+            bounds: 280 60 100 80
+          par_b:
+            type: ServiceTask
+            name: Call B
+            extensionElements:
+              - type: agentic:LLMCall
+                model: claude-haiku-4-5
+            bounds: 280 220 100 80
+          par_join:
+            type: ParallelGateway
+            bounds: 460 145 50 50
+          Flow_par_split_par_a: par_split -> par_a
+          Flow_par_split_par_b: par_split -> par_b
+          Flow_par_a_par_join: par_a -> par_join
+          Flow_par_b_par_join: par_b -> par_join
 
   - description: Human approval gate; stop, show the artifact, wait for a person.
-    object:
-      bpmn:name: Human approval
-      type: HumanApproval
-      bpmn:documentation: |
-        Pauses the run until the reviewer answers.
-      icon: iconify ph--user-check
-      question: |
-        Review the proposed action and approve, edit, or reject it.
+    elements:
+      Human_approval:
+        type: UserTask
+        name: Human approval
+        documentation: |
+          Pauses the run until the reviewer answers.
+        extensionElements:
+          - type: agentic:HumanApproval
+            studyflow:icon: iconify ph--user-check
+            question: |
+              Review the proposed action and approve, edit, or reject it.
 
   - description: Prompt chain with a quality gate between the steps.
-    object:
-      bpmn:name: Prompt chain
-      type: bpmn:SubProcess
-      bpmn:documentation: |
-        Fixed steps in a set order, with a check on the intermediate result
-        between them.
-      icon: iconify ph--link
-      flowElements:
-        - id: chain_a
-          type: LLMCall
-          bpmn:name: Extract
-          model: claude-haiku-4-5
-          temperature: 0
-          x: 180
-          y: 140
-        - id: chain_gate
-          type: bpmn:ExclusiveGateway
-          icon: iconify ph--sign-in
-          bpmn:name: Complete?
-          x: 340
-          y: 145
-        - id: chain_b
-          type: LLMCall
-          bpmn:name: Summarize
-          model: ollama://llama3.3
-          temperature: 0
-          x: 460
-          y: 140
-        - type: bpmn:SequenceFlow
-          sourceRef: chain_a
-          targetRef: chain_gate
-        - type: bpmn:SequenceFlow
-          sourceRef: chain_gate
-          targetRef: chain_b
+    elements:
+      Prompt_chain:
+        type: SubProcess
+        name: Prompt chain
+        studyflow:icon: iconify ph--link
+        documentation: |
+          Fixed steps in a set order, with a check on the intermediate result
+          between them.
+        flowElements:
+          chain_a:
+            type: ServiceTask
+            name: Extract
+            extensionElements:
+              - type: agentic:LLMCall
+                model: claude-haiku-4-5
+                temperature: 0
+            bounds: 180 140 100 80
+          chain_gate:
+            type: ExclusiveGateway
+            name: Complete?
+            bounds: 340 145 50 50
+          chain_b:
+            type: ServiceTask
+            name: Summarize
+            extensionElements:
+              - type: agentic:LLMCall
+                model: ollama://llama3.3
+                temperature: 0
+            bounds: 460 140 100 80
+          Flow_chain_a_chain_gate: chain_a -> chain_gate
+          Flow_chain_gate_chain_b: chain_gate -> chain_b

@@ -232,22 +232,22 @@ test.describe('catalog: type parity with moddle', () => {
 
 
 test.describe('catalog: templates and enums', () => {
-  test('every schema template compiles with a resolvable type', () => {
+  test('every schema template compiles, its palette entry read off its first element', () => {
     for (const { prefix } of SCHEMAS) {
-      const declared = (packages[prefix].templates ?? []).filter((t: any) => t?.object?.type);
+      const declared = packages[prefix].templates ?? [];
       const compiled = catalog.schemaFor(prefix)?.templates ?? [];
       expect(compiled.length, `${prefix} template count`).toBe(declared.length);
 
       for (const template of compiled) {
         expect(template.bpmnType, template.id).toMatch(/^bpmn:/);
+        expect(template.iconClass, template.id).toBeTruthy();
         if (template.extensionType !== undefined) {
           expect(catalog.getType(template.extensionType), template.id).toBeTruthy();
         }
-        for (const el of template.flowElements ?? []) {
-          if (el.kind === 'node') expect(el.bpmnType, `${template.id} node`).toMatch(/^bpmn:/);
-        }
       }
     }
+    const pool = catalog.schemaFor('eeg')?.templates.find((template) => template.name === 'EEG session');
+    expect(pool).toMatchObject({ bpmnType: 'bpmn:Participant', extensionType: 'eeg:Session', iconClass: 'iconify ph--head-circuit' });
   });
 
   test('enumerations carry their literals, own first, then what other schemas extend them with', () => {

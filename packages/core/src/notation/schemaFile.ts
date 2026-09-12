@@ -43,9 +43,11 @@ export type SchemaEnumModel = {
   literalValues?: SchemaEnumLiteralModel[];
 };
 
+/** A palette entry: elements a drop adds, spelled as in a `.studyflow.yaml` file. */
 export type SchemaTemplateModel = {
   description?: string;
-  object?: Record<string, any>;
+  /** Id-keyed, like a file's top level. The first is the element dropped; a pool's `processRef` names the process holding its flow. */
+  elements?: Record<string, any>;
 };
 
 /** A complete studyflow shipped with the schema, offered in the New Diagram gallery. */

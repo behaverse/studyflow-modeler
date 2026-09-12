@@ -129,29 +129,7 @@ export type CategoryEntry = {
   synthetic: boolean;
 };
 
-export interface TemplateFlowNode {
-  id: string;
-  kind: 'node';
-  extensionType?: string;
-  bpmnType: string;
-  iconClass?: string;
-  overrideIconClass?: string;
-  templateAttributes?: Record<string, any>;
-  x?: number;
-  y?: number;
-}
-
-export interface TemplateFlowConnection {
-  id?: string;
-  kind: 'connection';
-  bpmnType: string;
-  sourceRef: string;
-  targetRef: string;
-  templateAttributes?: Record<string, any>;
-}
-
-export type TemplateFlowElement = TemplateFlowNode | TemplateFlowConnection;
-
+/** A palette template: what the palette shows, read off its first element, and the elements a drop builds. */
 export interface Template {
   id: string;
   name: string;
@@ -159,7 +137,6 @@ export interface Template {
   extensionType?: string;
   bpmnType: string;
   iconClass?: string;
-  overrideIconClass?: string;
-  templateAttributes?: Record<string, any>;
-  flowElements?: TemplateFlowElement[];
+  /** As the schema spells them (`.studyflow.yaml`); see `SchemaTemplateModel`. */
+  elements: Record<string, unknown>;
 }

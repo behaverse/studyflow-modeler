@@ -163,41 +163,47 @@ types:
 
 templates:
   - description: N-Back running a timeline that ships with the Behaverse build.
-    object:
-      type: Task
-      bpmn:name: N-Back (XCIT_NB_01)
-      scene: NB
-      configurations: |
-        Timelines:
-          XCIT_NB_01:
+    elements:
+      NBack_XCIT_NB_01:
+        type: ChoreographyTask
+        name: N-Back (XCIT_NB_01)
+        extensionElements:
+          - type: behaverse:Task
+            scene: NB
+            configurations: |
+              Timelines:
+                XCIT_NB_01:
   - description: N-Back with an inline timeline; author only the blocks that differ from the defaults.
-    object:
-      type: Task
-      bpmn:name: N-Back (inline)
-      scene: NB
-      configurations: |
-        Blocks:
-          LabLink_InlineBlock:
-            Name: LabLink_InlineBlock
-            Inherits: Default
-            Parameters:
-              NValue: 1
-              Feature: Letters
-              Streams:
-                - Feature:
-                    Reference: Feature
-                  StimulusValue:
-                    Generate: OncePerBlock
-                    Sequence:
-                      Type: Ordered
-                      Values: [3, 1, 2, 1, 3, 2, 3, 2]
-              StreamSize: 8
-              FeatureValuesCount: 3
-              MaxResponseTime: 3
-              StimulusDisplayDuration: 0.5
-              InterStimulusInterval: 2.2
-        Timelines:
-          LabLink_Inline:
-            Name: LabLink_Inline
-            blocks:
-              - name: LabLink_InlineBlock
+    elements:
+      NBack_inline:
+        type: ChoreographyTask
+        name: N-Back (inline)
+        extensionElements:
+          - type: behaverse:Task
+            scene: NB
+            configurations: |
+              Blocks:
+                LabLink_InlineBlock:
+                  Name: LabLink_InlineBlock
+                  Inherits: Default
+                  Parameters:
+                    NValue: 1
+                    Feature: Letters
+                    Streams:
+                      - Feature:
+                          Reference: Feature
+                        StimulusValue:
+                          Generate: OncePerBlock
+                          Sequence:
+                            Type: Ordered
+                            Values: [3, 1, 2, 1, 3, 2, 3, 2]
+                    StreamSize: 8
+                    FeatureValuesCount: 3
+                    MaxResponseTime: 3
+                    StimulusDisplayDuration: 0.5
+                    InterStimulusInterval: 2.2
+              Timelines:
+                LabLink_Inline:
+                  Name: LabLink_Inline
+                  blocks:
+                    - name: LabLink_InlineBlock

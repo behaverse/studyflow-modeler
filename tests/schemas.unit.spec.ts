@@ -208,15 +208,6 @@ test.describe('schema lint', () => {
         }
       });
 
-      test('templates reference real types', () => {
-        for (const tpl of schema.templates ?? []) {
-          expect(typeof tpl.description, 'template description').toBe('string');
-          const typeRef = tpl.object?.type;
-          expect(typeof typeRef, 'template object.type').toBe('string');
-          expect(resolves(typeRef, schema), `template type ${typeRef}`).toBe(true);
-        }
-      });
-
     });
   }
 });
@@ -227,18 +218,6 @@ test.describe('moddle registration', () => {
   );
   const packages = schemaPackages(models);
   const moddle = new BpmnModdle(packages) as any;
-
-  function knownProperties(qname: string): Set<string> {
-    const instance = moddle.create(qname);
-    const descriptor = moddle.getElementDescriptor(instance);
-    const names = new Set<string>();
-    for (const p of descriptor.properties ?? []) {
-      names.add(p.name);
-      if (p.ns?.localName) names.add(p.ns.localName);
-      if (p.ns?.name) names.add(p.ns.name);
-    }
-    return names;
-  }
 
   for (const { prefix } of SCHEMAS) {
     const schema = rawSchemas.get(prefix)!;
@@ -280,41 +259,13 @@ test.describe('moddle registration', () => {
       }
     });
 
-    test(`${prefix}: templates only set declared properties`, () => {
-      // Keys the template expander handles itself (RESERVED_TEMPLATE_KEYS in the compiler, plus flow-node keys).
-      const STRUCTURAL = new Set([
-        'type', 'name', 'icon', 'attributes', 'mixins', 'flowElements',
-        'x', 'y', 'id', 'sourceRef', 'targetRef',
-      ]);
-
-      const checkObject = (obj: Record<string, any>, context: string) => {
-        const typeRef = String(obj.type);
-        const qname = typeRef.includes(':') ? typeRef : `${prefix}:${typeRef}`;
-        const known = knownProperties(qname);
-        for (const key of Object.keys(obj)) {
-          if (STRUCTURAL.has(key)) continue;
-          if (key.startsWith('bpmn:')) {
-            expect(knownProperties('bpmn:Task').has(key.slice(5)) || key === 'bpmn:documentation',
-              `${context}: unknown bpmn key ${key}`).toBe(true);
-            continue;
-          }
-          expect(known.has(key), `${context}: '${key}' is not a property of ${qname}`).toBe(true);
-        }
-      };
-
+    test(`${prefix}: templates read as studyflow, every key declared and every reference resolved`, () => {
       for (const tpl of schema.templates ?? []) {
-        const label = `template '${tpl.object?.['bpmn:name'] ?? tpl.description}'`;
-        checkObject(tpl.object, label);
-
-        const children: any[] = tpl.object?.flowElements ?? [];
-        const ids = new Set(children.map((c) => c.id).filter(Boolean));
-        for (const child of children) {
-          checkObject(child, `${label} > ${child.id ?? child.type}`);
-          if (child.type === 'bpmn:SequenceFlow') {
-            expect(ids.has(child.sourceRef), `${label}: dangling sourceRef ${child.sourceRef}`).toBe(true);
-            expect(ids.has(child.targetRef), `${label}: dangling targetRef ${child.targetRef}`).toBe(true);
-          }
-        }
+        expect(typeof tpl.description, 'template description').toBe('string');
+        const warnings: string[] = [];
+        const definitions = studyflowToDefinitions({ definitions: {}, elements: tpl.elements }, moddle, (message) => warnings.push(message));
+        expect(definitions.rootElements.length, tpl.description).toBeGreaterThan(0);
+        expect(warnings, tpl.description).toEqual([]);
       }
     });
   }

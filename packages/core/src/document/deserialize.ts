@@ -240,12 +240,13 @@ class ModdleBuilder {
   }
 }
 
+/** `source` is the file's text, or a document already parsed (a schema template's elements, under `elements:`). */
 export function studyflowToDefinitions(
-  yamlText: string,
+  source: string | YamlDoc,
   moddle: Moddle,
   onWarning: (message: string) => void = (message) => console.warn(`[studyflow read] ${message}`),
 ): any {
-  const doc = yaml.load(yamlText) as YamlDoc;
+  const doc = (typeof source === 'string' ? yaml.load(source) : source) as YamlDoc;
   if (!doc || typeof doc !== 'object' || !('definitions' in doc)) {
     throw new Error("Not a studyflow YAML document (missing 'definitions').");
   }

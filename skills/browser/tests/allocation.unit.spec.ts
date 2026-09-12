@@ -89,12 +89,12 @@ test.describe('RandomGateway allocation', () => {
 
   test('the stratified-allocation palette template is exactly what gets reported', () => {
     // The template ships with `stratifyBy: age_band`, so stamping it and running warns by design.
-    const template = models
+    const gateway = models
       .find((model) => model.prefix === 'cognitive')
-      ?.templates?.find((t: any) => t.object?.['bpmn:name'] === 'Stratified allocation');
-    expect(template, 'the cognitive schema ships a Stratified allocation template').toBeTruthy();
+      ?.templates?.find((t) => t.elements?.Stratified_allocation)?.elements?.Stratified_allocation;
+    expect(gateway, 'the cognitive schema ships a Stratified allocation template').toBeTruthy();
 
-    const stratifyBy = (template as any).object.stratifyBy;
+    const stratifyBy = gateway.extensionElements[0].stratifyBy;
     expect(stratifyBy).toBeTruthy();
     expect(validateAllocation(randomGateway({ stratifyBy }))).toHaveLength(1);
   });

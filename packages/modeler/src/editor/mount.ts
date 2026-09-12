@@ -14,8 +14,7 @@ import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
-import { createTemplateElement, materializeTemplateFlow } from '@modeler/templates/factory';
-import type { TemplateFlowElement } from '@core/notation';
+import { createTemplateElement, materializeTemplateFlow, type TemplateFlow } from '@modeler/templates/factory';
 import type { Editor, EditorModel, EditorSimulation, EditorTemplates, ModelElement } from '@modeler/editor/port';
 
 export type MountEditorOptions = {
@@ -139,13 +138,13 @@ export function mountEditor(options: MountEditorOptions): Editor {
   bus.on('ElementsRemoved', onSceneChanged);
 
   // Templates: the palette drags a template's shape; the flow it holds is laid out inside once it lands.
-  let pendingFlow: { businessObject: ModelElement; flowElements: TemplateFlowElement[] } | undefined;
+  let pendingFlow: { businessObject: ModelElement; flow: TemplateFlow } | undefined;
   const materializePending = (): void => {
     const pending = pendingFlow;
     const placed = pending && canvas.getScene()?.byBusinessObject.get(pending.businessObject);
     if (!pending || placed?.kind !== 'node') return;
     pendingFlow = undefined;
-    materializeTemplateFlow(canvas, model, placed, pending.flowElements);
+    materializeTemplateFlow(canvas, placed, pending.flow);
     canvas.getSelection().select(placed);
   };
   bus.on('ElementChanged', materializePending);
@@ -154,8 +153,8 @@ export function mountEditor(options: MountEditorOptions): Editor {
   const templates: EditorTemplates = {
     getAll: () => getCatalog().allTemplates(),
     createElement: (template) => {
-      const { shape, flowElements } = createTemplateElement(model, template);
-      pendingFlow = flowElements.length > 0 ? { businessObject: shape.businessObject, flowElements } : undefined;
+      const { shape, flow } = createTemplateElement(model, template);
+      pendingFlow = flow.nodes.length > 0 ? { businessObject: shape.businessObject, flow } : undefined;
       return shape;
     },
   };

@@ -532,49 +532,48 @@ types:
 
 templates:
   - description: Wake-word conversation - wait for the wake word, face the speaker, talk, sign off.
-    object:
-      bpmn:name: Wake-word conversation
-      type: bpmn:SubProcess
-      bpmn:documentation: |
-        Idle until the wake word, turn toward the speaker, then converse until
-        the stop phrase or the turn budget ends it.
-      icon: iconify ph--chats
-      flowElements:
-        - id: ww_wake
-          type: SenseEvent
-          bpmn:name: Wake word
-          trigger: wake_word
-          wakeWord: Hey Reachy
-          x: 140
-          y: 162
-        - id: ww_look
-          type: LookAt
-          bpmn:name: Face the speaker
-          target: face
-          x: 240
-          y: 140
-        - id: ww_talk
-          type: Converse
-          bpmn:name: Chat
-          model: claude-haiku-4-5
-          persona: |
-            You are Reachy, a small, curious desktop robot. Keep replies to one
-            or two spoken sentences and never pretend to be human.
-          stopPhrase: goodbye
-          x: 400
-          y: 140
-        - id: ww_bye
-          type: Gesture
-          bpmn:name: Sign off
-          move: yes1
-          x: 560
-          y: 140
-        - type: bpmn:SequenceFlow
-          sourceRef: ww_wake
-          targetRef: ww_look
-        - type: bpmn:SequenceFlow
-          sourceRef: ww_look
-          targetRef: ww_talk
-        - type: bpmn:SequenceFlow
-          sourceRef: ww_talk
-          targetRef: ww_bye
+    elements:
+      Wake_word_conversation:
+        type: SubProcess
+        name: Wake-word conversation
+        studyflow:icon: iconify ph--chats
+        documentation: |
+          Idle until the wake word, turn toward the speaker, then converse until
+          the stop phrase or the turn budget ends it.
+        flowElements:
+          ww_wake:
+            type: IntermediateCatchEvent
+            name: Wake word
+            extensionElements:
+              - type: reachy:SenseEvent
+                trigger: wake_word
+                wakeWord: Hey Reachy
+            bounds: 140 162 36 36
+          ww_look:
+            type: ServiceTask
+            name: Face the speaker
+            extensionElements:
+              - type: reachy:LookAt
+                target: face
+            bounds: 240 140 100 80
+          ww_talk:
+            type: ServiceTask
+            name: Chat
+            extensionElements:
+              - type: reachy:Converse
+                model: claude-haiku-4-5
+                persona: |
+                  You are Reachy, a small, curious desktop robot. Keep replies to one
+                  or two spoken sentences and never pretend to be human.
+                stopPhrase: goodbye
+            bounds: 400 140 100 80
+          ww_bye:
+            type: ServiceTask
+            name: Sign off
+            extensionElements:
+              - type: reachy:Gesture
+                move: yes1
+            bounds: 560 140 100 80
+          Flow_ww_wake_ww_look: ww_wake -> ww_look
+          Flow_ww_look_ww_talk: ww_look -> ww_talk
+          Flow_ww_talk_ww_bye: ww_talk -> ww_bye

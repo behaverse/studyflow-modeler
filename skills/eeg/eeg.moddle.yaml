@@ -272,113 +272,108 @@ examples:
 
 templates:
   - description: An EEG session pool - fit the cap, record a baseline, run a task, export.
-    object:
-      type: Session
-      bpmn:name: EEG session
-      bpmn:documentation: An EEG session covering cap fitting through data export.
-      icon: iconify ph--head-circuit
-      device: brainproducts_actichamp
-      modalities:
-        - eeg
-      montage: 10-20
-      reference: cz
-      lineFrequency: "50"
-      flowElements:
-        - id: eeg_start
-          type: bpmn:StartEvent
-          bpmn:name: Start
-          x: 100
-          y: 200
-        - id: eeg_mount
-          type: bpmn:ManualTask
-          bpmn:name: Mount cap & check impedance
-          icon: iconify ph--user-focus
-          bpmn:documentation: |
-            Fit the cap, place the electrodes, and check that every one of them
-            makes good contact before recording starts.
-          x: 200
-          y: 178
-        - id: eeg_baseline
-          type: cognitive:Rest
-          bpmn:name: Resting baseline
-          icon: iconify ph--brain
-          restDuration: 120
-          eyes: closed
-          x: 360
-          y: 178
-        - id: eeg_task
-          type: cognitive:CognitiveTask
-          bpmn:name: Cognitive task
-          icon: iconify ph--puzzle-piece
-          instrument: psychopy
-          configurations: |
-            triggerChannel: markers  # stimulus marker stream sent with biosignals
-          x: 520
-          y: 178
-        - id: eeg_export
-          type: bpmn:ServiceTask
-          bpmn:name: Export recording
-          icon: iconify ph--download-simple
-          bpmn:documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
-          implementation: python://datatrove.pipeline.writers.ParquetWriter
-          additionalArguments: "output_folder: bids/"
-          x: 680
-          y: 178
-        - id: eeg_end
-          type: bpmn:EndEvent
-          bpmn:name: End
-          x: 840
-          y: 200
-        - type: bpmn:SequenceFlow
-          sourceRef: eeg_start
-          targetRef: eeg_mount
-        - type: bpmn:SequenceFlow
-          sourceRef: eeg_mount
-          targetRef: eeg_baseline
-        - type: bpmn:SequenceFlow
-          sourceRef: eeg_baseline
-          targetRef: eeg_task
-        - type: bpmn:SequenceFlow
-          sourceRef: eeg_task
-          targetRef: eeg_export
-        - type: bpmn:SequenceFlow
-          sourceRef: eeg_export
-          targetRef: eeg_end
+    elements:
+      EEG_session:
+        type: Participant
+        name: EEG session
+        documentation: An EEG session covering cap fitting through data export.
+        processRef: EEG_session_flow
+        extensionElements:
+          - type: eeg:Session
+            studyflow:icon: iconify ph--head-circuit
+            device: brainproducts_actichamp
+            modalities:
+              - eeg
+            montage: 10-20
+            reference: cz
+            lineFrequency: "50"
+      EEG_session_flow:
+        type: Process
+        flowElements:
+          eeg_start:
+            type: StartEvent
+            name: Start
+            bounds: 100 200 36 36
+          eeg_mount:
+            type: ManualTask
+            name: Mount cap & check impedance
+            documentation: |
+              Fit the cap, place the electrodes, and check that every one of them
+              makes good contact before recording starts.
+            bounds: 200 178 100 80
+          eeg_baseline:
+            type: Task
+            name: Resting baseline
+            extensionElements:
+              - type: cognitive:Rest
+                studyflow:icon: iconify ph--brain
+                restDuration: 120
+                eyes: closed
+            bounds: 360 178 100 80
+          eeg_task:
+            type: ChoreographyTask
+            name: Cognitive task
+            extensionElements:
+              - type: cognitive:CognitiveTask
+                studyflow:icon: iconify ph--puzzle-piece
+                instrument: psychopy
+                configurations: |
+                  triggerChannel: markers  # stimulus marker stream sent with biosignals
+            bounds: 520 178 100 80
+          eeg_export:
+            type: ServiceTask
+            name: Export recording
+            documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
+            implementation: python://datatrove.pipeline.writers.ParquetWriter
+            additionalArguments: "output_folder: bids/"
+            bounds: 680 178 100 80
+          eeg_end:
+            type: EndEvent
+            name: End
+            bounds: 840 200 36 36
+          Flow_eeg_start_eeg_mount: eeg_start -> eeg_mount
+          Flow_eeg_mount_eeg_baseline: eeg_mount -> eeg_baseline
+          Flow_eeg_baseline_eeg_task: eeg_baseline -> eeg_task
+          Flow_eeg_task_eeg_export: eeg_task -> eeg_export
+          Flow_eeg_export_eeg_end: eeg_export -> eeg_end
 
   - description: Filter EEG data and remove artifacts in one step.
-    object:
-      bpmn:name: EEGPrep
-      type: bpmn:ServiceTask
-      bpmn:documentation: Filters, cleans, and normalizes BIDS EEG data (EEGLAB clean_rawdata, ASR, ICA + ICLabel).
-      icon: iconify ph--wave-sine
-      implementation: docker://sccn/eegprep
-      additionalArguments: |
-        flatline_criterion: 5    # seconds of flatline tolerated per channel
-        highpass_hz: 1
-        lowpass_hz: 100
-        asr_criterion: 20        # ASR burst-removal cutoff
-        ica: true                # run ICA + ICLabel artifact classification
+    elements:
+      EEGPrep:
+        type: ServiceTask
+        name: EEGPrep
+        studyflow:icon: iconify ph--wave-sine
+        documentation: Filters, cleans, and normalizes BIDS EEG data (EEGLAB clean_rawdata, ASR, ICA + ICLabel).
+        implementation: docker://sccn/eegprep
+        additionalArguments: |
+          flatline_criterion: 5    # seconds of flatline tolerated per channel
+          highpass_hz: 1
+          lowpass_hz: 100
+          asr_criterion: 20        # ASR burst-removal cutoff
+          ica: true                # run ICA + ICLabel artifact classification
 
   - description: Preprocess a BIDS EEG or MEG dataset with the MNE-BIDS-Pipeline.
-    object:
-      bpmn:name: MNE-BIDS-Pipeline
-      type: bpmn:ServiceTask
-      bpmn:documentation: Filtering, epoching, SSP/ICA artifact removal, and evoked responses, driven by one config file.
-      icon: iconify ph--wave-sine
-      implementation: python://mne_bids_pipeline@1.9.0
-      additionalArguments: |
-        config: config.py                  # bids_root, task, subjects, filters, ICA
-        steps: preprocessing               # init | preprocessing | sensor | source | all
+    elements:
+      MNE_BIDS_Pipeline:
+        type: ServiceTask
+        name: MNE-BIDS-Pipeline
+        studyflow:icon: iconify ph--wave-sine
+        documentation: Filtering, epoching, SSP/ICA artifact removal, and evoked responses, driven by one config file.
+        implementation: python://mne_bids_pipeline@1.9.0
+        additionalArguments: |
+          config: config.py                  # bids_root, task, subjects, filters, ICA
+          steps: preprocessing               # init | preprocessing | sensor | source | all
 
   - description: Preprocess fMRI data for a single subject.
-    object:
-      bpmn:name: fMRIPrep
-      type: bpmn:ServiceTask
-      bpmn:documentation: Preprocesses BIDS fMRI data into normalized, denoised images.
-      icon: iconify ph--brain
-      implementation: docker://nipreps/fmriprep@23.2.0
-      additionalArguments: |
-        output_spaces: MNI152NLin2009cAsym   # normalized-output space(s)
-        skull_strip_t1w: force               # auto | force | skip
-        use_aroma: false                     # ICA-AROMA denoising
-        use_syn_sdc: false                   # fieldmap-less SDC (SyN)
+    elements:
+      fMRIPrep:
+        type: ServiceTask
+        name: fMRIPrep
+        studyflow:icon: iconify ph--brain
+        documentation: Preprocesses BIDS fMRI data into normalized, denoised images.
+        implementation: docker://nipreps/fmriprep@23.2.0
+        additionalArguments: |
+          output_spaces: MNI152NLin2009cAsym   # normalized-output space(s)
+          skull_strip_t1w: force               # auto | force | skip
+          use_aroma: false                     # ICA-AROMA denoising
+          use_syn_sdc: false                   # fieldmap-less SDC (SyN)

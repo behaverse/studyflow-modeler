@@ -112,8 +112,8 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
     expect(getAttribute(task, 'instrument')).toBe('behaverse');
   });
 
-  test('template-stamped values still appear (a Recording stamps its layout)', () => {
-    // Mirrors createTemplateShape: catalog defaults + templateAttributes stamped through ensureExtension.
+  test('stamped values still appear (a Recording stamps its layout)', () => {
+    // Catalog defaults plus explicit values, stamped through ensureExtension.
     const bo = moddle.create('bpmn:DataStoreReference', { id: 'Recording_1' });
     const el = StudyflowElement.fromBusinessObject(bo);
     el.ensureExtension('eeg:Recording', moddle, {

@@ -306,30 +306,36 @@ types:
 templates:
   # Stratified allocation is a RandomGateway with `stratifyBy` set, not its own type.
   - description: Stratified block randomization, balanced within each stratum.
-    object:
-      bpmn:name: Stratified allocation
-      type: RandomGateway
-      bpmn:documentation: |
-        Randomizes within each stratum of `stratifyBy`, in permuted blocks,
-        so arms stay balanced on the covariate. List the strata one per entry.
-      icon: iconify ph--stack
-      algorithm: block
-      stratifyBy: age_band
-      strata:
-        - "age_band: 18-29"
-        - "age_band: 30-44"
-        - "age_band: 45-65"
+    elements:
+      Stratified_allocation:
+        type: ExclusiveGateway
+        name: Stratified allocation
+        documentation: |
+          Randomizes within each stratum of `stratifyBy`, in permuted blocks,
+          so arms stay balanced on the covariate. List the strata one per entry.
+        extensionElements:
+          - type: cognitive:RandomGateway
+            studyflow:icon: iconify ph--stack
+            algorithm: block
+            stratifyBy: age_band
+            strata:
+              - "age_band: 18-29"
+              - "age_band: 30-44"
+              - "age_band: 45-65"
   # A video game is a CognitiveTask whose instrument is a game engine, not its own type.
   - description: A video game used as a paradigm or measurement instrument.
-    object:
-      bpmn:name: Video game
-      type: CognitiveTask
-      bpmn:documentation: |
-        Set the game engine in `instrument` and its levels, difficulty, and
-        scoring in `configurations`.
-      icon: iconify ph--game-controller
-      instrument: unity
-      configurations: |
-        levels:
-        difficulty:
-        scoring:
+    elements:
+      Video_game:
+        type: ChoreographyTask
+        name: Video game
+        documentation: |
+          Set the game engine in `instrument` and its levels, difficulty, and
+          scoring in `configurations`.
+        extensionElements:
+          - type: cognitive:CognitiveTask
+            studyflow:icon: iconify ph--game-controller
+            instrument: unity
+            configurations: |
+              levels:
+              difficulty:
+              scoring:
