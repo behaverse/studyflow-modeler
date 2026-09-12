@@ -100,12 +100,12 @@ classes:
         ifabsent: string(behaverse)
         rank: 0
         annotations:
-          redefines: cognitive:CognitiveTask#instrument
+          redefines: CognitiveTask#instrument
           pinned: true
       implementation:
         description: Unused here; the scene says what runs.
         annotations:
-          redefines: cognitive:CognitiveTask#implementation
+          redefines: CognitiveTask#implementation
           pinned: true
       scene:
         description: Which Behaverse assessment runs (`NB`, `UFOV`, `DS`).
@@ -120,7 +120,7 @@ classes:
         in_subset:
           - Execution
         annotations:
-          redefines: cognitive:CognitiveTask#configurations
+          redefines: CognitiveTask#configurations
           element: true
 
   # The browser runner performs only simple randomization with equal odds; it
@@ -134,7 +134,7 @@ classes:
       format:
         ifabsent: string(bdm)
         annotations:
-          redefines: studyflow:Dataset#format
+          redefines: Dataset#format
           pinned: true
       dataLevel:
         description: Level of the BDM hierarchy.

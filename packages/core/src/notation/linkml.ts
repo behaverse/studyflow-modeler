@@ -211,8 +211,9 @@ function toProperty(slot: string, spec: LinkmlSlot, prefix: string, qualify: (re
     isMany: spec.multivalued === true,
     isBody: body === true,
     default: fromIfabsent(spec.ifabsent),
-    redefines: typeof redefines === 'string' ? redefines : undefined,
-    replaces: typeof replaces === 'string' ? replaces : undefined,
+    // `Type#property`, the type named like any other ref.
+    redefines: typeof redefines === 'string' ? redefines.replace(/^[^#]+/, qualify) : undefined,
+    replaces: typeof replaces === 'string' ? replaces.replace(/^[^#]+/, qualify) : undefined,
     meta: Object.keys(meta).length > 0 ? meta : undefined,
   };
 

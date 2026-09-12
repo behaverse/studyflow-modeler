@@ -52,6 +52,7 @@ classes:
     is_a: Table
     attributes:
       live: { range: boolean, ifabsent: 'true' }
+      name: { annotations: { redefines: Table#name } }
 enums:
   MoreFormats:
     apply_to: [Format]
@@ -82,6 +83,7 @@ test('implements names the BPMN element, as a wrapper or, on a mixin, as a trait
 
 test('a name another schema declares is qualified with its prefix; the file\'s own stays bare', () => {
   expect(type('Recording').superClass).toEqual(['core:Table']);
+  expect(property('Recording', 'name').redefines).toBe('core:Table#name');
   expect(property('Table', 'format').type).toBe('Format');
   expect(skill.enumerations).toEqual([{ extends: 'core:Format', description: undefined, literalValues: [
     { name: 'Parquet', value: 'parquet', description: undefined, icon: undefined },

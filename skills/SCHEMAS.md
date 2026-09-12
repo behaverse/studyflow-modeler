@@ -98,7 +98,7 @@ An attribute is an XML attribute, which holds one line. A list, an `implements` 
 
 | Key | Consumer |
 | --- | --- |
-| `redefines: Type#property`, `replaces: Type#property` | Overrides an inherited property; see precedence below. Must spell `Type#property`, or nothing is overridden (a diagnostic). |
+| `redefines: Type#property`, `replaces: Type#property` | Overrides an inherited property; see precedence below. The type is named like any other (`CognitiveTask#instrument`), or `bpmn:ServiceTask#implementation`; anything not spelled `Type#property` overrides nothing (a diagnostic). Overriding a BPMN property also takes `slot_uri: bpmn:<property>`, or the value is written in the schema's own namespace. |
 | `element` | Written as a child element, above. |
 | `body` | The element's text body: the one attribute of a value holder (`cognitive:Configurations.value`). |
 | `pinned` | Fixed value, never rendered; also wins read precedence on double-stored values. |
