@@ -34,8 +34,8 @@ annotations:
 # `claude-*` name reads as Claude's.
 
 enums:
-  # What an actor pool can be, beyond cognitive's human, software, and hardware.
   AgenticActorTypes:
+    description: What an actor pool can be, beyond cognitive's human, software, and hardware.
     apply_to:
       - ActorTypeEnum
     permissible_values:

@@ -235,6 +235,7 @@ classes:
         annotations:
           optional: true
       isExecutable:
+        description: Always true; a studyflow is meant to run.
         range: boolean
         ifabsent: 'true'
         annotations:
@@ -294,6 +295,7 @@ classes:
           - Documentation
 
   StartEvent:
+    description: Lets a start event show a consent form before entry.
     mixin: true
     implements:
       - bpmn:StartEvent
@@ -307,6 +309,7 @@ classes:
           icon: iconify ph--shield-check
           optional: true
   SequenceFlow:
+    description: Lets a flow carry the condition it is taken on.
     mixin: true
     implements:
       - bpmn:SequenceFlow
@@ -319,6 +322,7 @@ classes:
         annotations:
           redefines: bpmn:SequenceFlow#conditionExpression
   EndEvent:
+    description: Where a participant lands when the study ends, and the code they get.
     mixin: true
     implements:
       - bpmn:EndEvent

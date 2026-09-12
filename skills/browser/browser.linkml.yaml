@@ -23,6 +23,7 @@ annotations:
 
 enums:
   BrowserRuntime:
+    description: Adds the browser runtime to the study's runtime choices.
     apply_to:
       - RuntimeEnum
     permissible_values:

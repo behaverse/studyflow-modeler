@@ -24,6 +24,7 @@ annotations:
 
 enums:
   LocalRuntime:
+    description: Adds the local runtime to the study's runtime choices.
     apply_to:
       - RuntimeEnum
     permissible_values:

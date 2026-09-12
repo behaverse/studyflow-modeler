@@ -25,12 +25,14 @@ annotations:
 
 enums:
   BehaverseExperimentSoftware:
+    description: Adds Behaverse to the experiment software a cognitive task names.
     apply_to:
       - ExperimentSoftwareEnum
     permissible_values:
       behaverse:
         title: Behaverse
   BehaverseDatasetFormat:
+    description: Adds the Behaverse Data Model to the dataset formats.
     apply_to:
       - DatasetFormatEnum
     permissible_values:

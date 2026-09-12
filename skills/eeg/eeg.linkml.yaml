@@ -22,8 +22,8 @@ annotations:
   icon: iconify tabler--hexagon-letter-e
 
 enums:
-  # Biosignal recording formats, added to the core's general-purpose ones.
   EegTimeseriesFormats:
+    description: Biosignal recording formats, added to the core's general-purpose ones.
     apply_to:
       - TimeseriesFormatEnum
     permissible_values:
