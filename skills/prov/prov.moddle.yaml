@@ -9,6 +9,7 @@ description: >-
 uri: https://w3id.org/studyflow/prov
 icon: iconify tabler--history
 order: 2
+core: true
 xml:
   tagAlias: lowerCase
 version: 26.0902

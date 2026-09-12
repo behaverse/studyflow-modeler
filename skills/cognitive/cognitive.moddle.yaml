@@ -8,6 +8,7 @@ description: >-
 uri: http://behaverse.org/schemas/studyflow/cognitive
 icon: iconify tabler--hexagon-letter-c
 order: 3
+core: true
 xml:
   tagAlias: lowerCase
 version: 26.0910

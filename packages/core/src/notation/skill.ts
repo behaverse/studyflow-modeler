@@ -1,14 +1,11 @@
 import * as yaml from 'js-yaml';
 
-/** The skills the modeler and the local runtime rely on to run BPMN at all; they load always and cannot be disabled. */
-export const CORE_SKILLS: ReadonlySet<string> = new Set(['studyflow', 'prov', 'cognitive']);
-
 /** A skill's manifest, read from the YAML front matter of its `SKILL.md`. The file follows the Agent
  * Skills specification (https://agentskills.io/specification): `name`, `description`, and optional
  * `license`, `compatibility` (the runtime environment a runner needs), `metadata`, `allowed-tools`. What
  * the skill contributes to studyflow is declared under `metadata`, whose values are strings; nothing is
  * found by file name. What can be inferred is not declared: `examples/` is always the examples folder,
- * the core skills are known here, and a skill is listed by its name. */
+ * and a skill is listed by its name. Whether it is core is its schema's to say (`core: true`). */
 export type SkillManifest = {
   /** The folder's name, and the runner's (`--runner reachy=…`, `STUDYFLOW_REACHY_PY`). */
   name: string;
@@ -53,8 +50,4 @@ export function parseSkillManifest(markdown: string, folder?: string): SkillMani
     runtimes: byRuntime('runtimes'),
     modelerModule: meta['modeler'] === undefined ? undefined : String(meta['modeler']),
   };
-}
-
-export function isCoreSkill(name: string): boolean {
-  return CORE_SKILLS.has(name);
 }

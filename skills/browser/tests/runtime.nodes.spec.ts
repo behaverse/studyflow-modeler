@@ -339,7 +339,25 @@ test.describe('Studyflow runtime nodes', () => {
     await page.getByRole('button', { name: 'Run', exact: true }).click();
 
     const runner = await runnerTab;
-    await expect(runner).toHaveURL(/run\/\?diagram=[^&]+&seed=\d+$/);
+    await expect(runner).toHaveURL(/run\/\?diagram=[^&]+$/);
     await expect(runner).toHaveTitle('Behaverse Studyflow');
+    // A study that pins no seed runs unseeded: the link adds none.
+    await expect(runner.getByText('Study_1')).toBeVisible();
+    await expect(runner.getByText(/^seed=/)).toHaveCount(0);
+  });
+
+  test('a seed the study pins is the run\'s: the Run button passes none of its own', async ({ page, context }) => {
+    await gotoModeler(page);
+    const inspector = page.getByTestId('inspector-root');
+    await inspector.getByRole('tab', { name: 'Execution' }).click();
+    await inspector.getByLabel('Seed').fill('7');
+    await inspector.getByLabel('Seed').press('Tab');
+
+    const runnerTab = context.waitForEvent('page');
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
+
+    const runner = await runnerTab;
+    await expect(runner).toHaveURL(/run\/\?diagram=[^&]+$/);
+    await expect(runner.getByText('seed=7')).toBeVisible();
   });
 });

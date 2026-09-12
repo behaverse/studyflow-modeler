@@ -24,6 +24,7 @@ description: >-
 uri: http://behaverse.org/schemas/studyflow/v1
 icon: iconify tabler--hexagon-letter-s
 order: 1
+core: true
 xml:
   tagAlias: lowerCase
 version: 26.0910
@@ -228,7 +229,7 @@ types:
         description: Environment the study runs in.
         isAttr: true
         type: RuntimeEnum
-        default: cloud
+        default: local
         meta:
           categories:
             - Execution

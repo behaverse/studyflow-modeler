@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/schemaFile';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
-import { isCoreSkill, parseSkillManifest, type SkillManifest } from '@core/notation/skill';
+import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 
 /** The Node counterpart of `packages/core/src/notation/loader.ts`, which reads the same files through Vite's bundle. */
 
@@ -16,9 +16,7 @@ export const SKILLS: SkillManifest[] = readdirSync(SKILLS_DIR)
   .sort((a, b) => a.name.localeCompare(b.name));
 
 function readModel(skill: SkillManifest): SchemaModel {
-  const model = fromModdleYaml(readFileSync(path.join(SKILLS_DIR, skill.name, skill.schema!), 'utf8'), `${skill.name}/${skill.schema}`);
-  model.core = isCoreSkill(skill.name);
-  return model;
+  return fromModdleYaml(readFileSync(path.join(SKILLS_DIR, skill.name, skill.schema!), 'utf8'), `${skill.name}/${skill.schema}`);
 }
 
 const withSchema = SKILLS.filter((skill) => skill.schema);

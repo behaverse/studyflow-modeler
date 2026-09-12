@@ -92,7 +92,10 @@ Lab:
     Start:
       type: bpmn:StartEvent
 `;
-  expect(new Studyflow(await parseStudyflow(pooled, packages, {})).seed).toBe(7);
+  const study = new Studyflow(await parseStudyflow(pooled, packages, {}));
+  expect(study.seed).toBe(7);
+  // The study is the collaboration too: its id is what the run reports, not its pool's process's.
+  expect(study.studyId).toBe('Pools');
 });
 
 test('the behaverse demo runs on the values its own data object carries', async () => {

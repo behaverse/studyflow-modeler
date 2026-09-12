@@ -1,7 +1,7 @@
 import { buildCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/schemaFile';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
-import { isCoreSkill, parseSkillManifest, type SkillManifest } from '@core/notation/skill';
+import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 
 /** Every skill is a folder with a `SKILL.md`; its front matter says what the skill contributes. */
 const manifestSources = import.meta.glob('@skills/*/SKILL.md', {
@@ -54,7 +54,6 @@ function parseAll(): SchemaModel[] {
     }
     try {
       const model = fromModdleYaml(yamlSources[key], sourceName);
-      model.core = isCoreSkill(skill.name); // the apps know which skills they cannot run without
       skillOfPrefix.set(model.prefix, skill);
       models.push(model);
     } catch (err) {

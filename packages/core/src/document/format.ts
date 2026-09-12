@@ -15,10 +15,10 @@ export function isHeadlessCollaboration(root: any): boolean {
   return root?.$type === 'bpmn:Collaboration' && !(root.participants ?? []).some((p: any) => p?.processRef);
 }
 
-/** Where the study is meant to run: `runtime` on the `studyflow:Study` extension of the primary root. Unset, the schema says `cloud`. */
+/** Where the study is meant to run: `runtime` on the `studyflow:Study` extension of the primary root. Unset, the schema says `local`. */
 export function declaredRuntime(definitions: ModdleElement | null | undefined): string {
   const value = getProperty(studyExtensionOf(definitions), 'runtime');
-  return typeof value === 'string' && value ? value : 'cloud';
+  return typeof value === 'string' && value ? value : 'local';
 }
 
 /** The `studyflow:Study` extension of the primary root: where `runtime`, `state`, and the study's own fields live. */

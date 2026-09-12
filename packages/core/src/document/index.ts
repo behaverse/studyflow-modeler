@@ -10,7 +10,14 @@ import { studyflowToDefinitions } from '@core/document/deserialize';
 
 /* The package's surface: outside `core/document`, only this barrel and `png.ts` are imported. */
 export { studyflowToDefinitions } from '@core/document/deserialize';
-export { YAML_DUMP_OPTIONS, applyXmlPasses, declaredRuntime, primaryRoot, studyExtensionOf } from '@core/document/format';
+export {
+  STUDY_EXTENSION_TYPE,
+  YAML_DUMP_OPTIONS,
+  applyXmlPasses,
+  declaredRuntime,
+  primaryRoot,
+  studyExtensionOf,
+} from '@core/document/format';
 export { CHECKLIST_MARKER, isChecklistMarkerValue } from '@core/document/shorthand';
 export {
   META_KEY,
@@ -18,6 +25,7 @@ export {
   ensureStudyExtension,
   isReservedStateKey,
   readState,
+  renameStateEntry,
   resolvePlaceholders,
   resolveState,
   writeState,

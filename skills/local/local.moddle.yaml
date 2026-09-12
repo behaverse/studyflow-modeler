@@ -7,7 +7,8 @@ description: >-
   On the researcher's machine.
 uri: https://w3id.org/studyflow/local
 icon: iconify tabler--hexagon-letter-l
-order: 200
+order: 3
+core: true
 xml:
   tagAlias: lowerCase
 version: 26.0910

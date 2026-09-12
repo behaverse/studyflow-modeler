@@ -13,11 +13,9 @@ export function runRedo(modeler: Editor, _command: RedoCommand): void {
   modeler.redo();
 }
 
-const DEFAULT_SEED = 42;
-
+/** No seed rides along: the runner seeds from the study's own, and runs unseeded when it pins none. */
 export type OpenRunnerCommand = {
   type: 'OpenRunner';
-  seed?: number;
   /** Tab claimed by the click handler; see `openRunnerTab`. Omit and this opens its own. */
   target?: Window | null;
 };
@@ -61,10 +59,7 @@ export async function runOpenRunner(modeler: Editor, command: OpenRunnerCommand)
     );
   }
 
-  const params = new URLSearchParams({
-    diagram: id,
-    seed: String(command.seed ?? DEFAULT_SEED),
-  });
+  const params = new URLSearchParams({ diagram: id });
 
   // Absolute: the blank tab's own base URL is `about:blank`, which a relative path resolves against.
   const url = new URL(`./run/?${params.toString()}`, window.location.href).href;

@@ -214,7 +214,7 @@ export function Runner() {
         sessionRef.current = session;
         setSession(session);
         setSeed(studyflow.seed);
-        setStudyflowName(studyflow.businessObject?.name || studyflow.businessObject?.id || null);
+        setStudyflowName(studyflow.studyflowId ?? null);
         addLog('info', `Read ${studyflow.flowNodes.size} flow nodes and ${studyflow.sequenceFlows.size} sequence flows.`);
 
         for (const name of overridden) {

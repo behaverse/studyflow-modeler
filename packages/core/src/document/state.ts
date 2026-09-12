@@ -36,7 +36,11 @@ export function ensureStudyExtension(definitions: ModdleElement, moddle: Moddle)
 
 /** The parsed tree; `{}` when absent or not a JSON object. */
 export function readState(definitions: ModdleElement | null | undefined): StateTree {
-  const raw = getProperty(studyExtensionOf(definitions), 'state');
+  return stateOn(studyExtensionOf(definitions));
+}
+
+function stateOn(study: ModdleElement | undefined): StateTree {
+  const raw = getProperty(study, 'state');
   if (typeof raw !== 'string' || !raw.trim()) return {};
   try {
     const parsed = JSON.parse(raw);
@@ -44,6 +48,14 @@ export function readState(definitions: ModdleElement | null | undefined): StateT
   } catch {
     return {};
   }
+}
+
+/** A scope's entry on `study` follows its element to a new id; the other entries keep their place. */
+export function renameStateEntry(study: ModdleElement, from: string, to: string): void {
+  const tree = stateOn(study);
+  if (!(from in tree)) return;
+  const renamed = Object.entries(tree).map(([key, value]) => [key === from ? to : key, value]);
+  setProperty(study, 'state', JSON.stringify(Object.fromEntries(renamed)));
 }
 
 /** JSON-encodes `tree` onto the Study extension (created when missing); an empty tree removes the property. */

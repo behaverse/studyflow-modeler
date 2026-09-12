@@ -66,7 +66,7 @@ export type SchemaModel = {
   version?: string | number;
   description?: string;
   icon?: string;
-  /** Core schemas back the default elements and are always loaded. */
+  /** `core: true` in the file: the schema always loads, and the modeler's settings cannot switch it off. */
   core?: boolean;
   order?: number;
   categories?: SchemaCategoryModel[];

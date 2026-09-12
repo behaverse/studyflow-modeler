@@ -342,8 +342,11 @@ test('the first pool makes the collaboration the study, and deleting the last on
     xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
     xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"
     id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Study_1">
-    <bpmn:extensionElements><studyflow:study runtime="local" /></bpmn:extensionElements>
+  <bpmn:process id="Study_1" name="Pilot">
+    <bpmn:documentation>What the pilot is for.</bpmn:documentation>
+    <bpmn:extensionElements>
+      <studyflow:study runtime="local"><studyflow:state>{"Study_1":{"trials":3}}</studyflow:state></studyflow:study>
+    </bpmn:extensionElements>
     <bpmn:startEvent id="Start_1" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="Diag_1">
@@ -355,12 +358,19 @@ test('the first pool makes the collaboration the study, and deleting the last on
   const { canvas, definitions } = loaded;
   const [process] = definitions.rootElements;
   const study = process.extensionElements.values[0];
+  const [documentation] = process.documentation;
 
+  // The root turns collaboration, and the study stays the root: same id, name, documentation, Study.
   const pool = canvas.createElement({ type: 'bpmn:Participant' }, { x: 300, y: 118 })!;
-  const collaboration = canvas.getScene()!.root;
-  expect(collaboration.$type).toBe('bpmn:Collaboration');
-  expect((collaboration as any).extensionElements.values).toEqual([study]);
+  const collaboration = canvas.getScene()!.root as any;
+  expect(canvas.getRoot()).toMatchObject({ id: 'Study_1', type: 'bpmn:Collaboration' });
+  expect(collaboration).toMatchObject({ id: 'Study_1', name: 'Pilot', documentation: [documentation] });
+  expect(collaboration.extensionElements.values).toEqual([study]);
+  // The process is the pool's now, under an id of its own; its properties' run state follows it.
+  expect(process.id).toMatch(/^Process_/);
+  expect(process.name).toBeUndefined();
   expect(process.extensionElements).toBeUndefined();
+  expect(JSON.parse(study.state)).toEqual({ [process.id]: { trials: 3 } });
   const note = canvas.createElement({ type: 'bpmn:TextAnnotation' }, { x: 900, y: 600 })!;
   expect((collaboration as any).artifacts).toEqual([note.businessObject]);
   // One pool of two going leaves the collaboration the root.
@@ -370,7 +380,9 @@ test('the first pool makes the collaboration the study, and deleting the last on
   canvas.deleteElements(pool);
   expect(canvas.getScene()!.root).toBe(process);
   expect(canvas.getRoot()).toMatchObject({ id: 'Study_1', type: 'bpmn:Process' });
+  expect(process).toMatchObject({ id: 'Study_1', name: 'Pilot', documentation: [documentation] });
   expect(process.extensionElements.values).toEqual([study]);
+  expect(JSON.parse(study.state)).toEqual({ Study_1: { trials: 3 } });
   expect(process.artifacts).toEqual([note.businessObject]);
   expect(definitions.rootElements).toEqual([process]);
   expect(await xmlOf(loaded)).toContain('bpmnElement="Study_1"');

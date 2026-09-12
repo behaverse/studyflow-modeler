@@ -78,13 +78,18 @@ export class Studyflow {
     this.studyflowHash = studyflowHash;
   }
 
+  /** The diagram's root, whose `extensionElements` hold the Study: the process, or a pool diagram's collaboration. */
+  private get root(): any {
+    return this.study?.$parent?.$parent ?? this.businessObject;
+  }
+
   get studyId(): string | undefined {
-    const id = this.businessObject?.id;
+    const id = this.root?.id;
     return typeof id === 'string' && id.length > 0 ? id : undefined;
   }
 
   get studyflowId(): string | undefined {
-    const name = this.businessObject?.name;
+    const name = this.root?.name;
     return typeof name === 'string' && name.length > 0 ? name : this.studyId;
   }
 

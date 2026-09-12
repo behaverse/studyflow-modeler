@@ -4,7 +4,6 @@
  * touched here; it is rebuilt from the scene on save (`model/di.ts`).
  */
 
-import { STUDY_EXTENSION_TYPE } from '@core/document/format.ts';
 import { getDefaults, getExtensionType, StudyflowElement } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import type { EventBus } from '@canvas/bus.ts';
@@ -28,7 +27,6 @@ import {
   asModdle,
   mint,
   modelOf,
-  moveExtension,
   parentOf,
   prop,
   pullFrom,
@@ -40,18 +38,18 @@ import {
   type ModdleFactory,
 } from '@canvas/model/moddle.ts';
 import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/model/remove.ts';
-import {
-  setRoot,
-  type Bounds,
-  type Drawable,
-  type ElementColors,
-  type ModdleObject,
-  type Point,
-  type Scene,
-  type SceneEdge,
-  type SceneElement,
-  type SceneNode,
+import type {
+  Bounds,
+  Drawable,
+  ElementColors,
+  ModdleObject,
+  Point,
+  Scene,
+  SceneEdge,
+  SceneElement,
+  SceneNode,
 } from '@canvas/model/scene.ts';
+import { handOverStudy } from '@canvas/model/study.ts';
 import {
   boundsOf,
   COLLAPSED_SIZE,
@@ -395,7 +393,7 @@ export class Mutator {
   // --- deletion -----------------------------------------------------------------
 
   deleteElements(elements: readonly SceneElement[]): DeleteResult {
-    return removeFromScene(this.scene, this.bus, elements);
+    return removeFromScene(this.scene, this.bus, elements, this.ids);
   }
 
   // --- containment --------------------------------------------------------------
@@ -602,10 +600,10 @@ export class Mutator {
   }
 
   /**
-   * Turn a process root into a collaboration so a pool can hold it: the process
-   * stays a root element, the new pool depicts it and adopts what is drawn, and
-   * the study's settings move to the collaboration, the new root. Deleting the
-   * last pool undoes it (`model/remove.ts`).
+   * Turn a process root into a collaboration so a pool can hold it: the collaboration
+   * becomes the root and takes the study over (`model/study.ts`), the process stays a
+   * root element under a fresh id, and the new pool depicts it and adopts what is
+   * drawn. Deleting the last pool undoes it (`model/remove.ts`).
    */
   private promoteRootToCollaboration(
     participant: ModdleObject,
@@ -615,12 +613,11 @@ export class Mutator {
     const scene = this.scene;
     const process = scene.root;
     if (process.$type !== 'bpmn:Process') return undefined;
-    const collaboration = mint(factory, 'bpmn:Collaboration', { id: this.ids.next('bpmn:Collaboration') });
+    const collaboration = mint(factory, 'bpmn:Collaboration');
     setParent(collaboration, scene.definitions);
     pushInto(scene.definitions, 'rootElements', collaboration);
     setRef(participant, 'processRef', process);
-    moveExtension(process, collaboration, STUDY_EXTENSION_TYPE, factory);
-    setRoot(scene, collaboration);
+    handOverStudy(scene, process, collaboration, this.ids);
     const adopt = scene.children.filter((child): child is Drawable => child.kind !== 'label');
     return { bounds: participantBoundsAround(dropped, adopt), adopt };
   }

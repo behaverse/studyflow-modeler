@@ -321,9 +321,11 @@ class Studyflow:
         if not self.processes:
             raise ValueError("no process with a sequence flow to walk")
         self.process = next((p for p in self.processes if study_of(p) is not None), self.processes[0])
-        # The study on the diagram's root, the first on a root element as the prov module finds it for the
-        # state: its `seed` and `dependencies` are the run's.
-        self.study = next((study for root in definitions if (study := study_of(root)) is not None), None)
+        # The diagram's root carries the study (a pool diagram's collaboration, else the process), the first
+        # to hold one, as the prov module finds it for the state: its id, name, `seed` and `dependencies` are
+        # the run's. A diagram with none has its process stand in.
+        self.root = next((root for root in definitions if study_of(root) is not None), self.process)
+        self.study = study_of(self.root)
         self.seed = self.study.get("seed") if self.study is not None else None
 
         self.elements: dict[str, ET.Element] = {}
@@ -674,7 +676,7 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
     for element_id, digest in elements.items():
         digest["parent"] = studyflow.parents.get(element_id)  # the container, for lexical `{name}` lookups outward
     process = studyflow.process
-    title = process.get("name")
+    title = studyflow.root.get("name") or process.get("name")
     for root in studyflow.definitions:
         # A message (`messageRef` on a flow) and its item definition say what a message flow carries.
         if local(root) in ("message", "itemDefinition") and root.get("id"):
@@ -690,7 +692,7 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
                 title = child.get("name")
     return {
         "study": {
-            "id": process.get("id"), "name": title or process.get("id"), "seed": studyflow.seed,
+            "id": studyflow.root.get("id"), "name": title or studyflow.root.get("id"), "seed": studyflow.seed,
             "dependencies": study_dependencies(studyflow),
         },
         "sources": [str(path) for path in sources],
@@ -1327,12 +1329,12 @@ class Runner:
 
     def run(self, max_steps: int = 1000) -> None:
         self.demanded = self.plan_demand()
-        process = self.studyflow.process
-        name = process.get("name") or process.get("id")
+        process, study = self.studyflow.process, self.studyflow.root
+        name = study.get("name") or study.get("id")
         log_event("run.started", name)
         log_event(
             "run.started",
-            f"  [{process.get('id')}]  studyflow {self.record.plan_digest}"
+            f"  [{study.get('id')}]  studyflow {self.record.plan_digest}"
             f"  rootSeed {self.record.seed}  repo {self.repo_dir}",
             level=logging.DEBUG,
         )
@@ -1675,9 +1677,9 @@ def main() -> int:
         "Prov-Run": run_id,
         "Prov-Seed": seed,
     }
-    process_id = studyflow.process.get("id") or ""
+    study_id = studyflow.root.get("id") or ""
     repo.commit(
-        f"started {process_id} ({stamp})", document_stamp,
+        f"started {study_id} ({stamp})", document_stamp,
         when=timeline_timestamp(started), body=json.dumps(runner.record.header()),
     )
     try:
@@ -1695,7 +1697,7 @@ def main() -> int:
         # Entries no element commit claimed (end events, a failed parse) close out in the summary body.
         closing = {**runner.record.summary(), "tail": runner.record.steps_since(runner.recorded)}
         repo.commit(
-            f"finished {process_id} ({runner.record.status})", document_stamp,
+            f"finished {study_id} ({runner.record.status})", document_stamp,
             when=timeline_timestamp(datetime.now(timezone.utc)),
             body=json.dumps(closing, default=str),
         )

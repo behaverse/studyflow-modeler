@@ -41,7 +41,7 @@ test.describe('declaredRuntime', () => {
   test('falls back to the schema default when nothing declares it', () => {
     const definitions = study(`  extensionElements:
     - type: studyflow:Study`);
-    expect(declaredRuntime(definitions)).toBe('cloud');
+    expect(declaredRuntime(definitions)).toBe('local');
   });
 });
 
@@ -280,7 +280,7 @@ test.describe('partial runner hand-off', () => {
       '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
 
     const digest = JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'plan.json.seen'), 'utf8'));
-    expect(digest.study).toEqual({ id: 'P', name: 'Lab', seed: '7', dependencies: ['pandas>=2.0', 'joblib'] });
+    expect(digest.study).toEqual({ id: 'C', name: 'Lab', seed: '7', dependencies: ['pandas>=2.0', 'joblib'] });
     expect(digest.sources.length).toBeGreaterThan(0);
     const task = digest.elements.T;
     expect(task.type).toBe('task');
