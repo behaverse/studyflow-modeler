@@ -44,6 +44,26 @@ def split_binding(text: str | None) -> tuple[str | None, str | None]:
     return None, value
 
 
+PLACEHOLDER = re.compile(r"\{\s*([A-Za-z_][\w.]*)\s*\}")
+
+
+def dig(value: Any, fields: list[str]) -> Any:
+    for field in fields:
+        value = value.get(field) if isinstance(value, dict) else getattr(value, field, None)
+        if value is None:
+            break
+    return value
+
+
+def placeholder_of(value: Any) -> str | None:
+    """What a value that is one placeholder and nothing else cites: `"{model}"`, or an unquoted `{model}`, which
+    YAML reads as a one-key mapping."""
+    if isinstance(value, dict) and len(value) == 1 and None in value.values():
+        value = f"{{{next(iter(value))}}}"
+    match = PLACEHOLDER.fullmatch(value.strip()) if isinstance(value, str) else None
+    return match.group(1) if match else None
+
+
 DATA_ELEMENT_TAGS = {"dataObjectReference", "dataStoreReference", "dataObject", "dataStore", "property"}
 
 
@@ -206,21 +226,44 @@ class Run:
         build(path)
         print(f"prepared {uri}, a boundary input this studyflow ships")
 
-    def resolve_argument(self, value: Any) -> Any:
-        """`$Name` reads a bound value; a mapping with `implementation` is a call first."""
-        if isinstance(value, str) and value.startswith("$"):
-            head, _, tail = value[1:].partition(".")
-            resolved = self.value_of(self.by_name(head))
-            for field in filter(None, tail.split(".")):
-                resolved = resolved[field] if isinstance(resolved, dict) else getattr(resolved, field)
-            return resolved
+    def resolve(self, path: str, element_id: str) -> Any:
+        """The placeholder rule (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
+        outward, what each scope holds under the name, a lone name also as the runner's counter for that scope; then
+        an element's value, by id or unique name, loaded from its artifact when it has one. `None` when nothing
+        holds the name."""
+        head, *fields = path.split(".")
+        tree = self.values.get("state") or {}
+        if head == "state":
+            return dig(tree, fields)
+        scope = element_id
+        while scope:
+            found = dig(tree.get(scope), [head, *fields])
+            if found is None and not fields:
+                found = dig(tree.get("_meta"), [head, scope])
+            if found is not None:
+                return found
+            scope = (self.studyflow.elements.get(scope) or {}).get("parent")
+        source = self.by_name(head)
+        if source not in self.values and source not in self.studyflow.elements:
+            return None
+        return dig(self.value_of(source), fields)
+
+    def resolve_argument(self, value: Any, element_id: str) -> Any:
+        """An argument that is one placeholder is the value it cites, a table or a model, not its text; inside a
+        longer string a placeholder is text. A mapping with `implementation` is a call first."""
+        path = placeholder_of(value)
+        if path is not None:
+            found = self.resolve(path, element_id)
+            return value if found is None else found
+        if isinstance(value, str):
+            return PLACEHOLDER.sub(lambda m: m.group(0) if (v := self.resolve(m.group(1), element_id)) is None else str(v), value)
         if isinstance(value, dict) and "implementation" in value:
-            nested = self.resolve_arguments(value.get("arguments") or {})
+            nested = self.resolve_arguments(value.get("arguments") or {}, element_id)
             return resolve_implementation(value["implementation"])(*nested.pop("__args__", []), **nested)
         if isinstance(value, dict):
-            return {k: self.resolve_argument(v) for k, v in value.items()}
+            return {k: self.resolve_argument(v, element_id) for k, v in value.items()}
         if isinstance(value, list):
-            return [self.resolve_argument(v) for v in value]
+            return [self.resolve_argument(v, element_id) for v in value]
         return value
 
     def by_name(self, reference: str) -> str:
@@ -229,13 +272,13 @@ class Run:
                 return element_id
         return reference
 
-    def resolve_arguments(self, arguments: dict) -> dict:
+    def resolve_arguments(self, arguments: dict, element_id: str) -> dict:
         resolved: dict[str, Any] = {}
         for key, value in (arguments or {}).items():
             if key == "args":
-                resolved["__args__"] = [self.resolve_argument(v) for v in value]
+                resolved["__args__"] = [self.resolve_argument(v, element_id) for v in value]
             else:
-                resolved[key] = self.resolve_argument(value)
+                resolved[key] = self.resolve_argument(value, element_id)
         return resolved
 
     def execute(self, element: dict[str, Any]) -> Any:
@@ -262,7 +305,7 @@ class Run:
                 keywords[name] = value
 
         arguments = yaml.safe_load(element["additionalArguments"]) if element.get("additionalArguments") else {}
-        resolved = self.resolve_arguments(arguments or {})
+        resolved = self.resolve_arguments(arguments or {}, element["id"])
         positional = receiver + resolved.get("__args__", [])
         keywords.update({k: v for k, v in resolved.items() if k != "__args__"})
 

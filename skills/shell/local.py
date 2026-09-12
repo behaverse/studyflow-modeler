@@ -7,7 +7,7 @@
 
 A partial runner: it claims every element whose `implementation` is `shell://<command>` and, per hand-off,
 runs that command in the run directory with the element's `additionalArguments` as its argument list
-(`args` positional, other keys as flags), `{Name.field}` citations filled from the run's values. Its stdout
+(`args` positional, other keys as flags), each `{placeholder}` filled by the rule in docs/reference.qmd. Its stdout
 becomes the element's `result`; a non-zero exit is the element's error. Live: a command is a side effect,
 never skipped or replayed.
 """
@@ -38,23 +38,47 @@ def claimed(elements: dict[str, dict[str, Any]]) -> list[str]:
     return [eid for eid, element in elements.items() if command_of(element) is not None and not element.get("extensions")]
 
 
-def fill(text: str, values: dict[str, Any], names: dict[str, str]) -> str:
-    """`{Answer.trials}`: an element (by id or name), then its fields; a citation nothing binds stays as written."""
-    ids = {name: eid for eid, name in names.items()}
-
-    def cite(match: re.Match[str]) -> str:
-        head, *fields = match.group(1).split(".")
-        value: Any = values.get(head, values.get(ids.get(head, "")))
-        for field in fields:
-            value = value.get(field) if isinstance(value, dict) else getattr(value, field, None)
-            if value is None:
-                break
-        return match.group(0) if value is None else str(value)
-
-    return re.sub(r"\{([^{}]+)\}", cite, text)
+PLACEHOLDER = re.compile(r"\{\s*([A-Za-z_][\w.]*)\s*\}")
 
 
-def argv_of(element: dict[str, Any], values: dict[str, Any], names: dict[str, str]) -> list[str]:
+def dig(value: Any, fields: list[str]) -> Any:
+    for field in fields:
+        value = value.get(field) if isinstance(value, dict) else getattr(value, field, None)
+        if value is None:
+            break
+    return value
+
+
+def resolve(path: str, element_id: str, values: dict[str, Any], digest: dict[str, Any]) -> Any:
+    """The placeholder rule (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
+    outward, what each scope holds under the name, a lone name also as the runner's counter for that scope; then
+    an element's result, by id or unique name. `None` when nothing holds the name."""
+    head, *fields = path.split(".")
+    tree = values.get("state") or {}
+    if head == "state":
+        return dig(tree, fields)
+    elements = digest.get("elements") or {}
+    scope = element_id
+    while scope:
+        found = dig(tree.get(scope), [head, *fields])
+        if found is None and not fields:
+            found = dig(tree.get("_meta"), [head, scope])
+        if found is not None:
+            return found
+        scope = (elements.get(scope) or {}).get("parent")
+    ids = {name: eid for eid, name in (digest.get("names") or {}).items()}
+    return dig(values.get(head, values.get(ids.get(head, ""))), fields)
+
+
+def fill(value: Any, element_id: str, values: dict[str, Any], digest: dict[str, Any]) -> str:
+    """An argument as text, each placeholder that resolves filled in and one that does not left as written.
+    YAML reads an unquoted `{name}` as a one-key mapping; that is the placeholder too."""
+    if isinstance(value, dict) and len(value) == 1 and None in value.values():
+        value = f"{{{next(iter(value))}}}"
+    return PLACEHOLDER.sub(lambda m: m.group(0) if (v := resolve(m.group(1), element_id, values, digest)) is None else str(v), str(value))
+
+
+def argv_of(element: dict[str, Any], values: dict[str, Any], digest: dict[str, Any]) -> list[str]:
     command = command_of(element)
     if command is None:
         raise ValueError(f"{element.get('id')} is not a {SCHEME} element")
@@ -65,9 +89,8 @@ def argv_of(element: dict[str, Any], values: dict[str, Any], names: dict[str, st
     for key, value in arguments.items():
         if key == "args":
             continue
-        argv += [f"-{key}" if len(str(key)) == 1 else f"--{key}", *([] if value is None else [str(value)])]
-    argv += [str(v) for v in (arguments.get("args") or [])]
-    return [fill(arg, values, names) for arg in argv]
+        argv += [f"-{key}" if len(str(key)) == 1 else f"--{key}", *([] if value is None else [fill(value, element["id"], values, digest)])]
+    return argv + [fill(v, element["id"], values, digest) for v in (arguments.get("args") or [])]
 
 
 def main() -> int:
@@ -98,7 +121,7 @@ def main() -> int:
         element = elements.get(args.element)
         if element is None:
             raise KeyError(f"no element {args.element!r} in the diagram")
-        argv = argv_of(element, state, digest.get("names") or {})
+        argv = argv_of(element, state, digest)
         print(f"$ {' '.join(argv)}", file=sys.stderr)
         done = subprocess.run(argv, capture_output=True, text=True, cwd=run_dir, stdin=subprocess.DEVNULL)  # noqa: S603 - the diagram's own command
         if done.stderr.strip():

@@ -51,7 +51,19 @@ Done:
 
 You declare a value as a `bpmn:Property` on a container element, and where you declare it decides how long it lives: on the study, it lasts for the whole diagram; on a sub-process, for one pass through that sub-process. Activities set these values, and gateways and other activities read them. The run state is the set of values at one moment in a run, and the run history is the sequence of those states across the run.
 
-A property may carry an initial `value`; after that only a data edge targeting it changes it. After a run the file holds the values under `state`, keyed by element id. The runner keeps its own entries under `state._meta`: `_meta.prov`, the run records, and `_meta.reached.<element_id>`, how many times a token reached each element, never reset. Names starting with `_` cannot be declared. Any string attribute may cite a value as `{count}` or `{reached}` (resolved from the element outward) or `{state._meta.reached.Excluded_Pre}`, and conditions may test `state._meta.reached.Gate < 4`; the canvas and exported figures show the resolved text, the file and the inspector keep the placeholder.
+A property may carry an initial `value`; after that only a data edge targeting it changes it. After a run the file holds the values under `state`, keyed by element id. The runner keeps its own entries under `state._meta`: `_meta.prov`, the run records, and `_meta.reached.<element_id>`, how many times a token reached each element, never reset. Names starting with `_` cannot be declared. Conditions test these values directly, as `state._meta.reached.Gate < 4`; text cites them with placeholders.
+
+## Placeholders
+
+Any string attribute may cite a value as `{name}`, or a field of it as `{name.field}`. A name starts with a letter or `_` and holds only letters, digits and `_`, so the braces of YAML or JSON in a value are left alone. Every reader looks the name up in the same order and takes the first value it finds:
+
+1. `state`: the run state from its root, as in `{state._meta.reached.Excluded_Pre}`.
+2. The nearest scope that holds the name, from the element outward to the study: a property's value (`{count}`), or, for a lone name, the runner's counter of that name for the scope (`{reached}`).
+3. An element, by its id or by a name no other element has: the value it produced in this run (`{Play.trials}`).
+
+A placeholder that finds nothing stays as written, for whoever reads it later: the end event fills `{COMPLETION_CODE}` when it redirects. Each reader resolves what it knows when it reads. The canvas and exported figures show the last run's state, while the file and the inspector keep the placeholder. The local runner resolves all three as the run goes. The browser runner resolves only what the link that launched it gives (`/run/?diagram=…&n_trials=40`), once, before the walk: a key of a `studyflow:Parameters` object, a declared property, or an attribute of the study. A key or an attribute the link leaves out keeps the value the file gives it. A placeholder that cites a declared name with no value blocks the run; any other stays as written.
+
+When an argument of a `python://` call is one placeholder and nothing else, the call gets the value itself, a table or a model, rather than its text. Quote it or not: `model: "{pipeline}"` and `model: {pipeline}` pass the same value.
 
 ## Well-formed diagrams
 

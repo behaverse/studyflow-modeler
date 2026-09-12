@@ -14,6 +14,7 @@ export { YAML_DUMP_OPTIONS, applyXmlPasses, declaredRuntime, primaryRoot, studyE
 export { CHECKLIST_MARKER, isChecklistMarkerValue } from '@core/document/shorthand';
 export {
   META_KEY,
+  PLACEHOLDER,
   isReservedStateKey,
   readState,
   resolvePlaceholders,

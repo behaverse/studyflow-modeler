@@ -1,6 +1,6 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
-import { choreographyToProcessRoot, looksLikeXml, readState, studyflowToDefinitions, type StateTree } from '@core/document';
+import { PLACEHOLDER, choreographyToProcessRoot, looksLikeXml, readState, studyflowToDefinitions, type StateTree } from '@core/document';
 import { getAttribute, getExtensionType, getRawAttribute } from '@core/element';
 import { BPMN, isDeclaredProperty } from '@core/constants';
 import type { FlowNode, SequenceFlow } from '@runner/flow';
@@ -224,8 +224,6 @@ export async function parseStudyflow(
   };
 }
 
-/** `{name}`, the placeholder every runner reads; an identifier-shaped name only, so YAML and JSON braces in a value stay put. */
-const PARAMETER_REF = /\{\s*([A-Za-z_][\w.]*)\s*\}/g;
 const PARAMETERS_TYPE = 'studyflow:Parameters';
 
 export type BoundParameters = {
@@ -357,7 +355,7 @@ function bindParameters(
   // a run-state `{count}`) and stays as written; a declared one left without a value blocks the run.
   const declared = declaredNames(businessObject, attributes);
   const unbound = new Set<string>();
-  const substitute = (text: string, scope: Record<string, unknown>): string => text.replace(PARAMETER_REF, (ref, name: string) => {
+  const substitute = (text: string, scope: Record<string, unknown>): string => text.replace(PLACEHOLDER, (ref, name: string) => {
     const bound = scope[name];
     if (bound !== undefined && bound !== '') return String(bound);
     if (declared.has(name)) unbound.add(name);

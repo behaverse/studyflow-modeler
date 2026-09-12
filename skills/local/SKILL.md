@@ -36,4 +36,4 @@ What comes back: `result`, `durationMs` and `error` are recorded. Any other top-
 - `names`: element ids to the names a placeholder may cite (`{Play.trials}`), one element each. A name two elements share, or one that is also an id, binds nothing.
 - Nothing is inferred: an attribute the diagram omits is absent, and its default is the runner's to know.
 
-**State.** The state file carries the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`). A runner resolves `{name}` placeholders as the modeler does, from the element outward, writes a data edge's value into its target property under `state`, and the walk adopts the scopes that changed.
+**State.** The state file carries the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`). A runner resolves placeholders by the rule in [docs/reference.qmd](../../docs/reference.qmd#placeholders) (`state` from its root, then the nearest scope outward, then an element's result by id or name), writes a data edge's value into its target property under `state`, and the walk adopts the scopes that changed.

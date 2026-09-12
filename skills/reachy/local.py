@@ -543,6 +543,9 @@ class SimRobot:
             self._daemon = None
 
 
+PLACEHOLDER = re.compile(r"\{\s*([A-Za-z_][\w.]*)\s*\}")
+
+
 def lookup(tree: Any, keys: list[str]) -> Any:
     for key in keys:
         if not isinstance(tree, dict) or key not in tree:
@@ -581,9 +584,9 @@ class Run:
         answer = input(f"    {prompt} [{default}]: ").strip()
         return answer or default
 
-    # Placeholders as the modeler resolves them: `{path}`, a dotted lookup from the element outward through its
-    # containers (`{count}`, `{screenGaze}`), a single name also as the runner's counter `_meta.<name>.<scope>`,
-    # `{state.a.b}` absolute, and last an element's result by id or name (`{Play.trials}`). Unresolved, a
+    # The placeholder rule (docs/reference.qmd, "Placeholders"): `{state.a.b}` from the root; then a dotted lookup
+    # from the element outward through its containers (`{count}`, `{screenGaze}`), a lone name also as the runner's
+    # counter `_meta.<name>.<scope>`; last an element's result by id or name (`{Play.trials}`). Unresolved, a
     # placeholder stays as written.
     def resolve(self, path: str) -> Any:
         keys = [key.strip() for key in path.split(".") if key.strip()]
@@ -601,7 +604,7 @@ class Run:
         return lookup(result, keys[1:]) if len(keys) > 1 else result
 
     def fill(self, text: str) -> str:
-        return re.sub(r"\{([^{}]+)\}", lambda m: str(v) if (v := self.resolve(m.group(1))) is not None else m.group(0), text)
+        return PLACEHOLDER.sub(lambda m: str(v) if (v := self.resolve(m.group(1))) is not None else m.group(0), text)
 
     def namespace(self) -> dict[str, Any]:
         space: dict[str, Any] = {"state": SimpleNamespace(trace=self.trace)}

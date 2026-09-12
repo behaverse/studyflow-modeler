@@ -99,11 +99,17 @@ export function resolveState(definitions: ModdleElement | null | undefined, elem
   return undefined;
 }
 
-/** Replaces every `{path}` that resolves with `String(value)`; an unresolved placeholder stays as written. */
+/**
+ * A placeholder, `{name}` or `{name.field}`, the one form every reader takes (docs/reference.qmd, "Placeholders").
+ * The name is identifier-shaped, so the braces of YAML or JSON in a value stay put.
+ */
+export const PLACEHOLDER = /\{\s*([A-Za-z_][\w.]*)\s*\}/g;
+
+/** Replaces every `{path}` the last run's state resolves with `String(value)`; an unresolved placeholder stays as written. */
 export function resolvePlaceholders(text: string, definitions: ModdleElement | null | undefined, elementId: string): string {
   if (!text.includes('{')) return text;
-  return text.replace(/\{([^{}]+)\}/g, (match, body: string) => {
-    const value = resolveState(definitions, elementId, body);
+  return text.replace(PLACEHOLDER, (match, path: string) => {
+    const value = resolveState(definitions, elementId, path);
     return value === undefined ? match : String(value);
   });
 }
