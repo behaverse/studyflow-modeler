@@ -291,11 +291,6 @@ class Compiler {
       const raw = this.rawByName.get(step)?.raw;
       if (!raw) continue;
 
-      const metaBpmn = raw.meta?.bpmnType;
-      if (typeof metaBpmn === 'string' && metaBpmn.startsWith('bpmn:')) {
-        return this.checkedBpmnRef(qualified, metaBpmn, 'meta.bpmnType');
-      }
-
       // `extends` before `superClass`: a trait names its attach point directly, and may legitimately name `bpmn:BaseElement`.
       for (const ref of raw.extends ?? []) {
         if (typeof ref === 'string' && ref.startsWith('bpmn:')) {

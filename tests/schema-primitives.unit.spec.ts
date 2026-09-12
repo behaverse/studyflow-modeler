@@ -99,7 +99,6 @@ function probeModel(base: string): SchemaModel {
       {
         name: 'Holder',
         superClass: ['bpmn:Task'],
-        meta: { bpmnType: 'bpmn:Task' },
         properties: [{ name: 'held', type: 'Scalar' }],
       },
     ],

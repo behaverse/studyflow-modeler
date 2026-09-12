@@ -15,9 +15,9 @@ function schema(partial: Partial<SchemaModel>): SchemaModel {
   } as SchemaModel;
 }
 
-test('a typo in meta.bpmnType warns and drops the attach point instead of crashing later', () => {
+test('a typo in the BPMN attach point warns and drops it instead of crashing later', () => {
   const catalog = buildCatalog([schema({
-    types: [{ name: 'Thing', superClass: ['Element'], meta: { bpmnType: 'bpmn:Taskk' } } as any],
+    types: [{ name: 'Thing', superClass: ['bpmn:Taskk'] } as any],
   })]);
   expect(catalog.diagnostics.join('\n')).toContain("unknown BPMN type 'bpmn:Taskk'");
   expect(catalog.getType('test:Thing')?.bpmnType).toBeNull();

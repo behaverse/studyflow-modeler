@@ -54,9 +54,6 @@ function legacyWalk(typeDef: any, seen: Set<string>): string | null {
   if (seen.has(id)) return null;
   seen.add(id);
 
-  const metaBpmn = typeDef?.meta?.bpmnType;
-  if (typeof metaBpmn === 'string' && metaBpmn.startsWith('bpmn:')) return metaBpmn;
-
   for (const extended of typeDef.extends ?? []) {
     if (typeof extended === 'string' && extended.startsWith('bpmn:')) return extended;
     const extendedSchema = legacyResolveTypeSchema(extended, typeDef.ns?.prefix);

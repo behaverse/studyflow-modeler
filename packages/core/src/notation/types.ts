@@ -29,7 +29,6 @@ export interface AttributeMeta {
 }
 
 export interface TypeMeta {
-  bpmnType?: string;
   connectsTo?: string[];
   roles?: TypeRole[];
   branching?: string;
