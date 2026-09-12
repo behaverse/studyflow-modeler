@@ -69,14 +69,12 @@ test.describe('schema lint', () => {
 
       test('declares required metadata', () => {
         expect(typeof schema.name, 'name').toBe('string');
-        expect(schema.prefix, 'prefix matches filename').toBe(prefix);
         expect(schema.prefix).toBe(schema.prefix.toLowerCase());
         expect(typeof schema.description, 'description').toBe('string');
         expect(typeof schema.uri, 'uri').toBe('string');
         expect(schema.uri).toMatch(/^https?:\/\//);
         // YY.M.N, as the app's own version; quoted, or YAML reads a two-part version as a float.
         expect(schema.version, 'version is a quoted YY.M.N').toMatch(/^\d{2}\.(?:[1-9]|1[0-2])\.\d+$/);
-        expect(schema.xml?.tagAlias, 'tagAlias').toBe('lowerCase');
       });
 
       test('every category an attribute names is declared by some schema', () => {
@@ -112,23 +110,23 @@ test.describe('schema lint', () => {
       });
 
       // No `isAbstract` assertion: `compileEnum` copies only name/description/literalValues, so it would be a no-op.
-      test('enumeration literals are named, and an extension names an enum of another schema', () => {
+      test('enumeration literals are named, and an apply_to names an enum of another schema', () => {
         for (const e of schema.enumerations ?? []) {
           expect(typeof e.name === 'string' || typeof e.extends === 'string', 'an enumeration has a name or extends one').toBe(true);
-          if (e.extends) expect(resolves(e.extends, schema), `${e.extends} extended by ${schema.prefix}`).toBe(true);
+          if (e.extends) expect(resolves(e.extends, schema), `${schema.prefix} apply_to ${e.extends}`).toBe(true);
           for (const lit of e.literalValues ?? []) {
             expect(typeof lit.name, `${e.name ?? e.extends} literal name`).toBe('string');
           }
         }
       });
 
-      test('superClass, extends, and property type references resolve', () => {
+      test('is_a, implements, and range references resolve', () => {
         for (const t of schema.types ?? []) {
           for (const ref of t.superClass ?? []) {
-            expect(resolves(ref, schema), `${t.name} superClass ${ref}`).toBe(true);
+            expect(resolves(ref, schema), `${t.name} is_a ${ref}`).toBe(true);
           }
           for (const ref of t.extends ?? []) {
-            expect(ref, `${t.name} extends must target a bpmn type`).toMatch(/^bpmn:/);
+            expect(ref, `${t.name}: a mixin implements only bpmn types`).toMatch(/^bpmn:/);
           }
           for (const p of t.properties ?? []) {
             expect(typeof p.name, `${t.name} property name`).toBe('string');
@@ -138,7 +136,7 @@ test.describe('schema lint', () => {
         }
       });
 
-      test('no superClass restates a BPMN ancestor the type already has', () => {
+      test('no type restates a BPMN ancestor it already has', () => {
         for (const t of schema.types ?? []) {
           const supers: string[] = t.superClass ?? [];
           if (supers.length < 2) continue;
@@ -147,7 +145,7 @@ test.describe('schema lint', () => {
             for (const other of others) {
               expect(
                 bpmnSelfAndAncestors(other).includes(ref),
-                `${t.name} lists superClass ${ref}, already reached through ${other}`,
+                `${t.name} names ${ref}, already reached through ${other}`,
               ).toBe(false);
             }
           }

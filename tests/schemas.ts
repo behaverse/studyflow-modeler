@@ -19,22 +19,9 @@ export const SKILLS: SkillManifest[] = readdirSync(SKILLS_DIR)
 const withSchema = SKILLS.filter((skill) => skill.schema);
 const schemaFiles = withSchema.map((skill) => path.join(SKILLS_DIR, skill.name, skill.schema!));
 
-/** Every schema, converted together as `loader.ts` does, in `withSchema` order. */
+/** Every schema, converted together as `loader.ts` does. */
 function readModels(): SchemaModel[] {
   return fromLinkml(schemaFiles.map((file) => parseLinkml(readFileSync(file, 'utf8'), file)));
-}
-
-/** Schema prefix → the file its skill declares. */
-const pathOfPrefix = new Map(readModels().map((model, index) => [model.prefix, schemaFiles[index]]));
-
-export function schemaPath(prefix: string): string {
-  const found = pathOfPrefix.get(prefix);
-  if (!found) throw new Error(`no skill declares a schema with prefix ${prefix}`);
-  return found;
-}
-
-export function schemaSource(prefix: string): string {
-  return readFileSync(schemaPath(prefix), 'utf8');
 }
 
 export const SCHEMA_MODELS: SchemaModel[] = sortSchemas(readModels());

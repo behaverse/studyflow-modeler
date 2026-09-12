@@ -88,14 +88,14 @@ function isOwnEnum(rawEnum: SchemaEnumModel): rawEnum is SchemaEnumModel & { nam
   return typeof rawEnum.name === 'string';
 }
 
-/** Literals a schema adds to another's enum (`extends: cognitive:ActorTypeEnum`), so a small skill grows a shared list instead of redeclaring it. */
+/** Literals a schema adds to another's enum (`apply_to: [ActorTypeEnum]`), so a small skill grows a shared list instead of redeclaring it. */
 function extendEnums(rawSchemas: Record<string, SchemaModel>, catalog: TypeCatalog): void {
   for (const [prefix, raw] of Object.entries(rawSchemas)) {
     for (const rawEnum of raw.enumerations) {
       if (typeof rawEnum.extends !== 'string') continue;
       const target = catalog.enumOf(rawEnum.extends, prefix);
       if (!target) {
-        catalog.diagnostics.push(`[${prefix}] enumeration extends unknown enum '${rawEnum.extends}'; its literals are dropped`);
+        catalog.diagnostics.push(`[${prefix}] apply_to names unknown enum '${rawEnum.extends}'; its values are dropped`);
         continue;
       }
       for (const lit of rawEnum.literalValues ?? []) {
@@ -159,6 +159,7 @@ export function inferRoles(bpmnType: string | null): TypeRole[] {
   return bpmnType && isBpmnSubtypeOf(bpmnType, 'bpmn:ItemAwareElement') ? ['data-element'] : [];
 }
 
+/** Diagnostics name the keys an author writes (`is_a`, `implements`, `apply_to`), not the moddle ones they became. */
 class Compiler {
   private rawSchemas: Record<string, SchemaModel>;
   private rawByName = new Map<string, { prefix: string; raw: SchemaTypeModel }>();
@@ -228,12 +229,12 @@ class Compiler {
       }
       const resolved = this.resolveRef(ref, prefix);
       if (!resolved) {
-        this.warn(prefix, type.ns.localName, `trait extends unresolved type '${ref}'`);
+        this.warn(prefix, type.ns.localName, `trait implements unresolved type '${ref}'`);
         continue;
       }
       const target = this.resolveBpmnType(resolved.qualified);
       if (target) targets.push(target);
-      else this.warn(prefix, type.ns.localName, `trait extends '${ref}', which has no BPMN attach point`);
+      else this.warn(prefix, type.ns.localName, `trait implements '${ref}', which has no BPMN attach point`);
     }
     if (targets.length === 0) {
       this.warn(prefix, type.ns.localName, 'trait resolved to no BPMN targets; its attributes are unreachable');
@@ -262,7 +263,7 @@ class Compiler {
     if (!found) return;
     const { prefix, raw } = found;
 
-    for (const [kind, refs] of [['superClass', raw.superClass], ['extends', raw.extends]] as const) {
+    for (const [kind, refs] of [['is_a', raw.superClass], ['implements', raw.extends]] as const) {
       for (const ref of refs ?? []) {
         if (typeof ref !== 'string') {
           this.warn(prefix, toLocalName(qualified) ?? qualified, `non-string ${kind} ref ${JSON.stringify(ref)}`);
@@ -294,13 +295,13 @@ class Compiler {
       // `extends` before `superClass`: a trait names its attach point directly, and may legitimately name `bpmn:BaseElement`.
       for (const ref of raw.extends ?? []) {
         if (typeof ref === 'string' && ref.startsWith('bpmn:')) {
-          return this.checkedBpmnRef(qualified, ref, 'extends');
+          return this.checkedBpmnRef(qualified, ref, 'implements');
         }
       }
       for (const ref of raw.superClass ?? []) {
         if (typeof ref !== 'string' || !ref.startsWith('bpmn:')) continue;
         if (NON_BPMN_SUPER_CLASSES.has(toLocalName(ref) ?? ref)) continue;
-        return this.checkedBpmnRef(qualified, ref, 'superClass');
+        return this.checkedBpmnRef(qualified, ref, 'implements');
       }
     }
     return null;
