@@ -1,0 +1,45 @@
+# A schema file whose only job is to exercise the `connectsTo` annotation end to end.
+#
+# `connectsTo` is the schema-driven connection allow-list evaluated by
+# `TypeCatalog.connectionRule` and applied by the canvas rules.
+# No *shipped* schema declares it — deliberately: a declaration immediately
+# starts vetoing connections a user can draw today, so which flows a domain
+# actually forbids is a modelling decision, not a refactor. What was missing was
+# coverage of the real path, so this fixture is loaded the way the app loads a
+# schema (`parseLinkml` -> `fromLinkml` -> `buildCatalog`) rather than hand-built
+# as an object literal, which is what let the declared shape drift from the parsed one.
+id: http://example.org/schemas/lab/v1
+name: lab
+title: Lab
+description: Connection-rule fixture. Not shipped.
+version: '26.8.1'
+default_prefix: lab
+default_range: string
+prefixes:
+  linkml: https://w3id.org/linkml/
+  lab: http://example.org/schemas/lab/v1/
+  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+imports:
+  - linkml:types
+
+classes:
+  Consent:
+    description: Consent step. Only a survey or a gateway may follow it.
+    implements:
+      - bpmn:Task
+    annotations:
+      connectsTo:
+        value: [lab:Survey, bpmn:Gateway]
+
+  Survey:
+    description: Declares no rules, so the BPMN defaults decide.
+    implements:
+      - bpmn:Task
+
+  Debrief:
+    description: Explicitly unconstrained.
+    implements:
+      - bpmn:Task
+    annotations:
+      connectsTo:
+        value: ['*']

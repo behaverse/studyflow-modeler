@@ -4,12 +4,12 @@ description: "Motion, media, and sensing elements of the Reachy Mini robot, and 
 license: MIT
 compatibility: "Local runtime with uv; a Reachy Mini daemon on the network, or --sim."
 metadata:
-  schema: "reachy.moddle.yaml"
+  schema: "reachy.linkml.yaml"
   runtimes:
     local: "uv run --script local.py"
 ---
 
-`reachy.moddle.yaml` maps one-to-one onto the robot daemon's REST API. `local.py` is the partial
+`reachy.linkml.yaml` maps one-to-one onto the robot daemon's REST API. `local.py` is the partial
 runner performing them (`--sim` for the simulator), and doubles as the participant bridge that seats
 the robot in front of a Behaverse task (`local.py --participant`). A local run seats it by itself when a
 cognitive task is the robot's to take, drawn any of three ways: the Robot pool on the task's receiving band

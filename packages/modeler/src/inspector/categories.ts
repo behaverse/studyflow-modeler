@@ -9,7 +9,7 @@ export function isAttributeVisible(attrDef: AttributeSpec | undefined, element: 
   if (attrDef.meta?.pinned) return false;
   if (!attrDef.meta?.condition) return true;
 
-  const conditions = attrDef.meta.condition.body || {};
+  const conditions = attrDef.meta.condition;
   const matches = (actual: unknown, expected: unknown): boolean => {
     if (expected === '$set') return actual != null && actual !== '';
     if (Array.isArray(expected)) return expected.includes(actual);

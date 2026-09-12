@@ -1,0 +1,145 @@
+# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+
+id: http://behaverse.org/schemas/studyflow/behaverse
+name: behaverse
+title: Behaverse
+description: >-
+  The Behaverse assessment battery: its tasks, the trials and responses they
+  exchange, and datasets in the Behaverse Data Model.
+license: MIT
+version: '26.9.1'
+rank: 4
+default_prefix: behaverse
+default_range: string
+prefixes:
+  linkml: https://w3id.org/linkml/
+  behaverse: http://behaverse.org/schemas/studyflow/behaverse/
+  studyflow: http://behaverse.org/schemas/studyflow/v1/
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive/
+imports:
+  - linkml:types
+  - ../studyflow/studyflow.linkml
+  - ../cognitive/cognitive.linkml
+annotations:
+  icon: iconify tabler--hexagon-letter-b
+
+enums:
+  BehaverseExperimentSoftware:
+    apply_to:
+      - ExperimentSoftwareEnum
+    permissible_values:
+      behaverse:
+        title: Behaverse
+  BehaverseDatasetFormat:
+    apply_to:
+      - DatasetFormatEnum
+    permissible_values:
+      bdm:
+        title: BDM (Behaverse Data Model)
+        annotations:
+          icon: iconify bi--hexagon
+  # Offered on a message flow's Message field; any other item definition's `structureRef` is accepted too.
+  MessageStructureEnum:
+    description: What a message flow to or from a Behaverse task carries, as the structure its message is an item of.
+    permissible_values:
+      'behaverse:Trial':
+        title: A trial
+        description: One awaiting trial, out of the task to whoever answers it (its options, response window, and screenshot).
+      'behaverse:Response':
+        title: A response
+        description: The answer to a trial, back into the task.
+  SceneEnum:
+    description: Behaverse assessment delivered by a Behaverse task.
+    permissible_values:
+      BCS: { title: Belval Card Sorting (BCS) }
+      BM: { title: Belval Matrices (BM) }
+      BSAC: { title: Button Spatial Attention Cueing (BSAC) }
+      DS: { title: Digit Span (DS) }
+      ML: { title: Monkey Ladder (ML) }
+      MOT: { title: Multiple Object Tracking (MOT) }
+      NB: { title: N-Back (NB) }
+      OC: { title: Ordered Click (OC) }
+      OOO: { title: Odd One Out (OOO) }
+      PC: { title: Polygon Comparison (PC) }
+      RE: { title: Regular Expression (RE) }
+      RSAC: { title: Reflexive Spatial Attention Cueing (RSAC) }
+      SART: { title: Sustained Attention to Response Task (SART) }
+      SMC: { title: Symbolic Matrix Comparison (SMC) }
+      SOS: { title: Self-Ordered Search (SOS) }
+      SRM: { title: Stimulus-Response Mapping (SRM) }
+      SRT: { title: Serial Reaction Time (SRT) }
+      SS: { title: Spatial Span (SS) }
+      TH: { title: Target Hit (TH) }
+      TOVA: { title: Test of Variable Attention (TOVA) }
+      UFOV: { title: Useful Field of View (UFOV) }
+      WO: { title: Which One (WO) }
+  DataLevelEnum:
+    description: Level of the BDM hierarchy the data sits at.
+    permissible_values:
+      events:
+        title: Events
+        description: Every recorded occurrence, as it happened.
+      trials:
+        title: Trials
+        description: One row per trial, derived from events.
+      models:
+        title: Models
+        description: Fitted parameters and scores, derived from trials.
+
+classes:
+  Task:
+    description: A task from the Behaverse assessment battery.
+    is_a: CognitiveTask
+    annotations:
+      icon: iconify bi--hexagon
+      presenter: "Behaverse · {scene}"
+      # The attribute drawn as text over the icon: the hex alone does not say which assessment.
+      glyph: scene
+    attributes:
+      instrument:
+        ifabsent: string(behaverse)
+        rank: 0
+        annotations:
+          redefines: cognitive:CognitiveTask#instrument
+          pinned: true
+      implementation:
+        description: Unused here; the scene says what runs.
+        annotations:
+          redefines: cognitive:CognitiveTask#implementation
+          pinned: true
+      scene:
+        description: Which Behaverse assessment runs (`NB`, `UFOV`, `DS`).
+        range: SceneEnum
+        rank: 1
+        in_subset:
+          - Execution
+      configurations:
+        description: 'The task''s `GameConfig` as YAML: a shipped timeline, or one defined inline. `Bot:` says how a bot plays it (`Speed: 20`), read when the participant taking the task is not a person.'
+        range: Configurations
+        rank: 2
+        in_subset:
+          - Execution
+        annotations:
+          redefines: cognitive:CognitiveTask#configurations
+          element: true
+
+  # The browser runner performs only simple randomization with equal odds; it
+  # warns about anything else (packages/runner/src/allocation.ts).
+  BDMDataset:
+    description: A dataset in the Behaverse Data Model (BDM).
+    is_a: Dataset
+    annotations:
+      icon: iconify bi--hexagon
+    attributes:
+      format:
+        ifabsent: string(bdm)
+        annotations:
+          redefines: studyflow:Dataset#format
+          pinned: true
+      dataLevel:
+        description: Level of the BDM hierarchy.
+        range: DataLevelEnum
+        ifabsent: string(events)
+        rank: 2
+        in_subset:
+          - Data

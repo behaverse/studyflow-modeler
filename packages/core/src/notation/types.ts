@@ -11,8 +11,8 @@ export type EditorName = (typeof EDITOR_NAMES)[number];
 
 export interface AttributeMeta {
   editor?: string;
-  /** Visibility predicate: shown only when every entry of `body` matches the element. */
-  condition?: { body?: Record<string, unknown> };
+  /** Visibility predicate: shown only when every entry matches the element's attribute of that name. */
+  condition?: Record<string, unknown>;
   categories?: string[];
   order?: number;
   /** Fixed value: never rendered, and preferred over a business-object default on read (`extensionValueWins`). */
@@ -39,7 +39,7 @@ export interface TypeMeta {
   [key: string]: unknown;
 }
 
-/** Declared as `meta.roles` and inherited by subtypes; `data-element` alone follows from the BPMN attach point (`inferRoles`). */
+/** Declared as a schema's `roles` annotation and inherited by subtypes; `data-element` alone follows from the BPMN attach point (`inferRoles`). */
 export type TypeRole =
   | 'data-element'
   | 'signal'

@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+
+# No elements of its own: this runtime adds itself to the study's `runtime` choices.
+id: https://w3id.org/studyflow/local
+name: local
+title: Local runtime
+description: >-
+  On the researcher's machine.
+license: MIT
+version: '26.9.1'
+rank: 3
+default_prefix: local
+default_range: string
+prefixes:
+  linkml: https://w3id.org/linkml/
+  local: https://w3id.org/studyflow/local/
+  studyflow: http://behaverse.org/schemas/studyflow/v1/
+imports:
+  - linkml:types
+  - ../studyflow/studyflow.linkml
+annotations:
+  icon: iconify tabler--hexagon-letter-l
+  core: true
+
+enums:
+  LocalRuntime:
+    apply_to:
+      - RuntimeEnum
+    permissible_values:
+      local:
+        title: Local
+        description: On the researcher's machine.

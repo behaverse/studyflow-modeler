@@ -10,6 +10,7 @@ npm run dev                  # the modeler at http://localhost:5173/app.html, th
 npm run typecheck && npm run lint && npm run test:unit   # the gate: CI and `npm run release` run exactly this
 npm run test:e2e             # Playwright against its own dev server on :4173; CI skips it, so run it after UI changes
 npm run examples:render      # after a canvas or file-format change, then test:unit (goldens come from the example PNGs)
+npm run schemas:lint         # after a schema change: the LinkML linter over every skills/*/*.linkml.yaml (needs uv)
 ```
 
 A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the dev server, `*.webkit.spec.ts` in WebKit. Specs for core and the modeler live in `tests/`; the canvas and each skill keep theirs in their own `tests/`.
@@ -18,12 +19,12 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 
 | Path | What |
 | --- | --- |
-| `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles `*.moddle.yaml` (`notation/`), attribute access on one element (`element/`). No React. |
+| `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles LinkML `*.linkml.yaml` into moddle packages (`notation/`), attribute access on one element (`element/`). No React. |
 | `packages/canvas` | The SVG canvas. `src/index.ts` is all the modeler may import. |
 | `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a feature's `commands.ts`; `src/commandBus.ts` lists the features. |
 | `packages/cli` | The `studyflow` CLI. `run` hands a local study to `skills/local/run.py`. |
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
-| `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (`*.moddle.yaml`), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
+| `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (`*.linkml.yaml`, with `templates.yaml` and `examples.yaml` beside it), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
 | `skills/browser` | The browser runtime, served at `/run/`. |
 | `skills/local` | The local runtime (`run.py`); its `SKILL.md` is the contract every partial runner follows. |
 

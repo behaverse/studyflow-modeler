@@ -1,57 +1,15 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
-import * as yaml from 'js-yaml';
 
 import { buildCatalog } from '@core/notation';
-import { fromModdleYaml, isValueType, toModdlePackages } from '@core/notation/schemaFile';
-import { SCHEMAS, schemaSource } from './schemas';
+import { fromLinkml, parseLinkml } from '@core/notation/linkml';
+import { toModdlePackages } from '@core/notation/schemaFile';
+import { connectsToFixture, loadSchemaModels } from './schemas';
 
 /** The moddle package format is an *output* of the schema model, not the source format. */
 
-
-/** Legacy oracle: the pre-SchemaModel transform, adjusted for the divergences `toModdlePackages` documents. */
-function expectedModdlePackage(yamlContent: string, valueTypes: Set<string>, prefix: string): any {
-  const schema: any = yaml.load(yamlContent);
-  for (const type of schema?.types ?? []) {
-    const isValueType = valueTypes.has(`${prefix}:${type.name}`);
-    if (!isValueType && Array.isArray(type.superClass) && type.superClass.length > 0
-        && !type.superClass.includes('Element')) {
-      type.superClass.push('Element');
-    }
-    for (const p of type.properties ?? []) {
-      if (p.isAttr || typeof p.type !== 'string') continue;
-      const qualified = p.type.includes(':') ? p.type : `${prefix}:${p.type}`;
-      if (!valueTypes.has(qualified)) continue;
-      p.valueType = qualified;
-      p.type = 'String';
-    }
-  }
-  return schema;
-}
-
 test.describe('schema model: moddle package generation', () => {
-  const texts = new Map(
-    SCHEMAS.map(({ prefix }) => [prefix, schemaSource(prefix)]),
-  );
-  const models = [...texts.values()].map((text) => fromModdleYaml(text));
-  const valueTypes = new Set<string>();
-  for (const model of models) {
-    for (const type of model.types) {
-      if (isValueType(type)) valueTypes.add(`${model.prefix}:${type.name}`);
-    }
-    for (const enumeration of model.enumerations) valueTypes.add(`${model.prefix}:${enumeration.name}`);
-  }
-
-  for (const { prefix } of SCHEMAS) {
-    test(`${prefix}: generated package matches the legacy transform plus documented fixes`, () => {
-      const model = models.find((m) => m.prefix === prefix)!;
-      const generated = toModdlePackages(model, models);
-      expect(generated).toEqual(expectedModdlePackage(texts.get(prefix)!, valueTypes, prefix));
-    });
-  }
+  const models = loadSchemaModels();
 
   test('value types stay plain String subtypes (no Element)', () => {
     const studyflow = toModdlePackages(models.find((m) => m.prefix === 'studyflow')!, models);
@@ -116,13 +74,8 @@ test.describe('schema model: moddle package generation', () => {
 
 
 test.describe('schema model: connection rules', () => {
-  // No shipped schema declares `meta.connectsTo`, so the fixture file carries it.
-  const catalog = buildCatalog([
-    fromModdleYaml(
-      readFileSync(path.join(process.cwd(), 'tests/fixtures/connects-to.moddle.yaml'), 'utf8'),
-      'tests/fixtures/connects-to.moddle.yaml',
-    ),
-  ]);
+  // No shipped schema declares a `connectsTo` annotation, so the fixture file carries it.
+  const catalog = buildCatalog([connectsToFixture()]);
 
   test('an authored connectsTo block survives parse and compile', () => {
     expect(catalog.getType('lab:Consent')?.meta.connectsTo).toEqual(['lab:Survey', 'bpmn:Gateway']);
@@ -156,28 +109,20 @@ test.describe('schema model: connection rules', () => {
 
 test.describe('compiler diagnostics', () => {
   const BROKEN = `
-prefix: broken
-name: Broken
-uri: https://example.test/broken
-version: '26.0101'
-xml:
-  tagAlias: lowerCase
-types:
-  - name: DanglingSuper
-    superClass:
-      - NoSuchType
-  - name: DanglingTrait
-    extends:
-      - bpmn:Task
-    properties:
-      - name: ok
-        type: String
-        isAttr: true
-enumerations: []
+id: https://example.test/broken
+name: broken
+classes:
+  DanglingSuper:
+    is_a: NoSuchType
+  DanglingTrait:
+    mixin: true
+    implements: [bpmn:Task]
+    attributes:
+      ok: {}
 `;
 
-  test('an unresolvable superClass ref is reported, not skipped', () => {
-    const catalog = buildCatalog([fromModdleYaml(BROKEN, 'broken.moddle.yaml')]);
+  test('an unresolvable is_a ref is reported, not skipped', () => {
+    const catalog = buildCatalog(fromLinkml([parseLinkml(BROKEN, 'broken.linkml.yaml')]));
     expect(catalog.diagnostics.length, 'expected at least one diagnostic').toBeGreaterThan(0);
     const joined = catalog.diagnostics.join('\n');
     expect(joined).toContain('DanglingSuper');
@@ -185,12 +130,6 @@ enumerations: []
   });
 
   test('a well-formed schema reports nothing', () => {
-    const clean = buildCatalog([
-      fromModdleYaml(
-        readFileSync(path.join(process.cwd(), 'tests/fixtures/connects-to.moddle.yaml'), 'utf8'),
-        'connects-to.moddle.yaml',
-      ),
-    ]);
-    expect(clean.diagnostics).toEqual([]);
+    expect(buildCatalog([connectsToFixture()]).diagnostics).toEqual([]);
   });
 });

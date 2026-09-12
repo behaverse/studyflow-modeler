@@ -1,0 +1,333 @@
+# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+
+# LLM and agent workflows in the vocabulary of Anthropic's "Building effective
+# agents": prompt chaining, routing, parallelization, orchestrator-workers,
+# evaluator-optimizer, and the autonomous agent; plus tools, memory, and the
+# human in the loop. Patterns are templates over the few types below, not
+# classes of their own.
+
+id: https://w3id.org/studyflow/agentic
+name: agentic
+title: Agentic
+description: >-
+  LLM and agent workflows: model calls, tools, routing, memory, and
+  human approval steps.
+license: MIT
+version: '26.9.1'
+rank: 102
+default_prefix: agentic
+default_range: string
+prefixes:
+  linkml: https://w3id.org/linkml/
+  agentic: https://w3id.org/studyflow/agentic/
+  studyflow: http://behaverse.org/schemas/studyflow/v1/
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive/
+  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+imports:
+  - linkml:types
+  - ../studyflow/studyflow.linkml
+  - ../cognitive/cognitive.linkml
+annotations:
+  icon: iconify tabler--hexagon-letter-a
+
+# A model is `<scheme>://<ref>` (`claude://claude-opus-4-8`, `ollama://llama3.3`); a bare
+# `claude-*` name reads as Claude's.
+
+enums:
+  # What an actor pool can be, beyond cognitive's human, software, and hardware.
+  AgenticActorTypes:
+    apply_to:
+      - ActorTypeEnum
+    permissible_values:
+      llm:
+        title: Large language model
+        description: A model answers each trial; `implementation` names it (`claude://claude-haiku-4-5`, `ollama://llama3.3`).
+
+  ToolChoiceEnum:
+    description: How freely the model may call the tools available to it.
+    permissible_values:
+      auto:
+        title: Auto
+        description: The model decides whether and which tool to call.
+      required:
+        title: Required
+        description: The model must call a tool on this turn.
+      none:
+        title: None
+        description: Tools are visible but may not be called.
+
+  ToolKindEnum:
+    description: What kind of capability a tool exposes.
+    permissible_values:
+      function:
+        title: Function
+        description: Code the model calls with JSON arguments.
+      retrieval:
+        title: Retrieval
+        description: Looks up documents or facts from a store.
+      code: { title: Code execution }
+      search: { title: Web search }
+      mcp: { title: MCP server }
+      human:
+        title: Ask a human
+        description: A person answers, and the run waits for them.
+      subflow:
+        title: Sub-flow
+        description: Another studyflow, run as a tool.
+
+  ResponseFormatEnum:
+    description: Shape the model's reply must take.
+    permissible_values:
+      text: { title: Free text }
+      json:
+        title: JSON
+        description: Any well-formed JSON object.
+      json_schema:
+        title: JSON matching a schema
+        description: JSON validated against the call's output schema.
+
+  MemoryKindEnum:
+    description: How a memory store holds and retrieves what it keeps.
+    permissible_values:
+      conversation:
+        title: Conversation
+        description: The message history, replayed in order.
+      vector:
+        title: Vector
+        description: Embeddings, searched by similarity.
+      key_value:
+        title: Key-value
+        description: Named facts, looked up by key.
+      file:
+        title: File
+        description: Notes the agent reads and writes as files.
+
+  MemoryScopeEnum:
+    description: How long a memory store lives.
+    permissible_values:
+      turn:
+        title: Turn
+        description: Cleared after every model turn.
+      run:
+        title: Run
+        description: Lives for one run of the studyflow.
+      participant:
+        title: Participant
+        description: Persists across a participant's runs.
+      global:
+        title: Global
+        description: Shared by every run and participant.
+
+  TimeoutActionEnum:
+    description: What an approval step does when nobody answers in time.
+    permissible_values:
+      reject: { title: Reject }
+      approve: { title: Approve }
+      wait:
+        title: Keep waiting
+        description: Ignore the timeout and stay paused.
+
+classes:
+
+  # The autonomous agent: an ad-hoc sub-process whose `Tool`s the model calls
+  # in an order it decides, turn after turn, until `completionCondition` (from
+  # the core `CompletionCondition` trait) holds or `maxTurns` runs out.
+  Agent:
+    description: A sub-process whose tools the model calls in an order it decides.
+    implements:
+      - bpmn:AdHocSubProcess
+    annotations:
+      icon: iconify ph--robot
+    attributes:
+      model:
+        description: The model, as `<scheme>://<ref>` (`claude://claude-opus-4-8`, `ollama://llama3.3`); a bare `claude-*` name is Claude's.
+        rank: 1
+      systemPrompt:
+        description: The agent's standing instructions, in markdown.
+        range: MarkdownString
+        rank: 2
+        annotations:
+          element: true
+      toolChoice:
+        description: How freely the agent may call the tools drawn inside it.
+        range: ToolChoiceEnum
+        ifabsent: string(auto)
+        rank: 3
+      temperature:
+        description: Sampling temperature, 0 to 2; lower is more predictable.
+        range: float
+        ifabsent: float(1)
+        rank: 4
+      maxTokens:
+        description: Ceiling on the length of each reply, in tokens.
+        range: integer
+        rank: 5
+        annotations:
+          optional: true
+      maxTurns:
+        description: Hard ceiling on how many turns the agent may take.
+        range: integer
+        ifabsent: int(10)
+        rank: 6
+
+  # Routing: the model reads the input and picks one outgoing flow by its
+  # label; the flow marked `default` is taken when it is unsure or fails.
+  # Both runners refuse the `branching: model` annotation at run time; not implemented yet.
+  Router:
+    description: A branch the model picks, choosing among the outgoing flows' labels.
+    implements:
+      - bpmn:ExclusiveGateway
+    annotations:
+      icon: iconify ph--signpost
+      branching: model
+    attributes:
+      model:
+        description: Model that classifies the input and picks a branch.
+        rank: 1
+      instructions:
+        description: How to choose a branch, in markdown.
+        range: MarkdownString
+        rank: 2
+        annotations:
+          element: true
+
+  # One prompt in, one reply out. Chains, fan-outs, and judges are made of
+  # these; the `Prompt` data element can supply the text by association.
+  LLMCall:
+    description: One model call, a prompt in and a reply out.
+    implements:
+      - bpmn:ServiceTask
+    annotations:
+      icon: iconify ph--chat-dots
+    attributes:
+      model:
+        description: The model, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://llama3.3`); a bare `claude-*` name is Claude's.
+        rank: 1
+      prompt:
+        description: The prompt, in markdown, with `{name}` placeholders.
+        range: MarkdownString
+        rank: 2
+        annotations:
+          element: true
+      temperature:
+        description: Sampling temperature, 0 to 2; 0 gives a repeatable call.
+        range: float
+        ifabsent: float(0)
+        rank: 3
+      maxTokens:
+        description: Ceiling on the length of the reply, in tokens.
+        range: integer
+        rank: 4
+        annotations:
+          optional: true
+      responseFormat:
+        description: Shape the reply must take; free text unless set.
+        range: ResponseFormatEnum
+        ifabsent: string(text)
+        rank: 5
+        annotations:
+          editable: true
+      outputSchema:
+        # JSON Schema (as YAML or JSON) the reply is validated against.
+        description: JSON Schema the reply must match.
+        range: YAMLString
+        rank: 6
+        annotations:
+          element: true
+          condition:
+            value:
+              responseFormat: json_schema
+
+  # A capability an agent may call. What runs is `implementation` from the
+  # core `Implementation` trait; `purpose` and `parameters` are what the model
+  # sees as the function definition (name, description, argument schema).
+  Tool:
+    description: A capability an agent may call, run like any other step.
+    implements:
+      - bpmn:ServiceTask
+    annotations:
+      icon: iconify ph--wrench
+    attributes:
+      kind:
+        description: What kind of capability this exposes.
+        range: ToolKindEnum
+        ifabsent: string(function)
+        rank: 1
+      purpose:
+        description: What the tool does and when to use it, written for the model.
+        range: MarkdownString
+        rank: 2
+        annotations:
+          element: true
+      parameters:
+        # JSON Schema of the arguments; the empty object means no arguments.
+        description: JSON Schema of the tool's arguments, as the model sees it.
+        range: YAMLString
+        rank: 3
+        annotations:
+          element: true
+
+  # Human in the loop: the run pauses until a person approves, edits, or
+  # rejects. The reviewer's answer flows out like any task output.
+  HumanApproval:
+    description: Pauses the run until a person approves, edits, or rejects.
+    implements:
+      - bpmn:UserTask
+    annotations:
+      icon: iconify ph--user-check
+    attributes:
+      question:
+        description: What the reviewer is being asked, in markdown.
+        range: MarkdownString
+        rank: 1
+        annotations:
+          element: true
+      timeout:
+        description: How long to wait for an answer; unset waits indefinitely.
+        range: float
+        rank: 2
+        annotations:
+          optional: true
+          unit: s
+      onTimeout:
+        description: What happens when the wait runs out.
+        range: TimeoutActionEnum
+        ifabsent: string(reject)
+        rank: 3
+        annotations:
+          condition:
+            value:
+              timeout: $set
+
+  Prompt:
+    description: A prompt kept as a data element, associated into the calls that read it.
+    implements:
+      - bpmn:DataObjectReference
+    annotations:
+      icon: iconify ph--article
+    attributes:
+      template:
+        description: The prompt text, in markdown, with `{name}` placeholders.
+        range: MarkdownString
+        rank: 1
+        annotations:
+          element: true
+
+  # Where the bytes live is `uri` from the core `Artifact` trait.
+  Memory:
+    description: State an agent carries across turns, such as history, facts, or notes.
+    implements:
+      - bpmn:DataStoreReference
+    annotations:
+      icon: iconify ph--memory
+    attributes:
+      kind:
+        description: How the memory holds and retrieves what it keeps.
+        range: MemoryKindEnum
+        ifabsent: string(conversation)
+        rank: 1
+      scope:
+        description: How long the memory lives.
+        range: MemoryScopeEnum
+        ifabsent: string(run)
+        rank: 2

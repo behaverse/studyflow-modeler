@@ -4,13 +4,13 @@ description: "The Behaverse assessment battery: its tasks and BDM datasets, and 
 license: MIT
 compatibility: "Browser runtime, or the local runtime with uv; both need a Behaverse WebGL build (UNITY_BUILD_PATH)."
 metadata:
-  schema: "behaverse.moddle.yaml"
+  schema: "behaverse.linkml.yaml"
   runtimes:
     browser: "browser/index.tsx"
     local: "uv run --script local.py"
 ---
 
-The vocabulary is `behaverse.moddle.yaml` (`behaverse:Task`, `behaverse:BDMDataset`, and the literals it adds to cognitive's software list and the core's dataset formats and message structures); the runner executes `behaverse:Task`. Its task's
+The vocabulary is `behaverse.linkml.yaml` (`behaverse:Task`, `behaverse:BDMDataset`, and the literals it adds to cognitive's software list and the core's dataset formats and message structures); the runner executes `behaverse:Task`. Its task's
 message flows carry `behaverse:Trial` out of the task and `behaverse:Response` back into it (the `structureRef`
 of an `ItemDefinition`, reached through the flow's `messageRef` and the message's `itemRef`); a flow naming another
 structure is some other skill's exchange, a flow naming none is taken for either, and two partners with no message

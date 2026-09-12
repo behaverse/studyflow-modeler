@@ -3,7 +3,7 @@ name: cognitive
 description: "Cognitive and behavioral research vocabulary: cognitive tasks, questionnaires, instructions, rest periods, screening and allocation gateways, participant pools. Use when a study measures people or agents with tasks and questionnaires."
 license: MIT
 metadata:
-  schema: "cognitive.moddle.yaml"
+  schema: "cognitive.linkml.yaml"
 ---
 
 The default research elements. `Instruction` and `Questionnaire` are executed by the

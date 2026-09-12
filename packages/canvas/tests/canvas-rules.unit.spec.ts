@@ -1,10 +1,6 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { fromModdleYaml } from '@core/notation/schemaFile';
 import type { TypeCatalog } from '@core/notation/query.ts';
 import {
   Rules,
@@ -18,7 +14,7 @@ import {
   type RuleElement,
 } from '@canvas/rules/rules.ts';
 
-import { loadSchemaModels } from '@tests/schemas';
+import { connectsToFixture, loadSchemaModels } from '@tests/schemas';
 
 /**
  * P4 rules engine (design §3 "Rules", §6 P4). The engine has two layers and the
@@ -27,7 +23,7 @@ import { loadSchemaModels } from '@tests/schemas';
  * - the **schema layer** must agree with `TypeCatalog.connectionRule` verdict for
  *   verdict — that is the whole contract, so the matrix below asserts against the
  *   catalog itself rather than against a transcribed copy of it. No *shipped*
- *   schema declares `meta.connectsTo` (every studyflow type defers), so the
+ *   schema declares a `connectsTo` annotation (every studyflow type defers), so the
  *   `connects-to` fixture schema — the same one `schema-model.unit.spec.ts` uses —
  *   is compiled alongside the real ones to exercise `true` / `false` / `'*'`.
  * - the **structural layer** is plain BPMN sense, checked directly: no flow out of
@@ -40,13 +36,8 @@ import { loadSchemaModels } from '@tests/schemas';
  * are.
  */
 
-const FIXTURE = path.join(process.cwd(), 'tests/fixtures/connects-to.moddle.yaml');
-
 /** Real schemas + the `connectsTo` fixture, so both layers have something to say. */
-const catalog: TypeCatalog = buildCatalog([
-  ...loadSchemaModels(),
-  fromModdleYaml(readFileSync(FIXTURE, 'utf8'), 'tests/fixtures/connects-to.moddle.yaml'),
-]);
+const catalog: TypeCatalog = buildCatalog([...loadSchemaModels(), connectsToFixture()]);
 setCatalog(catalog);
 
 const rules = new Rules();

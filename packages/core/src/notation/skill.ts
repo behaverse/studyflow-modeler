@@ -10,7 +10,7 @@ export type SkillManifest = {
   /** The folder's name, and the runner's (`--runner reachy=…`, `STUDYFLOW_REACHY_PY`). */
   name: string;
   description: string;
-  /** `schema`: the BPMN extension the skill contributes (a `*.moddle.yaml`), relative to its folder. */
+  /** `schema`: the BPMN extension the skill contributes (a LinkML `*.linkml.yaml`), relative to its folder. */
   schema?: string;
   /** `runtimes.<runtime>`: what the skill gives each runtime (the names the study's `runtime` attribute uses) to
    * execute its elements, in any language. For `local` a command run in the skill's folder following the

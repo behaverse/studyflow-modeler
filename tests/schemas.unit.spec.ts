@@ -4,20 +4,15 @@ import * as yaml from 'js-yaml';
 
 import { studyflowToDefinitions } from '@core/document';
 import { bpmnSelfAndAncestors, buildCatalog, setCatalog } from '@core/notation';
-import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES, fromModdleYaml } from '@core/notation/schemaFile';
-import { SCHEMAS, loadSchemaModels, schemaSource, schemaPackages } from './schemas';
+import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES } from '@core/notation/schemaFile';
+import { SCHEMAS, loadSchemaModels, schemaPackages } from './schemas';
 
-/** Schema design rules, checked without a browser. */
+/** Schema design rules, checked without a browser, on each schema as the LinkML reader hands it to moddle. */
 
 
 type RawSchema = any;
 
-const rawSchemas = new Map<string, RawSchema>(
-  SCHEMAS.map(({ prefix }) => [
-    prefix,
-    yaml.load(schemaSource(prefix)) as RawSchema,
-  ]),
-);
+const rawSchemas = new Map<string, RawSchema>(loadSchemaModels().map((model) => [model.prefix, model]));
 
 function localNames(schema: RawSchema): Set<string> {
   return new Set([
@@ -47,6 +42,16 @@ test.describe('schema lint', () => {
     expect(new Set(uris).size).toBe(uris.length);
   });
 
+  test('no two schemas declare the same name: LinkML names are global across imports', () => {
+    const owners = new Map<string, string>();
+    for (const schema of rawSchemas.values()) {
+      for (const name of localNames(schema)) {
+        expect(owners.get(name), `${schema.prefix}:${name} is also ${owners.get(name)}:${name}`).toBeUndefined();
+        owners.set(name, schema.prefix);
+      }
+    }
+  });
+
   test('the registry is exactly the schema files, core ones first', () => {
     expect(SCHEMAS.map((s) => s.prefix).sort()).toEqual([...rawSchemas.keys()].sort());
     const cores = SCHEMAS.filter((s) => s.core);
@@ -70,11 +75,8 @@ test.describe('schema lint', () => {
         expect(typeof schema.description, 'description').toBe('string');
         expect(typeof schema.uri, 'uri').toBe('string');
         expect(schema.uri).toMatch(/^https?:\/\//);
-        // Check the raw literal: YAML parses 26.0610 as a float and drops the zero.
-        const rawVersion = /^version:\s*['"]?([^'"\n]+)/m.exec(
-          schemaSource(prefix),
-        )?.[1];
-        expect(rawVersion, 'version is YY.MMDD').toMatch(/^\d{2}\.\d{4}$/);
+        // YY.M.N, as the app's own version; quoted, or YAML reads a two-part version as a float.
+        expect(schema.version, 'version is a quoted YY.M.N').toMatch(/^\d{2}\.(?:[1-9]|1[0-2])\.\d+$/);
         expect(schema.xml?.tagAlias, 'tagAlias').toBe('lowerCase');
       });
 
@@ -213,10 +215,7 @@ test.describe('schema lint', () => {
 });
 
 test.describe('moddle registration', () => {
-  const models = SCHEMAS.map(({ prefix }) =>
-    fromModdleYaml(schemaSource(prefix)),
-  );
-  const packages = schemaPackages(models);
+  const packages = schemaPackages(loadSchemaModels());
   const moddle = new BpmnModdle(packages) as any;
 
   for (const { prefix } of SCHEMAS) {

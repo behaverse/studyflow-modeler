@@ -1,0 +1,178 @@
+# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+
+id: https://w3id.org/studyflow/eeg
+name: eeg
+title: EEG & Biosignals
+description: >-
+  EEG and biosignal acquisition: sessions, recordings, and preprocessing presets.
+license: MIT
+version: '26.9.1'
+rank: 101
+default_prefix: eeg
+default_range: string
+prefixes:
+  linkml: https://w3id.org/linkml/
+  eeg: https://w3id.org/studyflow/eeg/
+  studyflow: http://behaverse.org/schemas/studyflow/v1/
+  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+imports:
+  - linkml:types
+  - ../studyflow/studyflow.linkml
+annotations:
+  icon: iconify tabler--hexagon-letter-e
+
+enums:
+  # Biosignal recording formats, added to the core's general-purpose ones.
+  EegTimeseriesFormats:
+    apply_to:
+      - TimeseriesFormatEnum
+    permissible_values:
+      edf: { title: EDF (European Data Format) }
+      bdf: { title: BDF (Biosemi Data Format) }
+      brainvision: { title: BrainVision (vhdr/vmrk/eeg) }
+      fif: { title: FIF (MNE/Elekta) }
+      set: { title: SET (EEGLAB) }
+      xdf: { title: XDF (Lab Streaming Layer) }
+  # Amplifiers and headsets in common use; the attribute is editable, so any
+  # other system name is accepted as free text.
+  DeviceEnum:
+    description: Amplifier or headset the session is recorded with.
+    permissible_values:
+      brainproducts_actichamp:
+        title: Brain Products actiCHamp
+      brainproducts_brainamp:
+        title: Brain Products BrainAmp
+      biosemi_activetwo:
+        title: Biosemi ActiveTwo
+      egi_ges:
+        title: EGI / Magstim GES
+      ant_eego:
+        title: ANT Neuro eego
+      gtec_usbamp:
+        title: g.tec g.USBamp
+      neuroelectrics_enobio:
+        title: Neuroelectrics Enobio
+      neuroscan:
+        title: Compumedics Neuroscan
+      bittium_neurone:
+        title: Bittium NeurOne
+      emotiv_epoc:
+        title: Emotiv EPOC
+      muse:
+        title: InteraXon Muse
+      openbci_cyton:
+        title: OpenBCI Cyton
+      openbci_ganglion:
+        title: OpenBCI Ganglion
+      openbci_galea:
+        title: OpenBCI Galea
+      simulated:
+        title: Simulated
+        description: Synthetic signal for testing a pipeline without hardware.
+  ReferenceEnum:
+    description: Reference scheme the channels are recorded against.
+    permissible_values:
+      cz: { title: Cz }
+      fcz: { title: FCz }
+      linked_mastoids: { title: Linked mastoids }
+      average: { title: Average reference }
+      rest: { title: REST (infinity reference) }
+      cms_drl: { title: CMS/DRL (Biosemi) }
+  MontageEnum:
+    description: Electrode layout the channel names follow.
+    permissible_values:
+      10-20: {}
+      10-10: {}
+      10-5: {}
+      biosemi64: { title: Biosemi 64 }
+      gsn-hydrocel-128: { title: EGI HydroCel GSN 128 }
+      gsn-hydrocel-256: { title: EGI HydroCel GSN 256 }
+      custom: { title: Custom }
+  LineFrequencyEnum:
+    description: Mains frequency the recording site runs on.
+    permissible_values:
+      '50':
+        title: 50 Hz (Europe, Asia, Africa, Australia)
+      '60':
+        title: 60 Hz (Americas)
+
+classes:
+  Session:
+    description: One acquisition session, with the amplifier settings shared by every phase in it.
+    implements:
+      - bpmn:Participant
+    annotations:
+      icon: iconify ph--head-circuit
+      roles:
+        value: [acquisition]
+    attributes:
+      device:
+        description: Amplifier or headset used; any other system name is accepted.
+        range: DeviceEnum
+        ifabsent: string(brainproducts_actichamp)
+        rank: 0
+        annotations:
+          editable: true
+      # Plain strings, one per entry: a non-attribute enum list cannot serialize through moddle.
+      # Vocabulary: eeg, meg, ieeg, emg, ecg, eog, eda, ppg, respiration, nirs,
+      # eye_tracking, head_imu, motion, audio.
+      modalities:
+        description: Signals recorded in this session, one per entry (`eeg`, `ecg`, `eog`, `eye_tracking`).
+        multivalued: true
+        rank: 1
+      montage:
+        description: Electrode layout the channel names follow.
+        range: MontageEnum
+        ifabsent: string(10-20)
+        rank: 2
+        annotations:
+          editable: true
+      reference:
+        description: Reference scheme the channels are recorded against.
+        range: ReferenceEnum
+        ifabsent: string(cz)
+        rank: 3
+        annotations:
+          editable: true
+      ground:
+        description: Electrode position used as ground (`AFz`, `Fpz`).
+        rank: 4
+        annotations:
+          optional: true
+      lineFrequency:
+        description: Mains frequency at the recording site, for notch filtering.
+        range: LineFrequencyEnum
+        ifabsent: string(50)
+        rank: 5
+      impedanceThreshold:
+        description: Highest electrode impedance accepted before recording.
+        range: float
+        ifabsent: float(10)
+        rank: 6
+        annotations:
+          unit: kΩ
+
+  # Sampling rate, channel count, units, duration, on-disk format, and the
+  # `signal` role come from `studyflow:Timeseries`.
+  Recording:
+    description: The biosignal recording a session produces.
+    is_a: Timeseries
+    annotations:
+      roles:
+        value: [acquisition]
+      icon: iconify ph--waveform
+    attributes:
+      # Same vocabulary as Session#modalities.
+      modalities:
+        description: Signals in this recording, one per entry (`eeg`, `ecg`, `eog`, `eye_tracking`).
+        multivalued: true
+        rank: 6
+        in_subset:
+          - Data
+      eventChannel:
+        description: Name of the trigger channel or marker stream (`Status`, `TRIGGER`, an LSL stream).
+        rank: 7
+        in_subset:
+          - Data
+        annotations:
+          optional: true

@@ -4,7 +4,7 @@ description: "The reference runner behind `studyflow run --runtime local`: walks
 license: MIT
 compatibility: "Python 3.10+ through uv."
 metadata:
-  schema: "local.moddle.yaml"
+  schema: "local.linkml.yaml"
 ---
 
 `run.py` is the walk. It never executes an element itself: each skill's `runtimes.local`

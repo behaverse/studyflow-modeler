@@ -3,8 +3,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { xmlToStudyflow } from '@core/document';
-import { fromModdleYaml, toModdlePackages } from '@core/notation/schemaFile';
-import { SCHEMAS, schemaSource } from './schemas';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import {
   addPaletteElement,
   addSchemaPaletteElement,
@@ -18,9 +17,7 @@ import {
 } from './utils';
 
 async function toYaml(xml: string): Promise<string> {
-  const models = SCHEMAS.map(({ prefix }) => fromModdleYaml(schemaSource(prefix)));
-  const packages = Object.fromEntries(models.map((m) => [m.prefix, toModdlePackages(m, models)]));
-  return xmlToStudyflow(xml, new BpmnModdle(packages));
+  return xmlToStudyflow(xml, new BpmnModdle(schemaPackages(loadSchemaModels())));
 }
 
 test.describe('Studyflow modeler palette flows', () => {

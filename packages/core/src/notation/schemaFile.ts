@@ -1,4 +1,7 @@
-import * as yaml from 'js-yaml';
+/**
+ * The moddle package a schema compiles to: what `BpmnModdle` is handed, and what the catalog reads.
+ * `linkml.ts` builds these from the authored `*.linkml.yaml`; nothing authors this shape by hand.
+ */
 
 export type SchemaPropertyModel = {
   name: string;
@@ -12,6 +15,7 @@ export type SchemaPropertyModel = {
   /** Must spell `Type#property`; anything else silently declares a brand-new attribute. */
   redefines?: string;
   replaces?: string;
+  xml?: { serialize?: string };
   meta?: Record<string, any>;
 };
 
@@ -87,25 +91,6 @@ export type SchemaCategoryModel = {
   /** Rendered by a dedicated inspector section, so the tab shows even with no attributes. */
   synthetic?: boolean;
 };
-
-export function fromModdleYaml(yamlText: string, sourceName?: string): SchemaModel {
-  const where = sourceName ? ` (${sourceName})` : '';
-  const parsed: any = yaml.load(yamlText);
-
-  if (!parsed || typeof parsed !== 'object') {
-    throw new Error(`Schema YAML did not parse to an object${where}.`);
-  }
-  if (typeof parsed.prefix !== 'string' || typeof parsed.name !== 'string') {
-    throw new Error(`Schema YAML must declare \`name\` and \`prefix\`${where}.`);
-  }
-
-  return {
-    ...parsed,
-    types: parsed.types ?? [],
-    enumerations: parsed.enumerations ?? [],
-  } as SchemaModel;
-}
-
 
 /** Property `type:` refs to these stay unqualified; everything else gets a schema prefix. */
 export const MODDLE_BUILTIN_TYPES: ReadonlySet<string> = new Set([

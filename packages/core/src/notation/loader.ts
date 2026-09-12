@@ -1,5 +1,7 @@
+import * as yaml from 'js-yaml';
 import { buildCatalog, setCatalog } from '@core/notation';
-import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/schemaFile';
+import { fromLinkml, parseLinkml, type LinkmlSchema } from '@core/notation/linkml';
+import { toModdlePackages, type SchemaModel } from '@core/notation/schemaFile';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
 import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 
@@ -40,28 +42,53 @@ export const SKILLS: SkillManifest[] = readSkills();
 
 const skillOfPrefix = new Map<string, SkillManifest>();
 
+function skillFile(skill: SkillManifest, name: string): string | undefined {
+  const key = Object.keys(yamlSources).find((path) => path.endsWith(`/${skill.name}/${name}`));
+  return key ? yamlSources[key] : undefined;
+}
+
+/** `templates.yaml` and `examples.yaml` beside the schema: content a skill ships, which a LinkML schema cannot carry. */
+function sidecar<T>(skill: SkillManifest, name: string): T[] {
+  const source = skillFile(skill, name);
+  if (!source) return [];
+  try {
+    const parsed = yaml.load(source);
+    if (!Array.isArray(parsed)) throw new Error('expected a list');
+    return parsed as T[];
+  } catch (err) {
+    SCHEMA_LOAD_FAILURES.push({ sourceName: `${skill.name}/${name}`, message: err instanceof Error ? err.message : String(err) });
+    console.error(`[studyflow skill] ${skill.name}/${name} failed to parse and was not loaded:`, err);
+    return [];
+  }
+}
+
 function parseAll(): SchemaModel[] {
-  const models: SchemaModel[] = [];
+  const parsed: Array<{ skill: SkillManifest; doc: LinkmlSchema }> = [];
   for (const skill of SKILLS) {
     if (!skill.schema) continue;
     const sourceName = `${skill.name}/${skill.schema}`;
     // `/<schema>` when the bundling app's own root is this skill's folder (the browser runtime), as with `/SKILL.md` above.
-    const key = Object.keys(yamlSources).find((path) => path.endsWith(`/${sourceName}`) || path === `/${skill.schema}`);
-    if (!key) {
+    const source = skillFile(skill, skill.schema) ?? yamlSources[`/${skill.schema}`];
+    if (!source) {
       SCHEMA_LOAD_FAILURES.push({ sourceName, message: `SKILL.md declares this schema, but there is no such file` });
       console.error(`[studyflow skill] ${sourceName} is declared but missing`);
       continue;
     }
     try {
-      const model = fromModdleYaml(yamlSources[key], sourceName);
-      skillOfPrefix.set(model.prefix, skill);
-      models.push(model);
+      parsed.push({ skill, doc: parseLinkml(source, sourceName) });
     } catch (err) {
       SCHEMA_LOAD_FAILURES.push({ sourceName, message: err instanceof Error ? err.message : String(err) });
       console.error(`[studyflow schema] ${sourceName} failed to parse and was not loaded:`, err);
     }
   }
-  return models;
+
+  // Converted together: a name another schema declares resolves to it, as LinkML resolves an import.
+  const models = fromLinkml(parsed.map((entry) => entry.doc));
+  return models.map((model, index) => {
+    const { skill } = parsed[index];
+    skillOfPrefix.set(model.prefix, skill);
+    return { ...model, templates: sidecar(skill, 'templates.yaml'), examples: sidecar(skill, 'examples.yaml') };
+  });
 }
 
 export const SCHEMA_MODELS: SchemaModel[] = sortSchemas(parseAll());
