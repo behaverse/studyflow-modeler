@@ -64,11 +64,12 @@ def studyflow_child(element: ET.Element, name: str) -> ET.Element | None:
     return element.find(f"{{{STUDYFLOW}}}{name}")
 
 
-def carries_study(process: ET.Element) -> bool:
-    """Whether the process holds the `studyflow:Study` extension: it is then the study's own pool."""
-    return any(
-        ext.tag == f"{{{STUDYFLOW}}}study"
-        for holder in process if local(holder) == "extensionElements" for ext in holder
+def study_of(element: ET.Element) -> ET.Element | None:
+    """The `studyflow:Study` extension `element` holds, if any."""
+    return next(
+        (ext for holder in element if local(holder) == "extensionElements"
+         for ext in holder if ext.tag == f"{{{STUDYFLOW}}}study"),
+        None,
     )
 
 
@@ -311,14 +312,19 @@ class Studyflow:
         self.definitions = definitions
         self.plan = plan
         # Every pool with a flow is walked, all at once; the study's own process is the one carrying
-        # `studyflow:Study` (its id, name, seed, and properties are the run's), else the first.
+        # `studyflow:Study` (its id, name, and properties are the run's), else the first (a pool
+        # diagram's collaboration carries the study).
         self.processes = [
             element for element in definitions
             if local(element) == "process" and any(local(c) == "sequenceFlow" for c in element)
         ]
         if not self.processes:
             raise ValueError("no process with a sequence flow to walk")
-        self.process = next((p for p in self.processes if carries_study(p)), self.processes[0])
+        self.process = next((p for p in self.processes if study_of(p) is not None), self.processes[0])
+        # The study on the diagram's root, the first on a root element as the prov module finds it for the
+        # state: its `seed` and `dependencies` are the run's.
+        self.study = next((study for root in definitions if (study := study_of(root)) is not None), None)
+        self.seed = self.study.get("seed") if self.study is not None else None
 
         self.elements: dict[str, ET.Element] = {}
         self.outgoing: dict[str, list[ET.Element]] = {}
@@ -655,13 +661,10 @@ def element_digest(element: ET.Element) -> dict[str, Any]:
 
 def study_dependencies(studyflow: Studyflow) -> list[str]:
     """`studyflow:dependencies` entries on the study, one package spec each, in the order written."""
-    for holder in studyflow.process:
-        if local(holder) != "extensionElements":
-            continue
-        for ext in holder:
-            if ext.tag == f"{{{STUDYFLOW}}}study":
-                return [text for child in ext if local(child) == "dependencies" and (text := (child.text or "").strip())]
-    return []
+    study = studyflow.study
+    return [] if study is None else [
+        text for child in study if local(child) == "dependencies" and (text := (child.text or "").strip())
+    ]
 
 
 def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
@@ -687,7 +690,7 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
                 title = child.get("name")
     return {
         "study": {
-            "id": process.get("id"), "name": title or process.get("id"), "seed": studyflow_attr(process, "seed"),
+            "id": process.get("id"), "name": title or process.get("id"), "seed": studyflow.seed,
             "dependencies": study_dependencies(studyflow),
         },
         "sources": [str(path) for path in sources],
@@ -764,7 +767,7 @@ class Runner:
     ) -> None:
         self.studyflow = studyflow
         self.debug = debug
-        self.seed = seed if seed is not None else studyflow_attr(studyflow.process, "seed")
+        self.seed = seed if seed is not None else studyflow.seed
         self.branching = branching_modes()
         # Partial runners claim elements, not schemas: each is asked once which ids it will run.
         # Partial runners never open the diagram: they read `.cache/plan.json`, the plan as one JSON digest.
@@ -1602,7 +1605,7 @@ def main() -> int:
     # Root seed: read from the diagram, never drawn here. Partial runners read the same file,
     # so every process seeds identically. A diagram without a seed runs unseeded.
     probe = read_studyflow(args.studyflow)
-    seed = studyflow_attr(probe.process, "seed")
+    seed = probe.seed
     try:
         random.seed(int(seed))
     except (TypeError, ValueError):

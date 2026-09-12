@@ -5,7 +5,9 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Study:
   type: Process
-  seed: 6
+  extensionElements:
+    - type: studyflow:Study
+      seed: 6
   flowElements:
     Start:
       type: StartEvent

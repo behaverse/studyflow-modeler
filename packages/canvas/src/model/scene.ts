@@ -120,3 +120,12 @@ export interface Scene {
 export function isRootElement(value: unknown): value is RootElement {
   return !!value && (value as RootElement).isRoot === true;
 }
+
+/** Make `root` what the diagram depicts; the root element stays the same object. */
+export function setRoot(scene: Scene, root: ModdleObject): void {
+  scene.root = root;
+  const element = scene.rootElement as { id: string; type: string; businessObject: ModdleObject };
+  element.businessObject = root;
+  element.id = String(root.id ?? element.id);
+  element.type = root.$type;
+}

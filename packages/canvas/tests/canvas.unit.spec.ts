@@ -335,6 +335,47 @@ test('Delete removes the selection with its flows from the scene and the documen
   expect(node(canvas, 'Start_1').businessObject.outgoing).toEqual([]);
 });
 
+test('the first pool makes the collaboration the study, and deleting the last one hands it back to the process', async () => {
+  const loaded = await loadCanvas(`<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"
+    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Study_1">
+    <bpmn:extensionElements><studyflow:study runtime="local" /></bpmn:extensionElements>
+    <bpmn:startEvent id="Start_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Study_1">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1"><dc:Bounds x="100" y="100" width="36" height="36" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`);
+  const { canvas, definitions } = loaded;
+  const [process] = definitions.rootElements;
+  const study = process.extensionElements.values[0];
+
+  const pool = canvas.createElement({ type: 'bpmn:Participant' }, { x: 300, y: 118 })!;
+  const collaboration = canvas.getScene()!.root;
+  expect(collaboration.$type).toBe('bpmn:Collaboration');
+  expect((collaboration as any).extensionElements.values).toEqual([study]);
+  expect(process.extensionElements).toBeUndefined();
+  const note = canvas.createElement({ type: 'bpmn:TextAnnotation' }, { x: 900, y: 600 })!;
+  expect((collaboration as any).artifacts).toEqual([note.businessObject]);
+  // One pool of two going leaves the collaboration the root.
+  canvas.deleteElements(canvas.createElement({ type: 'bpmn:Participant' }, { x: 300, y: 900 })!);
+  expect(canvas.getScene()!.root).toBe(collaboration);
+
+  canvas.deleteElements(pool);
+  expect(canvas.getScene()!.root).toBe(process);
+  expect(canvas.getRoot()).toMatchObject({ id: 'Study_1', type: 'bpmn:Process' });
+  expect(process.extensionElements.values).toEqual([study]);
+  expect(process.artifacts).toEqual([note.businessObject]);
+  expect(definitions.rootElements).toEqual([process]);
+  expect(await xmlOf(loaded)).toContain('bpmnElement="Study_1"');
+});
+
 test('deleting a caption clears its owner\'s name', async () => {
   const { canvas } = await load();
   const start = node(canvas, 'Start_1');

@@ -365,7 +365,7 @@ test.describe('provenance view model', () => {
     expect(records[0].isDocument).toBe(false);
     expect(records[0].scopeId).toBe(task.id);
     expect(records[0].run).toBe('run-002');
-    // A number, not '7': `prov:Activity#seed` is declared `Integer`, matching `studyflow:Seed#seed`.
+    // A number, not '7': `prov:Activity#seed` is declared `Integer`, matching `studyflow:Study#seed`.
     expect(records[0].seed).toBe(7);
   });
 });

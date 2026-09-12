@@ -4,6 +4,7 @@
  * touched here; it is rebuilt from the scene on save (`model/di.ts`).
  */
 
+import { STUDY_EXTENSION_TYPE } from '@core/document/format.ts';
 import { getDefaults, getExtensionType, StudyflowElement } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import type { EventBus } from '@canvas/bus.ts';
@@ -27,6 +28,7 @@ import {
   asModdle,
   mint,
   modelOf,
+  moveExtension,
   parentOf,
   prop,
   pullFrom,
@@ -38,16 +40,17 @@ import {
   type ModdleFactory,
 } from '@canvas/model/moddle.ts';
 import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/model/remove.ts';
-import type {
-  Bounds,
-  Drawable,
-  ElementColors,
-  ModdleObject,
-  Point,
-  Scene,
-  SceneEdge,
-  SceneElement,
-  SceneNode,
+import {
+  setRoot,
+  type Bounds,
+  type Drawable,
+  type ElementColors,
+  type ModdleObject,
+  type Point,
+  type Scene,
+  type SceneEdge,
+  type SceneElement,
+  type SceneNode,
 } from '@canvas/model/scene.ts';
 import {
   boundsOf,
@@ -600,7 +603,9 @@ export class Mutator {
 
   /**
    * Turn a process root into a collaboration so a pool can hold it: the process
-   * stays a root element, the new pool depicts it and adopts what is drawn.
+   * stays a root element, the new pool depicts it and adopts what is drawn, and
+   * the study's settings move to the collaboration, the new root. Deleting the
+   * last pool undoes it (`model/remove.ts`).
    */
   private promoteRootToCollaboration(
     participant: ModdleObject,
@@ -614,10 +619,8 @@ export class Mutator {
     setParent(collaboration, scene.definitions);
     pushInto(scene.definitions, 'rootElements', collaboration);
     setRef(participant, 'processRef', process);
-    scene.root = collaboration;
-    scene.rootElement.businessObject = collaboration;
-    (scene.rootElement as { id: string; type: string }).id = String(collaboration.id ?? scene.rootElement.id);
-    (scene.rootElement as { id: string; type: string }).type = collaboration.$type;
+    moveExtension(process, collaboration, STUDY_EXTENSION_TYPE, factory);
+    setRoot(scene, collaboration);
     const adopt = scene.children.filter((child): child is Drawable => child.kind !== 'label');
     return { bounds: participantBoundsAround(dropped, adopt), adopt };
   }

@@ -1,6 +1,14 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
-import { PLACEHOLDER, choreographyToProcessRoot, looksLikeXml, readState, studyflowToDefinitions, type StateTree } from '@core/document';
+import {
+  PLACEHOLDER,
+  choreographyToProcessRoot,
+  ensureStudyExtension,
+  looksLikeXml,
+  readState,
+  studyflowToDefinitions,
+  type StateTree,
+} from '@core/document';
 import { getAttribute, getExtensionType, getRawAttribute } from '@core/element';
 import { BPMN, isDeclaredProperty } from '@core/constants';
 import type { FlowNode, SequenceFlow } from '@runner/flow';
@@ -23,6 +31,8 @@ const FLOW_NODE_TYPES: ReadonlySet<string> = new Set<string>([
 
 export type ParsedStudy = {
   businessObject: any;
+  /** The root's `studyflow:Study`: its `seed` is the run's. */
+  study: any;
   flowNodes: Map<string, FlowNode>;
   sequenceFlows: Map<string, SequenceFlow>;
   startId?: string;
@@ -36,6 +46,7 @@ export type ParsedStudy = {
 /** The studyflow a run traverses: its flow nodes, sequence flows, and scopes. */
 export class Studyflow {
   businessObject: any;
+  study: any;
   flowNodes: Map<string, FlowNode>;
   sequenceFlows: Map<string, SequenceFlow>;
   startId?: string;
@@ -56,6 +67,7 @@ export class Studyflow {
 
   constructor(data: ParsedStudy, studyflowHash?: string) {
     this.businessObject = data.businessObject;
+    this.study = data.study;
     this.flowNodes = data.flowNodes;
     this.sequenceFlows = data.sequenceFlows;
     this.startId = data.startId;
@@ -76,9 +88,9 @@ export class Studyflow {
     return typeof name === 'string' && name.length > 0 ? name : this.studyId;
   }
 
-  /** `studyflow:seed` on the study, which a `seed` parameter binds to like any other declared attribute. */
+  /** `seed` on the root's `studyflow:Study`, which a `seed` parameter binds to. */
   get seed(): number | undefined {
-    const seed = Number(this.businessObject?.seed);
+    const seed = Number(this.study?.seed);
     return Number.isFinite(seed) ? seed : undefined;
   }
 }
@@ -133,8 +145,10 @@ export async function parseStudyflow(
   if (!businessObject) {
     throw new Error('This file holds no study.');
   }
+  // A plain BPMN file carries none; the run makes one, so a link's `seed` still has somewhere to go.
+  const study = ensureStudyExtension(definitions, moddle);
 
-  const bound = bindParameters(definitions, businessObject, parameters);
+  const bound = bindParameters(definitions, businessObject, study, parameters);
 
   const flowNodes = new Map<string, FlowNode>();
   const sequenceFlows = new Map<string, SequenceFlow>();
@@ -214,6 +228,7 @@ export async function parseStudyflow(
 
   return {
     businessObject,
+    study,
     flowNodes,
     sequenceFlows,
     startId: scopes.get(rootScopeId)?.startId,
@@ -287,17 +302,6 @@ function readInputSources(container: any): Map<string, string[]> {
   return inputs;
 }
 
-/** Attributes a parameter may set on the study: those an extension schema declares, e.g. `studyflow:seed`. */
-function declaredAttributes(businessObject: any): Map<string, string | undefined> {
-  const byName = businessObject?.$descriptor?.propertiesByName ?? {};
-  const attributes = new Map<string, string | undefined>();
-  for (const [name, property] of Object.entries<any>(byName)) {
-    if (!property?.isAttr || property.ns?.prefix === 'bpmn' || name.includes(':')) continue;
-    attributes.set(name, property.type);
-  }
-  return attributes;
-}
-
 /** Every name the study declares a value for, at any depth: `studyflow:Parameters` keys, `bpmn:Property` names, study attributes. */
 function declaredNames(container: any, attributes: Map<string, unknown>): Set<string> {
   const names = new Set<string>(attributes.keys());
@@ -314,11 +318,13 @@ function declaredNames(container: any, attributes: Map<string, unknown>): Set<st
 function bindParameters(
   definitions: any,
   businessObject: any,
+  study: any,
   given: Record<string, string>,
 ): BoundParameters {
   const objects = readParameterObjects(businessObject);
   const properties = new Map(readProperties(businessObject).map((p) => [p.name, p.itemType]));
-  const attributes = declaredAttributes(businessObject);
+  // The Study's one attribute a run is launched with; its others (`runtime`, `version`) are about the study, not run values.
+  const attributes = new Map<string, string | undefined>([['seed', study.$descriptor.propertiesByName.seed?.type]]);
 
   const values: Record<string, unknown> = {};
   const ambient: Record<string, unknown> = {};
@@ -343,11 +349,11 @@ function bindParameters(
   // An attribute of the study is one more place a value lives: the run's wins, the pinned one stands in.
   for (const [name, type] of attributes) {
     if (name in values) {
-      if (businessObject[name] !== undefined) overridden.push(name);
-      businessObject.set(name, coerce(values[name], type));
-    } else if (businessObject[name] !== undefined) {
-      values[name] = businessObject[name];
-      ambient[name] = businessObject[name];
+      if (study[name] !== undefined) overridden.push(name);
+      study.set(name, coerce(values[name], type));
+    } else if (study[name] !== undefined) {
+      values[name] = study[name];
+      ambient[name] = study[name];
     }
   }
 

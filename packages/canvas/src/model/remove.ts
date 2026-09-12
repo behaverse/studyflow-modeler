@@ -4,21 +4,28 @@
  * moddle tree and dropped from the scene.
  */
 
+import { STUDY_EXTENSION_TYPE } from '@core/document/format.ts';
+
 import type { EventBus } from '@canvas/bus.ts';
 import { activityOf, isDataAssociationType, pruneDataAssociation } from '@canvas/model/dataAssociation.ts';
 import { dropLabel } from '@canvas/model/labels.ts';
 import {
+  asList,
   asModdle,
   clearParent,
   clearRef,
+  modelOf,
+  moveExtension,
   parentOf,
   prop,
   pullFrom,
+  pushInto,
   refBOs,
+  setParent,
   setProp,
   unfile,
 } from '@canvas/model/moddle.ts';
-import type { Drawable, ModdleObject, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import { setRoot, type Drawable, type ModdleObject, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
 import { depthOf } from '@canvas/model/tree.ts';
 
 
@@ -93,6 +100,10 @@ export function deleteElements(
   const removedSet = new Set<SceneElement>(removed);
   const changed = new Set<Drawable>();
   const lanes = laneNodes(scene);
+  // The last pool going hands the root back to its process, before the detach so `releaseProcessRef` keeps it.
+  const collaboration = scene.root;
+  const process = processLeftByLastPool(scene, removedSet);
+  if (process) setRoot(scene, process);
 
   // Edges first (they only reference), then nodes deepest-first.
   const edges = removed.filter((el): el is SceneEdge => el.kind === 'edge');
@@ -101,6 +112,7 @@ export function deleteElements(
     .sort((a, b) => depthOf(b) - depthOf(a));
   for (const edge of edges) detachEdge(edge, removedSet, changed);
   for (const node of nodes) detachNode(node, scene, lanes, removedSet, changed);
+  if (process) demoteCollaboration(scene, collaboration, process);
 
   for (const element of removed) {
     dropLabel(scene, element);
@@ -126,8 +138,37 @@ export function deleteElements(
   scene.revision += 1;
   bus.fire('ElementsRemoved', { elements: removed.slice() });
   for (const element of changedList) bus.fire('ElementChanged', { element });
+  if (process) bus.fire('ElementChanged', { element: scene.rootElement });
   bus.fire('ElementsChanged', { elements: [...removed, ...changedList] });
   return { removed, changed: changedList };
+}
+
+/** The process of the collaboration root's first pool, when the deletion takes every pool it has. */
+function processLeftByLastPool(scene: Scene, removedSet: Set<SceneElement>): ModdleObject | undefined {
+  if (scene.root.$type !== 'bpmn:Collaboration') return undefined;
+  const pools = asList(prop(scene.root, 'participants')).filter((participant) => asModdle(prop(participant, 'processRef')));
+  const isRemoved = (pool: ModdleObject): boolean => {
+    const node = scene.byBusinessObject.get(pool);
+    return !!node && removedSet.has(node);
+  };
+  return pools.length > 0 && pools.every(isRemoved) ? asModdle(prop(pools[0], 'processRef')) : undefined;
+}
+
+/**
+ * The reverse of the mutator's `promoteRootToCollaboration`, once the process is the root: the study's
+ * settings and what the collaboration files beside its pools move to the process, and the collaboration
+ * goes unless actors that only take bands are left in it.
+ */
+function demoteCollaboration(scene: Scene, collaboration: ModdleObject, process: ModdleObject): void {
+  moveExtension(collaboration, process, STUDY_EXTENSION_TYPE, modelOf(scene.definitions));
+  for (const artifact of asList(prop(collaboration, 'artifacts'))) {
+    setParent(artifact, process);
+    pushInto(process, 'artifacts', artifact);
+  }
+  setProp(collaboration, 'artifacts', []);
+  if (asList(prop(collaboration, 'participants')).length > 0) return;
+  pullFrom(scene.definitions, 'rootElements', collaboration);
+  clearParent(collaboration);
 }
 
 function detachEdge(edge: SceneEdge, removedSet: Set<SceneElement>, changed: Set<Drawable>): void {

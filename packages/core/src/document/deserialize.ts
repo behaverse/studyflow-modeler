@@ -129,7 +129,7 @@ class ModdleBuilder {
     return el;
   }
 
-  buildDiagrams(docDiagrams: unknown[], definitions: any): any[] {
+  buildDiagrams(docDiagrams: unknown[]): any[] {
     const diagrams = docDiagrams.map((node) => this.build(node as Record<string, any>, 'bpmndi:BPMNDiagram'));
     if (this.inlineDi.length === 0) return diagrams;
 
@@ -144,8 +144,6 @@ class ModdleBuilder {
       plane.$parent = diagram;
       diagram.set('plane', plane);
     }
-    // A doc-provided bpmnElement wins: `resolveReferences` runs later and overwrites this default.
-    if (!plane.bpmnElement) plane.set('bpmnElement', primaryRoot(definitions));
 
     const planeElements = plane.get('planeElement');
     for (const { element, type, props } of this.inlineDi) {
@@ -278,11 +276,15 @@ export function studyflowToDefinitions(
     },
     'bpmn:Definitions',
   );
-  const diagrams = builder.buildDiagrams((doc.diagram as unknown[]) ?? [], definitions);
+  const diagrams = builder.buildDiagrams((doc.diagram as unknown[]) ?? []);
   for (const diagram of diagrams) diagram.$parent = definitions;
   if (diagrams.length > 0) definitions.set('diagrams', diagrams);
   builder.resolveReferences();
   builder.linkSequenceFlows();
+  // A plane the doc does not name draws the primary root, picked once the references are in: until a pool's
+  // `processRef` resolves, its collaboration looks like one holding only actors, and the process would win.
+  const plane = definitions.diagrams?.[0]?.plane;
+  if (plane && !plane.bpmnElement) plane.set('bpmnElement', primaryRoot(definitions));
   if (doc.state && typeof doc.state === 'object' && !Array.isArray(doc.state)) {
     writeState(definitions, moddle, doc.state as StateTree);
   }

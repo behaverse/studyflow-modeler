@@ -215,6 +215,15 @@ types:
     superClass:
       - bpmn:Process
     properties:
+      - name: seed
+        # Pinned in the plan, read by both runners, echoed on the archived copy.
+        description: Root seed every step derives its own from; unset, the engine draws one.
+        isAttr: true
+        type: Integer
+        meta:
+          optional: true
+          categories:
+            - Execution
       - name: runtime
         description: Environment the study runs in.
         isAttr: true
@@ -684,22 +693,6 @@ types:
           condition:
             body:
               implementation: $set
-
-  - name: Seed
-    # Pinned in the plan, read by the engine, echoed on the archived copy.
-    description: Adds the run's root seed to the process.
-    extends:
-      - bpmn:Process
-    isAbstract: true
-    properties:
-      - name: seed
-        description: Root seed every step derives its own from; unset, the engine draws one.
-        isAttr: true
-        type: Integer
-        meta:
-          optional: true
-          categories:
-            - Execution
 
   # ===========================================================================
   # Bindings. Inputs and outputs are never listed on a task: they are the data

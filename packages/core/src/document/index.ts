@@ -15,6 +15,7 @@ export { CHECKLIST_MARKER, isChecklistMarkerValue } from '@core/document/shortha
 export {
   META_KEY,
   PLACEHOLDER,
+  ensureStudyExtension,
   isReservedStateKey,
   readState,
   resolvePlaceholders,

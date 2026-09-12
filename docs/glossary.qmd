@@ -9,7 +9,7 @@ Studyflow
 : The notation itself, a standard for describing and coordinating experiments.*Modeler* is the authoring app, where you design, validate, import, and export studyflow files. *Runner* is the execution app, where you run studyflows and record what happens. There can be multiple runners and the study's `runtime` or pre-defined attributes in the schemas pick between them. 
 
 study
-: What a studyflow describes. In the file, the root process carrying the `studyflow:Study` extension. A studyflow file is a single source of truth for one study (or experiment). The study is the *prospective* side of the file, and the *retrospective* side is the record of what actually happened when it ran and it is describe by provenance history.
+: What a studyflow describes. In the file, the root carrying the `studyflow:Study` extension: the process, or the collaboration once the study is drawn in pools (the extension moves back to the process when the last pool is deleted). A studyflow file is a single source of truth for one study (or experiment). The study is the *prospective* side of the file, and the *retrospective* side is the record of what actually happened when it ran and it is describe by provenance history.
 
 element
 : Anything in the diagram. Elements are either nodes or edges. Nodes are activities, events, gateways, and containers. Edges are sequence flows and data associations.

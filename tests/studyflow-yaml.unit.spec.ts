@@ -353,6 +353,34 @@ R:
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');
   });
 
+  test('a pool diagram with no `diagram:` node draws its collaboration, whose Study takes the state', () => {
+    const definitions = studyflowToDefinitions(`id: pools
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  extensionElements:
+    - type: studyflow:Study
+  participants:
+    Pool:
+      processRef: P
+      bounds: 0 0 600 250
+P:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+      bounds: 100 100 36 36
+state:
+  Start:
+    count: 1
+`, new BpmnModdle(structuredClone(packages)) as any);
+    const [collaboration, process] = definitions.rootElements;
+    expect(definitions.diagrams[0].plane.bpmnElement).toBe(collaboration);
+    expect(JSON.parse(collaboration.extensionElements.values[0].state)).toEqual({ Start: { count: 1 } });
+    expect(process.extensionElements).toBeUndefined();
+  });
+
   test('an id two elements share is reported: a reference to it could reach only one', () => {
     const warnings: string[] = [];
     studyflowToDefinitions({ definitions: {}, elements: {

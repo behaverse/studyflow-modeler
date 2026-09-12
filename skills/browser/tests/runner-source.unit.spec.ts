@@ -54,24 +54,45 @@ test('the runner keeps `diagram` for itself and passes the rest to the study', (
   expect(readParameters(params)).toEqual({ seed: '42', task: 'BCS', timeline: 'XCIT_BCS_02' });
 });
 
-test('a `seed` parameter binds to the study\'s own `studyflow:seed`, as the Integer it declares', async () => {
+test('a `seed` parameter binds to the root Study\'s `seed`, as the Integer it declares', async () => {
   const study = new Studyflow(
     await parseStudyflow(demoSource, packages, { seed: '42', task: 'BCS', timeline: 'XCIT_BCS_02' }),
   );
 
   expect(study.seed).toBe(42);
-  expect(study.businessObject.seed).toBe(42);
+  expect(study.study.seed).toBe(42);
   expect(study.parameters.values.seed).toBe(42);
-  expect(study.parameters.undeclared, 'the Seed trait declares it').toEqual([]);
+  expect(study.parameters.undeclared, 'the Study declares it').toEqual([]);
 });
 
 test('a seed pinned in the diagram is what runs when the link gives none', async () => {
-  const pinned = demoSource.replace('type: bpmn:Process', 'type: bpmn:Process\n  seed: 7');
+  const pinned = demoSource.replace('- type: studyflow:Study', '- type: studyflow:Study\n      seed: 7');
   const study = new Studyflow(
     await parseStudyflow(pinned, packages, { task: 'BCS', timeline: 'XCIT_BCS_02' }),
   );
 
   expect(study.seed).toBe(7);
+});
+
+test('in a pool diagram the seed is read from the collaboration, which carries the Study', async () => {
+  const pooled = `id: pooled
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Pools:
+  type: bpmn:Collaboration
+  extensionElements:
+    - type: studyflow:Study
+      seed: 7
+  participants:
+    Pool:
+      processRef: Lab
+Lab:
+  type: bpmn:Process
+  flowElements:
+    Start:
+      type: bpmn:StartEvent
+`;
+  expect(new Studyflow(await parseStudyflow(pooled, packages, {})).seed).toBe(7);
 });
 
 test('the behaverse demo runs on the values its own data object carries', async () => {

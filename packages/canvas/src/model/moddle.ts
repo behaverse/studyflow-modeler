@@ -134,6 +134,23 @@ export function pullFrom(owner: ModdleObject | undefined, name: string, value: M
   return true;
 }
 
+/** Move `from`'s extension element of `type` to `to`; `from` drops an emptied `extensionElements`, `to` gets one when it has none. */
+export function moveExtension(from: ModdleObject, to: ModdleObject, type: string, factory: ModdleFactory | undefined): void {
+  const source = asModdle(prop(from, 'extensionElements'));
+  const extension = asList(prop(source, 'values')).find((value) => value.$type === type);
+  if (!source || !extension) return;
+  pullFrom(source, 'values', extension);
+  if (asList(prop(source, 'values')).length === 0) setProp(from, 'extensionElements', undefined);
+  let target = asModdle(prop(to, 'extensionElements'));
+  if (!target) {
+    target = mint(factory, 'bpmn:ExtensionElements', { values: [] });
+    setParent(target, to);
+    setProp(to, 'extensionElements', target);
+  }
+  setParent(extension, target);
+  pushInto(target, 'values', extension);
+}
+
 /** Write a reference at the schema's cardinality (`sourceRef` is a list on a data association). */
 export function setRef(owner: ModdleObject, name: string, value: ModdleObject | undefined): void {
   const many = isManyProperty(owner, name);
