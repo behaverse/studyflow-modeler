@@ -137,7 +137,7 @@ types:
 
   # The browser runner performs only simple randomization with equal odds; it
   # warns about anything else (packages/runner/src/allocation.ts).
-  - name: Dataset
+  - name: BDMDataset
     description: A dataset in the Behaverse Data Model (BDM).
     superClass:
       - studyflow:Dataset

@@ -194,7 +194,7 @@ These attributes describe the study's schedule in visits and days, which is what
 | `DataCatalog` | not drawn | A registry a dataset is published in; the dataset's `catalog` names it. | `uri` |
 | any of them | - | Where the value lives. Unset, it only passes between steps. | `uri` |
 
-`format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), from the behaverse skill, whose `behaverse:Dataset` adds `dataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which adds `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `nwb` ([NWB](https://www.nwb.org/)).
+`format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), from the behaverse skill, whose `behaverse:BDMDataset` adds `dataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which adds `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `nwb` ([NWB](https://www.nwb.org/)).
 
 ## What a step runs
 
