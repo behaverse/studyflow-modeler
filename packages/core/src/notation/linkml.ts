@@ -1,6 +1,6 @@
 /**
  * The schema language: a skill's vocabulary is a LinkML schema (`<name>.linkml.yaml`), read here into
- * the moddle package descriptor the rest of the notation compiles (`schemaFile.ts`). Only the LinkML
+ * the moddle package descriptor the rest of the notation compiles (`moddlePackage.ts`). Only the LinkML
  * keys below are read; `skills/SCHEMAS.md` is the author's reference for the same mapping.
  *
  * Where LinkML has the same idea, it is used as LinkML spells it (`is_a`, `mixin`, `multivalued`,
@@ -16,7 +16,7 @@ import type {
   SchemaModel,
   SchemaPropertyModel,
   SchemaTypeModel,
-} from '@core/notation/schemaFile';
+} from '@core/notation/moddlePackage';
 
 type Annotations = Record<string, any>;
 

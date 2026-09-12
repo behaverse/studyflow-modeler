@@ -6,7 +6,7 @@ import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '@core/notation';
 import { NON_BPMN_SUPER_CLASSES } from '@core/notation/query';
 import { inferRoles } from '@core/notation/compile';
 import { NON_EXTENSION_PREFIXES } from '@core/constants';
-import { MODDLE_SIMPLE_TYPES } from '@core/notation/schemaFile';
+import { MODDLE_SIMPLE_TYPES } from '@core/notation/moddlePackage';
 import { SCHEMAS, loadSchemaModels, schemaPackages } from './schemas';
 
 /** Cross-validates the compiled TypeCatalog against bpmn-moddle. */

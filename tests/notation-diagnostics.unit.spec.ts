@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { buildCatalog } from '@core/notation';
-import type { SchemaModel } from '@core/notation/schemaFile';
+import type { SchemaModel } from '@core/notation/moddlePackage';
 
 /** The compiler's author-typo diagnostics: a broken schema must fail in words at load time. */
 

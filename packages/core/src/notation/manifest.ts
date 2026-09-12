@@ -1,5 +1,5 @@
 import { firstSentence } from '@core/naming';
-import type { SchemaModel } from '@core/notation/schemaFile';
+import type { SchemaModel } from '@core/notation/moddlePackage';
 
 export type SchemaInfo = {
   prefix: string;

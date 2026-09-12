@@ -6,7 +6,7 @@ import {
   primaryRoot,
   type YamlDoc,
 } from '@core/document/format';
-import { MODDLE_BUILTIN_TYPES } from '@core/notation/schemaFile';
+import { MODDLE_BUILTIN_TYPES } from '@core/notation/moddlePackage';
 import {
   CHECKLIST_MARKER,
   DI_NODE_TYPES,

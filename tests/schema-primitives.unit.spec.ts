@@ -9,7 +9,7 @@ import {
   isValueType,
   toModdlePackages,
   type SchemaModel,
-} from '@core/notation/schemaFile';
+} from '@core/notation/moddlePackage';
 
 /** moddle's type vocabulary, pinned against moddle itself. */
 

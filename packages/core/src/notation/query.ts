@@ -1,5 +1,5 @@
 import { toLocalName } from '@core/naming';
-import { MODDLE_BUILTIN_TYPES } from '@core/notation/schemaFile';
+import { MODDLE_BUILTIN_TYPES } from '@core/notation/moddlePackage';
 import { bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@core/notation/bpmn';
 import type {
   AttributeSpec,

@@ -3,7 +3,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog } from '@core/notation';
 import { fromLinkml, parseLinkml } from '@core/notation/linkml';
-import { toModdlePackages } from '@core/notation/schemaFile';
+import { toModdlePackages } from '@core/notation/moddlePackage';
 import { connectsToFixture, loadSchemaModels } from './schemas';
 
 /** The moddle package format is an *output* of the schema model, not the source format. */

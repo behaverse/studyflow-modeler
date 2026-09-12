@@ -6,7 +6,7 @@ import {
   type SchemaModel,
   type SchemaPropertyModel,
   type SchemaTypeModel,
-} from '@core/notation/schemaFile';
+} from '@core/notation/moddlePackage';
 import { BPMN_ANCESTORS, isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { humanizeLabel, isHiddenFromPalette, paletteCategories, trimBpmnSuffix } from '@core/notation/palette';
 import { compileTemplates } from '@core/notation/templates';

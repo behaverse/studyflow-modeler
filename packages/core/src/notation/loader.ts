@@ -1,6 +1,6 @@
 import { buildCatalog, setCatalog } from '@core/notation';
 import { fromLinkml, parseLinkml, type LinkmlSchema } from '@core/notation/linkml';
-import { toModdlePackages, type SchemaModel } from '@core/notation/schemaFile';
+import { toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
 import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 

@@ -1,5 +1,5 @@
 import { toLocalName } from '@core/naming';
-import { isValueType, type SchemaTypeModel } from '@core/notation/schemaFile';
+import { isValueType, type SchemaTypeModel } from '@core/notation/moddlePackage';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import type { TypeMeta, TypeStyle } from '@core/notation/types';
 

@@ -3,7 +3,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToDefinitions } from '@core/document';
 import { bpmnSelfAndAncestors, buildCatalog } from '@core/notation';
-import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES } from '@core/notation/schemaFile';
+import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES } from '@core/notation/moddlePackage';
 import { SCHEMAS, loadSchemaModels, schemaPackages } from './schemas';
 
 /** Schema design rules, checked without a browser, on each schema as the LinkML reader hands it to moddle. */

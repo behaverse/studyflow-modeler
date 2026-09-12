@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { fromLinkml, parseLinkml } from '@core/notation/linkml';
-import { toModdlePackages, type SchemaModel } from '@core/notation/schemaFile';
+import { toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
 import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 

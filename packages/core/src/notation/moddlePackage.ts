@@ -1,6 +1,6 @@
 /**
  * The moddle package a schema compiles to: what `BpmnModdle` is handed, and what the catalog reads.
- * `linkml.ts` builds these from the authored `*.linkml.yaml`; nothing authors this shape by hand.
+ * `linkml.ts` builds these from the authored `*.linkml.yaml`; only tests write one by hand.
  */
 
 export type SchemaPropertyModel = {
@@ -23,7 +23,7 @@ export type SchemaTypeModel = {
   name: string;
   description?: string;
   isAbstract?: boolean;
-  /** Inheritance refs; declaring one makes the type instantiable (wrapper style, see `TypeStyle`). */
+  /** Inheritance refs: a type with any is an element of its own (wrapper style, see `TypeStyle`), a trait has none. */
   superClass?: string[];
   /** Trait refs: with no `superClass`, the attributes mix onto the referenced BPMN type and its subtypes. */
   extends?: string[];

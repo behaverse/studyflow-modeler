@@ -1,6 +1,6 @@
 import { longTypeName } from '@core/document/shorthand';
 import type { TypeCatalog } from '@core/notation/query';
-import type { SchemaModel } from '@core/notation/schemaFile';
+import type { SchemaModel } from '@core/notation/moddlePackage';
 import type { Template } from '@core/notation/types';
 
 type Mapping = Record<string, unknown>;
