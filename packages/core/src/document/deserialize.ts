@@ -122,7 +122,10 @@ class ModdleBuilder {
       el.get('documentation').push(entry);
     }
 
-    if (typeof el.id === 'string' && el.id) this.byId.set(el.id, el);
+    if (typeof el.id === 'string' && el.id) {
+      if (this.byId.has(el.id)) this.onWarning?.(`the id '${el.id}' names two elements; a reference to it reaches only the last`);
+      this.byId.set(el.id, el);
+    }
     return el;
   }
 

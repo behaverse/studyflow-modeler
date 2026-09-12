@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { looksLikeXml, studyflowToXml, xmlToStudyflow } from '@core/document';
+import { looksLikeXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
 import { exampleNames as examples, exampleXml } from './utils';
 import { parseStudyflow } from '@runner/studyflow';
 import { buildCatalog, setCatalog } from '@core/notation';
@@ -351,6 +351,14 @@ R:
     expect(back).toContain('messageRef: Trial\n');
     expect(back).toContain('Trial:\n  type: Message\n  itemRef: Trial_Item\n');
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');
+  });
+
+  test('an id two elements share is reported: a reference to it could reach only one', () => {
+    const warnings: string[] = [];
+    studyflowToDefinitions({ definitions: {}, elements: {
+      Outer: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' }, Inner: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' } } } } },
+    } }, new BpmnModdle(structuredClone(packages)) as any, (message) => warnings.push(message));
+    expect(warnings).toEqual(["the id 'Twin' names two elements; a reference to it reaches only the last"]);
   });
 
   test('sniffer distinguishes XML from YAML', () => {

@@ -153,7 +153,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
   const templates: EditorTemplates = {
     getAll: () => getCatalog().allTemplates(),
     createElement: (template) => {
-      const { shape, flow } = createTemplateElement(model, template);
+      const { shape, flow } = createTemplateElement(model, template, canvas.getDefinitions());
       pendingFlow = flow.nodes.length > 0 ? { businessObject: shape.businessObject, flow } : undefined;
       return shape;
     },

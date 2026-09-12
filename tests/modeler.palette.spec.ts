@@ -12,6 +12,7 @@ import {
   extractStudyflowFromSvg,
   gotoModeler,
   normalizeXml,
+  pressOnCanvas,
   readDownloadText,
   setSelectedElementName,
 } from './utils';
@@ -134,6 +135,15 @@ test.describe('Studyflow modeler palette flows', () => {
     const gate = gateOf(second);
     expect(gate).toMatch(/^eo_gate_/);
     expect(guardOf(second)).toContain(`state.trace.count('${gate}')`);
+
+    // Once the copy holding them is deleted, the template's own ids are free again.
+    await page.locator('g[data-element-id="Evaluator_optimizer"]').click();
+    await pressOnCanvas(page, 'Delete');
+    await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 300, y: 200 });
+    const after = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
+    const subs = Object.values(Object.values(after).find((value: any) => value?.type === 'Process').flowElements)
+      .filter((el: any) => el.type === 'SubProcess') as any[];
+    expect(subs.map(gateOf).sort()).toEqual(['eo_gate', gate]);
   });
 
   test('applies default schema values for eeg EEGPrep elements', async ({ page }) => {

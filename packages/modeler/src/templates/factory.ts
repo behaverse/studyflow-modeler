@@ -1,5 +1,5 @@
 import { defaultSizeFor, isExpandable, type Bounds, type Canvas, type SceneNode, type ShapeDescriptor } from '@canvas/index.ts';
-import { studyflowToDefinitions } from '@core/document';
+import { PLACEHOLDER, studyflowToDefinitions } from '@core/document';
 import type { Template } from '@core/notation';
 import type { EditorModel, ModelElement } from '@modeler/editor/port';
 
@@ -31,39 +31,65 @@ function fitParticipant(canvas: Canvas, pool: SceneNode, boxes: Bounds[]): { x: 
   };
 }
 
-/** Every id in a moddle subtree; references are not followed. */
-function idsIn(value: any, ids = new Set<string>()): Set<string> {
+/** Every moddle element in a subtree; references are not followed. */
+function* elementsIn(value: any): Generator<ModelElement> {
   if (Array.isArray(value)) {
-    for (const item of value) idsIn(item, ids);
+    for (const item of value) yield* elementsIn(item);
   } else if (value?.$descriptor) {
-    if (typeof value.id === 'string') ids.add(value.id);
-    for (const property of value.$descriptor.properties) if (!property.isReference) idsIn(value[property.name], ids);
+    yield value;
+    for (const property of value.$descriptor.properties) if (!property.isReference) yield* elementsIn(value[property.name]);
   }
-  return ids;
 }
 
-/** `value` with every renamed id rewritten, keys included, so an element and the text naming it (`state.trace.count('eo_gate')`) stay in one instance. */
-function withIds(value: any, renamed: Map<string, string>): any {
-  if (typeof value === 'string') return value.replace(/[\w-]+/g, (word) => renamed.get(word) ?? word);
-  if (Array.isArray(value)) return value.map((item) => withIds(item, renamed));
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [withIds(key, renamed), withIds(item, renamed)]));
+/** Renamed ids where code names them: every word of an expression's body, and the name in each `{placeholder}`. */
+function renameInCode(element: ModelElement, renamed: Map<string, string>): void {
+  const inPlaceholders = (text: string): string => text.replace(PLACEHOLDER, (match, path: string) => {
+    const head = path.split('.')[0];
+    return renamed.has(head) ? match.replace(head, renamed.get(head)!) : match;
+  });
+  const isExpression = element.$instanceOf('bpmn:Expression');
+  for (const property of element.$descriptor.properties) {
+    const value = element[property.name];
+    if (property.isReference || property.name === 'id') continue;
+    if (isExpression && property.name === 'body' && typeof value === 'string') {
+      element.set('body', value.replace(/[\p{L}\p{N}_-]+/gu, (word) => renamed.get(word) ?? word));
+    } else if (typeof value === 'string') {
+      element.set(property.name, inPlaceholders(value));
+    } else if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
+      element.set(property.name, value.map(inPlaceholders));
+    }
   }
-  return value;
+  for (const [name, value] of Object.entries(element.$attrs ?? {})) {
+    if (typeof value === 'string') element.$attrs[name] = inPlaceholders(value);
+  }
 }
 
-/** The template's elements, built as a file holding them builds: each id kept where the document has it free, else suffixed. */
-function buildElements(model: EditorModel, elements: Record<string, unknown>): any {
-  const build = (spelled: Record<string, unknown>) => studyflowToDefinitions({ definitions: {}, elements: spelled }, model.moddle());
-  const definitions = build(elements);
-  const taken = [...idsIn(definitions.rootElements)].filter((id) => model.ids.assigned(id));
-  if (taken.length === 0) return definitions;
-  return build(withIds(elements, new Map(taken.map((id) => [id, model.ids.nextPrefixed(`${id}_`)]))));
+/**
+ * The template's elements, built as a file holding them builds. An id the open document already holds is suffixed
+ * (a second drop gets `eo_gate_…`): references follow the element they point at, and so does code that names it by
+ * text, an expression (`state.trace.count('eo_gate')`) or a `{placeholder}`. Names and documentation keep the word.
+ */
+function buildElements(model: EditorModel, elements: Record<string, unknown>, document: ModelElement | undefined): any {
+  const definitions = studyflowToDefinitions({ definitions: {}, elements }, model.moddle());
+  const held = new Set([...elementsIn(document)].map((element) => element.id));
+  const renamed = new Map<string, string>();
+  for (const element of elementsIn(definitions.rootElements)) {
+    if (typeof element.id !== 'string' || !held.has(element.id)) continue;
+    const id = model.ids.nextPrefixed(`${element.id}_`);
+    renamed.set(element.id, id);
+    element.id = id;
+  }
+  if (renamed.size > 0) for (const element of elementsIn(definitions.rootElements)) renameInCode(element, renamed);
+  return definitions;
 }
 
-/** The shape a palette drag drops for `template`, and the flow to lay out inside it once it lands. */
-export function createTemplateElement(model: EditorModel, template: Template): { shape: ShapeDescriptor; flow: TemplateFlow } {
-  const definitions = buildElements(model, template.elements);
+/** The shape a palette drag drops for `template` into `document`, and the flow to lay out inside it once it lands. */
+export function createTemplateElement(
+  model: EditorModel,
+  template: Template,
+  document: ModelElement | undefined,
+): { shape: ShapeDescriptor; flow: TemplateFlow } {
+  const definitions = buildElements(model, template.elements, document);
   const root = definitions.rootElements[0];
   const isPool = root.$type === 'bpmn:Participant';
   const children: ModelElement[] = (isPool ? root.processRef : root)?.flowElements ?? [];
