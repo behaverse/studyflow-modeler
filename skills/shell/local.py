@@ -38,7 +38,7 @@ def claimed(elements: dict[str, dict[str, Any]]) -> list[str]:
     return [eid for eid, element in elements.items() if command_of(element) is not None and not element.get("extensions")]
 
 
-PLACEHOLDER = re.compile(r"\{\s*([A-Za-z_][\w.]*)\s*\}")
+PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")  # the modeler's PLACEHOLDER (packages/core/src/document/state.ts)
 
 
 def dig(value: Any, fields: list[str]) -> Any:

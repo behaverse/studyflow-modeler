@@ -391,7 +391,7 @@ class Studyflow:
         declared = studyflow_child(element, "additionalArguments")
         if declared is not None and declared.text:
             texts.append(declared.text)
-            sources.update(re.findall(r"\{\s*([A-Za-z_]\w*)", declared.text))  # what each `{name.field}` cites
+            sources.update(re.findall(r"\{\s*([^\W\d][\w-]*)", declared.text))  # what each `{name.field}` cites
         return sources, " ".join(texts)
 
     def mentions(self, text: str, element_id: str) -> bool:

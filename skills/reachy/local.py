@@ -543,7 +543,7 @@ class SimRobot:
             self._daemon = None
 
 
-PLACEHOLDER = re.compile(r"\{\s*([A-Za-z_][\w.]*)\s*\}")
+PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")  # the modeler's PLACEHOLDER (packages/core/src/document/state.ts)
 
 
 def lookup(tree: Any, keys: list[str]) -> Any:

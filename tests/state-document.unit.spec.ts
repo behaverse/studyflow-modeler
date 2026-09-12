@@ -126,5 +126,14 @@ test.describe('state in the document', () => {
       .toBe('A/{missing} 4 2');
     expect(resolvePlaceholders('Excluded (n={count})', studyflowToDefinitions(BODY, newModdle()), 'Excluded_Pre'))
       .toBe('Excluded (n={count})');
+    // Only the braces of a name: YAML and JSON in a value stay put.
+    expect(resolvePlaceholders('{a: 1} {"arm": 2} {arm}', definitions, 'Excluded_Pre')).toBe('{a: 1} {"arm": 2} A');
+  });
+
+  test('a name may hold letters of any script and hyphens, as in the Python runners', () => {
+    const tree = { Example_Study: { durée: 3 }, _meta: { reached: { 'sid-12': 4 } } };
+    const definitions = studyflowToDefinitions(DOC, newModdle());
+    writeState(definitions, newModdle(), tree);
+    expect(resolvePlaceholders('{durée} {state._meta.reached.sid-12}', definitions, 'Excluded_Pre')).toBe('3 4');
   });
 });

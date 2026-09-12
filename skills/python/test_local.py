@@ -22,5 +22,12 @@ assert resolve({"split.train": None}) is table
 assert resolve("{folds}") == 5
 assert resolve("cv={folds}, {nothing}") == "cv=5, {nothing}"
 assert resolve("{nothing}") == "{nothing}"
+# Unresolved, the unquoted form is the same text as the quoted one; an element with nothing bound yet stays as written.
+assert resolve({"nothing": None}) == "{nothing}"
+plan.elements["Report"] = {"id": "Report", "parent": "Study"}
+assert resolve("Scores before {Report}") == "Scores before {Report}"
+# Letters of any script and hyphenated ids are names too, as in the modeler.
+run.values["state"]["Study"].update({"durée": 3, "sid-12": 4})
+assert resolve("{durée} {sid-12}") == "3 4"
 assert python.placeholder_of("{a} and {b}") is None
 print("ok")

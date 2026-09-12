@@ -44,7 +44,7 @@ def split_binding(text: str | None) -> tuple[str | None, str | None]:
     return None, value
 
 
-PLACEHOLDER = re.compile(r"\{\s*([A-Za-z_][\w.]*)\s*\}")
+PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")  # the modeler's PLACEHOLDER (packages/core/src/document/state.ts)
 
 
 def dig(value: Any, fields: list[str]) -> Any:
@@ -246,7 +246,10 @@ class Run:
         source = self.by_name(head)
         if source not in self.values and source not in self.studyflow.elements:
             return None
-        return dig(self.value_of(source), fields)
+        try:
+            return dig(self.value_of(source), fields)
+        except KeyError:
+            return None  # an element with nothing bound yet, no value and no `uri`: the placeholder stays as written
 
     def resolve_argument(self, value: Any, element_id: str) -> Any:
         """An argument that is one placeholder is the value it cites, a table or a model, not its text; inside a
@@ -254,7 +257,9 @@ class Run:
         path = placeholder_of(value)
         if path is not None:
             found = self.resolve(path, element_id)
-            return value if found is None else found
+            if found is None:
+                return value if isinstance(value, str) else f"{{{path}}}"  # as written, quoted or not
+            return found
         if isinstance(value, str):
             return PLACEHOLDER.sub(lambda m: m.group(0) if (v := self.resolve(m.group(1), element_id)) is None else str(v), value)
         if isinstance(value, dict) and "implementation" in value:

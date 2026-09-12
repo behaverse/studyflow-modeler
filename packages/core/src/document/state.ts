@@ -100,10 +100,12 @@ export function resolveState(definitions: ModdleElement | null | undefined, elem
 }
 
 /**
- * A placeholder, `{name}` or `{name.field}`, the one form every reader takes (docs/reference.qmd, "Placeholders").
- * The name is identifier-shaped, so the braces of YAML or JSON in a value stay put.
+ * A placeholder, `{name}` or `{name.field}`, the one form every reader takes (docs/reference.qmd, "Placeholders"):
+ * a letter of any script or `_`, then letters, digits, `_`, `-` and dots, so the braces of YAML or JSON in a value
+ * stay put. The Python runners spell it `[^\W\d][\w.-]*`, which matches the same names wherever the two engines'
+ * Unicode tables agree.
  */
-export const PLACEHOLDER = /\{\s*([A-Za-z_][\w.]*)\s*\}/g;
+export const PLACEHOLDER = /\{\s*([\p{L}\p{Nl}\p{No}_][\p{L}\p{N}_.-]*)\s*\}/gu;
 
 /** Replaces every `{path}` the last run's state resolves with `String(value)`; an unresolved placeholder stays as written. */
 export function resolvePlaceholders(text: string, definitions: ModdleElement | null | undefined, elementId: string): string {
