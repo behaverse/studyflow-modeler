@@ -21,7 +21,7 @@ imports:
   - ../studyflow/studyflow.linkml
 annotations:
   icon: iconify tabler--hexagon-letter-c
-  core: true
+  optional: false
 
 enums:
   AllocationAlgorithmEnum:

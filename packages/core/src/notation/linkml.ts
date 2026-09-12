@@ -135,7 +135,8 @@ function toSchemaModel(doc: LinkmlSchema, owner: Map<string, string>): SchemaMod
     version: doc.version,
     description: doc.description,
     icon: typeof annotations.icon === 'string' ? annotations.icon : undefined,
-    core: annotations.core === true,
+    // A schema is optional unless it says otherwise; `optional: false` makes it core, always loaded.
+    core: annotations.optional === false,
     order: doc.rank,
     categories: toCategories(doc.subsets),
     // Every studyflow element is tagged in lowerCamelCase; no schema differs, so it is not authored.

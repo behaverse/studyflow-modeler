@@ -20,7 +20,7 @@ imports:
   - ../studyflow/studyflow.linkml
 annotations:
   icon: iconify tabler--hexagon-letter-l
-  core: true
+  optional: false
 
 enums:
   LocalRuntime:

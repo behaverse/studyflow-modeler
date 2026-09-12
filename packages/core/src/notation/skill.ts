@@ -5,7 +5,7 @@ import * as yaml from 'js-yaml';
  * `license`, `compatibility` (the runtime environment a runner needs), `metadata`, `allowed-tools`. What
  * the skill contributes to studyflow is declared under `metadata`, whose values are strings; nothing is
  * found by file name. What can be inferred is not declared: `examples/` is always the examples folder,
- * and a skill is listed by its name. Whether it is core is its schema's to say (`core: true`). */
+ * and a skill is listed by its name. Whether it is core is its schema's to say (`optional: false`). */
 export type SkillManifest = {
   /** The folder's name, and the runner's (`--runner reachy=…`, `STUDYFLOW_REACHY_PY`). */
   name: string;

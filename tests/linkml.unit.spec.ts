@@ -9,7 +9,7 @@ id: http://example.test/core
 name: core
 title: Core
 rank: 1
-annotations: { icon: iconify ph--flask, core: true }
+annotations: { icon: iconify ph--flask, optional: false }
 subsets:
   Data: { rank: 40 }
   Execution: { rank: 50, annotations: { synthetic: true } }

@@ -41,7 +41,7 @@ expression traits) a domain pack must not copy.
 | `version` | `'YY.M.N'`, quoted (lint-enforced). |
 | `rank` | Load/display order; unranked schemas sort after ranked ones, then by prefix. |
 | `annotations.icon` | Iconify class (or URL) for the palette flyout header. |
-| `annotations.core` | `true`: the schema always loads, and the modeler's settings cannot switch it off. |
+| `annotations.optional` | `false` for a core schema: it always loads, and the modeler's settings cannot switch it off. Left out, it is `true`: a skill the user can switch off. |
 | `subsets` | Inspector tabs, **core schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`): `rank` orders them, `annotations.synthetic: true` marks a tab drawn by its own section. Every other schema gets a tab of its own `title`, right after General, where its attributes file by default. |
 | `classes`, `types`, `enums` | The content; below. |
 | `license`, `prefixes`, `default_prefix`, `default_range: string`, `imports` | LinkML's own: the linker and the linter read them, the app does not. |

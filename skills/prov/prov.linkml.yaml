@@ -19,7 +19,7 @@ imports:
   - linkml:types
 annotations:
   icon: iconify tabler--history
-  core: true
+  optional: false
 
 classes:
   # Entries run oldest first. The document-level timeline (created, modified,
