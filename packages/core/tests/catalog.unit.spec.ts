@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { BPMN_ANCESTORS, buildCatalog } from '@core/notation';
-import { connectsToFixture } from './schemas';
+import { connectsToFixture } from '@tests/schemas';
 
 /** The catalog's own tables: the slice of the BPMN hierarchy it walks, and the connection rules a schema declares. */
 
