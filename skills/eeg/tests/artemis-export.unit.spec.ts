@@ -55,45 +55,23 @@ function report(modeler: any): any {
 }
 
 test.describe('ARTEM-IS export', () => {
-  test('fills the task block from a wrapper-style instrument type', () => {
-    const task = report(eegDiagram()).task;
+  test('fills the task, preprocessing, analysis and dataset blocks from the diagram\'s elements', () => {
+    const { task, preprocessing, analysis, datasets } = report(eegDiagram());
 
-    // Not the `{ not_applicable: true }` placeholder: declaring `instrument` is all the exporter asks.
-    expect(Array.isArray(task), JSON.stringify(task)).toBe(true);
-    expect(task).toHaveLength(1);
-    expect(task[0].element_id).toBe('Task_1');
-    expect(task[0].label).toBe('N-back');
-    expect(task[0].studyflow_type).toBe('cognitive:CognitiveTask');
-    expect(task[0].instrument).toBe('jspsych');
+    // A list, not the `{ not_applicable: true }` placeholder: a wrapper-style type declaring `instrument` is all it asks.
+    expect(task, JSON.stringify(task)).toEqual([expect.objectContaining({
+      element_id: 'Task_1', label: 'N-back', studyflow_type: 'cognitive:CognitiveTask', instrument: 'jspsych',
+    })]);
+    // The operation over the EEG recording is preprocessing; the one downstream of it, analysis.
+    expect(preprocessing, JSON.stringify(preprocessing)).toEqual([expect.objectContaining({
+      element_id: 'Filter_1', label: 'Remove artifacts', implementation: 'docker://sccn/eegprep', studyflow_type: 'bpmn:ServiceTask',
+    })]);
+    expect(analysis, JSON.stringify(analysis)).toEqual([expect.objectContaining({
+      element_id: 'Reduce_1', implementation: 'python://sklearn.linear_model.LinearRegression',
+    })]);
+    // The recording is a dataset, with its declared attributes.
+    expect(datasets, JSON.stringify(datasets)).toEqual([expect.objectContaining({
+      element_id: 'EEG_1', studyflow_type: 'studyflow:Timeseries', sampling_rate: 250, channel_count: 16,
+    })]);
   });
-
-  test('splits the operations into preprocessing over EEG and downstream analysis', () => {
-    const { preprocessing, analysis } = report(eegDiagram());
-
-    expect(Array.isArray(preprocessing), JSON.stringify(preprocessing)).toBe(true);
-    expect(preprocessing).toHaveLength(1);
-    expect(preprocessing[0]).toMatchObject({
-      element_id: 'Filter_1',
-      label: 'Remove artifacts',
-      implementation: 'docker://sccn/eegprep',
-      studyflow_type: 'bpmn:ServiceTask',
-    });
-
-    expect(Array.isArray(analysis), JSON.stringify(analysis)).toBe(true);
-    expect(analysis.map((entry: any) => entry.element_id)).toEqual(['Reduce_1']);
-    expect(analysis[0].implementation).toBe('python://sklearn.linear_model.LinearRegression');
-  });
-
-  test('reports the EEG recording as a dataset with its declared attributes', () => {
-    const datasets = report(eegDiagram()).datasets;
-
-    expect(datasets).toHaveLength(1);
-    expect(datasets[0]).toMatchObject({
-      element_id: 'EEG_1',
-      studyflow_type: 'studyflow:Timeseries',
-      sampling_rate: 250,
-      channel_count: 16,
-    });
-  });
-
 });

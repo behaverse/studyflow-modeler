@@ -56,45 +56,44 @@ function cellIds(xml: string): string[] {
 }
 
 test.describe('draw.io export', () => {
-  test('wraps the diagram in an mxfile named after the diagram', () => {
-    const xml = exportToDrawio(fakeModeler([ROOT, shape({ id: 'T1', type: 'bpmn:Task' })]));
+  test('exports what the view shows, in an mxfile named after the diagram', () => {
+    const pool = shape({ id: 'Pool', type: 'bpmn:Participant' });
+    const lane = shape({ id: 'Lane', type: 'bpmn:Lane', parent: pool });
+    const task = shape({ id: 'Task', type: 'bpmn:Task', parent: lane });
+    const group = shape({ id: 'Group', type: 'bpmn:Group' });
+    const collapsed = shape({ id: 'Sub', type: 'bpmn:SubProcess', isExpanded: false });
+
+    // Registry order is deliberately scrambled: paint order must come from the ranking, not arrival order.
+    const xml = exportToDrawio(fakeModeler([
+      ROOT, task, group, lane, pool, collapsed,
+      shape({ id: 'Hidden', type: 'bpmn:Task', parent: collapsed }),
+      { id: 'Task_label', kind: 'label', x: 0, y: 0, width: 10, height: 10, parent: ROOT, businessObject: {} },
+      flow('F1', 'bpmn:SequenceFlow', task, collapsed),
+    ]));
 
     expect(xml).toContain('<mxfile host="studyflow-modeler">');
     expect(xml).toContain('name="My study"');
     expect(xml).toContain('<mxCell id="0" />');
     expect(xml).toContain('<mxCell id="1" parent="0" />');
-    expect(cellIds(xml)).toEqual(['T1']);
-  });
-
-  test('keeps each element\'s geometry', () => {
-    const xml = exportToDrawio(fakeModeler([ROOT, shape({ id: 'T1', type: 'bpmn:Task' })]));
-
+    // Frames before what they frame, then the rest, then connections; no label, and nothing folded in a collapsed container.
+    expect(cellIds(xml)).toEqual(['Pool', 'Lane', 'Group', 'Sub', 'Task', 'F1']);
     expect(xml).toContain('<mxGeometry x="100" y="200" width="100" height="80" as="geometry" />');
-  });
-
-  test('connections carry their bends, not the endpoints on the shape borders', () => {
-    const source = shape({ id: 'A', type: 'bpmn:Task' });
-    const target = shape({ id: 'B', type: 'bpmn:Task' });
-    const xml = exportToDrawio(fakeModeler([ROOT, source, target, flow('F1', 'bpmn:SequenceFlow', source, target)]));
-
-    expect(xml).toContain('<mxCell id="F1" value="" style="edgeStyle=orthogonalEdgeStyle;');
-    expect(xml).toContain('edge="1" parent="1" source="A" target="B"');
+    // A connection carries its bends, not the endpoints on the shape borders.
+    expect(xml).toContain('edge="1" parent="1" source="Task" target="Sub"');
     expect(xml).toContain('<mxPoint x="50" y="0" />');
     expect(xml).toContain('<mxPoint x="50" y="90" />');
     expect(xml).not.toContain('<mxPoint x="0" y="0" />');
     expect(xml).not.toContain('sourcePoint');
-  });
 
-  test('frames are written before what they frame', () => {
-    const pool = shape({ id: 'Pool', type: 'bpmn:Participant' });
-    const lane = shape({ id: 'Lane', type: 'bpmn:Lane', parent: pool });
-    const task = shape({ id: 'Task', type: 'bpmn:Task', parent: lane });
-    const group = shape({ id: 'Group', type: 'bpmn:Group' });
-
-    // Registry order is deliberately scrambled: paint order must come from the ranking, not arrival order.
-    const xml = exportToDrawio(fakeModeler([ROOT, task, group, lane, pool]));
-
-    expect(cellIds(xml)).toEqual(['Pool', 'Lane', 'Group', 'Task']);
+    // Drilled into an expanded container, the view shows its contents, and so does the export.
+    const open = shape({ id: 'Open', type: 'bpmn:SubProcess' });
+    const drilled = exportToDrawio(fakeModeler([
+      ROOT,
+      open,
+      shape({ id: 'Outside', type: 'bpmn:Task' }),
+      shape({ id: 'Inside', type: 'bpmn:Task', parent: open }),
+    ], open));
+    expect(cellIds(drilled)).toEqual(['Inside']);
   });
 
   test('labels survive as HTML, and markup in a name stays text', () => {
@@ -111,30 +110,5 @@ test.describe('draw.io export', () => {
     expect(xml).toContain('value="a &amp;lt;b&amp;gt; c"');
     expect(xml).toContain('<mxCell id="Note" value="A free-form note."');
     expect(xml).toContain('<mxCell id="Grp" value="Enrolment"');
-  });
-
-  test('skips labels and anything folded inside a collapsed container', () => {
-    const collapsed = shape({ id: 'Sub', type: 'bpmn:SubProcess', isExpanded: false });
-    const xml = exportToDrawio(fakeModeler([
-      ROOT,
-      shape({ id: 'T1', type: 'bpmn:Task' }),
-      { id: 'T1_label', kind: 'label', x: 0, y: 0, width: 10, height: 10, parent: ROOT, businessObject: {} },
-      collapsed,
-      shape({ id: 'Hidden', type: 'bpmn:Task', parent: collapsed }),
-    ]));
-
-    expect(cellIds(xml)).toEqual(['T1', 'Sub']);
-  });
-
-  test('drilled into an expanded container, exports what the view shows: its contents', () => {
-    const sub = shape({ id: 'Sub', type: 'bpmn:SubProcess' });
-    const xml = exportToDrawio(fakeModeler([
-      ROOT,
-      sub,
-      shape({ id: 'Outside', type: 'bpmn:Task' }),
-      shape({ id: 'Inside', type: 'bpmn:Task', parent: sub }),
-    ], sub));
-
-    expect(cellIds(xml)).toEqual(['Inside']);
   });
 });

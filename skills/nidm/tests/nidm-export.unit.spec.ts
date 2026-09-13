@@ -72,26 +72,19 @@ test.describe('NIDM export', () => {
     expectEveryPrefixDeclared(exportToNidm(fakeExportModel([])));
   });
 
-  test("writes an activity's implementation as a core: predicate", () => {
+  test('writes an operation as an activity, its data as entities, and which it used and generated', () => {
     const turtle = exportToNidm(analysisDiagram());
 
-    expect(turtle).toContain('core:implementation "python://scipy.signal.butter"');
+    // The activity, its implementation as a core: predicate.
     expect(turtle).toContain('core:Filter_1 a prov:Activity , core:ServiceTask ;');
+    expect(turtle).toContain('core:implementation "python://scipy.signal.butter"');
     expect(turtle).toContain('rdfs:comment "Band-pass 1-100 Hz."');
-  });
-
-  test('reports wrapper-style data elements as entities, with their attributes', () => {
-    const turtle = exportToNidm(analysisDiagram());
-
+    // A wrapper-style data element is an entity, with its attributes.
     expect(turtle).toContain('core:EEG_1 a prov:Entity , core:Timeseries ;');
     expect(turtle).toContain('rdfs:label "Raw EEG"');
     expect(turtle).toContain('nidm:format "edf"');
     expect(turtle).toContain('dct:title "EEG study"');
-  });
-
-  test('associates entities with the activity that used and generated them', () => {
-    const turtle = exportToNidm(analysisDiagram());
-
+    // What the activity read, and what it wrote.
     expect(turtle).toContain('prov:used core:EEG_1');
     expect(turtle).toContain('core:Table_1 prov:wasGeneratedBy core:Filter_1 .');
   });
