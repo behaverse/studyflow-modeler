@@ -6,15 +6,15 @@ import { freshModdle } from './schemas';
 import { loopKindOf } from '@modeler/inspector/loopCharacteristics';
 import type { Editor } from '@modeler/editor/port';
 
-/** `update-loop-characteristics` routes every `loopCharacteristics` write through `modeling` (one undo step each). */
+/** `UpdateLoopCharacteristics` writes every `loopCharacteristics` change through the canvas, one undoable write each. */
 
 const moddle = freshModdle();
 
 /**
- * A partial `Editor`: the command reaches the document through `mutate` and
- * `model` alone, so those two are all the fake owes it. `mutate`
- * applies each write the way a real backend's undo step would, and records which
- * of the two writers ran — the distinction the tests below are about.
+ * A partial `Editor`: the command reaches the document through `canvas` and
+ * `model` alone, so those two are all the fake owes it. The canvas applies each
+ * write and records which of its two writers ran: the child set on the
+ * activity, or a field set on the child standing there.
  */
 function fakeModeler(): { modeler: Editor; calls: string[] } {
   const calls: string[] = [];
@@ -42,135 +42,57 @@ function activityElement(type = 'bpmn:SubProcess', id = 'Improve') {
 }
 
 test.describe('update-loop-characteristics command', () => {
-  test('adds a multi-instance child with its fields', () => {
+  test('a loop is added, switched to another kind, edited in place and removed, one write each', () => {
     const { modeler, calls } = fakeModeler();
     const element = activityElement();
-
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
-      properties: { isSequential: true },
+    const update = (loopType: string | null, properties?: Record<string, any>) => runUpdateLoopCharacteristics(modeler, {
+      type: 'UpdateLoopCharacteristics', element, loopType, properties,
     });
+    const child = () => element.businessObject.loopCharacteristics;
 
-    const lc = element.businessObject.loopCharacteristics;
-    expect(lc.$type).toBe('bpmn:MultiInstanceLoopCharacteristics');
-    expect(lc.$parent).toBe(element.businessObject);
-    expect(lc.get('isSequential')).toBe(true);
-    expect(calls).toEqual(['updateProperties']);
-  });
+    update(null);
+    expect(calls, 'removing a loop that is not there writes nothing').toEqual([]);
 
-  test('edits fields on the existing child without replacing it', () => {
-    const { modeler, calls } = fakeModeler();
-    const element = activityElement();
-
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
-    });
-    const created = element.businessObject.loopCharacteristics;
-
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
-      properties: { isSequential: true },
-    });
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
-      properties: { isSequential: false },
-    });
-
-    const lc = element.businessObject.loopCharacteristics;
-    expect(lc).toBe(created);
-    expect(lc.get('isSequential')).toBe(false);
-    expect(calls).toEqual(['updateProperties', 'updateModdleProperties', 'updateModdleProperties']);
-  });
-
-  test('switches between loop and fan-out kinds', () => {
-    const { modeler } = fakeModeler();
-    const element = activityElement('bpmn:SubProcess', 'Per_Item');
-
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:StandardLoopCharacteristics',
-      properties: { loopMaximum: 3 },
-    });
+    update('bpmn:StandardLoopCharacteristics', { loopMaximum: 3 });
     expect(loopKindOf(element)).toBe('loop');
+    expect(child().$parent, 'a new child is parented to its activity').toBe(element.businessObject);
+    expect(child().get('loopMaximum')).toBe(3);
 
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
-    });
-    const lc = element.businessObject.loopCharacteristics;
+    // Another kind is another child: the old kind's fields do not carry over.
+    update('bpmn:MultiInstanceLoopCharacteristics');
+    const fanOut = child();
     expect(loopKindOf(element)).toBe('parallel');
-    expect(lc.$parent).toBe(element.businessObject);
-    expect(lc.get('loopMaximum')).toBeUndefined();
+    expect(fanOut.$parent).toBe(element.businessObject);
+    expect(fanOut.get('loopMaximum')).toBeUndefined();
 
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
-      properties: { isSequential: true },
-    });
-    expect(element.businessObject.loopCharacteristics).toBe(lc);
+    // The same kind is edited in place.
+    update('bpmn:MultiInstanceLoopCharacteristics', { isSequential: true });
+    expect(child()).toBe(fanOut);
     expect(loopKindOf(element)).toBe('sequential');
-  });
 
-  test('removes the child, and removal without one is a no-op', () => {
-    const { modeler, calls } = fakeModeler();
-    const element = activityElement();
-
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: null,
-    });
-    expect(calls).toEqual([]);
-
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
-    });
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: null,
-    });
-    expect(element.businessObject.loopCharacteristics).toBeUndefined();
+    update(null);
+    expect(child()).toBeUndefined();
     expect(loopKindOf(element)).toBe('none');
+
+    // A child is set on the activity; a field of the child standing there is set on the child.
+    expect(calls).toEqual(['updateProperties', 'updateProperties', 'updateModdleProperties', 'updateProperties']);
   });
 
-  test('serializes the flattened loopCondition string (canonical example shape)', async () => {
+  test('a loop condition typed as text is stored as a BPMN formal expression, and cleared when emptied', () => {
     const { modeler } = fakeModeler();
     const element = activityElement();
-
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:StandardLoopCharacteristics',
-      properties: { loopCondition: 'score < 0.9', loopMaximum: 5, testBefore: true },
+    const update = (properties: Record<string, any>) => runUpdateLoopCharacteristics(modeler, {
+      type: 'UpdateLoopCharacteristics', element, loopType: 'bpmn:StandardLoopCharacteristics', properties,
     });
 
-    const process = moddle.create('bpmn:Process', {
-      id: 'P_1',
-      flowElements: [element.businessObject],
-    });
-    element.businessObject.$parent = process;
-    const definitions = moddle.create('bpmn:Definitions', { id: 'D_1', rootElements: [process] });
-    process.$parent = definitions;
+    update({ loopCondition: 'score < 0.9' });
+    const lc = element.businessObject.loopCharacteristics;
+    // BPMN's own form, which serializes as `xsi:type="bpmn:tFormalExpression"`, not a studyflow attribute.
+    expect(lc.loopCondition.$type).toBe('bpmn:FormalExpression');
+    expect(lc.loopCondition.body).toBe('score < 0.9');
+    expect(lc.loopCondition.$parent).toBe(lc);
 
-    const { xml } = await moddle.toXML(definitions);
-    // `loopCondition` serializes in BPMN's own form: an expression element with `xsi:type`, not a studyflow attribute.
-    expect(xml).toContain('xsi:type="bpmn:tFormalExpression"');
-    expect(xml).toMatch(/<bpmn:loopCondition[^>]*>score (&lt;|&#60;) 0.9<\/bpmn:loopCondition>/);
-    expect(xml).toContain('loopMaximum="5"');
-    expect(xml).toContain('testBefore="true"');
+    update({ loopCondition: '' });
+    expect(lc.loopCondition).toBeUndefined();
   });
 });

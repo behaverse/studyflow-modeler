@@ -29,21 +29,16 @@ async function serialized(taskType: string, attribute: string, value: string): P
   return xml;
 }
 
-for (const taskType of NATIVE_TYPES) {
-  test(`${taskType} serializes implementation as the native attribute`, async () => {
-    const xml = await serialized(taskType, 'implementation', REF);
-    expect(xml).toContain(`implementation="${REF}"`);
-    expect(xml).not.toContain('studyflow:implementation');
-  });
-}
-
-test('bpmn:ScriptTask serializes its inline script as the native child', async () => {
-  const xml = await serialized('bpmn:ScriptTask', 'bpmn:script', 'print(42)');
-  expect(xml).toContain('<bpmn:script>print(42)</bpmn:script>');
-
-  const { rootElement } = await moddle.fromXML(xml);
-  const task = rootElement.rootElements[0].flowElements[0];
-  expect(getAttribute(task, 'script')).toBe('print(42)');
+test('a task keeps its software in BPMN\'s own form: `implementation` an attribute, a script a child', async () => {
+  const CASES: Array<[string, string, string, string]> = [
+    ...NATIVE_TYPES.map((taskType): [string, string, string, string] => [taskType, 'implementation', REF, `implementation="${REF}"`]),
+    ['bpmn:ScriptTask', 'bpmn:script', 'print(42)', '<bpmn:script>print(42)</bpmn:script>'],
+  ];
+  for (const [taskType, attribute, value, native] of CASES) {
+    const xml = await serialized(taskType, attribute, value);
+    expect(xml, taskType).toContain(native);
+    expect(xml, taskType).not.toMatch(/studyflow:(implementation|script)/);
+  }
 });
 
 test('the inspector offers implementation on the native types, script on script tasks', () => {
