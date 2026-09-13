@@ -4,7 +4,7 @@ import { readState, writeState } from '@core/document';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
 import {
-  applyStatuses, assignLanes, collectProvenance, displayOrder, recordDetails,
+  applyStatuses, assignLanes, collectProvenance, displayOrder, recordDetails, voids,
 } from '@modeler/provenance/records';
 import { primaryRoot } from '@core/document';
 import { appendTrailEntry } from '@modeler/provenance/trail';
@@ -168,114 +168,81 @@ test.describe('provenance view model', () => {
     })).toBe(false);
   });
 
-  test('a re-executed record leaves its precise marker behind as consumed history', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const task = firstActivity(definitions);
-    stampElement(task, { action: 'executed', when: '2026-08-01T13:00:00Z', run: 'repo' });
-    stampElement(task, { action: 'invalidated', when: '2026-08-01T14:00:00Z', what: '2026-08-01T13:00:00Z', run: 'repo' });
-
-    // The re-run replaces the executed entry (the runner's `replace_action`) and keeps the marker.
-    const values = task.extensionElements.values;
-    task.extensionElements.values = values.filter((v: any) => v.action !== 'executed');
-    stampElement(task, { action: 'executed', when: '2026-08-02T09:00:00Z', run: 'repo' });
-
-    const records = collectProvenance(definitions).filter((r) => !r.isDocument);
-    const fresh = records.find((r) => r.action === 'executed')!;
-    const marker = records.find((r) => r.action === 'invalidated')!;
-    expect(fresh.invalidated).toBe(false);
-    expect(marker.consumed).toBe(true);
-  });
-
-  test('a runless marker voids any executed record; a foreign run voids none', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const root = primaryRoot(definitions)!;
-    const events = root.flowElements.filter((e: any) => /Event$/.test(e.$type));
-    expect(events.length).toBeGreaterThanOrEqual(2);
-
-    stampElement(events[0], { action: 'executed', when: '2026-08-01T13:00:00Z', run: 'run-004' });
-    stampElement(events[0], { action: 'invalidated', when: '2026-08-01T13:05:00Z' });
-    stampElement(events[1], { action: 'executed', when: '2026-08-01T13:00:00Z', run: 'run-004' });
-    stampElement(events[1], { action: 'invalidated', when: '2026-08-01T13:05:00Z', run: 'run-999' });
-
-    const records = collectProvenance(definitions);
-    const voided = records.find((r) => r.scopeId === events[0].id && r.action === 'executed')!;
-    const intact = records.find((r) => r.scopeId === events[1].id && r.action === 'executed')!;
-    expect(voided.invalidated).toBe(true);
-    expect(intact.invalidated).toBe(false);
-  });
-
-  test('same-second element records follow the flow graph — data before its consumers', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const byId = new Map<string, any>();
-    const index = (container: any): void => {
-      for (const el of container?.flowElements ?? []) {
-        byId.set(el.id, el);
-        index(el);
+  test('a precise marker is consumed once its record is replaced or superseded', async () => {
+    const CASES = [
+      // The runner's `replace_action`: the re-run swaps the executed entry out and keeps the marker.
+      { label: 'replaced', keepOld: false },
+      // A forked run keeps the record it supersedes beside the fresh one: both branches stay.
+      { label: 'superseded', keepOld: true },
+    ];
+    for (const { label, keepOld } of CASES) {
+      const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
+      const task = firstActivity(definitions);
+      stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+      stampElement(task, { action: 'invalidated', when: '2026-08-01T11:00:00Z', what: '2026-08-01T10:00:00Z', run: 'repo' });
+      if (!keepOld) {
+        task.extensionElements.values = task.extensionElements.values.filter((v: any) => v.action !== 'executed');
       }
-    };
-    for (const root of definitions.rootElements ?? []) index(root);
-    // Stamped deliberately in reverse flow order, all within the runner's one-second precision.
-    const when = '2026-08-01T10:00:00Z';
-    for (const id of ['split_train_test', 'select_target', 'select_features', 'input_dataset']) {
-      expect(byId.get(id), `example should contain ${id}`).toBeTruthy();
-      stampElement(byId.get(id), { action: id === 'input_dataset' ? 'imported' : 'executed', when, run: 'repo' });
-    }
+      stampElement(task, { action: 'executed', when: '2026-08-01T12:00:00Z', run: 'repo' });
 
-    const records = collectProvenance(definitions).filter((r) => !r.isDocument);
-    expect(records.map((r) => r.scopeId)).toEqual(
-      ['input_dataset', 'select_features', 'select_target', 'split_train_test']);
+      const records = collectProvenance(definitions).filter((r) => !r.isDocument);
+      const executed = records.filter((r) => r.action === 'executed');
+      const fresh = executed.at(-1)!;
+      expect(fresh.invalidated, label).toBe(false);
+      expect(fresh.superseded, label).toBe(false);
+      expect(records.find((r) => r.action === 'invalidated')!.consumed, label).toBe(true);
+      if (keepOld) expect([executed[0].invalidated, executed[0].superseded], label).toEqual([true, true]);
+    }
   });
 
-  test('a same-second output replays right after its producer, before the next step', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const byId = new Map<string, any>();
-    const index = (container: any): void => {
-      for (const el of container?.flowElements ?? []) {
-        byId.set(el.id, el);
-        index(el);
+  test('a marker voids the record its `what` names, else every record of its run, or of any run when it names none', () => {
+    const record = { when: '2026-08-01T13:00:00Z', run: 'run-004' };
+    const CASES: Array<[string, { what?: string; run?: string }, boolean]> = [
+      ['names this record', { what: '2026-08-01T13:00:00Z', run: 'run-999' }, true],
+      ['names another record', { what: '2026-08-01T12:00:00Z', run: 'run-004' }, false],
+      ['names no record, this run', { run: 'run-004' }, true],
+      ['names no record, a foreign run', { run: 'run-999' }, false],
+      ['names no record and no run', {}, true],
+    ];
+    for (const [label, marker, expected] of CASES) expect(voids(marker, record), label).toBe(expected);
+  });
+
+  test('same-second ties: a marker, then the run stamp, then element records in flow order', async () => {
+    // The runner's stamps have second precision, so ties are real: every stamp in a row shares one second.
+    const when = '2026-08-01T10:00:00Z';
+    const CASES: Array<[string, Array<[string, string, string?]>, string[]]> = [
+      ['stamped in reverse flow order: data before its consumers',
+        [['split_train_test', 'executed'], ['select_target', 'executed'], ['select_features', 'executed'], ['input_dataset', 'imported']],
+        ['input_dataset:imported', 'select_features:executed', 'select_target:executed', 'split_train_test:executed']],
+      ['`write_test_report` writes `test_report`, then the flow moves on to `plot_confusion`',
+        [['plot_confusion', 'executed'], ['test_report', 'created'], ['write_test_report', 'executed'], ['confusion_matrix', 'created']],
+        ['write_test_report:executed', 'test_report:created', 'plot_confusion:executed', 'confusion_matrix:created']],
+      ['a marker precedes the run stamp, and the stamp its records',
+        [['split_train_test', 'executed'], ['document', 'executed'], ['split_train_test', 'invalidated', '2026-07-31T09:00:00Z']],
+        ['split_train_test:invalidated', 'document:executed', 'split_train_test:executed']],
+    ];
+    for (const [label, stamps, expected] of CASES) {
+      const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
+      const byId = new Map<string, any>();
+      const index = (container: any): void => {
+        for (const el of container?.flowElements ?? []) {
+          byId.set(el.id, el);
+          index(el);
+        }
+      };
+      for (const root of definitions.rootElements ?? []) index(root);
+      for (const [target, action, what] of stamps) {
+        if (target === 'document') {
+          appendTrailEntry(definitions, moddle, { action, when, run: 'repo' });
+          continue;
+        }
+        expect(byId.get(target), `${label}: sklearn_pipeline has ${target}`).toBeTruthy();
+        stampElement(byId.get(target), { action, when, run: 'repo', ...(what ? { what } : {}) });
       }
-    };
-    for (const root of definitions.rootElements ?? []) index(root);
-    // `write_test_report` writes `test_report`, then the flow moves on to `plot_confusion`;
-    // the runner's old second-precision stamps collapse all four into one instant.
-    const when = '2026-08-01T10:00:00Z';
-    for (const id of ['plot_confusion', 'test_report', 'write_test_report', 'confusion_matrix']) {
-      expect(byId.get(id), `example should contain ${id}`).toBeTruthy();
-      stampElement(byId.get(id), { action: byId.get(id).$type.includes('Data') ? 'created' : 'executed', when, run: 'repo' });
+
+      const order = collectProvenance(definitions).map((r) => `${r.isDocument ? 'document' : r.scopeId}:${r.action}`);
+      expect(order, label).toEqual(expected);
     }
-
-    const records = collectProvenance(definitions).filter((r) => !r.isDocument);
-    expect(records.map((r) => r.scopeId)).toEqual(
-      ['write_test_report', 'test_report', 'plot_confusion', 'confusion_matrix']);
-  });
-
-  test('at the same instant, a marker precedes the run stamp, and the stamp its records', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const task = firstActivity(definitions);
-    // All three share one second; the runner's stamps have second precision, so ties are real.
-    stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
-    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
-    stampElement(task, { action: 'invalidated', when: '2026-08-01T10:00:00Z', what: '2026-07-31T09:00:00Z', run: 'repo' });
-
-    const actions = collectProvenance(definitions).map((r) => `${r.isDocument ? 'doc' : 'el'}:${r.action}`);
-    expect(actions).toEqual(['el:invalidated', 'doc:executed', 'el:executed']);
-  });
-
-  test('a forked run supersedes records instead of replacing them — both branches stay', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const task = firstActivity(definitions);
-    stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
-    stampElement(task, { action: 'invalidated', when: '2026-08-01T11:00:00Z', what: '2026-08-01T10:00:00Z', run: 'repo' });
-    stampElement(task, { action: 'executed', when: '2026-08-01T12:00:00Z', run: 'repo' });
-
-    const records = collectProvenance(definitions).filter((r) => !r.isDocument);
-    const [old, fresh] = records.filter((r) => r.action === 'executed');
-    const marker = records.find((r) => r.action === 'invalidated')!;
-    expect(old.superseded).toBe(true);
-    expect(old.invalidated).toBe(true);
-    expect(fresh.superseded).toBe(false);
-    expect(fresh.invalidated).toBe(false);
-    expect(marker.consumed).toBe(true);
   });
 
   test('a consumed marker forks the graph at the invocation that superseded it', async () => {
@@ -302,6 +269,8 @@ test.describe('provenance view model', () => {
     // The branch's line opens at the consumed marker row, not at the run stamp.
     const consumed = records.find((r) => r.scopeId === task.id && r.action === 'invalidated')!;
     expect(graph.get(consumed)!.opens).toBe(1);
+    // Once its re-run has landed the branch is drawn, so the pending mark is gone.
+    expect(graph.get(consumed)!.pendingBranch).toBeUndefined();
     const pending = records.find((r) => r.scopeId === other.id && r.action === 'invalidated')!;
     expect(graph.get(pending)!.pendingBranch).toBe(true);
   });
@@ -396,18 +365,6 @@ test.describe('replay', () => {
     expect(graph.get(marker)!.opens).toBe(1);
     expect(graph.get(marker)!.pendingBranch).toBeUndefined();
   });
-
-  test('the pending branch mark appears mid-replay and resolves once the re-run lands', async () => {
-    const records = await forkedHistory();
-
-    const during = displayOrder(prefix(records, 2));
-    const markerDuring = during.find((r) => r.action === 'invalidated')!;
-    expect(assignLanes(during).get(markerDuring)!.pendingBranch).toBe(true);
-
-    const after = displayOrder(prefix(records, 3));
-    const markerAfter = after.find((r) => r.action === 'invalidated')!;
-    expect(assignLanes(after).get(markerAfter)!.pendingBranch).toBeUndefined();
-  });
 });
 
 test.describe('display order', () => {
@@ -415,22 +372,17 @@ test.describe('display order', () => {
     action: 'executed', scopeId: 'Activity_1', scopeLabel: 'A step', isDocument: false, entry: {}, ...fields,
   });
 
-  test('a precise marker is shown below the record it voids', () => {
+  test('a precise marker is shown below the record it voids; one naming nothing keeps its place in time', () => {
     const first = record({ when: '2026-07-31T10:00:00Z' });
     const second = record({ when: '2026-07-31T11:00:00Z' });
     // ✕ on the first run: `what` names the record it voids, not the moment it was voided.
     const marker = record({ action: 'invalidated', when: '2026-07-31T12:00:00Z', what: '2026-07-31T10:00:00Z' });
-
-    const shown = displayOrder([first, second, marker]);
-
-    expect(shown).toEqual([first, marker, second]);
-  });
-
-  test('a marker naming nothing keeps its place in time', () => {
     // A `what`-less marker is a standing re-run pin, not a verdict on one record; it must not move.
-    const first = record({ when: '2026-07-31T10:00:00Z' });
     const pin = record({ action: 'invalidated', when: '2026-07-31T12:00:00Z' });
-
-    expect(displayOrder([first, pin])).toEqual([first, pin]);
+    const CASES: Array<[string, any[], any[]]> = [
+      ['a precise marker', [first, second, marker], [first, marker, second]],
+      ['a marker naming nothing', [first, second, pin], [first, second, pin]],
+    ];
+    for (const [label, collected, shown] of CASES) expect(displayOrder(collected), label).toEqual(shown);
   });
 });
