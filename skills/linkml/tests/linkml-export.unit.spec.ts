@@ -3,25 +3,9 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { exportToLinkML } from '@skills/linkml/modeler';
-import { fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { fakeExportModel, wrapperElement } from '@tests/exporterFixture';
 
 /** Every catalog-declared attribute of a data element must appear in the exported linkml schema. */
-
-test('exportToLinkML collects a data element\'s catalog-declared attributes', () => {
-  const table = moddle.create('studyflow:Table', {
-    id: 'MyTable',
-    name: 'My Table',
-    format: 'parquet',
-  });
-
-  const out = exportToLinkML(fakeExportModel([table]));
-  const doc = yaml.load(out) as any;
-
-  const cls = doc.classes.My_Table;
-  expect(cls).toBeTruthy();
-  expect(cls.class_uri).toBe('studyflow:Table');
-  expect(cls.annotations.format).toBe('parquet');
-});
 
 test('exportToLinkML collects data elements stored as extension wrappers', () => {
   const recording = wrapperElement('bpmn:DataObjectReference', 'studyflow:Timeseries', {

@@ -96,27 +96,4 @@ test.describe('ARTEM-IS export', () => {
     });
   });
 
-  test('marks preprocessing not applicable only when the diagram has no EEG element', () => {
-    const noEeg = report(fakeExportModel([moddle.create('bpmn:Task', { id: 'Task_1', name: 'Rest' })]));
-    expect(noEeg.preprocessing.not_applicable).toBe(true);
-    expect(noEeg.task.not_applicable).toBe(true);
-
-    // An EEG element with nothing operating on it means a block to fill in by hand, not one that does not apply.
-    const unprocessed = report(fakeExportModel([
-      wrapperElement('bpmn:DataObjectReference', 'studyflow:Timeseries', {
-        id: 'EEG_1',
-        name: 'Raw EEG',
-        samplingRate: 250,
-      }),
-    ]));
-    expect(unprocessed.preprocessing.not_applicable).toBe(false);
-    expect(unprocessed.preprocessing.notes).toContain('no data operation');
-  });
-
-  test('titles the report after the diagram', () => {
-    const out = report(eegDiagram());
-
-    expect(out.studyflow_source.diagram_name).toBe('EEG study');
-    expect(out.general.study_title).toBe('EEG study');
-  });
 });

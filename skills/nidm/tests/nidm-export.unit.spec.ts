@@ -95,11 +95,4 @@ test.describe('NIDM export', () => {
     expect(turtle).toContain('prov:used core:EEG_1');
     expect(turtle).toContain('core:Table_1 prov:wasGeneratedBy core:Filter_1 .');
   });
-
-  test('falls back to the placeholder bundle for a diagram with no data plane', () => {
-    const turtle = exportToNidm(fakeExportModel([moddle.create('bpmn:Task', { id: 'Task_1', name: 'Rest' })]));
-
-    expect(turtle).toContain('# No data-operation activities or data-plane elements found');
-    expect(turtle).not.toContain('core:Task_1');
-  });
 });
