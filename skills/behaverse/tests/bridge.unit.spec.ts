@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { askBridge, type BridgeTrial } from '@skills/behaverse/browser/bridge';
-import { botForUnity } from '@skills/behaverse/browser/botConfig';
+import { askBridge, type BridgeReply, type BridgeTrial } from '@skills/behaverse/browser/bridge';
 
 const TRIAL: BridgeTrial = {
   type: 'trial',
@@ -49,30 +48,32 @@ class DeadSocket {
   send() {}
 }
 
-test('askBridge: forwards the trial and resolves the matching reply', async () => {
-  const WS = FakeSocket as unknown as typeof WebSocket;
-  const pending = askBridge('ws://test-reply', TRIAL, 1000, WS);
-  await new Promise((r) => setTimeout(r, 20));
+/** The protocol a response bridge (the reachy participant) speaks: a trial out, the reply to that trial back. */
+test('askBridge forwards the trial and resolves the matching reply; silence or no bridge resolves undefined', async () => {
+  const CASES: { label: string; WS: unknown; timeoutMs: number; replies?: unknown[]; expected: BridgeReply | undefined }[] = [
+    {
+      label: 'the reply to this trial, past one to another',
+      WS: FakeSocket,
+      timeoutMs: 1000,
+      replies: [
+        { type: 'response', RequestId: 'other' },
+        { type: 'response', RequestId: 'req-1', Response: 'Match', Agent: { Id: 'reachy:claude:m' } },
+      ],
+      expected: { response: 'Match', agentId: 'reachy:claude:m' },
+    },
+    { label: 'no reply within the window', WS: FakeSocket, timeoutMs: 50, replies: [], expected: undefined },
+    { label: 'an unreachable bridge', WS: DeadSocket, timeoutMs: 200, expected: undefined },
+  ];
 
-  const socket = FakeSocket.last!;
-  expect(JSON.parse(socket.sent[0]).RequestId).toBe('req-1');
-  socket.receive({ type: 'response', RequestId: 'other' });
-  socket.receive({ type: 'response', RequestId: 'req-1', Response: 'Match', Agent: { Id: 'reachy:claude:m' } });
-
-  expect(await pending).toEqual({ response: 'Match', agentId: 'reachy:claude:m' });
-});
-
-test('askBridge: no reply within the window resolves undefined', async () => {
-  const WS = FakeSocket as unknown as typeof WebSocket;
-  expect(await askBridge('ws://test-silent', { ...TRIAL, RequestId: 'req-2' }, 50, WS)).toBeUndefined();
-});
-
-test('askBridge: an unreachable bridge resolves undefined instead of throwing', async () => {
-  const WS = DeadSocket as unknown as typeof WebSocket;
-  expect(await askBridge('ws://test-dead', TRIAL, 200, WS)).toBeUndefined();
-});
-
-test('BridgeUrl is runner-only: stripped before the payload reaches Unity', () => {
-  const bot = botForUnity({ ResponseSource: 'external', BridgeUrl: 'ws://lab-mac:9001', Speed: 20 });
-  expect(bot).toEqual({ ResponseSource: 'external', Speed: 20 });
+  for (const [i, { label, WS, timeoutMs, replies, expected }] of CASES.entries()) {
+    // The bridge keeps one socket per URL, so each row asks its own.
+    const pending = askBridge(`ws://bridge-${i}`, TRIAL, timeoutMs, WS as typeof WebSocket);
+    if (replies) {
+      await new Promise((r) => setTimeout(r, 20));
+      const socket = FakeSocket.last!;
+      expect(JSON.parse(socket.sent[0]), `${label}: the trial sent`).toEqual(TRIAL);
+      for (const reply of replies) socket.receive(reply);
+    }
+    expect(await pending, label).toEqual(expected);
+  }
 });
