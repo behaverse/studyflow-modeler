@@ -6,11 +6,14 @@ import {
   galleryCategories,
   UNCATEGORIZED,
 } from '@modeler/examples/catalog';
+import { studyflowToDefinitions } from '@core/document';
 import { firstSentence } from '@core/naming';
 import { exampleMetadata } from '@modeler/examples/metadata';
+import { drawPreview } from '@modeler/examples/preview';
 import { BpmnModdle } from 'bpmn-moddle';
+import { installDocument } from '../packages/canvas/tests/canvasHarness';
 import { loadSchemaModels, schemaPackages } from './schemas';
-import { exampleCategories, exampleNames, exampleXml } from './utils';
+import { exampleCategories, exampleNames, exampleStudyflow, exampleXml } from './utils';
 
 /**
  * An example ships as a `.studyflow.png`, the picture of a diagram with the diagram inside it, or
@@ -25,10 +28,13 @@ async function definitionsOf(name: string): Promise<any> {
 }
 
 test.describe('shipped examples', () => {
-  test('there are examples, and each one is a diagram', async () => {
+  test('there are examples, and each one is a drawn diagram', async () => {
     expect(exampleNames.length).toBeGreaterThan(0);
     for (const name of exampleNames) {
-      expect(await exampleXml(name), `${name} carries no studyflow`).toContain('<bpmn');
+      const xml = await exampleXml(name);
+      expect(xml, `${name} carries no studyflow`).toContain('<bpmn');
+      // The canvas never lays out: a YAML example without shapes would draw a blank card.
+      expect(xml, `${name} has no diagram interchange`).toContain('BPMNShape');
     }
   });
 
@@ -66,6 +72,15 @@ test.describe('shipped examples', () => {
     const xml = await exampleXml('cognitive_battery');
     expect(xml).toContain('id="Task_NBack"');
     expect(xml).toContain('name="Within-subject cognitive battery"');
+  });
+
+  test('a YAML example\'s card draws the main canvas, without glyphs', async () => {
+    installDocument();
+    const svg = drawPreview(studyflowToDefinitions(await exampleStudyflow('sklearn_pipeline', moddle), moddle));
+
+    expect(svg).toContain('data-element-id="select_model"');
+    expect(svg).not.toContain('data-element-id="cross_validate"');
+    expect(svg).not.toMatch(/sf-icon|data-icon-key|foreignObject/);
   });
 });
 

@@ -185,7 +185,9 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                       className={g.card}
                     >
                       <div className={g.thumb}>
-                        <img src={entry.url} alt="" loading="lazy" className={g.thumbImage} />
+                        {entry.thumb && (
+                          <img src={entry.thumb} alt="" loading="lazy" data-testid="example-thumb" className={g.thumbImage} />
+                        )}
                         {busy === entry.filename && (
                           <span className={g.thumbBusy}>
                             <i className={g.thumbSpinner}></i>

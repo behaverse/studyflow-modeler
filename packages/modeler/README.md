@@ -8,7 +8,7 @@ npm run examples:render              # redraw every example PNG, after a canvas 
 npm run examples:render kitchensink  # just this one; `-- --origin <url>` reuses a running modeler
 ```
 
-An example is a `.studyflow.png` in `skills/<name>/examples/`: save it from the modeler, or draw one from YAML with `studyflow convert --modeler study.studyflow.yaml skills/<name>/examples/study.studyflow.png`. A schema can also ship YAML examples in its `examples:` block.
+An example is a `.studyflow.yaml` or a `.studyflow.png` in `skills/<name>/examples/`: save it from the modeler, or convert one kind into the other with `studyflow convert`, which draws the picture with `--modeler` (`studyflow convert --modeler study.studyflow.yaml skills/<name>/examples/study.studyflow.png`). The gallery draws a YAML example's card when it opens (`src/examples/preview.ts`).
 
 ## How it is put together
 

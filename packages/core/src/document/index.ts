@@ -64,13 +64,21 @@ export async function xmlToStudyflow(xml: string, moddle: Moddle): Promise<strin
   return yaml.dump(definitionsToYamlDoc(definitions), YAML_DUMP_OPTIONS);
 }
 
+/** What turns a file's definitions into the form the canvas edits: a process root, planes on the process, compact data associations. */
+const INBOUND_PASSES = [choreographyToProcessRoot, headlessPlaneToProcessRoot, inlineIoSpecification];
+
 /**
- * Any BPMN the app reads (a file, an autosave, an embedded PNG) into the form the canvas edits: a process
- * root, planes on the process, compact data associations. The inverse of what saving applies
- * (`toWireXml`, `toStandardBpmnXml`); every inbound path goes through here, in one parse.
+ * Any BPMN the app reads (a file, an autosave, an embedded PNG) into the form the canvas edits. The
+ * inverse of what saving applies (`toWireXml`, `toStandardBpmnXml`); every inbound path goes through
+ * here, in one parse.
  */
 export async function fromWireXml(xml: string, moddle: Moddle): Promise<string> {
-  return applyXmlPasses(xml, moddle, [choreographyToProcessRoot, headlessPlaneToProcessRoot, inlineIoSpecification]);
+  return applyXmlPasses(xml, moddle, INBOUND_PASSES);
+}
+
+/** {@link fromWireXml} on definitions already built, in place: a YAML example drawn for its gallery card. */
+export function fromWireDefinitions(definitions: any): void {
+  for (const pass of INBOUND_PASSES) pass(definitions);
 }
 
 export async function studyflowToXml(yamlText: string, moddle: Moddle): Promise<string> {

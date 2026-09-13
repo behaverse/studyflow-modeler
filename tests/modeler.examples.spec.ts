@@ -16,7 +16,7 @@ test.describe('New Diagram gallery', () => {
     await expect(card).toContainText('Within-subject cognitive battery');
     await expect(card).toContainText('Chains N-Back, Digit Span, SART');
 
-    const preview = card.locator('img');
+    const preview = card.getByTestId('example-thumb');
     await expect(preview).toBeVisible();
     expect(await preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
 

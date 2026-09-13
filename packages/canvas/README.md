@@ -35,7 +35,7 @@ npx playwright test --config playwright.unit.config.ts packages/canvas
 UPDATE_GOLDENS=1 npx playwright test --config playwright.unit.config.ts canvas-render   # after an intended drawing change
 ```
 
-The golden SVGs are rendered from the example PNGs, so `npm run examples:render` goes first when the examples change.
+The golden SVGs are rendered from the shipped examples, one `<name>.svg` per example whichever file it ships as, so after a file-format change `npm run examples:render` redraws the PNG examples first.
 
 ## Left out on purpose
 
