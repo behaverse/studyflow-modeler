@@ -1,11 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  categoryOf,
-  compareExamples,
-  galleryCategories,
-  UNCATEGORIZED,
-} from '@modeler/examples/catalog';
+import { compareExamples, galleryCategories, UNCATEGORIZED } from '@modeler/examples/catalog';
 import { studyflowToDefinitions } from '@core/document';
 import { exampleMetadata } from '@modeler/examples/metadata';
 import { drawPreview } from '@modeler/examples/preview';
@@ -67,16 +62,13 @@ test.describe('shipped examples', () => {
 });
 
 test.describe('gallery shelves', () => {
-  test('are the skill names, alphabetical, with Other last', () => {
+  test('are the skill names, alphabetical, with Other last, and hold their cards in title order', () => {
     expect(galleryCategories(['Demos', 'AI & ML', 'Demos']))
       .toEqual(['AI & ML', 'Demos']);
-    expect(galleryCategories(['Robotics', undefined, 'AI & ML']))
+    // No shelf, or a blank one, is Other.
+    expect(galleryCategories(['Robotics', undefined, '  ', 'AI & ML']))
       .toEqual(['AI & ML', 'Robotics', UNCATEGORIZED]);
-    expect(categoryOf('  ')).toBe(UNCATEGORIZED);
-    expect(categoryOf(undefined)).toBe(UNCATEGORIZED);
-  });
 
-  test('order cards by shelf, then by title', () => {
     const cards = [
       { category: '', title: 'Zebra' },
       { category: 'Experimental Design', title: 'CONSORT 2025' },
