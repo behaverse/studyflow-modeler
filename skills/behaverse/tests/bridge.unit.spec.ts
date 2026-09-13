@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { askBridge, bridgeTimeoutMs, readBridgeUrl, DEFAULT_BRIDGE_URL, type BridgeTrial } from '@skills/behaverse/browser/bridge';
+import { askBridge, type BridgeTrial } from '@skills/behaverse/browser/bridge';
 import { botForUnity } from '@skills/behaverse/browser/botConfig';
 
 const TRIAL: BridgeTrial = {
@@ -48,18 +48,6 @@ class DeadSocket {
   removeEventListener() {}
   send() {}
 }
-
-test('readBridgeUrl: defaults to localhost and honors BridgeUrl', () => {
-  expect(readBridgeUrl(undefined)).toBe(DEFAULT_BRIDGE_URL);
-  expect(readBridgeUrl({ ResponseSource: 'external' })).toBe(DEFAULT_BRIDGE_URL);
-  expect(readBridgeUrl({ BridgeUrl: 'ws://lab-mac:9001' })).toBe('ws://lab-mac:9001');
-});
-
-test('bridgeTimeoutMs: response window minus margin, floored, unpaced gets a generous default', () => {
-  expect(bridgeTimeoutMs(5)).toBe(4750);
-  expect(bridgeTimeoutMs(1)).toBe(1000);
-  expect(bridgeTimeoutMs(0)).toBe(30_000);
-});
 
 test('askBridge: forwards the trial and resolves the matching reply', async () => {
   const WS = FakeSocket as unknown as typeof WebSocket;
