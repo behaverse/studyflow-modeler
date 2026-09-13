@@ -73,7 +73,11 @@ app.whenReady().then(async () => {
     // The opened files, ahead of Vite's own middlewares (which would answer `/open/<name>` with index.html).
     const opened = { name: 'studyflow:opened', configureServer: (s) => { s.middlewares.use((req, res, next) => {
       const file = files[req.url.split('?')[0]];
-      return file ? createReadStream(file).pipe(res) : next();
+      if (!file) return next();
+      // Renamed or deleted since it was opened: a 404, as serveUi answers, not an unhandled 'error' in this process.
+      createReadStream(file)
+        .on('error', () => { if (res.headersSent) res.destroy(); else res.writeHead(404).end('Not found'); })
+        .pipe(res);
     }); } };
     const server = await createServer({ configFile: path.join(ROOT, 'packages/modeler/vite.config.ts'), root: path.join(ROOT, 'packages/modeler'), plugins: [opened] });
     await server.listen();
