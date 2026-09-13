@@ -99,7 +99,9 @@ export async function runOpenDiagram(modeler: Editor, command: OpenDiagramComman
   const xml = await toXml(modeler, command.filename, command.content, onWarning);
 
   const result = await importXml(modeler, { xml, onWarning });
-  if (warnings.length > 0) notify('warning', [`Reading ${command.filename} raised warnings:`, ...warnings].join('\n'));
+  if (warnings.length > 0) {
+    notify('warning', [`Reading ${command.filename} raised warnings:`, ...warnings].join('\n'), { keep: true });
+  }
 
   try {
     modeler.canvas.zoomToFit();

@@ -18,11 +18,12 @@ function emit(): void {
   listeners.forEach((listener) => listener());
 }
 
-export function notify(kind: NoticeKind, text: string): void {
+/** An error, or a notice passed `keep`, stays until the user dismisses it; any other clears itself after a few seconds. */
+export function notify(kind: NoticeKind, text: string, { keep = false } = {}): void {
   const notice: Notice = { id: ++seq, kind, text };
   notices = [...notices, notice];
   emit();
-  if (kind !== 'error') setTimeout(() => dismissNotice(notice.id), AUTO_DISMISS_MS);
+  if (kind !== 'error' && !keep) setTimeout(() => dismissNotice(notice.id), AUTO_DISMISS_MS);
 }
 
 export function dismissNotice(id: number): void {

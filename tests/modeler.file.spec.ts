@@ -24,6 +24,7 @@ test.describe('Studyflow modeler file flows', () => {
   });
 
   test('opening a file says what its reading could not place', async ({ page }) => {
+    await page.clock.install();
     await gotoModeler(page);
 
     // No schema declares `studyflow:retired`: the reader drops it, so the next save would too.
@@ -44,6 +45,10 @@ test.describe('Studyflow modeler file flows', () => {
     await expect(page.locator('[data-element-id="Start"]')).toBeVisible();
     await expect(page.getByTestId('notices')).toContainText('Reading retired.bpmn raised warnings:');
     await expect(page.getByTestId('notices')).toContainText('unparsable content <studyflow:retired>');
+
+    // Past the time a warning clears itself: this one names what the next save drops, so it waits to be dismissed.
+    await page.clock.fastForward(10_000);
+    await expect(page.getByTestId('notices')).toContainText('Reading retired.bpmn raised warnings:');
   });
 
   test('opens a layout-less studyflow file (auto-layout supplies the DI)', async ({ page }) => {
