@@ -1,4 +1,3 @@
-
 import { expect, test } from '@playwright/test';
 
 import { readChoreographyBands } from '@core/document';
@@ -6,7 +5,7 @@ import { IdGenerator, ensureChoreographyParticipants } from '@canvas/index.ts';
 import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
 import { freshModdle } from './schemas';
 
-/** Choreography participant helpers: materializing two participants, and flipping `initiatingParticipantRef`. */
+/** Flipping a choreography task's `initiatingParticipantRef`. Materializing the pair is the canvas's (`packages/canvas/tests/canvas.unit.spec.ts`). */
 
 const updater = {
   updateModdleProperties: (_el: any, target: any, props: Record<string, any>) => {
@@ -24,25 +23,6 @@ function build() {
   definitions.$parent = null;
   return { definitions, task, element: { businessObject: task }, ids: new IdGenerator() };
 }
-
-test('materializes two participants into a headless collaboration on first need', () => {
-  const { definitions, task, ids } = build();
-
-  const [top, bottom] = ensureChoreographyParticipants(task, ids)!;
-  expect(top.name).toBe('Participant A');
-  expect(bottom.name).toBe('Participant B');
-
-  expect(task.get('participantRef')).toEqual([top, bottom]);
-  expect(task.get('initiatingParticipantRef')).toBe(top);
-  const collaboration = definitions.get('rootElements').find((r: any) => r.$type === 'bpmn:Collaboration');
-  expect(collaboration).toBeTruthy();
-  expect(collaboration.get('participants')).toEqual([top, bottom]);
-
-  expect(readChoreographyBands(task)).toEqual({ top: 'Participant A', bottom: 'Participant B', initiator: 'top' });
-
-  ensureChoreographyParticipants(task, ids);
-  expect(collaboration.get('participants')).toHaveLength(2);
-});
 
 test('swap flips the initiating participant', () => {
   const { task, element, ids } = build();

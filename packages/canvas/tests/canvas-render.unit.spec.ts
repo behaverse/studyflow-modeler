@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas, INK } from '@canvas/index.ts';
+import { Canvas, INK, type SceneEdge } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 
@@ -203,6 +203,62 @@ test('a choreography task draws its name in the MIDDLE band, and shades the band
     .map((band) => band.getAttribute('fill'));
   expect(bandFills('Consent'), 'Subject, on top, initiates').toEqual([INK.fill, INK.band]);
   expect(bandFills('Round'), 'Experimenter, below, initiates').toEqual([INK.band, INK.fill]);
+});
+
+// --- edges ---------------------------------------------------------------------
+
+/** `Start_1 → Task_1 → End_1`: Flow_1 keeps a hand-drawn kink, Flow_2 is straight. */
+const KINKED_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:startEvent id="Start_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Task_1" name="Task"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:task>
+    <bpmn:endEvent id="End_1"><bpmn:incoming>Flow_2</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
+        <dc:Bounds x="100" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
+        <dc:Bounds x="200" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
+        <dc:Bounds x="400" y="100" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint x="136" y="118" /><di:waypoint x="180" y="140" /><di:waypoint x="200" y="120" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
+        <di:waypoint x="300" y="120" /><di:waypoint x="400" y="118" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('a routed edge renders as a path whose corners are quarter-arcs', async () => {
+  const { canvas } = await loadCanvas(KINKED_XML);
+  const scene = canvas.getScene()!;
+  const flow1 = scene.elementsById.get('Flow_1') as SceneEdge;
+  expect(flow1.waypoints.length).toBeGreaterThan(2);
+
+  const line = canvas.getGraphics('Flow_1')!.querySelector('path.sf-connection-line')!;
+  const d = line.getAttribute('d')!;
+  // One arc per corner, cut out of the waypoints rather than added around them —
+  // the raw list is still on the element for anything that reads geometry.
+  expect(d.startsWith('M ')).toBe(true);
+  expect((d.match(/ A /g) ?? []).length).toBe(flow1.waypoints.length - 2);
+  expect(line.getAttribute('data-waypoints'))
+    .toBe(flow1.waypoints.map((p) => `${p.x},${p.y}`).join(' '));
+  // The straight two-point flow has nothing to round.
+  const straight = canvas.getGraphics('Flow_2')!.querySelector('path.sf-connection-line')!;
+  expect(straight.getAttribute('d')).not.toContain(' A ');
 });
 
 /**

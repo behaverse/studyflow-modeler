@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { isRootElement, type SceneEdge, type SceneLabel, type SceneNode } from '@canvas/index.ts';
+import { EventBus, IdGenerator, ensureChoreographyParticipants, isRootElement, type SceneEdge, type SceneLabel, type SceneNode } from '@canvas/index.ts';
+import { readChoreographyBands } from '@core/document';
 import type { Canvas } from '@canvas/index.ts';
 
 import {
@@ -601,4 +602,58 @@ test('toSVG exports the drawing without the editor chrome', async () => {
   expect(svg).not.toContain('selected');
   expect(svg).not.toContain('tabindex');
   expect(svg).toMatch(/viewBox="[-\d.]+ [-\d.]+ [\d.]+ [\d.]+"/);
+});
+
+// --- choreography participants -------------------------------------------------------
+
+/** A choreography task alone in a process, and an id generator. */
+function build() {
+  const moddle = freshModdle();
+  const task = moddle.create('bpmn:ChoreographyTask', { id: 'Consent', name: 'Give consent' });
+  const process = moddle.create('bpmn:Process', { id: 'Proc', flowElements: [task] });
+  const definitions = moddle.create('bpmn:Definitions', { id: 'Defs', rootElements: [process] });
+  task.$parent = process;
+  process.$parent = definitions;
+  definitions.$parent = null;
+  return { definitions, task, ids: new IdGenerator() };
+}
+
+test('materializes two participants into a headless collaboration on first need', () => {
+  const { definitions, task, ids } = build();
+
+  const [top, bottom] = ensureChoreographyParticipants(task, ids)!;
+  expect(top.name).toBe('Participant A');
+  expect(bottom.name).toBe('Participant B');
+
+  expect(task.get('participantRef')).toEqual([top, bottom]);
+  expect(task.get('initiatingParticipantRef')).toBe(top);
+  const collaboration = definitions.get('rootElements').find((r: any) => r.$type === 'bpmn:Collaboration');
+  expect(collaboration).toBeTruthy();
+  expect(collaboration.get('participants')).toEqual([top, bottom]);
+
+  expect(readChoreographyBands(task)).toEqual({ top: 'Participant A', bottom: 'Participant B', initiator: 'top' });
+
+  ensureChoreographyParticipants(task, ids);
+  expect(collaboration.get('participants')).toHaveLength(2);
+});
+
+// --- the event bus ------------------------------------------------------------------
+
+test('a command is a topic with one answering listener on the same bus the notifications use', async () => {
+  // `send` is what makes the two mechanisms one: a leaf package (the canvas cannot import
+  // `@modeler/*`) sends on the bus it already holds, and the fact lands on `CommandDone`.
+  const bus = new EventBus();
+  const seen: unknown[] = [];
+
+  bus.on('ElementChanged', () => { seen.push('a'); });
+  bus.on('ElementChanged', () => { seen.push('b'); });
+  expect(bus.fire('ElementChanged', { element: {} }), 'a notification has no answer').toBeUndefined();
+  expect(seen, 'every listener still runs, in subscription order').toEqual(['a', 'b']);
+
+  bus.on('Undo', async (command: any) => `ran ${command.type}`);
+  bus.on('CommandDone', (done) => seen.push(done));
+  expect(await bus.send<string>({ type: 'Undo' })).toBe('ran Undo');
+  // The fact is a message like any other: same `{ type, ... }` shape a command is sent in.
+  expect(seen[2]).toEqual({ type: 'CommandDone', command: { type: 'Undo' }, result: 'ran Undo' });
+  await expect(bus.send({ type: 'Nope' }), 'no handler').rejects.toThrow(/exactly one handler/);
 });

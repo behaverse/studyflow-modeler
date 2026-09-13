@@ -192,27 +192,6 @@ test('rerouting twice commits nothing the second time', async () => {
   expect(scene.revision).toBe(routed);
 });
 
-// --- rounded corner bends (parity spec §5, addendum 2 §5) --------------------
-
-test('a routed edge renders as a path whose corners are quarter-arcs', async () => {
-  const { canvas } = await load();
-  const scene = canvas.getScene()!;
-  const flow1 = scene.elementsById.get('Flow_1') as SceneEdge;
-  expect(flow1.waypoints.length).toBeGreaterThan(2);
-
-  const line = canvas.getGraphics('Flow_1')!.querySelector('path.sf-connection-line')!;
-  const d = line.getAttribute('d')!;
-  // One arc per corner, cut out of the waypoints rather than added around them —
-  // the raw list is still on the element for anything that reads geometry.
-  expect(d.startsWith('M ')).toBe(true);
-  expect((d.match(/ A /g) ?? []).length).toBe(flow1.waypoints.length - 2);
-  expect(line.getAttribute('data-waypoints'))
-    .toBe(flow1.waypoints.map((p) => `${p.x},${p.y}`).join(' '));
-  // The straight two-point flow has nothing to round.
-  const straight = canvas.getGraphics('Flow_2')!.querySelector('path.sf-connection-line')!;
-  expect(straight.getAttribute('d')).not.toContain(' A ');
-});
-
 // --- squaring a bent route ------------------------------------------------------
 
 test('a bent route keeps its joints when an end is re-docked: a near-aligned run is squared by moving the joint', () => {
