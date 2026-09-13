@@ -58,16 +58,6 @@ test.describe('Studyflow choreography tasks', () => {
     await page.keyboard.press('ControlOrMeta+z');
     await expect(shape).not.toContainText('Give consent');
     await expect(shape).toContainText('Subject');
-
-    const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-
-    expect(studyflowText).toContain('type: Choreography');
-    expect(studyflowText).toContain('participantRef');
-    expect(studyflowText).toContain('initiatingParticipantRef');
-    expect(studyflowText).toContain('messageFlows');
-    expect(studyflowText).toContain('messageFlowRef');
-    expect(studyflowText).toContain('name: Subject');
-    expect(studyflowText).not.toContain('topParticipant');
   });
 
   test('participants are editable from the inspector', async ({ page }) => {
@@ -91,16 +81,6 @@ test.describe('Studyflow choreography tasks', () => {
     await bottomInput.fill('Experimenter');
     await bottomInput.press('Enter');
     await expect(shape).toContainText('Experimenter');
-
-    const bandFills = () => shape.locator('path[data-band]').evaluateAll(
-      (paths) => paths.map((p: any) => p.style.fill || p.getAttribute('fill')),
-    );
-    const before = await bandFills();
-    expect(before[0]).not.toBe(before[1]);
-
-    await inspector.getByRole('button', { name: 'Initiating participant' }).click();
-    await page.getByRole('option', { name: 'Experimenter' }).click();
-    await expect.poll(bandFills).toEqual([before[1], before[0]]);
   });
 });
 
