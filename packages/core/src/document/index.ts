@@ -18,7 +18,7 @@ export {
   primaryRoot,
   studyExtensionOf,
 } from '@core/document/format';
-export { CHECKLIST_MARKER, isChecklistMarkerValue } from '@core/document/shorthand';
+export { isChecklistEntry } from '@core/document/shorthand';
 export {
   META_KEY,
   PLACEHOLDER,

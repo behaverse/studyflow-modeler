@@ -7,6 +7,9 @@ import {
   UNCATEGORIZED,
 } from '@modeler/examples/catalog';
 import { firstSentence } from '@core/naming';
+import { exampleMetadata } from '@modeler/examples/metadata';
+import { BpmnModdle } from 'bpmn-moddle';
+import { loadSchemaModels, schemaPackages } from './schemas';
 import { exampleCategories, exampleNames, exampleXml } from './utils';
 
 /**
@@ -15,8 +18,10 @@ import { exampleCategories, exampleNames, exampleXml } from './utils';
  * card lands on, so the file itself carries no category.
  */
 
-function rootTag(xml: string): string {
-  return xml.match(/<bpmn2?:(?:process|collaboration|choreography)\b[^>]*>/)?.[0] ?? '';
+const moddle = new BpmnModdle(schemaPackages(loadSchemaModels())) as any;
+
+async function definitionsOf(name: string): Promise<any> {
+  return (await moddle.fromXML(await exampleXml(name))).rootElement;
 }
 
 test.describe('shipped examples', () => {
@@ -29,15 +34,22 @@ test.describe('shipped examples', () => {
 
   test('each declares the title and blurb its card is made of', async () => {
     for (const name of exampleNames) {
-      const xml = await exampleXml(name);
+      const definitions = await definitionsOf(name);
+      const { title, summary } = exampleMetadata(definitions, name);
 
-      expect(rootTag(xml), `${name} has no named root`).toMatch(/ name="[^"]+"/);
-
-      const documentation = xml.match(/<bpmn2?:documentation\b[^>]*>([\s\S]*?)<\/bpmn2?:documentation>/);
-      const blurb = firstSentence(documentation?.[1] ?? '');
-      expect(blurb, `${name} documents nothing to put on its card`).not.toBe('');
-      expect(blurb.length, `${name}'s first sentence overflows its card`).toBeLessThan(160);
+      expect(definitions.rootElements.some((root: any) => root.name?.trim() === title), `${name} has no named root`)
+        .toBe(true);
+      expect(summary, `${name} documents nothing to put on its card`).not.toBe('');
+      expect(summary.length, `${name}'s first sentence overflows its card`).toBeLessThan(160);
     }
+  });
+
+  test('a pool diagram is read from both its roots', async () => {
+    // spirit2025 names its collaboration and documents its process.
+    expect(exampleMetadata(await definitionsOf('spirit2025'), 'spirit2025')).toEqual({
+      title: 'SPIRIT 2025 trial protocol',
+      summary: expect.stringMatching(/^A SPIRIT 2025 trial protocol in lanes/),
+    });
   });
 
   test('the skill is the shelf, so no example repeats it inside the file', async () => {

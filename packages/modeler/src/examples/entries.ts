@@ -1,5 +1,7 @@
+import { extractXmlFromPng } from '@core/document/png';
+import type { Moddle } from '@core/element/moddle';
 import { compareExamples } from '@modeler/examples/catalog';
-import { basename, readExampleMetadata } from '@modeler/examples/metadata';
+import { exampleMetadata } from '@modeler/examples/metadata';
 import { filenameStem } from '@modeler/diagram/file';
 
 /**
@@ -22,31 +24,33 @@ export type ExampleEntry = {
   error?: string;
 };
 
-/** Filenames alone, enough to draw the gallery before any PNG has been fetched. */
+/** The gallery remounts on every open; what it read stays for the page. */
+let read: Promise<ExampleEntry[]> | undefined;
+let cards: ExampleEntry[] | undefined;
+
+/** The cards as last read, else the filenames alone: enough to draw the gallery before any file has been read. */
 export function buildInitialEntries(): ExampleEntry[] {
-  return Object.entries(exampleFiles)
-    .map(([path, url]): ExampleEntry => ({
-      filename: basename(path),
-      url,
-      title: filenameStem(basename(path)),
-      summary: '',
-      category: path.split('/').at(-3) ?? '',
-    }))
+  return cards ?? Object.entries(exampleFiles)
+    .map(([path, url]): ExampleEntry => {
+      const filename = path.split('/').pop() ?? path;
+      return { filename, url, title: filenameStem(filename), summary: '', category: path.split('/').at(-3) ?? '' };
+    })
     .sort((a, b) => a.filename.localeCompare(b.filename));
 }
 
-/** The same entries with each PNG's embedded metadata read in; a failed read keeps the card and marks it. */
-export async function loadExampleEntries(): Promise<ExampleEntry[]> {
-  const read = await Promise.all(
+/** The same entries with each example's title and blurb read in; a failed read keeps the card and marks it. */
+export function loadExampleEntries(moddle: Moddle): Promise<ExampleEntry[]> {
+  read ??= Promise.all(
     buildInitialEntries().map(async (entry) => {
       try {
         const png = await fetch(entry.url).then((r) => r.arrayBuffer());
-        return { ...entry, ...readExampleMetadata(entry.filename, png) };
+        const { rootElement } = await moddle.fromXML(extractXmlFromPng(png));
+        return { ...entry, ...exampleMetadata(rootElement, entry.title) };
       } catch (err) {
         console.error(`Failed to read example ${entry.filename}:`, err);
         return { ...entry, error: 'Could not be read. Reload the page to try again.' };
       }
     }),
-  );
-  return read.sort(compareExamples);
+  ).then((entries) => (cards = entries.sort(compareExamples)));
+  return read;
 }

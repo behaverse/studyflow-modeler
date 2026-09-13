@@ -248,11 +248,6 @@ export function isChecklistEntry(item: any): boolean {
   return isModdleElement(item) && getProperty(item, CHECKLIST_MARKER) === true;
 }
 
-/** {@link isChecklistEntry} for raw XML attribute text; the gallery probes the DOM, not moddle. */
-export function isChecklistMarkerValue(value: string | null | undefined): boolean {
-  return value === 'true' || value === '1';
-}
-
 export function isDocumentationType(typeName: string | undefined): boolean {
   return typeName === DOCUMENTATION_TYPE;
 }

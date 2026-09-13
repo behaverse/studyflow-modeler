@@ -56,25 +56,22 @@ type Props = {
 
 export function GalleryDialog({ isOpen, onClose }: Props) {
   const [entries, setEntries] = useState<ExampleEntry[]>(buildInitialEntries);
-  const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [filter, setFilter] = useState('all');
   const modeler = useModeler();
 
   useEffect(() => {
-    if (!isOpen || loaded) return;
+    if (!isOpen || !modeler) return;
     let cancelled = false;
 
-    loadExampleEntries().then((read) => {
-      if (cancelled) return;
-      setEntries(read);
-      setLoaded(true);
+    loadExampleEntries(modeler.model.moddle()).then((read) => {
+      if (!cancelled) setEntries(read);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [isOpen, loaded]);
+  }, [isOpen, modeler]);
 
   const shelves = useMemo(
     () => galleryCategories(entries.map((entry) => entry.category)),

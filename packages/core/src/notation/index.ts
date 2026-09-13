@@ -7,7 +7,6 @@ export type { TypeCatalog } from '@core/notation/query';
 export { HIDDEN_SCHEMA_TYPES, isImageIcon } from '@core/notation/palette';
 export { BPMN_ANCESTORS, bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@core/notation/bpmn';
 
-import { BPMN_NS } from '@core/constants';
 import { TypeCatalog } from '@core/notation/query';
 
 let activeCatalog: TypeCatalog | undefined;
@@ -32,10 +31,4 @@ export function hasCatalog(): boolean {
 /** Compile diagnostics for the installed schemas; empty before boot. */
 export function schemaDiagnostics(): string[] {
   return activeCatalog?.diagnostics ?? [];
-}
-
-/** The XML namespaces of BPMN and of studyflow's own vocabulary (`studyflow:study`, its attributes). */
-export function namespaces(): { bpmn: string; studyflow: string } {
-  const studyflow = getCatalog().schemas.find((schema) => schema.prefix === 'studyflow');
-  return { bpmn: BPMN_NS, studyflow: studyflow?.uri ?? '' };
 }
