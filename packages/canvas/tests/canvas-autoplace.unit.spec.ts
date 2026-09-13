@@ -4,7 +4,7 @@ import type { Canvas } from '@canvas/index.ts';
 import { APPEND_DISTANCE } from '@canvas/interaction/autoplace.ts';
 import type { Bounds, Point, SceneEdge } from '@canvas/model/scene.ts';
 
-import { diOf, edge, loadCanvas, node, type Loaded } from './canvasHarness';
+import { diOf, edge, loadYaml, node, type Loaded } from './canvasHarness';
 
 /**
  * Click-append (`interaction/autoplace.ts`). A clicked append needs no pointer, so the
@@ -15,34 +15,26 @@ import { diOf, edge, loadCanvas, node, type Loaded } from './canvasHarness';
  */
 
 /** A start event, a task, and an end event — three appendability verdicts in one file. */
-const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1" />
-    <bpmn:task id="Task_1" name="Task" />
-    <bpmn:endEvent id="End_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
-        <dc:Bounds x="600" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const PROCESS_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+    Task_1:
+      type: Task
+      name: Task
+      bounds: 200 80 100 80
+    End_1:
+      type: EndEvent
+      bounds: 600 100 36 36
+`;
 
-async function load(): Promise<Loaded> {
-  return loadCanvas(PROCESS_XML);
+function load(): Loaded {
+  return loadYaml(PROCESS_YAML);
 }
 
 /**
@@ -54,27 +46,21 @@ async function load(): Promise<Loaded> {
  * hit-tests the drop centre, a centre over a task resolves to "a task inside a
  * task", the rules refuse it, and the append is dropped with no feedback.
  */
-const CROWDED_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:task id="Task_1" name="Task" />
-    <bpmn:task id="Blocker_1" name="Blocker" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Blocker_1_di" bpmnElement="Blocker_1">
-        <dc:Bounds x="330" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const CROWDED_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Task_1:
+      type: Task
+      name: Task
+      bounds: 200 80 100 80
+    Blocker_1:
+      type: Task
+      name: Blocker
+      bounds: 330 80 100 80
+`;
 
 /** The edge joining two elements, whichever direction it was drawn in. */
 function edgeBetween(canvas: Canvas, sourceId: string, targetId: string): SceneEdge | undefined {
@@ -104,58 +90,48 @@ function crosses(a: Point, b: Point, box: Bounds): boolean {
 }
 
 /** A start event with nothing around it: the first append lands in the row, unnudged. */
-const SOLO_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const SOLO_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+`;
 
 /** A pool with two lanes: every append slot is enclosed by two container nodes. */
-const POOL_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:collaboration id="Collab_1">
-    <bpmn:participant id="Pool_1" name="Pool" processRef="Process_1" />
-  </bpmn:collaboration>
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:laneSet id="LaneSet_1">
-      <bpmn:lane id="Lane_Top" name="Top" />
-    </bpmn:laneSet>
-    <bpmn:task id="Task_Top" name="Top task" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Collab_1">
-      <bpmndi:BPMNShape id="Pool_1_di" bpmnElement="Pool_1" isHorizontal="true">
-        <dc:Bounds x="0" y="0" width="600" height="250" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Lane_Top_di" bpmnElement="Lane_Top" isHorizontal="true">
-        <dc:Bounds x="30" y="0" width="570" height="250" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_Top_di" bpmnElement="Task_Top">
-        <dc:Bounds x="200" y="20" width="100" height="80" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const POOL_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab_1:
+  type: Collaboration
+  participants:
+    Pool_1:
+      name: Pool
+      processRef: Process_1
+      bounds: 0 0 600 250
+      isHorizontal: true
+Process_1:
+  type: Process
+  laneSets:
+    LaneSet_1:
+      lanes:
+        Lane_Top:
+          name: Top
+          bounds: 30 0 570 250
+          isHorizontal: true
+  flowElements:
+    Task_Top:
+      type: Task
+      name: Top task
+      bounds: 200 20 100 80
+`;
 
 test.describe('auto-place (click-append)', () => {
   test('appends the shape and the flow that reaches it, both written to the document, and selects the shape', async () => {
-    const { canvas, definitions } = await load();
+    const { canvas, definitions } = load();
     const source = node(canvas, 'Task_1');
 
     const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent', attrs: { name: 'Appended' } });
@@ -187,7 +163,7 @@ test.describe('auto-place (click-append)', () => {
   });
 
   test('refuses to append from an end event, writing nothing at all', async () => {
-    const { canvas, definitions } = await load();
+    const { canvas, definitions } = load();
     const before = (definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process').flowElements ?? []).length;
 
     // `shape.append` is false for an end event (nothing may follow it), and the
@@ -200,7 +176,7 @@ test.describe('auto-place (click-append)', () => {
   });
 
   test('an occupied slot is nudged past, not silently dropped', async () => {
-    const { canvas } = await loadCanvas(CROWDED_XML);
+    const { canvas } = loadYaml(CROWDED_YAML);
     const source = node(canvas, 'Task_1');
     const blocker = node(canvas, 'Blocker_1');
 
@@ -224,7 +200,7 @@ test.describe('auto-place (click-append)', () => {
     // diagonal pair along the DOMINANT axis, so while the drop is nearer than it is
     // lower the flow sets off sideways at the source's own y — straight through the
     // sibling. The placement has to fall far enough for the elbow to flip.
-    const { canvas } = await loadCanvas(SOLO_XML);
+    const { canvas } = loadYaml(SOLO_YAML);
     const source = node(canvas, 'Start_1');
 
     const first = canvas.appendElement(source, { type: 'bpmn:Task' })!;
@@ -246,7 +222,7 @@ test.describe('auto-place (click-append)', () => {
 
   test('an annotation hangs above its source, and the next one nudges further UP', async () => {
     // Its slot is ABOVE the source, so stepping "down" would walk it into the source.
-    const { canvas } = await load();
+    const { canvas } = load();
     const source = node(canvas, 'Task_1');
 
     const first = canvas.appendElement(source, { type: 'bpmn:TextAnnotation' })!;
@@ -261,7 +237,7 @@ test.describe('auto-place (click-append)', () => {
     // The lane a successor lands in is enclosed by a pool AND a lane, both of which
     // intersect every candidate slot. Counting either as occupancy would report all
     // ten probes taken and drop the append back on the blocked fallback position.
-    const { canvas } = await loadCanvas(POOL_XML);
+    const { canvas } = loadYaml(POOL_YAML);
     const source = node(canvas, 'Task_Top');
 
     const appended = canvas.appendElement(source, { type: 'bpmn:Task' });
@@ -281,30 +257,24 @@ test.describe('auto-place around a foreign container', () => {
    * reparented into it by `Create.createAt`, and left unconnected, because a flow
    * from outside a sub-process to a node inside it is refused.
    */
-  const SUBPROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1" />
-    <bpmn:subProcess id="Sub_1" name="prepare_data" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="200" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Sub_1_di" bpmnElement="Sub_1" isExpanded="true">
-        <dc:Bounds x="180" y="100" width="350" height="250" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+  const SUBPROCESS_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 200 36 36
+    Sub_1:
+      type: SubProcess
+      name: prepare_data
+      bounds: 180 100 350 250
+      isExpanded: true
+`;
 
   test('does not drop the successor inside a sub-process it has to pass', async () => {
-    const { canvas } = await loadCanvas(SUBPROCESS_XML);
+    const { canvas } = loadYaml(SUBPROCESS_YAML);
     const source = node(canvas, 'Start_1');
     const sub = node(canvas, 'Sub_1');
 
@@ -320,13 +290,13 @@ test.describe('auto-place around a foreign container', () => {
 
   test('the hover ghost shows the slot the click takes, stepped past what is in the way', async () => {
     // A ghost of the first, blocked slot would promise a placement the click does not make.
-    const CASES: [label: string, xml: string, source: string, type: string][] = [
-      ['a task in the slot', CROWDED_XML, 'Task_1', 'bpmn:EndEvent'],
-      ['an expanded sub-process in the slot', SUBPROCESS_XML, 'Start_1', 'bpmn:EndEvent'],
-      ['an annotation, whose slot is above the source', PROCESS_XML, 'Task_1', 'bpmn:TextAnnotation'],
+    const CASES: [label: string, yaml: string, source: string, type: string][] = [
+      ['a task in the slot', CROWDED_YAML, 'Task_1', 'bpmn:EndEvent'],
+      ['an expanded sub-process in the slot', SUBPROCESS_YAML, 'Start_1', 'bpmn:EndEvent'],
+      ['an annotation, whose slot is above the source', PROCESS_YAML, 'Task_1', 'bpmn:TextAnnotation'],
     ];
-    for (const [label, xml, id, type] of CASES) {
-      const { canvas } = await loadCanvas(xml);
+    for (const [label, yaml, id, type] of CASES) {
+      const { canvas } = loadYaml(yaml);
       const source = node(canvas, id);
       const preview = canvas.previewAppend(source, { type });
       canvas.clearAppendPreview();
@@ -343,39 +313,32 @@ test.describe('auto-place around edges', () => {
    * 350-386. Nothing SHAPED is there, so the slot used to read as free and the
    * successor was minted on top of the line.
    */
-  const CROSSED_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:task id="Task_1" name="Task" />
-    <bpmn:task id="Up" name="Up" />
-    <bpmn:task id="Down" name="Down" />
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="Up" targetRef="Down" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Up_di" bpmnElement="Up">
-        <dc:Bounds x="330" y="-180" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Down_di" bpmnElement="Down">
-        <dc:Bounds x="330" y="300" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
-        <di:waypoint x="380" y="-100" />
-        <di:waypoint x="380" y="300" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+  const CROSSED_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Task_1:
+      type: Task
+      name: Task
+      bounds: 200 80 100 80
+    Up:
+      type: Task
+      name: Up
+      bounds: 330 -180 100 80
+    Down:
+      type: Task
+      name: Down
+      bounds: 330 300 100 80
+    Flow_1:
+      sourceRef: Up
+      targetRef: Down
+      waypoint: 380,-100 380,300
+`;
 
   test('a slot a flow runs through is occupied, shape or no shape', async () => {
-    const { canvas } = await loadCanvas(CROSSED_XML);
+    const { canvas } = loadYaml(CROSSED_YAML);
     const source = node(canvas, 'Task_1');
 
     const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' })!;

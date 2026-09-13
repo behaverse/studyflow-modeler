@@ -13,7 +13,7 @@ import {
 } from '@canvas/routing/orthogonal.ts';
 import type { Point } from '@canvas/model/scene.ts';
 
-import { edge, installDocument, loadCanvas, node, type Loaded } from './canvasHarness';
+import { edge, installDocument, loadYaml, node, type Loaded } from './canvasHarness';
 
 /**
  * Routing and docking. `route()` draws an orthogonal path of at most five points
@@ -136,46 +136,38 @@ test('route: an orthogonal path of at most five points, docked on both outlines'
 
 // --- on the canvas --------------------------------------------------------------
 
-const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Task_1" name="Task"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:task>
-    <bpmn:endEvent id="End_1"><bpmn:incoming>Flow_2</bpmn:incoming></bpmn:endEvent>
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
-        <dc:Bounds x="400" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
-        <di:waypoint x="136" y="118" /><di:waypoint x="180" y="140" /><di:waypoint x="200" y="120" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
-        <di:waypoint x="300" y="120" /><di:waypoint x="400" y="118" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const FIXTURE_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+    Task_1:
+      type: Task
+      name: Task
+      bounds: 200 80 100 80
+    End_1:
+      type: EndEvent
+      bounds: 400 100 36 36
+    Flow_1:
+      sourceRef: Start_1
+      targetRef: Task_1
+      waypoint: 136,118 180,140 200,120
+    Flow_2:
+      sourceRef: Task_1
+      targetRef: End_1
+      waypoint: 300,120 400,118
+`;
 
-async function load(): Promise<Loaded> {
-  return loadCanvas(FIXTURE_XML);
+function load(): Loaded {
+  return loadYaml(FIXTURE_YAML);
 }
 
 test('rerouting twice commits nothing the second time', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const scene = canvas.getScene()!;
   const task = node(canvas, 'Task_1');
   const kinked = edge(canvas, 'Flow_1');

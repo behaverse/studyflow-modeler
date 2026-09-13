@@ -4,7 +4,7 @@ import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 import type { Point, SceneEdge } from '@canvas/model/scene.ts';
 
-import { diOf, edge, loadCanvas, node, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
+import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
 
 /**
  * Dragging a connection's end. What is under the drop decides the outcome:
@@ -20,42 +20,34 @@ import { diOf, edge, loadCanvas, node, pointerDown, pointerMove, pointerUp, type
  * a second START event as the one the rules must refuse (nothing may flow INTO a
  * start event).
  */
-const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Task_1" name="One"><bpmn:incoming>Flow_1</bpmn:incoming></bpmn:task>
-    <bpmn:task id="Task_2" name="Two" />
-    <bpmn:startEvent id="Start_2" />
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_2_di" bpmnElement="Task_2">
-        <dc:Bounds x="400" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Start_2_di" bpmnElement="Start_2">
-        <dc:Bounds x="600" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
-        <di:waypoint x="136" y="118" /><di:waypoint x="200" y="120" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const FIXTURE_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+    Task_1:
+      type: Task
+      name: One
+      bounds: 200 80 100 80
+    Task_2:
+      type: Task
+      name: Two
+      bounds: 400 80 100 80
+    Start_2:
+      type: StartEvent
+      bounds: 600 100 36 36
+    Flow_1:
+      sourceRef: Start_1
+      targetRef: Task_1
+      waypoint: 136,118 200,120
+`;
 
-async function load(xml = FIXTURE_XML): Promise<Loaded> {
-  return loadCanvas(xml);
+function load(yaml = FIXTURE_YAML): Loaded {
+  return loadYaml(yaml);
 }
 
 function process(definitions: any): any {
@@ -93,7 +85,7 @@ test('dragging the target end onto another task rewires it and docks where it wa
     ['aimed at its centre', { x: 450, y: 120 }, [119, 121]],
   ];
   for (const [label, drop, [low, high]] of CASES) {
-    const { canvas, definitions } = await load();
+    const { canvas, definitions } = load();
     const flow = edge(canvas, 'Flow_1');
     const target = node(canvas, 'Task_2');
 
@@ -119,7 +111,7 @@ test('dragging the target end onto another task rewires it and docks where it wa
 // --- a refused target --------------------------------------------------------
 
 test('a rules-refused target leaves the edge untouched', async () => {
-  const loaded = await load();
+  const loaded = load();
   const { canvas, definitions } = loaded;
   const flow = edge(canvas, 'Flow_1');
   const before = flow.waypoints.map((p) => ({ ...p }));
@@ -139,7 +131,7 @@ test('a rules-refused target leaves the edge untouched', async () => {
 // --- empty space -------------------------------------------------------------
 
 test('dropped on empty space the endpoint free-moves, exactly like a bendpoint', async () => {
-  const loaded = await load();
+  const loaded = load();
   const { canvas, definitions } = loaded;
   const flow = edge(canvas, 'Flow_1');
 
@@ -166,8 +158,8 @@ test('a reconnect drop lands on the grid, like every other waypoint gesture', as
   // The dock follows the DROP, and a drop is a waypoint position: it snaps to the
   // grid, exactly as a bendpoint drag does. Two drops inside the same grid cell
   // therefore dock in the same place.
-  const near = await load();
-  const far = await load();
+  const near = load();
+  const far = load();
   const one = node(near.canvas, 'Task_1');
 
   // 141 and 143 both round to the same grid line…
@@ -177,7 +169,7 @@ test('a reconnect drop lands on the grid, like every other waypoint gesture', as
   expect(last(edge(near.canvas, 'Flow_1'))).toEqual(last(edge(far.canvas, 'Flow_1')));
 
   // …and one that rounds to the NEXT docks somewhere else.
-  const next = await load();
+  const next = load();
   dragTargetEnd(next.canvas, edge(next.canvas, 'Flow_1'), { x: one.x + 6, y: 147 });
   expect(last(edge(next.canvas, 'Flow_1'))).not.toEqual(last(edge(near.canvas, 'Flow_1')));
 });
@@ -187,7 +179,7 @@ test('the drag ghost shows the path the release commits, dock included', async (
   // ghost is built from the same base path and the same snapped drop point the
   // commit uses, so an endpoint dragged across a shape does not preview one route
   // and land on another.
-  const { canvas } = await load();
+  const { canvas } = load();
   const flow = edge(canvas, 'Flow_1');
   const target = node(canvas, 'Task_2');
   const drop = { x: target.x + 20, y: target.y + 65 };
@@ -207,36 +199,29 @@ test('the drag ghost shows the path the release commits, dock included', async (
  * shape: drag the end of a vertical drop sideways and the whole drop slides with it. A
  * run somebody has already bent is left as they bent it.
  */
-const BENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_B" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_B" isExecutable="false">
-    <bpmn:startEvent id="Start_B"><bpmn:outgoing>Flow_B</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Task_B" name="B"><bpmn:incoming>Flow_B</bpmn:incoming></bpmn:task>
-    <bpmn:sequenceFlow id="Flow_B" sourceRef="Start_B" targetRef="Task_B" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_B">
-    <bpmndi:BPMNPlane id="Plane_B" bpmnElement="Process_B">
-      <bpmndi:BPMNShape id="Start_B_di" bpmnElement="Start_B">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_B_di" bpmnElement="Task_B">
-        <dc:Bounds x="500" y="400" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_B_di" bpmnElement="Flow_B">
-        <di:waypoint x="136" y="118" /><di:waypoint x="550" y="118" /><di:waypoint x="550" y="400" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const BENT_YAML = `id: Defs_B
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_B:
+  type: Process
+  flowElements:
+    Start_B:
+      type: StartEvent
+      bounds: 100 100 36 36
+    Task_B:
+      type: Task
+      name: B
+      bounds: 500 400 100 80
+    Flow_B:
+      sourceRef: Start_B
+      targetRef: Task_B
+      waypoint: 136,118 550,118 550,400
+`;
 
 test('an end on a square run takes the joint behind it along; on a bent run it leaves the joint', async () => {
   // Flow_B's last run drops vertically at x = 550 into Task_B's top; its end is dragged left.
-  const square = await load(BENT_XML);
-  const bent = await load(BENT_XML);
+  const square = load(BENT_YAML);
+  const bent = load(BENT_YAML);
   // Bend the second one's last run first, by dragging its joint sideways.
   const bentFlow = edge(bent.canvas, 'Flow_B');
   bent.canvas.getSelection().select(bentFlow);

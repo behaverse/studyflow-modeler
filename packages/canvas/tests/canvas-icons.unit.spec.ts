@@ -6,7 +6,7 @@ import type { IconDef } from '@canvas/index.ts';
 import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
 import { fromLinkml, parseLinkml } from '@core/notation/linkml';
 
-import { installDocument, loadCanvas } from './canvasHarness';
+import { installDocument, loadYaml } from './canvasHarness';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /**
@@ -19,34 +19,29 @@ import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 type Resolver = (key: string, bo?: any) => IconDef | null | undefined;
 
 /** One user task (its type icon is the top-left glyph) plus a looping task (a marker glyph). */
-const XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    id="Defs_I" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_I" isExecutable="false">
-    <bpmn:userTask id="Task_1" name="Ask" />
-    <bpmn:task id="Task_2" name="Repeat">
-      <bpmn:standardLoopCharacteristics />
-    </bpmn:task>
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_I">
-    <bpmndi:BPMNPlane id="Plane_I" bpmnElement="Process_I">
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="100" y="100" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_2_di" bpmnElement="Task_2">
-        <dc:Bounds x="260" y="100" width="100" height="80" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const YAML = `id: Defs_I
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_I:
+  type: Process
+  flowElements:
+    Task_1:
+      type: UserTask
+      name: Ask
+      bounds: 100 100 100 80
+    Task_2:
+      type: Task
+      name: Repeat
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+      bounds: 260 100 100 80
+`;
 
 const GLYPH = '<path d="M4 4h16v16H4z" fill="currentColor"/>';
 const GLYPH_DEF: IconDef = { content: GLYPH, viewBox: '0 0 24 24' };
 
-async function load(iconResolver?: Resolver): Promise<Canvas> {
-  return (await loadCanvas(XML, { iconResolver })).canvas;
+function load(iconResolver?: Resolver): Canvas {
+  return loadYaml(YAML, { iconResolver }).canvas;
 }
 
 /** The `<g>` the renderer drew for `id`. */
@@ -72,7 +67,7 @@ test('the resolver\'s answer decides how a type glyph is drawn, and whether at a
     ['null: nothing', (key) => (key === 'loop' ? GLYPH_DEF : null), null],
   ];
   for (const [label, resolver, drawn, exported] of CASES) {
-    const canvas = await load(resolver);
+    const canvas = load(resolver);
     expect(iconKeys(canvas, 'Task_1'), label).toEqual(drawn ? ['UserTask'] : []);
     if (drawn) expect(graphics(canvas, 'Task_1').querySelector(drawn), label).not.toBeNull();
     if (exported) expect(canvas.toSVG(), label).toContain(exported);
@@ -82,7 +77,7 @@ test('the resolver\'s answer decides how a type glyph is drawn, and whether at a
 });
 
 test('a marker glyph goes through the same resolver, stamped with its key, in the element\'s colour', async () => {
-  const canvas = await load(() => GLYPH_DEF);
+  const canvas = load(() => GLYPH_DEF);
   // A plain task draws the glyph the resolver names for `Task`, then its loop marker. The key is a
   // marker's identity: two markers can share their paths (parallel and sequential differ by a rotation).
   expect(iconKeys(canvas, 'Task_2')).toEqual(['Task', 'loop']);
@@ -168,34 +163,29 @@ test('the attribute a type\'s `meta.glyph` names is drawn over its icon, upper-c
 // --- gateways, events, data ---------------------------------------------------------
 
 /** An exclusive gateway plus an end event carrying an error definition. */
-const GATEWAY_EVENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    id="Defs_G" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_G" isExecutable="false">
-    <bpmn:exclusiveGateway id="Gateway_1" />
-    <bpmn:endEvent id="End_1">
-      <bpmn:errorEventDefinition id="ErrorDef_1" />
-    </bpmn:endEvent>
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_G">
-    <bpmndi:BPMNPlane id="Plane_G" bpmnElement="Process_G">
-      <bpmndi:BPMNShape id="Gateway_1_di" bpmnElement="Gateway_1" isMarkerVisible="true">
-        <dc:Bounds x="100" y="100" width="50" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
-        <dc:Bounds x="200" y="107" width="36" height="36" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const GATEWAY_EVENT_YAML = `id: Defs_G
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_G:
+  type: Process
+  flowElements:
+    Gateway_1:
+      type: ExclusiveGateway
+      bounds: 100 100 50 50
+      isMarkerVisible: true
+    End_1:
+      type: EndEvent
+      eventDefinitions:
+        ErrorDef_1:
+          type: ErrorEventDefinition
+      bounds: 200 107 36 36
+`;
 
 test('a gateway draws the glyph the resolver names, else its own marker, never a placeholder', async () => {
-  const named = await loadCanvas(GATEWAY_EVENT_XML, { iconResolver: (key) => (key === 'ExclusiveGateway' ? GLYPH_DEF : undefined) });
+  const named = loadYaml(GATEWAY_EVENT_YAML, { iconResolver: (key) => (key === 'ExclusiveGateway' ? GLYPH_DEF : undefined) });
   expect(iconKeys(named.canvas, 'Gateway_1')).toEqual(['ExclusiveGateway']);
 
-  const own = await loadCanvas(GATEWAY_EVENT_XML, {});
+  const own = loadYaml(GATEWAY_EVENT_YAML, {});
   expect(graphics(own.canvas, 'Gateway_1').querySelectorAll('path').length).toBeGreaterThan(0);
   expect(iconKeys(own.canvas, 'Gateway_1')).toEqual([]);
 });
@@ -208,15 +198,13 @@ test('an event\'s centre takes its definition\'s symbol, else its own type\'s, a
     ['it knows neither: the circle stays bare', () => undefined, []],
   ];
   for (const [label, resolver, centre] of CASES) {
-    const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, { iconResolver: resolver });
+    const { canvas } = loadYaml(GATEWAY_EVENT_YAML, { iconResolver: resolver });
     expect(iconKeys(canvas, 'End_1'), label).toEqual(centre);
   }
 
   // An attribute badge (`studyflow:redirectTo`) takes a bare event's centre; with a symbol there it sits top-right.
-  const xml = GATEWAY_EVENT_XML
-    .replace('xmlns:bpmn=', 'xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:bpmn=')
-    .replace('<bpmn:endEvent id="End_1">', '<bpmn:endEvent id="End_1" studyflow:redirectTo="https://example.org/done">');
-  const { canvas } = await loadCanvas(xml, { iconResolver: () => GLYPH_DEF });
+  const redirecting = GATEWAY_EVENT_YAML.replace('type: EndEvent', 'type: EndEvent\n      redirectTo: https://example.org/done');
+  const { canvas } = loadYaml(redirecting, { iconResolver: () => GLYPH_DEF });
   const g = graphics(canvas, 'End_1');
   const symbol = g.querySelector('svg.sf-icon[data-icon-key="ErrorEventDefinition"]')!;
   const badge = g.querySelector('svg.sf-icon[data-icon-key="iconify ph--sign-out"]')!;
@@ -230,41 +218,37 @@ test('an event\'s centre takes its definition\'s symbol, else its own type\'s, a
  * format's literal declares, a typed data object its type's glyph, and a plain data
  * reference none — the shape is the notation.
  */
-const DATA_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"
-    id="Defs_D" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_D" isExecutable="false">
-    <bpmn:dataStoreReference id="Store_bids" name="BIDS">
-      <bpmn:extensionElements><studyflow:dataset format="bids" /></bpmn:extensionElements>
-    </bpmn:dataStoreReference>
-    <bpmn:dataStoreReference id="Store_psychds" name="Psych-DS">
-      <bpmn:extensionElements><studyflow:dataset format="psych-ds" /></bpmn:extensionElements>
-    </bpmn:dataStoreReference>
-    <bpmn:dataObjectReference id="Obj_table" name="Table">
-      <bpmn:extensionElements><studyflow:table /></bpmn:extensionElements>
-    </bpmn:dataObjectReference>
-    <bpmn:dataObjectReference id="Obj_plain" name="Plain" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_D">
-    <bpmndi:BPMNPlane id="Plane_D" bpmnElement="Process_D">
-      <bpmndi:BPMNShape id="Store_bids_di" bpmnElement="Store_bids">
-        <dc:Bounds x="100" y="100" width="50" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Store_psychds_di" bpmnElement="Store_psychds">
-        <dc:Bounds x="200" y="100" width="50" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Obj_table_di" bpmnElement="Obj_table">
-        <dc:Bounds x="300" y="100" width="36" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Obj_plain_di" bpmnElement="Obj_plain">
-        <dc:Bounds x="400" y="100" width="36" height="50" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const DATA_YAML = `id: Defs_D
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_D:
+  type: Process
+  flowElements:
+    Store_bids:
+      type: DataStoreReference
+      extensionElements:
+        - type: studyflow:Dataset
+          format: bids
+      name: BIDS
+      bounds: 100 100 50 50
+    Store_psychds:
+      type: DataStoreReference
+      extensionElements:
+        - type: studyflow:Dataset
+          format: psych-ds
+      name: Psych-DS
+      bounds: 200 100 50 50
+    Obj_table:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Table
+      name: Table
+      bounds: 300 100 36 50
+    Obj_plain:
+      type: DataObjectReference
+      name: Plain
+      bounds: 400 100 36 50
+`;
 
 /** Stands in for the modeler's resolver in the data cases: a class draws, a typed element draws. */
 function dataResolver(key: string, bo?: any): IconDef | null | undefined {
@@ -274,7 +258,7 @@ function dataResolver(key: string, bo?: any): IconDef | null | undefined {
 }
 
 test('a data store draws its format\'s icon, a typed data object its type\'s, a plain one none', async () => {
-  const { canvas } = await loadCanvas(DATA_XML, { iconResolver: dataResolver });
+  const { canvas } = loadYaml(DATA_YAML, { iconResolver: dataResolver });
   const CASES: [label: string, id: string, keys: string[]][] = [
     ['BIDS: the bundled logotype', 'Store_bids', ['bids-dataset-icon']],
     ['Psych-DS: the class its format literal names', 'Store_psychds', ['iconify ph--flask']],

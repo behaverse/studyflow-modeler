@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas, INK } from '@canvas/index.ts';
-import { resolvePlaceholders } from '@core/document';
+import { resolvePlaceholders, studyflowToDefinitions } from '@core/document';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 
-import { diElements, edge, freshModdle, installDocument, loadCanvas, node } from './canvasHarness';
+import { diElements, edge, freshModdle, installDocument, loadCanvas, loadYaml, node } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';
 
 /**
@@ -131,34 +131,29 @@ test('a text annotation draws its `text`, wrapped — not its `name`', async () 
  * renderer's, so it fell through to the unknown-vocabulary rect — and the cropper's
  * data-store branch, which lives under the `'data'` category, was unreachable.
  */
-const DATA_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_Data" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:dataStore id="Store_1" name="Vault" />
-  <bpmn:process id="Process_Data" isExecutable="false">
-    <bpmn:dataStoreReference id="StoreRef_1" name="Ref" dataStoreRef="Store_1" />
-    <bpmn:dataObjectReference id="ObjRef_1" name="Obj" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_Data">
-    <bpmndi:BPMNPlane id="Plane_Data" bpmnElement="Process_Data">
-      <bpmndi:BPMNShape id="Store_1_di" bpmnElement="Store_1">
-        <dc:Bounds x="100" y="100" width="50" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="StoreRef_1_di" bpmnElement="StoreRef_1">
-        <dc:Bounds x="200" y="100" width="50" height="50" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="ObjRef_1_di" bpmnElement="ObjRef_1">
-        <dc:Bounds x="300" y="100" width="36" height="50" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const DATA_YAML = `id: Defs_Data
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Store_1:
+  type: DataStore
+  name: Vault
+  bounds: 100 100 50 50
+Process_Data:
+  type: Process
+  flowElements:
+    StoreRef_1:
+      type: DataStoreReference
+      name: Ref
+      dataStoreRef: Store_1
+      bounds: 200 100 50 50
+    ObjRef_1:
+      type: DataObjectReference
+      name: Obj
+      bounds: 300 100 36 50
+`;
 
 test('a bare bpmn:DataStore draws as a cylinder, like a data store REFERENCE', async () => {
-  const { canvas } = await loadCanvas(DATA_XML);
+  const { canvas } = loadYaml(DATA_YAML);
   const pathOf = (id: string): string => canvas.getGraphics(id)!.querySelector('path')!.getAttribute('d') ?? '';
 
   // A cylinder: the body path opens with the lid's elliptical arc.
@@ -194,42 +189,34 @@ test('a choreography task draws its name in the MIDDLE band, and shades the band
 // --- edges ---------------------------------------------------------------------
 
 /** `Start_1 → Task_1 → End_1`: Flow_1 keeps a hand-drawn kink, Flow_2 is straight. */
-const KINKED_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Task_1" name="Task"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:task>
-    <bpmn:endEvent id="End_1"><bpmn:incoming>Flow_2</bpmn:incoming></bpmn:endEvent>
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
-        <dc:Bounds x="400" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
-        <di:waypoint x="136" y="118" /><di:waypoint x="180" y="140" /><di:waypoint x="200" y="120" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
-        <di:waypoint x="300" y="120" /><di:waypoint x="400" y="118" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const KINKED_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+    Task_1:
+      type: Task
+      name: Task
+      bounds: 200 80 100 80
+    End_1:
+      type: EndEvent
+      bounds: 400 100 36 36
+    Flow_1:
+      sourceRef: Start_1
+      targetRef: Task_1
+      waypoint: 136,118 180,140 200,120
+    Flow_2:
+      sourceRef: Task_1
+      targetRef: End_1
+      waypoint: 300,120 400,118
+`;
 
 test('a routed edge renders as a path whose corners are quarter-arcs', async () => {
-  const { canvas } = await loadCanvas(KINKED_XML);
+  const { canvas } = loadYaml(KINKED_YAML);
   const flow1 = edge(canvas, 'Flow_1');
   expect(flow1.waypoints.length).toBeGreaterThan(2);
 
@@ -252,42 +239,45 @@ test('a routed edge renders as a path whose corners are quarter-arcs', async () 
  * start and an open arrowhead at the end". The circle is what tells it apart from an
  * association, which is dashed too.
  */
-const MESSAGE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_Msg" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:collaboration id="Collab_1">
-    <bpmn:participant id="Pool_A" name="A" processRef="Process_A" />
-    <bpmn:participant id="Pool_B" name="B" processRef="Process_B" />
-    <bpmn:messageFlow id="Msg_1" sourceRef="Task_A" targetRef="Task_B" />
-  </bpmn:collaboration>
-  <bpmn:process id="Process_A" isExecutable="false"><bpmn:task id="Task_A" name="A" /></bpmn:process>
-  <bpmn:process id="Process_B" isExecutable="false"><bpmn:task id="Task_B" name="B" /></bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_Msg">
-    <bpmndi:BPMNPlane id="Plane_Msg" bpmnElement="Collab_1">
-      <bpmndi:BPMNShape id="Pool_A_di" bpmnElement="Pool_A" isHorizontal="true">
-        <dc:Bounds x="100" y="100" width="400" height="150" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_A_di" bpmnElement="Task_A">
-        <dc:Bounds x="200" y="135" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Pool_B_di" bpmnElement="Pool_B" isHorizontal="true">
-        <dc:Bounds x="100" y="300" width="400" height="150" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_B_di" bpmnElement="Task_B">
-        <dc:Bounds x="200" y="335" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Msg_1_di" bpmnElement="Msg_1">
-        <di:waypoint x="250" y="215" /><di:waypoint x="250" y="335" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const MESSAGE_YAML = `id: Defs_Msg
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab_1:
+  type: Collaboration
+  participants:
+    Pool_A:
+      name: A
+      processRef: Process_A
+      bounds: 100 100 400 150
+      isHorizontal: true
+    Pool_B:
+      name: B
+      processRef: Process_B
+      bounds: 100 300 400 150
+      isHorizontal: true
+  messageFlows:
+    Msg_1:
+      sourceRef: Task_A
+      targetRef: Task_B
+      waypoint: 250,215 250,335
+Process_A:
+  type: Process
+  flowElements:
+    Task_A:
+      type: Task
+      name: A
+      bounds: 200 135 100 80
+Process_B:
+  type: Process
+  flowElements:
+    Task_B:
+      type: Task
+      name: B
+      bounds: 200 335 100 80
+`;
 
 test('a message flow is dashed AND starts with the open circle BPMN gives it', async () => {
-  const { canvas } = await loadCanvas(MESSAGE_XML);
+  const { canvas } = loadYaml(MESSAGE_YAML);
   const line = canvas.getGraphics('Msg_1')!.querySelector('.sf-connection-line')!;
 
   expect(line.getAttribute('stroke-dasharray')).toBe('8,6');
@@ -307,36 +297,34 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
  * passes `labelText`, the renderer routes both the internal caption and the external
  * label element through it, and the model keeps the raw name.
  */
-const STATE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"
-    id="Defs_State" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_State" isExecutable="false">
-    <bpmn:extensionElements>
-      <studyflow:study><studyflow:state>{"Excluded_Pre":{"count":3},"_meta":{"reached":{"Task_1":2}}}</studyflow:state></studyflow:study>
-    </bpmn:extensionElements>
-    <bpmn:task id="Task_1" name="Screen (n={count}, reached {reached})" />
-    <bpmn:endEvent id="Excluded_Pre" name="Excluded (n={count})" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_State">
-    <bpmndi:BPMNPlane id="Plane_State" bpmnElement="Process_State">
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="100" y="100" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Excluded_Pre_di" bpmnElement="Excluded_Pre">
-        <dc:Bounds x="300" y="120" width="36" height="36" />
-        <bpmndi:BPMNLabel><dc:Bounds x="280" y="160" width="80" height="14" /></bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const STATE_YAML = `id: Defs_State
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_State:
+  type: Process
+  extensionElements:
+    - type: studyflow:Study
+  flowElements:
+    Task_1:
+      type: Task
+      name: Screen (n={count}, reached {reached})
+      bounds: 100 100 100 80
+    Excluded_Pre:
+      type: EndEvent
+      name: Excluded (n={count})
+      bounds: 300 120 36 36
+      label: 280 160 80 14
+state:
+  Excluded_Pre:
+    count: 3
+  _meta:
+    reached:
+      Task_1: 2
+`;
 
 test('a `labelText` option resolves placeholders in drawn labels; the model keeps the raw name', async () => {
   installDocument();
-  const { rootElement: definitions } = await freshModdle().fromXML(STATE_XML);
+  const definitions = studyflowToDefinitions(STATE_YAML, freshModdle());
   const canvas = new Canvas({ labelText: (bo, name) => resolvePlaceholders(name, definitions, bo?.id ?? '') });
   canvas.importDefinitions(definitions);
 
@@ -349,7 +337,7 @@ test('a `labelText` option resolves placeholders in drawn labels; the model keep
   expect(definitions.rootElements[0].flowElements[1].name).toBe('Excluded (n={count})');
 
   // Without the option, nothing is resolved.
-  const plain = await loadCanvas(STATE_XML);
+  const plain = loadYaml(STATE_YAML);
   const plainLabel = plain.canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Excluded_Pre')!.id;
   expect(textsOf(plain.canvas, plainLabel).join(' ')).toBe('Excluded (n={count})');
 });
@@ -358,31 +346,33 @@ test('a `labelText` option resolves placeholders in drawn labels; the model keep
  * A cognitive task in the pool of the participant who takes it: a choreography task
  * typed `cognitive:CognitiveTask`, naming that participant.
  */
-const COGNITIVE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"
-    id="Defs_Cog" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:collaboration id="Collab_Cog">
-    <bpmn:participant id="Pool_Seat" name="Robot" processRef="Process_Cog" />
-  </bpmn:collaboration>
-  <bpmn:process id="Process_Cog" isExecutable="false">
-    <bpmn:choreographyTask id="Play" name="N-back">
-      <bpmn:extensionElements><cognitive:cognitiveTask instrument="psychopy" /></bpmn:extensionElements>
-      <bpmn:participantRef>Pool_Seat</bpmn:participantRef>
-    </bpmn:choreographyTask>
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_Cog">
-    <bpmndi:BPMNPlane id="Plane_Cog" bpmnElement="Collab_Cog">
-      <bpmndi:BPMNShape id="Pool_Seat_di" bpmnElement="Pool_Seat" isHorizontal="true"><dc:Bounds x="100" y="100" width="500" height="200" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Play_di" bpmnElement="Play"><dc:Bounds x="200" y="140" width="160" height="120" /></bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const COGNITIVE_YAML = `id: Defs_Cog
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab_Cog:
+  type: Collaboration
+  participants:
+    Pool_Seat:
+      name: Robot
+      processRef: Process_Cog
+      bounds: 100 100 500 200
+      isHorizontal: true
+Process_Cog:
+  type: Process
+  flowElements:
+    Play:
+      type: ChoreographyTask
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: psychopy
+      name: N-back
+      participantRef:
+        - Pool_Seat
+      bounds: 200 140 160 120
+`;
 
 test('a cognitive task shows its presenter and the pool it names, and renaming the pool redraws it', async () => {
-  const { canvas } = await loadCanvas(COGNITIVE_XML);
+  const { canvas } = loadYaml(COGNITIVE_YAML);
   // The upper band is the type's `meta.presenter` (`{instrument}`), the lower the participant.
   expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['psychopy', 'Robot']));
 
@@ -398,47 +388,61 @@ test('a cognitive task shows its presenter and the pool it names, and renaming t
  * An expanded sub-process with a flow between its children, and a collapsed one with a
  * child of its own and a data output association to a data object beside it.
  */
-const SUBPROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_Sub" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_Sub" isExecutable="false">
-    <bpmn:startEvent id="Start" />
-    <bpmn:subProcess id="Expanded" name="Expanded">
-      <bpmn:task id="First" />
-      <bpmn:task id="Second" />
-      <bpmn:sequenceFlow id="Inner_Flow" sourceRef="First" targetRef="Second" />
-    </bpmn:subProcess>
-    <bpmn:sequenceFlow id="Into_Expanded" sourceRef="Start" targetRef="Expanded" />
-    <bpmn:subProcess id="Collapsed" name="Collapsed">
-      <bpmn:task id="Hidden" />
-      <bpmn:dataOutputAssociation id="Writes"><bpmn:targetRef>Record</bpmn:targetRef></bpmn:dataOutputAssociation>
-    </bpmn:subProcess>
-    <bpmn:dataObjectReference id="Record" name="Record" dataObjectRef="Record_Data" />
-    <bpmn:dataObject id="Record_Data" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_Sub">
-    <bpmndi:BPMNPlane id="Plane_Sub" bpmnElement="Process_Sub">
-      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start"><dc:Bounds x="100" y="122" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Expanded_di" bpmnElement="Expanded" isExpanded="true"><dc:Bounds x="200" y="40" width="400" height="200" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="First_di" bpmnElement="First"><dc:Bounds x="230" y="100" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Second_di" bpmnElement="Second"><dc:Bounds x="450" y="100" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Inner_Flow_di" bpmnElement="Inner_Flow"><di:waypoint x="330" y="140" /><di:waypoint x="450" y="140" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Into_Expanded_di" bpmnElement="Into_Expanded"><di:waypoint x="136" y="140" /><di:waypoint x="200" y="140" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNShape id="Collapsed_di" bpmnElement="Collapsed" isExpanded="false"><dc:Bounds x="200" y="300" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Hidden_di" bpmnElement="Hidden"><dc:Bounds x="400" y="500" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Record_di" bpmnElement="Record"><dc:Bounds x="360" y="315" width="36" height="50" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Writes_di" bpmnElement="Writes"><di:waypoint x="300" y="340" /><di:waypoint x="360" y="340" /></bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const SUBPROCESS_YAML = `id: Defs_Sub
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_Sub:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+      bounds: 100 122 36 36
+    Expanded:
+      type: SubProcess
+      name: Expanded
+      flowElements:
+        First:
+          type: Task
+          bounds: 230 100 100 80
+        Second:
+          type: Task
+          bounds: 450 100 100 80
+        Inner_Flow:
+          sourceRef: First
+          targetRef: Second
+          waypoint: 330,140 450,140
+      bounds: 200 40 400 200
+      isExpanded: true
+    Into_Expanded:
+      sourceRef: Start
+      targetRef: Expanded
+      waypoint: 136,140 200,140
+    Collapsed:
+      type: SubProcess
+      name: Collapsed
+      dataOutputAssociations:
+        Writes:
+          targetRef: Record
+          waypoint: 300,340 360,340
+      flowElements:
+        Hidden:
+          type: Task
+          bounds: 400 500 100 80
+      bounds: 200 300 100 80
+      isExpanded: false
+    Record:
+      type: DataObjectReference
+      name: Record
+      dataObjectRef: Record_Data
+      bounds: 360 315 36 50
+    Record_Data:
+      type: DataObject
+`;
 
 test('an expanded sub-process draws the flows between its children over its frame', async () => {
   // Paint order is the one element layer's. A flow inside a container once sat in a layer
   // under every shape, where the container's opaque frame painted over it.
-  const { canvas } = await loadCanvas(SUBPROCESS_XML);
+  const { canvas } = loadYaml(SUBPROCESS_YAML);
   const order = Array.from(canvas.getSvg().querySelectorAll('[data-layer="elements"] > g'))
     .map((g) => g.getAttribute('data-element-id'));
   expect(order.indexOf('Inner_Flow')).toBeGreaterThan(order.indexOf('Expanded'));
@@ -450,16 +454,16 @@ test('an expanded sub-process draws the flows between its children over its fram
 test('a collapsed sub-process hides its contents but draws its own data associations, and mainCanvasOnly keeps them', async () => {
   // A data association's moddle parent is its activity, but it sits beside it: it once
   // counted as the collapsed container's content and went hidden with it.
-  const full = await loadCanvas(SUBPROCESS_XML);
+  const full = loadYaml(SUBPROCESS_YAML);
   expect(full.canvas.getGraphics('Hidden')!.getAttribute('display')).toBe('none');
   expect(full.canvas.getGraphics('Writes')!.getAttribute('display')).toBeNull();
-  const main = await loadCanvas(SUBPROCESS_XML, { mainCanvasOnly: true });
+  const main = loadYaml(SUBPROCESS_YAML, { mainCanvasOnly: true });
   expect(main.canvas.get('Writes')).toBeTruthy();
 });
 
 test('mainCanvasOnly imports nothing inside a sub-process, collapsed or expanded', async () => {
-  const full = await loadCanvas(SUBPROCESS_XML);
-  const main = await loadCanvas(SUBPROCESS_XML, { mainCanvasOnly: true });
+  const full = loadYaml(SUBPROCESS_YAML);
+  const main = loadYaml(SUBPROCESS_YAML, { mainCanvasOnly: true });
 
   // Both frames stay, neither's contents.
   for (const id of ['Collapsed', 'Expanded']) expect(main.canvas.get(id), id).toBeTruthy();

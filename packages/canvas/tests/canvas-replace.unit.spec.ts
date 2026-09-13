@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 
-import { edge, loadCanvas, node, xmlOf, type Loaded } from './canvasHarness';
+import { edge, loadYaml, node, xmlOf, type Loaded } from './canvasHarness';
 
 /**
  * Retyping an element in place — the context pad's wrench, "Change element",
@@ -20,49 +20,38 @@ import { edge, loadCanvas, node, xmlOf, type Loaded } from './canvasHarness';
  */
 
 /** `Start_1 → Task_1 → End_1`, so the replaced task has a flow on each side. */
-const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Task_1" name="Read the brief">
-      <bpmn:incoming>Flow_1</bpmn:incoming>
-      <bpmn:outgoing>Flow_2</bpmn:outgoing>
-    </bpmn:task>
-    <bpmn:endEvent id="End_1"><bpmn:incoming>Flow_2</bpmn:incoming></bpmn:endEvent>
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
-        <dc:Bounds x="400" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
-        <di:waypoint x="136" y="118" /><di:waypoint x="200" y="120" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2">
-        <di:waypoint x="300" y="120" /><di:waypoint x="400" y="118" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const FIXTURE_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+    Task_1:
+      type: Task
+      name: Read the brief
+      bounds: 200 80 100 80
+    End_1:
+      type: EndEvent
+      bounds: 400 100 36 36
+    Flow_1:
+      sourceRef: Start_1
+      targetRef: Task_1
+      waypoint: 136,118 200,120
+    Flow_2:
+      sourceRef: Task_1
+      targetRef: End_1
+      waypoint: 300,120 400,118
+`;
 
-async function load(xml = FIXTURE_XML): Promise<Loaded> {
-  return loadCanvas(xml);
+function load(yaml = FIXTURE_YAML): Loaded {
+  return loadYaml(yaml);
 }
 
 test('replacing a task mints the new type, keeps the name, rewires both flows — proven by toXML — and selects it', async () => {
-  const loaded = await load();
+  const loaded = load();
   const { canvas, moddle } = loaded;
   const task = node(canvas, 'Task_1');
 
@@ -107,7 +96,7 @@ test('a replacement keeps the centre, in its own type\'s footprint unless both t
     ['a task becomes a service task: the size the user chose', 'bpmn:ServiceTask', { width: 160, height: 120 }],
   ];
   for (const [label, type, size] of CASES) {
-    const { canvas } = await load();
+    const { canvas } = load();
     const task = node(canvas, 'Task_1');
     canvas.getMutator()!.setNodeBounds(task, { x: 200, y: 80, width: 160, height: 120 });
 
@@ -119,7 +108,7 @@ test('a replacement keeps the centre, in its own type\'s footprint unless both t
 });
 
 test('the flows are re-routed onto the replacement, squarely', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
 
   const replacement = canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:EndEvent' })!;
 
@@ -131,7 +120,7 @@ test('the flows are re-routed onto the replacement, squarely', async () => {
 });
 
 test('replacing an element with the type it already is writes nothing', async () => {
-  const loaded = await load();
+  const loaded = load();
   const { canvas } = loaded;
   const before = await xmlOf(loaded);
   const revision = canvas.getScene()!.revision;
@@ -143,10 +132,11 @@ test('replacing an element with the type it already is writes nothing', async ()
 });
 
 test('a container with contents is not replaceable, so nothing inside it can be lost', async () => {
-  const { canvas } = await load(FIXTURE_XML
-    .replace('<bpmn:task id="Task_1" name="Read the brief">', '<bpmn:subProcess id="Task_1" name="Read the brief">')
-    .replace('</bpmn:task>', '<bpmn:task id="Inner" /></bpmn:subProcess>')
-    .replace('</bpmndi:BPMNPlane>', '<bpmndi:BPMNShape id="Inner_di" bpmnElement="Inner"><dc:Bounds x="220" y="100" width="60" height="40" /></bpmndi:BPMNShape></bpmndi:BPMNPlane>'));
+  // Task_1 as a sub-process with a task inside it.
+  const { canvas } = load(FIXTURE_YAML.replace(
+    '      type: Task\n',
+    '      type: SubProcess\n      flowElements:\n        Inner: { type: Task, bounds: 220 100 60 40 }\n',
+  ));
   const container = node(canvas, 'Task_1');
 
   expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(false);
@@ -157,7 +147,7 @@ test('a container with contents is not replaceable, so nothing inside it can be 
 });
 
 test('replacing an event with a variant of the same type mints the event definition', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const task = node(canvas, 'Task_1');
   const end = canvas.replaceElement(task, { type: 'bpmn:EndEvent' })!;
   const attrs = { eventDefinitions: [{ type: 'bpmn:ErrorEventDefinition' }] };

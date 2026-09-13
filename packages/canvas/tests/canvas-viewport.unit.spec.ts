@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
 
-import { jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp } from './canvasHarness';
+import { jsdomWindow, loadYaml, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
  * Getting around the canvas: dragging empty canvas pans it, Shift+drag draws a
@@ -14,34 +14,27 @@ import { jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp } from './
 
 const win = jsdomWindow();
 
-const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Task_1" name="Task"><bpmn:incoming>Flow_1</bpmn:incoming></bpmn:task>
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
-        <di:waypoint x="136" y="118" /><di:waypoint x="200" y="120" />
-      </bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const FIXTURE_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+    Task_1:
+      type: Task
+      name: Task
+      bounds: 200 80 100 80
+    Flow_1:
+      sourceRef: Start_1
+      targetRef: Task_1
+      waypoint: 136,118 200,120
+`;
 
-async function load(): Promise<Canvas> {
-  const { canvas } = await loadCanvas(FIXTURE_XML);
+function load(): Canvas {
+  const { canvas } = loadYaml(FIXTURE_YAML);
   return canvas;
 }
 
@@ -56,7 +49,7 @@ const box = (canvas: Canvas) => canvas.getViewport().getViewbox();
 // --- dragging empty canvas ---------------------------------------------------
 
 test('empty canvas: a drag PANS the viewport', async () => {
-  const canvas = await load();
+  const canvas = load();
   const svg = canvas.getSvg();
   const before = box(canvas);
   const empty = { x: before.x + 10, y: before.y + 10 };
@@ -80,7 +73,7 @@ test('empty canvas: a drag PANS the viewport', async () => {
 // --- the marquee ---------------------------------------------------------------
 
 test('Shift+drag on empty canvas draws a marquee and selects what it encloses', async () => {
-  const canvas = await load();
+  const canvas = load();
   const svg = canvas.getSvg();
   const before = box(canvas);
   const from = { x: before.x + 10, y: before.y + 10 };
@@ -99,7 +92,7 @@ test('Shift+drag on empty canvas draws a marquee and selects what it encloses', 
 // --- the wheel ---------------------------------------------------------------
 
 test('a wheel pans by its delta, Shift turns it sideways, and Ctrl zooms exponentially in it', async () => {
-  const canvas = await load();
+  const canvas = load();
   const zoom = Math.exp(240 * 0.002);
   // A pan moves the content with the wheel, so the viewBox moves the other way; a zoom
   // shrinks or grows the viewBox by the factor.

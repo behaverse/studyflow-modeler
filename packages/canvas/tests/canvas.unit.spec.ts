@@ -15,6 +15,7 @@ import {
   keyEvent,
   label,
   loadCanvas,
+  loadYaml,
   node,
   pointerDown,
   pointerMove,
@@ -28,44 +29,60 @@ import {
  * events for gestures, and the document (`syncDi` + `toXML`) for what was written.
  */
 
-const XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1" name="Go"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Task_1" name="Read"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:task>
-    <bpmn:exclusiveGateway id="Gateway_1" name="Ok?"><bpmn:incoming>Flow_2</bpmn:incoming><bpmn:outgoing>Flow_3</bpmn:outgoing></bpmn:exclusiveGateway>
-    <bpmn:endEvent id="End_1" name="Done"><bpmn:incoming>Flow_3</bpmn:incoming></bpmn:endEvent>
-    <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
-    <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="Gateway_1" name="next" />
-    <bpmn:sequenceFlow id="Flow_3" sourceRef="Gateway_1" targetRef="End_1" />
-    <bpmn:subProcess id="Sub_1" name="Inner">
-      <bpmn:task id="Task_In" name="Deep" />
-    </bpmn:subProcess>
-    <bpmn:dataObjectReference id="Data_1" name="Table" dataObjectRef="DO_1" />
-    <bpmn:dataObject id="DO_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1"><dc:Bounds x="100" y="100" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1"><dc:Bounds x="200" y="78" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Gateway_1_di" bpmnElement="Gateway_1"><dc:Bounds x="360" y="93" width="50" height="50" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
-        <dc:Bounds x="480" y="100" width="36" height="36" />
-        <bpmndi:BPMNLabel><dc:Bounds x="470" y="140" width="60" height="15" /></bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Sub_1_di" bpmnElement="Sub_1" isExpanded="false"><dc:Bounds x="200" y="250" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_In_di" bpmnElement="Task_In"><dc:Bounds x="400" y="400" width="100" height="80" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Data_1_di" bpmnElement="Data_1"><dc:Bounds x="120" y="250" width="36" height="50" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="136" y="118" /><di:waypoint x="200" y="118" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="300" y="118" /><di:waypoint x="360" y="118" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="410" y="118" /><di:waypoint x="480" y="118" /></bpmndi:BPMNEdge>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      name: Go
+      bounds: 100 100 36 36
+    Task_1:
+      type: Task
+      name: Read
+      bounds: 200 78 100 80
+    Gateway_1:
+      type: ExclusiveGateway
+      name: Ok?
+      bounds: 360 93 50 50
+    End_1:
+      type: EndEvent
+      name: Done
+      bounds: 480 100 36 36
+      label: 470 140 60 15
+    Flow_1:
+      sourceRef: Start_1
+      targetRef: Task_1
+      waypoint: 136,118 200,118
+    Flow_2:
+      name: next
+      sourceRef: Task_1
+      targetRef: Gateway_1
+      waypoint: 300,118 360,118
+    Flow_3:
+      sourceRef: Gateway_1
+      targetRef: End_1
+      waypoint: 410,118 480,118
+    Sub_1:
+      type: SubProcess
+      name: Inner
+      flowElements:
+        Task_In:
+          type: Task
+          name: Deep
+          bounds: 400 400 100 80
+      bounds: 200 250 100 80
+      isExpanded: false
+    Data_1:
+      type: DataObjectReference
+      name: Table
+      dataObjectRef: DO_1
+      bounds: 120 250 36 50
+    DO_1:
+      type: DataObject
+`;
 
 installDocument();
 
@@ -81,12 +98,12 @@ const onOutline = (box: { x: number; y: number; width: number; height: number },
 const isHiddenGraphics = (canvas: Canvas, id: string): boolean =>
   canvas.getGraphics(id)?.getAttribute('display') === 'none';
 
-const load = (): Promise<Loaded> => loadCanvas(XML);
+const load = (): Loaded => loadYaml(YAML);
 
 // --- import and the round trip -------------------------------------------------
 
 test('import builds one tree, with captions as elements of their own', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   expect(node(canvas, 'Task_1').parent).toBeUndefined();
   expect(node(canvas, 'Task_In').parent).toBe(node(canvas, 'Sub_1'));
   expect(node(canvas, 'Sub_1').children).toContain(node(canvas, 'Task_In'));
@@ -111,13 +128,13 @@ test('import builds one tree, with captions as elements of their own', async () 
 });
 
 test('the DI round trip keeps geometry, pinned captions and the collapse flag', async () => {
-  const loaded = await load();
+  const loaded = load();
   const xml = await xmlOf(loaded);
   expect(xml.match(/<bpmndi:BPMNLabel>/g) ?? []).toHaveLength(1);
 
   const moddle = freshModdle();
   const { rootElement } = await moddle.fromXML(xml);
-  const again = await loadCanvas(XML);
+  const again = loadYaml(YAML);
   again.canvas.importDefinitions(rootElement);
   for (const id of ['Start_1', 'Task_1', 'Gateway_1', 'End_1', 'Sub_1', 'Task_In', 'Data_1']) {
     const a = node(loaded.canvas, id);
@@ -134,7 +151,7 @@ test('the DI round trip keeps geometry, pinned captions and the collapse flag', 
 // --- creating -------------------------------------------------------------------------
 
 test('createElement places a shape, files its business object and opens the editor of a task', async () => {
-  const { canvas, definitions } = await load();
+  const { canvas, definitions } = load();
   const created = canvas.createElement({ type: 'bpmn:Task' }, { x: 600, y: 118 })!;
   expect({ x: created.x, y: created.y, width: created.width, height: created.height }).toEqual({ x: 550, y: 78, width: 100, height: 80 });
   expect(canvas.getScene()!.children).toContain(created);
@@ -149,14 +166,14 @@ test('createElement places a shape, files its business object and opens the edit
 });
 
 test('a boundary event attaches to the activity it is dropped on', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const boundary = canvas.createElement({ type: 'bpmn:BoundaryEvent' }, centre(node(canvas, 'Task_1')))!;
   expect(boundary.businessObject.attachedToRef).toBe(node(canvas, 'Task_1').businessObject);
   expect(boundary.parent).toBeUndefined();
 });
 
 test('a palette create follows the pointer and lands, grid-snapped, where it is released', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   expect(canvas.startCreate(undefined, { type: 'bpmn:ExclusiveGateway' })).toBe(true);
   pointerMove(canvas, { x: 703, y: 297 });
   pointerUp(canvas, { x: 703, y: 297 });
@@ -169,7 +186,7 @@ test('a palette create follows the pointer and lands, grid-snapped, where it is 
 // --- connecting --------------------------------------------------------------------
 
 test('connectElements mints a routed sequence flow and wires both ends', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 600, y: 118 })!;
   canvas.getLabelEditing().cancel();
   const gateway = node(canvas, 'Gateway_1');
@@ -190,7 +207,7 @@ test('connectElements mints a routed sequence flow and wires both ends', async (
 });
 
 test('a connect gesture drops the flow on the shape under the pointer', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const task = node(canvas, 'Task_1');
   const end = node(canvas, 'End_1');
   expect(canvas.startConnect(task)).toBe(true);
@@ -203,7 +220,7 @@ test('a connect gesture drops the flow on the shape under the pointer', async ()
 });
 
 test('a data shape and an activity connect with a data input association', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const data = node(canvas, 'Data_1');
   const task = node(canvas, 'Task_1');
   const association = canvas.connectElements(data, task)!;
@@ -215,7 +232,7 @@ test('a data shape and an activity connect with a data input association', async
 // --- direct manipulation -------------------------------------------------------------
 
 test('dragging a selected task moves it, re-docks its flows and leaves its caption derived', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const task = node(canvas, 'Task_1');
   click(canvas, centre(task));
   dragBy(canvas, centre(task), { x: centre(task).x + 40, y: centre(task).y + 60 });
@@ -228,7 +245,7 @@ test('dragging a selected task moves it, re-docks its flows and leaves its capti
 });
 
 test('Escape abandons a drag and puts the snapshot back', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const task = node(canvas, 'Task_1');
   click(canvas, centre(task));
   pointerDown(canvas, centre(task));
@@ -251,7 +268,7 @@ test('Escape abandons a drag and puts the snapshot back', async () => {
 });
 
 test('a corner handle resizes, clamped to the rules\' minimum', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const task = node(canvas, 'Task_1');
   click(canvas, centre(task));
   const grab = { x: task.x + task.width + 4, y: task.y + task.height + 4 };
@@ -267,7 +284,7 @@ test('a corner handle resizes, clamped to the rules\' minimum', async () => {
 });
 
 test('a press on a selected flow drags a new bendpoint out of it', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const flow = edge(canvas, 'Flow_2');
   click(canvas, { x: 330, y: 118 });
   expect(canvas.getSelection().get()).toEqual([flow]);
@@ -279,7 +296,7 @@ test('a press on a selected flow drags a new bendpoint out of it', async () => {
 // --- selection and deletion -----------------------------------------------------------
 
 test('click selects, Shift+click toggles, and an empty click clears', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const task = node(canvas, 'Task_1');
   const gateway = node(canvas, 'Gateway_1');
   click(canvas, centre(task));
@@ -295,7 +312,7 @@ test('click selects, Shift+click toggles, and an empty click clears', async () =
 });
 
 test('Delete removes the selection with its flows from the scene and the document', async () => {
-  const { canvas, definitions } = await load();
+  const { canvas, definitions } = load();
   const task = node(canvas, 'Task_1');
   click(canvas, centre(task));
   canvas.getContainer().dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
@@ -312,25 +329,23 @@ test('Delete removes the selection with its flows from the scene and the documen
 });
 
 test('the first pool makes the collaboration the study, and deleting the last one hands it back to the process', async () => {
-  const loaded = await loadCanvas(`<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Study_1" name="Pilot">
-    <bpmn:documentation>What the pilot is for.</bpmn:documentation>
-    <bpmn:extensionElements>
-      <studyflow:study runtime="local"><studyflow:state>{"Study_1":{"trials":3}}</studyflow:state></studyflow:study>
-    </bpmn:extensionElements>
-    <bpmn:startEvent id="Start_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Study_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1"><dc:Bounds x="100" y="100" width="36" height="36" /></bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`);
+  const loaded = loadYaml(`id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Study_1:
+  type: Process
+  documentation: What the pilot is for.
+  extensionElements:
+    - type: studyflow:Study
+  name: Pilot
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+state:
+  Study_1:
+    trials: 3
+`);
   const { canvas, definitions } = loaded;
   const [process] = definitions.rootElements;
   const study = process.extensionElements.values[0];
@@ -365,7 +380,7 @@ test('the first pool makes the collaboration the study, and deleting the last on
 });
 
 test('deleting a caption clears its owner\'s name', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const start = node(canvas, 'Start_1');
   canvas.getSelection().select(label(canvas, 'Start_1_label'));
   canvas.deleteSelection();
@@ -378,7 +393,7 @@ test('deleting a caption clears its owner\'s name', async () => {
 // --- captions ------------------------------------------------------------------------
 
 test('a dragged caption moves alone and becomes pinned in the document', async () => {
-  const loaded = await load();
+  const loaded = load();
   const { canvas } = loaded;
   const start = node(canvas, 'Start_1');
   const caption = label(canvas, 'Start_1_label');
@@ -396,7 +411,7 @@ test('a dragged caption moves alone and becomes pinned in the document', async (
 });
 
 test('renaming through the inline editor re-fits a caption, and naming an unnamed flow mints one', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const start = node(canvas, 'Start_1');
   const before = label(canvas, 'Start_1_label').width;
   expect(canvas.editLabel(start)).toBe(true);
@@ -419,7 +434,7 @@ test('renaming through the inline editor re-fits a caption, and naming an unname
 });
 
 test('a moved node carries its pinned caption and re-derives an unpinned one', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const end = node(canvas, 'End_1');
   click(canvas, centre(end));
   dragBy(canvas, centre(end), { x: centre(end).x, y: centre(end).y + 100 });
@@ -434,7 +449,7 @@ test('a moved node carries its pinned caption and re-derives an unpinned one', a
 // --- containers ---------------------------------------------------------------------
 
 test('expanding a container frames its contents and re-docks its flows, and collapsing hides them again', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const sub = node(canvas, 'Sub_1');
   const inner = node(canvas, 'Task_In');
   const flow = canvas.connectElements(node(canvas, 'Start_1'), sub)!;
@@ -454,7 +469,7 @@ test('expanding a container frames its contents and re-docks its flows, and coll
 });
 
 test('a double click opens or shuts a container in place; on an open one\'s caption strip, or with `e`, it renames it', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const scene = canvas.getScene()!;
   const sub = node(canvas, 'Sub_1');
 
@@ -486,7 +501,7 @@ test('a double click opens or shuts a container in place; on an open one\'s capt
 });
 
 test('drilling into a container shows only its contents until the trail leads back out', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const sub = node(canvas, 'Sub_1');
   expect(canvas.enterScope(sub)).toBe(true);
   expect(canvas.getRoot()).toBe(sub);
@@ -506,7 +521,7 @@ test('drilling into a container shows only its contents until the trail leads ba
 });
 
 test('dropping a shape into an expanded container re-files it there', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const sub = node(canvas, 'Sub_1');
   canvas.setExpanded(sub, true);
   const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 800, y: 118 })!;
@@ -521,7 +536,7 @@ test('dropping a shape into an expanded container re-files it there', async () =
 // --- keyboard, colour, font -------------------------------------------------------------
 
 test('Ctrl+A selects everything on screen and the arrows nudge the selection', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   const container = canvas.getContainer();
   container.dispatchEvent(keyEvent('keydown', { key: 'a', ctrlKey: true }));
   const ids = canvas.getSelection().get().map((el) => el.id);
@@ -537,7 +552,7 @@ test('Ctrl+A selects everything on screen and the arrows nudge the selection', a
 });
 
 test('setColor paints the element and the colour survives the round trip', async () => {
-  const loaded = await load();
+  const loaded = load();
   const { canvas } = loaded;
   const task = node(canvas, 'Task_1');
   canvas.setColor([task, edge(canvas, 'Flow_1')], { fill: '#dde8fa', stroke: '#728cb9' });
@@ -553,7 +568,7 @@ test('setColor paints the element and the colour survives the round trip', async
 });
 
 test('setFont restyles the caption and the font survives the round trip', async () => {
-  const loaded = await load();
+  const loaded = load();
   const { canvas } = loaded;
   const task = node(canvas, 'Task_1');
   canvas.setFont([task, edge(canvas, 'Flow_2')], { bold: true, align: 'right', color: '#4a6f9c' });
@@ -571,7 +586,7 @@ test('setFont restyles the caption and the font survives the round trip', async 
 });
 
 test('toSVG exports the drawing without the editor chrome', async () => {
-  const { canvas } = await load();
+  const { canvas } = load();
   click(canvas, centre(node(canvas, 'Task_1')));
   const svg = canvas.toSVG();
   expect(svg).toContain('data-element-id="Task_1"');

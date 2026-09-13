@@ -1,8 +1,18 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
+import { studyflowToDefinitions } from '@core/document';
 
-import { diOf, freshModdle, installDocument, keyEvent, node, pointerDown, pointerMove, pointerUp } from './canvasHarness';
+import {
+  diOf,
+  freshModdle,
+  installDocument,
+  keyEvent,
+  node,
+  pointerDown,
+  pointerMove,
+  pointerUp,
+} from './canvasHarness';
 
 /**
  * `Canvas.destroy`. A canvas installs listeners on three owners: its own SVG root
@@ -15,31 +25,23 @@ import { diOf, freshModdle, installDocument, keyEvent, node, pointerDown, pointe
 
 const doc = installDocument();
 
-const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:startEvent id="Start_1" />
-    <bpmn:task id="Task_1" name="Task" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Start_1_di" bpmnElement="Start_1">
-        <dc:Bounds x="100" y="100" width="36" height="36" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const PROCESS_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Start_1:
+      type: StartEvent
+      bounds: 100 100 36 36
+    Task_1:
+      type: Task
+      name: Task
+      bounds: 200 80 100 80
+`;
 
-async function parse(xml = PROCESS_XML): Promise<any> {
-  const { rootElement } = await freshModdle().fromXML(xml);
-  return rootElement;
+function parse(): any {
+  return studyflowToDefinitions(PROCESS_YAML, freshModdle());
 }
 
 function container(): HTMLElement {
@@ -70,7 +72,7 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
   const host = container();
   const tracked = trackListeners(host);
   const stale = new Canvas({ container: host });
-  const staleDefs = await parse();
+  const staleDefs = parse();
   stale.importDefinitions(staleDefs);
   stale.getSelection().select(node(stale, 'Task_1'));
   expect(tracked.live(), 'the shortcut listener sits on the host container').toEqual(['keydown']);
@@ -84,7 +86,7 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
 
   // The host reuses the same element for the next editor: Delete reaches only the live canvas.
   const live = new Canvas({ container: host });
-  const liveDefs = await parse();
+  const liveDefs = parse();
   live.importDefinitions(liveDefs);
   live.getSelection().select(node(live, 'Start_1'));
   host.dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
@@ -98,7 +100,7 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
 test('destroy mid-gesture abandons the drag and drops the document-level listeners', async () => {
   const host = container();
   const canvas = new Canvas({ container: host });
-  const definitions = await parse();
+  const definitions = parse();
   canvas.importDefinitions(definitions);
   const doc = canvas.getSvg().ownerDocument!;
   const tracked = trackListeners(doc);

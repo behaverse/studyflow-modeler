@@ -12,14 +12,15 @@
  * All of it lives here once. A spec that drives the editor calls {@link loadCanvas},
  * which installs the document for it.
  *
- * Keep this file free of assertions and fixtures: XML fixtures belong to the spec
- * that reads them, so a fixture change can never silently move another suite.
+ * Keep this file free of assertions and fixtures: a fixture belongs to the spec that
+ * reads it, so a fixture change can never silently move another suite.
  */
 
 import { JSDOM } from 'jsdom';
 
 import { Canvas, isRootElement, setDocument } from '@canvas/index.ts';
 import type { Bounds, CanvasOptions, SceneEdge, SceneLabel, SceneNode } from '@canvas/index.ts';
+import { studyflowToDefinitions } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
 export { freshModdle };
@@ -53,6 +54,16 @@ export async function loadCanvas(xml: string, options: CanvasOptions = {}): Prom
   installDocument();
   const moddle = freshModdle();
   const { rootElement: definitions } = await moddle.fromXML(xml);
+  const canvas = new Canvas(options);
+  canvas.importDefinitions(definitions);
+  return { canvas, definitions, moddle };
+}
+
+/** Build `yaml`, a `.studyflow.yaml` text, and import it into a fresh {@link Canvas}, as the modeler opens the file. */
+export function loadYaml(yaml: string, options: CanvasOptions = {}): Loaded {
+  installDocument();
+  const moddle = freshModdle();
+  const definitions = studyflowToDefinitions(yaml, moddle);
   const canvas = new Canvas(options);
   canvas.importDefinitions(definitions);
   return { canvas, definitions, moddle };

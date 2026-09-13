@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
 
-import { diOf, loadCanvas, node, pointerDown, pointerMove, pointerUp } from './canvasHarness';
+import { diOf, loadYaml, node, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
  * The two snaps a move runs under, and how they compose, axis by axis:
@@ -21,27 +21,20 @@ import { diOf, loadCanvas, node, pointerDown, pointerMove, pointerUp } from './c
  * event whose centre sits at (418, 123), off the 10-unit grid on `y`: a shape pulled
  * onto that centre shows alignment beat the grid rather than merely agreeing with it.
  */
-const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
-    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
-    id="Defs_1" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_1" isExecutable="false">
-    <bpmn:task id="Task_1" name="Task" />
-    <bpmn:endEvent id="End_1" />
-  </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_1">
-    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_1">
-      <bpmndi:BPMNShape id="Task_1_di" bpmnElement="Task_1">
-        <dc:Bounds x="200" y="80" width="100" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="End_1_di" bpmnElement="End_1">
-        <dc:Bounds x="400" y="105" width="36" height="36" />
-      </bpmndi:BPMNShape>
-    </bpmndi:BPMNPlane>
-  </bpmndi:BPMNDiagram>
-</bpmn:definitions>`;
+const FIXTURE_YAML = `id: Defs_1
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Task_1:
+      type: Task
+      name: Task
+      bounds: 200 80 100 80
+    End_1:
+      type: EndEvent
+      bounds: 400 105 36 36
+`;
 
 /** The snap guides on screen, each as the line it draws: `x=418` is vertical, `y=123` horizontal. */
 function guides(canvas: Canvas): string[] {
@@ -59,7 +52,7 @@ test('a move aligns each axis with a neighbour\'s centre within 7 units, else la
     ['2 above its centre line, x near nothing: level on y, the grid on x', { x: 287, y: 121 }, { x: 240, y: 83 }, ['y=123']],
   ];
   for (const [label, to, landed, drawn] of CASES) {
-    const { canvas, definitions } = await loadCanvas(FIXTURE_XML);
+    const { canvas, definitions } = loadYaml(FIXTURE_YAML);
     const task = node(canvas, 'Task_1');
     pointerDown(canvas, { x: 250, y: 120 });
     pointerMove(canvas, to);
