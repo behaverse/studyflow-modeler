@@ -72,7 +72,7 @@ async function runLocal(
   let inputs: string[] = [];
   if (source.container !== 'text' || source.kind !== 'xml') {
     const dir = await mkdtemp(path.join(tmpdir(), 'studyflow-run-'));
-    target = path.join(dir, `${path.basename(input).replace(/\.[^.]*$/, '')}.bpmn`);
+    target = path.join(dir, `${path.basename(input).replace(/(\.studyflow)?\.[^.]*$/i, '')}.bpmn`);
     await writeFile(target, await asXml(source), 'utf8');
     inputs = ['--inputs', path.dirname(path.resolve(input))];
   }

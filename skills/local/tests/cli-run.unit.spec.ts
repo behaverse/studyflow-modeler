@@ -405,5 +405,7 @@ S:
       env: { ...process.env, STUDYFLOW_RUN_PY: path.join(dir, 'run.py'), STUDYFLOW_PROV_PY: PROV, STUDYFLOW_PYTHON_PY: path.resolve(__dirname, '../../python/local.py') },
     });
     expect(fs.readFileSync(path.join(dir, 'run', 'counts.json'), 'utf8')).toBe('[1, 2, 3]');
+    // The plan it archives is named for the study, not `dump.studyflow.bpmn`.
+    expect(fs.existsSync(path.join(dir, 'run', 'dump.bpmn'))).toBe(true);
   });
 });
