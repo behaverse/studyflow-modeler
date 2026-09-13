@@ -5,7 +5,7 @@ import { gotoModeler, runPaletteCommand } from './utils';
 /** The New Diagram gallery: the blank card, then one card per shipped example, in shelves. */
 
 test.describe('New Diagram gallery', () => {
-  test('a card previews its diagram and opens it', async ({ page }) => {
+  test('a card previews its diagram, wears its skill\'s icon, sits on its shelf, and opens it', async ({ page }) => {
     await gotoModeler(page);
     await runPaletteCommand(page, 'New...');
 
@@ -22,56 +22,36 @@ test.describe('New Diagram gallery', () => {
     await expect(preview).toHaveAttribute('src', /^blob:/);
     expect(await preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
 
+    // The badge is the icon of the schema its skill ships: an icon class (cognitive's), or a data
+    // URL drawn as an image (reachy's); python ships a runner and no schema, so no badge.
+    await expect(card.getByTestId('example-badge')).toBeVisible();
+    const reachy = page.getByTestId('example-reachy_pools').getByTestId('example-badge').locator('img');
+    await expect(reachy).toBeVisible();
+    expect(await reachy.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await expect(page.getByTestId('example-sklearn_pipeline').getByTestId('example-badge')).toHaveCount(0);
+
+    // A shelf holds its skill's examples; the blank card sits under All only, while the header's
+    // blank button stays whatever shelf is open.
+    await expect(page.getByTestId('new-diagram-blank-card')).toBeVisible();
+    await page.getByTestId('example-filter-cognitive').click();
+    await expect(card).toBeVisible();
+    await expect(page.getByTestId('example-consort2025')).toHaveCount(0);
+    await expect(page.getByTestId('new-diagram-blank-card')).toHaveCount(0);
+    await expect(page.getByTestId('new-diagram-blank')).toBeVisible();
+    await page.getByTestId('example-filter-all').click();
+    await expect(page.getByTestId('example-consort2025')).toBeVisible();
+
     await card.click();
     await expect(dialog).toBeHidden();
     await expect(page.getByTitle('Click to edit diagram name'))
       .toHaveText('Within-subject cognitive battery');
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
-  });
 
-  test('a card wears its skill\'s schema icon, when the skill has a schema', async ({ page }) => {
-    await gotoModeler(page);
+    // The blank diagram is one click away, and replaces the one open.
     await runPaletteCommand(page, 'New...');
-
-    await expect(page.getByTestId('example-bot_claude').getByTestId('example-badge')).toBeVisible();
-    // reachy's icon is a data URL, drawn as an image rather than an icon class.
-    const reachy = page.getByTestId('example-reachy_pools').getByTestId('example-badge').locator('img');
-    await expect(reachy).toBeVisible();
-    expect(await reachy.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
-    // python ships a runner and no schema.
-    await expect(page.getByTestId('example-sklearn_pipeline').getByTestId('example-badge')).toHaveCount(0);
-  });
-
-  test('category chips filter the gallery', async ({ page }) => {
-    await gotoModeler(page);
-    await runPaletteCommand(page, 'New...');
-
-    await expect(page.getByTestId('example-consort2025')).toBeVisible();
-    await expect(page.getByTestId('example-bot_claude')).toBeVisible();
-
-    await page.getByTestId('example-filter-behaverse').click();
-    await expect(page.getByTestId('example-bot_claude')).toBeVisible();
-    await expect(page.getByTestId('example-consort2025')).toHaveCount(0);
-
-    await page.getByTestId('example-filter-all').click();
-    await expect(page.getByTestId('example-consort2025')).toBeVisible();
-  });
-
-  test('the empty diagram is always one click away, but only shelved under All', async ({ page }) => {
-    await gotoModeler(page);
-    await runPaletteCommand(page, 'New...');
-
-    // The card sits with the examples, where "start from nothing" is one of the options.
-    await expect(page.getByTestId('new-diagram-blank-card')).toBeVisible();
-
-    await page.getByTestId('example-filter-behaverse').click();
-    // A shelf holds what it says it holds; the blank card is not a Behaverse example.
-    await expect(page.getByTestId('new-diagram-blank-card')).toHaveCount(0);
-    // The header button never goes away, whatever shelf is open.
-    await expect(page.getByTestId('new-diagram-blank')).toBeVisible();
-
     await page.getByTestId('new-diagram-blank').click();
-    await expect(page.getByTestId('gallery-dialog')).toBeHidden();
+    await expect(dialog).toBeHidden();
     await expect(page.locator('g[data-element-id="StartEvent_1"]')).toBeVisible();
+    await expect(page.locator('g[data-element-id="Task_NBack"]')).toHaveCount(0);
   });
 });
