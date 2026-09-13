@@ -13,6 +13,8 @@ writeFileSync(join(root, 'index.html'), '<a href="app">Modeler</a>');
 writeFileSync(join(root, 'app.html'), '<title>modeler</title>');
 mkdirSync(join(root, 'run'));
 writeFileSync(join(root, 'run', 'index.html'), '<title>runner</title>');
+mkdirSync(join(root, 'π'));
+writeFileSync(join(root, 'π', 'index.html'), '');
 
 test('resolves like a static host', () => {
   expect(resolveFile(root, '/')).toEqual({ file: join(root, 'index.html') });
@@ -24,9 +26,12 @@ test('resolves like a static host', () => {
   expect(resolveFile(root, '/../../etc/passwd')).toBeUndefined();
   expect(resolveFile(root, '/%2e%2e/%2e%2e/etc/passwd')).toBeUndefined();
   expect(resolveFile(root, '/%E0%A4%A')).toBeUndefined();
-  // A redirect is re-encoded: a newline or a char past Latin-1 in a header throws.
-  expect(resolveFile(root, '/x%0A/../run')).toEqual({ redirect: '/x%0A/../run/' });
-  expect(resolveFile(root, '/%E0%A4%A4/../run')).toEqual({ redirect: '/%E0%A4%A4/../run/' });
+  // A redirect names the directory found, not the path asked, whose `//host` would leave the origin; re-encoded, as
+  // a newline or a char past Latin-1 in a header throws.
+  expect(resolveFile(root, '//evil.com/%2e%2e%2frun')).toEqual({ redirect: '/run/' });
+  expect(resolveFile(root, '/x%0A/../run')).toEqual({ redirect: '/run/' });
+  expect(resolveFile(root, '/.')).toEqual({ redirect: '/' });
+  expect(resolveFile(root, '/%CF%80')).toEqual({ redirect: '/%CF%80/' });
 });
 
 test('serves over http', async () => {

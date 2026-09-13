@@ -47,8 +47,9 @@ export function resolveFile(root: string, urlPath: string): { file: string } | {
   if (isFile(`${file}.html`)) return { file: `${file}.html` };
   if (isFile(path.join(file, 'index.html'))) {
     // Relative asset URLs in an index resolve against its directory, so the directory needs its trailing slash.
-    // Re-encoded: the decoded path can hold what a header cannot (a newline, a char past Latin-1), and writeHead throws.
-    const location = rel.split('/').map(encodeURIComponent).join('/');
+    // Named by its path under root, not the request's, whose `//evil.com/%2e%2e%2frun` would send the browser to
+    // another host; re-encoded, as a newline or a char past Latin-1 in a header throws.
+    const location = file.slice(root.length).split(path.sep).map(encodeURIComponent).join('/');
     return rel.endsWith('/') ? { file: path.join(file, 'index.html') } : { redirect: `${location}/` };
   }
   return undefined;
