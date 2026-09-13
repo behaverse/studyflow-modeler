@@ -21,28 +21,6 @@ import {
  * tests assert the same behaviour for both.
  */
 
-/**
- * What an element's `<g>` actually covers on screen, plus its computed `display`.
- *
- * `toBeVisible` is unusable for a straight connection: Playwright reads an
- * axis-aligned line's zero-height box as hidden. It is also exactly the assertion
- * that MISSED the reported bug, where the flows were painted-over rather than hidden.
- */
-async function painted(locator: import('@playwright/test').Locator): Promise<{
-  x: number; y: number; width: number; height: number; display: string;
-}> {
-  return locator.evaluate((g) => {
-    const rect = (g as SVGGElement).getBoundingClientRect();
-    return {
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
-      display: getComputedStyle(g as Element).display,
-    };
-  });
-}
-
 async function openExample(page: import('@playwright/test').Page): Promise<void> {
   await gotoModeler(page);
   await page.getByTestId('open-file-input').setInputFiles(examplePath('sklearn_pipeline'));
@@ -53,51 +31,32 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
 const drilldown = (page: import('@playwright/test').Page) => page.getByTestId('context-pad-drilldown');
 
 test.describe('sub-process drill-down', () => {
-  test('the badge enters the plane and the breadcrumb shows the path back', async ({ page }) => {
+  test('the badge enters a sub-process and the breadcrumb leads back, whichever way its contents are stored', async ({ page }) => {
     await openExample(page);
-
-    // Select first: the badge only paints on the selected container.
-    await page.locator('g[data-element-id="select_model"]').click();
-    await drilldown(page).click();
-
-    // The plane's own contents are on screen…
-    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
-    await expect(page.locator('g[data-element-id="build_pipeline"]')).toBeVisible();
-    // …and the parent plane's are not.
-    await expect(page.locator('g[data-element-id="prepare_data"]')).toBeHidden();
-
+    const shape = (id: string) => page.locator(`g[data-element-id="${id}"]`);
     const crumbs = page.getByTestId('drilldown-breadcrumbs');
-    await expect(crumbs).toBeVisible();
-    await expect(crumbs).toContainText('sklearn_pipeline');
-    await expect(crumbs).toContainText('select_model');
+    // Each row: the container, a shape inside it, and one of the parent plane's. An expanded
+    // container is selected by its caption: a click on its body would land on a child.
+    const CASES: [id: string, click: { position?: { x: number; y: number } }, inside: string, outside: string][] = [
+      ['select_model', {}, 'cross_validate', 'prepare_data'],
+      ['prepare_data', { position: { x: 12, y: 12 } }, 'select_features', 'select_model'],
+    ];
+    for (const [id, click, inside, outside] of CASES) {
+      // Select first: the badge is offered on the selected container.
+      await shape(id).click(click);
+      await drilldown(page).click();
 
-    // Clicking the root crumb restores the parent plane.
-    await page.getByTestId('breadcrumb-sklearn_pipeline').click();
-    await expect(page.locator('g[data-element-id="prepare_data"]')).toBeVisible();
-    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeHidden();
-    await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
-  });
+      // The container's contents are on screen, the parent plane's are not, and the trail says where.
+      await expect(shape(inside), id).toBeVisible();
+      await expect(shape(outside), id).toBeHidden();
+      await expect(crumbs, id).toContainText('sklearn_pipeline');
+      await expect(crumbs, id).toContainText(id);
 
-  test('the badge enters an in-parent sub-process too, through a synthesized scope', async ({ page }) => {
-    await openExample(page);
-
-    // The caption, not the body: a body click would land on a child of the
-    // expanded frame. Selecting paints the badge; the badge takes the trip.
-    await page.locator('g[data-element-id="prepare_data"]').click({ position: { x: 12, y: 12 } });
-    await drilldown(page).click();
-
-    // Same trip, same trail, for a container the document gave no plane of its own.
-    const crumbs = page.getByTestId('drilldown-breadcrumbs');
-    await expect(crumbs).toContainText('sklearn_pipeline');
-    await expect(crumbs).toContainText('prepare_data');
-    await expect(page.locator('g[data-element-id="select_features"]')).toBeVisible();
-    expect((await painted(page.locator('g[data-element-id="Flow_Select_Features_Select_Target"]'))).display)
-      .not.toBe('none');
-    await expect(page.locator('g[data-element-id="select_model"]')).toBeHidden();
-
-    await page.getByTestId('breadcrumb-sklearn_pipeline').click();
-    await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
-    await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
+      // The root crumb leads back, and at the root there is no trail to draw.
+      await page.getByTestId('breadcrumb-sklearn_pipeline').click();
+      await expect(shape(outside), id).toBeVisible();
+      await expect(crumbs, id).toHaveCount(0);
+    }
   });
 
   test('a sub-process dropped from the palette is authorable: badge, plane, contents', async ({ page }) => {

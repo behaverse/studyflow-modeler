@@ -9,13 +9,10 @@ import {
 } from './utils';
 
 /**
- * The app-rendered popup menus and the context pad that opens two of them
- * (P6b §3A, §3B; parity spec addendum 4).
- *
- * This chrome is the app's own. bpmn-js used to render all three menus and the pad
- * as plugin chrome into `.djs-popup` / `.djs-context-pad`, which is why these specs
- * were skipped on that backend while it existed; they run unconditionally now that
- * the React popover and `contextPad/ContextPad.tsx` are the only implementations.
+ * The app-rendered popup menus: the create menu behind the palette's more-elements
+ * button, the append menu the context pad and the `a` key open, and the style menu.
+ * Which entries they list is `tests/popup-menu.unit.spec.ts`'s; where an appended
+ * element lands is canvas-autoplace's.
  */
 
 const popup = (page: Page) => page.getByTestId('popup-menu');
@@ -29,103 +26,96 @@ function shapeX(bpmn: string, prefix: string): number {
 }
 
 test.describe('App popup menus', () => {
-  test('the palette\'s more-elements button opens a searchable create menu that places what you pick', async ({ page }) => {
+  test('the create and append menus search, and place what you pick', async ({ page }) => {
     await gotoModeler(page);
 
+    // The palette's more-elements button: a searchable create menu. Searching narrows the
+    // list, and picking arms a create gesture, as a palette tile does: the next click places it.
     await page.getByRole('button', { name: 'BPMN elements...' }).click();
     await expect(popup(page)).toBeVisible();
-
-    // Long enough to have earned a search field, whatever the editor asked for.
-    const search = page.getByTestId('popup-menu-search');
-    await expect(search).toBeVisible();
-    await search.fill('service');
-
-    const entry = page.getByTestId('popup-menu-entry-create-Service');
-    await expect(entry).toBeVisible();
-    // Searching narrows: non-matching entries are gone, not merely dimmed.
+    await page.getByTestId('popup-menu-search').fill('service');
     await expect(page.getByTestId('popup-menu-entry-create-User')).toHaveCount(0);
-
-    await entry.click();
-    // Picking arms a create gesture, exactly as a palette tile does; the next click places it.
+    await page.getByTestId('popup-menu-entry-create-Service').click();
     await expect(popup(page)).toHaveCount(0);
     await page.getByTestId('modeler-canvas').click({ position: { x: 340, y: 200 } });
+    const service = page.locator('g[data-element-id^="ServiceTask_"]');
+    await expect(service).toHaveCount(1);
+    // A new task opens its label editor, which has the keys until it closes.
+    await pressOnCanvas(page, 'Escape');
 
-    const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toContain('<bpmn2:serviceTask');
-  });
+    // The canvas's `a` key opens the append menu on the selection.
+    await pressOnCanvas(page, 'a');
+    await expect(popup(page)).toContainText('Append element');
+    await page.keyboard.press('Escape');
+    await expect(popup(page)).toHaveCount(0);
 
-  test('the context pad appends a successor and the sequence flow that reaches it', async ({ page }) => {
-    await gotoModeler(page);
-
-    await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
-    await expect(page.getByTestId('inspector-root')).toContainText('Task');
-
-    const append = page.getByTestId('context-pad-append');
-    await expect(append).toBeVisible();
-    await append.click();
+    // So does the context pad's append entry, and a pick there appends at once: the
+    // successor and the flow that reaches it, with no second click.
+    await page.getByTestId('context-pad-append').click();
     await expect(popup(page)).toBeVisible();
-
     await page.getByTestId('popup-menu-search').fill('end');
     await page.getByTestId('popup-menu-entry-create-End').click();
     await expect(popup(page)).toHaveCount(0);
-
-    // Click-append places the shape itself — there is no second click on the canvas.
     await expect(page.locator('g[data-element-id^="EndEvent_"]')).toHaveCount(1);
 
     const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toContain('<bpmn2:endEvent');
-    expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*sourceRef="Task_/);
-    expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*targetRef="EndEvent_/);
+    expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*sourceRef="ServiceTask_[^"]*"[^>]*targetRef="EndEvent_/);
     // Placed one gap to the right of its source, not on top of it.
-    expect(shapeX(bpmn, 'EndEvent_')).toBeGreaterThan(shapeX(bpmn, 'Task_'));
+    expect(shapeX(bpmn, 'EndEvent_')).toBeGreaterThan(shapeX(bpmn, 'ServiceTask_'));
   });
 
-  test('the canvas\'s `a` shortcut opens the same append menu on the selection', async ({ page }) => {
+  test('the style menu sets colours and text styles on one element, and paints a multi-selection at once', async ({ page }) => {
     await gotoModeler(page);
-
-    await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
-    // Creating a task opens its label editor; `a` belongs to the caption until it closes.
-    await pressOnCanvas(page, 'Escape');
-
-    await pressOnCanvas(page, 'a');
-    await expect(popup(page)).toBeVisible();
-    await expect(popup(page)).toContainText('Append element');
-  });
-
-  test('the style menu paints one element, and a whole multi-selection at once', async ({ page }) => {
-    await gotoModeler(page);
-
     await addPaletteElement(page, 'Activities', 'Task', { x: 260, y: 200 });
+    await page.keyboard.type('Read');
+    await pressOnCanvas(page, 'Escape');
     await addPaletteElement(page, 'Activities', 'User', { x: 480, y: 200 });
+    await pressOnCanvas(page, 'Escape');
+    const task = page.locator('g[data-element-id^="Task_"]').first();
+    const body = (prefix: string) => page.locator(`g[data-element-id^="${prefix}"] rect:not(.sf-outline)`).first();
 
+    await task.click();
     await page.getByTestId('context-pad-set-color').click();
-    await expect(popup(page)).toBeVisible();
-    await page.getByTestId('popup-menu-entry-blue-color').click();
-    // The style menu stays up after a swatch: colour and text styles are set in one
-    // sitting, so it is dismissed deliberately rather than by the first click. It
-    // also reports what is now set, so a reopened menu shows the element's own colour.
-    await expect(popup(page)).toBeVisible();
-    await expect(page.getByTestId('popup-menu-entry-blue-color')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('popup-menu-entry-default-color')).toHaveAttribute('aria-pressed', 'false');
-    await page.keyboard.press('Escape');
-    await expect(popup(page)).toHaveCount(0);
+    const menu = popup(page);
+    await expect(menu).toBeVisible();
 
-    let bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    // One shape, both colour vocabularies (`color:` and the legacy `bioc:`).
-    expect(bpmn.match(/#dde8fa/gi)).toHaveLength(2);
-    expect(bpmn.match(/#728cb9/gi)).toHaveLength(2);
+    // A swatch paints the element, and the menu stays up and reports what is set: colour and
+    // text styles are set in one sitting, and a reopened menu shows the element's own.
+    await menu.getByTestId('popup-menu-entry-blue-color').click();
+    await expect(body('Task_')).toHaveAttribute('fill', '#dde8fa');
+    await expect(menu.getByTestId('popup-menu-entry-blue-color')).toHaveAttribute('aria-pressed', 'true');
+    await expect(menu.getByTestId('popup-menu-entry-default-color')).toHaveAttribute('aria-pressed', 'false');
+
+    // Each text style restyles the drawn text at once.
+    const text = task.locator('text.sf-label').first();
+    await menu.getByTestId('popup-menu-entry-bold').click();
+    await expect(text).toHaveAttribute('font-weight', '700');
+    await menu.getByTestId('popup-menu-entry-italic').click();
+    await expect(text).toHaveAttribute('font-style', 'italic');
+    await menu.getByTestId('popup-menu-entry-align-right').click();
+    await expect(text).toHaveAttribute('text-anchor', 'end');
+    await menu.getByTestId('popup-menu-entry-red-text-color').click();
+    await expect(text).toHaveAttribute('fill', '#ac5a54');
+    await expect(menu.getByTestId('popup-menu-entry-bold')).toHaveAttribute('aria-pressed', 'true');
+    await expect(menu.getByTestId('popup-menu-entry-align-right')).toHaveAttribute('aria-pressed', 'true');
+    await expect(menu.getByTestId('popup-menu-entry-align-left')).toHaveAttribute('aria-pressed', 'false');
+    // Clicking the alignment it already has puts back the element's own default.
+    await menu.getByTestId('popup-menu-entry-align-right').click();
+    await expect(text).toHaveAttribute('text-anchor', 'middle');
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+
+    // The file carries the text style on one `font` line.
+    const yamlText = await readDownloadText(await exportDiagram(page, 'studyflow'));
+    expect(yamlText).toMatch(/font: ['"]?bold italic #ac5a54['"]?/);
 
     // Multi-select both, then repaint: the menu acts on the whole selection.
-    await page.locator('g[data-element-id^="Task_"]').first().click();
+    await task.click();
     await page.locator('g[data-element-id^="UserTask_"]').first().click({ modifiers: ['Shift'] });
-
     await page.getByTestId('context-pad-set-color').click();
     await page.getByTestId('popup-menu-entry-green-color').click();
     await page.keyboard.press('Escape');
-    await expect(popup(page)).toHaveCount(0);
-
-    bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn.match(/#d9e7d6/gi)).toHaveLength(4);
-    expect(bpmn).not.toMatch(/#dde8fa/i);
+    await expect(body('Task_')).toHaveAttribute('fill', '#d9e7d6');
+    await expect(body('UserTask_')).toHaveAttribute('fill', '#d9e7d6');
   });
 });

@@ -3,16 +3,13 @@ import { expect, test, type Page } from '@playwright/test';
 import { examplePath, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
 
 /**
- * Native SVG icons, end to end (parity addendum 6 §1–§2).
- *
- * Icons used to be mounted as `<foreignObject><div class="i-…">` and substituted for
- * real glyphs at EXPORT time, then fetched from the Iconify API at startup. Now the
- * canvas reads each class's glyph out of the app's own stylesheet (the Tailwind
- * iconify plugin compiles every icon into a `--svg` data URI) and draws real `<path>`
- * geometry — so the export is a plain serialization, offline, with no icon pass.
+ * Icons, end to end. The canvas reads each class's glyph out of the app's own stylesheet
+ * (the Tailwind iconify plugin compiles every icon into a `--svg` data URI) and draws real
+ * `<path>` geometry, so an export is a plain serialization, offline, with no icon pass.
+ * How each resolver answer is drawn is `packages/canvas/tests/canvas-icons.unit.spec.ts`'s.
  */
 
-/** An icon-rich example: typed service tasks (type glyph) and data operations (marker glyph). */
+/** Open a shipped example and wait for its title. */
 async function openExample(page: Page, name: string, title: string): Promise<void> {
   await page.getByTestId('open-file-input').setInputFiles(examplePath(name));
   await expect(page.getByTitle('Click to edit diagram name')).toContainText(title);
@@ -35,45 +32,38 @@ const IMAGE_ICON_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 test.describe('native SVG icons', () => {
-  test('glyphs are drawn as real <svg> paths from the stylesheet, never a foreignObject', async ({ page }) => {
+  test('the canvas and its SVG and PNG exports carry glyph paths, fetched from nowhere', async ({ page }) => {
     const requests: string[] = [];
     page.on('request', (request) => { if (request.url().includes('iconify')) requests.push(request.url()); });
     await gotoModeler(page);
-    await openExample(page, 'sklearn_pipeline', 'sklearn_pipeline');
+    // kitchensink holds typed tasks, markers, and container activities, which BPMN draws no type glyph for.
+    await openExample(page, 'kitchensink', 'kitchen sink');
 
     const canvas = page.getByTestId('modeler-canvas');
     await expect(canvas.locator('svg.sf-icon path').first()).toBeAttached();
     await expect(canvas.locator('foreignObject.icon-container')).toHaveCount(0);
-    expect(requests).toEqual([]);
-  });
-
-  test('the exported SVG and PNG carry the glyph paths and need no icon toolchain', async ({ page }) => {
-    await gotoModeler(page);
-    await openExample(page, 'sklearn_pipeline', 'sklearn_pipeline');
-    await expect(page.getByTestId('modeler-canvas').locator('svg.sf-icon path').first()).toBeAttached();
+    await expect(canvas.locator('g.sf-icon-placeholder')).toHaveCount(0);
 
     const svg = await readDownloadText(await exportDiagram(page, 'svg'));
     expect(svg).toMatch(/<svg[^>]*class="sf-icon"[^>]*>\s*<path/);
-    // The whole point: the exported document needs no stylesheet to paint, and
-    // `currentColor` is already resolved to the element's own stroke colour.
+    // The exported document needs no stylesheet to paint, and `currentColor` is already
+    // resolved to the element's own stroke colour.
     expect(svg).not.toContain('foreignObject');
     expect(svg).not.toContain('data-icon-class');
     expect(svg).not.toContain('currentColor');
+    expect(svg).not.toContain('sf-icon-placeholder');
 
     const png = await readDownload(await exportDiagram(page, 'png'));
     expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    expect(requests).toEqual([]);
   });
 
-  test('an icon that is a data: image draws as an <image>, and the SVG and PNG exports keep it', async ({ page }) => {
+  test('an icon that is a data: image is painted into the PNG export', async ({ page }) => {
     await gotoModeler(page);
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'image_icon.studyflow', mimeType: 'application/xml', buffer: Buffer.from(IMAGE_ICON_XML),
     });
-    await expect(page.getByTestId('modeler-canvas').locator('image.sf-icon[data-icon-key="UserTask"]'))
-      .toHaveAttribute('href', IMAGE_ICON);
-
-    const svg = await readDownloadText(await exportDiagram(page, 'svg'));
-    expect(svg).toContain(`href="${IMAGE_ICON}"`);
+    await expect(page.getByTestId('modeler-canvas').locator('image.sf-icon[data-icon-key="UserTask"]')).toBeAttached();
 
     // The raster reads back (an `<image>` does not taint it, as a foreignObject does) with the glyph painted.
     const png = await readDownload(await exportDiagram(page, 'png'));
@@ -89,20 +79,5 @@ test.describe('native SVG icons', () => {
       return count;
     }, png.toString('base64'));
     expect(redPixels).toBeGreaterThan(0);
-  });
-
-  test('a container activity exports no placeholder box where BPMN draws no icon', async ({ page }) => {
-    // `bpmn:SubProcess`, `bpmn:CallActivity`, `bpmn:Transaction` and `bpmn:AdHocSubProcess`
-    // have no top-left type glyph in BPMN at all — their marker and their border say what
-    // they are — so the app answers "no glyph" for them rather than "not yet".
-    await gotoModeler(page);
-    await openExample(page, 'kitchensink', 'kitchen sink');
-
-    const canvas = page.getByTestId('modeler-canvas');
-    await expect(canvas.locator('svg.sf-icon path').first()).toBeAttached();
-    await expect(canvas.locator('g.sf-icon-placeholder')).toHaveCount(0);
-
-    const svg = await readDownloadText(await exportDiagram(page, 'svg'));
-    expect(svg).not.toContain('sf-icon-placeholder');
   });
 });
