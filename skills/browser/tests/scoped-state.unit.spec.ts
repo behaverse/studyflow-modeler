@@ -216,6 +216,14 @@ test.describe('which branch a gateway takes', () => {
     expect(visited).toEqual(['Start', ...arms, 'Done']);
   });
 
+  test('a draw is the one skills/local/run.py makes, to the bit', () => {
+    // [seed, gateway id, visit, draw]; skills/local/test_run.py asserts the same rows against run.py's `draw`.
+    const rows: [number, string, number, number][] = JSON.parse(readFileSync(path.join(process.cwd(), 'tests/fixtures/draws.json'), 'utf8'));
+    for (const [seed, gateway, visit, value] of rows) {
+      expect(draw(seed, gateway, visit), `draw(${seed}, '${gateway}', ${visit})`).toBe(value);
+    }
+  });
+
   test('no condition held and no default: the one flow without a condition is taken; with two, the run stops', async () => {
     expect(await visits(new Session(await load(NO_DEFAULT(['Otherwise'])), { catalog }))).toEqual(['Start', 'Otherwise']);
     await expect(visits(new Session(await load(NO_DEFAULT(['First', 'Second'])), { catalog })))
