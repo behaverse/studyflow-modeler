@@ -18,6 +18,22 @@ async function openExample(page: Page, name: string, title: string): Promise<voi
   await expect(page.getByTitle('Click to edit diagram name')).toContainText(title);
 }
 
+/** A user task whose icon is a `data:` image: red, so the raster shows whether it was painted. */
+const IMAGE_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" fill="#f00"/></svg>')}`;
+const IMAGE_ICON_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="Defs" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process" isExecutable="false">
+    <bpmn:userTask id="Task" name="Ask" studyflow:icon="${IMAGE_ICON}" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram">
+    <bpmndi:BPMNPlane id="Plane" bpmnElement="Process">
+      <bpmndi:BPMNShape id="Task_di" bpmnElement="Task"><dc:Bounds x="100" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
 test.describe('native SVG icons', () => {
   test('glyphs are drawn as real <svg> paths from the stylesheet, never a foreignObject', async ({ page }) => {
     const requests: string[] = [];
@@ -46,6 +62,33 @@ test.describe('native SVG icons', () => {
 
     const png = await readDownload(await exportDiagram(page, 'png'));
     expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  });
+
+  test('an icon that is a data: image draws as an <image>, and the SVG and PNG exports keep it', async ({ page }) => {
+    await gotoModeler(page);
+    await page.getByTestId('open-file-input').setInputFiles({
+      name: 'image_icon.studyflow', mimeType: 'application/xml', buffer: Buffer.from(IMAGE_ICON_XML),
+    });
+    await expect(page.getByTestId('modeler-canvas').locator('image.sf-icon[data-icon-key="UserTask"]'))
+      .toHaveAttribute('href', IMAGE_ICON);
+
+    const svg = await readDownloadText(await exportDiagram(page, 'svg'));
+    expect(svg).toContain(`href="${IMAGE_ICON}"`);
+
+    // The raster reads back (an `<image>` does not taint it, as a foreignObject does) with the glyph painted.
+    const png = await readDownload(await exportDiagram(page, 'png'));
+    const redPixels = await page.evaluate(async (base64) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${base64}`;
+      await image.decode();
+      const context = Object.assign(document.createElement('canvas'), { width: image.width, height: image.height }).getContext('2d')!;
+      context.drawImage(image, 0, 0);
+      const { data } = context.getImageData(0, 0, image.width, image.height);
+      let count = 0;
+      for (let i = 0; i < data.length; i += 4) if (data[i] > 200 && data[i + 1] < 50 && data[i + 2] < 50) count += 1;
+      return count;
+    }, png.toString('base64'));
+    expect(redPixels).toBeGreaterThan(0);
   });
 
   test('a container activity exports no placeholder box where BPMN draws no icon', async ({ page }) => {

@@ -83,6 +83,18 @@ test('a resolver returning inline content draws a real <svg> with paths, not a f
   expect(svg).not.toContain('foreignObject');
 });
 
+test('a resolver returning an image URL draws an <image>, and export keeps it', async () => {
+  // A type's icon may be a `data:` URL rather than a class. Drawn as an `<image>` it
+  // cannot run script, whatever document it came in, and it is no placeholder to drop.
+  const href = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${GLYPH}</svg>`)}`;
+  const canvas = await load(() => ({ href }));
+
+  const g = graphics(canvas, 'Task_1');
+  expect(g.querySelector('image.sf-icon[data-icon-key="UserTask"]')!.getAttribute('href')).toBe(href);
+  expect(g.querySelectorAll('foreignObject')).toHaveLength(0);
+  expect(canvas.toSVG()).toContain(`href="${href}"`);
+});
+
 test('an unresolved class falls back to the foreignObject placeholder', async () => {
   const canvas = await load(() => ({ cssClass: 'iconify bi--person' }));
 

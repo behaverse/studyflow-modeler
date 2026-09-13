@@ -1,6 +1,6 @@
 /**
  * Icons. The host resolves a key (a marker name, a BPMN local name) to a glyph:
- * inline SVG paths, an SVG body, or a CSS class the host's icon pipeline paints.
+ * inline SVG paths, an SVG body, a CSS class the host's icon pipeline paints, or an image.
  */
 
 import type { ModdleObject } from '@canvas/model/scene.ts';
@@ -22,7 +22,15 @@ export interface CssIconDef {
   cssClass: string;
 }
 
-export type IconDef = SvgIconDef | CssIconDef | InlineSvgIconDef;
+/**
+ * An image URL, drawn as an SVG `<image>`: it keeps its own colours, and runs no script
+ * however the document came by it. The browser loads `href`, so hand it only a `data:` URL.
+ */
+export interface ImageIconDef {
+  href: string;
+}
+
+export type IconDef = SvgIconDef | CssIconDef | InlineSvgIconDef | ImageIconDef;
 
 /** `undefined`: unknown key, draw a placeholder. `null`: this key has no glyph, draw nothing. */
 export type IconResolver = (iconKey: string, businessObject?: ModdleObject) => IconDef | null | undefined;
@@ -84,6 +92,11 @@ export function drawIcon(
         : drawCssIcon(container, resolved.cssClass, x, y, size, color, iconKey);
     }
     if (isInlineIcon(resolved)) return drawInlineSvgIcon(container, resolved, x, y, size, color, iconKey);
+    if ('href' in resolved) {
+      return append(container, create('image', {
+        x, y, width: size, height: size, href: resolved.href, class: 'sf-icon', 'data-icon-key': iconKey,
+      }));
+    }
     return drawSvgPaths(container, resolved, x, y, size, size, color, iconKey);
   }
   return drawPlaceholder(container, iconKey, x, y, size, color);

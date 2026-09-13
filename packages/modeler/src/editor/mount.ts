@@ -22,8 +22,11 @@ export type MountEditorOptions = {
   extensionSchemas: Record<string, any>;
 };
 
-/** A class the app's stylesheet paints; the canvas inlines its glyph from the CSS. */
-const iconFor = (cssClass: string): IconDef => ({ cssClass });
+/**
+ * A `data:` image draws as itself (a URL to fetch does not: nothing fetches an icon); anything
+ * else is a class the app's stylesheet paints, whose glyph the canvas inlines from the CSS.
+ */
+const iconFor = (icon: string): IconDef => (/^data:image\//i.test(icon) ? { href: icon } : { cssClass: icon });
 
 /**
  * The app's glyph pipeline as the canvas's icon resolver: a marker name or a BPMN
@@ -38,8 +41,8 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
     const templateIcon = getRawAttribute(element.extension ?? businessObject, 'icon');
     const extEntry = element.extensionType ? getCatalog().getType(element.extensionType) : undefined;
     const bpmnFallback = iconKey === 'DataObjectReference' ? undefined : BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
-    const cssClass = templateIcon || extEntry?.iconClass || bpmnFallback;
-    if (typeof cssClass === 'string' && cssClass) return iconFor(cssClass);
+    const icon = templateIcon || extEntry?.iconClass || bpmnFallback;
+    if (typeof icon === 'string' && icon) return iconFor(icon);
   }
   return SVG_ICON_PATHS[iconKey] ?? null;
 }
