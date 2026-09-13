@@ -359,6 +359,53 @@ test.describe('partial runner hand-off', () => {
     expect(moments.get('start Answer')!).toBeLessThan(moments.get('end Play')!);
     expect(moments.get('start Play')!).toBeLessThan(moments.get('end Answer')!);
   });
+
+  test('records a staged input under the hand-off that reads it, not one running beside it', async () => {
+    // Two pools at once: Load cites the input by name and its runner stages it; Wait reads nothing and outlasts Load.
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="A">
+    <bpmn:startEvent id="A0"><bpmn:outgoing>AF1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Wait"><bpmn:incoming>AF1</bpmn:incoming><bpmn:outgoing>AF2</bpmn:outgoing></bpmn:task>
+    <bpmn:endEvent id="A9"><bpmn:incoming>AF2</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="AF1" sourceRef="A0" targetRef="Wait"/>
+    <bpmn:sequenceFlow id="AF2" sourceRef="Wait" targetRef="A9"/>
+  </bpmn:process>
+  <bpmn:process id="B">
+    <bpmn:startEvent id="B0"><bpmn:outgoing>BF1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Load"><bpmn:incoming>BF1</bpmn:incoming><bpmn:outgoing>BF2</bpmn:outgoing>
+      <studyflow:additionalArguments>data: "{inputs}"</studyflow:additionalArguments>
+    </bpmn:task>
+    <bpmn:dataObjectReference id="X" name="inputs" studyflow:uri="x.json"/>
+    <bpmn:endEvent id="B9"><bpmn:incoming>BF2</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="BF1" sourceRef="B0" targetRef="Load"/>
+    <bpmn:sequenceFlow id="BF2" sourceRef="Load" targetRef="B9"/>
+  </bpmn:process>
+</bpmn:definitions>`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-staged-'));
+    fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    fs.writeFileSync(path.join(dir, 'x.json'), '[]');
+    // A runner that stages x.json from the plan's first source while running Load, and only waits while running Wait.
+    fs.writeFileSync(path.join(dir, 'fake.py'), [
+      'import json, os, shutil, sys, time',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Wait', 'Load']))",
+      'else:',
+      '    eid, cache = sys.argv[3], sys.argv[5]',
+      "    time.sleep(0.2 if eid == 'Load' else 0.8)",
+      "    if eid == 'Load':",
+      "        shutil.copyfile(os.path.join(json.load(open(plan))['sources'][0], 'x.json'), os.path.join(os.path.dirname(cache), 'x.json'))",
+      "    handoff = os.path.join(cache, eid + '.state.json')",
+      '    state = json.load(open(handoff))',
+      "    json.dump({**state, 'result': eid, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
+      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
+
+    const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
+    expect(log.match(/▤ stage x\.json/g)).toHaveLength(1);
+  });
 });
 
 /** `studyflow run` hands run.py a YAML or PNG study as a temporary `.bpmn`, and tells it where the original lives. */

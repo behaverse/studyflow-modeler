@@ -1116,14 +1116,15 @@ class Runner:
         entry["implementation"] = element.get("implementation") or f"runner://{runner.name}"
         self.event("runner.called", f"    → the {runner.name} runner takes this element")
         sent = self.json_values()
-        # A runner stages the boundary inputs it reads: one the repo lacks before the hand-off and holds after it
-        # was imported by this run.
-        # ponytail: every boundary input is checked, so one staged meanwhile by another pool's hand-off shows here
-        # too; check only this element's inputs if that matters.
+        # A runner stages the boundary inputs it reads, by data edge or by `{name}` in its arguments: one the repo
+        # lacks before the hand-off and holds after it was imported by this run. Only the element's own are checked,
+        # so one that another pool's hand-off stages meanwhile is recorded there, not here.
         flow = self.studyflow
+        cited, _ = flow.activity_dependencies(element)
+        reads = cited | {data_id for data_id, name in flow.bound_names.items() if name in cited}
         absent = {
             data_id: uri for data_id in flow.elements
-            if (uri := flow.artifact(data_id)[0]) and not flow.is_product(data_id)
+            if data_id in reads and (uri := flow.artifact(data_id)[0]) and not flow.is_product(data_id)
             and not (self.repo_dir / uri).exists()
         }
         reported = runner.element(element_id, sent)
