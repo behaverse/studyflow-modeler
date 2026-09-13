@@ -36,8 +36,10 @@ test('resolves like a static host', () => {
   expect(resolveFile(root, '/%CF%80')).toEqual({ redirect: '/%CF%80/' });
 });
 
-test('serves over http', async () => {
-  const server = await serveUi(root);
+test('serves over http, and serves the file `studyflow edit <file>` opens, reading it afresh', async () => {
+  const study = join(root, 'my study.studyflow');
+  writeFileSync(study, 'id: one');
+  const server = await serveUi(root, '127.0.0.1', 0, { '/open/my%20study.studyflow': study });
   const address = server.address();
   const origin = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
   try {
@@ -53,18 +55,7 @@ test('serves over http', async () => {
     expect(run.status).toBe(301);
     expect(run.headers.get('location')).toBe('/run/');
     expect((await fetch(`${origin}/nope`)).status).toBe(404);
-  } finally {
-    server.close();
-  }
-});
 
-test('serves the file `studyflow edit <file>` opens, reading it afresh', async () => {
-  const study = join(root, 'my study.studyflow');
-  writeFileSync(study, 'id: one');
-  const server = await serveUi(root, '127.0.0.1', 0, { '/open/my%20study.studyflow': study });
-  const address = server.address();
-  const origin = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
-  try {
     expect(await (await fetch(`${origin}/open/my%20study.studyflow`)).text()).toBe('id: one');
     writeFileSync(study, 'id: two');
     expect(await (await fetch(`${origin}/open/my%20study.studyflow?x=1`)).text()).toBe('id: two');
