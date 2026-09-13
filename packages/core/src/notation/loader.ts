@@ -11,8 +11,8 @@ const manifestSources = import.meta.glob('@skills/*/SKILL.md', {
   eager: true,
 }) as Record<string, string>;
 
-/** Every YAML under the skills, by path; a skill's `schema` picks its own out of these. */
-const yamlSources = import.meta.glob('@skills/*/**/*.yaml', {
+/** Every YAML under the skills but their examples, by path; a skill's `schema` picks its own out of these. */
+const yamlSources = import.meta.glob(['@skills/*/**/*.yaml', '!**/examples/**'], {
   query: '?raw',
   import: 'default',
   eager: true,
