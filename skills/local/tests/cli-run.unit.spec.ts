@@ -407,5 +407,7 @@ S:
     expect(fs.readFileSync(path.join(dir, 'run', 'counts.json'), 'utf8')).toBe('[1, 2, 3]');
     // The plan it archives is named for the study, not `dump.studyflow.bpmn`.
     expect(fs.existsSync(path.join(dir, 'run', 'dump.bpmn'))).toBe(true);
+    // The walk records the input the python runner staged.
+    expect(fs.readFileSync(path.join(dir, 'run', 'dump.bpmn'), 'utf8')).toMatch(/id="counts"[^>]*>\s*<bpmn:extensionElements>\s*<\w+:activity action="imported"/);
   });
 });

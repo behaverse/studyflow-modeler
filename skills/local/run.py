@@ -1122,6 +1122,16 @@ class Runner:
         entry["implementation"] = element.get("implementation") or f"runner://{runner.name}"
         self.event("runner.called", f"    → the {runner.name} runner takes this element")
         sent = self.json_values()
+        # A runner stages the boundary inputs it reads: one the repo lacks before the hand-off and holds after it
+        # was imported by this run.
+        # ponytail: every boundary input is checked, so one staged meanwhile by another pool's hand-off shows here
+        # too; check only this element's inputs if that matters.
+        flow = self.studyflow
+        absent = {
+            data_id: uri for data_id in flow.elements
+            if (uri := flow.artifact(data_id)[0]) and not flow.is_product(data_id)
+            and not (self.repo_dir / uri).exists()
+        }
         reported = runner.element(element_id, sent)
         entry["_runnerMs"] = reported.get("durationMs")
         with self.lock:
@@ -1133,6 +1143,11 @@ class Runner:
                             self.state.tree.setdefault(scope, {}).update(held)
                 elif key not in ("result", "durationMs", "error") and sent.get(key, ...) != value:
                     self.store(key, value)
+        for data_id, uri in absent.items():
+            path = self.repo_dir / uri
+            if path.exists():
+                self.staged[data_id] = self.moment()
+                self.event("artifact.staged", f"    ▤ stage {uri}  {human_bytes(path.stat().st_size)}")
         targets = output_targets(element)
         if targets:
             entry["generated"] = targets
