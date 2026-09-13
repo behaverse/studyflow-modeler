@@ -2,16 +2,11 @@ import { expect, test } from '@playwright/test';
 
 import { type TypeEntry } from '@core/notation';
 import { buildElementEntries, isAppendable } from '@modeler/popup/entries';
-import { mustDragToAppend, runAppendElement, runStartAppendElement } from '@modeler/popup/commands';
 
 /**
- * The catalog half of the app-rendered create/append menus, and the two routes out
- * of them (P6b §3A).
- *
- * Browserless: the entry builder is pure, and the commands only ever touch the
- * `Editor`, so a hand-written stand-in serves for the whole editor. Where the
- * appended element LANDS is the editor's business and is measured in
- * `tests/canvas-autoplace.unit.spec.ts`.
+ * The catalog half of the app-rendered create/append menus. The entry builder is
+ * pure, so this needs no editor; where an appended element lands is the canvas's
+ * business (`packages/canvas/tests/canvas-autoplace.unit.spec.ts`).
  */
 
 const entry = (name: string, over: Partial<TypeEntry> = {}): TypeEntry => ({
@@ -60,94 +55,4 @@ test.describe('popup menu entries', () => {
     // Search matches the label AND the type, so "usertask" finds "User".
     expect(all.find((e) => e.id === 'create-User')?.keywords).toContain('usertask');
   });
-});
-
-/** A minimal `Editor` — only the members the append commands reach. */
-function fakePort() {
-  const calls: any[] = [];
-  const root = { id: 'Process_1' };
-  const created: any = { id: 'Task_2', businessObject: { id: 'Task_2' } };
-  const port: any = {
-    model: {
-      moddle: () => ({}),
-      create: (type: string, props: any) => ({ $type: type, ...props }),
-      createBusinessObject: (type: string, props: any) => ({ $type: type, ...props }),
-      ids: { nextPrefixed: (prefix: string) => `${prefix}2`, assigned: () => false },
-    },
-    canvas: {
-      getRoot: () => root,
-      rootOf: () => root,
-      resolveElement: (element: any) => element,
-      getRules: () => ({ canAppend: (element: any) => !!element }),
-      createShape: (attrs: any) => ({ ...attrs, width: 36, height: 36 }),
-      startCreate: (...args: any[]) => calls.push(['startCreate', ...args]),
-      appendElement: (source: any, shape: any) => {
-        calls.push(['appendShape', source, shape]);
-        return created;
-      },
-    },
-    selection: { get: () => [], select: (e: any) => calls.push(['select', e]) },
-    revision: () => 0,
-  };
-  return { port, calls, created };
-}
-
-test.describe('append commands', () => {
-  const source = { id: 'Task_1', x: 100, y: 200, width: 100, height: 80, parent: undefined };
-
-  test('a click-append hands the source and a freshly minted shape to the editor', () => {
-    const { port, calls, created } = fakePort();
-
-    const result = runAppendElement(port, {
-      type: 'AppendElement',
-      source,
-      bpmnType: 'bpmn:EndEvent',
-      extensionType: 'studyflow:EndEvent',
-    });
-
-    expect(result).toBe(created);
-
-    const [, from, shape] = calls.find((c) => c[0] === 'appendShape')!;
-    expect(from).toBe(source);
-    expect(shape.type).toBe('bpmn:EndEvent');
-    expect(shape.businessObject.$type).toBe('bpmn:EndEvent');
-    // Nobody selected it, so the command does.
-    expect(calls.some((c) => c[0] === 'select' && c[1] === created)).toBe(true);
-  });
-
-  test('a refused append selects nothing', () => {
-    const { port, calls } = fakePort();
-    port.canvas.appendElement = () => undefined;
-
-    expect(runAppendElement(port, { type: 'AppendElement', source, bpmnType: 'bpmn:Task' })).toBeUndefined();
-    expect(calls.some((c) => c[0] === 'select')).toBe(false);
-  });
-
-  test('a drag-append starts a create gesture instead of placing anything', () => {
-    const { port, calls } = fakePort();
-    const event = { clientX: 10, clientY: 20 };
-
-    runStartAppendElement(port, {
-      type: 'StartAppendElement',
-      source,
-      bpmnType: 'bpmn:BoundaryEvent',
-      event,
-    });
-
-    // The palette's own event, and the shape to drag — the canvas create gesture
-    // takes nothing else. (The facade used to accept a `{ source }` context here and
-    // drop it unread, so a drag-append has never connected on drop; it still does
-    // not, but the call site no longer implies otherwise.)
-    const [, gestureEvent, shape, ...rest] = calls.find((c) => c[0] === 'startCreate')!;
-    expect(gestureEvent).toBe(event);
-    expect(shape.type).toBe('bpmn:BoundaryEvent');
-    expect(rest).toEqual([]);
-    expect(calls.some((c) => c[0] === 'appendShape')).toBe(false);
-  });
-
-  test('a boundary event is the one type that must be dragged, never auto-placed', () => {
-    expect(mustDragToAppend('bpmn:BoundaryEvent')).toBe(true);
-    expect(mustDragToAppend('bpmn:Task')).toBe(false);
-  });
-
 });

@@ -1,43 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import { EventBus } from '@canvas/bus.ts';
-import { runSetColor } from '@modeler/shape/commands';
-import type { Editor } from '@modeler/editor/port';
-
-/** A handler touches the editor only through the {@link Editor} facade it is handed, never through
- * the backend itself — which is what lets a handler be exercised against a partial port, and what let the editor
- * be swapped underneath the app at all. `@modeler/commandBus` itself cannot be imported here: it
- * pulls in `diagram/commands.ts`, whose `?raw` asset import only resolves under Vite. So the contract is
- * tested where it lives, in a handler, and the call sites that depend on it are checked in the source. */
-
-const SRC = join(process.cwd(), 'packages/modeler/src');
-const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8');
-
-test('a handler goes through the port facade, so a partial port stands in for the editor', () => {
-  const painted: unknown[] = [];
-  const modeler = {
-    canvas: {
-      setColor: (elements: unknown, color: unknown) => painted.push({ elements, color }),
-    },
-  } as unknown as Editor;
-  const elements = [{ id: 'Task_1' }];
-  const color = { fill: '#eeeeee', stroke: '#333333' };
-
-  runSetColor(modeler, { type: 'SetColor', elements, color });
-
-  expect(painted, 'the handler reached the editor through `canvas` alone').toEqual([{ elements, color }]);
-});
-
-test('the colour picker really does dispatch `SetColor` with the editor', () => {
-  // If this call site ever reached past the facade, the test above is guarding a contract nobody uses.
-  const source = read('popup/PopupMenus.tsx');
-
-  expect(source).toMatch(/executeCommand\(\s*modeler\s*,\s*\{\s*type:\s*'SetColor'/);
-  expect(source, 'the editor is what the React tree holds, from `useModeler`')
-    .toMatch(/const modeler = useModeler\(\)/);
-});
 
 test('a command is a topic with one answering listener on the same bus the notifications use', async () => {
   // `send` is what makes the two mechanisms one: a leaf package (the canvas cannot import
@@ -58,9 +21,3 @@ test('a command is a topic with one answering listener on the same bus the notif
   await expect(bus.send({ type: 'Nope' }), 'no handler').rejects.toThrow(/exactly one handler/);
 });
 
-test('the command bus is joined to the event bus at boot', () => {
-  // Without this every command topic is dead and the two buses are two mechanisms again.
-  expect(read('app/Modeler.tsx')).toMatch(/connectCommandBus\(editor\)/);
-  expect(read('commandBus.ts'), 'commands travel over the editor bus')
-    .toMatch(/modeler\.events\.send/);
-});

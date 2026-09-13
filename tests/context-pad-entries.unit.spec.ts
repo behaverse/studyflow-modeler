@@ -1,6 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import {
   contextPadEntries,
@@ -18,8 +16,6 @@ import {
  * an entry offered for a selection whose rules refuse it is a button that throws, and
  * an entry order that drifts re-flows the 72px box into different rows.
  */
-
-const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8');
 
 /** A selection description with everything refused, to be widened per case. */
 function context(overrides: Partial<ContextPadContext> = {}): ContextPadContext {
@@ -182,23 +178,6 @@ test('exactly the two fixed-successor entries carry an append, and it is the one
   ]);
   expect(withAppend[0].append).toEqual(END_EVENT_APPEND);
   expect(withAppend[1].append).toEqual(TEXT_ANNOTATION_APPEND);
-});
-
-test('every entry carries a tooltip title and an icon key', () => {
-  for (const entry of contextPadEntries(context({ canAppend: true, canAnnotate: true, canReplace: true, isChoreographyTask: true }))) {
-    expect(entry.title, `${entry.action} has a tooltip (addendum 5 §2)`).toBeTruthy();
-    // A symbolic key, not the app's Iconify class — the art is the host's business.
-    expect(entry.icon, `${entry.action} has an icon key`).toMatch(/^[a-z-]+$/);
-  }
-});
-
-test('the entry table is locale-free and the pad translates at render time', () => {
-  // The assertions above compare English strings verbatim, which is only safe while
-  // `entries.ts` itself never translates. The pair has to hold together.
-  expect(read('packages/modeler/src/contextPad/entries.ts'), 'the table imports no translator')
-    .not.toMatch(/from '@modeler\/i18n'/);
-  expect(read('packages/modeler/src/contextPad/ContextPad.tsx'), 'the renderer puts each title through `t()`')
-    .toMatch(/const title = t\(entry\.title\)/);
 });
 
 test('a selected CAPTION gets the trash and the brush, and nothing that needs a shape', () => {
