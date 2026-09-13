@@ -20,7 +20,7 @@ export type BridgeTrial = {
 
 export type BridgeReply = { response: string; agentId: string };
 
-export const DEFAULT_BRIDGE_URL = 'ws://localhost:8765';
+const DEFAULT_BRIDGE_URL = 'ws://localhost:8765';
 
 export function readBridgeUrl(bot: unknown): string {
   if (bot && typeof bot === 'object') {

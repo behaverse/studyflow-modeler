@@ -23,7 +23,7 @@ export function draw(seed: number, gatewayId: string, visit: number): number {
   return mulberry32(hash)();
 }
 
-export class UndeclaredReference extends Error {
+class UndeclaredReference extends Error {
   readonly reference: string;
 
   constructor(reference: string) {

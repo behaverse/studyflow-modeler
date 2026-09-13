@@ -10,7 +10,7 @@ type OllamaChatResponse = {
   error?: string;
 };
 
-export async function callClaude(req: ProviderRequest, proxyUrl: string): Promise<string> {
+async function callClaude(req: ProviderRequest, proxyUrl: string): Promise<string> {
   const res = await fetch(`${proxyUrl}/respond`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -27,7 +27,7 @@ export async function callClaude(req: ProviderRequest, proxyUrl: string): Promis
   return data.response;
 }
 
-export async function callOllama(req: ProviderRequest, ollamaUrl: string): Promise<string> {
+async function callOllama(req: ProviderRequest, ollamaUrl: string): Promise<string> {
   const userMessage: Record<string, unknown> = { role: 'user', content: req.user };
   if (req.image) userMessage.images = [req.image.data];
 

@@ -155,7 +155,7 @@ function compileCategories(raw: unknown): CategoryEntry[] {
 }
 
 /** The one role a type's BPMN attach point implies; every other role is a skill's to declare in a `roles` annotation. */
-export function inferRoles(bpmnType: string | null): TypeRole[] {
+function inferRoles(bpmnType: string | null): TypeRole[] {
   return bpmnType && isBpmnSubtypeOf(bpmnType, 'bpmn:ItemAwareElement') ? ['data-element'] : [];
 }
 

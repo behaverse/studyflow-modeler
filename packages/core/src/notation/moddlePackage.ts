@@ -86,7 +86,7 @@ export const MODDLE_BUILTIN_TYPES: ReadonlySet<string> = new Set([
   'String', 'Boolean', 'Integer', 'Real', 'Element',
 ]);
 
-export const MODDLE_SIMPLE_TYPES: ReadonlySet<string> = new Set([
+const MODDLE_SIMPLE_TYPES: ReadonlySet<string> = new Set([
   'String', 'Boolean', 'Integer', 'Real',
 ]);
 
