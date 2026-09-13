@@ -444,6 +444,27 @@ Study:
     expect(xml).toContain('studyflow:icon="iconify ph--link"');
   });
 
+  test('a flow node at the top level, which BPMN drops, is flagged by `studyflow validate` as by the modeler on open', async () => {
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const text = `id: s
+definitions: {}
+Study:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+Loose:
+  type: ServiceTask
+`;
+    const read: string[] = [];
+    const xml = await studyflowToXml(text, moddle, (message) => read.push(message));
+    const opened: string[] = [];
+    await fromWireXml(xml, moddle, (message) => opened.push(message));
+
+    expect(read).toEqual(["unrecognized element <bpmn:ServiceTask> 'Loose' at the top level, which holds only root elements such as a process or a collaboration"]);
+    expect(opened).toEqual([expect.stringContaining('unrecognized element <bpmn:serviceTask>')]);
+  });
+
   test('sniffer distinguishes XML from YAML', () => {
     expect(looksLikeXml('<?xml version="1.0"?>\n<definitions/>')).toBe(true);
     expect(looksLikeXml('﻿  <bpmn2:definitions>')).toBe(true);

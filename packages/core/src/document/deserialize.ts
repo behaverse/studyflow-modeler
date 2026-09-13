@@ -278,6 +278,14 @@ export function studyflowToDefinitions(
     },
     'bpmn:Definitions',
   );
+  // A file's top level holds BPMN root elements, and moddle drops anything else there as an "unrecognized element" when
+  // the modeler opens the file. A parsed document is a template's elements, which the modeler places inside a process.
+  if (typeof source === 'string') {
+    for (const root of definitions.rootElements ?? []) {
+      if (root.$instanceOf('bpmn:RootElement')) continue;
+      onWarning(`unrecognized element <${root.$type}>${root.id ? ` '${root.id}'` : ''} at the top level, which holds only root elements such as a process or a collaboration`);
+    }
+  }
   const diagrams = builder.buildDiagrams((doc.diagram as unknown[]) ?? []);
   for (const diagram of diagrams) diagram.$parent = definitions;
   if (diagrams.length > 0) definitions.set('diagrams', diagrams);
