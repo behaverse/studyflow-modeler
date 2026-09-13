@@ -3,7 +3,7 @@ import { extname } from 'node:path';
 
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { looksLikeXml, extractXmlFromPng, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
+import { looksLikeXml, extractXmlFromPng, readerWarning, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
 import { loadAllSchemas } from '@core/notation/loader';
 import type { Moddle } from '@core/element/moddle';
 
@@ -34,16 +34,17 @@ export async function readSource(path: string): Promise<StudyflowSource> {
   return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container: 'text' };
 }
 
-/** The source as BPMN XML, whatever it arrived as. */
-export async function asXml(source: StudyflowSource): Promise<string> {
+/** The source as BPMN XML, whatever it arrived as. XML is passed through unread, so only YAML can warn. */
+export async function asXml(source: StudyflowSource, onWarning?: (message: string) => void): Promise<string> {
   if (source.kind === 'xml') return source.text;
-  return studyflowToXml(source.text, await schemaModdle());
+  return studyflowToXml(source.text, await schemaModdle(), onWarning);
 }
 
 /** The source as `.studyflow` YAML, whatever it arrived as. */
-export async function asYaml(source: StudyflowSource): Promise<string> {
-  const xml = await asXml(source);
-  return xmlToStudyflow(xml, await schemaModdle());
+export async function asYaml(source: StudyflowSource, onWarning?: (message: string) => void): Promise<string> {
+  const xml = await asXml(source, onWarning);
+  // YAML was read on its way to XML; the XML written from it is not the input, so its reading is not reported.
+  return xmlToStudyflow(xml, await schemaModdle(), source.kind === 'xml' ? onWarning : undefined);
 }
 
 export type ParseResult = {
@@ -59,11 +60,7 @@ export async function parseSource(source: StudyflowSource): Promise<ParseResult>
     const definitions = studyflowToDefinitions(source.text, moddle, (message) => warnings.push(message));
     return { definitions, warnings };
   }
-  const { rootElement, warnings: xmlWarnings } = await (moddle as any).fromXML(source.text);
-  // moddle names the element a warning is about; without its id, "unknown attribute <name>" points nowhere.
-  warnings.push(...(xmlWarnings ?? []).map((w: any) => {
-    const message = w?.message ?? String(w);
-    return w?.element?.id ? `${w.element.id}: ${message}` : message;
-  }));
+  const { rootElement, warnings: xmlWarnings } = await moddle.fromXML(source.text);
+  warnings.push(...xmlWarnings.map(readerWarning));
   return { definitions: rootElement, warnings };
 }

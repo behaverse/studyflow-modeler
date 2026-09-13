@@ -58,8 +58,16 @@ export function looksLikeXml(text: string): boolean {
   return /^\uFEFF?\s*</.test(text);
 }
 
-export async function xmlToStudyflow(xml: string, moddle: Moddle): Promise<string> {
-  const { rootElement: definitions } = await moddle.fromXML(xml);
+/** A moddle reader warning as text, led by the id of the element it is about: "unknown attribute <name>" alone points nowhere. */
+export function readerWarning(warning: any): string {
+  const message = warning?.message ?? String(warning);
+  return warning?.element?.id ? `${warning.element.id}: ${message}` : message;
+}
+
+/** `onWarning` hears what the reader could not place, content it drops included; without it, nothing is said. */
+export async function xmlToStudyflow(xml: string, moddle: Moddle, onWarning?: (message: string) => void): Promise<string> {
+  const { rootElement: definitions, warnings } = await moddle.fromXML(xml);
+  if (onWarning) for (const warning of warnings) onWarning(readerWarning(warning));
   inlineIoSpecification(definitions);
   return yaml.dump(definitionsToYamlDoc(definitions), YAML_DUMP_OPTIONS);
 }
@@ -81,8 +89,9 @@ export function fromWireDefinitions(definitions: any): void {
   for (const pass of INBOUND_PASSES) pass(definitions);
 }
 
-export async function studyflowToXml(yamlText: string, moddle: Moddle): Promise<string> {
-  const definitions = studyflowToDefinitions(yamlText, moddle);
+/** `onWarning` as {@link studyflowToDefinitions} takes it: the console when not given. */
+export async function studyflowToXml(yamlText: string, moddle: Moddle, onWarning?: (message: string) => void): Promise<string> {
+  const definitions = studyflowToDefinitions(yamlText, moddle, onWarning);
   expandIoSpecification(definitions);
   const { xml } = await moddle.toXML(definitions, { format: true });
   return xml;

@@ -24,6 +24,8 @@ export type ConvertOptions = {
   /** For a PNG target: draw the image by driving the modeler instead of reusing one. */
   modeler?: boolean;
   origin?: string;
+  /** Write nothing when reading the input raised a warning. */
+  strict?: boolean;
 };
 
 /* Rendering is repo-bound: it drives the modeler's dev server with `@playwright/test`. */
@@ -121,18 +123,25 @@ export async function convert(input: string, output: string, options: ConvertOpt
   const source: StudyflowSource = await readSource(input);
   const format = targetFormat(output);
 
+  // Reading drops what no loaded schema declares, so say what the reader met, as `validate` does.
+  const warnings: string[] = [];
+  const onWarning = (warning: string) => { warnings.push(warning); };
+  const text = format === 'yaml' ? await asYaml(source, onWarning) : await asXml(source, onWarning);
+  for (const warning of warnings) console.warn(`warning: ${warning}`);
+  if (options.strict && warnings.length > 0) throw new Error(`Nothing written to ${output}: reading ${input} raised warnings (--strict).`);
+
   if (format === 'yaml') {
-    await writeFile(output, await asYaml(source), 'utf8');
+    await writeFile(output, text, 'utf8');
     return `Wrote ${output} (studyflow YAML).`;
   }
 
   if (format === 'xml') {
-    await writeFile(output, await asXml(source), 'utf8');
+    await writeFile(output, text, 'utf8');
     return `Wrote ${output} (BPMN XML).`;
   }
 
   if (options.modeler) {
-    const png = await renderPng(input, await asXml(source), options.origin ?? 'http://127.0.0.1:4175');
+    const png = await renderPng(input, text, options.origin ?? 'http://127.0.0.1:4175');
     await writeFile(output, png);
     return `Wrote ${output} (rendered by the modeler).`;
   }
@@ -147,6 +156,6 @@ export async function convert(input: string, output: string, options: ConvertOpt
     );
   }
   const png = new Uint8Array(await readFile(basePath));
-  await writeFile(output, embedStudyflowIntoPng(png, await asXml(source)));
+  await writeFile(output, embedStudyflowIntoPng(png, text));
   return `Wrote ${output} (embedded studyflow into ${basePath === output ? 'the existing image' : basePath}).`;
 }
