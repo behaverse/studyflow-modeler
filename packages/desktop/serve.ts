@@ -34,7 +34,12 @@ const MIME: Record<string, string> = {
 /** The file `urlPath` names under `root`, the way a static host resolves it: a file as is, `/app` as `app.html`,
  * a directory as its `index.html`. Nothing outside `root`. */
 export function resolveFile(root: string, urlPath: string): { file: string } | { redirect: string } | undefined {
-  const rel = decodeURIComponent(urlPath.split('?')[0]);
+  let rel: string;
+  try {
+    rel = decodeURIComponent(urlPath.split('?')[0]);
+  } catch {
+    return undefined; // a malformed escape, like /%E0%A4%A: not found, rather than a URIError that ends the server
+  }
   const file = path.resolve(root, `.${rel}`);
   if (file !== root && !file.startsWith(root + path.sep)) return undefined;
   const isFile = (p: string) => existsSync(p) && statSync(p).isFile();

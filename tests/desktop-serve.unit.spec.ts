@@ -23,6 +23,7 @@ test('resolves like a static host', () => {
   expect(resolveFile(root, '/missing')).toBeUndefined();
   expect(resolveFile(root, '/../../etc/passwd')).toBeUndefined();
   expect(resolveFile(root, '/%2e%2e/%2e%2e/etc/passwd')).toBeUndefined();
+  expect(resolveFile(root, '/%E0%A4%A')).toBeUndefined();
 });
 
 test('serves over http', async () => {
@@ -30,6 +31,8 @@ test('serves over http', async () => {
   const address = server.address();
   const origin = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
   try {
+    // A malformed escape is not found, and the server still answers what follows.
+    expect((await fetch(`${origin}/%E0%A4%A`)).status).toBe(404);
     const app = await fetch(`${origin}/app`);
     expect(app.status).toBe(200);
     expect(app.headers.get('content-type')).toContain('text/html');
