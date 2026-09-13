@@ -9,7 +9,7 @@ It keeps one claim honest: a studyflow is executable as it stands, with no
 companion script telling an engine what the boxes mean. SKILL.md, beside this
 file, specifies the hand-off contract it implements.
 
-    uv run --script run.py 'study.studyflow.png'   # or a .bpmn; `studyflow run` also takes a .studyflow.yaml
+    uv run --script run.py study.bpmn   # BPMN XML; `studyflow run` also takes a .studyflow.yaml or .studyflow.png
 
 This is the core: the walk, the values, the records, and the
 partial-runner hand-offs. A skill is a folder beside this one whose `SKILL.md`
@@ -38,12 +38,10 @@ import random
 import re
 import shlex
 import shutil
-import struct
 import subprocess
 import sys
 import threading
 import time
-import zlib
 
 import yaml
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
@@ -198,54 +196,6 @@ def human_bytes(count: int) -> str:
     return f"{size:.1f} GB"
 
 
-
-def studyflow_from_png(path: Path) -> str:
-    data = path.read_bytes()
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
-        raise ValueError(f"{path} is not a PNG")
-    offset = 8
-    while offset + 8 <= len(data):
-        (length,) = struct.unpack(">I", data[offset:offset + 4])
-        kind = data[offset + 4:offset + 8].decode("ascii", "replace")
-        body = data[offset + 8:offset + 8 + length]
-        if kind in ("iTXt", "tEXt", "zTXt"):
-            keyword, _, rest = body.partition(b"\x00")
-            if keyword == b"studyflow":
-                if kind == "iTXt":
-                    compressed = rest[0]
-                    # flag, method, then language and translated keyword, NUL-terminated.
-                    rest = rest[2:].split(b"\x00", 2)[2]
-                    return zlib.decompress(rest).decode() if compressed else rest.decode()
-                return rest.decode()
-        offset += 12 + length
-    raise ValueError(f"{path} carries no studyflow payload")
-
-
-def embed_studyflow_into_png(data: bytes, xml: str) -> bytes:
-    """Mirrors the modeler's `pngEmbedding.ts`: drop text chunks keyed `studyflow`, splice before IEND."""
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
-        raise ValueError("not a PNG")
-    # iTXt: keyword NUL, flag+method (0 0 = uncompressed), empty language NUL, empty keyword NUL, text.
-    payload = b"studyflow\x00\x00\x00\x00\x00" + xml.encode()
-    chunk = (
-        struct.pack(">I", len(payload)) + b"iTXt" + payload
-        + struct.pack(">I", zlib.crc32(b"iTXt" + payload) & 0xFFFFFFFF)
-    )
-    out = bytearray(data[:8])
-    offset = 8
-    while offset + 8 <= len(data):
-        (length,) = struct.unpack(">I", data[offset:offset + 4])
-        kind = data[offset + 4:offset + 8]
-        body = data[offset + 8:offset + 8 + length]
-        keyword = body.partition(b"\x00")[0] if kind in (b"iTXt", b"tEXt", b"zTXt") else None
-        if kind == b"IEND":
-            out += chunk
-        if keyword != b"studyflow":
-            out += data[offset:offset + 12 + length]
-        offset += 12 + length
-    return bytes(out)
-
-
 def timeline_timestamp(moment: datetime) -> str:
     """ISO 8601, millisecond precision, local numeric offset, fine enough that the timeline's order
     is the log's order. Older files carry coarser second-precision and `Z` stamps."""
@@ -294,7 +244,7 @@ def literal(text: str | None) -> Any:
 
 def read_studyflow(path: Path, stamp: dict[str, str] | None = None) -> Studyflow:
     """`stamp` is this run's record, appended to `state._meta.prov` in the plan text (the copy runs from it)."""
-    xml = studyflow_from_png(path) if path.suffix.lower() == ".png" else path.read_text()
+    xml = path.read_text()
     if stamp:
         process_id = Studyflow(ET.fromstring(xml)).process.get("id") or ""
         record = {name: stamp[name] for name in PROV.TIMELINE_FIELDS if stamp.get(name)}
@@ -481,14 +431,6 @@ def shown(path: Path) -> Path:
     if path.is_relative_to(here):
         return path.relative_to(here)
     return Path("~") / path.relative_to(home) if path.is_relative_to(home) else path
-
-
-def write_plan_copy(source: Path, target: Path, xml: str) -> None:
-    """A PNG diagram keeps its picture and carries `xml` in a text chunk; anything else is the text."""
-    if source.suffix.lower() == ".png":
-        target.write_bytes(embed_studyflow_into_png(source.read_bytes(), xml))
-    else:
-        target.write_text(xml)
 
 
 def skill_dirs() -> list[Path]:
@@ -1511,7 +1453,7 @@ class Runner:
                 action=action, when=moments[element_id], run=run, **extra,
             )
         plan = self.repo_dir / source.name
-        write_plan_copy(source, plan, stamped)
+        plan.write_text(stamped)
         self.event("diagram.archived", f"  → {shown(plan)}", level=logging.DEBUG)
         return plan
 
@@ -1555,7 +1497,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "studyflow", type=Path,
-        help="a .studyflow.png with an embedded studyflow, or a .bpmn/.xml",
+        help="a .bpmn/.xml (`studyflow run` converts a .studyflow.yaml or .studyflow.png into one)",
     )
     parser.add_argument(
         "--repo", type=Path, default=None, metavar="DIR",
@@ -1658,7 +1600,7 @@ def main() -> int:
 
     # Archived before the first step, so a killed run still leaves a readable diagram behind.
     archived = repo_dir / args.studyflow.name
-    write_plan_copy(args.studyflow, archived, studyflow.plan)
+    archived.write_text(studyflow.plan)
     log_event("diagram.archived", f"  → {shown(archived)}", level=logging.DEBUG)
     runner = Runner(
         studyflow, repo_dir,

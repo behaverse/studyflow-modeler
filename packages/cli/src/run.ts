@@ -66,9 +66,10 @@ async function runLocal(
   source: Awaited<ReturnType<typeof readSource>>,
   passthrough: string[],
 ): Promise<number> {
-  // The runners read XML but not YAML; a temporary `.bpmn` is safe because nothing sits beside it to resolve inputs against.
+  // run.py reads a BPMN XML file, so a YAML file or a PNG reaches it as a temporary `.bpmn`. Alone in its
+  // folder, that file leaves boundary inputs to be found in the working directory.
   let target = input;
-  if (source.container === 'text' && source.kind === 'yaml') {
+  if (source.container !== 'text' || source.kind !== 'xml') {
     const dir = await mkdtemp(path.join(tmpdir(), 'studyflow-run-'));
     target = path.join(dir, `${path.basename(input).replace(/\.[^.]*$/, '')}.bpmn`);
     await writeFile(target, await asXml(source), 'utf8');
