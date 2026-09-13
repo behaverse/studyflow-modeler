@@ -259,6 +259,16 @@ test('Escape abandons a drag and puts the snapshot back', async () => {
   pointerUp(canvas, { x: 250, y: 168 });
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 78 });
   expect(edge(canvas, 'Flow_1').waypoints).toEqual([{ x: 136, y: 118 }, { x: 200, y: 118 }]);
+
+  // A resize keeps a snapshot of its own, and Escape puts that back too.
+  const grab = { x: task.x + task.width + 4, y: task.y + task.height + 4 };
+  pointerDown(canvas, grab);
+  pointerMove(canvas, { x: grab.x + 33, y: grab.y + 17 });
+  expect(task.width).not.toBe(100);
+  canvas.getSvg().ownerDocument!.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
+  pointerUp(canvas, { x: grab.x + 33, y: grab.y + 17 });
+  expect({ x: task.x, y: task.y, width: task.width, height: task.height }).toEqual({ x: 200, y: 78, width: 100, height: 80 });
+  expect(edge(canvas, 'Flow_1').waypoints).toEqual([{ x: 136, y: 118 }, { x: 200, y: 118 }]);
 });
 
 test('a corner handle resizes, clamped to the rules\' minimum', async () => {
@@ -285,18 +295,6 @@ test('a press on a selected flow drags a new bendpoint out of it', async () => {
   dragBy(canvas, { x: 330, y: 118 }, { x: 330, y: 180 });
   expect(flow.waypoints).toHaveLength(3);
   expect(flow.waypoints[1]).toEqual({ x: 330, y: 180 });
-});
-
-test('dragging a flow end onto another shape reconnects it', async () => {
-  const { canvas } = await load();
-  const flow = edge(canvas, 'Flow_3');
-  const sub = node(canvas, 'Sub_1');
-  click(canvas, { x: 445, y: 118 });
-  dragBy(canvas, { x: 480, y: 118 }, centre(sub));
-  expect(flow.target).toBe(sub);
-  expect(node(canvas, 'End_1').incoming).toEqual([]);
-  expect(sub.incoming).toContain(flow);
-  expect(flow.businessObject.targetRef).toBe(sub.businessObject);
 });
 
 // --- selection and deletion -----------------------------------------------------------

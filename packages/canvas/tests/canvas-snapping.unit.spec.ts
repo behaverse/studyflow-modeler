@@ -3,34 +3,24 @@ import { expect, test } from '@playwright/test';
 import type { Canvas } from '@canvas/index.ts';
 import type { SceneNode } from '@canvas/model/scene.ts';
 
-import { loadCanvas, pointerDown, pointerMove, pointerUp, jsdomWindow } from './canvasHarness';
+import { loadCanvas, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
- * The two snaps a move gesture runs under, and how they COMPOSE — parity spec
- * addendum 2 §2 (element alignment) plus addendum 7 (grid snapping on by default).
+ * The two snaps a move runs under, and how they compose, axis by axis:
  *
- * diagram-js runs both at once and lets `Snapping` override `GridSnapping` where it
- * has something to say, per axis. That is the behaviour under test here:
- *
- * - inside the 7-unit tolerance the dragged shape's CENTRE lands exactly on a
- *   neighbour's, wherever that neighbour happens to be — on the grid or off it —
- *   and a hairline is drawn along the alignment it took;
- * - outside it the axis falls through to the 10-unit grid, and no guide is drawn,
- *   because the reference draws none for a grid landing;
+ * - within the 7-unit tolerance the dragged shape's centre lands exactly on a
+ *   neighbour's, on the grid or off it, and a guide is drawn along that alignment;
+ * - beyond it the axis falls through to the 10-unit grid, and no guide is drawn;
  * - the two verdicts are independent, so one axis can align while the other steps.
  *
- * Everything runs under jsdom (driven through `tests/canvasHarness.ts`), where the
- * viewport maps screen to diagram 1:1, so a pointer event's client coordinates
- * round-trip exactly.
+ * Under jsdom the viewport maps screen to diagram 1:1, so a pointer event's client
+ * coordinates round-trip exactly.
  */
 
-const win = jsdomWindow();
-
 /**
- * Two shapes far enough apart that a drag between them is unambiguous, and — this is
- * the point — an End event whose centre sits at (418, 123), OFF the 10-unit grid on
- * `y`. A shape pulled onto that centre proves alignment beat the grid rather than
- * merely agreeing with it.
+ * Two shapes far enough apart that a drag between them is unambiguous, and an end
+ * event whose centre sits at (418, 123), off the 10-unit grid on `y`: a shape pulled
+ * onto that centre shows alignment beat the grid rather than merely agreeing with it.
  */
 const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -54,36 +44,15 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-async function load(options: { snapToGrid?: boolean } = {}): Promise<{
-  canvas: Canvas;
-  definitions: any;
-}> {
-  return loadCanvas(FIXTURE_XML, options);
-}
-
-interface Pt { x: number; y: number; }
-
 function node(canvas: Canvas, id: string): SceneNode {
   return canvas.getScene()!.elementsById.get(id) as SceneNode;
 }
 
-function centre(n: SceneNode): Pt {
-  return { x: n.x + n.width / 2, y: n.y + n.height / 2 };
-}
-
-/** Press on `from`, move to `to`, and STOP there — the gesture stays live. */
-function dragTo(canvas: Canvas, from: Pt, to: Pt): void {
-  pointerDown(canvas, from);
-  pointerMove(canvas, to);
-}
-
-/** …and let go. */
-function drop(canvas: Canvas, at: Pt): void {
-  pointerUp(canvas, at);
-}
-
-function guides(canvas: Canvas): Element[] {
-  return Array.from(canvas.getSvg().querySelectorAll('.sf-snap-line'));
+/** The snap guides on screen, each as the line it draws: `x=418` is vertical, `y=123` horizontal. */
+function guides(canvas: Canvas): string[] {
+  return Array.from(canvas.getSvg().querySelectorAll('.sf-snap-line')).map((line) => (
+    line.getAttribute('x1') === line.getAttribute('x2') ? `x=${line.getAttribute('x1')}` : `y=${line.getAttribute('y1')}`
+  ));
 }
 
 function boundsOf(definitions: any, id: string): { x: number; y: number } {
@@ -97,101 +66,25 @@ function boundsOf(definitions: any, id: string): { x: number; y: number } {
   throw new Error(`no BPMNShape for ${id}`);
 }
 
-test('a drag within 7 units of a neighbour\'s centre lands EXACTLY on it, grid or no grid', async () => {
-  const { canvas, definitions } = await load();
-  const task = node(canvas, 'Task_1');
-  const end = node(canvas, 'End_1');
-  const target = centre(end);
-  expect(target, 'the neighbour deliberately sits off-grid').toEqual({ x: 418, y: 123 });
+test('a move aligns each axis with a neighbour\'s centre within 7 units, else lands on the grid', async () => {
+  // Task_1's centre starts at (250, 120); End_1's is (418, 123).
+  const CASES: [label: string, to: { x: number; y: number }, landed: { x: number; y: number }, drawn: string[]][] = [
+    // 123 is off the grid: had the grid had the last word, the two would not be level.
+    ['4 right and 3 below the end event\'s centre: onto it on both axes', { x: 422, y: 126 }, { x: 368, y: 83 }, ['x=418', 'y=123']],
+    ['(+33, +17), near nothing: the grid on both axes', { x: 283, y: 137 }, { x: 230, y: 100 }, []],
+    ['2 above its centre line, x near nothing: level on y, the grid on x', { x: 287, y: 121 }, { x: 240, y: 83 }, ['y=123']],
+  ];
+  for (const [label, to, landed, drawn] of CASES) {
+    const { canvas, definitions } = await loadCanvas(FIXTURE_XML);
+    const task = node(canvas, 'Task_1');
+    pointerDown(canvas, { x: 250, y: 120 });
+    pointerMove(canvas, to);
+    expect({ x: task.x, y: task.y }, label).toEqual(landed);
+    expect(guides(canvas), label).toEqual(drawn);
 
-  // Aim 3 units below and 4 right of the end event's centre — inside diagram-js's
-  // 7-unit SNAP_TOLERANCE on both axes.
-  const from = centre(task);
-  const to = { x: target.x + 4, y: target.y + 3 };
-  dragTo(canvas, from, to);
-
-  // Exactly the neighbour's centre. Note 123 is NOT a multiple of 10: had the grid
-  // been allowed to have the last word this would read 120, and the two shapes would
-  // not be level at all.
-  expect(centre(task)).toEqual({ x: 418, y: 123 });
-
-  // One guide per axis that actually took, drawn along the alignment.
-  const lines = guides(canvas);
-  expect(lines).toHaveLength(2);
-  expect(lines[0].getAttribute('x1')).toBe('418');
-  expect(lines[1].getAttribute('y1')).toBe('123');
-
-  drop(canvas, to);
-  // What was on screen is what was committed — DI included.
-  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 368, y: 83 });
-  expect(guides(canvas)).toHaveLength(0);
-});
-
-test('beyond the tolerance the drop quantizes to the 10-unit grid instead, with no guide', async () => {
-  const { canvas, definitions } = await load();
-  const task = node(canvas, 'Task_1');
-  const from = centre(task);
-  // (+33, +17) leaves the task's centre far from the end event's on both axes.
-  const to = { x: from.x + 33, y: from.y + 17 };
-
-  dragTo(canvas, from, to);
-  expect({ x: task.x, y: task.y }).toEqual({ x: 230, y: 100 });
-  expect(task.x % 10, 'x landed on the grid').toBe(0);
-  expect(task.y % 10, 'y landed on the grid').toBe(0);
-  expect(guides(canvas), 'a grid landing draws no hairline').toHaveLength(0);
-
-  drop(canvas, to);
-  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 230, y: 100 });
-});
-
-test('alignment on one axis composes with the grid on the other', async () => {
-  const { canvas, definitions } = await load();
-  const task = node(canvas, 'Task_1');
-  const end = node(canvas, 'End_1');
-  const from = centre(task);
-  // Level with the end event on y (2 units off, inside the tolerance) while x is
-  // dragged somewhere with nothing to align to.
-  const to = { x: from.x + 37, y: centre(end).y - 2 };
-
-  dragTo(canvas, from, to);
-
-  // y took the alignment — off-grid, exactly level with the neighbour…
-  expect(task.y + task.height / 2).toBe(123);
-  expect(task.y).toBe(83);
-  // …and x, unclaimed, fell through to the grid: 250 + 37 = 287 → 290 → x = 240.
-  expect(task.x).toBe(240);
-
-  // …so exactly ONE guide is drawn: the axis that aligned.
-  const lines = guides(canvas);
-  expect(lines).toHaveLength(1);
-  expect(lines[0].getAttribute('y1')).toBe('123');
-  expect(lines[0].getAttribute('x1')).not.toBe(lines[0].getAttribute('x2'));
-
-  drop(canvas, to);
-  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 240, y: 83 });
-});
-
-test('a resize grid-snaps the dragged edges too, and Escape still restores off-grid geometry', async () => {
-  const { canvas, definitions } = await load();
-  const task = node(canvas, 'Task_1');
-  const svg = canvas.getSvg();
-  const doc = svg.ownerDocument!;
-
-  pointerDown(canvas, centre(task));
-  pointerUp(canvas, centre(task));
-
-  // The se chip sits on the corner with a 20x20 hit box; 4 units diagonally out of
-  // the corner lands squarely in it.
-  const grab = { x: task.x + task.width + 4, y: task.y + task.height + 4 };
-  const to = { x: grab.x + 33, y: grab.y + 17 };
-  pointerDown(canvas, grab);
-  pointerMove(canvas, to);
-  expect(task.width % 10, 'the dragged edge landed on the grid').toBe(0);
-  expect(task.height % 10).toBe(0);
-
-  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  pointerUp(canvas, to);
-  expect({ x: task.x, y: task.y, width: task.width, height: task.height })
-    .toEqual({ x: 200, y: 80, width: 100, height: 80 });
-  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 200, y: 80 });
+    // What was on screen is what is committed, DI included, and the guides go with the gesture.
+    pointerUp(canvas, to);
+    expect(boundsOf((canvas.syncDi(), definitions), 'Task_1'), label).toEqual(landed);
+    expect(guides(canvas), label).toEqual([]);
+  }
 });

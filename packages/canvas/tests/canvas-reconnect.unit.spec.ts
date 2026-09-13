@@ -2,21 +2,17 @@ import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
-import { cropPoint } from '@canvas/routing/crop.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
 import { loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
 
 /**
- * Endpoint drags — parity spec §1 ("drag an ENDPOINT handle → reconnect/re-dock")
- * and §4 (cropping). Three outcomes, and which one a drop gets is decided by what
- * is under it:
+ * Dragging a connection's end. What is under the drop decides the outcome:
  *
- * - a shape the rules accept → the connection is rewired AND the moved end docks
- *   where the pointer let go, on the side the route arrives from, cropped to the
- *   outline (not at the centre-anchored default the router alone would give);
- * - a shape the rules refuse → nothing at all (the ∅ cursor was already saying so);
- * - empty space → P3's free endpoint move, which is how an edge is bent by its tip.
+ * - a shape the rules accept: the connection is rewired, and the moved end docks
+ *   where the pointer let go, cropped to the outline;
+ * - a shape the rules refuse: nothing at all;
+ * - empty space: the end moves freely, the way an edge is bent by its tip.
  */
 
 /**
@@ -108,34 +104,37 @@ function dragTargetEnd(canvas: Canvas, flow: SceneEdge, to: Point): void {
 
 // --- an accepted target ------------------------------------------------------
 
-test('dragging the target endpoint onto another task reconnects, re-docks where it was dropped and crops to the outline', async () => {
-  const loaded = await load();
-  const { canvas, definitions } = loaded;
-  const flow = edge(canvas, 'Flow_1');
-  const target = node(canvas, 'Task_2');
+test('dragging the target end onto another task rewires it and docks where it was dropped', async () => {
+  // The dock is where the walk from the drop toward the rest of the edge leaves Task_2
+  // (x 400-500, y 80-160): dropped low, low on its left flank; aimed at its centre, on the
+  // centre line, where the router would have docked the flow. One gesture, told apart
+  // only by where the pointer lets go.
+  const CASES: [label: string, drop: Point, dockY: [low: number, high: number]][] = [
+    ['dropped low inside it', { x: 450, y: 155 }, [140, 160]],
+    ['aimed at its centre', { x: 450, y: 120 }, [119, 121]],
+  ];
+  for (const [label, drop, [low, high]] of CASES) {
+    const { canvas, definitions } = await load();
+    const flow = edge(canvas, 'Flow_1');
+    const target = node(canvas, 'Task_2');
 
-  // Dropped low inside Task_2 — well below the centre line the router would have
-  // anchored the edge to.
-  dragTargetEnd(canvas, flow, { x: 450, y: 155 });
+    dragTargetEnd(canvas, flow, drop);
 
-  // Rewired, in the scene AND in the live moddle tree.
-  expect(flow.target?.id).toBe('Task_2');
-  expect(flowElement(definitions, 'Flow_1').targetRef.id).toBe('Task_2');
-  expect(flowElement(definitions, 'Task_2').incoming?.map((f: any) => f.id)).toEqual(['Flow_1']);
+    // Rewired in the scene and in the business objects, off the old target and onto the new.
+    expect(flow.target, label).toBe(target);
+    expect(target.incoming, label).toContain(flow);
+    expect(node(canvas, 'Task_1').incoming, label).toEqual([]);
+    expect(flowElement(definitions, 'Flow_1').targetRef.id, label).toBe('Task_2');
+    expect(flowElement(definitions, 'Task_2').incoming?.map((f: any) => f.id), label).toEqual(['Flow_1']);
 
-  // Docked where it was DROPPED: the walk from the drop point toward the rest of the
-  // edge leaves Task_2 through its left flank, low down, near the rounded corner it
-  // was let go over — not at the centre-crossing point the router would have picked
-  // (y 120), and not clamped to a fixed inset off the corner either.
-  const tip = last(flow);
-  expect(tip.x).toBe(target.x);
-  expect(tip.y).toBeGreaterThan(target.y + target.height / 2);
-  expect(tip.y).toBeLessThanOrEqual(target.y + target.height);
-  // The run to it is left DIAGONAL: an endpoint drags like an interior joint, and
-  // nothing re-squares the path behind it (diagram-js / draw.io).
-  expect(isOrthogonal(flow.waypoints)).toBe(false);
-  // The source end is untouched and still on the start event's circle.
-  expect(flow.waypoints[0].x).toBeCloseTo(136, 0);
+    const tip = last(flow);
+    expect(tip.x, label).toBe(target.x);
+    expect(tip.y, label).toBeGreaterThanOrEqual(low);
+    expect(tip.y, label).toBeLessThanOrEqual(high);
+    // The run to the dock is left as dragged, not re-squared, and the source end stays put.
+    expect(isOrthogonal(flow.waypoints), label).toBe(false);
+    expect(flow.waypoints[0].x, label).toBeCloseTo(136, 0);
+  }
 });
 
 // --- a refused target --------------------------------------------------------
@@ -172,10 +171,9 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
   expect(last(flow).y).toBeCloseTo(320, 3);
 
   // …and NOTHING else moved. The endpoint is dragged the way an interior joint is
-  // (`moveBendpoint`): the neighbour stays put and the terminal run goes diagonal,
-  // which is what diagram-js and draw.io both do. It used to grow an elbow to keep
-  // every run square — the one gesture whose whole point is "put the tip here"
-  // answering by re-cutting the edge into a shape nobody drew.
+  // (`moveBendpoint`): the neighbour stays put and the terminal run goes diagonal. It
+  // used to grow an elbow to keep every run square — the one gesture whose whole point
+  // is "put the tip here" answering by re-cutting the edge into a shape nobody drew.
   expect(flow.waypoints).toHaveLength(2);
   expect(isOrthogonal(flow.waypoints)).toBe(false);
   expect(flow.waypoints[0]).toEqual({ x: 136, y: 118 });
@@ -204,26 +202,6 @@ test('a reconnect drop lands on the grid, like every other waypoint gesture', as
   expect(last(edge(next.canvas, 'Flow_1'))).not.toEqual(last(edge(near.canvas, 'Flow_1')));
 });
 
-test('a drop aimed at the middle of a shape docks where the router would anchor it', async () => {
-  // The other half of the same walk: from the centre, the exit point IS the
-  // centre-crossing one — so "point it at the shape" and "point it at a spot on the
-  // shape" are the same gesture, told apart only by where you let go.
-  const { canvas } = await load();
-  const flow = edge(canvas, 'Flow_1');
-  const target = node(canvas, 'Task_2');
-  const centre = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
-  const from = { ...flow.waypoints[0] };
-
-  dragTargetEnd(canvas, flow, centre);
-
-  expect(flow.target?.id).toBe('Task_2');
-  // Aimed at the centre, the walk starts at the centre — so the dock is exactly the
-  // point the router itself would have cropped to, with no anchor at all.
-  const anchored = cropPoint(target, from);
-  expect(last(flow).x).toBe(anchored.x);
-  expect(last(flow).y).toBeCloseTo(anchored.y, 0);
-});
-
 test('the drag ghost shows the path the release commits, dock included', async () => {
   // "What the hover shows is what the click takes" applies to this gesture too: the
   // ghost is built from the same base path and the same snapped drop point the
@@ -245,11 +223,9 @@ test('the drag ghost shows the path the release commits, dock included', async (
 });
 
 /**
- * What an endpoint drag does to the joint BEHIND it — the rule the second recording
- * demonstrates. A square terminal run keeps its shape: drag the end of a vertical
- * drop sideways and the whole drop slides with it (frames 19.0s → 23.8s, where the
- * dock and the joint above it both moved from x 871 to x 791). A run somebody has
- * already bent out of Manhattan is left exactly as they bent it.
+ * What an endpoint drag does to the joint behind it. A square terminal run keeps its
+ * shape: drag the end of a vertical drop sideways and the whole drop slides with it. A
+ * run somebody has already bent is left as they bent it.
  */
 const BENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -277,37 +253,28 @@ const BENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-test('an endpoint on a SQUARE run takes the joint behind it along', async () => {
-  const { canvas } = await load(BENT_XML);
-  const flow = edge(canvas, 'Flow_B');
-  const task = node(canvas, 'Task_B');
-
-  // The last run drops vertically at x = 550 into the task's top. Drag the dock left.
-  dragTargetEnd(canvas, flow, { x: 520, y: task.y + 10 });
-
-  const [, joint, tip] = flow.waypoints;
-  expect(tip.y).toBe(task.y);
-  // The run is STILL vertical: the joint came along.
-  expect(joint.x).toBe(tip.x);
-  expect(joint.y).toBe(118);
-  expect(tip.x).toBeLessThan(550);
-});
-
-test('an endpoint on a DIAGONAL run leaves the joint where it was bent', async () => {
-  const { canvas } = await load(BENT_XML);
-  const flow = edge(canvas, 'Flow_B');
-  const task = node(canvas, 'Task_B');
-
-  // Bend the last run out of Manhattan first, by dragging the joint sideways.
-  canvas.getSelection().select(flow);
-  pointerDown(canvas, flow.waypoints[1]);
-  pointerMove(canvas, { x: 400, y: 118 });
-  pointerUp(canvas, { x: 400, y: 118 });
-  const bentJoint = { ...flow.waypoints[1] };
+test('an end on a square run takes the joint behind it along; on a bent run it leaves the joint', async () => {
+  // Flow_B's last run drops vertically at x = 550 into Task_B's top; its end is dragged left.
+  const square = await load(BENT_XML);
+  const bent = await load(BENT_XML);
+  // Bend the second one's last run first, by dragging its joint sideways.
+  const bentFlow = edge(bent.canvas, 'Flow_B');
+  bent.canvas.getSelection().select(bentFlow);
+  pointerDown(bent.canvas, bentFlow.waypoints[1]);
+  pointerMove(bent.canvas, { x: 400, y: 118 });
+  pointerUp(bent.canvas, { x: 400, y: 118 });
+  const bentJoint = { ...bentFlow.waypoints[1] };
   expect(bentJoint.x).toBe(400);
 
-  dragTargetEnd(canvas, flow, { x: 520, y: task.y + 10 });
+  for (const { canvas } of [square, bent]) {
+    dragTargetEnd(canvas, edge(canvas, 'Flow_B'), { x: 520, y: node(canvas, 'Task_B').y + 10 });
+  }
 
-  // The joint is exactly where it was left: re-squaring the run would undo the bend.
-  expect(flow.waypoints[1]).toEqual(bentJoint);
+  // Square: the run is still vertical, so the joint came along to the new dock on the task's top.
+  const [, joint, tip] = edge(square.canvas, 'Flow_B').waypoints;
+  expect(tip.y).toBe(400);
+  expect(tip.x).toBeLessThan(550);
+  expect(joint).toEqual({ x: tip.x, y: 118 });
+  // Bent: the joint is where it was left; re-squaring the run would undo the bend.
+  expect(bentFlow.waypoints[1]).toEqual(bentJoint);
 });

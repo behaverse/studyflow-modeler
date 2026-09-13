@@ -5,20 +5,11 @@ import { Canvas } from '@canvas/index.ts';
 import { jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
- * Viewport gestures — parity spec §10 ("Zoom, pan and pointer gestures") and §8
- * ("the lasso is NOT available by dragging empty canvas").
- *
- * These are the three facts that separate this backend's navigation from the
- * reference's, all verified against the live bpmn-js editor:
- *
- * 1. dragging empty canvas PANS (it used to lasso);
- * 2. a plain wheel pans and `Ctrl`+wheel zooms about the cursor, with diagram-js's
- *    own `ZoomScroll` numbers — a -240 `deltaMode: 0` notch pans 180px and zooms
- *    1 → 1.16158640, both measured on the bpmn backend for comparison;
- * 3. the marquee belongs to the palette's lasso tool, which is one-shot.
+ * Getting around the canvas: dragging empty canvas pans it, Shift+drag draws a
+ * marquee, a plain wheel pans and `Ctrl`+wheel zooms.
  *
  * jsdom has no layout engine: `getBoundingClientRect` is all zeros, so screen and
- * diagram units are 1:1 and `getViewbox().scale` reads 1 (see `canvas-drag`).
+ * diagram units are 1:1 and `getViewbox().scale` reads 1.
  */
 
 const win = jsdomWindow();
@@ -53,7 +44,6 @@ async function load(): Promise<Canvas> {
   const { canvas } = await loadCanvas(FIXTURE_XML);
   return canvas;
 }
-
 
 function fireWheel(canvas: Canvas, init: WheelEventInit): void {
   canvas.getSvg().dispatchEvent(new win.WheelEvent('wheel', {
@@ -108,45 +98,27 @@ test('Shift+drag on empty canvas draws a marquee and selects what it encloses', 
 
 // --- the wheel ---------------------------------------------------------------
 
-test('wheel: a plain notch pans vertically by its delta', async () => {
+test('a wheel pans by its delta, Shift turns it sideways, and Ctrl zooms exponentially in it', async () => {
   const canvas = await load();
-  const before = box(canvas);
-
-  fireWheel(canvas, { deltaY: -240 });
-
-  const after = box(canvas);
-  // 240 screen px of content movement, downward: the viewBox rises.
-  expect(after.y).toBeCloseTo(before.y - 240, 6);
-  expect(after.x).toBeCloseTo(before.x, 6);
-  expect(after.width).toBeCloseTo(before.width, 6);
-});
-
-test('wheel: deltaX pans horizontally, and Shift maps a vertical wheel onto x', async () => {
-  const canvas = await load();
-  const start = box(canvas);
-
-  fireWheel(canvas, { deltaX: -100, deltaY: 0 });
-  expect(box(canvas).x).toBeCloseTo(start.x - 100, 6);
-  expect(box(canvas).y).toBeCloseTo(start.y, 6);
-
-  const mid = box(canvas);
-  fireWheel(canvas, { deltaY: -100, shiftKey: true });
-  expect(box(canvas).x).toBeCloseTo(mid.x - 100, 6);
-  expect(box(canvas).y).toBeCloseTo(mid.y, 6);
-});
-
-test('Ctrl+wheel zooms about the cursor, exponentially in the delta', async () => {
-  const canvas = await load();
-  const before = box(canvas);
-  fireWheel(canvas, { deltaY: -240, ctrlKey: true });
-
-  const after = box(canvas);
-  const factor = Math.exp(240 * 0.002);
-  expect(before.width / after.width).toBeCloseTo(factor, 6);
-  expect(before.height / after.height).toBeCloseTo(factor, 6);
-
-  // …and the other way.
-  const zoomedIn = box(canvas);
-  fireWheel(canvas, { deltaY: 240, ctrlKey: true });
-  expect(box(canvas).width / zoomedIn.width).toBeCloseTo(factor, 6);
+  const zoom = Math.exp(240 * 0.002);
+  // A pan moves the content with the wheel, so the viewBox moves the other way; a zoom
+  // shrinks or grows the viewBox by the factor.
+  const CASES: [label: string, wheel: WheelEventInit, pan: { x: number; y: number } | null, factor: number][] = [
+    ['a plain notch pans vertically', { deltaY: -240 }, { x: 0, y: -240 }, 1],
+    ['deltaX pans horizontally', { deltaX: -100 }, { x: -100, y: 0 }, 1],
+    ['Shift maps a vertical wheel onto x', { deltaY: -100, shiftKey: true }, { x: -100, y: 0 }, 1],
+    ['Ctrl zooms in', { deltaY: -240, ctrlKey: true }, null, zoom],
+    ['… and out by the same factor', { deltaY: 240, ctrlKey: true }, null, 1 / zoom],
+  ];
+  for (const [label, wheel, pan, factor] of CASES) {
+    const before = box(canvas);
+    fireWheel(canvas, wheel);
+    const after = box(canvas);
+    if (pan) {
+      expect(after.x - before.x, label).toBeCloseTo(pan.x, 6);
+      expect(after.y - before.y, label).toBeCloseTo(pan.y, 6);
+    }
+    expect(before.width / after.width, label).toBeCloseTo(factor, 6);
+    expect(before.height / after.height, label).toBeCloseTo(factor, 6);
+  }
 });

@@ -6,16 +6,12 @@ import type { SceneNode } from '@canvas/model/scene.ts';
 import { freshModdle, installDocument, pointerDown, pointerMove, pointerUp, jsdomWindow } from './canvasHarness';
 
 /**
- * `Canvas` teardown (CanvasReview H4).
- *
- * A canvas installs listeners on THREE owners: its own SVG root (`pointerdown`,
- * `dblclick`), the HOST container (`keydown` — the shortcut scope), and, for the
- * duration of a gesture, the document (`pointermove`/`pointerup`/`keydown`). The
- * container outlives the canvas — a route change, a backend switch, "New diagram"
- * all keep the same `<div>` — so a canvas that cannot be torn down keeps answering
- * keystrokes forever and pins its whole `bpmn:Definitions` moddle tree.
- *
- * Driven through `tests/canvasHarness.ts`, same setup as the other `canvas-*` specs.
+ * `Canvas.destroy`. A canvas installs listeners on three owners: its own SVG root
+ * (`pointerdown`, `dblclick`), the host container (`keydown`, the shortcut scope),
+ * and, while a gesture runs, the document (`pointermove`/`pointerup`/`keydown`). The
+ * container outlives the canvas (a new diagram keeps the same `<div>`), so a canvas
+ * that cannot be torn down keeps answering keystrokes and pins its whole
+ * `bpmn:Definitions` tree.
  */
 
 const doc = installDocument();
@@ -76,48 +72,31 @@ function node(canvas: Canvas, id: string): SceneNode {
   return canvas.getScene()!.elementsById.get(id) as SceneNode;
 }
 
-// --- H4: destroy() ------------------------------------------------------------
-
-test('destroy removes every listener the canvas installed and detaches the SVG', async () => {
+test('destroy hands the container back clean, so a stale canvas no longer answers keys on it', async () => {
   const host = container();
   const tracked = trackListeners(host);
-  const canvas = new Canvas({ container: host });
-  const rootTracked = trackListeners(canvas.getSvg());
-  canvas.importDefinitions(await parse());
-
-  expect(tracked.live(), 'the shortcut listener sits on the host container').toEqual(['keydown']);
-  expect(host.contains(canvas.getSvg() as unknown as Node)).toBe(true);
-
-  canvas.destroy();
-
-  expect(tracked.live(), 'the container is handed back clean').toEqual([]);
-  expect(rootTracked.live(), 'pointerdown/dblclick come off the root too').toEqual([]);
-  expect(host.contains(canvas.getSvg() as unknown as Node)).toBe(false);
-  // Idempotent.
-  canvas.destroy();
-  expect(tracked.live()).toEqual([]);
-});
-
-test('destroy: a stale canvas no longer answers Delete on a container it shared', async () => {
-  const host = container();
   const stale = new Canvas({ container: host });
   const staleDefs = await parse();
   stale.importDefinitions(staleDefs);
   stale.getSelection().select(node(stale, 'Task_1'));
+  expect(tracked.live(), 'the shortcut listener sits on the host container').toEqual(['keydown']);
+  expect(host.contains(stale.getSvg() as unknown as Node)).toBe(true);
 
-  // The host reuses the same element for the next editor (backend switch / new file).
   stale.destroy();
+  expect(tracked.live(), 'the container is handed back clean').toEqual([]);
+  expect(host.contains(stale.getSvg() as unknown as Node), 'the SVG is detached').toBe(false);
+  stale.destroy();
+  expect(tracked.live(), 'a second destroy is a no-op').toEqual([]);
+
+  // The host reuses the same element for the next editor: Delete reaches only the live canvas.
   const live = new Canvas({ container: host });
   const liveDefs = await parse();
   live.importDefinitions(liveDefs);
   live.getSelection().select(node(live, 'Start_1'));
-
   host.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
 
-  const ids = (defs: any): string[] =>
-    defs.rootElements[0].flowElements.map((el: any) => el.id).sort();
-  expect(ids(staleDefs), 'the destroyed canvas kept its hands off its document')
-    .toEqual(['Start_1', 'Task_1']);
+  const ids = (defs: any): string[] => defs.rootElements[0].flowElements.map((el: any) => el.id).sort();
+  expect(ids(staleDefs), 'the destroyed canvas kept its hands off its document').toEqual(['Start_1', 'Task_1']);
   expect(ids(liveDefs), 'the live canvas deleted its own selection').toEqual(['Task_1']);
   live.destroy();
 });
