@@ -5,6 +5,7 @@ import { join } from 'node:path';
 /** No registry catches an undispatched handler; a declaration ends in `;`, a dispatch in a comma or brace. */
 
 const SRC = join(process.cwd(), 'packages');
+const MODELER = join(SRC, 'modeler/src');
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
@@ -16,9 +17,20 @@ function walk(dir: string): string[] {
 }
 
 const sources = walk(SRC).map((path) => ({ path, text: readFileSync(path, 'utf8') }));
-const commandFiles = sources.filter(({ path }) => /modeler\/src\/[a-zA-Z]+\/commands\.ts$/.test(path));
+const exportsHandlers = (text: string) => /^export (?:async )?function run[A-Z]/m.test(text);
 
-const handlers = commandFiles.flatMap(({ path, text }) =>
+// A module joins the bus by being listed in `FEATURES`. `commandBus.ts` cannot be imported
+// here (`diagram/commands.ts` carries a `?raw` import), so its list is read as text.
+const bus = readFileSync(join(MODELER, 'commandBus.ts'), 'utf8');
+const imported = new Map(
+  [...bus.matchAll(/^import \* as (\w+) from '@modeler\/([\w/]+)';$/gm)].map((m) => [m[1], join(MODELER, `${m[2]}.ts`)]),
+);
+const featureFiles = (bus.match(/const FEATURES = \[([^\]]*)\]/)?.[1] ?? '')
+  .split(',').map((name) => name.trim()).filter(Boolean)
+  .flatMap((name) => imported.get(name) ?? []);
+const features = sources.filter(({ path }) => featureFiles.includes(path));
+
+const handlers = features.flatMap(({ path, text }) =>
   [...text.matchAll(/^export (?:async )?function (run[A-Z]\w*)/gm)].map((m) => ({
     name: m[1].replace(/^run/, ''),
     path: path.replace(SRC, 'packages'),
@@ -30,16 +42,19 @@ const dispatched = new Set(
 );
 
 const declared = new Set(
-  commandFiles.flatMap(({ text }) => [...text.matchAll(/type: '([A-Z]\w*)'\s*;/g)].map((m) => m[1]))
+  features.flatMap(({ text }) => [...text.matchAll(/type: '([A-Z]\w*)'\s*;/g)].map((m) => m[1]))
 );
 
-test('the scan finds the command surface it expects', () => {
-  expect(commandFiles.length).toBeGreaterThan(5);
-  expect(handlers.length).toBeGreaterThan(20);
-  expect(dispatched.size).toBeGreaterThan(20);
+test('every module that exports a command handler is listed in FEATURES', () => {
+  const unlisted = sources
+    .filter(({ path, text }) => path.startsWith(MODELER) && exportsHandlers(text) && !featureFiles.includes(path))
+    .map(({ path }) => path.replace(SRC, 'packages'));
+
+  expect(unlisted, 'modules exporting run<Name> that commandBus.ts never connects').toEqual([]);
 });
 
 test('every exported command handler is dispatched somewhere', () => {
+  expect(handlers.length, 'the scan finds the handlers FEATURES lists').toBeGreaterThan(20);
   const dead = handlers
     .filter(({ name }) => !dispatched.has(name))
     .map(({ name, path }) => `run${name} (${path})`);
