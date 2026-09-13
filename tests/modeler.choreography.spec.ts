@@ -106,11 +106,9 @@ test.describe('Studyflow choreography tasks', () => {
 
 /** A cognitive task presents itself; its one participant is an editable select, and a band-only actor is typed from there. */
 test('a cognitive task names who takes it: a declared pool, a new actor, or no one', async ({ page }) => {
-  const { exampleFile } = await import('./utils');
+  const { examplePath } = await import('./utils');
   await gotoModeler(page);
-  await page.getByTestId('open-file-input').setInputFiles({
-    name: 'reachy_participant.studyflow.png', mimeType: 'image/png', buffer: exampleFile('reachy_participant.studyflow.png'),
-  });
+  await page.getByTestId('open-file-input').setInputFiles(examplePath('reachy_participant'));
   const shape = page.locator('[data-element-id="Play"]');
   await expect(shape).toContainText('Behaverse');
   await expect(shape).toContainText('Reachy Mini');

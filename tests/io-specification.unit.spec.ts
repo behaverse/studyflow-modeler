@@ -13,14 +13,14 @@ const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
 const packages: Record<string, any> = schemaPackages(models);
 
-function exampleYaml(filename: string): Promise<string> {
-  return exampleStudyflow(filename, new BpmnModdle(structuredClone(packages)) as any);
+function exampleYaml(name: string): Promise<string> {
+  return exampleStudyflow(name, new BpmnModdle(structuredClone(packages)) as any);
 }
 
 test.describe('standard-BPMN ioSpecification boundary', () => {
   test('lowering produces the complete standard structure', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.studyflow.png'), moddle);
+    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
     expect(standardXml).toContain('<bpmn:ioSpecification id="cross_validate_io">');
@@ -39,17 +39,17 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
 
   test('folding the standard form back yields the shipped compact YAML', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline.studyflow.png'), moddle);
+    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
     const roundTripped = await xmlToStudyflow(standardXml, new BpmnModdle(structuredClone(packages)) as any);
-    expect(roundTripped).toBe(await exampleYaml('sklearn_pipeline.studyflow.png'));
+    expect(roundTripped).toBe(await exampleYaml('sklearn_pipeline'));
   });
 
   test('a default-named binding folds back without a binding attribute', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
     // DataInput_Prompt_In carries no slot (binding defaults to the element's name); do not invent one.
-    const agentYaml = await exampleYaml('agent_eval.studyflow.png');
+    const agentYaml = await exampleYaml('agent_eval');
     const standardXml = await toStandardBpmnXml(await studyflowToXml(agentYaml, moddle), moddle);
     expect(standardXml).toContain('name="Agent instructions"');
     const roundTripped = await xmlToStudyflow(standardXml, new BpmnModdle(structuredClone(packages)) as any);

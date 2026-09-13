@@ -93,7 +93,7 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
   };
 
   test('a stored trait value is not masked by defaults (Research_Agent completionCondition)', async () => {
-    const definitions = await loadExample('agent_eval.studyflow.png');
+    const definitions = await loadExample('agent_eval');
     const agent = findInDefinitions(definitions, 'Research_Agent');
     expect(agent).toBeTruthy();
     expect(agent.get('completionCondition')?.body).toBe('answer != null');

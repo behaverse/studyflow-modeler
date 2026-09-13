@@ -1,10 +1,8 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 
 import {
   addPaletteElement,
+  examplePath,
   exportDiagram,
   expectEditorText,
   gotoModeler,
@@ -50,11 +48,7 @@ async function painted(locator: import('@playwright/test').Locator): Promise<{
 
 async function openExample(page: import('@playwright/test').Page): Promise<void> {
   await gotoModeler(page);
-  await page.getByTestId('open-file-input').setInputFiles({
-    name: 'sklearn_pipeline.studyflow.png',
-    mimeType: 'image/png',
-    buffer: readFileSync(path.join(process.cwd(), 'skills/python/examples/sklearn_pipeline.studyflow.png')),
-  });
+  await page.getByTestId('open-file-input').setInputFiles(examplePath('sklearn_pipeline'));
   await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 }
 

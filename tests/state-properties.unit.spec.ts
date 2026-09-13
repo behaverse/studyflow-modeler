@@ -45,7 +45,7 @@ test.describe('state as bpmn:Property', () => {
   });
 
   test('an output association narrows a return value into a property, in BPMN\'s own form', async () => {
-    const source = await exampleStudyflow('sklearn_pipeline.studyflow.png', moddle());
+    const source = await exampleStudyflow('sklearn_pipeline', moddle());
     const xml = await studyflowToXml(source, moddle());
 
     expect(xml).toContain('<bpmn:property id="mean_cv_accuracy" itemSubjectRef="Item_Number" name="mean_cv_accuracy" />');

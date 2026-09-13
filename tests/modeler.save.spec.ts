@@ -4,8 +4,8 @@ import { blankDiagram, browseForDiagram, exampleFile, gotoModeler, runPaletteCom
 
 const DIAGRAM = blankDiagram().toString('utf8');
 const DIAGRAM_B64 = Buffer.from(DIAGRAM, 'utf8').toString('base64');
-/** A real PNG with the diagram embedded in it, as the modeler's own export produces. */
-const DIAGRAM_PNG_B64 = exampleFile('choreography_demo.studyflow.png').toString('base64');
+/** A real PNG with the diagram embedded in it, as the modeler's own export produces: `choreography_demo` must stay a PNG. */
+const DIAGRAM_PNG_B64 = exampleFile('choreography_demo').toString('base64');
 
 /** `content` is base64 so the same fake disk can hold a text diagram or a real PNG. */
 type FakeDisk = { name: string; content: string; lastModified: number; writes: number };

@@ -88,7 +88,7 @@ function mockModeler(definitions: any) {
 
 test.describe('provenance view model', () => {
   test('merges the document trail with per-element run records, oldest first', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
 
     appendTrailEntry(definitions, moddle, {
       action: 'created',
@@ -144,7 +144,7 @@ test.describe('provenance view model', () => {
   });
 
   test('sorts undated entries last and keeps document order among them', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
 
     appendTrailEntry(definitions, moddle, { action: 'created', when: '' });
     appendTrailEntry(definitions, moddle, { action: 'modified', when: '2026-07-31T11:00:00Z' });
@@ -156,7 +156,7 @@ test.describe('provenance view model', () => {
   });
 
   test('invalidating a run record keeps it and appends a marker, once', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const task = firstActivity(definitions);
     stampElement(task, { action: 'executed', when: '2026-08-01T13:00:00Z', run: 'run-003' });
     const before = task.extensionElements.values.length;
@@ -186,7 +186,7 @@ test.describe('provenance view model', () => {
   });
 
   test('a re-executed record leaves its precise marker behind as consumed history', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const task = firstActivity(definitions);
     stampElement(task, { action: 'executed', when: '2026-08-01T13:00:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T14:00:00Z', what: '2026-08-01T13:00:00Z', run: 'repo' });
@@ -204,7 +204,7 @@ test.describe('provenance view model', () => {
   });
 
   test('a runless marker voids any executed record; a foreign run voids none', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const root = primaryRoot(definitions)!;
     const events = root.flowElements.filter((e: any) => /Event$/.test(e.$type));
     expect(events.length).toBeGreaterThanOrEqual(2);
@@ -222,7 +222,7 @@ test.describe('provenance view model', () => {
   });
 
   test('same-second element records follow the flow graph — data before its consumers', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const byId = new Map<string, any>();
     const index = (container: any): void => {
       for (const el of container?.flowElements ?? []) {
@@ -244,7 +244,7 @@ test.describe('provenance view model', () => {
   });
 
   test('a same-second output replays right after its producer, before the next step', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const byId = new Map<string, any>();
     const index = (container: any): void => {
       for (const el of container?.flowElements ?? []) {
@@ -267,7 +267,7 @@ test.describe('provenance view model', () => {
   });
 
   test('at the same instant, a marker precedes the run stamp, and the stamp its records', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const task = firstActivity(definitions);
     // All three share one second; the runner's stamps have second precision, so ties are real.
     stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
@@ -279,7 +279,7 @@ test.describe('provenance view model', () => {
   });
 
   test('a forked run supersedes records instead of replacing them — both branches stay', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const task = firstActivity(definitions);
     stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T11:00:00Z', what: '2026-08-01T10:00:00Z', run: 'repo' });
@@ -296,7 +296,7 @@ test.describe('provenance view model', () => {
   });
 
   test('a consumed marker forks the graph at the invocation that superseded it', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const root = primaryRoot(definitions)!;
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
@@ -324,7 +324,7 @@ test.describe('provenance view model', () => {
   });
 
   test('two invalidations of the first branch open two separate lanes', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const root = primaryRoot(definitions)!;
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
@@ -349,7 +349,7 @@ test.describe('provenance view model', () => {
   });
 
   test('per-element records survive the XML round trip', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const task = firstActivity(definitions);
     stampElement(task, {
       action: 'executed',
@@ -373,7 +373,7 @@ test.describe('provenance view model', () => {
 test.describe('replay', () => {
   /** The forked-run history: executed, then its ✕ marker, then the branch's fresh record. */
   async function forkedHistory(): Promise<any[]> {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const task = firstActivity(definitions);
     stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T11:00:00Z', what: '2026-08-01T10:00:00Z', run: 'repo' });
@@ -407,7 +407,7 @@ test.describe('replay', () => {
   });
 
   test('a run stamped after an armed marker opens its lane before the re-run lands', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const task = firstActivity(definitions);
     appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     stampElement(task, { action: 'executed', when: '2026-08-01T10:05:00Z', run: 'repo' });

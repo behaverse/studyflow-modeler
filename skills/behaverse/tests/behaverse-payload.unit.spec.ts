@@ -96,7 +96,7 @@ test('an empty configurations body stays builtin with no timeline pinned', async
 
 test('shipped bot examples derive the modes their tasks need', async () => {
   // bot_claude: two fully-inline NB blocks and one builtin WO reference.
-  const payloads = await payloadsOf(exampleXml('bot_claude.studyflow.png'));
+  const payloads = await payloadsOf(await exampleXml('bot_claude'));
 
   const warmup = payloads.get('Warmup_1Back')!;
   expect(warmup.configMode).toBe('inline');

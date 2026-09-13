@@ -3,7 +3,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { looksLikeXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
-import { exampleNames as examples, exampleXml } from './utils';
+import { exampleNames as examples, exampleStudyflow } from './utils';
 import { parseStudyflow } from '@runner/studyflow';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { loadSchemaModels, schemaPackages } from './schemas';
@@ -14,15 +14,15 @@ const models = loadSchemaModels();
 setCatalog(buildCatalog(models));
 const packages: Record<string, any> = schemaPackages(models);
 
-function studyflowOf(file: string): Promise<string> {
-  return xmlToStudyflow(exampleXml(file), new BpmnModdle(structuredClone(packages)) as any);
+function studyflowOf(name: string): Promise<string> {
+  return exampleStudyflow(name, new BpmnModdle(structuredClone(packages)) as any);
 }
 
 test.describe('studyflow YAML format', () => {
   test('isMany value-typed lists survive a load (data-loss regression)', async () => {
     // moddle silently drops value-typed list text unless the association format is String (see toModdlePackages).
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = await studyflowOf('spirit2025.studyflow.png');
+    const text = await studyflowOf('spirit2025');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
@@ -40,7 +40,7 @@ test.describe('studyflow YAML format', () => {
 
   test('implementation attribute and arguments value survive a load (function calls)', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = await studyflowOf('function_call_demo.studyflow.png');
+    const text = await studyflowOf('function_call_demo');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
@@ -59,7 +59,7 @@ test.describe('studyflow YAML format', () => {
 
   test('folds extension wrappers, config bodies, diagram geometry, and id keys into elements', async () => {
     const moddle = new BpmnModdle(structuredClone(packages)) as any;
-    const text = await studyflowOf('bot_ollama.studyflow.png');
+    const text = await studyflowOf('bot_ollama');
     const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle));
 

@@ -10,9 +10,9 @@ import { firstSentence } from '@core/naming';
 import { exampleCategories, exampleNames, exampleXml } from './utils';
 
 /**
- * Examples ship as one PNG each: the picture of a diagram with the diagram inside it. The skill
- * it ships with — `skills/<name>/examples/` — is the shelf its card lands on, so the file
- * itself carries no category.
+ * An example ships as a `.studyflow.png`, the picture of a diagram with the diagram inside it, or
+ * as a `.studyflow.yaml`. The skill it ships with — `skills/<name>/examples/` — is the shelf its
+ * card lands on, so the file itself carries no category.
  */
 
 function rootTag(xml: string): string {
@@ -20,38 +20,38 @@ function rootTag(xml: string): string {
 }
 
 test.describe('shipped examples', () => {
-  test('there are examples, and each one is a diagram', () => {
+  test('there are examples, and each one is a diagram', async () => {
     expect(exampleNames.length).toBeGreaterThan(0);
-    for (const filename of exampleNames) {
-      expect(exampleXml(filename), `${filename} carries no studyflow`).toContain('<bpmn');
+    for (const name of exampleNames) {
+      expect(await exampleXml(name), `${name} carries no studyflow`).toContain('<bpmn');
     }
   });
 
-  test('each declares the title and blurb its card is made of', () => {
-    for (const filename of exampleNames) {
-      const xml = exampleXml(filename);
+  test('each declares the title and blurb its card is made of', async () => {
+    for (const name of exampleNames) {
+      const xml = await exampleXml(name);
 
-      expect(rootTag(xml), `${filename} has no named root`).toMatch(/ name="[^"]+"/);
+      expect(rootTag(xml), `${name} has no named root`).toMatch(/ name="[^"]+"/);
 
       const documentation = xml.match(/<bpmn2?:documentation\b[^>]*>([\s\S]*?)<\/bpmn2?:documentation>/);
       const blurb = firstSentence(documentation?.[1] ?? '');
-      expect(blurb, `${filename} documents nothing to put on its card`).not.toBe('');
-      expect(blurb.length, `${filename}'s first sentence overflows its card`).toBeLessThan(160);
+      expect(blurb, `${name} documents nothing to put on its card`).not.toBe('');
+      expect(blurb.length, `${name}'s first sentence overflows its card`).toBeLessThan(160);
     }
   });
 
-  test('the skill is the shelf, so no example repeats it inside the file', () => {
-    for (const filename of exampleNames) {
-      expect(exampleCategories.get(filename), `${filename} sits directly in the examples root`)
+  test('the skill is the shelf, so no example repeats it inside the file', async () => {
+    for (const name of exampleNames) {
+      expect(exampleCategories.get(name), `${name} sits directly in the examples root`)
         .toBeTruthy();
-      expect(exampleXml(filename), `${filename} still carries studyflow:tags`)
+      expect(await exampleXml(name), `${name} still carries studyflow:tags`)
         .not.toContain('<studyflow:tags>');
     }
   });
 
-  test('opening one reopens the diagram it pictures', () => {
-    // The payload is what `open-diagram` reads out of a `.png`, so a card click and a drop are the same import.
-    const xml = exampleXml('cognitive_battery.studyflow.png');
+  test('opening one reopens the diagram it pictures', async () => {
+    // The same XML `OpenDiagram` reads out of the file, so a card click and a drop are the same import.
+    const xml = await exampleXml('cognitive_battery');
     expect(xml).toContain('id="Task_NBack"');
     expect(xml).toContain('name="Within-subject cognitive battery"');
   });
@@ -68,8 +68,8 @@ test.describe('gallery shelves', () => {
   });
 
   test('every shipped example lands on a real shelf', () => {
-    for (const filename of exampleNames) {
-      expect(categoryOf(exampleCategories.get(filename)), filename).not.toBe(UNCATEGORIZED);
+    for (const name of exampleNames) {
+      expect(categoryOf(exampleCategories.get(name)), name).not.toBe(UNCATEGORIZED);
     }
   });
 

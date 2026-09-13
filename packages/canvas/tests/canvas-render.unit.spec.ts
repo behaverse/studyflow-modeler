@@ -61,17 +61,17 @@ test('canvas render: exactly 20 studyflow example diagrams are present', () => {
   expect(files.length).toBe(20);
 });
 
-for (const filename of files) {
-  test(`${filename}: renders to SVG mirroring its DI, matches golden`, async () => {
+for (const name of files) {
+  test(`${name}: renders to SVG mirroring its DI, matches golden`, async () => {
     const moddle = freshModdle();
-    const { rootElement: definitions } = await moddle.fromXML(exampleXml(filename));
+    const { rootElement: definitions } = await moddle.fromXML(await exampleXml(name));
 
     const { shapes, edges } = diItems(definitions);
 
     // DI presence: the canvas never invents layout (design §0/§6). If an example
     // genuinely lacks DI, skip it and log which — do not fail.
     if (shapes.length === 0 && edges.length === 0) {
-      test.skip(true, `${filename}: no DiagramInterchange present — skipped`);
+      test.skip(true, `${name}: no DiagramInterchange present — skipped`);
       return;
     }
 
@@ -80,22 +80,22 @@ for (const filename of files) {
     const canvas = new Canvas({ onWarning: (w: string) => warnings.push(w) });
     canvas.importDefinitions(definitions);
     const svg = canvas.toSVG();
-    expect(svg, `${filename}: produces an SVG string`).toContain('<svg');
-    expect(svg.length, `${filename}: SVG is non-empty`).toBeGreaterThan(0);
+    expect(svg, `${name}: produces an SVG string`).toContain('<svg');
+    expect(svg.length, `${name}: SVG is non-empty`).toBeGreaterThan(0);
 
     const root = canvas.getSvg();
 
     // (b) One shape group per BPMNShape, translated to its dc:Bounds origin.
     const shapeGroups = root.querySelectorAll('g.sf-shape');
-    expect(shapeGroups.length, `${filename}: one <g.sf-shape> per BPMNShape`).toBe(
+    expect(shapeGroups.length, `${name}: one <g.sf-shape> per BPMNShape`).toBe(
       shapes.length,
     );
     for (const shape of shapes) {
       const id = shape.bpmnElement?.id as string;
       const g = canvas.getGraphics(id);
-      expect(g, `${filename}: shape ${id} has a rendered group`).toBeTruthy();
+      expect(g, `${name}: shape ${id} has a rendered group`).toBeTruthy();
       expect(g!.getAttribute('data-element-type')).toBe(shape.bpmnElement.$type);
-      expect(translateOf(g), `${filename}: shape ${id} sits at its DI bounds`).toEqual({
+      expect(translateOf(g), `${name}: shape ${id} sits at its DI bounds`).toEqual({
         x: shape.bounds.x,
         y: shape.bounds.y,
       });
@@ -110,15 +110,15 @@ for (const filename of files) {
     // which is what this compares, so the DI-mirrors-the-drawing contract is exactly
     // as strict as it was.
     const lines = root.querySelectorAll('path.sf-connection-line');
-    expect(lines.length, `${filename}: one connection <path> per BPMNEdge`).toBe(
+    expect(lines.length, `${name}: one connection <path> per BPMNEdge`).toBe(
       edges.length,
     );
     for (const di of edges) {
       const id = di.bpmnElement?.id as string;
       const g = canvas.getGraphics(id);
-      expect(g, `${filename}: edge ${id} has a rendered group`).toBeTruthy();
+      expect(g, `${name}: edge ${id} has a rendered group`).toBeTruthy();
       const line = g!.querySelector('path.sf-connection-line');
-      expect(line, `${filename}: edge ${id} draws a connection path`).toBeTruthy();
+      expect(line, `${name}: edge ${id} draws a connection path`).toBeTruthy();
       const expected = (di.waypoint ?? [])
         .map((wp: any) => `${wp.x},${wp.y}`)
         .join(' ');
@@ -134,12 +134,12 @@ for (const filename of files) {
 
     // (d) Golden snapshot of the serialized SVG.
     if (!existsSync(GOLDEN_DIR)) mkdirSync(GOLDEN_DIR, { recursive: true });
-    const goldenPath = path.join(GOLDEN_DIR, `${filename}.svg`);
+    const goldenPath = path.join(GOLDEN_DIR, `${name}.svg`);
     if (UPDATE || !existsSync(goldenPath)) {
       writeFileSync(goldenPath, svg, 'utf8');
     } else {
       const golden = readFileSync(goldenPath, 'utf8');
-      expect(svg, `${filename}: SVG matches golden (UPDATE_GOLDENS=1 to refresh)`).toBe(
+      expect(svg, `${name}: SVG matches golden (UPDATE_GOLDENS=1 to refresh)`).toBe(
         golden,
       );
     }
@@ -149,8 +149,8 @@ for (const filename of files) {
 // --- artifact captions -------------------------------------------------------
 
 /** Render one example and hand back its canvas. */
-async function render(filename: string): Promise<Canvas> {
-  return (await loadCanvas(exampleXml(filename))).canvas;
+async function render(name: string): Promise<Canvas> {
+  return (await loadCanvas(await exampleXml(name))).canvas;
 }
 
 /** The `<text>` lines the renderer drew inside an element's `<g>`. */
@@ -160,7 +160,7 @@ function textsOf(canvas: Canvas, id: string): string[] {
 }
 
 test('a group is captioned from its categoryValue, centred on the top of the frame', async () => {
-  const canvas = await render('kitchensink.studyflow.png');
+  const canvas = await render('kitchensink');
   // The caption is NOT the group's `name` (it has none): BPMN keeps it on the
   // referenced `bpmn:CategoryValue`, which is where bpmn-js reads it from too.
   expect(textsOf(canvas, 'Group_BpmnEvents')).toEqual(['BPMN · Events']);
@@ -177,7 +177,7 @@ test('a group is captioned from its categoryValue, centred on the top of the fra
 });
 
 test('a text annotation draws its `text`, wrapped — not its `name`', async () => {
-  const canvas = await render('kitchensink.studyflow.png');
+  const canvas = await render('kitchensink');
   const lines = textsOf(canvas, 'Bd_Annotation');
   expect(lines.length).toBeGreaterThan(1);
   expect(lines.join(' ')).toBe('A free-form note. Groups (these labelled bands) are artifacts too.');
@@ -237,7 +237,7 @@ test('a bare bpmn:DataStore draws as a cylinder, like a data store REFERENCE', a
 });
 
 test('a choreography task draws its name in the MIDDLE band, not on the divider', async () => {
-  const canvas = await render('choreography_demo.studyflow.png');
+  const canvas = await render('choreography_demo');
   const task = canvas.getScene()!.elementsById.get('Consent') as any;
   const g = canvas.getGraphics('Consent')!;
   const name = Array.from(g.querySelectorAll('text')).find((t) => t.textContent === 'Give consent')!;
@@ -363,7 +363,7 @@ test('a `labelText` option resolves placeholders in drawn labels; the model keep
 });
 
 test('a cognitive task presents itself, and renaming the pool on its band redraws it', async () => {
-  const canvas = await render('reachy_participant.studyflow.png');
+  const canvas = await render('reachy_participant');
   const task = canvas.getScene()!.elementsById.get('Play') as any;
   expect(readChoreographyBands(task.businessObject)).toEqual({ top: 'Behaverse \u00b7 WO', bottom: 'Reachy Mini', initiator: 'top' });
   expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Behaverse \u00b7 WO', 'Reachy Mini']));

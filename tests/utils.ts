@@ -1,31 +1,42 @@
 import { globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { BpmnModdle } from 'bpmn-moddle';
 import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
-import { xmlToStudyflow } from '@core/document';
+import { studyflowToXml, xmlToStudyflow } from '@core/document';
 import { extractXmlFromPng } from '@core/document/png';
 
 const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
-/** Every shipped example PNG by filename; the skill it ships with is its gallery shelf. */
-const examplePaths = new Map(
-  globSync('*/examples/*.png', { cwd: SKILLS_DIR })
-    .map((rel) => [path.basename(rel), path.join(SKILLS_DIR, rel)] as const),
-);
+/**
+ * Every shipped example by name: its file less `.studyflow.png` or `.studyflow.yaml`, so a test
+ * does not care which one it ships as. The name is also its gallery card's test id.
+ */
+const examplePaths = new Map<string, string>();
+for (const rel of globSync(['*/examples/*.studyflow.png', '*/examples/*.studyflow.yaml'], { cwd: SKILLS_DIR })) {
+  const name = path.basename(rel).replace(/\.studyflow\.(png|yaml)$/, '');
+  if (examplePaths.has(name)) throw new Error(`Two shipped examples are named "${name}".`);
+  examplePaths.set(name, path.join(SKILLS_DIR, rel));
+}
 
-/** Example filenames, sorted — the corpus every example-wide suite iterates. */
+/** Example names, sorted — the corpus every example-wide suite iterates. */
 export const exampleNames: string[] = [...examplePaths.keys()].sort();
 
-/** Filename → the skill it ships with, which is its gallery shelf. */
+/** Name → the skill it ships with, which is its gallery shelf. */
 export const exampleCategories = new Map(
   [...examplePaths].map(([name, file]) => [name, path.basename(path.dirname(path.dirname(file)))]),
 );
 
-export function exampleFile(filename: string): Buffer {
-  const file = examplePaths.get(filename);
-  if (!file) throw new Error(`No shipped example named "${filename}".`);
-  return readFileSync(file);
+/** The example's file, whichever kind; `setInputFiles` opens it as the app would. */
+export function examplePath(name: string): string {
+  const file = examplePaths.get(name);
+  if (!file) throw new Error(`No shipped example named "${name}".`);
+  return file;
+}
+
+export function exampleFile(name: string): Buffer {
+  return readFileSync(examplePath(name));
 }
 
 /** The blank diagram the app starts from, the same file `NewDiagram` loads. */
@@ -33,12 +44,20 @@ export function blankDiagram(): Buffer {
   return readFileSync(path.join(process.cwd(), 'assets/new_diagram.bpmn'));
 }
 
-export function exampleXml(filename: string): string {
-  return extractXmlFromPng(exampleFile(filename));
+let schemaModdle: Promise<any> | undefined;
+
+/** The example as BPMN XML: what its PNG embeds, or what its YAML spells. */
+export async function exampleXml(name: string): Promise<string> {
+  const file = examplePath(name);
+  if (file.endsWith('.png')) return extractXmlFromPng(readFileSync(file));
+  // Built on first use: most specs, and every e2e worker, never read a YAML example.
+  schemaModdle ??= import('./schemas').then(({ loadSchemaModels, schemaPackages }) =>
+    new BpmnModdle(schemaPackages(loadSchemaModels())));
+  return studyflowToXml(readFileSync(file, 'utf8'), await schemaModdle);
 }
 
-export function exampleStudyflow(filename: string, moddle: any): Promise<string> {
-  return xmlToStudyflow(exampleXml(filename), moddle);
+export async function exampleStudyflow(name: string, moddle: any): Promise<string> {
+  return xmlToStudyflow(await exampleXml(name), moddle);
 }
 
 export function withoutDiagramInterchange(xml: string): string {

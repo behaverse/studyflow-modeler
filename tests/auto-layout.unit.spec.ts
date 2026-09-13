@@ -47,14 +47,14 @@ test.describe('ensureDiagramLayout', () => {
   });
 
   test('returns a diagram that already carries geometry unchanged', async () => {
-    const authored = exampleXml('consort2025.studyflow.png');
+    const authored = await exampleXml('consort2025');
     expect(hasDiagramInterchange(authored)).toBe(true);
     expect(await ensureDiagramLayout(authored, schemaModdle())).toBe(authored);
   });
 
   test('draws the data associations an authored layout left out', async () => {
     // The worst case for a reader: a file that positions its shapes but never draws its associations.
-    const complete = exampleXml('cognitive_battery.studyflow.png');
+    const complete = await exampleXml('cognitive_battery');
     const stripped = complete.replace(/[ \t]*<bpmndi:BPMNEdge id="DataOutput_[\s\S]*?<\/bpmndi:BPMNEdge>\n/g, '');
     expect(stripped).toMatch(/dataOutputAssociation id="DataOutput_Survey_Data"/);
     expect(stripped).not.toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_Survey_Data"/);
@@ -72,7 +72,7 @@ test.describe('ensureDiagramLayout', () => {
 
   test('draws data associations and places data elements next to their steps', async () => {
     // sklearn_pipeline joins its artifacts with data input/output associations, the data-flow pass's case.
-    const xml = withoutDiagramInterchange(exampleXml('sklearn_pipeline.studyflow.png'));
+    const xml = withoutDiagramInterchange(await exampleXml('sklearn_pipeline'));
     expect(hasDiagramInterchange(xml)).toBe(false);
 
     const laidOut = await ensureDiagramLayout(xml, schemaModdle());

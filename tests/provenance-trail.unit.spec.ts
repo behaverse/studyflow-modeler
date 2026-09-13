@@ -39,7 +39,7 @@ function stripTrail(definitions: any): any {
 
 test.describe('provenance trail', () => {
   test('appends an entry that survives the XML round trip', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
 
     appendTrailEntry(definitions, moddle, {
       action: 'modified',
@@ -62,7 +62,7 @@ test.describe('provenance trail', () => {
   });
 
   test('survives the `.studyflow.yaml` round trip', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('sklearn_pipeline.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     appendTrailEntry(definitions, moddle, {
       action: 'created',
       when: trailTimestamp(new Date('2026-07-31T10:00:00Z')),
@@ -83,7 +83,7 @@ test.describe('provenance trail', () => {
   });
 
   test('stamps once per fact, not once per download', async () => {
-    const definitions = stripTrail(await definitionsOf(exampleXml('drawn_loop.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('drawn_loop')));
     // A partial mock: stamping reads the document and `moddle`, and decides off the
     // revision counter `editor/history.ts` serves, one bump per applied mutation.
     // `edit()` is that bump.
@@ -114,7 +114,7 @@ test.describe('provenance trail', () => {
 
   test('reads the drawn root, and omits unset facts from the entry', async () => {
     // A single-process example: agent_eval_pool now declares its actors in a collaboration beside the process.
-    const definitions = stripTrail(await definitionsOf(exampleXml('reachy_session.studyflow.png')));
+    const definitions = stripTrail(await definitionsOf(await exampleXml('reachy_session')));
     const root = primaryRoot(definitions)!;
     expect(root.id).toBe(definitions.diagrams[0].plane.bpmnElement.id);
 

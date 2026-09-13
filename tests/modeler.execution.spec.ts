@@ -1,9 +1,6 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 
-import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
+import { addPaletteElement, examplePath, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
 
 /**
  * The two specs that drill into `select_model`'s own plane read it through the
@@ -75,11 +72,7 @@ test.describe('Inspector execution tab', () => {
   test('types are free text: the diagram\'s own are suggested, new ones are declared', async ({ page }) => {
     await gotoModeler(page);
 
-    await page.getByTestId('open-file-input').setInputFiles({
-      name: 'sklearn_pipeline.studyflow.png',
-      mimeType: 'image/png',
-      buffer: readFileSync(path.join(process.cwd(), 'skills/python/examples/sklearn_pipeline.studyflow.png')),
-    });
+    await page.getByTestId('open-file-input').setInputFiles(examplePath('sklearn_pipeline'));
     // The `select_model` shape is on the root plane, so its appearance is the imported-and-rendered signal.
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
@@ -108,14 +101,7 @@ test.describe('Inspector execution tab', () => {
   test('the data-association view reports property bindings, which are never drawn', async ({ page }) => {
     await gotoModeler(page);
 
-    const source = readFileSync(
-      path.join(process.cwd(), 'skills/python/examples/sklearn_pipeline.studyflow.png'),
-    );
-    await page.getByTestId('open-file-input').setInputFiles({
-      name: 'sklearn_pipeline.studyflow.png',
-      mimeType: 'image/png',
-      buffer: source,
-    });
+    await page.getByTestId('open-file-input').setInputFiles(examplePath('sklearn_pipeline'));
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
     // `cross_validate` sits on the collapsed `select_model` phase's own DI plane; drill down first.
@@ -148,11 +134,7 @@ test.describe('Inspector execution tab', () => {
 
   test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
     await gotoModeler(page);
-    await page.getByTestId('open-file-input').setInputFiles({
-      name: 'sklearn_pipeline.studyflow.png',
-      mimeType: 'image/png',
-      buffer: readFileSync(path.join(process.cwd(), 'skills/python/examples/sklearn_pipeline.studyflow.png')),
-    });
+    await page.getByTestId('open-file-input').setInputFiles(examplePath('sklearn_pipeline'));
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
 
     // `build_pipeline` is drawn on the collapsed `select_model` phase's own plane; drill down first.

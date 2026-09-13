@@ -56,9 +56,9 @@ function connectsAnything(definitions: any): boolean {
   return (definitions.rootElements ?? []).some((root: any) => (root.messageFlows ?? []).length > 0);
 }
 
-async function read(filename: string): Promise<Model> {
+async function read(name: string): Promise<Model> {
   const moddle = new BpmnModdle(structuredClone(packages)) as any;
-  const { rootElement: definitions } = await moddle.fromXML(exampleXml(filename));
+  const { rootElement: definitions } = await moddle.fromXML(await exampleXml(name));
   // Shipped payloads carry native ioSpecification; fold to the compact form the inspector reads, as import does.
   inlineIoSpecification(definitions);
 
@@ -77,9 +77,9 @@ async function read(filename: string): Promise<Model> {
 }
 
 test.describe('shipped examples: the figure and the data contract agree', () => {
-  for (const filename of examples) {
-    test(`${filename} draws every association it can draw`, async () => {
-      const { definitions, planes, edges } = await read(filename);
+  for (const name of examples) {
+    test(`${name} draws every association it can draw`, async () => {
+      const { definitions, planes, edges } = await read(name);
 
       const undrawn = associationsOf(definitions)
         .filter(({ dataElement }) => isDrawnData(dataElement))
@@ -91,8 +91,8 @@ test.describe('shipped examples: the figure and the data contract agree', () => 
       expect(undrawn, 'data associations between two shapes on one plane, with no BPMNEdge').toEqual([]);
     });
 
-    test(`${filename} routes its data flow through data associations`, async () => {
-      const { definitions } = await read(filename);
+    test(`${name} routes its data flow through data associations`, async () => {
+      const { definitions } = await read(name);
 
       const artifacts: any[] = (definitions.rootElements ?? []).flatMap((root: any) => root.artifacts ?? []);
       const misassociated = artifacts
@@ -103,12 +103,12 @@ test.describe('shipped examples: the figure and the data contract agree', () => 
       expect(misassociated, 'artifact associations standing in for data flow').toEqual([]);
     });
 
-    test(`${filename} says who reads or writes each data element it draws`, async () => {
-      const { definitions, planes } = await read(filename);
+    test(`${name} says who reads or writes each data element it draws`, async () => {
+      const { definitions, planes } = await read(name);
 
       // A catalogue joins nothing at all, so its data shapes are specimens (see `connectsAnything`).
       if (!connectsAnything(definitions)) {
-        expect(associationsOf(definitions), `${filename} joins nothing, yet associations data`).toEqual([]);
+        expect(associationsOf(definitions), `${name} joins nothing, yet associations data`).toEqual([]);
         return;
       }
 
@@ -130,7 +130,7 @@ test.describe('shipped examples: the figure and the data contract agree', () => 
 
   test('a data association out of a sub-process is reported with the scope it reaches into', async () => {
     // agent_eval declares artifacts on the process (they outlive the loop) and reads them from nested steps.
-    const { definitions, planes } = await read('agent_eval.studyflow.png');
+    const { definitions, planes } = await read('agent_eval');
 
     const crossing = associationsOf(definitions)
       .filter(({ step, dataElement }) =>
@@ -151,7 +151,7 @@ function elementById(definitions: any, id: string): any {
 
 test.describe('what the inspector reports for a step', () => {
   test('names the scope a data association reaches into, and stays quiet about a sibling', async () => {
-    const { definitions } = await read('agent_eval.studyflow.png');
+    const { definitions } = await read('agent_eval');
 
     expect(getInferredDataNeighbors(elementById(definitions, 'Score'), 'inputs')).toEqual([
       expect.objectContaining({
@@ -162,7 +162,7 @@ test.describe('what the inspector reports for a step', () => {
       }),
     ]);
 
-    const { definitions: sklearn } = await read('sklearn_pipeline.studyflow.png');
+    const { definitions: sklearn } = await read('sklearn_pipeline');
     expect(getInferredDataNeighbors(elementById(sklearn, 'select_features'), 'inputs')).toEqual([
       expect.objectContaining({
         name: 'input_dataset',
@@ -189,7 +189,7 @@ test.describe('what the inspector reports for a step', () => {
 
   test('hides the property bpmn-js invents to hold a data association\'s target', async () => {
     // `__targetRef_placeholder` is bpmn-js's own invented `bpmn:Property`, not an authored one; lablink_demo2 ships one.
-    const { definitions } = await read('lablink_demo2.studyflow.png');
+    const { definitions } = await read('lablink_demo2');
     const step = elementById(definitions, 'ReadBIDS');
     expect(step.properties.map((p: any) => p.name)).toContain('__targetRef_placeholder');
 

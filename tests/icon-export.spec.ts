@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { exampleFile, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
+import { examplePath, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
 
 /**
  * Native SVG icons, end to end (parity addendum 6 §1–§2).
@@ -13,12 +13,8 @@ import { exampleFile, exportDiagram, gotoModeler, readDownload, readDownloadText
  */
 
 /** An icon-rich example: typed service tasks (type glyph) and data operations (marker glyph). */
-async function openExample(page: Page, filename: string, title: string): Promise<void> {
-  await page.getByTestId('open-file-input').setInputFiles({
-    name: filename,
-    mimeType: 'image/png',
-    buffer: exampleFile(filename),
-  });
+async function openExample(page: Page, name: string, title: string): Promise<void> {
+  await page.getByTestId('open-file-input').setInputFiles(examplePath(name));
   await expect(page.getByTitle('Click to edit diagram name')).toContainText(title);
 }
 
@@ -27,7 +23,7 @@ test.describe('native SVG icons', () => {
     const requests: string[] = [];
     page.on('request', (request) => { if (request.url().includes('iconify')) requests.push(request.url()); });
     await gotoModeler(page);
-    await openExample(page, 'sklearn_pipeline.studyflow.png', 'sklearn_pipeline');
+    await openExample(page, 'sklearn_pipeline', 'sklearn_pipeline');
 
     const canvas = page.getByTestId('modeler-canvas');
     await expect(canvas.locator('svg.sf-icon path').first()).toBeAttached();
@@ -37,7 +33,7 @@ test.describe('native SVG icons', () => {
 
   test('the exported SVG and PNG carry the glyph paths and need no icon toolchain', async ({ page }) => {
     await gotoModeler(page);
-    await openExample(page, 'sklearn_pipeline.studyflow.png', 'sklearn_pipeline');
+    await openExample(page, 'sklearn_pipeline', 'sklearn_pipeline');
     await expect(page.getByTestId('modeler-canvas').locator('svg.sf-icon path').first()).toBeAttached();
 
     const svg = await readDownloadText(await exportDiagram(page, 'svg'));
@@ -57,7 +53,7 @@ test.describe('native SVG icons', () => {
     // have no top-left type glyph in BPMN at all — their marker and their border say what
     // they are — so the app answers "no glyph" for them rather than "not yet".
     await gotoModeler(page);
-    await openExample(page, 'kitchensink.studyflow.png', 'kitchen sink');
+    await openExample(page, 'kitchensink', 'kitchen sink');
 
     const canvas = page.getByTestId('modeler-canvas');
     await expect(canvas.locator('svg.sf-icon path').first()).toBeAttached();

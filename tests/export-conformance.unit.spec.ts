@@ -36,8 +36,8 @@ function businessObjects(definitions: any): any[] {
   return out;
 }
 
-async function modelOf(filename: string): Promise<ExportModel> {
-  const { rootElement } = await makeModdle().fromXML(exampleXml(filename));
+async function modelOf(name: string): Promise<ExportModel> {
+  const { rootElement } = await makeModdle().fromXML(await exampleXml(name));
   const root = (rootElement.rootElements ?? []).find((element: any) => ROOT_TYPES.has(element.$type));
   return buildExportModel(fakeModeler(businessObjects(rootElement), { diagramName: root?.name }));
 }
@@ -61,27 +61,27 @@ test.describe('interchange exports over the shipped examples', () => {
     expect(examples.length).toBeGreaterThan(0);
   });
 
-  for (const filename of examples) {
-    test(`${filename} exports to every interchange format`, async () => {
-      const model = await modelOf(filename);
-      expect(model.elements.length, `${filename} holds no elements`).toBeGreaterThan(0);
+  for (const name of examples) {
+    test(`${name} exports to every interchange format`, async () => {
+      const model = await modelOf(name);
+      expect(model.elements.length, `${name} holds no elements`).toBeGreaterThan(0);
 
       // Data elements and operations are drawn from the same pass, so ids agree by construction.
       for (const element of model.dataElements) expect(model.byId.get(element.id)).toBe(element);
       for (const operation of model.operations) expect(operation.isDataOperation).toBe(true);
 
       const linkml = yaml.load(exportToLinkML(model)) as any;
-      expect(linkml.classes, `${filename}: LinkML export has no classes`).toBeTruthy();
+      expect(linkml.classes, `${name}: LinkML export has no classes`).toBeTruthy();
       expect(Object.keys(linkml.classes).length).toBeGreaterThan(0);
 
       const artemis = JSON.parse(exportToArtemis(model));
       expect(artemis.studyflow_source.diagram_name).toBe(model.diagramName);
       for (const block of ['general', 'participants', 'task', 'acquisition', 'preprocessing', 'analysis', 'datasets']) {
-        expect(artemis[block], `${filename}: ARTEM-IS block '${block}' is missing`).toBeTruthy();
+        expect(artemis[block], `${name}: ARTEM-IS block '${block}' is missing`).toBeTruthy();
       }
 
       const nidm = exportToNidm(model);
-      expect(undeclaredPrefixes(nidm), `${filename}: undeclared prefix in:\n${nidm}`).toEqual([]);
+      expect(undeclaredPrefixes(nidm), `${name}: undeclared prefix in:\n${nidm}`).toEqual([]);
     });
   }
 });

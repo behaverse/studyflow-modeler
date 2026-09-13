@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import { exampleFile, exampleXml, gotoModeler, runPaletteCommand } from './utils';
+import { examplePath, exampleXml, gotoModeler, runPaletteCommand } from './utils';
 
 /**
  * Token placement in the simulator and the provenance replay across containers:
@@ -10,11 +10,11 @@ import { exampleFile, exampleXml, gotoModeler, runPaletteCommand } from './utils
  * and a collapsed (`select_model`) sub-process; `reachy_participant` a pool.
  */
 
-async function openExample(page: Page, filename: string, xml?: string): Promise<void> {
+async function openExample(page: Page, name: string, xml?: string): Promise<void> {
   await gotoModeler(page);
   await page.getByTestId('open-file-input').setInputFiles(xml
-    ? { name: filename.replace(/\.png$/, ''), mimeType: 'application/xml', buffer: Buffer.from(xml) }
-    : { name: filename, mimeType: 'image/png', buffer: exampleFile(filename) });
+    ? { name: `${name}.bpmn`, mimeType: 'application/xml', buffer: Buffer.from(xml) }
+    : examplePath(name));
   await expect(page.getByTestId('modeler-ready')).toBeAttached();
 }
 
@@ -37,7 +37,7 @@ const drilldown = (page: Page, id: string) => shape(page, id).click({ position: 
 
 test.describe('token simulation', () => {
   test('tokens walk into an expanded sub-process and survive leaving a drilled-down plane', async ({ page }) => {
-    await openExample(page, 'sklearn_pipeline.studyflow.png');
+    await openExample(page, 'sklearn_pipeline');
     await page.getByRole('button', { name: 'Simulate' }).click();
 
     // Some token reaches the inner tasks of `prepare_data`, which the walk used to skip.
@@ -87,7 +87,7 @@ test.describe('token simulation', () => {
   });
 
   test('a start event inside a pool spawns tokens', async ({ page }) => {
-    await openExample(page, 'reachy_participant.studyflow.png');
+    await openExample(page, 'reachy_participant');
     await page.getByRole('button', { name: 'Simulate' }).click();
     await expect(page.locator('.studyflow-simulation-token').first()).toBeVisible();
     const start = await box(shape(page, 'Seated'));
@@ -104,10 +104,10 @@ function stamped(xml: string, id: string, when: string): string {
 }
 
 test('the replay enters and leaves the plane of the element a record names', async ({ page }) => {
-  let xml = exampleXml('sklearn_pipeline.studyflow.png');
+  let xml = await exampleXml('sklearn_pipeline');
   xml = stamped(xml, 'start_analysis', '2026-09-01T10:00:00Z');
   xml = stamped(xml, 'cross_validate', '2026-09-01T10:00:05Z');
-  await openExample(page, 'sklearn_pipeline.studyflow.png', xml);
+  await openExample(page, 'sklearn_pipeline', xml);
   await runPaletteCommand(page, 'Replay Provenance');
   const replay = page.getByTestId('provenance-replay');
   await replay.getByRole('button', { name: 'Jump to end' }).click();
