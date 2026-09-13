@@ -24,6 +24,9 @@ test('resolves like a static host', () => {
   expect(resolveFile(root, '/../../etc/passwd')).toBeUndefined();
   expect(resolveFile(root, '/%2e%2e/%2e%2e/etc/passwd')).toBeUndefined();
   expect(resolveFile(root, '/%E0%A4%A')).toBeUndefined();
+  // A redirect is re-encoded: a newline or a char past Latin-1 in a header throws.
+  expect(resolveFile(root, '/x%0A/../run')).toEqual({ redirect: '/x%0A/../run/' });
+  expect(resolveFile(root, '/%E0%A4%A4/../run')).toEqual({ redirect: '/%E0%A4%A4/../run/' });
 });
 
 test('serves over http', async () => {
@@ -33,6 +36,8 @@ test('serves over http', async () => {
   try {
     // A malformed escape is not found, and the server still answers what follows.
     expect((await fetch(`${origin}/%E0%A4%A`)).status).toBe(404);
+    // Nor does redirecting a path that decodes to a newline end it.
+    expect((await fetch(`${origin}/x%0A%2F..%2Frun`, { redirect: 'manual' })).status).toBe(301);
     const app = await fetch(`${origin}/app`);
     expect(app.status).toBe(200);
     expect(app.headers.get('content-type')).toContain('text/html');
