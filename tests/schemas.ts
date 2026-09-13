@@ -14,10 +14,10 @@ import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
  * Importing it installs the shipped schemas' catalog, which the core readers consult, as the app does at load.
  */
 
-export const SKILLS_DIR = path.join(process.cwd(), 'skills');
+const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
 /** Every `skills/<name>/SKILL.md`, parsed. */
-export const SKILLS: SkillManifest[] = readdirSync(SKILLS_DIR)
+const SKILLS: SkillManifest[] = readdirSync(SKILLS_DIR)
   .filter((name) => existsSync(path.join(SKILLS_DIR, name, 'SKILL.md')))
   .map((name) => parseSkillManifest(readFileSync(path.join(SKILLS_DIR, name, 'SKILL.md'), 'utf8'), name))
   .sort((a, b) => a.name.localeCompare(b.name));
@@ -30,11 +30,9 @@ function readModels(): SchemaModel[] {
   return fromLinkml(schemaFiles.map((file) => parseLinkml(readFileSync(file, 'utf8'), file)));
 }
 
-export const SCHEMA_MODELS: SchemaModel[] = sortSchemas(readModels());
+export const SCHEMAS: SchemaInfo[] = buildManifest(readModels());
 
-export const SCHEMAS: SchemaInfo[] = buildManifest(SCHEMA_MODELS);
-
-/** A fresh parse of every schema; moddle mutates the models it is handed. */
+/** A fresh parse of every schema, in load order, for a caller to change as it likes. */
 export function loadSchemaModels(): SchemaModel[] {
   return sortSchemas(readModels());
 }
