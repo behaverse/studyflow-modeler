@@ -1,172 +1,106 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToDefinitions } from '@core/document';
-import { buildCatalog } from '@core/notation';
-import { MODDLE_BUILTIN_TYPES, MODDLE_SIMPLE_TYPES } from '@core/notation/moddlePackage';
-import { SCHEMAS, loadSchemaModels, schemaPackages } from './schemas';
+import { BPMN_ANCESTORS, buildCatalog } from '@core/notation';
+import { MODDLE_BUILTIN_TYPES, isValueType, type SchemaModel } from '@core/notation/moddlePackage';
+import { SCHEMAS, freshModdle, loadSchemaModels } from './schemas';
 
-/** Schema design rules, checked without a browser, on each schema as the LinkML reader hands it to moddle. */
+/** The shipped schemas, each rule checked across all of them, as the app loads them. */
 
+const models = loadSchemaModels();
+const catalog = buildCatalog(models);
 
-type RawSchema = any;
-
-const rawSchemas = new Map<string, RawSchema>(loadSchemaModels().map((model) => [model.prefix, model]));
-
-function localNames(schema: RawSchema): Set<string> {
-  return new Set([
-    ...(schema.types ?? []).map((t: any) => t.name),
-    ...(schema.enumerations ?? []).map((e: any) => e.name).filter(Boolean),
-  ]);
+/** What the schema declares by name: its classes, value types and enums (an `apply_to` entry adds to another's). */
+function namesOf(model: SchemaModel): string[] {
+  return [...model.types.map((type) => type.name), ...model.enumerations.flatMap((entry) => entry.name ?? [])];
 }
 
-function resolves(ref: string, schema: RawSchema): boolean {
-  if (MODDLE_BUILTIN_TYPES.has(ref)) return true;
-  const [prefix, name] = ref.includes(':') ? ref.split(':', 2) : [schema.prefix, ref];
-  if (prefix === 'bpmn') return true; // validated for real in the moddle layer
-  const target = rawSchemas.get(prefix);
-  return !!target && localNames(target).has(name);
-}
-
-test.describe('schema lint', () => {
-  test('prefixes and URIs are unique across schemas', () => {
-    const prefixes = [...rawSchemas.values()].map((s) => s.prefix);
-    const uris = [...rawSchemas.values()].map((s) => s.uri);
-    expect(new Set(prefixes).size).toBe(prefixes.length);
-    expect(new Set(uris).size).toBe(uris.length);
-  });
-
-  test('no two schemas declare the same name: LinkML names are global across imports', () => {
-    const owners = new Map<string, string>();
-    for (const schema of rawSchemas.values()) {
-      for (const name of localNames(schema)) {
-        expect(owners.get(name), `${schema.prefix}:${name} is also ${owners.get(name)}:${name}`).toBeUndefined();
-        owners.set(name, schema.prefix);
-      }
-    }
-  });
-
-  test('the registry is exactly the schema files, required ones first', () => {
-    expect(SCHEMAS.map((s) => s.prefix).sort()).toEqual([...rawSchemas.keys()].sort());
-    const required = SCHEMAS.filter((s) => s.required);
-    expect(required.length, 'at least one required schema').toBeGreaterThan(0);
-    expect(SCHEMAS.slice(0, required.length).every((s) => s.required), 'required schemas lead').toBe(true);
-    for (const entry of SCHEMAS) {
-      expect(entry.name, `${entry.prefix} name`).not.toBe('');
-      expect(entry.description, `${entry.prefix} blurb`).not.toBe('');
-      expect(entry.description.length, `${entry.prefix} blurb fits a row`).toBeLessThan(320);
-    }
-  });
-
-  for (const { prefix } of SCHEMAS) {
-    test.describe(prefix, () => {
-      const schema = rawSchemas.get(prefix)!;
-
-      test('declares required metadata', () => {
-        expect(typeof schema.name, 'name').toBe('string');
-        expect(schema.prefix).toBe(schema.prefix.toLowerCase());
-        expect(typeof schema.description, 'description').toBe('string');
-        expect(typeof schema.uri, 'uri').toBe('string');
-        expect(schema.uri).toMatch(/^https?:\/\//);
-        // YY.M.N, as the app's own version; quoted, or YAML reads a two-part version as a float.
-        expect(schema.version, 'version is a quoted YY.M.N').toMatch(/^\d{2}\.(?:[1-9]|1[0-2])\.\d+$/);
-      });
-
-      test('every category an attribute names is declared by some schema', () => {
-        const declared = new Set(
-          [...rawSchemas.values()].flatMap((s) => (s.categories ?? []).map((c: any) => c.name)),
-        );
-        for (const type of schema.types ?? []) {
-          for (const property of type.properties ?? []) {
-            for (const category of property.meta?.categories ?? []) {
-              expect(declared, `${type.name}#${property.name} files under an undeclared "${category}"`)
-                .toContain(category);
-            }
-          }
-        }
-      });
-
-      test('type and enumeration names are unique and PascalCase', () => {
-        const names = [
-          ...(schema.types ?? []).map((t: any) => t.name),
-          ...(schema.enumerations ?? []).map((e: any) => e.name).filter(Boolean),
-        ];
-        expect(new Set(names).size, `duplicate names in ${names}`).toBe(names.length);
-        for (const n of names) expect(n, 'PascalCase').toMatch(/^[A-Z][A-Za-z0-9]*$/);
-      });
-
-      test('a mixin implements only bpmn types, and every range resolves', () => {
-        for (const t of schema.types ?? []) {
-          for (const ref of t.extends ?? []) {
-            expect(ref, `${t.name}: a mixin implements only bpmn types`).toMatch(/^bpmn:/);
-          }
-          for (const p of t.properties ?? []) {
-            expect(typeof p.name, `${t.name} property name`).toBe('string');
-            expect(typeof p.type, `${t.name}.${p.name} type`).toBe('string');
-            expect(resolves(p.type, schema), `${t.name}.${p.name} type ${p.type}`).toBe(true);
-          }
-        }
-      });
-
-      test('defaults match their declared type', () => {
-        for (const t of schema.types ?? []) {
-          for (const p of t.properties ?? []) {
-            if (p.default === undefined) continue;
-            const label = `${t.name}.${p.name} default`;
-            if (p.type === 'Boolean') expect(typeof p.default, label).toBe('boolean');
-            else if (p.type === 'Integer') {
-              expect(Number.isInteger(p.default), label).toBe(true);
-            } else if (p.type === 'Real') expect(typeof p.default, label).toBe('number');
-            else expect(typeof p.default, label).toBe('string');
-          }
-        }
-      });
-
-    });
-  }
-});
-
-test.describe('moddle registration', () => {
-  const packages = schemaPackages(loadSchemaModels());
-  const moddle = new BpmnModdle(packages) as any;
-
-  for (const { prefix } of SCHEMAS) {
-    const schema = rawSchemas.get(prefix)!;
-
-    test(`${prefix}: every concrete type instantiates with its defaults`, () => {
-      for (const t of schema.types ?? []) {
-        if (t.extends || t.isAbstract) continue;
-        if ((t.superClass ?? []).some((s: string) => MODDLE_SIMPLE_TYPES.has(s))) continue;
-
-        const qname = `${prefix}:${t.name}`;
-        const element = moddle.create(qname);
-        expect(element, qname).toBeTruthy();
-        expect(element.$type).toBe(qname);
-
-        const descriptor = moddle.getElementDescriptor(element);
-        for (const p of t.properties ?? []) {
-          const desc = descriptor.propertiesByName[p.name];
-          expect(desc, `${qname}#${p.name} registered`).toBeTruthy();
-          if (p.default !== undefined && p.isAttr) {
-            expect(desc.default, `${qname}#${p.name} default`).toBe(p.default);
-          }
-        }
-      }
-    });
-
-    test(`${prefix}: templates read as studyflow, every key declared and every reference resolved`, () => {
-      for (const tpl of schema.templates ?? []) {
-        expect(typeof tpl.description, 'template description').toBe('string');
-        const warnings: string[] = [];
-        const definitions = studyflowToDefinitions({ definitions: {}, elements: tpl.elements }, moddle, (message) => warnings.push(message));
-        expect(definitions.rootElements.length, tpl.description).toBeGreaterThan(0);
-        expect(warnings, tpl.description).toEqual([]);
-      }
-    });
-  }
-});
+/** The JavaScript type a default of a moddle built-in holds; anything else holds a string. */
+const JS_TYPE: Record<string, string> = { Boolean: 'boolean', Integer: 'number', Real: 'number' };
 
 test('the shipped schemas compile with no diagnostics', () => {
-  const catalog = buildCatalog(loadSchemaModels());
   expect(catalog.diagnostics).toEqual([]);
+});
+
+// Two schemas with one prefix are a compile diagnostic; a shared URI or name is not.
+test('no two schemas share a URI or declare the same name, and the required ones are studyflow, prov, cognitive, local', () => {
+  const uris = models.map((model) => model.uri);
+  expect(new Set(uris).size, 'one URI per schema').toBe(uris.length);
+
+  // LinkML names are global across imports, and `fromLinkml` relies on it: a class, a value type and an enum each need a name of their own.
+  const owners = new Map<string, string>();
+  for (const model of models) {
+    for (const name of namesOf(model)) {
+      expect(owners.get(name), `${model.prefix}:${name} is also ${owners.get(name)}:${name}`).toBeUndefined();
+      owners.set(name, model.prefix);
+    }
+  }
+
+  expect(SCHEMAS.filter((schema) => schema.required).map((schema) => schema.prefix).sort())
+    .toEqual(['cognitive', 'local', 'prov', 'studyflow']);
+});
+
+test('each schema has a quoted YY.M.N version, an http(s) id, a lowercase prefix, a one-row blurb and PascalCase names', () => {
+  for (const model of models) {
+    // YY.M.N, as the app's own version; quoted, or YAML reads a two-part version as a float.
+    expect(model.version, `${model.prefix} version`).toMatch(/^\d{2}\.(?:[1-9]|1[0-2])\.\d+$/);
+    expect(model.uri, `${model.prefix} id`).toMatch(/^https?:\/\//);
+    expect(model.prefix, `${model.prefix} is lowercase`).toBe(model.prefix.toLowerCase());
+    for (const name of namesOf(model)) expect(name, `${model.prefix}:${name}`).toMatch(/^[A-Z][A-Za-z0-9]*$/);
+  }
+  for (const schema of SCHEMAS) {
+    expect(schema.description, `${schema.prefix} blurb`).not.toBe('');
+    expect(schema.description.length, `${schema.prefix} blurb fits a Settings row`).toBeLessThan(320);
+  }
+});
+
+test('every attribute files under a declared tab, names a type that resolves, and defaults to a value of that type; a mixin implements only bpmn types', () => {
+  const tabs = catalog.categories().map((category) => category.name);
+  const resolves = (type: string) => MODDLE_BUILTIN_TYPES.has(type) || type in BPMN_ANCESTORS
+    || catalog.getType(type) !== undefined || catalog.enumOf(type) !== undefined;
+
+  for (const type of catalog.allTypes()) {
+    if (type.style === 'trait') {
+      for (const target of type.extends) expect(target, `${type.name} implements`).toMatch(/^bpmn:/);
+    }
+    for (const spec of type.attributes) {
+      const where = `${type.name} ${spec.ns.name}`;
+      for (const tab of spec.meta?.categories ?? []) expect(tabs, `${where} files under "${tab}"`).toContain(tab);
+      expect(resolves(spec.type), `${where} is a ${spec.type}`).toBe(true);
+      if (spec.default === undefined) continue;
+      expect(typeof spec.default, `${where} default`).toBe(JS_TYPE[spec.type] ?? 'string');
+      if (spec.type === 'Integer') expect(Number.isInteger(spec.default), `${where} default`).toBe(true);
+    }
+  }
+});
+
+test('every concrete type instantiates in moddle with its defaults', () => {
+  const moddle = freshModdle();
+  for (const model of models) {
+    for (const type of model.types) {
+      if (type.extends || type.isAbstract || isValueType(type)) continue;
+      const name = `${model.prefix}:${type.name}`;
+      const { propertiesByName } = moddle.getElementDescriptor(moddle.create(name));
+      for (const property of type.properties ?? []) {
+        expect(propertiesByName[property.name], `${name} ${property.name}`).toBeDefined();
+        if (property.default !== undefined && property.isAttr) {
+          expect(propertiesByName[property.name].default, `${name} ${property.name} default`).toBe(property.default);
+        }
+      }
+    }
+  }
+});
+
+test('every template reads as studyflow, every key declared and every reference resolved', () => {
+  const moddle = freshModdle();
+  for (const model of models) {
+    for (const template of model.templates ?? []) {
+      const label = `${model.prefix}: ${template.description}`;
+      expect(typeof template.description, `${model.prefix} template description`).toBe('string');
+      const warnings: string[] = [];
+      const definitions = studyflowToDefinitions({ definitions: {}, elements: template.elements }, moddle, (message) => warnings.push(message));
+      expect(definitions.rootElements.length, label).toBeGreaterThan(0);
+      expect(warnings, label).toEqual([]);
+    }
+  }
 });
