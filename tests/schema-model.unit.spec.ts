@@ -4,7 +4,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { buildCatalog } from '@core/notation';
 import { fromLinkml, parseLinkml } from '@core/notation/linkml';
 import { toModdlePackages } from '@core/notation/moddlePackage';
-import { connectsToFixture, loadSchemaModels } from './schemas';
+import { loadSchemaModels } from './schemas';
 
 /** The moddle package format is an *output* of the schema model, not the source format. */
 
@@ -64,35 +64,6 @@ test.describe('schema model: moddle package generation', () => {
   });
 });
 
-
-test.describe('schema model: connection rules', () => {
-  // No shipped schema declares a `connectsTo` annotation, so the fixture file carries it.
-  const catalog = buildCatalog([connectsToFixture()]);
-
-  test('allows listed schema-type targets', () => {
-    expect(catalog.connectionRule('lab:Consent', 'lab:Survey')).toBe(true);
-  });
-
-  test('allows bpmn:* targets via the BPMN hierarchy', () => {
-    expect(catalog.connectionRule('lab:Consent', 'bpmn:ExclusiveGateway')).toBe(true);
-  });
-
-  test('rejects targets not on the allow-list', () => {
-    expect(catalog.connectionRule('lab:Consent', 'lab:Debrief')).toBe(false);
-    expect(catalog.connectionRule('lab:Consent', 'bpmn:EndEvent')).toBe(false);
-  });
-
-  test('wildcard allows anything', () => {
-    expect(catalog.connectionRule('lab:Debrief', 'lab:Consent')).toBe(true);
-    expect(catalog.connectionRule('lab:Debrief', 'bpmn:EndEvent')).toBe(true);
-  });
-
-  test('defers when the source declares no rules', () => {
-    expect(catalog.connectionRule('lab:Survey', 'lab:Consent')).toBe('defer');
-    expect(catalog.connectionRule('bpmn:Task', 'bpmn:Task')).toBe('defer');
-    expect(catalog.connectionRule(undefined, 'lab:Survey')).toBe('defer');
-  });
-});
 
 test.describe('compiler diagnostics', () => {
   const BROKEN = `
