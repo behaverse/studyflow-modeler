@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import { exportToArtemis } from '@skills/eeg/modeler';
-import { fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { exampleExportModel, fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { exampleNames } from '@tests/utils';
 
 /** The ARTEM-IS report, over hand-built business objects. */
 
@@ -73,5 +74,16 @@ test.describe('ARTEM-IS export', () => {
     expect(datasets, JSON.stringify(datasets)).toEqual([expect.objectContaining({
       element_id: 'EEG_1', studyflow_type: 'studyflow:Timeseries', sampling_rate: 250, channel_count: 16,
     })]);
+  });
+
+  test('every shipped example exports a report with every block, named after its diagram', async () => {
+    for (const name of exampleNames) {
+      const model = await exampleExportModel(name);
+      const out = report(model);
+      expect(out.studyflow_source.diagram_name, name).toBe(model.diagramName);
+      for (const block of ['general', 'participants', 'task', 'acquisition', 'preprocessing', 'analysis', 'datasets']) {
+        expect(out[block], `${name}: ARTEM-IS block '${block}'`).toBeTruthy();
+      }
+    }
   });
 });

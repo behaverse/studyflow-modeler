@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { exportToLinkML } from '@skills/linkml/modeler';
-import { fakeExportModel, wrapperElement } from '@tests/exporterFixture';
+import { exampleExportModel, fakeExportModel, wrapperElement } from '@tests/exporterFixture';
+import { exampleNames } from '@tests/utils';
 
 /** Every catalog-declared attribute of a data element must appear in the exported linkml schema. */
 
@@ -24,4 +25,11 @@ test('exportToLinkML collects data elements stored as extension wrappers', () =>
   expect(cls.attributes.samplingRate.range).toBe('float');
   expect(cls.attributes.channelCount.range).toBe('integer');
   expect(cls.annotations.format).toBe('edf');
+});
+
+test('every shipped example exports a LinkML document with classes', async () => {
+  for (const name of exampleNames) {
+    const doc = yaml.load(exportToLinkML(await exampleExportModel(name))) as any;
+    expect(Object.keys(doc?.classes ?? {}).length, name).toBeGreaterThan(0);
+  }
 });

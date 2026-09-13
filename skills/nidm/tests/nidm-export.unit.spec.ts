@@ -2,7 +2,8 @@ import { expect, test } from '@playwright/test';
 
 import { StudyflowElement } from '@core/element';
 import { exportToNidm } from '@skills/nidm/modeler';
-import { fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { exampleExportModel, fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { exampleNames } from '@tests/utils';
 
 /** The NIDM-Results (Turtle) export, over hand-built business objects. */
 
@@ -20,10 +21,10 @@ function usedPrefixes(turtle: string): Set<string> {
   return new Set([...body.matchAll(/([A-Za-z][\w.-]*):/g)].map((match) => match[1]));
 }
 
-function expectEveryPrefixDeclared(turtle: string): void {
+function expectEveryPrefixDeclared(turtle: string, label: string): void {
   const declared = declaredPrefixes(turtle);
   const undeclared = [...usedPrefixes(turtle)].filter((prefix) => !declared.has(prefix));
-  expect(undeclared, `undeclared prefix(es) in:\n${turtle}`).toEqual([]);
+  expect(undeclared, `${label}: undeclared prefix(es) in:\n${turtle}`).toEqual([]);
 }
 
 function dataInput(source: any): any {
@@ -60,16 +61,9 @@ function analysisDiagram(): any {
 }
 
 test.describe('NIDM export', () => {
-  test('declares every prefix it uses', () => {
-    const turtle = exportToNidm(analysisDiagram());
-
-    expectEveryPrefixDeclared(turtle);
-    // The studyflow namespace is bound as `core:`; `studyflow:` never is.
-    expect(turtle).not.toContain('studyflow:');
-  });
-
-  test('declares every prefix it uses in the empty-diagram placeholder', () => {
-    expectEveryPrefixDeclared(exportToNidm(fakeExportModel([])));
+  // consort2025, among others, has no data plane: the placeholder bundle is checked here too.
+  test('every shipped example exports Turtle that declares every prefix it uses', async () => {
+    for (const name of exampleNames) expectEveryPrefixDeclared(exportToNidm(await exampleExportModel(name)), name);
   });
 
   test('writes an operation as an activity, its data as entities, and which it used and generated', () => {
