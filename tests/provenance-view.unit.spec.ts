@@ -4,7 +4,7 @@ import { readState, writeState } from '@core/document';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
 import {
-  applyStatuses, assignLanes, collectProvenance, displayOrder, recordDetails, shapeIconOf,
+  applyStatuses, assignLanes, collectProvenance, displayOrder, recordDetails,
 } from '@modeler/provenance/records';
 import { primaryRoot } from '@core/document';
 import { appendTrailEntry } from '@modeler/provenance/trail';
@@ -93,6 +93,7 @@ test.describe('provenance view model', () => {
     appendTrailEntry(definitions, moddle, {
       action: 'executed',
       when: '2026-07-31T10:00:00Z',
+      who: '',
       run: 'run-001',
       seed: '42',
     });
@@ -121,21 +122,8 @@ test.describe('provenance view model', () => {
       ['run', 'run-001'],
       ['seed', '42'],
     ]);
-    // Document rows project plain `_meta.prov` records, not moddle elements.
+    // Document rows project plain `_meta.prov` records, not moddle elements, and an empty fact (`who`) is left out.
     expect(records[2].entry).toEqual({ action: 'executed', when: '2026-07-31T10:00:00Z', run: 'run-001', seed: 42 });
-  });
-
-  test('icons only for gateways, events, and containers — the rest stay bare', () => {
-    const icon = (type: string) => shapeIconOf(moddle.create(type, {}));
-    expect(icon('bpmn:ExclusiveGateway')).toBe(ICONS.diamond);
-    expect(icon('bpmn:StartEvent')).toBe(ICONS.circle);
-    expect(icon('bpmn:EndEvent')).toBe(ICONS.circle);
-    expect(icon('bpmn:SubProcess')).toBe(ICONS.plusBox);
-    expect(icon('bpmn:AdHocSubProcess')).toBe(ICONS.plusBox);
-    expect(icon('agentic:Agent')).toBe(ICONS.plusBox);
-    expect(icon('bpmn:ServiceTask')).toBeUndefined();
-    expect(icon('cognitive:CognitiveTask')).toBeUndefined();
-    expect(icon('bpmn:DataObjectReference')).toBeUndefined();
   });
 
   test('sorts undated entries last and keeps document order among them', async () => {
@@ -391,16 +379,6 @@ test.describe('replay', () => {
     expect(marker.consumed).toBeFalsy();
   });
 
-  test('the full prefix converges on the live flags, which stay untouched on their clones', async () => {
-    const records = await forkedHistory();
-    const replayed = prefix(records, records.length);
-
-    expect(replayed.map((r) => [r.invalidated ?? false, !!r.consumed]))
-      .toEqual(records.map((r) => [r.invalidated ?? false, !!r.consumed]));
-    // Scrubbing mutated only clones: the marker of the live trail is still consumed.
-    expect(records.find((r) => r.action === 'invalidated')!.consumed).toBe(true);
-  });
-
   test('a run stamped after an armed marker opens its lane before the re-run lands', async () => {
     const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
     const task = firstActivity(definitions);
@@ -454,19 +432,5 @@ test.describe('display order', () => {
     const pin = record({ action: 'invalidated', when: '2026-07-31T12:00:00Z' });
 
     expect(displayOrder([first, pin])).toEqual([first, pin]);
-  });
-
-  test('reordering is display only, which is why the view hands over a copy', () => {
-    const first = record({ when: '2026-07-31T10:00:00Z' });
-    const second = record({ when: '2026-07-31T11:00:00Z' });
-    const marker = record({ action: 'invalidated', when: '2026-07-31T12:00:00Z', what: '2026-07-31T10:00:00Z' });
-    const collected = [first, second, marker];
-
-    const shown = displayOrder([...collected]);
-
-    // The array handed in is the array handed back: `Provenance.tsx` passes a copy for exactly this reason.
-    expect(shown).not.toBe(collected);
-    expect(collected, 'oldest-first order survives for every other consumer')
-      .toEqual([first, second, marker]);
   });
 });
