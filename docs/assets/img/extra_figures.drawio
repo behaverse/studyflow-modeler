@@ -552,7 +552,7 @@
         <mxCell id="7AkUaVnRIHZjFl7j9H4p-45" parent="7AkUaVnRIHZjFl7j9H4p-44" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;" value="+ prefix: InstrumentType" vertex="1">
           <mxGeometry height="26" width="167" y="35" as="geometry" />
         </mxCell>
-        <mxCell id="7AkUaVnRIHZjFl7j9H4p-48" parent="1" style="html=1;whiteSpace=wrap;" value="«external»&lt;br&gt;&lt;b&gt;LinkML:Uriorcurie&lt;/b&gt;" vertex="1">
+        <mxCell id="7AkUaVnRIHZjFl7j9H4p-48" parent="1" style="html=1;whiteSpace=wrap;" value="«dataType»&lt;br&gt;&lt;b&gt;Uriorcurie&lt;/b&gt;" vertex="1">
           <mxGeometry height="50" width="110" x="-164" y="-130" as="geometry" />
         </mxCell>
         <mxCell id="7AkUaVnRIHZjFl7j9H4p-49" edge="1" parent="1" source="7AkUaVnRIHZjFl7j9H4p-44" style="edgeStyle=none;curved=1;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontSize=12;startSize=8;endSize=8;" target="7AkUaVnRIHZjFl7j9H4p-48">
