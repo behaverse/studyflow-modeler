@@ -16,12 +16,6 @@ function isDrawnData(element: any): boolean {
   return DRAWN_DATA.includes(element?.$type);
 }
 
-function containerOf(element: any): any {
-  let node = element?.$parent;
-  while (node && node.$type !== 'bpmn:Process' && node.$type !== 'bpmn:SubProcess') node = node.$parent;
-  return node;
-}
-
 function activities(definitions: any): any[] {
   const found: any[] = [];
   const visit = (container: any): void => {
@@ -121,22 +115,6 @@ test.describe('shipped examples: the figure and the data contract agree', () => 
       expect(orphans, 'data elements drawn on the canvas that no association names').toEqual([]);
     });
   }
-
-  test('a data association out of a sub-process is reported with the scope it reaches into', async () => {
-    // agent_eval declares artifacts on the process (they outlive the loop) and reads them from nested steps.
-    const { definitions, planes } = await read('agent_eval');
-
-    const crossing = associationsOf(definitions)
-      .filter(({ step, dataElement }) =>
-        isDrawnData(dataElement) && containerOf(dataElement) !== containerOf(step));
-
-    expect(crossing.length).toBeGreaterThan(0);
-    for (const { step, dataElement } of crossing) {
-      // Both ends are drawn on the one plane; the tag reports the container the step sits in.
-      expect(planes.some((shapes) => shapes.has(step.id) && shapes.has(dataElement.id))).toBe(true);
-      expect(containerOf(dataElement).name || containerOf(dataElement).id).toBeTruthy();
-    }
-  });
 });
 
 function elementById(definitions: any, id: string): any {

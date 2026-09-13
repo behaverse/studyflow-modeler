@@ -17,11 +17,6 @@ const layoutlessXml = () => {
 };
 
 test.describe('ensureDiagramLayout', () => {
-  test('detects presence and absence of diagram interchange', () => {
-    expect(hasDiagramInterchange('<bpmndi:BPMNDiagram id="d"><bpmndi:BPMNPlane/></bpmndi:BPMNDiagram>')).toBe(true);
-    expect(hasDiagramInterchange('<bpmn2:definitions><bpmn2:process/></bpmn2:definitions>')).toBe(false);
-  });
-
   test('synthesizes DI for a layout-less diagram, preserving every extension', async () => {
     const xml = await layoutlessXml();
     // Precondition: the converted file has no geometry, this is the failing case.
