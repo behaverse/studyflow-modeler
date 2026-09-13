@@ -129,3 +129,8 @@ export function click(canvas: Canvas, at: Pt): void {
   pointerDown(canvas, at);
   pointerUp(canvas, at);
 }
+
+/** A double click at a diagram point, on the canvas SVG. */
+export function doubleClick(canvas: Canvas, at: Pt): void {
+  firePointer(canvas, canvas.getSvg(), 'dblclick', at);
+}

@@ -4,24 +4,21 @@ import {
   addPaletteElement,
   examplePath,
   exportDiagram,
-  expectEditorText,
   gotoModeler,
-  labelEditor,
   pressOnCanvas,
   readDownloadText,
 } from './utils';
 
 /**
- * Sub-process drill-down AND in-place expand, end to end
- * (`scratchpad/subprocess-drilldown-spec.md`, frames `edge-videos/sub/*`; the
- * uniformity report of 2026-08-27).
+ * Sub-process drill-down, end to end: the context pad's badge, the breadcrumb trail
+ * and the plane each shows. What a double click does to a container is pinned in
+ * jsdom (`packages/canvas/tests/canvas.unit.spec.ts`).
  *
  * `sklearn_pipeline` is the fixture because it ships BOTH shapes of the feature at
  * once: `select_model` is drawn collapsed and owns its own `bpmndi:BPMNDiagram`,
  * while `prepare_data` is drawn expanded with its children filed in the parent
- * plane. The editor used to treat those two as different kinds of thing — badge and
- * drill-on-double-click for one, no badge and toggle-on-double-click for the other.
- * Every test below asserts the SAME behaviour for both.
+ * plane. The editor used to treat those two as different kinds of thing, so the
+ * tests assert the same behaviour for both.
  */
 
 /**
@@ -132,71 +129,6 @@ test.describe('sub-process drill-down', () => {
     await page.getByTestId('breadcrumb-sklearn_pipeline').click();
     await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
     await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
-  });
-
-  test('double-clicking a collapsed sub-process expands it in place and re-routes its flows', async ({ page }) => {
-    await openExample(page);
-
-    const flow = page.locator('g[data-element-id="flow_select_done"] .sf-connection-line');
-    const before = await flow.getAttribute('data-waypoints');
-    // The shape's own `<rect>` carries its footprint in DIAGRAM units, so the
-    // assertion survives the zoom a re-fit chooses — which a pixel box does not.
-    // `:not(.sf-outline)` skips the selection outline, which is drawn in the same
-    // group and is 10 units wider than the shape it wraps.
-    const frameWidth = page.locator('g[data-element-id="select_model"] rect:not(.sf-outline)').first();
-    await expect(frameWidth).toHaveAttribute('width', '100');
-
-    await page.locator('g[data-element-id="select_model"]').dblclick();
-
-    // Defect 1: the double click no longer navigates — it opens the container where
-    // it stands, and the badge keeps the trip.
-    await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
-    await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
-    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
-    // Fitted to the interior it now holds, not to the flat 350-unit default.
-    await expect.poll(async () => Number(await frameWidth.getAttribute('width')))
-      .toBeGreaterThan(350);
-
-    // Defect 3: the outline changed, so the flows docked to it moved with it. They
-    // used to keep the waypoints of the 100x80 box and start inside the new frame.
-    await expect.poll(async () => flow.getAttribute('data-waypoints')).not.toBe(before);
-
-    // …and it is ONE undo step: the flag, the bounds and the waypoints all go back
-    // together, because they were written in one revision.
-    await pressOnCanvas(page, 'ControlOrMeta+z');
-    await expect.poll(async () => flow.getAttribute('data-waypoints')).toBe(before);
-    await expect(page.locator('g[data-element-id="select_model"] rect:not(.sf-outline)').first())
-      .toHaveAttribute('width', '100');
-    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeHidden();
-  });
-
-  test('double-clicking an in-parent sub-process collapses it, and its name still renames', async ({ page }) => {
-    await openExample(page);
-
-    const frame = page.locator('g[data-element-id="prepare_data"]');
-    const width = page.locator('g[data-element-id="prepare_data"] rect:not(.sf-outline)').first();
-    await expect(width).toHaveAttribute('width', '650');
-    const box = (await frame.boundingBox())!;
-
-    // The BODY, clear of the caption: it collapses in place rather than navigating.
-    await frame.dblclick({ position: { x: 12, y: box.height - 12 } });
-    await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
-    await expect(page.locator('g[data-element-id="select_features"]')).toBeHidden();
-    await expect(page.locator('g[data-element-id="prepare_data"] rect:not(.sf-outline)').first())
-      .toHaveAttribute('width', '100');
-
-    await pressOnCanvas(page, 'ControlOrMeta+z');
-    await expect(page.locator('g[data-element-id="select_features"]')).toBeVisible();
-    await expect(page.locator('g[data-element-id="prepare_data"] rect:not(.sf-outline)').first())
-      .toHaveAttribute('width', '650');
-
-    // Rename stays reachable: `e` on the selection, and a double click on the
-    // container's own NAME rather than on its body.
-    await page.locator('g[data-element-id="prepare_data"]').click({ position: { x: 12, y: 12 } });
-    await pressOnCanvas(page, 'e');
-    await expectEditorText(page, 'prepare_data');
-    await pressOnCanvas(page, 'Escape');
-    await expect(labelEditor(page)).toHaveCount(0);
   });
 
   test('a sub-process dropped from the palette is authorable: badge, plane, contents', async ({ page }) => {

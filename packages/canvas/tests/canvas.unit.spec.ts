@@ -5,6 +5,7 @@ import type { Canvas } from '@canvas/index.ts';
 
 import {
   click,
+  doubleClick,
   dragBy,
   freshModdle,
   installDocument,
@@ -407,6 +408,8 @@ test('a dragged caption moves alone and becomes pinned in the document', async (
   canvas.setSnapToGrid(false);
   click(canvas, from);
   expect(canvas.getSelection().get()).toEqual([caption]);
+  // A selected caption offers its four corner handles, as a resizable shape does.
+  expect(canvas.getSvg().querySelectorAll('.sf-handle')).toHaveLength(4);
   dragBy(canvas, from, { x: from.x + 30, y: from.y + 30 });
   expect(caption.pinned).toBe(true);
   expect(Math.round(centre(caption).x - from.x)).toBe(30);
@@ -414,7 +417,7 @@ test('a dragged caption moves alone and becomes pinned in the document', async (
   expect(await xmlOf(loaded)).toMatch(/Start_1_di[\s\S]*?<bpmndi:BPMNLabel>/);
 });
 
-test('renaming through the inline editor re-fits the caption under its shape', async () => {
+test('renaming through the inline editor re-fits a caption, and naming an unnamed flow mints one', async () => {
   const { canvas } = await load();
   const start = node(canvas, 'Start_1');
   const before = label(canvas, 'Start_1_label').width;
@@ -426,6 +429,15 @@ test('renaming through the inline editor re-fits the caption under its shape', a
   expect(caption.width).toBeGreaterThan(before);
   expect(Math.abs(centre(caption).x - centre(start).x)).toBeLessThan(0.01);
   expect(canvas.getGraphics('Start_1_label')!.textContent).toContain('caption');
+
+  // Flow_1 has no name, so no caption until it gets one.
+  const flow = edge(canvas, 'Flow_1');
+  expect(canvas.get('Flow_1_label')).toBeUndefined();
+  expect(canvas.editLabel(flow)).toBe(true);
+  canvas.getLabelEditing().setValue('hello');
+  canvas.getLabelEditing().complete();
+  expect(label(canvas, 'Flow_1_label').owner).toBe(flow);
+  expect(canvas.getGraphics('Flow_1_label')!.textContent).toContain('hello');
 });
 
 test('a moved node carries its pinned caption and re-derives an unpinned one', async () => {
@@ -443,19 +455,56 @@ test('a moved node carries its pinned caption and re-derives an unpinned one', a
 
 // --- containers ---------------------------------------------------------------------
 
-test('expanding a container frames its contents and collapsing hides them again', async () => {
+test('expanding a container frames its contents and re-docks its flows, and collapsing hides them again', async () => {
   const { canvas } = await load();
   const sub = node(canvas, 'Sub_1');
   const inner = node(canvas, 'Task_In');
+  const flow = canvas.connectElements(node(canvas, 'Start_1'), sub)!;
+  const docked = { ...flow.waypoints.at(-1)! };
   expect(canvas.setExpanded(sub, true)).toBe(true);
   expect(sub.isExpanded).toBe(true);
   expect(sub.width).toBeGreaterThanOrEqual(350);
   expect(inner.x).toBeGreaterThanOrEqual(sub.x);
   expect(inner.x + inner.width).toBeLessThanOrEqual(sub.x + sub.width);
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(false);
+  // The outline grew, so the flow docked on it moved onto the new one.
+  expect(flow.waypoints.at(-1)).not.toEqual(docked);
+  expect(onOutline(sub, flow.waypoints.at(-1)!)).toBe(true);
   expect(canvas.setExpanded(sub, false)).toBe(true);
   expect({ width: sub.width, height: sub.height }).toEqual({ width: 100, height: 80 });
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(true);
+});
+
+test('a double click opens or shuts a container in place; on an open one\'s caption strip, or with `e`, it renames it', async () => {
+  const { canvas } = await load();
+  const scene = canvas.getScene()!;
+  const sub = node(canvas, 'Sub_1');
+
+  // Collapsed, a double click on its body expands it where it stands, as one edit, and does not drill in.
+  let revision = scene.revision;
+  doubleClick(canvas, centre(sub));
+  expect(sub.isExpanded).toBe(true);
+  expect(scene.revision).toBe(revision + 1);
+  expect(canvas.getScope()).toBeUndefined();
+  expect(isHiddenGraphics(canvas, 'Task_In')).toBe(false);
+
+  // Expanded, a double click on its body, clear of its contents and its caption strip, collapses it.
+  revision = scene.revision;
+  doubleClick(canvas, { x: sub.x + 10, y: sub.y + sub.height - 10 });
+  expect(sub.isExpanded).toBe(false);
+  expect(scene.revision).toBe(revision + 1);
+  expect(isHiddenGraphics(canvas, 'Task_In')).toBe(true);
+
+  // On an expanded container's caption strip, it opens the name editor instead.
+  canvas.setExpanded(sub, true);
+  doubleClick(canvas, { x: sub.x + 10, y: sub.y + 5 });
+  expect(sub.isExpanded).toBe(true);
+  expect(canvas.getLabelEditing().getSession()?.element).toBe(sub);
+  canvas.getLabelEditing().cancel();
+  // So does `e` on the selected container.
+  canvas.getSelection().select(sub);
+  canvas.getContainer().dispatchEvent(keyEvent('keydown', { key: 'e' }));
+  expect(canvas.getLabelEditing().getSession()?.element).toBe(sub);
 });
 
 test('drilling into a container shows only its contents until the trail leads back out', async () => {
