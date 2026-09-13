@@ -53,3 +53,16 @@ test('the inspector offers implementation on the native types, script on script 
   expect(script).toContain('script');
   expect(script).not.toContain('implementation');
 });
+
+test('the Execution tab is for what runs or holds state: activities and the study, not gateways or events', () => {
+  const CASES: Array<[string, boolean]> = [
+    ['bpmn:Task', true],
+    ['bpmn:SubProcess', true],
+    ['bpmn:Process', true],
+    ['bpmn:ExclusiveGateway', false],
+    ['bpmn:StartEvent', false],
+  ];
+  for (const [type, hasTab] of CASES) {
+    expect('Execution' in getAttributesByCategory(moddle.create(type, { id: 'T_3' })), type).toBe(hasTab);
+  }
+});
