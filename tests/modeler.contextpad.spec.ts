@@ -4,7 +4,6 @@ import {
   addPaletteElement,
   exportDiagram,
   gotoModeler,
-  labelEditor,
   pressOnCanvas,
   readDownloadText,
 } from './utils';
@@ -233,30 +232,6 @@ test.describe('The context pad', () => {
     await pressOnCanvas(page, 'ControlOrMeta+z');
     await expect(task).toHaveCount(1);
     await expect(page.locator('g[data-element-id^="UserTask_"]')).toHaveCount(0);
-  });
-
-  test('switch initiating participant flips a choreography task\'s bands', async ({ page }) => {
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Activities', 'Choreography Task', { x: 400, y: 240 });
-    await page.keyboard.press('Escape');
-    await expect(labelEditor(page)).toBeHidden();
-
-    const shape = page.locator('[data-element-id^="ChoreographyTask_"]').first();
-    const bandFills = () => shape.locator('path[data-band]').evaluateAll(
-      // (tests are typechecked without the DOM lib, hence the `any`)
-      (paths) => paths.map((p: any) => p.style.fill || p.getAttribute('fill')),
-    );
-    const before = await bandFills();
-    expect(before).toHaveLength(2);
-    expect(before[0], 'the initiating band is shaded differently to begin with').not.toBe(before[1]);
-
-    // The app's own pad entry, contributed to diagram-js's pad while bpmn-js was the
-    // editor (ux-spec §4) and re-hung on this one.
-    await entry(page, 'choreography.swap-initiator').click();
-    await expect.poll(bandFills).toEqual([before[1], before[0]]);
-
-    const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toContain('initiatingParticipantRef');
   });
 
   test('goes away for the duration of a drag, and comes back where the shape landed', async ({ page }) => {

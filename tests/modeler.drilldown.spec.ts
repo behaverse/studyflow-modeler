@@ -53,37 +53,6 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
 const drilldown = (page: import('@playwright/test').Page) => page.getByTestId('context-pad-drilldown');
 
 test.describe('sub-process drill-down', () => {
-  test('an expanded sub-process draws the flows between its children, not just the children', async ({ page }) => {
-    await openExample(page);
-
-    // Defect 2. The interior shapes were always drawn; the interior EDGES were not —
-    // they sat in a connections layer below every shape, so the container's own opaque
-    // frame painted over them. Nothing about their `display` was ever wrong, which is
-    // why this assertion is about geometry and paint order rather than visibility.
-    const frame = page.locator('g[data-element-id="prepare_data"]');
-    const flow = page.locator('g[data-element-id="Flow_Select_Features_Select_Target"]');
-    await expect(flow).toBeAttached();
-
-    // A horizontal flow has a zero-height box, which `toBeVisible` reads as hidden —
-    // so painted-ness is measured directly: not `display:none`, and a real extent
-    // inside the frame that used to cover it.
-    const flowBox = await painted(flow);
-    expect(flowBox.display).not.toBe('none');
-    expect(flowBox.width).toBeGreaterThan(0);
-    const frameBox = (await frame.boundingBox())!;
-    expect(flowBox.x).toBeGreaterThanOrEqual(frameBox.x - 1);
-    expect(flowBox.y).toBeGreaterThanOrEqual(frameBox.y - 1);
-    expect(flowBox.x + flowBox.width).toBeLessThanOrEqual(frameBox.x + frameBox.width + 1);
-
-    // Painted AFTER the frame, in the one element layer — the invariant that broke.
-    const order = await page.locator('svg.sf-canvas [data-layer="elements"] > g')
-      .evaluateAll((nodes) => nodes.map((n) => n.getAttribute('data-element-id')));
-    expect(order.indexOf('Flow_Select_Features_Select_Target'))
-      .toBeGreaterThan(order.indexOf('prepare_data'));
-    // …and a root-level flow still passes under the shape it points at.
-    expect(order.indexOf('flow_start')).toBeLessThan(order.indexOf('prepare_data'));
-  });
-
   test('the badge enters the plane and the breadcrumb shows the path back', async ({ page }) => {
     await openExample(page);
 

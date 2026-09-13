@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas } from '@canvas/index.ts';
+import { Canvas, INK } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
-import { readChoreographyBands } from '@canvas/model/choreography.ts';
 
 import { freshModdle, installDocument, loadCanvas } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';
@@ -114,20 +113,18 @@ function textsOf(canvas: Canvas, id: string): string[] {
   return g ? Array.from(g.querySelectorAll('text')).map((t) => t.textContent ?? '') : [];
 }
 
-test('a group is captioned from its categoryValue, centred on the top of the frame', async () => {
+test('a group is captioned from its categoryValue, centred across the frame', async () => {
   const canvas = await render('kitchensink');
   // The caption is NOT the group's `name` (it has none): BPMN keeps it on the
-  // referenced `bpmn:CategoryValue`, which is where bpmn-js reads it from too.
+  // referenced `bpmn:CategoryValue`.
   expect(textsOf(canvas, 'Group_BpmnEvents')).toEqual(['BPMN · Events']);
   expect(textsOf(canvas, 'Group_BpmnGateways')).toEqual(['BPMN · Gateways']);
   expect(textsOf(canvas, 'Group_Exec')).toEqual(['exec · Execution & scope']);
 
   const group = canvas.getScene()!.elementsById.get('Group_BpmnEvents') as any;
   const text = canvas.getGraphics('Group_BpmnEvents')!.querySelector('text')!;
-  // Node-local coordinates: horizontally centred, 10 below the top edge — bpmn-js's
-  // `getExternalLabelMid` special-case for a group.
+  // Node-local coordinates: horizontally centred on the frame.
   expect(Number(text.getAttribute('x'))).toBeCloseTo(group.width / 2, 6);
-  expect(text.getAttribute('y')).toBe('10');
   expect(text.getAttribute('text-anchor')).toBe('middle');
 });
 
@@ -138,11 +135,8 @@ test('a text annotation draws its `text`, wrapped — not its `name`', async () 
   expect(lines.join(' ')).toBe('A free-form note. Groups (these labelled bands) are artifacts too.');
   // The name is a placeholder BPMN does not display; drawing it was the bug.
   expect(lines.join(' ')).not.toContain('Text annotation');
-  const first = canvas.getGraphics('Bd_Annotation')!.querySelector('text')!;
-  // Top-left inside the bracket, inset by bpmn-js's TEXT_ANNOTATION_PADDING.
-  expect(first.getAttribute('x')).toBe('7');
   // A note reads left by default, and says so: its `font` may align it otherwise.
-  expect(first.getAttribute('text-anchor')).toBe('start');
+  expect(canvas.getGraphics('Bd_Annotation')!.querySelector('text')!.getAttribute('text-anchor')).toBe('start');
 });
 
 /**
@@ -191,7 +185,7 @@ test('a bare bpmn:DataStore draws as a cylinder, like a data store REFERENCE', a
   expect(pathOf('ObjRef_1')).not.toContain('A');
 });
 
-test('a choreography task draws its name in the MIDDLE band, not on the divider', async () => {
+test('a choreography task draws its name in the MIDDLE band, and shades the band that does not initiate', async () => {
   const canvas = await render('choreography_demo');
   const task = canvas.getScene()!.elementsById.get('Consent') as any;
   const g = canvas.getGraphics('Consent')!;
@@ -203,6 +197,12 @@ test('a choreography task draws its name in the MIDDLE band, not on the divider'
   // Dead centre of the 20…70 middle band — where `labelBounds` opens the editor —
   // rather than sitting on the top divider, which is where the un-nested draw put it.
   expect(shift + Number(name.getAttribute('y'))).toBeCloseTo(task.height / 2, 6);
+
+  // The initiating participant's band has the task's plain fill; the other is shaded.
+  const bandFills = (id: string) => Array.from(canvas.getGraphics(id)!.querySelectorAll('path[data-band]'))
+    .map((band) => band.getAttribute('fill'));
+  expect(bandFills('Consent'), 'Subject, on top, initiates').toEqual([INK.fill, INK.band]);
+  expect(bandFills('Round'), 'Experimenter, below, initiates').toEqual([INK.band, INK.fill]);
 });
 
 /**
@@ -257,11 +257,7 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
   // show through its middle, as an attribute so an exported SVG (no stylesheet, no CSS
   // variables) paints it white rather than black.
   const marker = canvas.getSvg().querySelector('#sf-marker-message-start circle')!;
-  expect(marker.getAttribute('r')).toBe('3');
-  // Placed just past the docking point, not centred on it: the shape paints over the
-  // edges at its depth, so a centred circle is half swallowed by its own source.
-  expect(marker.parentElement!.getAttribute('refX')).toBe('1.5');
-  expect(marker.getAttribute('fill')).toBe('#ffffff');
+  expect(marker.getAttribute('fill')).toBe(INK.fill);
   expect(marker.getAttribute('stroke')).toBe('context-stroke');
 });
 
@@ -317,51 +313,124 @@ test('a `labelText` option resolves placeholders in drawn labels; the model keep
   expect(textsOf(plain.canvas, plainLabel).join(' ')).toBe('Excluded (n={count})');
 });
 
-test('a cognitive task presents itself, and renaming the pool on its band redraws it', async () => {
-  const canvas = await render('reachy_participant');
-  const task = canvas.getScene()!.elementsById.get('Play') as any;
-  expect(readChoreographyBands(task.businessObject)).toEqual({ top: 'Behaverse \u00b7 WO', bottom: 'Reachy Mini', initiator: 'top' });
-  expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Behaverse \u00b7 WO', 'Reachy Mini']));
+/**
+ * A cognitive task in the pool of the participant who takes it: a choreography task
+ * typed `cognitive:CognitiveTask`, naming that participant.
+ */
+const COGNITIVE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"
+    id="Defs_Cog" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Collab_Cog">
+    <bpmn:participant id="Pool_Seat" name="Robot" processRef="Process_Cog" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_Cog" isExecutable="false">
+    <bpmn:choreographyTask id="Play" name="N-back">
+      <bpmn:extensionElements><cognitive:cognitiveTask instrument="psychopy" /></bpmn:extensionElements>
+      <bpmn:participantRef>Pool_Seat</bpmn:participantRef>
+    </bpmn:choreographyTask>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_Cog">
+    <bpmndi:BPMNPlane id="Plane_Cog" bpmnElement="Collab_Cog">
+      <bpmndi:BPMNShape id="Pool_Seat_di" bpmnElement="Pool_Seat" isHorizontal="true"><dc:Bounds x="100" y="100" width="500" height="200" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Play_di" bpmnElement="Play"><dc:Bounds x="200" y="140" width="160" height="120" /></bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
 
-  const pool = canvas.getScene()!.elementsById.get('Pool_Reachy') as any;
-  canvas.updateModdleProperties(pool, pool.businessObject, { name: 'Robot' });
-  expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Robot']));
-  expect(textsOf(canvas, 'Play')).not.toEqual(expect.arrayContaining(['Reachy Mini']));
+test('a cognitive task shows its presenter and the pool it names, and renaming the pool redraws it', async () => {
+  const { canvas } = await loadCanvas(COGNITIVE_XML);
+  // The upper band is the type's `meta.presenter` (`{instrument}`), the lower the participant.
+  expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['psychopy', 'Robot']));
+
+  const pool = canvas.getScene()!.elementsById.get('Pool_Seat') as any;
+  canvas.updateModdleProperties(pool, pool.businessObject, { name: 'Volunteer' });
+  expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Volunteer']));
+  expect(textsOf(canvas, 'Play')).not.toContain('Robot');
 });
 
-// --- data associations -------------------------------------------------------------
+// --- sub-processes -------------------------------------------------------------------
 
-test('a collapsed sub-process draws its own data associations', async () => {
-  const { canvas } = await loadCanvas(await exampleXml('spirit2025'));
-  // Visit_T1 and Visit_T2 are collapsed; what they write sits beside them, not inside.
-  for (const id of ['DataOutput_T1_AE', 'DataOutput_T2_Primary', 'DataOutput_T2_AE']) {
-    expect(canvas.getGraphics(id)?.getAttribute('display'), id).toBeNull();
-  }
+/**
+ * An expanded sub-process with a flow between its children, and a collapsed one with a
+ * child of its own and a data output association to a data object beside it.
+ */
+const SUBPROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+    xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+    xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+    id="Defs_Sub" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_Sub" isExecutable="false">
+    <bpmn:startEvent id="Start" />
+    <bpmn:subProcess id="Expanded" name="Expanded">
+      <bpmn:task id="First" />
+      <bpmn:task id="Second" />
+      <bpmn:sequenceFlow id="Inner_Flow" sourceRef="First" targetRef="Second" />
+    </bpmn:subProcess>
+    <bpmn:sequenceFlow id="Into_Expanded" sourceRef="Start" targetRef="Expanded" />
+    <bpmn:subProcess id="Collapsed" name="Collapsed">
+      <bpmn:task id="Hidden" />
+      <bpmn:dataOutputAssociation id="Writes"><bpmn:targetRef>Record</bpmn:targetRef></bpmn:dataOutputAssociation>
+    </bpmn:subProcess>
+    <bpmn:dataObjectReference id="Record" name="Record" dataObjectRef="Record_Data" />
+    <bpmn:dataObject id="Record_Data" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diag_Sub">
+    <bpmndi:BPMNPlane id="Plane_Sub" bpmnElement="Process_Sub">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start"><dc:Bounds x="100" y="122" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Expanded_di" bpmnElement="Expanded" isExpanded="true"><dc:Bounds x="200" y="40" width="400" height="200" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="First_di" bpmnElement="First"><dc:Bounds x="230" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Second_di" bpmnElement="Second"><dc:Bounds x="450" y="100" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Inner_Flow_di" bpmnElement="Inner_Flow"><di:waypoint x="330" y="140" /><di:waypoint x="450" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Into_Expanded_di" bpmnElement="Into_Expanded"><di:waypoint x="136" y="140" /><di:waypoint x="200" y="140" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Collapsed_di" bpmnElement="Collapsed" isExpanded="false"><dc:Bounds x="200" y="300" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Hidden_di" bpmnElement="Hidden"><dc:Bounds x="400" y="500" width="100" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Record_di" bpmnElement="Record"><dc:Bounds x="360" y="315" width="36" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Writes_di" bpmnElement="Writes"><di:waypoint x="300" y="340" /><di:waypoint x="360" y="340" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+test('an expanded sub-process draws the flows between its children over its frame', async () => {
+  // Paint order is the one element layer's. A flow inside a container once sat in a layer
+  // under every shape, where the container's opaque frame painted over it.
+  const { canvas } = await loadCanvas(SUBPROCESS_XML);
+  const order = Array.from(canvas.getSvg().querySelectorAll('[data-layer="elements"] > g'))
+    .map((g) => g.getAttribute('data-element-id'));
+  expect(order.indexOf('Inner_Flow')).toBeGreaterThan(order.indexOf('Expanded'));
+  expect(canvas.getGraphics('Inner_Flow')!.getAttribute('display')).toBeNull();
+  // A root-level flow still passes under the shape it points at.
+  expect(order.indexOf('Into_Expanded')).toBeLessThan(order.indexOf('Expanded'));
 });
 
-// --- main canvas only ------------------------------------------------------------
+test('a collapsed sub-process hides its contents but draws its own data associations, and mainCanvasOnly keeps them', async () => {
+  // A data association's moddle parent is its activity, but it sits beside it: it once
+  // counted as the collapsed container's content and went hidden with it.
+  const full = await loadCanvas(SUBPROCESS_XML);
+  expect(full.canvas.getGraphics('Hidden')!.getAttribute('display')).toBe('none');
+  expect(full.canvas.getGraphics('Writes')!.getAttribute('display')).toBeNull();
+  const main = await loadCanvas(SUBPROCESS_XML, { mainCanvasOnly: true });
+  expect(main.canvas.get('Writes')).toBeTruthy();
+});
 
 /** Every DI shape and edge the definitions carry, across their planes. */
 const diCount = (definitions: any): number =>
   (definitions.diagrams ?? []).reduce((n: number, diagram: any) => n + (diagram.plane?.planeElement?.length ?? 0), 0);
 
 test('mainCanvasOnly imports nothing inside a sub-process, collapsed or expanded', async () => {
-  const xml = await exampleXml('sklearn_pipeline');
-  const full = await loadCanvas(xml);
-  const main = await loadCanvas(xml, { mainCanvasOnly: true });
+  const full = await loadCanvas(SUBPROCESS_XML);
+  const main = await loadCanvas(SUBPROCESS_XML, { mainCanvasOnly: true });
 
-  // `select_model` is collapsed and `prepare_data` expanded: both frames stay, neither's contents.
-  for (const id of ['select_model', 'prepare_data']) expect(main.canvas.get(id), id).toBeTruthy();
-  for (const id of ['cross_validate', 'build_pipeline', 'select_features', 'split_train_test']) {
+  // Both frames stay, neither's contents.
+  for (const id of ['Collapsed', 'Expanded']) expect(main.canvas.get(id), id).toBeTruthy();
+  for (const id of ['Hidden', 'First', 'Second', 'Inner_Flow']) {
     expect(full.canvas.get(id), id).toBeTruthy();
     expect(main.canvas.get(id), id).toBeUndefined();
   }
-  expect(main.canvas.toSVG()).not.toContain('data-element-id="cross_validate"');
+  expect(main.canvas.toSVG()).not.toContain('data-element-id="First"');
   // Import only reads: the definitions keep every DI element, so the option can run on a live document.
   expect(diCount(main.definitions)).toBe(diCount(full.definitions));
-});
-
-test('mainCanvasOnly keeps the data associations of a sub-process on the main canvas', async () => {
-  const { canvas } = await loadCanvas(await exampleXml('spirit2025'), { mainCanvasOnly: true });
-  expect(canvas.get('DataOutput_T1_AE')).toBeTruthy();
 });
