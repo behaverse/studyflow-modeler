@@ -5,8 +5,8 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { fromWireXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
-import { exampleNames as examples, exampleText } from './utils';
-import { freshModdle } from './schemas';
+import { exampleNames as examples, exampleText } from '@tests/utils';
+import { freshModdle } from '@tests/schemas';
 
 /** The `.studyflow.yaml` spelling: the short forms the writer emits, every shipped file spelled that way, and the long forms the reader still takes. */
 

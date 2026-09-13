@@ -13,7 +13,7 @@ import {
   xmlToStudyflow,
   type StateTree,
 } from '@core/document';
-import { freshModdle } from './schemas';
+import { freshModdle } from '@tests/schemas';
 
 /** `state:` is the retrospective tree (docs/reference.qmd, "Run state"): JSON on the Study extension, a mapping in the file. */
 

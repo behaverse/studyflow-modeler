@@ -4,8 +4,8 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { fromWireXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '@core/document';
-import { freshModdle } from './schemas';
-import { exampleNames, exampleText } from './utils';
+import { freshModdle } from '@tests/schemas';
+import { exampleNames, exampleText } from '@tests/utils';
 
 /** Exported `.bpmn` carries the full `ioSpecification`; reading it back folds it into the data associations. */
 

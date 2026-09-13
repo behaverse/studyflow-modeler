@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { StudyflowElement } from '@core/element';
 import { extensionValueWins } from '@core/element/handle';
-import { freshModdle } from './schemas';
+import { freshModdle } from '@tests/schemas';
 
 /** Where an attribute lives (skills/SCHEMAS.md, "Attribute precedence"): the element, its extension wrapper, or a body inside. */
 

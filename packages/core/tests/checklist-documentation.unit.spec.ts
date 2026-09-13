@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 
 import { studyflowToXml, xmlToStudyflow } from '@core/document';
-import { freshModdle } from './schemas';
+import { freshModdle } from '@tests/schemas';
 
 /** The checklist is the `studyflow:checklist="true"`-marked entry of `bpmn:documentation`. */
 

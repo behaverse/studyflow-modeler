@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 
 import { fromWireXml, readChoreographyBands, toWireXml } from '@core/document';
-import { freshModdle } from './schemas';
+import { freshModdle } from '@tests/schemas';
 
 /** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */
 
