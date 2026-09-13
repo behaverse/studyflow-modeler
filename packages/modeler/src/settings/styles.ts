@@ -31,8 +31,9 @@ export const settingsView = {
   sidebarItemActive: 'bg-black/[0.08] text-stone-900',
   sidebarItemIcon: 'text-base text-stone-500 shrink-0',
 
-  content: 'flex-1 overflow-y-auto px-4 py-5 sm:px-5 sm:py-6 md:px-6 md:py-8',
-  contentInner: 'mx-auto max-w-2xl space-y-6 sm:space-y-8',
+  content: 'flex-1 overflow-y-auto px-4 sm:px-5 md:px-6',
+  // The vertical padding is the column's, not the scroller's, so a `sticky top-0` child sticks flush to the top.
+  contentInner: 'mx-auto max-w-2xl py-5 sm:py-6 md:py-8 space-y-6 sm:space-y-8',
 
   sectionTitle: `text-xl font-semibold tracking-tight ${text.primary}`,
   sectionDescription: `text-sm ${text.muted} mt-1`,

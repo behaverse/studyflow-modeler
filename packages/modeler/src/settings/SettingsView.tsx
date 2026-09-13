@@ -325,7 +325,7 @@ function ExtensionsSection() {
       />
 
       {dirty && (
-        <div className={s.group}>
+        <div className={`${s.group} sticky top-0 z-10`}>
           <p className={s.rowHelp}>
             <i className={`${ICONS.arrowClockwise} pe-1.5`} /> Reload the page to apply changes.
             <button
