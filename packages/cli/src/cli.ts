@@ -18,7 +18,7 @@ program
 program
   .command('convert')
   .description('Convert between .studyflow YAML, BPMN XML, and .studyflow.png (extract, re-embed, or render).')
-  .argument('<input>', 'source file: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png')
+  .argument('<input>', 'source file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
   .argument('<output>', 'target file; its extension picks the format')
   .option('--into <png>', 'for a PNG target: the image to embed into')
   .option('--modeler', 'for a PNG target: draw the image by driving the modeler (repo workspace only)')
@@ -45,7 +45,7 @@ program
   .command('run')
   .description('Execute a studyflow in the runtime it declares (or --runtime). `local` runs the local runtime (skills/local/run.py, needs uv).')
   .passThroughOptions()
-  .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png')
+  .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
   .argument('[runnerArgs...]', 'forwarded to the local runtime (e.g. --repo, --fresh, --sim, --auto)')
   .option('--runtime <runtime>', 'override the document: browser | cloud | local | hpc')
   .action(async (input: string, runnerArgs: string[], options: { runtime?: string }) => {
@@ -62,7 +62,7 @@ const serveOptions = (command: Command): Command => command
 serveOptions(program
   .command('edit')
   .description('Open a studyflow in the desktop app: the modeler served from this machine, no network needed, in a window of its own (needs a Chromium: Chrome, Chromium, Brave or Edge; else the default browser).')
-  .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, or .studyflow.png'))
+  .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg'))
   .action(async (file: string | undefined, options: ServeOptions) => {
     await edit(file, { port: Number(options.port), host: options.host, open: options.open });
   });
@@ -89,7 +89,7 @@ program
     console.log(`${study.name ?? study.id ?? '(unnamed study)'}${study.version ? ` v${study.version}` : ''}`);
     if (study.id) console.log(`  id: ${study.id}`);
     if (study.documentation) console.log(`  ${study.documentation.split('\n')[0]}`);
-    console.log(`  source: ${file.kind}${file.container === 'png' ? ' (embedded in PNG)' : ''}`);
+    console.log(`  source: ${file.kind}${file.container === 'text' ? '' : ` (embedded in ${file.container.toUpperCase()})`}`);
     const total = Object.values(elements).reduce((sum, n) => sum + n, 0);
     console.log(`  elements: ${total}`);
     for (const [type, n] of Object.entries(elements).sort((a, b) => b[1] - a[1])) {

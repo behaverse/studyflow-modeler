@@ -66,7 +66,7 @@ async function runLocal(
   source: Awaited<ReturnType<typeof readSource>>,
   passthrough: string[],
 ): Promise<number> {
-  // run.py reads a BPMN XML file, so a YAML file or a PNG reaches it as a temporary `.bpmn`, and `--inputs`
+  // run.py reads a BPMN XML file, so a YAML file or an image reaches it as a temporary `.bpmn`, and `--inputs`
   // names the original's folder: boundary inputs beside it are found as they would be beside a `.bpmn`.
   let target = input;
   let inputs: string[] = [];

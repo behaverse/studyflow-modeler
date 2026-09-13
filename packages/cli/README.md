@@ -1,6 +1,6 @@
 # @behaverse/studyflow-cli
 
-`studyflow` is the command-line tool for studyflow diagrams: convert between `.studyflow.yaml`, BPMN XML, and PNG; validate; inspect; execute; and open the offline modeler app.
+`studyflow` is the command-line tool for studyflow diagrams: convert between `.studyflow.yaml`, BPMN XML, and PNG, and read what a `.studyflow.svg` carries; validate; inspect; execute; and open the offline modeler app.
 
 ## Install
 
