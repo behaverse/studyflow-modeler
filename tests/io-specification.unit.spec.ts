@@ -1,55 +1,50 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
 import { fromWireXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '@core/document';
 import { freshModdle } from './schemas';
-import { exampleStudyflow } from './utils';
+import { exampleNames, exampleText } from './utils';
 
-/** Exported `.bpmn` carries the full `ioSpecification`; reading it back folds to the compact `binding` form. */
+/** Exported `.bpmn` carries the full `ioSpecification`; reading it back folds it into the data associations. */
 
-function exampleYaml(name: string): Promise<string> {
-  return exampleStudyflow(name, freshModdle());
+/** Draws its data associations in core types alone. */
+const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'tests/fixtures/state-properties.studyflow');
+
+/** The compact form the canvas edits: what the `.bpmn` export lowers. */
+async function canvasForm(text: string): Promise<string> {
+  return fromWireXml(await studyflowToXml(text, freshModdle()), freshModdle());
 }
 
 test.describe('standard-BPMN ioSpecification boundary', () => {
-  test('lowering produces the complete standard structure', async () => {
-    const moddle = freshModdle();
-    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline'), moddle);
-    const standardXml = await toStandardBpmnXml(compactXml, moddle);
+  test('the canvas form, lowered to standard BPMN, folds back to the shipped YAML', async () => {
+    const fixture = readFileSync(STATE_PROPERTIES_FIXTURE, 'utf8');
 
-    expect(standardXml).toContain('<bpmn:ioSpecification id="cross_validate_io">');
-    expect(standardXml).toContain('<bpmn:dataInput id="cross_validate_in_estimator" name="estimator" />');
-    expect(standardXml).toContain('<bpmn:dataInput id="cross_validate_in_X" name="X" />');
-    expect(standardXml).toContain('<bpmn:dataInput id="cross_validate_in_y" name="y" />');
-    expect(standardXml).toContain('<bpmn:dataOutput id="cross_validate_result" name="result" />');
-    expect(standardXml).toContain('<bpmn:inputSet id="cross_validate_inputSet">');
-    expect(standardXml).toContain('<bpmn:outputSet id="cross_validate_outputSet">');
-    expect(standardXml).toContain('<bpmn:dataInputRefs>cross_validate_in_X</bpmn:dataInputRefs>');
-    expect(standardXml).toContain('<bpmn:dataOutputRefs>cross_validate_result</bpmn:dataOutputRefs>');
-    expect(standardXml).toContain('<bpmn:targetRef>cross_validate_in_X</bpmn:targetRef>');
-    expect(standardXml).toContain('<bpmn:sourceRef>cross_validate_result</bpmn:sourceRef>');
-    expect(standardXml).not.toContain('studyflow:binding');
-  });
+    // What another BPMN tool reads: a data input per bound source, named after it, and `result` for the output.
+    const compact = await canvasForm(fixture);
+    expect(compact).not.toContain('ioSpecification');
+    const standard = await toStandardBpmnXml(compact, freshModdle());
+    for (const line of [
+      '<bpmn:ioSpecification id="Run_Trial_io">',
+      '<bpmn:dataInput id="Run_Trial_in_arm" name="arm" />',
+      '<bpmn:dataOutput id="Run_Trial_result" name="result" />',
+      '<bpmn:dataInputRefs>Run_Trial_in_arm</bpmn:dataInputRefs>',
+      '<bpmn:dataOutputRefs>Run_Trial_result</bpmn:dataOutputRefs>',
+      '<bpmn:targetRef>Run_Trial_in_arm</bpmn:targetRef>',
+      '<bpmn:sourceRef>Run_Trial_result</bpmn:sourceRef>',
+    ]) {
+      expect(standard).toContain(line);
+    }
 
-  test('folding the standard form back yields the shipped compact YAML', async () => {
-    const moddle = freshModdle();
-    const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline'), moddle);
-    const standardXml = await toStandardBpmnXml(compactXml, moddle);
-
-    const roundTripped = await xmlToStudyflow(standardXml, freshModdle());
-    expect(roundTripped).toBe(await exampleYaml('sklearn_pipeline'));
-  });
-
-  test('a default-named binding folds back without a binding attribute', async () => {
-    const moddle = freshModdle();
-    // DataInput_Prompt_In carries no slot (binding defaults to the element's name); do not invent one.
-    const agentYaml = await exampleYaml('agent_eval');
-    const standardXml = await toStandardBpmnXml(await studyflowToXml(agentYaml, moddle), moddle);
-    expect(standardXml).toContain('name="Agent instructions"');
-    const roundTripped = await xmlToStudyflow(standardXml, freshModdle());
-    // Namespace declarations are serializer bookkeeping (the compact attrs are gone); compare the semantic document.
-    const withoutXmlns = (yamlText: string) => yamlText.replace(/^ {2}xmlns:[^\n]*\n/gm, '');
-    expect(withoutXmlns(roundTripped)).toBe(withoutXmlns(agentYaml));
+    const CASES = [
+      ...exampleNames.map((name): [string, string] => [name, exampleText(name)]),
+      ['the state-properties fixture', fixture] as [string, string],
+    ].filter(([, text]) => /data(Input|Output)Associations:/.test(text));
+    for (const [name, text] of CASES) {
+      const lowered = await toStandardBpmnXml(await canvasForm(text), freshModdle());
+      expect(await xmlToStudyflow(lowered, freshModdle()), name).toBe(text);
+    }
   });
 
   test('an association that sources from nothing survives lower -> fold unchanged', async () => {
