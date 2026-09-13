@@ -37,13 +37,16 @@ const drilldown = (page: Page, id: string) => shape(page, id).click({ position: 
 test.describe('token simulation', () => {
   test('tokens walk into an expanded sub-process and survive leaving a drilled-down plane', async ({ page }) => {
     await openExample(page, 'sklearn_pipeline');
+    const app = page.getByTestId('modeler-app');
     await page.getByRole('button', { name: 'Simulate' }).click();
+    await expect(app).toHaveClass(/simulation-active/);
 
     // Some token reaches the inner tasks of `prepare_data`, which the walk used to skip.
     const inner = await Promise.all(['select_features', 'select_target', 'split_train_test'].map((id) => box(shape(page, id))));
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token'))
       .some((t) => t.shown && inner.some((b) => inside(t, b))), { timeout: 15_000 }).toBe(true);
     await page.getByTitle('Stop simulation').click();
+    await expect(app, 'Stop restores editing').not.toHaveClass(/simulation-active/);
 
     // Simulating inside the expanded container: tokens spawn at its own start and stay in its frame.
     await drilldown(page, 'prepare_data');
