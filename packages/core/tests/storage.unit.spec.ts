@@ -79,8 +79,10 @@ test.describe('diagram hand-off', () => {
     installFakeStorage();
     const { id } = createDiagramHandoff('<xml/>');
     (globalThis as any).window.localStorage.setItem('studyflow-modeler:handoff:junk', 'not json');
-    // Sweep "one hour and a bit" later: the fresh entry ages out too.
-    expect(sweepDiagramHandoffs(Date.now() + 61 * 60 * 1000)).toBe(2);
+    expect(sweepDiagramHandoffs()).toBe(1);
+    expect(readDiagramHandoff(id)).toBe('<xml/>');
+    // An hour and a bit later, the same entry is abandoned.
+    expect(sweepDiagramHandoffs(Date.now() + 61 * 60 * 1000)).toBe(1);
     expect(readDiagramHandoff(id)).toBeUndefined();
   });
 });
