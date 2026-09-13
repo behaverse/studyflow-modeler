@@ -194,24 +194,6 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByText('aborted', { exact: true })).toBeVisible();
   });
 
-  test('untyped bpmn:Task renders the generic continue node', async ({ page }) => {
-    // The node logs from an effect, where a log forced through flushSync made React report an error.
-    const errors: string[] = [];
-    page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-    await runStudyflow(page, 'runner-stages-untyped', UNTYPED_TASK_XML);
-
-    await page.getByRole('button', { name: 'Begin' }).click();
-
-    await expect(page.getByRole('heading', { name: 'Plain task' })).toBeVisible();
-    await expect(
-      page.getByText('Nothing happens at this step. Press Continue to go on.'),
-    ).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
-
-    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
-    expect(errors).toEqual([]);
-  });
-
   test('a bound task displays its function call and arguments', async ({ page }) => {
     await runStudyflow(page, 'runner-stages-bound', BOUND_TASK_XML);
 
@@ -272,7 +254,10 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
   });
 
-  test('the hand-off is released once the run reaches a terminal state', async ({ page }) => {
+  test('an untyped task is the generic continue step, and the hand-off is released once the run ends', async ({ page }) => {
+    // The node logs from an effect, where a log forced through flushSync made React report an error.
+    const errors: string[] = [];
+    page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
     const id = 'runner-cleanup';
     await page.goto('/run/');
     await page.evaluate(
@@ -282,8 +267,11 @@ test.describe('Studyflow runtime nodes', () => {
 
     await page.goto(`/run/?diagram=${id}&seed=42`);
     await page.getByRole('button', { name: 'Begin' }).click();
+    await expect(page.getByRole('heading', { name: 'Plain task' })).toBeVisible();
+    await expect(page.getByText('Nothing happens at this step. Press Continue to go on.')).toBeVisible();
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+    expect(errors).toEqual([]);
 
     const remaining = await page.evaluate(
       (key) => window.localStorage.getItem(key),
@@ -295,32 +283,30 @@ test.describe('Studyflow runtime nodes', () => {
   // Every other case opens `run.html` directly; only this one covers the button. It has to claim
   // its tab inside the click: serializing the diagram is async, and a `window.open` that lands
   // after the await reads as an unprompted pop-up.
-  test('the Run button opens the runner in a new tab', async ({ page, context }) => {
+  test('the Run button opens the runner in a new tab, and passes no seed of its own', async ({ page, context }) => {
     await gotoModeler(page);
 
-    const runnerTab = context.waitForEvent('page');
+    const unseededTab = context.waitForEvent('page');
     await page.getByRole('button', { name: 'Run', exact: true }).click();
 
-    const runner = await runnerTab;
-    await expect(runner).toHaveURL(/run\/\?diagram=[^&]+$/);
-    await expect(runner).toHaveTitle('Behaverse Studyflow');
+    const unseeded = await unseededTab;
+    await expect(unseeded).toHaveURL(/run\/\?diagram=[^&]+$/);
+    await expect(unseeded).toHaveTitle('Behaverse Studyflow');
     // A study that pins no seed runs unseeded: the link adds none.
-    await expect(runner.getByText('Study_1')).toBeVisible();
-    await expect(runner.getByText(/^seed=/)).toHaveCount(0);
-  });
+    await expect(unseeded.getByText('Study_1')).toBeVisible();
+    await expect(unseeded.getByText(/^seed=/)).toHaveCount(0);
 
-  test('a seed the study pins is the run\'s: the Run button passes none of its own', async ({ page, context }) => {
-    await gotoModeler(page);
+    // A seed the study pins is the run's, and the link still adds none.
     const inspector = page.getByTestId('inspector-root');
     await inspector.getByRole('tab', { name: 'Execution' }).click();
     await inspector.getByLabel('Seed').fill('7');
     await inspector.getByLabel('Seed').press('Tab');
 
-    const runnerTab = context.waitForEvent('page');
+    const seededTab = context.waitForEvent('page');
     await page.getByRole('button', { name: 'Run', exact: true }).click();
 
-    const runner = await runnerTab;
-    await expect(runner).toHaveURL(/run\/\?diagram=[^&]+$/);
-    await expect(runner.getByText('seed=7')).toBeVisible();
+    const seeded = await seededTab;
+    await expect(seeded).toHaveURL(/run\/\?diagram=[^&]+$/);
+    await expect(seeded.getByText('seed=7')).toBeVisible();
   });
 });
