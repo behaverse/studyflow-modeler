@@ -11,13 +11,13 @@ import {
 
 /** Choreography tasks: banded rendering with initiator shading, and in-place band editing. */
 test.describe('Studyflow choreography tasks', () => {
-  test('creates a banded choreography task and edits participants in place', async ({ page }) => {
+  test('creates a banded choreography task and edits its participants in place and from the inspector', async ({ page }) => {
     await gotoModeler(page);
 
     await addPaletteElement(page, 'Activities', 'Choreography Task', { x: 400, y: 240 });
     await expect(page.getByTestId('inspector-root')).toContainText('ChoreographyTask');
 
-    // bpmn-js auto-opens name editing after create; its overlay covers the bands, so dismiss it first.
+    // The name editor opens on create; its overlay covers the bands, so dismiss it first.
     await page.keyboard.press('Escape');
     await expect(labelEditor(page)).toBeHidden();
 
@@ -26,9 +26,8 @@ test.describe('Studyflow choreography tasks', () => {
     await expect(shape).toContainText('Participant A');
     await expect(shape).toContainText('Participant B');
 
-    // (tests are typechecked without the DOM lib, hence the `any`)
     const bandFills = await shape.locator('path[data-band]').evaluateAll(
-      (paths) => paths.map((p: any) => p.style.fill || p.getAttribute('fill')),
+      (paths) => paths.map((p) => (p as SVGPathElement).style.fill || p.getAttribute('fill')),
     );
     expect(bandFills).toHaveLength(2);
     expect(bandFills[0]).not.toBe(bandFills[1]);
@@ -58,29 +57,19 @@ test.describe('Studyflow choreography tasks', () => {
     await page.keyboard.press('ControlOrMeta+z');
     await expect(shape).not.toContainText('Give consent');
     await expect(shape).toContainText('Subject');
-  });
 
-  test('participants are editable from the inspector', async ({ page }) => {
-    await gotoModeler(page);
-
-    await addPaletteElement(page, 'Activities', 'Choreography Task', { x: 400, y: 240 });
-    await page.keyboard.press('Escape');
-    await expect(labelEditor(page)).toBeHidden();
-
+    // The inspector edits the same two participants.
     const inspector = page.getByTestId('inspector-root');
     const topInput = inspector.locator('input[name="choreography:top"]');
     const bottomInput = inspector.locator('input[name="choreography:bottom"]');
-    await expect(topInput).toHaveValue('Participant A');
-    await expect(bottomInput).toHaveValue('Participant B');
-
-    const shape = page.locator('[data-element-id^="ChoreographyTask_"]').first();
-
-    await topInput.fill('Subject');
+    await expect(topInput).toHaveValue('Subject');
+    await expect(bottomInput).toHaveValue('Experimenter');
+    await topInput.fill('Learner');
     await topInput.press('Enter'); // the field is an editable select: text commits on Enter or blur
-    await expect(shape).toContainText('Subject');
-    await bottomInput.fill('Experimenter');
+    await expect(shape).toContainText('Learner');
+    await bottomInput.fill('Tutor');
     await bottomInput.press('Enter');
-    await expect(shape).toContainText('Experimenter');
+    await expect(shape).toContainText('Tutor');
   });
 });
 
