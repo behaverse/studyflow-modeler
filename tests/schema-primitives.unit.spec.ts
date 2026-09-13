@@ -1,58 +1,74 @@
 import { expect, test } from '@playwright/test';
+import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog } from '@core/notation';
-import {
-  MODDLE_SIMPLE_TYPES,
-  isValueType,
-  toModdlePackages,
-  type SchemaModel,
-} from '@core/notation/moddlePackage';
+import { fromLinkml, parseLinkml } from '@core/notation/linkml';
+import { toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 
-function probeModel(base: string): SchemaModel {
-  return {
-    prefix: 'probe',
-    name: 'Probe',
-    uri: 'http://example.org/probe',
-    types: [
-      { name: 'Scalar', superClass: [base], properties: [] },
-      {
-        name: 'Holder',
-        superClass: ['bpmn:Task'],
-        properties: [{ name: 'held', type: 'Scalar' }],
-      },
-    ],
-    enumerations: [],
-  };
+/** The moddle package a schema compiles to. moddle-xml writes a list, and escapes a text body, only when it is typed
+ * as one of moddle's own simple types, so a value- or enum-typed one rides as `String`. */
+
+const BASE = `
+id: http://example.test/base
+name: base
+types:
+  Code: { typeof: string }
+`;
+
+const PROBE = `
+id: http://example.test/probe
+name: probe
+types:
+  Text: { typeof: string }
+  Flag: { typeof: boolean }
+  Count: { typeof: integer }
+  Ratio: { typeof: float }
+enums:
+  Stream: { permissible_values: { video: {}, motion: {} } }
+classes:
+  Note: {}
+  Probe:
+    attributes:
+      text: { range: Text, annotations: { element: true } }
+      counts: { range: Count, multivalued: true }
+      streams: { range: Stream, multivalued: true }
+      code: { range: Code, annotations: { element: true } }
+      note: { range: Note, annotations: { element: true } }
+`;
+
+/** Parsed afresh on each call, so no test sees another's changes. */
+function models(): SchemaModel[] {
+  return fromLinkml([parseLinkml(BASE), parseLinkml(PROBE)]);
 }
 
-test.describe('value types: every detector agrees', () => {
-  // A base missed by either detector skips the flatten-to-String rewrite that makes moddle escape a body.
-  for (const base of MODDLE_SIMPLE_TYPES) {
-    test(`superClass: [${base}] is a value type on every path`, () => {
-      const model = probeModel(base);
-      const scalar = model.types[0];
-
-      expect(isValueType(scalar), 'isValueType').toBe(true);
-
-      const pkg = toModdlePackages(model);
-      expect(pkg.types[0].superClass, 'no Element appended to a value type').toEqual([base]);
-      const held = pkg.types[1].properties[0];
-      expect(held.type, 'flattened so moddle escapes it').toBe('String');
-      expect(held.valueType, 'authored type preserved').toBe('probe:Scalar');
-
-      const catalog = buildCatalog([model]);
-      expect(catalog.getType('probe:Scalar')?.hiddenFromPalette, 'a value is not a palette item')
-        .toBe(true);
-      expect(catalog.getType('probe:Scalar')?.bpmnType, 'a value has no BPMN attach point')
-        .toBeNull();
-    });
+test('a value type keeps its simple base; a value- or enum-typed list or element rides as String, keeping the authored type', async () => {
+  const [base, probe] = models();
+  const pkg = toModdlePackages(probe, [base, probe]);
+  const type = (name: string) => pkg.types.find((entry: any) => entry.name === name);
+  for (const [name, simple] of [['Text', 'String'], ['Flag', 'Boolean'], ['Count', 'Integer'], ['Ratio', 'Real']]) {
+    expect(type(name).superClass, `${name} is given no Element`).toEqual([simple]);
   }
 
-  test('superClass: [Element] makes an element, not a value', () => {
-    const model = probeModel('Element');
-    expect(isValueType(model.types[0]), 'Element is not a value base').toBe(false);
-    const pkg = toModdlePackages(model);
-    expect(pkg.types[1].properties[0].type, 'an element-typed property is not flattened')
-      .toBe('Scalar');
-  });
+  const CASES: Array<[string, string, string, string | undefined]> = [
+    ['a value-typed element', 'text', 'String', 'probe:Text'],
+    ['a value-typed list', 'counts', 'String', 'probe:Count'],
+    ['an enum-typed list', 'streams', 'String', 'probe:Stream'],
+    ['a value type another schema declares', 'code', 'String', 'base:Code'],
+    ['an element-typed attribute is left alone', 'note', 'Note', undefined],
+  ];
+  for (const [label, name, wire, valueType] of CASES) {
+    const property = type('Probe').properties.find((entry: any) => entry.name === name);
+    expect({ type: property.type, valueType: property.valueType }, label).toEqual({ type: wire, valueType });
+  }
+
+  const moddle = new BpmnModdle({ probe: pkg }) as any;
+  const { xml } = await moddle.toXML(moddle.create('probe:Probe', { streams: ['video', 'motion'] }));
+  const { rootElement } = await moddle.fromXML(xml, 'probe:Probe');
+  expect(rootElement.streams, 'the list, written and read back').toEqual(['video', 'motion']);
+});
+
+test('toModdlePackages leaves its input untouched, and so does moddle registering its output', () => {
+  const [base, probe] = models();
+  const before = structuredClone(probe);
+  new BpmnModdle({ probe: toModdlePackages(probe, [base, probe]) });
+  expect(probe).toEqual(before);
 });
