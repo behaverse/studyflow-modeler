@@ -12,7 +12,7 @@ The studyflow model, with no UI: the file format, the schema language, and attri
 
 ```bash
 npm run typecheck -w @behaverse/studyflow-core
-npx playwright test --config playwright.unit.config.ts tests/studyflow-yaml tests/element tests/catalog
+npx playwright test --config playwright.unit.config.ts packages/core
 ```
 
-The schemas it compiles are the skills' `*.linkml.yaml` files ([skills/SCHEMAS.md](../../skills/SCHEMAS.md)). The file format is specified in [docs/reference.qmd](../../docs/reference.qmd#the-file), and `tests/studyflow-yaml.unit.spec.ts` pins its spelling.
+The schemas it compiles are the skills' `*.linkml.yaml` files ([skills/SCHEMAS.md](../../skills/SCHEMAS.md)). The file format is specified in [docs/reference.qmd](../../docs/reference.qmd#the-file), and `tests/studyflow-yaml.unit.spec.ts` here pins its spelling.

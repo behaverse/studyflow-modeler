@@ -9,11 +9,11 @@ npm install
 npm run dev                  # the modeler at http://localhost:5173/app.html, the browser runner at /run/
 npm run typecheck && npm run lint && npm run test:unit   # the gate: CI and `npm run release` run exactly this
 npm run test:e2e             # Playwright against its own dev server on :4173; CI skips it, so run it after UI changes
-npm run examples:render      # after a canvas or file-format change: redraws the PNG examples; then test:unit (goldens come from the examples)
+npm run examples:render      # after a canvas or file-format change: redraws the PNG examples; then test:unit
 npm run schemas:lint         # after a schema change: the LinkML linter over every skills/*/*.linkml.yaml (needs uv)
 ```
 
-A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the dev server, `*.webkit.spec.ts` in WebKit. Specs for core and the modeler live in `tests/`; the canvas and each skill keep theirs in their own `tests/`.
+A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the dev server, `*.webkit.spec.ts` in WebKit. Where specs live, and what each kind pins: [Tests](#tests).
 
 ## Where things are
 
@@ -33,15 +33,24 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 - ESLint holds three boundaries: core imports no React and names no bpmn-js service; the modeler and the browser runtime never import each other; the modeler reaches the canvas through its index.
 - `packages/` names no skill but the required ones, whose schemas say `required: true` (`studyflow`, `prov`, `cognitive`, `local`). A skill declares what the apps need, in schema annotations ([skills/SCHEMAS.md](skills/SCHEMAS.md)), `modeler.ts` or `browser/vite.ts`, and the apps find it.
 - No backward-compatibility code: an old diagram is updated in place, never aliased.
-- A new short form in `.studyflow.yaml` must be reversible, and the long form must still load. `tests/studyflow-yaml.unit.spec.ts` pins the spelling.
+- A new short form in `.studyflow.yaml` must be reversible, and the long form must still load. `packages/core/tests/studyflow-yaml.unit.spec.ts` pins the spelling.
 - The canvas is its own design, not a bpmn-js copy: remove rather than add, no bpmn-js class names, colours from `INK` (`view/theme.ts`).
 - Icons are Tailwind iconify classes read from the stylesheet; element glyphs are Phosphor (`iconify ph--<name>`). Nothing fetches an icon.
 - The one version is in the root `package.json`, and only `npm run release` writes it (with `Formula/studyflow.rb`).
+
+## Tests
+
+- A spec lives next to the code it tests, in `packages/core/tests`, `packages/canvas/tests`, `packages/desktop/tests` or `skills/<name>/tests`. `tests/` holds the modeler's specs, every e2e spec, and the helpers they share: `schemas.ts` (`freshModdle()`; importing it installs the shipped catalog), `utils.ts` (the shipped examples, the e2e steps) and `exporterFixture.ts`.
+- Pin a behaviour once, in the cheapest spec that sees it: a unit spec before an e2e one, the canvas through `src/index.ts` before a private helper. Look for the behaviour before adding a test, and add a row to its table rather than a near-copy.
+- An e2e spec is for what needs a browser, such as files, pickers and the UI wired end to end. One flow per feature.
+- Every shipped example gets two checks, each from one loop: its YAML is spelled the way the modeler writes it (`packages/core/tests/studyflow-yaml.unit.spec.ts`), and the canvas draws what its DI says (`packages/canvas/tests/canvas-render.unit.spec.ts`). No spec counts the examples or snapshots a drawing.
+- Core specs use core types, the studyflow and cognitive examples, or a fixture written inline. A skill's specs pin its seam: what it claims, hands on, exports or opens. Deleting a skill then deletes only its own tests.
+- A bug fix comes with the one test that fails without it.
 
 ## Gotchas
 
 - A new path alias goes in both `tsconfig.json` `paths` and `vite.shared.ts`, without a `#` prefix: Playwright hands `#…` specifiers to Node's package imports.
 - `?raw` and `#assets` imports resolve only under Vite, so a module a unit spec imports must not carry one.
 - A `tests/` folder inside an ESM package needs a `package.json` of `{"type": "commonjs"}`, or Playwright fails to load it.
-- moddle rewrites the package descriptors it registers, so give each `BpmnModdle` its own copy (`structuredClone`).
+- moddle rewrites the package descriptors it registers, so give each `BpmnModdle` its own copy (`structuredClone`); a spec takes one from `freshModdle()`.
 - `packages/electron` is a local screenshot tool: not a workspace, not the desktop app.

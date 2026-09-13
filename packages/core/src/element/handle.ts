@@ -45,7 +45,7 @@ function resolveName(name: string | undefined, attrDef: AttributeSpec | undefine
  * Where an attribute lives (skills/SCHEMAS.md, "Attribute precedence"): a wrapper attribute that
  * redefines one of the element's lands on the element; else the element's own type, then the wrapper, then
  * the element. Reads layer one more rule on top: an explicitly stored wrapper value beats a BO default
- * (`extensionValueWins`, pinned by `tests/element.unit.spec.ts`).
+ * (`extensionValueWins`, pinned by `packages/core/tests/element.unit.spec.ts`).
  */
 function resolveAttribute(bo: ModdleElement, ext: ModdleElement | null, attributeName: string): AttributeTarget {
   const boDef = getAttributeSpec(bo, attributeName);

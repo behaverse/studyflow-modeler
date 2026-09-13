@@ -5,7 +5,7 @@ import { YAML_DUMP_OPTIONS } from '@core/document/format';
 import { getProperty, isModdleElement, type ModdleElement } from '@core/element/moddle';
 
 /* The short forms, in the order a reader meets them; each one is reversible, and the long form is always accepted.
-   Specified for authors in docs/reference.qmd, "The file"; pinned by tests/studyflow-yaml.unit.spec.ts. */
+   Specified for authors in docs/reference.qmd, "The file"; pinned by packages/core/tests/studyflow-yaml.unit.spec.ts. */
 
 /** Whether `el` holds nothing but `keepNames`: every other property unset, empty or at its default. */
 function hasOnlyProperties(el: ModdleElement, keepNames: string[]): boolean {

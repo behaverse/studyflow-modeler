@@ -43,7 +43,7 @@ traits), which a domain pack must not copy; its `Scheduling` is the plainest tra
 | `annotations.icon` | Iconify class (or URL) for the palette flyout header. |
 | `annotations.required` | `true`: the schema always loads, and the modeler's settings mark it with a lock and cannot switch it off. Left out, it is `false`: a skill the user can switch off. |
 | `annotations.templates` | The palette flyout entries; [Templates](#templates). |
-| `subsets` | Inspector tabs, **studyflow schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`): `rank` orders them, `annotations.synthetic: true` marks a tab drawn by its own section. Every other schema gets a tab of its own `title`, right after General, where its attributes file by default. |
+| `subsets` | Inspector tabs, **studyflow schema only** (the tab set is app-wide and pinned by `tests/schemas.unit.spec.ts`): `rank` orders them, `annotations.synthetic: true` marks a tab drawn by its own section. Every other schema gets a tab of its own `title`, right after General, where its attributes file by default. |
 | `classes`, `types`, `enums` | The content; below. |
 | `license`, `prefixes`, `default_prefix`, `default_range: string`, `imports` | LinkML's own: the linker and the linter read them, the app does not. |
 
@@ -70,7 +70,7 @@ A `types` entry (`typeof: string`) is a value type: text an attribute holds, wit
 | --- | --- |
 | `icon` | Canvas + palette + append-menu glyph (Iconify class). |
 | `editor` (on a value type or a class) | Default editor for every attribute *of that type* (see editor names below). |
-| `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; the lint rejects restating it. |
+| `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; don't restate it. |
 | `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {scene}"`), read raw. Empty or absent, the band reads "Task software". |
 | `glyph` | The attribute whose value is drawn as text over the type icon (`scene`); the value `undefined` draws nothing. |
 | `participantKind` (on a `bpmn:Participant` type) | What a band-only actor can be: the name of one of the type's enum attributes, one kind per literal (`actorType`), or the label of the one kind the type itself is (`Reachy Mini`). |
@@ -130,7 +130,7 @@ A *read* landing on the element while a wrapper exists still returns the wrapper
 value when the wrapper's attribute is `pinned`, or stores the value explicitly,
 or when the element does not store it explicitly either. So a stored element value
 beats a wrapper *default*, loses to a wrapper value actually written, and loses to a
-pinned wrapper attribute carrying only its default. `tests/element.unit.spec.ts` pins
+pinned wrapper attribute carrying only its default. `packages/core/tests/element.unit.spec.ts` pins
 each case by name.
 
 Adding `redefines` to a wrapper attribute does not merely rename it. It moves where
@@ -207,4 +207,4 @@ schema tiles.
 A file that fails to parse is quarantined (the app boots without it) and shown
 in Settings → Extensions with its error. Compile diagnostics (all of the
 checks above) print to the console at load and badge the schema's Settings
-row. `npm run test:unit -- schema catalog` runs that suite locally in about a second.
+row. `npm run test:unit -- schemas catalog diagnostics linkml moddle-package` runs those specs locally in about a second.
