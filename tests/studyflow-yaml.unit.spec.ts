@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { looksLikeXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
+import { fromWireXml, looksLikeXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
 import { exampleNames as examples, examplePath, exampleStudyflow } from './utils';
 import { parseStudyflow } from '@runner/studyflow';
 import { buildCatalog, setCatalog } from '@core/notation';
@@ -413,6 +413,35 @@ state:
       Outer: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' }, Inner: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' } } } } },
     } }, new BpmnModdle(structuredClone(packages)) as any, (message) => warnings.push(message));
     expect(warnings).toEqual(["the id 'Twin' names two elements; a reference to it reaches only the last"]);
+  });
+
+  test('`studyflow validate` flags the attributes the modeler flags on open, and the own `icon` is declared', async () => {
+    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const text = `id: s
+definitions: {}
+Study:
+  type: Process
+  flowElements:
+    Game:
+      type: ChoreographyTask
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          icon: iconify ph--game-controller
+    Chain:
+      type: SubProcess
+      studyflow:icon: iconify ph--link
+      studyflow:colour: red
+`;
+    // The CLI reads the YAML alone; the modeler then reads the XML written from it with moddle's reader.
+    const read: string[] = [];
+    const xml = await studyflowToXml(text, moddle, (message) => read.push(message));
+    const opened: string[] = [];
+    await fromWireXml(xml, moddle, (message) => opened.push(message));
+
+    expect(read).toEqual(['unknown attribute <studyflow:colour> on bpmn:SubProcess']);
+    expect(opened).toEqual(['Chain: unknown attribute <studyflow:colour>']);
+    expect(xml).toContain('<cognitive:cognitiveTask studyflow:icon="iconify ph--game-controller"');
+    expect(xml).toContain('studyflow:icon="iconify ph--link"');
   });
 
   test('sniffer distinguishes XML from YAML', () => {

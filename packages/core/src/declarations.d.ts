@@ -8,6 +8,7 @@ declare module 'bpmn-moddle' {
     getTypeDescriptor(typeName: string): any;
     getElementDescriptor(element: any): any;
     getPropertyDescriptor(element: any, propertyName: string): any;
+    getPackage(uriOrPrefix: string): any;
     ids: { nextPrefixed(prefix: string): string };
     registry: {
       typeMap: Record<string, any>;

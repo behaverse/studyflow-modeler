@@ -9,7 +9,7 @@ import { Canvas, IdGenerator, SVG_ICON_PATHS, idPrefixFor, isRootElement, needsI
 import type { IconDef, SceneElement } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
-import { StudyflowElement, getRawAttribute } from '@core/element';
+import { StudyflowElement } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
 import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
@@ -38,7 +38,7 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
   if (iconKey.startsWith('iconify ') || iconKey.startsWith('i-')) return iconFor(iconKey);
   if (businessObject) {
     const element = StudyflowElement.fromBusinessObject(businessObject);
-    const templateIcon = getRawAttribute(element.extension ?? businessObject, 'icon');
+    const templateIcon = (element.extension ?? element.businessObject).get?.('studyflow:icon');
     const extEntry = element.extensionType ? getCatalog().getType(element.extensionType) : undefined;
     const bpmnFallback = iconKey === 'DataObjectReference' ? undefined : BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
     const icon = templateIcon || extEntry?.iconClass || bpmnFallback;

@@ -7,12 +7,6 @@ type Mapping = Record<string, unknown>;
 
 const isMapping = (value: unknown): value is Mapping => !!value && typeof value === 'object' && !Array.isArray(value);
 
-/** An icon the element carries itself (`studyflow:icon`), under any prefix, as `getRawAttribute` reads it on the canvas. */
-function ownIcon(node: Mapping): string | undefined {
-  const [, icon] = Object.entries(node).find(([key, value]) => key.endsWith(':icon') && typeof value === 'string') ?? [];
-  return icon as string | undefined;
-}
-
 /** What the palette shows of each template, read off its first element; the modeler builds the elements on drop. */
 export function compileTemplates(prefix: string, model: SchemaModel, catalog: TypeCatalog): Template[] {
   const templates: Template[] = [];
@@ -29,6 +23,8 @@ export function compileTemplates(prefix: string, model: SchemaModel, catalog: Ty
     const extension = (Array.isArray(root.extensionElements) ? root.extensionElements : [])
       .find((entry): entry is Mapping => isMapping(entry) && !!catalog.getType(String(entry.type)));
     const extensionType = extension ? String(extension.type) : undefined;
+    // The element's own `studyflow:icon`, read where the canvas reads it, on the extension entry of a typed element.
+    const ownIcon = (extension ?? root).icon;
 
     templates.push({
       id: `${prefix}::template:${index + 1}`,
@@ -36,7 +32,7 @@ export function compileTemplates(prefix: string, model: SchemaModel, catalog: Ty
       description: template.description,
       extensionType,
       bpmnType: longTypeName(root.type),
-      iconClass: ownIcon(extension ?? root) ?? catalog.getType(extensionType)?.iconClass,
+      iconClass: typeof ownIcon === 'string' ? ownIcon : catalog.getType(extensionType)?.iconClass,
       elements,
     });
   }

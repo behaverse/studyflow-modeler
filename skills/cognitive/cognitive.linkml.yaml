@@ -280,7 +280,7 @@ annotations:
               so arms stay balanced on the covariate. List the strata one per entry.
             extensionElements:
               - type: cognitive:RandomGateway
-                studyflow:icon: iconify ph--stack
+                icon: iconify ph--stack
                 algorithm: block
                 stratifyBy: age_band
                 strata:
@@ -298,7 +298,7 @@ annotations:
               scoring in `configurations`.
             extensionElements:
               - type: cognitive:CognitiveTask
-                studyflow:icon: iconify ph--game-controller
+                icon: iconify ph--game-controller
                 instrument: unity
                 configurations: |
                   levels:

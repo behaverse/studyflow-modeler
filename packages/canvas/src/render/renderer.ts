@@ -4,7 +4,7 @@
  */
 
 import { BPMN } from '@core/constants.ts';
-import { getAttribute, getRawAttribute, isDataOperationActivity, StudyflowElement } from '@core/element/index.ts';
+import { getAttribute, isDataOperationActivity, StudyflowElement } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog } from '@core/notation/index.ts';
 
@@ -73,7 +73,7 @@ function iconGlyph(bo: ModdleObject | undefined): string | undefined {
   const element = StudyflowElement.fromBusinessObject(bo);
   const name = getCatalog().getType(element.extensionType)?.meta?.glyph;
   if (typeof name !== 'string') return undefined;
-  if (getRawAttribute(element.extension ?? bo, 'icon')) return undefined;
+  if ((element.extension ?? element.businessObject)?.get?.('studyflow:icon')) return undefined;
   const value = getAttribute(bo, name);
   if (typeof value !== 'string' || !value) return undefined;
   const glyph = value.toUpperCase();

@@ -83,8 +83,10 @@ class ModdleBuilder {
 
       if (!p) {
         el.$attrs[name] = raw;
-        // A namespaced key is a foreign attribute by design; only a bare one is likely a typo.
+        // A key in a namespace no loaded schema owns is foreign by design. A bare key is likely a typo, and so is one a
+        // loaded schema does not declare, which moddle's XML reader also flags when the modeler opens the file.
         if (!name.includes(':')) this.onWarning?.(`unknown key '${name}' on ${typeName} kept as a raw attribute (typo, or its schema is not loaded?)`);
+        else if (this.moddle.getPackage(name.split(':')[0])) this.onWarning?.(`unknown attribute <${name}> on ${typeName}`);
         continue;
       }
 

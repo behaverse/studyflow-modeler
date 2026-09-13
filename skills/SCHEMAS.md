@@ -164,7 +164,7 @@ enums:
 
 The schema's `templates` annotation, in the expanded form, lists its palette flyout entries. Each has a
 `description` and `elements`: the elements a drop adds, id-keyed and spelled as in a `.studyflow.yaml` file.
-The first is the element dropped and what the palette shows (its `name`, and its own `studyflow:icon` or its
+The first is the element dropped and what the palette shows (its `name`, and its own `icon` or its
 type's); a pool's `processRef` names the process holding its flow. Prefer templates over new classes: a verb
 ("fit a model", "5-fold CV") is a template over a generic type, not a class; see the end of `eeg.linkml.yaml`.
 

@@ -478,7 +478,7 @@ annotations:
           Wake_word_conversation:
             type: SubProcess
             name: Wake-word conversation
-            studyflow:icon: iconify ph--chats
+            icon: iconify ph--chats
             documentation: |
               Idle until the wake word, turn toward the speaker, then converse until
               the stop phrase or the turn budget ends it.

@@ -171,6 +171,19 @@ classes:
       checklist:
         description: True reads this entry as a checklist reviewers tick off.
         range: boolean
+  Icon:
+    description: Lets an element on the canvas carry an icon of its own.
+    mixin: true
+    implements:
+      - bpmn:FlowElement
+      - bpmn:Participant
+    attributes:
+      icon:
+        # An Iconify class or a `data:` image. A typed element carries it on its extension entry, which inherits
+        # this trait from its BPMN type. Templates and files set it, and `pinned` keeps it out of the inspector.
+        description: The element's own icon, drawn in place of its type's.
+        annotations:
+          pinned: true
 
   Study:
     description: The study a diagram describes, and how it is run.

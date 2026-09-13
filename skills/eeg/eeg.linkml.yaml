@@ -188,7 +188,7 @@ annotations:
             processRef: EEG_session_flow
             extensionElements:
               - type: eeg:Session
-                studyflow:icon: iconify ph--head-circuit
+                icon: iconify ph--head-circuit
                 device: brainproducts_actichamp
                 modalities:
                   - eeg
@@ -214,7 +214,7 @@ annotations:
                 name: Resting baseline
                 extensionElements:
                   - type: cognitive:Rest
-                    studyflow:icon: iconify ph--brain
+                    icon: iconify ph--brain
                     restDuration: 120
                     eyes: closed
                 bounds: 360 178 100 80
@@ -223,7 +223,7 @@ annotations:
                 name: Cognitive task
                 extensionElements:
                   - type: cognitive:CognitiveTask
-                    studyflow:icon: iconify ph--puzzle-piece
+                    icon: iconify ph--puzzle-piece
                     instrument: psychopy
                     configurations: |
                       triggerChannel: markers  # stimulus marker stream sent with biosignals
@@ -250,7 +250,7 @@ annotations:
           EEGPrep:
             type: ServiceTask
             name: EEGPrep
-            studyflow:icon: iconify ph--wave-sine
+            icon: iconify ph--wave-sine
             documentation: Filters, cleans, and normalizes BIDS EEG data (EEGLAB clean_rawdata, ASR, ICA + ICLabel).
             implementation: docker://sccn/eegprep
             additionalArguments: |
@@ -265,7 +265,7 @@ annotations:
           MNE_BIDS_Pipeline:
             type: ServiceTask
             name: MNE-BIDS-Pipeline
-            studyflow:icon: iconify ph--wave-sine
+            icon: iconify ph--wave-sine
             documentation: Filtering, epoching, SSP/ICA artifact removal, and evoked responses, driven by one config file.
             implementation: python://mne_bids_pipeline@1.9.0
             additionalArguments: |
@@ -277,7 +277,7 @@ annotations:
           fMRIPrep:
             type: ServiceTask
             name: fMRIPrep
-            studyflow:icon: iconify ph--brain
+            icon: iconify ph--brain
             documentation: Preprocesses BIDS fMRI data into normalized, denoised images.
             implementation: docker://nipreps/fmriprep@23.2.0
             additionalArguments: |
