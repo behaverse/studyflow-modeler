@@ -36,14 +36,10 @@ OmniProcessLabLinkDemo:
     ReadBIDS:
       type: ServiceTask
       name: Read BIDS dataset
-      properties:
-        Property_ReadBIDS_in:
-          name: __targetRef_placeholder
       dataInputAssociations:
         DataInput_RawBIDS_Read:
           sourceRef:
             - RawBIDSDataset
-          targetRef: Property_ReadBIDS_in
           waypoint: 470,600 470,440
       implementation: python://datatrove.pipeline.readers.ParquetReader
       bounds: 420 360 100 80

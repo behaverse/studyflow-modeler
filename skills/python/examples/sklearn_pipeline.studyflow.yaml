@@ -247,14 +247,10 @@ sklearn_pipeline:
               what: "2026-08-20T12:28:27.082+02:00"
               run: sklearn-demo
           name: select_features
-          properties:
-            Property_07yxbz1:
-              name: __targetRef_placeholder
           dataInputAssociations:
             DataInput_Input_Features:
               sourceRef:
                 - input_dataset
-              targetRef: Property_07yxbz1
               transformation: self
               waypoint: 322,365 322,310
           dataOutputAssociations:
@@ -281,14 +277,10 @@ sklearn_pipeline:
               what: "2026-08-20T12:28:27.183+02:00"
               run: sklearn-demo
           name: select_target
-          properties:
-            Property_0vsaenn:
-              name: __targetRef_placeholder
           dataInputAssociations:
             DataInput_Input_Target:
               sourceRef:
                 - input_dataset
-              targetRef: Property_0vsaenn
               transformation: self
               waypoint: 340,390 482,390 482,310
           dataOutputAssociations:
@@ -574,14 +566,10 @@ sklearn_pipeline:
               what: "2026-08-20T12:28:28.346+02:00"
               run: sklearn-demo
           name: summarize_cv
-          properties:
-            Property_0jqodl5:
-              name: __targetRef_placeholder
           dataInputAssociations:
             DataInput_Fold_Report_Summary:
               sourceRef:
                 - cv_fold_report
-              targetRef: Property_0jqodl5
               transformation: self
               waypoint: 740,327 796,327 796,240
           dataOutputAssociations:
@@ -750,14 +738,10 @@ sklearn_pipeline:
               what: "2026-08-20T12:28:28.777+02:00"
               run: sklearn-demo
           name: predict_test
-          properties:
-            Property_0ev2azl:
-              name: __targetRef_placeholder
           dataInputAssociations:
             DataInput_Model_Predict:
               sourceRef:
                 - fitted_model
-              targetRef: Property_0ev2azl
               transformation: self
               waypoint: 418,327 476,327 476,240
             DataInput_X_Test_Predict:

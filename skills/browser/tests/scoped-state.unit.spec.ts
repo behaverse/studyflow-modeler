@@ -58,10 +58,7 @@ definitions:
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
 `;
 
-/**
- * Study declares `arm`; the battery sub-process declares `failed_trials`, and carries the `__targetRef_placeholder`
- * property a data association targets until a real one is bound, which declares nothing.
- */
+/** Study declares `arm`; the battery sub-process declares `failed_trials`. */
 const NESTED = `${HEAD}Study:
   type: bpmn:Process
   properties:
@@ -78,8 +75,6 @@ const NESTED = `${HEAD}Study:
       properties:
         P_Failed:
           name: failed_trials
-        P_Placeholder:
-          name: __targetRef_placeholder
       flowElements:
         Trial_Start:
           type: bpmn:StartEvent

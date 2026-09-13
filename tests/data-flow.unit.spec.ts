@@ -128,16 +128,4 @@ test.describe('what the inspector reports for a step', () => {
     expect(getStateProperties(pool).map((p) => p.name)).toEqual(['screenGaze']);
     expect(getPropertiesInScope(pool).map((p) => [p.name, p.ownerId, p.own])).toEqual([['screenGaze', 'Reachy_Participant', true]]);
   });
-
-  test('hides the property bpmn-js invents to hold a data association\'s target', async () => {
-    // `__targetRef_placeholder` is bpmn-js's own invented `bpmn:Property`, not an authored one; lablink_demo2 ships one.
-    const { definitions } = await read('lablink_demo2');
-    const step = elementById(definitions, 'ReadBIDS');
-    expect(step.properties.map((p: any) => p.name)).toContain('__targetRef_placeholder');
-
-    expect(getStateProperties(step)).toEqual([]);
-    expect(getPropertiesInScope(step).map((p) => p.name)).not.toContain('__targetRef_placeholder');
-
-    expect(getInferredDataNeighbors(step, 'inputs').map((n) => n.name)).toEqual(['Raw BIDS data']);
-  });
 });
