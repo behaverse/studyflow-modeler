@@ -312,6 +312,30 @@ P:
     expect(await xmlToStudyflow(xml2, moddle4)).toBe(yaml1);
   });
 
+  test('a config body with a comment keeps its long form, so the comment survives a round trip', async () => {
+    // Folded into a mapping, the body would come back without its comment.
+    const configurations = 'triggerChannel: markers  # sent with the biosignals';
+    const doc = `
+id: comment_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    T1:
+      type: Task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: psychopy
+          configurations:
+            value: "${configurations}"
+`;
+    const xml = await studyflowToXml(doc, new BpmnModdle(structuredClone(packages)) as any);
+    expect(xml).toContain(configurations);
+    const back: any = yaml.load(await xmlToStudyflow(xml, new BpmnModdle(structuredClone(packages)) as any));
+    expect(back.P.flowElements.T1.extensionElements[0].configurations).toEqual({ value: configurations });
+  });
+
   test('a message flow names its message, and the message its item definition, through a round trip', async () => {
     const text = `id: msg
 definitions:

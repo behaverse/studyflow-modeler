@@ -33,8 +33,12 @@ function asMapping(parsed: unknown): Mapping | undefined {
   return parsed as Mapping;
 }
 
+/**
+ * `text` as a mapping, unless it may carry a comment: the mapping keeps the data but not the comments, so
+ * such text keeps its long form. A ` #` inside a quoted value also counts, which costs only the fold.
+ */
 function parseMapping(text: unknown): Mapping | undefined {
-  if (typeof text !== 'string' || text === '') return undefined;
+  if (typeof text !== 'string' || text === '' || /(^|\s)#/.test(text)) return undefined;
   try {
     return asMapping(yaml.load(text));
   } catch {
