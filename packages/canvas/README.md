@@ -32,10 +32,9 @@ An edit, end to end: the modeler parses the XML and hands the definitions to `im
 
 ```bash
 npx playwright test --config playwright.unit.config.ts packages/canvas
-UPDATE_GOLDENS=1 npx playwright test --config playwright.unit.config.ts canvas-render   # after an intended drawing change
 ```
 
-The golden SVGs are rendered from the shipped examples, one `<name>.svg` per example whichever file it ships as, so after a file-format change `npm run examples:render` redraws the PNG examples first.
+The specs run in Node against a jsdom document (`tests/canvasHarness.ts`). `canvas-render` imports every shipped example and checks the drawing against its DI: a group per shape at its bounds, a path per edge through its waypoints.
 
 ## Left out on purpose
 

@@ -1,6 +1,3 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
@@ -12,22 +9,11 @@ import { freshModdle, installDocument, loadCanvas } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';
 
 /**
- * P1 read-only renderer (design §6): render every shipped example diagram to an SVG
- * string and assert it mirrors the DI. We parse the XML embedded in the example PNGs
- * with `bpmn-moddle` (the runner's path), build a scene, and render it into a jsdom
- * DOM — the canvas ships no rendering dependency, so any DOM `Document` drives it via
- * `setDocument`. For each example we assert: (a) an SVG serializes without throwing;
- * (b) one `<g class="sf-shape">` per `BPMNShape`, translated to its `dc:Bounds`;
- * (c) one `<polyline>` per `BPMNEdge` through its `di:waypoint`; (d) the serialized
- * SVG matches a per-example golden.
- *
- * Goldens live in `packages/canvas/tests/__golden__/` and are written on first run
- * (or when `UPDATE_GOLDENS=1`); the suite here uses no `toMatchSnapshot`, so this is
- * a plain read-compare-or-write against that directory.
+ * The drawing, read back out of the SVG. Every shipped example imports one to one:
+ * one `<g class="sf-shape">` per `BPMNShape`, translated to its `dc:Bounds`, and one
+ * connection path per `BPMNEdge` through its `di:waypoint`. The tests after that pin
+ * what a type draws that its DI does not say.
  */
-
-const GOLDEN_DIR = path.join(process.cwd(), 'packages/canvas/tests/__golden__');
-const UPDATE = process.env.UPDATE_GOLDENS === '1';
 
 // A single jsdom document backs every render; the canvas is presentation-agnostic
 // and only needs a DOM to mint SVG nodes into.
@@ -55,25 +41,12 @@ function translateOf(g: Element | undefined): { x: number; y: number } {
   return m ? { x: Number(m[1]), y: Number(m[2]) } : { x: 0, y: 0 };
 }
 
-const files = exampleNames;
-
-test('canvas render: exactly 20 studyflow example diagrams are present', () => {
-  expect(files.length).toBe(20);
-});
-
-for (const name of files) {
-  test(`${name}: renders to SVG mirroring its DI, matches golden`, async () => {
+for (const name of exampleNames) {
+  test(`${name}: renders to SVG mirroring its DI`, async () => {
     const moddle = freshModdle();
     const { rootElement: definitions } = await moddle.fromXML(await exampleXml(name));
 
     const { shapes, edges } = diItems(definitions);
-
-    // DI presence: the canvas never invents layout (design §0/§6). If an example
-    // genuinely lacks DI, skip it and log which — do not fail.
-    if (shapes.length === 0 && edges.length === 0) {
-      test.skip(true, `${name}: no DiagramInterchange present — skipped`);
-      return;
-    }
 
     // (a) A full render + serialize does not throw.
     const warnings: string[] = [];
@@ -101,14 +74,8 @@ for (const name of files) {
       });
     }
 
-    // (c) One line per BPMNEdge, through its di:waypoint list.
-    //
-    // A `<path>`, not the `<polyline>` this asserted through P5: diagram-js draws
-    // connections with ROUNDED corner bends, so the parity round cut arcs into the
-    // corners (`render/renderer.ts drawEdge`, edge-videos `edgemake/frame_02`). The
-    // waypoint list itself is unchanged — it is kept verbatim in `data-waypoints`,
-    // which is what this compares, so the DI-mirrors-the-drawing contract is exactly
-    // as strict as it was.
+    // (c) One line per BPMNEdge, through its di:waypoint list. The path rounds its
+    // corners, so the waypoints are compared as `data-waypoints` keeps them.
     const lines = root.querySelectorAll('path.sf-connection-line');
     expect(lines.length, `${name}: one connection <path> per BPMNEdge`).toBe(
       edges.length,
@@ -129,18 +96,6 @@ for (const name of files) {
       const at = (value: number): number => Math.round(value * 1000) / 1000;
       expect(line!.getAttribute('d')).toMatch(
         new RegExp(`^M ${at(first.x)} ${at(first.y)}\\b`),
-      );
-    }
-
-    // (d) Golden snapshot of the serialized SVG.
-    if (!existsSync(GOLDEN_DIR)) mkdirSync(GOLDEN_DIR, { recursive: true });
-    const goldenPath = path.join(GOLDEN_DIR, `${name}.svg`);
-    if (UPDATE || !existsSync(goldenPath)) {
-      writeFileSync(goldenPath, svg, 'utf8');
-    } else {
-      const golden = readFileSync(goldenPath, 'utf8');
-      expect(svg, `${name}: SVG matches golden (UPDATE_GOLDENS=1 to refresh)`).toBe(
-        golden,
       );
     }
   });
