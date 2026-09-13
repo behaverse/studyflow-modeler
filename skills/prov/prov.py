@@ -76,13 +76,17 @@ def insert_element_entry(xml: str, element_id: str, replace_action: str | None =
 
 def insert_extension(xml: str, element_id: str, entry: str, stale: str | None = None) -> str:
     """Append `entry` to the element's `extensionElements` (created when missing), dropping `stale` matches first."""
-    element = re.search(rf'<((?:[\w.-]+:)?)[\w.-]+\b[^>]*\bid="{re.escape(element_id)}"[^>]*>', xml)
-    if element is None or element.group(0).endswith("/>"):
+    element = re.search(rf'<((?:[\w.-]+:)?)([\w.-]+)\b[^>]*\bid="{re.escape(element_id)}"[^>]*>', xml)
+    if element is None:
         return xml
 
     line_start = xml.rfind("\n", 0, element.start()) + 1
     lead = xml[line_start:element.start()]
     indent = lead if lead.isspace() or lead == "" else ""
+    if element.group(0).endswith("/>"):
+        # A self-closing element (a data object with only a `uri`) is opened first, so it can hold the block.
+        opened = f"{element.group(0)[:-2].rstrip()}>\n{indent}</{element.group(1)}{element.group(2)}>"
+        return insert_extension(xml[:element.start()] + opened + xml[element.end():], element_id, entry, stale)
 
     cursor = element.end()
     while True:
