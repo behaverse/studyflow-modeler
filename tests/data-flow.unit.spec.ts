@@ -8,7 +8,7 @@ import { exampleNames as examples, exampleXml } from './utils';
 
 /** A step's data contract and what the canvas draws are two readings of one file; they must agree. */
 
-type Model = { definitions: any; planes: Array<Map<string, any>>; edges: Set<string> };
+type Model = { definitions: any; planes: Array<Map<string, any>> };
 
 const DRAWN_DATA = ['bpmn:DataObjectReference', 'bpmn:DataStoreReference'];
 
@@ -28,18 +28,16 @@ function activities(definitions: any): any[] {
   return found;
 }
 
-function associationsOf(definitions: any): Array<{ association: any; step: any; dataElement: any }> {
+/** What the steps read or write through their data associations. */
+function associatedData(definitions: any): any[] {
   return activities(definitions).flatMap((step: any) => [
-    ...(step.dataInputAssociations ?? []).flatMap((association: any) =>
-      (association.sourceRef ?? []).map((dataElement: any) => ({ association, step, dataElement }))),
-    ...(step.dataOutputAssociations ?? [])
-      .filter((association: any) => association.targetRef)
-      .map((association: any) => ({ association, step, dataElement: association.targetRef })),
+    ...(step.dataInputAssociations ?? []).flatMap((association: any) => association.sourceRef ?? []),
+    ...(step.dataOutputAssociations ?? []).map((association: any) => association.targetRef).filter(Boolean),
   ]);
 }
 
 function connectsAnything(definitions: any): boolean {
-  if (associationsOf(definitions).length > 0) return true;
+  if (associatedData(definitions).length > 0) return true;
   if (activities(definitions).some((el: any) => el.$type === 'bpmn:SequenceFlow')) return true;
   return (definitions.rootElements ?? []).some((root: any) => (root.messageFlows ?? []).length > 0);
 }
@@ -51,70 +49,42 @@ async function read(name: string): Promise<Model> {
   inlineIoSpecification(definitions);
 
   const planes: Array<Map<string, any>> = [];
-  const edges = new Set<string>();
   for (const diagram of definitions.diagrams ?? []) {
     const shapes = new Map<string, any>();
     for (const di of diagram.plane?.get('planeElement') ?? []) {
-      if (!di.bpmnElement?.id) continue;
-      if (di.$type === 'bpmndi:BPMNShape') shapes.set(di.bpmnElement.id, di);
-      if (di.$type === 'bpmndi:BPMNEdge') edges.add(di.bpmnElement.id);
+      if (di.$type === 'bpmndi:BPMNShape' && di.bpmnElement?.id) shapes.set(di.bpmnElement.id, di);
     }
     planes.push(shapes);
   }
-  return { definitions, planes, edges };
+  return { definitions, planes };
 }
 
-test.describe('shipped examples: the figure and the data contract agree', () => {
+test('every shipped example routes its data flow through data associations, and names who reads or writes each data element it draws', async () => {
+  const problems: string[] = [];
   for (const name of examples) {
-    test(`${name} draws every association it can draw`, async () => {
-      const { definitions, planes, edges } = await read(name);
+    const { definitions, planes } = await read(name);
+    const artifactAssociations: any[] = (definitions.rootElements ?? [])
+      .flatMap((root: any) => root.artifacts ?? [])
+      .filter((a: any) => a.$type === 'bpmn:Association');
 
-      const undrawn = associationsOf(definitions)
-        .filter(({ dataElement }) => isDrawnData(dataElement))
-        .filter(({ step, dataElement }) =>
-          planes.some((shapes) => shapes.has(step.id) && shapes.has(dataElement.id)))
-        .filter(({ association }) => !edges.has(association.id))
-        .map(({ association, step, dataElement }) => `${association.id}: ${step.id} ~ ${dataElement.id}`);
+    for (const a of artifactAssociations.filter((a) => isDrawnData(a.sourceRef) !== isDrawnData(a.targetRef))) {
+      problems.push(`${name}: artifact association ${a.id} (${a.sourceRef?.id} -> ${a.targetRef?.id}) stands in for data flow`);
+    }
 
-      expect(undrawn, 'data associations between two shapes on one plane, with no BPMNEdge').toEqual([]);
-    });
-
-    test(`${name} routes its data flow through data associations`, async () => {
-      const { definitions } = await read(name);
-
-      const artifacts: any[] = (definitions.rootElements ?? []).flatMap((root: any) => root.artifacts ?? []);
-      const misassociated = artifacts
-        .filter((a: any) => a.$type === 'bpmn:Association')
-        .filter((a: any) => isDrawnData(a.sourceRef) !== isDrawnData(a.targetRef))
-        .map((a: any) => `${a.id}: ${a.sourceRef?.id} -> ${a.targetRef?.id}`);
-
-      expect(misassociated, 'artifact associations standing in for data flow').toEqual([]);
-    });
-
-    test(`${name} says who reads or writes each data element it draws`, async () => {
-      const { definitions, planes } = await read(name);
-
-      // A catalogue joins nothing at all, so its data shapes are specimens (see `connectsAnything`).
-      if (!connectsAnything(definitions)) {
-        expect(associationsOf(definitions), `${name} joins nothing, yet associations data`).toEqual([]);
-        return;
+    // A catalogue joins nothing at all, so its data shapes are specimens (see `connectsAnything`).
+    if (!connectsAnything(definitions)) continue;
+    const named = new Set([
+      ...associatedData(definitions).map((dataElement) => dataElement.id),
+      ...artifactAssociations.flatMap((a) => [a.sourceRef?.id, a.targetRef?.id]),
+    ]);
+    for (const element of activities(definitions).filter(isDrawnData)) {
+      if (planes.some((shapes) => shapes.has(element.id)) && !named.has(element.id)) {
+        problems.push(`${name}: ${element.id} (${element.name ?? ''}) is drawn, but no association names it`);
       }
-
-      const associated = new Set(associationsOf(definitions).map(({ dataElement }) => dataElement?.id));
-      const linked = new Set((definitions.rootElements ?? [])
-        .flatMap((root: any) => root.artifacts ?? [])
-        .filter((a: any) => a.$type === 'bpmn:Association')
-        .flatMap((a: any) => [a.sourceRef?.id, a.targetRef?.id]));
-
-      const orphans = activities(definitions)
-        .filter(isDrawnData)
-        .filter((element: any) => planes.some((shapes) => shapes.has(element.id)))
-        .filter((element: any) => !associated.has(element.id) && !linked.has(element.id))
-        .map((element: any) => `${element.id} (${element.name ?? ''})`);
-
-      expect(orphans, 'data elements drawn on the canvas that no association names').toEqual([]);
-    });
+    }
   }
+
+  expect(problems).toEqual([]);
 });
 
 function elementById(definitions: any, id: string): any {

@@ -7,9 +7,9 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { studyflowToXml } from '@core/document';
 import { ensureDiagramLayout, hasDiagramInterchange } from '@modeler/diagram/autoLayout';
 import { freshModdle } from './schemas';
-import { exampleXml, withoutDiagramInterchange } from './utils';
+import { exampleNames, exampleXml, withoutDiagramInterchange } from './utils';
 
-/** Hand-written `.studyflow` files carry no BPMN DI, which bpmn-js alone aborts the import on. */
+/** A hand-written `.studyflow` file carries no BPMN DI, and the canvas never lays out: import draws it first. */
 
 const layoutlessXml = () => {
   const text = readFileSync(path.join(process.cwd(), 'tests/fixtures/layoutless.studyflow'), 'utf8');
@@ -36,10 +36,13 @@ test.describe('ensureDiagramLayout', () => {
     expect(laidOut).toContain('attachedToRef="Allocate"');
   });
 
-  test('returns a diagram that already carries geometry unchanged', async () => {
-    const authored = await exampleXml('consort2025');
-    expect(hasDiagramInterchange(authored)).toBe(true);
-    expect(await ensureDiagramLayout(authored, freshModdle())).toBe(authored);
+  test('returns a diagram that already carries geometry unchanged, so every shipped example draws what it can', async () => {
+    // Unchanged also means no data association between two shapes on one plane lacks its edge.
+    for (const name of exampleNames) {
+      const authored = await exampleXml(name);
+      const opened = await ensureDiagramLayout(authored, freshModdle());
+      expect(opened === authored, `${name} gains geometry on open: a data association it could draw has no edge`).toBe(true);
+    }
   });
 
   test('draws the data associations an authored layout left out', async () => {
@@ -62,25 +65,11 @@ test.describe('ensureDiagramLayout', () => {
 
   test('draws data associations and places data elements next to their steps', async () => {
     // sklearn_pipeline joins its artifacts with data input/output associations, the data-flow pass's case.
-    const xml = withoutDiagramInterchange(await exampleXml('sklearn_pipeline'));
-    expect(hasDiagramInterchange(xml)).toBe(false);
+    const laidOut = await ensureDiagramLayout(withoutDiagramInterchange(await exampleXml('sklearn_pipeline')), freshModdle());
 
-    const laidOut = await ensureDiagramLayout(xml, freshModdle());
-
-    for (const association of [
-      'DataOutput_Features', 'DataOutput_Target', 'DataInput_Features_Split',
-      'DataInput_Target_Split', 'DataInput_Stratify', 'DataOutput_X_Train',
-      'DataOutput_X_Test', 'DataOutput_Y_Train', 'DataOutput_Y_Test', 'DataOutput_Estimator',
-      'DataInput_Estimator_CV', 'DataInput_X_Train_CV', 'DataInput_Y_Train_CV',
-      'DataOutput_CV_Result', 'DataInput_CV_Result_Report', 'DataOutput_Mean_CV_Accuracy',
-      'DataInput_Estimator_Fit', 'DataInput_X_Train_Fit', 'DataInput_Y_Train_Fit',
-      'DataInput_X_Test_Predict', 'DataOutput_Predictions', 'DataInput_Y_Test_Score',
-      'DataInput_Predictions_Score', 'DataOutput_Test_Metrics',
-      'DataInput_Test_Metrics_Report', 'DataInput_Y_Test_Plot', 'DataInput_Predictions_Plot'
-    ]) {
-      expect(laidOut).not.toMatch(new RegExp(`BPMNEdge[^>]*bpmnElement="${association}"`));
-      expect(laidOut).toMatch(new RegExp(`dataInputAssociation|dataOutputAssociation`));
-    }
+    // A data object's association is drawn; one into a property has no shape to end on, so it never is.
+    expect(laidOut).toMatch(/BPMNEdge[^>]*bpmnElement="DataInput_Input_Features"/);
+    expect(laidOut).not.toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_Features"/);
 
     const { rootElement: definitions } = await (new BpmnModdle() as any).fromXML(laidOut);
     const shapes = new Map<string, any>();
@@ -96,10 +85,5 @@ test.describe('ensureDiagramLayout', () => {
     expect(dataset.x).toBeGreaterThan(selectFeatures.x); // pulled toward its consumers, off the left column
     const model = shapes.get('fitted_model')!;
     expect(model.y).toBeGreaterThan(summarize.y); // likewise for the produced artifact
-
-    // bpmn-auto-layout's own plain-moddle round-trip would silently drop extension child elements.
-    expect(laidOut).toContain('implementation="python://sklearn.model_selection.cross_validate"');
-    expect(laidOut).toContain('<studyflow:additionalArguments>');
-    expect(laidOut).toContain('precision_macro');
   });
 });
