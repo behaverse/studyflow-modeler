@@ -5,13 +5,8 @@ export type JsPsychNode = Record<string, unknown>;
 export type JsPsychTimelineInput = JsPsychNode[] | { timeline?: JsPsychNode[]; [k: string]: unknown } | string;
 
 export type JsPsychImportOptions = {
-  id?: string;
+  /** The study's name, and the stem of its process id. */
   name?: string;
-  jsPsychVersion?: string;
-  pluginVersions?: Record<string, string>;
-  detectConsent?: boolean;
-  consentFormUri?: string;
-  functionRef?: (ctx: { node: JsPsychNode; pluginId: string; version: string; index: number }) => string | undefined;
 };
 
 export type ImportedTask = {
@@ -36,7 +31,7 @@ const DEFAULT_VERSION = '8';
 
 const OMITTED_CONFIG_KEYS = new Set(['type']);
 
-export function parseTimeline(input: JsPsychTimelineInput): JsPsychNode[] {
+function parseTimeline(input: JsPsychTimelineInput): JsPsychNode[] {
   let value: unknown = input;
   if (typeof value === 'string') {
     try {
@@ -164,17 +159,16 @@ export function importJsPsychTimeline(input: JsPsychTimelineInput, options: JsPs
   const nodes = parseTimeline(input);
   const warnings: string[] = [];
 
-  const id = options.id ?? 'jspsych_import';
+  const id = 'jspsych_import';
   const name = options.name ?? 'Imported jsPsych study';
   // The process id must differ from the definitions id, or moddle's id registry rejects the load.
   let processId = toPascalCase(name);
   if (processId === id) processId = `${processId}_Process`;
-  const detectConsent = options.detectConsent ?? true;
 
-  let consentFormUri = options.consentFormUri;
+  let consentFormUri: string | undefined;
   let taskNodes = nodes;
-  if (detectConsent && nodes.length > 0 && looksLikeConsent(nodes[0])) {
-    if (consentFormUri === undefined) consentFormUri = consentUriOf(nodes[0]) ?? 'consent.md';
+  if (nodes.length > 0 && looksLikeConsent(nodes[0])) {
+    consentFormUri = consentUriOf(nodes[0]) ?? 'consent.md';
     taskNodes = nodes.slice(1);
   }
 
@@ -201,9 +195,7 @@ export function importJsPsychTimeline(input: JsPsychTimelineInput, options: JsPs
     const label = declaredName ?? humanize(pluginId);
     const taskId = uniqueId(sanitizeIdStem(label));
 
-    const version = options.pluginVersions?.[pluginId] ?? plugin?.version ?? options.jsPsychVersion ?? DEFAULT_VERSION;
-    const custom = options.functionRef?.({ node, pluginId, version, index });
-    const functionRef = custom && custom.trim() ? custom.trim() : buildFunctionRef(pluginId, version);
+    const functionRef = buildFunctionRef(pluginId, plugin?.version ?? DEFAULT_VERSION);
 
     const parsed = parseImplementationRef(functionRef);
     if (!parsed.ok) {
