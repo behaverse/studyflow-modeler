@@ -24,8 +24,8 @@ studyflow validate study.studyflow.yaml --strict
 studyflow convert study.studyflow.yaml study.studyflow.png   # into that picture; --modeler draws a new one (in a checkout)
 studyflow info study.studyflow.yaml --json
 studyflow edit study.studyflow.png              # the desktop app on that file; `studyflow ui` for a blank canvas
-studyflow run skills/python/examples/sklearn_pipeline.studyflow.png
-studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.png --from <ref>   # re-run from an earlier step; --fresh for all
+studyflow run skills/python/examples/sklearn_pipeline.studyflow.yaml
+studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.bpmn --from <ref>   # re-run from an earlier step; --fresh for all
 studyflow run skills/reachy/examples/reachy_session.studyflow.png --auto        # every task answered by a bot
 ```
 

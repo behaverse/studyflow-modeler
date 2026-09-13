@@ -5,7 +5,7 @@ The visual editor: an SVG canvas ([packages/canvas](../canvas/)) in a React shel
 ```bash
 npm run dev                          # from the repo root: http://localhost:5173/app.html
 npm run examples:render              # redraw every example PNG, after a canvas or file-format change
-npm run examples:render kitchensink  # just this one; `-- --origin <url>` reuses a running modeler
+npm run examples:render drawn_loop   # just this one; `-- --origin <url>` reuses a running modeler
 ```
 
 An example is a `.studyflow.yaml` or a `.studyflow.png` in `skills/<name>/examples/`: save it from the modeler, or convert one kind into the other with `studyflow convert`, which draws the picture with `--modeler` (`studyflow convert --modeler study.studyflow.yaml skills/<name>/examples/study.studyflow.png`). The gallery draws a YAML example's card when it opens (`src/examples/preview.ts`).

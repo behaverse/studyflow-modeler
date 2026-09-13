@@ -1,0 +1,205 @@
+id: omniprocess_lablink_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+OmniProcessLabLinkDemo:
+  type: Process
+  documentation: Reads BIDS data, preprocesses fMRI and EEG in parallel, fits a model, and renders manuscript outputs.
+  extensionElements:
+    - type: studyflow:Study
+    - type: prov:Activity
+      action: created
+      when: "2026-07-30T22:51:38Z"
+      with: studyflow-modeler/26.0615
+  name: EPSYLON LabLink - Modeling pipeline
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Canonical request
+      bounds: 162 382 36 36
+      label: 138 425 86 30
+    CacheCheck:
+      type: ExclusiveGateway
+      name: Cached?
+      bounds: 295 375 50 50
+      isMarkerVisible: true
+      label: 299 432 43 15
+    ServeCached:
+      type: Task
+      name: Serve cached derivative
+      bounds: 500 200 100 80
+    EndCached:
+      type: EndEvent
+      name: Cache hit
+      bounds: 1762 222 36 36
+      label: 1750 265 60 15
+    ReadBIDS:
+      type: ServiceTask
+      name: Read BIDS dataset
+      properties:
+        Property_ReadBIDS_in:
+          name: __targetRef_placeholder
+      dataInputAssociations:
+        DataInput_RawBIDS_Read:
+          sourceRef:
+            - RawBIDSDataset
+          targetRef: Property_ReadBIDS_in
+          waypoint: 470,600 470,440
+      implementation: python://datatrove.pipeline.readers.ParquetReader
+      bounds: 420 360 100 80
+    QCFilter:
+      type: ServiceTask
+      name: Drop QC failures
+      bounds: 570 360 100 80
+    SplitModalities:
+      type: ParallelGateway
+      name: fan out by modality
+      bounds: 745 375 50 50
+      label: 722 335 96 30
+    fMRIPrep:
+      type: ServiceTask
+      name: fMRIPrep
+      bounds: 870 260 100 80
+    EEGPrep:
+      type: SubProcess
+      name: EEGPrep
+      flowElements:
+        EEG_Start:
+          type: StartEvent
+          name: Start
+          bounds: 140 162 36 36
+        EEG_FilterSignal:
+          type: ServiceTask
+          name: Filter signal
+          bounds: 240 140 100 80
+        EEG_RemoveArtifacts:
+          type: ServiceTask
+          name: Remove artifacts
+          bounds: 390 140 100 80
+        EEG_End:
+          type: EndEvent
+          name: End
+          bounds: 540 162 36 36
+        Flow_EEG_Filter:
+          sourceRef: EEG_Start
+          targetRef: EEG_FilterSignal
+          waypoint: 176,180 240,180
+        Flow_EEG_Clean:
+          sourceRef: EEG_FilterSignal
+          targetRef: EEG_RemoveArtifacts
+          waypoint: 340,180 390,180
+        Flow_EEG_End:
+          sourceRef: EEG_RemoveArtifacts
+          targetRef: EEG_End
+          waypoint: 490,180 540,180
+      bounds: 870 460 100 80
+    JoinModalities:
+      type: ParallelGateway
+      name: merge modalities
+      bounds: 1045 375 50 50
+      label: 1027 432 86 30
+    CollectStats:
+      type: ServiceTask
+      name: Collect features
+      bounds: 1150 360 100 80
+    FitModel:
+      type: ServiceTask
+      name: Fit model
+      bounds: 1300 360 100 80
+    GenerateFigures:
+      type: ServiceTask
+      name: Generate figures
+      bounds: 1450 360 100 80
+    RenderManuscript:
+      type: ServiceTask
+      name: Render manuscript table
+      dataOutputAssociations:
+        DataOutput_Manuscript:
+          targetRef: ManuscriptArtifacts
+          waypoint: 1650,440 1650,540
+      implementation: python://datatrove.pipeline.writers.ParquetWriter
+      bounds: 1600 360 100 80
+    EndMaterialized:
+      type: EndEvent
+      name: Manuscript ready
+      bounds: 1762 382 36 36
+      label: 1738 425 86 30
+    Flow_Start_Cache:
+      sourceRef: Start
+      targetRef: CacheCheck
+      waypoint: 198,400 295,400
+    Flow_Cache_Hit:
+      name: hit
+      sourceRef: CacheCheck
+      targetRef: ServeCached
+      waypoint: 320,375 320,240 500,240
+      label: 329 305 13 15
+    Flow_Cache_Miss:
+      name: miss
+      sourceRef: CacheCheck
+      targetRef: ReadBIDS
+      waypoint: 345,400 420,400
+      label: 371 382 24 15
+    Flow_Cached_End:
+      sourceRef: ServeCached
+      targetRef: EndCached
+      waypoint: 600,240 1762,240
+    Flow_Read_Filter:
+      sourceRef: ReadBIDS
+      targetRef: QCFilter
+      waypoint: 520,400 570,400
+    Flow_Filter_Split:
+      sourceRef: QCFilter
+      targetRef: SplitModalities
+      waypoint: 670,400 745,400
+    Flow_Split_fMRI:
+      sourceRef: SplitModalities
+      targetRef: fMRIPrep
+      waypoint: 770,375 770,300 870,300
+    Flow_Split_EEG:
+      sourceRef: SplitModalities
+      targetRef: EEGPrep
+      waypoint: 770,425 770,500 870,500
+    Flow_fMRI_Join:
+      sourceRef: fMRIPrep
+      targetRef: JoinModalities
+      waypoint: 970,300 1070,300 1070,375
+    Flow_EEG_Join:
+      sourceRef: EEGPrep
+      targetRef: JoinModalities
+      waypoint: 970,500 1070,500 1070,425
+    Flow_Join_Stats:
+      sourceRef: JoinModalities
+      targetRef: CollectStats
+      waypoint: 1095,400 1150,400
+    Flow_Features_FitModel:
+      sourceRef: CollectStats
+      targetRef: FitModel
+      waypoint: 1250,400 1300,400
+    Flow_FitModel_Figures:
+      sourceRef: FitModel
+      targetRef: GenerateFigures
+      waypoint: 1400,400 1450,400
+    Flow_Figures_Manuscript:
+      sourceRef: GenerateFigures
+      targetRef: RenderManuscript
+      waypoint: 1550,400 1600,400
+    Flow_Manuscript_End:
+      sourceRef: RenderManuscript
+      targetRef: EndMaterialized
+      waypoint: 1700,400 1762,400
+    RawBIDSDataset:
+      type: DataStoreReference
+      extensionElements:
+        - type: studyflow:Dataset
+          format: bids
+      name: Raw BIDS data
+      bounds: 445 600 50 50
+      label: 427 655 86 15
+    ManuscriptArtifacts:
+      type: DataStoreReference
+      extensionElements: {}
+      name: Manuscript artifacts (figures, tables)
+      bounds: 1625 540 50 50
+      label: 1585 595 130 30
+  isExecutable: true

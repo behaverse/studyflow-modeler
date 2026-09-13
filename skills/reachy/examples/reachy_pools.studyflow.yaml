@@ -1,0 +1,269 @@
+id: reachy_pools
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab_Pools:
+  type: Collaboration
+  documentation: >-
+    The same demo as two pools passing messages. Run `studyflow run --runtime local` on this diagram: both pools run at
+    once; the screen's task waits until the robot has found the screen and greeted, then sends it each trial and takes
+    the answer back. Each message flow names what it carries (a `behaverse:Trial` out of the task, a
+    `behaverse:Response` back), which is how the runners know who answers the task. The robot's own step carries its
+    instructions in and what it judged from and decided out; the task keeps the trial records. When the task is over the
+    robot shows what it felt about it. Its lines name their renderer, this machine's `say`, as `shell://say` with the
+    sentence as its argument; the sound plays on the unit. `{Answer.trials}` in the last one cites the robot's step.
+  extensionElements:
+    - type: studyflow:Study
+  name: Reachy plays WhichOne, pool to pool
+  participants:
+    Pool_Screen:
+      extensionElements:
+        - type: cognitive:Actor
+          actorType: hardware
+      name: Screen (WhichOne)
+      processRef: WhichOne_Task
+      bounds: 156 40 1900 170
+    Pool_Reachy:
+      extensionElements:
+        - type: reachy:Robot
+          volume: 10
+      name: Reachy Mini
+      processRef: Reachy_Participant
+      bounds: 156 250 1900 330
+  messageFlows:
+    Msg_Trial:
+      name: each trial (options, screenshot)
+      sourceRef: Play
+      targetRef: Answer
+      messageRef: Trial
+      waypoint: 1030,150 1030,320
+    Msg_Answer:
+      name: answer
+      sourceRef: Answer
+      targetRef: Play
+      messageRef: Response
+      waypoint: 1070,320 1070,150
+Trial:
+  type: Message
+  itemRef: Trial_Item
+Response:
+  type: Message
+  itemRef: Response_Item
+Trial_Item:
+  type: ItemDefinition
+  structureRef: behaverse:Trial
+Response_Item:
+  type: ItemDefinition
+  structureRef: behaverse:Response
+Reachy_Participant:
+  type: Process
+  name: Reachy plays WhichOne, pool to pool
+  flowElements:
+    Seated:
+      type: StartEvent
+      name: Seated at the screen
+      bounds: 222 342 36 36
+      label: 204 385 72 30
+    Look:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:LookAt
+          target: screen
+      name: Face the screen
+      bounds: 310 320 120 80
+    Greet:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:Say
+      name: Greet
+      additionalArguments:
+        args:
+          - Hello! I am Reachy. I will be your participant today.
+      implementation: shell://say
+      bounds: 480 320 120 80
+    Wave:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:Gesture
+          move: welcoming1
+      name: Welcome
+      bounds: 650 320 120 80
+    Ready:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:Say
+      name: Announce readiness
+      additionalArguments:
+        args:
+          - Ready when you are — I'll play this one.
+      implementation: shell://say
+      bounds: 820 320 120 80
+    Answer:
+      type: ReceiveTask
+      extensionElements:
+        - type: reachy:Participate
+      name: Answer each trial
+      dataInputAssociations:
+        In_Instructions:
+          sourceRef:
+            - Instructions
+          waypoint: 936,470 1010,400
+      dataOutputAssociations:
+        Out_Seen:
+          targetRef: Seen
+          waypoint: 1090,400 1170,470
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+      bounds: 990 320 120 80
+    Instructions:
+      type: DataObjectReference
+      extensionElements:
+        - type: agentic:Prompt
+          template: |
+            You are a Reachy Mini robot seated in front of the WhichOne task
+            screen, playing a Simon task. On each trial one coloured disk
+            appears on the left or the right inside the dark panel at the
+            top of the game; the two large circles below it are the response
+            buttons (yellow on the left, blue on the right), not the
+            stimulus. Answer by the disk's colour, not its position: Left
+            when the disk is yellow, Right when it is blue.
+      name: Instructions
+      bounds: 900 470 36 50
+      label: 868 525 100 15
+    Seen:
+      type: DataObjectReference
+      extensionElements:
+        - type: reachy:InteractionRecording
+          streams:
+            - video
+            - reasoning
+      uri: reachy/
+      name: What Reachy saw and decided
+      bounds: 1160 470 36 50
+      label: 1118 525 120 30
+    Proud:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:Gesture
+          move: proud1
+      name: Proud of it
+      bounds: 1160 320 120 80
+    Thanks:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:Say
+      name: Ask for feedback
+      additionalArguments:
+        args:
+          - That was fun. I answered {Answer.trials} trials by looking at the screen. How did I do?
+      implementation: shell://say
+      bounds: 1330 320 120 80
+    Celebrate:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:Gesture
+      name: Celebrate
+      bounds: 1500 320 120 80
+    LookBack:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:LookAt
+          target: screen
+      name: Back to the screen
+      bounds: 1670 320 120 80
+    Done:
+      type: EndEvent
+      name: Done
+      bounds: 1852 342 36 36
+      label: 1856 385 28 15
+    Flow_Seated_Look:
+      sourceRef: Seated
+      targetRef: Look
+      waypoint: 258,360 310,360
+    Flow_Look_Greet:
+      sourceRef: Look
+      targetRef: Greet
+      waypoint: 430,360 480,360
+    Flow_Greet_Wave:
+      sourceRef: Greet
+      targetRef: Wave
+      waypoint: 600,360 650,360
+    Flow_Wave_Ready:
+      sourceRef: Wave
+      targetRef: Ready
+      waypoint: 770,360 820,360
+    Flow_Ready_Answer:
+      sourceRef: Ready
+      targetRef: Answer
+      waypoint: 940,360 990,360
+    Flow_Answer_Proud:
+      sourceRef: Answer
+      targetRef: Proud
+      waypoint: 1110,360 1160,360
+    Flow_Proud_Thanks:
+      sourceRef: Proud
+      targetRef: Thanks
+      waypoint: 1280,360 1330,360
+    Flow_Thanks_Celebrate:
+      sourceRef: Thanks
+      targetRef: Celebrate
+      waypoint: 1450,360 1500,360
+    Flow_Celebrate_LookBack:
+      sourceRef: Celebrate
+      targetRef: LookBack
+      waypoint: 1620,360 1670,360
+    Flow_LookBack_Done:
+      sourceRef: LookBack
+      targetRef: Done
+      waypoint: 1790,360 1852,360
+WhichOne_Task:
+  type: Process
+  name: WhichOne on the screen
+  flowElements:
+    Task_Start:
+      type: StartEvent
+      name: Task loaded
+      bounds: 860 92 36 36
+      label: 838 135 80 15
+    Play:
+      type: ChoreographyTask
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Timelines:
+              SimonTask:
+                Blocks:
+                  - Name: Simon
+                    ExitRules:
+                      - Trials: 5
+            Blocks:
+              Simon:
+                Parameters:
+                  StimulusDisplayDuration: 5
+                  MaxResponseTime: 8
+          scene: WO
+      name: WhichOne, 5 Simon trials
+      dataOutputAssociations:
+        Out_Trials:
+          targetRef: Trials
+          waypoint: 1110,110 1290,110
+      bounds: 990 70 120 80
+    Trials:
+      type: DataStoreReference
+      extensionElements: {}
+      uri: Play.events.jsonl
+      name: Trial records
+      bounds: 1290 85 50 50
+      label: 1275 140 80 30
+    Task_Done:
+      type: EndEvent
+      name: Task over
+      bounds: 1180 92 36 36
+      label: 1170 135 56 30
+    Flow_Start_Play:
+      sourceRef: Task_Start
+      targetRef: Play
+      waypoint: 896,110 990,110
+    Flow_Play_Done:
+      sourceRef: Play
+      targetRef: Task_Done
+      waypoint: 1110,110 1180,110

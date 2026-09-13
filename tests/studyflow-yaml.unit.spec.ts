@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
+
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { looksLikeXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
-import { exampleNames as examples, exampleStudyflow } from './utils';
+import { exampleNames as examples, examplePath, exampleStudyflow } from './utils';
 import { parseStudyflow } from '@runner/studyflow';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { loadSchemaModels, schemaPackages } from './schemas';
@@ -394,6 +396,12 @@ state:
     expect(looksLikeXml('﻿  <bpmn2:definitions>')).toBe(true);
     expect(looksLikeXml('studyflow: "1"\nelements: []')).toBe(false);
   });
+
+  for (const file of examples.filter((name) => examplePath(name).endsWith('.yaml'))) {
+    test(`${file}: the shipped YAML is spelled the way the modeler writes it`, async () => {
+      expect(await studyflowOf(file)).toBe(readFileSync(examplePath(file), 'utf8'));
+    });
+  }
 
   for (const file of examples) {
     test(`${file}: its YAML projection is the fixed point of YAML -> XML -> YAML`, async () => {

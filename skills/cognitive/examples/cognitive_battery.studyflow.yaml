@@ -1,0 +1,124 @@
+id: cognitive_battery
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+Cognitive_Battery:
+  type: Process
+  documentation: Chains N-Back, Digit Span, SART, and Which One tasks with a timed break and a NASA-TLX survey.
+  extensionElements:
+    - type: studyflow:Study
+    - type: prov:Activity
+      action: created
+      when: "2026-07-30T22:51:29Z"
+      with: studyflow-modeler/26.0615
+  name: Within-subject cognitive battery
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Participant arrives
+      consentFormUri: https://example.org/protocols/cognitive-battery/consent.pdf
+      bounds: 160 180 36 36
+      label: 146 223 66 30
+    Instructions:
+      type: Task
+      checklist: |-
+        - [ ] Informed consent signed
+        - [ ] Task instructions shown
+        - [ ] Practice trials passed
+      name: Instructions & practice
+      bounds: 250 158 120 80
+    Task_NBack:
+      type: Task
+      extensionElements:
+        - type: behaverse:Task
+          scene: NB
+      name: Working memory (N-Back)
+      bounds: 420 158 120 80
+    Task_DigitSpan:
+      type: Task
+      extensionElements:
+        - type: behaverse:Task
+          scene: DS
+      name: Verbal span (Digit Span)
+      bounds: 590 158 120 80
+    Break:
+      type: IntermediateCatchEvent
+      name: Self-paced break
+      eventDefinitions:
+        TimerDef_Break:
+          type: TimerEventDefinition
+      bounds: 762 180 36 36
+      label: 741 223 78 30
+    Task_SART:
+      type: Task
+      extensionElements:
+        - type: behaverse:Task
+          scene: SART
+      name: Sustained attention (SART)
+      bounds: 850 158 120 80
+    Task_WhichOne:
+      type: Task
+      extensionElements:
+        - type: behaverse:Task
+          scene: WO
+      name: Visual WM (Which One)
+      dataOutputAssociations:
+        DataOutput_WhichOne_Data:
+          targetRef: Dataset_Battery
+          waypoint: 1080,238 1200,345
+      bounds: 1020 158 120 80
+    Survey:
+      type: Task
+      extensionElements:
+        - type: cognitive:Questionnaire
+          instrument: nasa-tlx
+      name: Post-battery survey
+      dataOutputAssociations:
+        DataOutput_Survey_Data:
+          targetRef: Dataset_Battery
+          waypoint: 1240,238 1226,330
+      bounds: 1190 158 120 80
+    Dataset_Battery:
+      type: DataStoreReference
+      extensionElements: {}
+      name: Battery trial data
+      bounds: 1195 330 50 50
+      label: 1180 385 80 30
+    End:
+      type: EndEvent
+      name: Session complete
+      bounds: 1360 180 36 36
+      label: 1338 223 82 30
+    Flow_Start_Instructions:
+      sourceRef: Start
+      targetRef: Instructions
+      waypoint: 196,198 250,198
+    Flow_Instructions_NB:
+      sourceRef: Instructions
+      targetRef: Task_NBack
+      waypoint: 370,198 420,198
+    Flow_NB_DS:
+      sourceRef: Task_NBack
+      targetRef: Task_DigitSpan
+      waypoint: 540,198 590,198
+    Flow_DS_Break:
+      sourceRef: Task_DigitSpan
+      targetRef: Break
+      waypoint: 710,198 762,198
+    Flow_Break_SART:
+      sourceRef: Break
+      targetRef: Task_SART
+      waypoint: 798,198 850,198
+    Flow_SART_WO:
+      sourceRef: Task_SART
+      targetRef: Task_WhichOne
+      waypoint: 970,198 1020,198
+    Flow_WO_Survey:
+      sourceRef: Task_WhichOne
+      targetRef: Survey
+      waypoint: 1140,198 1190,198
+    Flow_Survey_End:
+      sourceRef: Survey
+      targetRef: End
+      waypoint: 1310,198 1360,198
+  isExecutable: false

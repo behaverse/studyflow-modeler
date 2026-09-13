@@ -9,7 +9,7 @@ It keeps one claim honest: a studyflow is executable as it stands, with no
 companion script telling an engine what the boxes mean. SKILL.md, beside this
 file, specifies the hand-off contract it implements.
 
-    uv run --script run.py '../python/examples/sklearn_pipeline.studyflow.png'
+    uv run --script run.py 'study.studyflow.png'   # or a .bpmn; `studyflow run` also takes a .studyflow.yaml
 
 This is the core: the walk, the values, the records, and the
 partial-runner hand-offs. A skill is a folder beside this one whose `SKILL.md`

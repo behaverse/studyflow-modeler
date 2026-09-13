@@ -16,8 +16,10 @@ test.describe('New Diagram gallery', () => {
     await expect(card).toContainText('Within-subject cognitive battery');
     await expect(card).toContainText('Chains N-Back, Digit Span, SART');
 
+    // cognitive_battery ships as YAML, so its picture is drawn in the page.
     const preview = card.getByTestId('example-thumb');
     await expect(preview).toBeVisible();
+    await expect(preview).toHaveAttribute('src', /^blob:/);
     expect(await preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
 
     await card.click();
@@ -25,6 +27,19 @@ test.describe('New Diagram gallery', () => {
     await expect(page.getByTitle('Click to edit diagram name'))
       .toHaveText('Within-subject cognitive battery');
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
+  });
+
+  test('a YAML example that needs a skill turned off is left out; a PNG one stays', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('studyflow-modeler:settings', JSON.stringify({ enabledSchemas: [] })));
+    await gotoModeler(page);
+    await runPaletteCommand(page, 'New...');
+
+    // Read and drawn: sklearn_pipeline needs only the core schemas.
+    await expect(page.getByTestId('example-sklearn_pipeline')).toContainText('scikit-learn');
+    // kitchensink and agent_eval name agentic types; bot_external is a PNG, which opens without its schema.
+    await expect(page.getByTestId('example-kitchensink')).toHaveCount(0);
+    await expect(page.getByTestId('example-agent_eval')).toHaveCount(0);
+    await expect(page.getByTestId('example-bot_external')).toBeVisible();
   });
 
   test('a pool diagram is read from both its roots', async ({ page }) => {

@@ -1,0 +1,309 @@
+id: spirit2025-example
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+  xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
+SPIRIT_2025_Collaboration:
+  type: Collaboration
+  extensionElements:
+    - type: prov:Activity
+      action: created
+      when: "2026-07-30T22:51:40Z"
+      with: studyflow-modeler/26.0615
+  name: SPIRIT 2025 trial protocol
+  participants:
+    Participant_SPIRIT:
+      name: SPIRIT 2025 trial protocol
+      processRef: SPIRIT_2025
+      bounds: 140 60 810 900
+SPIRIT_2025:
+  type: Process
+  documentation: A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
+  extensionElements:
+    - type: studyflow:Study
+  name: SPIRIT 2025 trial protocol
+  laneSets:
+    LaneSet_SPIRIT:
+      lanes:
+        Lane_Enrolment:
+          name: Enrolment
+          flowNodeRef:
+            - Protocol_Start
+            - Visit_Screening
+            - Eligibility_Gate
+            - ScreenFail
+            - Visit_Baseline
+          bounds: 170 60 780 230
+        Lane_Allocation:
+          name: Allocation
+          flowNodeRef:
+            - Allocate_Gate
+          bounds: 170 290 780 100
+        Lane_PostAllocation:
+          name: Post-allocation
+          flowNodeRef:
+            - Activity_Intervention
+            - Activity_Control
+            - Visit_T1
+            - Visit_T2
+          bounds: 170 390 780 370
+        Lane_Closeout:
+          name: Close-out
+          flowNodeRef:
+            - Visit_Closeout
+            - Protocol_End
+          bounds: 170 760 780 200
+  flowElements:
+    Protocol_Start:
+      type: StartEvent
+      name: Recruitment
+      onset: T0
+      progress: done
+      consentFormUri: https://example.org/protocols/spirit2025/consent.pdf
+      bounds: 214 92 36 36
+      label: 204 73 56 15
+    Visit_Screening:
+      type: SubProcess
+      checklist: |-
+        - [ ] SPIRIT 11a: eligibility screen
+        - [ ] SPIRIT 11b: who recruits
+        - [ ] SPIRIT 14: settings and locations
+        - [ ] SPIRIT 26a: informed consent obtained
+        - [ ] SPIRIT 27: confidentiality & data handling
+      name: Screening visit (t = -t1)
+      onset: T0
+      duration: 1 week
+      progress: done
+      bounds: 260 70 200 80
+      isExpanded: false
+    Eligibility_Gate:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:EligibilityGateway
+          inclusionCriteria:
+            - Adults aged 18 to 65 years
+            - DSM-5 diagnosis of attentional disorder
+            - Stable medication regimen for 3 months
+          exclusionCriteria:
+            - Comorbid neurological condition
+            - Pregnancy or lactation
+            - Participation in another interventional trial within 30 days
+      name: Eligible?
+      bounds: 515 85 50 50
+      isMarkerVisible: true
+      label: 520 142 40 15
+    ScreenFail:
+      type: EndEvent
+      name: Screen failure
+      eventDefinitions:
+        ErrorDef_ScreenFail:
+          type: ErrorEventDefinition
+      bounds: 622 92 36 36
+      label: 600 135 80 30
+      fill: "#f1d0cd"
+      stroke: "#ac5a54"
+    Visit_Baseline:
+      type: SubProcess
+      checklist: |-
+        - [ ] SPIRIT 12: baseline demographics
+        - [ ] SPIRIT 12: medical history
+        - [ ] SPIRIT 12: vitals & physical exam
+        - [ ] SPIRIT 18a: primary outcome at baseline
+        - [ ] SPIRIT 18b: secondary outcomes at baseline
+      name: Baseline visit (t = 0)
+      onset: T0+2 weeks
+      duration: 1 week
+      progress: done
+      bounds: 440 200 200 80
+      isExpanded: false
+    Allocate_Gate:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+          stratifyBy: age_band
+          strata:
+            - "age_band: 18-29"
+            - "age_band: 30-44"
+            - "age_band: 45-65"
+      name: Stratified allocation
+      bounds: 515 320 50 50
+      isMarkerVisible: true
+      label: 492 377 96 30
+    Activity_Intervention:
+      type: Task
+      checklist: |-
+        - [ ] SPIRIT 17a: intervention dose & schedule
+        - [ ] SPIRIT 17b: criteria for modification
+        - [ ] SPIRIT 19: adherence monitoring
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: jspsych
+      name: "Intervention: cognitive training"
+      onset: T0+3 weeks
+      duration: 4 weeks
+      progress: 60%
+      bounds: 290 420 180 80
+    Activity_Control:
+      type: Task
+      checklist: |-
+        - [ ] SPIRIT 17a: control dose matched to intervention
+        - [ ] SPIRIT 17b: criteria for modification
+        - [ ] SPIRIT 19: adherence monitoring
+      extensionElements:
+        - type: cognitive:Rest
+      name: "Control: active sham"
+      onset: T0+3 weeks
+      duration: 4 weeks
+      progress: 60%
+      bounds: 610 420 180 80
+    Visit_T1:
+      type: SubProcess
+      checklist: |-
+        - [ ] SPIRIT 18a: primary outcome reassessed
+        - [ ] SPIRIT 18b: secondary outcomes reassessed
+        - [ ] SPIRIT 22: adverse-event review
+        - [ ] SPIRIT 19: adherence check
+      name: Follow-up visit (t = t1, week 4)
+      dataOutputAssociations:
+        DataOutput_T1_AE:
+          targetRef: Dataset_AE
+          waypoint: 640,600 780,600 817,820
+      onset: T0+6 weeks
+      duration: 1 week
+      progress: in-progress
+      bounds: 440 550 200 80
+      isExpanded: false
+    Visit_T2:
+      type: SubProcess
+      checklist: |-
+        - [ ] SPIRIT 18a: primary outcome - endpoint analysis
+        - [ ] SPIRIT 18b: secondary outcomes
+        - [ ] SPIRIT 22: adverse events
+        - [ ] SPIRIT 27: data lock for primary analysis
+      name: Primary endpoint visit (t = t2, week 12)
+      dataOutputAssociations:
+        DataOutput_T2_Primary:
+          targetRef: Dataset_Primary
+          waypoint: 640,710 817,700
+        DataOutput_T2_AE:
+          targetRef: Dataset_AE
+          waypoint: 640,720 817,820
+      onset: T0+14 weeks
+      duration: 1 week
+      progress: todo
+      bounds: 440 670 200 80
+      isExpanded: false
+    Visit_Closeout:
+      type: SubProcess
+      checklist: |-
+        - [ ] SPIRIT 13: participant retention plan executed
+        - [ ] SPIRIT 18a: durability of primary outcome
+        - [ ] SPIRIT 22: adverse events final review
+        - [ ] SPIRIT 31: results dissemination plan
+        - [ ] SPIRIT 32: data sharing per plan
+      name: Close-out (t = tx, week 24)
+      dataOutputAssociations:
+        DataOutput_Closeout_Primary:
+          targetRef: Dataset_Primary
+          waypoint: 640,820 780,820 817,710
+        DataOutput_Closeout_AE:
+          targetRef: Dataset_AE
+          waypoint: 640,830 817,830
+      onset: T0+26 weeks
+      duration: 1 week
+      progress: todo
+      bounds: 440 790 200 80
+      isExpanded: false
+    Schema_Outcomes:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Schema
+      name: Outcome data dictionary
+      dataObjectRef: DataObject_Outcomes
+      bounds: 822 555 36 50
+      label: 780 610 120 30
+    DataObject_Outcomes:
+      type: DataObject
+    Dataset_Primary:
+      type: DataStoreReference
+      extensionElements: {}
+      name: Primary & secondary outcomes
+      bounds: 817 675 50 50
+      label: 780 730 124 30
+    Dataset_AE:
+      type: DataStoreReference
+      extensionElements:
+        - type: studyflow:Dataset
+          format: psych-ds
+      name: Adverse events register
+      bounds: 817 795 50 50
+      label: 780 850 124 30
+    Protocol_End:
+      type: EndEvent
+      name: Trial complete
+      bounds: 522 910 36 36
+      label: 500 953 80 30
+    Flow_Start_Screen:
+      sourceRef: Protocol_Start
+      targetRef: Visit_Screening
+      waypoint: 250,110 260,110
+    Flow_Screen_Eligibility:
+      sourceRef: Visit_Screening
+      targetRef: Eligibility_Gate
+      waypoint: 460,110 515,110
+    Flow_Eligible_Yes:
+      name: eligible
+      sourceRef: Eligibility_Gate
+      targetRef: Visit_Baseline
+      waypoint: 540,135 540,200
+      label: 546 160 38 15
+    Flow_Eligible_No:
+      name: not eligible
+      sourceRef: Eligibility_Gate
+      targetRef: ScreenFail
+      waypoint: 565,110 622,110
+      label: 568 92 60 30
+      stroke: "#ac5a54"
+    Flow_Baseline_Allocate:
+      sourceRef: Visit_Baseline
+      targetRef: Allocate_Gate
+      waypoint: 540,280 540,320
+    Flow_Arm_Treatment:
+      name: treatment
+      sourceRef: Allocate_Gate
+      targetRef: Activity_Intervention
+      waypoint: 515,345 380,345 380,420
+      label: 408 327 56 15
+    Flow_Arm_Control:
+      name: control
+      sourceRef: Allocate_Gate
+      targetRef: Activity_Control
+      waypoint: 565,345 700,345 700,420
+      label: 610 327 40 15
+    Flow_Treatment_Visit1:
+      sourceRef: Activity_Intervention
+      targetRef: Visit_T1
+      waypoint: 380,500 380,590 440,590
+    Flow_Control_Visit1:
+      sourceRef: Activity_Control
+      targetRef: Visit_T1
+      waypoint: 700,500 700,590 640,590
+    Flow_Visit1_Visit2:
+      sourceRef: Visit_T1
+      targetRef: Visit_T2
+      waypoint: 540,630 540,670
+    Flow_Visit2_Closeout:
+      sourceRef: Visit_T2
+      targetRef: Visit_Closeout
+      waypoint: 540,750 540,790
+    Flow_Closeout_End:
+      sourceRef: Visit_Closeout
+      targetRef: Protocol_End
+      waypoint: 540,870 540,910
+  artifacts:
+    Assoc_Schema_Primary:
+      associationDirection: One
+      sourceRef: Schema_Outcomes
+      targetRef: Dataset_Primary
+      waypoint: 840,605 840,675
+  isExecutable: false
