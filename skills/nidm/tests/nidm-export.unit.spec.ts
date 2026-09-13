@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { StudyflowElement } from '@core/element';
 import { exportToNidm } from '@skills/nidm/modeler';
-import { exampleExportModel, fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { dataInput, dataOutput, exampleExportModel, fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
 import { exampleNames } from '@tests/utils';
 
 /** The NIDM-Results (Turtle) export, over hand-built business objects. */
@@ -25,14 +25,6 @@ function expectEveryPrefixDeclared(turtle: string, label: string): void {
   const declared = declaredPrefixes(turtle);
   const undeclared = [...usedPrefixes(turtle)].filter((prefix) => !declared.has(prefix));
   expect(undeclared, `${label}: undeclared prefix(es) in:\n${turtle}`).toEqual([]);
-}
-
-function dataInput(source: any): any {
-  return moddle.create('bpmn:DataInputAssociation', { sourceRef: [source] });
-}
-
-function dataOutput(target: any): any {
-  return moddle.create('bpmn:DataOutputAssociation', { targetRef: target });
 }
 
 /** An EEG recording, an operation over it, and the table it writes. */

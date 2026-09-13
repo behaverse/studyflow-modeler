@@ -46,6 +46,15 @@ export function wrapperElement(
   return bo;
 }
 
+/** An activity's data edges: an input from `source`, an output into `target`. */
+export function dataInput(source: any): any {
+  return moddle.create('bpmn:DataInputAssociation', { sourceRef: [source] });
+}
+
+export function dataOutput(target: any): any {
+  return moddle.create('bpmn:DataOutputAssociation', { targetRef: target });
+}
+
 /** The root elements a diagram is named after. */
 const ROOT_TYPES = new Set(['bpmn:Process', 'bpmn:Collaboration', 'bpmn:Choreography']);
 

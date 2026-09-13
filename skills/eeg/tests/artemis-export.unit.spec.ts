@@ -1,18 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 import { exportToArtemis } from '@skills/eeg/modeler';
-import { exampleExportModel, fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { dataInput, dataOutput, exampleExportModel, fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
 import { exampleNames } from '@tests/utils';
 
 /** The ARTEM-IS report, over hand-built business objects. */
-
-function dataInput(source: any): any {
-  return moddle.create('bpmn:DataInputAssociation', { sourceRef: [source] });
-}
-
-function dataOutput(target: any): any {
-  return moddle.create('bpmn:DataOutputAssociation', { targetRef: target });
-}
 
 /** A cognitive task, an EEG recording, a cleaning step, and a summarizing step, one per report block. */
 function eegDiagram(): any {
