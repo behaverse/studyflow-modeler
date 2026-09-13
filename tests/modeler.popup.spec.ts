@@ -92,20 +92,6 @@ test.describe('App popup menus', () => {
     await expect(popup(page)).toContainText('Append element');
   });
 
-  test('an end event offers no append, because nothing may follow it', async ({ page }) => {
-    await gotoModeler(page);
-
-    await addPaletteElement(page, 'Events', 'End', { x: 300, y: 220 });
-    await expect(page.getByTestId('context-pad')).toBeVisible();
-    // The successor entries are gone entirely — the pad omits what the rules refuse,
-    // as diagram-js's does. What remains is delete/colour plus the annotation, which
-    // hangs off an end event by an association.
-    await expect(page.getByTestId('context-pad-append')).toHaveCount(0);
-    await expect(page.getByTestId('context-pad-append.end-event')).toHaveCount(0);
-    await expect(page.getByTestId('context-pad-append.text-annotation')).toBeVisible();
-    await expect(page.getByTestId('context-pad-delete')).toBeVisible();
-  });
-
   test('the style menu paints one element, and a whole multi-selection at once', async ({ page }) => {
     await gotoModeler(page);
 

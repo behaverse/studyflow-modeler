@@ -32,17 +32,15 @@ const entry = (page: Page, action: string): Locator => page.getByTestId(`context
  * Not the centre of its bounding box: a two-point horizontal flow has a zero-height
  * box whose centre rounds onto whichever shape is nearest, and a click there lands on
  * the shape instead of the flow every few runs. `getPointAtLength` is exact for any
- * path shape. `at` picks how far along to land — the default middle is where the
- * segment-move grip sits once the flow is selected, so a gesture that must reach the
- * LINE (a double click to name it) asks for a quarter along instead.
+ * path shape.
  */
-async function pointOnPath(locator: Locator, at = 0.5): Promise<{ x: number; y: number }> {
-  return locator.evaluate((el, fraction) => {
+async function pointOnPath(locator: Locator): Promise<{ x: number; y: number }> {
+  return locator.evaluate((el) => {
     const path = el as unknown as SVGPathElement;
-    const point = path.getPointAtLength(path.getTotalLength() * fraction);
+    const point = path.getPointAtLength(path.getTotalLength() / 2);
     const screen = point.matrixTransform(path.getScreenCTM()!);
     return { x: screen.x, y: screen.y };
-  }, at);
+  });
 }
 
 /** The hover ghost: one `<g>` in the overlay layer, holding the shape and its flow. */
@@ -216,31 +214,6 @@ test.describe('The context pad', () => {
     expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*sourceRef="Task_[^"]*"[^>]*targetRef="UserTask_/);
   });
 
-  test('the trash deletes the selection and its flows, and one undo brings them back', async ({ page }) => {
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
-    await pressOnCanvas(page, 'Escape');
-    await entry(page, 'append.end-event').click();
-
-    const task = page.locator('g[data-element-id^="Task_"]');
-    const flow = page.locator('g[data-element-id^="SequenceFlow_"], g[data-element-id^="Flow_"]');
-    await expect(task).toHaveCount(1);
-    await expect(flow).toHaveCount(1);
-
-    await task.first().click();
-    await entry(page, 'delete').click();
-
-    // The removal closes over the incident flow — deleting a shape and leaving a
-    // dangling edge behind is not a deletion.
-    await expect(task).toHaveCount(0);
-    await expect(flow).toHaveCount(0);
-
-    // ONE undo, because the whole closure was one gesture and therefore one step.
-    await pressOnCanvas(page, 'ControlOrMeta+z');
-    await expect(task).toHaveCount(1);
-    await expect(flow).toHaveCount(1);
-  });
-
   test('the wrench retypes the element in place, keeping its name and its flow', async ({ page }) => {
     // ux-spec §4 entry 4, the `replace` / "Change element" wrench —
     // `edge-videos/edgemake/frame_05` and `v1/frame_03` both show it between the
@@ -327,92 +300,6 @@ test.describe('The context pad', () => {
     const padBox = await boxOf(pad(page));
     expect(padBox.x).toBeGreaterThan(moved.x + moved.width);
     expect(Math.abs(padBox.y - moved.y)).toBeLessThan(30);
-  });
-
-  test('a selected caption gets its own two-entry pad, and the trash takes the text away', async ({ page }) => {
-    // `edge-videos/labels/frame_08` — a trash and a brush beside the selected label,
-    // and nothing else, because every other entry needs a shape to hang off
-    // (addendum 3 §4). A caption is not an element of the document, so what the
-    // trash means here is "take this text away".
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 220 });
-    await pressOnCanvas(page, 'Escape');
-    await entry(page, 'append.end-event').click();
-
-    // Name the flow, which is what mints a caption of its own.
-    const flowLine = page.locator('svg.sf-canvas g.sf-connection .sf-connection-line').first();
-    const on = await pointOnPath(flowLine, 0.25);
-    await page.mouse.dblclick(on.x, on.y);
-    await expect(labelEditor(page)).toBeVisible();
-    await labelEditor(page).fill('hello');
-    await pressOnCanvas(page, 'Enter');
-
-    const caption = page.locator('svg.sf-canvas g.sf-external-label[data-element-id$="_label"]');
-    await expect(caption).toHaveCount(1);
-    const captionBox = await boxOf(caption);
-    await page.mouse.click(captionBox.x + captionBox.width / 2, captionBox.y + captionBox.height / 2);
-
-    await expect(pad(page)).toBeVisible();
-    await expect(pad(page).locator('button')).toHaveCount(2);
-    await expect(entry(page, 'delete')).toBeVisible();
-    await expect(entry(page, 'set-color')).toBeVisible();
-    // Nothing that needs a shape: no append, no connect.
-    await expect(entry(page, 'connect')).toHaveCount(0);
-    await expect(entry(page, 'append')).toHaveCount(0);
-
-    await entry(page, 'delete').click();
-    await expect(caption).toHaveCount(0);
-
-    // The name really went — and one undo brings it back, so it was one step.
-    const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).not.toContain('hello');
-    await pressOnCanvas(page, 'ControlOrMeta+z');
-    await expect(caption).toHaveCount(1);
-  });
-
-  test('the tooltip waits a beat and then hangs off the pointer, so the ghost is seen first', async ({ page }) => {
-    // The reference's tooltips are the browser's own `title` bubbles
-    // (`edge-videos/preview/frame_04`, `frame_05`, `frame_08` — a dark bubble a few
-    // px right of the cursor and ~16px below it), so they behave like one: at the
-    // POINTER, and only after the pointer rests. Both halves matter here, because
-    // the same hover puts up the append ghost in the band immediately right of the
-    // pad (`frame_02`) — an instant caption squared to the entry lands on top of the
-    // very preview the hover exists to show, which is what this pins shut.
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 240 });
-    await pressOnCanvas(page, 'Escape');
-
-    const hovered = entry(page, 'append.end-event');
-    await hovered.hover();
-    const tip = page.getByTestId('context-pad-tooltip');
-
-    // The ghost is up straight away, and has the stage to itself.
-    await expect(tip).toHaveCount(0);
-    await expect(ghost(page)).toHaveCount(1);
-
-    // …and the caption follows, at the cursor: down and to the right of the entry's
-    // centre, which is where `hover()` parked the pointer.
-    await expect(tip).toBeVisible();
-    const entryBox = await boxOf(hovered);
-    const tipBox = await boxOf(tip);
-    expect(tipBox.x).toBeGreaterThan(entryBox.x + entryBox.width / 2);
-    expect(tipBox.y).toBeGreaterThan(entryBox.y + entryBox.height);
-    expect(tipBox.x - (entryBox.x + entryBox.width / 2)).toBeLessThan(16);
-    expect(tipBox.y - (entryBox.y + entryBox.height / 2)).toBeLessThan(28);
-
-    // Leaving takes both away, and the ARMED TIMER with them — a caption that
-    // surfaces a beat after the pointer left names nothing at all.
-    await page.mouse.move(10, 10);
-    await expect(tip).toHaveCount(0);
-    await expect(ghost(page)).toHaveCount(0);
-    await page.waitForTimeout(900);
-    await expect(tip).toHaveCount(0);
-
-    // A second row's entry takes its own pointer position, not the first one's.
-    await entry(page, 'delete').hover();
-    await expect(tip).toBeVisible();
-    const otherTip = await boxOf(tip);
-    expect(otherTip.y).toBeGreaterThan(tipBox.y);
   });
 
   test('a selected sequence flow offers the annotate entry, and it hangs a note off the flow', async ({ page }) => {

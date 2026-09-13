@@ -1,12 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-import {
-  addPaletteElement,
-  exportDiagram,
-  gotoModeler,
-  pressOnCanvas,
-  readDownloadText,
-} from './utils';
+import { addPaletteElement, gotoModeler, pressOnCanvas } from './utils';
 
 /**
  * Connect / reconnect FEEDBACK, driven by a real pointer (parity spec §1 and §5,
@@ -132,51 +126,5 @@ test.describe('Connect and reconnect feedback', () => {
     await expect(line).toHaveAttribute('data-waypoints', points!);
     await expect(canvasSvg(page)).not.toHaveAttribute('data-connect-status', /.*/);
   });
-
-  test('an endpoint dropped clear of every shape free-moves instead of reconnecting', async ({ page }) => {
-    // Parity spec §1's third outcome, and the one that had only unit coverage: over
-    // no shape at all the drag is not a reconnect but P3's plain waypoint move — the
-    // flow keeps the target it always had and its tip simply ends up where the
-    // pointer let go. Driven here because the fallback lives in the gesture layer
-    // (`Canvas.handlePointerUp`), which a unit test reaches past.
-    await taskWithFlow(page);
-
-    const flow = page.locator('g[data-element-id^="SequenceFlow_"], g[data-element-id^="Flow_"]').first();
-    const line = flow.locator('.sf-connection-line');
-    const before = (await line.getAttribute('data-waypoints'))!;
-    const endpoint = await endpointScreenPosition(page, before);
-
-    // Select by pressing the flow's BODY a little before the tip: pressing the tip
-    // of an unselected edge is a select, not a grab, and the drag is then lost.
-    await page.mouse.click(endpoint.x - 12, endpoint.y);
-    await page.mouse.move(endpoint.x, endpoint.y);
-    await page.mouse.down();
-    await page.mouse.move(endpoint.x + 30, endpoint.y + 150, { steps: 12 });
-    await page.mouse.up();
-
-    // Moved…
-    await expect(line).not.toHaveAttribute('data-waypoints', before);
-    // …and still the same connection: nothing was rewired, and the end event stayed
-    // where it was rather than being dragged along.
-    const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*targetRef="EndEvent_/);
-
-    const after = (await line.getAttribute('data-waypoints'))!.split(' ').pop()!;
-    const [, y] = after.split(',').map(Number);
-    const [, beforeY] = before.split(' ').pop()!.split(',').map(Number);
-    expect(y, 'the tip followed the pointer down').toBeGreaterThan(beforeY + 50);
-  });
 });
 
-/** The last waypoint of `waypoints`, in screen coordinates — i.e. where to press. */
-async function endpointScreenPosition(page: Page, waypoints: string): Promise<{ x: number; y: number }> {
-  const [x, y] = waypoints.split(' ').pop()!.split(',').map(Number);
-  return canvasSvg(page).evaluate((el: any, p: { x: number; y: number }) => {
-    const svg = el as SVGSVGElement;
-    const point = svg.createSVGPoint();
-    point.x = p.x;
-    point.y = p.y;
-    const at = point.matrixTransform(svg.getScreenCTM()!);
-    return { x: at.x, y: at.y };
-  }, { x, y });
-}

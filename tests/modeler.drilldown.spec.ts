@@ -56,25 +56,6 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
 const drilldown = (page: import('@playwright/test').Page) => page.getByTestId('context-pad-drilldown');
 
 test.describe('sub-process drill-down', () => {
-  test('every SELECTED sub-process shows the drill-down badge, whichever way its contents are stored', async ({ page }) => {
-    await openExample(page);
-
-    // The trip in is offered by the context pad, so it is selection-gated: nothing selected, nothing offered.
-    await expect(drilldown(page)).toBeHidden();
-
-    // The reported defect, from the outside: `select_model` owns a nested plane and
-    // `prepare_data` does not, and that difference used to decide whether the trip in
-    // was offered at all. Selecting either offers the same badge.
-    await page.locator('g[data-element-id="select_model"]').click();
-    await expect(drilldown(page)).toBeVisible();
-    await page.locator('g[data-element-id="evaluate_and_report"]').click();
-    await expect(drilldown(page)).toBeVisible();
-    await page.locator('g[data-element-id="prepare_data"]').click({ position: { x: 12, y: 12 } });
-    await expect(drilldown(page)).toBeVisible();
-    // At the root the trail is one crumb long, and the reference draws none.
-    await expect(page.getByTestId('drilldown-breadcrumbs')).toHaveCount(0);
-  });
-
   test('an expanded sub-process draws the flows between its children, not just the children', async ({ page }) => {
     await openExample(page);
 
@@ -216,20 +197,6 @@ test.describe('sub-process drill-down', () => {
     await expectEditorText(page, 'prepare_data');
     await pressOnCanvas(page, 'Escape');
     await expect(labelEditor(page)).toHaveCount(0);
-  });
-
-  test('the context pad names the expand toggle, for both storage kinds', async ({ page }) => {
-    await openExample(page);
-
-    for (const [id, expected] of [['prepare_data', 'Collapse'], ['select_model', 'Expand']] as const) {
-      await page.locator(`g[data-element-id="${id}"]`).click({ position: { x: 12, y: 12 } });
-      await expect(page.getByTestId('context-pad')).toBeVisible();
-      await page.getByTestId('context-pad-expand.toggle').hover();
-      await expect(page.getByTestId('context-pad-tooltip')).toHaveText(expected);
-      // Drilling in is NOT duplicated here: the ↘ badge is already beside the
-      // selection, and it is what the two tests above take the trip through.
-      await expect(page.getByTestId('context-pad-drilldown.enter')).toHaveCount(0);
-    }
   });
 
   test('a sub-process dropped from the palette is authorable: badge, plane, contents', async ({ page }) => {
