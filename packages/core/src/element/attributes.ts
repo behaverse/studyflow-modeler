@@ -76,7 +76,7 @@ const BPMN_NATIVE_SPECS: Record<string, AttributeSpec> = {
   },
 };
 
-export function getAttributeSpecs(elementOrType: ModdleElement | string | null | undefined): AttributeSpec[] {
+export function getAttributeSpecs(elementOrType: ModdleElement | string | null | undefined): readonly AttributeSpec[] {
   return getCatalog().instanceAttributesOf(typeNameOf(elementOrType));
 }
 

@@ -135,7 +135,7 @@ export class StudyflowElement {
     return this.extension?.$type;
   }
 
-  extensionAttributes(): AttributeSpec[] {
+  extensionAttributes(): readonly AttributeSpec[] {
     const ext = this.extension;
     return ext ? getAttributeSpecs(ext) : [];
   }
@@ -167,7 +167,7 @@ export class StudyflowElement {
     return wrapper;
   }
 
-  attributes(): AttributeSpec[] {
+  attributes(): readonly AttributeSpec[] {
     return getAttributeSpecs(this.businessObject);
   }
 

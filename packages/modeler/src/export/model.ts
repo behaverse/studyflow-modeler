@@ -106,7 +106,7 @@ function schemaTypeOf(businessObject: any, element: StudyflowElement): string | 
 }
 
 function declaredAttributes(element: StudyflowElement): AttributeSpec[] {
-  const specs = element.attributes();
+  const specs = [...element.attributes()];
   const seen = new Set(specs.map((spec) => spec.ns.localName));
   for (const spec of element.extensionAttributes()) {
     if (seen.has(spec.ns.localName)) continue;

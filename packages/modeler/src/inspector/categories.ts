@@ -60,7 +60,7 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
     handle.attribute('bpmn:name'),
   ].filter((d): d is AttributeSpec => Boolean(d));
 
-  const collect = (attrDefs: AttributeSpec[], predicate: (attrDef: AttributeSpec) => boolean) => {
+  const collect = (attrDefs: readonly AttributeSpec[], predicate: (attrDef: AttributeSpec) => boolean) => {
     attrDefs.forEach((attrDef) => {
       if (!predicate(attrDef)) return;
       if (!isAttributeVisible(attrDef, element)) return;

@@ -56,7 +56,7 @@ export class TypeCatalog {
     return this.getType(ref, ownerPrefix)?.bpmnType ?? null;
   }
 
-  private traitAttributesOf(bpmnType: string | undefined): AttributeSpec[] {
+  private traitAttributesOf(bpmnType: string | undefined): readonly AttributeSpec[] {
     if (!bpmnType || !bpmnType.startsWith('bpmn:')) return [];
     const cached = this.traitCache.get(bpmnType);
     if (cached) return cached;
@@ -72,7 +72,7 @@ export class TypeCatalog {
     return merged;
   }
 
-  instanceAttributesOf(typeName: string | undefined): AttributeSpec[] {
+  instanceAttributesOf(typeName: string | undefined): readonly AttributeSpec[] {
     if (!typeName) return [];
     if (typeName.startsWith('bpmn:')) return this.traitAttributesOf(typeName);
 
@@ -170,7 +170,7 @@ export class TypeCatalog {
 }
 
 /** Merge attribute lists; later specs replace earlier ones they redefine or shadow. */
-export function mergeAttributeSpecs(base: AttributeSpec[], incoming: AttributeSpec[]): AttributeSpec[] {
+export function mergeAttributeSpecs(base: readonly AttributeSpec[], incoming: readonly AttributeSpec[]): AttributeSpec[] {
   const merged = [...base];
   for (const spec of incoming) {
     const replaces = spec.redefinedName ?? spec.ns.localName;
