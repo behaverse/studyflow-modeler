@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
 import { loadAllSchemas } from '@core/notation/loader';
 import { shouldRecordEvents, setRecordEvents } from '@core/settings';
 import { clearDiagramHandoff, readDiagramHandoff } from '@core/storage';
@@ -136,9 +135,10 @@ export function Runner() {
   const logListRef = useRef<HTMLOListElement>(null);
   const stickToBottom = useRef(true);
 
+  // A plain update: nodes log from their effects, where React refuses flushSync. A caller that needs its
+  // line on the page at once flushes it itself (the Behaverse node, before unity.SendMessage).
   const addLog = useCallback((kind: LogKind, message: string) => {
-    // flushSync so per-trial LLM logs paint before the synchronous unity.SendMessage in unityRuntime.ts.
-    flushSync(() => setLog((prev) => [...prev, { kind, message }]));
+    setLog((prev) => [...prev, { kind, message }]);
   }, []);
 
   const handleResolve = useCallback((outcome: NodeOutcome) => {

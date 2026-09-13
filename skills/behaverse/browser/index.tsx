@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { FlowNode } from '@runner/flow';
 import type { LogFn, NodeProps } from '@runner/nodes/types';
 import type { Studyflow } from '@runner/studyflow';
@@ -69,7 +70,8 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
           unity,
           withRunIdentity(job.payload, session),
           () => iframeRef.current?.contentWindow ?? null,
-          log,
+          // flushSync so per-trial LLM logs paint before the synchronous unity.SendMessage in unityRuntime.ts.
+          (kind, message) => flushSync(() => log(kind, message)),
         );
         if (cancelled) return;
         log(

@@ -219,6 +219,9 @@ test.describe('Studyflow runtime nodes', () => {
   });
 
   test('untyped bpmn:Task renders the generic continue node', async ({ page }) => {
+    // The node logs from an effect, where a log forced through flushSync made React report an error.
+    const errors: string[] = [];
+    page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
     await runStudyflow(page, 'runner-stages-untyped', UNTYPED_TASK_XML);
 
     await page.getByRole('button', { name: 'Begin' }).click();
@@ -230,6 +233,7 @@ test.describe('Studyflow runtime nodes', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+    expect(errors).toEqual([]);
   });
 
   test('a bound task displays its function call and arguments', async ({ page }) => {
