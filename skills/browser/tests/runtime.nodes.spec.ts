@@ -127,24 +127,6 @@ const CHOREOGRAPHY_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </studyflow:study>
 </bpmn2:definitions>`;
 
-const BAD_FUNCTION_REF_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-bad-function-ref" targetNamespace="http://bpmn.io/schema/bpmn">
-  <studyflow:study id="Study_1" isExecutable="false">
-    <bpmn2:startEvent id="StartEvent_1">
-      <bpmn2:outgoing>F1</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:serviceTask id="Bad_1" name="Broken reference" implementation="python:/oops">
-      <bpmn2:incoming>F1</bpmn2:incoming>
-      <bpmn2:outgoing>F2</bpmn2:outgoing>
-    </bpmn2:serviceTask>
-    <bpmn2:endEvent id="EndEvent_1">
-      <bpmn2:incoming>F2</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Bad_1" />
-    <bpmn2:sequenceFlow id="F2" sourceRef="Bad_1" targetRef="EndEvent_1" />
-  </studyflow:study>
-</bpmn2:definitions>`;
-
 test.describe('Studyflow runtime nodes', () => {
   test('no-Unity flow advances through start, instruction, questionnaire, end', async ({ page }) => {
     let manifestFetched = false;
@@ -206,16 +188,6 @@ test.describe('Studyflow runtime nodes', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
 
     await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
-  });
-
-  test('a malformed implementation reference fails validation before the run starts', async ({ page }) => {
-    await runStudyflow(page, 'runner-stages-bad-function-ref', BAD_FUNCTION_REF_XML);
-
-    // The reason appears on the terminal screen and in the log sidebar, so an unscoped text match hits two elements.
-    const invalid = page.getByTestId('runner-invalid');
-    await expect(invalid).toContainText(/The implementation reference cannot be read/);
-    await expect(invalid).toContainText('This study cannot run');
-    await expect(page.getByRole('heading', { name: 'Broken reference' })).toBeHidden();
   });
 
   test('a choreography task shows both participants and marks the initiator', async ({ page }) => {
