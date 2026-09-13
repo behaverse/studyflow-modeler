@@ -27,70 +27,42 @@ function randomGateway(attributes: Record<string, string>, name?: string): FlowN
   };
 }
 
-test.describe('RandomGateway allocation', () => {
-  test('the schema defaults are what the runner draws, so they raise nothing', () => {
-    // `simple` + `1:1` IS an equal-chance draw over the outgoing flows.
-    const issues = validateAllocation(
-      randomGateway({ algorithm: 'simple', allocationRatio: '1:1' }),
-    );
-    expect(issues).toEqual([]);
-  });
+test('an allocation the runner does not draw is one warning naming all of it; an equal-chance draw raises nothing', () => {
+  // The palette's Stratified allocation template writes `stratifyBy`, the attribute the runner reads.
+  const template = models
+    .find((model) => model.prefix === 'cognitive')
+    ?.templates?.find((t) => t.elements?.Stratified_allocation)?.elements?.Stratified_allocation;
+  const stratifyBy = template?.extensionElements?.[0]?.stratifyBy;
+  expect(stratifyBy, 'the cognitive schema\'s Stratified allocation template sets stratifyBy').toBeTruthy();
 
-  test('a gateway with no allocation attributes raises nothing', () => {
-    expect(validateAllocation(randomGateway({}))).toEqual([]);
-  });
+  // `reported`: fragments of the one warning's message; none, no warning.
+  const CASES: { label: string; attributes: Record<string, string>; name?: string; reported?: string[] }[] = [
+    { label: 'the schema defaults, `simple` and `1:1`: an equal-chance draw', attributes: { algorithm: 'simple', allocationRatio: '1:1' } },
+    { label: 'no allocation attributes', attributes: {} },
+    {
+      label: 'block assignment, which needs the rest of the cohort',
+      attributes: { algorithm: 'block' },
+      reported: ['block assignment', 'equal probability'],
+    },
+    { label: 'an unequal allocation ratio', attributes: { allocationRatio: '2:1' }, reported: ['a 2:1 allocation ratio'] },
+    { label: 'stratification, by the variable named', attributes: { stratifyBy: 'age_band' }, reported: ["stratification by 'age_band'"] },
+    {
+      label: 'everything unhonored, in one message',
+      attributes: { algorithm: 'minimization', allocationRatio: '2:1', stratifyBy: 'site' },
+      reported: ['minimization assignment', 'a 2:1 allocation ratio', "stratification by 'site'"],
+    },
+    { label: 'the gateway named as the canvas shows it', attributes: { stratifyBy: 'age_band' }, name: 'Randomized', reported: ["'Randomized'"] },
+    { label: 'the Stratified allocation template', attributes: { stratifyBy }, reported: [`stratification by '${stratifyBy}'`] },
+  ];
 
-  test('block assignment is reported, because it needs the rest of the cohort', () => {
-    const issues = validateAllocation(randomGateway({ algorithm: 'block' }));
-
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('warning');
-    expect(issues[0].nodeId).toBe('Gateway_1');
-    expect(issues[0].message).toContain('block assignment');
-    expect(issues[0].message).toContain('equal probability');
-  });
-
-  test('an unequal allocation ratio is reported', () => {
-    const issues = validateAllocation(randomGateway({ allocationRatio: '2:1' }));
-
-    expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain('a 2:1 allocation ratio');
-  });
-
-  test('stratification is reported, and names the variable it would balance on', () => {
-    const issues = validateAllocation(randomGateway({ stratifyBy: 'age_band' }));
-
-    expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain("stratification by 'age_band'");
-  });
-
-  test('everything unhonored is reported once, in one message', () => {
-    const issues = validateAllocation(randomGateway({
-      algorithm: 'minimization',
-      allocationRatio: '2:1',
-      stratifyBy: 'site',
-    }));
-
-    expect(issues).toHaveLength(1);
-    expect(issues[0].message).toContain('minimization assignment');
-    expect(issues[0].message).toContain('a 2:1 allocation ratio');
-    expect(issues[0].message).toContain("stratification by 'site'");
-  });
-
-  test('the message names the gateway a reader sees on the canvas', () => {
-    const issues = validateAllocation(randomGateway({ stratifyBy: 'age_band' }, 'Randomized'));
-    expect(issues[0].message).toContain("'Randomized'");
-  });
-
-  test('the stratified-allocation palette template is exactly what gets reported', () => {
-    // The template ships with `stratifyBy: age_band`, so stamping it and running warns by design.
-    const gateway = models
-      .find((model) => model.prefix === 'cognitive')
-      ?.templates?.find((t) => t.elements?.Stratified_allocation)?.elements?.Stratified_allocation;
-    expect(gateway, 'the cognitive schema ships a Stratified allocation template').toBeTruthy();
-
-    const stratifyBy = gateway.extensionElements[0].stratifyBy;
-    expect(stratifyBy).toBeTruthy();
-    expect(validateAllocation(randomGateway({ stratifyBy }))).toHaveLength(1);
-  });
+  for (const { label, attributes, name, reported } of CASES) {
+    const issues = validateAllocation(randomGateway(attributes, name));
+    if (!reported) {
+      expect(issues, label).toEqual([]);
+      continue;
+    }
+    expect(issues, label).toHaveLength(1);
+    expect(issues[0], label).toMatchObject({ severity: 'warning', nodeId: 'Gateway_1' });
+    for (const fragment of reported) expect(issues[0].message, label).toContain(fragment);
+  }
 });
