@@ -1,9 +1,8 @@
-import { freshPackages } from '@tests/schemas';
-
 import { expect, test } from '@playwright/test';
 
 import { readParameters, resolveRunSource } from '@runner/source';
 import { parseStudyflow, Studyflow } from '@runner/studyflow';
+import { freshPackages } from '@tests/schemas';
 
 /** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
 

@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { freshPackages } from '@tests/schemas';
 
 import { parseStudyflow } from '@runner/studyflow';
 import { botForUnity } from '@skills/behaverse/browser/botConfig';
 import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { BehaverseBotPayload, BehaverseTaskPayload } from '@skills/behaverse/browser/types';
 import type { FlowNode } from '@runner/flow';
+import { freshPackages } from '@tests/schemas';
 
 /** The `RunCognitiveTask` wire contract, from the runner side. */
 
