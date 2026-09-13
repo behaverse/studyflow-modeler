@@ -111,10 +111,10 @@ export function getPropertiesInScope(element: any): ScopedProperty[] {
   return out;
 }
 
-export function nextPropertyId(element: any): string {
-  const taken = new Set(declaredProperties(element).map((p: any) => p.id));
+/** The first `Property_N` no element holds: ids are document-wide, so `taken` answers for the whole document. */
+export function nextPropertyId(taken: (id: string) => boolean): string {
   for (let i = 1; ; i += 1) {
     const candidate = `Property_${i}`;
-    if (!taken.has(candidate)) return candidate;
+    if (!taken(candidate)) return candidate;
   }
 }

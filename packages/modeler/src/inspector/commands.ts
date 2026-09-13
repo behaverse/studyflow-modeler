@@ -216,7 +216,7 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
   const moddleElements = current.map((p) => p.moddleElement);
 
   if (command.action === 'add') {
-    const id = nextPropertyId(element);
+    const id = nextPropertyId((candidate) => !!modeler.model.ids.assigned(candidate));
     const property = modeler.model.createBusinessObject('bpmn:Property', { id, name: '' });
     property.$parent = businessObject;
     modeler.canvas.updateModdleProperties(element, businessObject, {
