@@ -880,7 +880,7 @@ class Runner:
             if reset or name not in held:
                 held[name] = literal(value)
 
-    def stage_input(self, element_id: str, uri: str, path: Path) -> None:
+    def stage_input(self, uri: str, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         for directory in self.input_sources:
             source = directory / uri
@@ -888,19 +888,13 @@ class Runner:
             if source == path or not source.exists():
                 continue
             shutil.copyfile(source, path)
-            if not self.studyflow.is_product(element_id):
-                self.staged[element_id] = self.moment()
             self.event(
                 "artifact.staged",
                 f"    ▤ stage {uri}  {human_bytes(path.stat().st_size)}, from {shown(source)}",
             )
             return
         looked_in = ", ".join(str(directory) for directory in self.input_sources)
-        raise FileNotFoundError(
-            f"{uri} is in none of {looked_in}. {self.studyflow.name_of(element_id)} is a boundary "
-            "input: no step of this studyflow produces it, so something outside has to "
-            "put it there.",
-        )
+        raise FileNotFoundError(f"{uri} is in none of {looked_in}")
 
     def runner_for(self, element: ET.Element) -> PartialRunner | None:
         """The runner that claimed this element, if any."""
@@ -1033,7 +1027,7 @@ class Runner:
         uri, _ = self.studyflow.artifact(element_id)
         path = self.repo_dir / uri
         if not path.exists():
-            self.stage_input(element_id, uri, path)
+            self.stage_input(uri, path)
 
     def end_entry(self, entry: dict) -> None:
         """Close the entry; a runner-reported duration replaces ours, which includes the subprocess spawn."""
@@ -1450,10 +1444,9 @@ class Runner:
             *((eid, "executed", {}) for eid in sorted(self.completed | self.reached)),
             *((eid, "executed", {"what": flow_id}) for eid, (flow_id, _) in sorted(self.decisions.items())),
             *((eid, "created", {}) for eid in sorted(self.produced)),
-            *((eid, "imported", {}) for eid in sorted(self.staged) if eid not in self.produced),
+            *((eid, "imported", {}) for eid in sorted(self.staged)),
             *((eid, "reused", {"what": trusted}) for eid, (_, trusted) in sorted(self.reused.items())),
         ]
-        # `produced` after `staged`: an input re-made this run stamps with the moment it was produced.
         moments = {
             **self.staged, **self.completed, **self.reached, **self.produced,
             **{eid: when for eid, (_, when) in self.decisions.items()},
