@@ -9,12 +9,12 @@ import {
 } from '@modeler/contextPad/entries';
 
 /**
- * WHAT the per-shape context pad offers, as a table (parity spec addenda 4+5,
- * ux-spec §4). The pad's other half — where the box floats, what a click dispatches —
- * needs a browser and lives in `tests/modeler.contextpad.spec.ts`; this one pins the
- * decision that can be made without a DOM, which is the one that goes silently wrong:
- * an entry offered for a selection whose rules refuse it is a button that throws, and
- * an entry order that drifts re-flows the 72px box into different rows.
+ * WHAT the per-shape context pad offers, as a table. The pad's other half, where the
+ * box floats and what a click does, needs a browser and lives in
+ * `tests/modeler.contextpad.spec.ts`; this pins the decision that can be made without
+ * a DOM, which is the one that goes silently wrong: an entry offered for a selection
+ * whose rules refuse it is a button that does nothing, and an entry order that drifts
+ * re-flows the 98px box into different rows.
  */
 
 /** A selection description with everything refused, to be widened per case. */
@@ -36,134 +36,51 @@ function context(overrides: Partial<ContextPadContext> = {}): ContextPadContext 
 const actionsOf = (ctx: ContextPadContext): ContextPadAction[] =>
   contextPadEntries(ctx).map((entry) => entry.action);
 
-test('a task offers all seven entries of ux-spec §4, in row order', () => {
-  // The order IS the layout: a 72px box with 22x22 entries wraps three to a row, so
-  // this list is what puts append/annotation/append-anything on the first row, the
-  // wrench and the two edit actions on the second, and `connect` alone on a third
-  // (`edge-videos/preview/frame_05`, `edgemake/frame_05` for the wrench).
-  expect(actionsOf(context({ canAppend: true, canAnnotate: true, canReplace: true }))).toEqual([
-    'append.end-event',
-    'append.text-annotation',
-    'append',
-    'replace',
-    'delete',
-    'set-color',
-    'connect',
-  ]);
+test('the entries a selection gets, in the order they wrap into rows', () => {
+  // The order IS the layout: the 98px box wraps its 22px entries three to a row, so a
+  // task's first row is the two fixed successors and append-anything, the second the
+  // wrench and the two edits, the third `connect` alone.
+  const task: ContextPadAction[] = ['append.end-event', 'append.text-annotation', 'append', 'replace', 'delete', 'set-color', 'connect'];
+  const CASES: [label: string, ctx: ContextPadContext, actions: ContextPadAction[]][] = [
+    ['a task', context({ canAppend: true, canAnnotate: true, canReplace: true }), task],
+    // A container with contents or a pool appends but is not replaceable; the two gates are apart.
+    ['something that appends but cannot be retyped', context({ canAppend: true, canAnnotate: true }),
+      ['append.end-event', 'append.text-annotation', 'append', 'delete', 'set-color', 'connect']],
+    // Nothing may follow an end event, but a note hangs off it and it can be retyped.
+    ['an end event', context({ canAnnotate: true, canReplace: true }), ['append.text-annotation', 'replace', 'delete', 'set-color']],
+    ['an end event that cannot be retyped', context({ canAnnotate: true }), ['append.text-annotation', 'delete', 'set-color']],
+    // A data input association may start at a data shape, so it gets connect but no successor.
+    ['a data shape', context({ canConnect: true }), ['delete', 'set-color', 'connect']],
+    ['a multi-selection: only what means something for a set', context({ count: 2, canAppend: true, canAnnotate: true }), ['delete', 'set-color']],
+    // A note may hang off a flow; the entries that need a shape to flow OUT of stay away,
+    // and the wrench is withheld by the shape test even when the rule would allow it.
+    ['a connection', context({ isShape: false, isConnection: true, canAnnotate: true, canReplace: true }), ['append.text-annotation', 'delete', 'set-color']],
+    ['a connection the rules give no note', context({ isShape: false, isConnection: true }), ['delete', 'set-color']],
+    ['a flow whose source takes a default', context({ isShape: false, isConnection: true, canToggleDefault: true }), ['delete', 'set-color', 'flow.toggle-default']],
+    ['a choreography task: the swap, last', context({ canAppend: true, canAnnotate: true, canReplace: true, isChoreographyTask: true }), [...task, 'choreography.swap-initiator']],
+    ['several choreography tasks: no swap, which acts on one', context({ count: 3, isChoreographyTask: true }), ['delete', 'set-color']],
+    ['an expandable container: the toggle and the trip in, last', context({ canAppend: true, canAnnotate: true, canReplace: true, isExpandable: true }), [...task, 'expand.toggle', 'drilldown']],
+    ['a plain task: no toggle', context({ canAppend: true }), ['append.end-event', 'append', 'delete', 'set-color', 'connect']],
+    ['several containers: no toggle', context({ count: 2, isExpandable: true }), ['delete', 'set-color']],
+    // A caption is neither a shape nor a connection: nothing can hang off it, so the append
+    // gates are not even asked.
+    ['a caption', context({ isShape: false }), ['delete', 'set-color']],
+    ['a caption, whatever the append gates say', context({ isShape: false, canAppend: true, canAnnotate: true }), ['delete', 'set-color']],
+  ];
+  for (const [label, ctx, actions] of CASES) expect(actionsOf(ctx), label).toEqual(actions);
 });
 
-test('the wrench is gated on its own rule, not on the append one', () => {
-  // A container with contents, a pool and a boundary event are all appendable but not
-  // replaceable (`Rules.canReplace`), so the two gates cannot stand in for each other.
-  expect(actionsOf(context({ canAppend: true, canAnnotate: true }))).not.toContain('replace');
-  // …and an END EVENT — nothing may follow it — is still replaceable.
-  expect(actionsOf(context({ canAnnotate: true, canReplace: true }))).toEqual([
-    'append.text-annotation',
-    'replace',
-    'delete',
-    'set-color',
-  ]);
-});
-
-test('a data shape gets connect (a data input association may start there) but no append', () => {
-  expect(actionsOf(context({ canAppend: false, canConnect: true }))).toEqual([
-    'delete',
-    'set-color',
-    'connect',
-  ]);
-});
-
-test('an end event keeps the annotation but loses every flow-successor entry', () => {
-  // Nothing may follow an end event, so `shape.append` refuses — but an association
-  // to a text annotation still hangs off one, which is why the two gates are asked
-  // separately rather than one standing in for the other.
-  expect(actionsOf(context({ canAppend: false, canAnnotate: true }))).toEqual([
-    'append.text-annotation',
-    'delete',
-    'set-color',
-  ]);
-});
-
-test('a multi-selection keeps only the actions that mean something for a set', () => {
-  expect(actionsOf(context({ count: 2, canAppend: true, canAnnotate: true }))).toEqual([
-    'delete',
-    'set-color',
-  ]);
-});
-
-test('a selected connection gets three: a note may hang off the flow itself', () => {
-  // ux-spec §4 verbatim — "For a connection (3 entries): `append.text-annotation`,
-  // `delete`, `set-color`". A `bpmn:Association`'s `sourceRef` is a `BaseElement`,
-  // so a sequence flow can carry one; what a connection cannot offer is the two
-  // entries that need a shape to flow OUT of.
-  // `canReplace` is asked and true here on purpose: a connection is not a shape, so
-  // the wrench is withheld by the shape test rather than by the rule.
-  expect(actionsOf(context({ isShape: false, isConnection: true, canAnnotate: true, canReplace: true }))).toEqual([
-    'append.text-annotation',
-    'delete',
-    'set-color',
-  ]);
-  // …and when the rules refuse the annotation, the pad drops to the shared pair
-  // rather than offering a button that would do nothing.
-  expect(actionsOf(context({ isShape: false, isConnection: true }))).toEqual([
-    'delete',
-    'set-color',
-  ]);
-});
-
-test('a sequence flow out of a gateway offers the default-flow toggle, worded by its state', () => {
-  const base = { isShape: false, isConnection: true, canToggleDefault: true };
-  expect(actionsOf(context(base))).toEqual(['delete', 'set-color', 'flow.toggle-default']);
-
-  const titleOf = (ctx: Parameters<typeof contextPadEntries>[0]) =>
-    contextPadEntries(ctx).find((entry) => entry.action === 'flow.toggle-default')?.title;
-  expect(titleOf(context(base))).toBe('Set as default flow');
-  expect(titleOf(context({ ...base, isDefault: true }))).toBe('Unset default flow');
-
-  // A flow whose source takes no default (parallel gateway, event) offers nothing.
-  expect(actionsOf(context({ isShape: false, isConnection: true })))
-    .not.toContain('flow.toggle-default');
-});
-
-test('a choreography task adds the app\'s swap-initiator entry, last', () => {
-  const actions = actionsOf(context({ canAppend: true, canAnnotate: true, canReplace: true, isChoreographyTask: true }));
-
-  expect(actions.at(-1)).toBe('choreography.swap-initiator');
-  // It joins the pad rather than replacing it: the stock entries all survive.
-  expect(actions).toContain('delete');
-  expect(actions).toContain('append.end-event');
-});
-
-test('an expandable container adds the expand toggle, last', () => {
-  const actions = actionsOf(context({
-    canAppend: true, canAnnotate: true, canReplace: true, isExpandable: true,
-  }));
-
-  expect(actions.at(-2)).toBe('expand.toggle');
-  expect(actions.at(-1)).toBe('drilldown');
-  // The reference's own six keep the two rows they wrap into.
-  expect(actions.slice(0, 6)).toEqual([
-    'append.end-event', 'append.text-annotation', 'append', 'replace', 'delete', 'set-color',
-  ]);
-
-  // A plain task does not offer it.
-  expect(actionsOf(context({ canAppend: true }))).not.toContain('expand.toggle');
-  expect(actionsOf(context({ canAppend: true }))).not.toContain('drilldown');
-  expect(actionsOf(context({ count: 2, isExpandable: true }))).not.toContain('expand.toggle');
-});
-
-test('the toggle entry says which way it will go', () => {
-  const titleOf = (ctx: ContextPadContext): string | undefined =>
-    contextPadEntries(ctx).find((entry) => entry.action === 'expand.toggle')?.title;
-
-  expect(titleOf(context({ isExpandable: true, isExpanded: false }))).toBe('Expand');
-  expect(titleOf(context({ isExpandable: true, isExpanded: true }))).toBe('Collapse');
-});
-
-test('a multi-selection of choreography tasks offers no swap, because the swap acts on one', () => {
-  expect(actionsOf(context({ count: 3, isChoreographyTask: true }))).not.toContain(
-    'choreography.swap-initiator',
-  );
+test('the two toggles say which way they will go', () => {
+  const titleOf = (ctx: ContextPadContext, action: ContextPadAction): string | undefined =>
+    contextPadEntries(ctx).find((entry) => entry.action === action)?.title;
+  const flow = { isShape: false, isConnection: true, canToggleDefault: true };
+  const CASES: [label: string, title: string | undefined, expected: string][] = [
+    ['a flow that is not the default', titleOf(context(flow), 'flow.toggle-default'), 'Set as default flow'],
+    ['the default flow', titleOf(context({ ...flow, isDefault: true }), 'flow.toggle-default'), 'Unset default flow'],
+    ['a collapsed container', titleOf(context({ isExpandable: true, isExpanded: false }), 'expand.toggle'), 'Expand'],
+    ['an expanded container', titleOf(context({ isExpandable: true, isExpanded: true }), 'expand.toggle'), 'Collapse'],
+  ];
+  for (const [label, title, expected] of CASES) expect(title, label).toBe(expected);
 });
 
 test('exactly the two fixed-successor entries carry an append, and it is the one they commit', () => {
@@ -178,17 +95,4 @@ test('exactly the two fixed-successor entries carry an append, and it is the one
   ]);
   expect(withAppend[0].append).toEqual(END_EVENT_APPEND);
   expect(withAppend[1].append).toEqual(TEXT_ANNOTATION_APPEND);
-});
-
-test('a selected CAPTION gets the trash and the brush, and nothing that needs a shape', () => {
-  // `edge-videos/labels/frame_08` — the frame addendum 3 §4 was written from — shows
-  // exactly two affordances beside a selected label. A caption reaches this table as
-  // neither a shape NOR a connection, which is what separates it from a flow: a note
-  // hangs off the flow it annotates, but a caption is not an element of the document
-  // for anything to hang off at all.
-  expect(actionsOf(context({ isShape: false }))).toEqual(['delete', 'set-color']);
-  // …and asking for the append gates anyway changes nothing, because they are only
-  // consulted for a shape or a connection.
-  expect(actionsOf(context({ isShape: false, canAppend: true, canAnnotate: true })))
-    .toEqual(['delete', 'set-color']);
 });
