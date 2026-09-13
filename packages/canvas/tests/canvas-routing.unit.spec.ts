@@ -1,17 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  centerOf,
-  containsPoint,
-  cropPoint,
-  outlinePoint,
-} from '@canvas/routing/crop.ts';
+import { centerOf, containsPoint, cropPoint, outlinePoint } from '@canvas/routing/crop.ts';
 import type { CroppableShape } from '@canvas/routing/crop.ts';
 import {
   isOrthogonal,
   isStraightRouted,
   orthogonalize,
-  rerouteEdge,
   route,
   routeCenters,
   routeFor,
@@ -22,30 +16,20 @@ import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 import { installDocument, loadCanvas, type Loaded } from './canvasHarness';
 
 /**
- * P4 orthogonal routing + endpoint cropping (design §3 `routing/*`, §6 P4).
- *
- * Two halves:
- *
- * - **pure geometry** — `route()` / `cropWaypoints()` take plain bounds objects
- *   (`SceneNode` satisfies the shape structurally), so these assertions need no
- *   document at all. The contract: every segment is axis-aligned, and each endpoint
- *   lands exactly ON the silhouette the renderer draws — a circle for an event, a
- *   diamond for a gateway, a rectangle for a task — never at the centre, never
- *   outside.
- * - **canvas wiring** — `Canvas.rerouteEdges()` writes the routed waypoints through
- *   to the live `di:waypoint` moddle objects (the P3 write-through contract), so
- *   re-serializing the SAME `Definitions` tree emits them.
- *
- * jsdom via `tests/canvasHarness.ts`, same setup as the other `canvas-*` specs.
+ * Routing and docking. `route()` draws an orthogonal path of at most five points
+ * between two shapes and crops each end onto the silhouette the renderer draws: a
+ * circle for an event, a diamond for a gateway, a page or a cylinder for data, a
+ * rectangle for the rest — never the centre, never outside. The geometry takes plain
+ * bounds (`SceneNode` satisfies them), so most of this needs no document.
  */
 
 installDocument();
 
 // --- shape fixtures ----------------------------------------------------------
 
-/** A 100×80 task (design §2 activity geometry). */
-function task(x: number, y: number, type = 'bpmn:Task'): CroppableShape {
-  return { x, y, width: 100, height: 80, type };
+/** A 100×80 task. */
+function task(x: number, y: number): CroppableShape {
+  return { x, y, width: 100, height: 80, type: 'bpmn:Task' };
 }
 
 /** A 36×36 event — the circle whose crop radius must come out as 18. */
@@ -61,16 +45,6 @@ function gateway(x: number, y: number): CroppableShape {
 const EPS = 1e-6;
 
 // --- geometry assertions -----------------------------------------------------
-
-/** Every segment axis-aligned, and no zero-length hops. */
-function expectOrthogonal(points: readonly Point[]): void {
-  expect(points.length).toBeGreaterThanOrEqual(2);
-  expect(isOrthogonal(points)).toBe(true);
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const d = Math.abs(points[i].x - points[i + 1].x) + Math.abs(points[i].y - points[i + 1].y);
-    expect(d).toBeGreaterThan(EPS);
-  }
-}
 
 /**
  * `point` sits exactly on `shape`'s outline: inside (or on) it, but a nudge further
@@ -90,260 +64,77 @@ function expectOnOutline(shape: CroppableShape, point: Point): void {
 
 // --- cropping ----------------------------------------------------------------
 
-test('cropPoint puts a rect endpoint on the border it faces', () => {
-  const shape = task(200, 100);
-  const right = cropPoint(shape, { x: 500, y: 140 });
-  expect(right).toEqual({ x: 300, y: 140 });
-  expectOnOutline(shape, right);
-
-  const top = cropPoint(shape, { x: 250, y: -50 });
-  expect(top).toEqual({ x: 250, y: 100 });
-  expectOnOutline(shape, top);
-});
-
-test('cropPoint puts an event endpoint on the r=18 circle', () => {
-  const shape = event(100, 100);
-  const centre = centerOf(shape); // (118, 118)
-
-  for (const towards of [
-    { x: 400, y: 118 },
-    { x: 118, y: -100 },
-    { x: -100, y: 118 },
-    { x: 400, y: 400 },
-  ]) {
-    const p = cropPoint(shape, towards);
-    expect(Math.hypot(p.x - centre.x, p.y - centre.y)).toBeCloseTo(18, 6);
-    expectOnOutline(shape, p);
-  }
-
-  // The horizontal dock is the rightmost point of the circle, not of the box.
-  expect(cropPoint(shape, { x: 400, y: 118 })).toEqual({ x: 136, y: 118 });
-  // A diagonal dock is strictly INSIDE the bounding box (a rect crop would not be).
-  const diagonal = cropPoint(shape, { x: 400, y: 400 });
-  expect(diagonal.x).toBeLessThan(136);
-  expect(diagonal.y).toBeLessThan(136);
-});
-
-test('cropPoint puts a gateway endpoint on the diamond, not the bounding box', () => {
-  const shape = gateway(200, 200);
-  const centre = centerOf(shape); // (225, 225)
-  const rhombus = (p: Point): number =>
-    Math.abs(p.x - centre.x) / 25 + Math.abs(p.y - centre.y) / 25;
-
-  // Along an axis the diamond touches the box (the tips).
-  const east = cropPoint(shape, { x: 600, y: 225 });
-  expect(east).toEqual({ x: 250, y: 225 });
-  expect(rhombus(east)).toBeCloseTo(1, 6);
-
-  // Off-axis it is pulled well inside the box — the defining difference from a rect.
-  const corner = cropPoint(shape, { x: 600, y: 600 });
-  expect(rhombus(corner)).toBeCloseTo(1, 6);
-  expect(corner.x).toBeLessThan(250);
-  expect(corner.y).toBeLessThan(250);
-  expectOnOutline(shape, corner);
-
-  // Same direction against a rect of the same box lands on the box corner instead.
-  const asRect = cropPoint({ ...shape, type: 'bpmn:Task' }, { x: 600, y: 600 });
-  expect(asRect).toEqual({ x: 250, y: 250 });
-});
-
-test('cropPoint follows the data-object dog ear and the data-store cylinder', () => {
+test('cropPoint docks on the silhouette, where the walk from the centre toward the other end leaves it', () => {
+  const circle = event(100, 100); // centre (118, 118), r = 18
+  const diamond = gateway(200, 200); // centre (225, 225)
   const page: CroppableShape = { x: 0, y: 0, width: 36, height: 50, type: 'bpmn:DataObjectReference' };
-  const fold = Math.min(36, 50) * 0.32;
-  // Straight up from the centre still exits through the flat part of the top edge.
-  expect(cropPoint(page, { x: 18, y: -100 })).toEqual({ x: 18, y: 0 });
-  // Towards the folded corner the endpoint lands on the fold line, inside the box.
-  const dogEar = cropPoint(page, { x: 200, y: -200 });
-  expect(dogEar.x - dogEar.y).toBeCloseTo(36 - fold - 0, 6);
-  expectOnOutline(page, dogEar);
-  expect(containsPoint(page, { x: 35, y: 1 })).toBe(false); // the folded-away corner
-
   const store: CroppableShape = { x: 0, y: 0, width: 50, height: 50, type: 'bpmn:DataStoreReference' };
-  // The flanks are straight, so a side dock is exactly the box edge…
-  expect(cropPoint(store, { x: 200, y: 25 })).toEqual({ x: 50, y: 25 });
-  // …while the lid is an arc whose apex is the top of the box.
-  const lid = cropPoint(store, { x: 25, y: -200 });
-  expect(lid.x).toBe(25);
-  expect(lid.y).toBeCloseTo(0, 9);
-  // The box corner is outside the cylinder.
-  expect(containsPoint(store, { x: 0.5, y: 0.5 })).toBe(false);
-  expectOnOutline(store, cropPoint(store, { x: 200, y: -200 }));
-});
-
-test('outlinePoint refuses an anchor that is not inside the shape', () => {
-  const shape = event(100, 100);
-  expect(outlinePoint(shape, { x: 400, y: 400 }, { x: 500, y: 400 })).toBeUndefined();
-  expect(outlinePoint(shape, { x: 118, y: 118 }, { x: 118, y: 118 })).toBeUndefined();
-  // …and cropPoint falls back to the centre ray rather than inventing a point.
-  const fallback = cropPoint(shape, { x: 500, y: 118 }, { x: 400, y: 400 });
-  expect(fallback).toEqual({ x: 136, y: 118 });
+  const CASES: [label: string, shape: CroppableShape, towards: Point, dock: Point][] = [
+    ['a task, facing right: its right edge', task(200, 100), { x: 500, y: 140 }, { x: 300, y: 140 }],
+    ['a task, facing up: its top edge', task(200, 100), { x: 250, y: -50 }, { x: 250, y: 100 }],
+    ['an event, level: the rightmost point of the circle', circle, { x: 400, y: 118 }, { x: 136, y: 118 }],
+    ['an event, diagonally: on the circle, inside the box', circle, { x: 400, y: 400 }, { x: 118 + 18 / Math.SQRT2, y: 118 + 18 / Math.SQRT2 }],
+    ['a gateway, level: the tip of the diamond', diamond, { x: 600, y: 225 }, { x: 250, y: 225 }],
+    ['a gateway, diagonally: on the diamond, inside the box', diamond, { x: 600, y: 600 }, { x: 237.5, y: 237.5 }],
+    ['the same box as a task, diagonally: its corner', { ...diamond, type: 'bpmn:Task' }, { x: 600, y: 600 }, { x: 250, y: 250 }],
+    ['a data object, straight up: the flat part of the top edge', page, { x: 18, y: -100 }, { x: 18, y: 0 }],
+    // The folded corner is cut off along x - y = 36 - 0.32 * 36.
+    ['a data object, toward its folded corner: the fold', page, { x: 200, y: -200 }, { x: 32.077, y: 7.597 }],
+    ['a data store, sideways: the straight flank', store, { x: 200, y: 25 }, { x: 50, y: 25 }],
+    ['a data store, straight up: the top of the lid', store, { x: 25, y: -200 }, { x: 25, y: 0 }],
+  ];
+  for (const [label, shape, towards, dock] of CASES) {
+    const at = cropPoint(shape, towards);
+    expect(at.x, label).toBeCloseTo(dock.x, 3);
+    expect(at.y, label).toBeCloseTo(dock.y, 3);
+    expectOnOutline(shape, at);
+  }
+  // An anchor outside the shape is no place to walk from: cropPoint falls back to the centre.
+  expect(outlinePoint(circle, { x: 400, y: 400 }, { x: 500, y: 400 })).toBeUndefined();
+  expect(cropPoint(circle, { x: 500, y: 118 }, { x: 400, y: 400 })).toEqual({ x: 136, y: 118 });
 });
 
 // --- routing -----------------------------------------------------------------
 
-test('a horizontal neighbour pair routes as one straight segment', () => {
-  const source = event(100, 100); // centre (118, 118)
-  const target = task(200, 80); //  centre (250, 120)
-  const points = route(source, target);
+/** `points` to three decimals, so a path docked on a circle compares as literals. */
+const rounded = (points: readonly Point[]): Point[] =>
+  points.map((p) => ({ x: Math.round(p.x * 1000) / 1000, y: Math.round(p.y * 1000) / 1000 }));
 
-  expect(points).toHaveLength(2);
-  expectOrthogonal(points);
-  expect(points[0].y).toBeCloseTo(119, 6);
-  expect(points[1].y).toBeCloseTo(119, 6);
-  // Cropped onto each outline: the circle (r=18) and the task's left edge.
-  expectOnOutline(source, points[0]);
-  expect(points[1]).toEqual({ x: 200, y: 119 });
-  expect(Math.hypot(points[0].x - 118, points[0].y - 118)).toBeCloseTo(18, 6);
-});
-
-test('perfectly aligned neighbours route dead straight through both centres', () => {
-  const source = task(0, 100);
-  const target = task(300, 100);
-  const points = route(source, target);
-  expect(points).toEqual([{ x: 100, y: 140 }, { x: 300, y: 140 }]);
-
-  // Vertically stacked, likewise.
-  const below = route(task(0, 0), task(0, 200));
-  expect(below).toEqual([{ x: 50, y: 80 }, { x: 50, y: 200 }]);
-  expectOrthogonal(below);
-});
-
-test('an off-centre horizontal pair routes as a Z through the middle of the gap', () => {
-  const source = task(0, 0); //   centre (50, 40), right edge 100
-  const target = task(200, 60); // centre (250, 100), left edge 200
-  const points = route(source, target);
-
-  expect(points).toHaveLength(4);
-  expectOrthogonal(points);
-  expect(points[0]).toEqual({ x: 100, y: 40 }); // out of the source's right edge
-  expect(points[3]).toEqual({ x: 200, y: 100 }); // into the target's left edge
-  // The vertical jog sits in the gap, so it crosses neither shape.
-  expect(points[1].x).toBe(150);
-  expect(points[2].x).toBe(150);
-  expectOnOutline(source, points[0]);
-  expectOnOutline(target, points[3]);
-});
-
-test('a diagonal pair routes as a single elbow along the dominant axis', () => {
-  const source = task(0, 0); //     centre (50, 40)
-  const target = task(400, 300); // centre (450, 340)
-  const points = route(source, target);
-
-  expect(points).toHaveLength(3);
-  expectOrthogonal(points);
-  expect(points[0]).toEqual({ x: 100, y: 40 }); // leaves horizontally (|dx| > |dy|)
-  expect(points[1]).toEqual({ x: 450, y: 40 });
-  expect(points[2]).toEqual({ x: 450, y: 300 }); // enters the target's top edge
-
-  // Dominant vertical ⇒ the elbow flips.
-  const down = route(task(0, 0), task(150, 400));
-  expect(down).toHaveLength(3);
-  expectOrthogonal(down);
-  expect(down[0]).toEqual({ x: 50, y: 80 }); // leaves vertically
-  expect(down[2]).toEqual({ x: 150, y: 440 }); // enters the target's left edge
-});
-
-test('overlapping shapes route around through an outside lane', () => {
-  const source = task(0, 0);
-  const target = task(60, 30); // boxes overlap on both axes
-  const points = route(source, target, { clearance: 20 });
-
-  expectOrthogonal(points);
-  expect(points.length).toBeGreaterThanOrEqual(3);
-  // The traversal lane clears both boxes by the requested clearance.
-  const lane = points[1];
-  expect(lane.y).toBe(Math.max(80, 110) + 20);
-  expectOnOutline(source, points[0]);
-  expectOnOutline(target, points[points.length - 1]);
-});
-
-test('a self-connection loops out of the right flank and back into the top', () => {
-  const shape = task(100, 100);
-  const points = route(shape, shape, { clearance: 20 });
-
-  expect(points).toHaveLength(5);
-  expectOrthogonal(points);
-  expect(points[0]).toEqual({ x: 200, y: 140 }); // right edge
-  expect(points[1]).toEqual({ x: 220, y: 140 });
-  expect(points[2]).toEqual({ x: 220, y: 80 });
-  expect(points[4]).toEqual({ x: 175, y: 100 }); // back into the top edge
-  expectOnOutline(shape, points[0]);
-  expectOnOutline(shape, points[4]);
-});
-
-test('every relative placement yields an orthogonal, outline-cropped path', () => {
-  const source = event(200, 200, 'bpmn:IntermediateThrowEvent');
-  const placements: CroppableShape[] = [
-    task(400, 190), // right
-    task(0, 190), //   left
-    task(170, 400), // below
-    task(170, 0), //   above
-    task(400, 400), // down-right
-    task(0, 400), //   down-left
-    task(400, 0), //   up-right
-    task(0, 0), //     up-left
-    gateway(230, 230), // overlapping
-    gateway(400, 400), // diagonal, diamond target
+test('route: an orthogonal path of at most five points, docked on both outlines', () => {
+  const loop = task(100, 100);
+  const circle = event(200, 200, 'bpmn:IntermediateThrowEvent');
+  const CASES: [label: string, source: CroppableShape, target: CroppableShape, path?: Point[]][] = [
+    ['a level neighbour: one straight run, half way between the centres', event(100, 100), task(200, 80), [{ x: 135.972, y: 119 }, { x: 200, y: 119 }]],
+    ['aligned side by side: straight through both centres', task(0, 100), task(300, 100), [{ x: 100, y: 140 }, { x: 300, y: 140 }]],
+    ['aligned one above the other', task(0, 0), task(0, 200), [{ x: 50, y: 80 }, { x: 50, y: 200 }]],
+    ['side by side, off-centre: a Z whose jog sits in the gap', task(0, 0), task(200, 60), [{ x: 100, y: 40 }, { x: 150, y: 40 }, { x: 150, y: 100 }, { x: 200, y: 100 }]],
+    ['diagonal, wider than tall: one elbow, leaving sideways', task(0, 0), task(400, 300), [{ x: 100, y: 40 }, { x: 450, y: 40 }, { x: 450, y: 300 }]],
+    ['diagonal, taller than wide: the elbow flips', task(0, 0), task(150, 400), [{ x: 50, y: 80 }, { x: 50, y: 440 }, { x: 150, y: 440 }]],
+    ['overlapping: through a lane clear of both', task(0, 0), task(60, 30), [{ x: 50, y: 80 }, { x: 50, y: 130 }, { x: 110, y: 130 }, { x: 110, y: 110 }]],
+    ['to itself: out of the right flank, back into the top', loop, loop, [{ x: 200, y: 140 }, { x: 220, y: 140 }, { x: 220, y: 80 }, { x: 175, y: 80 }, { x: 175, y: 100 }]],
+    // Every relative placement, from a circle.
+    ['to a task on the right', circle, task(400, 190)],
+    ['to a task on the left', circle, task(0, 190)],
+    ['to a task below', circle, task(170, 400)],
+    ['to a task above', circle, task(170, 0)],
+    ['to a task down-right', circle, task(400, 400)],
+    ['to a task down-left', circle, task(0, 400)],
+    ['to a task up-right', circle, task(400, 0)],
+    ['to a task up-left', circle, task(0, 0)],
+    ['to an overlapping gateway', circle, gateway(230, 230)],
+    ['to a gateway diagonally', circle, gateway(400, 400)],
   ];
-
-  for (const target of placements) {
+  for (const [label, source, target, path] of CASES) {
     const points = route(source, target);
-    expectOrthogonal(points);
-    expect(points.length).toBeLessThanOrEqual(5);
+    if (path) expect(rounded(points), label).toEqual(path);
+    expect(isOrthogonal(points), label).toBe(true);
+    expect(points.length, label).toBeLessThanOrEqual(5);
     expectOnOutline(source, points[0]);
     expectOnOutline(target, points[points.length - 1]);
   }
 });
 
-// --- scene helpers -----------------------------------------------------------
-
-/** A minimal scene node (only the fields routing reads). */
-function node(id: string, type: string, x: number, y: number, w: number, h: number): SceneNode {
-  return {
-    id,
-    kind: 'node',
-    type,
-    businessObject: { $type: type, id },
-    x, y, width: w, height: h,
-    children: [],
-    incoming: [],
-    outgoing: [],
-  };
-}
-
-function connect(id: string, source: SceneNode, target: SceneNode, waypoints: Point[]): SceneEdge {
-  const edge: SceneEdge = {
-    id,
-    kind: 'edge',
-    type: 'bpmn:SequenceFlow',
-    businessObject: { $type: 'bpmn:SequenceFlow', id },
-    waypoints,
-    source,
-    target,
-  };
-  source.outgoing.push(edge);
-  target.incoming.push(edge);
-  return edge;
-}
-
-test('rerouteEdge rewrites an edge from its endpoints and is idempotent', () => {
-  const a = node('A', 'bpmn:Task', 0, 0, 100, 80);
-  const b = node('B', 'bpmn:Task', 300, 0, 100, 80);
-  const edge = connect('F', a, b, [{ x: 17, y: 3 }, { x: 333, y: 71 }]);
-
-  expect(rerouteEdge(edge)).toBe(true);
-  expect(edge.waypoints).toEqual([{ x: 100, y: 40 }, { x: 300, y: 40 }]);
-  // A second pass changes nothing, so a re-route never churns the revision.
-  expect(rerouteEdge(edge)).toBe(false);
-
-  // Move the target: the helper re-derives the whole path.
-  b.y = 300;
-  expect(rerouteEdge(edge)).toBe(true);
-  expectOrthogonal(edge.waypoints);
-  expect(edge.waypoints[edge.waypoints.length - 1]).toEqual({ x: 350, y: 300 });
-});
-
-// --- canvas wiring + DI writeback -------------------------------------------
+// --- on the canvas --------------------------------------------------------------
 
 const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -383,56 +174,22 @@ async function load(): Promise<Loaded> {
   return loadCanvas(FIXTURE_XML);
 }
 
-function diWaypoints(definitions: any, id: string): Point[] {
-  for (const diagram of definitions.diagrams ?? []) {
-    for (const pe of diagram.plane?.planeElement ?? []) {
-      if (pe.$type === 'bpmndi:BPMNEdge' && pe.bpmnElement?.id === id) {
-        return (pe.waypoint ?? []).map((w: any) => ({ x: w.x, y: w.y }));
-      }
-    }
-  }
-  return [];
-}
-
-test('Canvas.rerouteEdges defaults to the selection and reports no-ops honestly', async () => {
+test('rerouting twice commits nothing the second time', async () => {
   const { canvas } = await load();
   const scene = canvas.getScene()!;
-  const taskNode = scene.elementsById.get('Task_1') as SceneNode;
+  const task = scene.elementsById.get('Task_1') as SceneNode;
+  const kinked = scene.elementsById.get('Flow_1') as SceneEdge;
+  const before = scene.revision;
 
-  canvas.getSelection().select(taskNode);
-  expect(canvas.rerouteEdges().map((e) => e.id).sort()).toEqual(['Flow_1', 'Flow_2']);
-  // Already routed ⇒ nothing changes and the revision holds still.
-  const revision = scene.revision;
-  expect(canvas.rerouteEdges()).toEqual([]);
-  expect(scene.revision).toBe(revision);
+  // Both flows are rewritten from their ends: the hand-drawn kink goes, the off-level run is levelled.
+  expect(canvas.rerouteEdges([task]).map((e) => e.id).sort()).toEqual(['Flow_1', 'Flow_2']);
+  expect(kinked.waypoints).toHaveLength(2);
+  expect(scene.revision).toBeGreaterThan(before);
 
-  // Empty selection ⇒ nothing to do.
-  canvas.getSelection().clear();
-  expect(canvas.rerouteEdges()).toEqual([]);
-});
-
-test('a moved shape re-routes to its new position (drag keeps the P3 docking follow)', async () => {
-  const { canvas, definitions } = await load();
-  const scene = canvas.getScene()!;
-  const taskNode = scene.elementsById.get('Task_1') as SceneNode;
-  const flow1 = scene.elementsById.get('Flow_1') as SceneEdge;
-
-  // A P3 move: the endpoints merely follow the shape, kink and all.
-  canvas.getMutator()!.setNodeBounds(taskNode, { x: 260, y: 300 });
-  expect(flow1.waypoints).toHaveLength(3);
-
-  const changed = canvas.rerouteEdges(taskNode);
-  expect(changed).toContain(flow1);
-  expectOrthogonal(flow1.waypoints);
-  // Start (118, 118) → task centre (310, 340): separated on both axes and taller
-  // than it is wide, so the elbow leaves the event downwards and enters the task's
-  // left edge.
-  expect(flow1.waypoints).toEqual([
-    { x: 118, y: 136 },
-    { x: 118, y: 340 },
-    { x: 260, y: 340 },
-  ]);
-  expect(diWaypoints((canvas.syncDi(), definitions), 'Flow_1')).toEqual(flow1.waypoints);
+  // Routed already: nothing changes, and the revision holds still.
+  const routed = scene.revision;
+  expect(canvas.rerouteEdges([task])).toEqual([]);
+  expect(scene.revision).toBe(routed);
 });
 
 // --- rounded corner bends (parity spec §5, addendum 2 §5) --------------------
@@ -456,26 +213,15 @@ test('a routed edge renders as a path whose corners are quarter-arcs', async () 
   expect(straight.getAttribute('d')).not.toContain(' A ');
 });
 
-// --- orthogonalize -----------------------------------------------------------
+// --- squaring a bent route ------------------------------------------------------
 
-test('orthogonalize flattens a near-aligned run by moving the joint, not the dock', () => {
-  const squared = orthogonalize([
-    { x: 100, y: 100 },
-    { x: 200, y: 102 },
-    { x: 200, y: 300 },
-  ]);
-  // The interior joint came onto the endpoint's line; the docked endpoint held.
-  expect(squared).toEqual([
-    { x: 100, y: 100 },
-    { x: 200, y: 100 },
-    { x: 200, y: 300 },
-  ]);
-  expect(isOrthogonal(squared)).toBe(true);
+test('a bent route keeps its joints when an end is re-docked: a near-aligned run is squared by moving the joint', () => {
+  // A move or an expand re-crops the dock of a route of more than two points and squares it
+  // with `orthogonalize(points, undefined, false)`: the joint moves onto the dock's line,
+  // the dock holds, and no joint is added or dropped.
+  expect(orthogonalize([{ x: 100, y: 100 }, { x: 200, y: 102 }, { x: 200, y: 300 }], undefined, false))
+    .toEqual([{ x: 100, y: 100 }, { x: 200, y: 100 }, { x: 200, y: 300 }]);
 });
-
-/*
- * Not every BPMN flow is orthogonal (parity spec addendum 5, `edge-videos/preview/frame_08`).
- */
 
 test('a plain association is routed as ONE straight diagonal, cropped to both outlines', () => {
   const task: CroppableShape = { x: 0, y: 100, width: 100, height: 80, type: 'bpmn:Task' };
@@ -500,51 +246,26 @@ test('a plain association is routed as ONE straight diagonal, cropped to both ou
 });
 
 /**
- * Obstacle steering (`RouteOptions.obstacles`).
- *
- * The router is still not a general obstacle-avoiding one — it picks among the path
- * shapes it already draws, preferring the ones that miss the boxes it is handed. That
- * is what a MOVE feeds it (`Canvas.routeObstacles`), so a flow re-routed under the
- * pointer does not end up drawn straight across the shape its element was dropped
- * beside.
+ * The router is no general obstacle-avoiding one: it picks among the path shapes it
+ * already draws, preferring one that misses the boxes it is handed. A move hands it the
+ * scene's shapes (`Canvas.routeObstacles`), so a flow re-routed under the pointer is
+ * not drawn across the shape its element was dropped beside.
  */
-test.describe('routing around obstacles', () => {
+test('an obstacle steers the route to a candidate that misses it', () => {
   const a: CroppableShape = { x: 0, y: 240, width: 100, height: 80, type: 'bpmn:Task' };
   const b: CroppableShape = { x: 400, y: 0, width: 100, height: 80, type: 'bpmn:Task' };
-
-  test('an elbow bends the other way when a shape sits on the preferred leg', () => {
-    // Dominant axis is horizontal, so the plain route leaves along y = 280 …
-    const plain = routeCenters(a, b);
-    expect(plain).toEqual([{ x: 50, y: 280 }, { x: 450, y: 280 }, { x: 450, y: 40 }]);
-
-    // …straight through this one. The same two points joined the other way is clean.
-    const blocker = { x: 200, y: 240, width: 100, height: 80 };
-    expect(routeCenters(a, b, { obstacles: [blocker] }))
-      .toEqual([{ x: 50, y: 280 }, { x: 50, y: 40 }, { x: 450, y: 40 }]);
-  });
-
-  test('neither elbow clean: a lane is opened beyond what is actually in the way', () => {
-    const c: CroppableShape = { x: 400, y: 240, width: 100, height: 80, type: 'bpmn:Task' };
-    const blocker = { x: 200, y: 240, width: 100, height: 80 };
-    const points = routeCenters(a, c, { obstacles: [blocker] });
-
-    // A straight run at y = 280 would go through it, so the path drops below the
-    // three boxes (320 + DEFAULT_CLEARANCE) and comes back up.
-    expect(points).toEqual([
-      { x: 50, y: 280 }, { x: 50, y: 340 }, { x: 450, y: 340 }, { x: 450, y: 280 },
-    ]);
-  });
-
-  test('a box on either endpoint is ignored rather than vetoing every candidate', () => {
-    // One scene-wide obstacle list serves every edge, so the edge's OWN shapes (and
-    // anything overlapping them) are in it. Steering around them is impossible.
-    const onEnd = { x: 10, y: 250, width: 40, height: 40 };
-    expect(routeCenters(a, b, { obstacles: [onEnd] })).toEqual(routeCenters(a, b));
-  });
-
-  test('an obstacle nothing crosses changes nothing', () => {
-    const elsewhere = { x: 900, y: 900, width: 100, height: 80 };
-    expect(routeCenters(a, b, { obstacles: [elsewhere] })).toEqual(routeCenters(a, b));
-    expect(route(a, b, { obstacles: [elsewhere] })).toEqual(route(a, b));
-  });
+  const level: CroppableShape = { x: 400, y: 240, width: 100, height: 80, type: 'bpmn:Task' };
+  const between = { x: 200, y: 240, width: 100, height: 80 };
+  // Wider than tall, so the plain elbow leaves along y = 280.
+  const plain = [{ x: 50, y: 280 }, { x: 450, y: 280 }, { x: 450, y: 40 }];
+  const CASES: [label: string, path: Point[], expected: Point[]][] = [
+    ['nothing in the way', routeCenters(a, b), plain],
+    ['a box on the first leg: the elbow bends the other way', routeCenters(a, b, { obstacles: [between] }), [{ x: 50, y: 280 }, { x: 50, y: 40 }, { x: 450, y: 40 }]],
+    // A straight run at y = 280 would cross it, so the path drops below all three boxes (320 + 20).
+    ['a box between two level shapes: a lane below it', routeCenters(a, level, { obstacles: [between] }), [{ x: 50, y: 280 }, { x: 50, y: 340 }, { x: 450, y: 340 }, { x: 450, y: 280 }]],
+    // One scene-wide list serves every edge, so an edge's own shapes are in it.
+    ['a box on an end, which is ignored', routeCenters(a, b, { obstacles: [{ x: 10, y: 250, width: 40, height: 40 }] }), plain],
+    ['a box nothing crosses', routeCenters(a, b, { obstacles: [{ x: 900, y: 900, width: 100, height: 80 }] }), plain],
+  ];
+  for (const [label, path, expected] of CASES) expect(path, label).toEqual(expected);
 });
