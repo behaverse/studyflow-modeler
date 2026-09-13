@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+import { buildCatalog } from '@core/notation';
 import { fromLinkml, parseLinkml } from '@core/notation/linkml';
 
-/** Each LinkML key the reader maps, on one small pair of schemas; `skills/SCHEMAS.md` documents the same table. */
+/** Each LinkML key the reader maps, and what the catalog compiles from it, on one small pair of schemas; `skills/SCHEMAS.md` documents the same table. */
 
 const CORE = parseLinkml(`
 id: http://example.test/core
@@ -41,7 +42,7 @@ classes:
         annotations: { redefines: bpmn:SequenceFlow#conditionExpression }
   Holder:
     attributes:
-      value: { annotations: { body: true, element: true } }
+      value: { range: Markdown, annotations: { body: true, element: true } }
 `);
 
 const SKILL = parseLinkml(`
@@ -53,6 +54,7 @@ classes:
     attributes:
       live: { range: boolean, ifabsent: 'true' }
       name: { annotations: { redefines: Table#name } }
+      config: { range: Holder, annotations: { element: true } }
 enums:
   MoreFormats:
     apply_to: [Format]
@@ -63,6 +65,7 @@ enums:
 const [core, skill] = fromLinkml([CORE, SKILL]);
 const type = (name: string) => [...core.types, ...skill.types].find((entry) => entry.name === name)!;
 const property = (typeName: string, name: string) => type(typeName).properties!.find((entry) => entry.name === name)!;
+const catalog = buildCatalog([core, skill]);
 
 test('the schema header maps to the package, and the subsets to inspector tabs', () => {
   expect(core).toMatchObject({ prefix: 'core', name: 'Core', uri: 'http://example.test/core', order: 1, icon: 'iconify ph--flask', required: true });
@@ -117,4 +120,25 @@ test('permissible values become literals: the title is the name, the key the val
     { name: 'CSV', value: 'csv', description: undefined, icon: 'iconify ph--table' },
     { name: 'tsv', value: 'tsv', description: undefined, icon: undefined },
   ] });
+});
+
+test('compiled, a subclass inherits its parent\'s attach point, attributes, defaults and roles; data-element follows from the attach point', () => {
+  const recording = catalog.getType('skill:Recording')!;
+  expect(recording.bpmnType).toBe('bpmn:DataObjectReference');
+  expect(recording.attributes.map((spec) => spec.ns.name), 'the redefined name in its parent\'s place').toEqual([
+    'skill:name', 'core:rows', 'core:format', 'core:tags', 'core:notes', 'core:shown', 'skill:live', 'skill:config',
+  ]);
+  expect(recording.defaults).toEqual({ 'core:rows': 3, 'core:format': 'csv', 'skill:live': true });
+  expect(recording.roles, 'data-element from bpmn:DataObjectReference, signal from Table').toEqual(['data-element', 'signal']);
+  expect(catalog.getType('core:Holder')!.roles, 'no attach point, no data-element').toEqual([]);
+});
+
+test('compiled, a trait reaches every subtype of its BPMN types, apply_to appends values, and a value type\'s editor reaches its attributes', () => {
+  expect(catalog.instanceAttributesOf('bpmn:UserTask').map((spec) => spec.ns.name), 'a bpmn:Activity').toEqual(['bpmn:conditionExpression']);
+  expect(catalog.instanceAttributesOf('bpmn:StartEvent'), 'not one').toEqual([]);
+  expect(catalog.enumOf('core:Format')!.literals.map((literal) => literal.value)).toEqual(['csv', 'tsv', 'parquet']);
+  expect(catalog.attributeOf('core:Table', 'notes')!.typeEditor, 'ranged Markdown').toBe('markdown');
+  expect(catalog.attributeOf('skill:Recording', 'config'), 'ranged Holder, whose body is Markdown').toMatchObject({
+    bodyProp: 'value', bodyType: 'core:Markdown', typeEditor: 'markdown',
+  });
 });

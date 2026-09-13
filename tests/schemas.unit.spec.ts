@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
 import { BPMN_ANCESTORS, buildCatalog } from '@core/notation';
-import { MODDLE_BUILTIN_TYPES, isValueType, type SchemaModel } from '@core/notation/moddlePackage';
+import { MODDLE_BUILTIN_TYPES, type SchemaModel } from '@core/notation/moddlePackage';
 import { SCHEMAS, freshModdle, loadSchemaModels } from './schemas';
 
 /** The shipped schemas, each rule checked across all of them, as the app loads them. */
@@ -54,15 +54,12 @@ test('each schema has a quoted YY.M.N version, an http(s) id, a lowercase prefix
   }
 });
 
-test('every attribute files under a declared tab, names a type that resolves, and defaults to a value of that type; a mixin implements only bpmn types', () => {
+test('every attribute files under a declared tab, names a type that resolves, and defaults to a value of that type', () => {
   const tabs = catalog.categories().map((category) => category.name);
   const resolves = (type: string) => MODDLE_BUILTIN_TYPES.has(type) || type in BPMN_ANCESTORS
     || catalog.getType(type) !== undefined || catalog.enumOf(type) !== undefined;
 
   for (const type of catalog.allTypes()) {
-    if (type.style === 'trait') {
-      for (const target of type.extends) expect(target, `${type.name} implements`).toMatch(/^bpmn:/);
-    }
     for (const spec of type.attributes) {
       const where = `${type.name} ${spec.ns.name}`;
       for (const tab of spec.meta?.categories ?? []) expect(tabs, `${where} files under "${tab}"`).toContain(tab);
@@ -74,19 +71,23 @@ test('every attribute files under a declared tab, names a type that resolves, an
   }
 });
 
-test('every concrete type instantiates in moddle with its defaults', () => {
+test('every concrete type and every trait target instantiates in moddle as its BPMN type, holding each attribute with the catalog\'s default', () => {
+  const traits = catalog.allTypes().filter((type) => type.style === 'trait');
+  // The catalog lends a trait's attributes to the subtypes BPMN_ANCESTORS lists, where moddle lends them to every subtype.
+  for (const trait of traits) {
+    for (const target of trait.extends) expect(target in BPMN_ANCESTORS, `${trait.name} implements ${target}`).toBe(true);
+  }
+
   const moddle = freshModdle();
-  for (const model of models) {
-    for (const type of model.types) {
-      if (type.extends || type.isAbstract || isValueType(type)) continue;
-      const name = `${model.prefix}:${type.name}`;
-      const { propertiesByName } = moddle.getElementDescriptor(moddle.create(name));
-      for (const property of type.properties ?? []) {
-        expect(propertiesByName[property.name], `${name} ${property.name}`).toBeDefined();
-        if (property.default !== undefined && property.isAttr) {
-          expect(propertiesByName[property.name].default, `${name} ${property.name} default`).toBe(property.default);
-        }
-      }
+  const concrete = catalog.allTypes().filter((type) => type.style === 'wrapper' && !type.isAbstract).map((type) => type.name);
+  for (const name of [...concrete, ...new Set(traits.flatMap((trait) => trait.extends))]) {
+    const element = moddle.create(name);
+    const bpmnType = catalog.bpmnTypeOf(name);
+    if (bpmnType) expect(element.$instanceOf(bpmnType), `${name} is a ${bpmnType}`).toBe(true);
+    const { propertiesByName } = moddle.getElementDescriptor(element);
+    for (const spec of catalog.instanceAttributesOf(name)) {
+      expect(propertiesByName[spec.ns.name], `${name} holds ${spec.ns.name}`).toBeDefined();
+      expect(propertiesByName[spec.ns.name].default, `${name} ${spec.ns.name} default`).toEqual(spec.default);
     }
   }
 });
