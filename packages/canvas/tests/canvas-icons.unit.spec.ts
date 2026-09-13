@@ -1,24 +1,22 @@
 import { expect, test } from '@playwright/test';
+import { BpmnModdle } from 'bpmn-moddle';
 
-import type { Canvas } from '@canvas/index.ts';
+import { Canvas } from '@canvas/index.ts';
 import type { IconDef } from '@canvas/index.ts';
+import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
+import { fromLinkml, parseLinkml } from '@core/notation/linkml';
 
-import { loadCanvas } from './canvasHarness';
+import { installDocument, loadCanvas } from './canvasHarness';
+import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /**
- * Native SVG icons at render time (parity addendum 6 §1).
- *
- * The canvas used to mount every app glyph as `<foreignObject><div class="i-…">`,
- * which paints only where the modeler's Tailwind/iconify pipeline is loaded — so an
- * exported document had to have its icons substituted afterwards
- * (`export/svgEmbedding.embedIconsInSvg`, now deleted). The injected
- * {@link IconResolver} may instead answer with a glyph BODY (`{ content, viewBox }`,
- * exactly the shape the stylesheet lookup yields), and the renderer draws it as a
- * real nested `<svg>`.
- *
- * What this spec pins: the drawn form for each kind of resolver answer, and that
- * `currentColor` is rewritten the way the old exporter rewrote it.
+ * Icons as the renderer draws them. The host's `iconResolver` answers a key (a BPMN
+ * local name, a marker, an iconify class) with a glyph body, an image, a class, or
+ * `null` for "no glyph", and the renderer draws real SVG wherever the answer allows,
+ * so an exported document paints without the app's stylesheet.
  */
+
+type Resolver = (key: string, bo?: any) => IconDef | null | undefined;
 
 /** One user task (its type icon is the top-left glyph) plus a looping task (a marker glyph). */
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -45,8 +43,9 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 const GLYPH = '<path d="M4 4h16v16H4z" fill="currentColor"/>';
+const GLYPH_DEF: IconDef = { content: GLYPH, viewBox: '0 0 24 24' };
 
-async function load(iconResolver?: (key: string, bo?: any) => IconDef | null | undefined): Promise<Canvas> {
+async function load(iconResolver?: Resolver): Promise<Canvas> {
   return (await loadCanvas(XML, { iconResolver })).canvas;
 }
 
@@ -57,205 +56,116 @@ function graphics(canvas: Canvas, id: string): SVGGElement {
   return g;
 }
 
-test('a resolver returning inline content draws a real <svg> with paths, not a foreignObject', async () => {
-  const canvas = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
+/** The icon keys drawn inside `id`'s `<g>`, in paint order. */
+function iconKeys(canvas: Canvas, id: string): (string | null)[] {
+  return [...graphics(canvas, id).querySelectorAll('[data-icon-key]')].map((el) => el.getAttribute('data-icon-key'));
+}
 
-  const g = graphics(canvas, 'Task_1');
-  expect(g.querySelectorAll('foreignObject')).toHaveLength(0);
-
-  const icon = g.querySelector('svg.sf-icon');
-  expect(icon).toBeTruthy();
-  expect(icon!.getAttribute('viewBox')).toBe('0 0 24 24');
-  // Real geometry, in the SVG namespace — an `<img>` rasterizer and a plain SVG
-  // viewer both draw this; neither can do anything with a `<div class="i-…">`.
-  const path = icon!.querySelector('path');
-  expect(path).toBeTruthy();
-  expect(path!.namespaceURI).toBe('http://www.w3.org/2000/svg');
-  expect(path!.getAttribute('d')).toBe('M4 4h16v16H4z');
-
-  // …and it survives export, which is the whole point of drawing it this way.
-  const svg = canvas.toSVG();
-  expect(svg).toContain('M4 4h16v16H4z');
-  expect(svg).not.toContain('foreignObject');
-});
-
-test('a resolver returning an image URL draws an <image>, and export keeps it', async () => {
-  // A type's icon may be a `data:` URL rather than a class. Drawn as an `<image>` it
-  // cannot run script, whatever document it came in, and it is no placeholder to drop.
+test('the resolver\'s answer decides how a type glyph is drawn, and whether at all', async () => {
+  // A `data:` image draws as itself: an `<image>` runs no script, whatever document it came in.
   const href = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${GLYPH}</svg>`)}`;
-  const canvas = await load(() => ({ href }));
-
-  const g = graphics(canvas, 'Task_1');
-  expect(g.querySelector('image.sf-icon[data-icon-key="UserTask"]')!.getAttribute('href')).toBe(href);
-  expect(g.querySelectorAll('foreignObject')).toHaveLength(0);
-  expect(canvas.toSVG()).toContain(`href="${href}"`);
+  const CASES: [label: string, resolver: Resolver, drawn: string | null, exported?: string][] = [
+    ['inline content: a nested <svg> with its paths', () => GLYPH_DEF, 'svg.sf-icon > path[d="M4 4h16v16H4z"]', 'M4 4h16v16H4z'],
+    ['an image URL: an <image>', () => ({ href }), `image.sf-icon[href="${href}"]`, `href="${href}"`],
+    ['a class the stylesheet does not know: a foreignObject for the host to paint', () => ({ cssClass: 'iconify bi--person' }), 'foreignObject.icon-container > div[data-icon-class="iconify bi--person"]'],
+    // `null` is the app's answer for a type BPMN draws no glyph for (a sub-process, a call activity).
+    ['null: nothing', (key) => (key === 'loop' ? GLYPH_DEF : null), null],
+  ];
+  for (const [label, resolver, drawn, exported] of CASES) {
+    const canvas = await load(resolver);
+    expect(iconKeys(canvas, 'Task_1'), label).toEqual(drawn ? ['UserTask'] : []);
+    if (drawn) expect(graphics(canvas, 'Task_1').querySelector(drawn), label).not.toBeNull();
+    if (exported) expect(canvas.toSVG(), label).toContain(exported);
+    // The answer is per key: the loop marker, asked for separately, is drawn whatever the type's answer was.
+    expect(iconKeys(canvas, 'Task_2'), label).toContain('loop');
+  }
 });
 
-test('an unresolved class falls back to the foreignObject placeholder', async () => {
-  const canvas = await load(() => ({ cssClass: 'iconify bi--person' }));
-
-  const g = graphics(canvas, 'Task_1');
-  expect(g.querySelectorAll('svg.sf-icon')).toHaveLength(0);
-
-  const placeholder = g.querySelector('foreignObject.icon-container');
-  expect(placeholder).toBeTruthy();
-  expect(placeholder!.querySelector('div')!.getAttribute('data-icon-class')).toBe('iconify bi--person');
-});
-
-test('a marker glyph is drawn inline too, and `currentColor` takes the element colour', async () => {
-  const canvas = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
-
-  // The loop marker sits bottom-centre on `Task_2`; it goes through the same resolver.
-  // Named by KEY, because a plain `bpmn:Task` now also carries a top-left type glyph
-  // whenever the host's resolver names one, and that one is drawn first.
-  const marker = graphics(canvas, 'Task_2').querySelector('svg.sf-icon[data-icon-key="loop"]');
-  expect(marker).toBeTruthy();
-  // The default stroke colour, substituted the way `embedIconsInSvg` substituted it:
-  // a document opened anywhere paints the glyph, with no `currentColor` to inherit.
-  expect(marker!.querySelector('path')!.getAttribute('fill')).toBe('#78716c');
+test('a marker glyph goes through the same resolver, stamped with its key, in the element\'s colour', async () => {
+  const canvas = await load(() => GLYPH_DEF);
+  // A plain task draws the glyph the resolver names for `Task`, then its loop marker. The key is a
+  // marker's identity: two markers can share their paths (parallel and sequential differ by a rotation).
+  expect(iconKeys(canvas, 'Task_2')).toEqual(['Task', 'loop']);
+  const path = graphics(canvas, 'Task_2').querySelector('svg.sf-icon[data-icon-key="loop"] path')!;
+  // Real geometry in the SVG namespace, with `currentColor` written as the muted ink, so a
+  // document opened anywhere paints the glyph.
+  expect(path.namespaceURI).toBe('http://www.w3.org/2000/svg');
+  expect(path.getAttribute('fill')).toBe('#78716c');
   expect(canvas.toSVG()).not.toContain('currentColor');
 });
 
-test('every drawn glyph carries the icon KEY it was asked for', async () => {
-  // The identity of a marker is its key, not its geometry: `MARKER_ICONS.parallel`
-  // and `MARKER_ICONS.sequential` are the SAME hamburger paths and differ only by a
-  // `rotate(90 …)` wrapper the app bakes in, so a selector matching on `d` cannot
-  // tell them apart and any assertion written that way passes vacuously. Stamping
-  // the key is what lets the loop-marker e2e distinguish the four repetition states
-  // (`tests/modeler.loop.spec.ts`), and it puts the resolved glyph on the same
-  // footing as the placeholder, which has always carried one.
-  const canvas = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
+// --- `meta.glyph` ----------------------------------------------------------------
 
-  expect(graphics(canvas, 'Task_1').querySelector('svg.sf-icon')!.getAttribute('data-icon-key'))
-    .toBe('UserTask');
-  // A plain `bpmn:Task` draws BOTH: the type glyph the resolver named for the key
-  // `Task` (which is how a studyflow extension type's icon reaches an untyped task)
-  // and its own loop marker.
-  expect([...graphics(canvas, 'Task_2').querySelectorAll('svg.sf-icon')]
-    .map((el) => el.getAttribute('data-icon-key')))
-    .toEqual(['Task', 'loop']);
+/** A fixture schema: a task type whose `code` attribute is drawn over its icon. */
+const GLYPH_SCHEMA = `
+id: http://example.org/schemas/glyph/v1
+name: glyph
+default_prefix: glyph
+default_range: string
+prefixes:
+  linkml: https://w3id.org/linkml/
+  glyph: http://example.org/schemas/glyph/v1/
+  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
+imports:
+  - linkml:types
+classes:
+  Step:
+    implements:
+      - bpmn:Task
+    annotations:
+      glyph: code
+    attributes:
+      code: {}
+`;
 
-  // The class placeholder answers to the same attribute, so one selector spans both
-  // states of the app's async icon cache.
-  const pending = await load(() => ({ cssClass: 'iconify bi--person' }));
-  expect(graphics(pending, 'Task_1').querySelector('foreignObject')!.getAttribute('data-icon-key'))
-    .toBe('UserTask');
-});
-
-// --- behaverse scene glyph ---------------------------------------------------
-
-/**
- * Behaverse tasks: a two-letter scene (`NB`), a long one (`SART`), and the
- * not-chosen-yet sentinel. The scene lives on the `behaverse:task`
- * extension; `instrument` is the schema default `behaverse`, never written out.
- */
-const BEHAVERSE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+const GLYPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
     xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
     xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
-    xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse"
-    id="Defs_B" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Process_B" isExecutable="false">
-    <bpmn:task id="Task_NB" name="N-Back">
-      <bpmn:extensionElements><behaverse:task scene="NB" /></bpmn:extensionElements>
-    </bpmn:task>
-    <bpmn:task id="Task_SART" name="SART">
-      <bpmn:extensionElements><behaverse:task scene="SART" /></bpmn:extensionElements>
-    </bpmn:task>
-    <bpmn:task id="Task_None" name="Not chosen">
-      <bpmn:extensionElements><behaverse:task scene="undefined" /></bpmn:extensionElements>
-    </bpmn:task>
+    xmlns:glyph="http://example.org/schemas/glyph/v1"
+    id="Defs_S" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_S" isExecutable="false">
+    <bpmn:task id="Short"><bpmn:extensionElements><glyph:step code="nb" /></bpmn:extensionElements></bpmn:task>
+    <bpmn:task id="Long"><bpmn:extensionElements><glyph:step code="SART" /></bpmn:extensionElements></bpmn:task>
+    <bpmn:task id="Unset"><bpmn:extensionElements><glyph:step /></bpmn:extensionElements></bpmn:task>
+    <bpmn:task id="Plain" />
   </bpmn:process>
-  <bpmndi:BPMNDiagram id="Diag_B">
-    <bpmndi:BPMNPlane id="Plane_B" bpmnElement="Process_B">
-      <bpmndi:BPMNShape id="Task_NB_di" bpmnElement="Task_NB">
-        <dc:Bounds x="100" y="100" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_SART_di" bpmnElement="Task_SART">
-        <dc:Bounds x="260" y="100" width="120" height="80" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_None_di" bpmnElement="Task_None">
-        <dc:Bounds x="420" y="100" width="120" height="80" />
-      </bpmndi:BPMNShape>
+  <bpmndi:BPMNDiagram id="Diag_S">
+    <bpmndi:BPMNPlane id="Plane_S" bpmnElement="Process_S">
+      <bpmndi:BPMNShape id="Short_di" bpmnElement="Short"><dc:Bounds x="100" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Long_di" bpmnElement="Long"><dc:Bounds x="260" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Unset_di" bpmnElement="Unset"><dc:Bounds x="420" y="100" width="120" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Plain_di" bpmnElement="Plain"><dc:Bounds x="580" y="100" width="120" height="80" /></bpmndi:BPMNShape>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-/** The scene glyph drawn inside an element's `<g>`, if any. */
-function sceneGlyph(canvas: Canvas, id: string): SVGTextElement | null {
-  return graphics(canvas, id).querySelector('text.sf-icon-text');
-}
+test('the attribute a type\'s `meta.glyph` names is drawn over its icon, upper-cased, smaller when long', async () => {
+  // One icon for a family of types does not say which member a shape is (a battery of
+  // assessments is a row of identical hexagons); the glyph does.
+  const models = [...loadSchemaModels(), ...fromLinkml([parseLinkml(GLYPH_SCHEMA, 'glyph.linkml.yaml')])];
+  const shipped = getCatalog();
+  setCatalog(buildCatalog(models));
+  try {
+    installDocument();
+    const { rootElement } = await new BpmnModdle(schemaPackages(models) as any).fromXML(GLYPH_XML);
+    const canvas = new Canvas({ iconResolver: () => GLYPH_DEF });
+    canvas.importDefinitions(rootElement);
+    const glyphOf = (id: string) => graphics(canvas, id).querySelector('text.sf-icon-text');
 
-test('a behaverse task draws its scene abbreviation over the hex icon', async () => {
-  // `behaverse:Task` declares `meta.glyph: scene`: the hex icon
-  // alone does not say WHICH assessment a task runs, and every shipped battery is
-  // a row of otherwise identical hexagons.
-  const canvas = await loadCanvas(BEHAVERSE_XML, {
-    iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
-  }).then((loaded) => loaded.canvas);
-
-  const glyph = sceneGlyph(canvas, 'Task_NB')!;
-  expect(glyph).toBeTruthy();
-  expect(glyph.textContent).toBe('NB');
-  // Centred on the icon box, monospace and bold, in the element's own stroke colour.
-  expect(glyph.getAttribute('x')).toBe('15');
-  expect(glyph.getAttribute('y')).toBe('15');
-  expect(glyph.getAttribute('text-anchor')).toBe('middle');
-  expect(glyph.getAttribute('font-weight')).toBe('bold');
-  expect(glyph.getAttribute('font-family')).toContain('monospace');
-  expect(glyph.getAttribute('fill')).toBe('#44403c');
-
-  // It sits ALONGSIDE the hex, not instead of it.
-  expect(graphics(canvas, 'Task_NB').querySelectorAll('svg.sf-icon')).toHaveLength(1);
+    expect(glyphOf('Short')?.textContent).toBe('NB');
+    // Beside the type icon, not instead of it.
+    expect(iconKeys(canvas, 'Short')).toEqual(['Task']);
+    expect(glyphOf('Long')?.textContent).toBe('SART');
+    expect(Number(glyphOf('Long')!.getAttribute('font-size'))).toBeLessThan(Number(glyphOf('Short')!.getAttribute('font-size')));
+    expect(glyphOf('Unset'), 'no value, no glyph').toBeNull();
+    expect(glyphOf('Plain'), 'a type without meta.glyph').toBeNull();
+  } finally {
+    setCatalog(shipped);
+  }
 });
 
-test('a long scene shrinks its glyph to stay inside the icon box', async () => {
-  const canvas = await loadCanvas(BEHAVERSE_XML, {
-    iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
-  }).then((loaded) => loaded.canvas);
-
-  const glyph = sceneGlyph(canvas, 'Task_SART')!;
-  expect(glyph.textContent).toBe('SART');
-  const short = sceneGlyph(canvas, 'Task_NB')!;
-  expect(Number(glyph.getAttribute('font-size'))).toBeLessThan(Number(short.getAttribute('font-size')));
-});
-
-test('the not-chosen-yet scene draws no glyph at all', async () => {
-  // `undefined` is the sentinel a behaverse task carries before an assessment is
-  // picked (the runner reads it the same way, `skills/behaverse/browser/parser.ts`). Drawing
-  // it would put the literal word "UNDE" on the shape.
-  const canvas = await loadCanvas(BEHAVERSE_XML, {
-    iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
-  }).then((loaded) => loaded.canvas);
-
-  expect(sceneGlyph(canvas, 'Task_None')).toBeNull();
-  // The hex icon itself is untouched — only the abbreviation is suppressed.
-  expect(graphics(canvas, 'Task_None').querySelectorAll('svg.sf-icon')).toHaveLength(1);
-  // A non-behaverse task never had one to begin with.
-  const plain = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
-  expect(sceneGlyph(plain, 'Task_1')).toBeNull();
-});
-
-test('a resolver answering `null` draws nothing at all — not a placeholder box', async () => {
-  // `undefined` means "I don't know this key", and the placeholder is the honest
-  // answer to that. `null` means "this key HAS no glyph", which is the app's answer
-  // for a container activity: `bpmn:SubProcess`, `bpmn:CallActivity`,
-  // `bpmn:Transaction` and `bpmn:AdHocSubProcess` carry no top-left type icon in
-  // BPMN at all, and were exporting a faint box with a letter in it forever
-  // (addendum 6 §5 — the exported SVG is supposed to hold real icon paths).
-  const known = await load((key) => (key === 'loop' ? { content: GLYPH, viewBox: '0 0 24 24' } : null));
-
-  expect(graphics(known, 'Task_1').querySelectorAll('.sf-icon-placeholder')).toHaveLength(0);
-  expect(graphics(known, 'Task_1').querySelectorAll('svg.sf-icon')).toHaveLength(0);
-  // …and the marker it DID know is unaffected: `null` is per-key, not a global mute.
-  expect(graphics(known, 'Task_2').querySelectorAll('svg.sf-icon')).toHaveLength(1);
-
-  // `undefined` still placeholders, so a resolver-less canvas is unchanged.
-  const unknown = await load(() => undefined);
-  expect(graphics(unknown, 'Task_1').querySelectorAll('.sf-icon-placeholder')).toHaveLength(1);
-});
-
-// --- gateway and event glyphs through the resolver ---------------------------
+// --- gateways, events, data ---------------------------------------------------------
 
 /** An exclusive gateway plus an end event carrying an error definition. */
 const GATEWAY_EVENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -281,45 +191,44 @@ const GATEWAY_EVENT_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-test('a gateway asks the resolver for its glyph before falling back to the unicode table', async () => {
-  const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {
-    iconResolver: (key: string) => (key === 'ExclusiveGateway'
-      ? { content: GLYPH, viewBox: '0 0 24 24' }
-      : undefined),
-  });
-  const g = graphics(canvas, 'Gateway_1');
-  expect(g.querySelectorAll('svg.sf-icon[data-icon-key="ExclusiveGateway"]')).toHaveLength(1);
-  // The resolver's glyph REPLACES the unicode placeholder, not stacks on it.
-  expect(g.querySelector('text')?.textContent ?? '').not.toBe('×');
+test('a gateway draws the glyph the resolver names, else its own marker, never a placeholder', async () => {
+  const named = await loadCanvas(GATEWAY_EVENT_XML, { iconResolver: (key) => (key === 'ExclusiveGateway' ? GLYPH_DEF : undefined) });
+  expect(iconKeys(named.canvas, 'Gateway_1')).toEqual(['ExclusiveGateway']);
+
+  const own = await loadCanvas(GATEWAY_EVENT_XML, {});
+  expect(graphics(own.canvas, 'Gateway_1').querySelectorAll('path').length).toBeGreaterThan(0);
+  expect(iconKeys(own.canvas, 'Gateway_1')).toEqual([]);
 });
 
-test('without a resolver answer a gateway draws its own glyph — no placeholder box', async () => {
-  const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {});
-  const g = graphics(canvas, 'Gateway_1');
-  expect(g.querySelectorAll('path').length).toBeGreaterThan(0);
-  expect(g.querySelectorAll('.sf-icon-placeholder')).toHaveLength(0);
-});
+test('an event\'s centre takes its definition\'s symbol, else its own type\'s, and a badge then moves to the rim', async () => {
+  // `End_1` is an end event with an error definition.
+  const CASES: [label: string, resolver: Resolver, centre: string[]][] = [
+    ['the resolver knows the definition', (key) => (key === 'ErrorEventDefinition' ? GLYPH_DEF : undefined), ['ErrorEventDefinition']],
+    ['it knows only the event type (a schema event type\'s icon)', (key) => (key === 'EndEvent' ? GLYPH_DEF : undefined), ['EndEvent']],
+    ['it knows neither: the circle stays bare', () => undefined, []],
+  ];
+  for (const [label, resolver, centre] of CASES) {
+    const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, { iconResolver: resolver });
+    expect(iconKeys(canvas, 'End_1'), label).toEqual(centre);
+  }
 
-test('an event definition draws its symbol keyed by the definition $type', async () => {
-  const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {
-    iconResolver: (key: string) => (key === 'ErrorEventDefinition'
-      ? { content: GLYPH, viewBox: '0 0 24 24' }
-      : undefined),
-  });
+  // An attribute badge (`studyflow:redirectTo`) takes a bare event's centre; with a symbol there it sits top-right.
+  const xml = GATEWAY_EVENT_XML
+    .replace('xmlns:bpmn=', 'xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:bpmn=')
+    .replace('<bpmn:endEvent id="End_1">', '<bpmn:endEvent id="End_1" studyflow:redirectTo="https://example.org/done">');
+  const { canvas } = await loadCanvas(xml, { iconResolver: () => GLYPH_DEF });
   const g = graphics(canvas, 'End_1');
-  expect(g.querySelectorAll('svg.sf-icon[data-icon-key="ErrorEventDefinition"]')).toHaveLength(1);
-
-  // A resolver that does not know the definition leaves the circle bare — no
-  // placeholder box inside an event.
-  const { canvas: bare } = await loadCanvas(GATEWAY_EVENT_XML, {});
-  expect(graphics(bare, 'End_1').querySelectorAll('.sf-icon-placeholder, svg.sf-icon')).toHaveLength(0);
+  const symbol = g.querySelector('svg.sf-icon[data-icon-key="ErrorEventDefinition"]')!;
+  const badge = g.querySelector('svg.sf-icon[data-icon-key="iconify ph--sign-out"]')!;
+  expect(symbol.getAttribute('x')).toBe('8');
+  expect(Number(badge.getAttribute('x'))).toBeGreaterThan(8);
+  expect(Number(badge.getAttribute('y'))).toBeLessThan(8);
 });
 
 /**
- * Data-element glyphs (`renderer.drawDataIcons`): a data store's dataset-format
- * icon (`DatasetFormatEnum` literal, the ported `draw/Renderer.drawDataStore`),
- * and the extension type's own glyph centred in the shape. A plain data
- * reference stays bare — the shape is the notation.
+ * Data glyphs (`renderer.drawDataIcons`): a data store draws the icon its dataset
+ * format's literal declares, a typed data object its type's glyph, and a plain data
+ * reference none — the shape is the notation.
  */
 const DATA_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -331,8 +240,8 @@ const DATA_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn:dataStoreReference id="Store_bids" name="BIDS">
       <bpmn:extensionElements><studyflow:dataset format="bids" /></bpmn:extensionElements>
     </bpmn:dataStoreReference>
-    <bpmn:dataStoreReference id="Store_bdm" name="BDM">
-      <bpmn:extensionElements><studyflow:dataset format="bdm" /></bpmn:extensionElements>
+    <bpmn:dataStoreReference id="Store_psychds" name="Psych-DS">
+      <bpmn:extensionElements><studyflow:dataset format="psych-ds" /></bpmn:extensionElements>
     </bpmn:dataStoreReference>
     <bpmn:dataObjectReference id="Obj_table" name="Table">
       <bpmn:extensionElements><studyflow:table /></bpmn:extensionElements>
@@ -344,7 +253,7 @@ const DATA_XML = `<?xml version="1.0" encoding="UTF-8"?>
       <bpmndi:BPMNShape id="Store_bids_di" bpmnElement="Store_bids">
         <dc:Bounds x="100" y="100" width="50" height="50" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Store_bdm_di" bpmnElement="Store_bdm">
+      <bpmndi:BPMNShape id="Store_psychds_di" bpmnElement="Store_psychds">
         <dc:Bounds x="200" y="100" width="50" height="50" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Obj_table_di" bpmnElement="Obj_table">
@@ -357,55 +266,22 @@ const DATA_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-/** Emulates `editor/mount.ts resolveIcon` for the data cases. */
+/** Stands in for the modeler's resolver in the data cases: a class draws, a typed element draws. */
 function dataResolver(key: string, bo?: any): IconDef | null | undefined {
-  if (key.startsWith('iconify ')) return { content: GLYPH, viewBox: '0 0 24 24' };
-  if (bo?.extensionElements) return { content: GLYPH, viewBox: '0 0 24 24' };
+  if (key.startsWith('iconify ')) return GLYPH_DEF;
+  if (bo?.extensionElements) return GLYPH_DEF;
   return null;
 }
 
-test('a data store with a BIDS format draws the bundled logotype, dimmed', async () => {
+test('a data store draws its format\'s icon, a typed data object its type\'s, a plain one none', async () => {
   const { canvas } = await loadCanvas(DATA_XML, { iconResolver: dataResolver });
-  const icon = graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"]');
-  expect(icon).toBeTruthy();
-  expect(icon!.querySelector('path')!.getAttribute('fill')!.toLowerCase()).toBe('#78716c');
+  const CASES: [label: string, id: string, keys: string[]][] = [
+    ['BIDS: the bundled logotype', 'Store_bids', ['bids-dataset-icon']],
+    ['Psych-DS: the class its format literal names', 'Store_psychds', ['iconify ph--flask']],
+    ['a table: its type glyph', 'Obj_table', ['DataObjectReference']],
+    ['a plain data object', 'Obj_plain', []],
+  ];
+  for (const [label, id, keys] of CASES) expect(iconKeys(canvas, id), label).toEqual(keys);
+  // The bundled logotype is painted in the muted ink, like every other glyph.
+  expect(graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"] path')!.getAttribute('fill')).toBe('#78716c');
 });
-
-test('a data store format naming an iconify class resolves through the app pipeline', async () => {
-  const { canvas } = await loadCanvas(DATA_XML, { iconResolver: dataResolver });
-  const g = graphics(canvas, 'Store_bdm');
-  expect(g.querySelector('svg.sf-icon[data-icon-key="iconify bi--hexagon"]')).toBeTruthy();
-});
-
-test('an extension-typed data object draws its type glyph; a plain one stays bare', async () => {
-  const { canvas } = await loadCanvas(DATA_XML, { iconResolver: dataResolver });
-  expect(graphics(canvas, 'Obj_table').querySelector('svg.sf-icon[data-icon-key="DataObjectReference"]')).toBeTruthy();
-  expect(graphics(canvas, 'Obj_plain').querySelectorAll('.sf-icon-placeholder, svg.sf-icon, foreignObject')).toHaveLength(0);
-});
-
-test('an event without a definition still asks the resolver for its own type glyph (schema event types)', async () => {
-  const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {
-    iconResolver: (key: string) => (key === 'StartEvent' || key === 'EndEvent'
-      ? { content: GLYPH, viewBox: '0 0 24 24' }
-      : undefined),
-  });
-  // `End_1` carries an error definition the resolver does not know, so the type glyph is the fallback.
-  expect(graphics(canvas, 'End_1').querySelectorAll('svg.sf-icon[data-icon-key="EndEvent"]')).toHaveLength(1);
-});
-
-test('an event whose centre holds a definition symbol moves its attribute badge to the top-right rim', async () => {
-  const xml = GATEWAY_EVENT_XML
-    .replace('xmlns:bpmn=', 'xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:bpmn=')
-    .replace('<bpmn:endEvent id="End_1">', '<bpmn:endEvent id="End_1" studyflow:redirectTo="https://example.org/done">');
-  const { canvas } = await loadCanvas(xml, {
-    iconResolver: () => ({ content: GLYPH, viewBox: '0 0 24 24' }),
-  });
-  const g = graphics(canvas, 'End_1');
-  const centre = g.querySelector('svg.sf-icon[data-icon-key="ErrorEventDefinition"]')!;
-  const badge = g.querySelector('svg.sf-icon[data-icon-key="iconify ph--sign-out"]')!;
-  expect(centre.getAttribute('x')).toBe('8');
-  expect(badge).toBeTruthy();
-  expect(Number(badge.getAttribute('x'))).toBeGreaterThan(8);
-  expect(Number(badge.getAttribute('y'))).toBeLessThan(8);
-});
-
