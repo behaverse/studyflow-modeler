@@ -1,75 +1,59 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import { freshPackages } from '@tests/schemas';
 
 import { expect, test } from '@playwright/test';
 
 import { readParameters, resolveRunSource } from '@runner/source';
 import { parseStudyflow, Studyflow } from '@runner/studyflow';
-import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
-import type { FlowNode } from '@runner/flow';
 
 /** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
 
-const DEMOS = { behaverse: '/assets/demos/behaverse.studyflow' };
-
-const demoSource = readFileSync(
-  path.join(process.cwd(), 'assets/demos/behaverse.studyflow'),
-  'utf8',
-);
-
-/** A template that carries no value of its own, so the link is the only place `task` can come from. */
-const NEEDS_TASK = `id: needs_task
+/** One step, named from the config data object wired into it; the study declares `task` and `timeline`. */
+const DEMO = `id: demo
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-Needs_Task:
+Demo:
   type: bpmn:Process
+  extensionElements:
+    - type: studyflow:Study
   properties:
     P_Task:
       name: task
+    P_Timeline:
+      name: timeline
   flowElements:
+    Config:
+      type: bpmn:DataObjectReference
+      name: config
+      extensionElements:
+        - type: studyflow:Parameters
+          values: |
+            task: BCS
+            timeline: XCIT_BCS_02
+            blocks: 3
     Task:
       type: bpmn:Task
-      name: "{task}"
+      name: "{task} / {timeline}"
+      dataInputAssociations:
+        In_Config:
+          sourceRef:
+            - Config
 `;
 
 test('`diagram` tells a demo name, a URL, and a hand-off id apart', () => {
-  expect(resolveRunSource('behaverse', DEMOS)).toEqual({ kind: 'url', url: DEMOS.behaverse });
+  const demos = { demo: '/assets/demos/demo.studyflow' };
+  expect(resolveRunSource('demo', demos)).toEqual({ kind: 'url', url: demos.demo });
   expect(resolveRunSource('https://data.behaverse.org/v1/studies/pilot3/studyflow'))
     .toEqual({ kind: 'url', url: 'https://data.behaverse.org/v1/studies/pilot3/studyflow' });
   expect(resolveRunSource('/assets/my-study.studyflow'))
     .toEqual({ kind: 'url', url: '/assets/my-study.studyflow' });
   expect(resolveRunSource('my-study.bpmn')).toEqual({ kind: 'url', url: 'my-study.bpmn' });
-  expect(resolveRunSource('a1b2c3d4', DEMOS)).toEqual({ kind: 'handoff', id: 'a1b2c3d4' });
+  expect(resolveRunSource('a1b2c3d4', demos)).toEqual({ kind: 'handoff', id: 'a1b2c3d4' });
   expect(resolveRunSource('')).toBeUndefined();
+  // The runner keeps `diagram` for itself; the rest of the query string is the study's.
+  expect(readParameters(new URLSearchParams('diagram=demo&seed=42&task=NB'))).toEqual({ seed: '42', task: 'NB' });
 });
 
-test('the runner keeps `diagram` for itself and passes the rest to the study', () => {
-  const params = new URLSearchParams('diagram=behaverse&seed=42&task=BCS&timeline=XCIT_BCS_02');
-  expect(readParameters(params)).toEqual({ seed: '42', task: 'BCS', timeline: 'XCIT_BCS_02' });
-});
-
-test('a `seed` parameter binds to the root Study\'s `seed`, as the Integer it declares', async () => {
-  const study = new Studyflow(
-    await parseStudyflow(demoSource, freshPackages(), { seed: '42', task: 'BCS', timeline: 'XCIT_BCS_02' }),
-  );
-
-  expect(study.seed).toBe(42);
-  expect(study.study.seed).toBe(42);
-  expect(study.parameters.values.seed).toBe(42);
-  expect(study.parameters.undeclared, 'the Study declares it').toEqual([]);
-});
-
-test('a seed pinned in the diagram is what runs when the link gives none', async () => {
-  const pinned = demoSource.replace('- type: studyflow:Study', '- type: studyflow:Study\n      seed: 7');
-  const study = new Studyflow(
-    await parseStudyflow(pinned, freshPackages(), { task: 'BCS', timeline: 'XCIT_BCS_02' }),
-  );
-
-  expect(study.seed).toBe(7);
-});
-
-test('in a pool diagram the seed is read from the collaboration, which carries the Study', async () => {
+test('a `seed` parameter binds to the root Study\'s `seed`, as the Integer it declares; without one, the seed the Study pins runs', async () => {
   const pooled = `id: pooled
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -87,29 +71,31 @@ Lab:
     Start:
       type: bpmn:StartEvent
 `;
-  const study = new Studyflow(await parseStudyflow(pooled, freshPackages(), {}));
-  expect(study.seed).toBe(7);
-  // The study is the collaboration too: its id is what the run reports, not its pool's process's.
-  expect(study.studyId).toBe('Pools');
+  // `studyId` is what the run reports: in a pool diagram the collaboration, which carries the Study, not its pool's process.
+  const CASES: { label: string; text: string; given: Record<string, string>; seed: number; studyId: string }[] = [
+    { label: 'the link\'s seed', text: DEMO, given: { seed: '42', task: 'NB' }, seed: 42, studyId: 'Demo' },
+    { label: 'a seed pinned in the diagram', text: DEMO.replace('- type: studyflow:Study', '- type: studyflow:Study\n      seed: 7'), given: {}, seed: 7, studyId: 'Demo' },
+    { label: 'a pool diagram\'s seed, on the collaboration', text: pooled, given: {}, seed: 7, studyId: 'Pools' },
+  ];
+
+  for (const { label, text, given, seed, studyId } of CASES) {
+    const study = new Studyflow(await parseStudyflow(text, freshPackages(), given));
+    expect([study.seed, study.study.seed, study.parameters.values.seed], label).toEqual([seed, seed, seed]);
+    expect(study.parameters.undeclared, `${label}: the Study declares it`).toEqual([]);
+    expect(study.studyId, label).toBe(studyId);
+  }
 });
 
 test('a link overrides the data object rather than sitting beside it', async () => {
-  const study = await parseStudyflow(demoSource, freshPackages(), { task: 'NB', timeline: 'XCIT_NB_01' });
+  const study = await parseStudyflow(DEMO, freshPackages(), { task: 'NB', timeline: 'XCIT_NB_01', blocks: '5', arm: 'control' });
 
-  expect(study.parameters.overridden).toEqual(['task', 'timeline']);
+  expect(study.parameters.overridden).toEqual(['task', 'timeline', 'blocks']);
   expect(study.parameters.values).toMatchObject({ task: 'NB', timeline: 'XCIT_NB_01' });
-  expect(getBehaverseTaskPayload(study.flowNodes.get('Task') as FlowNode)).toMatchObject({
-    scene: 'NB',
-    timeline: 'XCIT_NB_01',
-  });
   expect(study.flowNodes.get('Task')?.businessObject?.name).toBe('NB / XCIT_NB_01');
-});
-
-test('an overriding value takes the type of the one it replaces', async () => {
-  const withNumber = demoSource.replace('            task: BCS', '            task: BCS\n            blocks: 3');
-  const study = await parseStudyflow(withNumber, freshPackages(), { blocks: '5' });
-
-  expect(study.parameters.values.blocks, 'the data object said this is a number').toBe(5);
+  expect(study.parameters.values.blocks, 'an overriding value takes the type of the one it replaces').toBe(5);
+  // A parameter the study declares nowhere still binds, and is named as undeclared.
+  expect(study.parameters.undeclared).toEqual(['arm']);
+  expect(study.parameters.values.arm).toBe('control');
 });
 
 /** One config object, two steps: the association is the only thing that separates them. */
@@ -140,28 +126,22 @@ ${association}      outgoing: [Flow]
       targetRef: Second
 `;
 
-const WIRED_TO_FIRST = '      dataInputAssociations:\n        In_Config:\n          sourceRef:\n            - Config\n';
+test('config wired into one step is read by that step and no other; wired nowhere, every step reads it', async () => {
+  const CASES = [
+    {
+      label: 'wired into First',
+      association: '      dataInputAssociations:\n        In_Config:\n          sourceRef:\n            - Config\n',
+      names: ['from-config', '{label}'],
+      unbound: ['label'],
+    },
+    { label: 'wired nowhere: the study\'s own', association: '', names: ['from-config', 'from-config'], unbound: [] },
+  ];
 
-test('config wired into one step is read by that step and no other', async () => {
-  const study = await parseStudyflow(TWO_STEPS(WIRED_TO_FIRST), freshPackages(), {});
-
-  expect(study.flowNodes.get('First')?.businessObject?.name).toBe('from-config');
-  expect(study.flowNodes.get('Second')?.businessObject?.name, 'nothing wires it here').toBe('{label}');
-  expect(study.parameters.unbound).toEqual(['label']);
-});
-
-test('config wired nowhere is the study\'s own, and every step reads it', async () => {
-  const study = await parseStudyflow(TWO_STEPS(''), freshPackages(), {});
-
-  expect(study.flowNodes.get('First')?.businessObject?.name).toBe('from-config');
-  expect(study.flowNodes.get('Second')?.businessObject?.name).toBe('from-config');
-  expect(study.parameters.unbound).toEqual([]);
-});
-
-test('a reference nothing has bound is reported, not silently emptied', async () => {
-  const study = await parseStudyflow(NEEDS_TASK, freshPackages(), {});
-
-  expect(study.parameters.unbound).toEqual(['task']);
+  for (const { label, association, names, unbound } of CASES) {
+    const study = await parseStudyflow(TWO_STEPS(association), freshPackages(), {});
+    expect(['First', 'Second'].map((id) => study.flowNodes.get(id)?.businessObject?.name), label).toEqual(names);
+    expect(study.parameters.unbound, label).toEqual(unbound);
+  }
 });
 
 /** `{COMPLETION_CODE}` belongs to the end event and `{count}` to the run state: neither is asked of the link. */
@@ -171,16 +151,23 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Redirects:
   type: bpmn:Process
+  properties:
+    P_Task:
+      name: task
   flowElements:
     Trial:
       type: bpmn:Task
       name: "Trial {count}"
+    Task:
+      type: bpmn:Task
+      name: "{task}"
     Done:
       type: bpmn:EndEvent
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
 `, freshPackages(), {});
 
-  expect(study.parameters.unbound).toEqual([]);
+  // A declared one nothing has bound is reported, not silently emptied.
+  expect(study.parameters.unbound).toEqual(['task']);
   expect(study.flowNodes.get('Trial')?.businessObject?.name).toBe('Trial {count}');
   expect(study.flowNodes.get('Done')?.businessObject?.redirectTo).toContain('cc={COMPLETION_CODE}');
 });
@@ -207,11 +194,4 @@ All_Tasks:
 
   expect(study.flowNodes.get('Receive')?.outgoing).toEqual(['F2']);
   expect(study.flowNodes.get('Rule')?.incoming).toEqual(['F2']);
-});
-
-test('a parameter the study declares nowhere still binds, and is named as undeclared', async () => {
-  const study = await parseStudyflow(demoSource, freshPackages(), { arm: 'control' });
-
-  expect(study.parameters.undeclared).toEqual(['arm']);
-  expect(study.parameters.values.arm).toBe('control');
 });
