@@ -1505,6 +1505,11 @@ def main() -> int:
              "directory when the diagram already lives in one, else a fresh ~/.studyflow/runs/<YYMMDD+codename>)",
     )
     parser.add_argument(
+        "--inputs", action="append", default=[], type=Path, metavar="DIR",
+        help="also stage boundary inputs from DIR, after the diagram's own directory and before the working directory; "
+             "repeatable (`studyflow run` passes the folder of the .studyflow.yaml or .studyflow.png it converted)",
+    )
+    parser.add_argument(
         "--from", dest="from_ref", default=None, metavar="REF",
         help="re-run from this point in the repository's history (a commit-ish), branching there",
     )
@@ -1604,7 +1609,7 @@ def main() -> int:
     log_event("diagram.archived", f"  → {shown(archived)}", level=logging.DEBUG)
     runner = Runner(
         studyflow, repo_dir,
-        input_sources=list(dict.fromkeys([args.studyflow.parent.resolve(), Path.cwd()])),
+        input_sources=list(dict.fromkeys([args.studyflow.parent.resolve(), *(d.resolve() for d in args.inputs), Path.cwd()])),
         started=started,
         seed=seed, fresh=args.fresh,
         repo=repo, branched=branched,

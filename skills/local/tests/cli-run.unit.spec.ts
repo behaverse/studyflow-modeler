@@ -360,3 +360,50 @@ test.describe('partial runner hand-off', () => {
     expect(moments.get('start Play')!).toBeLessThan(moments.get('end Answer')!);
   });
 });
+
+/** `studyflow run` hands run.py a YAML or PNG study as a temporary `.bpmn`, and tells it where the original lives. */
+
+test.describe('studyflow run on a converted study', () => {
+  test.skip(!hasUv(), 'uv is not on PATH');
+
+  test('stages a boundary input from beside the YAML file, run from another folder', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-inputs-'));
+    // The CLI reads its schemas through Vite (`import.meta.glob`), so it is built here rather than imported.
+    execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.join(dir, 'bin'), '--logLevel', 'error']);
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.mkdirSync(path.join(dir, 'study'));
+    fs.mkdirSync(path.join(dir, 'elsewhere'));
+    fs.writeFileSync(path.join(dir, 'study', 'counts.json'), '[1, 2, 3]');
+    fs.writeFileSync(path.join(dir, 'study', 'dump.studyflow.yaml'), `id: inputs
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+    Dump:
+      type: ServiceTask
+      implementation: python://json.dumps
+      dataInputAssociations:
+        In:
+          sourceRef:
+            - counts
+          transformation: obj
+    counts:
+      type: DataObjectReference
+      uri: counts.json
+    Done:
+      type: EndEvent
+    F1: Start -> Dump
+    F2: Dump -> Done
+`);
+    // The copy of run.py finds no skill beside it, so the python skill's runner, which stages `counts.json`, is named.
+    execFileSync(process.execPath, [path.join(dir, 'bin', 'studyflow.mjs'), 'run', path.join(dir, 'study', 'dump.studyflow.yaml'), '--repo', path.join(dir, 'run'), '--quiet'], {
+      cwd: path.join(dir, 'elsewhere'),
+      stdio: 'pipe',
+      env: { ...process.env, STUDYFLOW_RUN_PY: path.join(dir, 'run.py'), STUDYFLOW_PROV_PY: PROV, STUDYFLOW_PYTHON_PY: path.resolve(__dirname, '../../python/local.py') },
+    });
+    expect(fs.readFileSync(path.join(dir, 'run', 'counts.json'), 'utf8')).toBe('[1, 2, 3]');
+  });
+});

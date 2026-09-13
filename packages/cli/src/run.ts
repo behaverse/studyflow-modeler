@@ -66,18 +66,20 @@ async function runLocal(
   source: Awaited<ReturnType<typeof readSource>>,
   passthrough: string[],
 ): Promise<number> {
-  // run.py reads a BPMN XML file, so a YAML file or a PNG reaches it as a temporary `.bpmn`. Alone in its
-  // folder, that file leaves boundary inputs to be found in the working directory.
+  // run.py reads a BPMN XML file, so a YAML file or a PNG reaches it as a temporary `.bpmn`, and `--inputs`
+  // names the original's folder: boundary inputs beside it are found as they would be beside a `.bpmn`.
   let target = input;
+  let inputs: string[] = [];
   if (source.container !== 'text' || source.kind !== 'xml') {
     const dir = await mkdtemp(path.join(tmpdir(), 'studyflow-run-'));
     target = path.join(dir, `${path.basename(input).replace(/\.[^.]*$/, '')}.bpmn`);
     await writeFile(target, await asXml(source), 'utf8');
+    inputs = ['--inputs', path.dirname(path.resolve(input))];
   }
 
   const { command, args } = runnerCommand();
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(command, [...args, target, ...passthrough], { stdio: 'inherit' });
+    const child = spawn(command, [...args, target, ...inputs, ...passthrough], { stdio: 'inherit' });
     child.on('error', reject);
     child.on('exit', (code) => resolvePromise(code ?? 1));
   });
