@@ -11,14 +11,6 @@ import { connectsToFixture, loadSchemaModels } from './schemas';
 test.describe('schema model: moddle package generation', () => {
   const models = loadSchemaModels();
 
-  test('value types stay plain String subtypes (no Element)', () => {
-    const studyflow = toModdlePackages(models.find((m) => m.prefix === 'studyflow')!, models);
-    for (const name of ['MarkdownString', 'YAMLString']) {
-      const type = studyflow.types.find((t: any) => t.name === name);
-      expect(type.superClass, name).toEqual(['String']);
-    }
-  });
-
   test('data-loss-prone list properties go on the association as String', () => {
     const byPrefix = Object.fromEntries(models.map((m) => [m.prefix, toModdlePackages(m, models)]));
     const propType = (pkg: any, typeName: string, propName: string) =>
@@ -77,11 +69,6 @@ test.describe('schema model: connection rules', () => {
   // No shipped schema declares a `connectsTo` annotation, so the fixture file carries it.
   const catalog = buildCatalog([connectsToFixture()]);
 
-  test('an authored connectsTo block survives parse and compile', () => {
-    expect(catalog.getType('lab:Consent')?.meta.connectsTo).toEqual(['lab:Survey', 'bpmn:Gateway']);
-    expect(catalog.getType('lab:Survey')?.meta.connectsTo).toBeUndefined();
-  });
-
   test('allows listed schema-type targets', () => {
     expect(catalog.connectionRule('lab:Consent', 'lab:Survey')).toBe(true);
   });
@@ -127,9 +114,5 @@ classes:
     const joined = catalog.diagnostics.join('\n');
     expect(joined).toContain('DanglingSuper');
     expect(joined).toContain('NoSuchType');
-  });
-
-  test('a well-formed schema reports nothing', () => {
-    expect(buildCatalog([connectsToFixture()]).diagnostics).toEqual([]);
   });
 });

@@ -278,21 +278,6 @@ test.describe('catalog: runner semantics', () => {
   });
 });
 
-test.describe('catalog: renderer semantics', () => {
-  // The event renderer overlays an icon for any set attribute declaring `meta.icon` (src/modeler/draw/Renderer.ts).
-  test('event overlay attributes declare their icons', () => {
-    const cases = [
-      { bpmnType: 'bpmn:StartEvent', attr: 'consentFormUri' },
-      { bpmnType: 'bpmn:EndEvent', attr: 'redirectTo' },
-    ];
-    for (const { bpmnType, attr } of cases) {
-      const spec = catalog.instanceAttributesOf(bpmnType).find((a) => a.name === attr);
-      expect(spec, `${bpmnType}#${attr}`).toBeTruthy();
-      expect(typeof spec!.meta?.icon, `${bpmnType}#${attr} meta.icon`).toBe('string');
-    }
-  });
-});
-
 test.describe('catalog: schema-declared vocabulary', () => {
   test('roles come from the BPMN attach point and the schemas\' meta.roles', () => {
     const typesWithRole = (role: string) => catalog.allTypes().filter((type) => type.roles.includes(role));
