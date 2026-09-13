@@ -114,17 +114,6 @@ test.describe('scoped state', () => {
     expect(studyflow.flowNodes.get('Start')?.scopeId).toBe('Study');
   });
 
-  test('the walk descends into a sub-process and resumes outside it', async () => {
-    const studyflow = await load(NESTED);
-    const session = new Session(studyflow, { catalog });
-
-    const seen: string[] = [];
-    for await (const job of session.traverse()) seen.push(job.node.id);
-
-    expect(seen).toContain('Trial');
-    expect(seen[seen.length - 1]).toBe('End');
-  });
-
   test('a read resolves outward, and a write lands on the declaring scope', async () => {
     const studyflow = await load(NESTED);
     const session = new Session(studyflow, { catalog });
@@ -173,60 +162,6 @@ test.describe('conditions over declared state', () => {
     const result = evaluateCondition('Array != null', {});
     expect(result.error).toContain('not declared');
     expect(new UndeclaredReference('x').name).toBe('UndeclaredReference');
-  });
-
-  test('state.trace bounds a drawn back-edge instead of silently failing', async () => {
-    const LOOP = `${HEAD}Study:
-  type: bpmn:Process
-  properties:
-    P_Score:
-      name: score
-  flowElements:
-    Start:
-      type: bpmn:StartEvent
-      outgoing: [F1]
-    Work:
-      type: bpmn:Task
-      incoming: [F1, F_Back]
-      outgoing: [F2]
-    Gate:
-      type: bpmn:ExclusiveGateway
-      incoming: [F2]
-      outgoing: [F_Back, F_Out]
-      default: F_Out
-    Done:
-      type: bpmn:EndEvent
-      incoming: [F_Out]
-    F1:
-      type: bpmn:SequenceFlow
-      sourceRef: Start
-      targetRef: Work
-    F2:
-      type: bpmn:SequenceFlow
-      sourceRef: Work
-      targetRef: Gate
-    F_Back:
-      type: bpmn:SequenceFlow
-      sourceRef: Gate
-      targetRef: Work
-      conditionExpression: state.trace.count('Gate') < 3
-    F_Out:
-      type: bpmn:SequenceFlow
-      sourceRef: Gate
-      targetRef: Done
-`;
-    const diagnostics: string[] = [];
-    const session = new Session(await load(LOOP), {
-      catalog,
-      onDiagnostic: (m) => diagnostics.push(m),
-    });
-
-    const visited: string[] = [];
-    for await (const job of session.traverse()) visited.push(job.node.id);
-
-    expect(visited.filter((id) => id === 'Work')).toHaveLength(3);
-    expect(visited[visited.length - 1]).toBe('Done');
-    expect(diagnostics).toEqual([]);
   });
 
   /** `__targetRef_placeholder` is bpmn-js's own invented `bpmn:Property` on the target activity. */

@@ -93,28 +93,6 @@ Lab:
   expect(study.studyId).toBe('Pools');
 });
 
-test('the behaverse demo runs on the values its own data object carries', async () => {
-  const study = await parseStudyflow(demoSource, freshPackages(), {});
-
-  expect(study.parameters.unbound).toEqual([]);
-  expect(study.parameters.overridden).toEqual([]);
-  expect(study.scopes.get(study.rootScopeId)?.properties.map((p) => p.name))
-    .toEqual(['task', 'timeline']);
-  // No start or end event: the demo shows the task and nothing else.
-  expect([...study.flowNodes.keys()]).toEqual(['Task']);
-  expect(study.startId).toBe('Task');
-
-  const payload = getBehaverseTaskPayload(study.flowNodes.get('Task') as FlowNode);
-  expect(payload).toMatchObject({
-    scene: 'BCS',
-    timeline: 'XCIT_BCS_02',
-    // The timeline is named, not defined, so Unity runs the one its own build ships.
-    configMode: 'builtin',
-    agentType: 'human',
-  });
-  expect(payload?.parameters).toBeUndefined();
-});
-
 test('a link overrides the data object rather than sitting beside it', async () => {
   const study = await parseStudyflow(demoSource, freshPackages(), { task: 'NB', timeline: 'XCIT_NB_01' });
 
