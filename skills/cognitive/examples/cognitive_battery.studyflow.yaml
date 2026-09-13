@@ -80,7 +80,9 @@ Cognitive_Battery:
       bounds: 1190 158 120 80
     Dataset_Battery:
       type: DataStoreReference
-      extensionElements: {}
+      extensionElements:
+        - type: behaverse:BDMDataset
+          dataLevel: trials
       name: Battery trial data
       bounds: 1195 330 50 50
       label: 1180 385 80 30

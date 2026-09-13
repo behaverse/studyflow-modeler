@@ -226,7 +226,9 @@ SPIRIT_2025:
       type: DataObject
     Dataset_Primary:
       type: DataStoreReference
-      extensionElements: {}
+      extensionElements:
+        - type: behaverse:BDMDataset
+          dataLevel: trials
       name: Primary & secondary outcomes
       bounds: 817 675 50 50
       label: 780 730 124 30

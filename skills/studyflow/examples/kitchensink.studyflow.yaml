@@ -126,7 +126,9 @@ Kitchen_Sink:
       bounds: 340 764 50 50
     Sf_Dataset:
       type: DataStoreReference
-      extensionElements: {}
+      extensionElements:
+        - type: behaverse:BDMDataset
+          dataLevel: trials
       name: Dataset
       bounds: 160 944 50 50
     Sf_Schema:

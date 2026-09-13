@@ -198,7 +198,8 @@ OmniProcessLabLinkDemo:
       label: 427 655 86 15
     ManuscriptArtifacts:
       type: DataStoreReference
-      extensionElements: {}
+      extensionElements:
+        - type: behaverse:BDMDataset
       name: Manuscript artifacts (figures, tables)
       bounds: 1625 540 50 50
       label: 1585 595 130 30

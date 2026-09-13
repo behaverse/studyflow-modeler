@@ -249,7 +249,9 @@ WhichOne_Task:
       bounds: 990 70 120 80
     Trials:
       type: DataStoreReference
-      extensionElements: {}
+      extensionElements:
+        - type: behaverse:BDMDataset
+          dataLevel: trials
       uri: Play.events.jsonl
       name: Trial records
       bounds: 1290 85 50 50
