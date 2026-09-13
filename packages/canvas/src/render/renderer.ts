@@ -65,10 +65,7 @@ const EVENT_ICON_SIZE = 20;
 const DATA_ICON_SIZE = 20;
 const ANNOTATION_PADDING = 7;
 
-/**
- * The attribute a type's `meta.glyph` names (a Behaverse scene: `NB`, `SART`), drawn as text over the
- * type icon. A custom icon replaces it, and the value `undefined` is the not-chosen-yet sentinel.
- */
+/** The value of the attribute a type's `meta.glyph` names, drawn as text over the type icon; a custom icon replaces it. */
 function iconGlyph(bo: ModdleObject | undefined): string | undefined {
   const element = StudyflowElement.fromBusinessObject(bo);
   const name = getCatalog().getType(element.extensionType)?.meta?.glyph;
@@ -76,8 +73,7 @@ function iconGlyph(bo: ModdleObject | undefined): string | undefined {
   if ((element.extension ?? element.businessObject)?.get?.('studyflow:icon')) return undefined;
   const value = getAttribute(bo, name);
   if (typeof value !== 'string' || !value) return undefined;
-  const glyph = value.toUpperCase();
-  return glyph === 'UNDEFINED' ? undefined : glyph;
+  return value.toUpperCase();
 }
 
 /** Icon keys of schema attributes declaring `meta.icon` that hold a value on `bo`. */

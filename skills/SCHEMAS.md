@@ -72,7 +72,7 @@ A `types` entry (`typeof: string`) is a value type: text an attribute holds, wit
 | `editor` (on a value type or a class) | Default editor for every attribute *of that type* (see editor names below). |
 | `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; don't restate it. |
 | `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {scene}"`), read raw. Empty or absent, the band reads "Task software". |
-| `glyph` | The attribute whose value is drawn as text over the type icon (`scene`); the value `undefined` draws nothing. |
+| `glyph` | The attribute whose value is drawn as text over the type icon (`scene`). |
 | `participantKind` (on a `bpmn:Participant` type) | What a band-only actor can be: the name of one of the type's enum attributes, one kind per literal (`actorType`), or the label of the one kind the type itself is (`Reachy Mini`). |
 | `branching` | Runner gateway semantics (`random`, `condition`, `model`); the allowed set is pinned by tests. |
 | `categories` | Palette-group override (rarely needed: groups derive from the BPMN ancestor). Distinct from an attribute's `in_subset`, which is its inspector tab. |

@@ -32,7 +32,7 @@ export interface ImageIconDef {
 
 export type IconDef = SvgIconDef | CssIconDef | InlineSvgIconDef | ImageIconDef;
 
-/** `undefined`: unknown key, draw a placeholder. `null`: this key has no glyph, draw nothing. */
+/** `undefined`: no answer, the bundled paths are tried. `null`: this key has no glyph, draw nothing. */
 export type IconResolver = (iconKey: string, businessObject?: ModdleObject) => IconDef | null | undefined;
 
 function isCssIcon(def: IconDef): def is CssIconDef {
@@ -55,21 +55,7 @@ export const SVG_ICON_PATHS: Record<string, SvgIconDef> = {
   },
 };
 
-/** Placeholder glyphs for the activity markers, when no resolver answers. */
-export const MARKER_ICONS: Record<string, string> = {
-  subprocess: '⊞',
-  adhoc: '~',
-  parallel: '‖',
-  sequential: '≣',
-  loop: '↻',
-  compensation: '⏪',
-  checklist: '☑',
-  function: 'ƒ',
-};
-
-const PLACEHOLDER_FONT = 'ui-monospace, SFMono-Regular, Menlo, monospace';
-
-/** Draw `iconKey` at `(x, y)` sized `size`: resolver first, bundled paths next, placeholder last. */
+/** Draw `iconKey` at `(x, y)` sized `size`: the resolver's answer, else the bundled paths, else nothing. */
 export function drawIcon(
   container: SVGElement,
   iconKey: string | undefined,
@@ -99,7 +85,7 @@ export function drawIcon(
     }
     return drawSvgPaths(container, resolved, x, y, size, size, color, iconKey);
   }
-  return drawPlaceholder(container, iconKey, x, y, size, color);
+  return undefined;
 }
 
 export function drawInlineSvgIcon(
@@ -199,24 +185,6 @@ export function drawCssIcon(
   return foreignObject;
 }
 
-function drawPlaceholder(container: SVGElement, iconKey: string, x: number, y: number, size: number, color: string): SVGElement {
-  const g = create('g', { class: 'sf-icon-placeholder', 'data-icon-key': iconKey });
-  append(g, create('rect', { x, y, width: size, height: size, rx: 3, ry: 3, fill: 'none', stroke: color, 'stroke-width': 1, opacity: 0.4 }));
-  const text = create('text', {
-    x: x + size / 2, y: y + size / 2, 'text-anchor': 'middle', 'dominant-baseline': 'central',
-    'font-family': PLACEHOLDER_FONT, 'font-size': Math.max(8, size * 0.6), fill: color, 'stroke-width': 0,
-  });
-  text.textContent = MARKER_ICONS[iconKey] ?? glyphFor(iconKey);
-  append(g, text);
-  append(container, g);
-  return g;
-}
-
-function glyphFor(iconKey: string): string {
-  const cleaned = iconKey.replace(/^i-[a-z]+-/i, '').replace(/[^a-z0-9]/gi, '');
-  return (cleaned[0] ?? '?').toUpperCase();
-}
-
 /** Inline SVG paths scaled to fit `width × height` at `(x, y)`. */
 export function drawSvgPaths(
   container: SVGElement,
@@ -239,7 +207,9 @@ export function drawSvgPaths(
   return g;
 }
 
-/** A short abbreviation centred in an icon box (a behaverse scene: `NB`, `SART`). */
+const GLYPH_FONT = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+
+/** A short abbreviation centred in an icon box: the value a type's `meta.glyph` names. */
 export function drawIconText(
   container: SVGElement,
   marker: string | undefined,
@@ -256,7 +226,7 @@ export function drawIconText(
     y: y + size / 2,
     'text-anchor': 'middle',
     'dominant-baseline': 'central',
-    'font-family': PLACEHOLDER_FONT,
+    'font-family': GLYPH_FONT,
     'font-size': glyph.length <= 2 ? size * 0.55 : size * 0.4,
     'font-weight': 'bold',
     fill: color,

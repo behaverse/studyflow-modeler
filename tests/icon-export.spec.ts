@@ -42,7 +42,6 @@ test.describe('native SVG icons', () => {
     const canvas = page.getByTestId('modeler-canvas');
     await expect(canvas.locator('svg.sf-icon path').first()).toBeAttached();
     await expect(canvas.locator('foreignObject.icon-container')).toHaveCount(0);
-    await expect(canvas.locator('g.sf-icon-placeholder')).toHaveCount(0);
 
     const svg = await readDownloadText(await exportDiagram(page, 'svg'));
     expect(svg).toMatch(/<svg[^>]*class="sf-icon"[^>]*>\s*<path/);
@@ -51,7 +50,6 @@ test.describe('native SVG icons', () => {
     expect(svg).not.toContain('foreignObject');
     expect(svg).not.toContain('data-icon-class');
     expect(svg).not.toContain('currentColor');
-    expect(svg).not.toContain('sf-icon-placeholder');
 
     const png = await readDownload(await exportDiagram(page, 'png'));
     expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
