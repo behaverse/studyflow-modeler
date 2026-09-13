@@ -1,7 +1,9 @@
 /**
- * The moddle package a schema compiles to: what `BpmnModdle` is handed, and what the catalog reads.
- * `linkml.ts` builds these from the authored `*.moddle.yaml`; only tests write one by hand.
+ * A skill's schema: a moddle package written in YAML (`<name>.moddle.yaml`), with the app's own keys beside
+ * moddle's. `fromModdleYaml` reads one, the catalog compiles it (`compile.ts`), and `toModdlePackages` hands
+ * it to `BpmnModdle`.
  */
+import * as yaml from 'js-yaml';
 
 export type SchemaPropertyModel = {
   name: string;
@@ -9,7 +11,6 @@ export type SchemaPropertyModel = {
   description?: string;
   isAttr?: boolean;
   isMany?: boolean;
-  isId?: boolean;
   isBody?: boolean;
   default?: unknown;
   /** Must spell `Type#property`; anything else silently declares a brand-new attribute. */
@@ -80,6 +81,25 @@ export type SchemaCategoryModel = {
   /** Rendered by a dedicated inspector section, so the tab shows even with no attributes. */
   synthetic?: boolean;
 };
+
+/** A schema file read as it is written; a file that is no package at all (no `name`, `prefix` or `uri`) is refused. */
+export function fromModdleYaml(yamlText: string, sourceName?: string): SchemaModel {
+  const where = sourceName ? ` (${sourceName})` : '';
+  const parsed: any = yaml.load(yamlText);
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error(`Schema YAML did not parse to an object${where}.`);
+  }
+  if (typeof parsed.name !== 'string' || typeof parsed.prefix !== 'string' || typeof parsed.uri !== 'string') {
+    throw new Error(`Schema YAML must declare \`name\`, \`prefix\` and \`uri\`${where}.`);
+  }
+
+  return {
+    ...parsed,
+    types: parsed.types ?? [],
+    enumerations: parsed.enumerations ?? [],
+  } as SchemaModel;
+}
 
 /** Property `type:` refs to these stay unqualified; everything else gets a schema prefix. */
 export const MODDLE_BUILTIN_TYPES: ReadonlySet<string> = new Set([

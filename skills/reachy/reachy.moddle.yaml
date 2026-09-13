@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
 # Motion, media, and sensing elements map one-to-one onto the robot daemon's
 # REST API, served at `http://<host>:8000/api`; the endpoint each element uses
@@ -7,515 +7,572 @@
 # over the `reachy_mini` SDK. `skills/reachy/local.py` is the
 # reference runner; it reads every attribute declared here by name.
 
-id: https://w3id.org/studyflow/reachy
-name: reachy
-title: Reachy Mini
+name: Reachy Mini
+prefix: reachy
 description: >-
   Human-robot interaction with the Reachy Mini: behaviors, dialogue, sensing,
   and interaction recordings.
-license: MIT
+uri: https://w3id.org/studyflow/reachy
+# The Reachy Mini silhouette, inlined so the badge needs no icon service or external host.
+icon: &reachy-icon "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%233f3f46' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 8.5 6.5 2.5M22 8.5 25.5 2.5M15 14.5h2M10.5 21C8.3 23.6 7 26.3 7 29.2h18c0-2.9-1.3-5.6-3.5-8.2'/%3E%3Crect x='5' y='8' width='22' height='13' rx='5.5'/%3E%3Ccircle cx='12' cy='14.5' r='3'/%3E%3Ccircle cx='20' cy='14.5' r='3'/%3E%3C/svg%3E"
+order: 104
+xml:
+  tagAlias: lowerCase
 version: '26.9.1'
-rank: 104
-default_prefix: reachy
-default_range: string
-prefixes:
-  linkml: https://w3id.org/linkml/
-  reachy: https://w3id.org/studyflow/reachy/
-  studyflow: http://behaverse.org/schemas/studyflow/v1/
-  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
-imports:
-  - linkml:types
-  - ../studyflow/studyflow.linkml
 
-enums:
-  VariantEnum:
+enumerations:
+  - name: VariantEnum
     description: Which Reachy Mini build runs the session.
-    permissible_values:
-      wireless:
-        title: Reachy Mini (wireless)
+    literalValues:
+      - name: Reachy Mini (wireless)
+        value: wireless
         description: Battery, on-board computer, and Wi-Fi; runs untethered.
-      lite:
-        title: Reachy Mini Lite
+      - name: Reachy Mini Lite
+        value: lite
         description: USB-tethered to a host computer.
-      simulation:
-        title: Simulation
+      - name: Simulation
+        value: simulation
         description: No hardware; the session runs in the simulator.
 
   # A curated pick from the SDK's emotions library
   # (`pollen-robotics/reachy-mini-emotions-library`, 81 moves in all) plus the
   # daemon's two built-in moves. `Gesture#move` is editable, so any other move
   # name in the dataset works too.
-  MoveEnum:
+  - name: MoveEnum
     description: Recorded expressive move played on the head, body, and antennas.
-    permissible_values:
-      cheerful1: { title: Cheerful }
-      sad1: { title: Sad }
-      curious1: { title: Curious }
-      surprised1: { title: Surprised }
-      yes1: { title: Nod (yes) }
-      no1: { title: Shake (no) }
-      attentive1: { title: Attentive }
-      dance1: { title: Dance }
-      sleep1: { title: Sleep }
+    literalValues:
+      - name: Cheerful
+        value: cheerful1
+      - name: Sad
+        value: sad1
+      - name: Curious
+        value: curious1
+      - name: Surprised
+        value: surprised1
+      - name: Nod (yes)
+        value: yes1
+      - name: Shake (no)
+        value: no1
+      - name: Attentive
+        value: attentive1
+      - name: Dance
+        value: dance1
+      - name: Sleep
+        value: sleep1
       # Built-in: `POST /api/move/play/wake_up`.
-      wake_up:
-        title: Wake up
+      - name: Wake up
+        value: wake_up
         description: The daemon's built-in wake-up move.
       # Built-in: `POST /api/move/play/goto_sleep`.
-      goto_sleep:
-        title: Go to sleep
+      - name: Go to sleep
+        value: goto_sleep
         description: The daemon's built-in sleep move.
 
-  InterpolationEnum:
+  - name: InterpolationEnum
     description: Velocity profile of a motion toward its target.
-    permissible_values:
-      minjerk: { title: Min-jerk }
-      linear: { title: Linear }
-      ease_in_out: { title: Ease in-out }
-      cartoon: { title: Cartoon }
+    literalValues:
+      - name: Min-jerk
+        value: minjerk
+      - name: Linear
+        value: linear
+      - name: Ease in-out
+        value: ease_in_out
+      - name: Cartoon
+        value: cartoon
 
-  LookTargetEnum:
+  - name: LookTargetEnum
     description: What the robot orients its head toward.
-    permissible_values:
-      face: { title: Nearest face }
-      sound: { title: Sound source }
-      home: { title: Home pose }
-      screen:
-        title: Task screen
+    literalValues:
+      - name: Nearest face
+        value: face
+      - name: Sound source
+        value: sound
+      - name: Home pose
+        value: home
+      - name: Task screen
+        value: screen
         description: The robot turns until its camera finds a screen and settles on it (a seated participant does the looking).
 
-  TriggerEnum:
+  - name: TriggerEnum
     description: What the robot senses to fire the event.
-    permissible_values:
+    literalValues:
       # Recognized app-side: the daemon exposes no wake-word API.
-      wake_word:
-        title: Wake word
+      - name: Wake word
+        value: wake_word
         description: A spoken phrase, recognized by the runner.
       # `GET /api/media/tracking/face`.
-      face_detected:
-        title: Face detected
+      - name: Face detected
+        value: face_detected
         description: The face tracker reports a face.
       # `GET /api/state/doa`.
-      speech_detected:
-        title: Speech detected
+      - name: Speech detected
+        value: speech_detected
         description: The microphone array hears speech.
 
-  PerceptionChannelEnum:
+  - name: PerceptionChannelEnum
     description: Perception feed a gateway's branch conditions read.
-    permissible_values:
+    literalValues:
       # 0 or 1: the daemon tracks a single face (`GET /api/media/tracking/face`).
-      face_count:
-        title: Face count
+      - name: Face count
+        value: face_count
         description: Faces currently seen (0 or 1).
       # `GET /api/state/doa`.
-      speech_detected:
-        title: Speech detected
+      - name: Speech detected
+        value: speech_detected
         description: Whether the microphone array currently hears speech.
       # `GET /api/state/doa`.
-      sound_angle:
-        title: Sound angle
+      - name: Sound angle
+        value: sound_angle
         description: Direction of the sound in radians (0 left, π/2 front, π right).
-      speech_intent:
-        title: Speech intent
+      - name: Speech intent
+        value: speech_intent
         description: What the participant's last utterance asked for.
 
-  StreamEnum:
+  - name: StreamEnum
     description: A stream an interaction recording captures.
-    permissible_values:
-      video: { title: Video }
-      audio: { title: Audio }
-      transcript: { title: Transcript }
-      motion: { title: Motion }
+    literalValues:
+      - name: Video
+        value: video
+      - name: Audio
+        value: audio
+      - name: Transcript
+        value: transcript
+      - name: Motion
+        value: motion
 
-classes:
-  Robot:
+types:
+  - name: Robot
     description: The robot as a pool of the steps it performs and the device settings they share; on the lower band of a cognitive task, the actor who takes it.
-    implements:
+    superClass:
       - bpmn:Participant
-    annotations:
-      # The Reachy Mini silhouette, inlined so the badge needs no icon service or external host.
-      icon: &reachy-icon "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='%233f3f46' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 8.5 6.5 2.5M22 8.5 25.5 2.5M15 14.5h2M10.5 21C8.3 23.6 7 26.3 7 29.2h18c0-2.9-1.3-5.6-3.5-8.2'/%3E%3Crect x='5' y='8' width='22' height='13' rx='5.5'/%3E%3Ccircle cx='12' cy='14.5' r='3'/%3E%3Ccircle cx='20' cy='14.5' r='3'/%3E%3C/svg%3E"
+    meta:
+      icon: *reachy-icon
       # The one kind this type is, as the band's kind picker names it.
       participantKind: Reachy Mini
-    attributes:
-      variant:
+    properties:
+      - name: variant
         description: Which Reachy Mini build runs the session; a custom id is also accepted.
-        range: VariantEnum
-        ifabsent: string(wireless)
-        rank: 0
-        annotations:
+        isAttr: true
+        type: VariantEnum
+        default: wireless
+        meta:
+          order: 0
           editable: true
       # The daemon serves its REST API at `http://<host>:8000/api`.
-      host:
+      - name: host
         description: Hostname or IP of the robot (`reachy-mini.local`; `localhost` for Lite or sim).
-        ifabsent: string(reachy-mini.local)
-        rank: 1
-      voice:
+        isAttr: true
+        type: String
+        default: reachy-mini.local
+        meta:
+          order: 1
+      - name: voice
         description: Text-to-speech voice the robot speaks with.
-        rank: 2
-        annotations:
+        isAttr: true
+        type: String
+        meta:
+          order: 2
           optional: true
-      vision:
+      - name: vision
         description: The vision model the robot sees with, as `<scheme>://<ref>` (`ollama://gemma4:12b-it-qat`, `claude://claude-haiku-4-5`); it finds the screen and answers a task's trials.
-        ifabsent: string(ollama://gemma4:12b-it-qat)
-        rank: 6
-        annotations:
+        isAttr: true
+        type: String
+        default: ollama://gemma4:12b-it-qat
+        meta:
+          order: 6
           optional: true
       # The seat listens here; a task whose message flow reaches this robot sends its trials to the same address.
-      bridge:
+      - name: bridge
         description: Where the seated robot takes a task's trials (a WebSocket URL on the machine running the study); the task's runner sends them there.
-        ifabsent: string(ws://localhost:8765)
-        rank: 7
-        annotations:
+        isAttr: true
+        type: String
+        default: ws://localhost:8765
+        meta:
+          order: 7
           optional: true
-      language:
+      - name: language
         description: Language the robot speaks and listens in, as a BCP-47 tag (`en-US`).
-        rank: 3
-        annotations:
+        isAttr: true
+        type: String
+        meta:
+          order: 3
           optional: true
       # Applied once at session start: `POST /api/volume/set`.
-      volume:
+      - name: volume
         description: Speaker volume, 0 to 100.
-        range: integer
-        ifabsent: int(80)
-        rank: 4
-        annotations:
+        isAttr: true
+        type: Integer
+        default: 80
+        meta:
+          order: 4
           unit: "%"
 
   # The daemon has no TTS endpoint: the runner synthesizes the audio and plays
   # it through the speaker (SDK media stream, or upload + `POST /api/media/play_sound`).
-  Say:
+  - name: Say
     description: The robot speaks a text aloud.
-    implements:
+    superClass:
       - bpmn:ServiceTask
-    annotations:
+    meta:
       icon: iconify ph--user-sound
-    attributes:
-      text:
+    properties:
+      - name: text
         description: What the robot says; `{name}` placeholders are filled in at run time.
-        range: MarkdownString
-        rank: 1
-        annotations:
-          element: true
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
 
   # `POST /api/move/play/recorded-move-dataset/{dataset}/{move}`;
   # `wake_up` and `goto_sleep` use their own endpoints (see MoveEnum).
-  Gesture:
+  - name: Gesture
     description: The robot plays a recorded expressive move on head, body, and antennas.
-    implements:
+    superClass:
       - bpmn:ServiceTask
-    annotations:
+    meta:
       icon: iconify ph--hand-waving
-    attributes:
-      move:
+    properties:
+      - name: move
         description: Recorded move to play; any move name in the dataset is also accepted.
-        range: MoveEnum
-        ifabsent: string(cheerful1)
-        rank: 1
-        annotations:
+        isAttr: true
+        type: MoveEnum
+        default: cheerful1
+        meta:
+          order: 1
           editable: true
       # `GET /api/move/recorded-move-datasets/list/{dataset}` lists its moves.
-      dataset:
+      - name: dataset
         description: Hugging Face dataset the move comes from.
-        ifabsent: string(pollen-robotics/reachy-mini-emotions-library)
-        rank: 2
+        isAttr: true
+        type: String
+        default: pollen-robotics/reachy-mini-emotions-library
+        meta:
+          order: 2
 
   # The daemon's motion primitive: `POST /api/move/goto`. The attributes map
   # 1:1 onto its body; 0 everywhere is the neutral pose.
-  Goto:
+  - name: Goto
     description: The robot moves head, antennas, and body to a pose in one smooth motion.
-    implements:
+    superClass:
       - bpmn:ServiceTask
-    annotations:
+    meta:
       icon: iconify ph--arrows-out-cardinal
-    attributes:
+    properties:
       # Head orientation.
-      roll:
+      - name: roll
         description: Head roll; 0 is level.
-        range: float
-        ifabsent: float(0)
-        rank: 1
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 1
           unit: rad
-      pitch:
+      - name: pitch
         description: Head pitch; 0 is level.
-        range: float
-        ifabsent: float(0)
-        rank: 2
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 2
           unit: rad
-      yaw:
+      - name: yaw
         description: Head yaw; 0 faces forward.
-        range: float
-        ifabsent: float(0)
-        rank: 3
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 3
           unit: rad
       # Head position.
-      x:
+      - name: x
         description: Head offset along x; 0 is neutral.
-        range: float
-        ifabsent: float(0)
-        rank: 4
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 4
           unit: m
-      y:
+      - name: y
         description: Head offset along y; 0 is neutral.
-        range: float
-        ifabsent: float(0)
-        rank: 5
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 5
           unit: m
-      z:
+      - name: z
         description: Head offset along z; 0 is neutral.
-        range: float
-        ifabsent: float(0)
-        rank: 6
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 6
           unit: m
       # Antennas.
-      leftAntenna:
+      - name: leftAntenna
         description: Left antenna angle; 0 is upright.
-        range: float
-        ifabsent: float(0)
-        rank: 7
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 7
           unit: rad
-      rightAntenna:
+      - name: rightAntenna
         description: Right antenna angle; 0 is upright.
-        range: float
-        ifabsent: float(0)
-        rank: 8
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 8
           unit: rad
       # Body.
-      bodyYaw:
+      - name: bodyYaw
         description: Body rotation; 0 faces forward.
-        range: float
-        ifabsent: float(0)
-        rank: 9
-        annotations:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 9
           unit: rad
       # Timing.
       # Not `duration`: the Scheduling trait already puts a Gantt `duration` on every activity.
-      motionDuration:
+      - name: motionDuration
         description: How long the motion takes.
-        range: float
-        ifabsent: float(2)
-        rank: 10
-        annotations:
+        isAttr: true
+        type: Real
+        default: 2
+        meta:
+          order: 10
           unit: s
-      interpolation:
+      - name: interpolation
         description: Velocity profile of the motion.
-        range: InterpolationEnum
-        ifabsent: string(minjerk)
-        rank: 11
+        isAttr: true
+        type: InterpolationEnum
+        default: minjerk
+        meta:
+          order: 11
 
   # `POST /api/media/play_sound`; `GET /api/media/sounds` lists the files and
   # `POST /api/media/sounds/upload` adds one.
-  PlaySound:
+  - name: PlaySound
     description: The robot plays a sound from its sound library.
-    implements:
+    superClass:
       - bpmn:ServiceTask
-    annotations:
+    meta:
       icon: iconify ph--music-note
-    attributes:
-      file:
+    properties:
+      - name: file
         description: Sound file name in the robot's library (`chime.wav`).
-        rank: 1
+        isAttr: true
+        type: String
+        meta:
+          order: 1
 
   # Faces via the daemon's tracker (`POST /api/media/tracking/enable`), sounds
   # via the mic array's direction of arrival (`GET /api/state/doa`).
-  LookAt:
+  - name: LookAt
     description: The robot turns its head toward a target and keeps tracking it.
-    implements:
+    superClass:
       - bpmn:ServiceTask
-    annotations:
+    meta:
       icon: iconify ph--eye
-    attributes:
-      target:
+    properties:
+      - name: target
         description: What to orient toward; tracking holds until another step moves the head. A `screen` look remembers where it found the screen, so a later one starts there.
-        range: LookTargetEnum
-        ifabsent: string(face)
-        rank: 1
-      trackingWeight:
+        isAttr: true
+        type: LookTargetEnum
+        default: face
+        meta:
+          order: 1
+      - name: trackingWeight
         description: How strongly face tracking pulls the head, 0-1.
-        range: float
-        ifabsent: float(1)
-        rank: 2
-        annotations:
+        isAttr: true
+        type: Real
+        default: 1
+        meta:
+          order: 2
           condition:
-            value:
-              target: face
+            target: face
 
   # The transcript flows out through the data association drawn from this
   # task; the language comes from the enclosing Robot pool.
-  Listen:
+  - name: Listen
     description: Waits for the participant to speak and transcribes it.
-    implements:
+    superClass:
       - bpmn:ReceiveTask
-    annotations:
+    meta:
       icon: iconify ph--ear
-    attributes:
-      timeout:
+    properties:
+      - name: timeout
         description: Give up when no speech starts within this long.
-        range: float
-        ifabsent: float(10)
-        rank: 1
-        annotations:
+        isAttr: true
+        type: Real
+        default: 10
+        meta:
+          order: 1
           unit: s
 
   # `implementation` (e.g. an `hf://` app) comes from the `studyflow:Implementation`
   # trait; a runner starts it through the apps API (`POST /api/apps/start-app/{app}`)
   # and stops it after (`POST /api/apps/stop-current-app`).
-  Converse:
+  - name: Converse
     description: A model-driven spoken exchange; the robot listens, replies, and gestures.
-    implements:
+    superClass:
       - bpmn:ServiceTask
-    annotations:
+    meta:
       icon: iconify ph--chats
-    attributes:
-      model:
+    properties:
+      - name: model
         description: Model that drives the dialogue, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://llama3.3`).
-        rank: 1
-      persona:
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+      - name: persona
         description: The robot's character and standing instructions, in markdown.
-        range: MarkdownString
-        rank: 2
-        annotations:
-          element: true
-      maxTurns:
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 2
+      - name: maxTurns
         description: Most spoken exchanges the conversation may take.
-        range: integer
-        ifabsent: int(10)
-        rank: 3
-      stopPhrase:
+        isAttr: true
+        type: Integer
+        default: 10
+        meta:
+          order: 3
+      - name: stopPhrase
         description: Participant phrase that ends the conversation early (`goodbye`).
-        rank: 4
-        annotations:
+        isAttr: true
+        type: String
+        meta:
+          order: 4
           optional: true
 
-  Teleoperation:
+  - name: Teleoperation
     description: An operator drives the robot by hand, the Wizard-of-Oz condition.
-    implements:
+    superClass:
       - bpmn:UserTask
-    annotations:
+    meta:
       icon: iconify ph--joystick
-    attributes:
-      instructions:
+    properties:
+      - name: instructions
         description: What the operator does at this step, in markdown.
-        range: MarkdownString
-        rank: 1
-        annotations:
-          element: true
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
 
   # The outgoing flows' conditions read the chosen channel (`face_count > 1`);
   # the flow marked default is taken when none matches.
-  PerceptionGateway:
+  - name: PerceptionGateway
     description: A branch decided by what the robot perceives.
-    implements:
+    superClass:
       - bpmn:ExclusiveGateway
-    annotations:
+    meta:
       icon: iconify ph--binoculars
-    attributes:
-      channel:
+    properties:
+      - name: channel
         description: Perception feed the branch conditions read.
-        range: PerceptionChannelEnum
-        ifabsent: string(face_count)
-        rank: 1
+        isAttr: true
+        type: PerceptionChannelEnum
+        default: face_count
+        meta:
+          order: 1
 
-  SenseEvent:
+  - name: SenseEvent
     description: Waits until the robot senses a wake word, a face, or speech.
-    implements:
+    superClass:
       - bpmn:IntermediateCatchEvent
-    annotations:
+    meta:
       icon: iconify ph--person-simple-walk
-    attributes:
-      trigger:
+    properties:
+      - name: trigger
         description: What the robot listens or watches for; a custom trigger is also accepted.
-        range: TriggerEnum
-        ifabsent: string(wake_word)
-        rank: 1
-        annotations:
+        isAttr: true
+        type: TriggerEnum
+        default: wake_word
+        meta:
+          order: 1
           editable: true
-      wakeWord:
+      - name: wakeWord
         description: The phrase to listen for (`Hey Reachy`).
-        rank: 2
-        annotations:
+        isAttr: true
+        type: String
+        meta:
+          order: 2
           condition:
-            value:
-              trigger: wake_word
+            trigger: wake_word
 
   # The robot's own step when a task on the screen is drawn in another pool and message flows carry the trials
   # to the robot and its answers back: the step is the receiving end, and the walk runs the two together.
   # Its instructions come in as an `agentic:Prompt` data edge; the vision model is the Robot pool's.
-  Participate:
+  - name: Participate
     description: The robot takes the task another pool presents; each trial the message flow brings, it looks, asks its vision model what it sees, answers, and signals with its antennas.
-    implements:
+    superClass:
       - bpmn:ReceiveTask
-    annotations:
+    meta:
       icon: iconify ph--game-controller
 
   # A Dataset, not a Timeseries: video, audio, transcript, and motion share one record.
-  InteractionRecording:
+  - name: InteractionRecording
     description: The multimodal record of an interaction, what was seen, heard, said, and moved.
-    is_a: Dataset
-    annotations:
+    superClass:
+      - studyflow:Dataset
+    meta:
       icon: iconify ph--record
-    attributes:
-      streams:
+    properties:
+      - name: streams
         description: Streams captured.
-        range: StreamEnum
-        multivalued: true
+        isAttr: false
+        isMany: true
+        type: StreamEnum
 
-annotations:
-  icon: *reachy-icon
-  # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
-  templates:
-    value:
-      - description: Wake-word conversation - wait for the wake word, face the speaker, talk, sign off.
-        elements:
-          Wake_word_conversation:
-            type: SubProcess
-            name: Wake-word conversation
-            icon: iconify ph--chats
-            documentation: |
-              Idle until the wake word, turn toward the speaker, then converse until
-              the stop phrase or the turn budget ends it.
-            flowElements:
-              ww_wake:
-                type: IntermediateCatchEvent
-                name: Wake word
-                extensionElements:
-                  - type: reachy:SenseEvent
-                    trigger: wake_word
-                    wakeWord: Hey Reachy
-                bounds: 140 162 36 36
-              ww_look:
-                type: ServiceTask
-                name: Face the speaker
-                extensionElements:
-                  - type: reachy:LookAt
-                    target: face
-                bounds: 240 140 100 80
-              ww_talk:
-                type: ServiceTask
-                name: Chat
-                extensionElements:
-                  - type: reachy:Converse
-                    model: claude-haiku-4-5
-                    persona: |
-                      You are Reachy, a small, curious desktop robot. Keep replies to one
-                      or two spoken sentences and never pretend to be human.
-                    stopPhrase: goodbye
-                bounds: 400 140 100 80
-              ww_bye:
-                type: ServiceTask
-                name: Sign off
-                extensionElements:
-                  - type: reachy:Gesture
-                    move: yes1
-                bounds: 560 140 100 80
-              Flow_ww_wake_ww_look: ww_wake -> ww_look
-              Flow_ww_look_ww_talk: ww_look -> ww_talk
-              Flow_ww_talk_ww_bye: ww_talk -> ww_bye
+# Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
+templates:
+  - description: Wake-word conversation - wait for the wake word, face the speaker, talk, sign off.
+    elements:
+      Wake_word_conversation:
+        type: SubProcess
+        name: Wake-word conversation
+        icon: iconify ph--chats
+        documentation: |
+          Idle until the wake word, turn toward the speaker, then converse until
+          the stop phrase or the turn budget ends it.
+        flowElements:
+          ww_wake:
+            type: IntermediateCatchEvent
+            name: Wake word
+            extensionElements:
+              - type: reachy:SenseEvent
+                trigger: wake_word
+                wakeWord: Hey Reachy
+            bounds: 140 162 36 36
+          ww_look:
+            type: ServiceTask
+            name: Face the speaker
+            extensionElements:
+              - type: reachy:LookAt
+                target: face
+            bounds: 240 140 100 80
+          ww_talk:
+            type: ServiceTask
+            name: Chat
+            extensionElements:
+              - type: reachy:Converse
+                model: claude-haiku-4-5
+                persona: |
+                  You are Reachy, a small, curious desktop robot. Keep replies to one
+                  or two spoken sentences and never pretend to be human.
+                stopPhrase: goodbye
+            bounds: 400 140 100 80
+          ww_bye:
+            type: ServiceTask
+            name: Sign off
+            extensionElements:
+              - type: reachy:Gesture
+                move: yes1
+            bounds: 560 140 100 80
+          Flow_ww_wake_ww_look: ww_wake -> ww_look
+          Flow_ww_look_ww_talk: ww_look -> ww_talk
+          Flow_ww_talk_ww_bye: ww_talk -> ww_bye

@@ -134,7 +134,7 @@ function ReadonlyInput({ attrDef }: { attrDef: AttributeSpec }) {
 
 const MarkdownStringInput = (inputProps: any) => <StringInput {...inputProps} isMarkdown />;
 
-/** Editors addressable from a schema's `editor` annotation; keyed by core's `EditorName` so the lists cannot drift. */
+/** Editors addressable from schema `meta.editor`; keyed by core's `EditorName` so the lists cannot drift. */
 const INPUT_BY_EDITOR_NAME: Record<EditorName, ComponentType<{ attrDef: AttributeSpec }>> = {
   'csvw-table': SchemaEditor,
   'code': CodeEditor,

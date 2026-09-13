@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
 # LLM and agent workflows in the vocabulary of Anthropic's "Building effective
 # agents": prompt chaining, routing, parallelization, orchestrator-workers,
@@ -6,502 +6,520 @@
 # human in the loop. Patterns are templates over the few types below, not
 # classes of their own.
 
-id: https://w3id.org/studyflow/agentic
-name: agentic
-title: Agentic
+name: Agentic
+prefix: agentic
 description: >-
   LLM and agent workflows: model calls, tools, routing, memory, and
   human approval steps.
-license: MIT
+uri: https://w3id.org/studyflow/agentic
+icon: iconify tabler--hexagon-letter-a
+order: 102
+xml:
+  tagAlias: lowerCase
 version: '26.9.1'
-rank: 102
-default_prefix: agentic
-default_range: string
-prefixes:
-  linkml: https://w3id.org/linkml/
-  agentic: https://w3id.org/studyflow/agentic/
-  studyflow: http://behaverse.org/schemas/studyflow/v1/
-  cognitive: http://behaverse.org/schemas/studyflow/cognitive/
-  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
-imports:
-  - linkml:types
-  - ../studyflow/studyflow.linkml
-  - ../cognitive/cognitive.linkml
 
-enums:
-  AgenticActorTypes:
+enumerations:
+  - extends: cognitive:ActorTypeEnum
     description: What an actor pool can be, beyond cognitive's human, software, and hardware.
-    apply_to:
-      - ActorTypeEnum
-    permissible_values:
-      llm:
-        title: Large language model
+    literalValues:
+      - name: Large language model
+        value: llm
         description: A model answers each trial; `implementation` names it (`claude://claude-haiku-4-5`, `ollama://llama3.3`).
 
-  ToolChoiceEnum:
+  - name: ToolChoiceEnum
     description: How freely the model may call the tools available to it.
-    permissible_values:
-      auto:
-        title: Auto
+    literalValues:
+      - name: Auto
+        value: auto
         description: The model decides whether and which tool to call.
-      required:
-        title: Required
+      - name: Required
+        value: required
         description: The model must call a tool on this turn.
-      none:
-        title: None
+      - name: None
+        value: none
         description: Tools are visible but may not be called.
 
-  ToolKindEnum:
+  - name: ToolKindEnum
     description: What kind of capability a tool exposes.
-    permissible_values:
-      function:
-        title: Function
+    literalValues:
+      - name: Function
+        value: function
         description: Code the model calls with JSON arguments.
-      retrieval:
-        title: Retrieval
+      - name: Retrieval
+        value: retrieval
         description: Looks up documents or facts from a store.
-      code: { title: Code execution }
-      search: { title: Web search }
-      mcp: { title: MCP server }
-      human:
-        title: Ask a human
+      - name: Code execution
+        value: code
+      - name: Web search
+        value: search
+      - name: MCP server
+        value: mcp
+      - name: Ask a human
+        value: human
         description: A person answers, and the run waits for them.
-      subflow:
-        title: Sub-flow
+      - name: Sub-flow
+        value: subflow
         description: Another studyflow, run as a tool.
 
-  ResponseFormatEnum:
+  - name: ResponseFormatEnum
     description: Shape the model's reply must take.
-    permissible_values:
-      text: { title: Free text }
-      json:
-        title: JSON
+    literalValues:
+      - name: Free text
+        value: text
+      - name: JSON
+        value: json
         description: Any well-formed JSON object.
-      json_schema:
-        title: JSON matching a schema
+      - name: JSON matching a schema
+        value: json_schema
         description: JSON validated against the call's output schema.
 
-  MemoryKindEnum:
+  - name: MemoryKindEnum
     description: How a memory store holds and retrieves what it keeps.
-    permissible_values:
-      conversation:
-        title: Conversation
+    literalValues:
+      - name: Conversation
+        value: conversation
         description: The message history, replayed in order.
-      vector:
-        title: Vector
+      - name: Vector
+        value: vector
         description: Embeddings, searched by similarity.
-      key_value:
-        title: Key-value
+      - name: Key-value
+        value: key_value
         description: Named facts, looked up by key.
-      file:
-        title: File
+      - name: File
+        value: file
         description: Notes the agent reads and writes as files.
 
-  MemoryScopeEnum:
+  - name: MemoryScopeEnum
     description: How long a memory store lives.
-    permissible_values:
-      turn:
-        title: Turn
+    literalValues:
+      - name: Turn
+        value: turn
         description: Cleared after every model turn.
-      run:
-        title: Run
+      - name: Run
+        value: run
         description: Lives for one run of the studyflow.
-      participant:
-        title: Participant
+      - name: Participant
+        value: participant
         description: Persists across a participant's runs.
-      global:
-        title: Global
+      - name: Global
+        value: global
         description: Shared by every run and participant.
 
-  TimeoutActionEnum:
+  - name: TimeoutActionEnum
     description: What an approval step does when nobody answers in time.
-    permissible_values:
-      reject: { title: Reject }
-      approve: { title: Approve }
-      wait:
-        title: Keep waiting
+    literalValues:
+      - name: Reject
+        value: reject
+      - name: Approve
+        value: approve
+      - name: Keep waiting
+        value: wait
         description: Ignore the timeout and stay paused.
 
-classes:
+types:
 
   # The autonomous agent: an ad-hoc sub-process whose `Tool`s the model calls
   # in an order it decides, turn after turn, until `completionCondition` (from
   # the core `CompletionCondition` trait) holds or `maxTurns` runs out.
-  Agent:
+  - name: Agent
     description: A sub-process whose tools the model calls in an order it decides.
-    implements:
+    superClass:
       - bpmn:AdHocSubProcess
-    annotations:
+    meta:
       icon: iconify ph--robot
-    attributes:
-      model:
+    properties:
+      - name: model
         description: The model, as `<scheme>://<ref>` (`claude://claude-opus-4-8`, `ollama://llama3.3`); a bare `claude-*` name is Claude's.
-        rank: 1
-      systemPrompt:
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+      - name: systemPrompt
         description: The agent's standing instructions, in markdown.
-        range: MarkdownString
-        rank: 2
-        annotations:
-          element: true
-      toolChoice:
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 2
+      - name: toolChoice
         description: How freely the agent may call the tools drawn inside it.
-        range: ToolChoiceEnum
-        ifabsent: string(auto)
-        rank: 3
-      temperature:
+        isAttr: true
+        type: ToolChoiceEnum
+        default: auto
+        meta:
+          order: 3
+      - name: temperature
         description: Sampling temperature, 0 to 2; lower is more predictable.
-        range: float
-        ifabsent: float(1)
-        rank: 4
-      maxTokens:
+        isAttr: true
+        type: Real
+        default: 1
+        meta:
+          order: 4
+      - name: maxTokens
         description: Ceiling on the length of each reply, in tokens.
-        range: integer
-        rank: 5
-        annotations:
+        isAttr: true
+        type: Integer
+        meta:
+          order: 5
           optional: true
-      maxTurns:
+      - name: maxTurns
         description: Hard ceiling on how many turns the agent may take.
-        range: integer
-        ifabsent: int(10)
-        rank: 6
+        isAttr: true
+        type: Integer
+        default: 10
+        meta:
+          order: 6
 
   # Routing: the model reads the input and picks one outgoing flow by its
   # label; the flow marked `default` is taken when it is unsure or fails.
-  # Both runners refuse the `branching: model` annotation at run time; not implemented yet.
-  Router:
+  # Both runners refuse `meta.branching: model` at run time; not implemented yet.
+  - name: Router
     description: A branch the model picks, choosing among the outgoing flows' labels.
-    implements:
+    superClass:
       - bpmn:ExclusiveGateway
-    annotations:
+    meta:
       icon: iconify ph--signpost
       branching: model
-    attributes:
-      model:
+    properties:
+      - name: model
         description: Model that classifies the input and picks a branch.
-        rank: 1
-      instructions:
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+      - name: instructions
         description: How to choose a branch, in markdown.
-        range: MarkdownString
-        rank: 2
-        annotations:
-          element: true
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 2
 
   # One prompt in, one reply out. Chains, fan-outs, and judges are made of
   # these; the `Prompt` data element can supply the text by association.
-  LLMCall:
+  - name: LLMCall
     description: One model call, a prompt in and a reply out.
-    implements:
+    superClass:
       - bpmn:ServiceTask
-    annotations:
+    meta:
       icon: iconify ph--chat-dots
-    attributes:
-      model:
+    properties:
+      - name: model
         description: The model, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://llama3.3`); a bare `claude-*` name is Claude's.
-        rank: 1
-      prompt:
+        isAttr: true
+        type: String
+        meta:
+          order: 1
+      - name: prompt
         description: The prompt, in markdown, with `{name}` placeholders.
-        range: MarkdownString
-        rank: 2
-        annotations:
-          element: true
-      temperature:
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 2
+      - name: temperature
         description: Sampling temperature, 0 to 2; 0 gives a repeatable call.
-        range: float
-        ifabsent: float(0)
-        rank: 3
-      maxTokens:
+        isAttr: true
+        type: Real
+        default: 0
+        meta:
+          order: 3
+      - name: maxTokens
         description: Ceiling on the length of the reply, in tokens.
-        range: integer
-        rank: 4
-        annotations:
+        isAttr: true
+        type: Integer
+        meta:
+          order: 4
           optional: true
-      responseFormat:
+      - name: responseFormat
         description: Shape the reply must take; free text unless set.
-        range: ResponseFormatEnum
-        ifabsent: string(text)
-        rank: 5
-        annotations:
+        isAttr: true
+        type: ResponseFormatEnum
+        default: text
+        meta:
+          order: 5
           editable: true
-      outputSchema:
+      - name: outputSchema
         # JSON Schema (as YAML or JSON) the reply is validated against.
         description: JSON Schema the reply must match.
-        range: YAMLString
-        rank: 6
-        annotations:
-          element: true
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 6
           condition:
-            value:
-              responseFormat: json_schema
+            responseFormat: json_schema
 
   # A capability an agent may call. What runs is `implementation` from the
   # core `Implementation` trait; `purpose` and `parameters` are what the model
   # sees as the function definition (name, description, argument schema).
-  Tool:
+  - name: Tool
     description: A capability an agent may call, run like any other step.
-    implements:
+    superClass:
       - bpmn:ServiceTask
-    annotations:
+    meta:
       icon: iconify ph--wrench
-    attributes:
-      kind:
+    properties:
+      - name: kind
         description: What kind of capability this exposes.
-        range: ToolKindEnum
-        ifabsent: string(function)
-        rank: 1
-      purpose:
+        isAttr: true
+        type: ToolKindEnum
+        default: function
+        meta:
+          order: 1
+      - name: purpose
         description: What the tool does and when to use it, written for the model.
-        range: MarkdownString
-        rank: 2
-        annotations:
-          element: true
-      parameters:
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 2
+      - name: parameters
         # JSON Schema of the arguments; the empty object means no arguments.
         description: JSON Schema of the tool's arguments, as the model sees it.
-        range: YAMLString
-        rank: 3
-        annotations:
-          element: true
+        isAttr: false
+        type: studyflow:YAMLString
+        meta:
+          order: 3
 
   # Human in the loop: the run pauses until a person approves, edits, or
   # rejects. The reviewer's answer flows out like any task output.
-  HumanApproval:
+  - name: HumanApproval
     description: Pauses the run until a person approves, edits, or rejects.
-    implements:
+    superClass:
       - bpmn:UserTask
-    annotations:
+    meta:
       icon: iconify ph--user-check
-    attributes:
-      question:
+    properties:
+      - name: question
         description: What the reviewer is being asked, in markdown.
-        range: MarkdownString
-        rank: 1
-        annotations:
-          element: true
-      timeout:
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
+      - name: timeout
         description: How long to wait for an answer; unset waits indefinitely.
-        range: float
-        rank: 2
-        annotations:
+        isAttr: true
+        type: Real
+        meta:
+          order: 2
           optional: true
           unit: s
-      onTimeout:
+      - name: onTimeout
         description: What happens when the wait runs out.
-        range: TimeoutActionEnum
-        ifabsent: string(reject)
-        rank: 3
-        annotations:
+        isAttr: true
+        type: TimeoutActionEnum
+        default: reject
+        meta:
+          order: 3
           condition:
-            value:
-              timeout: $set
+            timeout: $set
 
-  Prompt:
+  - name: Prompt
     description: A prompt kept as a data element, associated into the calls that read it.
-    implements:
+    superClass:
       - bpmn:DataObjectReference
-    annotations:
+    meta:
       icon: iconify ph--article
-    attributes:
-      template:
+    properties:
+      - name: template
         description: The prompt text, in markdown, with `{name}` placeholders.
-        range: MarkdownString
-        rank: 1
-        annotations:
-          element: true
+        isAttr: false
+        type: studyflow:MarkdownString
+        meta:
+          order: 1
 
   # Where the bytes live is `uri` from the core `Artifact` trait.
-  Memory:
+  - name: Memory
     description: State an agent carries across turns, such as history, facts, or notes.
-    implements:
+    superClass:
       - bpmn:DataStoreReference
-    annotations:
+    meta:
       icon: iconify ph--memory
-    attributes:
-      kind:
+    properties:
+      - name: kind
         description: How the memory holds and retrieves what it keeps.
-        range: MemoryKindEnum
-        ifabsent: string(conversation)
-        rank: 1
-      scope:
+        isAttr: true
+        type: MemoryKindEnum
+        default: conversation
+        meta:
+          order: 1
+      - name: scope
         description: How long the memory lives.
-        range: MemoryScopeEnum
-        ifabsent: string(run)
-        rank: 2
+        isAttr: true
+        type: MemoryScopeEnum
+        default: run
+        meta:
+          order: 2
 
-annotations:
-  icon: iconify tabler--hexagon-letter-a
-  # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
-  templates:
-    value:
-      - description: Autonomous agent with tools; the model decides what to call and when.
-        elements:
-          Agent:
-            type: AdHocSubProcess
-            name: Agent (tool loop)
-            documentation: |
-              Each turn the model picks one of the tools drawn inside, until the
-              completion condition holds or the turn budget runs out.
-            completionCondition: answer != null
+# Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
+templates:
+
+  - description: Autonomous agent with tools; the model decides what to call and when.
+    elements:
+      Agent:
+        type: AdHocSubProcess
+        name: Agent (tool loop)
+        documentation: |
+          Each turn the model picks one of the tools drawn inside, until the
+          completion condition holds or the turn budget runs out.
+        completionCondition: answer != null
+        extensionElements:
+          - type: agentic:Agent
+            icon: iconify ph--robot
+            model: claude-opus-4-8
+            systemPrompt: |
+              You are a research assistant. Use the available tools to answer the
+              question. Stop as soon as you can answer it.
+            toolChoice: auto
+            maxTurns: 12
+        flowElements:
+          agent_search:
+            type: ServiceTask
+            name: Search Wikipedia
+            implementation: python://wikipedia.search
+            additionalArguments: "results: 5"
             extensionElements:
-              - type: agentic:Agent
-                icon: iconify ph--robot
-                model: claude-opus-4-8
-                systemPrompt: |
-                  You are a research assistant. Use the available tools to answer the
-                  question. Stop as soon as you can answer it.
-                toolChoice: auto
-                maxTurns: 12
-            flowElements:
-              agent_search:
-                type: ServiceTask
-                name: Search Wikipedia
-                implementation: python://wikipedia.search
-                additionalArguments: "results: 5"
-                extensionElements:
-                  - type: agentic:Tool
-                    kind: search
-                    purpose: |
-                      Look up background facts the model does not already know.
-                    parameters: |
-                      type: object
-                      properties:
-                        query: {type: string, description: Search terms}
-                      required: [query]
-                bounds: 200 140 100 80
+              - type: agentic:Tool
+                kind: search
+                purpose: |
+                  Look up background facts the model does not already know.
+                parameters: |
+                  type: object
+                  properties:
+                    query: {type: string, description: Search terms}
+                  required: [query]
+            bounds: 200 140 100 80
 
-      - description: Evaluator-optimizer; generate, judge, revise until the score clears the bar.
-        elements:
-          Evaluator_optimizer:
-            type: SubProcess
-            name: Evaluator-optimizer
-            icon: iconify ph--arrows-clockwise
-            documentation: |
-              A generator drafts, a judge scores the draft against a rubric, and the
-              back-edge revises until the score clears the bar.
-            flowElements:
-              eo_generate:
-                type: ServiceTask
-                name: Draft
-                extensionElements:
-                  - type: agentic:LLMCall
-                    model: claude-haiku-4-5
-                    temperature: 0.7
-                bounds: 200 140 100 80
-              eo_judge:
-                type: ServiceTask
-                name: Judge the draft
-                extensionElements:
-                  - type: agentic:LLMCall
-                    model: claude-opus-4-8
-                    responseFormat: json
-                    prompt: |
-                      Score the draft 1-5 against the rubric and name the deciding
-                      criterion. Reply as `{"score": <n>, "reason": "<why>"}`.
-                bounds: 380 140 100 80
-              eo_gate:
-                type: ExclusiveGateway
-                name: Good enough?
-                bounds: 560 140 50 50
-              Flow_eo_generate_eo_judge: eo_generate -> eo_judge
-              Flow_eo_judge_eo_gate: eo_judge -> eo_gate
-              Flow_eo_gate_eo_generate:
-                name: revise
-                conditionExpression: score < 4 and state.trace.count('eo_gate') < 4
-                sourceRef: eo_gate
-                targetRef: eo_generate
-
-      - description: Routing; a classifier model picks one of the outgoing branches.
-        elements:
-          Route_by_intent:
-            type: ExclusiveGateway
-            name: Route by intent
-            documentation: |
-              The model chooses among the labels of the outgoing flows; the flow
-              marked `default` is taken when it is unsure.
+  - description: Evaluator-optimizer; generate, judge, revise until the score clears the bar.
+    elements:
+      Evaluator_optimizer:
+        type: SubProcess
+        name: Evaluator-optimizer
+        icon: iconify ph--arrows-clockwise
+        documentation: |
+          A generator drafts, a judge scores the draft against a rubric, and the
+          back-edge revises until the score clears the bar.
+        flowElements:
+          eo_generate:
+            type: ServiceTask
+            name: Draft
             extensionElements:
-              - type: agentic:Router
-                icon: iconify ph--signpost
+              - type: agentic:LLMCall
                 model: claude-haiku-4-5
-                instructions: |
-                  Read the request and route it to exactly one branch, using the branch
-                  labels on the outgoing flows. If none clearly applies, say so.
-
-      - description: Parallelization; fan the same input out to several calls, then join.
-        elements:
-          Parallel_calls:
-            type: SubProcess
-            name: Parallel calls
-            icon: iconify ph--git-fork
-            documentation: |
-              Independent calls run at once and their replies are joined; add a
-              downstream call to vote or merge them.
-            flowElements:
-              par_split:
-                type: ParallelGateway
-                bounds: 160 145 50 50
-              par_a:
-                type: ServiceTask
-                name: Call A
-                extensionElements:
-                  - type: agentic:LLMCall
-                    model: claude-haiku-4-5
-                bounds: 280 60 100 80
-              par_b:
-                type: ServiceTask
-                name: Call B
-                extensionElements:
-                  - type: agentic:LLMCall
-                    model: claude-haiku-4-5
-                bounds: 280 220 100 80
-              par_join:
-                type: ParallelGateway
-                bounds: 460 145 50 50
-              Flow_par_split_par_a: par_split -> par_a
-              Flow_par_split_par_b: par_split -> par_b
-              Flow_par_a_par_join: par_a -> par_join
-              Flow_par_b_par_join: par_b -> par_join
-
-      - description: Human approval gate; stop, show the artifact, wait for a person.
-        elements:
-          Human_approval:
-            type: UserTask
-            name: Human approval
-            documentation: |
-              Pauses the run until the reviewer answers.
+                temperature: 0.7
+            bounds: 200 140 100 80
+          eo_judge:
+            type: ServiceTask
+            name: Judge the draft
             extensionElements:
-              - type: agentic:HumanApproval
-                icon: iconify ph--user-check
-                question: |
-                  Review the proposed action and approve, edit, or reject it.
+              - type: agentic:LLMCall
+                model: claude-opus-4-8
+                responseFormat: json
+                prompt: |
+                  Score the draft 1-5 against the rubric and name the deciding
+                  criterion. Reply as `{"score": <n>, "reason": "<why>"}`.
+            bounds: 380 140 100 80
+          eo_gate:
+            type: ExclusiveGateway
+            name: Good enough?
+            bounds: 560 140 50 50
+          Flow_eo_generate_eo_judge: eo_generate -> eo_judge
+          Flow_eo_judge_eo_gate: eo_judge -> eo_gate
+          Flow_eo_gate_eo_generate:
+            name: revise
+            conditionExpression: score < 4 and state.trace.count('eo_gate') < 4
+            sourceRef: eo_gate
+            targetRef: eo_generate
 
-      - description: Prompt chain with a quality gate between the steps.
-        elements:
-          Prompt_chain:
-            type: SubProcess
-            name: Prompt chain
-            icon: iconify ph--link
-            documentation: |
-              Fixed steps in a set order, with a check on the intermediate result
-              between them.
-            flowElements:
-              chain_a:
-                type: ServiceTask
-                name: Extract
-                extensionElements:
-                  - type: agentic:LLMCall
-                    model: claude-haiku-4-5
-                    temperature: 0
-                bounds: 180 140 100 80
-              chain_gate:
-                type: ExclusiveGateway
-                name: Complete?
-                bounds: 340 145 50 50
-              chain_b:
-                type: ServiceTask
-                name: Summarize
-                extensionElements:
-                  - type: agentic:LLMCall
-                    model: ollama://llama3.3
-                    temperature: 0
-                bounds: 460 140 100 80
-              Flow_chain_a_chain_gate: chain_a -> chain_gate
-              Flow_chain_gate_chain_b: chain_gate -> chain_b
+  - description: Routing; a classifier model picks one of the outgoing branches.
+    elements:
+      Route_by_intent:
+        type: ExclusiveGateway
+        name: Route by intent
+        documentation: |
+          The model chooses among the labels of the outgoing flows; the flow
+          marked `default` is taken when it is unsure.
+        extensionElements:
+          - type: agentic:Router
+            icon: iconify ph--signpost
+            model: claude-haiku-4-5
+            instructions: |
+              Read the request and route it to exactly one branch, using the branch
+              labels on the outgoing flows. If none clearly applies, say so.
+
+  - description: Parallelization; fan the same input out to several calls, then join.
+    elements:
+      Parallel_calls:
+        type: SubProcess
+        name: Parallel calls
+        icon: iconify ph--git-fork
+        documentation: |
+          Independent calls run at once and their replies are joined; add a
+          downstream call to vote or merge them.
+        flowElements:
+          par_split:
+            type: ParallelGateway
+            bounds: 160 145 50 50
+          par_a:
+            type: ServiceTask
+            name: Call A
+            extensionElements:
+              - type: agentic:LLMCall
+                model: claude-haiku-4-5
+            bounds: 280 60 100 80
+          par_b:
+            type: ServiceTask
+            name: Call B
+            extensionElements:
+              - type: agentic:LLMCall
+                model: claude-haiku-4-5
+            bounds: 280 220 100 80
+          par_join:
+            type: ParallelGateway
+            bounds: 460 145 50 50
+          Flow_par_split_par_a: par_split -> par_a
+          Flow_par_split_par_b: par_split -> par_b
+          Flow_par_a_par_join: par_a -> par_join
+          Flow_par_b_par_join: par_b -> par_join
+
+  - description: Human approval gate; stop, show the artifact, wait for a person.
+    elements:
+      Human_approval:
+        type: UserTask
+        name: Human approval
+        documentation: |
+          Pauses the run until the reviewer answers.
+        extensionElements:
+          - type: agentic:HumanApproval
+            icon: iconify ph--user-check
+            question: |
+              Review the proposed action and approve, edit, or reject it.
+
+  - description: Prompt chain with a quality gate between the steps.
+    elements:
+      Prompt_chain:
+        type: SubProcess
+        name: Prompt chain
+        icon: iconify ph--link
+        documentation: |
+          Fixed steps in a set order, with a check on the intermediate result
+          between them.
+        flowElements:
+          chain_a:
+            type: ServiceTask
+            name: Extract
+            extensionElements:
+              - type: agentic:LLMCall
+                model: claude-haiku-4-5
+                temperature: 0
+            bounds: 180 140 100 80
+          chain_gate:
+            type: ExclusiveGateway
+            name: Complete?
+            bounds: 340 145 50 50
+          chain_b:
+            type: ServiceTask
+            name: Summarize
+            extensionElements:
+              - type: agentic:LLMCall
+                model: ollama://llama3.3
+                temperature: 0
+            bounds: 460 140 100 80
+          Flow_chain_a_chain_gate: chain_a -> chain_gate
+          Flow_chain_gate_chain_b: chain_gate -> chain_b

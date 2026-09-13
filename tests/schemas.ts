@@ -4,8 +4,7 @@ import path from 'node:path';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, setCatalog } from '@core/notation';
-import { fromLinkml, parseLinkml } from '@core/notation/linkml';
-import { toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
+import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
 import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 
@@ -25,9 +24,9 @@ const SKILLS: SkillManifest[] = readdirSync(SKILLS_DIR)
 const withSchema = SKILLS.filter((skill) => skill.schema);
 const schemaFiles = withSchema.map((skill) => path.join(SKILLS_DIR, skill.name, skill.schema!));
 
-/** Every schema, converted together as `loader.ts` does. */
+/** Every schema, read as `loader.ts` reads it. */
 function readModels(): SchemaModel[] {
-  return fromLinkml(schemaFiles.map((file) => parseLinkml(readFileSync(file, 'utf8'), file)));
+  return schemaFiles.map((file) => fromModdleYaml(readFileSync(file, 'utf8'), file));
 }
 
 export const SCHEMAS: SchemaInfo[] = buildManifest(readModels());
@@ -40,7 +39,7 @@ export function loadSchemaModels(): SchemaModel[] {
 /** The `lab` fixture schema, the one place a `connectsTo` allow-list is declared. */
 export function connectsToFixture(): SchemaModel {
   const file = path.join(process.cwd(), 'tests/fixtures/connects-to.moddle.yaml');
-  return fromLinkml([parseLinkml(readFileSync(file, 'utf8'), 'tests/fixtures/connects-to.moddle.yaml')])[0];
+  return fromModdleYaml(readFileSync(file, 'utf8'), 'tests/fixtures/connects-to.moddle.yaml');
 }
 
 /** `models` as moddle packages, keyed by prefix: what `loader.ts loadSchemas` hands a `BpmnModdle`. */

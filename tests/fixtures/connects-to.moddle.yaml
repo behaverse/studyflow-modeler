@@ -1,4 +1,4 @@
-# A schema file whose only job is to exercise the `connectsTo` annotation end to end.
+# A schema file whose only job is to exercise `meta.connectsTo` end to end.
 #
 # `connectsTo` is the schema-driven connection allow-list evaluated by
 # `TypeCatalog.connectionRule` and applied by the canvas rules.
@@ -6,40 +6,35 @@
 # starts vetoing connections a user can draw today, so which flows a domain
 # actually forbids is a modelling decision, not a refactor. What was missing was
 # coverage of the real path, so this fixture is loaded the way the app loads a
-# schema (`parseLinkml` -> `fromLinkml` -> `buildCatalog`) rather than hand-built
-# as an object literal, which is what let the declared shape drift from the parsed one.
-id: http://example.org/schemas/lab/v1
-name: lab
-title: Lab
+# schema (`fromModdleYaml` -> `buildCatalog`) rather than hand-built as an
+# object literal, which is what let the declared shape drift from the parsed one.
+name: Lab
+prefix: lab
 description: Connection-rule fixture. Not shipped.
+uri: http://example.org/schemas/lab/v1
 version: '26.8.1'
-default_prefix: lab
-default_range: string
-prefixes:
-  linkml: https://w3id.org/linkml/
-  lab: http://example.org/schemas/lab/v1/
-  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
-imports:
-  - linkml:types
-
-classes:
-  Consent:
+xml:
+  tagAlias: lowerCase
+enumerations: []
+types:
+  - name: Consent
     description: Consent step. Only a survey or a gateway may follow it.
-    implements:
+    superClass:
       - bpmn:Task
-    annotations:
+    meta:
       connectsTo:
-        value: [lab:Survey, bpmn:Gateway]
+        - lab:Survey
+        - bpmn:Gateway
 
-  Survey:
+  - name: Survey
     description: Declares no rules, so the BPMN defaults decide.
-    implements:
+    superClass:
       - bpmn:Task
 
-  Debrief:
+  - name: Debrief
     description: Explicitly unconstrained.
-    implements:
+    superClass:
       - bpmn:Task
-    annotations:
+    meta:
       connectsTo:
-        value: ['*']
+        - '*'

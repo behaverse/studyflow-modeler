@@ -11,7 +11,7 @@ import { connectsToFixture, loadSchemaModels } from '@tests/schemas';
  * same way:
  *
  * - the **schema layer** reads `TypeCatalog.connectionRule`. No *shipped* schema
- *   declares a `connectsTo` annotation (every studyflow type defers), so the
+ *   declares `meta.connectsTo` (every studyflow type defers), so the
  *   `connects-to` fixture schema — the same one `packages/core/tests/catalog.unit.spec.ts` uses —
  *   is compiled alongside the real ones to exercise `true` / `false` / `'*'`.
  * - the **structural layer** is plain BPMN sense: no flow out of an end event, none

@@ -1,9 +1,0 @@
-# `npm run schemas:lint`: the LinkML linter over every skill's schema.
-extends: recommended
-rules:
-  # Attribute and type names are the wire names BPMN and moddle use (`samplingRate`, `bpmn:documentation`).
-  standard_naming:
-    level: disabled
-  # A prefix is the skill's own namespace (`prov:` is studyflow's provenance skill, not W3C PROV).
-  canonical_prefixes:
-    level: disabled

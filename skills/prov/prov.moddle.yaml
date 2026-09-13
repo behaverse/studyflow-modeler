@@ -1,63 +1,74 @@
-# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
-id: https://w3id.org/studyflow/prov
-name: prov
-title: Provenance
+name: Provenance
+prefix: prov
 description: >-
   The provenance timeline: who acted on this studyflow, with what tool, and when.
   The document-level timeline lives in `state._meta.prov` as plain records with these
   fields; `prov:Activity` elements remain the per-element records.
-license: MIT
+uri: https://w3id.org/studyflow/prov
+icon: iconify tabler--history
+order: 2
+required: true
+xml:
+  tagAlias: lowerCase
 version: '26.9.1'
-rank: 2
-default_prefix: prov
-default_range: string
-prefixes:
-  linkml: https://w3id.org/linkml/
-  prov: https://w3id.org/studyflow/prov/
-imports:
-  - linkml:types
 
-classes:
+enumerations: []
+
+types:
   # Entries run oldest first. The document-level timeline (created, modified,
   # imported, and one `executed` per run) is the `state._meta.prov` list of the
   # `state` tree, each item a plain record with the fields below.
   # `prov:Activity` elements are the per-element records a runner stamps on
   # flow elements (`executed`, `invalidated`, `reused`).
-  Activity:
+  - name: Activity
     description: 'One per-element record: what a run did to this element, and when.'
-    attributes:
-      action:
+    superClass:
+      - Element
+    properties:
+      - name: action
         description: What happened (`created`, `modified`, `imported`, `executed`, `invalidated`, `reused`).
-      when:
+        isAttr: true
+        type: String
+      - name: when
         description: When it happened, as an ISO 8601 timestamp.
-      who:
+        isAttr: true
+        type: String
+      - name: who
         description: 'Who acted: a name, an email, or an ORCID.'
-        annotations:
+        isAttr: true
+        type: String
+        meta:
           optional: true
-      with:
+      - name: with
         description: The tool that acted, as `name/version`.
-        annotations:
+        isAttr: true
+        type: String
+        meta:
           optional: true
-      what:
+      - name: what
         # For `invalidated` and `reused`, the `when` of the entry it refers to.
         description: Element ids the action touched, space-separated.
-        annotations:
+        isAttr: true
+        type: String
+        meta:
           optional: true
-      run:
+      - name: run
         description: For `executed`, the run id (the repository holding its outputs).
-        annotations:
+        isAttr: true
+        type: String
+        meta:
           optional: true
-      seed:
+      - name: seed
         description: For `executed`, the root seed the run used.
-        range: integer
-        annotations:
+        isAttr: true
+        type: Integer
+        meta:
           optional: true
-      note:
+      - name: note
         description: One line of free text.
-        annotations:
+        isAttr: true
+        type: String
+        meta:
           optional: true
-
-annotations:
-  icon: iconify tabler--history
-  required: true

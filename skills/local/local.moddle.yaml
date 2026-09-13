@@ -1,34 +1,24 @@
-# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
 # No elements of its own: this runtime adds itself to the study's `runtime` choices.
-id: https://w3id.org/studyflow/local
-name: local
-title: Local runtime
+name: Local runtime
+prefix: local
 description: >-
   On the researcher's machine.
-license: MIT
+uri: https://w3id.org/studyflow/local
+icon: iconify tabler--hexagon-letter-l
+order: 3
+required: true
+xml:
+  tagAlias: lowerCase
 version: '26.9.1'
-rank: 3
-default_prefix: local
-default_range: string
-prefixes:
-  linkml: https://w3id.org/linkml/
-  local: https://w3id.org/studyflow/local/
-  studyflow: http://behaverse.org/schemas/studyflow/v1/
-imports:
-  - linkml:types
-  - ../studyflow/studyflow.linkml
 
-enums:
-  LocalRuntime:
+types: []
+
+enumerations:
+  - extends: studyflow:RuntimeEnum
     description: Adds the local runtime to the study's runtime choices.
-    apply_to:
-      - RuntimeEnum
-    permissible_values:
-      local:
-        title: Local
+    literalValues:
+      - name: Local
+        value: local
         description: On the researcher's machine.
-
-annotations:
-  icon: iconify tabler--hexagon-letter-l
-  required: true

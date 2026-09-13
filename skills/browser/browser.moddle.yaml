@@ -1,33 +1,23 @@
-# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
 # No elements of its own: this runtime adds itself to the study's `runtime` choices.
-id: https://w3id.org/studyflow/browser
-name: browser
-title: Browser runtime
+name: Browser runtime
+prefix: browser
 description: >-
   In the participant's browser, one session at a time.
-license: MIT
+uri: https://w3id.org/studyflow/browser
+icon: iconify tabler--hexagon-letter-b
+order: 200
+xml:
+  tagAlias: lowerCase
 version: '26.9.1'
-rank: 200
-default_prefix: browser
-default_range: string
-prefixes:
-  linkml: https://w3id.org/linkml/
-  browser: https://w3id.org/studyflow/browser/
-  studyflow: http://behaverse.org/schemas/studyflow/v1/
-imports:
-  - linkml:types
-  - ../studyflow/studyflow.linkml
 
-enums:
-  BrowserRuntime:
+types: []
+
+enumerations:
+  - extends: studyflow:RuntimeEnum
     description: Adds the browser runtime to the study's runtime choices.
-    apply_to:
-      - RuntimeEnum
-    permissible_values:
-      browser:
-        title: Browser
+    literalValues:
+      - name: Browser
+        value: browser
         description: In the participant's browser, one session at a time.
-
-annotations:
-  icon: iconify tabler--hexagon-letter-b

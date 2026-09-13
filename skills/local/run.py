@@ -442,20 +442,20 @@ def skill_dirs() -> list[Path]:
 
 
 def branching_modes() -> dict[str, str]:
-    """The `branching` annotation of every class in every skill's LinkML schema, by the XML tag of the type
-    (`{id}randomGateway`): how a gateway of that type picks its branch, `random` or `model`. The browser runner
-    reads the same annotation."""
+    """`meta.branching` from every skill's schema, by the XML tag of the type (`{uri}randomGateway`): how a gateway
+    of that type picks its branch, `random` or `model`. The browser runner reads the same key."""
     modes: dict[str, str] = {}
     for folder in skill_dirs():
         schema = read_manifest(folder).get("schema")
         if not schema or not (folder / schema).is_file():
             continue
         model = yaml.safe_load((folder / schema).read_text()) or {}
-        for name, declared in (model.get("classes") or {}).items():
-            mode = ((declared or {}).get("annotations") or {}).get("branching")
-            mode = mode.get("value") if isinstance(mode, dict) else mode  # LinkML's expanded form
+        lower = (model.get("xml") or {}).get("tagAlias") == "lowerCase"
+        for declared in model.get("types") or []:
+            mode = (declared.get("meta") or {}).get("branching")
             if mode:
-                modes[f"{{{model['id']}}}{name[:1].lower() + name[1:]}"] = mode
+                name = declared["name"]
+                modes[f"{{{model['uri']}}}{name[:1].lower() + name[1:] if lower else name}"] = mode
     return modes
 
 

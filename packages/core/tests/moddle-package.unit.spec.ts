@@ -1,43 +1,43 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { fromLinkml, parseLinkml } from '@core/notation/linkml';
-import { toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
+import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 
 /** The moddle package a schema compiles to. moddle-xml writes a list, and escapes a text body, only when it is typed
  * as one of moddle's own simple types, so a value- or enum-typed one rides as `String`. */
 
 const BASE = `
-id: http://example.test/base
 name: base
+prefix: base
+uri: http://example.test/base
 types:
-  Code: { typeof: string }
+  - { name: Code, superClass: [String] }
 `;
 
 const PROBE = `
-id: http://example.test/probe
 name: probe
+prefix: probe
+uri: http://example.test/probe
+enumerations:
+  - { name: Stream, literalValues: [{ name: video, value: video }, { name: motion, value: motion }] }
 types:
-  Text: { typeof: string }
-  Flag: { typeof: boolean }
-  Count: { typeof: integer }
-  Ratio: { typeof: float }
-enums:
-  Stream: { permissible_values: { video: {}, motion: {} } }
-classes:
-  Note: {}
-  Probe:
-    attributes:
-      text: { range: Text, annotations: { element: true } }
-      counts: { range: Count, multivalued: true }
-      streams: { range: Stream, multivalued: true }
-      code: { range: Code, annotations: { element: true } }
-      note: { range: Note, annotations: { element: true } }
+  - { name: Text, superClass: [String] }
+  - { name: Flag, superClass: [Boolean] }
+  - { name: Count, superClass: [Integer] }
+  - { name: Ratio, superClass: [Real] }
+  - { name: Note }
+  - name: Probe
+    properties:
+      - { name: text, type: Text }
+      - { name: counts, isMany: true, type: Count }
+      - { name: streams, isMany: true, type: Stream }
+      - { name: code, type: base:Code }
+      - { name: note, type: Note }
 `;
 
 /** Parsed afresh on each call, so no test sees another's changes. */
 function models(): SchemaModel[] {
-  return fromLinkml([parseLinkml(BASE), parseLinkml(PROBE)]);
+  return [fromModdleYaml(BASE), fromModdleYaml(PROBE)];
 }
 
 test('a value type keeps its simple base; a value- or enum-typed list or element rides as String, keeping the authored type', async () => {

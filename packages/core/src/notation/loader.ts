@@ -1,6 +1,5 @@
 import { buildCatalog, setCatalog } from '@core/notation';
-import { fromLinkml, parseLinkml, type LinkmlSchema } from '@core/notation/linkml';
-import { toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
+import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
 import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 
@@ -42,7 +41,7 @@ export const SKILLS: SkillManifest[] = readSkills();
 const skillOfPrefix = new Map<string, SkillManifest>();
 
 function parseAll(): SchemaModel[] {
-  const parsed: Array<{ skill: SkillManifest; doc: LinkmlSchema }> = [];
+  const models: SchemaModel[] = [];
   for (const skill of SKILLS) {
     if (!skill.schema) continue;
     const sourceName = `${skill.name}/${skill.schema}`;
@@ -55,16 +54,14 @@ function parseAll(): SchemaModel[] {
       continue;
     }
     try {
-      parsed.push({ skill, doc: parseLinkml(source, sourceName) });
+      const model = fromModdleYaml(source, sourceName);
+      skillOfPrefix.set(model.prefix, skill);
+      models.push(model);
     } catch (err) {
       SCHEMA_LOAD_FAILURES.push({ sourceName, message: err instanceof Error ? err.message : String(err) });
       console.error(`[studyflow schema] ${sourceName} failed to parse and was not loaded:`, err);
     }
   }
-
-  // Converted together: a name another schema declares resolves to it, as LinkML resolves an import.
-  const models = fromLinkml(parsed.map((entry) => entry.doc));
-  models.forEach((model, index) => skillOfPrefix.set(model.prefix, parsed[index].skill));
   return models;
 }
 

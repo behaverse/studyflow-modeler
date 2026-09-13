@@ -1,287 +1,310 @@
-# yaml-language-server: $schema=https://w3id.org/linkml/meta.schema.json
+# yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
-id: https://w3id.org/studyflow/eeg
-name: eeg
-title: EEG & Biosignals
+name: EEG & Biosignals
+prefix: eeg
 description: >-
   EEG and biosignal acquisition: sessions, recordings, and preprocessing presets.
-license: MIT
+uri: https://w3id.org/studyflow/eeg
+icon: iconify tabler--hexagon-letter-e
+order: 101
+xml:
+  tagAlias: lowerCase
 version: '26.9.1'
-rank: 101
-default_prefix: eeg
-default_range: string
-prefixes:
-  linkml: https://w3id.org/linkml/
-  eeg: https://w3id.org/studyflow/eeg/
-  studyflow: http://behaverse.org/schemas/studyflow/v1/
-  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
-imports:
-  - linkml:types
-  - ../studyflow/studyflow.linkml
 
-enums:
-  EegTimeseriesFormats:
+enumerations:
+  - extends: studyflow:TimeseriesFormatEnum
     description: Biosignal recording formats, added to the core's general-purpose ones.
-    apply_to:
-      - TimeseriesFormatEnum
-    permissible_values:
-      edf: { title: EDF (European Data Format) }
-      bdf: { title: BDF (Biosemi Data Format) }
-      brainvision: { title: BrainVision (vhdr/vmrk/eeg) }
-      fif: { title: FIF (MNE/Elekta) }
-      set: { title: SET (EEGLAB) }
-      xdf: { title: XDF (Lab Streaming Layer) }
+    literalValues:
+      - name: EDF (European Data Format)
+        value: edf
+      - name: BDF (Biosemi Data Format)
+        value: bdf
+      - name: BrainVision (vhdr/vmrk/eeg)
+        value: brainvision
+      - name: FIF (MNE/Elekta)
+        value: fif
+      - name: SET (EEGLAB)
+        value: set
+      - name: XDF (Lab Streaming Layer)
+        value: xdf
   # Amplifiers and headsets in common use; the attribute is editable, so any
   # other system name is accepted as free text.
-  DeviceEnum:
+  - name: DeviceEnum
     description: Amplifier or headset the session is recorded with.
-    permissible_values:
-      brainproducts_actichamp:
-        title: Brain Products actiCHamp
-      brainproducts_brainamp:
-        title: Brain Products BrainAmp
-      biosemi_activetwo:
-        title: Biosemi ActiveTwo
-      egi_ges:
-        title: EGI / Magstim GES
-      ant_eego:
-        title: ANT Neuro eego
-      gtec_usbamp:
-        title: g.tec g.USBamp
-      neuroelectrics_enobio:
-        title: Neuroelectrics Enobio
-      neuroscan:
-        title: Compumedics Neuroscan
-      bittium_neurone:
-        title: Bittium NeurOne
-      emotiv_epoc:
-        title: Emotiv EPOC
-      muse:
-        title: InteraXon Muse
-      openbci_cyton:
-        title: OpenBCI Cyton
-      openbci_ganglion:
-        title: OpenBCI Ganglion
-      openbci_galea:
-        title: OpenBCI Galea
-      simulated:
-        title: Simulated
+    literalValues:
+      - name: Brain Products actiCHamp
+        value: brainproducts_actichamp
+      - name: Brain Products BrainAmp
+        value: brainproducts_brainamp
+      - name: Biosemi ActiveTwo
+        value: biosemi_activetwo
+      - name: EGI / Magstim GES
+        value: egi_ges
+      - name: ANT Neuro eego
+        value: ant_eego
+      - name: g.tec g.USBamp
+        value: gtec_usbamp
+      - name: Neuroelectrics Enobio
+        value: neuroelectrics_enobio
+      - name: Compumedics Neuroscan
+        value: neuroscan
+      - name: Bittium NeurOne
+        value: bittium_neurone
+      - name: Emotiv EPOC
+        value: emotiv_epoc
+      - name: InteraXon Muse
+        value: muse
+      - name: OpenBCI Cyton
+        value: openbci_cyton
+      - name: OpenBCI Ganglion
+        value: openbci_ganglion
+      - name: OpenBCI Galea
+        value: openbci_galea
+      - name: Simulated
+        value: simulated
         description: Synthetic signal for testing a pipeline without hardware.
-  ReferenceEnum:
+  - name: ReferenceEnum
     description: Reference scheme the channels are recorded against.
-    permissible_values:
-      cz: { title: Cz }
-      fcz: { title: FCz }
-      linked_mastoids: { title: Linked mastoids }
-      average: { title: Average reference }
-      rest: { title: REST (infinity reference) }
-      cms_drl: { title: CMS/DRL (Biosemi) }
-  MontageEnum:
+    literalValues:
+      - name: Cz
+        value: cz
+      - name: FCz
+        value: fcz
+      - name: Linked mastoids
+        value: linked_mastoids
+      - name: Average reference
+        value: average
+      - name: REST (infinity reference)
+        value: rest
+      - name: CMS/DRL (Biosemi)
+        value: cms_drl
+  - name: MontageEnum
     description: Electrode layout the channel names follow.
-    permissible_values:
-      10-20: {}
-      10-10: {}
-      10-5: {}
-      biosemi64: { title: Biosemi 64 }
-      gsn-hydrocel-128: { title: EGI HydroCel GSN 128 }
-      gsn-hydrocel-256: { title: EGI HydroCel GSN 256 }
-      custom: { title: Custom }
-  LineFrequencyEnum:
+    literalValues:
+      - name: 10-20
+        value: 10-20
+      - name: 10-10
+        value: 10-10
+      - name: 10-5
+        value: 10-5
+      - name: Biosemi 64
+        value: biosemi64
+      - name: EGI HydroCel GSN 128
+        value: gsn-hydrocel-128
+      - name: EGI HydroCel GSN 256
+        value: gsn-hydrocel-256
+      - name: Custom
+        value: custom
+  - name: LineFrequencyEnum
     description: Mains frequency the recording site runs on.
-    permissible_values:
-      '50':
-        title: 50 Hz (Europe, Asia, Africa, Australia)
-      '60':
-        title: 60 Hz (Americas)
+    literalValues:
+      - name: 50 Hz (Europe, Asia, Africa, Australia)
+        value: "50"
+      - name: 60 Hz (Americas)
+        value: "60"
 
-classes:
-  Session:
+types:
+  - name: Session
     description: One acquisition session, with the amplifier settings shared by every phase in it.
-    implements:
+    superClass:
       - bpmn:Participant
-    annotations:
+    meta:
       icon: iconify ph--head-circuit
       roles:
-        value: [acquisition]
-    attributes:
-      device:
+        - acquisition
+    properties:
+      - name: device
         description: Amplifier or headset used; any other system name is accepted.
-        range: DeviceEnum
-        ifabsent: string(brainproducts_actichamp)
-        rank: 0
-        annotations:
+        isAttr: true
+        type: DeviceEnum
+        default: brainproducts_actichamp
+        meta:
+          order: 0
           editable: true
       # Vocabulary: eeg, meg, ieeg, emg, ecg, eog, eda, ppg, respiration, nirs,
       # eye_tracking, head_imu, motion, audio.
-      modalities:
+      - name: modalities
         description: Signals recorded in this session, one per entry (`eeg`, `ecg`, `eog`, `eye_tracking`).
-        multivalued: true
-        rank: 1
-      montage:
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 1
+      - name: montage
         description: Electrode layout the channel names follow.
-        range: MontageEnum
-        ifabsent: string(10-20)
-        rank: 2
-        annotations:
+        isAttr: true
+        type: MontageEnum
+        default: 10-20
+        meta:
+          order: 2
           editable: true
-      reference:
+      - name: reference
         description: Reference scheme the channels are recorded against.
-        range: ReferenceEnum
-        ifabsent: string(cz)
-        rank: 3
-        annotations:
+        isAttr: true
+        type: ReferenceEnum
+        default: cz
+        meta:
+          order: 3
           editable: true
-      ground:
+      - name: ground
         description: Electrode position used as ground (`AFz`, `Fpz`).
-        rank: 4
-        annotations:
+        isAttr: true
+        type: String
+        meta:
+          order: 4
           optional: true
-      lineFrequency:
+      - name: lineFrequency
         description: Mains frequency at the recording site, for notch filtering.
-        range: LineFrequencyEnum
-        ifabsent: string(50)
-        rank: 5
-      impedanceThreshold:
+        isAttr: true
+        type: LineFrequencyEnum
+        default: "50"
+        meta:
+          order: 5
+      - name: impedanceThreshold
         description: Highest electrode impedance accepted before recording.
-        range: float
-        ifabsent: float(10)
-        rank: 6
-        annotations:
+        isAttr: true
+        type: Real
+        default: 10
+        meta:
+          order: 6
           unit: kΩ
 
   # Sampling rate, channel count, units, duration, on-disk format, and the
   # `signal` role come from `studyflow:Timeseries`.
-  Recording:
+  - name: Recording
     description: The biosignal recording a session produces.
-    is_a: Timeseries
-    annotations:
+    superClass:
+      - studyflow:Timeseries
+    meta:
       roles:
-        value: [acquisition]
+        - acquisition
       icon: iconify ph--waveform
-    attributes:
+    properties:
       # Same vocabulary as Session#modalities.
-      modalities:
+      - name: modalities
         description: Signals in this recording, one per entry (`eeg`, `ecg`, `eog`, `eye_tracking`).
-        multivalued: true
-        rank: 6
-        in_subset:
-          - Data
-      eventChannel:
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 6
+          categories:
+            - Data
+      - name: eventChannel
         description: Name of the trigger channel or marker stream (`Status`, `TRIGGER`, an LSL stream).
-        rank: 7
-        in_subset:
-          - Data
-        annotations:
+        isAttr: true
+        type: String
+        meta:
+          order: 7
           optional: true
+          categories:
+            - Data
 
-annotations:
-  icon: iconify tabler--hexagon-letter-e
-  # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
-  templates:
-    value:
-      - description: An EEG session pool - fit the cap, record a baseline, run a task, export.
-        elements:
-          EEG_session:
-            type: Participant
-            name: EEG session
-            documentation: An EEG session covering cap fitting through data export.
-            processRef: EEG_session_flow
+# Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
+templates:
+  - description: An EEG session pool - fit the cap, record a baseline, run a task, export.
+    elements:
+      EEG_session:
+        type: Participant
+        name: EEG session
+        documentation: An EEG session covering cap fitting through data export.
+        processRef: EEG_session_flow
+        extensionElements:
+          - type: eeg:Session
+            icon: iconify ph--head-circuit
+            device: brainproducts_actichamp
+            modalities:
+              - eeg
+            montage: 10-20
+            reference: cz
+            lineFrequency: "50"
+      EEG_session_flow:
+        type: Process
+        flowElements:
+          eeg_start:
+            type: StartEvent
+            name: Start
+            bounds: 100 200 36 36
+          eeg_mount:
+            type: ManualTask
+            name: Mount cap & check impedance
+            documentation: |
+              Fit the cap, place the electrodes, and check that every one of them
+              makes good contact before recording starts.
+            bounds: 200 178 100 80
+          eeg_baseline:
+            type: Task
+            name: Resting baseline
             extensionElements:
-              - type: eeg:Session
-                icon: iconify ph--head-circuit
-                device: brainproducts_actichamp
-                modalities:
-                  - eeg
-                montage: 10-20
-                reference: cz
-                lineFrequency: "50"
-          EEG_session_flow:
-            type: Process
-            flowElements:
-              eeg_start:
-                type: StartEvent
-                name: Start
-                bounds: 100 200 36 36
-              eeg_mount:
-                type: ManualTask
-                name: Mount cap & check impedance
-                documentation: |
-                  Fit the cap, place the electrodes, and check that every one of them
-                  makes good contact before recording starts.
-                bounds: 200 178 100 80
-              eeg_baseline:
-                type: Task
-                name: Resting baseline
-                extensionElements:
-                  - type: cognitive:Rest
-                    icon: iconify ph--brain
-                    restDuration: 120
-                    eyes: closed
-                bounds: 360 178 100 80
-              eeg_task:
-                type: ChoreographyTask
-                name: Cognitive task
-                extensionElements:
-                  - type: cognitive:CognitiveTask
-                    icon: iconify ph--puzzle-piece
-                    instrument: psychopy
-                    configurations: |
-                      triggerChannel: markers  # stimulus marker stream sent with biosignals
-                bounds: 520 178 100 80
-              eeg_export:
-                type: ServiceTask
-                name: Export recording
-                documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
-                implementation: python://datatrove.pipeline.writers.ParquetWriter
-                additionalArguments: "output_folder: bids/"
-                bounds: 680 178 100 80
-              eeg_end:
-                type: EndEvent
-                name: End
-                bounds: 840 200 36 36
-              Flow_eeg_start_eeg_mount: eeg_start -> eeg_mount
-              Flow_eeg_mount_eeg_baseline: eeg_mount -> eeg_baseline
-              Flow_eeg_baseline_eeg_task: eeg_baseline -> eeg_task
-              Flow_eeg_task_eeg_export: eeg_task -> eeg_export
-              Flow_eeg_export_eeg_end: eeg_export -> eeg_end
-
-      - description: Filter EEG data and remove artifacts in one step.
-        elements:
-          EEGPrep:
+              - type: cognitive:Rest
+                icon: iconify ph--brain
+                restDuration: 120
+                eyes: closed
+            bounds: 360 178 100 80
+          eeg_task:
+            type: ChoreographyTask
+            name: Cognitive task
+            extensionElements:
+              - type: cognitive:CognitiveTask
+                icon: iconify ph--puzzle-piece
+                instrument: psychopy
+                configurations: |
+                  triggerChannel: markers  # stimulus marker stream sent with biosignals
+            bounds: 520 178 100 80
+          eeg_export:
             type: ServiceTask
-            name: EEGPrep
-            icon: iconify ph--wave-sine
-            documentation: Filters, cleans, and normalizes BIDS EEG data (EEGLAB clean_rawdata, ASR, ICA + ICLabel).
-            implementation: docker://sccn/eegprep
-            additionalArguments: |
-              flatline_criterion: 5    # seconds of flatline tolerated per channel
-              highpass_hz: 1
-              lowpass_hz: 100
-              asr_criterion: 20        # ASR burst-removal cutoff
-              ica: true                # run ICA + ICLabel artifact classification
+            name: Export recording
+            documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
+            implementation: python://datatrove.pipeline.writers.ParquetWriter
+            additionalArguments: "output_folder: bids/"
+            bounds: 680 178 100 80
+          eeg_end:
+            type: EndEvent
+            name: End
+            bounds: 840 200 36 36
+          Flow_eeg_start_eeg_mount: eeg_start -> eeg_mount
+          Flow_eeg_mount_eeg_baseline: eeg_mount -> eeg_baseline
+          Flow_eeg_baseline_eeg_task: eeg_baseline -> eeg_task
+          Flow_eeg_task_eeg_export: eeg_task -> eeg_export
+          Flow_eeg_export_eeg_end: eeg_export -> eeg_end
 
-      - description: Preprocess a BIDS EEG or MEG dataset with the MNE-BIDS-Pipeline.
-        elements:
-          MNE_BIDS_Pipeline:
-            type: ServiceTask
-            name: MNE-BIDS-Pipeline
-            icon: iconify ph--wave-sine
-            documentation: Filtering, epoching, SSP/ICA artifact removal, and evoked responses, driven by one config file.
-            implementation: python://mne_bids_pipeline@1.9.0
-            additionalArguments: |
-              config: config.py                  # bids_root, task, subjects, filters, ICA
-              steps: preprocessing               # init | preprocessing | sensor | source | all
+  - description: Filter EEG data and remove artifacts in one step.
+    elements:
+      EEGPrep:
+        type: ServiceTask
+        name: EEGPrep
+        icon: iconify ph--wave-sine
+        documentation: Filters, cleans, and normalizes BIDS EEG data (EEGLAB clean_rawdata, ASR, ICA + ICLabel).
+        implementation: docker://sccn/eegprep
+        additionalArguments: |
+          flatline_criterion: 5    # seconds of flatline tolerated per channel
+          highpass_hz: 1
+          lowpass_hz: 100
+          asr_criterion: 20        # ASR burst-removal cutoff
+          ica: true                # run ICA + ICLabel artifact classification
 
-      - description: Preprocess fMRI data for a single subject.
-        elements:
-          fMRIPrep:
-            type: ServiceTask
-            name: fMRIPrep
-            icon: iconify ph--brain
-            documentation: Preprocesses BIDS fMRI data into normalized, denoised images.
-            implementation: docker://nipreps/fmriprep@23.2.0
-            additionalArguments: |
-              output_spaces: MNI152NLin2009cAsym   # normalized-output space(s)
-              skull_strip_t1w: force               # auto | force | skip
-              use_aroma: false                     # ICA-AROMA denoising
-              use_syn_sdc: false                   # fieldmap-less SDC (SyN)
+  - description: Preprocess a BIDS EEG or MEG dataset with the MNE-BIDS-Pipeline.
+    elements:
+      MNE_BIDS_Pipeline:
+        type: ServiceTask
+        name: MNE-BIDS-Pipeline
+        icon: iconify ph--wave-sine
+        documentation: Filtering, epoching, SSP/ICA artifact removal, and evoked responses, driven by one config file.
+        implementation: python://mne_bids_pipeline@1.9.0
+        additionalArguments: |
+          config: config.py                  # bids_root, task, subjects, filters, ICA
+          steps: preprocessing               # init | preprocessing | sensor | source | all
+
+  - description: Preprocess fMRI data for a single subject.
+    elements:
+      fMRIPrep:
+        type: ServiceTask
+        name: fMRIPrep
+        icon: iconify ph--brain
+        documentation: Preprocesses BIDS fMRI data into normalized, denoised images.
+        implementation: docker://nipreps/fmriprep@23.2.0
+        additionalArguments: |
+          output_spaces: MNI152NLin2009cAsym   # normalized-output space(s)
+          skull_strip_t1w: force               # auto | force | skip
+          use_aroma: false                     # ICA-AROMA denoising
+          use_syn_sdc: false                   # fieldmap-less SDC (SyN)

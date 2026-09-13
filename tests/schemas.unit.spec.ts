@@ -10,7 +10,7 @@ import { SCHEMAS, freshModdle, loadSchemaModels } from './schemas';
 const models = loadSchemaModels();
 const catalog = buildCatalog(models);
 
-/** What the schema declares by name: its classes, value types and enums (an `apply_to` entry adds to another's). */
+/** What the schema declares by name: its types and enums (an `extends` entry adds to another's). */
 function namesOf(model: SchemaModel): string[] {
   return [...model.types.map((type) => type.name), ...model.enumerations.flatMap((entry) => entry.name ?? [])];
 }
@@ -27,7 +27,7 @@ test('no two schemas share a URI or declare the same name, and the required ones
   const uris = models.map((model) => model.uri);
   expect(new Set(uris).size, 'one URI per schema').toBe(uris.length);
 
-  // LinkML names are global across imports, and `fromLinkml` relies on it: a class, a value type and an enum each need a name of their own.
+  // The catalog looks a bare name up in every schema and takes the first it finds (`getType('Agent')`), so each name is one schema's.
   const owners = new Map<string, string>();
   for (const model of models) {
     for (const name of namesOf(model)) {
@@ -40,12 +40,13 @@ test('no two schemas share a URI or declare the same name, and the required ones
     .toEqual(['cognitive', 'local', 'prov', 'studyflow']);
 });
 
-test('each schema has a quoted YY.M.N version, an http(s) id, a lowercase prefix, a one-row blurb and PascalCase names', () => {
+test('each schema has a quoted YY.M.N version, an http(s) uri, a lowercase prefix, a lowerCase tagAlias, a one-row blurb and PascalCase names', () => {
   for (const model of models) {
     // YY.M.N, as the app's own version; quoted, or YAML reads a two-part version as a float.
     expect(model.version, `${model.prefix} version`).toMatch(/^\d{2}\.(?:[1-9]|1[0-2])\.\d+$/);
-    expect(model.uri, `${model.prefix} id`).toMatch(/^https?:\/\//);
+    expect(model.uri, `${model.prefix} uri`).toMatch(/^https?:\/\//);
     expect(model.prefix, `${model.prefix} is lowercase`).toBe(model.prefix.toLowerCase());
+    expect(model.xml?.tagAlias, `${model.prefix} tagAlias`).toBe('lowerCase');
     for (const name of namesOf(model)) expect(name, `${model.prefix}:${name}`).toMatch(/^[A-Z][A-Za-z0-9]*$/);
   }
   for (const schema of SCHEMAS) {
@@ -75,7 +76,7 @@ test('every concrete type and every trait target instantiates in moddle as its B
   const traits = catalog.allTypes().filter((type) => type.style === 'trait');
   // The catalog lends a trait's attributes to the subtypes BPMN_ANCESTORS lists, where moddle lends them to every subtype.
   for (const trait of traits) {
-    for (const target of trait.extends) expect(target in BPMN_ANCESTORS, `${trait.name} implements ${target}`).toBe(true);
+    for (const target of trait.extends) expect(target in BPMN_ANCESTORS, `${trait.name} extends ${target}`).toBe(true);
   }
 
   const moddle = freshModdle();

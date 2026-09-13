@@ -4,7 +4,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { Canvas } from '@canvas/index.ts';
 import type { IconDef } from '@canvas/index.ts';
 import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
-import { fromLinkml, parseLinkml } from '@core/notation/linkml';
+import { fromModdleYaml } from '@core/notation/moddlePackage';
 
 import { installDocument, loadYaml } from './canvasHarness';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
@@ -93,24 +93,21 @@ test('a marker glyph goes through the same resolver, stamped with its key, in th
 
 /** A fixture schema: a task type whose `code` attribute is drawn over its icon. */
 const GLYPH_SCHEMA = `
-id: http://example.org/schemas/glyph/v1
 name: glyph
-default_prefix: glyph
-default_range: string
-prefixes:
-  linkml: https://w3id.org/linkml/
-  glyph: http://example.org/schemas/glyph/v1/
-  bpmn: http://www.omg.org/spec/BPMN/20100524/MODEL
-imports:
-  - linkml:types
-classes:
-  Step:
-    implements:
+prefix: glyph
+uri: http://example.org/schemas/glyph/v1
+xml:
+  tagAlias: lowerCase
+types:
+  - name: Step
+    superClass:
       - bpmn:Task
-    annotations:
+    meta:
       glyph: code
-    attributes:
-      code: {}
+    properties:
+      - name: code
+        isAttr: true
+        type: String
 `;
 
 const GLYPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -138,7 +135,7 @@ const GLYPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
 test('the attribute a type\'s `meta.glyph` names is drawn over its icon, upper-cased, smaller when long', async () => {
   // One icon for a family of types does not say which member a shape is (a battery of
   // assessments is a row of identical hexagons); the glyph does.
-  const models = [...loadSchemaModels(), ...fromLinkml([parseLinkml(GLYPH_SCHEMA, 'glyph.moddle.yaml')])];
+  const models = [...loadSchemaModels(), fromModdleYaml(GLYPH_SCHEMA, 'glyph.moddle.yaml')];
   const shipped = getCatalog();
   setCatalog(buildCatalog(models));
   try {
