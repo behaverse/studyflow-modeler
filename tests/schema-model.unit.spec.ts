@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog } from '@core/notation';
-import { fromLinkml, parseLinkml } from '@core/notation/linkml';
 import { toModdlePackages } from '@core/notation/moddlePackage';
 import { loadSchemaModels } from './schemas';
 
@@ -61,29 +59,5 @@ test.describe('schema model: moddle package generation', () => {
     expect(a).toEqual(b);
     expect(a).not.toBe(b);
     expect(a.types).not.toBe(b.types);
-  });
-});
-
-
-test.describe('compiler diagnostics', () => {
-  const BROKEN = `
-id: https://example.test/broken
-name: broken
-classes:
-  DanglingSuper:
-    is_a: NoSuchType
-  DanglingTrait:
-    mixin: true
-    implements: [bpmn:Task]
-    attributes:
-      ok: {}
-`;
-
-  test('an unresolvable is_a ref is reported, not skipped', () => {
-    const catalog = buildCatalog(fromLinkml([parseLinkml(BROKEN, 'broken.linkml.yaml')]));
-    expect(catalog.diagnostics.length, 'expected at least one diagnostic').toBeGreaterThan(0);
-    const joined = catalog.diagnostics.join('\n');
-    expect(joined).toContain('DanglingSuper');
-    expect(joined).toContain('NoSuchType');
   });
 });

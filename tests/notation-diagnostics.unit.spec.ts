@@ -1,57 +1,29 @@
 import { expect, test } from '@playwright/test';
+
 import { buildCatalog } from '@core/notation';
-import type { SchemaModel } from '@core/notation/moddlePackage';
+import { fromLinkml, parseLinkml, type LinkmlSchema } from '@core/notation/linkml';
 
-/** The compiler's author-typo diagnostics: a broken schema must fail in words at load time. */
+/** The compiler's diagnostics for an author's mistakes: a broken schema fails in words at load time. */
 
-function schema(partial: Partial<SchemaModel>): SchemaModel {
-  return {
-    name: 'Test',
-    prefix: 'test',
-    uri: 'http://example.org/test',
-    types: [],
-    enumerations: [],
-    ...partial,
-  } as SchemaModel;
-}
+/** A schema named `lab`, the rest of its file given. */
+const lab = (rest: string) => parseLinkml(`id: http://example.test/lab\nname: lab\n${rest}`);
 
-test('a typo in the BPMN attach point warns and drops it instead of crashing later', () => {
-  const catalog = buildCatalog([schema({
-    types: [{ name: 'Thing', superClass: ['bpmn:Taskk'] } as any],
-  })]);
-  expect(catalog.diagnostics.join('\n')).toContain("unknown BPMN type 'bpmn:Taskk'");
-  expect(catalog.getType('test:Thing')?.bpmnType).toBeNull();
-});
-
-test('duplicate schema prefixes: first wins, loudly', () => {
-  const catalog = buildCatalog([
-    schema({ name: 'First' }),
-    schema({ name: 'Second' }),
-  ]);
-  expect(catalog.diagnostics.join('\n')).toContain('duplicate schema prefix');
-  expect(catalog.schemas).toHaveLength(1);
-  expect(catalog.schemas[0].name).toBe('First');
-});
-
-test('an enum-typed default outside the literals is a diagnostic', () => {
-  const catalog = buildCatalog([schema({
-    enumerations: [{ name: 'ModeEnum', literalValues: [{ name: 'A', value: 'a' }] } as any],
-    types: [{
-      name: 'Thing',
-      superClass: ['Element'],
-      properties: [{ name: 'mode', isAttr: true, type: 'ModeEnum', default: 'zzz' }],
-    } as any],
-  })]);
-  expect(catalog.diagnostics.join('\n')).toContain("default 'zzz' is not a literal of");
-});
-
-test('an unknown meta.editor name is a diagnostic listing the known ones', () => {
-  const catalog = buildCatalog([schema({
-    types: [{
-      name: 'Thing',
-      superClass: ['Element'],
-      properties: [{ name: 'body', isAttr: true, type: 'String', meta: { editor: 'yamll' } }],
-    } as any],
-  })]);
-  expect(catalog.diagnostics.join('\n')).toContain("unknown editor 'yamll'");
+test('each authoring mistake gets a diagnostic that names it', () => {
+  const CASES: Array<[string, LinkmlSchema[], string]> = [
+    ['a typo in the BPMN attach point', [lab('classes: { Thing: { implements: [bpmn:Taskk] } }')],
+      "[lab:Thing] implements names unknown BPMN type 'bpmn:Taskk'; the type will not be creatable"],
+    ['an is_a no schema declares', [lab('classes: { Thing: { is_a: NoSuchType } }')],
+      "[lab:Thing] unresolved is_a ref 'NoSuchType'"],
+    ['two schemas with one name', [lab('title: First'), lab('title: Second')],
+      "duplicate schema prefix: 'Second' ignored (already provided by 'First')"],
+    ['an enum default outside its values', [lab(`
+enums: { Mode: { permissible_values: { a: {} } } }
+classes: { Thing: { attributes: { mode: { range: Mode, ifabsent: string(zzz) } } } }`)],
+      "[lab Thing.mode] default 'zzz' is not a literal of lab:Mode"],
+    ['an editor annotation naming no editor', [lab('classes: { Thing: { attributes: { body: { annotations: { editor: yamll } } } } }')],
+      "[lab Thing.body] names unknown editor 'yamll'"],
+  ];
+  for (const [mistake, schemas, diagnostic] of CASES) {
+    expect(buildCatalog(fromLinkml(schemas)).diagnostics.join('\n'), mistake).toContain(diagnostic);
+  }
 });
