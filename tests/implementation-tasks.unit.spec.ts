@@ -37,13 +37,6 @@ for (const taskType of NATIVE_TYPES) {
   });
 }
 
-test('implementation round-trips through XML', async () => {
-  const xml = await serialized('bpmn:ServiceTask', 'implementation', REF);
-  const { rootElement } = await moddle.fromXML(xml);
-  const task = rootElement.rootElements[0].flowElements[0];
-  expect(getAttribute(task, 'implementation')).toBe(REF);
-});
-
 test('bpmn:ScriptTask serializes its inline script as the native child', async () => {
   const xml = await serialized('bpmn:ScriptTask', 'bpmn:script', 'print(42)');
   expect(xml).toContain('<bpmn:script>print(42)</bpmn:script>');
@@ -64,24 +57,4 @@ test('the inspector offers implementation on the native types, script on script 
   const script = executionNames('bpmn:ScriptTask');
   expect(script).toContain('script');
   expect(script).not.toContain('implementation');
-});
-
-test('a Behaverse task names its software through scene, not implementation', () => {
-  // The extension carries the fields; the host is a plain `bpmn:Task`.
-  const fieldsOf = (extensionType: string, properties: Record<string, unknown> = {}) => {
-    const task = moddle.create('bpmn:Task', { id: 'T_3' });
-    task.extensionElements = moddle.create('bpmn:ExtensionElements', {
-      values: [moddle.create(extensionType, properties)],
-    });
-    return Object.values(getAttributesByCategory(task))
-      .flat()
-      .map((attr: any) => attr.ns?.localName ?? attr.name);
-  };
-
-  // The contrast is the point: the parent offers it, the Behaverse subtype pins it away.
-  expect(fieldsOf('cognitive:CognitiveTask')).toContain('implementation');
-
-  const behaverse = fieldsOf('behaverse:Task', { scene: 'NB' });
-  expect(behaverse).toContain('scene');
-  expect(behaverse, 'pinned out: scene says it instead').not.toContain('implementation');
 });

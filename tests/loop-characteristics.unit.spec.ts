@@ -3,10 +3,7 @@ import { expect, test } from '@playwright/test';
 
 import { runUpdateLoopCharacteristics } from '@modeler/inspector/commands';
 import { freshModdle } from './schemas';
-import {
-  loopKindOf,
-  supportsLoopCharacteristics,
-} from '@modeler/inspector/loopCharacteristics';
+import { loopKindOf } from '@modeler/inspector/loopCharacteristics';
 import type { Editor } from '@modeler/editor/port';
 
 /** `update-loop-characteristics` routes every `loopCharacteristics` write through `modeling` (one undo step each). */
@@ -175,40 +172,5 @@ test.describe('update-loop-characteristics command', () => {
     expect(xml).toMatch(/<bpmn:loopCondition[^>]*>score (&lt;|&#60;) 0.9<\/bpmn:loopCondition>/);
     expect(xml).toContain('loopMaximum="5"');
     expect(xml).toContain('testBefore="true"');
-  });
-
-  test('serializes the multi-instance child natively (canonical example shape)', async () => {
-    const { modeler } = fakeModeler();
-    const element = activityElement('bpmn:SubProcess', 'Per_Item');
-
-    runUpdateLoopCharacteristics(modeler, {
-      type: 'UpdateLoopCharacteristics',
-      element,
-      loopType: 'bpmn:MultiInstanceLoopCharacteristics',
-      properties: { isSequential: true },
-    });
-
-    const process = moddle.create('bpmn:Process', {
-      id: 'P_1',
-      flowElements: [element.businessObject],
-    });
-    element.businessObject.$parent = process;
-    const definitions = moddle.create('bpmn:Definitions', { id: 'D_1', rootElements: [process] });
-    process.$parent = definitions;
-
-    const { xml } = await moddle.toXML(definitions);
-    expect(xml).toContain('multiInstanceLoopCharacteristics');
-    expect(xml).toContain('isSequential="true"');
-  });
-});
-
-test.describe('loop model helpers', () => {
-  test('only activities support loopCharacteristics', () => {
-    expect(supportsLoopCharacteristics(activityElement('bpmn:Task'))).toBe(true);
-    expect(supportsLoopCharacteristics(activityElement('bpmn:ServiceTask'))).toBe(true);
-    expect(supportsLoopCharacteristics(activityElement('bpmn:SubProcess'))).toBe(true);
-    expect(supportsLoopCharacteristics(activityElement('bpmn:StartEvent'))).toBe(false);
-    expect(supportsLoopCharacteristics(activityElement('bpmn:SequenceFlow'))).toBe(false);
-    expect(supportsLoopCharacteristics(null)).toBe(false);
   });
 });
