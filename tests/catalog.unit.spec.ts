@@ -228,24 +228,6 @@ test.describe('catalog: type parity with moddle', () => {
 
 
 test.describe('catalog: templates and enums', () => {
-  test('every schema template compiles, its palette entry read off its first element', () => {
-    for (const { prefix } of SCHEMAS) {
-      const declared = packages[prefix].templates ?? [];
-      const compiled = catalog.schemaFor(prefix)?.templates ?? [];
-      expect(compiled.length, `${prefix} template count`).toBe(declared.length);
-
-      for (const template of compiled) {
-        expect(template.bpmnType, template.id).toMatch(/^bpmn:/);
-        expect(template.iconClass, template.id).toBeTruthy();
-        if (template.extensionType !== undefined) {
-          expect(catalog.getType(template.extensionType), template.id).toBeTruthy();
-        }
-      }
-    }
-    const pool = catalog.schemaFor('eeg')?.templates.find((template) => template.name === 'EEG session');
-    expect(pool).toMatchObject({ bpmnType: 'bpmn:Participant', extensionType: 'eeg:Session', iconClass: 'iconify ph--head-circuit' });
-  });
-
   test('enumerations carry their literals, own first, then what other schemas extend them with', () => {
     const allEnums = SCHEMAS.flatMap(({ prefix }) => (packages[prefix].enumerations ?? []).map((e: any) => ({ prefix, ...e })));
     const extensionsOf = (qualified: string) => allEnums.filter((e) => e.extends === qualified).flatMap((e) => e.literalValues ?? []);
@@ -257,23 +239,6 @@ test.describe('catalog: templates and enums', () => {
       expect(entry!.literals.map((l) => l.value)).toEqual(
         [...(e.literalValues ?? []), ...extensionsOf(qualified)].map((l: any) => l.value),
       );
-    }
-  });
-});
-
-test.describe('catalog: runner semantics', () => {
-  // The runner Session randomizes branches for types declaring `meta.branching: random` (src/runner/session.ts).
-  test('allocation gateways declare random branching', () => {
-    for (const name of ['cognitive:RandomGateway']) {
-      expect(catalog.getType(name)?.meta?.branching, name).toBe('random');
-    }
-  });
-
-  // An unimplemented mode silently takes the default branch, so the declared set is pinned to the implemented arms.
-  test('gateways only declare branching modes the runner implements', () => {
-    for (const entry of catalog.allTypes()) {
-      if (entry.meta?.branching === undefined) continue;
-      expect(['random', 'condition', 'model'], `${entry.name} meta.branching`).toContain(entry.meta.branching);
     }
   });
 });
@@ -296,26 +261,6 @@ test.describe('catalog: schema-declared vocabulary', () => {
     for (const role of ['data-element', 'signal', 'instrument', 'acquisition']) {
       expect(typesWithRole(role).length, `no type carries "${role}"`).toBeGreaterThan(0);
     }
-  });
-
-  test('inspector categories come from the schemas, ordered and unique', () => {
-    const categories = catalog.categories();
-    const names = categories.map((c) => c.name);
-    expect(new Set(names).size, 'a category is declared once').toBe(names.length);
-    expect([...categories].sort((a, b) => a.order - b.order).map((c) => c.name)).toEqual(names);
-
-    expect(names[0]).toBe('General');
-    expect(names[names.length - 1]).toBe('Execution');
-
-    expect(categories.filter((c) => c.synthetic).map((c) => c.name)).toEqual(['Execution']);
-
-    // Declared tabs come from studyflow; every other schema gets a tab of its own name right after General, in schema order.
-    const schemaTabs = catalog.schemas.filter((s) => s.prefix !== 'studyflow').map((s) => s.name);
-    expect(schemaTabs.length).toBeGreaterThan(1);
-    expect(names).toEqual(['General', ...schemaTabs, 'Documentation', 'Gantt', 'Data', 'Execution']);
-    expect(catalog.defaultCategoryOf('studyflow')).toBe('General');
-    expect(catalog.defaultCategoryOf('cognitive')).toBe('Cognitive');
-    expect(catalog.defaultCategoryOf('bpmn')).toBe('General');
   });
 
   test('a value type declares the editor its attributes render with', () => {

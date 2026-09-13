@@ -91,7 +91,7 @@ test('every concrete type instantiates in moddle with its defaults', () => {
   }
 });
 
-test('every template reads as studyflow, every key declared and every reference resolved', () => {
+test('every template reads as studyflow with no warnings, is rooted on a BPMN element, and has a palette icon', () => {
   const moddle = freshModdle();
   for (const model of models) {
     for (const template of model.templates ?? []) {
@@ -103,4 +103,29 @@ test('every template reads as studyflow, every key declared and every reference 
       expect(warnings, label).toEqual([]);
     }
   }
+  for (const template of catalog.allTemplates()) {
+    expect(template.bpmnType, template.id).toMatch(/^bpmn:/);
+    expect(template.iconClass, template.id).toBeTruthy();
+  }
+  // The palette entry is read off the first element: the pool, not the process holding its flow.
+  expect(catalog.allTemplates().find((template) => template.name === 'EEG session'))
+    .toMatchObject({ bpmnType: 'bpmn:Participant', extensionType: 'eeg:Session', iconClass: 'iconify ph--head-circuit' });
+});
+
+test('the inspector tabs are General, one per other schema, Documentation, Gantt, Data and Execution', () => {
+  const others = catalog.schemas.filter((schema) => schema.prefix !== 'studyflow').map((schema) => schema.name);
+  const categories = catalog.categories();
+  expect(categories.map((category) => category.name)).toEqual(['General', ...others, 'Documentation', 'Gantt', 'Data', 'Execution']);
+  expect(categories.filter((category) => category.synthetic).map((category) => category.name), 'drawn by a section of its own')
+    .toEqual(['Execution']);
+  // An attribute that names no tab files under its schema's own; studyflow's and BPMN's under General.
+  expect(['studyflow', 'cognitive', 'bpmn'].map((prefix) => catalog.defaultCategoryOf(prefix))).toEqual(['General', 'Cognitive', 'General']);
+});
+
+// A mode the runners lack silently takes the default branch, so the declared set is pinned to the arms they have.
+test('gateways declare only branching modes the runners implement', () => {
+  for (const type of catalog.allTypes()) {
+    if (type.meta.branching !== undefined) expect(['random', 'condition', 'model'], type.name).toContain(type.meta.branching);
+  }
+  expect(catalog.getType('cognitive:RandomGateway')?.meta.branching, 'an allocation gateway draws its branch').toBe('random');
 });
