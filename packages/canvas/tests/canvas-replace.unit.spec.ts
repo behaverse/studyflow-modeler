@@ -163,23 +163,6 @@ test('replacing an element with the type it already is writes nothing', async ()
   expect(await (canvas.syncDi(), serialize(moddle, definitions))).toBe(before);
 });
 
-test('the rules refuse what cannot be retyped in place', async () => {
-  const { canvas } = await load();
-  const rules = canvas.getRules();
-
-  // A flow node may become another flow node…
-  expect(rules.canReplace(node(canvas, 'Task_1'), 'bpmn:UserTask')).toBe(true);
-  expect(rules.canReplace(node(canvas, 'Start_1'), 'bpmn:EndEvent')).toBe(true);
-  // …but not a connection, and not something that is not a flow node either.
-  expect(rules.canReplace(edge(canvas, 'Flow_1'), 'bpmn:Task')).toBe(false);
-  expect(rules.canReplace(node(canvas, 'Task_1'), 'bpmn:Participant')).toBe(false);
-  expect(rules.canReplace(node(canvas, 'Task_1'), 'bpmn:BoundaryEvent')).toBe(false);
-  // With no successor named it is the pad's weaker question — "is this replaceable
-  // at all?" — which is what gates the wrench.
-  expect(rules.canReplace(node(canvas, 'Task_1'))).toBe(true);
-  expect(rules.canReplace(edge(canvas, 'Flow_1'))).toBe(false);
-});
-
 test('a container with contents is not replaceable, so nothing inside it can be lost', async () => {
   const { canvas } = await load(FIXTURE_XML.replace(
     '<bpmn:task id="Task_1" name="Read the brief">',

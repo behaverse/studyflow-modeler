@@ -2,35 +2,26 @@ import { expect, test } from '@playwright/test';
 
 import { buildCatalog, setCatalog } from '@core/notation';
 import type { TypeCatalog } from '@core/notation/query.ts';
-import {
-  Rules,
-  canContain,
-  containerFor,
-  isResizable,
-  participantOf,
-  ruleContainerOf,
-  structuralConnection,
-  type RuleElement,
-} from '@canvas/rules/rules.ts';
+import { Rules, type ConnectionSpec, type RuleElement } from '@canvas/rules/rules.ts';
 
 import { connectsToFixture, loadSchemaModels } from '@tests/schemas';
 
 /**
- * P4 rules engine (design §3 "Rules", §6 P4). The engine has two layers and the
- * tests split the same way:
+ * The rules: may this edit happen? Two layers, and the connection tables split the
+ * same way:
  *
  * - the **schema layer** reads `TypeCatalog.connectionRule`. No *shipped* schema
  *   declares a `connectsTo` annotation (every studyflow type defers), so the
  *   `connects-to` fixture schema — the same one `schema-model.unit.spec.ts` uses —
  *   is compiled alongside the real ones to exercise `true` / `false` / `'*'`.
- * - the **structural layer** is plain BPMN sense, checked directly: no flow out of
- *   an end event, none into a start event, no self-loop, sequence vs. message flow
- *   by participant boundary, containment.
+ * - the **structural layer** is plain BPMN sense: no flow out of an end event, none
+ *   into a start event, no self-loop, sequence vs. message flow by participant
+ *   boundary, containment.
  *
  * The rules are pure, so nothing here needs a DOM, a canvas or a moddle instance:
  * a `RuleElement` is any object carrying `type` / `businessObject` / `parent`,
  * which is exactly what `SceneNode`, `SceneEdge` and a detached palette shape all
- * are.
+ * are. Each table row is the question, the rules' answer and the expected one.
  */
 
 /** Real schemas + the `connectsTo` fixture, so both layers have something to say. */
@@ -39,10 +30,16 @@ setCatalog(catalog);
 
 const rules = new Rules();
 
+const SEQUENCE: ConnectionSpec = { type: 'bpmn:SequenceFlow' };
+const MESSAGE: ConnectionSpec = { type: 'bpmn:MessageFlow' };
+const ASSOCIATION: ConnectionSpec = { type: 'bpmn:Association' };
+
+type Row<T> = [label: string, actual: T, expected: T];
+
 // --- element builders -------------------------------------------------------
 
 interface NodeOptions {
-  /** Schema type carried in `extensionElements` (`lab:Consent`, `cognitive:Instruction`). */
+  /** Schema type carried in `extensionElements` (`lab:Consent`). */
   extension?: string;
   parent?: RuleElement;
   isExpanded?: boolean;
@@ -54,7 +51,7 @@ function node(type: string, options: NodeOptions = {}): RuleElement {
   if (options.extension) {
     businessObject.extensionElements = { $type: 'bpmn:ExtensionElements', values: [{ $type: options.extension }] };
   }
-  return { type, businessObject, parent: options.parent, isExpanded: options.isExpanded };
+  return { type, businessObject, parent: options.parent, isExpanded: options.isExpanded, incoming: [], outgoing: [] };
 }
 
 /** A scene-edge-shaped element. */
@@ -62,429 +59,204 @@ function edge(type: string, source?: RuleElement, target?: RuleElement): RuleEle
   return { type, businessObject: { $type: type }, source, target };
 }
 
-/** The element for a schema type ref (`lab:Consent`) or a bare BPMN type. */
-function ofType(ref: string): RuleElement {
-  if (ref.startsWith('bpmn:')) return node(ref);
-  const bpmnType = catalog.getType(ref)?.bpmnType;
-  if (!bpmnType) throw new Error(`fixture type ${ref} has no bpmnType`);
-  return node(bpmnType, { extension: ref });
+/** An edge registered on both of its ends, the way the scene holds one. */
+function link(type: string, source: RuleElement, target: RuleElement): void {
+  const flow = edge(type, source, target);
+  (source.outgoing as RuleElement[]).push(flow);
+  (target.incoming as RuleElement[]).push(flow);
 }
 
-// --- schema layer -------------------------------------------------------------
+/** The element for a fixture schema type (`lab:Consent`). */
+function ofType(ref: string, options: NodeOptions = {}): RuleElement {
+  const bpmnType = catalog.getType(ref)?.bpmnType;
+  if (!bpmnType) throw new Error(`fixture type ${ref} has no bpmnType`);
+  return node(bpmnType, { ...options, extension: ref });
+}
 
-test.describe('canvas rules: the schema layer', () => {
-  test('the schema layer is read through the element extension, not the BPMN type', () => {
-    // Both are `bpmn:Task`s; only the extension distinguishes them.
-    const consent = ofType('lab:Consent');
-    const debrief = ofType('lab:Debrief');
-    expect(rules.schemaVerdict(consent, debrief)).toBe(false);
-    expect(rules.schemaVerdict(debrief, consent)).toBe(true);
-    // ... and a plain task, which declares nothing, defers.
-    expect(rules.schemaVerdict(node('bpmn:Task'), node('bpmn:Task'))).toBe('defer');
-  });
+// --- connecting --------------------------------------------------------------
 
-  test('a schema allow-list vetoes a structurally fine flow', () => {
-    // consent -> debrief is task -> task, which structure permits.
-    expect(structuralConnection(ofType('lab:Consent'), ofType('lab:Debrief'))).toEqual({
-      type: 'bpmn:SequenceFlow',
-    });
-    expect(rules.canConnect(ofType('lab:Consent'), ofType('lab:Debrief'))).toBe(false);
-  });
-
-  test('a schema `*` outranks the structural layer, as it does in the modeler', () => {
-    // debrief -> start event is structurally forbidden, but `connectsTo: ['*']` wins
-    // (StudyflowRules is registered above BpmnRules).
-    const start = node('bpmn:StartEvent');
-    expect(structuralConnection(ofType('lab:Debrief'), start)).toBe(false);
-    expect(rules.canConnect(ofType('lab:Debrief'), start)).toEqual({ type: 'bpmn:SequenceFlow' });
-  });
+test('the schema layer is read off the extension: `false` vetoes, `*` outranks structure, within one container', () => {
+  const sub = node('bpmn:SubProcess');
+  const CASES: Row<ConnectionSpec | false>[] = [
+    ['two plain tasks: no rule, structure decides', rules.canConnect(node('bpmn:Task'), node('bpmn:Task')), SEQUENCE],
+    ['consent → debrief, both tasks: the allow-list vetoes', rules.canConnect(ofType('lab:Consent'), ofType('lab:Debrief')), false],
+    ['debrief → a start event: `*` outranks structure', rules.canConnect(ofType('lab:Debrief'), node('bpmn:StartEvent')), SEQUENCE],
+    // A schema authorises a pair of types, not a sequence flow across a sub-process boundary.
+    ['debrief in a sub-process → survey outside it', rules.canConnect(ofType('lab:Debrief', { parent: sub }), ofType('lab:Survey')), false],
+    ['debrief → survey in the same sub-process', rules.canConnect(ofType('lab:Debrief', { parent: sub }), ofType('lab:Survey', { parent: sub })), SEQUENCE],
+  ];
+  for (const [label, actual, expected] of CASES) expect(actual, label).toEqual(expected);
 });
 
-// --- structural layer: flow restrictions ------------------------------------
-
-test.describe('canvas rules: sequence-flow restrictions', () => {
-  test('start -> task -> end is a sequence flow', () => {
-    expect(rules.canConnect(node('bpmn:StartEvent'), node('bpmn:Task'))).toEqual({ type: 'bpmn:SequenceFlow' });
-    expect(rules.canConnect(node('bpmn:Task'), node('bpmn:EndEvent'))).toEqual({ type: 'bpmn:SequenceFlow' });
-  });
-
-  test('nothing flows out of an end event', () => {
-    expect(rules.canConnect(node('bpmn:EndEvent'), node('bpmn:Task'))).toBe(false);
-    expect(rules.canConnect(node('bpmn:EndEvent'), node('bpmn:ExclusiveGateway'))).toBe(false);
-  });
-
-  test('nothing flows into a start event', () => {
-    expect(rules.canConnect(node('bpmn:Task'), node('bpmn:StartEvent'))).toBe(false);
-    expect(rules.canConnect(node('bpmn:ParallelGateway'), node('bpmn:StartEvent'))).toBe(false);
-  });
-
-  test('a boundary event is attached, never flowed into', () => {
-    expect(rules.canConnect(node('bpmn:Task'), node('bpmn:BoundaryEvent'))).toBe(false);
-    // ...but it is a perfectly good source.
-    expect(rules.canConnect(node('bpmn:BoundaryEvent'), node('bpmn:Task'))).toEqual({
-      type: 'bpmn:SequenceFlow',
-    });
-  });
-
-  test('self-loops are refused unless opted in', () => {
-    const task = node('bpmn:Task');
-    expect(rules.canConnect(task, task)).toBe(false);
-    expect(new Rules({ allowSelfLoop: true }).canConnect(task, task)).toEqual({ type: 'bpmn:SequenceFlow' });
-    // Two distinct nodes of the same type are not a self-loop.
-    expect(rules.canConnect(node('bpmn:Task'), node('bpmn:Task'))).toEqual({ type: 'bpmn:SequenceFlow' });
-  });
-
-  test('a missing endpoint is never connectable', () => {
-    expect(rules.canConnect(undefined, node('bpmn:Task'))).toBe(false);
-    expect(rules.canConnect(node('bpmn:Task'), undefined)).toBe(false);
-  });
-
-  test('sequence flow does not leave its container', () => {
-    const subProcess = node('bpmn:SubProcess');
-    const inside = node('bpmn:Task', { parent: subProcess });
-    const outside = node('bpmn:Task');
-    expect(ruleContainerOf(inside)).toBe(subProcess);
-    expect(ruleContainerOf(outside)).toBe(undefined);
-    expect(rules.canConnect(inside, outside)).toBe(false);
-    expect(rules.canConnect(inside, node('bpmn:EndEvent', { parent: subProcess }))).toEqual({
-      type: 'bpmn:SequenceFlow',
-    });
-  });
-
-  test('a schema `true` cannot authorise a flow out of a container', () => {
-    // The schema layer sits ABOVE the structural one and wins on type compatibility —
-    // but "a sequence flow must not cross a sub-process boundary" is not a statement
-    // about types, it is what makes the document valid. `lab:Debrief` connects to
-    // `'*'`; it still may not connect INTO a sub-process.
-    const subProcess = node('bpmn:SubProcess');
-    const inside = ofType('lab:Debrief');
-    (inside as any).parent = subProcess;
-    const outside = ofType('lab:Survey');
-
-    expect(rules.schemaVerdict(inside, outside)).toBe(true);
-    expect(rules.canConnect(inside, outside)).toBe(false);
-    // Same pair inside one container is the sequence flow the schema authorised.
-    (outside as any).parent = subProcess;
-    expect(rules.canConnect(inside, outside)).toEqual({ type: 'bpmn:SequenceFlow' });
-  });
-
-  test('a lane is visual nesting: flows cross lanes inside one pool', () => {
-    const pool = node('bpmn:Participant');
-    const laneA = node('bpmn:Lane', { parent: pool });
-    const laneB = node('bpmn:Lane', { parent: pool });
-    const a = node('bpmn:Task', { parent: laneA });
-    const b = node('bpmn:Task', { parent: laneB });
-    expect(ruleContainerOf(a)).toBe(pool);
-    expect(rules.canConnect(a, b)).toEqual({ type: 'bpmn:SequenceFlow' });
-  });
-});
-
-test.describe('canvas rules: message flow, associations, data associations', () => {
+test('canConnect: the connection a pair gets, if any', () => {
+  const task = node('bpmn:Task');
+  const sub = node('bpmn:SubProcess');
   const poolA = node('bpmn:Participant');
   const poolB = node('bpmn:Participant');
-
-  test('crossing a participant boundary makes it a message flow', () => {
-    const a = node('bpmn:Task', { parent: poolA });
-    const b = node('bpmn:Task', { parent: poolB });
-    expect(participantOf(a)).toBe(poolA);
-    expect(rules.canConnect(a, b)).toEqual({ type: 'bpmn:MessageFlow' });
-    expect(rules.canConnect(poolA, poolB)).toEqual({ type: 'bpmn:MessageFlow' });
-  });
-
-  test('a choreography task drawn in a pool (a cognitive task) exchanges messages with the other pool', () => {
-    const task = node('bpmn:ChoreographyTask', { parent: poolA });
-    const seat = node('bpmn:ReceiveTask', { parent: poolB });
-    expect(rules.canConnect(task, seat)).toEqual({ type: 'bpmn:MessageFlow' });
-    expect(rules.canConnect(seat, task)).toEqual({ type: 'bpmn:MessageFlow' });
-  });
-
-  test('inside one pool it stays a sequence flow', () => {
-    expect(rules.canConnect(node('bpmn:Task', { parent: poolA }), node('bpmn:Task', { parent: poolA }))).toEqual({
-      type: 'bpmn:SequenceFlow',
-    });
-  });
-
-  test('only throwing/catching ends may carry a message across pools', () => {
-    // A gateway neither throws nor catches messages.
-    expect(rules.canConnect(node('bpmn:ExclusiveGateway', { parent: poolA }), node('bpmn:Task', { parent: poolB })))
-      .toBe(false);
-    // An end event throws; a start event catches.
-    expect(rules.canConnect(node('bpmn:EndEvent', { parent: poolA }), node('bpmn:StartEvent', { parent: poolB })))
-      .toEqual({ type: 'bpmn:MessageFlow' });
-    // ...and not the other way round.
-    expect(rules.canConnect(node('bpmn:StartEvent', { parent: poolA }), node('bpmn:EndEvent', { parent: poolB })))
-      .toBe(false);
-  });
-
-  test('two LANES of one pool are one participant: no message flow between them', () => {
-    // A message flow crosses a POOL boundary — it is how two participants talk. Lanes
-    // partition one participant, so a flow between them stays internal: a sequence
-    // flow between two flow nodes, and nothing at all between an end and a start
-    // event, which is what the message flow would otherwise have licensed.
-    const laneA = node('bpmn:Lane', { parent: poolA });
-    const laneB = node('bpmn:Lane', { parent: poolA });
-    expect(participantOf(node('bpmn:Task', { parent: laneA }))).toBe(poolA);
-
-    expect(rules.canConnect(node('bpmn:Task', { parent: laneA }), node('bpmn:Task', { parent: laneB })))
-      .toEqual({ type: 'bpmn:SequenceFlow' });
-    expect(rules.canConnect(node('bpmn:EndEvent', { parent: laneA }), node('bpmn:StartEvent', { parent: laneB })))
-      .toBe(false);
-  });
-
-  test('artifacts are wired with associations', () => {
-    expect(rules.canConnect(node('bpmn:Task'), node('bpmn:TextAnnotation'))).toEqual({ type: 'bpmn:Association' });
-    expect(rules.canConnect(node('bpmn:TextAnnotation'), node('bpmn:Task'))).toEqual({ type: 'bpmn:Association' });
-    expect(rules.canConnect(node('bpmn:Group'), node('bpmn:StartEvent'))).toEqual({ type: 'bpmn:Association' });
-  });
-
-  test('data shapes are wired with data associations, and only to activities/events', () => {
-    expect(rules.canConnect(node('bpmn:DataObjectReference'), node('bpmn:Task')))
-      .toEqual({ type: 'bpmn:DataInputAssociation' });
-    expect(rules.canConnect(node('bpmn:Task'), node('bpmn:DataStoreReference')))
-      .toEqual({ type: 'bpmn:DataOutputAssociation' });
-    expect(rules.canConnect(node('bpmn:ExclusiveGateway'), node('bpmn:DataObjectReference'))).toBe(false);
-    expect(rules.canConnect(node('bpmn:DataObjectReference'), node('bpmn:DataStoreReference'))).toBe(false);
-  });
+  const laneA = node('bpmn:Lane', { parent: poolA });
+  const laneB = node('bpmn:Lane', { parent: poolA });
+  const inA = (type: string) => node(type, { parent: poolA });
+  const inB = (type: string) => node(type, { parent: poolB });
+  const CASES: Row<ConnectionSpec | false>[] = [
+    // Sequence flow: between flow nodes of one container.
+    ['start event → task', rules.canConnect(node('bpmn:StartEvent'), task), SEQUENCE],
+    ['task → end event', rules.canConnect(task, node('bpmn:EndEvent')), SEQUENCE],
+    ['out of an end event', rules.canConnect(node('bpmn:EndEvent'), task), false],
+    ['into a start event', rules.canConnect(node('bpmn:ParallelGateway'), node('bpmn:StartEvent')), false],
+    ['into a boundary event, which is attached instead', rules.canConnect(task, node('bpmn:BoundaryEvent')), false],
+    ['out of a boundary event', rules.canConnect(node('bpmn:BoundaryEvent'), task), SEQUENCE],
+    ['a task to itself', rules.canConnect(task, task), false],
+    ['to nothing', rules.canConnect(task, undefined), false],
+    ['out of a sub-process', rules.canConnect(node('bpmn:Task', { parent: sub }), task), false],
+    ['within a sub-process', rules.canConnect(node('bpmn:Task', { parent: sub }), node('bpmn:EndEvent', { parent: sub })), SEQUENCE],
+    ['within one pool', rules.canConnect(inA('bpmn:Task'), inA('bpmn:Task')), SEQUENCE],
+    ['across two lanes of one pool', rules.canConnect(node('bpmn:Task', { parent: laneA }), node('bpmn:Task', { parent: laneB })), SEQUENCE],
+    // Message flow: across pools, from something that sends to something that receives.
+    ['task → task in another pool', rules.canConnect(inA('bpmn:Task'), inB('bpmn:Task')), MESSAGE],
+    ['pool → pool', rules.canConnect(poolA, poolB), MESSAGE],
+    ['a choreography task in a pool → a receive task in the other', rules.canConnect(inA('bpmn:ChoreographyTask'), inB('bpmn:ReceiveTask')), MESSAGE],
+    ['a receive task → a choreography task in the other pool', rules.canConnect(inB('bpmn:ReceiveTask'), inA('bpmn:ChoreographyTask')), MESSAGE],
+    ['a gateway, which neither sends nor receives', rules.canConnect(inA('bpmn:ExclusiveGateway'), inB('bpmn:Task')), false],
+    ['an end event throws to a start event', rules.canConnect(inA('bpmn:EndEvent'), inB('bpmn:StartEvent')), MESSAGE],
+    ['a start event throws nothing', rules.canConnect(inA('bpmn:StartEvent'), inB('bpmn:EndEvent')), false],
+    ['an end event catches nothing', rules.canConnect(inA('bpmn:EndEvent'), inB('bpmn:EndEvent')), false],
+    ['end → start across two lanes: one participant, so no message', rules.canConnect(node('bpmn:EndEvent', { parent: laneA }), node('bpmn:StartEvent', { parent: laneB })), false],
+    // Associations: to and from artifacts, and data associations to and from activities.
+    ['task → annotation', rules.canConnect(task, node('bpmn:TextAnnotation')), ASSOCIATION],
+    ['annotation → task', rules.canConnect(node('bpmn:TextAnnotation'), task), ASSOCIATION],
+    ['group → start event', rules.canConnect(node('bpmn:Group'), node('bpmn:StartEvent')), ASSOCIATION],
+    ['data object → task', rules.canConnect(node('bpmn:DataObjectReference'), task), { type: 'bpmn:DataInputAssociation' }],
+    ['task → data store', rules.canConnect(task, node('bpmn:DataStoreReference')), { type: 'bpmn:DataOutputAssociation' }],
+    ['gateway → data object', rules.canConnect(node('bpmn:ExclusiveGateway'), node('bpmn:DataObjectReference')), false],
+    ['data object → data store', rules.canConnect(node('bpmn:DataObjectReference'), node('bpmn:DataStoreReference')), false],
+  ];
+  for (const [label, actual, expected] of CASES) expect(actual, label).toEqual(expected);
 });
 
-// --- reconnect --------------------------------------------------------------
-
-test.describe('canvas rules: connection.reconnect', () => {
-  const source = node('bpmn:Task');
-  const target = node('bpmn:Task');
-  const flow = edge('bpmn:SequenceFlow', source, target);
-
-  test('the endpoint that is not being dragged is read off the connection', () => {
-    expect(rules.canReconnect(flow, undefined, node('bpmn:EndEvent'))).toEqual({ type: 'bpmn:SequenceFlow' });
-    expect(rules.canReconnect(flow, node('bpmn:StartEvent'), undefined)).toEqual({ type: 'bpmn:SequenceFlow' });
-  });
-
-  test('it refuses a new endpoint the structural layer forbids', () => {
-    expect(rules.canReconnect(flow, undefined, node('bpmn:StartEvent'))).toBe(false);
-    expect(rules.canReconnect(flow, node('bpmn:EndEvent'), undefined)).toBe(false);
-  });
-
-  test('it refuses to silently change the kind of connection', () => {
-    const pooled = node('bpmn:Task', { parent: node('bpmn:Participant') });
-    const inOtherPool = node('bpmn:Task', { parent: node('bpmn:Participant') });
-    const crossPool = edge('bpmn:SequenceFlow', pooled, node('bpmn:Task', { parent: pooled.parent }));
-    // Dragging the end into another pool would make it a message flow.
-    expect(rules.canReconnect(crossPool, undefined, inOtherPool)).toBe(false);
-  });
-
-  test('the schema layer applies to reconnect too', () => {
-    const consentFlow = edge('bpmn:SequenceFlow', ofType('lab:Consent'), ofType('lab:Survey'));
-    expect(rules.canReconnect(consentFlow, undefined, ofType('lab:Survey'))).toEqual({ type: 'bpmn:SequenceFlow' });
-    expect(rules.canReconnect(consentFlow, undefined, ofType('lab:Debrief'))).toBe(false);
-  });
-
-  test('a missing connection is never reconnectable', () => {
-    expect(rules.canReconnect(undefined, source, target)).toBe(false);
-  });
+test('canReconnect judges the dragged end with the one left in place, and keeps the connection\'s kind', () => {
+  const flow = edge('bpmn:SequenceFlow', node('bpmn:Task'), node('bpmn:Task'));
+  const pool = node('bpmn:Participant');
+  const inPool = edge('bpmn:SequenceFlow', node('bpmn:Task', { parent: pool }), node('bpmn:Task', { parent: pool }));
+  const fromConsent = edge('bpmn:SequenceFlow', ofType('lab:Consent'), ofType('lab:Survey'));
+  const CASES: Row<ConnectionSpec | false>[] = [
+    ['the target onto an end event', rules.canReconnect(flow, undefined, node('bpmn:EndEvent')), SEQUENCE],
+    ['the source onto a start event', rules.canReconnect(flow, node('bpmn:StartEvent'), undefined), SEQUENCE],
+    ['the target onto a start event', rules.canReconnect(flow, undefined, node('bpmn:StartEvent')), false],
+    ['the source onto an end event', rules.canReconnect(flow, node('bpmn:EndEvent'), undefined), false],
+    ['the target into another pool, which would make it a message flow', rules.canReconnect(inPool, undefined, node('bpmn:Task', { parent: node('bpmn:Participant') })), false],
+    ['consent\'s target onto another survey', rules.canReconnect(fromConsent, undefined, ofType('lab:Survey')), SEQUENCE],
+    ['consent\'s target onto a debrief', rules.canReconnect(fromConsent, undefined, ofType('lab:Debrief')), false],
+    ['no connection', rules.canReconnect(undefined, node('bpmn:Task'), node('bpmn:Task')), false],
+  ];
+  for (const [label, actual, expected] of CASES) expect(actual, label).toEqual(expected);
 });
 
-// --- containment ------------------------------------------------------------
+// --- containment, retyping, resizing ----------------------------------------------
 
-test.describe('canvas rules: shape.create containment', () => {
-  test('flow nodes, data and artifacts drop into a process', () => {
-    for (const type of ['bpmn:Task', 'bpmn:UserTask', 'bpmn:SubProcess', 'bpmn:StartEvent',
-      'bpmn:ExclusiveGateway', 'bpmn:DataObjectReference', 'bpmn:Group', 'bpmn:TextAnnotation']) {
-      expect(canContain(type, 'bpmn:Process'), type).toBe(true);
-    }
-    // No parent at all reads as the process root.
-    expect(rules.canCreate(node('bpmn:Task'))).toBe(true);
-  });
-
-  test('a pool belongs to a collaboration, never to a process', () => {
-    expect(canContain('bpmn:Participant', 'bpmn:Collaboration')).toBe(true);
-    expect(canContain('bpmn:Participant', 'bpmn:Process')).toBe(false);
-    expect(canContain('bpmn:Task', 'bpmn:Collaboration')).toBe(false);
-    expect(canContain('bpmn:TextAnnotation', 'bpmn:Collaboration')).toBe(true);
-  });
-
-  test('a lane subdivides a pool or another lane', () => {
-    expect(canContain('bpmn:Lane', 'bpmn:Participant')).toBe(true);
-    expect(canContain('bpmn:Lane', 'bpmn:Lane')).toBe(true);
-    expect(canContain('bpmn:Lane', 'bpmn:Process')).toBe(false);
-    expect(canContain('bpmn:Task', 'bpmn:Lane')).toBe(true);
-  });
-
-  test('an expanded subprocess takes children; a collapsed one does not', () => {
-    const expanded = node('bpmn:SubProcess', { isExpanded: true });
-    const collapsed = node('bpmn:SubProcess', { isExpanded: false });
-    expect(rules.canCreate(node('bpmn:Task'), expanded)).toBe(true);
-    expect(rules.canCreate(node('bpmn:Task'), collapsed)).toBe(false);
-    expect(rules.canCreate(node('bpmn:Participant'), expanded)).toBe(false);
-  });
-
-  test('a task is not a container', () => {
-    expect(rules.canCreate(node('bpmn:Task'), node('bpmn:UserTask'))).toBe(false);
-    expect(rules.canCreate(node('bpmn:Task'), node('bpmn:ExclusiveGateway'))).toBe(false);
-    expect(rules.canCreate(node('bpmn:Task'), node('bpmn:StartEvent'))).toBe(false);
-  });
-
-  test('a boundary event attaches to an activity and nothing else', () => {
-    const task = node('bpmn:Task');
-    expect(rules.canCreate(node('bpmn:BoundaryEvent'), task)).toBe('attach');
-    expect(rules.canCreate(node('bpmn:BoundaryEvent'))).toBe(false);
-    expect(rules.canCreate(node('bpmn:Task'), task)).toBe(false);
-  });
-
-  test('a drop onto a group is judged against the group container', () => {
-    const pool = node('bpmn:Participant');
-    const group = node('bpmn:Group', { parent: pool });
-    expect(containerFor(group)).toBe(pool);
-    expect(rules.canCreate(node('bpmn:Task'), group)).toBe(true);
-    // A group at the plane root resolves to the root process, where a pool is illegal.
-    expect(rules.canCreate(node('bpmn:Participant'), node('bpmn:Group'))).toBe(false);
-  });
-
-  test('nothing drops into itself', () => {
-    const subProcess = node('bpmn:SubProcess');
-    expect(rules.canCreate(subProcess, subProcess)).toBe(false);
-  });
-
-  test('a plane is a valid parent: its business object names the root type', () => {
-    const collaborationPlane: RuleElement = { businessObject: { $type: 'bpmn:Collaboration' } };
-    expect(rules.canCreate(node('bpmn:Participant'), collaborationPlane)).toBe(true);
-    expect(rules.canCreate(node('bpmn:Task'), collaborationPlane)).toBe(false);
-  });
-
-  test('choreography tasks live in the process the import pass rewrites them into', () => {
-    // `choreographyToProcessRoot` turns a bpmn:Choreography root into a bpmn:Process
-    // before the canvas ever sees the document.
-    expect(canContain('bpmn:ChoreographyTask', 'bpmn:Process')).toBe(true);
-    expect(canContain('bpmn:ChoreographyTask', 'bpmn:Choreography')).toBe(true);
-    expect(canContain('bpmn:Task', 'bpmn:Choreography')).toBe(false);
-  });
+test('what may be created, or retyped, where', () => {
+  const pool = node('bpmn:Participant');
+  const lane = node('bpmn:Lane', { parent: pool });
+  const collaboration: RuleElement = { businessObject: { $type: 'bpmn:Collaboration' } };
+  const expanded = node('bpmn:SubProcess', { isExpanded: true });
+  const collapsed = node('bpmn:SubProcess', { isExpanded: false });
+  const task = node('bpmn:Task');
+  const flow = edge('bpmn:SequenceFlow', task, node('bpmn:EndEvent'));
+  const CASES: Row<boolean | 'attach'>[] = [
+    // No parent reads as the process root.
+    ...['bpmn:Task', 'bpmn:UserTask', 'bpmn:SubProcess', 'bpmn:StartEvent', 'bpmn:ExclusiveGateway',
+      'bpmn:ChoreographyTask', 'bpmn:DataObjectReference', 'bpmn:Group', 'bpmn:TextAnnotation',
+    ].map((type): Row<boolean | 'attach'> => [`a ${type} into the process`, rules.canCreate(node(type)), true]),
+    ['a pool into the process', rules.canCreate(node('bpmn:Participant')), false],
+    ['a pool into a collaboration', rules.canCreate(node('bpmn:Participant'), collaboration), true],
+    ['a task into a collaboration', rules.canCreate(task, collaboration), false],
+    ['an annotation into a collaboration', rules.canCreate(node('bpmn:TextAnnotation'), collaboration), true],
+    ['a lane into a pool', rules.canCreate(node('bpmn:Lane'), pool), true],
+    ['a lane into a lane', rules.canCreate(node('bpmn:Lane'), lane), true],
+    ['a lane into the process', rules.canCreate(node('bpmn:Lane')), false],
+    ['a task into a lane', rules.canCreate(task, lane), true],
+    ['a task into an expanded sub-process', rules.canCreate(task, expanded), true],
+    ['a task into a collapsed sub-process', rules.canCreate(task, collapsed), false],
+    ['a pool into a sub-process', rules.canCreate(node('bpmn:Participant'), expanded), false],
+    ['a sub-process into itself', rules.canCreate(expanded, expanded), false],
+    ['a task into a task', rules.canCreate(task, node('bpmn:UserTask')), false],
+    ['a task into a gateway', rules.canCreate(task, node('bpmn:ExclusiveGateway')), false],
+    ['a boundary event onto an activity', rules.canCreate(node('bpmn:BoundaryEvent'), task), 'attach'],
+    ['a boundary event with no activity', rules.canCreate(node('bpmn:BoundaryEvent')), false],
+    ['a task onto a group in a pool, which the pool takes', rules.canCreate(task, node('bpmn:Group', { parent: pool })), true],
+    ['a pool onto a group at the root, which the process takes', rules.canCreate(node('bpmn:Participant'), node('bpmn:Group')), false],
+    // Retyping in place: a flow node into what its container may hold.
+    ['retype a task as a user task', rules.canReplace(task, 'bpmn:UserTask'), true],
+    ['retype a start event as an end event', rules.canReplace(node('bpmn:StartEvent'), 'bpmn:EndEvent'), true],
+    ['retype a task as a pool', rules.canReplace(task, 'bpmn:Participant'), false],
+    ['retype a task as a boundary event', rules.canReplace(task, 'bpmn:BoundaryEvent'), false],
+    ['retype a flow as a task', rules.canReplace(flow, 'bpmn:Task'), false],
+    // With no type named it is the wrench's question: is this replaceable at all?
+    ['a task is replaceable', rules.canReplace(task), true],
+    ['a flow is not', rules.canReplace(flow), false],
+  ];
+  for (const [label, actual, expected] of CASES) expect(actual, label).toBe(expected);
 });
 
-// --- resize -----------------------------------------------------------------
-
-test.describe('canvas rules: shape.resize', () => {
-  test('activities, pools, lanes and artifacts resize; events, gateways and data do not', () => {
-    for (const type of ['bpmn:Task', 'bpmn:UserTask', 'bpmn:SubProcess', 'bpmn:Transaction',
-      'bpmn:CallActivity', 'bpmn:ChoreographyTask', 'bpmn:Participant', 'bpmn:Lane',
-      'bpmn:Group', 'bpmn:TextAnnotation']) {
-      expect(isResizable(type), type).toBe(true);
-      expect(rules.canResize(node(type)), type).toBe(true);
-    }
-    for (const type of ['bpmn:StartEvent', 'bpmn:EndEvent', 'bpmn:BoundaryEvent',
-      'bpmn:ExclusiveGateway', 'bpmn:DataObjectReference', 'bpmn:DataStoreReference']) {
-      expect(isResizable(type), type).toBe(false);
-      expect(rules.canResize(node(type)), type).toBe(false);
-    }
-  });
-
-  test('new bounds below the floor are refused', () => {
-    const task = node('bpmn:Task');
-    expect(rules.canResize(task, { width: 100, height: 80 })).toBe(true);
-    expect(rules.canResize(task, { width: 99, height: 80 })).toBe(false);
-    expect(rules.canResize(task, { width: 100, height: 79 })).toBe(false);
-    expect(rules.canResize(task, { x: 0, y: 0, width: 40, height: 30 })).toBe(false);
-  });
-
-  test('a missing shape never resizes', () => {
-    expect(rules.canResize(undefined)).toBe(false);
-  });
+test('activities, pools, lanes and artifacts resize; events, gateways and data do not', () => {
+  const CASES: Row<boolean>[] = [
+    ...['bpmn:Task', 'bpmn:UserTask', 'bpmn:SubProcess', 'bpmn:Transaction', 'bpmn:CallActivity',
+      'bpmn:ChoreographyTask', 'bpmn:Participant', 'bpmn:Lane', 'bpmn:Group', 'bpmn:TextAnnotation',
+    ].map((type): Row<boolean> => [`a ${type} resizes`, rules.canResize(node(type)), true]),
+    ...['bpmn:StartEvent', 'bpmn:EndEvent', 'bpmn:BoundaryEvent', 'bpmn:ExclusiveGateway',
+      'bpmn:DataObjectReference', 'bpmn:DataStoreReference',
+    ].map((type): Row<boolean> => [`a ${type} keeps its size`, rules.canResize(node(type)), false]),
+    ['no shape', rules.canResize(undefined), false],
+  ];
+  for (const [label, actual, expected] of CASES) expect(actual, label).toBe(expected);
 });
 
-// --- append -----------------------------------------------------------------
+// --- appending, moving ----------------------------------------------------------
 
-test.describe('canvas rules: shape.append', () => {
-  test('the context pad offers append on anything a sequence flow may leave', () => {
-    for (const type of ['bpmn:Task', 'bpmn:UserTask', 'bpmn:StartEvent', 'bpmn:ExclusiveGateway',
-      'bpmn:SubProcess', 'bpmn:IntermediateCatchEvent', 'bpmn:BoundaryEvent']) {
-      expect(rules.canAppend(node(type)), type).toBe(true);
-    }
-  });
-
-  test('it does not on end events, artifacts, data shapes or pools', () => {
-    for (const type of ['bpmn:EndEvent', 'bpmn:TextAnnotation', 'bpmn:Group',
-      'bpmn:DataObjectReference', 'bpmn:Participant', 'bpmn:Lane']) {
-      expect(rules.canAppend(node(type)), type).toBe(false);
-    }
-    expect(rules.canAppend(undefined)).toBe(false);
-  });
-
-  test('connection.start is wider than append: everything that can start ANY edge', () => {
-    // `shape.append` asks about sequence flow alone. The pad's connect handle has to
-    // cover every edge that can leave an element, or the flow simply cannot be drawn:
-    // a data shape sources a data input association; an END EVENT throws a message to
-    // another pool (BPMN Collaboration) even though sequence flow stops there; a POOL
-    // is a message source in its own right; an artifact sources an association.
-    for (const type of [
-      'bpmn:Task', 'bpmn:DataObjectReference', 'bpmn:DataStoreReference',
-      'bpmn:EndEvent', 'bpmn:Participant', 'bpmn:TextAnnotation',
-    ]) {
-      expect(rules.canStartConnection(node(type)), type).toBe(true);
-    }
-    // Offering the handle is not promising a target: what the drag may LAND on is
-    // still `canConnect`'s call, and an end event has few legal ones.
-    const poolA = node('bpmn:Participant');
-    const end = node('bpmn:EndEvent', { parent: poolA });
-    expect(rules.canConnect(end, node('bpmn:StartEvent', { parent: node('bpmn:Participant') })))
-      .toEqual({ type: 'bpmn:MessageFlow' });
-    expect(rules.canConnect(end, node('bpmn:Task', { parent: poolA }))).toBe(false);
-    // An end event may not RECEIVE a message either — it throws, it never catches.
-    expect(rules.canConnect(end, node('bpmn:EndEvent', { parent: node('bpmn:Participant') })))
-      .toBe(false);
-  });
+test('what a successor may follow, and where any edge may start', () => {
+  const CASES: Row<boolean>[] = [
+    // `canAppend` asks about a sequence flow alone: it gates the pad's successor entries.
+    ...['bpmn:Task', 'bpmn:UserTask', 'bpmn:StartEvent', 'bpmn:ExclusiveGateway', 'bpmn:SubProcess',
+      'bpmn:IntermediateCatchEvent', 'bpmn:BoundaryEvent',
+    ].map((type): Row<boolean> => [`a successor follows a ${type}`, rules.canAppend(node(type)), true]),
+    ...['bpmn:EndEvent', 'bpmn:TextAnnotation', 'bpmn:Group', 'bpmn:DataObjectReference', 'bpmn:Participant', 'bpmn:Lane',
+    ].map((type): Row<boolean> => [`none follows a ${type}`, rules.canAppend(node(type)), false]),
+    ['none follows nothing', rules.canAppend(undefined), false],
+    // An annotation is reached by an association, so it hangs off an end event too.
+    ['an annotation hangs off an end event', rules.canAppendType(node('bpmn:EndEvent'), 'bpmn:TextAnnotation'), true],
+    // The connect handle covers every edge that can leave an element: a data shape sources
+    // a data association, an end event and a pool a message, an artifact an association.
+    ...['bpmn:Task', 'bpmn:DataObjectReference', 'bpmn:DataStoreReference', 'bpmn:EndEvent', 'bpmn:Participant',
+      'bpmn:TextAnnotation',
+    ].map((type): Row<boolean> => [`an edge may start at a ${type}`, rules.canStartConnection(node(type)), true]),
+  ];
+  for (const [label, actual, expected] of CASES) expect(actual, label).toBe(expected);
 });
 
-// --- move ------------------------------------------------------------------
+test('a move fits every shape to the drop target and strands no sequence flow across a container', () => {
+  // A sequence flow lives in one container and may not cross a sub-process boundary,
+  // so a drop that would drag one across is refused, as drawing it would be.
+  const pool = node('bpmn:Participant');
+  const sub = node('bpmn:SubProcess');
+  const outside = node('bpmn:Task');
+  const moving = node('bpmn:Task');
+  link('bpmn:SequenceFlow', outside, moving);
+  const joining = node('bpmn:Task');
+  link('bpmn:SequenceFlow', node('bpmn:Task', { parent: sub }), joining);
+  // A document may already carry a flow across; only a drop that changes the container is judged.
+  const stranded = node('bpmn:Task', { parent: sub });
+  link('bpmn:SequenceFlow', node('bpmn:Task'), stranded);
+  // An annotation's association is no sequence flow: nothing of the process leaves the container.
+  const note = node('bpmn:TextAnnotation');
+  link('bpmn:Association', node('bpmn:Task'), note);
 
-test.describe('canvas rules: canMove', () => {
-  test('a move checks every shape against the drop target', () => {
-    const pool = node('bpmn:Participant');
-    expect(rules.canMove([node('bpmn:Task'), node('bpmn:StartEvent')], pool)).toBe(true);
-    expect(rules.canMove([node('bpmn:Task'), node('bpmn:Participant')], pool)).toBe(false);
-  });
-
-  test('a move refuses a drop that would drag a sequence flow across a boundary', () => {
-    // BPMN: a sequence flow lives in ONE `flowElements` container and may not cross a
-    // sub-process (or pool) boundary — the same rule `structuralConnection` applies
-    // when the flow is drawn. Dragging a connected shape in or out would produce that
-    // illegal document without ever asking, so the drop is refused instead.
-    const sub = node('bpmn:SubProcess');
-    const outside = node('bpmn:Task');
-    const moving = node('bpmn:Task');
-    const flow = edge('bpmn:SequenceFlow', outside, moving);
-    (moving as any).incoming = [flow];
-    (outside as any).outgoing = [flow];
-
-    expect(rules.canMove([moving], sub)).toBe(false);
-    // Both ends moving together stay in one container, so that drop is fine…
-    expect(rules.canMove([moving, outside], sub)).toBe(true);
-    // …and so is a flow whose other end is ALREADY inside the container.
-    const inner = node('bpmn:Task', { parent: sub });
-    const inFlow = edge('bpmn:SequenceFlow', inner, moving);
-    (moving as any).incoming = [inFlow];
-    expect(rules.canMove([moving], sub)).toBe(true);
-  });
-
-  test('a shape moved inside the container it already lives in is not re-judged', () => {
-    // Only a drop that CHANGES the container is a containment question. Judging every
-    // move would freeze every shape in a document that was imported with a crossing
-    // flow already in it.
-    const sub = node('bpmn:SubProcess');
-    const inner = node('bpmn:Task', { parent: sub });
-    const outside = node('bpmn:Task');
-    const stale = edge('bpmn:SequenceFlow', outside, inner);
-    (inner as any).incoming = [stale];
-
-    expect(rules.canMove([inner], sub)).toBe(true);
-  });
-
-  test('an ARTIFACT association may cross the boundary a sequence flow may not', () => {
-    // A text annotation has no execution semantics, and its association is an
-    // artifact — nothing about the flow of the process leaves the container.
-    const sub = node('bpmn:SubProcess');
-    const task = node('bpmn:Task');
-    const note = node('bpmn:TextAnnotation');
-    const assoc = edge('bpmn:Association', task, note);
-    (note as any).incoming = [assoc];
-
-    expect(rules.canMove([note], sub)).toBe(true);
-  });
+  const CASES: Row<boolean>[] = [
+    ['a task and a start event into a pool', rules.canMove([node('bpmn:Task'), node('bpmn:StartEvent')], pool), true],
+    ['a task and a pool into a pool', rules.canMove([node('bpmn:Task'), node('bpmn:Participant')], pool), false],
+    ['one end of a flow into a sub-process', rules.canMove([moving], sub), false],
+    ['both ends of the flow together', rules.canMove([moving, outside], sub), true],
+    ['to the other end, already inside', rules.canMove([joining], sub), true],
+    ['within the sub-process it already lives in', rules.canMove([stranded], sub), true],
+    ['an annotation with its association', rules.canMove([note], sub), true],
+  ];
+  for (const [label, actual, expected] of CASES) expect(actual, label).toBe(expected);
 });
