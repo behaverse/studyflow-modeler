@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -66,6 +66,10 @@ test('serves the file `studyflow edit <file>` opens, reading it afresh', async (
     expect(await (await fetch(`${origin}/open/my%20study.studyflow`)).text()).toBe('id: one');
     writeFileSync(study, 'id: two');
     expect(await (await fetch(`${origin}/open/my%20study.studyflow?x=1`)).text()).toBe('id: two');
+    // Renamed since (in Finder, say): not found, and the server still answers.
+    renameSync(study, join(root, 'renamed.studyflow'));
+    expect((await fetch(`${origin}/open/my%20study.studyflow`)).status).toBe(404);
+    expect((await fetch(`${origin}/app`)).status).toBe(200);
   } finally {
     server.close();
   }

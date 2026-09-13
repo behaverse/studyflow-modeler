@@ -70,8 +70,15 @@ export function serveUi(root: string, host = '127.0.0.1', port = 0, files: Recor
       response.writeHead(301, { location: hit.redirect }).end();
       return;
     }
-    response.writeHead(200, { 'content-type': MIME[path.extname(hit.file)] ?? 'application/octet-stream' });
-    createReadStream(hit.file).pipe(response);
+    response.setHeader('content-type', MIME[path.extname(hit.file)] ?? 'application/octet-stream');
+    createReadStream(hit.file)
+      .on('error', () => {
+        // Gone since it was found (the study renamed in Finder, dist/ rebuilt under the app): not found, rather than
+        // an unhandled 'error' that ends the server. Once the headers are out, all that is left is to cut it short.
+        if (response.headersSent) response.destroy();
+        else response.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
+      })
+      .pipe(response);
   });
   return new Promise((resolve, reject) => {
     server.once('error', reject);
