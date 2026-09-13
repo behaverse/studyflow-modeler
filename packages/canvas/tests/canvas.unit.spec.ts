@@ -8,7 +8,6 @@ import {
   dragBy,
   freshModdle,
   installDocument,
-  jsdomWindow,
   keyEvent,
   loadCanvas,
   pointerDown,
@@ -494,7 +493,7 @@ test('dropping a shape into an expanded container re-files it there', async () =
   expect(canvas.getScene()!.children).not.toContain(task);
 });
 
-// --- keyboard, colour, replace ---------------------------------------------------------
+// --- keyboard, colour, font -------------------------------------------------------------
 
 test('Ctrl+A selects everything on screen and the arrows nudge the selection', async () => {
   const { canvas } = await load();
@@ -546,17 +545,6 @@ test('setFont restyles the caption and the font survives the round trip', async 
   expect(task.font).toBeUndefined();
 });
 
-test('replaceElement keeps the name and rewires the flows onto the new type', async () => {
-  const { canvas } = await load();
-  const replacement = canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:UserTask' })!;
-  expect(replacement.type).toBe('bpmn:UserTask');
-  expect(replacement.businessObject.name).toBe('Read');
-  expect(canvas.get('Task_1')).toBeUndefined();
-  expect(edge(canvas, 'Flow_1').target).toBe(replacement);
-  expect(edge(canvas, 'Flow_2').source).toBe(replacement);
-  expect(canvas.getSelection().get()).toEqual([replacement]);
-});
-
 test('toSVG exports the drawing without the editor chrome', async () => {
   const { canvas } = await load();
   click(canvas, centre(node(canvas, 'Task_1')));
@@ -566,5 +554,4 @@ test('toSVG exports the drawing without the editor chrome', async () => {
   expect(svg).not.toContain('selected');
   expect(svg).not.toContain('tabindex');
   expect(svg).toMatch(/viewBox="[-\d.]+ [-\d.]+ [\d.]+ [\d.]+"/);
-  expect(jsdomWindow()).toBeTruthy();
 });

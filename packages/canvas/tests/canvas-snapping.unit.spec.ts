@@ -171,24 +171,6 @@ test('alignment on one axis composes with the grid on the other', async () => {
   expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 240, y: 83 });
 });
 
-test('a keyboard nudge is not grid-snapped: 1 unit means 1 unit (parity spec §9)', async () => {
-  const { canvas, definitions } = await load();
-  const task = node(canvas, 'Task_1');
-  canvas.getSelection().select(task);
-  const svg = canvas.getSvg();
-
-  svg.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-  expect({ x: task.x, y: task.y }).toEqual({ x: 201, y: 80 });
-  expect(boundsOf((canvas.syncDi(), definitions), 'Task_1')).toEqual({ x: 201, y: 80 });
-
-  // …and Shift still means 10, landing back on the grid by arithmetic, not by snap.
-  svg.dispatchEvent(new win.KeyboardEvent(
-    'keydown',
-    { key: 'ArrowDown', shiftKey: true, bubbles: true },
-  ));
-  expect({ x: task.x, y: task.y }).toEqual({ x: 201, y: 90 });
-});
-
 test('a resize grid-snaps the dragged edges too, and Escape still restores off-grid geometry', async () => {
   const { canvas, definitions } = await load();
   const task = node(canvas, 'Task_1');

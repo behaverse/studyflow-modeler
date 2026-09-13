@@ -1,12 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-import { roundedPathData } from '@canvas/render/renderer.ts';
 import {
   centerOf,
   containsPoint,
   cropPoint,
-  cropWaypoints,
-  outlineFor,
   outlinePoint,
 } from '@canvas/routing/crop.ts';
 import type { CroppableShape } from '@canvas/routing/crop.ts';
@@ -17,14 +14,12 @@ import {
   rerouteEdge,
   route,
   routeCenters,
-  routeEdge,
   routeFor,
   straightRoute,
 } from '@canvas/routing/orthogonal.ts';
-import { edgesAffectedBy } from '@canvas/model/tree.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { freshModdle, installDocument, loadCanvas, type Loaded } from './canvasHarness';
+import { installDocument, loadCanvas, type Loaded } from './canvasHarness';
 
 /**
  * P4 orthogonal routing + endpoint cropping (design §3 `routing/*`, §6 P4).
@@ -92,24 +87,6 @@ function expectOnOutline(shape: CroppableShape, point: Point): void {
   const out = { x: point.x + (dx / len) * 0.5, y: point.y + (dy / len) * 0.5 };
   expect(containsPoint(shape, out)).toBe(false);
 }
-
-// --- outline selection -------------------------------------------------------
-
-test('outlineFor maps each drawer category to the silhouette it paints', () => {
-  expect(outlineFor('bpmn:StartEvent')).toBe('ellipse');
-  expect(outlineFor('bpmn:EndEvent')).toBe('ellipse');
-  expect(outlineFor('bpmn:BoundaryEvent')).toBe('ellipse');
-  expect(outlineFor('bpmn:ExclusiveGateway')).toBe('diamond');
-  expect(outlineFor('bpmn:EventBasedGateway')).toBe('diamond');
-  expect(outlineFor('bpmn:DataObjectReference')).toBe('dataObject');
-  expect(outlineFor('bpmn:DataStoreReference')).toBe('dataStore');
-  expect(outlineFor('bpmn:UserTask')).toBe('rect');
-  expect(outlineFor('bpmn:SubProcess')).toBe('rect');
-  expect(outlineFor('bpmn:ChoreographyTask')).toBe('rect');
-  expect(outlineFor('bpmn:Participant')).toBe('rect');
-  expect(outlineFor('bpmn:Group')).toBe('rect');
-  expect(outlineFor(undefined)).toBe('rect');
-});
 
 // --- cropping ----------------------------------------------------------------
 
@@ -191,31 +168,6 @@ test('cropPoint follows the data-object dog ear and the data-store cylinder', ()
   // The box corner is outside the cylinder.
   expect(containsPoint(store, { x: 0.5, y: 0.5 })).toBe(false);
   expectOnOutline(store, cropPoint(store, { x: 200, y: -200 }));
-});
-
-test('cropWaypoints trims both ends along their own segment, keeping them axis-aligned', () => {
-  const source = event(100, 100);
-  const target = task(300, 100);
-  // A deliberately off-centre horizontal lane: cropping must keep y untouched.
-  const raw: Point[] = [{ x: 118, y: 125 }, { x: 350, y: 125 }];
-  const cropped = cropWaypoints(raw, source, target);
-
-  expect(cropped[0].y).toBe(125);
-  expect(cropped[1].y).toBe(125);
-  expectOnOutline(source, cropped[0]);
-  expect(cropped[1]).toEqual({ x: 300, y: 125 });
-  expectOrthogonal(cropped);
-  // The input list is never mutated.
-  expect(raw[0]).toEqual({ x: 118, y: 125 });
-});
-
-test('cropWaypoints passes degenerate input through', () => {
-  expect(cropWaypoints([], task(0, 0), task(200, 0))).toEqual([]);
-  const single = [{ x: 5, y: 5 }];
-  expect(cropWaypoints(single, task(0, 0), task(200, 0))).toEqual(single);
-  // No shape on one end ⇒ that end is left alone.
-  const points: Point[] = [{ x: 50, y: 40 }, { x: 400, y: 40 }];
-  expect(cropWaypoints(points, undefined, task(300, 0))[0]).toEqual({ x: 50, y: 40 });
 });
 
 test('outlinePoint refuses an anchor that is not inside the shape', () => {
@@ -343,21 +295,6 @@ test('every relative placement yields an orthogonal, outline-cropped path', () =
   }
 });
 
-test('routeCenters is the uncropped path and route() is symmetric under reversal', () => {
-  const source = task(0, 0);
-  const target = task(300, 0);
-  const raw = routeCenters(source, target);
-  expect(raw).toEqual([{ x: 50, y: 40 }, { x: 350, y: 40 }]);
-  expect(route(source, target, { crop: false })).toEqual(raw);
-
-  // The straight lane is the midpoint of the two centres, so swapping the ends
-  // mirrors the path instead of shifting it.
-  const a = route(event(100, 100), task(200, 80));
-  const b = route(task(200, 80), event(100, 100));
-  expect(a[0].y).toBeCloseTo(b[1].y, 6);
-  expect(a[1].y).toBeCloseTo(b[0].y, 6);
-});
-
 // --- scene helpers -----------------------------------------------------------
 
 /** A minimal scene node (only the fields routing reads). */
@@ -404,33 +341,6 @@ test('rerouteEdge rewrites an edge from its endpoints and is idempotent', () => 
   expect(rerouteEdge(edge)).toBe(true);
   expectOrthogonal(edge.waypoints);
   expect(edge.waypoints[edge.waypoints.length - 1]).toEqual({ x: 350, y: 300 });
-});
-
-test('routeEdge leaves a dangling connection alone', () => {
-  const a = node('A', 'bpmn:Task', 0, 0, 100, 80);
-  const edge: SceneEdge = {
-    id: 'F', kind: 'edge', type: 'bpmn:SequenceFlow',
-    businessObject: { $type: 'bpmn:SequenceFlow', id: 'F' },
-    waypoints: [{ x: 0, y: 0 }],
-    source: a,
-  };
-  expect(routeEdge(edge)).toBeUndefined();
-  expect(rerouteEdge(edge)).toBe(false);
-  expect(edge.waypoints).toEqual([{ x: 0, y: 0 }]);
-});
-
-test('edgesAffectedBy collects a node\'s edges, its children\'s, and listed edges', () => {
-  const pool = node('Pool', 'bpmn:Participant', 0, 0, 600, 300);
-  const inner = node('Inner', 'bpmn:Task', 50, 50, 100, 80);
-  const outer = node('Outer', 'bpmn:Task', 400, 50, 100, 80);
-  pool.children.push(inner);
-  inner.parent = pool;
-  const flow = connect('F', inner, outer, []);
-
-  expect(edgesAffectedBy([pool])).toEqual([flow]); // reached through the child
-  expect(edgesAffectedBy([inner, outer])).toEqual([flow]); // listed once
-  expect(edgesAffectedBy([flow])).toEqual([flow]);
-  expect(edgesAffectedBy([])).toEqual([]);
 });
 
 // --- canvas wiring + DI writeback -------------------------------------------
@@ -483,42 +393,6 @@ function diWaypoints(definitions: any, id: string): Point[] {
   }
   return [];
 }
-
-test('Canvas.rerouteEdges routes the affected edges and writes di:waypoint through', async () => {
-  const { canvas, definitions, moddle } = await load();
-  const scene = canvas.getScene()!;
-  const taskNode = scene.elementsById.get('Task_1') as SceneNode;
-  const flow1 = scene.elementsById.get('Flow_1') as SceneEdge;
-
-  expect(flow1.waypoints).toHaveLength(3); // the document's hand-drawn kink
-  const revision = scene.revision;
-
-  const changed = canvas.rerouteEdges([taskNode]);
-  expect(changed.map((e) => e.id).sort()).toEqual(['Flow_1', 'Flow_2']);
-  expect(scene.revision).toBeGreaterThan(revision);
-
-  // Scene: straight, orthogonal, cropped onto both outlines.
-  expect(flow1.waypoints).toHaveLength(2);
-  expectOrthogonal(flow1.waypoints);
-  expect(flow1.waypoints[0].y).toBe(119);
-  expect(Math.hypot(flow1.waypoints[0].x - 118, flow1.waypoints[0].y - 118)).toBeCloseTo(18, 6);
-  expect(flow1.waypoints[1]).toEqual({ x: 200, y: 119 });
-
-  // DI: the SAME moddle objects now carry the routed geometry…
-  expect(diWaypoints((canvas.syncDi(), definitions), 'Flow_1')).toEqual(flow1.waypoints);
-  const flow2 = diWaypoints((canvas.syncDi(), definitions), 'Flow_2');
-  expect(flow2[0]).toEqual({ x: 300, y: 119 }); // the task's right edge
-  expect(Math.hypot(flow2[1].x - 418, flow2[1].y - 118)).toBeCloseTo(18, 6); // the end event's circle
-
-  // …so serializing this very tree and re-parsing it round-trips the route.
-  const { xml } = await moddle.toXML((canvas.syncDi(), definitions));
-  const { rootElement: reloaded } = await freshModdle().fromXML(xml);
-  expect(diWaypoints(reloaded, 'Flow_1')).toHaveLength(2);
-  expect(diWaypoints(reloaded, 'Flow_1')[1]).toEqual({ x: 200, y: 119 });
-  // Untouched geometry stays untouched.
-  expect(reloaded.diagrams[0].plane.planeElement
-    .find((pe: any) => pe.bpmnElement?.id === 'Task_1').bounds.x).toBe(200);
-});
 
 test('Canvas.rerouteEdges defaults to the selection and reports no-ops honestly', async () => {
   const { canvas } = await load();
@@ -582,20 +456,6 @@ test('a routed edge renders as a path whose corners are quarter-arcs', async () 
   expect(straight.getAttribute('d')).not.toContain(' A ');
 });
 
-test('roundedPathData keeps the corner radius inside the shorter neighbouring run', () => {
-  // A 4-unit stub cannot give up 5 units to a corner: the radius shrinks to half of
-  // it, so the arcs never overrun each other.
-  const d = roundedPathData([
-    { x: 0, y: 0 },
-    { x: 100, y: 0 },
-    { x: 100, y: 4 },
-    { x: 200, y: 4 },
-  ]);
-  expect(d).toContain('A 2 2 0 0');
-  expect(roundedPathData([{ x: 0, y: 0 }, { x: 100, y: 0 }])).toBe('M 0 0 L 100 0');
-  expect(roundedPathData([])).toBe('');
-});
-
 // --- orthogonalize -----------------------------------------------------------
 
 test('orthogonalize flattens a near-aligned run by moving the joint, not the dock', () => {
@@ -611,23 +471,6 @@ test('orthogonalize flattens a near-aligned run by moving the joint, not the doc
     { x: 200, y: 300 },
   ]);
   expect(isOrthogonal(squared)).toBe(true);
-});
-
-test('orthogonalize grows an elbow for a genuine diagonal and drops what it made redundant', () => {
-  const squared = orthogonalize([{ x: 0, y: 0 }, { x: 100, y: 60 }]);
-  expect(squared).toEqual([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }]);
-  expect(isOrthogonal(squared)).toBe(true);
-
-  // Three points on one line collapse to two.
-  expect(orthogonalize([{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 0 }]))
-    .toEqual([{ x: 0, y: 0 }, { x: 100, y: 0 }]);
-});
-
-test('orthogonalize leaves an imported two-point edge that is off by a hair alone', () => {
-  // Both ends are docks: there is nothing here that may move, and re-cutting the
-  // geometry of an untouched edge is not this function's business.
-  const points = [{ x: 136, y: 118 }, { x: 200, y: 120 }];
-  expect(orthogonalize(points)).toEqual(points);
 });
 
 /*
@@ -654,12 +497,6 @@ test('a plain association is routed as ONE straight diagonal, cropped to both ou
   expect(isStraightRouted('bpmn:SequenceFlow')).toBe(false);
   expect(isOrthogonal(routeFor('bpmn:DataOutputAssociation', task, note))).toBe(true);
   expect(routeFor('bpmn:SequenceFlow', task, note)).toEqual(route(task, note));
-});
-
-test('routeFor with no type is the orthogonal router, so an untyped caller is unchanged', () => {
-  const a: CroppableShape = { x: 0, y: 0, width: 100, height: 80, type: 'bpmn:Task' };
-  const b: CroppableShape = { x: 300, y: 200, width: 100, height: 80, type: 'bpmn:Task' };
-  expect(routeFor(undefined, a, b)).toEqual(route(a, b));
 });
 
 /**

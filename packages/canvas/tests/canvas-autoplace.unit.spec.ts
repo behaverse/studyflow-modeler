@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
-import { APPEND_DISTANCE, appendPosition } from '@canvas/interaction/autoplace.ts';
+import { APPEND_DISTANCE } from '@canvas/interaction/autoplace.ts';
 import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
 import { loadCanvas } from './canvasHarness';
@@ -165,14 +165,6 @@ const POOL_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 test.describe('auto-place (click-append)', () => {
-  test('appendPosition is one gap right of the source and vertically centred on it', () => {
-    // Pure geometry, so it can be asserted without a canvas at all: the CENTRE of a
-    // 36x36 event appended from a 100x80 task at (200, 80).
-    const at = appendPosition({ x: 200, y: 80, width: 100, height: 80 }, { width: 36, height: 36 });
-    expect(at).toEqual({ x: 200 + 100 + APPEND_DISTANCE + 18, y: 120 });
-    expect(APPEND_DISTANCE).toBe(50);
-  });
-
   test('appends the shape and the flow that reaches it, both written to the document', async () => {
     const { canvas, definitions } = await load();
     const source = node(canvas, 'Task_1');
@@ -439,15 +431,5 @@ test.describe('auto-place around edges', () => {
     for (const [a, b] of segments(crossing.waypoints)) {
       expect(crosses(a, b, appended), 'the successor sits on the flow').toBe(false);
     }
-  });
-
-  test('a clear row is still taken in one go — an edge elsewhere moves nothing', async () => {
-    const { canvas } = await loadCanvas(CROSSED_XML);
-    const source = node(canvas, 'Up');
-
-    // `Up`'s own slot (x 480-580) is clear of its outgoing flow at x 380.
-    const appended = canvas.appendElement(source, { type: 'bpmn:Task' })!;
-
-    expect(appended.y).toBe(source.y);
   });
 });

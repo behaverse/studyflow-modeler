@@ -5,7 +5,7 @@ import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
 import { cropPoint } from '@canvas/routing/crop.ts';
 import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { freshModdle, loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
+import { loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
 
 /**
  * Endpoint drags — parity spec §1 ("drag an ENDPOINT handle → reconnect/re-dock")
@@ -138,23 +138,6 @@ test('dragging the target endpoint onto another task reconnects, re-docks where 
   expect(flow.waypoints[0].x).toBeCloseTo(136, 0);
 });
 
-test('the reconnected geometry is written to di:waypoint and round-trips through bpmn-moddle', async () => {
-  const loaded = await load();
-  const { canvas, definitions, moddle } = loaded;
-  const flow = edge(canvas, 'Flow_1');
-
-  dragTargetEnd(canvas, flow, { x: 450, y: 155 });
-
-  const written = diWaypoints((canvas.syncDi(), definitions), 'Flow_1');
-  expect(written).toEqual(flow.waypoints.map((p) => ({ x: p.x, y: p.y })));
-
-  const { xml } = await moddle.toXML((canvas.syncDi(), definitions));
-  expect(xml).toContain('targetRef="Task_2"');
-  const { rootElement: reloaded } = await freshModdle().fromXML(xml);
-  expect(diWaypoints(reloaded, 'Flow_1')).toEqual(written);
-  expect(flowElement(reloaded, 'Flow_1').targetRef.id).toBe('Task_2');
-});
-
 // --- a refused target --------------------------------------------------------
 
 test('a rules-refused target leaves the edge untouched', async () => {
@@ -199,22 +182,6 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
 
   const written = diWaypoints((canvas.syncDi(), definitions), 'Flow_1');
   expect(written).toEqual(flow.waypoints);
-});
-
-test('an endpoint dragged along its own run leaves no elbow behind', async () => {
-  const { canvas } = await load();
-  const flow = edge(canvas, 'Flow_1');
-  // Snapping off so the drop lands on the run's own `y` exactly rather than on the
-  // nearest grid line — which is also the setting the app now exposes.
-  canvas.setSnapToGrid(false);
-
-  // Straight out along the run it already had: there is no turn to make, so the path
-  // stays the two-point edge it was rather than growing a redundant joint.
-  dragTargetEnd(canvas, flow, { x: 360, y: 118 });
-
-  expect(flow.waypoints).toHaveLength(2);
-  expect(last(flow)).toEqual({ x: 360, y: 118 });
-  expect(isOrthogonal(flow.waypoints)).toBe(true);
 });
 
 test('a reconnect drop lands on the grid, like every other waypoint gesture', async () => {

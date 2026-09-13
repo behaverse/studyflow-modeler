@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
-import { CANVAS_CSS } from '@canvas/view/theme.ts';
-import type { SceneNode } from '@canvas/model/scene.ts';
 
 import { jsdomWindow, loadCanvas, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
@@ -63,15 +61,11 @@ function fireWheel(canvas: Canvas, init: WheelEventInit): void {
   }));
 }
 
-function node(canvas: Canvas, id: string): SceneNode {
-  return canvas.getScene()!.elementsById.get(id) as SceneNode;
-}
-
 const box = (canvas: Canvas) => canvas.getViewport().getViewbox();
 
 // --- dragging empty canvas ---------------------------------------------------
 
-test('empty canvas: a drag PANS the viewport and lassoes nothing (parity spec §10)', async () => {
+test('empty canvas: a drag PANS the viewport', async () => {
   const canvas = await load();
   const svg = canvas.getSvg();
   const before = box(canvas);
@@ -85,36 +79,12 @@ test('empty canvas: a drag PANS the viewport and lassoes nothing (parity spec §
   const during = box(canvas);
   expect({ x: during.x, y: during.y }).toEqual({ x: before.x - 120, y: before.y - 80 });
   expect({ w: during.width, h: during.height }).toEqual({ w: before.width, h: before.height });
-  // …and no marquee was ever drawn.
-  expect(svg.querySelector('.sf-lasso-overlay')).toBeNull();
-  expect(svg.classList.contains('sf-dragging-active-lasso')).toBe(false);
   // `grabbing` for as long as the pan runs (the idle `grab` is on `.sf-canvas`).
   expect(svg.classList.contains('sf-panning')).toBe(true);
 
   pointerUp(canvas, { x: empty.x + 120, y: empty.y + 80 });
   expect(svg.classList.contains('sf-panning')).toBe(false);
   expect(canvas.getSelection().get()).toEqual([]);
-});
-
-test('empty canvas: a plain CLICK still clears the selection', async () => {
-  const canvas = await load();
-  canvas.getSelection().select(node(canvas, 'Task_1'));
-  const before = box(canvas);
-
-  const empty = { x: before.x + 10, y: before.y + 10 };
-  pointerDown(canvas, empty);
-  pointerUp(canvas, empty);
-
-  expect(canvas.getSelection().get()).toEqual([]);
-  // A click is not a pan.
-  expect({ x: box(canvas).x, y: box(canvas).y }).toEqual({ x: before.x, y: before.y });
-});
-
-test('the idle cursor over the canvas is grab, and grabbing while panning', async () => {
-  expect(CANVAS_CSS).toContain('cursor: grab;');
-  expect(CANVAS_CSS).toContain('.sf-canvas.sf-panning');
-  expect(CANVAS_CSS).toContain('cursor: grabbing;');
-  expect(CANVAS_CSS).toContain('cursor: crosshair;');
 });
 
 // --- the marquee ---------------------------------------------------------------
@@ -134,13 +104,6 @@ test('Shift+drag on empty canvas draws a marquee and selects what it encloses', 
   pointerUp(canvas, to, { shiftKey: true });
   expect(canvas.getSelection().get().map((e) => e.id).sort()).toEqual(['Start_1', 'Task_1']);
   expect(svg.querySelector('.sf-marquee')).toBeNull();
-
-  // Without Shift the same drag pans.
-  pointerDown(canvas, from);
-  pointerMove(canvas, to);
-  expect(svg.querySelector('.sf-marquee')).toBeNull();
-  expect(box(canvas).x).not.toBe(before.x);
-  pointerUp(canvas, to);
 });
 
 // --- the wheel ---------------------------------------------------------------

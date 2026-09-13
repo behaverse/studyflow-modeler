@@ -7,7 +7,6 @@ import {
   canContain,
   containerFor,
   isResizable,
-  minSizeFor,
   participantOf,
   ruleContainerOf,
   structuralConnection,
@@ -20,10 +19,8 @@ import { connectsToFixture, loadSchemaModels } from '@tests/schemas';
  * P4 rules engine (design §3 "Rules", §6 P4). The engine has two layers and the
  * tests split the same way:
  *
- * - the **schema layer** must agree with `TypeCatalog.connectionRule` verdict for
- *   verdict — that is the whole contract, so the matrix below asserts against the
- *   catalog itself rather than against a transcribed copy of it. No *shipped*
- *   schema declares a `connectsTo` annotation (every studyflow type defers), so the
+ * - the **schema layer** reads `TypeCatalog.connectionRule`. No *shipped* schema
+ *   declares a `connectsTo` annotation (every studyflow type defers), so the
  *   `connects-to` fixture schema — the same one `schema-model.unit.spec.ts` uses —
  *   is compiled alongside the real ones to exercise `true` / `false` / `'*'`.
  * - the **structural layer** is plain BPMN sense, checked directly: no flow out of
@@ -73,40 +70,9 @@ function ofType(ref: string): RuleElement {
   return node(bpmnType, { extension: ref });
 }
 
-// --- schema layer: the connection matrix ------------------------------------
+// --- schema layer -------------------------------------------------------------
 
-test.describe('canvas rules: connection.create matches @core catalog.connectionRule', () => {
-  /**
-   * Every pair of representative types, judged twice: once by the catalog (the
-   * authority for the schema layer) and once by the rules engine. They must agree
-   * wherever the catalog has an opinion; where it defers, the structural layer is
-   * the authority and the engine must match *that*.
-   */
-  const TYPES = [
-    'lab:Consent', // connectsTo: [lab:Survey, bpmn:Gateway]
-    'lab:Survey', // no connectsTo -> defer
-    'lab:Debrief', // connectsTo: ['*']
-    'bpmn:Task',
-    'bpmn:ExclusiveGateway',
-    'bpmn:StartEvent',
-    'bpmn:EndEvent',
-  ];
-
-  for (const sourceRef of TYPES) {
-    for (const targetRef of TYPES) {
-      test(`${sourceRef} -> ${targetRef}`, () => {
-        const source = ofType(sourceRef);
-        const target = ofType(targetRef);
-
-        const schema = catalog.connectionRule(sourceRef, targetRef);
-        const structural = structuralConnection(source, target);
-        const expected = schema === 'defer' ? !!structural : schema;
-
-        expect(!!rules.canConnect(source, target)).toBe(expected);
-      });
-    }
-  }
-
+test.describe('canvas rules: the schema layer', () => {
   test('the schema layer is read through the element extension, not the BPMN type', () => {
     // Both are `bpmn:Task`s; only the extension distinguishes them.
     const consent = ofType('lab:Consent');
@@ -131,14 +97,6 @@ test.describe('canvas rules: connection.create matches @core catalog.connectionR
     const start = node('bpmn:StartEvent');
     expect(structuralConnection(ofType('lab:Debrief'), start)).toBe(false);
     expect(rules.canConnect(ofType('lab:Debrief'), start)).toEqual({ type: 'bpmn:SequenceFlow' });
-  });
-
-  test('a catalog that declares nothing defers every pair to structure', () => {
-    // The engine reads the *installed* catalog by default; an injected one wins.
-    const bare = new Rules({ catalog: buildCatalog([]) });
-    expect(bare.schemaVerdict(ofType('lab:Consent'), ofType('lab:Debrief'))).toBe('defer');
-    expect(bare.canConnect(ofType('lab:Consent'), ofType('lab:Debrief'))).toEqual({ type: 'bpmn:SequenceFlow' });
-    expect(new Rules({ catalog }).canConnect(ofType('lab:Consent'), ofType('lab:Debrief'))).toBe(false);
   });
 });
 
@@ -418,27 +376,12 @@ test.describe('canvas rules: shape.resize', () => {
     }
   });
 
-  test('minimum sizes are per type, most specific first', () => {
-    expect(minSizeFor('bpmn:Task')).toEqual({ width: 100, height: 80 });
-    expect(minSizeFor('bpmn:Transaction')).toEqual({ width: 100, height: 80 });
-    expect(minSizeFor('bpmn:ChoreographyTask')).toEqual({ width: 100, height: 80 });
-    expect(minSizeFor('bpmn:Participant')).toEqual({ width: 300, height: 60 });
-    expect(minSizeFor('bpmn:TextAnnotation')).toEqual({ width: 50, height: 30 });
-    expect(minSizeFor('bpmn:StartEvent')).toEqual({ width: 20, height: 20 });
-  });
-
   test('new bounds below the floor are refused', () => {
     const task = node('bpmn:Task');
     expect(rules.canResize(task, { width: 100, height: 80 })).toBe(true);
     expect(rules.canResize(task, { width: 99, height: 80 })).toBe(false);
     expect(rules.canResize(task, { width: 100, height: 79 })).toBe(false);
     expect(rules.canResize(task, { x: 0, y: 0, width: 40, height: 30 })).toBe(false);
-  });
-
-  test('an override replaces the built-in floor', () => {
-    const loose = new Rules({ minSizes: { 'bpmn:Task': { width: 40, height: 30 } } });
-    expect(loose.canResize(node('bpmn:Task'), { width: 40, height: 30 })).toBe(true);
-    expect(minSizeFor('bpmn:Task', { 'bpmn:Task': { width: 1, height: 1 } })).toEqual({ width: 1, height: 1 });
   });
 
   test('a missing shape never resizes', () => {

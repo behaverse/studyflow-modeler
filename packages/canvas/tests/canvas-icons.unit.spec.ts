@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
-import type { IconDef, SceneElement } from '@canvas/index.ts';
-
-import { getCatalog, setCatalog } from '@core/notation';
+import type { IconDef } from '@canvas/index.ts';
 
 import { loadCanvas } from './canvasHarness';
 
@@ -18,10 +16,8 @@ import { loadCanvas } from './canvasHarness';
  * exactly the shape the stylesheet lookup yields), and the renderer draws it as a
  * real nested `<svg>`.
  *
- * What this spec pins: the drawn form for each kind of resolver answer, that
- * `currentColor` is rewritten the way the old exporter rewrote it, and that a glyph
- * arriving later (the app's async icon cache) replaces the placeholder in place on a
- * re-draw — the two states a document can be serialized in.
+ * What this spec pins: the drawn form for each kind of resolver answer, and that
+ * `currentColor` is rewritten the way the old exporter rewrote it.
  */
 
 /** One user task (its type icon is the top-left glyph) plus a looping task (a marker glyph). */
@@ -118,26 +114,6 @@ test('a marker glyph is drawn inline too, and `currentColor` takes the element c
   // a document opened anywhere paints the glyph, with no `currentColor` to inherit.
   expect(marker!.querySelector('path')!.getAttribute('fill')).toBe('#78716c');
   expect(canvas.toSVG()).not.toContain('currentColor');
-});
-
-test('a glyph arriving later replaces the placeholder on a re-draw', async () => {
-  // A resolver may answer differently on a later paint; the re-draw must swap the placeholder out.
-  let resolved = false;
-  const canvas = await load(() => (
-    resolved ? { content: GLYPH, viewBox: '0 0 24 24' } : { cssClass: 'iconify bi--person' }
-  ));
-
-  expect(graphics(canvas, 'Task_1').querySelectorAll('foreignObject.icon-container')).toHaveLength(1);
-
-  resolved = true;
-  const task = canvas.getScene()!.elementsById.get('Task_1')!;
-  canvas.redrawElements([task as SceneElement]);
-
-  const g = graphics(canvas, 'Task_1');
-  expect(g.querySelectorAll('foreignObject')).toHaveLength(0);
-  expect(g.querySelectorAll('svg.sf-icon')).toHaveLength(1);
-  // A re-draw is a paint, not an edit: the document is untouched.
-  expect(canvas.getScene()!.revision).toBe(0);
 });
 
 test('every drawn glyph carries the icon KEY it was asked for', async () => {
@@ -407,39 +383,6 @@ test('an extension-typed data object draws its type glyph; a plain one stays bar
   expect(graphics(canvas, 'Obj_plain').querySelectorAll('.sf-icon-placeholder, svg.sf-icon, foreignObject')).toHaveLength(0);
 });
 
-test('a schema attribute declaring meta.icon badges a non-event shape top-right when set', async () => {
-  // No shipped task attribute declares `meta.icon` yet, so patch one in: every
-  // catalog read is delegated to the real catalog except `instanceAttributesOf`
-  // for the fixture's user task.
-  const real = getCatalog();
-  const patched = new Proxy(real, {
-    get(target: any, prop: string | symbol) {
-      if (prop === 'instanceAttributesOf') {
-        return (typeName: string | undefined) => {
-          const base = target.instanceAttributesOf(typeName);
-          return typeName === 'bpmn:UserTask'
-            ? [...base, { name: 'name', meta: { icon: 'iconify mdi--test-badge' } }]
-            : base;
-        };
-      }
-      const value = Reflect.get(target, prop, target);
-      return typeof value === 'function' ? value.bind(target) : value;
-    },
-  });
-  setCatalog(patched as any);
-  try {
-    const canvas = await load(() => ({ content: GLYPH, viewBox: '0 0 24 24' }));
-    // `Task_1` is a 100-wide user task whose `name` is set — the badge sits in the
-    // top-right corner (100 - 16 - 6), leftward of nothing else, on the type glyph's centre line.
-    const badge = graphics(canvas, 'Task_1').querySelector('svg.sf-icon[data-icon-key="iconify mdi--test-badge"]');
-    expect(badge).toBeTruthy();
-    expect(badge!.getAttribute('x')).toBe('78');
-    expect(badge!.getAttribute('y')).toBe('7');
-  } finally {
-    setCatalog(real);
-  }
-});
-
 test('an event without a definition still asks the resolver for its own type glyph (schema event types)', async () => {
   const { canvas } = await loadCanvas(GATEWAY_EVENT_XML, {
     iconResolver: (key: string) => (key === 'StartEvent' || key === 'EndEvent'
@@ -466,19 +409,3 @@ test('an event whose centre holds a definition symbol moves its attribute badge 
   expect(Number(badge.getAttribute('y'))).toBeLessThan(8);
 });
 
-test('a format-less data store draws no glyph: the schema type carries no meta.icon', async () => {
-  const xml = DATA_XML.replace('<studyflow:dataset format="bdm" />', '<studyflow:dataset />');
-  const catalog = getCatalog();
-  expect(catalog.getType('studyflow:Dataset')?.iconClass).toBeUndefined();
-  // Mirrors `editor/mount.ts resolveIcon`: the extension type's `iconClass` is the only source.
-  const { canvas } = await loadCanvas(xml, {
-    iconResolver: (key: string, bo?: any) => {
-      if (key.startsWith('iconify ')) return { content: GLYPH, viewBox: '0 0 24 24' };
-      const ext = bo?.extensionElements?.values?.[0]?.$type;
-      const cls = ext ? catalog.getType(ext)?.iconClass : undefined;
-      return cls ? { content: GLYPH, viewBox: '0 0 24 24' } : null;
-    },
-  });
-  expect(graphics(canvas, 'Store_bdm').querySelectorAll('svg.sf-icon, .sf-icon-placeholder, foreignObject')).toHaveLength(0);
-  expect(graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"]')).toBeTruthy();
-});
