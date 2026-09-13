@@ -43,15 +43,19 @@ export function blankDiagram(): Buffer {
   return readFileSync(path.join(process.cwd(), 'assets/new_diagram.bpmn'));
 }
 
+/** The example's `.studyflow.yaml` text, as its file holds it or its PNG embeds it. */
+export function exampleText(name: string): string {
+  const file = examplePath(name);
+  return file.endsWith('.png') ? extractStudyflowFromPng(readFileSync(file)) : readFileSync(file, 'utf8');
+}
+
 let schemaModdle: Promise<any> | undefined;
 
-/** The example as BPMN XML: what the YAML in its file, or embedded in its PNG, spells. */
+/** The example as BPMN XML: what its YAML spells. */
 export async function exampleXml(name: string): Promise<string> {
-  const file = examplePath(name);
-  const yaml = file.endsWith('.png') ? extractStudyflowFromPng(readFileSync(file)) : readFileSync(file, 'utf8');
   // Built on first use: most e2e workers never read an example's XML.
   schemaModdle ??= import('./schemas').then(({ freshModdle }) => freshModdle());
-  return studyflowToXml(yaml, await schemaModdle);
+  return studyflowToXml(exampleText(name), await schemaModdle);
 }
 
 export async function exampleStudyflow(name: string, moddle: any): Promise<string> {
