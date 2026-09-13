@@ -10,7 +10,7 @@ import { freshModdle } from '@tests/schemas';
 
 /** The `.studyflow.yaml` spelling: the short forms the writer emits, every shipped file spelled that way, and the long forms the reader still takes. */
 
-const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'tests/fixtures/state-properties.studyflow');
+const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'packages/core/tests/fixtures/state-properties.studyflow.yaml');
 
 test.describe('studyflow YAML format', () => {
   test('the long spellings still load: value wrappers, an element list, a diagram section, geometry as mappings', async () => {

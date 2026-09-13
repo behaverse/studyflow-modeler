@@ -10,7 +10,7 @@ import { exampleNames, exampleText } from '@tests/utils';
 /** Exported `.bpmn` carries the full `ioSpecification`; reading it back folds it into the data associations. */
 
 /** Draws its data associations in core types alone. */
-const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'tests/fixtures/state-properties.studyflow');
+const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'packages/core/tests/fixtures/state-properties.studyflow.yaml');
 
 /** The compact form the canvas edits: what the `.bpmn` export lowers. */
 async function canvasForm(text: string): Promise<string> {
