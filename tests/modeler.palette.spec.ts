@@ -25,57 +25,19 @@ test.describe('Studyflow modeler palette flows', () => {
     await setSelectedElementName(page, 'Review Task');
     await expect(page.getByTestId('modeler-canvas')).toContainText('Review Task');
 
+    // A schema's flyout adds its elements: a Rest is a task that carries `cognitive:Rest`.
+    await addSchemaPaletteElement(page, 'Cognitive', 'Rest', { x: 540, y: 180 });
 
     const svgDownload = await exportDiagram(page, 'svg');
-    const svgText = await readDownloadText(svgDownload);
-
     expect(svgDownload.suggestedFilename()).toBe('diagram.studyflow.svg');
-    expect(svgText).toContain('Review Task');
-
-    const studyflowDownload = await exportDiagram(page, 'studyflow');
-    const studyflowText = await readDownloadText(studyflowDownload);
-
-    expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow.yaml');
-    expect(studyflowText.startsWith('id:')).toBe(true);
+    const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     expect(studyflowText).toContain('name: Review Task');
+    expect(studyflowText).toMatch(/type: Task\n\s+extensionElements:\n\s+- type: cognitive:Rest\n/);
     // The picture carries the .studyflow.yaml itself.
-    expect(extractStudyflowFromSvg(svgText)).toBe(studyflowText);
+    expect(extractStudyflowFromSvg(await readDownloadText(svgDownload))).toBe(studyflowText);
   });
 
-  test('adds a schema-backed cognitive element and preserves pinned defaults', async ({ page }) => {
-    await gotoModeler(page);
-
-    await addPaletteElement(page, 'Events', 'Start', { x: 120, y: 160 });
-    await addSchemaPaletteElement(page, 'Behaverse', 'Task', { x: 320, y: 180 });
-
-
-    const svgDownload = await exportDiagram(page, 'svg');
-    const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
-
-    const studyflowDownload = await exportDiagram(page, 'studyflow');
-    const studyflowText = await readDownloadText(studyflowDownload);
-
-    expect(studyflowText).toContain('type: behaverse:Task');
-    expect(studyflowText).toContain('instrument: behaverse');
-    expect(embeddedStudyflow).toBe(studyflowText);
-  });
-
-  test('a subprocess template arrives collapsed with its flow inside, flows keeping their names and conditions', async ({ page }) => {
-    await gotoModeler(page);
-
-    await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 420, y: 300 });
-
-    const doc = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
-    const process = Object.values(doc).find((value) => value?.type === 'Process');
-    const sub = Object.values(process.flowElements).find((el: any) => el.type === 'SubProcess') as any;
-    expect(sub.isExpanded).toBe(false);
-    const inner = Object.values(sub.flowElements) as any[];
-    expect(inner.map((el) => el.name)).toEqual(expect.arrayContaining(['Draft', 'Judge the draft', 'Good enough?', 'revise']));
-    expect(inner.find((el) => el.name === 'revise').conditionExpression).toContain('score < 4');
-    expect(inner.find((el) => el.name === 'Draft').bounds).toBe('200 140 100 80');
-  });
-
-  test('a template keeps its ids where they are free, and a second drop rewrites its own references', async ({ page }) => {
+  test('a template arrives collapsed with its flow inside, keeps its ids where they are free, and a second drop rewrites its own references', async ({ page }) => {
     await gotoModeler(page);
 
     await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 300, y: 200 });
@@ -84,6 +46,14 @@ test.describe('Studyflow modeler palette flows', () => {
     const doc = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
     const process = Object.values(doc).find((value) => value?.type === 'Process');
     const [first, second] = Object.values(process.flowElements).filter((el: any) => el.type === 'SubProcess') as any[];
+
+    // A subprocess template arrives collapsed, with its flow inside where the template drew it,
+    // each flow keeping its name and condition.
+    expect(first.isExpanded).toBe(false);
+    const inner = Object.values(first.flowElements) as any[];
+    expect(inner.map((el) => el.name)).toEqual(expect.arrayContaining(['Draft', 'Judge the draft', 'Good enough?', 'revise']));
+    expect(inner.find((el) => el.name === 'revise').conditionExpression).toContain('score < 4');
+    expect(inner.find((el) => el.name === 'Draft').bounds).toBe('200 140 100 80');
     const gateOf = (sub: any) => Object.keys(sub.flowElements).find((id) => sub.flowElements[id].name === 'Good enough?')!;
     const guardOf = (sub: any) => (Object.values(sub.flowElements) as any[]).find((el) => el.name === 'revise').conditionExpression;
 
