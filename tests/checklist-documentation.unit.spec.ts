@@ -11,38 +11,23 @@ const DOC = `id: checklist_probe
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 P:
-  type: bpmn:Process
+  type: Process
   flowElements:
     T1:
-      type: bpmn:Task
+      type: Task
       documentation: Prose about the step.
       checklist: |-
         - [x] consent approved
         - [ ] pilot reviewed
-    End:
-      type: bpmn:EndEvent
-    F1:
-      type: bpmn:SequenceFlow
-      sourceRef: T1
-      targetRef: End
 `;
 
 test.describe('checklist as marked documentation', () => {
-  test('serializes as a studyflow:checklist-marked bpmn:documentation entry', async () => {
-    const moddle = freshModdle();
-    const xml = await studyflowToXml(DOC, moddle);
+  test('serializes as a studyflow:checklist-marked bpmn:documentation entry, and reads back as the flat YAML pair', async () => {
+    const xml = await studyflowToXml(DOC, freshModdle());
     expect(xml).toContain('<bpmn:documentation>Prose about the step.</bpmn:documentation>');
     expect(xml).toMatch(/<bpmn:documentation studyflow:checklist="true">- \[x\] consent approved/);
     expect(xml).not.toContain('studyflow:checklist="- [x]');
-  });
-
-  test('round-trips through XML back to the flat YAML pair', async () => {
-    const moddle = freshModdle();
-    const xml = await studyflowToXml(DOC, moddle);
-    const back = await xmlToStudyflow(xml, freshModdle());
-    expect(back).toContain('documentation: Prose about the step.');
-    expect(back).toContain('checklist: |-');
-    expect(back).toContain('- [x] consent approved');
+    expect(await xmlToStudyflow(xml, freshModdle())).toBe(DOC);
   });
 
   test('the element view reads and writes the two entries independently', async () => {

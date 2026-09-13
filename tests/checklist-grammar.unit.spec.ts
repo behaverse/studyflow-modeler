@@ -5,50 +5,28 @@ import {
   serializeChecklistLines,
 } from '@core/document';
 
-/** The shared checklist grammar; pins that both surfaces agree on what a task line is. */
+/** The shared checklist grammar: the inspector edits lines, the Checklist dialog lists items built on them. */
 
-test.describe('line view (inspector editor)', () => {
-  test('dash tasks parse and round-trip losslessly', () => {
-    const text = '- [ ] consent\n- [x] debrief';
-    expect(serializeChecklistLines(parseChecklistLines(text))).toBe(text);
-  });
-
-  test('star and plus bullets are tasks too, and keep their bullet character', () => {
-    const text = '* [x] consent signed\n+ [ ] data archived';
+test('line view (inspector editor): what each line parses as, and what it serializes back to', () => {
+  const CASES: [label: string, text: string, kinds: string[], serialized: string][] = [
+    ['dash tasks round-trip', '- [ ] consent\n- [x] debrief', ['task', 'task'], '- [ ] consent\n- [x] debrief'],
+    ['star and plus bullets are tasks too, and keep their bullet', '* [x] consent signed\n+ [ ] data archived', ['task', 'task'], '* [x] consent signed\n+ [ ] data archived'],
+    ['lenient spacing and a capital X parse; the indent stays, the spacing is normalized', '  -   [X]   done', ['task'], '  - [x] done'],
+    ['notes and headings stay plain rows, verbatim', '# Protocol\n- [ ] item\nfree-floating note', ['plain', 'task', 'plain'], '# Protocol\n- [ ] item\nfree-floating note'],
+  ];
+  for (const [label, text, kinds, serialized] of CASES) {
     const lines = parseChecklistLines(text);
-    expect(lines.every((line) => line.kind === 'task')).toBe(true);
-    expect(serializeChecklistLines(lines)).toBe(text);
-  });
-
-  test('lenient spacing parses; indentation survives the round trip', () => {
-    const text = '  -   [X]   done';
-    const lines = parseChecklistLines(text);
-    expect(lines[0]).toMatchObject({ kind: 'task', checked: true, text: 'done', indent: '  ' });
-  });
-
-  test('notes and headings stay as plain rows, verbatim', () => {
-    const text = '# Protocol\n- [ ] item\nfree-floating note';
-    const lines = parseChecklistLines(text);
-    expect(lines.map((line) => line.kind)).toEqual(['plain', 'task', 'plain']);
-    expect(serializeChecklistLines(lines)).toBe(text);
-  });
+    expect(lines.map((line) => line.kind), label).toEqual(kinds);
+    expect(serializeChecklistLines(lines), label).toBe(serialized);
+  }
 });
 
-test.describe('item view (Checklist dialog)', () => {
-  test('tasks, plain bullets, and bare lines become items; blanks drop', () => {
-    const items = checklistItems('- [x] a\n\n* plain bullet\nbare note\n');
-    expect(items).toEqual([
-      { text: 'a', checked: true, isCheckbox: true },
-      { text: 'plain bullet', checked: false, isCheckbox: false },
-      { text: 'bare note', checked: false, isCheckbox: false },
-    ]);
-  });
-
-  test('both views agree on what counts as a checkbox (the old divergence)', () => {
-    const text = '* [x] star-bulleted task';
-    const [line] = parseChecklistLines(text);
-    const [item] = checklistItems(text);
-    expect(line.kind).toBe('task');
-    expect(item.isCheckbox).toBe(true);
-  });
+test('item view (Checklist dialog): tasks of any bullet, plain bullets, and bare lines become items; blanks drop', () => {
+  const items = checklistItems('- [x] a\n* [ ] b\n\n* plain bullet\nbare note\n');
+  expect(items).toEqual([
+    { text: 'a', checked: true, isCheckbox: true },
+    { text: 'b', checked: false, isCheckbox: true },
+    { text: 'plain bullet', checked: false, isCheckbox: false },
+    { text: 'bare note', checked: false, isCheckbox: false },
+  ]);
 });
