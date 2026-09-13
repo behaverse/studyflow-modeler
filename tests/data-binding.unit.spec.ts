@@ -4,7 +4,10 @@ import type { Editor } from '@modeler/editor/port';
 import { runUpdateDataBinding, runUpdateTransformation } from '@modeler/inspector/commands';
 import { freshModdle } from './schemas';
 
-/** A data association's transformation, as the inspector writes it: the binding field on every keystroke, the expression field on blur. */
+/**
+ * A data association as the inspector writes it: bound to a property from the picker, its transformation
+ * set by the binding field on every keystroke, or by the expression field on blur.
+ */
 
 /** A step with one input association, in a study that declares one property; `held` ids the rest of the document holds. */
 function build() {
