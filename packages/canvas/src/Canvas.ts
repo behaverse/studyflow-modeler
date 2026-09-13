@@ -38,6 +38,11 @@ export interface CanvasOptions extends RendererOptions {
   container?: HTMLElement;
   onWarning?: ImportOptions['onWarning'];
   snapToGrid?: boolean;
+  /**
+   * Import only the main canvas: nothing inside a sub-process, collapsed or expanded. For views
+   * that read rather than edit, such as a thumbnail or an overview; drilling in finds it empty.
+   */
+  mainCanvasOnly?: boolean;
 }
 
 export interface CanvasViewbox extends Viewbox {
@@ -71,7 +76,7 @@ export class Canvas {
   private readonly rules: Rules;
   private readonly gestures: Gestures;
   private readonly customLayers = new Map<string, SVGGElement>();
-  private readonly onWarning?: ImportOptions['onWarning'];
+  private readonly importOptions: ImportOptions;
   private snapToGrid: boolean;
   private scene?: Scene;
   private mutator?: Mutator;
@@ -83,7 +88,7 @@ export class Canvas {
   constructor(options: CanvasOptions = {}) {
     const doc = ownerDocument();
     this.container = options.container ?? doc.createElement('div');
-    this.onWarning = options.onWarning;
+    this.importOptions = { onWarning: options.onWarning, mainCanvasOnly: options.mainCanvasOnly };
     this.snapToGrid = options.snapToGrid ?? true;
     this.root = create('svg', { class: 'sf-canvas', width: '100%', height: '100%', preserveAspectRatio: 'xMidYMid meet' }) as SVGSVGElement;
     this.root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -172,7 +177,7 @@ export class Canvas {
     this.selection.clear();
     this.selection.forget();
     this.selection.setHovered(undefined);
-    this.scene = importDefinitions(definitions, { onWarning: this.onWarning });
+    this.scene = importDefinitions(definitions, this.importOptions);
     this.mutator = new Mutator(this.scene, this.bus);
     this.drag = new Drag({
       mutator: this.mutator,

@@ -12,6 +12,7 @@ import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION } from '@canvas/model/d
 import { FONT_PROPERTY, parseFont } from '@canvas/model/font.ts';
 import { mintLabel, syncLabel } from '@canvas/model/labels.ts';
 import { asList, asModdle, parentOf, prop, refBO } from '@canvas/model/moddle.ts';
+import { isExpandable } from '@canvas/model/tree.ts';
 import type {
   Drawable,
   ModdleObject,
@@ -26,6 +27,8 @@ import { labelHeightFor, nodeLabelBox } from '@canvas/render/labels.ts';
 
 export interface ImportOptions {
   onWarning?: (message: string) => void;
+  /** Leave out whatever sits inside a sub-process (any expandable container), collapsed or expanded. */
+  mainCanvasOnly?: boolean;
 }
 
 const SHAPE_TYPE = 'bpmndi:BPMNShape';
@@ -53,7 +56,7 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
   const warn = options.onWarning ?? ((message: string) => console.warn(`[canvas import] ${message}`));
   const elementsById = new Map<string, SceneElement>();
   const byBusinessObject = new Map<ModdleObject, Drawable>();
-  const planes = collectPlanes(definitions);
+  const planes = collectPlanes(definitions, options.mainCanvasOnly);
 
   const index = (element: Drawable): void => {
     if (element.id) {
@@ -131,12 +134,13 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
   return scene;
 }
 
-function collectPlanes(definitions: ModdleObject): PlaneSource[] {
+function collectPlanes(definitions: ModdleObject, mainCanvasOnly = false): PlaneSource[] {
   const sources: PlaneSource[] = [];
   for (const diagram of asList(prop(definitions, 'diagrams'))) {
     const plane = asModdle(prop(diagram, 'plane'));
     if (!plane) continue;
-    const elements = asList(prop(plane, 'planeElement'));
+    const elements = asList(prop(plane, 'planeElement'))
+      .filter((di) => !mainCanvasOnly || !insideSubProcess(asModdle(prop(di, 'bpmnElement'))));
     sources.push({
       root: asModdle(prop(plane, 'bpmnElement')),
       shapes: elements.filter((el) => el.$type === SHAPE_TYPE),
@@ -144,6 +148,19 @@ function collectPlanes(definitions: ModdleObject): PlaneSource[] {
     });
   }
   return sources;
+}
+
+/**
+ * Whether `businessObject` sits inside a sub-process, however deep. A data association's parent is
+ * its activity, so the walk starts above it: a sub-process's own associations stay on the main canvas.
+ */
+// ponytail: a message flow into a sub-process's contents keeps its line and loses its end; drop it too if one shows.
+function insideSubProcess(businessObject: ModdleObject | undefined): boolean {
+  const associated = businessObject?.$type === DATA_INPUT_ASSOCIATION || businessObject?.$type === DATA_OUTPUT_ASSOCIATION;
+  for (let p = parentOf(associated ? parentOf(businessObject) : businessObject); p; p = parentOf(p)) {
+    if (isExpandable(p.$type)) return true;
+  }
+  return false;
 }
 
 function buildNode(shape: ModdleObject, warn: (m: string) => void): SceneNode | undefined {

@@ -24,7 +24,7 @@ An edit, end to end: the modeler parses the XML and hands the definitions to `im
 
 ## What the host provides and gets
 
-- Options: `iconResolver` (a glyph for a type), `labelText` (a caption's text, placeholders resolved), `onWarning` (import problems).
+- Options: `iconResolver` (a glyph for a type; answering `null` draws none), `labelText` (a caption's text, placeholders resolved), `onWarning` (import problems), `mainCanvasOnly` (import nothing inside a sub-process, for a view that only reads, such as a thumbnail).
 - On the event bus (`getEventBus()`): `SelectionChanged`, `ElementChanged`, `ElementsChanged`, `ElementsRemoved`, `RootSet`. The `a` key sends the command `OpenAppendMenu`, which the host must answer.
 - `getHostLayer(name)` gives the host a layer of its own above the diagram (the token simulation draws there). Outside a browser, `setDocument` supplies the DOM.
 

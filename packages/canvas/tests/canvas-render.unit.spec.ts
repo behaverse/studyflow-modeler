@@ -373,3 +373,30 @@ test('a cognitive task presents itself, and renaming the pool on its band redraw
   expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Robot']));
   expect(textsOf(canvas, 'Play')).not.toEqual(expect.arrayContaining(['Reachy Mini']));
 });
+
+// --- main canvas only ------------------------------------------------------------
+
+/** Every DI shape and edge the definitions carry, across their planes. */
+const diCount = (definitions: any): number =>
+  (definitions.diagrams ?? []).reduce((n: number, diagram: any) => n + (diagram.plane?.planeElement?.length ?? 0), 0);
+
+test('mainCanvasOnly imports nothing inside a sub-process, collapsed or expanded', async () => {
+  const xml = await exampleXml('sklearn_pipeline');
+  const full = await loadCanvas(xml);
+  const main = await loadCanvas(xml, { mainCanvasOnly: true });
+
+  // `select_model` is collapsed and `prepare_data` expanded: both frames stay, neither's contents.
+  for (const id of ['select_model', 'prepare_data']) expect(main.canvas.get(id), id).toBeTruthy();
+  for (const id of ['cross_validate', 'build_pipeline', 'select_features', 'split_train_test']) {
+    expect(full.canvas.get(id), id).toBeTruthy();
+    expect(main.canvas.get(id), id).toBeUndefined();
+  }
+  expect(main.canvas.toSVG()).not.toContain('data-element-id="cross_validate"');
+  // Import only reads: the definitions keep every DI element, so the option can run on a live document.
+  expect(diCount(main.definitions)).toBe(diCount(full.definitions));
+});
+
+test('mainCanvasOnly keeps the data associations of a sub-process on the main canvas', async () => {
+  const { canvas } = await loadCanvas(await exampleXml('spirit2025'), { mainCanvasOnly: true });
+  expect(canvas.get('DataOutput_T1_AE')).toBeTruthy();
+});
