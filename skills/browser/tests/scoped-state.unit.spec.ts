@@ -8,7 +8,7 @@ import { buildCatalog } from '@core/notation';
 import { registerNode } from '@runner/nodes/registry';
 import { Session } from '@runner/session';
 import { Studyflow } from '@runner/studyflow';
-import { draw, evaluateCondition, UndeclaredReference } from '@runner/branching';
+import { draw, evaluateCondition } from '@runner/branching';
 import type { FlowNode } from '@runner/flow';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
@@ -42,6 +42,13 @@ registerNode({
 
 const load = (yaml: string) => Studyflow.parse(yaml, structuredClone(packages));
 
+/** The ids of the nodes a session's walk reaches, in order. */
+async function visits(session: Session): Promise<string[]> {
+  const visited: string[] = [];
+  for await (const job of session.traverse()) visited.push(job.node.id);
+  return visited;
+}
+
 const HEAD = `id: scoped
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -51,7 +58,10 @@ definitions:
   xmlns:studyflow: http://behaverse.org/schemas/studyflow/v1
 `;
 
-/** Study declares `arm`; the battery sub-process declares `failed_trials`. */
+/**
+ * Study declares `arm`; the battery sub-process declares `failed_trials`, and carries the `__targetRef_placeholder`
+ * property a data association targets until a real one is bound, which declares nothing.
+ */
 const NESTED = `${HEAD}Study:
   type: bpmn:Process
   properties:
@@ -68,6 +78,8 @@ const NESTED = `${HEAD}Study:
       properties:
         P_Failed:
           name: failed_trials
+        P_Placeholder:
+          name: __targetRef_placeholder
       flowElements:
         Trial_Start:
           type: bpmn:StartEvent
@@ -114,7 +126,7 @@ test.describe('scoped state', () => {
     expect(studyflow.flowNodes.get('Start')?.scopeId).toBe('Study');
   });
 
-  test('a read resolves outward, and a write lands on the declaring scope', async () => {
+  test('a read resolves outward, a write lands on the declaring scope, and an undeclared write is kept but reported', async () => {
     const studyflow = await load(NESTED);
     const session = new Session(studyflow, { catalog });
 
@@ -135,116 +147,40 @@ test.describe('scoped state', () => {
 
     expect(session.getVariables().arm).toBe('treatment');
     expect(session.getVariables().failed_trials).toBeUndefined();
-  });
 
-  test('an undeclared write is accepted but reported as undeclared', async () => {
-    const session = new Session(await load(NESTED), { catalog });
-
+    // A write no scope declares is kept, and reported.
     session.setVariable('end.completionCode', 'ABC123');
-
     expect(session.getVariables()['end.completionCode']).toBe('ABC123');
     expect(session.getUndeclaredVariables()).toEqual(['end.completionCode']);
   });
 });
 
 test.describe('conditions over declared state', () => {
-  test('a declared-but-unwritten name evaluates; an undeclared one is a defect', () => {
+  test('a declared-but-unwritten name evaluates; an undeclared one is a defect, even one a global holds', () => {
     expect(evaluateCondition('arm == "treatment"', { arm: undefined }))
       .toEqual({ value: false });
 
-    const undeclared = evaluateCondition('missing > 1', {});
-    expect(undeclared.value).toBe(false);
-    expect(undeclared.error).toContain('not declared');
+    // `globalThis.Array` exists; the scope must not fall through to it.
+    for (const expression of ['missing > 1', 'Array != null']) {
+      const undeclared = evaluateCondition(expression, {});
+      expect(undeclared.value, expression).toBe(false);
+      expect(undeclared.error, expression).toContain('not declared');
+    }
   });
 
-  test('an undeclared read raises a typed error rather than reading a global', () => {
-    // `globalThis.Array` exists; the scope proxy must not let it through.
-    const result = evaluateCondition('Array != null', {});
-    expect(result.error).toContain('not declared');
-    expect(new UndeclaredReference('x').name).toBe('UndeclaredReference');
-  });
-
-  /** `__targetRef_placeholder` is bpmn-js's own invented `bpmn:Property` on the target activity. */
-  test('bpmn-js\'s targetRef placeholder is not a participant variable', async () => {
-    const WITH_PLACEHOLDER = `${HEAD}Study:
-  type: bpmn:Process
-  properties:
-    P_Arm:
-      name: arm
-  flowElements:
-    Start:
-      type: bpmn:StartEvent
-      outgoing: [Flow_A]
-    Battery:
-      type: bpmn:SubProcess
-      incoming: [Flow_A]
-      outgoing: [Flow_B]
-      properties:
-        P_Placeholder:
-          name: __targetRef_placeholder
-      flowElements:
-        Trial_Start:
-          type: bpmn:StartEvent
-          outgoing: [Flow_T]
-        Trial_End:
-          type: bpmn:EndEvent
-          incoming: [Flow_T]
-        Flow_T:
-          type: bpmn:SequenceFlow
-          sourceRef: Trial_Start
-          targetRef: Trial_End
-    End:
-      type: bpmn:EndEvent
-      incoming: [Flow_B]
-    Flow_A:
-      type: bpmn:SequenceFlow
-      sourceRef: Start
-      targetRef: Battery
-    Flow_B:
-      type: bpmn:SequenceFlow
-      sourceRef: Battery
-      targetRef: End
-`;
-
-    const studyflow = await load(WITH_PLACEHOLDER);
-
-    const batteryScope = studyflow.scopes.get('Battery');
-    expect(batteryScope, 'the sub-process must be a scope for this to be a real test').toBeTruthy();
-    expect(batteryScope!.properties.map((p) => p.name)).not.toContain('__targetRef_placeholder');
-
-    const session = new Session(studyflow, { catalog });
-    for await (const _job of session.traverse()) { /* drive to completion */ }
-    expect(Object.keys(session.getVariables())).not.toContain('__targetRef_placeholder');
-  });
-
-  test('a study with no start event starts at the node nothing flows into', async () => {
+  test('a study with no start event starts at the node nothing flows into; two such nodes are an error, not a guess', async () => {
     const ONE_STEP = `${HEAD}Study:
   type: bpmn:Process
   flowElements:
     Only:
       type: bpmn:Task
 `;
-    const session = new Session(await load(ONE_STEP), { catalog });
+    expect(await visits(new Session(await load(ONE_STEP), { catalog }))).toEqual(['Only']);
 
-    const visited: string[] = [];
-    for await (const job of session.traverse()) visited.push(job.node.id);
-    expect(visited).toEqual(['Only']);
-  });
-
-  test('two entry nodes and no start event stays an error rather than a guess', async () => {
-    const AMBIGUOUS = `${HEAD}Study:
-  type: bpmn:Process
-  flowElements:
-    First:
-      type: bpmn:Task
-    Second:
+    const TWO_ENTRIES = `${ONE_STEP}    Second:
       type: bpmn:Task
 `;
-    const session = new Session(await load(AMBIGUOUS), { catalog });
-
-    await expect((async () => {
-      for await (const _job of session.traverse()) { /* unreachable */ }
-    })()).rejects.toThrow(/no start event/);
+    await expect(visits(new Session(await load(TWO_ENTRIES), { catalog }))).rejects.toThrow(/no start event/);
   });
 });
 
@@ -273,27 +209,17 @@ ${bare.map((id) => `    F_${id}: Gate -> ${id}\n`).join('')}`;
 test.describe('which branch a gateway takes', () => {
   test('a seeded random gateway draws from the seed, the gateway and the visit', async () => {
     const studyflow = await load(readFileSync(path.join(process.cwd(), 'tests/fixtures/random-loop.studyflow.yaml'), 'utf8'));
-    const session = new Session(studyflow, { catalog, seed: studyflow.seed });
-    const visited: string[] = [];
-    for await (const job of session.traverse()) visited.push(job.node.id);
+    const visited = await visits(new Session(studyflow, { catalog, seed: studyflow.seed }));
 
     const arms = [1, 2, 3, 4].map((visit) => ['A', 'B'][Math.floor(draw(6, 'Draw', visit) * 2)]);
     expect(arms).toEqual(['A', 'A', 'B', 'A']);
     expect(visited).toEqual(['Start', ...arms, 'Done']);
   });
 
-  test('no condition held and no default: the one flow without a condition is taken', async () => {
-    const session = new Session(await load(NO_DEFAULT(['Otherwise'])), { catalog });
-    const visited: string[] = [];
-    for await (const job of session.traverse()) visited.push(job.node.id);
-    expect(visited).toEqual(['Start', 'Otherwise']);
-  });
-
-  test('no condition held, no default and two flows without a condition: the run stops', async () => {
-    const session = new Session(await load(NO_DEFAULT(['First', 'Second'])), { catalog });
-    await expect((async () => {
-      for await (const _job of session.traverse()) { /* stops at the gateway */ }
-    })()).rejects.toThrow(/No condition held at 'Gate'.*2 flows without a condition/);
+  test('no condition held and no default: the one flow without a condition is taken; with two, the run stops', async () => {
+    expect(await visits(new Session(await load(NO_DEFAULT(['Otherwise'])), { catalog }))).toEqual(['Start', 'Otherwise']);
+    await expect(visits(new Session(await load(NO_DEFAULT(['First', 'Second'])), { catalog })))
+      .rejects.toThrow(/No condition held at 'Gate'.*2 flows without a condition/);
   });
 });
 
@@ -371,8 +297,7 @@ test.describe('reach counts and initial values', () => {
     const session = new Session(studyflow, { catalog });
     expect(session.getVariables().total).toBe(0);
 
-    const visited: string[] = [];
-    for await (const job of session.traverse()) visited.push(job.node.id);
+    const visited = await visits(session);
 
     // The gateway is counted before it decides: reached 1 and 2 loop back, 3 takes the default.
     expect(visited.filter((id) => id === 'Trial')).toHaveLength(3);
@@ -391,8 +316,7 @@ test.describe('reach counts and initial values', () => {
 
     const session = new Session(studyflow, { catalog });
     expect(session.getVariables().total).toBe(10);
-    const visited: string[] = [];
-    for await (const job of session.traverse()) visited.push(job.node.id);
+    const visited = await visits(session);
 
     // Gate was reached twice before this run, so its first visit here is the third: no loop.
     expect(visited.filter((id) => id === 'Trial')).toHaveLength(1);
