@@ -188,9 +188,9 @@ test('rerouting twice commits nothing the second time', async () => {
 
 test('a bent route keeps its joints when an end is re-docked: a near-aligned run is squared by moving the joint', () => {
   // A move or an expand re-crops the dock of a route of more than two points and squares it
-  // with `orthogonalize(points, undefined, false)`: the joint moves onto the dock's line,
+  // with `orthogonalize`: the joint moves onto the dock's line,
   // the dock holds, and no joint is added or dropped.
-  expect(orthogonalize([{ x: 100, y: 100 }, { x: 200, y: 102 }, { x: 200, y: 300 }], undefined, false))
+  expect(orthogonalize([{ x: 100, y: 100 }, { x: 200, y: 102 }, { x: 200, y: 300 }]))
     .toEqual([{ x: 100, y: 100 }, { x: 200, y: 100 }, { x: 200, y: 300 }]);
 });
 

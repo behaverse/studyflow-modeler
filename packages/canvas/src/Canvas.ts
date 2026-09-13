@@ -27,7 +27,7 @@ import { categoryOf } from '@canvas/render/shapes.ts';
 import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer, type RendererOptions } from '@canvas/render/renderer.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
 import { centerOf } from '@canvas/routing/crop.ts';
-import { rerouteEdges as rerouteEdgeSet, routableEnd, routeFor, type RouteOptions } from '@canvas/routing/orthogonal.ts';
+import { rerouteEdges as rerouteEdgeSet, routableEnd, routeFor } from '@canvas/routing/orthogonal.ts';
 import { CONNECTION, containerFor, Rules, type RuleElement } from '@canvas/rules/rules.ts';
 import { CUSTOM_LAYER_ATTRIBUTE, Layers } from '@canvas/view/layers.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
@@ -835,12 +835,11 @@ export class Canvas {
     this.redrawElements(changed);
   }
 
-  /** Re-route the edges `elements` (default: the selection) affect, and commit. */
-  rerouteEdges(elements?: SceneElement | readonly SceneElement[], options?: RouteOptions): SceneEdge[] {
+  /** Re-route the edges docked to `nodes`, and commit. */
+  rerouteEdges(nodes: readonly SceneNode[]): SceneEdge[] {
     const mutator = this.mutator;
     if (!this.scene || !mutator) return [];
-    const list = elements === undefined ? this.selection.get() : Array.isArray(elements) ? (elements as readonly SceneElement[]) : [elements as SceneElement];
-    const changed = rerouteEdgeSet(edgesAffectedBy(list), { obstacles: this.routeObstacles(), scope: this.scene.scope, ...options });
+    const changed = rerouteEdgeSet(edgesAffectedBy(nodes), { obstacles: this.routeObstacles(), scope: this.scene.scope });
     if (changed.length > 0) {
       mutator.commit(changed);
       this.redrawElements(changed);

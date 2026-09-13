@@ -16,7 +16,7 @@ export type Outline = 'rect' | 'ellipse' | 'diamond' | 'dataObject' | 'dataStore
 
 const EPSILON = 1e-9;
 
-export function outlineFor(type: string | undefined): Outline {
+function outlineFor(type: string | undefined): Outline {
   if (!type) return 'rect';
   switch (categoryOf(type)) {
     case 'event': return 'ellipse';

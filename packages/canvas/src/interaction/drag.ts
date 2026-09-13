@@ -297,7 +297,7 @@ export class Drag {
       // A route the author bent is re-docked, never re-cut.
       if (state.reroute && points.length > 2 && docked) {
         moveTerminal(points, end, cropPoint(docked, points[index === 0 ? 1 : index - 1]));
-        edge.waypoints = orthogonalize(points, undefined, false);
+        edge.waypoints = orthogonalize(points);
         continue;
       }
       points[index] = { x: original[index].x + dx, y: original[index].y + dy };

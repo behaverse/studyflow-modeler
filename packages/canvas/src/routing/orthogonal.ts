@@ -12,13 +12,12 @@ import { centerOf, cropPoint, cropWaypoints, distance, type CroppableShape } fro
 
 export type RoutableShape = CroppableShape;
 
-export const DEFAULT_CLEARANCE = 20;
-export const DEFAULT_STRAIGHT_TOLERANCE = 10;
+/** How far a detour stays off the shapes it passes. */
+const CLEARANCE = 20;
+/** Centres this close on the cross axis route as one straight segment. */
+const STRAIGHT_TOLERANCE = 10;
 
 export interface RouteOptions {
-  clearance?: number;
-  straightTolerance?: number;
-  crop?: boolean;
   /** Boxes to steer around; advisory — a pair with no clean candidate keeps its route. */
   obstacles?: readonly Bounds[];
   /** The drill-down scope, for resolving which shape an edge end docks on. */
@@ -28,16 +27,12 @@ export interface RouteOptions {
 const EPSILON = 1e-6;
 
 export function route(source: RoutableShape, target: RoutableShape, options: RouteOptions = {}): Point[] {
-  const raw = routeCenters(source, target, options);
-  return options.crop === false ? raw : cropWaypoints(raw, source, target);
+  return cropWaypoints(routeCenters(source, target, options), source, target);
 }
 
 /** Centre to centre, cropped: the plain diagonal a `bpmn:Association` is drawn as. */
-export function straightRoute(source: RoutableShape, target: RoutableShape, options: RouteOptions = {}): Point[] {
-  const cs = centerOf(source);
-  const ct = centerOf(target);
-  if (options.crop === false) return [cs, ct];
-  return [cropPoint(source, ct), cropPoint(target, cs)];
+export function straightRoute(source: RoutableShape, target: RoutableShape): Point[] {
+  return [cropPoint(source, centerOf(target)), cropPoint(target, centerOf(source))];
 }
 
 export function isStraightRouted(type: string | undefined): boolean {
@@ -46,7 +41,7 @@ export function isStraightRouted(type: string | undefined): boolean {
 
 /** Waypoints for a connection of `type`. Every path that mints or re-routes goes through here. */
 export function routeFor(type: string | undefined, source: RoutableShape, target: RoutableShape, options: RouteOptions = {}): Point[] {
-  return isStraightRouted(type) ? straightRoute(source, target, options) : route(source, target, options);
+  return isStraightRouted(type) ? straightRoute(source, target) : route(source, target, options);
 }
 
 /** The shape standing in for an edge end; a connection routes from the middle of its path. */
@@ -57,7 +52,7 @@ export function routableEnd(element: SceneNode | SceneEdge): RoutableShape {
 }
 
 /** The point half way along a polyline by length. */
-export function pathMidpoint(waypoints: readonly Point[]): Point {
+function pathMidpoint(waypoints: readonly Point[]): Point {
   if (waypoints.length === 0) return { x: 0, y: 0 };
   if (waypoints.length === 1) return { ...waypoints[0] };
   let total = 0;
@@ -78,15 +73,13 @@ export function pathMidpoint(waypoints: readonly Point[]): Point {
 
 /** The centre-anchored path, before cropping. */
 export function routeCenters(source: RoutableShape, target: RoutableShape, options: RouteOptions = {}): Point[] {
-  const clearance = options.clearance ?? DEFAULT_CLEARANCE;
-  const tolerance = options.straightTolerance ?? DEFAULT_STRAIGHT_TOLERANCE;
   const s = shapeBounds(source);
   const t = shapeBounds(target);
   const cs = centerOf(s);
   const ct = centerOf(t);
 
   if (source === target || (Math.abs(cs.x - ct.x) < EPSILON && Math.abs(cs.y - ct.y) < EPSILON)) {
-    return selfLoop(s, cs, clearance);
+    return selfLoop(s, cs, CLEARANCE);
   }
 
   const gapX = Math.max(t.x - (s.x + s.width), s.x - (t.x + t.width));
@@ -96,7 +89,7 @@ export function routeCenters(source: RoutableShape, target: RoutableShape, optio
   const horizontal = Math.abs(dx) >= Math.abs(dy);
   const blockers = (options.obstacles ?? []).filter((box) => !boxesOverlap(box, s) && !boxesOverlap(box, t));
   const around = (preferred: Point[], alternates: Point[][] = []): Point[] =>
-    steerAround(preferred, alternates, blockers, s, t, cs, ct, horizontal, clearance);
+    steerAround(preferred, alternates, blockers, s, t, cs, ct, horizontal, CLEARANCE);
 
   // Diagonal: one elbow, leaving along the dominant axis.
   if (gapX > 0 && gapY > 0) {
@@ -107,7 +100,7 @@ export function routeCenters(source: RoutableShape, target: RoutableShape, optio
   if (gapX > 0) {
     const midX = dx > 0 ? (s.x + s.width + t.x) / 2 : (t.x + t.width + s.x) / 2;
     const jog = simplify([cs, { x: midX, y: cs.y }, { x: midX, y: ct.y }, ct]);
-    if (Math.abs(dy) <= tolerance) {
+    if (Math.abs(dy) <= STRAIGHT_TOLERANCE) {
       const y = (cs.y + ct.y) / 2;
       return around([{ x: cs.x, y }, { x: ct.x, y }], [jog]);
     }
@@ -116,13 +109,13 @@ export function routeCenters(source: RoutableShape, target: RoutableShape, optio
   if (gapY > 0) {
     const midY = dy > 0 ? (s.y + s.height + t.y) / 2 : (t.y + t.height + s.y) / 2;
     const jog = simplify([cs, { x: cs.x, y: midY }, { x: ct.x, y: midY }, ct]);
-    if (Math.abs(dx) <= tolerance) {
+    if (Math.abs(dx) <= STRAIGHT_TOLERANCE) {
       const x = (cs.x + ct.x) / 2;
       return around([{ x, y: cs.y }, { x, y: ct.y }], [jog]);
     }
     return around(jog);
   }
-  return simplify(detour(s, t, cs, ct, horizontal, clearance, blockers));
+  return simplify(detour(s, t, cs, ct, horizontal, CLEARANCE, blockers));
 }
 
 /**
@@ -130,7 +123,7 @@ export function routeCenters(source: RoutableShape, target: RoutableShape, optio
  * screen for it. `undefined` when the edge is dangling or both ends collapse into
  * the same container.
  */
-export function routeEdge(edge: SceneEdge, options?: RouteOptions): Point[] | undefined {
+function routeEdge(edge: SceneEdge, options?: RouteOptions): Point[] | undefined {
   if (!edge.source || !edge.target) return undefined;
   const source = visibleEndpointOf(edge.source, options?.scope);
   const target = visibleEndpointOf(edge.target, options?.scope);
@@ -152,13 +145,14 @@ export function rerouteEdges(edges: Iterable<SceneEdge>, options?: RouteOptions)
   return changed;
 }
 
-export const ORTHOGONAL_TOLERANCE = 3;
+/** A run off the axis by at most this much is near-aligned. */
+const ORTHOGONAL_TOLERANCE = 3;
 
 /**
- * Square `points` up: near-aligned runs are flattened by moving an interior joint,
- * and (with `elbows`) a genuinely diagonal run gets an elbow. Redundant points go.
+ * Square `points` up: a near-aligned run is flattened by moving an interior joint, never
+ * a dock, and redundant points go. A genuinely diagonal run is left as it is.
  */
-export function orthogonalize(points: readonly Point[], tolerance = ORTHOGONAL_TOLERANCE, elbows = true): Point[] {
+export function orthogonalize(points: readonly Point[]): Point[] {
   const out = points.map((p) => ({ x: p.x, y: p.y }));
   if (out.length < 2) return out;
   for (let i = 0; i < out.length - 1; i += 1) {
@@ -167,32 +161,12 @@ export function orthogonalize(points: readonly Point[], tolerance = ORTHOGONAL_T
     const dx = Math.abs(b.x - a.x);
     const dy = Math.abs(b.y - a.y);
     const off = Math.min(dx, dy);
-    if (off < EPSILON || off > tolerance) continue;
+    if (off < EPSILON || off > ORTHOGONAL_TOLERANCE) continue;
     const horizontal = dy <= dx;
     if (i + 1 < out.length - 1) out[i + 1] = horizontal ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
     else if (i > 0) out[i] = horizontal ? { x: a.x, y: b.y } : { x: b.x, y: a.y };
   }
-  if (!elbows) return simplify(out);
-  const squared: Point[] = [out[0]];
-  for (let i = 0; i < out.length - 1; i += 1) {
-    const a = squared[squared.length - 1];
-    const b = out[i + 1];
-    if (Math.min(Math.abs(b.x - a.x), Math.abs(b.y - a.y)) <= tolerance) {
-      squared.push(b);
-      continue;
-    }
-    squared.push(elbow(a, b, squared[squared.length - 2], out[i + 2]));
-    squared.push(b);
-  }
-  return simplify(squared);
-}
-
-function elbow(a: Point, b: Point, before?: Point, after?: Point): Point {
-  const verticalFirst = { x: a.x, y: b.y };
-  const horizontalFirst = { x: b.x, y: a.y };
-  if (before) return Math.abs(before.y - a.y) < EPSILON ? verticalFirst : horizontalFirst;
-  if (after) return Math.abs(after.y - b.y) < EPSILON ? horizontalFirst : verticalFirst;
-  return Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? horizontalFirst : verticalFirst;
+  return simplify(out);
 }
 
 export function isOrthogonal(points: readonly Point[], tolerance = 1e-6): boolean {

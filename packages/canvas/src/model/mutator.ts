@@ -162,7 +162,7 @@ export function redockToOutline(node: SceneNode, scope?: SceneNode): SceneEdge[]
       const last = points.length - 1;
       if (edge.source === node) points[0] = cropPoint(node, points[1]);
       if (edge.target === node) points[last] = cropPoint(node, points[last - 1]);
-      edge.waypoints = orthogonalize(points, undefined, false);
+      edge.waypoints = orthogonalize(points);
     }
     if (!samePoints(before, edge.waypoints)) changed.push(edge);
   }

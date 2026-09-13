@@ -12,7 +12,7 @@ export const APPEND_NUDGE = 100;
 const MAX_PROBES = 200;
 
 /** The centre a shape of `size` appended from `source` takes; an annotation hangs above. */
-export function appendPosition(source: Bounds, size: { width: number; height: number }, type?: string): Point {
+function appendPosition(source: Bounds, size: { width: number; height: number }, type?: string): Point {
   if (type === BPMN.TextAnnotation) {
     return {
       x: source.x + source.width + size.width / 2,

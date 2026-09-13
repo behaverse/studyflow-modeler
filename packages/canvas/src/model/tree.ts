@@ -145,17 +145,10 @@ export function crossingEdgesOf(node: SceneNode): SceneEdge[] {
   return out;
 }
 
-/** Every edge docked to `elements` (nested children included) plus the edges among them. */
-export function edgesAffectedBy(elements: Iterable<SceneElement>): SceneEdge[] {
+/** Every edge docked to `nodes`, once. */
+export function edgesAffectedBy(nodes: Iterable<SceneNode>): SceneEdge[] {
   const out = new Set<SceneEdge>();
-  const visit = (node: SceneNode): void => {
-    for (const edge of [...node.incoming, ...node.outgoing]) out.add(edge);
-    for (const child of node.children) if (child.kind === 'node') visit(child);
-  };
-  for (const element of elements) {
-    if (element.kind === 'edge') out.add(element);
-    else if (element.kind === 'node') visit(element);
-  }
+  for (const node of nodes) for (const edge of [...node.incoming, ...node.outgoing]) out.add(edge);
   return [...out];
 }
 
