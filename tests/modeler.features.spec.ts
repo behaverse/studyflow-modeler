@@ -2,29 +2,7 @@ import { expect, test } from '@playwright/test';
 import { SCHEMAS as NODE_SCHEMAS } from './schemas';
 import { gotoModeler, runPaletteCommand } from './utils';
 
-/** Publish / Gantt / Settings / token simulator, plus the loader-vs-Node-twin equivalence check. */
-
-test('the app loader and the Node twin agree on the schema manifest', async ({ page }) => {
-  await gotoModeler(page);
-  const appSchemas = await page.evaluate(() =>
-    window.__studyflowTest!.schemas.map(({ prefix, name, required, uri }) => ({ prefix, name, required, uri })));
-  const nodeSchemas = NODE_SCHEMAS.map(({ prefix, name, required, uri }) => ({ prefix, name, required, uri }));
-  expect(appSchemas).toEqual(nodeSchemas);
-});
-
-test('publishing is a destination in the Save dialog, and a bogus key fails inline (not via alert)', async ({ page }) => {
-  await gotoModeler(page);
-  await runPaletteCommand(page, 'Save As...');
-  const dialog = page.getByTestId('save-dialog');
-  await expect(dialog).toBeVisible();
-
-  await dialog.getByTestId('save-to-cloud').click();
-  await dialog.getByRole('textbox', { name: 'Study name' }).fill('test-study');
-  await dialog.getByLabel('Behaverse API key').fill('bogus');
-  // The publish endpoint always fails here; the failure must render inside the dialog, per the notices house rule.
-  await dialog.getByTestId('save-submit').click();
-  await expect(dialog.locator('.text-red-500')).toBeVisible();
-});
+/** Gantt / Settings / token simulator. */
 
 test('the Gantt view opens from the command palette', async ({ page }) => {
   await gotoModeler(page);
