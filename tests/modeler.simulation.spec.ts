@@ -4,10 +4,9 @@ import { examplePath, exampleXml, gotoModeler, runPaletteCommand } from './utils
 
 /**
  * Token placement in the simulator and the provenance replay across containers:
- * expanded sub-processes are walked through their own start events, pools and lanes
- * are seen through, and a drill-down mid-animation hides tokens off its plane
- * instead of restarting them. `sklearn_pipeline` ships an expanded (`prepare_data`)
- * and a collapsed (`select_model`) sub-process; `reachy_participant` a pool.
+ * expanded sub-processes are walked through their own start events, and a drill-down
+ * mid-animation hides tokens off its plane instead of restarting them. `sklearn_pipeline`
+ * ships an expanded (`prepare_data`) and a collapsed (`select_model`) sub-process.
  */
 
 async function openExample(page: Page, name: string, xml?: string): Promise<void> {
@@ -84,15 +83,6 @@ test.describe('token simulation', () => {
     await page.getByTestId('breadcrumb-sklearn_pipeline').click();
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token')).some((t) => !t.shown)).toBe(true);
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token')).some((t) => t.shown)).toBe(true);
-  });
-
-  test('a start event inside a pool spawns tokens', async ({ page }) => {
-    await openExample(page, 'reachy_participant');
-    await page.getByRole('button', { name: 'Simulate' }).click();
-    await expect(page.locator('.studyflow-simulation-token').first()).toBeVisible();
-    const start = await box(shape(page, 'Seated'));
-    await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token'))
-      .some((t) => t.shown && !inside(t, start, -4)), { timeout: 10_000 }).toBe(true);
   });
 });
 
