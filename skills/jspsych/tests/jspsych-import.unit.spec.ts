@@ -4,144 +4,67 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { importJsPsychTimeline, parseTimeline, type JsPsychNode } from '@skills/jspsych/timeline';
-import { jsPsychToStudyflow } from '@skills/jspsych/studyflowDocument';
+import jspsych from '@skills/jspsych/modeler';
 import { parseImplementationRef } from '@core/implementation';
-import { parseStudyflow } from '@runner/studyflow';
-import { looksLikeXml } from '@core/document';
-import { loadSchemaModels, schemaPackages } from '@tests/schemas';
+import { freshModdle, freshPackages } from '@tests/schemas';
 
-/** jsPsych -> Studyflow importer. */
+/** jsPsych -> Studyflow: what the modeler's "Open" makes of a timeline file, through the skill's opener. */
 
-const FIXTURES_DIR = path.join(process.cwd(), 'skills/jspsych/tests/fixtures');
+const FLANKER = JSON.parse(readFileSync(path.join(process.cwd(), 'skills/jspsych/tests/fixtures/flanker.timeline.json'), 'utf8'));
 
-const models = loadSchemaModels();
-// BpmnModdle mutates its packages in place, so hand every consumer its own clone.
-const buildPackages = (): Record<string, any> =>
-  schemaPackages(models);
+/** Opens `text` as "Open" does, keeping what the opener warned about. */
+async function open(text: string): Promise<{ xml: string; warnings: string[] }> {
+  const warnings: string[] = [];
+  const xml = await jspsych.opens[0].toXml(text, { name: 'Flanker demo', packages: freshPackages(), warn: (message) => warnings.push(message) });
+  return { xml, warnings };
+}
 
-const flankerTimeline = (): JsPsychNode[] =>
-  JSON.parse(readFileSync(path.join(FIXTURES_DIR, 'flanker.timeline.json'), 'utf8'));
+test('opens a timeline as a study that chains start -> tasks -> end, a cognitive task per trial', async () => {
+  // A trial whose stimulus is markup and escapes, text the XML must carry as written.
+  const escapes = { type: 'html-keyboard-response', name: 'Escapes', stimulus: '<p>&lt; L &amp; R <<<<< </p>' };
+  const { xml, warnings } = await open(JSON.stringify([...FLANKER, escapes]));
+  expect(warnings).toEqual([]);
 
-test.describe('importJsPsychTimeline (mapping)', () => {
-  test('folds a leading consent node into the start event', () => {
-    const study = importJsPsychTimeline(flankerTimeline(), { id: 'flanker', name: 'Flanker demo' });
+  const { rootElement: definitions } = await freshModdle().fromXML(xml);
+  const process = definitions.rootElements.find((element: any) => element.$type === 'bpmn:Process');
+  const chain: any[] = [];
+  for (let node = process.flowElements.find((element: any) => element.$type === 'bpmn:StartEvent'); node; node = node.outgoing?.[0]?.targetRef) {
+    chain.push(node);
+  }
 
-    expect(study.consentFormUri).toBe('https://example.org/protocols/flanker/consent.md');
-    expect(study.tasks).toHaveLength(4);
-    expect(study.tasks.map((t) => t.name)).toEqual(['Instructions', 'Fixation', 'Flanker test', 'Debrief']);
-    expect(study.warnings).toEqual([]);
-  });
+  // The leading consent node is the start event's consent link, not a task.
+  expect(chain.map((node) => node.name)).toEqual(['Start', 'Instructions', 'Fixation', 'Flanker test', 'Debrief', 'Escapes', 'End']);
+  expect(chain[0].get('studyflow:consentFormUri')).toBe('https://example.org/protocols/flanker/consent.md');
 
-  test('maps each node to a jspsych cognitive task with a versioned function reference', () => {
-    const study = importJsPsychTimeline(flankerTimeline(), { jsPsychVersion: '8.0.0' });
+  // Each trial is a cognitive task: instrument jspsych, a versioned `jspsych://` implementation, its parameters bar `type`.
+  const trials = [...FLANKER.slice(1), escapes];
+  for (const [i, task] of chain.slice(1, -1).entries()) {
+    const ref = parseImplementationRef(task.implementation);
+    expect(ref.ok && [ref.value.scheme, ref.value.version], task.name).toEqual(['jspsych', '8']);
+    const [wrapper] = task.extensionElements.values;
+    expect([wrapper.$type, wrapper.get('instrument')], task.name).toEqual(['cognitive:CognitiveTask', 'jspsych']);
+    const { type: _type, ...parameters } = trials[i];
+    expect(yaml.load(wrapper.get('configurations').get('value')), task.name).toEqual(parameters);
+  }
 
-    for (const task of study.tasks) {
-      expect(task.instrument).toBe('jspsych');
-      const parsed = parseImplementationRef(task.functionRef);
-      expect(parsed.ok).toBe(true);
-      if (parsed.ok) {
-        expect(parsed.value.scheme).toBe('jspsych');
-        expect(parsed.value.version).toBe('8.0.0');
-      }
-    }
-  });
-
-  test('carries the node parameters as configurations and drops `type`', () => {
-    const study = importJsPsychTimeline(flankerTimeline());
-    const flanker = study.tasks.find((t) => t.name === 'Flanker test')!;
-
-    expect(flanker.configurations).not.toHaveProperty('type');
-    expect(flanker.configurations.n_trials).toBe(96);
-    expect(flanker.configurations.InterStimulusInterval).toBe(0.5);
-    expect(Array.isArray(flanker.configurations.timeline_variables)).toBe(true);
-    expect((flanker.configurations.timeline_variables as unknown[])).toHaveLength(4);
-  });
-
-  test('accepts an experiment object and a JSON string, not just an array', () => {
-    const arr = flankerTimeline();
-    expect(parseTimeline({ timeline: arr })).toHaveLength(arr.length);
-    expect(parseTimeline(JSON.stringify(arr))).toHaveLength(arr.length);
-    expect(() => parseTimeline('{ not json')).toThrow(/not valid JSON/);
-    expect(() => parseTimeline({} as never)).toThrow(/timeline array/);
-  });
-
-  test('rejects JSON that parses but is not a timeline', () => {
-    expect(() => parseTimeline('[1, 2, 3]')).toThrow(/does not look like a jsPsych timeline/);
-    expect(() => parseTimeline('[]')).toThrow(/does not look like a jsPsych timeline/);
-    expect(() => parseTimeline('[[{"type": "x"}]]')).toThrow(/does not look like a jsPsych timeline/);
-    expect(() => parseTimeline('{"timeline": ["a"]}')).toThrow(/does not look like a jsPsych timeline/);
-    expect(() => parseTimeline('{"name": "package.json", "version": "1.0.0"}')).toThrow(/timeline array/);
-  });
+  // Laid out: every node and flow has its shape or edge.
+  const drawn = definitions.diagrams[0].plane.planeElement.map((di: any) => di.bpmnElement.id);
+  expect(drawn.sort()).toEqual(process.flowElements.map((element: any) => element.id).sort());
 });
 
-test.describe('jsPsychToStudyflow (serialization)', () => {
-  test('emits a .studyflow (YAML) whose flow graph chains start -> tasks -> end', async () => {
-    const { studyflow, study } = await jsPsychToStudyflow(flankerTimeline(), buildPackages(), {
-      id: 'flanker',
-      name: 'Flanker demo',
-      jsPsychVersion: '8.0.0',
-    });
+test('opens a timeline array or an experiment object holding one, and rejects JSON that is neither', async () => {
+  const CASES: [string, RegExp | undefined][] = [
+    [JSON.stringify({ timeline: FLANKER }), undefined],
+    ['{ not json', /not valid JSON/],
+    ['[1, 2, 3]', /does not look like a jsPsych timeline/],
+    ['[]', /does not look like a jsPsych timeline/],
+    ['[[{"type": "x"}]]', /does not look like a jsPsych timeline/],
+    ['{"timeline": ["a"]}', /does not look like a jsPsych timeline/],
+    ['{"name": "package.json", "version": "1.0.0"}', /timeline array/],
+  ];
 
-    expect(looksLikeXml(studyflow)).toBe(false);
-    const parsed = await parseStudyflow(studyflow, buildPackages());
-
-    expect(parsed.startId).toBe('Start');
-    expect(parsed.flowNodes.size).toBe(study.tasks.length + 2);
-    expect(parsed.sequenceFlows.size).toBe(study.tasks.length + 1);
-
-    const start = parsed.flowNodes.get('Start')!;
-    expect(start.incoming).toHaveLength(0);
-    expect(start.outgoing).toHaveLength(1);
-    const end = parsed.flowNodes.get('End')!;
-    expect(end.outgoing).toHaveLength(0);
-    expect(end.incoming).toHaveLength(1);
-  });
-
-  test('each task node is a cognitive task with instrument, implementation, and configurations', async () => {
-    const { studyflow } = await jsPsychToStudyflow(flankerTimeline(), buildPackages(), { jsPsychVersion: '8' });
-    const parsed = await parseStudyflow(studyflow, buildPackages());
-
-    const flanker = [...parsed.flowNodes.values()].find((n) => n.businessObject.name === 'Flanker test')!;
-    expect(flanker.extensionType).toBe('cognitive:CognitiveTask');
-    expect(flanker.businessObject.get('implementation')).toBe('jspsych://html-keyboard-response@8');
-
-    const wrapper = flanker.businessObject.extensionElements.values[0];
-    expect(wrapper.get('instrument')).toBe('jspsych');
-    const config = yaml.load(wrapper.get('configurations').get('value')) as Record<string, unknown>;
-    expect(config.n_trials).toBe(96);
-    expect(config).not.toHaveProperty('type');
-  });
-
-  test('the start event carries the consent link', async () => {
-    const { studyflow } = await jsPsychToStudyflow(flankerTimeline(), buildPackages());
-    const parsed = await parseStudyflow(studyflow, buildPackages());
-    const start = parsed.flowNodes.get('Start')!;
-    expect(start.businessObject.get('studyflow:consentFormUri')).toBe(
-      'https://example.org/protocols/flanker/consent.md',
-    );
-  });
-
-  test('XML-unsafe config content (arrows, HTML, ampersands) survives a load', async () => {
-    // jsPsych stimuli routinely carry `<`, `>`, `&`; the body must survive the XML codec under the YAML.
-    const { studyflow } = await jsPsychToStudyflow(
-      [{ type: 'html-keyboard-response', name: 'Trial', stimulus: '<p>&lt; L &amp; R <<<<< </p>', choices: ['f', 'j'] }],
-      buildPackages(),
-    );
-    const parsed = await parseStudyflow(studyflow, buildPackages());
-    const trial = parsed.flowNodes.get('Trial')!;
-    const config = yaml.load(trial.businessObject.extensionElements.values[0].get('configurations').get('value')) as Record<
-      string,
-      unknown
-    >;
-    expect(config.stimulus).toBe('<p>&lt; L &amp; R <<<<< </p>');
-  });
-
-  test('auto-layout attaches diagram geometry to every node and flow', async () => {
-    const { studyflow, study } = await jsPsychToStudyflow(flankerTimeline(), buildPackages());
-    const bounds = studyflow.match(/^\s*bounds:/gm) ?? [];
-    const waypoints = studyflow.match(/^\s*waypoint:/gm) ?? [];
-    expect(bounds).toHaveLength(study.tasks.length + 2);
-    expect(waypoints).toHaveLength(study.tasks.length + 1);
-  });
+  for (const [text, error] of CASES) {
+    if (error) await expect(open(text), text).rejects.toThrow(error);
+    else expect((await open(text)).xml, text).toContain('<bpmn:userTask id="Flanker_test"');
+  }
 });
