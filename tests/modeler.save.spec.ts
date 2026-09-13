@@ -84,7 +84,7 @@ async function renameDiagram(page: Page, name: string): Promise<void> {
 }
 
 test.describe('Saving back into the opened file', () => {
-  test('opens through the picker, then writes every edit back with no download', async ({ page }) => {
+  test('opens through the picker, writes every edit back with no download, and lets the file go on New', async ({ page }) => {
     await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
     await gotoModeler(page, { pickers: true });
 
@@ -103,33 +103,17 @@ test.describe('Saving back into the opened file', () => {
 
     await expect.poll(async () => (await disk(page)).writes).toBeGreaterThan(0);
     await expect(status).toHaveAttribute('data-file-state', 'clean');
-    expect((await disk(page)).text).toContain('renamed');
-  });
+    const saved = await disk(page);
+    expect(saved.text).toContain('renamed');
 
-  test('the save shortcut writes the linked file immediately', async ({ page }) => {
-    await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
-    await gotoModeler(page, { pickers: true });
-    await browseForDiagram(page);
-    await expect(page.getByTestId('file-status')).toContainText('demo.bpmn');
-
-    // No edit first: an explicit save writes whether or not anything changed.
-    await page.keyboard.press('ControlOrMeta+s');
-
-    await expect.poll(async () => (await disk(page)).writes).toBe(1);
-    expect((await disk(page)).text).toContain('<?xml');
-  });
-
-  test('the palette Save writes the linked file; Save As... is how the dialog is reached', async ({ page }) => {
-    await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
-    await gotoModeler(page, { pickers: true });
-    await browseForDiagram(page);
-
-    await runPaletteCommand(page, 'Save demo.bpmn');
-    await expect(page.getByTestId('save-dialog')).toHaveCount(0);
-    await expect.poll(async () => (await disk(page)).writes).toBe(1);
-
-    await runPaletteCommand(page, 'Save As...');
-    await expect(page.getByTestId('save-dialog')).toBeVisible();
+    // A new diagram is not that file, and must never be written over it.
+    await runPaletteCommand(page, 'New...');
+    await page.getByTestId('new-diagram-blank').click();
+    await expect(status).toHaveCount(0);
+    await page.waitForTimeout(1500);
+    const after = await disk(page);
+    expect(after.writes).toBe(saved.writes);
+    expect(after.text).toBe(saved.text);
   });
 
   test('Export saves to a file the user places, and keeps saving there', async ({ page }) => {
@@ -175,7 +159,7 @@ test.describe('Saving back into the opened file', () => {
     expect((await disk(page)).text).toContain('second');
   });
 
-  test('auto-save leaves the provenance trail alone; an explicit save signs it', async ({ page }) => {
+  test('auto-save leaves the provenance trail alone; an explicit save, by shortcut or palette, signs it', async ({ page }) => {
     await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
     await gotoModeler(page, { pickers: true });
     await browseForDiagram(page);
@@ -189,23 +173,16 @@ test.describe('Saving back into the opened file', () => {
     await expect.poll(async () => (await disk(page)).writes).toBe(2);
     // Saving deliberately is a person saying they changed this, and that is what gets recorded.
     expect(stamps((await disk(page)).text)).toBe(1);
-  });
+    // The linked file keeps its own format.
+    expect((await disk(page)).text).toContain('<?xml');
 
-  test('starting a new diagram lets go of the file, rather than overwriting it', async ({ page }) => {
-    await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
-    await gotoModeler(page, { pickers: true });
-    await browseForDiagram(page);
-    await expect(page.getByTestId('file-status')).toContainText('demo.bpmn');
-
-    await runPaletteCommand(page, 'New...');
-    await page.getByTestId('new-diagram-blank').click();
-    await expect(page.getByTestId('file-status')).toHaveCount(0);
-
-    // The blank canvas is not that file, and must never be written over it.
-    await page.waitForTimeout(1500);
-    const after = await disk(page);
-    expect(after.writes).toBe(0);
-    expect(after.text).toBe(DIAGRAM);
+    // The palette's Save is the same explicit save, written with nothing changed since, and no dialog;
+    // Save As... is how the dialog is reached.
+    await runPaletteCommand(page, 'Save demo.bpmn');
+    await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+    await expect.poll(async () => (await disk(page)).writes).toBe(3);
+    await runPaletteCommand(page, 'Save As...');
+    await expect(page.getByTestId('save-dialog')).toBeVisible();
   });
 
   test('an image link waits for an explicit save rather than re-rendering per edit', async ({ page }) => {
