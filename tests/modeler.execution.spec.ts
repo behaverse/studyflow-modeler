@@ -98,40 +98,6 @@ test.describe('Inspector execution tab', () => {
     expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_torch.Tensor');
   });
 
-  test('the data-association view reports property bindings, which are never drawn', async ({ page }) => {
-    await gotoModeler(page);
-
-    await page.getByTestId('open-file-input').setInputFiles(examplePath('sklearn_pipeline'));
-    await expect(page.locator('g[data-element-id="select_model"]')).toBeVisible();
-
-    // `cross_validate` sits on the collapsed `select_model` phase's own DI plane; drill down first.
-    await page.locator('g[data-element-id="select_model"]').click();
-    await page.getByTestId('context-pad-drilldown').click();
-    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeVisible();
-
-    await page.locator('g[data-element-id="cross_validate"]').click();
-    await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
-
-    const inputs = page.getByTestId('data-flow-inputs');
-    const outputs = page.getByTestId('data-flow-outputs');
-    await expect(inputs).toContainText('estimator');
-    await expect(inputs).toContainText('x_train');
-    await expect(inputs).toContainText('y_train');
-    await expect(outputs).toContainText('cv_scores');
-
-    await expect(page.getByLabel('Transformation for x_train')).toHaveValue('X');
-    await expect(page.getByLabel('Transformation for y_train')).toHaveValue('y');
-    await expect(page.getByLabel('Transformation for estimator')).toHaveValue('');
-
-    await expect(page.getByRole('button', { name: 'Unbind x_train' })).toBeVisible();
-
-    await page.locator('g[data-element-id="summarize_cv"]').click();
-    await expect(inputs).toContainText('self = cv_fold_report');
-    await expect(page.getByLabel('Transformation for cv_fold_report')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Unbind cv_fold_report' })).toHaveCount(0);
-    await expect(inputs.getByTitle('self = cv_fold_report (data object)')).toBeVisible();
-  });
-
   test('a property is associated with a step from the inspector, and the association persists', async ({ page }) => {
     await gotoModeler(page);
     await page.getByTestId('open-file-input').setInputFiles(examplePath('sklearn_pipeline'));

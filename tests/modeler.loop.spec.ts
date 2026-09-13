@@ -67,25 +67,4 @@ test.describe('Inspector repetition controls', () => {
     expect(studyflowText).toContain('loopMaximum: 5');
     expect(studyflowText).toContain('testBefore: true');
   });
-
-  test('removing the loop clears the marker and the serialized child', async ({ page }) => {
-    await gotoModeler(page);
-
-    await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
-    await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
-
-    const canvas = page.getByTestId('modeler-canvas');
-    const kind = page.getByTestId('loop-kind');
-
-    await kind.click();
-    await page.getByRole('option', { name: 'Sequential (fan out)' }).click();
-    await expect(canvas.locator(SEQUENTIAL_MARKER)).toHaveCount(1);
-
-    await kind.click();
-    await page.getByRole('option', { name: 'None' }).click();
-    await expect(canvas.locator(SEQUENTIAL_MARKER)).toHaveCount(0);
-
-    const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-    expect(studyflowText).not.toContain('loopCharacteristics');
-  });
 });

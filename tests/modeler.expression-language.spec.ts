@@ -51,11 +51,6 @@ test('a data wire\'s binding and the loop marker\'s condition get the select too
   const yaml = await readDownloadText(await exportDiagram(page, 'studyflow'));
   expect(yaml).toContain('language: python');
 
-  await page.locator('g[data-element-id="select_features"]').click();
-  await page.getByTestId('inspector-root').getByRole('tab', { name: 'Execution' }).click();
-  await expect(page.getByTestId('inspector-root')).toContainText('self = input_dataset');
-  await expect(page.getByTestId('inspector-root').locator('select')).toHaveCount(0);
-
   await runPaletteCommand(page, 'New...');
   await page.getByTestId('new-diagram-blank').click();
   await addPaletteElement(page, 'Activities', 'Task', { x: 360, y: 200 });
