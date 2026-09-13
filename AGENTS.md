@@ -10,7 +10,6 @@ npm run dev                  # the modeler at http://localhost:5173/app.html, th
 npm run typecheck && npm run lint && npm run test:unit   # the gate: CI and `npm run release` run exactly this
 npm run test:e2e             # Playwright against its own dev server on :4173; CI skips it, so run it after UI changes
 npm run examples:render      # after a canvas or file-format change: redraws the PNG examples; then test:unit
-npm run schemas:lint         # after a schema change: the LinkML linter over every skills/*/*.linkml.yaml (needs uv)
 ```
 
 A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the dev server, `*.webkit.spec.ts` in WebKit. Where specs live, and what each kind pins: [Tests](#tests).
@@ -19,19 +18,19 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 
 | Path | What |
 | --- | --- |
-| `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles LinkML `*.linkml.yaml` into moddle packages (`notation/`), attribute access on one element (`element/`). No React. |
+| `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles the skills' `*.moddle.yaml` (`notation/`), attribute access on one element (`element/`). No React. |
 | `packages/canvas` | The SVG canvas. `src/index.ts` is all the modeler may import. |
 | `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a feature's `commands.ts`; `src/commandBus.ts` lists the features. |
 | `packages/cli` | The `studyflow` CLI. `run` hands a local study to `skills/local/run.py`. |
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
-| `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (`*.linkml.yaml`, its palette templates included), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
+| `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (a moddle package in `*.moddle.yaml`, its palette templates included), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
 | `skills/browser` | The browser runtime, served at `/run/`. |
 | `skills/local` | The local runtime (`run.py`); its `SKILL.md` is the contract every partial runner follows. |
 
 ## Rules
 
 - ESLint holds three boundaries: core imports no React and names no bpmn-js service; the modeler and the browser runtime never import each other; the modeler reaches the canvas through its index.
-- `packages/` names no skill but the required ones, whose schemas say `required: true` (`studyflow`, `prov`, `cognitive`, `local`). A skill declares what the apps need, in schema annotations ([skills/SCHEMAS.md](skills/SCHEMAS.md)), `modeler.ts` or `browser/vite.ts`, and the apps find it.
+- `packages/` names no skill but the required ones, whose schemas say `required: true` (`studyflow`, `prov`, `cognitive`, `local`). A skill declares what the apps need, in its schema ([skills/SCHEMAS.md](skills/SCHEMAS.md)), `modeler.ts` or `browser/vite.ts`, and the apps find it.
 - No backward-compatibility code: an old diagram is updated in place, never aliased.
 - A new short form in `.studyflow.yaml` must be reversible, and the long form must still load. `packages/core/tests/studyflow-yaml.unit.spec.ts` pins the spelling.
 - The canvas is its own design, not a bpmn-js copy: remove rather than add, no bpmn-js class names, colours from `INK` (`view/theme.ts`).

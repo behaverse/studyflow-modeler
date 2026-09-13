@@ -9,7 +9,7 @@ description: "Motion, media, and sensing elements of the Reachy Mini robot, and 
 license: MIT
 compatibility: "Local runtime with uv; a Reachy Mini daemon on the network, or --sim."
 metadata:
-  schema: "reachy.linkml.yaml"        # the vocabulary: a BPMN extension, relative to the folder
+  schema: "reachy.moddle.yaml"        # the vocabulary: a BPMN extension, relative to the folder
   runtimes:                           # what executes its elements, per runtime
     local: "uv run --script local.py" #   a command run in this folder (the contract: local/SKILL.md)
     browser: "browser/index.tsx"      #   a node module the browser runner imports (browser/src/nodes/README.md)

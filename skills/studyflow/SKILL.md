@@ -6,7 +6,7 @@ metadata:
   schema: "studyflow.moddle.yaml"
 ---
 
-The vocabulary every diagram is written in. `studyflow.linkml.yaml` declares the app-wide powers
+The vocabulary every diagram is written in. `studyflow.moddle.yaml` declares the app-wide powers
 (the inspector tab set, `bpmn:*` redefines, expression traits) that no other skill copies; the schema
 authoring reference is [../SCHEMAS.md](../SCHEMAS.md). Its elements are executed by the
 [browser](../browser/SKILL.md) and [local](../local/SKILL.md) runtimes themselves.

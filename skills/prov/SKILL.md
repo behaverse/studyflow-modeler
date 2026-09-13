@@ -9,7 +9,7 @@ metadata:
     local: "prov.py"
 ---
 
-`prov.linkml.yaml` is the vocabulary a run writes back into the diagram (records, the state tree's
+`prov.moddle.yaml` is the vocabulary a run writes back into the diagram (records, the state tree's
 `_meta`). `prov.py` is the module the [local runtime](../local/SKILL.md) loads in-process to keep the
 run repository and its records; the runtime refuses to run without it. The modeler's provenance panel
 reads the same records.
