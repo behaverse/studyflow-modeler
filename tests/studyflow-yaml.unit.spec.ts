@@ -6,60 +6,15 @@ import * as yaml from 'js-yaml';
 
 import { fromWireXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
 import { exampleNames as examples, exampleText } from './utils';
-import { parseStudyflow } from '@runner/studyflow';
-import { freshModdle, freshPackages } from './schemas';
+import { freshModdle } from './schemas';
 
 /** The `.studyflow.yaml` spelling: the short forms the writer emits, every shipped file spelled that way, and the long forms the reader still takes. */
 
 const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'tests/fixtures/state-properties.studyflow');
 
 test.describe('studyflow YAML format', () => {
-  test('hand-written keyed YAML loads; missing incoming/outgoing are derived', async () => {
-    const text = `
-id: keyed_demo
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
-P:
-  type: bpmn:Process
-  flowElements:
-    Start:
-      type: bpmn:StartEvent
-      bounds: { x: 0, "y": 0, width: 36, height: 36 }
-    T1:
-      type: bpmn:Task
-      bounds: { x: 100, "y": 0, width: 100, height: 80 }
-    End:
-      type: bpmn:EndEvent
-      bounds: { x: 300, "y": 0, width: 36, height: 36 }
-    F1:
-      type: bpmn:SequenceFlow
-      sourceRef: Start
-      targetRef: T1
-      waypoint: [{ x: 36, "y": 18 }, { x: 100, "y": 18 }]
-    F2:
-      type: bpmn:SequenceFlow
-      sourceRef: T1
-      targetRef: End
-      waypoint: [{ x: 200, "y": 18 }, { x: 300, "y": 18 }]
-`;
-    const moddle = freshModdle();
-    const xml = await studyflowToXml(text, moddle);
-    expect(xml).toContain('id="keyed_demo"');
-    // incoming/outgoing were omitted by hand and derived from the flows.
-    expect(xml).toMatch(/:outgoing>F1</);
-    expect(xml).toMatch(/:incoming>F1</);
-    expect(xml).toMatch(/:outgoing>F2</);
-    expect(xml).toMatch(/:incoming>F2</);
-
-    const graph = await parseStudyflow(text, freshPackages());
-    expect(graph.startId).toBe('Start');
-    expect(graph.flowNodes.get('T1')?.incoming).toEqual(['F1']);
-    expect(graph.flowNodes.get('T1')?.outgoing).toEqual(['F2']);
-  });
-
-  test('unfolded YAML spelling (values/value wrappers + diagram section) still loads', async () => {
+  test('the long spellings still load: value wrappers, an element list, a diagram section, geometry as mappings', async () => {
     const legacy = `
-studyflow: "1"
 definitions:
   id: legacy_demo
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -76,10 +31,11 @@ elements:
         outgoing: [F1]
       - type: bpmn:Task
         id: T1
+        bounds: { x: 100, "y": 0, width: 100, height: 80 }
         extensionElements:
           values:
-            - type: behaverse:Task
-              scene: NB
+            - type: cognitive:CognitiveTask
+              instrument: jspsych
               configurations:
                 value: |
                   Timelines:
@@ -93,6 +49,7 @@ elements:
         id: F1
         sourceRef: Start
         targetRef: T1
+        waypoint: [{ x: 36, "y": 18 }, { x: 100, "y": 18 }]
       - type: bpmn:SequenceFlow
         id: F2
         sourceRef: T1
@@ -108,13 +65,11 @@ diagram:
           bpmnElement: Start
           bounds: { x: 160, "y": 180, width: 36, height: 36 }
 `;
-    const moddle = freshModdle();
-    const xml = await studyflowToXml(legacy, moddle);
+    const xml = await studyflowToXml(legacy, freshModdle());
     expect(xml).toContain('XCIT_NB_01');
     expect(xml).toContain('Start_di');
 
-    const moddle2 = freshModdle();
-    const doc: any = yaml.load(await xmlToStudyflow(xml, moddle2));
+    const doc: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
     expect(doc.id).toBe('legacy_demo');
     expect(doc.definitions['xmlns:studyflow']).toBeUndefined();
     expect(doc.diagram).toBeUndefined();
@@ -122,6 +77,8 @@ diagram:
     expect(Array.isArray(process.extensionElements)).toBe(true);
     expect(process.flowElements.T1.extensionElements[0].configurations.Timelines).toBeDefined();
     expect(process.flowElements.Start.bounds).toBe('160 180 36 36');
+    expect(process.flowElements.T1.bounds).toBe('100 0 100 80');
+    expect(process.flowElements.F1.waypoint).toBe('36,18 100,18');
   });
 
   test('the short spellings: bare types, implied flow types, one-line geometry, arrows, one key per colour', async () => {
@@ -164,7 +121,9 @@ P:
     expect(xml).toMatch(/<bpmn2?:sequenceFlow id="F2" name="done" sourceRef="T1" targetRef="End" \/>/);
     expect(xml).toMatch(/<bpmn2?:textAnnotation id="Note_1">/);
     expect(xml).toMatch(/<bpmn2?:association id="Assoc_1" sourceRef="Note_1" targetRef="T1" \/>/);
+    // Implied by the flows, so derived on load.
     expect(xml).toMatch(/:outgoing>F1</);
+    expect(xml).toMatch(/:incoming>F1</);
     expect(xml).toMatch(/<dc:Bounds x="100" y="0" width="100" height="80" \/>/);
     expect(xml).toMatch(/<di:waypoint x="200" y="40" \/>/);
     expect(xml).toMatch(/<bpmndi:BPMNLabel>\s*<dc:Bounds x="290" y="40" width="56" height="14" \/>/);
