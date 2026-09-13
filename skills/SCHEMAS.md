@@ -41,7 +41,7 @@ traits), which a domain pack must not copy; its `Scheduling` is the plainest tra
 | `version` | `'YY.M.N'`, quoted (lint-enforced). |
 | `rank` | Load/display order; unranked schemas sort after ranked ones, then by prefix. |
 | `annotations.icon` | Iconify class (or URL) for the palette flyout header. |
-| `annotations.required` | `true`: the schema always loads, and the modeler's settings cannot switch it off. Left out, it is `false`: a skill the user can switch off. |
+| `annotations.required` | `true`: the schema always loads, and the modeler's settings mark it with a lock and cannot switch it off. Left out, it is `false`: a skill the user can switch off. |
 | `annotations.templates` | The palette flyout entries; [Templates](#templates). |
 | `subsets` | Inspector tabs, **studyflow schema only** (the tab set is app-wide and pinned by `catalog.unit.spec.ts`): `rank` orders them, `annotations.synthetic: true` marks a tab drawn by its own section. Every other schema gets a tab of its own `title`, right after General, where its attributes file by default. |
 | `classes`, `types`, `enums` | The content; below. |

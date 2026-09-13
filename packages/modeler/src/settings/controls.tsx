@@ -15,7 +15,7 @@ export function Row({
   help,
   control,
 }: {
-  label: string;
+  label: React.ReactNode;
   help?: React.ReactNode;
   control: React.ReactNode;
 }) {

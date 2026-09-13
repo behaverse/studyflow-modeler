@@ -57,6 +57,7 @@ export const ICONS = {
   check: 'iconify mdi--check',
   warning: 'iconify bi--exclamation-triangle',
   unlock: 'iconify bi--unlock',
+  lock: 'iconify bi--lock',
   pin: 'iconify mdi--pin-outline',
   undo: 'iconify material-symbols--undo',
   redo: 'iconify material-symbols--redo',

@@ -351,12 +351,10 @@ function ExtensionsSection() {
       {SCHEMAS.map((schema) => {
         const diagnostics = diagnosticsFor(schema.prefix);
         const help = schema.description;
-        // `(always on)` rather than `(core)`: the studyflow schema is itself named "Core".
-        const label = schema.required ? `${schema.name} (always on)` : schema.name;
         return (
           <Row
             key={schema.prefix}
-            label={label}
+            label={<>{schema.name}{schema.required && <i className={`${ICONS.lock} ms-1.5 text-xs text-stone-500`} role="img" title="required" aria-label="required" />}</>}
             help={diagnostics.length > 0 ? `${help} ⚠ ${diagnostics.join(' — ')}` : help}
             control={
               <ToggleControl
