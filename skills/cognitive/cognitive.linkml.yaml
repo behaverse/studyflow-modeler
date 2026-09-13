@@ -265,7 +265,7 @@ classes:
 
 annotations:
   icon: iconify tabler--hexagon-letter-c
-  optional: false
+  required: true
   # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
   templates:
     value:

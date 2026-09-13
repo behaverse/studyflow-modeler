@@ -9,7 +9,7 @@ id: http://example.test/core
 name: core
 title: Core
 rank: 1
-annotations: { icon: iconify ph--flask, optional: false }
+annotations: { icon: iconify ph--flask, required: true }
 subsets:
   Data: { rank: 40 }
   Execution: { rank: 50, annotations: { synthetic: true } }
@@ -65,12 +65,12 @@ const type = (name: string) => [...core.types, ...skill.types].find((entry) => e
 const property = (typeName: string, name: string) => type(typeName).properties!.find((entry) => entry.name === name)!;
 
 test('the schema header maps to the package, and the subsets to inspector tabs', () => {
-  expect(core).toMatchObject({ prefix: 'core', name: 'Core', uri: 'http://example.test/core', order: 1, icon: 'iconify ph--flask', core: true });
+  expect(core).toMatchObject({ prefix: 'core', name: 'Core', uri: 'http://example.test/core', order: 1, icon: 'iconify ph--flask', required: true });
   expect(core.categories).toEqual([
     { name: 'Data', order: 40, description: undefined, synthetic: false },
     { name: 'Execution', order: 50, description: undefined, synthetic: true },
   ]);
-  expect(skill.name).toBe('skill');
+  expect(skill).toMatchObject({ name: 'skill', required: false });
 });
 
 test('implements names the BPMN element, as a wrapper or, on a mixin, as a trait', () => {

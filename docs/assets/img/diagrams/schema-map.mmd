@@ -2,29 +2,29 @@
 %% The config keeps labels as plain SVG text (no foreignObject), so the .svg survives being embedded as an image.
 flowchart LR
 
-  SF[/"`**studyflow** · core
+  SF[/"`**studyflow** · required
   Study · Dataset · Table · Timeseries · Artifact`"/]
-  PROV[/"`**prov** · core
+  PROV[/"`**prov** · required
   Activity — one entry of the trail`"/]
-  COG[/"`**cognitive** · core
+  COG[/"`**cognitive** · required
   CognitiveTask · Questionnaire · Actor · RandomGateway`"/]
-  LOCAL[/"`**local** · core
+  LOCAL[/"`**local** · required
   no elements: the study's default runtime`"/]
 
-  BEHAVERSE[/"`**behaverse** · optional
+  BEHAVERSE[/"`**behaverse**
   Task · Dataset (BDM)`"/]
-  EEG[/"`**eeg** · optional
+  EEG[/"`**eeg**
   Session · Recording`"/]
-  AGENTIC[/"`**agentic** · optional
+  AGENTIC[/"`**agentic**
   Agent · LLMCall · Tool · HumanApproval`"/]
-  REACHY[/"`**reachy** · optional
+  REACHY[/"`**reachy**
   Robot · Say · Gesture · LookAt`"/]
-  BROWSER[/"`**browser** · optional
+  BROWSER[/"`**browser**
   no elements: adds itself to the study's runtime choices`"/]
 
   SETTINGS["`**Settings › Extensions**
-  the optional sets switch on and off here;
-  a core one cannot be switched off`"]
+  the sets switch on and off here;
+  a required one cannot be switched off`"]
 
   CATALOG["`**the loaded catalog**
   every enabled set compiled into one:
@@ -44,9 +44,9 @@ flowchart LR
   BROWSER -->|"loads only when enabled in"| SETTINGS
   SETTINGS -->|"adds whatever is enabled to"| CATALOG
 
-  classDef core fill:#fefce8,stroke:#a16207,stroke-width:1.5px,color:#422006
-  classDef opt fill:#f5f5f4,stroke:#78716c,stroke-width:1.5px,color:#1c1917
+  classDef required fill:#fefce8,stroke:#a16207,stroke-width:1.5px,color:#422006
+  classDef ext fill:#f5f5f4,stroke:#78716c,stroke-width:1.5px,color:#1c1917
   classDef app fill:#eef2ff,stroke:#4f46e5,stroke-width:1.5px,color:#1e1b4b
-  class SF,PROV,COG,LOCAL core
-  class BEHAVERSE,EEG,AGENTIC,REACHY,BROWSER opt
+  class SF,PROV,COG,LOCAL required
+  class BEHAVERSE,EEG,AGENTIC,REACHY,BROWSER ext
   class SETTINGS,CATALOG app

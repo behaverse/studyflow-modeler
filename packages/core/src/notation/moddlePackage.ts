@@ -61,8 +61,8 @@ export type SchemaModel = {
   version?: string | number;
   description?: string;
   icon?: string;
-  /** `optional: false` in the file: a core schema, which always loads, and the modeler's settings cannot switch it off. */
-  core?: boolean;
+  /** `required: true` in the file: the schema always loads, and the modeler's settings cannot switch it off. */
+  required?: boolean;
   order?: number;
   categories?: SchemaCategoryModel[];
   xml?: { tagAlias?: string };

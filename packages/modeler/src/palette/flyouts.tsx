@@ -110,10 +110,10 @@ export function SchemaPopup({ schema, isOpen, handlers }: SchemaPopupProps) {
       <div className={`${paletteFlyout.header} flex items-center gap-1.5`}>
         <PaletteIcon icon={schema.icon} size={14} />
         <span>{schema.name}</span>
-        {!schema.core && (
+        {!schema.required && (
           <span
             className={`${paletteFlyout.extBadge} ml-auto`}
-            title="Optional element set. Turn it off in Settings > Extensions."
+            title="Extension. Turn it off in Settings > Extensions."
           >
             ext
           </span>

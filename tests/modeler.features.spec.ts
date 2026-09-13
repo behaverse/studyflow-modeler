@@ -7,8 +7,8 @@ import { gotoModeler, runPaletteCommand } from './utils';
 test('the app loader and the Node twin agree on the schema manifest', async ({ page }) => {
   await gotoModeler(page);
   const appSchemas = await page.evaluate(() =>
-    window.__studyflowTest!.schemas.map(({ prefix, name, core, uri }) => ({ prefix, name, core, uri })));
-  const nodeSchemas = NODE_SCHEMAS.map(({ prefix, name, core, uri }) => ({ prefix, name, core, uri }));
+    window.__studyflowTest!.schemas.map(({ prefix, name, required, uri }) => ({ prefix, name, required, uri })));
+  const nodeSchemas = NODE_SCHEMAS.map(({ prefix, name, required, uri }) => ({ prefix, name, required, uri }));
   expect(appSchemas).toEqual(nodeSchemas);
 });
 

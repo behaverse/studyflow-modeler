@@ -309,11 +309,11 @@ function ExtensionsSection() {
 
   function toggle(prefix: string, on: boolean) {
     const schema = SCHEMAS.find((sc) => sc.prefix === prefix);
-    if (schema?.core && !on) return; // core schemas can't be disabled
+    if (schema?.required && !on) return; // a required schema can't be disabled
     const next = new Set(enabled);
     if (on) next.add(prefix);
     else next.delete(prefix);
-    for (const sc of SCHEMAS) if (sc.core) next.add(sc.prefix); // core always included
+    for (const sc of SCHEMAS) if (sc.required) next.add(sc.prefix); // required ones always included
     update({ enabledSchemas: SCHEMAS.map((sc) => sc.prefix).filter((p) => next.has(p)) });
   }
 
@@ -352,7 +352,7 @@ function ExtensionsSection() {
         const diagnostics = diagnosticsFor(schema.prefix);
         const help = schema.description;
         // `(always on)` rather than `(core)`: the studyflow schema is itself named "Core".
-        const label = schema.core ? `${schema.name} (always on)` : schema.name;
+        const label = schema.required ? `${schema.name} (always on)` : schema.name;
         return (
           <Row
             key={schema.prefix}
@@ -361,9 +361,9 @@ function ExtensionsSection() {
             control={
               <ToggleControl
                 label={`Load the ${schema.name} elements`}
-                checked={schema.core || enabled.has(schema.prefix)}
+                checked={schema.required || enabled.has(schema.prefix)}
                 onChange={(on) => toggle(schema.prefix, on)}
-                disabled={schema.core}
+                disabled={schema.required}
               />
             }
           />

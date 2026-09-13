@@ -81,7 +81,7 @@ export function skillOfSchema(prefix: string): SkillManifest | undefined {
 
 export async function loadSchemas(prefixes: string[]): Promise<Record<string, any>> {
   const enabled = new Set(prefixes);
-  for (const schema of SCHEMAS) if (schema.core) enabled.add(schema.prefix);
+  for (const schema of SCHEMAS) if (schema.required) enabled.add(schema.prefix);
 
   const models = SCHEMA_MODELS.filter((model) => enabled.has(model.prefix));
 

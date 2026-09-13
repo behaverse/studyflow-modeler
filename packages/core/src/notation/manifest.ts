@@ -5,7 +5,7 @@ export type SchemaInfo = {
   prefix: string;
   name: string;
   description: string;
-  core: boolean;
+  required: boolean;
   icon?: string;
   uri: string;
 };
@@ -24,7 +24,7 @@ function toSchemaInfo(model: SchemaModel): SchemaInfo {
     prefix: model.prefix,
     name: model.name?.trim() || model.prefix,
     description: firstSentence(model.description ?? ''),
-    core: model.core === true,
+    required: model.required === true,
     icon: typeof model.icon === 'string' ? model.icon : undefined,
     uri: model.uri,
   };

@@ -79,7 +79,7 @@ export type LinkmlSchema = {
   classes?: Record<string, LinkmlClass>;
   types?: Record<string, LinkmlType>;
   enums?: Record<string, LinkmlEnum>;
-  /** `icon`, `optional`, and `templates` (the palette flyout entries, a list in the expanded form). */
+  /** `icon`, `required`, and `templates` (the palette flyout entries, a list in the expanded form). */
   annotations?: Annotations;
 };
 
@@ -140,8 +140,7 @@ function toSchemaModel(doc: LinkmlSchema, owner: Map<string, string>): SchemaMod
     version: doc.version,
     description: doc.description,
     icon: typeof annotations.icon === 'string' ? annotations.icon : undefined,
-    // A schema is optional unless it says otherwise; `optional: false` makes it core, always loaded.
-    core: annotations.optional === false,
+    required: annotations.required === true,
     order: doc.rank,
     categories: toCategories(doc.subsets),
     // Every studyflow element is tagged in lowerCamelCase; no schema differs, so it is not authored.

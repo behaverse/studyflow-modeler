@@ -34,7 +34,7 @@ test.describe('New Diagram gallery', () => {
     await gotoModeler(page);
     await runPaletteCommand(page, 'New...');
 
-    // Read and drawn: sklearn_pipeline needs only the core schemas.
+    // Read and drawn: sklearn_pipeline needs only the required schemas.
     await expect(page.getByTestId('example-sklearn_pipeline')).toContainText('scikit-learn');
     // kitchensink and agent_eval name agentic types; bot_external is a PNG, which opens without its schema.
     await expect(page.getByTestId('example-kitchensink')).toHaveCount(0);

@@ -3,7 +3,7 @@ import { isValueType, type SchemaTypeModel } from '@core/notation/moddlePackage'
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import type { TypeMeta, TypeStyle } from '@core/notation/types';
 
-/** Already offered by the static palette groups; qualified, so only the core schema's are hidden. */
+/** Already offered by the static palette groups; qualified, so only the studyflow schema's are hidden. */
 export const HIDDEN_SCHEMA_TYPES = new Set([
   'studyflow:Study',
   'studyflow:StartEvent',

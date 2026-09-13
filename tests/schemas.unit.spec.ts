@@ -51,11 +51,11 @@ test.describe('schema lint', () => {
     }
   });
 
-  test('the registry is exactly the schema files, core ones first', () => {
+  test('the registry is exactly the schema files, required ones first', () => {
     expect(SCHEMAS.map((s) => s.prefix).sort()).toEqual([...rawSchemas.keys()].sort());
-    const cores = SCHEMAS.filter((s) => s.core);
-    expect(cores.length, 'at least one core schema').toBeGreaterThan(0);
-    expect(SCHEMAS.slice(0, cores.length).every((s) => s.core), 'core schemas lead').toBe(true);
+    const required = SCHEMAS.filter((s) => s.required);
+    expect(required.length, 'at least one required schema').toBeGreaterThan(0);
+    expect(SCHEMAS.slice(0, required.length).every((s) => s.required), 'required schemas lead').toBe(true);
     for (const entry of SCHEMAS) {
       expect(entry.name, `${entry.prefix} name`).not.toBe('');
       expect(entry.description, `${entry.prefix} blurb`).not.toBe('');

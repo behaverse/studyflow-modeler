@@ -110,7 +110,7 @@ export type SchemaEntry = {
   name: string;
   description?: string;
   icon?: string;
-  core: boolean;
+  required: boolean;
   uri?: string;
   categories: CategoryEntry[];
   types: TypeEntry[];

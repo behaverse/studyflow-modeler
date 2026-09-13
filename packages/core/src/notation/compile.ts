@@ -54,7 +54,7 @@ export function buildCatalog(models: SchemaModel[]): TypeCatalog {
       name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : prefix,
       description: raw.description,
       icon: typeof raw.icon === 'string' ? raw.icon : undefined,
-      core: raw.core === true,
+      required: raw.required === true,
       uri: typeof raw.uri === 'string' ? raw.uri : undefined,
       categories: compileCategories(raw.categories),
       types,

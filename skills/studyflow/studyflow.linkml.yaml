@@ -733,4 +733,4 @@ classes:
 
 annotations:
   icon: iconify tabler--hexagon-letter-s
-  optional: false
+  required: true

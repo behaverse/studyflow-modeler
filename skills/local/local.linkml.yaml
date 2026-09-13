@@ -31,4 +31,4 @@ enums:
 
 annotations:
   icon: iconify tabler--hexagon-letter-l
-  optional: false
+  required: true

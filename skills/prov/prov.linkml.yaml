@@ -60,4 +60,4 @@ classes:
 
 annotations:
   icon: iconify tabler--history
-  optional: false
+  required: true

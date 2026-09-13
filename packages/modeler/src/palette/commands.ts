@@ -104,7 +104,7 @@ export type PaletteSchema = {
   prefix: string;
   name: string;
   icon?: string;
-  core: boolean;
+  required: boolean;
   items: PaletteItem[];
   templates: PaletteTemplate[];
 };
@@ -121,7 +121,7 @@ export function runResolvePaletteSchemas(
     prefix: schema.prefix,
     name: schema.name,
     icon: schema.icon,
-    core: schema.core,
+    required: schema.required,
     items: schema.types
       .filter((type) => !type.hiddenFromPalette && type.bpmnType)
       .map((type): PaletteItem => ({
