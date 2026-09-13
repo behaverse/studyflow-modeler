@@ -11,6 +11,7 @@ import {
   studyflowToXml,
   writeState,
   xmlToStudyflow,
+  type StateTree,
 } from '@core/document';
 import { freshModdle } from './schemas';
 
@@ -76,44 +77,45 @@ test.describe('state in the document', () => {
     expect(back.endsWith(STATE_BLOCK)).toBe(true);
   });
 
-  test('resolveState walks the element, its containers, then the study root', () => {
+  test('resolveState reads the element, its containers out to the study root, then its runner counter', () => {
     const definitions = studyflowToDefinitions(DOC, freshModdle());
-    expect(resolveState(definitions, 'Excluded_Pre', 'count')).toBe(3);
-    expect(resolveState(definitions, 'Trial', 'failed_trials')).toBe(2);
-    expect(resolveState(definitions, 'Trial', 'arm')).toBe('A');
-    expect(resolveState(definitions, 'Example_Study', 'arm')).toBe('A');
-    expect(resolveState(definitions, 'Trial', 'count')).toBeUndefined();
-    expect(resolveState(definitions, 'Trial', 'state.Excluded_Pre.count')).toBe(3);
-    expect(resolveState(definitions, 'Trial', 'state.Example_Study.arm')).toBe('A');
-    expect(resolveState(definitions, 'Nope', 'count')).toBeUndefined();
-  });
-
-  test('a single-segment path falls back to the runner counter under _meta, and _meta is readable absolutely', () => {
-    const definitions = studyflowToDefinitions(DOC, freshModdle());
-    expect(resolveState(definitions, 'Excluded_Pre', 'reached')).toBe(4);
-    expect(resolveState(definitions, 'Excluded_Pre', 'count')).toBe(3);
-    expect(resolveState(definitions, 'Trial', 'reached')).toBe(1); // Battery's counter, lexically
-    expect(resolveState(definitions, 'Example_Study', 'reached')).toBeUndefined();
-    expect(resolveState(definitions, 'Trial', 'state._meta.reached.Excluded_Pre')).toBe(4);
-    expect(resolveState(definitions, 'Trial', 'state._meta.prov.0.who')).toBe('alice');
-    expect(resolveState(definitions, 'Excluded_Pre', 'reached.Battery')).toBeUndefined();
+    const CASES: [elementId: string, path: string, expected: unknown][] = [
+      ['Excluded_Pre', 'count', 3],
+      ['Trial', 'failed_trials', 2], // Battery's, its container
+      ['Trial', 'arm', 'A'], // the study root's
+      ['Example_Study', 'arm', 'A'],
+      ['Trial', 'count', undefined], // a sibling's is out of scope
+      ['Nope', 'count', undefined],
+      // A single segment falls back to `_meta.<path>.<scope>`, scope by scope.
+      ['Excluded_Pre', 'reached', 4],
+      ['Trial', 'reached', 1], // Battery's counter, lexically
+      ['Example_Study', 'reached', undefined],
+      ['Excluded_Pre', 'reached.Battery', undefined],
+      // `state.` reads the tree from its top, `_meta` included.
+      ['Trial', 'state.Excluded_Pre.count', 3],
+      ['Trial', 'state.Example_Study.arm', 'A'],
+      ['Trial', 'state._meta.reached.Excluded_Pre', 4],
+      ['Trial', 'state._meta.prov.0.who', 'alice'],
+    ];
+    for (const [elementId, path, expected] of CASES) {
+      expect(resolveState(definitions, elementId, path), `${elementId}: ${path}`).toBe(expected);
+    }
   });
 
   test('resolvePlaceholders substitutes what resolves and leaves the rest as written', () => {
-    const definitions = studyflowToDefinitions(DOC, freshModdle());
-    expect(resolvePlaceholders('Excluded (n={count})', definitions, 'Excluded_Pre')).toBe('Excluded (n=3)');
-    expect(resolvePlaceholders('{arm}/{missing} {reached} {state.Battery.failed_trials}', definitions, 'Excluded_Pre'))
-      .toBe('A/{missing} 4 2');
-    expect(resolvePlaceholders('Excluded (n={count})', studyflowToDefinitions(BODY, freshModdle()), 'Excluded_Pre'))
-      .toBe('Excluded (n={count})');
-    // Only the braces of a name: YAML and JSON in a value stay put.
-    expect(resolvePlaceholders('{a: 1} {"arm": 2} {arm}', definitions, 'Excluded_Pre')).toBe('{a: 1} {"arm": 2} A');
-  });
-
-  test('a name may hold letters of any script and hyphens, as in the Python runners', () => {
-    const tree = { Example_Study: { durée: 3 }, _meta: { reached: { 'sid-12': 4 } } };
-    const definitions = studyflowToDefinitions(DOC, freshModdle());
-    writeState(definitions, freshModdle(), tree);
-    expect(resolvePlaceholders('{durée} {state._meta.reached.sid-12}', definitions, 'Excluded_Pre')).toBe('3 4');
+    const CASES: [label: string, state: StateTree | undefined, text: string, expected: string][] = [
+      ['a name in scope', STATE, 'Excluded (n={count})', 'Excluded (n=3)'],
+      ['an unresolved name stays', STATE, '{arm}/{missing} {reached} {state.Battery.failed_trials}', 'A/{missing} 4 2'],
+      ['nothing resolves without state', undefined, 'Excluded (n={count})', 'Excluded (n={count})'],
+      ['only the braces of a name: YAML and JSON in a value stay put', STATE, '{a: 1} {"arm": 2} {arm}', '{a: 1} {"arm": 2} A'],
+      // As in the Python runners.
+      ['a name of letters of any script, and hyphens', { Example_Study: { durée: 3 }, _meta: { reached: { 'sid-12': 4 } } }, '{durée} {state._meta.reached.sid-12}', '3 4'],
+    ];
+    const moddle = freshModdle();
+    for (const [label, state, text, expected] of CASES) {
+      const definitions = studyflowToDefinitions(BODY, moddle);
+      writeState(definitions, moddle, state);
+      expect(resolvePlaceholders(text, definitions, 'Excluded_Pre'), label).toBe(expected);
+    }
   });
 });
