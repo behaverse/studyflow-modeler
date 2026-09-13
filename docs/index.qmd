@@ -13,7 +13,7 @@ The notation is designed to be compatible with other tools and formats. A studyf
 
 Here is an example of a cognitive experiment described as a studyflow diagram:
 
-![Example cognitive experiment as one studyflow diagram: screening, pre-test, random allocation to three conditions, training, post-test, debrief. If you open this SVG image in the [Modeler app](https://behaverse.org/studyflow-modeler/app), you can see the details, edit it, or run it.](assets/img/example-experiment.studyflow.svg)
+![Example cognitive experiment as one studyflow diagram: instructions, a questionnaire, two pre-tests, random allocation to three conditions (action video game, Tetris, or rest), post-test, debrief. If you open this SVG image in the [Modeler app](https://behaverse.org/studyflow-modeler/app), you can see the details, edit it, or run it.](assets/img/example-experiment.studyflow.svg)
 
 But an experiment can be more than a description of data collection. And the same notation can describe a data analysis, from raw data to final figures. And the same notation can be used to run the analysis in different environments (local, HPC, or cloud):
 
