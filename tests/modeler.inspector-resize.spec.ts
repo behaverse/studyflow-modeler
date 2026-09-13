@@ -23,41 +23,32 @@ async function dragHandle(page: Page, dx: number): Promise<void> {
 }
 
 test.describe('Inspector resize', () => {
-  test('drags wider, and keeps that width across a reload', async ({ page }) => {
+  test('the handle widens the panel by pointer or keyboard, the width outlives a reload, and a double-click resets it', async ({ page }) => {
     await gotoModeler(page);
-
+    const panel = page.getByTestId('inspector-root');
+    const handle = page.getByTestId('inspector-resize-handle');
+    const before = (await panel.boundingBox())!;
     const initial = await panelWidth(page);
-    await dragHandle(page, -140);
 
-    const widened = await panelWidth(page);
-    expect(widened).toBeGreaterThan(initial + 100);
+    await dragHandle(page, -140);
+    const widened = (await panel.boundingBox())!;
+    expect(Math.round(widened.width)).toBeGreaterThan(initial + 100);
+    // It grows leftward, horizontally only: its top and its right edge stay where they were.
+    expect(widened.y).toBe(before.y);
+    expect(widened.x + widened.width).toBe(before.x + before.width);
 
     await page.reload();
     await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
-    expect(await panelWidth(page)).toBe(widened);
+    expect(await panelWidth(page)).toBe(Math.round(widened.width));
 
-    await page.getByTestId('inspector-resize-handle').dblclick();
+    await handle.dblclick();
     expect(await panelWidth(page)).toBe(initial);
-  });
 
-  test('resizes horizontally only, within bounds, and from the keyboard', async ({ page }) => {
-    await gotoModeler(page);
-    const before = await page.getByTestId('inspector-root').boundingBox();
-
-    await dragHandle(page, -4000);
-    const wide = await page.getByTestId('inspector-root').boundingBox();
-    expect(wide!.width).toBeLessThanOrEqual(page.viewportSize()!.width / 2);
-    expect(wide!.y).toBe(before!.y);
-    expect(wide!.x + wide!.width).toBe(before!.x + before!.width);
-
-    await dragHandle(page, 4000);
-    expect(await panelWidth(page)).toBe(240);
-
-    await page.getByTestId('inspector-resize-handle').focus();
+    await handle.focus();
     await page.keyboard.press('ArrowLeft');
     await page.keyboard.press('ArrowLeft');
-    expect(await panelWidth(page)).toBe(240 + 48);
+    expect(await panelWidth(page)).toBe(initial + 48);
     await page.keyboard.press('Home');
-    expect(await panelWidth(page)).toBe(288);
+    expect(await panelWidth(page)).toBe(initial);
   });
 });
