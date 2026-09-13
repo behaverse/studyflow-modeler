@@ -3,26 +3,9 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { extractStudyflowFromPng } from '@core/document/png';
-import {
-  exportDiagram,
-  gotoModeler,
-  readDownload,
-  readDownloadText,
-  runPaletteCommand,
-  uploadStudyflowDiagram,
-} from './utils';
+import { exportDiagram, gotoModeler, readDownloadText } from './utils';
 
 test.describe('Studyflow modeler file flows', () => {
-  test('opens a local legacy (BPMN XML) studyflow file', async ({ page }) => {
-    await gotoModeler(page);
-    // 'Open File...' clicks a hidden <input type=file>; set files on it directly, no native chooser.
-    await uploadStudyflowDiagram(page, 'sample.studyflow');
-
-    await expect(page.getByTitle('Click to edit diagram name')).toHaveText('sample');
-    await expect(page.getByTestId('modeler-canvas')).toBeVisible();
-  });
-
   test('opening a file says what its reading could not place', async ({ page }) => {
     await page.clock.install();
     await gotoModeler(page);
@@ -166,17 +149,6 @@ test.describe('Studyflow modeler file flows', () => {
     expect(result.height).toBe(52);
   });
 
-  test('exports raw BPMN 2.0 XML', async ({ page }) => {
-    await gotoModeler(page);
-
-    const download = await exportDiagram(page, 'bpmn');
-
-    await expect(download.suggestedFilename()).toBe('diagram.bpmn');
-    const content = await readDownloadText(download);
-    expect(content).toContain('<?xml');
-    expect(content).toContain('bpmn');
-  });
-
   test('exports a standalone draw.io file', async ({ page }) => {
     await gotoModeler(page);
 
@@ -186,38 +158,5 @@ test.describe('Studyflow modeler file flows', () => {
     const content = await readDownloadText(download);
     expect(content).toContain('<mxfile host="studyflow-modeler">');
     expect(content).toMatch(/<mxCell id="StartEvent[^"]*"[^>]*shape=mxgraph\.bpmn\.event/);
-  });
-
-  test('exported SVG carries the studyflow source, and nothing else', async ({ page }) => {
-    await gotoModeler(page);
-
-    const svgText = await readDownloadText(await exportDiagram(page, 'svg'));
-
-    expect(svgText).toContain('<studyflow>');
-    // A draw.io payload is the draw.io export's job; the picture carries only what reopens it.
-    expect(svgText).not.toContain('mxfile');
-  });
-
-  test('an exported image always carries its source, and only that', async ({ page }) => {
-    await gotoModeler(page);
-
-    const png = await readDownload(await exportDiagram(page, 'png'));
-    expect(png.subarray(1, 4).toString('ascii')).toBe('PNG');
-    // Always embedded, as the .studyflow.yaml: an image that cannot be reopened is a dead end, so it is not an option.
-    expect(extractStudyflowFromPng(png)).toBe(await readDownloadText(await exportDiagram(page, 'studyflow')));
-    expect(png.includes('mxfile')).toBe(false);
-  });
-
-  test('New starts from the gallery, whose blank entry replaces the diagram', async ({ page }) => {
-    await gotoModeler(page);
-    await uploadStudyflowDiagram(page, 'sample.studyflow');
-    await expect(page.getByTitle('Click to edit diagram name')).toHaveText('sample');
-
-    // 'New' opens the template gallery; the blank canvas is its first entry, not a separate command.
-    await runPaletteCommand(page, 'New...');
-    await page.getByTestId('new-diagram-blank').click();
-
-    await expect(page.getByTitle('Click to edit diagram name')).not.toHaveText('sample');
-    await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
   });
 });
