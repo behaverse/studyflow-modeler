@@ -227,13 +227,13 @@ An agent stops at its `completionCondition` and never runs past `maxTurns`. A gu
 
 # The file
 
-![The files that carry a study, and what converts into what. The thick arrows are the conversions that lose nothing.](assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png and .studyflow.svg, which carry the same BPMN XML beside the pixels as embedded source. An image reopens in the modeler from its embedded source, never from its pixels. A dotted arrow leaves the round trip: skills export one way to .drawio, LinkML, NIDM-Results, and ARTEM-IS."}
+![The files that carry a study, and what converts into what. The thick arrows are the conversions that lose nothing.](assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png and .studyflow.svg, which carry that same .studyflow.yaml beside the pixels as embedded source. An image reopens in the modeler from its embedded source, never from its pixels. A dotted arrow leaves the round trip: skills export one way to .drawio, LinkML, NIDM-Results, and ARTEM-IS."}
 
 | File | Carries | Reopens as a studyflow |
 |:--|:--|:--|
 | `.studyflow.yaml` | the study itself, in full. **The canonical form. Keep this one in version control.** | yes, also `.studyflow` |
 | `.bpmn` | the same study, as standard BPMN 2.0 XML | yes, also `.xml` |
-| `.studyflow.png`, `.studyflow.svg` | a picture, and the study inside it | yes |
+| `.studyflow.png`, `.studyflow.svg` | a picture, and the study's `.studyflow.yaml` inside it | yes |
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
 | `.json` (jsPsych timeline) | an existing timeline, on import only | read only |
 
