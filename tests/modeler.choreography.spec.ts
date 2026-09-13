@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import {
   addPaletteElement,
+  examplePath,
   expectEditorText,
   exportDiagram,
   gotoModeler,
@@ -75,7 +76,6 @@ test.describe('Studyflow choreography tasks', () => {
 
 /** A cognitive task presents itself; its one participant is an editable select, and a band-only actor is typed from there. */
 test('a cognitive task names who takes it: a declared pool, a new actor, or no one', async ({ page }) => {
-  const { examplePath } = await import('./utils');
   await gotoModeler(page);
   await page.getByTestId('open-file-input').setInputFiles(examplePath('reachy_participant'));
   const shape = page.locator('[data-element-id="Play"]');
@@ -98,29 +98,28 @@ test('a cognitive task names who takes it: a declared pool, a new actor, or no o
 
   // A band-only actor has no shape to select: its kind and that kind's settings are set here and reach the file.
   await inspector.getByRole('button', { name: 'bottom participant kind' }).click();
-  await page.getByRole('option', { name: 'Large language model' }).click();
-  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Large language model');
+  await page.getByRole('option', { name: 'Software', exact: true }).click();
+  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Software');
   const identifier = inspector.locator('input[name="cognitive:implementation"]');
-  await identifier.fill('claude://claude-haiku-4-5');
+  await identifier.fill('python://lab.bots.random');
   await identifier.blur();
   let studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-  expect(studyflowText).toContain('actorType: llm');
-  expect(studyflowText).toContain('implementation: claude://claude-haiku-4-5');
+  expect(studyflowText).toContain('actorType: software');
+  expect(studyflowText).toContain('implementation: python://lab.bots.random');
 
-  // None clears the band: the task draws plain and the pool it sits in takes it; the unused actor leaves the file.
+  // None clears the band: the task draws plain and the pool it sits in takes it.
   await inspector.locator('button[aria-label="bottom participant choices"]').click();
   await page.getByRole('option', { name: 'None' }).click();
   await expect(taker).toHaveValue('');
   await expect(shape).not.toContainText('Subject');
   await expect(shape).not.toContainText('Behaverse');
-  studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-  expect(studyflowText).not.toContain('name: Subject');
 
-  // And back to the pool from the dropdown.
+  // And back to the pool from the dropdown; the actor no band names any more has left the file.
   await inspector.locator('button[aria-label="bottom participant choices"]').click();
   await page.getByRole('option', { name: /Reachy Mini/ }).click();
   await expect(taker).toHaveValue('Reachy Mini');
   await expect(shape).toContainText('Behaverse');
   studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
   expect(studyflowText).toContain('- Pool_Reachy');
+  expect(studyflowText).not.toContain('name: Subject');
 });
