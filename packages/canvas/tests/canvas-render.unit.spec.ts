@@ -374,6 +374,16 @@ test('a cognitive task presents itself, and renaming the pool on its band redraw
   expect(textsOf(canvas, 'Play')).not.toEqual(expect.arrayContaining(['Reachy Mini']));
 });
 
+// --- data associations -------------------------------------------------------------
+
+test('a collapsed sub-process draws its own data associations', async () => {
+  const { canvas } = await loadCanvas(await exampleXml('spirit2025'));
+  // Visit_T1 and Visit_T2 are collapsed; what they write sits beside them, not inside.
+  for (const id of ['DataOutput_T1_AE', 'DataOutput_T2_Primary', 'DataOutput_T2_AE']) {
+    expect(canvas.getGraphics(id)?.getAttribute('display'), id).toBeNull();
+  }
+});
+
 // --- main canvas only ------------------------------------------------------------
 
 /** Every DI shape and edge the definitions carry, across their planes. */

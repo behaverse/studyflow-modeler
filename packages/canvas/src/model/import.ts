@@ -8,7 +8,7 @@
  */
 
 import { readColorsOf } from '@canvas/model/color.ts';
-import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION } from '@canvas/model/dataAssociation.ts';
+import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
 import { FONT_PROPERTY, parseFont } from '@canvas/model/font.ts';
 import { mintLabel, syncLabel } from '@canvas/model/labels.ts';
 import { asList, asModdle, parentOf, prop, refBO } from '@canvas/model/moddle.ts';
@@ -151,13 +151,18 @@ function collectPlanes(definitions: ModdleObject, mainCanvasOnly = false): Plane
 }
 
 /**
- * Whether `businessObject` sits inside a sub-process, however deep. A data association's parent is
- * its activity, so the walk starts above it: a sub-process's own associations stay on the main canvas.
+ * What `businessObject` sits in: its `$parent`, except that a data association's `$parent` is its
+ * activity, and it sits beside that activity, so a sub-process's own associations stay at its level.
  */
+function containerOf(businessObject: ModdleObject | undefined): ModdleObject | undefined {
+  const parent = parentOf(businessObject);
+  return businessObject && isDataAssociationType(businessObject.$type) ? parentOf(parent) : parent;
+}
+
+/** Whether `businessObject` sits inside a sub-process, however deep. */
 // ponytail: a message flow into a sub-process's contents keeps its line and loses its end; drop it too if one shows.
 function insideSubProcess(businessObject: ModdleObject | undefined): boolean {
-  const associated = businessObject?.$type === DATA_INPUT_ASSOCIATION || businessObject?.$type === DATA_OUTPUT_ASSOCIATION;
-  for (let p = parentOf(associated ? parentOf(businessObject) : businessObject); p; p = parentOf(p)) {
+  for (let p = containerOf(businessObject); p; p = parentOf(p)) {
     if (isExpandable(p.$type)) return true;
   }
   return false;
@@ -299,14 +304,14 @@ function laneNesting(lane: ModdleObject): number {
   return depth;
 }
 
-/** The nearest drawn ancestor of an element's business object, else the plane's owner. */
+/** The nearest drawn node an element's business object sits in ({@link containerOf}), else the plane's owner. */
 function findParentNode(
   element: Drawable,
   byBusinessObject: Map<ModdleObject, Drawable>,
   owner: SceneNode | undefined,
   containment: Map<ModdleObject, ModdleObject>,
 ): SceneNode | undefined {
-  const up = (bo: ModdleObject): ModdleObject | undefined => containment.get(bo) ?? parentOf(bo);
+  const up = (bo: ModdleObject): ModdleObject | undefined => containment.get(bo) ?? containerOf(bo);
   const guard = new Set<ModdleObject>();
   for (let bo = up(element.businessObject); bo && !guard.has(bo); bo = up(bo)) {
     guard.add(bo);
