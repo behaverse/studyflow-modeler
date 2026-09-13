@@ -24,6 +24,9 @@ function hasUv(): boolean {
   }
 }
 
+// Every test here runs run.py through uv.
+test.skip(!hasUv(), 'uv is not on PATH');
+
 function archivedState(file: string): any {
   const xml = fs.readFileSync(file, 'utf8');
   const body = xml.match(/<studyflow:state>(.*?)<\/studyflow:state>/s)?.[1] ?? '{}';
@@ -31,8 +34,6 @@ function archivedState(file: string): any {
 }
 
 test.describe('studyflow-run-local state', () => {
-  test.skip(!hasUv(), 'uv is not on PATH');
-
   test('appends _meta.prov and counts reaches, persisting across runs', async () => {
     const xml = await studyflowToXml(`id: reach
 definitions:
@@ -83,8 +84,6 @@ S:
 });
 
 test.describe('the local walk', () => {
-  test.skip(!hasUv(), 'uv is not on PATH');
-
   test('refuses a parallel split instead of walking only its first branch', async () => {
     const xml = await studyflowToXml(`id: split
 definitions:
