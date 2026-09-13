@@ -3,15 +3,9 @@ import { expect, test } from '@playwright/test';
 import { createSnapshotHistory } from '@modeler/editor/history';
 
 /**
- * The document history the canvas backend brought with it — the app-level undo
- * stack that stands in for a command stack.
- *
- * It does not belong to the editor: it is what `Editor.revision()` /
- * `undo()` / `redo()` answer with, so provenance, autosave and dirty-tracking
- * read it without knowing where the mutation came from.
- *
- * This file also carried the `editor/backend.ts` flag's tests until P6b step 11.
- * The flag chose between two backends; there is one, so it and they are gone.
+ * The editor's undo history: XML snapshots standing in for a command stack. It is
+ * what `Editor.revision()` / `undo()` / `redo()` answer with, so provenance,
+ * autosave and dirty-tracking read it without knowing where the mutation came from.
  */
 
 /**
@@ -72,6 +66,7 @@ test('undo restores the previous snapshot and redo puts it back', async () => {
   state.xml = '<b/>';
   history.record();
   await settle();
+  const afterEdit = history.revision();
 
   expect(history.canUndo()).toBe(true);
   expect(history.canRedo()).toBe(false);
@@ -81,32 +76,25 @@ test('undo restores the previous snapshot and redo puts it back', async () => {
   expect(state.xml, 'the document is back at the import baseline').toBe('<a/>');
   expect(history.canUndo()).toBe(false);
   expect(history.canRedo()).toBe(true);
+  // An undo is a change like any other, so a re-export re-stamps the trail; a redo too.
+  expect(history.revision()).toBeGreaterThan(afterEdit);
+  const afterUndo = history.revision();
 
   history.redo();
   await settle();
   expect(state.xml).toBe('<b/>');
   expect(history.canRedo()).toBe(false);
+  expect(history.revision()).toBeGreaterThan(afterUndo);
 });
 
-test('undo/redo move the revision, so a re-export re-stamps the trail', async () => {
+test('an edit is one undo state: a no-op adds none, and two signals for one edit collapse', async () => {
   const { state, history } = fakeDocument('<a/>');
   history.reset();
   await settle();
 
-  state.xml = '<b/>';
   history.record();
   await settle();
-  const afterEdit = history.revision();
-
-  history.undo();
-  await settle();
-  expect(history.revision(), 'an undo is a change like any other').toBeGreaterThan(afterEdit);
-});
-
-test('two mutation signals for one edit collapse into one undo state', async () => {
-  const { state, history } = fakeDocument('<a/>');
-  history.reset();
-  await settle();
+  expect(history.canUndo(), 'nothing changed, so there is nothing to go back to').toBe(false);
 
   // What the editor does on a `mutate.*` call: the mutations' per-mutation
   // commit and the scene's own change event both arrive for a single write.
@@ -119,18 +107,6 @@ test('two mutation signals for one edit collapse into one undo state', async () 
   await settle();
   expect(state.xml, 'one undo is enough — the duplicate snapshot was dropped').toBe('<a/>');
   expect(history.canUndo()).toBe(false);
-});
-
-test('a no-op mutation leaves the undo stack alone', async () => {
-  const { state, history } = fakeDocument('<a/>');
-  history.reset();
-  await settle();
-
-  history.record();
-  await settle();
-
-  expect(state.xml).toBe('<a/>');
-  expect(history.canUndo(), 'nothing changed, so there is nothing to go back to').toBe(false);
 });
 
 test('a new edit after an undo drops the redo branch', async () => {
