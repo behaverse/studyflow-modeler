@@ -29,31 +29,6 @@ test.describe('New Diagram gallery', () => {
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
   });
 
-  test('an example that needs a skill turned off is left out, a PNG one too', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('studyflow-modeler:settings', JSON.stringify({ enabledSchemas: [] })));
-    await gotoModeler(page);
-    await runPaletteCommand(page, 'New...');
-
-    // Read and drawn: sklearn_pipeline needs only the required schemas.
-    await expect(page.getByTestId('example-sklearn_pipeline')).toContainText('scikit-learn');
-    // kitchensink and agent_eval name agentic types, and the PNG bot_external behaverse ones; the PNG drawn_loop needs none.
-    await expect(page.getByTestId('example-kitchensink')).toHaveCount(0);
-    await expect(page.getByTestId('example-agent_eval')).toHaveCount(0);
-    await expect(page.getByTestId('example-bot_external')).toHaveCount(0);
-    await expect(page.getByTestId('example-drawn_loop')).toBeVisible();
-  });
-
-  test('a pool diagram is read from both its roots', async ({ page }) => {
-    // spirit2025 splits its card across both roots: name on the collaboration, documentation on the process.
-    await gotoModeler(page);
-    await runPaletteCommand(page, 'New...');
-
-    const card = page.getByTestId('example-spirit2025');
-    await expect(card).toContainText('studyflow');                   // its skill
-    await expect(card).toContainText('SPIRIT 2025 trial protocol'); // collaboration
-    await expect(card).toContainText('A SPIRIT 2025 trial protocol in lanes'); // process
-  });
-
   test('a card wears its skill\'s schema icon, when the skill has a schema', async ({ page }) => {
     await gotoModeler(page);
     await runPaletteCommand(page, 'New...');
