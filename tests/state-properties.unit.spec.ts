@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { IdGenerator } from '@canvas/index.ts';
 import { runUpdateStateProperties } from '@modeler/inspector/commands';
-import { itemTypeOptions } from '@modeler/inspector/stateProperties';
+import { getPropertiesInScope, itemTypeOptions } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
 import { freshModdle } from './schemas';
 
@@ -63,6 +63,22 @@ test('a scope adds properties by the next free id, and types them with one item 
   const options = itemTypeOptions(process);
   expect(options.slice(-2)).toEqual(['dict[str, int]', 'pandas.Series']);
   expect(options.filter((type) => type === 'string')).toHaveLength(1);
+});
+
+test('a step may bind what its scopes declare, outward, an inner name hiding an outer one, and nothing a sibling declares', () => {
+  const m = freshModdle();
+  const property = (id: string, name: string) => m.create('bpmn:Property', { id, name });
+  const step = m.create('bpmn:Task', { id: 'Step' });
+  const loop = m.create('bpmn:SubProcess', { id: 'Loop', properties: [property('Loop_n', 'n')], flowElements: [step] });
+  const prepare = m.create('bpmn:SubProcess', { id: 'Prepare', properties: [property('Prepare_features', 'features')] });
+  const study = m.create('bpmn:Process', {
+    id: 'Study', properties: [property('Study_n', 'n'), property('Study_arm', 'arm')], flowElements: [loop, prepare],
+  });
+  step.$parent = loop;
+  loop.$parent = study;
+  prepare.$parent = study;
+
+  expect(getPropertiesInScope(step).map((p) => `${p.name} from ${p.ownerId}`)).toEqual(['n from Loop', 'arm from Study']);
 });
 
 test.describe('property names', () => {
