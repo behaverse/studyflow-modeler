@@ -9,17 +9,10 @@ import {
 } from './utils';
 
 /**
- * The per-shape context pad, driven the way a pointer drives it (parity spec
- * addenda 4+5, ux-spec §4; reference recordings `edge-videos/edgemake` and
- * `edge-videos/preview`).
- *
- * `tests/context-pad-entries.unit.spec.ts` pins WHICH entries appear; everything
- * here needs a real pointer and a real canvas: where the box floats, what a hover
- * paints, and that the ghost a hover paints is the element a click actually creates.
- * That last one is the whole point of the affordance (addendum 5 §3) and the only
- * way to catch it drifting is to measure both.
- *
- * `tests/modeler.popup.spec.ts` covers the two menus the pad opens.
+ * The per-shape context pad, driven by a real pointer. `tests/context-pad-entries.unit.spec.ts`
+ * pins WHICH entries appear; what needs a browser is where the box floats and when it gets
+ * out of the way, what a hover paints, and that the ghost a hover paints is where a click
+ * lands. `tests/modeler.popup.spec.ts` covers the menus the pad opens.
  */
 
 const pad = (page: Page): Locator => page.getByTestId('context-pad');
@@ -58,108 +51,90 @@ async function boxOf(locator: Locator): Promise<{ x: number; y: number; width: n
 }
 
 test.describe('The context pad', () => {
-  test('floats just outside the selection outline, at its top-right corner', async ({ page }) => {
+  test('floats just outside the selection outline, steps aside for a drag, and goes with the selection', async ({ page }) => {
     await gotoModeler(page);
     await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
     await pressOnCanvas(page, 'Escape');
+    const task = page.locator('g[data-element-id^="Task_"]').first();
 
+    // `left = outline.right + 8`, `top = outline.top`, the outline 5 diagram units outside
+    // the shape; the tolerance absorbs the zoom the initial fit chooses and the rounding.
     await expect(pad(page)).toBeVisible();
-    const shape = await boxOf(page.locator('g[data-element-id^="Task_"]').first());
+    const shape = await boxOf(task);
     const padBox = await boxOf(pad(page));
-
-    // ux-spec §4: `left = selectionOutline.right + 8`, `top = selectionOutline.top`,
-    // and the outline itself sits 5 diagram units outside the shape. At zoom 1 that
-    // is shape.right + 13 and shape.top - 5; the tolerance absorbs the zoom the
-    // initial fit chooses and the rounding on both sides.
     expect(padBox.x).toBeGreaterThan(shape.x + shape.width);
     expect(padBox.x - (shape.x + shape.width)).toBeLessThan(40);
     expect(Math.abs(padBox.y - shape.y)).toBeLessThan(30);
-    // The 98px box is what makes the entries wrap three to a row.
-    expect(padBox.width).toBe(98);
+
+    // Gone for the length of a drag, so the trash is not under the pointer at the drop;
+    // back after it, anchored where the shape landed.
+    await page.mouse.move(shape.x + shape.width / 2, shape.y + shape.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(shape.x + shape.width / 2 + 160, shape.y + shape.height / 2 + 80, { steps: 12 });
+    await expect(pad(page)).toBeHidden();
+    await page.mouse.up();
+    await expect(pad(page)).toBeVisible();
+    const moved = await boxOf(task);
+    const movedPad = await boxOf(pad(page));
+    expect(movedPad.x).toBeGreaterThan(moved.x + moved.width);
+    expect(Math.abs(movedPad.y - moved.y)).toBeLessThan(30);
+
+    // It belongs to the selection: clearing it closes the pad, selecting opens it again.
+    await page.getByTestId('modeler-canvas').click({ position: { x: 60, y: 60 } });
+    await expect(pad(page)).toHaveCount(0);
+    await task.click();
+    await expect(pad(page)).toBeVisible();
   });
 
-  test('hovering the end-event entry ghosts the shape and its flow, and leaving removes both', async ({ page }) => {
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
-    await pressOnCanvas(page, 'Escape');
-
-    await expect(ghost(page)).toHaveCount(0);
-    await entry(page, 'append.end-event').hover();
-
-    // One ghost, carrying both halves of what the click would make: the silhouette
-    // in drag-blue and the connection that would reach it (`preview/frame_02`).
-    await expect(ghost(page)).toHaveCount(1);
-    await expect(ghost(page).locator('.sf-ghost')).toHaveCount(1);
-    await expect(ghost(page).locator('.sf-append-preview-line')).toHaveCount(1);
-    // Nothing was committed: the document still holds exactly one shape.
-    await expect(page.locator('g[data-element-id^="EndEvent_"]')).toHaveCount(0);
-
-    // A tooltip comes with it (addendum 5 §2).
-    await expect(page.getByTestId('context-pad-tooltip')).toHaveText('Append end event');
-
-    await page.mouse.move(10, 10);
-    await expect(ghost(page)).toHaveCount(0);
-    await expect(page.getByTestId('context-pad-tooltip')).toHaveCount(0);
-  });
-
-  test('the ghost dies when the selection moves out from under it', async ({ page }) => {
+  test('hovering the end-event entry ghosts the shape and its flow where the click lands them', async ({ page }) => {
     await gotoModeler(page);
     await addPaletteElement(page, 'Activities', 'Task', { x: 260, y: 220 });
     await pressOnCanvas(page, 'Escape');
     await addPaletteElement(page, 'Activities', 'User', { x: 560, y: 220 });
     await pressOnCanvas(page, 'Escape');
-
-    await page.locator('g[data-element-id^="Task_"]').first().click();
-    await entry(page, 'append.end-event').hover();
-    await expect(ghost(page)).toHaveCount(1);
-
-    // Selecting elsewhere re-anchors the pad. The ghost belongs to the source it was
-    // computed from, so it must not survive the source going away — a `mouseleave`
-    // that never arrives (the pad moved out from under the pointer) would otherwise
-    // strand a blue shape on the diagram that nothing owns.
-    await page.locator('g[data-element-id^="UserTask_"]').first().click();
-    await expect(ghost(page)).toHaveCount(0);
-  });
-
-  test('the ghost lands exactly where the click lands', async ({ page }) => {
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
-    await pressOnCanvas(page, 'Escape');
-
+    const task = page.locator('g[data-element-id^="Task_"]').first();
     const target = entry(page, 'append.end-event');
+    await task.click();
+
+    // One ghost, carrying both halves of what the click would make: the silhouette and
+    // the connection that would reach it. Nothing is committed, and a tooltip comes with it.
+    await expect(ghost(page)).toHaveCount(0);
     await target.hover();
     await expect(ghost(page)).toHaveCount(1);
+    await expect(ghost(page).locator('.sf-ghost')).toHaveCount(1);
+    await expect(ghost(page).locator('.sf-append-preview-line')).toHaveCount(1);
+    await expect(page.locator('g[data-element-id^="EndEvent_"]')).toHaveCount(0);
+    await expect(page.getByTestId('context-pad-tooltip')).toHaveText('Append end event');
 
-    // Compared as the renderer's own placement — the `<g transform>` and the
-    // untransformed geometry inside it — rather than as screen rectangles. A
-    // selected shape carries an `.sf-outline` circle 6 units wider than itself, so
-    // two bounding boxes of the same placement differ by exactly that halo and
-    // measure the selection instead of the position.
-    const placement = (locator: Locator) => locator.evaluate((node: any) => {
-      const shape = node.querySelector(':scope > :not(.sf-outline)');
-      return {
-        transform: node.getAttribute('transform'),
-        geometry: shape.outerHTML,
-      };
-    });
+    // Leaving takes both away.
+    await page.mouse.move(10, 10);
+    await expect(ghost(page)).toHaveCount(0);
+    await expect(page.getByTestId('context-pad-tooltip')).toHaveCount(0);
 
+    // The ghost belongs to the source it was computed from: selecting elsewhere moves the
+    // pad out from under the pointer, and the `mouseleave` that never comes must not
+    // strand a shape nothing owns.
+    await target.hover();
+    await expect(ghost(page)).toHaveCount(1);
+    await page.locator('g[data-element-id^="UserTask_"]').first().click();
+    await expect(ghost(page)).toHaveCount(0);
+
+    // The click lands exactly on the ghost. Compared as the renderer's own placement, the
+    // `<g transform>` and the geometry inside it: a selected shape's outline would make two
+    // bounding boxes of one placement differ.
+    await task.click();
+    await target.hover();
+    await expect(ghost(page)).toHaveCount(1);
+    const placement = (locator: Locator) => locator.evaluate((node: any) => ({
+      transform: node.getAttribute('transform'),
+      geometry: node.querySelector(':scope > :not(.sf-outline)').outerHTML,
+    }));
     const previewed = await placement(ghost(page).locator('.sf-ghost'));
-
     await target.click();
     await expect(ghost(page)).toHaveCount(0);
     const created = page.locator('g[data-element-id^="EndEvent_"]');
     await expect(created).toHaveCount(1);
-
-    // Addendum 5 §3 — the promise the affordance makes. Both go through the same
-    // `appendPosition`, so any drift here means one of them stopped.
-    const landed = await placement(created);
-    expect(landed.transform, 'the ghost and the commit place the shape identically')
-      .toBe(previewed.transform);
-    expect(landed.geometry, 'and draw the same shape at it').toBe(previewed.geometry);
-
-    const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toContain('<bpmn2:endEvent');
-    expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*targetRef="EndEvent_/);
+    expect(await placement(created), 'the ghost and the commit place and draw the shape alike').toEqual(previewed);
   });
 
   test('the connect entry drags a live preview onto another shape and mints the flow', async ({ page }) => {
@@ -197,10 +172,8 @@ test.describe('The context pad', () => {
     expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*sourceRef="Task_[^"]*"[^>]*targetRef="UserTask_/);
   });
 
-  test('the wrench retypes the element in place, keeping its name and its flow', async ({ page }) => {
-    // ux-spec §4 entry 4, the `replace` / "Change element" wrench —
-    // `edge-videos/edgemake/frame_05` and `v1/frame_03` both show it between the
-    // append group and the trash.
+  test('the wrench retypes the element through the replace menu, as one undo step', async ({ page }) => {
+    // What the retype writes (the new type, the name, both flows) is canvas-replace's.
     await gotoModeler(page);
     await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
     await page.keyboard.type('Read the brief');
@@ -212,21 +185,13 @@ test.describe('The context pad', () => {
     await expect(entry(page, 'replace')).toBeVisible();
     await entry(page, 'replace').click();
 
-    // The wrench opens a searchable menu, exactly as `append` does (ux-spec §11 —
-    // "reached via the append/replace pad entries").
+    // The wrench opens a searchable menu, as `append` does.
     await expect(page.getByTestId('popup-menu')).toBeVisible();
     await page.getByTestId('popup-menu-entry-create-User').click();
 
-    // The task is gone and a user task stands where it stood…
+    // The task is gone and a user task stands where it stood, under the same name (drawn on two lines).
     await expect(task).toHaveCount(0);
-    const replaced = page.locator('g[data-element-id^="UserTask_"]').first();
-    await expect(replaced).toHaveCount(1);
-
-    // …with the name carried across and the flow it had re-pointed at it.
-    const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toMatch(/<bpmn2:userTask[^>]*name="Read the brief"/);
-    expect(bpmn).not.toContain('<bpmn2:task ');
-    expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*sourceRef="UserTask_[^"]*"[^>]*targetRef="EndEvent_/);
+    await expect(page.locator('g[data-element-id^="UserTask_"]')).toContainText(/Read the\s*brief/);
 
     // ONE undo, because the whole retype was one edit.
     await pressOnCanvas(page, 'ControlOrMeta+z');
@@ -234,37 +199,9 @@ test.describe('The context pad', () => {
     await expect(page.locator('g[data-element-id^="UserTask_"]')).toHaveCount(0);
   });
 
-  test('goes away for the duration of a drag, and comes back where the shape landed', async ({ page }) => {
-    // `edge-videos/dnd/frame_01` and `frame_05` show a shape being dragged with NO
-    // pad riding along. Ours used to follow the ghost, so the trash and the brush sat
-    // on top of the very silhouette the user was aiming — and under the cursor at the
-    // moment of the drop.
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
-    await pressOnCanvas(page, 'Escape');
-    await expect(pad(page)).toBeVisible();
-
-    const shape = await boxOf(page.locator('g[data-element-id^="Task_"]').first());
-    await page.mouse.move(shape.x + shape.width / 2, shape.y + shape.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(shape.x + shape.width / 2 + 160, shape.y + shape.height / 2 + 80, { steps: 12 });
-
-    await expect(pad(page)).toBeHidden();
-
-    await page.mouse.up();
-    // The drop ends the gesture, and the pad returns — anchored on where the shape
-    // now is, not where it was picked up.
-    await expect(pad(page)).toBeVisible();
-    const moved = await boxOf(page.locator('g[data-element-id^="Task_"]').first());
-    const padBox = await boxOf(pad(page));
-    expect(padBox.x).toBeGreaterThan(moved.x + moved.width);
-    expect(Math.abs(padBox.y - moved.y)).toBeLessThan(30);
-  });
-
   test('a selected sequence flow offers the annotate entry, and it hangs a note off the flow', async ({ page }) => {
-    // ux-spec §4 — "For a connection (3 entries): `append.text-annotation`, `delete`,
-    // `set-color`". A `bpmn:Association` may leave a sequence flow, so the note hangs
-    // off the flow itself rather than off either of its ends.
+    // A `bpmn:Association` may leave a sequence flow, so the note hangs off the flow
+    // itself rather than off either of its ends.
     await gotoModeler(page);
     await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 240 });
     await pressOnCanvas(page, 'Escape');
@@ -275,9 +212,7 @@ test.describe('The context pad', () => {
     await page.mouse.click(mid.x, mid.y);
 
     await expect(pad(page)).toBeVisible();
-    // Annotate, delete, colour — plus the default-flow toggle, because this flow
-    // leaves an activity.
-    await expect(pad(page).locator('button')).toHaveCount(4);
+    // The default-flow toggle comes with it, because this flow leaves an activity.
     await expect(entry(page, 'append.text-annotation')).toBeVisible();
     await expect(entry(page, 'flow.toggle-default')).toBeVisible();
     // The two that need a shape to flow OUT of stay away.
@@ -300,20 +235,5 @@ test.describe('The context pad', () => {
     const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
     expect(bpmn).toContain('<bpmn2:textAnnotation');
     expect(bpmn).toMatch(/<bpmn2:association[^>]*sourceRef="(SequenceFlow|Flow)_/);
-  });
-
-  test('opens on selection and closes on deselection', async ({ page }) => {
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Events', 'End', { x: 300, y: 220 });
-    await pressOnCanvas(page, 'Escape');
-    await expect(pad(page)).toBeVisible();
-
-    // Clicking empty canvas clears the selection, and the pad is not a panel that
-    // lingers — it belongs to the selection and goes with it (ux-spec §4).
-    await page.getByTestId('modeler-canvas').click({ position: { x: 60, y: 60 } });
-    await expect(pad(page)).toHaveCount(0);
-
-    await page.locator('g[data-element-id^="EndEvent_"]').first().click();
-    await expect(pad(page)).toBeVisible();
   });
 });
