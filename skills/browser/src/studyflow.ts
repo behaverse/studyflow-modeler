@@ -144,9 +144,7 @@ export async function parseStudyflow(
 
   choreographyToProcessRoot(definitions);
 
-  const businessObject = (definitions as any)?.rootElements?.find(
-    (re: any) => re?.$type === 'bpmn:Process' || re?.$type === 'studyflow:Study',
-  );
+  const businessObject = (definitions as any)?.rootElements?.find((re: any) => re?.$type === 'bpmn:Process');
   if (!businessObject) {
     throw new Error('This file holds no study.');
   }
