@@ -12,6 +12,7 @@ import { galleryCategories } from '@modeler/examples/catalog';
 import { filenameStem } from '@modeler/diagram/file';
 import { surface, radius, button } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
+import { PaletteIcon } from '@modeler/palette/PaletteIcon';
 
 const g = {
   filters: 'flex flex-wrap items-center gap-1.5 pb-4 shrink-0',
@@ -35,6 +36,8 @@ const g = {
   thumbImage: 'max-h-full max-w-full object-contain p-3 transition-transform duration-300 ease-out group-hover:scale-[1.04]',
   thumbBusy: 'absolute inset-0 flex items-center justify-center bg-white/70',
   thumbSpinner: `${ICONS.arrowRepeat} text-stone-500 animate-spin`,
+  // The skill's schema icon, pinned to the picture's corner so it reads as where the example comes from.
+  badge: `absolute top-2 start-2 flex size-6 items-center justify-center ${radius.button} bg-white/90 text-stone-500 ring-1 ring-black/[0.06]`,
 
   body: 'flex flex-col gap-1 px-3.5 py-3',
   eyebrow: 'text-[10.5px] font-semibold uppercase tracking-[0.08em] text-stone-400',
@@ -187,6 +190,11 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
                       <div className={g.thumb}>
                         {entry.thumb && (
                           <img src={entry.thumb} alt="" loading="lazy" data-testid="example-thumb" className={g.thumbImage} />
+                        )}
+                        {entry.badge && (
+                          <span className={g.badge} data-testid="example-badge" aria-hidden="true">
+                            <PaletteIcon icon={entry.badge} size={14} />
+                          </span>
                         )}
                         {busy === entry.filename && (
                           <span className={g.thumbBusy}>

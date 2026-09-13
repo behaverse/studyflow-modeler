@@ -1,6 +1,7 @@
 import { studyflowToDefinitions } from '@core/document';
 import { extractXmlFromPng } from '@core/document/png';
 import type { Moddle } from '@core/element/moddle';
+import { SCHEMA_MODELS, skillOfSchema } from '@core/notation/loader';
 import { compareExamples } from '@modeler/examples/catalog';
 import { exampleMetadata } from '@modeler/examples/metadata';
 import { drawPreview } from '@modeler/examples/preview';
@@ -25,6 +26,8 @@ export type ExampleEntry = {
   summary: string;
   /** Gallery shelf: the skill whose `examples/` folder holds the file. */
   category: string;
+  /** The icon of the schema that skill ships, if it ships one. */
+  badge?: string;
   error?: string;
 };
 
@@ -39,7 +42,9 @@ export function buildInitialEntries(): ExampleEntry[] {
   return cards ?? Object.entries(exampleFiles)
     .map(([path, url]): ExampleEntry => {
       const filename = path.split('/').pop() ?? path;
-      const entry: ExampleEntry = { filename, url, title: filenameStem(filename), summary: '', category: path.split('/').at(-3) ?? '' };
+      const category = path.split('/').at(-3) ?? '';
+      const badge = SCHEMA_MODELS.find((model) => skillOfSchema(model.prefix)?.name === category)?.icon;
+      const entry: ExampleEntry = { filename, url, title: filenameStem(filename), summary: '', category, badge };
       return isPng(entry) ? { ...entry, thumb: url } : entry;
     })
     .sort((a, b) => a.filename.localeCompare(b.filename));

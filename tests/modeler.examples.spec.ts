@@ -38,6 +38,19 @@ test.describe('New Diagram gallery', () => {
     await expect(card).toContainText('A SPIRIT 2025 trial protocol in lanes'); // process
   });
 
+  test('a card wears its skill\'s schema icon, when the skill has a schema', async ({ page }) => {
+    await gotoModeler(page);
+    await runPaletteCommand(page, 'New...');
+
+    await expect(page.getByTestId('example-bot_claude').getByTestId('example-badge')).toBeVisible();
+    // reachy's icon is a data URL, drawn as an image rather than an icon class.
+    const reachy = page.getByTestId('example-reachy_pools').getByTestId('example-badge').locator('img');
+    await expect(reachy).toBeVisible();
+    expect(await reachy.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    // python ships a runner and no schema.
+    await expect(page.getByTestId('example-sklearn_pipeline').getByTestId('example-badge')).toHaveCount(0);
+  });
+
   test('category chips filter the gallery', async ({ page }) => {
     await gotoModeler(page);
     await runPaletteCommand(page, 'New...');
