@@ -325,7 +325,7 @@ function ExtensionsSection() {
       />
 
       {dirty && (
-        <div className={`${s.group} sticky top-0 z-10`}>
+        <div className={`${s.group} sticky top-1 z-10`}>
           <p className={`${s.rowHelp} flex items-center gap-1.5`}>
             <i className={`${ICONS.arrowClockwise} text-sm`} aria-hidden="true" />
             Reload the page to apply changes.
