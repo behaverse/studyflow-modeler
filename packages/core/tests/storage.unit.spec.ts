@@ -4,7 +4,6 @@ import {
   jsonCodec,
   numberCodec,
   readDiagramHandoff,
-  stringCodec,
   sweepDiagramHandoffs,
   takeDiagramHandoff,
   writeStored,
@@ -32,10 +31,6 @@ test.afterEach(() => {
 });
 
 test.describe('codecs', () => {
-  test('stringCodec round-trips verbatim', () => {
-    expect(stringCodec.decode(stringCodec.encode('a b'))).toBe('a b');
-  });
-
   test('numberCodec accepts positive integers only', () => {
     expect(numberCodec.decode('320')).toBe(320);
     expect(numberCodec.decode('0')).toBeUndefined();

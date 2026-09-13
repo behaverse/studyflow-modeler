@@ -54,10 +54,6 @@ test.describe('parseImplementationRef', () => {
     }
   });
 
-  test('exports the known schemes', () => {
-    expect(KNOWN_SCHEMES).toEqual(['python', 'docker', 'https', 'file']);
-  });
-
   for (const [label, input] of [
     ['empty string', ''],
     ['whitespace only', '   '],

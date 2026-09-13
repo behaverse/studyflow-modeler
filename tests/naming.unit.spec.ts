@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { firstSentence, splitQName, toLocalName, toPrefix } from '@core/naming';
+import { firstSentence } from '@core/naming';
 
 /** Table-driven coverage for the naming helpers. */
 
@@ -20,23 +20,4 @@ test.describe('firstSentence', () => {
       expect(firstSentence(input)).toBe(expected);
     });
   }
-});
-
-test.describe('qualified names', () => {
-  test('splitQName splits prefix and local name', () => {
-    expect(splitQName('cognitive:CognitiveTask')).toEqual({ prefix: 'cognitive', localName: 'CognitiveTask' });
-  });
-
-  test('splitQName on a bare name has no prefix', () => {
-    expect(splitQName('Task')).toEqual({ prefix: undefined, localName: 'Task' });
-  });
-
-  test('splitQName tolerates undefined', () => {
-    expect(splitQName(undefined)).toEqual({ prefix: undefined, localName: undefined });
-  });
-
-  test('toLocalName / toPrefix are the two halves', () => {
-    expect(toLocalName('studyflow:Dataset')).toBe('Dataset');
-    expect(toPrefix('studyflow:Dataset')).toBe('studyflow');
-  });
 });

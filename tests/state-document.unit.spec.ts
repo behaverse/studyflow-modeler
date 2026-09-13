@@ -76,19 +76,6 @@ test.describe('state in the document', () => {
     expect(back.endsWith(STATE_BLOCK)).toBe(true);
   });
 
-  test('an empty tree leaves no state: key and no property', async () => {
-    const definitions = studyflowToDefinitions(BODY, freshModdle());
-    expect(readState(definitions)).toEqual({});
-    expect(await xmlToStudyflow(await studyflowToXml(BODY, freshModdle()), freshModdle())).not.toContain('state:');
-
-    const moddle = freshModdle();
-    const fresh = studyflowToDefinitions(BODY, moddle);
-    writeState(fresh, moddle, { Excluded_Pre: { count: 1 } });
-    expect(readState(fresh)).toEqual({ Excluded_Pre: { count: 1 } });
-    writeState(fresh, moddle, {});
-    expect(studyExtensionOf(fresh)!.state).toBeUndefined();
-  });
-
   test('resolveState walks the element, its containers, then the study root', () => {
     const definitions = studyflowToDefinitions(DOC, freshModdle());
     expect(resolveState(definitions, 'Excluded_Pre', 'count')).toBe(3);

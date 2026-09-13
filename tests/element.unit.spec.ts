@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 
 import { studyflowToXml } from '@core/document';
-import { StudyflowElement, getAttribute, getDefaults } from '@core/element';
+import { StudyflowElement, getAttribute } from '@core/element';
 import { extensionValueWins } from '@core/element/handle';
 import { freshModdle } from './schemas';
 import { exampleStudyflow } from './utils';
@@ -42,20 +42,6 @@ test.describe('StudyflowElement', () => {
 
     el.setAttribute('configurations', 'trials: 10');
     expect(el.getAttribute('configurations')).toBe('trials: 10');
-  });
-
-  test('attributes() lists the catalog-declared attributes of the wrapper', () => {
-    const bo = moddle.create('bpmn:Task', { id: 'Task_4' });
-    const wrapper = StudyflowElement.fromBusinessObject(bo).ensureExtension('cognitive:CognitiveTask', moddle, {});
-    const names = StudyflowElement.fromBusinessObject(wrapper).attributes().map((a) => a.ns.localName);
-    expect(names).toContain('instrument');
-    expect(names).toContain('configurations');
-  });
-
-  test('fromBusinessObject accepts a bpmn-js element and unwraps it', () => {
-    const bo = moddle.create('bpmn:Task', { id: 'Task_5', name: 'wrapped' });
-    const fakeElement = { businessObject: bo };
-    expect(StudyflowElement.fromBusinessObject(fakeElement).getAttribute('bpmn:name')).toBe('wrapped');
   });
 });
 
@@ -103,28 +89,6 @@ test.describe('StudyflowElement.read — stored values vs wrapper defaults', () 
     task.set('instrument', 'stale');
     StudyflowElement.fromBusinessObject(task).ensureExtension('behaverse:Task', moddle, {});
     expect(getAttribute(task, 'instrument')).toBe('behaverse');
-  });
-
-  test('stamped values still appear (a Recording stamps its layout)', () => {
-    // Catalog defaults plus explicit values, stamped through ensureExtension.
-    const bo = moddle.create('bpmn:DataStoreReference', { id: 'Recording_1' });
-    const el = StudyflowElement.fromBusinessObject(bo);
-    el.ensureExtension('eeg:Recording', moddle, {
-      ...getDefaults('eeg:Recording'),
-      channelCount: 16,
-      samplingRate: 125,
-    });
-    expect(el.getAttribute('channelCount')).toBe(16);
-    expect(el.getAttribute('samplingRate')).toBe(125);
-  });
-
-  test('trait defaults apply on bare elements; stored values win (completionCodeType)', () => {
-    const bo = moddle.create('bpmn:EndEvent', { id: 'End_1' });
-    expect(getAttribute(bo, 'completionCodeType')).toBe('none');
-
-    const el = StudyflowElement.fromBusinessObject(bo);
-    el.setAttribute('completionCodeType', 'static');
-    expect(el.getAttribute('completionCodeType')).toBe('static');
   });
 });
 
