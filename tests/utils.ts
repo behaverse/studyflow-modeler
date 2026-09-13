@@ -22,11 +22,6 @@ for (const rel of globSync(['*/examples/*.studyflow.png', '*/examples/*.studyflo
 /** Example names, sorted — the corpus every example-wide suite iterates. */
 export const exampleNames: string[] = [...examplePaths.keys()].sort();
 
-/** Name → the skill it ships with, which is its gallery shelf. */
-export const exampleCategories = new Map(
-  [...examplePaths].map(([name, file]) => [name, path.basename(path.dirname(path.dirname(file)))]),
-);
-
 /** The example's file, whichever kind; `setInputFiles` opens it as the app would. */
 export function examplePath(name: string): string {
   const file = examplePaths.get(name);
@@ -70,7 +65,7 @@ export function withoutDiagramInterchange(xml: string): string {
  * Hides the File System Access pickers, the way Firefox, Safari, and every mobile browser do.
  * Playwright cannot drive a native picker, so any test that wants a download needs this.
  */
-export async function withoutFileSystemAccess(page: Page): Promise<void> {
+async function withoutFileSystemAccess(page: Page): Promise<void> {
   await page.addInitScript(() => {
     for (const key of ['showOpenFilePicker', 'showSaveFilePicker']) {
       // The methods live on `Window.prototype`, so shadowing is what removes them.
@@ -86,31 +81,9 @@ export async function gotoModeler(page: Page, { pickers = false } = {}): Promise
   await expect(page.getByTestId('modeler-app')).toBeAttached();
   await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
   await expect(page.getByTestId('modeler-canvas')).toBeVisible();
-  await expectBackendMounted(page);
 }
 
-/**
- * Pin *which* editor actually mounted.
- *
- * The run-time proof that bpmn-js is really gone: diagram-js owns
- * `.djs-container`, the native canvas owns `svg.sf-canvas`, and neither ever
- * renders the other's root. The dependency is gone from `package.json`, but this
- * is the assertion a re-added one would trip — the rest of the suite's selectors
- * are generic enough to pass quietly under either.
- */
-export async function expectBackendMounted(page: Page): Promise<void> {
-  const canvas = page.getByTestId('modeler-canvas');
-
-  await expect(canvas.locator('svg.sf-canvas'), 'expected the native canvas to be mounted').toBeVisible();
-  await expect(canvas.locator('.djs-container'), 'diagram-js must not be mounted at all').toHaveCount(0);
-}
-
-/**
- * The in-place label editor: a single `<textarea>` the canvas overlays on the
- * label being edited (`canvas/interaction/labelEditing.ts`). diagram-js used to
- * mount a `contenteditable` div here instead, which is why reading the text went
- * through {@link expectEditorText} rather than `toHaveValue`.
- */
+/** The in-place label editor: the `<textarea>` the canvas overlays on the label being edited (`canvas/interaction/labelEditing.ts`). */
 export function labelEditor(page: Page): Locator {
   return page.locator('.sf-label-editor');
 }
@@ -190,16 +163,6 @@ export async function setSelectedElementName(page: Page, value: string): Promise
   const nameInput = page.locator('input[name="bpmn:name"]');
   await expect(nameInput).toBeVisible();
   await nameInput.fill(value);
-}
-
-export async function uploadStudyflowDiagram(page: Page, filename = 'sample.studyflow'): Promise<void> {
-  const diagramBuffer = blankDiagram();
-
-  await page.getByTestId('open-file-input').setInputFiles({
-    name: filename,
-    mimeType: 'application/xml',
-    buffer: diagramBuffer,
-  });
 }
 
 export async function readDownloadText(download: Download): Promise<string> {
