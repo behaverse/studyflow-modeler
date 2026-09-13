@@ -8,8 +8,6 @@ export type ImplementationRefParseResult =
   | { ok: true; value: ImplementationRef }
   | { ok: false; error: string };
 
-export const KNOWN_SCHEMES: readonly string[] = ['python', 'docker', 'https', 'file'];
-
 const SCHEME_RE = /^([A-Za-z][A-Za-z0-9+.-]*):\/\/(.*)$/;
 
 export function parseImplementationRef(raw: string | undefined | null): ImplementationRefParseResult {

@@ -24,3 +24,18 @@ Study:
     { nodeId: 'Bad', message: expect.stringContaining('The implementation reference cannot be read') },
   ]);
 });
+
+test('a well-formed reference raises nothing, whatever its scheme: the runner that claims it is found at run time', async () => {
+  const study = await Studyflow.parse(`id: shell_ref
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Study:
+  type: bpmn:Process
+  flowElements:
+    Say:
+      type: bpmn:ServiceTask
+      implementation: shell://say
+`, freshPackages());
+
+  expect(validateImplementations(study)).toEqual([]);
+});

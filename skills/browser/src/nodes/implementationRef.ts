@@ -1,7 +1,7 @@
 import * as yaml from 'js-yaml';
 
 import { getAttribute } from '@core/element';
-import { KNOWN_SCHEMES, parseImplementationRef, type ImplementationRef } from '@core/implementation';
+import { parseImplementationRef, type ImplementationRef } from '@core/implementation';
 import { readString, type FlowNode } from '@runner/flow';
 import type { Studyflow } from '@runner/studyflow';
 import type { ValidationIssue } from '@runner/nodes/types';
@@ -55,13 +55,6 @@ export function validateImplementations(studyflow: Studyflow): ValidationIssue[]
         nodeId: node.id,
         message: `The implementation reference cannot be read: ${result.error}. `
           + 'Write it as <scheme>://<ref>[@<version>], e.g. python://mypkg.my_fn@1.2.',
-      });
-    } else if (!KNOWN_SCHEMES.includes(result.value.scheme)) {
-      issues.push({
-        nodeId: node.id,
-        severity: 'warning',
-        message: `No executor knows the scheme '${result.value.scheme}://', so this function will never be called. `
-          + `Use one of: ${KNOWN_SCHEMES.join(', ')}.`,
       });
     }
 
