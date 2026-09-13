@@ -8,7 +8,9 @@ import { resolveFile, serveUi } from '../packages/desktop/serve';
 /** `studyflow edit` (and `ui`) serves dist/ the way a static host does: `/app` is app.html, `/run/` is run/index.html,
  * `/run` redirects to it (its relative assets need the slash), and nothing outside the root is reachable. */
 
-const root = mkdtempSync(join(tmpdir(), 'studyflow-ui-'));
+const root = join(mkdtempSync(join(tmpdir(), 'studyflow-ui-')), 'dist');
+mkdirSync(root);
+writeFileSync(`${root}.html`, 'beside the root, not in it: `/` never serves this');
 writeFileSync(join(root, 'index.html'), '<a href="app">Modeler</a>');
 writeFileSync(join(root, 'app.html'), '<title>modeler</title>');
 mkdirSync(join(root, 'run'));

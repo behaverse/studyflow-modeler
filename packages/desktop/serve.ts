@@ -44,7 +44,8 @@ export function resolveFile(root: string, urlPath: string): { file: string } | {
   if (file !== root && !file.startsWith(root + path.sep)) return undefined;
   const isFile = (p: string) => existsSync(p) && statSync(p).isFile();
   if (isFile(file)) return { file };
-  if (isFile(`${file}.html`)) return { file: `${file}.html` };
+  // Not for the root itself, whose `.html` is the file beside it.
+  if (file !== root && isFile(`${file}.html`)) return { file: `${file}.html` };
   if (isFile(path.join(file, 'index.html'))) {
     // Relative asset URLs in an index resolve against its directory, so the directory needs its trailing slash.
     // Named by its path under root, not the request's, whose `//evil.com/%2e%2e%2frun` would send the browser to
