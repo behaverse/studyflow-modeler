@@ -6,9 +6,10 @@
  * DOM for the canvas to mint SVG into (`setDocument` — the canvas ships no
  * rendering dependency), and a pointer shim, because a `Canvas` listens for real
  * `pointerdown`/`pointermove`/`pointerup` events in *screen* coordinates while a
- * test only knows *diagram* coordinates.
+ * test only knows *diagram* coordinates. Then it reads what it did: a scene element
+ * by id, a `bpmndi` element, the document as XML.
  *
- * All three live here once. A spec that drives the editor calls {@link loadCanvas},
+ * All of it lives here once. A spec that drives the editor calls {@link loadCanvas},
  * which installs the document for it.
  *
  * Keep this file free of assertions and fixtures: XML fixtures belong to the spec
@@ -17,8 +18,8 @@
 
 import { JSDOM } from 'jsdom';
 
-import { Canvas, setDocument } from '@canvas/index.ts';
-import type { CanvasOptions } from '@canvas/index.ts';
+import { Canvas, isRootElement, setDocument } from '@canvas/index.ts';
+import type { Bounds, CanvasOptions, SceneEdge, SceneLabel, SceneNode } from '@canvas/index.ts';
 import { freshModdle } from '@tests/schemas';
 
 export { freshModdle };
@@ -133,4 +134,51 @@ export function click(canvas: Canvas, at: Pt): void {
 /** A double click at a diagram point, on the canvas SVG. */
 export function doubleClick(canvas: Canvas, at: Pt): void {
   firePointer(canvas, canvas.getSvg(), 'dblclick', at);
+}
+
+// --- reading back -------------------------------------------------------------
+
+/** The node `id` names; a spec that asks for anything else fails here, not on a later property. */
+export function node(canvas: Canvas, id: string): SceneNode {
+  const element = canvas.get(id);
+  if (!element || isRootElement(element) || element.kind !== 'node') throw new Error(`no node ${id}`);
+  return element;
+}
+
+/** The edge `id` names. */
+export function edge(canvas: Canvas, id: string): SceneEdge {
+  const element = canvas.get(id);
+  if (!element || isRootElement(element) || element.kind !== 'edge') throw new Error(`no edge ${id}`);
+  return element;
+}
+
+/** The caption `id` names (`<owner id>_label`). */
+export function label(canvas: Canvas, id: string): SceneLabel {
+  const element = canvas.get(id);
+  if (!element || isRootElement(element) || element.kind !== 'label') throw new Error(`no label ${id}`);
+  return element;
+}
+
+/** The centre of a box. */
+export function centre(box: Bounds): Pt {
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+/**
+ * Every `bpmndi:BPMNShape` and `bpmndi:BPMNEdge` the definitions hold, across their
+ * planes. The canvas writes its geometry back only on `syncDi()`.
+ */
+export function diElements(definitions: any): any[] {
+  return (definitions.diagrams ?? []).flatMap((diagram: any) => diagram.plane?.planeElement ?? []);
+}
+
+/** The `bpmndi` shape or edge that draws `id`. */
+export function diOf(definitions: any, id: string): any {
+  return diElements(definitions).find((di) => di.bpmnElement?.id === id);
+}
+
+/** The document as XML, with the scene's geometry written back to its DI first. */
+export async function xmlOf({ canvas, moddle, definitions }: Loaded): Promise<string> {
+  canvas.syncDi();
+  return (await moddle.toXML(definitions, { format: true })).xml;
 }

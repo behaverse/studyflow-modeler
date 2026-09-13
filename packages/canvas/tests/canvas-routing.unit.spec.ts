@@ -11,9 +11,9 @@ import {
   routeFor,
   straightRoute,
 } from '@canvas/routing/orthogonal.ts';
-import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
+import type { Point } from '@canvas/model/scene.ts';
 
-import { installDocument, loadCanvas, type Loaded } from './canvasHarness';
+import { edge, installDocument, loadCanvas, node, type Loaded } from './canvasHarness';
 
 /**
  * Routing and docking. `route()` draws an orthogonal path of at most five points
@@ -177,8 +177,8 @@ async function load(): Promise<Loaded> {
 test('rerouting twice commits nothing the second time', async () => {
   const { canvas } = await load();
   const scene = canvas.getScene()!;
-  const task = scene.elementsById.get('Task_1') as SceneNode;
-  const kinked = scene.elementsById.get('Flow_1') as SceneEdge;
+  const task = node(canvas, 'Task_1');
+  const kinked = edge(canvas, 'Flow_1');
   const before = scene.revision;
 
   // Both flows are rewritten from their ends: the hand-drawn kink goes, the off-level run is levelled.

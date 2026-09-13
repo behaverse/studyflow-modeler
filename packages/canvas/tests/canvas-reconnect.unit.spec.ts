@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
-import type { Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
+import type { Point, SceneEdge } from '@canvas/model/scene.ts';
 
-import { loadCanvas, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
+import { diOf, edge, loadCanvas, node, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
 
 /**
  * Dragging a connection's end. What is under the drop decides the outcome:
@@ -64,27 +64,6 @@ function process(definitions: any): any {
 
 function flowElement(definitions: any, id: string): any {
   return process(definitions).flowElements.find((el: any) => el.id === id);
-}
-
-function diEdge(definitions: any, id: string): any {
-  for (const diagram of definitions.diagrams ?? []) {
-    for (const pe of diagram.plane?.planeElement ?? []) {
-      if (pe.$type === 'bpmndi:BPMNEdge' && pe.bpmnElement?.id === id) return pe;
-    }
-  }
-  return undefined;
-}
-
-function diWaypoints(definitions: any, id: string): Point[] {
-  return (diEdge(definitions, id)?.waypoint ?? []).map((w: any) => ({ x: w.x, y: w.y }));
-}
-
-function edge(canvas: Canvas, id: string): SceneEdge {
-  return canvas.getScene()!.elementsById.get(id) as SceneEdge;
-}
-
-function node(canvas: Canvas, id: string): SceneNode {
-  return canvas.getScene()!.elementsById.get(id) as SceneNode;
 }
 
 function last(edge: SceneEdge): Point {
@@ -151,7 +130,8 @@ test('a rules-refused target leaves the edge untouched', async () => {
 
   expect(flow.target?.id).toBe('Task_1');
   expect(flow.waypoints).toEqual(before);
-  expect(diWaypoints((canvas.syncDi(), definitions), 'Flow_1')).toEqual(before);
+  canvas.syncDi();
+  expect(diOf(definitions, 'Flow_1').waypoint).toMatchObject(before);
   expect(flowElement(definitions, 'Flow_1').targetRef.id).toBe('Task_1');
   expect(canvas.getScene()!.revision).toBe(revision);
 });
@@ -178,8 +158,8 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
   expect(isOrthogonal(flow.waypoints)).toBe(false);
   expect(flow.waypoints[0]).toEqual({ x: 136, y: 118 });
 
-  const written = diWaypoints((canvas.syncDi(), definitions), 'Flow_1');
-  expect(written).toEqual(flow.waypoints);
+  canvas.syncDi();
+  expect(diOf(definitions, 'Flow_1').waypoint).toMatchObject(flow.waypoints);
 });
 
 test('a reconnect drop lands on the grid, like every other waypoint gesture', async () => {

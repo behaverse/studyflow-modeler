@@ -2,9 +2,9 @@ import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
 import { APPEND_DISTANCE } from '@canvas/interaction/autoplace.ts';
-import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
+import type { Bounds, Point, SceneEdge } from '@canvas/model/scene.ts';
 
-import { loadCanvas } from './canvasHarness';
+import { diOf, edge, loadCanvas, node, type Loaded } from './canvasHarness';
 
 /**
  * Click-append (`interaction/autoplace.ts`). A clicked append needs no pointer, so the
@@ -41,7 +41,7 @@ const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-async function load(): Promise<{ canvas: Canvas; definitions: any }> {
+async function load(): Promise<Loaded> {
   return loadCanvas(PROCESS_XML);
 }
 
@@ -76,10 +76,6 @@ const CROWDED_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-function node(canvas: Canvas, id: string): SceneNode {
-  return canvas.getScene()!.elementsById.get(id) as SceneNode;
-}
-
 /** The edge joining two elements, whichever direction it was drawn in. */
 function edgeBetween(canvas: Canvas, sourceId: string, targetId: string): SceneEdge | undefined {
   for (const element of canvas.getScene()!.elementsById.values()) {
@@ -105,11 +101,6 @@ function crosses(a: Point, b: Point, box: Bounds): boolean {
     Math.min(from, to) < hi && Math.max(from, to) > lo;
   return spans(box.x, box.x + box.width, a.x, b.x)
     && spans(box.y, box.y + box.height, a.y, b.y);
-}
-
-/** The live plane's DI children, which is what `bpmn-moddle` re-serializes. */
-function planeElements(definitions: any): any[] {
-  return definitions.diagrams[0].plane.planeElement ?? [];
 }
 
 /** A start event with nothing around it: the first append lands in the row, unnudged. */
@@ -188,9 +179,8 @@ test.describe('auto-place (click-append)', () => {
 
     // ...and DI for both halves, which is what makes the append survive a round-trip.
     canvas.syncDi();
-    const di = planeElements(definitions);
-    expect(di.some((pe: any) => pe.$type === 'bpmndi:BPMNShape' && pe.bpmnElement?.id === appended!.id)).toBe(true);
-    expect(di.some((pe: any) => pe.$type === 'bpmndi:BPMNEdge' && pe.bpmnElement?.id === flow.id)).toBe(true);
+    expect(diOf(definitions, appended!.id)?.$type).toBe('bpmndi:BPMNShape');
+    expect(diOf(definitions, flow.id)?.$type).toBe('bpmndi:BPMNEdge');
 
     // The shape is what is left selected, not the flow drawn to it.
     expect(canvas.getSelection().get()).toEqual([appended]);
@@ -391,8 +381,7 @@ test.describe('auto-place around edges', () => {
     const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' })!;
 
     expect(appended, 'the append happened').toBeTruthy();
-    const crossing = canvas.getScene()!.elementsById.get('Flow_1') as SceneEdge;
-    for (const [a, b] of segments(crossing.waypoints)) {
+    for (const [a, b] of segments(edge(canvas, 'Flow_1').waypoints)) {
       expect(crosses(a, b, appended), 'the successor sits on the flow').toBe(false);
     }
   });

@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas, INK, type SceneEdge } from '@canvas/index.ts';
+import { Canvas, INK } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 
-import { freshModdle, installDocument, loadCanvas } from './canvasHarness';
+import { diElements, edge, freshModdle, installDocument, loadCanvas, node } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';
 
 /**
@@ -18,21 +18,6 @@ import { exampleNames, exampleXml } from '@tests/utils';
 // and only needs a DOM to mint SVG nodes into.
 installDocument();
 
-/** Every DI shape and edge across every diagram/plane, in document order. */
-function diItems(definitions: any): { shapes: any[]; edges: any[] } {
-  const shapes: any[] = [];
-  const edges: any[] = [];
-  for (const diagram of definitions.diagrams ?? []) {
-    const plane = diagram.plane;
-    if (!plane) continue;
-    for (const pe of plane.planeElement ?? []) {
-      if (pe.$type === 'bpmndi:BPMNShape') shapes.push(pe);
-      else if (pe.$type === 'bpmndi:BPMNEdge') edges.push(pe);
-    }
-  }
-  return { shapes, edges };
-}
-
 /** Parse `translate(x, y)` off a group; a group at the origin carries no transform. */
 function translateOf(g: Element | undefined): { x: number; y: number } {
   const t = g?.getAttribute('transform') ?? '';
@@ -45,7 +30,8 @@ for (const name of exampleNames) {
     const moddle = freshModdle();
     const { rootElement: definitions } = await moddle.fromXML(await exampleXml(name));
 
-    const { shapes, edges } = diItems(definitions);
+    const shapes = diElements(definitions).filter((di) => di.$type === 'bpmndi:BPMNShape');
+    const edges = diElements(definitions).filter((di) => di.$type === 'bpmndi:BPMNEdge');
 
     // (a) A full render + serialize does not throw.
     const warnings: string[] = [];
@@ -121,7 +107,7 @@ test('a group is captioned from its categoryValue, centred across the frame', as
   expect(textsOf(canvas, 'Group_BpmnGateways')).toEqual(['BPMN · Gateways']);
   expect(textsOf(canvas, 'Group_Exec')).toEqual(['exec · Execution & scope']);
 
-  const group = canvas.getScene()!.elementsById.get('Group_BpmnEvents') as any;
+  const group = node(canvas, 'Group_BpmnEvents');
   const text = canvas.getGraphics('Group_BpmnEvents')!.querySelector('text')!;
   // Node-local coordinates: horizontally centred on the frame.
   expect(Number(text.getAttribute('x'))).toBeCloseTo(group.width / 2, 6);
@@ -187,7 +173,7 @@ test('a bare bpmn:DataStore draws as a cylinder, like a data store REFERENCE', a
 
 test('a choreography task draws its name in the MIDDLE band, and shades the band that does not initiate', async () => {
   const canvas = await render('choreography_demo');
-  const task = canvas.getScene()!.elementsById.get('Consent') as any;
+  const task = node(canvas, 'Consent');
   const g = canvas.getGraphics('Consent')!;
   const name = Array.from(g.querySelectorAll('text')).find((t) => t.textContent === 'Give consent')!;
   // The name is drawn inside a nested group translated down by one band height, so
@@ -244,8 +230,7 @@ const KINKED_XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 test('a routed edge renders as a path whose corners are quarter-arcs', async () => {
   const { canvas } = await loadCanvas(KINKED_XML);
-  const scene = canvas.getScene()!;
-  const flow1 = scene.elementsById.get('Flow_1') as SceneEdge;
+  const flow1 = edge(canvas, 'Flow_1');
   expect(flow1.waypoints.length).toBeGreaterThan(2);
 
   const line = canvas.getGraphics('Flow_1')!.querySelector('path.sf-connection-line')!;
@@ -401,7 +386,7 @@ test('a cognitive task shows its presenter and the pool it names, and renaming t
   // The upper band is the type's `meta.presenter` (`{instrument}`), the lower the participant.
   expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['psychopy', 'Robot']));
 
-  const pool = canvas.getScene()!.elementsById.get('Pool_Seat') as any;
+  const pool = node(canvas, 'Pool_Seat');
   canvas.updateModdleProperties(pool, pool.businessObject, { name: 'Volunteer' });
   expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Volunteer']));
   expect(textsOf(canvas, 'Play')).not.toContain('Robot');
@@ -472,10 +457,6 @@ test('a collapsed sub-process hides its contents but draws its own data associat
   expect(main.canvas.get('Writes')).toBeTruthy();
 });
 
-/** Every DI shape and edge the definitions carry, across their planes. */
-const diCount = (definitions: any): number =>
-  (definitions.diagrams ?? []).reduce((n: number, diagram: any) => n + (diagram.plane?.planeElement?.length ?? 0), 0);
-
 test('mainCanvasOnly imports nothing inside a sub-process, collapsed or expanded', async () => {
   const full = await loadCanvas(SUBPROCESS_XML);
   const main = await loadCanvas(SUBPROCESS_XML, { mainCanvasOnly: true });
@@ -488,5 +469,5 @@ test('mainCanvasOnly imports nothing inside a sub-process, collapsed or expanded
   }
   expect(main.canvas.toSVG()).not.toContain('data-element-id="First"');
   // Import only reads: the definitions keep every DI element, so the option can run on a live document.
-  expect(diCount(main.definitions)).toBe(diCount(full.definitions));
+  expect(diElements(main.definitions)).toHaveLength(diElements(full.definitions).length);
 });

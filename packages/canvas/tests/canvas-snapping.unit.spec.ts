@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
-import type { SceneNode } from '@canvas/model/scene.ts';
 
-import { loadCanvas, pointerDown, pointerMove, pointerUp } from './canvasHarness';
+import { diOf, loadCanvas, node, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
  * The two snaps a move runs under, and how they compose, axis by axis:
@@ -44,26 +43,11 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-function node(canvas: Canvas, id: string): SceneNode {
-  return canvas.getScene()!.elementsById.get(id) as SceneNode;
-}
-
 /** The snap guides on screen, each as the line it draws: `x=418` is vertical, `y=123` horizontal. */
 function guides(canvas: Canvas): string[] {
   return Array.from(canvas.getSvg().querySelectorAll('.sf-snap-line')).map((line) => (
     line.getAttribute('x1') === line.getAttribute('x2') ? `x=${line.getAttribute('x1')}` : `y=${line.getAttribute('y1')}`
   ));
-}
-
-function boundsOf(definitions: any, id: string): { x: number; y: number } {
-  for (const diagram of definitions.diagrams ?? []) {
-    for (const pe of diagram.plane?.planeElement ?? []) {
-      if (pe.$type === 'bpmndi:BPMNShape' && pe.bpmnElement?.id === id) {
-        return { x: pe.bounds.x, y: pe.bounds.y };
-      }
-    }
-  }
-  throw new Error(`no BPMNShape for ${id}`);
 }
 
 test('a move aligns each axis with a neighbour\'s centre within 7 units, else lands on the grid', async () => {
@@ -84,7 +68,8 @@ test('a move aligns each axis with a neighbour\'s centre within 7 units, else la
 
     // What was on screen is what is committed, DI included, and the guides go with the gesture.
     pointerUp(canvas, to);
-    expect(boundsOf((canvas.syncDi(), definitions), 'Task_1'), label).toEqual(landed);
+    canvas.syncDi();
+    expect(diOf(definitions, 'Task_1').bounds, label).toMatchObject(landed);
     expect(guides(canvas), label).toEqual([]);
   }
 });

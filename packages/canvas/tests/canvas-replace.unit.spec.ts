@@ -2,9 +2,8 @@ import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
-import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 
-import { loadCanvas } from './canvasHarness';
+import { edge, loadCanvas, node, xmlOf, type Loaded } from './canvasHarness';
 
 /**
  * Retyping an element in place — the context pad's wrench, "Change element",
@@ -58,23 +57,13 @@ const FIXTURE_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
 
-async function load(xml = FIXTURE_XML): Promise<{ canvas: Canvas; definitions: any; moddle: any }> {
+async function load(xml = FIXTURE_XML): Promise<Loaded> {
   return loadCanvas(xml);
 }
 
-function node(canvas: Canvas, id: string): SceneNode {
-  return canvas.getScene()!.elementsById.get(id) as SceneNode;
-}
-
-function edge(canvas: Canvas, id: string): SceneEdge {
-  return canvas.getScene()!.elementsById.get(id) as SceneEdge;
-}
-
-const serialize = (moddle: any, definitions: any): Promise<string> =>
-  moddle.toXML(definitions, { format: true }).then((r: any) => r.xml);
-
 test('replacing a task mints the new type, keeps the name, rewires both flows — proven by toXML — and selects it', async () => {
-  const { canvas, definitions, moddle } = await load();
+  const loaded = await load();
+  const { canvas, moddle } = loaded;
   const task = node(canvas, 'Task_1');
 
   const replacement = canvas.replaceElement(task, { type: 'bpmn:UserTask' });
@@ -83,7 +72,7 @@ test('replacing a task mints the new type, keeps the name, rewires both flows �
   expect(replacement!.type).toBe('bpmn:UserTask');
   expect(replacement!.id).not.toBe('Task_1');
 
-  const xml = await (canvas.syncDi(), serialize(moddle, definitions));
+  const xml = await xmlOf(loaded);
 
   // The old element is gone from the document, not merely from the scene.
   expect(xml).not.toContain('id="Task_1"');
@@ -142,14 +131,15 @@ test('the flows are re-routed onto the replacement, squarely', async () => {
 });
 
 test('replacing an element with the type it already is writes nothing', async () => {
-  const { canvas, definitions, moddle } = await load();
-  const before = await (canvas.syncDi(), serialize(moddle, definitions));
+  const loaded = await load();
+  const { canvas } = loaded;
+  const before = await xmlOf(loaded);
   const revision = canvas.getScene()!.revision;
 
   expect(canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:Task' })).toBeUndefined();
 
   expect(canvas.getScene()!.revision).toBe(revision);
-  expect(await (canvas.syncDi(), serialize(moddle, definitions))).toBe(before);
+  expect(await xmlOf(loaded)).toBe(before);
 });
 
 test('a container with contents is not replaceable, so nothing inside it can be lost', async () => {

@@ -1,20 +1,25 @@
 import { expect, test } from '@playwright/test';
 
-import { EventBus, IdGenerator, ensureChoreographyParticipants, isRootElement, type SceneEdge, type SceneLabel, type SceneNode } from '@canvas/index.ts';
+import { EventBus, IdGenerator, ensureChoreographyParticipants, isRootElement, type SceneEdge, type SceneNode } from '@canvas/index.ts';
 import { readChoreographyBands } from '@core/document';
 import type { Canvas } from '@canvas/index.ts';
 
 import {
+  centre,
   click,
   doubleClick,
   dragBy,
+  edge,
   freshModdle,
   installDocument,
   keyEvent,
+  label,
   loadCanvas,
+  node,
   pointerDown,
   pointerMove,
   pointerUp,
+  xmlOf,
   type Loaded,
 } from './canvasHarness';
 
@@ -64,29 +69,6 @@ const XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 installDocument();
 
-function node(canvas: Canvas, id: string): SceneNode {
-  const element = canvas.get(id);
-  if (!element || isRootElement(element) || element.kind !== 'node') throw new Error(`no node ${id}`);
-  return element;
-}
-
-function edge(canvas: Canvas, id: string): SceneEdge {
-  const element = canvas.get(id);
-  if (!element || isRootElement(element) || element.kind !== 'edge') throw new Error(`no edge ${id}`);
-  return element;
-}
-
-function label(canvas: Canvas, id: string): SceneLabel {
-  const element = canvas.get(id);
-  if (!element || isRootElement(element) || element.kind !== 'label') throw new Error(`no label ${id}`);
-  return element;
-}
-
-const centre = (box: { x: number; y: number; width: number; height: number }) => ({
-  x: box.x + box.width / 2,
-  y: box.y + box.height / 2,
-});
-
 /** `point` sits on the outline of `box`. */
 const onOutline = (box: { x: number; y: number; width: number; height: number }, point: { x: number; y: number }): boolean => {
   const inX = point.x >= box.x - 0.01 && point.x <= box.x + box.width + 0.01;
@@ -98,11 +80,6 @@ const onOutline = (box: { x: number; y: number; width: number; height: number },
 
 const isHiddenGraphics = (canvas: Canvas, id: string): boolean =>
   canvas.getGraphics(id)?.getAttribute('display') === 'none';
-
-async function xmlOf({ canvas, moddle, definitions }: Loaded): Promise<string> {
-  canvas.syncDi();
-  return (await moddle.toXML(definitions, { format: true })).xml;
-}
 
 const load = (): Promise<Loaded> => loadCanvas(XML);
 

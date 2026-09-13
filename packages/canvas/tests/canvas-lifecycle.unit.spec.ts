@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
-import type { SceneNode } from '@canvas/model/scene.ts';
 
-import { freshModdle, installDocument, pointerDown, pointerMove, pointerUp, jsdomWindow } from './canvasHarness';
+import { diOf, freshModdle, installDocument, keyEvent, node, pointerDown, pointerMove, pointerUp } from './canvasHarness';
 
 /**
  * `Canvas.destroy`. A canvas installs listeners on three owners: its own SVG root
@@ -15,7 +14,6 @@ import { freshModdle, installDocument, pointerDown, pointerMove, pointerUp, jsdo
  */
 
 const doc = installDocument();
-const win = jsdomWindow();
 
 const PROCESS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -68,10 +66,6 @@ function trackListeners(target: any): { live: () => string[] } {
   return { live: () => [...live.keys()].sort() };
 }
 
-function node(canvas: Canvas, id: string): SceneNode {
-  return canvas.getScene()!.elementsById.get(id) as SceneNode;
-}
-
 test('destroy hands the container back clean, so a stale canvas no longer answers keys on it', async () => {
   const host = container();
   const tracked = trackListeners(host);
@@ -93,7 +87,7 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
   const liveDefs = await parse();
   live.importDefinitions(liveDefs);
   live.getSelection().select(node(live, 'Start_1'));
-  host.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+  host.dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
 
   const ids = (defs: any): string[] => defs.rootElements[0].flowElements.map((el: any) => el.id).sort();
   expect(ids(staleDefs), 'the destroyed canvas kept its hands off its document').toEqual(['Start_1', 'Task_1']);
@@ -121,9 +115,7 @@ test('destroy mid-gesture abandons the drag and drops the document-level listene
   // The gesture was abandoned, not committed: the snapshot is back and the DI,
   // which a live drag never touches, still describes the original box.
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
-  const bounds = definitions.diagrams[0].plane.planeElement
-    .find((pe: any) => pe.bpmnElement?.id === 'Task_1').bounds;
-  expect({ x: bounds.x, y: bounds.y }).toEqual({ x: 200, y: 80 });
+  expect(diOf(definitions, 'Task_1').bounds).toMatchObject({ x: 200, y: 80 });
 
   // A late event from the in-flight gesture must not reach a torn-down canvas.
   pointerUp(canvas, { x: 310, y: 180 });
