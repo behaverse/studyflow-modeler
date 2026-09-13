@@ -23,6 +23,29 @@ test.describe('Studyflow modeler file flows', () => {
     await expect(page.getByTestId('modeler-canvas')).toBeVisible();
   });
 
+  test('opening a file says what its reading could not place', async ({ page }) => {
+    await gotoModeler(page);
+
+    // No schema declares `studyflow:retired`: the reader drops it, so the next save would too.
+    await page.getByTestId('open-file-input').setInputFiles({
+      name: 'retired.bpmn',
+      mimeType: 'application/xml',
+      buffer: Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="Retired" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Study">
+    <bpmn:startEvent id="Start">
+      <bpmn:extensionElements><studyflow:retired /></bpmn:extensionElements>
+    </bpmn:startEvent>
+  </bpmn:process>
+</bpmn:definitions>`),
+    });
+
+    await expect(page.locator('[data-element-id="Start"]')).toBeVisible();
+    await expect(page.getByTestId('notices')).toContainText('Reading retired.bpmn raised warnings:');
+    await expect(page.getByTestId('notices')).toContainText('unparsable content <studyflow:retired>');
+  });
+
   test('opens a layout-less studyflow file (auto-layout supplies the DI)', async ({ page }) => {
     await gotoModeler(page);
 

@@ -32,6 +32,7 @@ export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand
 
 type ImportXmlPayload = {
   xml: string;
+  onWarning?: (message: string) => void;
 };
 
 async function importXml(modeler: Editor, command: ImportXmlPayload): Promise<any> {
@@ -41,7 +42,7 @@ async function importXml(modeler: Editor, command: ImportXmlPayload): Promise<an
   unlinkFile();
 
   const moddle = modeler.model.moddle();
-  const xml = await ensureDiagramLayout(await fromWireXml(command.xml, moddle), moddle);
+  const xml = await ensureDiagramLayout(await fromWireXml(command.xml, moddle, command.onWarning), moddle);
   const result = await modeler.importXML(xml);
   // `importXML` clears the command stack, so the trail bookkeeping has to restart with it.
   resetTrailStamping(modeler);
@@ -71,7 +72,12 @@ function fileText(filename: string, content: string | ArrayBuffer): string {
   return format?.id === 'svg' ? extractStudyflowFromSvg(text) : text;
 }
 
-async function toXml(modeler: Editor, filename: string, content: string | ArrayBuffer): Promise<string> {
+async function toXml(
+  modeler: Editor,
+  filename: string,
+  content: string | ArrayBuffer,
+  onWarning: (message: string) => void,
+): Promise<string> {
   const text = fileText(filename, content);
   if (looksLikeXml(text)) return text;
   // A foreign format a skill opens (a jsPsych timeline): converted to a studyflow on the way in, same "Open".
@@ -83,13 +89,17 @@ async function toXml(modeler: Editor, filename: string, content: string | ArrayB
       warn: (message) => notify('warning', message),
     });
   }
-  return studyflowToXml(text, modeler.model.moddle());
+  return studyflowToXml(text, modeler.model.moddle(), onWarning);
 }
 
 export async function runOpenDiagram(modeler: Editor, command: OpenDiagramCommand): Promise<any> {
-  const xml = await toXml(modeler, command.filename, command.content);
+  // What reading could not place is gone from the next save, so say what it met, as `studyflow validate` does.
+  const warnings: string[] = [];
+  const onWarning = (message: string) => { warnings.push(message); };
+  const xml = await toXml(modeler, command.filename, command.content, onWarning);
 
-  const result = await importXml(modeler, { xml });
+  const result = await importXml(modeler, { xml, onWarning });
+  if (warnings.length > 0) notify('warning', [`Reading ${command.filename} raised warnings:`, ...warnings].join('\n'));
 
   try {
     modeler.canvas.zoomToFit();

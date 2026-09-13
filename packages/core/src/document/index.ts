@@ -78,10 +78,10 @@ const INBOUND_PASSES = [choreographyToProcessRoot, headlessPlaneToProcessRoot, i
 /**
  * Any BPMN the app reads (a file, an autosave, an embedded PNG) into the form the canvas edits. The
  * inverse of what saving applies (`toWireXml`, `toStandardBpmnXml`); every inbound path goes through
- * here, in one parse.
+ * here, in one parse, whose warnings `onWarning` hears as {@link xmlToStudyflow}'s does.
  */
-export async function fromWireXml(xml: string, moddle: Moddle): Promise<string> {
-  return applyXmlPasses(xml, moddle, INBOUND_PASSES);
+export async function fromWireXml(xml: string, moddle: Moddle, onWarning?: (message: string) => void): Promise<string> {
+  return applyXmlPasses(xml, moddle, INBOUND_PASSES, (warning) => onWarning?.(readerWarning(warning)));
 }
 
 /** {@link fromWireXml} on definitions already built, in place: a YAML example drawn for its gallery card. */

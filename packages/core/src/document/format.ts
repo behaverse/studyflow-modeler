@@ -47,14 +47,16 @@ export type XmlPass = (definitions: any) => boolean;
 export async function applyXmlPasses(
   xml: string,
   moddle: {
-    fromXML(xml: string): Promise<{ rootElement: any }>;
+    fromXML(xml: string): Promise<{ rootElement: any; warnings: unknown[] }>;
     toXML(element: any, options?: { format?: boolean }): Promise<{ xml: string }>;
   },
   passes: XmlPass[],
+  onWarning?: (warning: unknown) => void,
 ): Promise<string> {
   if (passes.length === 0) return xml;
 
-  const { rootElement } = await moddle.fromXML(xml);
+  const { rootElement, warnings } = await moddle.fromXML(xml);
+  for (const warning of warnings) onWarning?.(warning);
   let changed = false;
   for (const pass of passes) {
     // Not `changed ||= pass(...)`: every pass must run, and `||=` short-circuits.
