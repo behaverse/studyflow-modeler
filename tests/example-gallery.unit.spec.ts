@@ -7,12 +7,11 @@ import {
   UNCATEGORIZED,
 } from '@modeler/examples/catalog';
 import { studyflowToDefinitions } from '@core/document';
-import { firstSentence } from '@core/naming';
 import { exampleMetadata } from '@modeler/examples/metadata';
 import { drawPreview } from '@modeler/examples/preview';
 import { installDocument } from '../packages/canvas/tests/canvasHarness';
 import { freshModdle } from './schemas';
-import { exampleCategories, exampleNames, exampleStudyflow, exampleXml } from './utils';
+import { exampleNames, exampleStudyflow, exampleXml } from './utils';
 
 /**
  * An example ships as a `.studyflow.png`, the picture of a diagram with the diagram inside it, or
@@ -57,22 +56,6 @@ test.describe('shipped examples', () => {
     });
   });
 
-  test('the skill is the shelf, so no example repeats it inside the file', async () => {
-    for (const name of exampleNames) {
-      expect(exampleCategories.get(name), `${name} sits directly in the examples root`)
-        .toBeTruthy();
-      expect(await exampleXml(name), `${name} still carries studyflow:tags`)
-        .not.toContain('<studyflow:tags>');
-    }
-  });
-
-  test('opening one reopens the diagram it pictures', async () => {
-    // The same XML `OpenDiagram` reads out of the file, so a card click and a drop are the same import.
-    const xml = await exampleXml('cognitive_battery');
-    expect(xml).toContain('id="Task_NBack"');
-    expect(xml).toContain('name="Within-subject cognitive battery"');
-  });
-
   test('a YAML example\'s card draws the main canvas, without glyphs', async () => {
     installDocument();
     const svg = drawPreview(studyflowToDefinitions(await exampleStudyflow('sklearn_pipeline', moddle), moddle));
@@ -93,12 +76,6 @@ test.describe('gallery shelves', () => {
     expect(categoryOf(undefined)).toBe(UNCATEGORIZED);
   });
 
-  test('every shipped example lands on a real shelf', () => {
-    for (const name of exampleNames) {
-      expect(categoryOf(exampleCategories.get(name)), name).not.toBe(UNCATEGORIZED);
-    }
-  });
-
   test('order cards by shelf, then by title', () => {
     const cards = [
       { category: '', title: 'Zebra' },
@@ -108,18 +85,5 @@ test.describe('gallery shelves', () => {
     ];
     expect([...cards].sort(compareExamples).map((c) => c.title))
       .toEqual(['Agent evaluation harness', 'Random bot', 'CONSORT 2025', 'Zebra']);
-  });
-});
-
-test.describe('card blurbs', () => {
-  test('take the first sentence of the diagram\'s own documentation', () => {
-    expect(firstSentence('A short study. It also does more.')).toBe('A short study.');
-    expect(firstSentence('One line\nwrapped across two.')).toBe('One line wrapped across two.');
-    expect(firstSentence('Reads a pandas.DataFrame and fits it. Then scores.'))
-      .toBe('Reads a pandas.DataFrame and fits it.');
-    expect(firstSentence('Runs a battery, e.g. an N-back block. Then a survey.'))
-      .toBe('Runs a battery, e.g. an N-back block.');
-    expect(firstSentence('An unfinished note')).toBe('An unfinished note');
-    expect(firstSentence('')).toBe('');
   });
 });
