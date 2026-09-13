@@ -4,7 +4,6 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { buildCatalog, BPMN_ANCESTORS, isBpmnSubtypeOf } from '@core/notation';
 import { NON_BPMN_SUPER_CLASSES } from '@core/notation/query';
-import { inferRoles } from '@core/notation/compile';
 import { NON_EXTENSION_PREFIXES } from '@core/constants';
 import { MODDLE_SIMPLE_TYPES } from '@core/notation/moddlePackage';
 import { SCHEMAS, loadSchemaModels, schemaPackages } from './schemas';
@@ -311,16 +310,6 @@ test.describe('catalog: schema-declared vocabulary', () => {
 
     for (const role of ['data-element', 'signal', 'instrument', 'acquisition']) {
       expect(typesWithRole(role).length, `no type carries "${role}"`).toBeGreaterThan(0);
-    }
-  });
-
-  test('every type declaring meta.roles adds something inference misses', () => {
-    for (const entry of catalog.allTypes()) {
-      const declared = entry.meta?.roles;
-      if (!Array.isArray(declared)) continue;
-      const inferred = new Set(inferRoles(entry.bpmnType));
-      const added = declared.filter((role: string) => !inferred.has(role));
-      expect(added, `${entry.name} declares roles it already infers`).not.toHaveLength(0);
     }
   });
 

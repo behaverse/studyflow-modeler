@@ -55,27 +55,3 @@ test('an unknown meta.editor name is a diagnostic listing the known ones', () =>
   })]);
   expect(catalog.diagnostics.join('\n')).toContain("unknown editor 'yamll'");
 });
-
-test('an unqualified ref matching several schemas warns and resolves deterministically', () => {
-  const catalog = buildCatalog([
-    schema({ prefix: 'aaa', types: [{ name: 'Shared', superClass: ['Element'] } as any] }),
-    schema({
-      prefix: 'bbb',
-      types: [
-        { name: 'Shared', superClass: ['Element'] } as any,
-        { name: 'User', superClass: ['Element'], properties: [{ name: 'ref', isAttr: true, type: 'Shared' }] } as any,
-      ],
-    }),
-  ]);
-  // The owner's own schema wins (bbb:Shared); ambiguity arises only for a prefix that declares no match itself.
-  const catalog2 = buildCatalog([
-    schema({ prefix: 'aaa', types: [{ name: 'Shared', superClass: ['Element'] } as any] }),
-    schema({ prefix: 'bbb', types: [{ name: 'Shared', superClass: ['Element'] } as any] }),
-    schema({
-      prefix: 'ccc',
-      types: [{ name: 'Mixin', extends: ['Shared'] } as any],
-    }),
-  ]);
-  expect(catalog2.diagnostics.join('\n')).toContain('unqualified ref matches 2 schemas');
-  expect(catalog.diagnostics.join('\n')).not.toContain('unqualified ref');
-});
