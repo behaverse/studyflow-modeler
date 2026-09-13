@@ -8,7 +8,7 @@ import { getExtensionType } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 import type { TypeCatalog } from '@core/notation/query.ts';
-import type { Bounds, ModdleObject } from '@canvas/model/scene.ts';
+import type { ModdleObject } from '@canvas/model/scene.ts';
 
 /** The structural minimum a rule needs; a detached palette shape satisfies it. */
 export interface RuleElement {
@@ -32,12 +32,6 @@ export interface Size {
   height: number;
 }
 
-export interface RulesOptions {
-  catalog?: TypeCatalog;
-  allowSelfLoop?: boolean;
-  minSizes?: Readonly<Record<string, Size>>;
-}
-
 export const CONNECTION = {
   sequenceFlow: 'bpmn:SequenceFlow',
   messageFlow: 'bpmn:MessageFlow',
@@ -53,7 +47,7 @@ export const DATA_TYPES: ReadonlySet<string> = new Set([
   'bpmn:DataStore',
 ]);
 
-export const DATA_STORE_TYPES: ReadonlySet<string> = new Set(['bpmn:DataStoreReference', 'bpmn:DataStore']);
+const DATA_STORE_TYPES: ReadonlySet<string> = new Set(['bpmn:DataStoreReference', 'bpmn:DataStore']);
 
 export function isDataShape(type: string): boolean {
   return DATA_TYPES.has(type);
@@ -71,7 +65,7 @@ function isFlowContainer(type: string): boolean {
   return type === 'bpmn:Process' || type === 'bpmn:Participant' || type === 'bpmn:Lane' || isBpmnSubtypeOf(type, 'bpmn:SubProcess');
 }
 
-export function bpmnTypeOf(element: RuleElement | undefined, catalog?: TypeCatalog): string {
+function bpmnTypeOf(element: RuleElement | undefined, catalog?: TypeCatalog): string {
   const raw = element?.type ?? (element?.businessObject?.$type as string | undefined);
   if (!raw) return '';
   if (raw.startsWith('bpmn:')) return raw;
@@ -79,7 +73,7 @@ export function bpmnTypeOf(element: RuleElement | undefined, catalog?: TypeCatal
 }
 
 /** The extension type when there is one, else the BPMN type: what the schema rule is keyed by. */
-export function typeRefOf(element: RuleElement | undefined): string | undefined {
+function typeRefOf(element: RuleElement | undefined): string | undefined {
   if (!element) return undefined;
   const bo = element.businessObject;
   return (bo ? getExtensionType(bo) : undefined) ?? element.type ?? (bo?.$type as string | undefined);
@@ -87,7 +81,7 @@ export function typeRefOf(element: RuleElement | undefined): string | undefined 
 
 const MAX_DEPTH = 64;
 
-export function participantOf(element: RuleElement | undefined): RuleElement | undefined {
+function participantOf(element: RuleElement | undefined): RuleElement | undefined {
   let current = element;
   for (let depth = 0; current && depth < MAX_DEPTH; depth += 1) {
     if (bpmnTypeOf(current) === 'bpmn:Participant') return current;
@@ -97,7 +91,7 @@ export function participantOf(element: RuleElement | undefined): RuleElement | u
 }
 
 /** The nearest pool or sub-process (lanes and groups are visual nesting only). */
-export function ruleContainerOf(element: RuleElement | undefined): RuleElement | undefined {
+function ruleContainerOf(element: RuleElement | undefined): RuleElement | undefined {
   let current = element?.parent;
   for (let depth = 0; current && depth < MAX_DEPTH; depth += 1) {
     const type = bpmnTypeOf(current);
@@ -117,7 +111,7 @@ export function containerFor(parent: RuleElement | undefined): RuleElement | und
   return undefined;
 }
 
-export function dropContainerOf(target: RuleElement | undefined): RuleElement | undefined {
+function dropContainerOf(target: RuleElement | undefined): RuleElement | undefined {
   let current = target;
   for (let depth = 0; current && depth < MAX_DEPTH; depth += 1) {
     const type = bpmnTypeOf(current);
@@ -132,13 +126,13 @@ const RESIZABLE_ANCESTORS: readonly string[] = [
   'bpmn:Activity', 'bpmn:ChoreographyActivity', 'bpmn:Participant', 'bpmn:Lane', 'bpmn:Group', 'bpmn:TextAnnotation',
 ];
 
-export function isResizable(type: string): boolean {
+function isResizable(type: string): boolean {
   return RESIZABLE_ANCESTORS.some((ancestor) => isBpmnSubtypeOf(type, ancestor));
 }
 
-export const FALLBACK_MIN_SIZE: Size = { width: 20, height: 20 };
+const FALLBACK_MIN_SIZE: Size = { width: 20, height: 20 };
 
-export const MIN_SIZES: ReadonlyArray<readonly [string, Size]> = [
+const MIN_SIZES: ReadonlyArray<readonly [string, Size]> = [
   ['bpmn:Participant', { width: 300, height: 60 }],
   ['bpmn:Lane', { width: 300, height: 60 }],
   ['bpmn:TextAnnotation', { width: 50, height: 30 }],
@@ -147,26 +141,18 @@ export const MIN_SIZES: ReadonlyArray<readonly [string, Size]> = [
   ['bpmn:Activity', { width: 100, height: 80 }],
 ];
 
-export function minSizeFor(type: string, overrides?: Readonly<Record<string, Size>>): Size {
-  const override = overrides?.[type];
-  if (override) return override;
+function minSizeFor(type: string): Size {
   for (const [ancestor, size] of MIN_SIZES) if (isBpmnSubtypeOf(type, ancestor)) return size;
   return FALLBACK_MIN_SIZE;
 }
 
 /** May a `shapeType` live inside a `containerType`? `'attach'` is the boundary-event answer. */
-export function canContain(shapeType: string, containerType: string): boolean | 'attach' {
+function canContain(shapeType: string, containerType: string): boolean | 'attach' {
   if (!shapeType || !containerType) return false;
   if (isBpmnSubtypeOf(shapeType, 'bpmn:BoundaryEvent')) {
     return isBpmnSubtypeOf(containerType, 'bpmn:Activity') ? 'attach' : false;
   }
   if (containerType === 'bpmn:Collaboration') return shapeType === 'bpmn:Participant' || isArtifact(shapeType);
-  if (containerType === 'bpmn:Choreography') {
-    return isBpmnSubtypeOf(shapeType, 'bpmn:ChoreographyActivity')
-      || isBpmnSubtypeOf(shapeType, 'bpmn:Event')
-      || isBpmnSubtypeOf(shapeType, 'bpmn:Gateway')
-      || isArtifact(shapeType);
-  }
   if (isFlowContainer(containerType)) {
     if (shapeType === 'bpmn:Participant') return false;
     if (shapeType === 'bpmn:Lane') return containerType === 'bpmn:Participant' || containerType === 'bpmn:Lane';
@@ -199,16 +185,16 @@ function isDataSource(type: string): boolean {
 }
 
 /** The structural verdict on a pair, and the connection type to mint. */
-export function structuralConnection(
+function structuralConnection(
   source: RuleElement | undefined,
   target: RuleElement | undefined,
-  options: { allowSelfLoop?: boolean; catalog?: TypeCatalog } = {},
+  catalog?: TypeCatalog,
 ): ConnectionSpec | false {
   if (!source || !target) return false;
-  const sourceType = bpmnTypeOf(source, options.catalog);
-  const targetType = bpmnTypeOf(target, options.catalog);
+  const sourceType = bpmnTypeOf(source, catalog);
+  const targetType = bpmnTypeOf(target, catalog);
   if (!sourceType || !targetType) return false;
-  if (source === target && options.allowSelfLoop !== true) return false;
+  if (source === target) return false;
   if (isArtifact(sourceType) || isArtifact(targetType)) return { type: CONNECTION.association };
   if (isDataShape(sourceType) || isDataShape(targetType)) {
     if (isDataShape(sourceType) && isDataSink(targetType)) return { type: CONNECTION.dataInputAssociation };
@@ -228,7 +214,7 @@ export function structuralConnection(
   return { type: CONNECTION.sequenceFlow };
 }
 
-export function defaultConnectionType(source: RuleElement | undefined, target: RuleElement | undefined): string {
+function defaultConnectionType(source: RuleElement | undefined, target: RuleElement | undefined): string {
   const sourcePool = participantOf(source);
   const targetPool = participantOf(target);
   return sourcePool && targetPool && sourcePool !== targetPool ? CONNECTION.messageFlow : CONNECTION.sequenceFlow;
@@ -239,22 +225,11 @@ function isCompatibleConnection(candidate: string, existing: string): boolean {
 }
 
 export class Rules {
-  private readonly injectedCatalog: TypeCatalog | undefined;
-  private readonly allowSelfLoop: boolean;
-  private readonly minSizes: Readonly<Record<string, Size>> | undefined;
-
-  constructor(options: RulesOptions = {}) {
-    this.injectedCatalog = options.catalog;
-    this.allowSelfLoop = options.allowSelfLoop === true;
-    this.minSizes = options.minSizes;
-  }
-
-  get catalog(): TypeCatalog | undefined {
-    if (this.injectedCatalog) return this.injectedCatalog;
+  private get catalog(): TypeCatalog | undefined {
     return hasCatalog() ? getCatalog() : undefined;
   }
 
-  schemaVerdict(source: RuleElement | undefined, target: RuleElement | undefined): boolean | 'defer' {
+  private schemaVerdict(source: RuleElement | undefined, target: RuleElement | undefined): boolean | 'defer' {
     const catalog = this.catalog;
     if (!catalog) return 'defer';
     return catalog.connectionRule(typeRefOf(source), typeRefOf(target));
@@ -264,7 +239,7 @@ export class Rules {
     if (!source || !target) return false;
     const schema = this.schemaVerdict(source, target);
     if (schema === false) return false;
-    const structural = structuralConnection(source, target, { allowSelfLoop: this.allowSelfLoop, catalog: this.catalog });
+    const structural = structuralConnection(source, target, this.catalog);
     if (schema === true) {
       if (structural) return structural;
       // A schema authorises a pair of types, not a flow across a container boundary.
@@ -303,19 +278,12 @@ export class Rules {
     return true;
   }
 
-  canResize(shape: RuleElement | undefined, newBounds?: Partial<Bounds>): boolean {
-    if (!shape) return false;
-    const type = bpmnTypeOf(shape, this.catalog);
-    if (!isResizable(type)) return false;
-    if (!newBounds) return true;
-    const min = minSizeFor(type, this.minSizes);
-    if (typeof newBounds.width === 'number' && newBounds.width < min.width) return false;
-    if (typeof newBounds.height === 'number' && newBounds.height < min.height) return false;
-    return true;
+  canResize(shape: RuleElement | undefined): boolean {
+    return !!shape && isResizable(bpmnTypeOf(shape, this.catalog));
   }
 
   minSizeFor(shape: RuleElement | undefined): Size {
-    return minSizeFor(bpmnTypeOf(shape, this.catalog), this.minSizes);
+    return minSizeFor(bpmnTypeOf(shape, this.catalog));
   }
 
   /**
