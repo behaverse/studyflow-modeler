@@ -58,14 +58,14 @@ async function startDevServer(origin: string): Promise<() => void> {
   throw new Error('Timed out waiting for the dev server.');
 }
 
-async function openStudyflow(page: any, origin: string, name: string, xml: string): Promise<void> {
+async function openStudyflow(page: any, origin: string, name: string, studyflow: string): Promise<void> {
   await page.goto(`${origin}/app`);
   await page.getByTestId('modeler-ready').waitFor({ state: 'attached', timeout: 60_000 });
 
   await page.getByTestId('open-file-input').setInputFiles({
     name,
-    mimeType: 'application/xml',
-    buffer: Buffer.from(xml),
+    mimeType: 'text/yaml',
+    buffer: Buffer.from(studyflow),
   });
   // The import is done once the canvas holds the studyflow's own elements (`.sf-shape` is the per-element `<g>`).
   await page.locator('.sf-shape').first().waitFor({ timeout: 30_000 });
@@ -84,7 +84,7 @@ async function exportPng(page: any): Promise<Buffer> {
   return readFileSync(await (await download).path());
 }
 
-async function renderPng(input: string, xml: string, origin: string): Promise<Buffer> {
+async function renderPng(input: string, studyflow: string, origin: string): Promise<Buffer> {
   let chromium: any;
   try {
     ({ chromium } = await import('@playwright/test'));
@@ -111,7 +111,7 @@ async function renderPng(input: string, xml: string, origin: string): Promise<Bu
         Object.defineProperty(window, key, { configurable: true, value: undefined });
       }
     });
-    await openStudyflow(page, origin, `${basename(input).replace(/\..*$/, '')}.bpmn`, xml);
+    await openStudyflow(page, origin, `${basename(input).replace(/\..*$/, '')}.studyflow.yaml`, studyflow);
     return await exportPng(page);
   } finally {
     await browser.close();
@@ -126,7 +126,8 @@ export async function convert(input: string, output: string, options: ConvertOpt
   // Reading drops what no loaded schema declares, so say what the reader met, as `validate` does.
   const warnings: string[] = [];
   const onWarning = (warning: string) => { warnings.push(warning); };
-  const text = format === 'yaml' ? await asYaml(source, onWarning) : await asXml(source, onWarning);
+  // A PNG carries the YAML, and the modeler draws one from it too.
+  const text = format === 'xml' ? await asXml(source, onWarning) : await asYaml(source, onWarning);
   for (const warning of warnings) console.warn(`warning: ${warning}`);
   if (options.strict && warnings.length > 0) throw new Error(`Nothing written to ${output}: reading ${input} raised warnings (--strict).`);
 

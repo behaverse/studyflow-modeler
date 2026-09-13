@@ -5,7 +5,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
 import { studyflowToXml, xmlToStudyflow } from '@core/document';
-import { extractXmlFromPng } from '@core/document/png';
+import { extractStudyflowFromPng } from '@core/document/png';
 
 const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
@@ -46,14 +46,14 @@ export function blankDiagram(): Buffer {
 
 let schemaModdle: Promise<any> | undefined;
 
-/** The example as BPMN XML: what its PNG embeds, or what its YAML spells. */
+/** The example as BPMN XML: what the YAML in its file, or embedded in its PNG, spells. */
 export async function exampleXml(name: string): Promise<string> {
   const file = examplePath(name);
-  if (file.endsWith('.png')) return extractXmlFromPng(readFileSync(file));
-  // Built on first use: most specs, and every e2e worker, never read a YAML example.
+  const yaml = file.endsWith('.png') ? extractStudyflowFromPng(readFileSync(file)) : readFileSync(file, 'utf8');
+  // Built on first use: most e2e workers never read an example's XML.
   schemaModdle ??= import('./schemas').then(({ loadSchemaModels, schemaPackages }) =>
     new BpmnModdle(schemaPackages(loadSchemaModels())));
-  return studyflowToXml(readFileSync(file, 'utf8'), await schemaModdle);
+  return studyflowToXml(yaml, await schemaModdle);
 }
 
 export async function exampleStudyflow(name: string, moddle: any): Promise<string> {
@@ -213,21 +213,12 @@ export async function readDownload(download: Download): Promise<Buffer> {
   return readFileSync(filePath);
 }
 
+/** The YAML an exported SVG carries: the text of its `<studyflow>`, which the serializer escaped. */
 export function extractStudyflowFromSvg(svgText: string): string {
-  const match = svgText.match(/<studyflow>([\s\S]*?)<\/studyflow>/i);
+  const match = svgText.match(/<studyflow>([\s\S]*?)<\/studyflow>/);
   if (!match) {
     throw new Error('Embedded studyflow metadata not found in SVG output.');
   }
 
-  return match[1].trim();
-}
-
-export function normalizeXml(xml: string): string {
-  return xml
-    .replace(/<\?xml[^>]*\?>/gi, '')
-    .replace(/<!--([\s\S]*?)-->/g, '')
-    .replace(/\s*\/\s*>/g, '/>')
-    .replace(/>\s+</g, '><')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return match[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 }

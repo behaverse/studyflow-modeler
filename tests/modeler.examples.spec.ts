@@ -29,17 +29,18 @@ test.describe('New Diagram gallery', () => {
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
   });
 
-  test('a YAML example that needs a skill turned off is left out; a PNG one stays', async ({ page }) => {
+  test('an example that needs a skill turned off is left out, a PNG one too', async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem('studyflow-modeler:settings', JSON.stringify({ enabledSchemas: [] })));
     await gotoModeler(page);
     await runPaletteCommand(page, 'New...');
 
     // Read and drawn: sklearn_pipeline needs only the required schemas.
     await expect(page.getByTestId('example-sklearn_pipeline')).toContainText('scikit-learn');
-    // kitchensink and agent_eval name agentic types; bot_external is a PNG, which opens without its schema.
+    // kitchensink and agent_eval name agentic types, and the PNG bot_external behaverse ones; the PNG drawn_loop needs none.
     await expect(page.getByTestId('example-kitchensink')).toHaveCount(0);
     await expect(page.getByTestId('example-agent_eval')).toHaveCount(0);
-    await expect(page.getByTestId('example-bot_external')).toBeVisible();
+    await expect(page.getByTestId('example-bot_external')).toHaveCount(0);
+    await expect(page.getByTestId('example-drawn_loop')).toBeVisible();
   });
 
   test('a pool diagram is read from both its roots', async ({ page }) => {

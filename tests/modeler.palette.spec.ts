@@ -1,24 +1,16 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { xmlToStudyflow } from '@core/document';
-import { loadSchemaModels, schemaPackages } from './schemas';
 import {
   addPaletteElement,
   addSchemaPaletteElement,
   exportDiagram,
   extractStudyflowFromSvg,
   gotoModeler,
-  normalizeXml,
   pressOnCanvas,
   readDownloadText,
   setSelectedElementName,
 } from './utils';
-
-async function toYaml(xml: string): Promise<string> {
-  return xmlToStudyflow(xml, new BpmnModdle(schemaPackages(loadSchemaModels())));
-}
 
 test.describe('Studyflow modeler palette flows', () => {
   test('adds palette items, names a task, and keeps exported outputs in sync', async ({ page }) => {
@@ -39,13 +31,6 @@ test.describe('Studyflow modeler palette flows', () => {
 
     expect(svgDownload.suggestedFilename()).toBe('diagram.studyflow.svg');
     expect(svgText).toContain('Review Task');
-    expect(svgText).toContain('<studyflow>');
-
-    const embeddedStudyflow = extractStudyflowFromSvg(svgText);
-    const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
-    expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:task\b/);
-    expect(normalizedEmbeddedStudyflow).toContain('name="Review Task"');
-    expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
 
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
@@ -53,7 +38,8 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(studyflowDownload.suggestedFilename()).toBe('diagram.studyflow.yaml');
     expect(studyflowText.startsWith('id:')).toBe(true);
     expect(studyflowText).toContain('name: Review Task');
-    expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
+    // The picture carries the .studyflow.yaml itself.
+    expect(extractStudyflowFromSvg(svgText)).toBe(studyflowText);
   });
 
   test('adds a schema-backed cognitive element and preserves pinned defaults', async ({ page }) => {
@@ -65,19 +51,13 @@ test.describe('Studyflow modeler palette flows', () => {
 
     const svgDownload = await exportDiagram(page, 'svg');
     const embeddedStudyflow = extractStudyflowFromSvg(await readDownloadText(svgDownload));
-    const normalizedEmbeddedStudyflow = normalizeXml(embeddedStudyflow);
-
-    // behaverse:Task's pinned default (instrument="behaverse") stays implicit in the schema, not serialized onto the element.
-    expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:task\b/);
-    expect(normalizedEmbeddedStudyflow).toMatch(/<[A-Za-z0-9_]+:startEvent\b/);
-    expect(normalizedEmbeddedStudyflow).toContain('<behaverse:task');
 
     const studyflowDownload = await exportDiagram(page, 'studyflow');
     const studyflowText = await readDownloadText(studyflowDownload);
 
     expect(studyflowText).toContain('type: behaverse:Task');
     expect(studyflowText).toContain('instrument: behaverse');
-    expect(studyflowText).toBe(await toYaml(embeddedStudyflow));
+    expect(embeddedStudyflow).toBe(studyflowText);
   });
 
   test('a participant template arrives with its flow, not as an empty pool', async ({ page }) => {

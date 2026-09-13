@@ -1,5 +1,5 @@
 import { studyflowToDefinitions } from '@core/document';
-import { extractXmlFromPng } from '@core/document/png';
+import { extractStudyflowFromPng } from '@core/document/png';
 import type { Moddle } from '@core/element/moddle';
 import { SCHEMA_MODELS, skillOfSchema } from '@core/notation/loader';
 import { compareExamples } from '@modeler/examples/catalog';
@@ -52,18 +52,15 @@ export function buildInitialEntries(): ExampleEntry[] {
 
 /**
  * The same entries with each example's title and blurb read in, and each YAML example drawn. A
- * failed read keeps the card and marks it; a YAML example this page's schemas cannot build is left out.
+ * failed read keeps the card and marks it; an example this page's schemas cannot build is left out.
  */
 export function loadExampleEntries(moddle: Moddle): Promise<ExampleEntry[]> {
   read ??= Promise.all(
     buildInitialEntries().map(async (entry) => {
       try {
         const bytes = await fetch(entry.url).then((r) => r.arrayBuffer());
-        if (isPng(entry)) {
-          const { rootElement } = await moddle.fromXML(extractXmlFromPng(bytes));
-          return { ...entry, ...exampleMetadata(rootElement, entry.title) };
-        }
-        return drawn(entry, new TextDecoder().decode(bytes), moddle);
+        const yaml = isPng(entry) ? extractStudyflowFromPng(bytes) : new TextDecoder().decode(bytes);
+        return card(entry, yaml, moddle);
       } catch (err) {
         console.error(`Failed to read example ${entry.filename}:`, err);
         return { ...entry, error: 'Could not be read. Reload the page to try again.' };
@@ -73,8 +70,8 @@ export function loadExampleEntries(moddle: Moddle): Promise<ExampleEntry[]> {
   return read;
 }
 
-/** A YAML example's card, or nothing when it names a type no enabled schema declares. */
-function drawn(entry: ExampleEntry, yaml: string, moddle: Moddle): ExampleEntry | undefined {
+/** An example's card, a YAML one drawn; nothing when it names a type no enabled schema declares. */
+function card(entry: ExampleEntry, yaml: string, moddle: Moddle): ExampleEntry | undefined {
   let definitions;
   try {
     definitions = studyflowToDefinitions(yaml, moddle);
@@ -83,6 +80,7 @@ function drawn(entry: ExampleEntry, yaml: string, moddle: Moddle): ExampleEntry 
     return undefined;
   }
   const metadata = exampleMetadata(definitions, entry.title);
+  if (isPng(entry)) return { ...entry, ...metadata };
   const svg = drawPreview(definitions);
   return { ...entry, ...metadata, thumb: URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })) };
 }

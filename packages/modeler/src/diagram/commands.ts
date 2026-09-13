@@ -2,10 +2,10 @@ import new_diagram from '#assets/new_diagram.bpmn?raw';
 import { fromWireXml, looksLikeXml, studyflowToXml } from '@core/document';
 import { setAttribute } from '@core/element';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
-import { extractXmlFromSvg, filenameStem } from '@modeler/diagram/file';
+import { extractStudyflowFromSvg, filenameStem } from '@modeler/diagram/file';
 import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
 import { importableFormatFor, openerFor } from '@modeler/export/formats';
-import { extractXmlFromPng } from '@core/document/png';
+import { extractStudyflowFromPng } from '@core/document/png';
 import { notify } from '@modeler/app/noticeStore';
 import { resetTrailStamping } from '@modeler/provenance/trail';
 import type { Editor } from '@modeler/editor/port';
@@ -58,16 +58,21 @@ export type OpenDiagramCommand = {
   content: string | ArrayBuffer;
 };
 
-async function toXml(modeler: Editor, filename: string, content: string | ArrayBuffer): Promise<string> {
+/** The file as text: what an image carries, else the file itself. */
+function fileText(filename: string, content: string | ArrayBuffer): string {
   const format = importableFormatFor(filename);
 
   if (format?.id === 'png') {
     if (typeof content === 'string') throw new Error('PNG diagrams must be opened as binary data.');
-    return extractXmlFromPng(content);
+    return extractStudyflowFromPng(content);
   }
 
   const text = typeof content === 'string' ? content : new TextDecoder().decode(content);
-  if (format?.id === 'svg') return extractXmlFromSvg(text);
+  return format?.id === 'svg' ? extractStudyflowFromSvg(text) : text;
+}
+
+async function toXml(modeler: Editor, filename: string, content: string | ArrayBuffer): Promise<string> {
+  const text = fileText(filename, content);
   if (looksLikeXml(text)) return text;
   // A foreign format a skill opens (a jsPsych timeline): converted to a studyflow on the way in, same "Open".
   const opener = openerFor(filename);

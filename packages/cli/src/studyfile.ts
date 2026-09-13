@@ -3,14 +3,14 @@ import { extname } from 'node:path';
 
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { looksLikeXml, extractXmlFromPng, readerWarning, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
+import { looksLikeXml, extractStudyflowFromPng, readerWarning, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
 import { loadAllSchemas } from '@core/notation/loader';
 import type { Moddle } from '@core/element/moddle';
 
 export type SourceKind = 'yaml' | 'xml';
 
 export type StudyflowSource = {
-  /** The studyflow as text: YAML, or BPMN XML (what a `.studyflow.png` embeds). */
+  /** The studyflow as text: YAML (what a `.studyflow.png` embeds), or BPMN XML. */
   text: string;
   kind: SourceKind;
   /** Where the text came from; `png` means it was extracted from an image. */
@@ -26,12 +26,11 @@ export function schemaModdle(): Promise<Moddle> {
 }
 
 export async function readSource(path: string): Promise<StudyflowSource> {
-  if (extname(path).toLowerCase() === '.png') {
-    const xml = extractXmlFromPng(new Uint8Array(await readFile(path)));
-    return { text: xml, kind: 'xml', container: 'png' };
-  }
-  const text = await readFile(path, 'utf8');
-  return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container: 'text' };
+  const container = extname(path).toLowerCase() === '.png' ? 'png' : 'text';
+  const text = container === 'png'
+    ? extractStudyflowFromPng(new Uint8Array(await readFile(path)))
+    : await readFile(path, 'utf8');
+  return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container };
 }
 
 /** The source as BPMN XML, whatever it arrived as. XML is passed through unread, so only YAML can warn. */

@@ -1,18 +1,15 @@
-export function embedStudyflowIntoSvg(svg: string, xml: string): string {
+/** `svg` carrying `studyflow`, the text of a `.studyflow.yaml`, as the text of `<metadata><studyflow>`. */
+export function embedStudyflowIntoSvg(svg: string, studyflow: string): string {
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
   const svgEl = svgDoc.querySelector('svg') || svgDoc.documentElement;
-
-  const xmlClean = xml
-    .replace(/^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*(?:<!DOCTYPE[\s\S]*?>\s*)?/i, '')
-    .trim();
 
   const metadataEl = svgDoc.createElement('metadata');
   svgEl.insertBefore(metadataEl, svgEl.firstElementChild);
 
   const studyflowEl = svgDoc.createElement('studyflow');
   metadataEl.appendChild(studyflowEl);
-  studyflowEl.innerHTML = xmlClean;
+  studyflowEl.textContent = studyflow;
 
   return new XMLSerializer().serializeToString(svgDoc);
 }

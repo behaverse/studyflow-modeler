@@ -96,10 +96,11 @@ function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string, k
   return out;
 }
 
-export function embedStudyflowIntoPng(png: Uint8Array, xml: string): Uint8Array {
+/** `png` carrying `studyflow`, the text of a `.studyflow.yaml`, in an iTXt chunk keyed `studyflow`. */
+export function embedStudyflowIntoPng(png: Uint8Array, studyflow: string): Uint8Array {
   const encoder = new TextEncoder();
   const keyword = encoder.encode(STUDYFLOW_KEYWORD);
-  const text = encoder.encode(xml);
+  const text = encoder.encode(studyflow);
   // iTXt layout: keyword NUL, flag+method (0 0 = uncompressed), empty language NUL, empty translated keyword NUL, UTF-8 text.
   const data = new Uint8Array(keyword.length + 5 + text.length);
   data.set(keyword, 0);
@@ -108,8 +109,8 @@ export function embedStudyflowIntoPng(png: Uint8Array, xml: string): Uint8Array 
   return insertChunkBefore(png, buildChunk('iTXt', data), 'IEND', STUDYFLOW_KEYWORD);
 }
 
-
-export function extractXmlFromPng(content: ArrayBuffer | Uint8Array): string {
+/** The text {@link embedStudyflowIntoPng} put in the PNG. */
+export function extractStudyflowFromPng(content: ArrayBuffer | Uint8Array): string {
   const png = content instanceof Uint8Array ? content : new Uint8Array(content);
   assertPngSignature(png);
   const decoder = new TextDecoder();

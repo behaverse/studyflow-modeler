@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
+import { extractStudyflowFromPng } from '@core/document/png';
 import {
   exportDiagram,
   gotoModeler,
@@ -174,8 +175,8 @@ test.describe('Studyflow modeler file flows', () => {
 
     const png = await readDownload(await exportDiagram(page, 'png'));
     expect(png.subarray(1, 4).toString('ascii')).toBe('PNG');
-    // Always embedded: an image that cannot be reopened is a dead end, so it is not an option.
-    expect(png.includes('iTXt')).toBe(true);
+    // Always embedded, as the .studyflow.yaml: an image that cannot be reopened is a dead end, so it is not an option.
+    expect(extractStudyflowFromPng(png)).toBe(await readDownloadText(await exportDiagram(page, 'studyflow')));
     expect(png.includes('mxfile')).toBe(false);
   });
 

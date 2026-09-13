@@ -18,41 +18,44 @@ async function toExportableXml(modeler: Editor): Promise<string> {
   return toWireXml(xml, modeler.model.moddle());
 }
 
+/** The diagram as a `.studyflow.yaml` holds it. */
+async function toStudyflow(modeler: Editor): Promise<string> {
+  return xmlToStudyflow(await toExportableXml(modeler), modeler.model.moddle());
+}
+
 /**
- * The diagram as a self-contained SVG, plus its XML.
+ * The diagram as a self-contained SVG, plus the `.studyflow.yaml` text it carries.
  *
  * No icon substitution pass: the renderer inlines each glyph from the stylesheet as a
  * real `<svg>` body, so what the canvas serializes is already what the export carries.
  */
-async function renderSvg(modeler: Editor): Promise<{ svg: string; xml: string }> {
+async function renderSvg(modeler: Editor): Promise<{ svg: string; studyflow: string }> {
   // The SVG first, synchronously: it is a snapshot of the canvas as it stands, and
-  // `toExportableXml` walks the same live moddle tree.
+  // `toStudyflow` walks the same live moddle tree.
   const svg = modeler.canvas.toSVG();
-  const compactXml = await toExportableXml(modeler);
-  const xml = await toStandardBpmnXml(compactXml, modeler.model.moddle());
+  const studyflow = await toStudyflow(modeler);
   const cleaned = dropUnresolvedIcons(svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1'));
-  return { svg: cleaned, xml };
+  return { svg: cleaned, studyflow };
 }
 
 const ENCODERS: Record<DiagramFormatId, (ctx: EncodeContext) => Promise<BlobPart> | BlobPart> = {
-  studyflow: async ({ modeler }) =>
-    xmlToStudyflow(await toExportableXml(modeler), modeler.model.moddle()),
+  studyflow: ({ modeler }) => toStudyflow(modeler),
 
   // Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
   bpmn: async ({ modeler }) =>
     toStandardBpmnXml(await toExportableXml(modeler), modeler.model.moddle()),
 
-  // The picture always carries its source: an image that cannot be reopened is a dead end, and
-  // anyone wanting a draw.io file exports that format directly.
+  // The picture always carries its source, the `.studyflow.yaml`: an image that cannot be reopened
+  // is a dead end, and anyone wanting a draw.io file exports that format directly.
   svg: async ({ renderSvg }) => {
-    const { svg, xml } = await renderSvg();
-    return embedStudyflowIntoSvg(svg, xml);
+    const { svg, studyflow } = await renderSvg();
+    return embedStudyflowIntoSvg(svg, studyflow);
   },
 
   png: async ({ renderSvg }) => {
-    const { svg, xml } = await renderSvg();
+    const { svg, studyflow } = await renderSvg();
     // The payload lands in its own PNG chunk, at the offset its reader scans; the image is untouched.
-    return embedStudyflowIntoPng(dataUrlToBytes(await exportToPng(svg)), xml) as BlobPart;
+    return embedStudyflowIntoPng(dataUrlToBytes(await exportToPng(svg)), studyflow) as BlobPart;
   },
 };
 

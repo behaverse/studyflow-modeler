@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import {
   embedStudyflowIntoPng,
-  extractXmlFromPng,
+  extractStudyflowFromPng,
 } from '@core/document/png';
 
 /** Pure chunk-level coverage of the PNG round-trip contract. */
@@ -41,31 +41,38 @@ function minimalPng(): Uint8Array {
 
 
 test.describe('PNG studyflow embedding', () => {
-  test('round-trips the diagram XML, including non-Latin-1 text', () => {
-    const xml = '<?xml version="1.0"?>\n<bpmn:definitions name="Étude — 実験" />';
+  test('round-trips the studyflow YAML, including non-Latin-1 text', () => {
+    const yaml = 'id: etude\ndefinitions:\n  name: Étude — 実験\n';
 
-    const png = embedStudyflowIntoPng(minimalPng(), xml);
+    const png = embedStudyflowIntoPng(minimalPng(), yaml);
 
-    expect(extractXmlFromPng(png)).toBe(xml);
+    expect(extractStudyflowFromPng(png)).toBe(yaml);
     expect(Array.from(png.subarray(0, 8))).toEqual(PNG_SIGNATURE);
     expect(String.fromCharCode(...png.subarray(png.length - 8, png.length - 4))).toBe('IEND');
   });
 
+  test('a second embedding replaces the first', () => {
+    const png = embedStudyflowIntoPng(embedStudyflowIntoPng(minimalPng(), 'id: old\n'), 'id: new\n');
+
+    expect(extractStudyflowFromPng(png)).toBe('id: new\n');
+    expect(png.length).toBe(embedStudyflowIntoPng(minimalPng(), 'id: new\n').length);
+  });
+
   test('extraction accepts an ArrayBuffer (as delivered by FileReader)', () => {
-    const png = embedStudyflowIntoPng(minimalPng(), '<x/>');
+    const png = embedStudyflowIntoPng(minimalPng(), 'id: x\n');
     const buffer = new ArrayBuffer(png.byteLength);
     new Uint8Array(buffer).set(png);
 
-    expect(extractXmlFromPng(buffer)).toBe('<x/>');
+    expect(extractStudyflowFromPng(buffer)).toBe('id: x\n');
   });
 
   test('throws on a PNG without embedded studyflow', () => {
-    expect(() => extractXmlFromPng(minimalPng())).toThrow(/does not contain embedded Studyflow/);
+    expect(() => extractStudyflowFromPng(minimalPng())).toThrow(/does not contain embedded Studyflow/);
   });
 
   test('throws on non-PNG bytes', () => {
     const notPng = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
-    expect(() => extractXmlFromPng(notPng)).toThrow(/not a valid PNG/);
-    expect(() => embedStudyflowIntoPng(notPng, '<x/>')).toThrow(/not a valid PNG/);
+    expect(() => extractStudyflowFromPng(notPng)).toThrow(/not a valid PNG/);
+    expect(() => embedStudyflowIntoPng(notPng, 'id: x\n')).toThrow(/not a valid PNG/);
   });
 });

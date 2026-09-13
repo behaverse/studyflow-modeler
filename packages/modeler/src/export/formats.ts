@@ -10,7 +10,7 @@ export type ExportFormatId = DiagramFormatId | (string & {});
 
 export type EncodeContext = {
   modeler: Editor;
-  renderSvg: () => Promise<{ svg: string; xml: string }>;
+  renderSvg: () => Promise<{ svg: string; studyflow: string }>;
   /** The semantic view of the diagram, built on demand; only projections read it. */
   exportModel: () => ExportModel;
 };

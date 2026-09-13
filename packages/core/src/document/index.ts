@@ -100,5 +100,5 @@ export async function studyflowToXml(yamlText: string, moddle: Moddle, onWarning
 export {
   dataUrlToBytes,
   embedStudyflowIntoPng,
-  extractXmlFromPng,
+  extractStudyflowFromPng,
 } from '@core/document/png';
