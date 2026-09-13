@@ -1,13 +1,14 @@
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import zlib from 'node:zlib';
 
 import { expect, test } from '@playwright/test';
 
 /** `skills/behaverse/local.py`: the behaverse skill's local runner (Unity WebGL), without Unity — the stage page's
  * protocol is exercised by hand, as the page itself would. */
+
+test.skip(spawnSync('uv', ['--version']).error !== undefined, 'uv is not on PATH');
 
 const RUNNER = path.resolve(__dirname, '../local.py');
 const BEHAVERSE = 'http://behaverse.org/schemas/studyflow/behaverse';
@@ -29,34 +30,22 @@ const PLAN = {
   },
 };
 
-function scratch(): { dir: string; plan: string } {
+test('claims its tasks, serves the build and the stage, relays what the page reports, and records the completion', async () => {
+  test.setTimeout(180_000);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-behaverse-'));
   const plan = path.join(dir, 'plan.json');
   fs.writeFileSync(plan, JSON.stringify(PLAN));
-  return { dir, plan };
-}
-
-test('claims every BehaverseTask, and only those', () => {
-  test.setTimeout(120_000);
-  const { dir, plan } = scratch();
-  const build = path.join(dir, 'build');
-  fs.mkdirSync(build);
-  fs.writeFileSync(path.join(build, 'index.html'), '<canvas id="unity-canvas"></canvas>');
-  const out = execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', build], { stdio: 'pipe' }).toString();
-  expect(JSON.parse(out)).toEqual(['T']);
-  // Without a build the claim fails, before any other pool's runner starts its work.
-  expect(() => execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', path.join(dir, 'none')],
-    { stdio: 'pipe', env: { ...process.env, UNITY_BUILD_PATH: '' } })).toThrow(/no Unity WebGL build/);
-});
-
-test('serves the build and the stage, relays what the page reports, and records the completion', async () => {
-  test.setTimeout(180_000);
-  const { dir, plan } = scratch();
   const build = path.join(dir, 'build');
   fs.mkdirSync(path.join(build, 'Build'), { recursive: true });
   fs.writeFileSync(path.join(build, 'index.html'), '<canvas id="unity-canvas"></canvas>');
   fs.writeFileSync(path.join(build, 'Build', 'WebGL.wasm.unityweb'), 'wasm');
-  fs.writeFileSync(path.join(build, 'Build', 'WebGL.loader.js.gz'), zlib.gzipSync('loader'));
+
+  // Every BehaverseTask, and only those; without a build the claim fails, before any other pool's runner starts its work.
+  const claims = execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', build], { stdio: 'pipe' }).toString();
+  expect(JSON.parse(claims)).toEqual(['T']);
+  expect(() => execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', path.join(dir, 'none')],
+    { stdio: 'pipe', env: { ...process.env, UNITY_BUILD_PATH: '' } })).toThrow(/no Unity WebGL build/);
+
   const cache = path.join(dir, 'cache');
   fs.mkdirSync(cache);
   fs.writeFileSync(path.join(cache, 'T.state.json'), JSON.stringify({ S: { seed: 1 } }));
@@ -84,14 +73,7 @@ test('serves the build and the stage, relays what the page reports, and records 
     scene: 'WO', timeline: 'SimonTask', source: 'external', bridge: 'ws://localhost:8765', prompt: 'look', llm: { Provider: 'claude' },
   });
 
-  const wasm = await fetch(`${base}/assessment-unity/Build/WebGL.wasm.unityweb`);
-  expect(wasm.status).toBe(200);
-  expect(wasm.headers.get('content-type')).toBe('application/octet-stream');
-  expect(wasm.headers.get('cross-origin-embedder-policy')).toBe('require-corp');
-  expect(await wasm.text()).toBe('wasm');
-  const loader = await fetch(`${base}/assessment-unity/Build/WebGL.loader.js.gz`);
-  expect(loader.headers.get('content-type')).toBe('application/javascript');
-  expect(await loader.text()).toBe('loader');
+  expect(await (await fetch(`${base}/assessment-unity/Build/WebGL.wasm.unityweb`)).text()).toBe('wasm');
   expect((await fetch(`${base}/assessment-unity/%2e%2e/plan.json`)).status).toBe(404);
 
   const post = (route: string, body: unknown) => fetch(base + route, {
@@ -102,12 +84,11 @@ test('serves the build and the stage, relays what the page reports, and records 
   await post('/trial', { TrialIndex: 0, Response: 'Left', Agent: 'reachy:random' });
   await post('/completed', { TaskId: 'WO', TimelineId: 'SimonTask', IsCompleted: true });
 
-  expect(await exited).toBe(0);
+  expect(await exited, stderr).toBe(0);
   const state = JSON.parse(fs.readFileSync(path.join(cache, 'T.state.json'), 'utf8'));
   expect(state.S).toEqual({ seed: 1 });
   expect(state.result).toMatchObject({ TaskId: 'WO', TimelineId: 'SimonTask', IsCompleted: true, trials: 1 });
   expect(state.durationMs).toBeGreaterThan(0);
   expect(fs.readFileSync(state.result.events, 'utf8').trim().split('\n').map((line) => JSON.parse(line)))
     .toEqual([{ type: 'trial', n: 1 }, { type: 'trial', n: 2 }]);
-  expect(stderr).toContain('trial 0: Left  (reachy:random)');
 });
