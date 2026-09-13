@@ -38,8 +38,6 @@ function minimalPng(): Uint8Array {
   ]);
 }
 
-
-
 test.describe('PNG studyflow embedding', () => {
   test('round-trips the studyflow YAML, including non-Latin-1 text', () => {
     const yaml = 'id: etude\ndefinitions:\n  name: Étude — 実験\n';
@@ -49,6 +47,8 @@ test.describe('PNG studyflow embedding', () => {
     expect(extractStudyflowFromPng(png)).toBe(yaml);
     expect(Array.from(png.subarray(0, 8))).toEqual(PNG_SIGNATURE);
     expect(String.fromCharCode(...png.subarray(png.length - 8, png.length - 4))).toBe('IEND');
+    // FileReader hands over an ArrayBuffer.
+    expect(extractStudyflowFromPng(png.slice().buffer)).toBe(yaml);
   });
 
   test('a second embedding replaces the first', () => {
@@ -58,19 +58,8 @@ test.describe('PNG studyflow embedding', () => {
     expect(png.length).toBe(embedStudyflowIntoPng(minimalPng(), 'id: new\n').length);
   });
 
-  test('extraction accepts an ArrayBuffer (as delivered by FileReader)', () => {
-    const png = embedStudyflowIntoPng(minimalPng(), 'id: x\n');
-    const buffer = new ArrayBuffer(png.byteLength);
-    new Uint8Array(buffer).set(png);
-
-    expect(extractStudyflowFromPng(buffer)).toBe('id: x\n');
-  });
-
-  test('throws on a PNG without embedded studyflow', () => {
+  test('rejects a PNG that carries no studyflow, and bytes that are not a PNG', () => {
     expect(() => extractStudyflowFromPng(minimalPng())).toThrow(/does not contain embedded Studyflow/);
-  });
-
-  test('throws on non-PNG bytes', () => {
     const notPng = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
     expect(() => extractStudyflowFromPng(notPng)).toThrow(/not a valid PNG/);
     expect(() => embedStudyflowIntoPng(notPng, 'id: x\n')).toThrow(/not a valid PNG/);
