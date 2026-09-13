@@ -22,7 +22,7 @@
     "test:unit": "playwright test --config playwright.unit.config.ts",
     "test:e2e": "playwright test --project=e2e",
     "examples:render": "node packages/cli/scripts/render-examples.mjs",
-    "schemas:lint": "for f in skills/*/*.linkml.yaml; do uvx --from linkml==1.11.1 linkml-lint --config .linkmllint.yaml \"$f\" || exit 1; done",
+    "schemas:lint": "for f in skills/*/*.moddle.yaml; do uvx --from linkml==1.11.1 linkml-lint --config .linkmllint.yaml \"$f\" || exit 1; done",
     "docs": "quarto preview docs --no-browser",
     "docs:build": "quarto render docs",
     "release": "node packages/cli/scripts/release.mjs"

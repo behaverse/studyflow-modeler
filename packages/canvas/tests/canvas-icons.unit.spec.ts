@@ -138,7 +138,7 @@ const GLYPH_XML = `<?xml version="1.0" encoding="UTF-8"?>
 test('the attribute a type\'s `meta.glyph` names is drawn over its icon, upper-cased, smaller when long', async () => {
   // One icon for a family of types does not say which member a shape is (a battery of
   // assessments is a row of identical hexagons); the glyph does.
-  const models = [...loadSchemaModels(), ...fromLinkml([parseLinkml(GLYPH_SCHEMA, 'glyph.linkml.yaml')])];
+  const models = [...loadSchemaModels(), ...fromLinkml([parseLinkml(GLYPH_SCHEMA, 'glyph.moddle.yaml')])];
   const shipped = getCatalog();
   setCatalog(buildCatalog(models));
   try {

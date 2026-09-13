@@ -3,7 +3,7 @@ name: eeg
 description: "Biosignal recording, preprocessing, and analysis steps as a BPMN extension (recordings, montages, epochs, fits). Use when a study records or analyses EEG or similar timeseries."
 license: MIT
 metadata:
-  schema: "eeg.linkml.yaml"
+  schema: "eeg.moddle.yaml"
   modeler: "modeler.ts"
 ---
 

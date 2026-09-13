@@ -3,7 +3,7 @@
 @import './desktop.css';
 
 /* Scan from the repo root: icon classes also live outside the app packages,
- * e.g. `icon: iconify ...` entries in skills/<name>/<name>.linkml.yaml. */
+ * e.g. `icon: iconify ...` entries in skills/<name>/<name>.moddle.yaml. */
 @import "tailwindcss" source("../../");
 
 @plugin "@iconify/tailwind4" {

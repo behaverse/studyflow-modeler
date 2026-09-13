@@ -39,8 +39,8 @@ export function loadSchemaModels(): SchemaModel[] {
 
 /** The `lab` fixture schema, the one place a `connectsTo` allow-list is declared. */
 export function connectsToFixture(): SchemaModel {
-  const file = path.join(process.cwd(), 'tests/fixtures/connects-to.linkml.yaml');
-  return fromLinkml([parseLinkml(readFileSync(file, 'utf8'), 'tests/fixtures/connects-to.linkml.yaml')])[0];
+  const file = path.join(process.cwd(), 'tests/fixtures/connects-to.moddle.yaml');
+  return fromLinkml([parseLinkml(readFileSync(file, 'utf8'), 'tests/fixtures/connects-to.moddle.yaml')])[0];
 }
 
 /** `models` as moddle packages, keyed by prefix: what `loader.ts loadSchemas` hands a `BpmnModdle`. */

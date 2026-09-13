@@ -121,7 +121,7 @@ S:
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
     // The cognitive skill beside the copy, so the walk reads its schema's `branching` annotation; it runs nothing itself.
     fs.mkdirSync(path.join(dir, 'skills', 'cognitive'), { recursive: true });
-    for (const file of ['SKILL.md', 'cognitive.linkml.yaml']) {
+    for (const file of ['SKILL.md', 'cognitive.moddle.yaml']) {
       fs.copyFileSync(path.resolve(__dirname, '../../cognitive', file), path.join(dir, 'skills', 'cognitive', file));
     }
     const fixture = fs.readFileSync(path.resolve(__dirname, '../../../tests/fixtures/random-loop.studyflow.yaml'), 'utf8');

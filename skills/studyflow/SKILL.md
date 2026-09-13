@@ -3,7 +3,7 @@ name: studyflow
 description: "The core studyflow notation: studies, tasks, data, state, execution, and the sequence between them, as a BPMN extension. Use when authoring, reading, or validating any studyflow diagram."
 license: MIT
 metadata:
-  schema: "studyflow.linkml.yaml"
+  schema: "studyflow.moddle.yaml"
 ---
 
 The vocabulary every diagram is written in. `studyflow.linkml.yaml` declares the app-wide powers

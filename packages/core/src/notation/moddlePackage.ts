@@ -1,6 +1,6 @@
 /**
  * The moddle package a schema compiles to: what `BpmnModdle` is handed, and what the catalog reads.
- * `linkml.ts` builds these from the authored `*.linkml.yaml`; only tests write one by hand.
+ * `linkml.ts` builds these from the authored `*.moddle.yaml`; only tests write one by hand.
  */
 
 export type SchemaPropertyModel = {

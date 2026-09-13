@@ -1,5 +1,5 @@
 /**
- * The schema language: a skill's vocabulary is a LinkML schema (`<name>.linkml.yaml`), read here into
+ * The schema language: a skill's vocabulary is a LinkML schema (`<name>.moddle.yaml`), read here into
  * the moddle package descriptor the rest of the notation compiles (`moddlePackage.ts`). Only the LinkML
  * keys below are read; `skills/SCHEMAS.md` is the author's reference for the same mapping.
  *

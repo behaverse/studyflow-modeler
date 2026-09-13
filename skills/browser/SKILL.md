@@ -4,7 +4,7 @@ description: "The participant-facing runtime: runs a studyflow in the browser on
 license: MIT
 compatibility: "A Vite + React app: Node to build and serve, any modern browser to run."
 metadata:
-  schema: "browser.linkml.yaml"
+  schema: "browser.moddle.yaml"
 ---
 
 The browser runner, served at `<site>/run/`. It is a Vite + React app (`npm run dev -w @behaverse/studyflow-browser-skill`)

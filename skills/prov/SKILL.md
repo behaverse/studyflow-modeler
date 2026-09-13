@@ -4,7 +4,7 @@ description: "What a run leaves behind: the run repository, the records, and the
 license: MIT
 compatibility: "The module runs inside the local runtime (Python 3.10+, git for the run repository)."
 metadata:
-  schema: "prov.linkml.yaml"
+  schema: "prov.moddle.yaml"
   runtimes:
     local: "prov.py"
 ---

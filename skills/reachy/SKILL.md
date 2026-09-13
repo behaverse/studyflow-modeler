@@ -4,7 +4,7 @@ description: "Motion, media, and sensing elements of the Reachy Mini robot, and 
 license: MIT
 compatibility: "Local runtime with uv; a Reachy Mini daemon on the network, or --sim."
 metadata:
-  schema: "reachy.linkml.yaml"
+  schema: "reachy.moddle.yaml"
   runtimes:
     local: "uv run --script local.py"
 ---

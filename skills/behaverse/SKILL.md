@@ -4,7 +4,7 @@ description: "The Behaverse assessment battery: its tasks and BDM datasets, and 
 license: MIT
 compatibility: "Browser runtime, or the local runtime with uv; both need a Behaverse WebGL build (UNITY_BUILD_PATH)."
 metadata:
-  schema: "behaverse.linkml.yaml"
+  schema: "behaverse.moddle.yaml"
   runtimes:
     browser: "browser/index.tsx"
     local: "uv run --script local.py"
