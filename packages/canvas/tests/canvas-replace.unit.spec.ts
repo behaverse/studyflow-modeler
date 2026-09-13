@@ -7,8 +7,8 @@ import type { SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 import { loadCanvas } from './canvasHarness';
 
 /**
- * Retyping an element in place — the context pad's wrench, "Change element"
- * (ux-spec §4 entry 4), `Canvas.replaceElement`.
+ * Retyping an element in place — the context pad's wrench, "Change element",
+ * `Canvas.replaceElement`.
  *
  * There is no rewriting a moddle object's `$type`, so a replace is a create, a
  * rewire and a delete pretending to be one edit. What has to be true afterwards is
@@ -73,7 +73,7 @@ function edge(canvas: Canvas, id: string): SceneEdge {
 const serialize = (moddle: any, definitions: any): Promise<string> =>
   moddle.toXML(definitions, { format: true }).then((r: any) => r.xml);
 
-test('replacing a task mints the new type, keeps the name and rewires both flows — proven by toXML', async () => {
+test('replacing a task mints the new type, keeps the name, rewires both flows — proven by toXML — and selects it', async () => {
   const { canvas, definitions, moddle } = await load();
   const task = node(canvas, 'Task_1');
 
@@ -107,31 +107,26 @@ test('replacing a task mints the new type, keeps the name and rewires both flows
   const reloaded = new Canvas();
   reloaded.importDefinitions(reimported);
   expect(reloaded.getScene()!.elementsById.get(id)).toBeTruthy();
+
+  expect(canvas.getSelection().get()).toEqual([replacement]);
 });
 
-test('a task becomes an end event at the same CENTRE, in the end event\'s own footprint', async () => {
-  const { canvas } = await load();
-  const task = node(canvas, 'Task_1');
-  const centre = { x: task.x + task.width / 2, y: task.y + task.height / 2 };
+test('a replacement keeps the centre, in its own type\'s footprint unless both types share a shape', async () => {
+  // Task_1 is resized to 160x120 first: a size the user chose.
+  const CASES: [label: string, type: string, size: { width: number; height: number }][] = [
+    ['a task becomes an end event: a circle, not a 160x120 one', 'bpmn:EndEvent', { width: 36, height: 36 }],
+    ['a task becomes a service task: the size the user chose', 'bpmn:ServiceTask', { width: 160, height: 120 }],
+  ];
+  for (const [label, type, size] of CASES) {
+    const { canvas } = await load();
+    const task = node(canvas, 'Task_1');
+    canvas.getMutator()!.setNodeBounds(task, { x: 200, y: 80, width: 160, height: 120 });
 
-  const replacement = canvas.replaceElement(task, { type: 'bpmn:EndEvent' })!;
+    const replacement = canvas.replaceElement(task, { type })!;
 
-  // A circle, not a 100x80 circle: the footprint comes from the type being minted.
-  expect(replacement.width).toBe(36);
-  expect(replacement.height).toBe(36);
-  expect(replacement.x + replacement.width / 2).toBe(centre.x);
-  expect(replacement.y + replacement.height / 2).toBe(centre.y);
-});
-
-test('two types of the same shape keep a size the user chose', async () => {
-  const { canvas } = await load();
-  const task = node(canvas, 'Task_1');
-  canvas.getMutator()!.setNodeBounds(task, { x: 200, y: 80, width: 160, height: 120 });
-
-  const replacement = canvas.replaceElement(task, { type: 'bpmn:ServiceTask' })!;
-
-  expect({ width: replacement.width, height: replacement.height })
-    .toEqual({ width: 160, height: 120 });
+    expect({ width: replacement.width, height: replacement.height }, label).toEqual(size);
+    expect({ x: replacement.x + replacement.width / 2, y: replacement.y + replacement.height / 2 }, label).toEqual({ x: 280, y: 140 });
+  }
 });
 
 test('the flows are re-routed onto the replacement, squarely', async () => {
@@ -146,12 +141,6 @@ test('the flows are re-routed onto the replacement, squarely', async () => {
   expect(edge(canvas, 'Flow_2').source).toBe(replacement);
 });
 
-test('the replacement becomes the selection', async () => {
-  const { canvas } = await load();
-  const replacement = canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:UserTask' })!;
-  expect(canvas.getSelection().get()).toEqual([replacement]);
-});
-
 test('replacing an element with the type it already is writes nothing', async () => {
   const { canvas, definitions, moddle } = await load();
   const before = await (canvas.syncDi(), serialize(moddle, definitions));
@@ -164,18 +153,17 @@ test('replacing an element with the type it already is writes nothing', async ()
 });
 
 test('a container with contents is not replaceable, so nothing inside it can be lost', async () => {
-  const { canvas } = await load(FIXTURE_XML.replace(
-    '<bpmn:task id="Task_1" name="Read the brief">',
-    '<bpmn:subProcess id="Task_1" name="Read the brief">',
-  ).replace('</bpmn:task>', '</bpmn:subProcess>'));
-
+  const { canvas } = await load(FIXTURE_XML
+    .replace('<bpmn:task id="Task_1" name="Read the brief">', '<bpmn:subProcess id="Task_1" name="Read the brief">')
+    .replace('</bpmn:task>', '<bpmn:task id="Inner" /></bpmn:subProcess>')
+    .replace('</bpmndi:BPMNPlane>', '<bpmndi:BPMNShape id="Inner_di" bpmnElement="Inner"><dc:Bounds x="220" y="100" width="60" height="40" /></bpmndi:BPMNShape></bpmndi:BPMNPlane>'));
   const container = node(canvas, 'Task_1');
-  // Empty, so it IS replaceable…
-  expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(true);
-  // …until something lives in it.
-  container.children.push(node(canvas, 'End_1'));
+
   expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(false);
   expect(canvas.replaceElement(container, { type: 'bpmn:Task' })).toBeUndefined();
+  // Emptied, it is replaceable.
+  canvas.deleteElements(node(canvas, 'Inner'));
+  expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(true);
 });
 
 test('replacing an event with a variant of the same type mints the event definition', async () => {

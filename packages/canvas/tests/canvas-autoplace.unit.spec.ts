@@ -7,13 +7,11 @@ import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts
 import { loadCanvas } from './canvasHarness';
 
 /**
- * Click-append and its placement solver (P6b §3A, `interaction/autoplace.ts`).
- *
- * The contract is the one bpmn-js's `AutoPlace` + `BpmnAutoPlaceUtil` state: a
- * clicked append needs no pointer, so the editor picks the spot — one fixed gap to
- * the right of the source, vertically centred on it — mints the successor there and
- * connects the two, writing BOTH halves (business object + DI) for each, exactly as
- * a dropped shape and a dragged connection would.
+ * Click-append (`interaction/autoplace.ts`). A clicked append needs no pointer, so the
+ * canvas picks the spot — one fixed gap to the right of the source, vertically centred
+ * on it, stepped past whatever occupies it — mints the successor there and connects
+ * the two, writing the business objects and the DI as a dropped shape and a drawn
+ * connection would.
  */
 
 /** A start event, a task, and an end event — three appendability verdicts in one file. */
@@ -165,21 +163,21 @@ const POOL_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 test.describe('auto-place (click-append)', () => {
-  test('appends the shape and the flow that reaches it, both written to the document', async () => {
+  test('appends the shape and the flow that reaches it, both written to the document, and selects the shape', async () => {
     const { canvas, definitions } = await load();
     const source = node(canvas, 'Task_1');
 
-    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' });
+    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent', attrs: { name: 'Appended' } });
     expect(appended).toBeTruthy();
 
     // Placed, not stacked: left edge one gap past the source's right edge, centres level.
     expect(appended!.x).toBe(source.x + source.width + APPEND_DISTANCE);
     expect(appended!.y + appended!.height / 2).toBe(source.y + source.height / 2);
 
-    // The business object landed in the process...
+    // The business object landed in the process, carrying the descriptor's attributes...
     const process = definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process');
     const flowElements = process.flowElements ?? [];
-    expect(flowElements.some((f: any) => f.id === appended!.id)).toBe(true);
+    expect(flowElements.find((f: any) => f.id === appended!.id)?.name).toBe('Appended');
 
     // ...with a sequence flow from the source to it, wired both ways.
     const flow = flowElements.find(
@@ -193,12 +191,8 @@ test.describe('auto-place (click-append)', () => {
     const di = planeElements(definitions);
     expect(di.some((pe: any) => pe.$type === 'bpmndi:BPMNShape' && pe.bpmnElement?.id === appended!.id)).toBe(true);
     expect(di.some((pe: any) => pe.$type === 'bpmndi:BPMNEdge' && pe.bpmnElement?.id === flow.id)).toBe(true);
-  });
 
-  test('leaves the appended SHAPE selected, not the flow that was drawn to it', async () => {
-    const { canvas } = await load();
-    const appended = canvas.appendElement(node(canvas, 'Start_1'), { type: 'bpmn:Task' });
-
+    // The shape is what is left selected, not the flow drawn to it.
     expect(canvas.getSelection().get()).toEqual([appended]);
   });
 
@@ -213,19 +207,6 @@ test.describe('auto-place (click-append)', () => {
 
     const after = (definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process').flowElements ?? []).length;
     expect(after).toBe(before);
-  });
-
-  test('carries the palette descriptor through: extension type and attributes survive', async () => {
-    const { canvas, definitions } = await load();
-    const appended = canvas.appendElement(node(canvas, 'Task_1'), {
-      type: 'bpmn:Task',
-      attrs: { name: 'Appended' },
-    });
-
-    expect(appended).toBeTruthy();
-    const process = definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process');
-    const bo = (process.flowElements ?? []).find((f: any) => f.id === appended!.id);
-    expect(bo.name).toBe('Appended');
   });
 
   test('an occupied slot is nudged past, not silently dropped', async () => {
@@ -247,31 +228,6 @@ test.describe('auto-place (click-append)', () => {
     expect(dy).toBeGreaterThan(dx);
   });
 
-  test('appending twice from one source fans out instead of stacking', async () => {
-    const { canvas } = await load();
-    const source = node(canvas, 'Task_1');
-
-    const first = canvas.appendElement(source, { type: 'bpmn:Task' });
-    const second = canvas.appendElement(source, { type: 'bpmn:Task' });
-
-    expect(first).toBeTruthy();
-    expect(second).toBeTruthy();
-    expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height);
-  });
-
-  test('the hover ghost shows the slot the click will actually take', async () => {
-    const { canvas } = await loadCanvas(CROWDED_XML);
-    const source = node(canvas, 'Task_1');
-
-    // A preview that pointed at the original, blocked slot would be a lie.
-    const preview = canvas.previewAppend(source, { type: 'bpmn:EndEvent' });
-    canvas.clearAppendPreview();
-    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' });
-
-    expect(preview).toBeTruthy();
-    expect({ x: preview!.x, y: preview!.y }).toEqual({ x: appended!.x, y: appended!.y });
-  });
-
   test('the second flow is not hidden under the first successor', async () => {
     // The report: append twice from a start event and the second flow "is not
     // visible as it's under the first created task and edge". The router bends a
@@ -285,8 +241,9 @@ test.describe('auto-place (click-append)', () => {
     const second = canvas.appendElement(source, { type: 'bpmn:Task' })!;
     const flow = edgeBetween(canvas, source.id, second.id);
 
-    // The first one is unnudged — this is the plain two-appends-in-a-row case.
+    // The first one is unnudged; the second fans out below it instead of stacking.
     expect(first.y + first.height / 2).toBe(source.y + source.height / 2);
+    expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
 
     expect(flow, 'the second flow exists').toBeTruthy();
     for (const [a, b] of segments(flow!.waypoints)) {
@@ -297,14 +254,15 @@ test.describe('auto-place (click-append)', () => {
     }
   });
 
-  test('an annotation nudges UP, away from the source it hangs over', async () => {
-    // Its slot is ABOVE the source, so stepping "down" walks it into the source.
+  test('an annotation hangs above its source, and the next one nudges further UP', async () => {
+    // Its slot is ABOVE the source, so stepping "down" would walk it into the source.
     const { canvas } = await load();
     const source = node(canvas, 'Task_1');
 
     const first = canvas.appendElement(source, { type: 'bpmn:TextAnnotation' })!;
     const second = canvas.appendElement(source, { type: 'bpmn:TextAnnotation' })!;
 
+    expect(first.y + first.height).toBeLessThanOrEqual(source.y);
     expect(second.y).toBeLessThan(first.y);
     expect(second.y + second.height).toBeLessThanOrEqual(source.y);
   });
@@ -327,8 +285,8 @@ test.describe('auto-place (click-append)', () => {
 
 test.describe('auto-place around a foreign container', () => {
   /**
-   * The report, in the shape the sklearn example has it: a start event with an
-   * EXPANDED SUB-PROCESS occupying the slot to its right. A container is transparent
+   * A start event with an EXPANDED SUB-PROCESS occupying the slot to its right, the
+   * way a reported diagram had it. A container is transparent
    * to hit-testing, so the successor used to be minted on top of `prepare_data` —
    * reparented into it by `Create.createAt`, and left unconnected, because a flow
    * from outside a sub-process to a node inside it is refused.
@@ -370,15 +328,21 @@ test.describe('auto-place around a foreign container', () => {
     expect(edgeBetween(canvas, source.id, appended.id), 'the flow was drawn').toBeTruthy();
   });
 
-  test('the hover ghost agrees with where the click lands', async () => {
-    const { canvas } = await loadCanvas(SUBPROCESS_XML);
-    const source = node(canvas, 'Start_1');
-
-    const preview = canvas.previewAppend(source, { type: 'bpmn:EndEvent' });
-    canvas.clearAppendPreview();
-    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' })!;
-
-    expect({ x: preview!.x, y: preview!.y }).toEqual({ x: appended.x, y: appended.y });
+  test('the hover ghost shows the slot the click takes, stepped past what is in the way', async () => {
+    // A ghost of the first, blocked slot would promise a placement the click does not make.
+    const CASES: [label: string, xml: string, source: string, type: string][] = [
+      ['a task in the slot', CROWDED_XML, 'Task_1', 'bpmn:EndEvent'],
+      ['an expanded sub-process in the slot', SUBPROCESS_XML, 'Start_1', 'bpmn:EndEvent'],
+      ['an annotation, whose slot is above the source', PROCESS_XML, 'Task_1', 'bpmn:TextAnnotation'],
+    ];
+    for (const [label, xml, id, type] of CASES) {
+      const { canvas } = await loadCanvas(xml);
+      const source = node(canvas, id);
+      const preview = canvas.previewAppend(source, { type });
+      canvas.clearAppendPreview();
+      const appended = canvas.appendElement(source, { type })!;
+      expect({ x: preview!.x, y: preview!.y }, label).toEqual({ x: appended.x, y: appended.y });
+    }
   });
 });
 

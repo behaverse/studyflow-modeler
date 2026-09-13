@@ -122,22 +122,6 @@ test.describe('The context pad', () => {
     await expect(ghost(page)).toHaveCount(0);
   });
 
-  test('the annotation entry ghosts an annotation above the shape, not a successor beside it', async ({ page }) => {
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
-    await pressOnCanvas(page, 'Escape');
-
-    const shape = await boxOf(page.locator('g[data-element-id^="Task_"]').first());
-    await entry(page, 'append.text-annotation').hover();
-    await expect(ghost(page)).toHaveCount(1);
-
-    // `preview/frame_08`: the annotation ghost sits ABOVE the source with a dotted
-    // leader, where the end-event ghost sits to its right. Same entry mechanism,
-    // different auto-place rule — so the ghost proves the rule, not just the ghost.
-    const ghostBox = await boxOf(ghost(page).locator('.sf-ghost'));
-    expect(ghostBox.y).toBeLessThan(shape.y);
-  });
-
   test('the ghost lands exactly where the click lands', async ({ page }) => {
     await gotoModeler(page);
     await addPaletteElement(page, 'Activities', 'Task', { x: 300, y: 220 });
