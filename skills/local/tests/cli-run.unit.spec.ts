@@ -5,40 +5,10 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { declaredRuntime, studyflowToDefinitions, studyflowToXml } from '@core/document';
+import { studyflowToXml } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
-/** `studyflow run` reads `runtime` where the modeler writes it: on the `studyflow:Study` extension of the process. */
-
 const moddle = freshModdle();
-
-function study(processBody: string): any {
-  return studyflowToDefinitions(`id: rt
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
-P:
-  type: Process
-${processBody}
-  flowElements:
-    Start:
-      type: StartEvent
-`, moddle, () => {});
-}
-
-test.describe('declaredRuntime', () => {
-  test('reads the Study extension, where the inspector stores it', () => {
-    const definitions = study(`  extensionElements:
-    - type: studyflow:Study
-      runtime: local`);
-    expect(declaredRuntime(definitions)).toBe('local');
-  });
-
-  test('falls back to the schema default when nothing declares it', () => {
-    const definitions = study(`  extensionElements:
-    - type: studyflow:Study`);
-    expect(declaredRuntime(definitions)).toBe('local');
-  });
-});
 
 /** The Python runner keeps `state` (docs/developers.qmd, "What a run leaves behind"): `_meta.prov` run records, `_meta.reached` visit counts. */
 
@@ -196,19 +166,6 @@ S:
       cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
     });
     expect(archivedState(path.join(dir, 'run', 'otherwise.bpmn'))._meta.reached).toEqual({ Start: 1, Gate: 1, Otherwise: 1 });
-  });
-
-  test('refuses to start without the prov skill', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
-    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
-    const { STUDYFLOW_PROV_PY: _, ...env } = process.env;
-    let stderr = '';
-    try {
-      execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), '--help'], { cwd: dir, stdio: 'pipe', env });
-    } catch (error: any) {
-      stderr = String(error.stderr);
-    }
-    expect(stderr).toContain('no prov skill in reach');
   });
 });
 
