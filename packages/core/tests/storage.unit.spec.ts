@@ -7,6 +7,7 @@ import {
   sweepDiagramHandoffs,
   takeDiagramHandoff,
   writeStored,
+  type WriteResult,
 } from '@core/storage';
 
 /** Codecs, degraded-environment writes, and the hand-off envelope, against a fake `window.localStorage`. */
@@ -30,43 +31,38 @@ test.afterEach(() => {
   delete (globalThis as any).window;
 });
 
-test.describe('codecs', () => {
-  test('numberCodec accepts positive integers only', () => {
-    expect(numberCodec.decode('320')).toBe(320);
-    expect(numberCodec.decode('0')).toBeUndefined();
-    expect(numberCodec.decode('-4')).toBeUndefined();
-    expect(numberCodec.decode('not-a-number')).toBeUndefined();
-  });
-
-  test('jsonCodec refuses corrupt payloads instead of throwing', () => {
-    const codec = jsonCodec<{ a: number }>();
-    expect(codec.decode('{"a":1}')).toEqual({ a: 1 });
-    expect(codec.decode('{oops')).toBeUndefined();
-  });
+test('a codec decodes what it can and refuses the rest instead of throwing', () => {
+  const CASES: [label: string, codec: { decode(raw: string): unknown }, raw: string, expected: unknown][] = [
+    ['numberCodec: a positive number', numberCodec, '320', 320],
+    ['numberCodec: not zero', numberCodec, '0', undefined],
+    ['numberCodec: not a negative', numberCodec, '-4', undefined],
+    ['numberCodec: not text', numberCodec, 'not-a-number', undefined],
+    ['jsonCodec: JSON', jsonCodec(), '{"a":1}', { a: 1 }],
+    ['jsonCodec: not a corrupt payload', jsonCodec(), '{oops', undefined],
+  ];
+  for (const [label, codec, raw, expected] of CASES) {
+    expect(codec.decode(raw), label).toEqual(expected);
+  }
 });
 
-test.describe('write results', () => {
-  test('no storage at all reports unavailable', () => {
-    expect(writeStored('studyflow-modeler:test', 'x')).toBe('unavailable');
-  });
-
-  test('a landed write reports ok', () => {
-    installFakeStorage();
-    expect(writeStored('studyflow-modeler:test', 'x')).toBe('ok');
-  });
-
-  test('quota errors report quota and clear the stale entry', () => {
-    const backing = installFakeStorage({
-      setItem: () => {
-        const err = new Error('full');
-        err.name = 'QuotaExceededError';
-        throw err;
-      },
-    });
-    backing.set('studyflow-modeler:test', 'stale');
-    expect(writeStored('studyflow-modeler:test', 'new')).toBe('quota');
-    expect(backing.has('studyflow-modeler:test')).toBe(false);
-  });
+test('a write reports whether it landed; a full storage also drops the stale entry', () => {
+  const full = () => {
+    const err = new Error('full');
+    err.name = 'QuotaExceededError';
+    throw err;
+  };
+  const CASES: [label: string, storage: Partial<Storage> | undefined, result: WriteResult, left?: string][] = [
+    ['no storage at all', undefined, 'unavailable'],
+    ['a write that lands', {}, 'ok', 'new'],
+    ['a full storage', { setItem: full }, 'quota', undefined],
+  ];
+  for (const [label, storage, result, left] of CASES) {
+    delete (globalThis as any).window;
+    const backing = storage && installFakeStorage(storage);
+    backing?.set('studyflow-modeler:test', 'stale');
+    expect(writeStored('studyflow-modeler:test', 'new'), label).toBe(result);
+    if (backing) expect(backing.get('studyflow-modeler:test'), `${label}: what the key holds`).toBe(left);
+  }
 });
 
 test.describe('diagram hand-off', () => {

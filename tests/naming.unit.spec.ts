@@ -1,23 +1,22 @@
 import { expect, test } from '@playwright/test';
 import { firstSentence } from '@core/naming';
 
-/** Table-driven coverage for the naming helpers. */
+/** The one-line blurb a settings row or a gallery card shows. */
 
-test.describe('firstSentence', () => {
+test('firstSentence takes the first sentence, on one line', () => {
   const CASES: [input: string, expected: string][] = [
     ['', ''],
     ['One sentence.', 'One sentence.'],
     ['First. Second.', 'First.'],
     ['No terminator at all', 'No terminator at all'],
-    // Whitespace flattens: the result is a one-line blurb for settings rows.
     ['Multi\nline text. Rest.', 'Multi line text.'],
     ['Question? Statement.', 'Question?'],
     ['Bang! Then more.', 'Bang!'],
+    // A dot ends the sentence only before a capital or the end.
+    ['Reads a pandas.DataFrame and fits it. Then scores.', 'Reads a pandas.DataFrame and fits it.'],
+    ['Runs a battery, e.g. an N-back block. Then a survey.', 'Runs a battery, e.g. an N-back block.'],
   ];
-
   for (const [input, expected] of CASES) {
-    test(`"${input.slice(0, 30)}" -> "${expected.slice(0, 30)}"`, () => {
-      expect(firstSentence(input)).toBe(expected);
-    });
+    expect(firstSentence(input), JSON.stringify(input)).toBe(expected);
   }
 });

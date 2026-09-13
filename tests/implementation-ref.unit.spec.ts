@@ -1,105 +1,40 @@
 import { expect, test } from '@playwright/test';
 
-import { KNOWN_SCHEMES, parseImplementationRef } from '@core/implementation';
+import { parseImplementationRef, type ImplementationRef } from '@core/implementation';
 
 /** Grammar: `<scheme>://<ref>[@<version-or-digest>]`, ref/version split at the LAST `@`. */
 
-test.describe('parseImplementationRef', () => {
-  test('parses a python function reference with version', () => {
-    const result = parseImplementationRef('python://pkg_for_st.do_map@1.2');
-    expect(result).toEqual({
-      ok: true,
-      value: { scheme: 'python', ref: 'pkg_for_st.do_map', version: '1.2' },
-    });
-  });
-
-  test('parses a docker image with sha256 digest (last-@ split)', () => {
-    const result = parseImplementationRef('docker://ghcr.io/lab/img@sha256:abc123');
-    expect(result).toEqual({
-      ok: true,
-      value: { scheme: 'docker', ref: 'ghcr.io/lab/img', version: 'sha256:abc123' },
-    });
-  });
-
-  test('parses an https script URL without version', () => {
-    const result = parseImplementationRef('https://example.org/scripts/clean.py');
-    expect(result).toEqual({
-      ok: true,
-      value: { scheme: 'https', ref: 'example.org/scripts/clean.py' },
-    });
-  });
-
-  test('splits at the LAST @ when ref itself contains one', () => {
-    const result = parseImplementationRef('https://user@example.org/clean.py@v2');
-    expect(result).toEqual({
-      ok: true,
-      value: { scheme: 'https', ref: 'user@example.org/clean.py', version: 'v2' },
-    });
-  });
-
-  test('lowercases the scheme and trims surrounding whitespace', () => {
-    const result = parseImplementationRef('  Python://pkg.fn@1.0  ');
-    expect(result).toEqual({
-      ok: true,
-      value: { scheme: 'python', ref: 'pkg.fn', version: '1.0' },
-    });
-  });
-
-  test('accepts unknown schemes (informational, not an error)', () => {
-    const result = parseImplementationRef('r://stats::median@4.4');
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.scheme).toBe('r');
-      expect(KNOWN_SCHEMES).not.toContain('r');
-    }
-  });
-
-  for (const [label, input] of [
-    ['empty string', ''],
-    ['whitespace only', '   '],
-    ['null', null],
-    ['undefined', undefined],
-  ] as const) {
-    test(`rejects ${label}`, () => {
-      const result = parseImplementationRef(input);
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toContain('empty function reference');
-    });
+test('parseImplementationRef accepts a scheme, a ref, and an optional version', () => {
+  const CASES: [label: string, input: string, value: ImplementationRef][] = [
+    ['a python function with a version', 'python://pkg_for_st.do_map@1.2', { scheme: 'python', ref: 'pkg_for_st.do_map', version: '1.2' }],
+    ['a docker image with a digest', 'docker://ghcr.io/lab/img@sha256:abc123', { scheme: 'docker', ref: 'ghcr.io/lab/img', version: 'sha256:abc123' }],
+    ['an https script without a version', 'https://example.org/scripts/clean.py', { scheme: 'https', ref: 'example.org/scripts/clean.py' }],
+    ['a ref holding an @ of its own', 'https://user@example.org/clean.py@v2', { scheme: 'https', ref: 'user@example.org/clean.py', version: 'v2' }],
+    ['a capitalized scheme, lowercased, and surrounding whitespace, trimmed', '  Python://pkg.fn@1.0  ', { scheme: 'python', ref: 'pkg.fn', version: '1.0' }],
+    // Informational: whether a scheme can run is the runner's call.
+    ['a scheme no runner knows', 'r://stats::median@4.4', { scheme: 'r', ref: 'stats::median', version: '4.4' }],
+  ];
+  for (const [label, input, value] of CASES) {
+    expect(parseImplementationRef(input), label).toEqual({ ok: true, value });
   }
+});
 
-  test('rejects a reference without a scheme', () => {
-    const result = parseImplementationRef('pkg_for_st.do_map@1.2');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("missing '<scheme>://'");
-  });
-
-  test('rejects a malformed scheme separator', () => {
-    const result = parseImplementationRef('python:/oops');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("missing '<scheme>://'");
-  });
-
-  test('rejects an empty ref', () => {
-    const result = parseImplementationRef('python://');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain('empty ref');
-  });
-
-  test('rejects an empty ref before a version', () => {
-    const result = parseImplementationRef('python://@1.2');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain('empty ref');
-  });
-
-  test('rejects a trailing @ with no version', () => {
-    const result = parseImplementationRef('python://pkg.fn@');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain('empty version');
-  });
-
-  test('rejects whitespace inside the ref', () => {
-    const result = parseImplementationRef('python://pkg .fn@1.2');
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain('whitespace');
-  });
+test('parseImplementationRef rejects a malformed reference and says why', () => {
+  const CASES: [label: string, input: string | null | undefined, error: string][] = [
+    ['empty string', '', 'empty function reference'],
+    ['whitespace only', '   ', 'empty function reference'],
+    ['null', null, 'empty function reference'],
+    ['undefined', undefined, 'empty function reference'],
+    ['no scheme', 'pkg_for_st.do_map@1.2', "missing '<scheme>://'"],
+    ['a malformed scheme separator', 'python:/oops', "missing '<scheme>://'"],
+    ['an empty ref', 'python://', 'empty ref'],
+    ['an empty ref before a version', 'python://@1.2', 'empty ref'],
+    ['a trailing @ with no version', 'python://pkg.fn@', 'empty version'],
+    ['whitespace inside the ref', 'python://pkg .fn@1.2', 'whitespace'],
+  ];
+  for (const [label, input, error] of CASES) {
+    const result = parseImplementationRef(input);
+    expect(result.ok, label).toBe(false);
+    if (!result.ok) expect(result.error, label).toContain(error);
+  }
 });
