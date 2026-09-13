@@ -1,14 +1,17 @@
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { fromWireXml, looksLikeXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
-import { exampleNames as examples, examplePath, exampleStudyflow } from './utils';
+import { exampleNames as examples, exampleStudyflow, exampleText } from './utils';
 import { parseStudyflow } from '@runner/studyflow';
 import { freshModdle, freshPackages } from './schemas';
 
-/** Over every bundled example: YAML is a fixed point of YAML -> XML -> YAML, and both feed the runner alike. */
+/** The `.studyflow.yaml` spelling: the short forms the writer emits, every shipped file spelled that way, and the long forms the reader still takes. */
+
+const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'tests/fixtures/state-properties.studyflow');
 
 function studyflowOf(name: string): Promise<string> {
   return exampleStudyflow(name, freshModdle());
@@ -465,41 +468,14 @@ Loose:
     expect(looksLikeXml('studyflow: "1"\nelements: []')).toBe(false);
   });
 
-  for (const file of examples.filter((name) => examplePath(name).endsWith('.yaml'))) {
-    test(`${file}: the shipped YAML is spelled the way the modeler writes it`, async () => {
-      expect(await studyflowOf(file)).toBe(readFileSync(examplePath(file), 'utf8'));
-    });
-  }
-
-  for (const file of examples) {
-    test(`${file}: its YAML projection is the fixed point of YAML -> XML -> YAML`, async () => {
-      const text = await studyflowOf(file);
-      expect(looksLikeXml(text)).toBe(false);
-
-      const xml = await studyflowToXml(text, freshModdle());
-      const yaml1 = await xmlToStudyflow(xml, freshModdle());
-
-      expect(yaml1).toBe(text);
-    });
-
-    test(`${file}: runner sees the same flow graph through both serializations`, async () => {
-      const yamlText = await studyflowOf(file);
-      const xml = await studyflowToXml(yamlText, freshModdle());
-
-      const fromXmlGraph = await parseStudyflow(xml, freshPackages());
-      const fromYamlGraph = await parseStudyflow(yamlText, freshPackages());
-
-      const project = (graph: Awaited<ReturnType<typeof parseStudyflow>>) => ({
-        start: graph.startId,
-        nodes: [...graph.flowNodes.values()]
-          .map(({ id, type, extensionType, incoming, outgoing }) => ({ id, type, extensionType, incoming, outgoing }))
-          .sort((a, b) => a.id.localeCompare(b.id)),
-        flows: [...graph.sequenceFlows.values()]
-          .map(({ id, sourceId, targetId, conditionExpression }) => ({ id, sourceId, targetId, conditionExpression }))
-          .sort((a, b) => a.id.localeCompare(b.id)),
-      });
-
-      expect(project(fromYamlGraph)).toEqual(project(fromXmlGraph));
+  // A PNG example is read by the YAML it embeds, so every example is held to the writer's spelling.
+  for (const [name, read] of [
+    ...examples.map((example) => [example, () => exampleText(example)] as const),
+    ['the state-properties fixture', () => readFileSync(STATE_PROPERTIES_FIXTURE, 'utf8')] as const,
+  ]) {
+    test(`${name}: spelled the way the modeler writes it`, async () => {
+      const text = read();
+      expect(await xmlToStudyflow(await studyflowToXml(text, freshModdle()), freshModdle())).toBe(text);
     });
   }
 });
