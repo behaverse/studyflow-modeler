@@ -1,10 +1,8 @@
 
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { runUpdateLoopCharacteristics } from '@modeler/inspector/commands';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import {
   loopKindOf,
   supportsLoopCharacteristics,
@@ -13,12 +11,7 @@ import type { Editor } from '@modeler/editor/port';
 
 /** `update-loop-characteristics` routes every `loopCharacteristics` write through `modeling` (one undo step each). */
 
-
-const models = loadSchemaModels();
-
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-const moddle = new BpmnModdle(packages) as any;
+const moddle = freshModdle();
 
 /**
  * A partial `Editor`: the command reaches the document through `mutate` and

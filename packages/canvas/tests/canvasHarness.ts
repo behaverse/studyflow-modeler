@@ -1,44 +1,27 @@
 /**
  * The preamble every canvas unit spec used to re-declare.
  *
- * A canvas spec needs the same four things before it can assert anything: the
- * shipped schemas compiled into a `TypeCatalog` and into `bpmn-moddle` packages, a
- * FRESH moddle instance per fixture (moddle mutates the packages it is handed), a
+ * A canvas spec needs the same three things before it can assert anything: a fresh
+ * moddle over the shipped schemas, with their catalog installed (`@tests/schemas`), a
  * DOM for the canvas to mint SVG into (`setDocument` — the canvas ships no
  * rendering dependency), and a pointer shim, because a `Canvas` listens for real
  * `pointerdown`/`pointermove`/`pointerup` events in *screen* coordinates while a
  * test only knows *diagram* coordinates.
  *
- * All four live here once. A spec that needs no DOM (`canvas-import`) imports
- * {@link freshModdle} alone; one that drives the editor calls {@link loadCanvas},
+ * All three live here once. A spec that drives the editor calls {@link loadCanvas},
  * which installs the document for it.
  *
  * Keep this file free of assertions and fixtures: XML fixtures belong to the spec
  * that reads them, so a fixture change can never silently move another suite.
  */
 
-import { BpmnModdle } from 'bpmn-moddle';
 import { JSDOM } from 'jsdom';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { Canvas, setDocument } from '@canvas/index.ts';
 import type { CanvasOptions } from '@canvas/index.ts';
-import { loadSchemaModels, schemaPackages } from '@tests/schemas';
+import { freshModdle } from '@tests/schemas';
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-
-/** `bpmn-moddle` package descriptors, one per shipped schema, keyed by prefix. */
-const packages: Record<string, unknown> = schemaPackages(models);
-
-/**
- * A moddle instance nothing else has parsed with. The packages are cloned per
- * instance because moddle annotates the descriptors it is given, and a shared
- * instance would leak `$parent` links between fixtures.
- */
-export function freshModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+export { freshModdle };
 
 let jsdom: JSDOM | undefined;
 

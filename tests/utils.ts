@@ -1,7 +1,6 @@
 import { globSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { BpmnModdle } from 'bpmn-moddle';
 import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
 import { studyflowToXml, xmlToStudyflow } from '@core/document';
@@ -51,8 +50,7 @@ export async function exampleXml(name: string): Promise<string> {
   const file = examplePath(name);
   const yaml = file.endsWith('.png') ? extractStudyflowFromPng(readFileSync(file)) : readFileSync(file, 'utf8');
   // Built on first use: most e2e workers never read an example's XML.
-  schemaModdle ??= import('./schemas').then(({ loadSchemaModels, schemaPackages }) =>
-    new BpmnModdle(schemaPackages(loadSchemaModels())));
+  schemaModdle ??= import('./schemas').then(({ freshModdle }) => freshModdle());
   return studyflowToXml(yaml, await schemaModdle);
 }
 

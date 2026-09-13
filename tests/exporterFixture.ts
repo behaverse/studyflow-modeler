@@ -1,23 +1,10 @@
-import { BpmnModdle } from 'bpmn-moddle';
-
-import { buildCatalog, setCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 
-/** The interchange exporters' fixture: the compiled catalog and moddle, plus an element-registry stand-in. */
+/** The interchange exporters' fixture: a moddle to build elements with, plus an element-registry stand-in. */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-
-const packages: Record<string, any> = schemaPackages(models);
-
-export const moddle: any = new BpmnModdle(packages) as any;
-
-/** A moddle of its own, for tests that parse documents (moddle mutates the packages it is handed). */
-export function makeModdle(): any {
-  return new BpmnModdle(structuredClone(packages)) as any;
-}
+export const moddle: any = freshModdle();
 
 export type FakeModelerOptions = {
   diagramName?: string;

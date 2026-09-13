@@ -4,18 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { declaredRuntime, studyflowToDefinitions, studyflowToXml } from '@core/document';
-import { loadSchemaModels, schemaPackages } from '@tests/schemas';
+import { freshModdle } from '@tests/schemas';
 
 /** `studyflow run` reads `runtime` where the modeler writes it: on the `studyflow:Study` extension of the process. */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-const moddle = new BpmnModdle(packages) as any;
+const moddle = freshModdle();
 
 function study(processBody: string): any {
   return studyflowToDefinitions(`id: rt

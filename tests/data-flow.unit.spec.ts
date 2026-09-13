@@ -1,18 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { inlineIoSpecification } from '@core/document';
 import { getInferredDataNeighbors } from '@modeler/inspector/dataNeighbors';
 import { getPropertiesInScope, getStateProperties, isScopeContainer } from '@modeler/inspector/stateProperties';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import { exampleNames as examples, exampleXml } from './utils';
 
 /** A step's data contract and what the canvas draws are two readings of one file; they must agree. */
-
-const models = loadSchemaModels();
-const packages: Record<string, any> = schemaPackages(models);
-setCatalog(buildCatalog(models));
 
 type Model = { definitions: any; planes: Array<Map<string, any>>; edges: Set<string> };
 
@@ -57,7 +51,7 @@ function connectsAnything(definitions: any): boolean {
 }
 
 async function read(name: string): Promise<Model> {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
+  const moddle = freshModdle();
   const { rootElement: definitions } = await moddle.fromXML(await exampleXml(name));
   // Shipped payloads carry native ioSpecification; fold to the compact form the inspector reads, as import does.
   inlineIoSpecification(definitions);
@@ -173,7 +167,7 @@ test.describe('what the inspector reports for a step', () => {
 
   test('reads a pool\'s properties from the process it references', async () => {
     // In a collaboration the canvas offers the Collaboration and its pools, never the process itself.
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const { rootElement: definitions } = await moddle.fromXML(`<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:collaboration id="C"><bpmn:participant id="Pool_Reachy" name="Reachy Mini" processRef="Reachy_Participant"/></bpmn:collaboration>

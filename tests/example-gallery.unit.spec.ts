@@ -10,9 +10,8 @@ import { studyflowToDefinitions } from '@core/document';
 import { firstSentence } from '@core/naming';
 import { exampleMetadata } from '@modeler/examples/metadata';
 import { drawPreview } from '@modeler/examples/preview';
-import { BpmnModdle } from 'bpmn-moddle';
 import { installDocument } from '../packages/canvas/tests/canvasHarness';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import { exampleCategories, exampleNames, exampleStudyflow, exampleXml } from './utils';
 
 /**
@@ -21,7 +20,7 @@ import { exampleCategories, exampleNames, exampleStudyflow, exampleXml } from '.
  * card lands on, so the file itself carries no category.
  */
 
-const moddle = new BpmnModdle(schemaPackages(loadSchemaModels())) as any;
+const moddle = freshModdle();
 
 async function definitionsOf(name: string): Promise<any> {
   return (await moddle.fromXML(await exampleXml(name))).rootElement;

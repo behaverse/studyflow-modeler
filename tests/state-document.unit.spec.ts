@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import {
   YAML_DUMP_OPTIONS,
   readState,
@@ -14,14 +12,9 @@ import {
   writeState,
   xmlToStudyflow,
 } from '@core/document';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 
 /** `state:` is the retrospective tree (docs/reference.qmd, "Run state"): JSON on the Study extension, a mapping in the file. */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-const newModdle = () => new BpmnModdle(structuredClone(packages)) as any;
 
 const STATE = {
   _meta: {
@@ -70,25 +63,25 @@ const DOC = BODY + STATE_BLOCK;
 
 test.describe('state in the document', () => {
   test('YAML -> XML -> YAML keeps state: byte-identical, and the XML holds it as JSON', async () => {
-    const xml = await studyflowToXml(DOC, newModdle());
+    const xml = await studyflowToXml(DOC, freshModdle());
     expect(xml).toMatch(/<studyflow:study>\s*<studyflow:state>\{.*\}<\/studyflow:state>/s);
     expect(xml).toContain('studyflow:value="0"');
 
-    const moddle = newModdle();
+    const moddle = freshModdle();
     const { rootElement } = await moddle.fromXML(xml);
     expect(JSON.parse(studyExtensionOf(rootElement)!.state)).toEqual(STATE);
     expect(readState(rootElement)).toEqual(STATE);
 
-    const back = await xmlToStudyflow(xml, newModdle());
+    const back = await xmlToStudyflow(xml, freshModdle());
     expect(back.endsWith(STATE_BLOCK)).toBe(true);
   });
 
   test('an empty tree leaves no state: key and no property', async () => {
-    const definitions = studyflowToDefinitions(BODY, newModdle());
+    const definitions = studyflowToDefinitions(BODY, freshModdle());
     expect(readState(definitions)).toEqual({});
-    expect(await xmlToStudyflow(await studyflowToXml(BODY, newModdle()), newModdle())).not.toContain('state:');
+    expect(await xmlToStudyflow(await studyflowToXml(BODY, freshModdle()), freshModdle())).not.toContain('state:');
 
-    const moddle = newModdle();
+    const moddle = freshModdle();
     const fresh = studyflowToDefinitions(BODY, moddle);
     writeState(fresh, moddle, { Excluded_Pre: { count: 1 } });
     expect(readState(fresh)).toEqual({ Excluded_Pre: { count: 1 } });
@@ -97,7 +90,7 @@ test.describe('state in the document', () => {
   });
 
   test('resolveState walks the element, its containers, then the study root', () => {
-    const definitions = studyflowToDefinitions(DOC, newModdle());
+    const definitions = studyflowToDefinitions(DOC, freshModdle());
     expect(resolveState(definitions, 'Excluded_Pre', 'count')).toBe(3);
     expect(resolveState(definitions, 'Trial', 'failed_trials')).toBe(2);
     expect(resolveState(definitions, 'Trial', 'arm')).toBe('A');
@@ -109,7 +102,7 @@ test.describe('state in the document', () => {
   });
 
   test('a single-segment path falls back to the runner counter under _meta, and _meta is readable absolutely', () => {
-    const definitions = studyflowToDefinitions(DOC, newModdle());
+    const definitions = studyflowToDefinitions(DOC, freshModdle());
     expect(resolveState(definitions, 'Excluded_Pre', 'reached')).toBe(4);
     expect(resolveState(definitions, 'Excluded_Pre', 'count')).toBe(3);
     expect(resolveState(definitions, 'Trial', 'reached')).toBe(1); // Battery's counter, lexically
@@ -120,11 +113,11 @@ test.describe('state in the document', () => {
   });
 
   test('resolvePlaceholders substitutes what resolves and leaves the rest as written', () => {
-    const definitions = studyflowToDefinitions(DOC, newModdle());
+    const definitions = studyflowToDefinitions(DOC, freshModdle());
     expect(resolvePlaceholders('Excluded (n={count})', definitions, 'Excluded_Pre')).toBe('Excluded (n=3)');
     expect(resolvePlaceholders('{arm}/{missing} {reached} {state.Battery.failed_trials}', definitions, 'Excluded_Pre'))
       .toBe('A/{missing} 4 2');
-    expect(resolvePlaceholders('Excluded (n={count})', studyflowToDefinitions(BODY, newModdle()), 'Excluded_Pre'))
+    expect(resolvePlaceholders('Excluded (n={count})', studyflowToDefinitions(BODY, freshModdle()), 'Excluded_Pre'))
       .toBe('Excluded (n={count})');
     // Only the braces of a name: YAML and JSON in a value stay put.
     expect(resolvePlaceholders('{a: 1} {"arm": 2} {arm}', definitions, 'Excluded_Pre')).toBe('{a: 1} {"arm": 2} A');
@@ -132,8 +125,8 @@ test.describe('state in the document', () => {
 
   test('a name may hold letters of any script and hyphens, as in the Python runners', () => {
     const tree = { Example_Study: { durée: 3 }, _meta: { reached: { 'sid-12': 4 } } };
-    const definitions = studyflowToDefinitions(DOC, newModdle());
-    writeState(definitions, newModdle(), tree);
+    const definitions = studyflowToDefinitions(DOC, freshModdle());
+    writeState(definitions, freshModdle(), tree);
     expect(resolvePlaceholders('{durée} {state._meta.reached.sid-12}', definitions, 'Excluded_Pre')).toBe('3 4');
   });
 });

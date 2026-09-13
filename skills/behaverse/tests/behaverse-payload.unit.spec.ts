@@ -1,21 +1,17 @@
 import { expect, test } from '@playwright/test';
+import { freshPackages } from '@tests/schemas';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { parseStudyflow } from '@runner/studyflow';
 import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { FlowNode } from '@runner/flow';
-import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 import { exampleXml } from '@tests/utils';
 
 /** The `RunCognitiveTask` wire contract, from the runner side. */
 
-const models = loadSchemaModels();
-const packages: Record<string, any> = schemaPackages(models);
 // `getAttribute` resolves wrapper bodies through the catalog, so payload extraction needs it populated.
-setCatalog(buildCatalog(models));
 
 async function payloadsOf(xml: string): Promise<Map<string, ReturnType<typeof getBehaverseTaskPayload>>> {
-  const { flowNodes } = await parseStudyflow(xml, packages);
+  const { flowNodes } = await parseStudyflow(xml, freshPackages());
   const payloads = new Map<string, ReturnType<typeof getBehaverseTaskPayload>>();
   for (const [id, node] of flowNodes) {
     const payload = getBehaverseTaskPayload(node as FlowNode);

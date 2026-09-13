@@ -1,17 +1,10 @@
 
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import { fromWireXml, readChoreographyBands, toWireXml } from '@core/document';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 
 /** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */
-
-
-const models = loadSchemaModels();
-const packages: Record<string, any> = schemaPackages(models);
-
-const moddle = () => new BpmnModdle(structuredClone(packages)) as any;
 
 /** Canvas form: a Process of choreography tasks + a headless participant collaboration. */
 const CANVAS_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -40,8 +33,8 @@ const CANVAS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 
 test.describe('choreography wire format', () => {
   test('save emits the BPMN 2.0 choreography shape', async () => {
-    const wire = await toWireXml(CANVAS_XML, moddle());
-    const { rootElement } = await moddle().fromXML(wire);
+    const wire = await toWireXml(CANVAS_XML, freshModdle());
+    const { rootElement } = await freshModdle().fromXML(wire);
     const choreography = rootElement.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
     expect(choreography).toBeTruthy();
 
@@ -60,10 +53,10 @@ test.describe('choreography wire format', () => {
   });
 
   test('load folds the spec form back to the native canvas form', async () => {
-    const wire = await toWireXml(CANVAS_XML, moddle());
-    const canvas = await fromWireXml(wire, moddle());
+    const wire = await toWireXml(CANVAS_XML, freshModdle());
+    const canvas = await fromWireXml(wire, freshModdle());
 
-    const { rootElement } = await moddle().fromXML(canvas);
+    const { rootElement } = await freshModdle().fromXML(canvas);
     const process = rootElement.rootElements.find((re: any) => re.$type === 'bpmn:Process');
     const collaboration = rootElement.rootElements.find((re: any) => re.$type === 'bpmn:Collaboration');
     const task = process.flowElements.find((el: any) => el.$type === 'bpmn:ChoreographyTask');
@@ -86,13 +79,13 @@ test.describe('choreography wire format', () => {
       'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"',
     );
 
-    const wire = await toWireXml(authored, moddle());
+    const wire = await toWireXml(authored, freshModdle());
     expect(wire).toContain('studyflow:signature="abc123"');
-    const { rootElement: saved } = await moddle().fromXML(wire);
+    const { rootElement: saved } = await freshModdle().fromXML(wire);
     const choreography = saved.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
     expect(choreography.$attrs['studyflow:signature']).toBe('abc123');
 
-    const { rootElement: reloaded } = await moddle().fromXML(await fromWireXml(wire, moddle()));
+    const { rootElement: reloaded } = await freshModdle().fromXML(await fromWireXml(wire, freshModdle()));
     const process = reloaded.rootElements.find((re: any) => re.$type === 'bpmn:Process');
     expect(process.$attrs['studyflow:signature']).toBe('abc123');
     expect(wire).not.toContain('isExecutable');
@@ -112,15 +105,15 @@ test.describe('choreography wire format', () => {
       'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1"',
     );
 
-    const wire = await toWireXml(authored, moddle());
-    const { rootElement: saved } = await moddle().fromXML(wire);
+    const wire = await toWireXml(authored, freshModdle());
+    const { rootElement: saved } = await freshModdle().fromXML(wire);
     const choreography = saved.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
     expect(choreography.name).toBe('Dyadic decision study');
     expect(choreography.get('tags')).toEqual(['Reference', 'Study designs']);
     expect(choreography.documentation?.[0]?.text).toContain('two-participant');
     expect(choreography.extensionElements?.values?.[0]?.$type).toBe('studyflow:Study');
 
-    const { rootElement: reloaded } = await moddle().fromXML(await fromWireXml(wire, moddle()));
+    const { rootElement: reloaded } = await freshModdle().fromXML(await fromWireXml(wire, freshModdle()));
     const process = reloaded.rootElements.find((re: any) => re.$type === 'bpmn:Process');
     expect(process.name).toBe('Dyadic decision study');
     expect(process.get('tags')).toEqual(['Reference', 'Study designs']);
@@ -138,7 +131,7 @@ test('a runner stamp on an untyped choreography task keeps its bands and its cho
     'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"',
     'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:prov="https://w3id.org/studyflow/prov"',
   );
-  const { rootElement } = await moddle().fromXML(await toWireXml(stamped, moddle()));
+  const { rootElement } = await freshModdle().fromXML(await toWireXml(stamped, freshModdle()));
   const choreography = rootElement.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
   expect(choreography).toBeTruthy();
   const task = choreography.flowElements.find((el: any) => el.$type === 'bpmn:ChoreographyTask');
@@ -155,7 +148,7 @@ test('a plane naming a collaboration with no pool is pointed at the process on l
   <bpmndi:BPMNDiagram id="Diagram_1"><bpmndi:BPMNPlane id="Plane_1" bpmnElement="Actors" /></bpmndi:BPMNDiagram>
 </bpmn2:definitions>`;
   const planeRoot = async (source: string) =>
-    (await moddle().fromXML(await fromWireXml(source, moddle()))).rootElement.diagrams[0].plane.bpmnElement.id;
+    (await freshModdle().fromXML(await fromWireXml(source, freshModdle()))).rootElement.diagrams[0].plane.bpmnElement.id;
 
   expect(await planeRoot(xml('<bpmn2:participant id="Claude" name="Claude" />'))).toBe('Process_1');
   expect(await planeRoot(xml('<bpmn2:participant id="Pool" name="Lab" processRef="Process_1" />'))).toBe('Actors');

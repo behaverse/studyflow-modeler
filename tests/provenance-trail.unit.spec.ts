@@ -1,7 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { primaryRoot, readState, studyflowToXml, writeState, xmlToStudyflow } from '@core/document';
 import {
   appendTrailEntry,
@@ -10,16 +8,13 @@ import {
   stampTrailForExport,
   trailTimestamp,
 } from '@modeler/provenance/trail';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import { exampleXml } from './utils';
 import type { Editor } from '@modeler/editor/port';
 
 /** Run records in `state._meta.prov`, stamped once per *fact* so re-rendering stays byte-stable. */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-const moddle = new BpmnModdle(packages) as any;
+const moddle = freshModdle();
 
 async function definitionsOf(xml: string): Promise<any> {
   const { rootElement } = await moddle.fromXML(xml);

@@ -2,22 +2,15 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import { IdGenerator } from '@canvas/index.ts';
 import { studyflowToXml, xmlToStudyflow } from '@core/document';
 import { runUpdateStateProperties } from '@modeler/inspector/commands';
 import type { Editor } from '@modeler/editor/port';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import { exampleStudyflow } from './utils';
 
 /** State as BPMN's own declared variables. */
-
-
-const models = loadSchemaModels();
-const packages: Record<string, any> = schemaPackages(models);
-
-const moddle = () => new BpmnModdle(structuredClone(packages)) as any;
 
 /** Two scopes of state, typed by item definitions, read and written by the step that runs the trial. */
 const PROBE = readFileSync(
@@ -27,13 +20,13 @@ const PROBE = readFileSync(
 
 test.describe('state as bpmn:Property', () => {
   test('properties, item definitions, and data states survive YAML -> XML -> YAML', async () => {
-    const xml = await studyflowToXml(PROBE, moddle());
-    const back = await xmlToStudyflow(xml, moddle());
+    const xml = await studyflowToXml(PROBE, freshModdle());
+    const back = await xmlToStudyflow(xml, freshModdle());
     expect(back).toBe(PROBE);
   });
 
   test('the XML projection is plain BPMN, with no studyflow namespace on the state', async () => {
-    const xml = await studyflowToXml(PROBE, moddle());
+    const xml = await studyflowToXml(PROBE, freshModdle());
 
     expect(xml).toContain('<bpmn:property id="Arm" itemSubjectRef="Item_Arm" name="arm">');
     expect(xml).toContain('<bpmn:property id="Failed_Trials"');
@@ -46,8 +39,8 @@ test.describe('state as bpmn:Property', () => {
   });
 
   test('an output association narrows a return value into a property, in BPMN\'s own form', async () => {
-    const source = await exampleStudyflow('sklearn_pipeline', moddle());
-    const xml = await studyflowToXml(source, moddle());
+    const source = await exampleStudyflow('sklearn_pipeline', freshModdle());
+    const xml = await studyflowToXml(source, freshModdle());
 
     expect(xml).toContain('<bpmn:property id="mean_cv_accuracy" itemSubjectRef="Item_Number" name="mean_cv_accuracy" />');
     expect(xml).toContain('<bpmn:itemDefinition id="Item_Estimator" structureRef="sklearn.pipeline.Pipeline" />');
@@ -59,15 +52,15 @@ test.describe('state as bpmn:Property', () => {
   });
 
   test('bpmn:implementation stays on the step that runs software', async () => {
-    const xml = await studyflowToXml(PROBE, moddle());
+    const xml = await studyflowToXml(PROBE, freshModdle());
 
     expect(xml).toMatch(/<bpmn:serviceTask[^>]*implementation="python:\/\/battery\.run_trial@1\.0"/);
     expect(xml).not.toMatch(/<bpmn:subProcess[^>]*implementation=/);
   });
 
   test('a property is addressable as a data-association endpoint across scopes', async () => {
-    const xml = await studyflowToXml(PROBE, moddle());
-    const { rootElement } = await moddle().fromXML(xml);
+    const xml = await studyflowToXml(PROBE, freshModdle());
+    const { rootElement } = await freshModdle().fromXML(xml);
     const process = rootElement.rootElements.find((el: any) => el.$type === 'bpmn:Process');
     const battery = process.flowElements.find((el: any) => el.id === 'Battery');
     const trial = battery.flowElements.find((el: any) => el.id === 'Run_Trial');
@@ -85,7 +78,7 @@ test.describe('state as bpmn:Property', () => {
 
 test.describe('property names', () => {
   test('a rename to a `_`-prefixed name is refused; the previous name stays', () => {
-    const m = moddle();
+    const m = freshModdle();
     const property = m.create('bpmn:Property', { id: 'P1', name: 'count' });
     const process = m.create('bpmn:Process', { id: 'S', properties: [property] });
     property.$parent = process;
@@ -107,7 +100,7 @@ test.describe('property names', () => {
 
   test('a new property takes an id no other scope holds', () => {
     // Two `Property_1` in one file: the YAML keys elements by id, so saving, or an undo, kept only one of them.
-    const m = moddle();
+    const m = freshModdle();
     const battery = m.create('bpmn:SubProcess', { id: 'Battery' });
     const counted = m.create('bpmn:Property', { id: 'Property_1', name: 'count' });
     const process = m.create('bpmn:Process', { id: 'S', properties: [counted], flowElements: [battery] });

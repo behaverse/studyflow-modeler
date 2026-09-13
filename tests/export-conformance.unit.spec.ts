@@ -5,7 +5,8 @@ import { exportToArtemis } from '@skills/eeg/modeler';
 import { exportToLinkML } from '@skills/linkml/modeler';
 import { exportToNidm } from '@skills/nidm/modeler';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
-import { fakeModeler, makeModdle } from './exporterFixture';
+import { fakeModeler } from './exporterFixture';
+import { freshModdle } from './schemas';
 import { exampleNames as examples, exampleXml } from './utils';
 
 /** Every interchange exporter over every shipped example. The per-exporter specs pin behaviour on
@@ -37,7 +38,7 @@ function businessObjects(definitions: any): any[] {
 }
 
 async function modelOf(name: string): Promise<ExportModel> {
-  const { rootElement } = await makeModdle().fromXML(await exampleXml(name));
+  const { rootElement } = await freshModdle().fromXML(await exampleXml(name));
   const root = (rootElement.rootElements ?? []).find((element: any) => ROOT_TYPES.has(element.$type));
   return buildExportModel(fakeModeler(businessObjects(rootElement), { diagramName: root?.name }));
 }

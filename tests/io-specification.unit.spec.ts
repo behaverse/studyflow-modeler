@@ -1,25 +1,19 @@
 
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { fromWireXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '@core/document';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import { exampleStudyflow } from './utils';
 
 /** Exported `.bpmn` carries the full `ioSpecification`; reading it back folds to the compact `binding` form. */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-
 function exampleYaml(name: string): Promise<string> {
-  return exampleStudyflow(name, new BpmnModdle(structuredClone(packages)) as any);
+  return exampleStudyflow(name, freshModdle());
 }
 
 test.describe('standard-BPMN ioSpecification boundary', () => {
   test('lowering produces the complete standard structure', async () => {
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
@@ -38,21 +32,21 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
   });
 
   test('folding the standard form back yields the shipped compact YAML', async () => {
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const compactXml = await studyflowToXml(await exampleYaml('sklearn_pipeline'), moddle);
     const standardXml = await toStandardBpmnXml(compactXml, moddle);
 
-    const roundTripped = await xmlToStudyflow(standardXml, new BpmnModdle(structuredClone(packages)) as any);
+    const roundTripped = await xmlToStudyflow(standardXml, freshModdle());
     expect(roundTripped).toBe(await exampleYaml('sklearn_pipeline'));
   });
 
   test('a default-named binding folds back without a binding attribute', async () => {
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     // DataInput_Prompt_In carries no slot (binding defaults to the element's name); do not invent one.
     const agentYaml = await exampleYaml('agent_eval');
     const standardXml = await toStandardBpmnXml(await studyflowToXml(agentYaml, moddle), moddle);
     expect(standardXml).toContain('name="Agent instructions"');
-    const roundTripped = await xmlToStudyflow(standardXml, new BpmnModdle(structuredClone(packages)) as any);
+    const roundTripped = await xmlToStudyflow(standardXml, freshModdle());
     // Namespace declarations are serializer bookkeeping (the compact attrs are gone); compare the semantic document.
     const withoutXmlns = (yamlText: string) => yamlText.replace(/^ {2}xmlns:[^\n]*\n/gm, '');
     expect(withoutXmlns(roundTripped)).toBe(withoutXmlns(agentYaml));
@@ -68,15 +62,15 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
   </bpmn:process>
 </bpmn:definitions>`;
 
-    const standard = await toStandardBpmnXml(compact, new BpmnModdle(structuredClone(packages)) as any);
+    const standard = await toStandardBpmnXml(compact, freshModdle());
     expect(standard).toContain('<bpmn:dataInput id="Step_in_input" name="input" />');
     expect(standard).not.toContain('transformation');
 
-    const folded = await fromWireXml(standard, new BpmnModdle(structuredClone(packages)) as any);
+    const folded = await fromWireXml(standard, freshModdle());
     expect(folded).not.toContain('transformation');
     expect(folded).not.toContain('ioSpecification');
 
-    const relowered = await toStandardBpmnXml(folded, new BpmnModdle(structuredClone(packages)) as any);
+    const relowered = await toStandardBpmnXml(folded, freshModdle());
     expect(relowered).toBe(standard);
   });
 });

@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog, setCatalog, type TypeEntry } from '@core/notation';
+import { type TypeEntry } from '@core/notation';
 import { buildElementEntries, isAppendable } from '@modeler/popup/entries';
 import { mustDragToAppend, runAppendElement, runStartAppendElement } from '@modeler/popup/commands';
-import { loadSchemaModels } from './schemas';
 
 /**
  * The catalog half of the app-rendered create/append menus, and the two routes out
@@ -14,8 +13,6 @@ import { loadSchemaModels } from './schemas';
  * appended element LANDS is the editor's business and is measured in
  * `tests/canvas-autoplace.unit.spec.ts`.
  */
-
-setCatalog(buildCatalog(loadSchemaModels()));
 
 const entry = (name: string, over: Partial<TypeEntry> = {}): TypeEntry => ({
   name,

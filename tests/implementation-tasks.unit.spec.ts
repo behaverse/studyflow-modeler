@@ -1,17 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { StudyflowElement, getAttribute } from '@core/element';
 import { getAttributesByCategory } from '@modeler/inspector/categories';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 
 /** The executable surface across the task family. */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-const moddle = new BpmnModdle(packages) as any;
+const moddle = freshModdle();
 
 const REF = 'python://analysis.summarize@1.2';
 

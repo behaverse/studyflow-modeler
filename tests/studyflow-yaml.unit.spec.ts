@@ -1,31 +1,25 @@
 import { readFileSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 
 import { fromWireXml, looksLikeXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
 import { exampleNames as examples, examplePath, exampleStudyflow } from './utils';
 import { parseStudyflow } from '@runner/studyflow';
-import { buildCatalog, setCatalog } from '@core/notation';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle, freshPackages } from './schemas';
 
 /** Over every bundled example: YAML is a fixed point of YAML -> XML -> YAML, and both feed the runner alike. */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-
 function studyflowOf(name: string): Promise<string> {
-  return exampleStudyflow(name, new BpmnModdle(structuredClone(packages)) as any);
+  return exampleStudyflow(name, freshModdle());
 }
 
 test.describe('studyflow YAML format', () => {
   test('isMany value-typed lists survive a load (data-loss regression)', async () => {
     // moddle silently drops value-typed list text unless the association format is String (see toModdlePackages).
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const text = await studyflowOf('spirit2025');
-    const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
+    const xml = await studyflowToXml(text, freshModdle());
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
       (re: any) => re.$type === 'bpmn:Process' || re.$type === 'studyflow:Study',
@@ -41,9 +35,9 @@ test.describe('studyflow YAML format', () => {
   });
 
   test('implementation attribute and arguments value survive a load (function calls)', async () => {
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const text = await studyflowOf('function_call_demo');
-    const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
+    const xml = await studyflowToXml(text, freshModdle());
     const { rootElement } = await moddle.fromXML(xml);
     const study = rootElement.rootElements.find(
       (re: any) => re.$type === 'bpmn:Process' || re.$type === 'studyflow:Study',
@@ -60,9 +54,9 @@ test.describe('studyflow YAML format', () => {
   });
 
   test('folds extension wrappers, config bodies, diagram geometry, and id keys into elements', async () => {
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const text = await studyflowOf('bot_ollama');
-    const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
+    const xml = await studyflowToXml(text, freshModdle());
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle));
 
     expect(doc.id).toBe('demo5_ollama_bot');
@@ -128,7 +122,7 @@ P:
       targetRef: End
       waypoint: [{ x: 200, "y": 18 }, { x: 300, "y": 18 }]
 `;
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const xml = await studyflowToXml(text, moddle);
     expect(xml).toContain('id="keyed_demo"');
     // incoming/outgoing were omitted by hand and derived from the flows.
@@ -137,7 +131,7 @@ P:
     expect(xml).toMatch(/:outgoing>F2</);
     expect(xml).toMatch(/:incoming>F2</);
 
-    const graph = await parseStudyflow(text, structuredClone(packages));
+    const graph = await parseStudyflow(text, freshPackages());
     expect(graph.startId).toBe('Start');
     expect(graph.flowNodes.get('T1')?.incoming).toEqual(['F1']);
     expect(graph.flowNodes.get('T1')?.outgoing).toEqual(['F2']);
@@ -194,12 +188,12 @@ diagram:
           bpmnElement: Start
           bounds: { x: 160, "y": 180, width: 36, height: 36 }
 `;
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const xml = await studyflowToXml(legacy, moddle);
     expect(xml).toContain('XCIT_NB_01');
     expect(xml).toContain('Start_di');
 
-    const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle2 = freshModdle();
     const doc: any = yaml.load(await xmlToStudyflow(xml, moddle2));
     expect(doc.id).toBe('legacy_demo');
     expect(doc.definitions['xmlns:studyflow']).toBeUndefined();
@@ -243,7 +237,7 @@ P:
       text: hello
     Assoc_1: Note_1 -> T1
 `;
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const xml = await studyflowToXml(doc, moddle);
     expect(xml).toMatch(/<bpmn2?:task id="T1" name="Read">/);
     expect(xml).toMatch(/<bpmn2?:sequenceFlow id="F1" sourceRef="Start" targetRef="T1" \/>/);
@@ -261,7 +255,7 @@ P:
     expect(xml).toContain('bioc:stroke="#4a6f9c"');
     expect(xml).toContain('studyflow:font="bold right #4a6f9c"');
 
-    const back: any = yaml.load(await xmlToStudyflow(xml, new BpmnModdle(structuredClone(packages)) as any));
+    const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
     expect(back.P.type).toBe('Process');
     expect(back.P.flowElements.T1).toEqual({ type: 'Task', name: 'Read', bounds: '100 0 100 80', fill: '#dbe8f5', stroke: '#4a6f9c', font: 'bold right #4a6f9c' });
     expect(back.P.flowElements.End.label).toBe('290 40 56 14');
@@ -294,21 +288,21 @@ P:
       sourceRef: T1
       targetRef: End
 `;
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const xml1 = await studyflowToXml(doc, moddle);
 
     expect(xml1).toContain('&lt;');
     expect(xml1).toContain('&amp;');
     expect(xml1).not.toContain('<<<');
 
-    const moddle2 = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle2 = freshModdle();
     const yaml1 = await xmlToStudyflow(xml1, moddle2);
     const back: any = yaml.load(yaml1);
     expect(back.P.flowElements.T1.extensionElements[0].configurations.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
 
-    const moddle3 = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle3 = freshModdle();
     const xml2 = await studyflowToXml(yaml1, moddle3);
-    const moddle4 = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle4 = freshModdle();
     expect(await xmlToStudyflow(xml2, moddle4)).toBe(yaml1);
   });
 
@@ -330,9 +324,9 @@ P:
           configurations:
             value: "${configurations}"
 `;
-    const xml = await studyflowToXml(doc, new BpmnModdle(structuredClone(packages)) as any);
+    const xml = await studyflowToXml(doc, freshModdle());
     expect(xml).toContain(configurations);
-    const back: any = yaml.load(await xmlToStudyflow(xml, new BpmnModdle(structuredClone(packages)) as any));
+    const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
     expect(back.P.flowElements.T1.extensionElements[0].configurations).toEqual({ value: configurations });
   });
 
@@ -369,11 +363,11 @@ R:
     Answer:
       type: ReceiveTask
 `;
-    const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
+    const xml = await studyflowToXml(text, freshModdle());
     expect(xml).toContain('messageRef="Trial"');
     expect(xml).toContain('<bpmn:message id="Trial" itemRef="Trial_Item" />');
     expect(xml).toContain('<bpmn:itemDefinition id="Trial_Item" structureRef="behaverse:Trial" />');
-    const back = await xmlToStudyflow(xml, new BpmnModdle(structuredClone(packages)) as any);
+    const back = await xmlToStudyflow(xml, freshModdle());
     expect(back).toContain('messageRef: Trial\n');
     expect(back).toContain('Trial:\n  type: Message\n  itemRef: Trial_Item\n');
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');
@@ -400,7 +394,7 @@ P:
 state:
   Start:
     count: 1
-`, new BpmnModdle(structuredClone(packages)) as any);
+`, freshModdle());
     const [collaboration, process] = definitions.rootElements;
     expect(definitions.diagrams[0].plane.bpmnElement).toBe(collaboration);
     expect(JSON.parse(collaboration.extensionElements.values[0].state)).toEqual({ Start: { count: 1 } });
@@ -411,12 +405,12 @@ state:
     const warnings: string[] = [];
     studyflowToDefinitions({ definitions: {}, elements: {
       Outer: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' }, Inner: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' } } } } },
-    } }, new BpmnModdle(structuredClone(packages)) as any, (message) => warnings.push(message));
+    } }, freshModdle(), (message) => warnings.push(message));
     expect(warnings).toEqual(["the id 'Twin' names two elements; a reference to it reaches only the last"]);
   });
 
   test('`studyflow validate` flags the attributes the modeler flags on open, and the own `icon` is declared', async () => {
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const text = `id: s
 definitions: {}
 Study:
@@ -445,7 +439,7 @@ Study:
   });
 
   test('a flow node at the top level, which BPMN drops, is flagged by `studyflow validate` as by the modeler on open', async () => {
-    const moddle = new BpmnModdle(structuredClone(packages)) as any;
+    const moddle = freshModdle();
     const text = `id: s
 definitions: {}
 Study:
@@ -482,18 +476,18 @@ Loose:
       const text = await studyflowOf(file);
       expect(looksLikeXml(text)).toBe(false);
 
-      const xml = await studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
-      const yaml1 = await xmlToStudyflow(xml, new BpmnModdle(structuredClone(packages)) as any);
+      const xml = await studyflowToXml(text, freshModdle());
+      const yaml1 = await xmlToStudyflow(xml, freshModdle());
 
       expect(yaml1).toBe(text);
     });
 
     test(`${file}: runner sees the same flow graph through both serializations`, async () => {
       const yamlText = await studyflowOf(file);
-      const xml = await studyflowToXml(yamlText, new BpmnModdle(structuredClone(packages)) as any);
+      const xml = await studyflowToXml(yamlText, freshModdle());
 
-      const fromXmlGraph = await parseStudyflow(xml, structuredClone(packages));
-      const fromYamlGraph = await parseStudyflow(yamlText, structuredClone(packages));
+      const fromXmlGraph = await parseStudyflow(xml, freshPackages());
+      const fromYamlGraph = await parseStudyflow(yamlText, freshPackages());
 
       const project = (graph: Awaited<ReturnType<typeof parseStudyflow>>) => ({
         start: graph.startId,

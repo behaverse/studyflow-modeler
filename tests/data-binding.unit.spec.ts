@@ -1,16 +1,13 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import type { Editor } from '@modeler/editor/port';
 import { runUpdateDataBinding, runUpdateTransformation } from '@modeler/inspector/commands';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 
 /** A data association's transformation, as the inspector writes it: the binding field on every keystroke, the expression field on blur. */
 
-const packages: Record<string, any> = schemaPackages(loadSchemaModels());
-
 function build() {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
+  const moddle = freshModdle();
   const association = moddle.create('bpmn:DataInputAssociation', { id: 'In' });
   const task = moddle.create('bpmn:Task', { id: 'Step', dataInputAssociations: [association] });
   association.$parent = task;

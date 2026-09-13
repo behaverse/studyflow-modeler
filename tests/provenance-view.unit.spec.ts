@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import { readState, writeState } from '@core/document';
-import { buildCatalog, setCatalog } from '@core/notation';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
 import {
@@ -10,15 +8,12 @@ import {
 } from '@modeler/provenance/records';
 import { primaryRoot } from '@core/document';
 import { appendTrailEntry } from '@modeler/provenance/trail';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import { exampleXml } from './utils';
 
 /** The document trail merged with the per-element `executed` records a run archives, oldest first. */
 
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-const moddle = new BpmnModdle(packages) as any;
+const moddle = freshModdle();
 
 async function definitionsOf(xml: string): Promise<any> {
   const { rootElement } = await moddle.fromXML(xml);

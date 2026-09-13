@@ -1,22 +1,15 @@
 
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
-import { buildCatalog, setCatalog } from '@core/notation';
 import { studyflowToXml } from '@core/document';
 import { StudyflowElement, getAttribute, getDefaults } from '@core/element';
 import { extensionValueWins } from '@core/element/handle';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import { exampleStudyflow } from './utils';
 
 /** The StudyflowElement resolution table across business object, extension wrapper, and body-wrapped child. */
 
-
-const models = loadSchemaModels();
-
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-const moddle = new BpmnModdle(packages) as any;
+const moddle = freshModdle();
 
 test.describe('StudyflowElement', () => {
   test('reads and writes a BPMN-native attribute', () => {

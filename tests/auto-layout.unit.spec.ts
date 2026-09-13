@@ -6,20 +6,15 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToXml } from '@core/document';
 import { ensureDiagramLayout, hasDiagramInterchange } from '@modeler/diagram/autoLayout';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 import { exampleXml, withoutDiagramInterchange } from './utils';
 
 /** Hand-written `.studyflow` files carry no BPMN DI, which bpmn-js alone aborts the import on. */
 
-const models = loadSchemaModels();
-const packages: Record<string, any> = schemaPackages(models);
-
 const layoutlessXml = () => {
   const text = readFileSync(path.join(process.cwd(), 'tests/fixtures/layoutless.studyflow'), 'utf8');
-  return studyflowToXml(text, new BpmnModdle(structuredClone(packages)) as any);
+  return studyflowToXml(text, freshModdle());
 };
-
-const schemaModdle = () => new BpmnModdle(structuredClone(packages)) as any;
 
 test.describe('ensureDiagramLayout', () => {
   test('detects presence and absence of diagram interchange', () => {
@@ -32,7 +27,7 @@ test.describe('ensureDiagramLayout', () => {
     // Precondition: the converted file has no geometry, this is the failing case.
     expect(hasDiagramInterchange(xml)).toBe(false);
 
-    const laidOut = await ensureDiagramLayout(xml, schemaModdle());
+    const laidOut = await ensureDiagramLayout(xml, freshModdle());
 
     expect(hasDiagramInterchange(laidOut)).toBe(true);
     expect(laidOut).toContain('BPMNPlane');
@@ -49,7 +44,7 @@ test.describe('ensureDiagramLayout', () => {
   test('returns a diagram that already carries geometry unchanged', async () => {
     const authored = await exampleXml('consort2025');
     expect(hasDiagramInterchange(authored)).toBe(true);
-    expect(await ensureDiagramLayout(authored, schemaModdle())).toBe(authored);
+    expect(await ensureDiagramLayout(authored, freshModdle())).toBe(authored);
   });
 
   test('draws the data associations an authored layout left out', async () => {
@@ -59,7 +54,7 @@ test.describe('ensureDiagramLayout', () => {
     expect(stripped).toMatch(/dataOutputAssociation id="DataOutput_Survey_Data"/);
     expect(stripped).not.toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_Survey_Data"/);
 
-    const repaired = await ensureDiagramLayout(stripped, schemaModdle());
+    const repaired = await ensureDiagramLayout(stripped, freshModdle());
 
     expect(repaired).toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_Survey_Data"/);
     expect(repaired).toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_WhichOne_Data"/);
@@ -75,7 +70,7 @@ test.describe('ensureDiagramLayout', () => {
     const xml = withoutDiagramInterchange(await exampleXml('sklearn_pipeline'));
     expect(hasDiagramInterchange(xml)).toBe(false);
 
-    const laidOut = await ensureDiagramLayout(xml, schemaModdle());
+    const laidOut = await ensureDiagramLayout(xml, freshModdle());
 
     for (const association of [
       'DataOutput_Features', 'DataOutput_Target', 'DataInput_Features_Split',

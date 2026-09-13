@@ -1,16 +1,12 @@
 
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import { readChoreographyBands } from '@core/document';
 import { IdGenerator, ensureChoreographyParticipants } from '@canvas/index.ts';
 import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 
 /** Choreography participant helpers: materializing two participants, and flipping `initiatingParticipantRef`. */
-
-const models = loadSchemaModels();
-const packages: Record<string, any> = schemaPackages(models);
 
 const updater = {
   updateModdleProperties: (_el: any, target: any, props: Record<string, any>) => {
@@ -19,7 +15,7 @@ const updater = {
 };
 
 function build() {
-  const moddle = new BpmnModdle(structuredClone(packages)) as any;
+  const moddle = freshModdle();
   const task = moddle.create('bpmn:ChoreographyTask', { id: 'Consent', name: 'Give consent' });
   const process = moddle.create('bpmn:Process', { id: 'Proc', flowElements: [task] });
   const definitions = moddle.create('bpmn:Definitions', { id: 'Defs', rootElements: [process] });

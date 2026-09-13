@@ -1,19 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToDefinitions, xmlToStudyflow } from '@core/document';
-import { buildCatalog, setCatalog } from '@core/notation';
 import type { Editor } from '@modeler/editor/port';
 import { runUpdateMessage } from '@modeler/inspector/commands';
 import { messageStructureOf } from '@modeler/inspector/stateProperties';
-import { loadSchemaModels, schemaPackages } from './schemas';
+import { freshModdle } from './schemas';
 
 /** A message flow's Message field: `messageRef` -> `bpmn:Message` -> `itemRef` -> `bpmn:ItemDefinition.structureRef`. */
-
-const models = loadSchemaModels();
-setCatalog(buildCatalog(models));
-const packages: Record<string, any> = schemaPackages(models);
-const moddle = () => new BpmnModdle(structuredClone(packages)) as any;
 
 const FILE = `id: msg
 definitions:
@@ -48,7 +41,7 @@ function editorOver(m: any): Editor {
 }
 
 test('the Message field makes one message per structure, shares it, and drops it with its last flow', async () => {
-  const m = moddle();
+  const m = freshModdle();
   const definitions = studyflowToDefinitions(FILE, m, () => {});
   const collaboration = definitions.rootElements.find((re: any) => re.$type === 'bpmn:Collaboration');
   const [trial, answer] = collaboration.messageFlows;
@@ -74,7 +67,7 @@ test('the Message field makes one message per structure, shares it, and drops it
   expect(roots('bpmn:Message')).toHaveLength(1);
   expect(roots('bpmn:ItemDefinition')).toHaveLength(2);
 
-  const text = await xmlToStudyflow((await m.toXML(definitions, { format: true })).xml, moddle());
+  const text = await xmlToStudyflow((await m.toXML(definitions, { format: true })).xml, freshModdle());
   expect(text).toContain('messageRef: Message_behaverse_Trial\n');
   expect(text).toContain('Message_behaverse_Trial:\n  type: Message\n  itemRef: ItemDefinition_behaverse_Trial\n');
   expect(text).toContain('ItemDefinition_behaverse_Trial:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');

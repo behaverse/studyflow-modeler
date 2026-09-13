@@ -1,12 +1,18 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
+import { BpmnModdle } from 'bpmn-moddle';
+
+import { buildCatalog, setCatalog } from '@core/notation';
 import { fromLinkml, parseLinkml } from '@core/notation/linkml';
 import { toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
 import { parseSkillManifest, type SkillManifest } from '@core/notation/skill';
 
-/** The Node counterpart of `packages/core/src/notation/loader.ts`, which reads the same files through Vite's bundle. */
+/**
+ * The Node counterpart of `packages/core/src/notation/loader.ts`, which reads the same files through Vite's bundle.
+ * Importing it installs the shipped schemas' catalog, which the core readers consult, as the app does at load.
+ */
 
 export const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
@@ -42,4 +48,18 @@ export function connectsToFixture(): SchemaModel {
 /** `models` as moddle packages, keyed by prefix: what `loader.ts loadSchemas` hands a `BpmnModdle`. */
 export function schemaPackages(models: SchemaModel[]): Record<string, any> {
   return Object.fromEntries(models.map((model) => [model.prefix, toModdlePackages(model, models)]));
+}
+
+setCatalog(buildCatalog(loadSchemaModels()));
+
+const PACKAGES = schemaPackages(loadSchemaModels());
+
+/** The shipped schemas as moddle packages, a copy per call: moddle rewrites the packages it registers. */
+export function freshPackages(): Record<string, any> {
+  return structuredClone(PACKAGES);
+}
+
+/** A moddle over the shipped schemas that nothing else has parsed with. */
+export function freshModdle(): any {
+  return new BpmnModdle(freshPackages()) as any;
 }
