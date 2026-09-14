@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { extractStudyflowFromSvg } from '@core/document/svg';
+import { extractStudyflowFromSvg, replaceStudyflowInSvg } from '@core/document/svg';
 
 /** The modeler's SVG export nests the BPMN `<definitions>` in `<metadata>`; the CLI reads it without a DOM. */
 
@@ -14,6 +14,10 @@ test.describe('SVG studyflow embedding', () => {
     expect(extractStudyflowFromSvg(svg(definitions))).toBe(definitions);
     const unprefixed = definitions.replace(/bpmn:(?!=)/g, '').replace('xmlns:bpmn', 'xmlns');
     expect(extractStudyflowFromSvg(svg(unprefixed))).toBe(unprefixed);
+
+    // A run keeps the drawing and swaps the studyflow in it for the stamped one.
+    const stamped = definitions.replace('id="P"', 'id="P" name="stamped"');
+    expect(replaceStudyflowInSvg(svg(definitions), `<?xml version="1.0" encoding="UTF-8"?>\n${stamped}`)).toBe(svg(stamped));
   });
 
   test('throws on an SVG without a studyflow', () => {

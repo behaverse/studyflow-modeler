@@ -166,6 +166,45 @@ S:
     });
     expect(archivedState(path.join(dir, 'run', 'otherwise.bpmn'))._meta.reached).toEqual({ Start: 1, Gate: 1, Otherwise: 1 });
   });
+
+  test('--from a step redoes it and every step after it, and reuses the steps before it', async () => {
+    const xml = await studyflowToXml(`id: again
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+    W:
+      type: Task
+    A:
+      type: Task
+    B:
+      type: Task
+    Done:
+      type: EndEvent
+    F1: Start -> W
+    F2: W -> A
+    F3: A -> B
+    F4: B -> Done
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.writeFileSync(path.join(dir, 'again.bpmn'), xml);
+    const repo = path.join(dir, 'run');
+    const run = (plan: string, ...args: string[]) => execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), plan, '--quiet', ...args], {
+      cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
+    });
+    const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+    run(path.join(dir, 'again.bpmn'), '--repo', repo);
+    // None of these steps leaves a file behind, so only their records can tell the re-run what the branch took away.
+    const from = git('log', '--format=%h', '--grep=^executed A$');
+    run(path.join(repo, 'again.bpmn'), '--from', from);
+    expect(git('log', '--format=%s', `${from}^..HEAD`).split('\n')).toEqual(
+      expect.arrayContaining(['skipped W (run run)', 'executed A', 'executed B']),
+    );
+  });
 });
 
 /** What a partial runner is handed: `plan.json`, the plan as one JSON digest, never the diagram. */
@@ -488,12 +527,13 @@ ${robot}`, moddle);
   });
 });
 
-/** `studyflow run` hands run.py a YAML or PNG study as a temporary `.bpmn`, and tells it where the original lives. */
+/** `studyflow run` hands run.py a YAML or PNG study as a temporary `.bpmn`, and tells it where the original lives
+ * and how to keep it. */
 
 test.describe('studyflow run on a converted study', () => {
   test.skip(!hasUv(), 'uv is not on PATH');
 
-  test('stages a boundary input from beside the YAML file, run from another folder', () => {
+  test('stages a boundary input from beside the YAML file, run from another folder, and keeps the study as YAML', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-inputs-'));
     // The CLI reads its schemas through Vite (`import.meta.glob`), so it is built here rather than imported.
     execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.join(dir, 'bin'), '--logLevel', 'error']);
@@ -526,15 +566,19 @@ S:
     F2: Dump -> Done
 `);
     // The copy of run.py finds no skill beside it, so the python skill's runner, which stages `counts.json`, is named.
-    execFileSync(process.execPath, [path.join(dir, 'bin', 'studyflow.mjs'), 'run', path.join(dir, 'study', 'dump.studyflow.yaml'), '--repo', path.join(dir, 'run'), '--quiet'], {
+    const studyflow = (...args: string[]) => execFileSync(process.execPath, [path.join(dir, 'bin', 'studyflow.mjs'), 'run', ...args, '--quiet'], {
       cwd: path.join(dir, 'elsewhere'),
       stdio: 'pipe',
       env: { ...process.env, STUDYFLOW_RUN_PY: path.join(dir, 'run.py'), STUDYFLOW_PROV_PY: PROV, STUDYFLOW_PYTHON_PY: path.resolve(__dirname, '../../python/local.py') },
     });
+    studyflow(path.join(dir, 'study', 'dump.studyflow.yaml'), '--repo', path.join(dir, 'run'));
     expect(fs.readFileSync(path.join(dir, 'run', 'counts.json'), 'utf8')).toBe('[1, 2, 3]');
-    // The plan it archives is named for the study, not `dump.studyflow.bpmn`.
-    expect(fs.existsSync(path.join(dir, 'run', 'dump.bpmn'))).toBe(true);
-    // The walk records the input the python runner staged.
-    expect(fs.readFileSync(path.join(dir, 'run', 'dump.bpmn'), 'utf8')).toMatch(/id="counts"[^>]*>\s*<bpmn:extensionElements>\s*<\w+:activity action="imported"/);
+    // The run repository keeps the study as it came, YAML under the original's name, with the input the python
+    // runner staged recorded on it.
+    const kept = path.join(dir, 'run', 'dump.studyflow.yaml');
+    expect(fs.readFileSync(kept, 'utf8')).toMatch(/counts:\n\s+type: DataObjectReference\n\s+extensionElements:\n\s+- type: prov:Activity\n\s+action: imported/);
+    // Run again from there, the study runs on in that repository.
+    studyflow(kept);
+    expect(execFileSync('git', ['-C', path.join(dir, 'run'), 'log', '--format=%s'], { encoding: 'utf8' })).toMatch(/^finished[\s\S]*^finished/m);
   });
 });

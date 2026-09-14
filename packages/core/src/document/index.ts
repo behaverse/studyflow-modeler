@@ -115,4 +115,4 @@ export {
   embedStudyflowIntoPng,
   extractStudyflowFromPng,
 } from '@core/document/png';
-export { extractStudyflowFromSvg } from '@core/document/svg';
+export { extractStudyflowFromSvg, replaceStudyflowInSvg } from '@core/document/svg';

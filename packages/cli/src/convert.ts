@@ -3,23 +3,24 @@ import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 
-import { embedStudyflowIntoPng } from '@core/document';
+import { embedStudyflowIntoPng, replaceStudyflowInSvg } from '@core/document';
 import { asXml, asYaml, readSource, type StudyflowSource } from '@cli/studyfile';
 
-/* `studyflow convert`: between .studyflow(.yaml), .bpmn/.xml and .studyflow.png, the format told by the extension. */
+/* `studyflow convert`: between .studyflow(.yaml), .bpmn/.xml, .studyflow.png and .studyflow.svg, the format told by the extension. */
 
-type TargetFormat = 'yaml' | 'xml' | 'png';
+type TargetFormat = 'yaml' | 'xml' | 'png' | 'svg';
 
 function targetFormat(path: string): TargetFormat {
   const ext = extname(path).toLowerCase();
   if (ext === '.png') return 'png';
+  if (ext === '.svg') return 'svg';
   if (ext === '.xml' || ext === '.bpmn') return 'xml';
   if (ext === '.yaml' || ext === '.yml' || ext === '.studyflow') return 'yaml';
-  throw new Error(`Cannot tell the target format from "${path}" — use .studyflow/.yaml, .bpmn/.xml, or .studyflow.png.`);
+  throw new Error(`Cannot tell the target format from "${path}" — use .studyflow/.yaml, .bpmn/.xml, .studyflow.png or .studyflow.svg.`);
 }
 
 export type ConvertOptions = {
-  /** For a PNG target: the image to embed into (defaults to the output file itself, or the input if it is a PNG). */
+  /** For an image target: the image to embed into (defaults to the output file itself, or the input if it is one of that kind). */
   into?: string;
   /** For a PNG target: draw the image by driving the modeler instead of reusing one. */
   modeler?: boolean;
@@ -125,8 +126,8 @@ export async function convert(input: string, output: string, options: ConvertOpt
   // Reading drops what no loaded schema declares, so say what the reader met, as `validate` does.
   const warnings: string[] = [];
   const onWarning = (warning: string) => { warnings.push(warning); };
-  // A PNG carries the YAML, and the modeler draws one from it too.
-  const text = format === 'xml' ? await asXml(source, onWarning) : await asYaml(source, onWarning);
+  // A PNG carries the YAML, and the modeler draws one from it too; an SVG carries the XML.
+  const text = format === 'xml' || format === 'svg' ? await asXml(source, onWarning) : await asYaml(source, onWarning);
   for (const warning of warnings) console.warn(`warning: ${warning}`);
   if (options.strict && warnings.length > 0) throw new Error(`Nothing written to ${output}: reading ${input} raised warnings (--strict).`);
 
@@ -140,22 +141,23 @@ export async function convert(input: string, output: string, options: ConvertOpt
     return `Wrote ${output} (BPMN XML).`;
   }
 
-  if (options.modeler) {
+  if (format === 'png' && options.modeler) {
     const png = await renderPng(input, text, options.origin ?? 'http://127.0.0.1:4175');
     await writeFile(output, png);
     return `Wrote ${output} (rendered by the modeler).`;
   }
 
-  // PNG without --modeler: embed the studyflow into an existing image.
+  // An image without --modeler: embed the studyflow into an existing image of that kind.
   const basePath = options.into
-    ?? (existsSync(output) ? output : source.container === 'png' ? input : undefined);
+    ?? (existsSync(output) ? output : source.container === format ? input : undefined);
   if (!basePath) {
     throw new Error(
-      'A .studyflow.png target needs an image: pass --modeler to draw one, '
-      + 'or --into <png> to embed into an existing image.',
+      `A .studyflow.${format} target needs an image: ${format === 'png' ? 'pass --modeler to draw one, or ' : ''}`
+      + `--into <${format}> to embed into an existing image.`,
     );
   }
-  const png = new Uint8Array(await readFile(basePath));
-  await writeFile(output, embedStudyflowIntoPng(png, text));
+  await writeFile(output, format === 'png'
+    ? embedStudyflowIntoPng(new Uint8Array(await readFile(basePath)), text)
+    : replaceStudyflowInSvg(await readFile(basePath, 'utf8'), text));
   return `Wrote ${output} (embedded studyflow into ${basePath === output ? 'the existing image' : basePath}).`;
 }

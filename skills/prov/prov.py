@@ -420,6 +420,17 @@ class RunRepo:
         found = done.stdout.strip().splitlines()
         return found[0] if found else None
 
+    def executed(self) -> set[tuple[str, str]]:
+        """(element, when) of every step the checked-out history executed, read from its commits' trailers."""
+        # A `separator` drops the line feed each trailer value otherwise ends with.
+        done = self.git(
+            "log", "--format=%(trailers:key=Prov-Node,valueonly,separator=)%x09%(trailers:key=Prov-When,valueonly,separator=)",
+            "--grep=^Prov-Action: executed$", tolerate=True,
+        )
+        if done is None or done.returncode != 0:
+            return set()
+        return {(node, when) for node, _, when in (line.partition("\t") for line in done.stdout.splitlines()) if node}
+
     def is_ancestor(self, commit: str, other: str) -> bool:
         done = self.git("merge-base", "--is-ancestor", commit, other, tolerate=True)
         return done is not None and done.returncode == 0

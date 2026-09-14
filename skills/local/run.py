@@ -9,7 +9,7 @@ It keeps one claim honest: a studyflow is executable as it stands, with no
 companion script telling an engine what the boxes mean. SKILL.md, beside this
 file, specifies the hand-off contract it implements.
 
-    uv run --script run.py study.bpmn   # BPMN XML; `studyflow run` also takes a .studyflow.yaml or .studyflow.png
+    uv run --script run.py study.bpmn   # BPMN XML; `studyflow run` also takes a .studyflow.yaml or image, and keeps its format
 
 This is the core: the walk, the values, the records, and the
 partial-runner hand-offs. A skill is a folder beside this one whose `SKILL.md`
@@ -912,6 +912,11 @@ class Runner:
         self.failed: BaseException | None = None
         self._deferred: list[tuple[str, str, int, str]] | None = None
         self.prior_records = {} if fresh else PROV.element_records(studyflow)
+        if branched:
+            # The checkout took out of the worktree what was made after the branch point, files or not: the
+            # records of that work go with it, so those steps re-run.
+            history = repo.executed()
+            self.prior_records = {eid: prior for eid, prior in self.prior_records.items() if (eid, prior["when"]) in history}
         self.completed: dict[str, str] = {}
         self.reached: dict[str, str] = {}
         self.decisions: dict[str, tuple[str, str]] = {}
@@ -1842,7 +1847,7 @@ class Runner:
         finally:
             self.depth = outer
 
-    def archive_plan(self, source: Path) -> Path:
+    def archive_plan(self, name: str, convert: str | None) -> Path:
         self.repo_dir.mkdir(parents=True, exist_ok=True)
         # Skipped steps keep the record of the run that did the work. A branching run *supersedes*
         # work records instead of replacing them (the first branch's stay, so the trail shows both
@@ -1876,8 +1881,7 @@ class Runner:
                 stamped, element_id, replace_action=replaced(action, element_id),
                 action=action, when=moments[element_id], run=run, **extra,
             )
-        plan = self.repo_dir / source.name
-        plan.write_text(stamped)
+        plan = archive(self.repo_dir, name, stamped, convert)
         self.event("diagram.archived", f"  → {shown(plan)}", level=logging.DEBUG)
         return plan
 
@@ -1890,6 +1894,28 @@ class Runner:
             f"  → {shown(self.repo_dir)}/ ({self.record.status}) in {elapsed:.1f}ms",
             level=logging.INFO if self.record.status == "ok" else logging.ERROR,
         )
+
+
+def archive(repo_dir: Path, name: str, xml: str, convert: str | None) -> Path:
+    """The diagram, kept as `name` in the run repository: this BPMN itself, or what `convert <diagram.bpmn> <name>`
+    makes of it (`studyflow run` hands its own `convert`, so the copy keeps the format of the study it ran)."""
+    target = repo_dir / name
+    if convert:
+        bpmn = repo_dir / ".cache" / "archive.bpmn"
+        bpmn.parent.mkdir(parents=True, exist_ok=True)
+        bpmn.write_text(xml)
+        try:
+            done = subprocess.run([*shlex.split(convert), str(bpmn), str(target)], capture_output=True, text=True, check=False)
+            failure = (done.stderr.strip() or f"exited {done.returncode}") if done.returncode else None
+        except OSError as error:
+            failure = str(error)
+        if not failure:
+            return target
+        # The stamps are the run's record: kept as BPMN rather than lost with a copy that could not be made.
+        target = repo_dir / (re.sub(r"(\.studyflow)?\.[^.]*$", "", name) + ".bpmn")
+        log_event("diagram.unconverted", f"  {name}: {failure} — archived as {target.name}", level=logging.WARNING)
+    target.write_text(xml)
+    return target
 
 
 def resolve_repo_dir(explicit: Path | None, plan: Path, started: datetime) -> Path:
@@ -1932,6 +1958,11 @@ def main() -> int:
         "--inputs", action="append", default=[], type=Path, metavar="DIR",
         help="also stage boundary inputs from DIR, after the diagram's own directory and before the working directory; "
              "repeatable (`studyflow run` passes the folder of the .studyflow.yaml or .studyflow.png it converted)",
+    )
+    parser.add_argument(
+        "--archive", default=None, metavar="NAME=COMMAND",
+        help="keep the diagram in the run repository as NAME, written by `COMMAND <diagram.bpmn> <NAME>` "
+             "(`studyflow run` passes the name of the .studyflow.yaml or image it converted, and its own `convert`)",
     )
     parser.add_argument(
         "--from", dest="from_ref", default=None, metavar="REF",
@@ -2028,8 +2059,10 @@ def main() -> int:
             log_event("git.branched", f"  run/{stamp} at the detached HEAD this run started from")
 
     # Archived before the first step, so a killed run still leaves a readable diagram behind.
-    archived = repo_dir / args.studyflow.name
-    archived.write_text(studyflow.plan)
+    archive_name, convert = args.studyflow.name, None
+    if args.archive:
+        archive_name, _, convert = args.archive.partition("=")
+    archived = archive(repo_dir, archive_name, studyflow.plan, convert)
     log_event("diagram.archived", f"  → {shown(archived)}", level=logging.DEBUG)
     runner = Runner(
         studyflow, repo_dir,
@@ -2062,7 +2095,7 @@ def main() -> int:
         )
         runner.record.status = "error"
     finally:
-        runner.archive_plan(args.studyflow)
+        runner.archive_plan(archive_name, convert)
         runner.record.finish(runner.record.status)
         runner.finish()
         # Entries no element commit claimed (end events, a failed parse) close out in the summary body.

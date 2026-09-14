@@ -61,25 +61,43 @@ function runnerCommand(): { command: string; args: string[] } {
   );
 }
 
+/** This CLI as a command line: `node studyflow.mjs` names its script, a compiled binary (argv[0] "bun") is its own. */
+function selfCommand(): string[] {
+  return process.argv[0] === process.execPath ? [process.execPath, process.argv[1]] : [process.execPath];
+}
+
+/** A word Python's `shlex.split` reads back as it is, quoted as `shlex.quote` quotes. */
+function shellWord(word: string): string {
+  return /^[\w@%+=:,./-]+$/.test(word) ? word : `'${word.replaceAll("'", `'"'"'`)}'`;
+}
+
 async function runLocal(
   input: string,
   source: Awaited<ReturnType<typeof readSource>>,
   passthrough: string[],
 ): Promise<number> {
-  // run.py reads a BPMN XML file, so a YAML file or an image reaches it as a temporary `.bpmn`, and `--inputs`
-  // names the original's folder: boundary inputs beside it are found as they would be beside a `.bpmn`.
+  // run.py reads a BPMN XML file, so a YAML file or an image reaches it as a temporary `.bpmn`. `--inputs` names
+  // the original's folder: boundary inputs beside it are found as they would be beside a `.bpmn`. `--archive` has
+  // the run repository keep the study as the original is named and spelled: each stamped copy goes back through
+  // this CLI's `convert`, into the original image when it was one.
   let target = input;
-  let inputs: string[] = [];
+  let extra: string[] = [];
   if (source.container !== 'text' || source.kind !== 'xml') {
     const dir = await mkdtemp(path.join(tmpdir(), 'studyflow-run-'));
     target = path.join(dir, `${path.basename(input).replace(/(\.studyflow)?\.[^.]*$/i, '')}.bpmn`);
     await writeFile(target, await asXml(source), 'utf8');
-    inputs = ['--inputs', path.dirname(path.resolve(input))];
+    const original = path.resolve(input);
+    const folder = path.dirname(original);
+    const convert = [...selfCommand(), 'convert', ...(source.container === 'text' ? [] : ['--into', original])];
+    extra = ['--inputs', folder, '--archive', `${path.basename(input)}=${convert.map(shellWord).join(' ')}`];
+    // A study kept in a run repository runs on in it, as run.py has a `.bpmn` there do (`studyflow.log` marks one).
+    if (existsSync(path.join(folder, 'studyflow.log'))) extra.push('--repo', folder);
   }
 
   const { command, args } = runnerCommand();
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(command, [...args, target, ...inputs, ...passthrough], { stdio: 'inherit' });
+    // After ours, so a `--repo` or `--archive` of the caller's own wins.
+    const child = spawn(command, [...args, target, ...extra, ...passthrough], { stdio: 'inherit' });
     child.on('error', reject);
     child.on('exit', (code) => resolvePromise(code ?? 1));
   });
