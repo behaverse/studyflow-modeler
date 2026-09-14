@@ -472,7 +472,7 @@ def skill_dirs() -> list[Path]:
 
 def branching_modes() -> dict[str, str]:
     """`meta.branching` from every skill's schema, by the XML tag of the type (`{uri}randomGateway`): how a gateway
-    of that type picks its branch, `random` or `model`. The browser runner reads the same key."""
+    of that type picks its branch (`random`). The browser runner reads the same key."""
     modes: dict[str, str] = {}
     for folder in skill_dirs():
         schema = read_manifest(folder).get("schema")
@@ -1219,11 +1219,6 @@ class Runner:
         if local(element) in GATEWAY_TAGS:
             branching = next((self.branching[ext.tag] for holder in element if local(holder) == "extensionElements"
                               for ext in holder if ext.tag in self.branching), None)
-            if branching == "model":
-                raise RuntimeError(
-                    f"{element_id}: model-driven routing is not implemented, so it cannot pick a branch. "
-                    "Use a gateway with a condition on each outgoing flow, or a random gateway."
-                )
             # A clean gateway replays its recorded decision: same inputs, same seed, same verdict.
             # A condition edit is invisible to staleness: ✕ the gateway or `--fresh` forces re-evaluation.
             # A gateway a live runner samples decides live, so its decision never replays.

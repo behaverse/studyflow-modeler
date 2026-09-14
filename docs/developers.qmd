@@ -72,7 +72,6 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | `cognitive:RandomGateway` | a uniform draw over the outgoing edges, seeded from the study's `seed`, the gateway and the visit |
 | A parallel gateway | every outgoing edge; the matching join waits for all of them |
 | An inclusive gateway | every outgoing edge whose condition holds |
-| `agentic:Router` | a label chosen by a model |
 
 - A runner that cannot evaluate a condition stops the run, rather than quietly taking the other branch.
 - A condition that names a value which is not in scope reports an exception, rather than evaluating to `false`.

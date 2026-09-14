@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { inlineIoSpecification } from '@core/document';
+import { inlineIoSpecification, studyflowToXml } from '@core/document';
 import { getInferredDataNeighbors } from '@modeler/inspector/dataNeighbors';
 import { getPropertiesInScope, getStateProperties, isScopeContainer } from '@modeler/inspector/stateProperties';
 import { freshModdle } from './schemas';
@@ -93,13 +93,38 @@ function elementById(definitions: any, id: string): any {
 
 test.describe('what the inspector reports for a step', () => {
   test('names the scope a data association reaches into, and stays quiet about a sibling', async () => {
-    const { definitions } = await read('agent_eval');
+    // A step two sub-processes in reads a data object its process declares.
+    const moddle = freshModdle();
+    const { rootElement: definitions } = await moddle.fromXML(await studyflowToXml(`id: harness
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Harness:
+  type: Process
+  name: Evaluation harness
+  flowElements:
+    Rubric:
+      type: DataObjectReference
+      name: Scoring rubric
+    Round:
+      type: SubProcess
+      flowElements:
+        Item:
+          type: SubProcess
+          flowElements:
+            Score:
+              type: ServiceTask
+              dataInputAssociations:
+                In_Rubric:
+                  sourceRef: [Rubric]
+                  transformation: rubric
+`, moddle));
+    inlineIoSpecification(definitions);
 
     expect(getInferredDataNeighbors(elementById(definitions, 'Score'), 'inputs')).toEqual([
       expect.objectContaining({
         name: 'Scoring rubric',
         kind: 'data object',
-        outerScope: 'Agent evaluation harness',
+        outerScope: 'Evaluation harness',
         binding: 'rubric',
       }),
     ]);

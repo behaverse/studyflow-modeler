@@ -161,12 +161,6 @@ export class Session {
   private advance(node: FlowNode): string | undefined {
     if (node.outgoing.length === 0) return undefined;
 
-    if (this.branchingMode(node) === 'model') {
-      throw new Error(
-        `Model-driven routing is not implemented, so '${node.id}' cannot pick a branch. `
-        + 'Use a gateway with a condition on each outgoing flow, or a RandomGateway.',
-      );
-    }
     if (this.branchingMode(node) === 'random') return this.pickRandomBranch(node);
     if (this.isExclusiveGateway(node)) return this.pickConditionBranch(node) ?? this.pickDefaultBranch(node);
     return this.firstOutgoingTarget(node);

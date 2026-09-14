@@ -3,14 +3,14 @@ title: "Reference"
 description: "Every element you can put in a studyflow, the attributes each one takes, and the files a study is stored in."
 ---
 
-![One live instance of every element the shipped sets declare, in a labelled band per set.](assets/img/examples/kitchensink.studyflow.png){#fig-catalog fig-alt="A tall diagram of dashed labelled bands, read top to bottom: BPMN events, BPMN gateways, BPMN activities, BPMN data and artifacts, studyflow core data elements, exec execution and scope, cognitive domain activities and research gateways, eeg biosignals, agentic LLM and agent workflows, and BPMN loops beside a smaller band of data IO service tasks. Each band holds one instance of every element it contributes, drawn with its own shape and icon and labelled underneath." .fig-l}
+![One live instance of every element the shipped sets declare, in a labelled band per set.](assets/img/examples/kitchensink.studyflow.png){#fig-catalog fig-alt="A tall diagram of dashed labelled bands, read top to bottom: BPMN events, BPMN gateways, BPMN activities, BPMN data and artifacts, studyflow core data elements, exec execution and scope, cognitive domain activities and research gateways, eeg biosignals, agentic prompts, and BPMN loops beside a smaller band of data IO service tasks. Each band holds one instance of every element it contributes, drawn with its own shape and icon and labelled underneath." .fig-l}
 
 | Set | Declares | Loaded |
 |:--|:--|:--|
 | `studyflow` | the study itself, its data elements, scheduling and classification attributes | always |
 | `prov` | `Activity`, one record of what ran; the document-level list lives in `state._meta.prov` | always |
 | `cognitive` | what a participant meets, and the research gateways | always |
-| `agentic` | agents, model calls, tools | on request |
+| `agentic` | models as actors, and prompts | on request |
 | `eeg` | biosignal sessions and recordings | on request |
 
 # How a studyflow fits together
@@ -208,22 +208,16 @@ The scheme says how the software is found: `python://` is an importable callable
 
 A data step is a plain service task: `implementation` names what runs, and the drawn data edges say what it reads and writes. A step that drops rows drops *data*, while a gateway changes the *path* a run takes, so the two are not interchangeable.
 
-## Agents, biosignals, and the trail
+## Models, biosignals, and the trail
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Agent` | `bpmn:AdHocSubProcess` | A model calling the tools drawn inside it, in an order it decides. | `model`, `systemPrompt`, `toolChoice`, `temperature`, `maxTurns` |
-| `Router` | `bpmn:ExclusiveGateway` | A branch a model picks among the labels on the outgoing edges. | `model`, `instructions` |
-| `LLMCall` | `bpmn:ServiceTask` | One model call: a prompt in, a response out. | `model`, `prompt`, `temperature`, `maxTokens` |
-| `Tool` | `bpmn:ServiceTask` | Something an agent may call, run like any other step. | `kind`, `purpose`, `implementation` |
-| `HumanApproval` | `bpmn:UserTask` | Pauses the run until a person approves, edits, or rejects. | `question` |
-| `Prompt` | `bpmn:DataObjectReference` | A prompt kept as data, wired into the calls that read it. | `template` |
-| `Memory` | `bpmn:DataStoreReference` | What an agent carries between turns. | `scope` |
+| `Prompt` | `bpmn:DataObjectReference` | A prompt kept as data, wired into the steps that send it to a model. | `template` |
 | `Session` | `bpmn:Participant` | One acquisition session, carrying the device settings every phase inside it shares. | `device`, `modalities` |
 | `Recording` | `bpmn:DataObjectReference` | The biosignal recording a session produces. A narrower `Timeseries`. | `modalities`, `eventChannel`, plus `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` from `Timeseries` |
 | `Activity` | not drawn | One entry of the record of what ran. | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `note` |
 
-An agent stops at its `completionCondition` and never runs past `maxTurns`. A guardrail, or a model used as a judge, is an `LLMCall` with a strict prompt, and retrieval is a `Tool` whose `kind` is retrieval. An eval harness needs nothing beyond this table and the ordinary elements: gateways for the conditions, data elements for the results, and `HumanApproval` where a person has to sign off. It is the same graph that carries a human experiment, with models in the actor seats. When each `Activity` entry gets written is described on the [Developers](developers.qmd#what-a-run-leaves-behind) page.
+A model takes part as an actor, never as a setting on a step. It is a pool of its own, an `Actor` whose `actorType` is `llm` and which has no process, and the study's steps ask it along message flows; or it is the band of a task it takes. A model call is a task with a message flow to the model's pool and one back, and a guardrail or a judge is such a call with a strict prompt. A tool is a service task with an `implementation`, an agent loop an ad-hoc sub-process that stops at its `completionCondition`, and a person's sign-off a user task with a timer on it. An eval harness needs nothing beyond these and the ordinary elements, gateways for the conditions and data elements for the results. It is the same graph that carries a human experiment, with models in the actor seats. When each `Activity` entry gets written is described on the [Developers](developers.qmd#what-a-run-leaves-behind) page.
 
 # The file
 

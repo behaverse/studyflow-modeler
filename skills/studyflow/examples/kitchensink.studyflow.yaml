@@ -10,7 +10,7 @@ Kitchen_Sink:
     code, eligibility criteria, N-back scene, BDM trials dataset). The loops band's For-each is a native sub-process
     carrying BPMN's own multi-instance marker, and Retry-until-good a task carrying the standard-loop marker. Data steps
     are plain service tasks whose implementation names what runs. Pool/choreography types (cognitive:Actor, eeg:Session,
-    studyflow:ChoreographyTask) and the template presets (cognitive/agentic/eeg) are covered in kitchensink.md; the
+    studyflow:ChoreographyTask) and the template presets (cognitive/eeg) are covered in kitchensink.md; the
     sklearn_pipeline example shows an analysis pipeline live.
   extensionElements:
     - type: studyflow:Study
@@ -249,57 +249,12 @@ Kitchen_Sink:
           format: bdm
       name: EEG recording
       bounds: 160 1594 50 50
-    Ag_Agent:
-      type: AdHocSubProcess
-      extensionElements:
-        - type: agentic:Agent
-          model: claude-opus-4-8
-          maxTurns: 8
-      name: Agent
-      bounds: 125 1759 120 80
-      isExpanded: false
-    Ag_Router:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: agentic:Router
-          model: claude-haiku-4-5
-      name: Router
-      bounds: 340 1774 50 50
-      isMarkerVisible: true
-    Ag_LLMCall:
-      type: ServiceTask
-      extensionElements:
-        - type: agentic:LLMCall
-          model: claude-opus-4-8
-      name: LLM call
-      bounds: 485 1759 120 80
-    Ag_Tool:
-      type: ServiceTask
-      extensionElements:
-        - type: agentic:Tool
-          implementation: python://lab.rag.retrieve
-          kind: retrieval
-      name: Tool
-      bounds: 665 1759 120 80
-    Ag_HumanApproval:
-      type: UserTask
-      extensionElements:
-        - type: agentic:HumanApproval
-      name: Human approval
-      bounds: 845 1759 120 80
     Ag_Prompt:
       type: DataObjectReference
       extensionElements:
         - type: agentic:Prompt
       name: Prompt
-      bounds: 1060 1774 50 50
-    Ag_Memory:
-      type: DataStoreReference
-      extensionElements:
-        - type: agentic:Memory
-          scope: participant
-      name: Memory
-      bounds: 1240 1774 50 50
+      bounds: 160 1774 50 50
     Dt_Reader:
       type: ServiceTask
       name: Read data
@@ -353,7 +308,7 @@ Kitchen_Sink:
     Group_Agentic:
       type: Group
       categoryValueRef: CategoryValue_Agentic
-      bounds: 60 1720 1300 154
+      bounds: 60 1720 250 154
     Group_Functional:
       type: Group
       categoryValueRef: CategoryValue_Functional
@@ -407,7 +362,7 @@ Category_Agentic:
   type: Category
   categoryValue:
     CategoryValue_Agentic:
-      value: agentic · LLM & agent workflows
+      value: agentic · Prompts
 Category_Functional:
   type: Category
   categoryValue:
