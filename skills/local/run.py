@@ -1394,6 +1394,9 @@ class Runner:
         if target in self.studyflow.participants and runner is not None:
             self.serve(target, runner, flow, message)
             return
+        if target in self.studyflow.participants:
+            self.event("message.unplayed", f"    ✉ no runner plays {self.studyflow.participants[target].get('name') or target}, "
+                       f"so {message['id']} goes unanswered", level=logging.WARNING)
         with self.arrived:
             self.mail.setdefault(flow.get("id"), []).append(message)
             self.arrived.notify_all()
