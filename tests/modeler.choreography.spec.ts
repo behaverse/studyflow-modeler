@@ -77,18 +77,22 @@ test.describe('Studyflow choreography tasks', () => {
 /** A cognitive task presents itself; its one participant is an editable select, and a band-only actor is typed from there. */
 test('a cognitive task names who takes it: a declared pool, a new actor, or no one', async ({ page }) => {
   await gotoModeler(page);
-  await page.getByTestId('open-file-input').setInputFiles(examplePath('reachy_participant'));
+  // Its task draws plain: it answers along message flows. Its model's pool is a participant the band can name.
+  await page.getByTestId('open-file-input').setInputFiles(examplePath('reachy_pools'));
   const shape = page.locator('[data-element-id="Play"]');
-  await expect(shape).toContainText('Behaverse');
-  await expect(shape).toContainText('Reachy Mini');
+  await expect(shape).not.toContainText('Behaverse');
   await shape.click();
   const inspector = page.getByTestId('inspector-root');
   const taker = inspector.locator('input[name="choreography:bottom"]');
-  await expect(taker).toHaveValue('Reachy Mini');
+  await expect(taker).toHaveValue('');
+  await inspector.locator('button[aria-label="bottom participant choices"]').click();
+  await page.getByRole('option', { name: /Model, gemma4 on Ollama/ }).click();
+  await expect(taker).toHaveValue('Model, gemma4 on Ollama');
+  await expect(shape).toContainText('Behaverse');
   // The presenting side is the task itself: no top band, no initiator to pick; the kind is the pool's.
   await expect(inspector.locator('input[name="choreography:top"]')).toHaveCount(0);
   await expect(inspector.getByRole('button', { name: 'Initiating participant' })).toHaveCount(0);
-  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Reachy Mini');
+  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Large language model');
 
   // Typing a new name makes an actor for this task; untyped, it reads as such.
   await taker.fill('Subject');
@@ -116,10 +120,10 @@ test('a cognitive task names who takes it: a declared pool, a new actor, or no o
 
   // And back to the pool from the dropdown; the actor no band names any more has left the file.
   await inspector.locator('button[aria-label="bottom participant choices"]').click();
-  await page.getByRole('option', { name: /Reachy Mini/ }).click();
-  await expect(taker).toHaveValue('Reachy Mini');
+  await page.getByRole('option', { name: /Model, gemma4 on Ollama/ }).click();
+  await expect(taker).toHaveValue('Model, gemma4 on Ollama');
   await expect(shape).toContainText('Behaverse');
   studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-  expect(studyflowText).toContain('- Pool_Reachy');
+  expect(studyflowText).toContain('- Pool_Model');
   expect(studyflowText).not.toContain('name: Subject');
 });

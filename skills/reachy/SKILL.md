@@ -1,6 +1,6 @@
 ---
 name: reachy
-description: "Motion, media, and sensing elements of the Reachy Mini robot, and the runner that performs them on the robot or its simulator. Use when a study involves a Reachy Mini, as an actor or as the participant."
+description: "Motion, media, and sensing elements of the Reachy Mini robot, and the runner that performs them on the robot or its simulator. Use when a study involves a Reachy Mini, whoever decides for it."
 license: MIT
 compatibility: "Local runtime with uv; a Reachy Mini daemon on the network, or --sim."
 metadata:
@@ -9,14 +9,20 @@ metadata:
     local: "uv run --script local.py"
 ---
 
-`reachy.moddle.yaml` maps one-to-one onto the robot daemon's REST API. `local.py` is the partial
-runner performing them (`--sim` for the simulator), and doubles as the participant bridge that seats
-the robot in front of a Behaverse task (`local.py --participant`). A local run seats it by itself when a
-cognitive task is the robot's to take, drawn any of three ways: the Robot pool on the task's receiving band
-(`examples/reachy_participant`), the task in the screen's pool with message flows to the robot's
-`reachy:Participate` step and back (`examples/reachy_pools`, whose flows name what they carry: `behaverse:Trial`
-in, `behaverse:Response` out), or the task inside the Robot pool. The trials reach the seat at the Robot's `bridge`
-(`ws://localhost:8765` unless the pool says otherwise); the task's runner reads the same setting from the diagram. Wire an `agentic:Prompt` into the task, or into
-the `Participate` step, for the robot's instructions, and give the `Participate` step a data output whose `uri` is
-where the seated robot leaves what it judged from (`frames/`) and `reasoning.jsonl`; `reachy/` when it has none.
-A `Say` step renders its line on this machine and plays it on the unit; it may name the renderer, `implementation: shell://say` with the sentence in `additionalArguments` `args` and flags as keys (`v: Alex`), a step the shell skill leaves to this runner. A `screen` look remembers where it found the screen (`~/.studyflow/reachy/gaze.json`, per robot host), so the next look, and the next run, start there. `test_local.py` is its self-check.
+`reachy.moddle.yaml` maps one-to-one onto the robot daemon's REST API, and `local.py` is the partial runner
+performing it (`--sim` for the simulator). The robot is a pool of its own steps: it speaks, moves, looks, and takes
+pictures. Whatever decides for it is another pool, a model the steps ask along message flows (`../agentic/SKILL.md`),
+so no attribute here names a model. `examples/reachy_pools` draws the three: Behaverse sends each trial to the robot's
+loop, the robot takes a picture, asks the model with the instructions wired in, answers the task, and shows the answer
+with its antennas, until the task's end ends the loop. The palette's "Take a task, trial by trial" drops that loop, and
+"Conversation with a model" a spoken one.
+
+A `screen` look with a message flow to a model's pool searches: it asks the model about each view with a question of
+its own, turns by the answer, and remembers where it found the screen (`~/.studyflow/reachy/gaze.json`, per robot
+host), so the next look, and the next run, start there; without one it turns to where the screen was found. A
+`Snapshot` saves a picture in the folder its data output's `uri` names (`reachy/frames/` when none), and its path is
+the step's result. When a step needs the camera, the walk seats the robot at the first robot step: one process holds
+it and its camera (`local.py --participant`, logging to `participant.log` in the run), every later hand-off acts
+through it, and the robot pool's end event dismisses it. A `Say` step renders its line on this machine and plays it on
+the unit; it may name the renderer, `implementation: shell://say` with the sentence in `additionalArguments` `args`
+and flags as keys (`v: Alex`), a step the shell skill leaves to this runner. `test_local.py` is its self-check.

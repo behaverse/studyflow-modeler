@@ -91,7 +91,7 @@ enumerations:
         value: home
       - name: Task screen
         value: screen
-        description: The robot turns until its camera finds a screen and settles on it (a seated participant does the looking).
+        description: The robot turns until its camera finds a screen, asking the model its message flow reaches about each view, and settles on it.
 
   - name: TriggerEnum
     description: What the robot senses to fire the event.
@@ -124,9 +124,6 @@ enumerations:
       - name: Sound angle
         value: sound_angle
         description: Direction of the sound in radians (0 left, π/2 front, π right).
-      - name: Speech intent
-        value: speech_intent
-        description: What the participant's last utterance asked for.
 
   - name: StreamEnum
     description: A stream an interaction recording captures.
@@ -140,15 +137,25 @@ enumerations:
       - name: Motion
         value: motion
 
+  - name: SideEnum
+    description: Which antenna a signal raises.
+    literalValues:
+      - name: Left
+        value: left
+      - name: Right
+        value: right
+      - name: Both
+        value: both
+
 types:
+  # A robot takes part through the steps of its own pool; what decides for it is another pool, a model the steps ask
+  # along message flows. So it is never only a band on a task: it has no `participantKind`.
   - name: Robot
-    description: The robot as a pool of the steps it performs and the device settings they share; on the lower band of a cognitive task, the actor who takes it.
+    description: The robot as a pool of the steps it performs, and the device settings they share.
     superClass:
       - bpmn:Participant
     meta:
       icon: *reachy-icon
-      # The one kind this type is, as the band's kind picker names it.
-      participantKind: Reachy Mini
     properties:
       - name: variant
         description: Which Reachy Mini build runs the session; a custom id is also accepted.
@@ -172,23 +179,6 @@ types:
         type: String
         meta:
           order: 2
-          optional: true
-      - name: vision
-        description: The vision model the robot sees with, as `<scheme>://<ref>` (`ollama://gemma4:12b-it-qat`, `claude://claude-haiku-4-5`); it finds the screen and answers a task's trials.
-        isAttr: true
-        type: String
-        default: ollama://gemma4:12b-it-qat
-        meta:
-          order: 6
-          optional: true
-      # The seat listens here; a task whose message flow reaches this robot sends its trials to the same address.
-      - name: bridge
-        description: Where the seated robot takes a task's trials (a WebSocket URL on the machine running the study); the task's runner sends them there.
-        isAttr: true
-        type: String
-        default: ws://localhost:8765
-        meta:
-          order: 7
           optional: true
       - name: language
         description: Language the robot speaks and listens in, as a BCP-47 tag (`en-US`).
@@ -369,7 +359,9 @@ types:
           order: 1
 
   # Faces via the daemon's tracker (`POST /api/media/tracking/enable`), sounds
-  # via the mic array's direction of arrival (`GET /api/state/doa`).
+  # via the mic array's direction of arrival (`GET /api/state/doa`). A screen by
+  # asking a model about each view: the step's message flow to the model's pool
+  # and one back carry the question (the step's own) and the reply.
   - name: LookAt
     description: The robot turns its head toward a target and keeps tracking it.
     superClass:
@@ -378,7 +370,7 @@ types:
       icon: iconify ph--eye
     properties:
       - name: target
-        description: What to orient toward; tracking holds until another step moves the head. A `screen` look remembers where it found the screen, so a later one starts there.
+        description: What to orient toward; tracking holds until another step moves the head. A `screen` look searches only with a message flow to a model's pool, and remembers where it found the screen; without one it turns to where the screen was found.
         isAttr: true
         type: LookTargetEnum
         default: face
@@ -412,42 +404,32 @@ types:
           order: 1
           unit: s
 
-  # `implementation` (e.g. an `hf://` app) comes from the `studyflow:Implementation`
-  # trait; a runner starts it through the apps API (`POST /api/apps/start-app/{app}`)
-  # and stops it after (`POST /api/apps/stop-current-app`).
-  - name: Converse
-    description: A model-driven spoken exchange; the robot listens, replies, and gestures.
+  # The camera's picture, through the SDK's media stream. Where it goes is the
+  # step's data output's `uri`, a folder (`reachy/frames/` when it names none);
+  # its path in the run is the step's result, what a model step reads as the image.
+  - name: Snapshot
+    description: The robot takes a picture with its camera; the step's result is the picture, saved in the run.
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify ph--chats
+      icon: iconify ph--camera
+
+  # `POST /api/move/goto` on the antennas alone, out and back.
+  - name: Signal
+    description: The robot raises the antenna on one side, to show a choice.
+    superClass:
+      - bpmn:ServiceTask
+    meta:
+      icon: iconify ph--hand-pointing
     properties:
-      - name: model
-        description: Model that drives the dialogue, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://llama3.3`).
+      - name: side
+        description: Which antenna goes up; `{name}` placeholders are filled in at run time (`{Choice}`), and a value naming neither side raises both.
         isAttr: true
-        type: String
+        type: SideEnum
+        default: both
         meta:
           order: 1
-      - name: persona
-        description: The robot's character and standing instructions, in markdown.
-        isAttr: false
-        type: studyflow:MarkdownString
-        meta:
-          order: 2
-      - name: maxTurns
-        description: Most spoken exchanges the conversation may take.
-        isAttr: true
-        type: Integer
-        default: 10
-        meta:
-          order: 3
-      - name: stopPhrase
-        description: Participant phrase that ends the conversation early (`goodbye`).
-        isAttr: true
-        type: String
-        meta:
-          order: 4
-          optional: true
+          editable: true
 
   - name: Teleoperation
     description: An operator drives the robot by hand, the Wizard-of-Oz condition.
@@ -504,16 +486,6 @@ types:
           condition:
             trigger: wake_word
 
-  # The robot's own step when a task on the screen is drawn in another pool and message flows carry the trials
-  # to the robot and its answers back: the step is the receiving end, and the walk runs the two together.
-  # Its instructions come in as an `agentic:Prompt` data edge; the vision model is the Robot pool's.
-  - name: Participate
-    description: The robot takes the task another pool presents; each trial the message flow brings, it looks, asks its vision model what it sees, answers, and signals with its antennas.
-    superClass:
-      - bpmn:ReceiveTask
-    meta:
-      icon: iconify ph--game-controller
-
   # A Dataset, not a Timeseries: video, audio, transcript, and motion share one record.
   - name: InteractionRecording
     description: The multimodal record of an interaction, what was seen, heard, said, and moved.
@@ -528,51 +500,143 @@ types:
         isMany: true
         type: StreamEnum
 
-# Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
+# Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file. A template drops as one
+# collapsed sub-process: expand it to draw the message flows its steps need.
 templates:
-  - description: Wake-word conversation - wait for the wake word, face the speaker, talk, sign off.
+  - description: Conversation with a model - listen, ask the model what to say, say it, until goodbye.
     elements:
-      Wake_word_conversation:
+      Conversation:
         type: SubProcess
-        name: Wake-word conversation
+        name: Conversation
         icon: iconify ph--chats
         documentation: |
-          Idle until the wake word, turn toward the speaker, then converse until
-          the stop phrase or the turn budget ends it.
+          Turn after turn: listen, ask the model what to say, and say it, until the speaker says goodbye or ten
+          turns pass. Draw a message flow from Ask the model to the model's pool and one back, and wire a Prompt
+          with the robot's persona into Ask the model: the model hears what is wired in, nothing else.
+        loopCharacteristics:
+          type: StandardLoopCharacteristics
+          loopCondition: "'goodbye' not in (Heard or '').lower()"
+          loopMaximum: 10
         flowElements:
-          ww_wake:
-            type: IntermediateCatchEvent
-            name: Wake word
+          conversation_start:
+            type: StartEvent
+            bounds: 100 162 36 36
+          conversation_listen:
+            type: ReceiveTask
+            name: Listen
             extensionElements:
-              - type: reachy:SenseEvent
-                trigger: wake_word
-                wakeWord: Hey Reachy
-            bounds: 140 162 36 36
-          ww_look:
+              - type: reachy:Listen
+            dataOutputAssociations:
+              Out_Heard:
+                targetRef: Heard
+            bounds: 180 140 100 80
+          Heard:
+            type: DataObjectReference
+            name: Heard
+            bounds: 292 262 36 50
+          conversation_ask:
             type: ServiceTask
-            name: Face the speaker
-            extensionElements:
-              - type: reachy:LookAt
-                target: face
-            bounds: 240 140 100 80
-          ww_talk:
+            name: Ask the model
+            dataInputAssociations:
+              In_Heard:
+                sourceRef:
+                  - Heard
+            dataOutputAssociations:
+              Out_Reply:
+                targetRef: Reply
+            bounds: 340 140 100 80
+          Reply:
+            type: DataObjectReference
+            name: Reply
+            bounds: 452 262 36 50
+          conversation_say:
             type: ServiceTask
-            name: Chat
+            name: Say the reply
             extensionElements:
-              - type: reachy:Converse
-                model: claude-haiku-4-5
-                persona: |
-                  You are Reachy, a small, curious desktop robot. Keep replies to one
-                  or two spoken sentences and never pretend to be human.
-                stopPhrase: goodbye
-            bounds: 400 140 100 80
-          ww_bye:
+              - type: reachy:Say
+                text: "{Reply}"
+            bounds: 500 140 100 80
+          conversation_end:
+            type: EndEvent
+            bounds: 652 162 36 36
+          Flow_conversation_start_listen: conversation_start -> conversation_listen
+          Flow_conversation_listen_ask: conversation_listen -> conversation_ask
+          Flow_conversation_ask_say: conversation_ask -> conversation_say
+          Flow_conversation_say_end: conversation_say -> conversation_end
+
+  - description: Take a task, trial by trial - each trial the task sends, take a picture, ask the model, answer, show it.
+    elements:
+      Each_trial:
+        type: SubProcess
+        name: Each trial
+        icon: iconify ph--game-controller
+        documentation: |
+          The robot's side of a task another pool presents, one pass per trial. Expand it and draw the task's trial
+          flow into Receive the trial and the answer flow out of Answer the task, a flow from Ask the model to the
+          model's pool and one back, and a Prompt with the instructions into Ask the model, ending with
+          `Answer: <option>`. Put a message boundary event on it that the task's end event reaches, so the task
+          ending ends the loop.
+        loopCharacteristics:
+          type: StandardLoopCharacteristics
+        flowElements:
+          trial_start:
+            type: StartEvent
+            bounds: 100 162 36 36
+          trial_receive:
+            type: ReceiveTask
+            name: Receive the trial
+            bounds: 170 140 100 80
+          trial_look:
             type: ServiceTask
-            name: Sign off
+            name: Take a camera frame
             extensionElements:
-              - type: reachy:Gesture
-                move: yes1
-            bounds: 560 140 100 80
-          Flow_ww_wake_ww_look: ww_wake -> ww_look
-          Flow_ww_look_ww_talk: ww_look -> ww_talk
-          Flow_ww_talk_ww_bye: ww_talk -> ww_bye
+              - type: reachy:Snapshot
+            dataOutputAssociations:
+              Out_Frame:
+                targetRef: Frame
+            bounds: 310 140 100 80
+          Frame:
+            type: DataObjectReference
+            name: Frame
+            uri: reachy/frames/
+            bounds: 412 262 36 50
+          trial_ask:
+            type: ServiceTask
+            name: Ask the model
+            dataInputAssociations:
+              In_Frame:
+                sourceRef:
+                  - Frame
+            dataOutputAssociations:
+              Out_Choice:
+                targetRef: Choice
+                transformation: result.split('Answer:')[-1].strip()
+            bounds: 450 140 100 80
+          Choice:
+            type: DataObjectReference
+            name: Choice
+            bounds: 552 262 36 50
+          trial_answer:
+            type: SendTask
+            name: Answer the task
+            dataInputAssociations:
+              In_Choice:
+                sourceRef:
+                  - Choice
+            bounds: 590 140 100 80
+          trial_show:
+            type: ServiceTask
+            name: Show it with the antennas
+            extensionElements:
+              - type: reachy:Signal
+                side: "{Choice}"
+            bounds: 730 140 100 80
+          trial_end:
+            type: EndEvent
+            bounds: 882 162 36 36
+          Flow_trial_start_receive: trial_start -> trial_receive
+          Flow_trial_receive_look: trial_receive -> trial_look
+          Flow_trial_look_ask: trial_look -> trial_ask
+          Flow_trial_ask_answer: trial_ask -> trial_answer
+          Flow_trial_answer_show: trial_answer -> trial_show
+          Flow_trial_show_end: trial_show -> trial_end

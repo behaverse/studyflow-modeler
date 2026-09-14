@@ -7,15 +7,16 @@
 
 Usage:
     studyflow run --runtime local <diagram> [--sim] [--auto]     # studyflow-run-local walks, this runner performs
-    skills/reachy/local.py --participant [--sim] [--port N] [--vlm ollama://gemma4:12b-it-qat] [--frames DIR]
+    skills/reachy/local.py --participant [--sim] [--port N]      # the seat, started by the walk when a step needs the camera
 
-A cognitive task inside the Robot pool (or with the robot on its lower band) is the robot's to take, and needs no
-second command: the walk seats the robot itself, in the background, at the first robot step, and the robot pool's
-end event dismisses it. The task's runner forwards each trial to the seat, with the instructions wired into the
-task (an `agentic:Prompt`); what the robot judged from and decided on each trial (`frames/`, `reasoning.jsonl`) goes
-to the folder the step's data output names in the run, `reachy/` when it names none. Text attributes may cite the
-study state as the modeler does, `{name}` from the element outward, `{state.scope.name}`, or `{Play.trials}` for
-an earlier element's result. A `screen` look remembers where it found the screen, so a later one starts there.
+The robot is its body: it speaks, moves, looks, and takes pictures. Whatever decides for it is another pool the
+diagram draws, a model asked along message flows (skills/local/SKILL.md, "Messages"); nothing here calls a model.
+A `screen` look sends each view of its search along the step's message flow to the model's pool and turns by what
+comes back; it remembers where it found the screen (`~/.studyflow/reachy/gaze.json`, per robot host), so the next
+look, and the next run, start there. A snapshot saves a picture in the run, where the step's data output names a
+folder (`reachy/frames/` when it names none), and its path is the step's result. Text attributes may cite the study
+state as the modeler does, `{name}` from the element outward, `{state.scope.name}`, or `{Play.trials}` for an
+earlier element's result.
 
 A partial runner: studyflow-run-local walks the diagram and hands this script one
 `reachy:*` element at a time (`<plan.json> --element <id> --cache <dir>`), with the
@@ -28,24 +29,17 @@ instead, for CI). With `--sim`, or when the diagram's Robot pool says
 `variant: simulation`, it drives a MuJoCo-simulated Reachy Mini through the
 `reachy_mini` Python SDK, starting a headless sim daemon if none is listening.
 
-With `--participant` the roles flip and no plan is needed: the robot sits in front
-of the screen as the participant. It serves the browser runner's response bridge
-(`ws://localhost:8765`), and each time a Behaverse task awaits a response
-(`ResponseSource: external` in the task's bot configurations) it looks at the
-screen, takes a camera frame (the screenshot the task attaches stands in only when
-it has no camera), asks the model what it sees and how to respond, and the browser
-injects the answer. On taking the seat it turns its body in steps until the camera
-finds a screen and centres on it. The daemon serves one media client, so while it is seated the
-walk's own reachy elements (say, gesture, look at the screen…) are performed through it; the
-study's end event (claimed here too) dismisses it.
+With `--participant` it is the seat: one process holding the robot and its camera stream, since the daemon serves
+one media client. The walk starts it in the background at the first robot step when a step needs the camera, and
+every hand-off after that acts through it; the robot pool's end event (claimed here too) dismisses it.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
-import random
 import shutil
 import signal
 import re
@@ -60,8 +54,7 @@ REACHY = "https://w3id.org/studyflow/reachy"
 
 # The schema's defaults; moddle omits an attribute whose value equals its default.
 DEFAULTS: dict[str, dict[str, Any]] = {
-    "robot": {"variant": "wireless", "host": "reachy-mini.local", "voice": "", "language": "", "volume": "80",
-              "vision": "ollama://gemma4:12b-it-qat", "bridge": "ws://localhost:8765"},
+    "robot": {"variant": "wireless", "host": "reachy-mini.local", "voice": "", "language": "", "volume": "80"},
     "say": {"text": ""},
     "gesture": {"move": "cheerful1", "dataset": "pollen-robotics/reachy-mini-emotions-library"},
     "goto": {"roll": "0", "pitch": "0", "yaw": "0", "x": "0", "y": "0", "z": "0",
@@ -70,43 +63,25 @@ DEFAULTS: dict[str, dict[str, Any]] = {
     "playSound": {"file": ""},
     "lookAt": {"target": "face", "trackingWeight": "1"},
     "listen": {"timeout": "10"},
-    "converse": {"model": "", "persona": "", "maxTurns": "10", "stopPhrase": ""},
     "teleoperation": {"instructions": ""},
     "senseEvent": {"trigger": "wake_word", "wakeWord": "Hey Reachy"},
     "perceptionGateway": {"channel": "face_count"},
-    "participate": {},
+    "snapshot": {},
+    "signal": {"side": "both"},
 }
 
-AGENTIC = "https://w3id.org/studyflow/agentic"
-# The messages a seated robot exchanges with a task, as a message flow's `messageRef` → `itemRef` → `structureRef` names them.
-TRIAL, RESPONSE = "behaverse:Trial", "behaverse:Response"
-
-AUTO_SAMPLES = {"face_count": "1", "sound_angle": "1.57", "speech_detected": "1", "speech_intent": "chat"}
+AUTO_SAMPLES = {"face_count": "1", "sound_angle": "1.57", "speech_detected": "1"}
 AUTO_LINES = ["It went well — the second block was hard!", "goodbye"]
+SEAT_PORT = 8765  # where the seat listens, on this machine
 
 
 def reachy_extension(element: dict[str, Any]) -> dict[str, Any] | None:
     return next((ext for ext in element.get("extensions") or [] if ext.get("namespace") == REACHY), None)
 
 
-def is_cognitive_task(element: dict[str, Any]) -> bool:
-    """A `cognitive:*Task` (a Behaverse task, or any cognitive task) an actor can take."""
-    return any(
-        "behaverse" in str(ext.get("namespace", "")) and str(ext.get("type", "")).lower() == "task"
-        for ext in element.get("extensions") or []
-    )
-
-
 def settings_of(ext: dict[str, Any]) -> dict[str, Any]:
     """The schema's defaults, overlaid by what the diagram says."""
     return {**DEFAULTS.get(ext["type"], {}), **(ext.get("attributes") or {})}
-
-
-def bridge_port(url: str) -> int:
-    """The port of the robot's `bridge` URL; the default bridge's when it names none."""
-    from urllib.parse import urlparse
-
-    return urlparse(str(url)).port or 8765
 
 
 class Plan:
@@ -121,25 +96,6 @@ class Plan:
             eid: el["name"] for eid, el in self.elements.items()
             if el.get("name") and re.fullmatch(r"[A-Za-z_]\w*", el["name"])
         }
-
-    def message_structure(self, flow: dict[str, Any]) -> str:
-        """What a message flow carries: its message's item definition (`structureRef`), '' when it names none."""
-        message = self.elements.get(str((flow.get("attributes") or {}).get("messageRef") or "")) or {}
-        item = self.elements.get(str((message.get("attributes") or {}).get("itemRef") or "")) or {}
-        return str((item.get("attributes") or {}).get("structureRef") or "")
-
-    def recording_uri(self) -> str:
-        """Where the seated robot keeps what it saw and decided: the `uri` a `reachy:Participate` step's data
-        output names, else `reachy/`."""
-        for element in self.elements.values():
-            ext = reachy_extension(element)
-            if ext is None or ext["type"] != "participate":
-                continue
-            for target in output_targets(element):
-                uri = ((self.elements.get(target) or {}).get("attributes") or {}).get("uri")
-                if uri:
-                    return str(uri)
-        return "reachy/"
 
     def scope_chain(self, element_id: str) -> list[str]:
         """The element, then its containers outward to the process."""
@@ -158,45 +114,23 @@ class Plan:
     def has_robot(self) -> bool:
         return any(reachy_extension(element) is not None for element in self.elements.values())
 
-    def robot_participants(self) -> set[str]:
-        """The participants that are Reachy Minis: a pool of robot steps, or a band on a cognitive task."""
-        return {
-            element_id for element_id, element in self.elements.items()
-            if element.get("type") == "participant" and reachy_extension(element) is not None
-        }
+    def needs_camera(self) -> bool:
+        """Whether a step looks through the camera: a snapshot, or a look for the screen."""
+        return any(
+            (ext := reachy_extension(element)) is not None
+            and (ext["type"] == "snapshot" or (ext["type"] == "lookAt" and settings_of(ext)["target"] == "screen"))
+            for element in self.elements.values()
+        )
 
-    def wants_participant(self) -> bool:
-        """A cognitive task the robot takes wants the robot in the seat: the robot on the task's band, a message
-        flow between the task and the robot's pool (or a step in it), or the task inside the robot's own pool."""
-        robots, pools = self.robot_participants(), self.robot_processes()
-        if not robots:
-            return False
-        tasks = {eid for eid, el in self.elements.items() if is_cognitive_task(el)}
-
-        def robot_end(element_id: str) -> bool:
-            return element_id in robots or self.scope_chain(element_id)[-1] in pools
-
-        for element_id, element in self.elements.items():
-            attrs = element.get("attributes") or {}
-            if element_id in tasks and (robots & set(element.get("participants") or []) or robot_end(element_id)):
-                return True
-            if element.get("type") == "messageFlow":
-                ends = (str(attrs.get("sourceRef")), str(attrs.get("targetRef")))
-                # A flow naming its message seats the robot only when that message is a trial or a response.
-                structure = self.message_structure(element)
-                if structure and structure not in (TRIAL, RESPONSE):
-                    continue
-                if any(end in tasks for end in ends) and any(robot_end(end) for end in ends):
-                    return True
-        return False
-
-    def instructions_of(self, element: dict[str, Any]) -> str:
-        """The `agentic:Prompt` data object wired into the element, as its template text."""
-        for binding in element.get("inputs") or []:
-            for ext in (self.elements.get(str(binding.get("source"))) or {}).get("extensions") or []:
-                if ext.get("namespace") == AGENTIC and str(ext.get("type", "")).lower() == "prompt":
-                    return str((ext.get("attributes") or {}).get("template") or "")
-        return ""
+    def model_flow(self, element_id: str) -> str | None:
+        """The message flow from the step to a pool with no process of its own, the model it asks; None without one."""
+        for flow_id, flow in self.elements.items():
+            attrs = flow.get("attributes") or {}
+            target = self.elements.get(str(attrs.get("targetRef"))) or {}
+            if (flow.get("type") == "messageFlow" and attrs.get("sourceRef") == element_id
+                    and target.get("type") == "participant" and not (target.get("attributes") or {}).get("processRef")):
+                return flow_id
+        return None
 
     def robot_config(self) -> dict[str, Any]:
         for element in self.elements.values():
@@ -214,9 +148,10 @@ class Plan:
             and (element.get("attributes") or {}).get("processRef")
         }
 
+
 def claimed(studyflow: Plan) -> list[str]:
     """Every element carrying a reachy extension this runner has a handler for, and when the diagram has a
-    robot, the end events of its own pool (reaching one tells the seated robot the study is over)."""
+    robot, the end events of its own pool (reaching one tells the seat the study is over)."""
     pools = studyflow.robot_processes()
     return [
         element_id for element_id, element in studyflow.elements.items()
@@ -229,15 +164,18 @@ def claimed(studyflow: Plan) -> list[str]:
 
 class TerminalRobot:
     label = "dry run"
+    host = ""
 
     def speak(self, text: str, renderer: list[str] | None = None) -> None: ...
     def gesture(self, move: str, dataset: str | None = None) -> None: ...
     def goto(self, spec: dict[str, Any]) -> None: ...
     def play_sound(self, file: str) -> None: ...
     def look_at(self, target: str) -> None: ...
+    def aim(self, gaze: dict[str, float], remember: bool = False) -> None: ...
     def signal(self, side: str) -> None: ...
     def listening(self) -> None: ...
     def perk(self) -> None: ...
+    def snapshot(self, path: Path, width: int | None = None, fresh: bool = False) -> bool: return False
     def close(self) -> None: ...
 
 
@@ -254,12 +192,11 @@ class SimRobot:
     participant mode a real unit whose daemon already answers on the host."""
 
     def __init__(self, host: str, media_backend: str = "no_media", sim: bool | None = None, voice: str = "",
-                 vision: str = DEFAULTS["robot"]["vision"], volume: int | None = None) -> None:
+                 volume: int | None = None) -> None:
         self.host = host
         self.media_backend = media_backend
         self.sim = media_backend == "no_media" if sim is None else sim
         self.voice = voice
-        self.vision = vision
         self.volume = volume  # the Robot pool's `volume`; None leaves the unit as it is
         self.label = "simulation" if self.sim else "robot"
         self.mini: Any = None
@@ -501,11 +438,11 @@ class SimRobot:
             print(f"    (sound failed: {error})")
 
     def look_at(self, target: str) -> None:
+        """Turn toward the target. The screen is where a search last found it (`find_screen` does the searching,
+        asking a model), else straight ahead and a little up."""
         try:
             if target == "screen":
-                # A repeat look starts where the screen was last found (`find_screen` remembers it).
-                if not find_screen(self, parse_vlm(self.vision)):
-                    self.mini.look_at_world(0.5, 0.0, 0.25, duration=0.7)  # no camera, or nothing found: straight ahead, a little up
+                self.aim(LAST_GAZE or recall_gaze(self) or {"yaw": 0.0, "pitch": SEARCH_PITCH_DEG})
             elif target == "face":
                 self.mini.look_at_world(0.4, 0.0, 0.15, duration=0.7)
             elif target == "sound":
@@ -514,7 +451,24 @@ class SimRobot:
                 self._act([({}, [0.0, 0.0], 0.6, None)])
         except Exception as error:
             print(f"    (sim motion failed: {error})")
-        return None
+
+    def aim(self, gaze: dict[str, float], remember: bool = False) -> None:
+        """Head and base toward a gaze (degrees). The head pose is in the world frame and the daemon keeps it there
+        whatever the base does, so the base follows the gaze: the neck stays straight and the camera turns all the
+        way round. `remember` makes it where later moves come back to."""
+        global LAST_GAZE
+        if remember:
+            LAST_GAZE = {"yaw": float(gaze["yaw"]), "pitch": float(gaze["pitch"])}
+        self._act([({"yaw": gaze["yaw"], "pitch": gaze["pitch"]}, None, 1.0, math.radians(gaze["yaw"]))])
+
+    def snapshot(self, path: Path, width: int | None = None, fresh: bool = False) -> bool:
+        """Save what the camera sees as a JPEG at `path`, `width` pixels wide at most; `fresh` waits for a frame the
+        stream shows after the head has settled. False without a camera or a frame."""
+        frame = camera_frame(self, after=time.monotonic() + STREAM_LAG_S if fresh else 0.0)
+        if frame is None:
+            return False
+        save_jpeg(frame, path, width)
+        return True
 
     def signal(self, side: str) -> None:
         """Answer with the antennas, outward: the left one for the left option, the right one for the right, both
@@ -567,6 +521,12 @@ class Run:
     trace: list[str] = field(default_factory=list)
     auto_lines: list[str] = field(default_factory=lambda: list(AUTO_LINES))
     scope: str = ""  # the element being performed: where `{name}` lookups start
+    cache: Path = Path(".")  # the hand-off directory: the state file, and a step's outbox and inbox
+
+    @property
+    def run_dir(self) -> Path:
+        """The run directory, not its `.cache`, which the walk sweeps when the run ends."""
+        return self.cache.parent if self.cache.name == ".cache" else self.cache
 
     @property
     def tree(self) -> dict[str, Any]:
@@ -641,7 +601,33 @@ class Run:
         return eval(expression, {"__builtins__": {}}, {**self.namespace(), "result": result})  # noqa: S307 - an authored diagram's expression
 
 
-# --- dry-run handlers: one per reachy element, keyed by the extension's local name ---
+class Messages:
+    """A step's end of its message flows while it runs (skills/local/SKILL.md, "Messages"): what it sends goes into
+    `<id>.outbox.jsonl`, and the answer that names it comes back into `<id>.inbox.jsonl`."""
+
+    def __init__(self, cache: Path, element_id: str, flow: str) -> None:
+        self.outbox, self.inbox = cache / f"{element_id}.outbox.jsonl", cache / f"{element_id}.inbox.jsonl"
+        self.element_id, self.flow, self.sent = element_id, flow, 0
+
+    def ask(self, content: Any, timeout: float = 90.0) -> Any:
+        self.sent += 1
+        request = f"{self.element_id}.{self.sent}"
+        with self.outbox.open("a") as file:
+            file.write(json.dumps({"flow": self.flow, "id": request, "content": content}) + "\n")
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            for line in self.inbox.read_text().splitlines() if self.inbox.exists() else []:
+                try:
+                    message = json.loads(line)
+                except ValueError:
+                    continue  # the walk may be writing it
+                if message.get("inReplyTo") == request:
+                    return message.get("content")
+            time.sleep(0.05)
+        raise TimeoutError(f"no answer to {request} within {timeout:g}s")
+
+
+# --- handlers: one per reachy element, keyed by the extension's local name ---
 
 def renderer_of(element: dict[str, Any]) -> tuple[list[str] | None, str]:
     """A Say step's `implementation: shell://<command>` with its `additionalArguments`, as the command and its
@@ -687,8 +673,42 @@ def run_play_sound(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> A
 
 
 def run_look_at(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
-    print(f"    Reachy turns toward: {spec['target']}")
-    run.robot.look_at(str(spec["target"]))
+    """Turn toward the target. For the screen, a step with a message flow to a model's pool searches, asking that
+    model about each view; one without turns to where the screen was found, else straight ahead."""
+    target = str(spec["target"])
+    print(f"    Reachy turns toward: {target}")
+    flow = run.studyflow.model_flow(str(element.get("id"))) if target == "screen" else None
+    if flow is None:
+        if target == "screen":
+            print("    (no message flow from this step reaches a model: turning to where the screen was, or straight ahead)")
+        run.robot.look_at(target)
+        return None
+    found = find_screen(run.robot, Messages(run.cache, str(element.get("id")), flow).ask, run.run_dir, "reachy/look")
+    print("    " + ("found the screen" if found else "saw no screen"))
+    return None
+
+
+def run_snapshot(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
+    """A picture from the camera, saved in the folder the step's data output names (`reachy/frames/` when none),
+    one file per visit; its path in the run is the result. Without a camera there is no picture: null."""
+    element_id = str(element.get("id"))
+    folder = next((uri for target in output_targets(element)
+                   if (uri := str(((run.studyflow.elements.get(target) or {}).get("attributes") or {}).get("uri") or "")).endswith("/")),
+                  "reachy/frames/")
+    visit = ((run.tree.get("_meta") or {}).get("reached") or {}).get(element_id, 1)
+    picture = f"{folder}{element_id}-{visit}.jpg"
+    if not run.robot.snapshot(run.run_dir / picture):
+        print("    (no camera, so no picture)")
+        return None
+    print(f"    Reachy takes a picture: {picture}")
+    return picture
+
+
+def run_signal(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
+    side = run.fill(str(spec["side"])).strip().strip("`\"'.").lower()
+    side = side if side in ("left", "right") else "both"
+    print(f"    Reachy raises {'both antennas' if side == 'both' else f'the {side} antenna'}")
+    run.robot.signal(side)
     return None
 
 
@@ -696,23 +716,6 @@ def run_listen(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     run.robot.listening()
     canned = run.auto_lines.pop(0) if run.auto and run.auto_lines else "Thanks, that was fun!"
     return run.ask(f"participant says (within {spec['timeout']}s)", canned)
-
-
-def run_converse(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
-    stop = str(spec["stopPhrase"]).lower()
-    if spec["persona"]:
-        print(f"    persona: {str(spec['persona']).splitlines()[0]}…")
-    turns: list[dict[str, str]] = []
-    for turn in range(int(float(spec["maxTurns"]))):
-        heard = run.ask("participant says", run.auto_lines.pop(0) if run.auto and run.auto_lines else "goodbye")
-        turns.append({"participant": heard})
-        if stop and stop in heard.lower():
-            run.say_line("Alright — goodbye!")
-            break
-        reply = f"(dry run — {spec['model'] or 'a model'} would reply to: {heard})"
-        run.say_line(reply)
-        turns.append({"robot": reply})
-    return turns
 
 
 def run_teleoperation(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
@@ -739,65 +742,23 @@ def sample_perception(run: Run, element: dict[str, Any], spec: dict[str, Any]) -
     return {channel: value}
 
 
-def run_participate(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
-    """Take the task another pool presents. The seated bridge answers each trial the message flow brings; this
-    step hands it the instructions wired in and waits for the task to end: how many trials, and what the robot
-    saw and decided on each. Without a seat (a dry run) the person at the terminal says when it is over."""
-    for flow in run.studyflow.elements.values():
-        if flow.get("type") == "messageFlow" and (flow.get("attributes") or {}).get("targetRef") == element.get("id"):
-            structure = run.studyflow.message_structure(flow)
-            if structure and structure != TRIAL:
-                raise ValueError(f"{element.get('id')} answers {TRIAL} messages; the flow into it carries {structure}")
-    instructions = run.studyflow.instructions_of(element)
-    print("    Reachy takes the task on the screen, trial by trial" + (" (with the instructions wired in)" if instructions else ""))
-    try:
-        return await_task(BRIDGE_PORT, instructions)
-    except OSError as error:
-        print(f"    (no seated participant to wait for: {error})")
-        run.ask("the task on the screen is over — press Enter", "done")
-        return {"trials": 0, "log": []}
-
-
-def await_task(port: int, instructions: str) -> dict[str, Any]:
-    """Give the seated robot its instructions and wait until the task on the screen is over."""
-    import asyncio
-
-    import websockets
-
-    async def send() -> dict[str, Any]:
-        async with websockets.connect(f"ws://localhost:{port}", open_timeout=3, max_size=None) as socket:
-            await socket.send(json.dumps({"type": "await", "prompt": instructions}))
-            while True:
-                reply = json.loads(await socket.recv())
-                if reply.get("type") == "completed":
-                    return {"trials": int(reply.get("trials") or 0), "log": reply.get("reasoning") or []}
-
-    return asyncio.run(send())
-
-
 # Every reachy element this runner claims, keyed by the extension's local name.
 HANDLERS: dict[str, Callable[[Run, dict[str, Any], dict[str, Any]], Any]] = {
-    "participate": run_participate,
     "say": run_say,
     "gesture": run_gesture,
     "goto": run_goto,
     "playSound": run_play_sound,
     "lookAt": run_look_at,
+    "snapshot": run_snapshot,
+    "signal": run_signal,
     "listen": run_listen,
-    "converse": run_converse,
     "teleoperation": run_teleoperation,
     "senseEvent": wait_sense,
     "perceptionGateway": sample_perception,
 }
 
 
-# --- participant mode: the robot sits in front of the screen and plays the task ---
-
-VLM_SYSTEM = (
-    "You are a small desktop robot taking part in a cognitive task, looking at the task "
-    "screen. Decide from the image what the correct response is."
-)
-
+# --- the camera, and the search for the screen ---
 
 def has_camera(robot: Any) -> bool:
     return getattr(robot, "media_backend", "no_media") != "no_media"
@@ -847,34 +808,14 @@ def camera_frame(robot: Any, wait: float = 4.0, after: float = 0.0) -> Any:
         time.sleep(0.05)
 
 
-def jpeg_data_url(frame: Any, width: int | None = None) -> str:
-    import base64
-    from io import BytesIO
+def save_jpeg(frame: Any, path: Path, width: int | None = None) -> None:
     from PIL import Image
 
-    buffer = BytesIO()
     image = Image.fromarray(frame[:, :, ::-1])  # BGR → RGB
     if width and image.width > width:
         image = image.resize((width, round(image.height * width / image.width)))
-    image.save(buffer, format="JPEG", quality=85)
-    return "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode()
-
-
-def frame_data_url(robot: Any) -> str | None:
-    """What the robot's camera sees, as a data-URL JPEG; None without a camera or a prompt frame."""
-    frame = camera_frame(robot, wait=1.5)  # ponytail: a trial has ~8 s and the model needs ~5; the screenshot stands in past this
-    return jpeg_data_url(frame) if frame is not None else None
-
-
-def save_image(frames: Path | None, name: str, image: str) -> None:
-    if frames:
-        import base64
-        frames.mkdir(parents=True, exist_ok=True)
-        (frames / f"{name}.jpg").write_bytes(base64.b64decode(image.split(";base64,", 1)[1]))
-
-
-def vlm_call(provider: str) -> Callable[[str, str, str | None], str]:
-    return call_claude if provider == "claude" else call_ollama
+    path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(path, format="JPEG", quality=85)
 
 
 def parse_screen_reply(reply: str) -> tuple[int, int] | None:
@@ -895,13 +836,23 @@ def screen_is_centred(where: tuple[int, int]) -> bool:
     return where == (0, 0)
 
 
+# What a `screen` look asks the model about each view: the look parses the reply, so the question is the step's own.
+SCREEN_QUESTION = (
+    "Is a computer monitor, laptop screen, or TV visible in this image? If so, which third of the image "
+    "contains the centre of the monitor, horizontally (left, middle, or right) and vertically (top, middle, "
+    "or bottom)?\n"
+    "Reply with exactly three lines:\n"
+    "Screen: yes or no\n"
+    "Horizontal: left, middle, or right\n"
+    "Vertical: top, middle, or bottom"
+)
 SEARCH_STEP_DEG = (20.0, 12.0)  # ponytail: one nudge of yaw and pitch per look, a third of the frame or so; halve it if the head overshoots a small far screen
 SEARCH_PITCH_DEG = -10.0  # ponytail: a desk robot looks up at a monitor; tune to the robot's perch (negative is up)
-LAST_GAZE: dict[str, float] | None = None  # where the screen was last found, so a repeat look starts (and a failed one ends) there
-GAZE_FILE = Path.home() / ".studyflow" / "reachy" / "gaze.json"  # the same, across runs, per robot host
+LAST_GAZE: dict[str, float] | None = None  # in the seat: where the screen was found this run, where moves come back to
+GAZE_FILE = Path.home() / ".studyflow" / "reachy" / "gaze.json"  # where the screen was found, per robot host, and when
 STREAM_LAG_S = 0.3  # ponytail: WebRTC delay between the head settling and the frame showing it; raise if search frames smear
-FOUND_AT = 0.0  # when (monotonic) the screen was last seen for real, in this seat
 RELOOK_S = 30.0  # ponytail: a look this soon after a find only turns back to it; lower if the screen or the robot gets moved mid-study
+SCREEN_SWEEP_DEG = (0, 45, -45, 90, -90, 135, -135, 180)  # ponytail: fixed body-yaw sweep; a finer or head-pitch sweep if screens sit high or low
 
 
 def recall_gaze(robot: Any) -> dict[str, float] | None:
@@ -917,231 +868,77 @@ def remember_gaze(robot: Any, gaze: dict[str, float]) -> None:
     except (OSError, ValueError):
         known = {}
     GAZE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    GAZE_FILE.write_text(json.dumps({**known, str(getattr(robot, "host", "")): gaze}))
+    GAZE_FILE.write_text(json.dumps({**known, str(getattr(robot, "host", "")): {**gaze, "at": time.time()}}))
 
 
 def restore_gaze(robot: Any) -> None:
-    """Back to where the screen was found, if it ever was: every move and pose leaves the head at rest."""
-    import math
-
+    """Back to where the screen was found this run, if it was: every move and pose leaves the head at rest."""
     if LAST_GAZE and getattr(robot, "mini", None) is not None:
-        robot._act([(dict(LAST_GAZE), None, 0.8, math.radians(LAST_GAZE["yaw"]))])
+        robot.aim(LAST_GAZE)
 
 
-SCREEN_SWEEP_DEG = (0, 45, -45, 90, -90, 135, -135, 180)  # ponytail: fixed body-yaw sweep; a finer or head-pitch sweep if screens sit high or low
-
-
-def find_screen(robot: Any, vlm: tuple[str, str], frames: Path | None = None) -> bool:
-    """Turn the body in steps until the camera sees the task screen, then centre on it with head and base."""
-    import math
-
-    if not has_camera(robot):
-        return False
-    provider, model = vlm
-    ask = (
-        "Is a computer monitor, laptop screen, or TV visible in this image? If so, which third of the image "
-        "contains the centre of the monitor, horizontally (left, middle, or right) and vertically (top, middle, "
-        "or bottom)?\n"
-        "Reply with exactly three lines:\n"
-        "Screen: yes or no\n"
-        "Horizontal: left, middle, or right\n"
-        "Vertical: top, middle, or bottom"
-    )
-
-    def glance(name: str) -> tuple[float, float] | None:
-        """Where the screen sits in the current frame, as fractions; None when no screen is in view."""
-        frame = camera_frame(robot, after=time.monotonic() + STREAM_LAG_S)  # the head has settled: the next frame that shows it
-        if frame is None:
-            raise RuntimeError("no camera frame")
-        image = jpeg_data_url(frame, width=640)  # which third holds the screen needs no more
-        save_image(frames, name, image)
-        return parse_screen_reply(vlm_call(provider)(model, ask, image))
-
-    def aim(gaze: dict[str, float]) -> None:
-        # The head pose is in the world frame and the daemon keeps it there whatever the base does, so the base
-        # follows the gaze: the neck stays straight and the camera can turn all the way round.
-        robot._act([(gaze, None, 1.0, math.radians(gaze["yaw"]))])
-
-    global LAST_GAZE, FOUND_AT
-    if LAST_GAZE and time.monotonic() - FOUND_AT < RELOOK_S:
-        aim(LAST_GAZE)  # just found: the walk's own look after the seat's search, or one look after another
+def find_screen(robot: Any, ask: Callable[[Any], Any], run_dir: Path, looks: str) -> bool:
+    """Turn the body in steps until the camera sees the task screen, then centre on it with head and base. Each view
+    goes to the model the step asks (`ask`, along its message flow), saved under `looks` in the run."""
+    known = recall_gaze(robot)
+    if known and time.time() - float(known.get("at") or 0) < RELOOK_S:
+        robot.aim(known, remember=True)  # just found: a look right after another only turns back to it
         return True
-    LAST_GAZE = LAST_GAZE or recall_gaze(robot)
+    views = 0
+
+    def glance(gaze: dict[str, float]) -> tuple[int, int] | None:
+        """Where the screen sits in the view from `gaze`, as thirds; None when no screen is in view."""
+        nonlocal views
+        robot.aim(gaze)
+        views += 1
+        view = f"{looks}/view-{views}.jpg"
+        if not robot.snapshot(run_dir / view, width=640, fresh=True):  # which third holds the screen needs no more
+            raise RuntimeError("no camera frame")
+        return parse_screen_reply(str(ask({"Question": SCREEN_QUESTION, "View": view}) or ""))
+
     try:
-        for yaw in (("last",) if LAST_GAZE else ()) + SCREEN_SWEEP_DEG:
-            gaze = dict(LAST_GAZE) if yaw == "last" else {"yaw": float(yaw), "pitch": SEARCH_PITCH_DEG}
-            yaw = int(gaze["yaw"])
-            aim(gaze)
-            where = glance(f"search-{yaw:+d}")
+        for start in ([known] if known else []) + [{"yaw": float(yaw), "pitch": SEARCH_PITCH_DEG} for yaw in SCREEN_SWEEP_DEG]:
+            gaze = {"yaw": float(start["yaw"]), "pitch": float(start["pitch"])}
+            where = glance(gaze)
             if where is None:
                 continue
             # Nudge toward the screen and look again (yaw left and pitch up are positive and negative degrees).
-            for step in range(8):
+            for _ in range(8):
                 if screen_is_centred(where):
                     break
                 gaze["yaw"] -= where[0] * SEARCH_STEP_DEG[0]
                 gaze["pitch"] += where[1] * SEARCH_STEP_DEG[1]
-                aim(gaze)
-                where = glance(f"search-{yaw:+d}-{step + 1}") or where
+                where = glance(gaze) or where
             print(f"    found the screen: yaw {gaze['yaw']:+.0f}°, pitch {gaze['pitch']:+.0f}°")
-            LAST_GAZE, FOUND_AT = dict(gaze), time.monotonic()
-            remember_gaze(robot, LAST_GAZE)
+            robot.aim(gaze, remember=True)
+            remember_gaze(robot, gaze)
             return True
+        print("    no screen in sight after a full turn")
     except Exception as error:
         print(f"    (could not look for the screen: {error})")
-        if LAST_GAZE:
-            # The camera failed us, not the memory: the screen is where it was last found.
-            try:
-                aim(LAST_GAZE)
-                print(f"    back to where the screen was: yaw {LAST_GAZE['yaw']:+.0f}°, pitch {LAST_GAZE['pitch']:+.0f}°")
-                return True
-            except Exception:
-                pass
-    else:
-        print("    no screen in sight after a full turn")
+    # The camera or the model failed us, not the memory: the screen is where it was last found, else straight ahead.
     try:
-        aim(LAST_GAZE or {"yaw": 0.0, "pitch": SEARCH_PITCH_DEG})  # back to where the screen was, or to rest
+        robot.aim(known or {"yaw": 0.0, "pitch": SEARCH_PITCH_DEG}, remember=bool(known))
     except Exception:
         pass
-    return False
+    return bool(known)
 
 
-def call_claude(model: str, user: str, image: str | None) -> str:
-    import urllib.request
+# --- the seat: one process holding the robot and its camera, which the walk's hand-offs act through ---
 
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set")
-    content: list[dict[str, Any]] = []
-    if image:
-        media_type, data = image.removeprefix("data:").split(";base64,", 1)
-        content.append({"type": "image", "source": {"type": "base64", "media_type": media_type, "data": data}})
-    content.append({"type": "text", "text": user})
-    body = {"model": model, "max_tokens": 64, "system": VLM_SYSTEM,
-            "messages": [{"role": "user", "content": content}]}
-    request = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages", data=json.dumps(body).encode(),
-        headers={"content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01"},
-    )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        data = json.load(response)
-    return "".join(block.get("text", "") for block in data.get("content", []))
-
-
-def call_ollama(model: str, user: str, image: str | None) -> str:
-    import urllib.request
-
-    message: dict[str, Any] = {"role": "user", "content": user}
-    if image:
-        message["images"] = [image.split(";base64,", 1)[1]]
-    body = {"model": model, "stream": False, "think": False,
-            "messages": [{"role": "system", "content": VLM_SYSTEM}, message]}
-    request = urllib.request.Request(
-        "http://localhost:11434/api/chat", data=json.dumps(body).encode(),
-        headers={"content-type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=60) as response:
-        data = json.load(response)
-    return data["message"]["content"]
-
-
-def match_option(reply: str, options: list[str]) -> str | None:
-    """The `Answer:` line if the reply has one, else the whole reply, matched to an option."""
-    answers = [line.split(":", 1)[1] for line in reply.splitlines() if line.strip().lower().startswith("answer:")]
-    for candidate in answers + [reply]:
-        cleaned = candidate.strip().strip("`\"'. ").lower()
-        for option in options:
-            if option.lower() == cleaned:
-                return option
-        for option in options:
-            if option.lower() in cleaned:
-                return option
-    return None
-
-
-def answer_trial(
-    robot: Any, trial: dict[str, Any], history: list[str], frames: Path | None = None,
-    vlm: tuple[str, str] = ("ollama", "gemma4:12b-it-qat"), log: list[dict[str, Any]] | None = None,
-) -> tuple[str, str]:
-    """Perceive, decide, and pick a response option: (response, agent id). `log` collects what was seen and
-    decided, one entry per trial, for a `reachy:Participate` step waiting for the task to end."""
-    options = [str(o) for o in trial.get("ResponseOptions", [])]
-    robot.perk()
-    # A robot with a camera plays from what it sees; the task's screenshot stands in when it has no camera, or
-    # the feed is in one of its stalls (over wifi it pauses for 5-20 s at a time; the reader logs each one).
-    frame = frame_data_url(robot)
-    image = frame or trial.get("Screenshot")
-    print(f"    sees: {'camera' if frame else 'screenshot' if image else 'nothing'}")
-    if image:
-        save_image(frames, f"trial-{trial.get('TrialIndex', '?')}", image)
-    llm = trial.get("LLM") if isinstance(trial.get("LLM"), dict) else {}
-    provider = str(llm.get("Provider") or vlm[0])
-    model = str(llm.get("Model") or (vlm[1] if provider == vlm[0] else "claude-haiku-4-5" if provider == "claude" else "gemma4:12b-it-qat"))
-
-    lines = [trial["Prompt"]] if trial.get("Prompt") else []
-    lines += [f"Task: {trial.get('Scene', '?')} — trial {trial.get('TrialIndex', '?')}."]
-    if history:
-        lines += ["Your previous trials:"] + [f"  {entry}" for entry in history[-12:]]
-    lines += [
-        "The attached image is your view of the task screen." if image
-        else "No image is available this trial; answer as well as you can.",
-        "Reply with exactly three lines:",
-        "Seen: <the stimulus you see on the screen>",
-        "Rule: <what your instructions say that stimulus calls for>",
-        f"Answer: <one of: {', '.join(options)}>",
-    ]
-    try:
-        reply = vlm_call(provider)(model, "\n".join(lines), image)
-        response = match_option(reply, options)
-        if response is None:
-            raise ValueError(f"reply named no option: {reply[:80]!r}")
-        seen, rule, agent = reply_line(reply, "seen"), reply_line(reply, "rule"), f"reachy:{provider}:{model}"
-    except Exception as error:
-        print(f"    (VLM unavailable: {error}) — answering at random")
-        response, seen, rule, agent = random.choice(options), "?", "?", "reachy:random"
-    history.append(f"trial {trial.get('TrialIndex', '?')}: seen={seen}, answered={response}"
-                   + (" (random)" if agent == "reachy:random" else ""))
-    entry = {"trial": trial.get("TrialIndex"), "seen": seen, "rule": rule, "answer": response, "agent": agent}
-    note_reasoning(frames, entry)
-    if log is not None:
-        log.append(entry)
-    return response, agent
-
-
-def reply_line(reply: str, key: str) -> str:
-    """The `Key:` line of a reply, or `?`."""
-    return next((line.split(":", 1)[1].strip() for line in reply.splitlines()
-                 if line.strip().lower().startswith(f"{key}:")), "?")
-
-
-def note_reasoning(frames: Path | None, entry: dict[str, Any]) -> None:
-    """One line per trial in `reasoning.jsonl` beside the frames: what the robot saw, the rule it applied, its answer."""
-    if frames:
-        frames.parent.mkdir(parents=True, exist_ok=True)
-        with (frames.parent / "reasoning.jsonl").open("a") as file:
-            file.write(json.dumps(entry) + "\n")
-
-
-BRIDGE_PORT = 8765  # set from --port; where a seated participant listens
-
-
-def parse_vlm(text: str) -> tuple[str, str]:
-    """`<scheme>://<model>` → (provider, model); a bare model is Ollama's."""
-    return tuple(text.split("://", 1)) if "://" in text else ("ollama", text)  # type: ignore[return-value]
-
-
-ACTIONS = ("speak", "gesture", "goto", "play_sound", "look_at", "listening", "perk", "signal")
+ACTIONS = ("speak", "gesture", "goto", "play_sound", "look_at", "aim", "snapshot", "listening", "perk", "signal")
 
 
 class SeatedRobot:
-    """The robot as its seated participant drives it. The daemon serves one media client, so while the bridge
-    holds the camera the walk's actions travel over the bridge's socket and the bridge performs them."""
+    """The robot as the seat drives it. The daemon serves one media client, so while the seat holds the camera
+    the walk's actions travel over the seat's socket and the seat performs them."""
 
     label = "seated participant"
 
-    def __init__(self, port: int, voice: str = "") -> None:
+    def __init__(self, port: int, voice: str = "", host: str = "") -> None:
         self.port = port
         self.voice = voice
+        self.host = host  # the robot's, for the remembered gaze
 
     def act(self, kind: str, **spec: Any) -> dict[str, Any]:
         import asyncio
@@ -1172,9 +969,13 @@ class SeatedRobot:
         self.act("play_sound", file=file)
 
     def look_at(self, target: str) -> None:
-        reply = self.act("look_at", target=target)
-        if target == "screen" and reply:
-            print("    the seated participant " + ("found the screen" if reply.get("found") else "saw no screen"))
+        self.act("look_at", target=target)
+
+    def aim(self, gaze: dict[str, float], remember: bool = False) -> None:
+        self.act("aim", gaze={"yaw": float(gaze["yaw"]), "pitch": float(gaze["pitch"])}, remember=remember)
+
+    def snapshot(self, path: Path, width: int | None = None, fresh: bool = False) -> bool:
+        return bool(self.act("snapshot", path=str(path), width=width, fresh=fresh).get("saved"))
 
     def signal(self, side: str) -> None:
         self.act("signal", side=side)
@@ -1189,42 +990,38 @@ class SeatedRobot:
         pass
 
 
-def seat_participant(args: argparse.Namespace, config: dict[str, Any], recording: str = "reachy/") -> bool:
-    """Start the participant bridge in the background for this run, and wait until it answers on the port.
-    It logs to the run directory, keeps what the robot saw under `recording` there (the folder the diagram's
-    data output names), follows the run (it leaves when the walk's process is gone), and the study's end
-    event dismisses it."""
+def seat_robot(args: argparse.Namespace, config: dict[str, Any]) -> bool:
+    """Start the seat in the background for this run, and wait until it answers on the port. It logs to the run
+    directory, follows the run (it leaves when the walk's process is gone), and the study's end event dismisses it."""
     import subprocess
 
     cache = args.cache or Path(".")
     run_dir = cache.parent if cache.name == ".cache" else cache  # the run directory, not its swept `.cache`
     run_dir.mkdir(parents=True, exist_ok=True)
-    # Everything the seated robot keeps (the frames it judged from, `reasoning.jsonl`) lands in that one folder.
-    argv = [sys.executable, str(Path(__file__).resolve()), "--participant", "--port", str(args.port),
-            "--frames", str(run_dir / recording / "frames"), "--vlm", str(config["vision"] or DEFAULTS["robot"]["vision"])]
+    argv = [sys.executable, str(Path(__file__).resolve()), "--participant", "--port", str(args.port)]
     if os.environ.get("STUDYFLOW_RUN_PID"):  # the walk's pid (this process's parent is only its launcher)
         argv += ["--watch-pid", os.environ["STUDYFLOW_RUN_PID"]]
     if config["variant"] == "simulation":
         argv.append("--sim")
     log = (run_dir / "participant.log").open("ab")
-    bridge = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)  # noqa: S603
-    print("    seating the robot as the participant: connecting, camera, vision model, finding the screen "
+    seat = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)  # noqa: S603
+    print("    seating the robot: connecting and opening the camera "
           "(20 s warm, up to 3 min the first time; its log: participant.log in the run)")
     for tick in range(90):
         if seated_participant(args.port):
             return True
-        if bridge.poll() is not None:
-            print(f"    (the participant bridge exited with code {bridge.returncode} — see participant.log in the run)")
+        if seat.poll() is not None:
+            print(f"    (the seat exited with code {seat.returncode} — see participant.log in the run)")
             return False
         if tick and tick % 5 == 0:
             print(f"    still seating the robot ({tick * 2}s)")
         time.sleep(2)
-    print("    (the participant bridge did not come up)")
+    print("    (the seat did not come up)")
     return False
 
 
 def seated_participant(port: int) -> bool:
-    """Whether a participant bridge answers on the port."""
+    """Whether a seat answers on the port."""
     import asyncio
 
     import websockets
@@ -1241,7 +1038,7 @@ def seated_participant(port: int) -> bool:
 
 
 def end_study(port: int) -> str:
-    """Tell the seated robot the study is over, so it leaves the seat and folds whatever it started."""
+    """Tell the seat the study is over, so it leaves and folds whatever it started."""
     import asyncio
 
     import websockets
@@ -1253,129 +1050,72 @@ def end_study(port: int) -> str:
     try:
         asyncio.run(send())
     except Exception as error:
-        print(f"    (no participant bridge on port {port} to dismiss: {error})")
+        print(f"    (no seat on port {port} to dismiss: {error})")
         return "no participant seated"
-    print("    the participant bridge was told the study is over")
+    print("    the seat was told the study is over")
     return "participant dismissed"
 
 
-def answer_side(response: str, options: list[str]) -> str:
-    """Which antenna answers: "left" for the first of two options, "right" for the second, "both" otherwise."""
-    if len(options) == 2 and response in options:
-        return "left" if options.index(response) == 0 else "right"
-    return "both"
-
-
-def participant_loop(
-    robot: Any, port: int, frames: Path | None = None, vlm: tuple[str, str] = ("ollama", "gemma4:12b-it-qat"),
-    watch_pid: int | None = None,
-) -> int:
-    """Serve the browser runner's response bridge until the study ends or Ctrl-C."""
+def participant_loop(robot: Any, port: int, watch_pid: int | None = None) -> int:
+    """Serve the walk's actions until the study ends or Ctrl-C."""
     import asyncio
 
     import websockets
 
-    sys.stdout.reconfigure(line_buffering=True)  # trial lines stream even when piped
+    sys.stdout.reconfigure(line_buffering=True)  # lines stream even when piped
     if has_camera(robot):
         import threading
 
         threading.Thread(target=read_stream, args=(robot,), daemon=True).start()
-    history: list[str] = []
-    log: list[dict[str, Any]] = []  # what was seen and decided, per trial, for a `reachy:Participate` step in the walk
-    instructions = {"prompt": ""}  # that step's wired-in prompt: the default when a trial carries none
-    awaiting: list[Any] = []  # sockets of `await` requests, told when the task completes
-    completions: list[dict[str, Any]] = []  # completions no one awaited yet
-    seat = asyncio.Lock()  # one trial at a time: the robot has one camera and the model one queue
+    seat = asyncio.Lock()  # one action at a time: the robot has one body and one camera
     over: asyncio.Future[None] | None = None
 
-    async def answer(socket: Any, message: dict[str, Any]) -> None:
-        received = time.monotonic()
-        async with seat:
-            # The task moves on without us after MaxResponseTime; a late answer would only delay the next trial.
-            limit = float(message.get("MaxResponseTime") or 0)
-            if limit and time.monotonic() - received > limit:
-                print(f"    trial {message.get('TrialIndex', '?')}: skipped — it aged out of its {limit:g}s window")
-                return
-            message["Prompt"] = message.get("Prompt") or instructions["prompt"]
-            response, agent = await asyncio.to_thread(answer_trial, robot, message, history, frames, vlm, log)
-            print(f"    trial {message.get('TrialIndex', '?')}: {response}  ({agent})")
-            await socket.send(json.dumps({
-                "type": "response", "RequestId": message.get("RequestId"),
-                "Response": response, "Agent": {"Id": agent},
-            }))
-            # Then say it with the antennas: the left one for the first option, the right one for the second.
-            options = [str(o) for o in message.get("ResponseOptions", [])]
-            await asyncio.to_thread(robot.signal, answer_side(response, options))
+    async def act(message: dict[str, Any]) -> dict[str, Any]:
+        kind = message["kind"]
+        if kind == "speak":
+            robot.voice = message.get("voice") or ""
+            await asyncio.to_thread(robot.speak, str(message.get("text", "")), message.get("renderer"))
+        elif kind == "gesture":
+            await asyncio.to_thread(robot.gesture, str(message.get("move")), message.get("dataset"))
+        elif kind == "goto":
+            await asyncio.to_thread(robot.goto, message.get("spec") or {})
+        elif kind == "play_sound":
+            await asyncio.to_thread(robot.play_sound, str(message.get("file")))
+        elif kind == "look_at":
+            await asyncio.to_thread(robot.look_at, str(message.get("target")))
+        elif kind == "aim":
+            await asyncio.to_thread(robot.aim, message.get("gaze") or {}, bool(message.get("remember")))
+        elif kind == "snapshot":
+            saved = await asyncio.to_thread(robot.snapshot, Path(str(message.get("path"))), message.get("width"), bool(message.get("fresh")))
+            return {"type": "acted", "saved": saved}
+        elif kind == "signal":
+            await asyncio.to_thread(robot.signal, str(message.get("side")))
+        else:
+            await asyncio.to_thread(getattr(robot, kind))
+        return {"type": "acted"}
 
     async def handle(socket: Any) -> None:
-        print("    the task runner connected")
         async for raw in socket:
             try:
                 message = json.loads(raw)
             except ValueError:
                 continue
             if message.get("type") == "act" and message.get("kind") in ACTIONS:
-                kind = message["kind"]
                 async with seat:
-                    if kind == "look_at" and message.get("target") == "screen":
-                        found = await asyncio.to_thread(find_screen, robot, vlm, frames)
-                        await socket.send(json.dumps({"type": "acted", "found": found}))
-                        continue
-                    if kind == "signal":
-                        await asyncio.to_thread(robot.signal, str(message.get("side")))
-                    if kind == "speak":
-                        robot.voice = message.get("voice") or ""
-                        await asyncio.to_thread(robot.speak, str(message.get("text", "")), message.get("renderer"))
-                    elif kind == "gesture":
-                        await asyncio.to_thread(robot.gesture, str(message.get("move")), message.get("dataset"))
-                    elif kind == "goto":
-                        await asyncio.to_thread(robot.goto, message.get("spec") or {})
-                    elif kind == "play_sound":
-                        await asyncio.to_thread(robot.play_sound, str(message.get("file")))
-                    elif kind == "look_at":
-                        await asyncio.to_thread(robot.look_at, str(message.get("target")))
-                    elif kind == "signal":
-                        pass  # done above
-                    else:
-                        await asyncio.to_thread(getattr(robot, kind))
-                await socket.send(json.dumps({"type": "acted"}))
+                    await socket.send(json.dumps(await act(message)))
             elif message.get("type") == "end":
                 print("● the study is over — leaving the seat")
                 if over is not None and not over.done():
                     over.set_result(None)
-            elif message.get("type") == "await":
-                # A `reachy:Participate` step in the walk: its instructions, and a promise to say when the task is over.
-                instructions["prompt"] = str(message.get("prompt") or "")
-                if completions:
-                    await socket.send(json.dumps(completions.pop(0)))
-                else:
-                    awaiting.append(socket)
-            elif message.get("type") == "completed":
-                # What the robot feels about it is the diagram's to say (a gesture after the task), not this bridge's.
-                print(f"● task complete — {message.get('TaskId') or 'done'} after {len(log)} answered trials")
-                reply = {"type": "completed", "TaskId": message.get("TaskId"), "trials": len(log), "reasoning": list(log)}
-                history.clear()
-                log.clear()
-                if not awaiting:
-                    completions.append(reply)
-                for waiter in awaiting:
-                    try:
-                        await waiter.send(json.dumps(reply))
-                    except Exception as error:
-                        print(f"    (could not tell the walk the task is over: {error})")
-                awaiting.clear()
-            elif message.get("type") == "trial":
-                asyncio.ensure_future(answer(socket, message))
 
     async def serve() -> None:
         nonlocal over
         over = asyncio.get_running_loop().create_future()
         async with websockets.serve(handle, "localhost", port):
-            print(f"Reachy participant ({robot.label}) — bridge on ws://localhost:{port}, Ctrl-C to leave the seat")
-            print("Run the study in the browser; the task's bot needs `ResponseSource: external` there (a local run draws the exchange as a message flow instead).")
+            print(f"Reachy seat ({robot.label}) — on ws://localhost:{port}, Ctrl-C to leave")
             if watch_pid:
-                # From the start, and a hard stop: an interrupted walk must not leave this bridge searching for
-                # the screen, driving the robot, and holding the port for the next run.
+                # From the start, and a hard stop: an interrupted walk must not leave this seat driving the robot
+                # and holding the port for the next run.
                 async def follow_the_walk() -> None:
                     while True:
                         await asyncio.sleep(3)
@@ -1386,9 +1126,6 @@ def participant_loop(
                             os.kill(os.getpid(), signal.SIGTERM)  # handle_stop folds the robot and exits
 
                 asyncio.ensure_future(follow_the_walk())
-            async with seat:  # the walk's first request waits for the robot to be settled
-                if not await asyncio.to_thread(find_screen, robot, vlm, frames):
-                    robot.look_at("face")  # no camera, or nothing found: assume the screen is straight ahead
             await over
 
     asyncio.run(serve())
@@ -1419,17 +1156,9 @@ def main() -> int:
     parser.add_argument("plan", type=Path, nargs="?", help="the plan digest studyflow-run-local hands over (plan.json); --participant needs none")
     parser.add_argument("--sim", action="store_true", help="drive a simulated robot through the reachy_mini SDK")
     parser.add_argument("--auto", action="store_true", help="answer every prompt with a canned value")
-    parser.add_argument(
-        "--participant", action="store_true",
-        help="sit in the participant's seat: answer the browser task's trials from what the robot sees",
-    )
-    parser.add_argument("--port", type=int, default=None, help="participant bridge port (default: the robot's `bridge` in the diagram, else 8765)")
-    parser.add_argument("--frames", type=Path, default=None, metavar="DIR", help="participant mode: keep what the robot saw, one JPEG per trial")
-    parser.add_argument("--watch-pid", type=int, default=None, metavar="PID", help="participant mode: leave the seat when this process (the walk) is gone")
-    parser.add_argument(
-        "--vlm", default="ollama://gemma4:12b-it-qat", metavar="SCHEME://MODEL",
-        help="participant mode: the vision model that finds the screen and answers trials whose bot names none (claude://… or ollama://…)",
-    )
+    parser.add_argument("--participant", action="store_true", help="be the seat: hold the robot and its camera, and act for the walk's hand-offs")
+    parser.add_argument("--port", type=int, default=SEAT_PORT, help=f"the seat's port (default {SEAT_PORT})")
+    parser.add_argument("--watch-pid", type=int, default=None, metavar="PID", help="seat: leave when this process (the walk) is gone")
     parser.add_argument(
         "--element", metavar="ID", default=None,
         help="hand-off mode: execute this one element, then exit (driven by studyflow-run-local)",
@@ -1453,9 +1182,6 @@ def main() -> int:
         return 0
 
     config = studyflow.robot_config()
-    # The seat, the walk's steps, and the task's runner agree on the port through the diagram's `bridge`.
-    args.port = args.port or bridge_port(config["bridge"])
-
     robot: Any = TerminalRobot()
 
     def handle_stop(signum: int, frame: Any) -> None:
@@ -1473,12 +1199,10 @@ def main() -> int:
     signal.signal(signal.SIGTERM, handle_stop)
     signal.signal(signal.SIGINT, handle_stop)
 
-    global BRIDGE_PORT
-    BRIDGE_PORT = args.port
     if args.element and not args.sim and (
-        seated_participant(args.port) or (studyflow.wants_participant() and seat_participant(args, config, studyflow.recording_uri()))
+        seated_participant(args.port) or (studyflow.needs_camera() and seat_robot(args, config))
     ):
-        robot = SeatedRobot(args.port, voice=str(config["voice"]))
+        robot = SeatedRobot(args.port, voice=str(config["voice"]), host=str(config["host"]))
     sim = args.sim or config["variant"] == "simulation"
     # The sim daemon is local; only an explicitly set host points elsewhere.
     host = str(config["host"])
@@ -1486,17 +1210,17 @@ def main() -> int:
         host = "localhost"
     local_host = host in ("localhost", "127.0.0.1")
     # The sim has no camera; a Lite's camera hangs off this machine, a wireless unit streams its own. In the
-    # walk a real unit only moves and speaks: the seated participant (the bridge) owns the camera.
+    # walk a real unit only moves and speaks: the seat owns the camera.
     media = "no_media" if sim or not args.participant else ("default" if local_host else "webrtc")
     if not isinstance(robot, SeatedRobot):
-        robot = SimRobot(host=host, media_backend=media, sim=sim, voice=str(config["voice"]), vision=str(config["vision"] or DEFAULTS["robot"]["vision"]),
+        robot = SimRobot(host=host, media_backend=media, sim=sim, voice=str(config["voice"]),
                          volume=int(config["volume"]) if str(config["volume"]).isdigit() else None)
         try:
             robot.connect()
         except Exception as error:
             robot.close()
             if args.participant:
-                # A seat with no robot in it would answer the task from nothing; the walk must know.
+                # A seat with no robot in it would act for nothing; the walk must know.
                 print(f"robot unavailable ({error}) — not taking the seat")
                 return 1
             robot = TerminalRobot()
@@ -1504,12 +1228,13 @@ def main() -> int:
 
     if args.participant:
         try:
-            return participant_loop(robot, args.port, args.frames, parse_vlm(args.vlm), args.watch_pid)
+            return participant_loop(robot, args.port, args.watch_pid)
         finally:
             robot.close()
 
     # In hand-off mode stdin is never a channel: without a terminal the runner answers itself.
-    run = Run(studyflow, auto=args.auto or bool(args.element and not sys.stdin.isatty()), robot=robot)
+    run = Run(studyflow, auto=args.auto or bool(args.element and not sys.stdin.isatty()), robot=robot,
+              cache=args.cache or Path("."))
 
     if args.element:
         # The person is on stderr and the tty; stdout is captured into the run log.
