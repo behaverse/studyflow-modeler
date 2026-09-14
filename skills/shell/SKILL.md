@@ -9,7 +9,7 @@ metadata:
 ---
 
 A runner-only skill for the core vocabulary: any plain element with `implementation: shell://<command>` is
-claimed and run as that command, in the run directory (a vocabulary step naming one, such as a `reachy:Say`
+claimed and run as that command, in the run directory (a vocabulary step naming one, such as a `reachy:Interact`
 rendering its line, is its own skill's to run). Its `additionalArguments` mapping is the argument list: `args`
 are positional, every other key is a flag (`v: Alex` → `-v Alex`, `rate: 180` → `--rate 180`). An argument may
 cite a value with a [placeholder](../../docs/reference.qmd#placeholders), `{Answer.trials}` for an earlier element's result. The command's

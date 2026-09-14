@@ -267,7 +267,7 @@ state:
     expect(warnings).toEqual(["the id 'Twin' names two elements; a reference to it reaches only the last"]);
   });
 
-  test('`studyflow validate` flags the attributes the modeler flags on open, and the own `icon` is declared', async () => {
+  test('`studyflow validate` flags the attributes the modeler flags on open, and the own `icon` and `font` are declared', async () => {
     const moddle = freshModdle();
     const text = `id: s
 definitions: {}
@@ -283,6 +283,8 @@ Study:
       type: SubProcess
       studyflow:icon: iconify ph--link
       studyflow:colour: red
+      bounds: 0 0 100 80
+      font: bold
 `;
     // The CLI reads the YAML alone; the modeler then reads the XML written from it with moddle's reader.
     const read: string[] = [];

@@ -36,7 +36,7 @@ enumerations:
 
   # A curated pick from the SDK's emotions library
   # (`pollen-robotics/reachy-mini-emotions-library`, 81 moves in all) plus the
-  # daemon's two built-in moves. `Gesture#move` is editable, so any other move
+  # daemon's two built-in moves. `Interact#move` is editable, so any other move
   # name in the dataset works too.
   - name: MoveEnum
     description: Recorded expressive move played on the head, body, and antennas.
@@ -197,14 +197,16 @@ types:
           order: 4
           unit: "%"
 
-  # The daemon has no TTS endpoint: the runner synthesizes the audio and plays
-  # it through the speaker (SDK media stream, or upload + `POST /api/media/play_sound`).
-  - name: Say
-    description: The robot speaks a text aloud.
+  # One step for what the robot shows: a recorded move (`POST /api/move/play/recorded-move-dataset/{dataset}/{move}`,
+  # `wake_up` and `goto_sleep` on their own endpoints), the antennas out and back (`POST /api/move/goto`), a sound
+  # from its library (`POST /api/media/play_sound`), and a line. The daemon has no TTS endpoint: the runner
+  # synthesizes the line and plays it through the speaker.
+  - name: Interact
+    description: The robot plays a move, raises an antenna, plays a sound, and says a line, each when set, in that order.
     superClass:
       - bpmn:ServiceTask
     meta:
-      icon: iconify ph--user-sound
+      icon: iconify hugeicons--bot-message-square
     properties:
       - name: text
         description: What the robot says; `{name}` placeholders are filled in at run time.
@@ -212,23 +214,12 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 1
-
-  # `POST /api/move/play/recorded-move-dataset/{dataset}/{move}`;
-  # `wake_up` and `goto_sleep` use their own endpoints (see MoveEnum).
-  - name: Gesture
-    description: The robot plays a recorded expressive move on head, body, and antennas.
-    superClass:
-      - bpmn:ServiceTask
-    meta:
-      icon: iconify ph--hand-waving
-    properties:
       - name: move
         description: Recorded move to play; any move name in the dataset is also accepted.
         isAttr: true
         type: MoveEnum
-        default: cheerful1
         meta:
-          order: 1
+          order: 2
           editable: true
       # `GET /api/move/recorded-move-datasets/list/{dataset}` lists its moves.
       - name: dataset
@@ -237,7 +228,24 @@ types:
         type: String
         default: pollen-robotics/reachy-mini-emotions-library
         meta:
-          order: 2
+          order: 3
+          condition:
+            move: $set
+      - name: side
+        description: Which antenna goes up, to show a choice; `{name}` placeholders are filled in at run time (`{Choice}`), and a value naming neither side raises both.
+        isAttr: true
+        type: SideEnum
+        meta:
+          order: 4
+          editable: true
+      # `GET /api/media/sounds` lists the files and `POST /api/media/sounds/upload` adds one.
+      - name: sound
+        description: Sound file name in the robot's library (`chime.wav`).
+        isAttr: true
+        type: String
+        meta:
+          order: 5
+          optional: true
 
   # The daemon's motion primitive: `POST /api/move/goto`. The attributes map
   # 1:1 onto its body; 0 everywhere is the neutral pose.
@@ -342,22 +350,6 @@ types:
         meta:
           order: 11
 
-  # `POST /api/media/play_sound`; `GET /api/media/sounds` lists the files and
-  # `POST /api/media/sounds/upload` adds one.
-  - name: PlaySound
-    description: The robot plays a sound from its sound library.
-    superClass:
-      - bpmn:ServiceTask
-    meta:
-      icon: iconify ph--music-note
-    properties:
-      - name: file
-        description: Sound file name in the robot's library (`chime.wav`).
-        isAttr: true
-        type: String
-        meta:
-          order: 1
-
   # Faces via the daemon's tracker (`POST /api/media/tracking/enable`), sounds
   # via the mic array's direction of arrival (`GET /api/state/doa`). A screen by
   # asking a model about each view: the step's message flow to the model's pool
@@ -413,23 +405,6 @@ types:
       - bpmn:ServiceTask
     meta:
       icon: iconify ph--camera
-
-  # `POST /api/move/goto` on the antennas alone, out and back.
-  - name: Signal
-    description: The robot raises the antenna on one side, to show a choice.
-    superClass:
-      - bpmn:ServiceTask
-    meta:
-      icon: iconify ph--hand-pointing
-    properties:
-      - name: side
-        description: Which antenna goes up; `{name}` placeholders are filled in at run time (`{Choice}`), and a value naming neither side raises both.
-        isAttr: true
-        type: SideEnum
-        default: both
-        meta:
-          order: 1
-          editable: true
 
   - name: Teleoperation
     description: An operator drives the robot by hand, the Wizard-of-Oz condition.
@@ -553,7 +528,7 @@ templates:
             type: ServiceTask
             name: Say the reply
             extensionElements:
-              - type: reachy:Say
+              - type: reachy:Interact
                 text: "{Reply}"
             bounds: 500 140 100 80
           conversation_end:
@@ -630,7 +605,7 @@ templates:
             type: ServiceTask
             name: Show it with the antennas
             extensionElements:
-              - type: reachy:Signal
+              - type: reachy:Interact
                 side: "{Choice}"
             bounds: 810 140 100 80
           trial_over:

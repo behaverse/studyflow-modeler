@@ -34,7 +34,7 @@ def command_of(element: dict[str, Any]) -> str | None:
 
 
 def claimed(elements: dict[str, dict[str, Any]]) -> list[str]:
-    """Plain steps only: a vocabulary step naming a shell:// command (a `reachy:Say`) is its own runner's."""
+    """Plain steps only: a vocabulary step naming a shell:// command (a `reachy:Interact`) is its own runner's."""
     return [eid for eid, element in elements.items() if command_of(element) is not None and not element.get("extensions")]
 
 

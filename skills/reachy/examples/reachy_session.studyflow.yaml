@@ -41,14 +41,14 @@ Reachy_Session:
     Ask_To_Sit:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Say
+        - type: reachy:Interact
           text: Please take a seat in front of me and say my wake word again.
       name: Ask them to sit down
       bounds: 475 30 100 80
     Greet:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Say
+        - type: reachy:Interact
           text: >-
             Hello! I'm Reachy. You'll now see a short memory task on the screen; press the key whenever the current
             letter matches the one before it.
@@ -73,7 +73,8 @@ Reachy_Session:
     Celebrate:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Gesture
+        - type: reachy:Interact
+          move: cheerful1
       name: Celebrate completion
       bounds: 925 170 100 80
     Feedback:

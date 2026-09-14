@@ -55,19 +55,16 @@ REACHY = "https://w3id.org/studyflow/reachy"
 # The schema's defaults; moddle omits an attribute whose value equals its default.
 DEFAULTS: dict[str, dict[str, Any]] = {
     "robot": {"variant": "wireless", "host": "reachy-mini.local", "voice": "", "language": "", "volume": "80"},
-    "say": {"text": ""},
-    "gesture": {"move": "cheerful1", "dataset": "pollen-robotics/reachy-mini-emotions-library"},
+    "interact": {"text": "", "move": "", "dataset": "pollen-robotics/reachy-mini-emotions-library", "side": "", "sound": ""},
     "goto": {"roll": "0", "pitch": "0", "yaw": "0", "x": "0", "y": "0", "z": "0",
              "leftAntenna": "0", "rightAntenna": "0", "bodyYaw": "0",
              "motionDuration": "2", "interpolation": "minjerk"},
-    "playSound": {"file": ""},
     "lookAt": {"target": "face", "trackingWeight": "1"},
     "listen": {"timeout": "10"},
     "teleoperation": {"instructions": ""},
     "senseEvent": {"trigger": "wake_word", "wakeWord": "Hey Reachy"},
     "perceptionGateway": {"channel": "face_count"},
     "snapshot": {},
-    "signal": {"side": "both"},
 }
 
 AUTO_SAMPLES = {"face_count": "1", "sound_angle": "1.57", "speech_detected": "1"}
@@ -630,7 +627,7 @@ class Messages:
 # --- handlers: one per reachy element, keyed by the extension's local name ---
 
 def renderer_of(element: dict[str, Any]) -> tuple[list[str] | None, str]:
-    """A Say step's `implementation: shell://<command>` with its `additionalArguments`, as the command and its
+    """An Interact step's `implementation: shell://<command>` with its `additionalArguments`, as the command and its
     flags (`v: Alex` → `-v Alex`) and the line its `args` give; (None, '') for a step naming none."""
     import yaml
 
@@ -638,7 +635,7 @@ def renderer_of(element: dict[str, Any]) -> tuple[list[str] | None, str]:
     if not implementation:
         return None, ""
     if not implementation.startswith("shell://"):
-        raise ValueError(f"{element.get('id')}: a Say step renders its line with a shell:// command, not {implementation}")
+        raise ValueError(f"{element.get('id')}: an Interact step renders its line with a shell:// command, not {implementation}")
     arguments = yaml.safe_load(element.get("additionalArguments") or "") or {}
     renderer = [implementation[len("shell://"):].split("@")[0]]
     for key, value in arguments.items():
@@ -647,15 +644,22 @@ def renderer_of(element: dict[str, Any]) -> tuple[list[str] | None, str]:
     return renderer, " ".join(str(arg) for arg in arguments.get("args") or [])
 
 
-def run_say(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
+def run_interact(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
+    """Each part the step sets, in the schema's order: the move, the antenna, the sound, then the line."""
+    if spec["move"]:
+        print(f"    Reachy plays the '{spec['move']}' move")
+        run.robot.gesture(str(spec["move"]), str(spec["dataset"]))
+    if spec["side"]:
+        side = run.fill(str(spec["side"])).strip().strip("`\"'.").lower()
+        side = side if side in ("left", "right") else "both"
+        print(f"    Reachy raises {'both antennas' if side == 'both' else f'the {side} antenna'}")
+        run.robot.signal(side)
+    if spec["sound"]:
+        print(f"    Reachy plays the sound '{spec['sound']}'")
+        run.robot.play_sound(str(spec["sound"]))
     renderer, line = renderer_of(element)
-    run.say_line(run.fill(line or str(spec["text"])) or "(nothing to say)", renderer)
-    return None
-
-
-def run_gesture(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
-    print(f"    Reachy plays the '{spec['move']}' move")
-    run.robot.gesture(str(spec["move"]), str(spec["dataset"]))
+    if line or spec["text"]:
+        run.say_line(run.fill(line or str(spec["text"])), renderer)
     return None
 
 
@@ -663,12 +667,6 @@ def run_goto(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     print(f"    Reachy moves to pose (roll {spec['roll']}, pitch {spec['pitch']}, yaw {spec['yaw']}, "
           f"body {spec['bodyYaw']}) over {spec['motionDuration']}s ({spec['interpolation']})")
     run.robot.goto(spec)
-    return None
-
-
-def run_play_sound(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
-    print(f"    Reachy plays the sound '{spec['file']}'")
-    run.robot.play_sound(str(spec["file"]))
     return None
 
 
@@ -704,14 +702,6 @@ def run_snapshot(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any
     return picture
 
 
-def run_signal(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
-    side = run.fill(str(spec["side"])).strip().strip("`\"'.").lower()
-    side = side if side in ("left", "right") else "both"
-    print(f"    Reachy raises {'both antennas' if side == 'both' else f'the {side} antenna'}")
-    run.robot.signal(side)
-    return None
-
-
 def run_listen(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
     run.robot.listening()
     canned = run.auto_lines.pop(0) if run.auto and run.auto_lines else "Thanks, that was fun!"
@@ -744,13 +734,10 @@ def sample_perception(run: Run, element: dict[str, Any], spec: dict[str, Any]) -
 
 # Every reachy element this runner claims, keyed by the extension's local name.
 HANDLERS: dict[str, Callable[[Run, dict[str, Any], dict[str, Any]], Any]] = {
-    "say": run_say,
-    "gesture": run_gesture,
+    "interact": run_interact,
     "goto": run_goto,
-    "playSound": run_play_sound,
     "lookAt": run_look_at,
     "snapshot": run_snapshot,
-    "signal": run_signal,
     "listen": run_listen,
     "teleoperation": run_teleoperation,
     "senseEvent": wait_sense,

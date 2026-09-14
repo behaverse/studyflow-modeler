@@ -135,7 +135,7 @@ Reachy_Participant:
     Greet:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Say
+        - type: reachy:Interact
       name: Greet
       additionalArguments:
         args:
@@ -145,14 +145,14 @@ Reachy_Participant:
     Wave:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Gesture
+        - type: reachy:Interact
           move: welcoming1
       name: Welcome
       bounds: 650 430 120 80
     Announce:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Say
+        - type: reachy:Interact
       name: Announce readiness
       additionalArguments:
         args:
@@ -251,7 +251,7 @@ Reachy_Participant:
     Show:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Signal
+        - type: reachy:Interact
           side: "{Choice}"
       name: Show it with the antennas
       bounds: 1786 430 110 80
@@ -294,14 +294,14 @@ Reachy_Participant:
     Proud:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Gesture
+        - type: reachy:Interact
           move: proud1
       name: Proud of it
       bounds: 2110 430 120 80
     Thanks:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Say
+        - type: reachy:Interact
       name: Ask for feedback
       additionalArguments:
         args:
@@ -311,7 +311,8 @@ Reachy_Participant:
     Celebrate:
       type: ServiceTask
       extensionElements:
-        - type: reachy:Gesture
+        - type: reachy:Interact
+          move: cheerful1
       name: Celebrate
       bounds: 2450 430 120 80
     LookBack:

@@ -229,6 +229,23 @@ types:
         type: String
         meta:
           pinned: true
+  - name: Font
+    description: Lets a shape's or a flow's caption carry a look of its own.
+    # On their DI supertypes, not `bpmndi:BPMNShape` itself: moddle aliases a tag by the package of the type's last
+    # trait, and this lower-casing package would write `<bpmndi:bPMNShape>`. A supertype's traits come first.
+    extends:
+      - di:LabeledShape
+      - di:LabeledEdge
+    isAbstract: true
+    properties:
+      - name: font
+        # `bold italic right #ac5a54`: space-separated tokens, spelled by `packages/canvas/src/model/font.ts`. The
+        # canvas's text tools set it, so it is never an inspector field.
+        description: The caption's weight, slant, alignment, and colour.
+        isAttr: true
+        type: String
+        meta:
+          pinned: true
 
   - name: Study
     description: The study a diagram describes, and how it is run.

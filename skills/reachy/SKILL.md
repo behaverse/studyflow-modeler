@@ -23,6 +23,6 @@ host), so the next look, and the next run, start there; without one it turns to 
 `Snapshot` saves a picture in the folder its data output's `uri` names (`reachy/frames/` when none), and its path is
 the step's result. When a step needs the camera, the walk seats the robot at the first robot step: one process holds
 it and its camera (`local.py --participant`, logging to `participant.log` in the run), every later hand-off acts
-through it, and the robot pool's end event dismisses it. A `Say` step renders its line on this machine and plays it on
+through it, and the robot pool's end event dismisses it. An `Interact` step renders its line on this machine and plays it on
 the unit; it may name the renderer, `implementation: shell://say` with the sentence in `additionalArguments` `args`
 and flags as keys (`v: Alex`), a step the shell skill leaves to this runner. `test_local.py` is its self-check.

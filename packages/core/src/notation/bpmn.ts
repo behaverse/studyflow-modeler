@@ -1,4 +1,4 @@
-/** Static slice of the BPMN 2.0 metamodel: each chain is most-derived first and excludes the type itself. */
+/** Static slice of the BPMN 2.0 metamodel, diagram interchange included: each chain is most-derived first and excludes the type itself. */
 export const BPMN_ANCESTORS: Record<string, string[]> = {
   'bpmn:Task': ['bpmn:Activity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
   'bpmn:UserTask': ['bpmn:Task', 'bpmn:Activity', 'bpmn:FlowNode', 'bpmn:FlowElement', 'bpmn:BaseElement'],
@@ -68,6 +68,11 @@ export const BPMN_ANCESTORS: Record<string, string[]> = {
   'bpmn:CallableElement': ['bpmn:RootElement', 'bpmn:BaseElement'],
   'bpmn:RootElement': ['bpmn:BaseElement'],
   'bpmn:BaseElement': [],
+
+  // Diagram interchange, where a trait puts what the drawing carries (a caption's `font`): the labeled shape and
+  // edge, supertypes of `bpmndi:BPMNShape` and `bpmndi:BPMNEdge`.
+  'di:LabeledShape': [],
+  'di:LabeledEdge': [],
 };
 
 export function bpmnSelfAndAncestors(type: string): string[] {

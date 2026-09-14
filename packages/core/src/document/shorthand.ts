@@ -122,12 +122,7 @@ export function inlineElementList(
 /** These point at other DI elements, whose ids are regenerated on load. */
 const NON_INLINABLE_DI_KEYS = new Set(['sourceElement', 'targetElement', 'choreographyActivityShape']);
 
-/**
- * The caption's look, studyflow's own DI attribute: a foreign attribute on the shape
- * or edge (`@canvas/model/font.ts` spells its value), read and written as `font`.
- * Not a moddle extension of `bpmndi:BPMNShape`: a trait from the (lower-cased)
- * studyflow package would rename every shape's tag.
- */
+/** The caption's look, studyflow's `Font` trait on the shape or edge (`@canvas/model/font.ts` spells its value), read and written as `font`. */
 const FONT_ATTRIBUTE = 'studyflow:font';
 const FONT_KEY = 'font';
 
@@ -144,7 +139,7 @@ function foldablePayload(
   serializeElement: (el: any, declaredType: string) => Record<string, unknown>,
 ): Record<string, unknown> | undefined {
   if (pe.$type !== 'bpmndi:BPMNShape' && pe.$type !== 'bpmndi:BPMNEdge') return undefined;
-  if (Object.keys(pe.$attrs ?? {}).some((key) => key !== FONT_ATTRIBUTE)) return undefined;
+  if (Object.keys(pe.$attrs ?? {}).length > 0) return undefined;
   const node = serializeElement(pe, pe.$type);
   delete node.id; // regenerated as `<elementId>_di` on load
   delete node.bpmnElement;
@@ -184,7 +179,7 @@ export function extractInlineDi(
   const diByName = diPropertiesByName(diType);
   const diProps: Record<string, unknown> = {};
   for (const key of Object.keys(props)) {
-    if (key === 'id' || ownByName[key] || !(diByName[key] || key === FONT_KEY)) continue;
+    if (key === 'id' || ownByName[key] || !diByName[key]) continue;
     diProps[key] = props[key];
     delete props[key];
   }

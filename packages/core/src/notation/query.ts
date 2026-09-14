@@ -1,6 +1,6 @@
 import { toLocalName } from '@core/naming';
 import { MODDLE_BUILTIN_TYPES } from '@core/notation/moddlePackage';
-import { bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@core/notation/bpmn';
+import { BPMN_ANCESTORS, bpmnSelfAndAncestors, isBpmnSubtypeOf } from '@core/notation/bpmn';
 import type {
   AttributeSpec,
   CategoryEntry,
@@ -15,7 +15,7 @@ import type {
 export const NON_BPMN_SUPER_CLASSES: ReadonlySet<string> = new Set([...MODDLE_BUILTIN_TYPES, 'BaseElement']);
 
 export function isSchemaSuperRef(ref: unknown): ref is string {
-  if (typeof ref !== 'string' || ref.startsWith('bpmn:')) return false;
+  if (typeof ref !== 'string' || ref.startsWith('bpmn:') || ref in BPMN_ANCESTORS) return false;
   return !NON_BPMN_SUPER_CLASSES.has(toLocalName(ref) ?? ref);
 }
 

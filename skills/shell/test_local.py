@@ -20,6 +20,6 @@ nested = {"state": {"Study": {"count": 7}, "Round": {"count": 2}, "_meta": {"rea
 inner = {"elements": {"Step": {"parent": "Round"}, "Round": {"parent": "Study"}}}
 assert shell.resolve("count", "Step", nested, inner) == 2
 assert shell.resolve("reached", "Step", nested, inner) == 3
-# A vocabulary step with a shell:// implementation (a reachy:Say rendering its line) is its own runner's.
+# A vocabulary step with a shell:// implementation (a reachy:Interact rendering its line) is its own runner's.
 assert shell.claimed({"plain": say, "robot": {**say, "extensions": [{"namespace": "x", "type": "say"}]}, "py": {"attributes": {"implementation": "python://f"}}}) == ["plain"]
 print("ok")

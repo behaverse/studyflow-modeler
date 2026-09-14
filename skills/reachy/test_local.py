@@ -84,4 +84,22 @@ narrowing = reachy.Plan({"elements": {
 run = reachy.Run(narrowing, auto=True)
 run.store(narrowing.elements["Answer"], {"trials": 5, "log": []})
 assert run.values["Seen"] == 5 and run.tree["Study"]["n"] == {"trials": 5, "log": []}
+
+# An Interact step does each part it sets, in the schema's order, and only those.
+class Body(reachy.TerminalRobot):
+    def __init__(self):
+        self.did = []
+
+    def gesture(self, move, dataset=None): self.did.append(("move", move))
+    def signal(self, side): self.did.append(("side", side))
+    def play_sound(self, file): self.did.append(("sound", file))
+    def speak(self, text, renderer=None): self.did.append(("say", text))
+
+
+body = Body()
+run = reachy.Run(reachy.Plan({"elements": {}}), auto=True, robot=body)
+run.values["Choice"] = "Left."
+interact = {"namespace": reachy.REACHY, "type": "interact", "attributes": {"move": "proud1", "side": "{Choice}", "text": "Hi"}}
+reachy.perform(run, {"id": "Show"}, interact)
+assert body.did == [("move", "proud1"), ("side", "left"), ("say", "Hi")], body.did
 print("ok")

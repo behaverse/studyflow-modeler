@@ -222,7 +222,7 @@ class Compiler {
     const targets: string[] = [];
     for (const ref of type.extends) {
       if (typeof ref !== 'string') continue;
-      if (ref.startsWith('bpmn:')) {
+      if (ref.startsWith('bpmn:') || ref in BPMN_ANCESTORS) {
         targets.push(ref);
         continue;
       }
