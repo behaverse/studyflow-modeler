@@ -1,7 +1,7 @@
 import { isReservedStateKey } from '@core/document';
 import { definitionsOf, setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
 import { associationPropertyFor, ensureChoreographyParticipants, typeForDirection } from '@canvas/index.ts';
-import { nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
+import { isPool, nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { isTypedChoreography } from '@core/document';
 import { getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
@@ -64,7 +64,7 @@ export function runUpdateChoreographyParticipants(
   }
   const participant = command.field === 'top' ? top : bottom;
   // A typed task's actor that is a drawn pool keeps its name: typing another names a new actor for this task.
-  if (isTypedChoreography(bo) && participant?.processRef) {
+  if (isTypedChoreography(bo) && isPool(participant, canvas)) {
     nameNewActor(command.element, canvas, model.ids, command.value);
     return;
   }

@@ -18,7 +18,7 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
 import { actorOf, isTypedChoreography, readChoreographyBands } from '@core/document';
-import { listParticipants, participantKind, participantKinds, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
+import { isPool, listParticipants, participantKind, participantKinds, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { StudyflowElement, getAttributeSpec, isExtensionPrefix } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
@@ -128,13 +128,13 @@ function ParticipantField({ element, field, participant, label, help, declared, 
             </ComboboxOptions>
           </Combobox>
         </div>
-        {participant?.processRef && (
+        {isPool(participant, modeler.canvas) && (
           <div className="mt-1 text-xs text-stone-500" data-testid={`choreography-${field}-kind`}>
             {t('participantKind')}: {kindLabel(kind)}
           </div>
         )}
       </Field>
-      {participant && !participant.processRef
+      {participant && !isPool(participant, modeler.canvas)
         && <ActorFields key={participant.id} element={element} field={field} participant={participant} kind={kind} />}
     </>
   );

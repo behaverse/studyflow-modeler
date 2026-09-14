@@ -9,8 +9,17 @@ import { getCatalog } from '@core/notation';
 /** What mints participant ids: the editor's `model.ids`. */
 type Ids = { nextPrefixed(prefix: string): string };
 
+/** What records the edits, and finds what the canvas draws: the editor's canvas. */
+type Updater = AttributeUpdater & { get(id: string): unknown };
+
+/** A pool on the canvas, as against an actor that only takes bands: one with a process, or one the canvas draws
+ * (a model's pool has no process of its own). */
+export function isPool(participant: any, canvas: { get(id: string): unknown }): boolean {
+  return Boolean(participant?.processRef) || Boolean(participant?.id && canvas.get(participant.id));
+}
+
 /** A new actor for a typed task, named as typed, put on its band in place of a drawn pool that must keep its name. */
-export function nameNewActor(element: any, updater: AttributeUpdater, ids: Ids, name: string): void {
+export function nameNewActor(element: any, updater: Updater, ids: Ids, name: string): void {
   const actor = mintParticipant(toBusinessObject(element) as any, name, ids);
   if (actor) selectBandParticipant(element, updater, ids, 'bottom', actor);
 }
@@ -23,8 +32,8 @@ function referencedElsewhere(definitions: any, participant: any, except: any): b
 }
 
 /** Drop a participant that only ever took bands and takes none any more; a pool on the canvas stays. */
-function dropIfOrphan(element: any, updater: AttributeUpdater, participant: any): void {
-  if (!participant || participant.processRef) return;
+function dropIfOrphan(element: any, updater: Updater, participant: any): void {
+  if (!participant || isPool(participant, updater)) return;
   const definitions = definitionsOf(participant);
   if (referencedElsewhere(definitions, participant, element.businessObject)) return;
   const holder = participant.$parent;
@@ -125,7 +134,7 @@ export function setParticipantKind(element: any, updater: AttributeUpdater, mode
  * Put an existing participant (a pool, or an actor) on a band, or clear the band with `null`: a typed task then
  * falls back to the pool it sits in, a plain task gets a fresh placeholder. The initiator follows a replaced band.
  */
-export function selectBandParticipant(element: any, updater: AttributeUpdater, ids: Ids, band: 'top' | 'bottom', participant: any | null): void {
+export function selectBandParticipant(element: any, updater: Updater, ids: Ids, band: 'top' | 'bottom', participant: any | null): void {
   const bo: any = toBusinessObject(element);
   if (isTypedChoreography(bo)) {
     const replaced = actorOf(bo);
