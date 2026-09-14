@@ -1409,6 +1409,8 @@ class Runner:
                 answered = runner.element(pool, {**self.json_values(), "message": message})
                 entry["_runnerMs"] = answered.get("durationMs")
                 reply = answered.get("result")
+                if isinstance(reply, str):
+                    entry["reply"] = reply[:2000]  # what the pool said, kept with the run's records
                 self.event("message.answered", f"    ✉ {name} answered {message['id']}")
             except Exception as error:  # noqa: BLE001 - recorded, and the sender hears null
                 reply = None
