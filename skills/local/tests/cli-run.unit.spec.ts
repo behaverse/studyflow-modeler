@@ -254,7 +254,8 @@ test.describe('partial runner hand-off', () => {
   test('carries the messages between pools: a runner mid-run, a pool a runner plays, a loop a message ends', async () => {
     // The screen waits for the robot's "ready", then its task (a runner) sends three trials mid-run. The robot's loop
     // takes each, asks the model (a pool with no process, which a runner plays), and sends the answer back; the
-    // task's end sends "over", which ends the loop at its boundary event.
+    // task's end sends "over", which ends the loop at its boundary event. Look asks the same model first: each
+    // answer goes back along the flow to the step that asked.
     const xml = await studyflowToXml(`id: talk
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -265,6 +266,8 @@ C:
     Robot: { name: Robot, processRef: R }
     Model: { name: Model }
   messageFlows:
+    M_Look: { sourceRef: Look, targetRef: Model }
+    M_Seen: { sourceRef: Model, targetRef: Look }
     M_Ready: { sourceRef: Ready, targetRef: Seated }
     M_Trial: { sourceRef: Play, targetRef: Receive }
     M_Answer: { sourceRef: Answer, targetRef: Play }
@@ -285,6 +288,7 @@ R:
   type: Process
   flowElements:
     R0: { type: StartEvent }
+    Look: { type: ServiceTask }
     Ready: { type: IntermediateThrowEvent }
     Each:
       type: SubProcess
@@ -310,7 +314,8 @@ R:
         EF4: Answer -> E9
     Stop: { type: BoundaryEvent, attachedToRef: Each }
     R9: { type: EndEvent }
-    RF1: R0 -> Ready
+    RF0: R0 -> Look
+    RF1: Look -> Ready
     RF2: Ready -> Each
     RF3: Stop -> R9
 `, moddle);
@@ -344,7 +349,8 @@ R:
       "if mode == '--claims': print(json.dumps(['Model'])); sys.exit()",
       "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
       'state = json.load(open(handoff))',
-      "json.dump({**state, 'result': f\"answer {state['message']['content']['Seen']['n']}\", 'durationMs': 0}, open(handoff, 'w'))",
+      "content = state['message']['content'] or {'Seen': {'n': 0}}",
+      "json.dump({**state, 'result': f\"answer {content['Seen']['n']}\", 'durationMs': 0}, open(handoff, 'w'))",
     ].join('\n'));
     execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
       '--runner', `task=python3 ${path.join(dir, 'task.py')}`, '--runner', `model=python3 ${path.join(dir, 'model.py')}`],
@@ -354,7 +360,7 @@ R:
     expect(JSON.parse(fs.readFileSync(heard, 'utf8'))).toEqual([{ Choice: 'ANSWER 1' }, { Choice: 'ANSWER 2' }, { Choice: 'ANSWER 3' }]);
     // Three passes, a fourth wait that "over" ended, and the walk went on from the boundary event.
     const reached = archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached;
-    expect(reached).toMatchObject({ Ask: 3, Receive: 4, Stop: 1, R9: 1, Over: 1 });
+    expect(reached).toMatchObject({ Look: 1, Ask: 3, Receive: 4, Stop: 1, R9: 1, Over: 1 });
   });
 
   test('records a staged input under the hand-off that reads it, not one running beside it', async () => {

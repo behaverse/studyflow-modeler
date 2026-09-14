@@ -1417,8 +1417,10 @@ class Runner:
                 self.event("message.unanswered", f"    ✉ {name} could not answer {message['id']}: {error}", level=logging.ERROR)
         self.end_entry(entry)
         flows, sender = self.studyflow.flows_out.get(pool, []), flow.get("sourceRef") or ""
-        back = next((f for f in flows if f.get("targetRef") == sender), None) or next(
-            (f for f in flows if self.studyflow.pool_of(f.get("targetRef") or "") == self.studyflow.pool_of(sender)), None)
+        # `is None`, never `or`: an element with no children is falsy, and a message flow has none.
+        back = next((f for f in flows if f.get("targetRef") == sender), None)
+        if back is None:
+            back = next((f for f in flows if self.studyflow.pool_of(f.get("targetRef") or "") == self.studyflow.pool_of(sender)), None)
         if back is not None:
             self.send(back, reply, in_reply_to=message["id"])
 
