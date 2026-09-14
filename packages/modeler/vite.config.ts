@@ -66,6 +66,8 @@ export default defineConfig(({ mode }) => ({
         main: resolve(import.meta.dirname, 'index.html'),
         modeler: resolve(import.meta.dirname, 'app.html'),
       },
+      // Third-party code in its own chunk: it changes less often than ours, and neither half passes the limit.
+      output: { manualChunks: (id) => (id.includes('/node_modules/') ? 'vendor' : undefined) },
     },
   },
 }))
