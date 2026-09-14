@@ -20,6 +20,19 @@ export {
 } from '@core/document/format';
 export { isChecklistEntry } from '@core/document/shorthand';
 export {
+  PARAMETERS_TYPE,
+  attributeOverrides,
+  effectiveAttribute,
+  hasPath,
+  mergeParameters,
+  overridableAttributes,
+  parametersOf,
+  splitAttributes,
+  wiredParameters,
+  wiredProperties,
+  type AttributeOverride,
+} from '@core/document/parameters';
+export {
   META_KEY,
   PLACEHOLDER,
   ensureStudyExtension,

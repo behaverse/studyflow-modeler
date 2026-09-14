@@ -5,6 +5,8 @@ export type PropertyDecl = {
   dataState?: string;
   /** `studyflow:value`, parsed as JSON when it parses, else the literal text. */
   value?: unknown;
+  /** Set by the Parameters wired into the sub-process: its value holds for the whole instance, and nothing writes it. */
+  readOnly?: boolean;
 };
 
 /** A `bpmn:Process` or `bpmn:SubProcess` and the properties it declares. */
@@ -39,11 +41,16 @@ export class ScopeChain {
     return undefined;
   }
 
-  /** Writes to the innermost frame declaring `name` (the root when none does) and returns that scope's id. */
-  write(name: string, value: unknown): string {
+  /** Writes to the innermost frame declaring `name` (the root when none does) and returns that scope's id; `seeding`
+   * is the frame taking its declared values as it starts, the one write a read-only property takes. */
+  write(name: string, value: unknown, seeding = false): string {
     for (let i = this.frames.length - 1; i >= 0; i -= 1) {
       const frame = this.frames[i];
-      if (frame.scope.properties.some((p) => p.name === name)) {
+      const decl = frame.scope.properties.find((p) => p.name === name);
+      if (decl) {
+        if (decl.readOnly && !seeding) {
+          throw new Error(`'${name}' is set by the Parameters wired into ${frame.scope.id}, so nothing inside it writes it.`);
+        }
         frame.values.set(name, value);
         return frame.scope.id;
       }

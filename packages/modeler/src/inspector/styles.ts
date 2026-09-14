@@ -48,6 +48,11 @@ export const field = {
   helpTooltipName: 'font-mono text-xs font-bold text-cream-50',
 
   unit: 'ml-1 text-xs text-stone-500',
+  /** An attribute a Parameters object sets: dashed and dimmed, with the lock by its name, so it reads as not editable here. */
+  overriddenLabel: 'flex items-center gap-1',
+  overriddenInput: 'px-2 py-1 w-full rounded-md border border-dashed border-black/[0.30] bg-black/[0.04] font-mono text-sm/6 text-stone-700 cursor-not-allowed',
+  overriddenNote: 'mt-1 px-1 text-[0.6875rem]/4 text-stone-600',
+  overriddenSource: 'font-semibold text-stone-800 underline decoration-dotted underline-offset-2 hover:text-stone-950 cursor-pointer',
   textInput: 'px-2 py-1 w-full rounded-md border border-black/[0.20] bg-cream-200 font-mono text-sm/6 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
   textArea: 'px-2 py-1 w-full rounded-md border border-black/[0.20] bg-cream-200 font-mono text-sm/4 text-stone-900 placeholder-stone-400 focus:outline-2 focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)]',
 
@@ -96,6 +101,9 @@ export const field = {
   stateTypeOption: 'px-2.5 py-1 font-mono text-sm text-stone-800 truncate data-[focus]:bg-black/[0.05] data-[selected]:font-semibold cursor-pointer',
   stateTypeUntyped: 'font-sans italic text-stone-500',
   stateTypeNew: 'font-sans text-stone-500',
+  /** A property the Parameters wired into the sub-process set: the value where a declared one's type sits, no remove. */
+  stateLocked: 'flex items-center gap-1.5 rounded-md border border-dashed border-black/[0.30] bg-black/[0.04] px-2 py-1 font-mono text-sm/6 text-stone-700 cursor-not-allowed',
+  stateLockedValue: 'ml-auto truncate text-stone-500',
   stateRemoveBtn: 'shrink-0 w-7 flex items-center justify-center border-l border-black/[0.08] text-stone-500 hover:text-stone-900 hover:bg-black/[0.05] cursor-pointer',
 } as const;
 

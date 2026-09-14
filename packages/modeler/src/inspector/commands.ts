@@ -17,6 +17,17 @@ export function runUpdateAttribute(modeler: Editor, command: UpdateAttributeComm
   setAttribute(command.element, command.attributeName, command.value, modeler.canvas);
 }
 
+export type SelectElementCommand = {
+  type: 'SelectElement';
+  id: string;
+};
+
+/** Selects the element with `id`, when the canvas shows it. */
+export function runSelectElement(modeler: Editor, command: SelectElementCommand): void {
+  const target = modeler.canvas.resolveElement(command.id);
+  if (target) modeler.selection.select(target);
+}
+
 
 export type UpdateExpressionLanguageCommand = {
   type: 'UpdateExpressionLanguage';

@@ -67,11 +67,13 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
     scene = str(attrs.get("scene") or "")
     if not scene:
         raise ValueError(f"behaverse:Task {element_id!r} has no scene; set it to a task the Unity build ships")
-    # The task's GameConfig is what the Parameters wired into it say, merged (the plan's `parameters`).
+    # The task's GameConfig is what the Parameters wired into it say, merged, less the keys that set its attributes
+    # (the plan's `parameters`).
     parameters = dict(element.get("parameters") or {})
-    if not parameters:
-        raise ValueError(f"behaverse:Task {element_id!r} has no Parameters wired into it, so it has no trials to run; "
-                         "wire in one whose Timelines names a timeline the build ships, or defines one inline")
+    named = str(attrs.get("timeline") or "")
+    if not parameters and not named:
+        raise ValueError(f"behaverse:Task {element_id!r} names no timeline and reads no GameConfig from the Parameters wired "
+                         "into it, so it has no trials to run; set its timeline to one the build ships, or define one inline")
     # `Bot:` is not GameConfig: how the build's bot plays the task, sent to Unity as the payload's own `bot`.
     bot_settings = parameters.pop("Bot", None)
     bot_settings = bot_settings if isinstance(bot_settings, dict) else {}
@@ -82,10 +84,12 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
     source = answered_by(element, plan or {}, auto)
     payload: dict[str, Any] = {"scene": scene, "agentType": "human" if source == "human" else "bot",
                                "configMode": "builtin", "metadata": {"studyflowNodeId": element_id}}
+    if named:
+        payload["timeline"] = named
     timelines = parameters.get("Timelines")
     if isinstance(timelines, dict):
-        if timelines:
-            payload["timeline"] = next(iter(timelines))  # the first timeline names what Unity runs
+        if timelines and not named:
+            payload["timeline"] = next(iter(timelines))  # unnamed, the first timeline is what Unity runs
         # Unity null-merges `parameters` over Resources/<scene>.json: a `{Name: null}` entry would erase that timeline.
         inline = {name: definition for name, definition in timelines.items() if definition is not None}
         if inline:

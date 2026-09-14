@@ -892,7 +892,10 @@ types:
   # associated data, so a study varies by editing data, not the flow. It is
   # how a task is configured: a step reads the Parameters wired into it,
   # merged. Mappings merge key by key; a value two of them set is an error,
-  # since nothing drawn orders the wires.
+  # since nothing drawn orders the wires. A key naming one of the step's own
+  # attributes (`scene`) sets it, and the inspector shows that attribute
+  # locked; the rest is a task's configuration, or a sub-process's read-only
+  # properties. Only a wire makes a Parameters object take effect.
   # ===========================================================================
   - name: Parameters
     description: A named group of configuration values, read by the steps it is wired into.

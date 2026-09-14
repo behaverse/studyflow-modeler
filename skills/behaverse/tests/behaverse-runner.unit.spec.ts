@@ -19,9 +19,9 @@ const PLAN = {
   elements: {
     T: {
       id: 'T', type: 'task', name: 'Play', attributes: {},
-      extensions: [{ namespace: BEHAVERSE, type: 'task', attributes: { scene: 'WO' } }],
-      // What the Parameters wired into it say, merged: the plan's own reading, which the runner takes as its GameConfig.
-      parameters: { Timelines: { SimonTask: null }, Bot: { IncludeScreenshot: true } },
+      // `timeline` as a Parameters key sets it, as the plan hands it over; the rest is the task's GameConfig.
+      extensions: [{ namespace: BEHAVERSE, type: 'task', attributes: { scene: 'WO', timeline: 'SimonTask' } }],
+      parameters: { Bot: { IncludeScreenshot: true } },
     },
     Receive: { id: 'Receive', type: 'receiveTask', parent: 'RobotSteps', attributes: {} },
     Robot: { id: 'Robot', type: 'participant', name: 'Reachy Mini', attributes: { processRef: 'RobotSteps' }, extensions: [] },

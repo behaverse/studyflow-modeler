@@ -5,7 +5,9 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { readParameters, resolveRunSource } from '@runner/source';
+import { ScopeChain } from '@runner/scope';
 import { parseStudyflow, Studyflow } from '@runner/studyflow';
+import { getAttribute } from '@core/element';
 import { freshPackages } from '@tests/schemas';
 
 /** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
@@ -93,12 +95,12 @@ test('a link overrides the data object rather than sitting beside it', async () 
   const study = await parseStudyflow(DEMO, freshPackages(), { task: 'NB', timeline: 'XCIT_NB_01', blocks: '5', arm: 'control' });
 
   expect(study.parameters.overridden).toEqual(['task', 'timeline', 'blocks']);
-  expect(study.parameters.values).toMatchObject({ task: 'NB', timeline: 'XCIT_NB_01' });
   expect(study.flowNodes.get('Task')?.businessObject?.name).toBe('NB / XCIT_NB_01');
-  expect(study.parameters.values.blocks, 'an overriding value takes the type of the one it replaces').toBe(5);
-  // A parameter the study declares nowhere still binds, and is named as undeclared.
+  expect(study.flowNodes.get('Task')?.parameters.blocks, 'an overriding value takes the type of the one it replaces').toBe(5);
+  // The Task's name reads the properties the link binds, never the Task's own settings, which stay the Task's alone;
+  // a parameter the study declares nowhere still binds, and is named as undeclared.
   expect(study.parameters.undeclared).toEqual(['arm']);
-  expect(study.parameters.values.arm).toBe('control');
+  expect(study.parameters.values).toEqual({ task: 'NB', timeline: 'XCIT_NB_01', arm: 'control' });
 });
 
 /** A Parameters object nesting its values, wired into the one step. */
@@ -133,33 +135,29 @@ test('a dotted link parameter replaces one value inside the Parameters a step re
   await expect(parseStudyflow(NESTED, freshPackages(), { Streams: '5' })).rejects.toThrow(/'Streams', a whole list in Config/);
 });
 
-test('the Parameters a step reads take `{name}` in their keys and strings, a lone placeholder keeping its type', async () => {
-  // The runner's Behaverse demo: one diagram, any task and timeline the link names.
+test('the runner\'s Behaverse demo: a link picks the scene and timeline through the Parameters wired into the task', async () => {
   const demo = readFileSync(path.join(process.cwd(), 'assets/demos/behaverse.studyflow'), 'utf8');
-  const study = await parseStudyflow(demo, freshPackages(), { task: 'NB', timeline: 'XCIT_NB_01' });
-  expect(study.flowNodes.get('Task')?.parameters).toEqual({ Timelines: { XCIT_NB_01: null } });
-  expect(study.flowNodes.get('Task')?.businessObject?.name).toBe('NB / XCIT_NB_01');
-
-  const typed = NESTED.replace('values: |\n            Bot:\n              Speed: 20', 'values: |\n            Bot:\n              Speed: "{speed}"\n              Label: at {speed}');
-  const knobs = `    Knobs:
-      type: bpmn:DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values: |
-            speed: 20
-`;
-  const read = await parseStudyflow(typed.replace('  flowElements:\n', `  flowElements:\n${knobs}`), freshPackages());
-  expect(read.flowNodes.get('Task')?.parameters).toEqual({ Bot: { Speed: 20, Label: 'at 20' }, Streams: [3, 1] });
+  const CASES: [given: Record<string, string>, scene: string, timeline: string][] = [
+    [{}, 'BCS', 'XCIT_BCS_02'],
+    [{ scene: 'NB', timeline: 'XCIT_NB_01' }, 'NB', 'XCIT_NB_01'],
+  ];
+  for (const [given, scene, timeline] of CASES) {
+    const task = (await parseStudyflow(demo, freshPackages(), given)).flowNodes.get('Task')!;
+    expect([getAttribute(task.businessObject, 'scene'), getAttribute(task.businessObject, 'timeline'), task.parameters], scene)
+      .toEqual([scene, timeline, {}]);
+  }
 });
 
-/** A step in a sub-process reading one Parameters object its container declares and one from the process around it. */
+/** A rest in a sub-process reading one Parameters object its container declares and one from the process around it;
+ * `Knobs` is wired into nothing. */
 const WIRED_TWICE = (inner: string) => `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="P">
-    <bpmn:extensionElements><studyflow:study /></bpmn:extensionElements>
+    <bpmn:extensionElements><studyflow:study seed="3" /></bpmn:extensionElements>
     <bpmn:startEvent id="Start" />
     <bpmn:subProcess id="Sub">
       <bpmn:task id="T">
+        <bpmn:extensionElements><cognitive:rest restDuration="60" /></bpmn:extensionElements>
         <bpmn:dataInputAssociation id="In_A"><bpmn:sourceRef>A</bpmn:sourceRef></bpmn:dataInputAssociation>
         <bpmn:dataInputAssociation id="In_B"><bpmn:sourceRef>B</bpmn:sourceRef></bpmn:dataInputAssociation>
       </bpmn:task>
@@ -169,13 +167,18 @@ const WIRED_TWICE = (inner: string) => `<?xml version="1.0" encoding="UTF-8"?>
   XCIT_NB_01:
 Bot:
   Speed: 20
+restDuration: 30
+</studyflow:values></studyflow:parameters></bpmn:extensionElements></bpmn:dataObjectReference>
+    <bpmn:dataObjectReference id="Knobs"><bpmn:extensionElements><studyflow:parameters><studyflow:values>seed: 7
+eyes: closed
 </studyflow:values></studyflow:parameters></bpmn:extensionElements></bpmn:dataObjectReference>
     <bpmn:sequenceFlow id="F" sourceRef="Start" targetRef="Sub" />
   </bpmn:process>
 </bpmn:definitions>`;
 
-/** What `skills/local/run.py` hands its partial runners for `T`: the plan digest's `parameters`, or the error that stops the run. */
-function localParameters(xml: string): { parameters?: unknown; error?: string } {
+/** What `skills/local/run.py` reads of `xml`: `reading`, a Python expression over its `studyflow`, as JSON, or the
+ * error that stops the run. */
+function localReading(xml: string, reading: string): any {
   const script = [
     'import importlib.util, json, sys',
     'from xml.etree import ElementTree as ET',
@@ -183,8 +186,8 @@ function localParameters(xml: string): { parameters?: unknown; error?: string } 
     'run = importlib.util.module_from_spec(spec)',
     'spec.loader.exec_module(run)',
     'try:',
-    '    digest = run.plan_digest(run.Studyflow(ET.fromstring(sys.stdin.read())), [])',
-    '    print(json.dumps({"parameters": digest["elements"]["T"].get("parameters")}))',
+    '    studyflow = run.Studyflow(ET.fromstring(sys.stdin.read()))',
+    `    print(json.dumps(${reading}))`,
     'except SystemExit as error:',
     '    print(json.dumps({"error": str(error)}))',
   ].join('\n');
@@ -192,17 +195,75 @@ function localParameters(xml: string): { parameters?: unknown; error?: string } 
   return JSON.parse(execFileSync('uv', ['run', '--no-project', '--with', 'pyyaml', 'python', '-c', script, run], { input: xml, stdio: 'pipe' }).toString());
 }
 
-test('both runtimes merge the Parameters wired into a step the same way, and refuse the same clash', async () => {
+/** What `run.py` hands its partial runners: `T`'s `parameters` and rest attributes and the study's seed, from the plan digest. */
+function localDigest(xml: string): { parameters?: unknown; rest?: Record<string, string>; seed?: string; error?: string } {
+  return localReading(xml, '(lambda digest: {"parameters": digest["elements"]["T"].get("parameters"), '
+    + '"rest": digest["elements"]["T"]["extensions"][0]["attributes"], "seed": digest["study"]["seed"]})(run.plan_digest(studyflow, []))');
+}
+
+test('both runtimes read the Parameters wired into a step the same way: merged, a key naming its attribute setting it, a clash refused', async () => {
   test.skip(spawnSync('uv', ['--version']).error !== undefined, 'uv is not on PATH');
   const merged = WIRED_TWICE('Bot:\n  SkipInstructions: true\n');
+  // `restDuration` names an attribute of the rest, so it sets it rather than joining what the rest's runner reads;
+  // the unwired Knobs' `seed` and `eyes` set nothing.
   const expected = { Timelines: { XCIT_NB_01: null }, Bot: { Speed: 20, SkipInstructions: true } };
-  expect((await parseStudyflow(merged, freshPackages())).flowNodes.get('T')?.parameters).toEqual(expected);
-  expect(localParameters(merged)).toEqual({ parameters: expected });
+  const browser = new Studyflow(await parseStudyflow(merged, freshPackages()));
+  const task = browser.flowNodes.get('T')!;
+  expect([task.parameters, getAttribute(task.businessObject, 'restDuration'), getAttribute(task.businessObject, 'eyes'), browser.seed])
+    .toEqual([expected, 30, 'open', 3]);
+  const local = localDigest(merged);
+  expect([local.parameters, local.rest, local.seed]).toEqual([expected, { restDuration: '30' }, '3']);
 
-  const clash = WIRED_TWICE('Bot:\n  Speed: 5\n');
-  const message = 'T reads Bot.Speed from both A and B: set it in one of them.';
-  await expect(parseStudyflow(clash, freshPackages())).rejects.toThrow(message);
-  expect(localParameters(clash)).toEqual({ error: message });
+  const CLASHES: [inner: string, message: string][] = [
+    ['Bot:\n  Speed: 5\n', 'T reads Bot.Speed from both A and B: set it in one of them.'],
+    ['eyes: [open, closed]\n', 'T reads eyes, one of its attributes, which takes one value, not a list.'],
+  ];
+  for (const [inner, message] of CLASHES) {
+    await expect(parseStudyflow(WIRED_TWICE(inner), freshPackages()), message).rejects.toThrow(message);
+    expect(localDigest(WIRED_TWICE(inner)), message).toEqual({ error: message });
+  }
+});
+
+/** A sub-process with a Parameters object wired into it, a step inside it, one after it, and the study's own `label`;
+ * `inner` is what else the sub-process declares. */
+const WIRED_BLOCK = (inner = '') => `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="P">
+    <bpmn:extensionElements><studyflow:study /></bpmn:extensionElements>
+    <bpmn:property id="P_Label" name="label" studyflow:value="outer" />
+    <bpmn:subProcess id="Block" name="{label}">
+      ${inner}
+      <bpmn:dataInputAssociation id="In_Knobs"><bpmn:sourceRef>Knobs</bpmn:sourceRef></bpmn:dataInputAssociation>
+      <bpmn:startEvent id="Inner_Start" />
+      <bpmn:task id="Inside" name="{label} at {speed}" />
+      <bpmn:sequenceFlow id="F_In" sourceRef="Inner_Start" targetRef="Inside" />
+    </bpmn:subProcess>
+    <bpmn:task id="After" name="{label}" />
+    <bpmn:dataObjectReference id="Knobs"><bpmn:extensionElements><studyflow:parameters><studyflow:values>label: inner
+speed: 20
+</studyflow:values></studyflow:parameters></bpmn:extensionElements></bpmn:dataObjectReference>
+    <bpmn:sequenceFlow id="F" sourceRef="Block" targetRef="After" />
+  </bpmn:process>
+</bpmn:definitions>`;
+
+test('the Parameters wired into a sub-process are its read-only properties, in both runtimes, as if it declared them', async () => {
+  const study = await parseStudyflow(WIRED_BLOCK(), freshPackages());
+  // `{label}` inside the sub-process reads its own, hiding the study's; outside, the study's.
+  expect(['Block', 'Inside', 'After'].map((id) => study.flowNodes.get(id)?.businessObject?.name)).toEqual(['inner', 'inner at 20', 'outer']);
+  const block = study.scopes.get('Block')!;
+  expect(block.properties.filter((p) => p.readOnly).map((p) => [p.name, p.value])).toEqual([['label', 'inner'], ['speed', 20]]);
+  const chain = new ScopeChain(study.scopes.get('P')!);
+  chain.push(block);
+  chain.write('speed', 20, true);
+  expect(() => chain.write('speed', 5)).toThrow("'speed' is set by the Parameters wired into Block, so nothing inside it writes it.");
+
+  const clash = "Block declares 'label' as a property and in the Parameters wired into it: keep one.";
+  await expect(parseStudyflow(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'), freshPackages())).rejects.toThrow(clash);
+
+  test.skip(spawnSync('uv', ['--version']).error !== undefined, 'uv is not on PATH');
+  expect(localReading(WIRED_BLOCK(), '[studyflow.properties["Block"], sorted(studyflow.readonly["Block"])]'))
+    .toEqual([{ label: '"inner"', speed: '20' }, ['label', 'speed']]);
+  expect(localReading(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'), 'None')).toEqual({ error: clash });
 });
 
 /** One config object, two steps: the association is the only thing that separates them. */
@@ -233,22 +294,21 @@ ${association}      outgoing: [Flow]
       targetRef: Second
 `;
 
-test('config wired into one step is read by that step and no other; wired nowhere, every step reads it', async () => {
-  const CASES = [
-    {
-      label: 'wired into First',
-      association: '      dataInputAssociations:\n        In_Config:\n          sourceRef:\n            - Config\n',
-      names: ['from-config', '{label}'],
-      unbound: ['label'],
-    },
-    { label: 'wired nowhere: the study\'s own', association: '', names: ['from-config', 'from-config'], unbound: [] },
+test('config wired into a task is that task\'s settings alone, and fills no placeholder; wired nowhere, it does nothing', async () => {
+  const CASES: [label: string, association: string, first: Record<string, unknown>][] = [
+    ['wired into First', '      dataInputAssociations:\n        In_Config:\n          sourceRef:\n            - Config\n', { label: 'from-config' }],
+    ['wired nowhere', '', {}],
   ];
-
-  for (const { label, association, names, unbound } of CASES) {
+  for (const [label, association, first] of CASES) {
     const study = await parseStudyflow(TWO_STEPS(association), freshPackages(), {});
-    expect(['First', 'Second'].map((id) => study.flowNodes.get(id)?.businessObject?.name), label).toEqual(names);
-    expect(study.parameters.unbound, label).toEqual(unbound);
+    expect(['First', 'Second'].map((id) => study.flowNodes.get(id)?.parameters), label).toEqual([first, {}]);
+    // `{name}` reads properties: `label` is declared nowhere, so its placeholders stay as written, demanded of no one.
+    expect(['First', 'Second'].map((id) => study.flowNodes.get(id)?.businessObject?.name), label).toEqual(['{label}', '{label}']);
+    expect(study.parameters.unbound, label).toEqual([]);
   }
+  // A link key only an unwired object carries overrides nothing: it binds as undeclared.
+  const linked = await parseStudyflow(TWO_STEPS(''), freshPackages(), { label: 'from-link' });
+  expect([linked.parameters.overridden, linked.parameters.undeclared]).toEqual([[], ['label']]);
 });
 
 /** `{COMPLETION_CODE}` belongs to the end event and `{count}` to the run state: neither is asked of the link. */

@@ -9,7 +9,7 @@ npm run dev     # from the repo root: http://localhost:5173/run/
 `?diagram=` names what to run: a shipped demo (`behaverse`), a URL, or the id the modeler hands over. Every other query parameter binds a value into the study; `seed` fixes the gateway draws.
 
 ```text
-run?diagram=behaverse&task=BCS
+run?diagram=behaverse&scene=NB&timeline=XCIT_NB_01
 run?diagram=https://example.org/study.studyflow&seed=42
 ```
 

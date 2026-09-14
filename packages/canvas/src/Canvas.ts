@@ -4,6 +4,7 @@
  */
 
 import { BPMN } from '@core/constants.ts';
+import { PARAMETERS_TYPE } from '@core/document/index.ts';
 import { getExtensionType } from '@core/element/index.ts';
 import { EventBus } from '@canvas/bus.ts';
 
@@ -823,10 +824,14 @@ export class Canvas {
     if (target && target.kind !== 'label') {
       mutator.touch(target);
       if (touched) {
-        // A participant's name is drawn on every choreography task it takes a band of, not only where it was edited.
+        // A participant's name is drawn on every choreography task it takes a band of, not only where it was edited,
+        // and what a Parameters object sets on every step it is wired into.
         const renamedParticipant = moddleElement.$type === 'bpmn:Participant' && 'name' in properties;
-        this.redrawElements(renamedParticipant && target.kind === 'node'
-          ? tasksReferencing(this.scene, moddleElement, target) : [target]);
+        const editedParameters = getExtensionType(target.businessObject) === PARAMETERS_TYPE;
+        this.redrawElements(target.kind !== 'node' ? [target]
+          : renamedParticipant ? tasksReferencing(this.scene, moddleElement, target)
+          : editedParameters ? stepsReading(this.scene, target)
+          : [target]);
       }
     } else {
       mutator.record(isRootElement(element) ? element : this.getRoot());
@@ -917,4 +922,17 @@ export class Canvas {
     this.redrawElements(changed);
     return removed;
   }
+}
+
+/** A data object's node and every step whose data inputs read it. */
+function stepsReading(scene: Scene | undefined, source: SceneNode): SceneElement[] {
+  const out: SceneElement[] = [source];
+  for (const element of scene?.elementsById.values() ?? []) {
+    if (element.kind !== 'node' || element === source) continue;
+    const associations = (prop(element.businessObject, 'dataInputAssociations') ?? []) as ModdleObject[];
+    if (associations.some((association) => ((prop(association, 'sourceRef') ?? []) as unknown[]).includes(source.businessObject))) {
+      out.push(element);
+    }
+  }
+  return out;
 }

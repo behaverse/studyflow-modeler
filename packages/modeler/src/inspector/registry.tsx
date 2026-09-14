@@ -3,12 +3,14 @@ import type { ChangeEvent, ComponentType } from 'react';
 import { Checkbox, Input, Label, Textarea } from '@headlessui/react';
 import { EDITOR_NAMES, type AttributeSpec, type EditorName } from '@core/notation';
 import { t } from '@modeler/i18n';
+import { ICONS } from '@modeler/icons';
+import { executeCommand } from '@modeler/commandBus';
 import { ArrayInput, ChecklistInput, EnumInput, EnumListInput, ExpressionInput } from '@modeler/inspector/inputs';
 import { CodeEditor, SchemaEditor } from '@modeler/inspector/editors';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { useAttributeState, useInspectedElement } from '@modeler/inspector/state';
-import { resolvePlaceholders } from '@core/document';
-import { definitionsOf, toBusinessObject } from '@core/element';
+import { resolvePlaceholders, type AttributeOverride } from '@core/document';
+import { definitionsOf, getAttribute, toBusinessObject } from '@core/element';
 import { field as s } from '@modeler/inspector/styles';
 
 const TYPING_DEBOUNCE_MS = 400;
@@ -128,6 +130,47 @@ function ReadonlyInput({ attrDef }: { attrDef: AttributeSpec }) {
         placeholder="written at run time"
         className={s.textInput}
       />
+    </>
+  );
+}
+
+/** An attribute a Parameters object sets: its value shown, never edited here, with the object that sets it one click away. */
+export function OverriddenInput({ attrDef, override }: { attrDef: AttributeSpec; override: AttributeOverride }) {
+  const { element, modeler } = useAttributeState<unknown>(attrDef, (raw) => raw);
+  const name = attrDef.ns.name;
+  const shown = typeof override.value === 'string' ? override.value : JSON.stringify(override.value);
+  const own = getAttribute(element, name);
+  const source = (bo: any) => (
+    <button
+      key={bo.id}
+      type="button"
+      className={s.overriddenSource}
+      title={`Select ${bo.name || bo.id}`}
+      onClick={() => executeCommand(modeler, { type: 'SelectElement', id: bo.id })}
+    >
+      {bo.name || bo.id}
+    </button>
+  );
+  const [first, ...others] = override.sources;
+  return (
+    <>
+      <Label className={s.label}>
+        <span className={s.overriddenLabel}>
+          <i className={`${ICONS.lock} text-xs text-stone-500`} aria-hidden="true" />
+          {t(name)}
+          {attrDef.meta?.unit && <span className={s.unit}>{attrDef.meta.unit}</span>}
+        </span>
+        <HelpTooltip name={name} description={attrDef?.description} />
+      </Label>
+      <Input name={name} type="text" value={shown} readOnly disabled className={s.overriddenInput} />
+      <div className={s.overriddenNote} data-testid={`overridden-${attrDef.ns.localName}`}>
+        Set by {first && source(first)}
+        {others.length > 0 && <> and {others.map(source)}, which a run refuses</>}
+        {' '}(<code>{override.attribute}</code>); edit it there, not here.
+        {own != null && own !== '' && String(own) !== shown && (
+          <> This element's own value, <code>{String(own)}</code>, is not used.</>
+        )}
+      </div>
     </>
   );
 }

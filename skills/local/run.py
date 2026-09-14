@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import functools
 import itertools
 import json
 import logging
@@ -322,6 +323,17 @@ class Studyflow:
         for process in self.processes:
             index(process)
 
+        # The Parameters wired into a sub-process are read-only properties of it, beside the ones it declares.
+        self.readonly: dict[str, set[str]] = {}
+        for container_id, container in self.elements.items():
+            read = self.reads(container) if local(container) in CONTAINER_TAGS else None
+            for name, value in (read[1] if read else {}).items():
+                declared = self.properties.setdefault(container_id, {})
+                if name in declared:
+                    raise SystemExit(f"{container_id} declares '{name}' as a property and in the Parameters wired into it: keep one.")
+                declared[name] = json.dumps(value)
+                self.readonly.setdefault(container_id, set()).add(name)
+
         # Message flows by the element or participant at each end, the participants they may end at, and the
         # boundary events by the activity each sits on.
         self.participants: dict[str, ET.Element] = {}
@@ -356,6 +368,20 @@ class Studyflow:
 
         self._products: set[str] | None = None
 
+
+    def reads(self, element: ET.Element) -> tuple[dict[str, str], dict] | None:
+        """The Parameters wired into an element, merged, split into the attributes they set (by the schema of its
+        extension) and the rest: a task's settings, a sub-process's read-only properties. None when none is wired."""
+        element_id = element.get("id") or ""
+        sources = dict.fromkeys(text_of(c) for association in element if local(association) == "dataInputAssociation"
+                                for c in association if local(c) == "sourceRef" and text_of(c))
+        wired = [(source, carried) for source in sources if (carried := parameters_of(self.elements.get(source))) is not None]
+        if not wired:
+            return None
+        ext = next((e for holder in element if local(holder) == "extensionElements" for e in holder
+                    if not e.tag.startswith(f"{{{PROV.PROV_TIMELINE}}}")), None)
+        names = schema_attributes().get(ext.tag, frozenset()) if ext is not None else frozenset()
+        return split_attributes(names, wired_parameters(element_id, wired), element_id)
 
     def activity_dependencies(self, element: ET.Element) -> tuple[set[str], str]:
         sources: set[str] = set()
@@ -487,6 +513,48 @@ def branching_modes() -> dict[str, str]:
                 name = declared["name"]
                 modes[f"{{{model['uri']}}}{name[:1].lower() + name[1:] if lower else name}"] = mode
     return modes
+
+
+@functools.cache
+def schema_attributes() -> dict[str, frozenset[str]]:
+    """The XML attributes each skill type declares, inherited ones included, by the XML tag of the type
+    (`{uri}task`): the names a `studyflow:Parameters` key may set on an element of that type (core's
+    `overridableAttributes`). A property spelled `bpmn:<name>` is BPMN's own, and not among them."""
+    types: dict[str, tuple[str, list[str], set[str]]] = {}
+    for folder in skill_dirs():
+        schema = read_manifest(folder).get("schema")
+        if not schema or not (folder / schema).is_file():
+            continue
+        model = yaml.safe_load((folder / schema).read_text()) or {}
+        lower = (model.get("xml") or {}).get("tagAlias") == "lowerCase"
+        for declared in model.get("types") or []:
+            name = declared["name"]
+            tag = f"{{{model['uri']}}}{name[:1].lower() + name[1:] if lower else name}"
+            supers = [s if ":" in s else f"{model['prefix']}:{s}" for s in declared.get("superClass") or []]
+            own = {p["name"] for p in declared.get("properties") or [] if p.get("isAttr") and ":" not in p["name"]}
+            types[f"{model['prefix']}:{name}"] = (tag, supers, own)
+
+    def inherited(qualified: str) -> set[str]:
+        tag, supers, own = types[qualified]
+        return own.union(*(inherited(s) for s in supers if s in types))
+
+    return {tag: frozenset(inherited(qualified)) for qualified, (tag, _, _) in types.items()}
+
+
+def split_attributes(names: frozenset[str], values: dict, reader_id: str) -> tuple[dict[str, str], dict]:
+    """What an element reads, split into the attributes it sets (as XML attribute text) and the rest, its
+    configuration; core's `splitAttributes`. An attribute takes one value: a mapping, a list or nothing is an error."""
+    attributes: dict[str, str] = {}
+    rest: dict = {}
+    for key, value in values.items():
+        if key not in names:
+            rest[key] = value
+        elif value is None or isinstance(value, (dict, list)):
+            got = "nothing" if value is None else "a list" if isinstance(value, list) else "a mapping"
+            raise SystemExit(f"{reader_id} reads {key}, one of its attributes, which takes one value, not {got}.")
+        else:
+            attributes[key] = ("true" if value else "false") if isinstance(value, bool) else str(value)
+    return attributes, rest
 
 
 def draw(seed: int, gateway_id: str, visit: int) -> float:
@@ -684,10 +752,13 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
     elements = {element_id: element_digest(element) for element_id, element in studyflow.elements.items()}
     for element_id, digest in elements.items():
         digest["parent"] = studyflow.parents.get(element_id)  # the container, for lexical `{name}` lookups outward
-        wired = [(source, carried) for source in dict.fromkeys(i["source"] for i in digest["inputs"])
-                 if (carried := parameters_of(studyflow.elements.get(source))) is not None]
-        if wired:
-            digest["parameters"] = wired_parameters(element_id, wired)
+        read = studyflow.reads(studyflow.elements[element_id])
+        if read is not None:
+            # A key naming one of the element's attributes sets it (`scene: WO`); the rest is its `parameters`.
+            attributes, digest["parameters"] = read
+            ext = next((e for e in digest["extensions"] if e["namespace"] != PROV.PROV_TIMELINE), None)
+            if attributes and ext:
+                ext["attributes"].update(attributes)
     process = studyflow.process
     title = studyflow.root.get("name") or process.get("name")
     for root in studyflow.definitions:
@@ -1235,7 +1306,13 @@ class Runner:
                 if key == "state" and isinstance(value, dict):
                     # Properties the runner wrote (a data edge into a `bpmn:Property`): scope by scope, `_meta` stays ours.
                     for scope, held in value.items():
-                        if scope != "_meta" and isinstance(held, dict) and held != (sent.get("state") or {}).get(scope):
+                        before = (sent.get("state") or {}).get(scope) or {}
+                        if scope != "_meta" and isinstance(held, dict) and held != before:
+                            written = sorted(name for name in self.studyflow.readonly.get(scope, ())
+                                             if name in held and held[name] != before.get(name))
+                            if written:
+                                raise ValueError(f"{element_id} writes {', '.join(written)}, which the Parameters wired "
+                                                 f"into {scope} set, so nothing inside it writes them")
                             self.state.tree.setdefault(scope, {}).update(held)
                 elif key not in ("result", "durationMs", "error") and sent.get(key, ...) != value:
                     self.store(key, value)

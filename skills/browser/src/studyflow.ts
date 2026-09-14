@@ -1,15 +1,19 @@
 import { BpmnModdle } from 'bpmn-moddle';
 import * as yaml from 'js-yaml';
 import {
+  PARAMETERS_TYPE,
   PLACEHOLDER,
   choreographyToProcessRoot,
   ensureStudyExtension,
   looksLikeXml,
+  hasPath,
+  mergeParameters,
   readState,
+  splitAttributes,
   studyflowToDefinitions,
   type StateTree,
 } from '@core/document';
-import { getAttribute, getExtensionType, getRawAttribute } from '@core/element';
+import { getAttribute, getExtensionType, getRawAttribute, setAttribute } from '@core/element';
 import { BPMN, isDeclaredProperty } from '@core/constants';
 import type { FlowNode, SequenceFlow } from '@runner/flow';
 import type { PropertyDecl, Scope } from '@runner/scope';
@@ -159,11 +163,19 @@ export async function parseStudyflow(
   const rootScopeId = businessObject.id ?? 'process';
 
   const walkContainer = (container: any, scopeId: string, parentId?: string): void => {
+    // The Parameters wired into a sub-process are read-only properties of it, beside the ones it declares.
+    const declared = readProperties(container);
+    const fromParameters = Object.entries(wired.get(scopeId) ?? {}).map(([name, value]): PropertyDecl => {
+      if (declared.some((p) => p.name === name)) {
+        throw new Error(`${scopeId} declares '${name}' as a property and in the Parameters wired into it: keep one.`);
+      }
+      return { id: `${scopeId}.${name}`, name, value, readOnly: true };
+    });
     const scope: Scope = {
       id: scopeId,
       parentId,
       startId: undefined,
-      properties: readProperties(container),
+      properties: [...declared, ...fromParameters],
     };
     scopes.set(scopeId, scope);
 
@@ -243,14 +255,12 @@ export async function parseStudyflow(
   };
 }
 
-const PARAMETERS_TYPE = 'studyflow:Parameters';
-
 export type BoundParameters = {
-  /** What the run holds: the study's own values, with the ones it was launched with layered over them. */
+  /** What the run starts with: the values it was launched with, and the study's seed. */
   values: Record<string, unknown>;
   /** Names the link supplied that the study already carried a value for. */
   overridden: string[];
-  /** Supplied, but declared by no `studyflow:Parameters`, `bpmn:Property`, or attribute of the study. */
+  /** Supplied, but declared by no `studyflow:Parameters` wired into a step, `bpmn:Property`, or attribute of the study. */
   undeclared: string[];
   /** Declared names a `{name}` reference needs and nothing has bound; the study cannot run until they are given. */
   unbound: string[];
@@ -293,39 +303,6 @@ function readParameterObjects(container: any): Map<string, Record<string, unknow
   return objects;
 }
 
-/** Whether `path` (`Bot.Speed`, `Streams.0`) leads to a value inside `node`. */
-function hasPath(node: unknown, path: string[]): boolean {
-  for (const key of path) {
-    if (!node || typeof node !== 'object' || !Object.hasOwn(node, key)) return false;
-    node = (node as Record<string, unknown>)[key];
-  }
-  return true;
-}
-
-const isMapping = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value);
-
-/** What a step reads: the `studyflow:Parameters` wired into it, merged. Mappings merge key by key; a value two of
- * them set is an error, since nothing drawn orders the wires. `skills/local/run.py` merges the same way. */
-function mergeWired(stepId: string, sources: [string, Record<string, unknown>][]): Record<string, unknown> {
-  const into = (target: Record<string, unknown>, source: Record<string, unknown>, id: string, path: string[]): void => {
-    for (const [key, value] of Object.entries(source)) {
-      const at = [...path, key];
-      if (!Object.hasOwn(target, key)) {
-        target[key] = structuredClone(value);
-      } else if (isMapping(target[key]) && isMapping(value)) {
-        into(target[key], value, id, at);
-      } else {
-        const [other] = sources.find(([, carried]) => hasPath(carried, at))!;
-        throw new Error(`${stepId} reads ${at.join('.')} from both ${other} and ${id}: set it in one of them.`);
-      }
-    }
-  };
-  const merged: Record<string, unknown> = {};
-  for (const [id, carried] of sources) into(merged, carried, id, []);
-  return merged;
-}
-
 /** Which data elements each step reads, from the associations drawn on the canvas. */
 function readInputSources(container: any): Map<string, string[]> {
   const inputs = new Map<string, string[]>();
@@ -339,16 +316,44 @@ function readInputSources(container: any): Map<string, string[]> {
   return inputs;
 }
 
-/** Every name the study declares a value for, at any depth: `studyflow:Parameters` keys, `bpmn:Property` names, study attributes. */
-function declaredNames(container: any, attributes: Map<string, unknown>): Set<string> {
-  const names = new Set<string>(attributes.keys());
+/** The data elements some step reads, at any depth: a Parameters object takes effect only through such a wire. */
+function wiredSources(container: any): Set<string> {
+  const ids = new Set<string>();
   const visit = (node: any): void => {
-    for (const values of readParameterObjects(node).values()) for (const name of Object.keys(values)) names.add(name);
-    for (const property of readProperties(node)) names.add(property.name);
+    for (const sources of readInputSources(node).values()) for (const id of sources) ids.add(id);
     for (const element of node?.flowElements ?? []) if (element.flowElements) visit(element);
   };
   visit(container);
+  return ids;
+}
+
+/** Every name the study declares a value for, at any depth: `bpmn:Property` names, the keys of the Parameters wired
+ * into a sub-process (its properties too), study attributes. */
+function declaredNames(container: any, attributes: Map<string, unknown>): Set<string> {
+  const names = new Set<string>(attributes.keys());
+  const objects = new Map<string, Record<string, unknown>>();
+  const gather = (node: any): void => {
+    for (const [id, values] of readParameterObjects(node)) objects.set(id, values);
+    for (const element of node?.flowElements ?? []) if (element.flowElements) gather(element);
+  };
+  gather(container);
+  const visit = (node: any): void => {
+    for (const property of readProperties(node)) names.add(property.name);
+    for (const element of node?.flowElements ?? []) {
+      if (!element.flowElements) continue;
+      for (const association of element.dataInputAssociations ?? []) {
+        for (const source of association.sourceRef ?? []) for (const name of Object.keys(objects.get(source?.id) ?? {})) names.add(name);
+      }
+      visit(element);
+    }
+  };
+  visit(container);
   return names;
+}
+
+/** The values a container's properties declare, by name. */
+function declaredValues(container: any): Record<string, unknown> {
+  return Object.fromEntries(readProperties(container).filter((p) => p.value !== undefined).map((p) => [p.name, p.value]));
 }
 
 /** Binds what a run was launched with to what the study declares, then substitutes `{name}` wherever it is written. */
@@ -358,6 +363,7 @@ function bindParameters(
   study: any,
   given: Record<string, string>,
 ): BoundParameters & { wired: Map<string, Record<string, unknown>> } {
+  const wired = wiredSources(businessObject);
   const objects = readParameterObjects(businessObject);
   const properties = new Map(readProperties(businessObject).map((p) => [p.name, p.itemType]));
   // The Study's one attribute a run is launched with; its others (`runtime`, `version`) are about the study, not run values.
@@ -371,7 +377,7 @@ function bindParameters(
   for (const [name, raw] of Object.entries(given)) {
     // A dotted name reaches inside a Parameters object (`Bot.Speed`); a link replaces one value, never a whole mapping or list.
     const path = name.split('.');
-    const carriers = [...objects].filter(([, carried]) => hasPath(carried, path));
+    const carriers = [...objects].filter(([id, carried]) => wired.has(id) && hasPath(carried, path));
     if (carriers.length > 0) {
       for (const [id, carried] of carriers) {
         const holder = path.slice(0, -1).reduce((node: any, key) => node[key], carried);
@@ -384,7 +390,8 @@ function bindParameters(
         holder[leaf] = coerceLike(raw, replaced);
       }
       overridden.push(name);
-      continue;
+      // A name the study also declares binds there too: `{name}` reads properties, never Parameters.
+      if (!properties.has(name) && !attributes.has(name)) continue;
     }
     const bound = properties.has(name) ? coerce(raw, properties.get(name))
       : attributes.has(name) ? coerce(raw, attributes.get(name))
@@ -440,48 +447,39 @@ function bindParameters(
     }
   };
 
-  /** What a step reads takes `{name}` in its keys and strings too; a string that is one placeholder takes the value itself, type and all. */
-  const substituteValues = (value: unknown, scope: Record<string, unknown>): unknown => {
-    if (typeof value === 'string') {
-      const [only] = [...value.matchAll(PLACEHOLDER)];
-      const bound = only?.[0] === value ? scope[only[1]] : undefined;
-      return bound !== undefined && bound !== '' ? bound : substitute(value, scope);
-    }
-    if (Array.isArray(value)) return value.map((item) => substituteValues(item, scope));
-    if (!isMapping(value)) return value;
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [substitute(key, scope), substituteValues(item, scope)]));
-  };
-
-  /** A step reads what is wired into it, from its own container or one around it; a data object wired nowhere is the study's own configuration. */
+  /** A container's properties fill `{name}` for everything inside it, an inner one hiding an outer. A step reads the
+   * Parameters wired into it, from its own container or one around it; a data object wired nowhere does nothing. */
   const reads = new Map<string, Record<string, unknown>>();
   const bindContainer = (container: any, inherited: Record<string, unknown>, outer: Map<string, Record<string, unknown>>): void => {
     const carried = container === businessObject ? objects : readParameterObjects(container);
     const reachable = new Map([...outer, ...carried]);
     const inputs = readInputSources(container);
-    const wired = new Set([...inputs.values()].flat());
-
-    const scope = { ...inherited };
-    for (const [id, carriedValues] of carried) {
-      Object.assign(values, carriedValues);
-      if (!wired.has(id)) Object.assign(scope, carriedValues);
-    }
+    const scope = container === businessObject ? inherited : { ...inherited, ...declaredValues(container) };
 
     const seen = new Set<object>();
     substituteIn(container, scope, seen);
     for (const element of container.flowElements ?? []) {
       const sources = [...new Set(inputs.get(element.id))]
-        .flatMap((id): [string, Record<string, unknown>][] => (
-          reachable.has(id) ? [[id, substituteValues(reachable.get(id), scope) as Record<string, unknown>]] : []));
-      const read = mergeWired(element.id, sources);
-      if (sources.length > 0) reads.set(element.id, read);
-      const elementScope = { ...scope, ...read };
-      substituteIn(element, elementScope, new Set());
-      if (element.flowElements) bindContainer(element, elementScope, reachable);
+        .flatMap((id): [string, Record<string, unknown>][] => (reachable.has(id) ? [[id, reachable.get(id)!]] : []));
+      // A key naming one of the step's attributes sets it (`scene: WO`); the rest is a task's settings, a sub-process's
+      // read-only properties.
+      let rest: Record<string, unknown> = {};
+      if (sources.length > 0) {
+        const split = splitAttributes(element, mergeParameters(element.id, sources), element.id);
+        for (const [name, value] of Object.entries(split.attributes)) setAttribute(element, name, value);
+        rest = split.rest;
+        reads.set(element.id, rest);
+      }
+      if (element.flowElements) bindContainer(element, { ...scope, ...rest }, reachable);
+      else substituteIn(element, scope, new Set());
     }
   };
 
-  bindContainer(businessObject, ambient, new Map());
-  substituteIn(definitions, ambient, new Set([businessObject]));
+  // The study's own properties, a link's values over their declared ones.
+  const rootScope = { ...declaredValues(businessObject), ...ambient };
+  bindContainer(businessObject, rootScope, new Map());
+
+  substituteIn(definitions, rootScope, new Set([businessObject]));
 
   return { values, overridden: [...new Set(overridden)], undeclared, unbound: [...unbound], wired: reads };
 }

@@ -119,17 +119,18 @@ export class Session {
     }
   }
 
-  /** Seeds a just-pushed frame: the tree's values win over declared initial `value`s, which are mirrored in. */
+  /** Seeds a just-pushed frame: the tree's values win over declared initial `value`s, which are mirrored in; a
+   * read-only property always holds its declared one. */
   private load(scope: Scope): void {
     const entry = this.state[scope.id] ?? {};
     for (const decl of scope.properties) {
-      if (decl.name in entry) this.scopes.write(decl.name, entry[decl.name]);
-      else if (decl.value !== undefined) this.write(decl.name, decl.value);
+      if (decl.name in entry && !decl.readOnly) this.scopes.write(decl.name, entry[decl.name], true);
+      else if (decl.value !== undefined) this.write(decl.name, decl.value, true);
     }
   }
 
-  private write(name: string, value: unknown): void {
-    const scopeId = this.scopes.write(name, value);
+  private write(name: string, value: unknown, seeding = false): void {
+    const scopeId = this.scopes.write(name, value, seeding);
     (this.state[scopeId] ??= {})[name] = value;
   }
 

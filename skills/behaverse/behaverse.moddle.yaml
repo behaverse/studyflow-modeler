@@ -127,6 +127,14 @@ types:
           order: 1
           categories:
             - Execution
+      - name: timeline
+        description: 'Which timeline runs: one the build ships (`XCIT_NB_01`), or one the Parameters define under `Timelines`. Unset, the first of those runs.'
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Execution
 
   - name: BDMDataset
     description: A dataset in the Behaverse Data Model (BDM).

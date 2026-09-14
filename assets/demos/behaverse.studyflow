@@ -4,38 +4,24 @@ definitions:
 Behaverse_Demo:
   type: bpmn:Process
   name: Behaverse task
-  documentation: A single Behaverse assessment, run on its own. The task and its timeline are parameters of the study (config, wired nowhere, so every step reads it), so one diagram delivers any task the build ships. It carries no start or end event on purpose - nothing but the task itself is shown.
+  documentation: A single Behaverse assessment, run on its own. Its scene and timeline are the Parameters wired into it, which a link replaces (`?scene=NB&timeline=XCIT_NB_01`), so one diagram delivers any task the build ships. It carries no start or end event on purpose - nothing but the task itself is shown.
   extensionElements:
     - type: studyflow:Study
-  properties:
-    P_Task:
-      name: task
-    P_Timeline:
-      name: timeline
   flowElements:
-    Config:
+    Task_Parameters:
       type: bpmn:DataObjectReference
-      name: config
+      name: task
       extensionElements:
         - type: studyflow:Parameters
           values: |
-            task: BCS
+            scene: BCS
             timeline: XCIT_BCS_02
-    GameConfig:
-      type: bpmn:DataObjectReference
-      name: GameConfig
-      extensionElements:
-        - type: studyflow:Parameters
-          values: |
-            Timelines:
-              "{timeline}":
     Task:
       type: bpmn:Task
-      name: "{task} / {timeline}"
+      name: Behaverse task
       dataInputAssociations:
-        In_GameConfig:
+        In_Task_Parameters:
           sourceRef:
-            - GameConfig
+            - Task_Parameters
       extensionElements:
         - type: behaverse:Task
-          scene: "{task}"

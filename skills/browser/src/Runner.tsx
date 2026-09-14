@@ -420,7 +420,7 @@ function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
       </label>
       <pre className={layout.helpExample}>
         run?diagram=URL&seed=42{'\n\n'}
-        run?diagram=behaverse&task=BCS&timeline=XCIT_BCS_02
+        run?diagram=behaverse&scene=BCS&timeline=XCIT_BCS_02
       </pre>
     </div>
   );

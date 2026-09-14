@@ -446,6 +446,46 @@ ${robot}`, moddle);
     const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
     expect(log.match(/▤ stage x\.json/g)).toHaveLength(1);
   });
+
+  test('hands a step the read-only properties its sub-process takes from wired Parameters, and refuses a write to one', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="P">
+    <bpmn:startEvent id="S"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:subProcess id="Block"><bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing>
+      <bpmn:dataInputAssociation id="In_Knobs"><bpmn:sourceRef>Knobs</bpmn:sourceRef></bpmn:dataInputAssociation>
+      <bpmn:startEvent id="S1"><bpmn:outgoing>G1</bpmn:outgoing></bpmn:startEvent>
+      <bpmn:task id="T"><bpmn:incoming>G1</bpmn:incoming><bpmn:outgoing>G2</bpmn:outgoing></bpmn:task>
+      <bpmn:endEvent id="E1"><bpmn:incoming>G2</bpmn:incoming></bpmn:endEvent>
+      <bpmn:sequenceFlow id="G1" sourceRef="S1" targetRef="T"/>
+      <bpmn:sequenceFlow id="G2" sourceRef="T" targetRef="E1"/>
+    </bpmn:subProcess>
+    <bpmn:dataObjectReference id="Knobs"><bpmn:extensionElements><studyflow:parameters><studyflow:values>speed: 20</studyflow:values></studyflow:parameters></bpmn:extensionElements></bpmn:dataObjectReference>
+    <bpmn:endEvent id="E"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="F1" sourceRef="S" targetRef="Block"/>
+    <bpmn:sequenceFlow id="F2" sourceRef="Block" targetRef="E"/>
+  </bpmn:process>
+</bpmn:definitions>`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-readonly-'));
+    fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    // A runner for T that finds `speed` in its sub-process's scope, then writes it.
+    fs.writeFileSync(path.join(dir, 'fake.py'), [
+      'import json, sys',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['T']))",
+      'else:',
+      "    handoff = sys.argv[5] + '/T.state.json'",
+      '    state = json.load(open(handoff))',
+      "    assert state['state']['Block'] == {'speed': 20}, state['state']",
+      "    state['state']['Block']['speed'] = 5",
+      "    json.dump({**state, 'result': 1, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    expect(() => execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
+      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } })).toThrow();
+    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8'))
+      .toContain('T writes speed, which the Parameters wired into Block set, so nothing inside it writes them');
+  });
 });
 
 /** `studyflow run` hands run.py a YAML or PNG study as a temporary `.bpmn`, and tells it where the original lives. */

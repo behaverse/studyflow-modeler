@@ -12,8 +12,9 @@ metadata:
 
 The vocabulary is `behaverse.moddle.yaml` (`behaverse:Task`, `behaverse:BDMDataset`, and the literals it adds to cognitive's software list and the core's dataset formats and message structures); the runner executes `behaverse:Task`. A task's
 GameConfig is the `studyflow:Parameters` wired into it, merged, which the runtime hands over as the task's
-`parameters`: a shipped timeline, or one defined inline, and a `Bot:` entry for how the build's bot plays. A task
-with none wired in has no trials to run, and is refused. Its message
+`parameters`: timelines defined inline or named from the build, and a `Bot:` entry for how the build's bot plays.
+The task's `timeline` names the one that runs (unset, the first under `Timelines`), and like its `scene` a wired
+Parameters key sets it. A task naming no timeline and reading no GameConfig has no trials to run, and is refused. Its message
 flows carry `behaverse:Trial` out of the task and `behaverse:Response` back into it (the `structureRef`
 of an `ItemDefinition`, reached through the flow's `messageRef` and the message's `itemRef`); a flow naming another
 structure is some other skill's exchange, a flow naming none is taken for either, and two partners with no message

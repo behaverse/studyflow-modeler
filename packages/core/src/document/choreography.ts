@@ -3,6 +3,7 @@ import { getProperty, type ModdleElement, type Moddle } from '@core/element/modd
 import { StudyflowElement } from '@core/element/handle';
 import { getCatalog, hasCatalog } from '@core/notation';
 import { applyXmlPasses, primaryRoot, isHeadlessCollaboration } from '@core/document/format';
+import { attributeOverrides } from '@core/document/parameters';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
 
@@ -23,16 +24,17 @@ const DEFAULT_PRESENTER = 'Task software';
 
 /**
  * What presents a typed task: its type's `meta.presenter`, a template over the extension's attributes
- * (`Behaverse \u00b7 {scene}`, `{instrument}`), read raw. A type that declares none, or a template
- * that comes out empty, presents as the study's software.
+ * (`Behaverse \u00b7 {scene}`, `{instrument}`), read raw, or as the Parameters wired into the task set them. A type
+ * that declares none, or a template that comes out empty, presents as the study's software.
  */
 export function presenterLabel(bo: ModdleElement): string {
   const ext = typeWrapperOf(bo);
   const template = hasCatalog() ? getCatalog().getType(ext?.$type)?.meta?.presenter : undefined;
   if (typeof template !== 'string') return DEFAULT_PRESENTER;
+  const overrides = attributeOverrides(bo);
   const label = template.replace(/\{(\w+)\}/g, (_match, name: string) => {
-    const value = ext?.[name] ?? ext?.$attrs?.[name];
-    return typeof value === 'string' ? value : '';
+    const value = overrides.get(name)?.value ?? ext?.[name] ?? ext?.$attrs?.[name];
+    return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
   }).trim();
   return label || DEFAULT_PRESENTER;
 }

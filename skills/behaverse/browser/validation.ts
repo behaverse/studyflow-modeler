@@ -1,4 +1,4 @@
-import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
+import { getBehaverseTaskPayload, readBehaverseAttribute } from '@skills/behaverse/browser/parser';
 import type { FlowNode } from '@runner/flow';
 import { RUNNER_ONLY_BOT_KEYS, type Manifest } from '@skills/behaverse/browser/types';
 import type { ValidationIssue } from '@runner/nodes/types';
@@ -35,27 +35,27 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
   // Validate what the author wrote, not the payload the parser stripped.
   const authored = node.parameters;
 
-  if (Object.keys(authored).length === 0) {
+  if (!payload.timeline && Object.keys(authored).length === 0) {
     issues.push({
       nodeId: node.id,
-      message: `'${payload.scene}' has no Parameters wired into it, so it has no trials to run. `
-        + 'Wire in one whose Timelines names a timeline the build ships (e.g. XCIT_NB_01), or defines one inline with its own blocks.',
+      message: `'${payload.scene}' names no timeline and reads no GameConfig from the Parameters wired into it, so it has no trials to run. `
+        + 'Set its timeline to one the build ships (e.g. XCIT_NB_01), or define one inline under Timelines with its own blocks.',
     });
-  } else {
-    const timelines = authored.Timelines as Record<string, unknown> | undefined;
-    if (timelines && typeof timelines === 'object') {
-      for (const [name, def] of Object.entries(timelines)) {
-        if (def == null && !manifestTask.timelines.includes(name)) {
-          issues.push({
-            nodeId: node.id,
-            message: `'${payload.scene}' has no timeline called '${name}' in the Unity build. `
-              + (manifestTask.timelines.length > 0
-                ? `Use one of: ${manifestTask.timelines.join(', ')}.`
-                : 'The build ships none for this task, so define the timeline inline.'),
-          });
-        }
-      }
-    }
+  }
+  // What the build must ship: every timeline Timelines names without defining, and the one the task names unless defined inline.
+  const timelines = authored.Timelines && typeof authored.Timelines === 'object' ? authored.Timelines as Record<string, unknown> : {};
+  const byName = new Set(Object.keys(timelines).filter((name) => timelines[name] == null));
+  const named = readBehaverseAttribute(node.businessObject, 'timeline');
+  if (named && timelines[named] == null) byName.add(named);
+  for (const name of byName) {
+    if (manifestTask.timelines.includes(name)) continue;
+    issues.push({
+      nodeId: node.id,
+      message: `'${payload.scene}' has no timeline called '${name}' in the Unity build. `
+        + (manifestTask.timelines.length > 0
+          ? `Use one of: ${manifestTask.timelines.join(', ')}.`
+          : 'The build ships none for this task, so define the timeline inline.'),
+    });
   }
 
   // `Bot:` reaches Unity's per-task Bot field by field, so it must be one flat mapping (runner-only keys aside).

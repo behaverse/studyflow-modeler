@@ -72,11 +72,13 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
     metadata: { studyflowNodeId: node.id },
   };
 
-  // First timeline key names what Unity runs and keys the bridge's completion matcher.
+  // The task's `timeline` names what Unity runs and keys the bridge's completion matcher; unset, the first under Timelines.
+  const named = readBehaverseAttribute(node.businessObject, 'timeline');
+  if (named) payload.timeline = named;
   const timelines = parameters.Timelines as Record<string, unknown> | undefined;
   if (timelines && typeof timelines === 'object') {
     const firstTimelineKey = Object.keys(timelines)[0];
-    if (firstTimelineKey) payload.timeline = firstTimelineKey;
+    if (firstTimelineKey && !named) payload.timeline = firstTimelineKey;
     // Unity null-merges `parameters` over Resources/<scene>.json, so a `{Name: null}` entry would erase that timeline.
     const inlineTimelines = Object.fromEntries(
       Object.entries(timelines).filter(([, definition]) => definition != null),

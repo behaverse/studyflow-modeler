@@ -17,7 +17,7 @@ import {
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
-import { actorOf, isTypedChoreography, readChoreographyBands } from '@core/document';
+import { actorOf, isTypedChoreography, readChoreographyBands, wiredProperties } from '@core/document';
 import { isPool, listParticipants, participantKind, participantKinds, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { StudyflowElement, getAttributeSpec, isExtensionPrefix } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
@@ -229,6 +229,8 @@ export function StateSection() {
 
   const properties = getStateProperties(element);
   const types = itemTypeOptions(element);
+  // What the Parameters wired into a sub-process set: properties of it like the declared ones, but read-only.
+  const wired = wiredProperties(element);
 
   const dispatch = (command: any) =>
     executeCommand(modeler, { type: 'UpdateStateProperties', element, ...command });
@@ -258,7 +260,7 @@ export function StateSection() {
           </span>
         </div>
 
-        {properties.length > 0 && (
+        {properties.length + wired.length > 0 && (
         <div className={s.arrayList}>
           {properties.map((property) => (
             <div key={property.id} className={s.stateRow}>
@@ -287,6 +289,26 @@ export function StateSection() {
               >
                 <i className={`${ICONS.closeSmall} text-sm`} />
               </button>
+            </div>
+          ))}
+          {wired.map(({ name, value, source }) => (
+            <div key={`wired:${name}`} data-testid={`wired-property-${name}`}>
+              <div className={s.stateLocked}>
+                <i className={`${ICONS.lock} text-xs text-stone-500`} aria-hidden="true" />
+                {name}
+                <span className={s.stateLockedValue}>{typeof value === 'string' ? value : JSON.stringify(value)}</span>
+              </div>
+              <div className={s.overriddenNote}>
+                Set by{' '}
+                <button
+                  type="button"
+                  className={s.overriddenSource}
+                  onClick={() => executeCommand(modeler, { type: 'SelectElement', id: source.id })}
+                >
+                  {source.name || source.id}
+                </button>
+                ; read-only inside, edit it there.
+              </div>
             </div>
           ))}
         </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { Field, Label, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
+import { attributeOverrides, type AttributeOverride } from '@core/document';
 import type { AttributeSpec } from '@core/notation';
 import { t } from '@modeler/i18n';
 import { executeCommand } from '@modeler/commandBus';
@@ -8,7 +9,7 @@ import { useModeler } from '@modeler/app/useModeler';
 import { useInspectedElement } from '@modeler/inspector/state';
 import { isAttributeVisible } from '@modeler/inspector/categories';
 import { elementKey } from '@modeler/inspector/element';
-import { AttributeInput } from '@modeler/inspector/registry';
+import { AttributeInput, OverriddenInput } from '@modeler/inspector/registry';
 import { ExpressionRow } from '@modeler/inspector/inputs';
 import { HelpTooltip } from '@modeler/inspector/widgets';
 import {
@@ -22,23 +23,29 @@ import { inspector as s, field as fld } from '@modeler/inspector/styles';
 
 function AttributeFields({ attrDefs }: { attrDefs: any[] }) {
   const element = useInspectedElement();
+  // What the Parameters wired into the element set on it.
+  const overrides = attributeOverrides(element);
   return (
     <>
       {attrDefs.map((attrDef: AttributeSpec) => (
-        <AttributeField key={`${elementKey(element)}:${attrDef.ns.prefix}:${attrDef.ns.name}`} attrDef={attrDef} />
+        <AttributeField
+          key={`${elementKey(element)}:${attrDef.ns.prefix}:${attrDef.ns.name}`}
+          attrDef={attrDef}
+          override={attrDef.isAttr ? overrides.get(attrDef.ns.localName) : undefined}
+        />
       ))}
     </>
   );
 }
 
-function AttributeField({ attrDef }: { attrDef: AttributeSpec }) {
+function AttributeField({ attrDef, override }: { attrDef: AttributeSpec; override?: AttributeOverride }) {
   const element = useInspectedElement();
 
   if (!isAttributeVisible(attrDef, element)) return null;
 
   return (
     <Field className={fld.field}>
-      <AttributeInput attrDef={attrDef} />
+      {override ? <OverriddenInput attrDef={attrDef} override={override} /> : <AttributeInput attrDef={attrDef} />}
     </Field>
   );
 }

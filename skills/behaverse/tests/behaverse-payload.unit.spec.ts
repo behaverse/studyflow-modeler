@@ -87,7 +87,8 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
   const CASES: {
     label: string;
     xml: string;
-    payload?: Omit<BehaverseTaskPayload, 'scene' | 'metadata'>;
+    /** The scene is the fixture's own NB unless a row says otherwise. */
+    payload?: Omit<BehaverseTaskPayload, 'scene' | 'metadata'> & { scene?: string };
     unityBot?: BehaverseBotPayload;
     error?: RegExp;
   }[] = [
@@ -126,6 +127,25 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       label: 'two Parameters objects wired into the task merge into one GameConfig',
       xml: taskXml('Timelines:\n  XCIT_NB_01:\n', 'Blocks:\n  B1:\n    Name: B1\n'),
       payload: { agentType: 'human', configMode: 'inline', timeline: 'XCIT_NB_01', parameters: { Blocks: { B1: { Name: 'B1' } } } },
+    },
+    {
+      label: 'a timeline the task names runs the build\'s own, with no GameConfig to send',
+      xml: taskXml('timeline: XCIT_NB_01\n'),
+      payload: { agentType: 'human', configMode: 'builtin', timeline: 'XCIT_NB_01' },
+    },
+    {
+      label: 'a timeline the task names runs, not the first one the Parameters define',
+      xml: taskXml('timeline: T2\nTimelines:\n  T1: {Name: T1}\n  T2: {Name: T2}\n'),
+      payload: {
+        agentType: 'human', configMode: 'inline', timeline: 'T2',
+        parameters: { Timelines: { T1: { Name: 'T1' }, T2: { Name: 'T2' } } },
+      },
+    },
+    {
+      // `scene` names an attribute of the task: it runs WO in place of the task's own NB, and never reaches the GameConfig.
+      label: 'a scene the wired Parameters set is the scene that runs',
+      xml: taskXml('scene: WO\nTimelines:\n  SimonTask:\n'),
+      payload: { scene: 'WO', agentType: 'human', configMode: 'builtin', timeline: 'SimonTask' },
     },
     {
       label: 'a value two wired Parameters objects both set is an error naming both',
