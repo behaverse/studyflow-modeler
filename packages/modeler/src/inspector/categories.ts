@@ -95,12 +95,10 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
     byCategory['Execution'] ??= [];
   }
 
+  // Identity sorts as order 0: after a negative order, before every other.
+  const orderOf = (attrDef: AttributeSpec) => (identity.includes(attrDef) ? 0 : attrDef.meta?.order ?? Infinity);
   for (const attrDefs of Object.values(byCategory)) {
-    attrDefs.sort((a: any, b: any) => {
-      const orderA = a.meta?.order ?? Infinity;
-      const orderB = b.meta?.order ?? Infinity;
-      return orderA - orderB;
-    });
+    attrDefs.sort((a, b) => orderOf(a) - orderOf(b));
   }
 
   const declared = declaredCategories();
