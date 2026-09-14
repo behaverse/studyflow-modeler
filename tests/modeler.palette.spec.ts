@@ -40,36 +40,35 @@ test.describe('Studyflow modeler palette flows', () => {
   test('a template arrives collapsed with its flow inside, keeps its ids where they are free, and a second drop rewrites its own references', async ({ page }) => {
     await gotoModeler(page);
 
-    await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 300, y: 200 });
-    await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 300, y: 420 });
+    await addSchemaPaletteElement(page, 'Reachy Mini', 'Conversation', { x: 300, y: 200 });
+    await addSchemaPaletteElement(page, 'Reachy Mini', 'Conversation', { x: 300, y: 420 });
 
     const doc = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
     const process = Object.values(doc).find((value) => value?.type === 'Process');
     const [first, second] = Object.values(process.flowElements).filter((el: any) => el.type === 'SubProcess') as any[];
 
-    // A subprocess template arrives collapsed, with its flow inside where the template drew it,
-    // each flow keeping its name and condition.
+    // A subprocess template arrives collapsed, with its flow inside where the template drew it.
     expect(first.isExpanded).toBe(false);
     const inner = Object.values(first.flowElements) as any[];
-    expect(inner.map((el) => el.name)).toEqual(expect.arrayContaining(['Draft', 'Judge the draft', 'Good enough?', 'revise']));
-    expect(inner.find((el) => el.name === 'revise').conditionExpression).toContain('score < 4');
-    expect(inner.find((el) => el.name === 'Draft').bounds).toBe('200 140 100 80');
-    const gateOf = (sub: any) => Object.keys(sub.flowElements).find((id) => sub.flowElements[id].name === 'Good enough?')!;
-    const guardOf = (sub: any) => (Object.values(sub.flowElements) as any[]).find((el) => el.name === 'revise').conditionExpression;
+    expect(inner.map((el) => el.name)).toEqual(expect.arrayContaining(['Listen', 'Heard', 'Ask the model', 'Reply', 'Say the reply']));
+    expect(inner.find((el) => el.name === 'Listen').bounds).toBe('180 140 100 80');
+    const heardOf = (sub: any) => Object.keys(sub.flowElements).find((id) => sub.flowElements[id].name === 'Heard')!;
+    const loopOf = (sub: any) => sub.loopCharacteristics.loopCondition;
 
-    expect(gateOf(first)).toBe('eo_gate');
-    expect(guardOf(first)).toContain("state.trace.count('eo_gate')");
-    const gate = gateOf(second);
-    expect(gate).toMatch(/^eo_gate_/);
-    expect(guardOf(second)).toContain(`state.trace.count('${gate}')`);
+    // Its loop condition names its own data object, and follows it when a second drop renames it.
+    expect(heardOf(first)).toBe('Heard');
+    expect(loopOf(first)).toContain('(Heard or');
+    const heard = heardOf(second);
+    expect(heard).toMatch(/^Heard_/);
+    expect(loopOf(second)).toContain(`(${heard} or`);
 
     // Once the copy holding them is deleted, the template's own ids are free again.
-    await page.locator('g[data-element-id="Evaluator_optimizer"]').click();
+    await page.locator('g[data-element-id="Conversation"]').click();
     await pressOnCanvas(page, 'Delete');
-    await addSchemaPaletteElement(page, 'Agentic', 'Evaluator-optimizer', { x: 300, y: 200 });
+    await addSchemaPaletteElement(page, 'Reachy Mini', 'Conversation', { x: 300, y: 200 });
     const after = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
     const subs = Object.values(Object.values(after).find((value: any) => value?.type === 'Process').flowElements)
       .filter((el: any) => el.type === 'SubProcess') as any[];
-    expect(subs.map(gateOf).sort()).toEqual(['eo_gate', gate]);
+    expect(subs.map(heardOf).sort()).toEqual(['Heard', heard]);
   });
 });
