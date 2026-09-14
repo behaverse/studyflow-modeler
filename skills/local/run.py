@@ -25,12 +25,15 @@ stamped `executed` (the copy carries its own run record), and `studyflow.log`;
 the detailed step records live in the run repository's commit bodies. Expressions run in the evaluating engine's own
 language (Python here, JavaScript in the browser runner) unless BPMN's per-expression
 `language` attribute says otherwise. Each pool is walked on its own thread, one
-path per pool: no parallel split inside a pool, no multi-instance fan-out.
+path per pool: no parallel split inside a pool, no multi-instance fan-out. The
+pools talk only along message flows, and the walk carries every message
+(SKILL.md, "Messages").
 """
 
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import logging
 import os
@@ -79,6 +82,15 @@ GATEWAY_TAGS = {
 }
 CONTAINER_TAGS = {"subProcess", "adHocSubProcess", "transaction"}
 PASSTHROUGH_TAGS = {"startEvent", "intermediateCatchEvent", "intermediateThrowEvent"}
+
+
+class Interrupted(Exception):
+    """A message reached a boundary event of a running activity: the walk leaves the activity for the event."""
+
+    def __init__(self, activity: str, boundary: ET.Element) -> None:
+        super().__init__(f"{activity} ended by {boundary.get('id')}")
+        self.activity = activity
+        self.boundary = boundary
 
 
 def local(element: ET.Element) -> str:
@@ -309,15 +321,24 @@ class Studyflow:
         for process in self.processes:
             index(process)
 
-        # Message flows between two steps of different pools: the target waits until its source is reached.
-        self.message_sources: dict[str, list[str]] = {}
+        # Message flows by the element or participant at each end, the participants they may end at, and the
+        # boundary events by the activity each sits on.
+        self.participants: dict[str, ET.Element] = {}
+        self.flows_out: dict[str, list[ET.Element]] = {}
+        self.flows_in: dict[str, list[ET.Element]] = {}
         for collaboration in definitions:
             if local(collaboration) != "collaboration":
                 continue
-            for flow in collaboration:
-                source, target = flow.get("sourceRef"), flow.get("targetRef")
-                if local(flow) == "messageFlow" and source in self.elements and target in self.elements:
-                    self.message_sources.setdefault(target, []).append(source)
+            for child in collaboration:
+                if local(child) == "participant" and child.get("id"):
+                    self.participants[child.get("id")] = child
+                elif local(child) == "messageFlow":
+                    self.flows_out.setdefault(child.get("sourceRef"), []).append(child)
+                    self.flows_in.setdefault(child.get("targetRef"), []).append(child)
+        self.boundaries: dict[str, list[ET.Element]] = {}
+        for element in self.elements.values():
+            if local(element) == "boundaryEvent" and element.get("attachedToRef"):
+                self.boundaries.setdefault(element.get("attachedToRef"), []).append(element)
 
         # Identifier-shaped names, every one of them, for the staleness rules (over-broad by design); an
         # ambiguous name, one two elements share or one that is also an element's id, binds no value.
@@ -387,6 +408,14 @@ class Studyflow:
     def name_of(self, element_id: str) -> str:
         element = self.elements.get(element_id)
         return (element.get("name") if element is not None else None) or element_id
+
+    def pool_of(self, end: str) -> str:
+        """The process an element belongs to, or that a participant depicts; a participant with none is its own pool."""
+        if end in self.participants:
+            return self.participants[end].get("processRef") or end
+        while end in self.parents:
+            end = self.parents[end]
+        return end
 
 
 
@@ -670,7 +699,8 @@ class PartialRunner:
             raise SystemExit(f"{self.name} --claims failed: {detail[-1] if detail else f'exit {done.returncode}'}")
         return json.loads(lines[-1])
 
-    def element(self, element_id: str, values: dict) -> dict:
+    def element(self, element_id: str, values: dict, pump: Any = None) -> dict:
+        """`pump(cache, stop)`, when given, runs beside the runner and carries its messages until `stop` is set."""
         cache = self.repo_dir / ".cache"
         cache.mkdir(parents=True, exist_ok=True)
         handoff = cache / f"{element_id}.state.json"
@@ -679,12 +709,19 @@ class PartialRunner:
         # The walk's own pid, so whatever a runner leaves running for the study can follow the walk;
         # unbuffered, so a Python runner's progress shows while it works, not when it is done.
         env = {**os.environ, "STUDYFLOW_RUN_PID": str(os.getpid()), "PYTHONUNBUFFERED": "1"}
+        stop = threading.Event()
+        pumping = threading.Thread(target=pump, args=(cache, stop), daemon=True) if pump else None
+        if pumping:
+            pumping.start()
         process = subprocess.Popen(argv, stdout=subprocess.PIPE, text=True, env=env, cwd=self.cwd)  # noqa: S603 - an authored runner command
         assert process.stdout is not None
         for line in process.stdout:  # an element can take minutes (a robot seating itself): relay as it comes
             if line.strip():
                 log_event("runner.stdout", f"    {line.rstrip()}")
         returncode = process.wait()
+        if pumping:
+            stop.set()
+            pumping.join()
         state = json.loads(handoff.read_text()) if handoff.exists() else {}
         # Only the read state file goes; the cache dir survives the run (spilled values live there)
         # and finish() sweeps it at the end.
@@ -741,6 +778,8 @@ class Runner:
                 self.claimed[element_id] = runner
                 if live:
                     self.live.add(element_id)
+        # Messages are interaction too: an element that sends or takes them never skips or replays.
+        self.live.update(eid for eid in studyflow.elements if eid in studyflow.flows_in or eid in studyflow.flows_out)
         # Everything this run writes belongs to the repo; boundary inputs are looked up in `input_sources`.
         self.repo_dir = repo_dir
         self.input_sources = input_sources or [Path.cwd()]
@@ -750,8 +789,11 @@ class Runner:
         self.state = State(PROV.read_state(studyflow.plan))
         self._thread = threading.local()  # each pool walks on its own thread, at its own depth
         self.lock = threading.RLock()  # the values, the state tree, and the repository are shared by the pools
-        self.arrived = threading.Condition(self.lock)  # where a message flow's target waits for its source
-        self.arrived_at: set[str] = set()  # reached this run; `_meta.reached` counts across runs and cannot say
+        self.arrived = threading.Condition(self.lock)  # where a receive waits for its message
+        self.mail: dict[str, list[dict]] = {}  # message flow id → the messages sent along it and not taken yet
+        self.pools_done: set[str] = set()  # processes whose walk has ended: they send nothing more
+        self.serving: dict[str, threading.Lock] = {}  # one request at a time to each pool a runner plays
+        self.sent = itertools.count(1)
         self.failed: BaseException | None = None
         self._deferred: list[tuple[str, str, int, str]] | None = None
         self.prior_records = {} if fresh else PROV.element_records(studyflow)
@@ -1065,6 +1107,10 @@ class Runner:
         try:
             with captured_output(indent=self.indent):
                 self.execute_activity(element, entry)
+        except Interrupted as interrupt:
+            entry["interruptedBy"] = interrupt.boundary.get("id")
+            self.end_entry(entry)
+            raise
         except BaseException as error:
             self.record.fail(entry, error)
             entry.pop("_runnerMs", None)
@@ -1099,6 +1145,16 @@ class Runner:
         runner = self.runner_for(element)
         if runner is not None:
             return self.execute_via_runner(element, entry, runner)
+        element_id = element.get("id") or ""
+        outgoing, incoming = self.studyflow.flows_out.get(element_id, []), self.studyflow.flows_in.get(element_id, [])
+        if outgoing or incoming:
+            # Unclaimed, an activity exchanges messages itself: it sends its data inputs along each flow out of it,
+            # then takes the next message along a flow into it as its result. A send, a receive, or both: a request.
+            for flow in outgoing:
+                self.send(flow, self.inputs_of(element), in_reply_to=self.answering(flow))
+            if incoming:
+                self.bind_result(element, self.receive(element_id)["content"])
+            return
         if implementation:
             scheme = implementation.split("://", 1)[0] if "://" in implementation else implementation
             raise RuntimeError(
@@ -1127,7 +1183,8 @@ class Runner:
             if data_id in reads and (uri := flow.artifact(data_id)[0]) and not flow.is_product(data_id)
             and not (self.repo_dir / uri).exists()
         }
-        reported = runner.element(element_id, sent)
+        talks = element_id in flow.flows_in or element_id in flow.flows_out
+        reported = runner.element(element_id, sent, pump=self.pump(element_id) if talks else None)
         entry["_runnerMs"] = reported.get("durationMs")
         with self.lock:
             for key, value in reported.items():
@@ -1323,23 +1380,223 @@ class Runner:
         except BaseException as error:  # noqa: BLE001 - the first pool to fail ends the run; the others notice while waiting
             with self.arrived:
                 self.failed = self.failed or error
+        finally:
+            with self.arrived:
+                self.pools_done.add(pool.get("id"))
                 self.arrived.notify_all()
 
-    def await_messages(self, element_id: str) -> None:
-        """A step with incoming message flows starts once each source step has been reached, so two steps
-        with flows both ways start together and exchange messages while they run (a task on the screen
-        sending each trial to a robot and taking its answer back)."""
-        sources = self.studyflow.message_sources.get(element_id) or []
+    # --- messages (SKILL.md, "Messages"): the walk carries every one, along the flow it names ---
+
+    def send(self, flow: ET.Element, content: Any, message_id: str | None = None, in_reply_to: str | None = None) -> None:
+        """A message along a flow: into the flow's mailbox, or, when a runner plays the pool it ends at, to that
+        runner, whose answer goes back along the pool's flow to the sender."""
+        target = flow.get("targetRef") or ""
+        message = {"id": message_id or f"{flow.get('id')}.{next(self.sent)}", "flow": flow.get("id"), "content": content}
+        if in_reply_to:
+            message["inReplyTo"] = in_reply_to
+        self.event("message.sent", f"    ✉ {flow.get('sourceRef')} → {target}  [{message['id']}]", level=logging.DEBUG)
+        runner = self.claimed.get(target)
+        if target in self.studyflow.participants and runner is not None:
+            self.serve(target, runner, flow, message)
+            return
         with self.arrived:
-            self.arrived_at.add(element_id)
-            self.arrived.notify_all()  # this element is reached: whoever waits for it may go
-            pending = [source for source in sources if source not in self.arrived_at]
-            if pending:
-                self.event("message.waiting", f"◐ {element_id}  (waiting for {', '.join(pending)})")
-            while any(source not in self.arrived_at for source in sources):
+            self.mail.setdefault(flow.get("id"), []).append(message)
+            self.arrived.notify_all()
+
+    def serve(self, pool: str, runner: PartialRunner, flow: ET.Element, message: dict) -> None:
+        """One message to a pool a runner plays, recorded as a step of its own. A pool that fails answers null, so the
+        sender goes on (a task it answers for counts a miss) and the record keeps the error."""
+        name = self.studyflow.participants[pool].get("name") or pool
+        entry = self.record.begin(pool, name, "bpmn:Participant")
+        entry["message"] = message["id"]
+        with self.serving.setdefault(pool, threading.Lock()):
+            try:
+                answered = runner.element(pool, {**self.json_values(), "message": message})
+                entry["_runnerMs"] = answered.get("durationMs")
+                reply = answered.get("result")
+                self.event("message.answered", f"    ✉ {name} answered {message['id']}")
+            except Exception as error:  # noqa: BLE001 - recorded, and the sender hears null
+                reply = None
+                entry["status"] = "error"
+                entry["error"] = {"type": type(error).__name__, "message": str(error)[:400]}
+                self.event("message.unanswered", f"    ✉ {name} could not answer {message['id']}: {error}", level=logging.ERROR)
+        self.end_entry(entry)
+        flows, sender = self.studyflow.flows_out.get(pool, []), flow.get("sourceRef") or ""
+        back = next((f for f in flows if f.get("targetRef") == sender), None) or next(
+            (f for f in flows if self.studyflow.pool_of(f.get("targetRef") or "") == self.studyflow.pool_of(sender)), None)
+        if back is not None:
+            self.send(back, reply, in_reply_to=message["id"])
+
+    def receive(self, element_id: str) -> dict:
+        """The next message along a flow into the element, waited for. A message at a boundary event of an activity
+        around it ends the wait, and so does a failed pool, or senders that have nothing left to send."""
+        flows = self.studyflow.flows_in.get(element_id, [])
+        with self.arrived:
+            while True:
+                self.check_interrupt()
+                for flow in flows:
+                    if self.mail.get(flow.get("id")):
+                        message = self.mail[flow.get("id")].pop(0)
+                        self.heard(flow, message)
+                        return message
                 if self.failed is not None:
-                    raise RuntimeError(f"{element_id}: its message source will never arrive, another pool failed")
+                    raise RuntimeError(f"{element_id}: no message will come, another pool failed")
+                # A pool no process depicts only answers what is sent to it, and that answer is already here.
+                if all(f.get("sourceRef") in self.studyflow.participants
+                       or self.studyflow.pool_of(f.get("sourceRef") or "") in self.pools_done for f in flows):
+                    raise RuntimeError(f"{element_id} waits along {', '.join(f.get('id') for f in flows)}, and nothing is left to send")
                 self.arrived.wait()
+
+    def heard(self, flow: ET.Element, message: dict) -> None:
+        """Remember the message this pool last took from the sender's pool: what it sends back answers it."""
+        self._thread.__dict__.setdefault("heard", {})[self.studyflow.pool_of(flow.get("sourceRef") or "")] = message["id"]
+
+    def answering(self, flow: ET.Element) -> str | None:
+        return self._thread.__dict__.get("heard", {}).get(self.studyflow.pool_of(flow.get("targetRef") or ""))
+
+    def check_interrupt(self) -> None:
+        """Raise when a message waits at a boundary event of an activity this pool is inside, innermost first."""
+        for activity, flows in reversed(self._thread.__dict__.get("watching", [])):
+            for flow_id, boundary in flows.items():
+                if self.mail.get(flow_id):
+                    self.mail[flow_id].pop(0)
+                    raise Interrupted(activity, boundary)
+
+    def throw(self, element: ET.Element) -> None:
+        """A throw or end event sends a message along each flow out of it, carrying nothing but its arrival."""
+        for flow in self.studyflow.flows_out.get(element.get("id") or "", []):
+            self.send(flow, None, in_reply_to=self.answering(flow))
+
+    def inputs_of(self, element: ET.Element) -> dict[str, Any] | None:
+        """What an activity sends: its data inputs by source id; one without a value this run gives its `uri`, else
+        null (the receiver reads such an element from the plan)."""
+        sources = [text_of(c) for association in element if local(association) == "dataInputAssociation"
+                   for c in association if local(c) == "sourceRef" and text_of(c)]
+        with self.lock:
+            return {source: self.values.get(source, self.studyflow.artifact(source)[0]) for source in sources} or None
+
+    def bind_result(self, element: ET.Element, value: Any) -> None:
+        """A result the walk took itself (a message's content): under the element's id, and into each data output,
+        narrowed by that edge's `transformation` (`result.upper()`); a null result stays null."""
+        self.store(element.get("id"), value)
+        for association in element:
+            if local(association) != "dataOutputAssociation":
+                continue
+            parts = {local(c): c for c in association}
+            target, narrow = text_of(parts.get("targetRef")), parts.get("transformation")
+            if not target:
+                continue
+            if value is not None and narrow is not None and (narrow.text or "").strip():
+                self.store(target, self.evaluate(narrow.text.strip(), {"result": value}, language=narrow.get("language"), scope=element.get("id")))
+            else:
+                self.store(target, value)
+
+    def pump(self, element_id: str) -> Any:
+        """While a claimed element runs: each line its runner appends to `<id>.outbox.jsonl` goes along the flow it
+        names, and each message along a flow into the element is appended to `<id>.inbox.jsonl` for the runner."""
+        flows_out = {f.get("id"): f for f in self.studyflow.flows_out.get(element_id, [])}
+        flows_in = [f.get("id") for f in self.studyflow.flows_in.get(element_id, [])]
+        cache = self.repo_dir / ".cache"
+        for box in ("outbox", "inbox"):
+            (cache / f"{element_id}.{box}.jsonl").unlink(missing_ok=True)
+
+        def run(cache: Path, stop: threading.Event) -> None:
+            outbox, inbox, done = cache / f"{element_id}.outbox.jsonl", cache / f"{element_id}.inbox.jsonl", 0
+            while True:
+                last = stop.is_set()  # one more pass after the runner exits, for what it wrote last
+                data = outbox.read_bytes() if outbox.exists() else b""
+                end = data.rfind(b"\n") + 1  # whole lines only: the runner may be writing the next one
+                for line in data[done:end].splitlines():
+                    try:
+                        message = json.loads(line)
+                        flow = flows_out[message["flow"]]
+                    except (ValueError, KeyError, TypeError):
+                        self.event("message.misrouted", f"    ✉ {element_id} sent {line[:80]!r} along none of its flows", level=logging.WARNING)
+                        continue
+                    self.send(flow, message.get("content"), message.get("id"), message.get("inReplyTo"))
+                done = end
+                with self.arrived:
+                    due = [message for flow_id in flows_in for message in self.mail.pop(flow_id, [])]
+                if due:
+                    with inbox.open("a") as file:
+                        file.writelines(json.dumps(message, default=str) + "\n" for message in due)
+                if last:
+                    return
+                stop.wait(0.05)
+
+        return run
+
+    def perform(self, element: ET.Element, depth: int, max_steps: int) -> ET.Element | None:
+        """An activity, pass after pass while its loop marker asks for another. A message at one of its boundary
+        events ends it at the next step, and that event is returned for the walk to go on from."""
+        element_id = element.get("id") or ""
+        watching = self._thread.__dict__.setdefault("watching", [])
+        watching.append((element_id, {
+            flow.get("id"): boundary
+            for boundary in self.studyflow.boundaries.get(element_id, [])
+            for flow in self.studyflow.flows_in.get(boundary.get("id") or "", [])
+        }))
+        try:
+            passes = 0
+            while self.loops_again(element, passes):
+                passes += 1
+                if passes > max_steps:
+                    raise RuntimeError(f"{element_id}: loop budget exhausted — does its loop ever end?")
+                if local(element) in CONTAINER_TAGS:
+                    self.walk_container(element, depth, max_steps)
+                else:
+                    self.run_activity(element)
+        except Interrupted as interrupt:
+            if interrupt.activity != element_id:
+                raise
+            return interrupt.boundary
+        finally:
+            watching.pop()
+        return None
+
+    def loops_again(self, element: ET.Element, passes: int) -> bool:
+        """Whether an activity takes another pass after `passes`: once without a loop marker; with one, while its
+        `loopCondition` holds (tested first when `testBefore`), up to `loopMaximum`, and with no condition until
+        a boundary event ends it."""
+        marker = next((c for c in element if local(c) == "standardLoopCharacteristics"), None)
+        if marker is None:
+            return passes == 0
+        if passes == 0 and marker.get("testBefore") != "true":
+            return True
+        if marker.get("loopMaximum") and passes >= int(marker.get("loopMaximum")):
+            return False
+        condition = next((c for c in marker if local(c) == "loopCondition"), None)
+        if condition is None or not (condition.text or "").strip():
+            return True
+        return bool(self.evaluate(condition.text.strip(), language=condition.get("language"), scope=element.get("id")))
+
+    def walk_container(self, element: ET.Element, depth: int, max_steps: int) -> None:
+        element_id = element.get("id") or ""
+        entry = self.record.begin(element_id, self.studyflow.name_of(element_id), bpmn_type(element))
+        self.event("activity.started", f"⊞ {element_id}")
+        self.start_scope(element_id, reset=True)
+        try:
+            self.walk(self.studyflow.start_event(element), depth + 1, max_steps)
+        except Interrupted as interrupt:
+            entry["interruptedBy"] = interrupt.boundary.get("id")
+            self.record.end(entry)
+            raise
+        except BaseException as error:
+            self.record.fail(entry, error)
+            raise
+        finally:
+            self.depth = depth
+        self.record.end(entry)
+        when = self.moment()
+        self.completed[element_id] = when
+        self.event(
+            "activity.finished", f"  {element_id} done in {entry['durationMs']}ms",
+            level=logging.DEBUG,
+        )
+        self.checkpoint(
+            f"executed {element_id}", when,
+            {"Prov-Action": "executed", "Prov-Node": element_id},
+        )
 
     def walk(self, element, depth: int = 0, max_steps: int = 1000) -> None:
         """A sub-process is walked one level in, but values are not scoped with it (BPMN §10.4.7)."""
@@ -1355,7 +1612,8 @@ class Runner:
                 self.state.trace.append(element_id)
                 reached = self.state.tree.setdefault("_meta", {}).setdefault("reached", {})
                 reached[element_id] = reached.get(element_id, 0) + 1
-                self.await_messages(element_id)
+                with self.arrived:
+                    self.check_interrupt()
                 tag = local(element)
                 name = self.studyflow.name_of(element_id)
 
@@ -1365,6 +1623,7 @@ class Runner:
                     runner = self.runner_for(element)
                     if runner is not None:
                         self.execute_via_runner(element, entry, runner)
+                    self.throw(element)
                     self.record.end(entry)
                     self.reached[element_id] = self.moment()
                     self.event("event.reached", f"● {element_id}")
@@ -1378,47 +1637,42 @@ class Runner:
                     )
                 if tag in GATEWAY_TAGS:
                     self.event("gateway.reached", f"◇ {element_id}")
-                elif tag in CONTAINER_TAGS:
-                    entry = self.record.begin(element_id, name, bpmn_type(element))
-                    self.event("activity.started", f"⊞ {element_id}")
-                    self.start_scope(element_id, reset=True)
-                    try:
-                        self.walk(self.studyflow.start_event(element), depth + 1, max_steps)
-                    except BaseException as error:
-                        self.record.fail(entry, error)
-                        raise
-                    finally:
-                        self.depth = depth
-                    self.record.end(entry)
-                    when = self.moment()
-                    self.completed[element_id] = when
-                    self.event(
-                        "activity.finished", f"  {element_id} done in {entry['durationMs']}ms",
-                        level=logging.DEBUG,
-                    )
-                    self.checkpoint(
-                        f"executed {element_id}", when,
-                        {"Prov-Action": "executed", "Prov-Node": element_id},
-                    )
                 elif tag in PASSTHROUGH_TAGS:
                     entry = self.record.begin(element_id, name, bpmn_type(element))
                     runner = self.runner_for(element) if tag == "intermediateCatchEvent" else None
-                    if runner is not None:
-                        # A catch event a partial runner executes blocks in its subprocess until sensed.
-                        self.event("event.waiting", f"◐ {element_id}  (waiting via {runner.name})")
-                        try:
+                    try:
+                        if runner is not None:
+                            # A catch event a partial runner executes blocks in its subprocess until sensed.
+                            self.event("event.waiting", f"◐ {element_id}  (waiting via {runner.name})")
                             sensed = runner.element(element_id, self.json_values())
                             entry["_runnerMs"] = sensed.get("durationMs")
                             self.store(element_id, sensed.get("result"))
-                        except BaseException as error:
-                            self.record.fail(entry, error)
-                            entry.pop("_runnerMs", None)
-                            raise
+                        elif self.studyflow.flows_in.get(element_id):
+                            # A catch event a message flow reaches waits for that message; its content is the result.
+                            self.event("event.waiting", f"◐ {element_id}  (waiting for a message)")
+                            self.store(element_id, self.receive(element_id)["content"])
+                    except Interrupted:
+                        self.end_entry(entry)
+                        raise
+                    except BaseException as error:
+                        self.record.fail(entry, error)
+                        entry.pop("_runnerMs", None)
+                        raise
+                    self.throw(element)
                     self.end_entry(entry)
                     self.reached[element_id] = self.moment()
                     self.event("event.reached", f"○ {element_id}")
                 else:
-                    self.run_activity(element)
+                    boundary = self.perform(element, depth, max_steps)
+                    if boundary is not None:
+                        # The activity ended at one of its boundary events: the walk goes on from there.
+                        boundary_id = boundary.get("id")
+                        self.state.trace.append(boundary_id)
+                        reached[boundary_id] = reached.get(boundary_id, 0) + 1
+                        self.reached[boundary_id] = self.moment()
+                        self.event("event.reached", f"○ {boundary_id}  (ended {element_id})")
+                        element = self.next_element(boundary)
+                        continue
 
                 # After next_element, so a gateway's decision is in its record entry too.
                 following = self.next_element(element)

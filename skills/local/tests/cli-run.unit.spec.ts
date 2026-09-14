@@ -251,64 +251,110 @@ test.describe('partial runner hand-off', () => {
     expect(digest.names).toEqual({ T: 'fit', Dat: 'digits' });
   });
 
-  test('walks every pool at once, and steps joined by message flows start together', async () => {
-    // Two pools: the screen's task and the robot's answering step exchange messages both ways, so neither
-    // starts before the other is reached; the robot's greeting runs first, the task waits for it.
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:collaboration id="C">
-    <bpmn:participant id="Screen" name="Screen" processRef="S"/>
-    <bpmn:participant id="Robot" name="Robot" processRef="R"/>
-    <bpmn:messageFlow id="M1" sourceRef="Play" targetRef="Answer"/>
-    <bpmn:messageFlow id="M2" sourceRef="Answer" targetRef="Play"/>
-  </bpmn:collaboration>
-  <bpmn:process id="S">
-    <bpmn:startEvent id="S0"><bpmn:outgoing>SF1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Play" name="Play"><bpmn:incoming>SF1</bpmn:incoming><bpmn:outgoing>SF2</bpmn:outgoing></bpmn:task>
-    <bpmn:endEvent id="S9"><bpmn:incoming>SF2</bpmn:incoming></bpmn:endEvent>
-    <bpmn:sequenceFlow id="SF1" sourceRef="S0" targetRef="Play"/>
-    <bpmn:sequenceFlow id="SF2" sourceRef="Play" targetRef="S9"/>
-  </bpmn:process>
-  <bpmn:process id="R">
-    <bpmn:extensionElements><studyflow:study runtime="local"/></bpmn:extensionElements>
-    <bpmn:startEvent id="R0"><bpmn:outgoing>RF1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Greet" name="Greet"><bpmn:incoming>RF1</bpmn:incoming><bpmn:outgoing>RF2</bpmn:outgoing></bpmn:task>
-    <bpmn:receiveTask id="Answer" name="Answer"><bpmn:incoming>RF2</bpmn:incoming><bpmn:outgoing>RF3</bpmn:outgoing></bpmn:receiveTask>
-    <bpmn:endEvent id="R9"><bpmn:incoming>RF3</bpmn:incoming></bpmn:endEvent>
-    <bpmn:sequenceFlow id="RF1" sourceRef="R0" targetRef="Greet"/>
-    <bpmn:sequenceFlow id="RF2" sourceRef="Greet" targetRef="Answer"/>
-    <bpmn:sequenceFlow id="RF3" sourceRef="Answer" targetRef="R9"/>
-  </bpmn:process>
-</bpmn:definitions>`;
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-pools-'));
+  test('carries the messages between pools: a runner mid-run, a pool a runner plays, a loop a message ends', async () => {
+    // The screen waits for the robot's "ready", then its task (a runner) sends three trials mid-run. The robot's loop
+    // takes each, asks the model (a pool with no process, which a runner plays), and sends the answer back; the
+    // task's end sends "over", which ends the loop at its boundary event.
+    const xml = await studyflowToXml(`id: talk
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Screen: { name: Screen, processRef: S }
+    Robot: { name: Robot, processRef: R }
+    Model: { name: Model }
+  messageFlows:
+    M_Ready: { sourceRef: Ready, targetRef: Seated }
+    M_Trial: { sourceRef: Play, targetRef: Receive }
+    M_Answer: { sourceRef: Answer, targetRef: Play }
+    M_Ask: { sourceRef: Ask, targetRef: Model }
+    M_Reply: { sourceRef: Model, targetRef: Ask }
+    M_Over: { sourceRef: Over, targetRef: Stop }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Seated: { type: IntermediateCatchEvent }
+    Play: { type: Task }
+    Over: { type: EndEvent }
+    SF1: S0 -> Seated
+    SF2: Seated -> Play
+    SF3: Play -> Over
+R:
+  type: Process
+  flowElements:
+    R0: { type: StartEvent }
+    Ready: { type: IntermediateThrowEvent }
+    Each:
+      type: SubProcess
+      loopCharacteristics: { type: StandardLoopCharacteristics }
+      flowElements:
+        E0: { type: StartEvent }
+        Receive:
+          type: ReceiveTask
+          dataOutputAssociations: { Out_Seen: { targetRef: Seen } }
+        Seen: { type: DataObjectReference }
+        Ask:
+          type: ServiceTask
+          dataInputAssociations: { In_Seen: { sourceRef: [Seen] } }
+          dataOutputAssociations: { Out_Choice: { targetRef: Choice, transformation: result.upper() } }
+        Choice: { type: DataObjectReference }
+        Answer:
+          type: SendTask
+          dataInputAssociations: { In_Choice: { sourceRef: [Choice] } }
+        E9: { type: EndEvent }
+        EF1: E0 -> Receive
+        EF2: Receive -> Ask
+        EF3: Ask -> Answer
+        EF4: Answer -> E9
+    Stop: { type: BoundaryEvent, attachedToRef: Each }
+    R9: { type: EndEvent }
+    RF1: R0 -> Ready
+    RF2: Ready -> Each
+    RF3: Stop -> R9
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-talk-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
-    const order = path.join(dir, 'order.log');
-    // A runner that claims every task, takes a moment on each, and notes when each began and ended.
-    fs.writeFileSync(path.join(dir, 'fake.py'), [
-      'import json, sys, time',
+    const heard = path.join(dir, 'heard.json');
+    // The task: each trial goes out through its outbox, and it waits in its inbox for the answer to that trial.
+    fs.writeFileSync(path.join(dir, 'task.py'), [
+      'import json, os, sys, time',
       'plan, mode = sys.argv[1], sys.argv[2]',
-      "if mode == '--claims': print(json.dumps(['Greet', 'Play', 'Answer']))",
-      'else:',
-      '    eid = sys.argv[3]',
-      `    open(${JSON.stringify(order)}, 'a').write(f'start {eid} {time.monotonic()}\\n')`,
-      '    time.sleep(0.8)',
-      `    open(${JSON.stringify(order)}, 'a').write(f'end {eid} {time.monotonic()}\\n')`,
-      "    handoff = sys.argv[5] + '/' + eid + '.state.json'",
-      '    state = json.load(open(handoff))',
-      "    json.dump({**state, 'result': eid, 'durationMs': 0}, open(handoff, 'w'))",
+      "if mode == '--claims': print(json.dumps(['Play'])); sys.exit()",
+      'eid, cache = sys.argv[3], sys.argv[5]',
+      'answers = []',
+      'for n in (1, 2, 3):',
+      "    open(os.path.join(cache, eid + '.outbox.jsonl'), 'a').write(json.dumps({'flow': 'M_Trial', 'id': f't{n}', 'content': {'n': n}}) + '\\n')",
+      '    deadline = time.monotonic() + 30',
+      '    while not any(m.get("inReplyTo") == f"t{n}" for m in answers):',
+      '        assert time.monotonic() < deadline, answers',
+      "        inbox = os.path.join(cache, eid + '.inbox.jsonl')",
+      '        answers = [json.loads(line) for line in open(inbox)] if os.path.exists(inbox) else []',
+      '        time.sleep(0.05)',
+      `open(${JSON.stringify(heard)}, 'w').write(json.dumps([m['content'] for m in answers]))`,
+      "handoff = os.path.join(cache, eid + '.state.json')",
+      "json.dump({**json.load(open(handoff)), 'result': 3, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    // The model: one hand-off per message sent to its pool; its result is the answer.
+    fs.writeFileSync(path.join(dir, 'model.py'), [
+      'import json, os, sys',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Model'])); sys.exit()",
+      "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
+      'state = json.load(open(handoff))',
+      "json.dump({**state, 'result': f\"answer {state['message']['content']['Seen']['n']}\", 'durationMs': 0}, open(handoff, 'w'))",
     ].join('\n'));
     execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
-      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
+      '--runner', `task=python3 ${path.join(dir, 'task.py')}`, '--runner', `model=python3 ${path.join(dir, 'model.py')}`],
+    { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
 
-    const moments = new Map(fs.readFileSync(order, 'utf8').trim().split('\n').map((line) => {
-      const [what, id, at] = line.split(' ');
-      return [`${what} ${id}`, Number(at)] as const;
-    }));
-    // The task waited for the greeting; then it and the answering step ran together.
-    expect(moments.get('start Play')!).toBeGreaterThanOrEqual(moments.get('end Greet')!);
-    expect(moments.get('start Answer')!).toBeLessThan(moments.get('end Play')!);
-    expect(moments.get('start Play')!).toBeLessThan(moments.get('end Answer')!);
+    // Each answer is the send task's data input, narrowed by the edge from the model's reply, and answers its trial.
+    expect(JSON.parse(fs.readFileSync(heard, 'utf8'))).toEqual([{ Choice: 'ANSWER 1' }, { Choice: 'ANSWER 2' }, { Choice: 'ANSWER 3' }]);
+    // Three passes, a fourth wait that "over" ended, and the walk went on from the boundary event.
+    const reached = archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached;
+    expect(reached).toMatchObject({ Ask: 3, Receive: 4, Stop: 1, R9: 1, Over: 1 });
   });
 
   test('records a staged input under the hand-off that reads it, not one running beside it', async () => {
