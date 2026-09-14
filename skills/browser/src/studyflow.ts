@@ -151,7 +151,7 @@ export async function parseStudyflow(
   // A plain BPMN file carries none; the run makes one, so a link's `seed` still has somewhere to go.
   const study = ensureStudyExtension(definitions, moddle);
 
-  const bound = bindParameters(definitions, businessObject, study, parameters);
+  const { wired, ...bound } = bindParameters(definitions, businessObject, study, parameters);
 
   const flowNodes = new Map<string, FlowNode>();
   const sequenceFlows = new Map<string, SequenceFlow>();
@@ -178,6 +178,7 @@ export async function parseStudyflow(
         type: el.$type,
         extensionType: getExtensionType(el),
         businessObject: el,
+        parameters: wired.get(el.id) ?? {},
         outgoing: [],
         incoming: [],
         scopeId,
@@ -292,6 +293,39 @@ function readParameterObjects(container: any): Map<string, Record<string, unknow
   return objects;
 }
 
+/** Whether `path` (`Bot.Speed`, `Streams.0`) leads to a value inside `node`. */
+function hasPath(node: unknown, path: string[]): boolean {
+  for (const key of path) {
+    if (!node || typeof node !== 'object' || !Object.hasOwn(node, key)) return false;
+    node = (node as Record<string, unknown>)[key];
+  }
+  return true;
+}
+
+const isMapping = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value);
+
+/** What a step reads: the `studyflow:Parameters` wired into it, merged. Mappings merge key by key; a value two of
+ * them set is an error, since nothing drawn orders the wires. `skills/local/run.py` merges the same way. */
+function mergeWired(stepId: string, sources: [string, Record<string, unknown>][]): Record<string, unknown> {
+  const into = (target: Record<string, unknown>, source: Record<string, unknown>, id: string, path: string[]): void => {
+    for (const [key, value] of Object.entries(source)) {
+      const at = [...path, key];
+      if (!Object.hasOwn(target, key)) {
+        target[key] = structuredClone(value);
+      } else if (isMapping(target[key]) && isMapping(value)) {
+        into(target[key], value, id, at);
+      } else {
+        const [other] = sources.find(([, carried]) => hasPath(carried, at))!;
+        throw new Error(`${stepId} reads ${at.join('.')} from both ${other} and ${id}: set it in one of them.`);
+      }
+    }
+  };
+  const merged: Record<string, unknown> = {};
+  for (const [id, carried] of sources) into(merged, carried, id, []);
+  return merged;
+}
+
 /** Which data elements each step reads, from the associations drawn on the canvas. */
 function readInputSources(container: any): Map<string, string[]> {
   const inputs = new Map<string, string[]>();
@@ -323,7 +357,7 @@ function bindParameters(
   businessObject: any,
   study: any,
   given: Record<string, string>,
-): BoundParameters {
+): BoundParameters & { wired: Map<string, Record<string, unknown>> } {
   const objects = readParameterObjects(businessObject);
   const properties = new Map(readProperties(businessObject).map((p) => [p.name, p.itemType]));
   // The Study's one attribute a run is launched with; its others (`runtime`, `version`) are about the study, not run values.
@@ -335,9 +369,20 @@ function bindParameters(
   const undeclared: string[] = [];
 
   for (const [name, raw] of Object.entries(given)) {
-    const carriers = [...objects.values()].filter((carried) => name in carried);
+    // A dotted name reaches inside a Parameters object (`Bot.Speed`); a link replaces one value, never a whole mapping or list.
+    const path = name.split('.');
+    const carriers = [...objects].filter(([, carried]) => hasPath(carried, path));
     if (carriers.length > 0) {
-      for (const carried of carriers) carried[name] = coerceLike(raw, carried[name]);
+      for (const [id, carried] of carriers) {
+        const holder = path.slice(0, -1).reduce((node: any, key) => node[key], carried);
+        const leaf = path[path.length - 1];
+        const replaced = holder[leaf];
+        if (replaced !== null && typeof replaced === 'object') {
+          throw new Error(`The link sets '${name}', a whole ${Array.isArray(replaced) ? 'list' : 'mapping'} in ${id}: `
+            + `set one value inside it instead, as ${name}.<key>.`);
+        }
+        holder[leaf] = coerceLike(raw, replaced);
+      }
       overridden.push(name);
       continue;
     }
@@ -395,9 +440,23 @@ function bindParameters(
     }
   };
 
-  /** A step reads what is wired into it; a data object wired nowhere is the study's own configuration. */
-  const bindContainer = (container: any, inherited: Record<string, unknown>): void => {
+  /** What a step reads takes `{name}` in its keys and strings too; a string that is one placeholder takes the value itself, type and all. */
+  const substituteValues = (value: unknown, scope: Record<string, unknown>): unknown => {
+    if (typeof value === 'string') {
+      const [only] = [...value.matchAll(PLACEHOLDER)];
+      const bound = only?.[0] === value ? scope[only[1]] : undefined;
+      return bound !== undefined && bound !== '' ? bound : substitute(value, scope);
+    }
+    if (Array.isArray(value)) return value.map((item) => substituteValues(item, scope));
+    if (!isMapping(value)) return value;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [substitute(key, scope), substituteValues(item, scope)]));
+  };
+
+  /** A step reads what is wired into it, from its own container or one around it; a data object wired nowhere is the study's own configuration. */
+  const reads = new Map<string, Record<string, unknown>>();
+  const bindContainer = (container: any, inherited: Record<string, unknown>, outer: Map<string, Record<string, unknown>>): void => {
     const carried = container === businessObject ? objects : readParameterObjects(container);
+    const reachable = new Map([...outer, ...carried]);
     const inputs = readInputSources(container);
     const wired = new Set([...inputs.values()].flat());
 
@@ -410,15 +469,19 @@ function bindParameters(
     const seen = new Set<object>();
     substituteIn(container, scope, seen);
     for (const element of container.flowElements ?? []) {
-      const read = Object.assign({}, ...(inputs.get(element.id) ?? []).map((id) => carried.get(id) ?? {}));
+      const sources = [...new Set(inputs.get(element.id))]
+        .flatMap((id): [string, Record<string, unknown>][] => (
+          reachable.has(id) ? [[id, substituteValues(reachable.get(id), scope) as Record<string, unknown>]] : []));
+      const read = mergeWired(element.id, sources);
+      if (sources.length > 0) reads.set(element.id, read);
       const elementScope = { ...scope, ...read };
       substituteIn(element, elementScope, new Set());
-      if (element.flowElements) bindContainer(element, elementScope);
+      if (element.flowElements) bindContainer(element, elementScope, reachable);
     }
   };
 
-  bindContainer(businessObject, ambient);
+  bindContainer(businessObject, ambient, new Map());
   substituteIn(definitions, ambient, new Set([businessObject]));
 
-  return { values, overridden: [...new Set(overridden)], undeclared, unbound: [...unbound] };
+  return { values, overridden: [...new Set(overridden)], undeclared, unbound: [...unbound], wired: reads };
 }

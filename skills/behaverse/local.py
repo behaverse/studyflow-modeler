@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["pyyaml>=6.0"]
+# dependencies = []
 # ///
 """Run the Behaverse (Unity WebGL) tasks of a studyflow in this machine's browser.
 
@@ -45,8 +45,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
-import yaml
-
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 BEHAVERSE = "http://behaverse.org/schemas/studyflow/behaverse"
 BUILD_MOUNT = "/assessment-unity"
@@ -61,19 +59,6 @@ def behaverse_extension(element: dict[str, Any]) -> dict[str, Any] | None:
                  if ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "task"), None)
 
 
-def mapping_of(text: Any, what: str, element_id: str) -> dict[str, Any]:
-    """A YAML mapping the diagram wrote as element text; empty when absent."""
-    if not isinstance(text, str) or not text.strip():
-        return {}
-    try:
-        parsed = yaml.safe_load(text)
-    except yaml.YAMLError as error:
-        raise ValueError(f"{what} on behaverse:Task {element_id!r} is not valid YAML: {error}") from None
-    if not isinstance(parsed, dict):
-        raise ValueError(f"{what} on behaverse:Task {element_id!r} must be a mapping of setting names to values")
-    return parsed
-
-
 def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     """The `RunCognitiveTask` payload, built as the browser runner's parser.ts builds it; `plan` is every element
     of the digest, for what the diagram draws around this task."""
@@ -82,7 +67,11 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
     scene = str(attrs.get("scene") or "")
     if not scene:
         raise ValueError(f"behaverse:Task {element_id!r} has no scene; set it to a task the Unity build ships")
-    parameters = mapping_of(attrs.get("configurations"), "configurations", element_id)
+    # The task's GameConfig is what the Parameters wired into it say, merged (the plan's `parameters`).
+    parameters = dict(element.get("parameters") or {})
+    if not parameters:
+        raise ValueError(f"behaverse:Task {element_id!r} has no Parameters wired into it, so it has no trials to run; "
+                         "wire in one whose Timelines names a timeline the build ships, or defines one inline")
     # `Bot:` is not GameConfig: how the build's bot plays the task, sent to Unity as the payload's own `bot`.
     bot_settings = parameters.pop("Bot", None)
     bot_settings = bot_settings if isinstance(bot_settings, dict) else {}

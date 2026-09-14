@@ -248,9 +248,19 @@ templates:
               - type: cognitive:CognitiveTask
                 icon: iconify ph--puzzle-piece
                 instrument: psychopy
-                configurations: |
-                  triggerChannel: markers  # stimulus marker stream sent with biosignals
+            dataInputAssociations:
+              In_eeg_task_parameters:
+                sourceRef:
+                  - eeg_task_parameters
             bounds: 520 178 100 80
+          eeg_task_parameters:
+            type: DataObjectReference
+            name: Parameters
+            extensionElements:
+              - type: studyflow:Parameters
+                values: |
+                  triggerChannel: markers  # stimulus marker stream sent with biosignals
+            bounds: 552 308 36 50
           eeg_export:
             type: ServiceTask
             name: Export recording

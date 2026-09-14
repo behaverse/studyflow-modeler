@@ -95,7 +95,7 @@ enumerations:
 
 types:
   - name: Task
-    description: A task from the Behaverse assessment battery.
+    description: A task from the Behaverse assessment battery, configured by the Parameters wired into it.
     superClass:
       - cognitive:CognitiveTask
     meta:
@@ -127,14 +127,6 @@ types:
           order: 1
           categories:
             - Execution
-      - name: configurations
-        description: 'The task''s `GameConfig` as YAML: a shipped timeline, or one defined inline. `Bot:` says how a bot plays it (`Speed: 20`), read when the participant taking the task is not a person.'
-        type: cognitive:Configurations
-        redefines: cognitive:CognitiveTask#configurations
-        meta:
-          order: 2
-          categories:
-            - Execution
 
   - name: BDMDataset
     description: A dataset in the Behaverse Data Model (BDM).
@@ -161,27 +153,27 @@ types:
             - Data
 
 # Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
+# A task's GameConfig is the `studyflow:Parameters` wired into it: a shipped timeline, or one defined inline. Its
+# `Bot:` says how a bot plays the task (`Speed: 20`), read when the participant taking it is not a person.
 templates:
-  - description: N-Back running a timeline that ships with the Behaverse build.
+  - description: The parameters of an N-Back task running a timeline that ships with the Behaverse build; wire it into the task.
     elements:
       NBack_XCIT_NB_01:
-        type: ChoreographyTask
+        type: DataObjectReference
         name: N-Back (XCIT_NB_01)
         extensionElements:
-          - type: behaverse:Task
-            scene: NB
-            configurations: |
+          - type: studyflow:Parameters
+            values: |
               Timelines:
                 XCIT_NB_01:
-  - description: N-Back with an inline timeline; author only the blocks that differ from the defaults.
+  - description: The parameters of an N-Back task with an inline timeline; author only the blocks that differ from the defaults.
     elements:
       NBack_inline:
-        type: ChoreographyTask
+        type: DataObjectReference
         name: N-Back (inline)
         extensionElements:
-          - type: behaverse:Task
-            scene: NB
-            configurations: |
+          - type: studyflow:Parameters
+            values: |
               Blocks:
                 LabLink_InlineBlock:
                   Name: LabLink_InlineBlock

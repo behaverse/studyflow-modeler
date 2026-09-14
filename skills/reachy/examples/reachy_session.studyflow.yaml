@@ -64,12 +64,23 @@ Reachy_Session:
       type: Task
       extensionElements:
         - type: behaverse:Task
-          configurations:
-            Timelines:
-              XCIT_NB_01: null
           scene: NB
       name: N-Back
+      dataInputAssociations:
+        In_NBack_Parameters:
+          sourceRef:
+            - NBack_Parameters
+          waypoint: 825,300 825,250
       bounds: 775 170 100 80
+    NBack_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
+            Timelines:
+              XCIT_NB_01: null
+      name: Parameters
+      bounds: 807 300 36 50
     Celebrate:
       type: ServiceTask
       extensionElements:

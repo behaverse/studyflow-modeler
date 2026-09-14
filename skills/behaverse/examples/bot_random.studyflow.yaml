@@ -32,7 +32,21 @@ Demo3_ExternalBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          configurations:
+          scene: NB
+      name: 1-Back warm-up
+      participantRef:
+        - Actor_Random_bot
+      dataInputAssociations:
+        In_Warmup_1Back_Parameters:
+          sourceRef:
+            - Warmup_1Back_Parameters
+          waypoint: 320,308 320,258
+      bounds: 260 138 120 120
+    Warmup_1Back_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
             Blocks:
               Demo3_Warmup:
                 Name: Demo3_Warmup
@@ -75,16 +89,27 @@ Demo3_ExternalBot:
               StimulusDisplayDuration: 0.3
               InterStimulusInterval: 0.3
               TrialForeperiod: 0.1
-          scene: NB
-      name: 1-Back warm-up
-      participantRef:
-        - Actor_Random_bot
-      bounds: 260 138 120 120
+      name: Parameters
+      bounds: 302 308 36 50
     Main_2Back:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          configurations:
+          scene: NB
+      name: 2-Back main
+      participantRef:
+        - Actor_Random_bot
+      dataInputAssociations:
+        In_Main_2Back_Parameters:
+          sourceRef:
+            - Main_2Back_Parameters
+          waypoint: 510,308 510,258
+      bounds: 450 138 120 120
+    Main_2Back_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
             Blocks:
               Demo3_Main:
                 Name: Demo3_Main
@@ -131,11 +156,8 @@ Demo3_ExternalBot:
               StimulusDisplayDuration: 0.3
               InterStimulusInterval: 0.3
               TrialForeperiod: 0.1
-          scene: NB
-      name: 2-Back main
-      participantRef:
-        - Actor_Random_bot
-      bounds: 450 138 120 120
+      name: Parameters
+      bounds: 492 308 36 50
     End:
       type: EndEvent
       name: Done

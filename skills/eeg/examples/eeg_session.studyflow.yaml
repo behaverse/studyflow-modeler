@@ -32,11 +32,21 @@ EEG_Session:
       extensionElements:
         - type: cognitive:CognitiveTask
           instrument: psychopy
-          configurations:
-            value: |
-              triggerChannel: markers  # stimulus marker stream sent with biosignals
       name: Cognitive task
+      dataInputAssociations:
+        In_Cognitive_Task_Parameters:
+          sourceRef:
+            - Cognitive_Task_Parameters
+          waypoint: 525,160 525,110
       bounds: 475 30 100 80
+    Cognitive_Task_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values: |
+            triggerChannel: markers  # stimulus marker stream sent with biosignals
+      name: Parameters
+      bounds: 507 160 36 50
     Export_Recording:
       type: ServiceTask
       documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).

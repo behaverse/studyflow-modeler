@@ -21,6 +21,7 @@ function randomGateway(attributes: Record<string, string>, name?: string): FlowN
     type: 'bpmn:ExclusiveGateway',
     extensionType: 'cognitive:RandomGateway',
     businessObject: bo,
+    parameters: {},
     outgoing: ['Flow_1', 'Flow_2'],
     incoming: [],
     scopeId: 'Process_1',

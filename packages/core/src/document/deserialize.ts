@@ -25,9 +25,7 @@ import {
   isYamlValueProperty,
   keyedMapToList,
   longTypeName,
-  qualifiesAsInlineBody,
   qualifiesAsInlineValue,
-  yamlBodyProperty,
   type DiType,
 } from '@core/document/shorthand';
 import { writeState, type StateTree } from '@core/document/state';
@@ -179,10 +177,6 @@ class ModdleBuilder {
     return elementListProperty(this.descriptorOf(typeName));
   }
 
-  private yamlBodyPropertyOf(typeName: string): any | undefined {
-    return yamlBodyProperty(this.descriptorOf(typeName));
-  }
-
   private extractInlineDi(el: any, descriptor: any, props: Record<string, any>): void {
     const extracted = extractInlineDi(
       props,
@@ -204,16 +198,10 @@ class ModdleBuilder {
       const node = raw as Record<string, any>;
       if ('type' in node) return this.build(node, declaredType);
       if (!isElementType) return raw;
-      const body = this.yamlBodyPropertyOf(declaredType);
-      if (body && qualifiesAsInlineBody(node, this.descriptorOf(declaredType))) {
-        return this.build({ type: declaredType, [body.name]: expandInline(node) }, declaredType);
-      }
       return this.build(node, declaredType);
     }
 
     if (typeof raw === 'string' && isElementType) {
-      const body = this.yamlBodyPropertyOf(declaredType);
-      if (body) return this.build({ type: declaredType, [body.name]: raw }, declaredType);
       if (isExpressionType(declaredType)) return this.build(expandExpressionBody(raw), declaredType);
       if (isDocumentationType(declaredType)) return this.build(expandDocumentationEntry(raw), declaredType);
     }

@@ -392,7 +392,23 @@ WhichOne_Task:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          configurations:
+          scene: WO
+      name: WhichOne, 5 Simon trials
+      dataInputAssociations:
+        In_Play_Parameters:
+          sourceRef:
+            - Play_Parameters
+          waypoint: 1410,176 1410,160
+      dataOutputAssociations:
+        Out_Trials:
+          targetRef: Trials
+          waypoint: 1470,160 1470,180
+      bounds: 1060 80 700 80
+    Play_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
             Timelines:
               SimonTask:
                 Blocks:
@@ -404,13 +420,8 @@ WhichOne_Task:
                 Parameters:
                   StimulusDisplayDuration: 5
                   MaxResponseTime: 8
-          scene: WO
-      name: WhichOne, 5 Simon trials
-      dataOutputAssociations:
-        Out_Trials:
-          targetRef: Trials
-          waypoint: 1470,160 1470,180
-      bounds: 1060 80 700 80
+      name: Parameters
+      bounds: 1392 176 36 50
     Trials:
       type: DataStoreReference
       extensionElements:

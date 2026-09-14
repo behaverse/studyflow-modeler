@@ -30,8 +30,8 @@ test('an attribute is read and written where it lives, and a read takes the valu
       writes: [['instrument', 'jsPsych']], reads: { instrument: 'jsPsych' }, holder: (bo) => wrapperOf(bo).instrument,
     },
     {
-      label: 'a body-wrapped attribute, read as its body', type: 'bpmn:Task', wrapper: 'cognitive:CognitiveTask',
-      writes: [['configurations', 'trials: 10']], reads: { configurations: 'trials: 10' }, holder: (bo) => wrapperOf(bo).configurations.value,
+      label: 'a body-wrapped attribute, read as its body', type: 'bpmn:SequenceFlow',
+      writes: [['conditionExpression', 'score > 1']], reads: { conditionExpression: 'score > 1' }, holder: (bo) => bo.conditionExpression.body,
     },
     {
       label: 'the checklist, a documentation entry that rewriting the prose leaves alone', type: 'bpmn:Task',

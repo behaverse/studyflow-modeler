@@ -70,7 +70,7 @@ and enumeration names that no other schema declares.
 
 A type whose `superClass` is a moddle built-in (`String`) is a value type: text an attribute holds, with an
 editor of its own (`MarkdownString`, `YAMLString`). Any other type with no BPMN ancestor is a value holder other
-types point at (`prov:Activity`, `cognitive:Configurations`), and writes `superClass: [Element]`, moddle's root;
+types point at (`prov:Activity`), and writes `superClass: [Element]`, moddle's root;
 `superClass: [bpmn:BaseElement]` gives one BPMN's `id` and documentation but no place on the canvas
 (`studyflow:DataCatalog`).
 
@@ -101,16 +101,15 @@ Each entry of a type's `properties` is one attribute.
 | `type` | The value's type: moddle's `String`, `Boolean`, `Integer` or `Real`, an enumeration, a value type, a type, or a BPMN element (below). Written on every attribute, `String` included. |
 | `isAttr: true` | An XML attribute; below. |
 | `isMany: true` | A list, one child element per entry. |
-| `isBody: true` | The element's text body: the one attribute of a value holder (`cognitive:Configurations.value`). |
+| `isBody: true` | The element's text body: the one attribute of a value holder. |
 | `default` | The value a new element starts with, as plain YAML of the attribute's type (`csv`, `3`, `0.5`, `true`); `tests/schemas.unit.spec.ts` checks the type. Quote a value YAML would read as another type (`default: '50'`). On an enum attribute it must be one of the literal values (checked at compile). |
 | `redefines: Type#property`, `replaces: Type#property` | Overrides an inherited property; see precedence below. The type is named like any other (`cognitive:CognitiveTask#instrument`, `bpmn:ServiceTask#implementation`); anything not spelled `Type#property` overrides nothing (a diagnostic). Overriding a BPMN property also names it `bpmn:<property>`, or the value is written in the schema's own namespace. |
 | `xml.serialize: xsi:type` | On a `bpmn:Expression` attribute: moddle writes the element with its `xsi:type`, as BPMN writes an expression. |
 | `meta` | The app's own keys; below. |
 
 An attribute with `isAttr: true` is an XML attribute, which holds one line. Without it, the attribute is a child
-element. Use a child element for multi-line text (`MarkdownString`, `YAMLString`, code), and to nest a value holder
-(`configurations`, of type `cognitive:Configurations`). When `type` names a BPMN element, moddle writes the value
-as that element. `bpmn:Documentation` and `bpmn:Expression` are text the inspector edits as a string; other BPMN
+element. Use a child element for multi-line text (`MarkdownString`, `YAMLString`, code), and to nest a value holder.
+When `type` names a BPMN element, moddle writes the value as that element. `bpmn:Documentation` and `bpmn:Expression` are text the inspector edits as a string; other BPMN
 elements (`bpmn:DataInputAssociation`) are structure the canvas draws, never an inspector field. An expression
 takes `type: bpmn:Expression`, `xml.serialize: xsi:type` and `meta.expression: true` together, as studyflow's
 `SequenceFlow` trait shows, redefining a BPMN property:

@@ -33,6 +33,7 @@ pools talk only along message flows, and the walk carries every message
 from __future__ import annotations
 
 import argparse
+import copy
 import itertools
 import json
 import logging
@@ -632,6 +633,43 @@ def element_digest(element: ET.Element) -> dict[str, Any]:
     }
 
 
+def parameters_of(element: ET.Element | None) -> dict | None:
+    """The mapping a `studyflow:Parameters` data object carries; None for any other element, or an empty one."""
+    ext = next((ext for holder in (element if element is not None else []) if local(holder) == "extensionElements"
+                for ext in holder if ext.tag == f"{{{STUDYFLOW}}}parameters"), None)
+    values = studyflow_child(ext, "values") if ext is not None else None
+    parsed = yaml.safe_load(values.text or "") if values is not None else None
+    return parsed if isinstance(parsed, dict) and parsed else None
+
+
+def wired_parameters(step_id: str, sources: list[tuple[str, dict]]) -> dict:
+    """What a step reads: the `studyflow:Parameters` wired into it, merged. Mappings merge key by key; a value two of
+    them set is an error, since nothing drawn orders the wires. The browser runner's `mergeWired` merges the same way."""
+
+    def has(node: Any, path: list) -> bool:
+        for key in path:
+            if not isinstance(node, dict) or key not in node:
+                return False
+            node = node[key]
+        return True
+
+    def into(target: dict, source: dict, source_id: str, path: list) -> None:
+        for key, value in source.items():
+            at = [*path, key]
+            if key not in target:
+                target[key] = copy.deepcopy(value)
+            elif isinstance(target[key], dict) and isinstance(value, dict):
+                into(target[key], value, source_id, at)
+            else:
+                other = next(sid for sid, carried in sources if has(carried, at))
+                raise SystemExit(f"{step_id} reads {'.'.join(map(str, at))} from both {other} and {source_id}: set it in one of them.")
+
+    merged: dict = {}
+    for source_id, carried in sources:
+        into(merged, carried, source_id, [])
+    return merged
+
+
 def study_dependencies(studyflow: Studyflow) -> list[str]:
     """`studyflow:dependencies` entries on the study, one package spec each, in the order written."""
     study = studyflow.study
@@ -646,6 +684,10 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
     elements = {element_id: element_digest(element) for element_id, element in studyflow.elements.items()}
     for element_id, digest in elements.items():
         digest["parent"] = studyflow.parents.get(element_id)  # the container, for lexical `{name}` lookups outward
+        wired = [(source, carried) for source in dict.fromkeys(i["source"] for i in digest["inputs"])
+                 if (carried := parameters_of(studyflow.elements.get(source))) is not None]
+        if wired:
+            digest["parameters"] = wired_parameters(element_id, wired)
     process = studyflow.process
     title = studyflow.root.get("name") or process.get("name")
     for root in studyflow.definitions:

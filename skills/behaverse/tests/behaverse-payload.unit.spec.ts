@@ -14,7 +14,17 @@ async function payloadOf(xml: string): Promise<BehaverseTaskPayload | null> {
   return getBehaverseTaskPayload(flowNodes.get('TheTask') as FlowNode);
 }
 
-function taskXml(configurations: string): string {
+/** Parameters data objects, one per YAML text, each wired into `TheTask`. */
+function wiredParameters(values: string[]): { objects: string; wires: string } {
+  return {
+    objects: values.map((text, i) => `<bpmn2:dataObjectReference id="P${i + 1}"><bpmn2:extensionElements><studyflow:parameters><studyflow:values>${text}</studyflow:values></studyflow:parameters></bpmn2:extensionElements></bpmn2:dataObjectReference>`).join('\n'),
+    wires: values.map((_, i) => `<bpmn2:dataInputAssociation id="In_P${i + 1}"><bpmn2:sourceRef>P${i + 1}</bpmn2:sourceRef></bpmn2:dataInputAssociation>`).join(''),
+  };
+}
+
+/** The task, reading the Parameters objects `values` spell. */
+function taskXml(...values: string[]): string {
+  const { objects, wires } = wiredParameters(values);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="payload_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:process id="PayloadFixture" name="Payload fixture">
@@ -23,17 +33,18 @@ function taskXml(configurations: string): string {
     </bpmn2:extensionElements>
     <bpmn2:task id="TheTask" name="The task">
       <bpmn2:extensionElements>
-        <behaverse:task scene="NB">
-          <cognitive:configurations>${configurations}</cognitive:configurations>
-        </behaverse:task>
+        <behaverse:task scene="NB" />
       </bpmn2:extensionElements>
+      ${wires}
     </bpmn2:task>
+    ${objects}
   </bpmn2:process>
 </bpmn2:definitions>`;
 }
 
-/** A cognitive task whose lower band is `actor`, with a Prompt wired into it. */
+/** A cognitive task whose lower band is `actor`, with a Prompt and its Parameters wired into it. */
 function bandsXml(actor: string): string {
+  const { objects, wires } = wiredParameters(['Bot: {Speed: 20}']);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:agentic="https://w3id.org/studyflow/agentic" xmlns:reachy="https://w3id.org/studyflow/reachy" id="bands_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:collaboration id="Actors">
@@ -43,10 +54,12 @@ function bandsXml(actor: string): string {
   <bpmn2:process id="BandsFixture" name="Bands fixture">
     <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
     <bpmn2:choreographyTask id="TheTask" name="The task" initiatingParticipantRef="Screen">
-      <bpmn2:extensionElements><behaverse:task scene="NB"><cognitive:configurations>Bot: {Speed: 20}</cognitive:configurations></behaverse:task></bpmn2:extensionElements>
+      <bpmn2:extensionElements><behaverse:task scene="NB" /></bpmn2:extensionElements>
       <bpmn2:participantRef>Screen</bpmn2:participantRef><bpmn2:participantRef>Taker</bpmn2:participantRef>
       <bpmn2:dataInputAssociation id="In1"><bpmn2:sourceRef>Instructions</bpmn2:sourceRef></bpmn2:dataInputAssociation>
+      ${wires}
     </bpmn2:choreographyTask>
+    ${objects}
     <bpmn2:dataObjectReference id="Instructions" name="Instructions"><bpmn2:extensionElements><agentic:prompt><agentic:template>Answer Match or NonMatch.</agentic:template></agentic:prompt></bpmn2:extensionElements></bpmn2:dataObjectReference>
   </bpmn2:process>
 </bpmn2:definitions>`;
@@ -107,6 +120,17 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
         agentType: 'human', configMode: 'inline', timeline: 'XCIT_NB_01',
         parameters: { Timelines: { T1: { Name: 'T1', blocks: [] } } },
       },
+    },
+    {
+      // Nothing drawn orders the wires, so the objects merge key by key and a value set twice is refused.
+      label: 'two Parameters objects wired into the task merge into one GameConfig',
+      xml: taskXml('Timelines:\n  XCIT_NB_01:\n', 'Blocks:\n  B1:\n    Name: B1\n'),
+      payload: { agentType: 'human', configMode: 'inline', timeline: 'XCIT_NB_01', parameters: { Blocks: { B1: { Name: 'B1' } } } },
+    },
+    {
+      label: 'a value two wired Parameters objects both set is an error naming both',
+      xml: taskXml('Bot:\n  Speed: 20\n', 'Bot:\n  Speed: 5\n'),
+      error: /TheTask reads Bot\.Speed from both P1 and P2/,
     },
     {
       label: 'a model on the lower band answers through the runner, with the wired Prompt; Unity waits for an external answer',

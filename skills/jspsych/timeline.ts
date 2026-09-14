@@ -15,7 +15,8 @@ export type ImportedTask = {
   instrument: 'jspsych';
   /** `<scheme>://<ref>[@<version>]`, validated against the `implementation` grammar. */
   functionRef: string;
-  configurations: Record<string, unknown>;
+  /** The trial's parameters, less `type`: the Parameters object wired into the task. */
+  parameters: Record<string, unknown>;
 };
 
 export type ImportedStudy = {
@@ -147,7 +148,7 @@ function extractConfig(node: JsPsychNode, nodeLabel: string, warnings: string[])
   for (const [key, value] of Object.entries(node)) {
     if (OMITTED_CONFIG_KEYS.has(key)) continue;
     if (typeof value === 'function') {
-      warnings.push(`${nodeLabel}: dropped function-valued parameter "${key}" (not serializable to configurations).`);
+      warnings.push(`${nodeLabel}: dropped function-valued parameter "${key}" (not serializable to the task's parameters).`);
       continue;
     }
     config[key] = value;
@@ -207,7 +208,7 @@ export function importJsPsychTimeline(input: JsPsychTimelineInput, options: JsPs
       name: label,
       instrument: 'jspsych' as const,
       functionRef,
-      configurations: extractConfig(node, label, warnings),
+      parameters: extractConfig(node, label, warnings),
     };
   });
 

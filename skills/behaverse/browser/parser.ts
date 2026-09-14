@@ -1,4 +1,3 @@
-import * as yaml from 'js-yaml';
 import { getAttribute } from '@core/element';
 import type { FlowNode } from '@runner/flow';
 import type { Session } from '@runner/session';
@@ -46,26 +45,8 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
     );
   }
 
-  const configurations = readBehaverseAttribute(node.businessObject, 'configurations');
-  let parameters: Record<string, unknown> = {};
-  if (configurations && configurations.trim()) {
-    let parsed: unknown;
-    try {
-      parsed = yaml.load(configurations);
-    } catch (err) {
-      throw new Error(
-        `configurations on behaverse:Task '${node.id}' is not valid YAML: ${(err as Error).message}. `
-        + 'Check the indentation and quoting.',
-      );
-    }
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error(
-        `configurations on behaverse:Task '${node.id}' must be a mapping of setting names to values `
-        + `(got ${Array.isArray(parsed) ? 'a list' : typeof parsed}).`,
-      );
-    }
-    parameters = { ...(parsed as Record<string, unknown>) };
-  }
+  // The task's GameConfig is what the Parameters wired into it say, merged.
+  const parameters = { ...node.parameters };
   // `Bot:` is not GameConfig: it says how a bot plays the task, and goes to Unity as the payload's own `bot`.
   const authoredBot = parameters.Bot;
   delete parameters.Bot;

@@ -8,7 +8,6 @@ import {
   inlineDocumentationEntries,
   inlineElementList,
   inlineExpressionBody,
-  inlineYamlBody,
   inlineYamlValue,
   impliedTypeName,
   isImpliedFlowList,
@@ -26,8 +25,7 @@ type SerializeContext = {
 function serializeValue(value: any, declaredType: string | undefined, ctx?: SerializeContext): unknown {
   if (!isModdleElement(value)) return value;
   return (
-    inlineYamlBody(value)
-    ?? inlineExpressionBody(value)
+    inlineExpressionBody(value)
     ?? inlineElementList(value, (item) => serializeValue(item, undefined, ctx))
     ?? serializeElement(value, declaredType, ctx)
   );

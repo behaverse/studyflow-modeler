@@ -1,5 +1,4 @@
-import * as yaml from 'js-yaml';
-import { getBehaverseTaskPayload, readBehaverseAttribute } from '@skills/behaverse/browser/parser';
+import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { FlowNode } from '@runner/flow';
 import { RUNNER_ONLY_BOT_KEYS, type Manifest } from '@skills/behaverse/browser/types';
 import type { ValidationIssue } from '@runner/nodes/types';
@@ -33,17 +32,14 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
     }];
   }
 
-  // Validate what the author wrote, not the payload the parser stripped; it already parsed this YAML, so it cannot throw.
-  const rawConfigurations = readBehaverseAttribute(node.businessObject, 'configurations');
-  const authored = rawConfigurations && rawConfigurations.trim()
-    ? (yaml.load(rawConfigurations) as Record<string, unknown>)
-    : undefined;
+  // Validate what the author wrote, not the payload the parser stripped.
+  const authored = node.parameters;
 
-  if (!authored || Object.keys(authored).length === 0) {
+  if (Object.keys(authored).length === 0) {
     issues.push({
       nodeId: node.id,
-      message: `'${payload.scene}' has no configurations, so it has no trials to run. `
-        + 'Under Timelines, name a timeline the build ships (e.g. XCIT_NB_01), or define one inline with its own blocks.',
+      message: `'${payload.scene}' has no Parameters wired into it, so it has no trials to run. `
+        + 'Wire in one whose Timelines names a timeline the build ships (e.g. XCIT_NB_01), or defines one inline with its own blocks.',
     });
   } else {
     const timelines = authored.Timelines as Record<string, unknown> | undefined;
@@ -63,12 +59,12 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
   }
 
   // `Bot:` reaches Unity's per-task Bot field by field, so it must be one flat mapping (runner-only keys aside).
-  const bot = authored?.Bot;
+  const bot = authored.Bot;
   if (bot != null) {
     if (typeof bot !== 'object' || Array.isArray(bot)) {
       issues.push({
         nodeId: node.id,
-        message: `Bot under configurations on '${payload.scene}' must be a mapping of setting names to values, `
+        message: `Bot in the Parameters wired into '${payload.scene}' must be a mapping of setting names to values, `
           + `one per line (got ${Array.isArray(bot) ? 'a list' : typeof bot}).`,
       });
     } else {
@@ -78,7 +74,7 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
         if (v !== null && typeof v === 'object') {
           issues.push({
             nodeId: node.id,
-            message: `Bot under configurations on '${payload.scene}' must stay flat, but '${k}' holds a nested ${Array.isArray(v) ? 'list' : 'mapping'}. `
+            message: `Bot in the Parameters wired into '${payload.scene}' must stay flat, but '${k}' holds a nested ${Array.isArray(v) ? 'list' : 'mapping'}. `
               + 'Move its entries up to top-level Bot settings.',
           });
           break;

@@ -24,7 +24,7 @@ function valueTypeOf(prop: any): string | undefined {
   return prop.valueType ?? prop.type;
 }
 
-/* 1. yaml-body */
+/* 1. yaml-value */
 
 type Mapping = Record<string, unknown>;
 
@@ -46,42 +46,12 @@ function parseMapping(text: unknown): Mapping | undefined {
   }
 }
 
-export function yamlBodyProperty(descriptor: any): any | undefined {
-  const body = (descriptor?.properties ?? []).find((p: any) => p.isBody);
-  return body && toLocalName(valueTypeOf(body)) === 'YAMLString' ? body : undefined;
-}
-
 export function isYamlValueProperty(prop: any): boolean {
   return !prop.isBody && toLocalName(valueTypeOf(prop)) === 'YAMLString';
 }
 
-function allKeysDeclared(node: Mapping, descriptor: any): boolean {
-  const byName = descriptor?.propertiesByName ?? {};
-  return Object.keys(node).every((key) => key in byName);
-}
-
-export function qualifiesAsInlineBody(node: Mapping, descriptor: any): boolean {
-  const keys = Object.keys(node);
-  if (keys.length === 0 || 'type' in node) return false;
-  return !allKeysDeclared(node, descriptor);
-}
-
 export function qualifiesAsInlineValue(node: Mapping): boolean {
   return !('type' in node);
-}
-
-export function inlineYamlBody(el: any): Mapping | undefined {
-  const descriptor = el.$descriptor;
-  const props: any[] = descriptor?.properties ?? [];
-  const body = props.find((p) => p.isBody);
-  if (!body || toLocalName(valueTypeOf(body)) !== 'YAMLString') return undefined;
-  if (typeof el[body.name] !== 'string' || el[body.name] === '') return undefined;
-  if (Object.keys(el.$attrs ?? {}).length > 0) return undefined;
-  if (!hasOnlyProperties(el, [body.name])) return undefined;
-
-  const parsed = parseMapping(el[body.name]);
-  if (!parsed || !qualifiesAsInlineBody(parsed, descriptor)) return undefined;
-  return parsed;
 }
 
 export function inlineYamlValue(value: any, prop: any): Mapping | undefined {
@@ -91,7 +61,7 @@ export function inlineYamlValue(value: any, prop: any): Mapping | undefined {
   return parsed;
 }
 
-/** A folded mapping back to the YAML text its body stores. */
+/** A folded mapping back to the YAML text the attribute stores. */
 export function expandInline(mapping: Mapping): string {
   return yaml.dump(mapping, YAML_DUMP_OPTIONS);
 }

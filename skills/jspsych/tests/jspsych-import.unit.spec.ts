@@ -36,20 +36,26 @@ test('opens a timeline as a study that chains start -> tasks -> end, a cognitive
   expect(chain.map((node) => node.name)).toEqual(['Start', 'Instructions', 'Fixation', 'Flanker test', 'Debrief', 'Escapes', 'End']);
   expect(chain[0].get('studyflow:consentFormUri')).toBe('https://example.org/protocols/flanker/consent.md');
 
-  // Each trial is a cognitive task: instrument jspsych, a versioned `jspsych://` implementation, its parameters bar `type`.
+  // Each trial is a cognitive task: instrument jspsych, a versioned `jspsych://` implementation, and a Parameters
+  // object wired into it holding the trial's parameters bar `type`.
   const trials = [...FLANKER.slice(1), escapes];
+  const wires: any[] = [];
   for (const [i, task] of chain.slice(1, -1).entries()) {
     const ref = parseImplementationRef(task.implementation);
     expect(ref.ok && [ref.value.scheme, ref.value.version], task.name).toEqual(['jspsych', '8']);
     const [wrapper] = task.extensionElements.values;
     expect([wrapper.$type, wrapper.get('instrument')], task.name).toEqual(['cognitive:CognitiveTask', 'jspsych']);
+    const [wire] = task.dataInputAssociations;
+    wires.push(wire);
+    const [holder] = wire.sourceRef[0].extensionElements.values;
+    expect(holder.$type, task.name).toBe('studyflow:Parameters');
     const { type: _type, ...parameters } = trials[i];
-    expect(yaml.load(wrapper.get('configurations').get('value')), task.name).toEqual(parameters);
+    expect(yaml.load(holder.get('values')), task.name).toEqual(parameters);
   }
 
-  // Laid out: every node and flow has its shape or edge.
+  // Laid out: every node, flow and wire has its shape or edge.
   const drawn = definitions.diagrams[0].plane.planeElement.map((di: any) => di.bpmnElement.id);
-  expect(drawn.sort()).toEqual(process.flowElements.map((element: any) => element.id).sort());
+  expect(drawn.sort()).toEqual([...process.flowElements, ...wires].map((element: any) => element.id).sort());
 });
 
 test('opens a timeline array or an experiment object holding one, and rejects JSON that is neither', async () => {

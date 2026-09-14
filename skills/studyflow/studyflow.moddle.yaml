@@ -889,10 +889,13 @@ types:
 
   # ===========================================================================
   # A named configuration group the engine passes to steps like any other
-  # associated data, so a study varies by editing data, not the flow.
+  # associated data, so a study varies by editing data, not the flow. It is
+  # how a task is configured: a step reads the Parameters wired into it,
+  # merged. Mappings merge key by key; a value two of them set is an error,
+  # since nothing drawn orders the wires.
   # ===========================================================================
   - name: Parameters
-    description: A named group of configuration values, passed to the steps that read it.
+    description: A named group of configuration values, read by the steps it is wired into.
     superClass:
       - bpmn:DataObjectReference
     meta:

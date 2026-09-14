@@ -32,7 +32,25 @@ Demo4_LLMBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          configurations:
+          scene: NB
+      name: 1-Back warm-up (tired)
+      participantRef:
+        - Claude
+      dataInputAssociations:
+        In_Warmup_1Back:
+          sourceRef:
+            - Instructions_Warmup_1Back
+          waypoint: 290,308 290,258
+        In_Warmup_1Back_Parameters:
+          sourceRef:
+            - Warmup_1Back_Parameters
+          waypoint: 358,308 358,258
+      bounds: 260 138 120 120
+    Warmup_1Back_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
             Blocks:
               Demo4_Warmup:
                 Name: Demo4_Warmup
@@ -79,16 +97,8 @@ Demo4_LLMBot:
               playerPaced: true
               useNonMatchButton: true
               maxResponseTime: 120
-          scene: NB
-      name: 1-Back warm-up (tired)
-      participantRef:
-        - Claude
-      dataInputAssociations:
-        In_Warmup_1Back:
-          sourceRef:
-            - Instructions_Warmup_1Back
-          waypoint: 320,308 320,258
-      bounds: 260 138 120 120
+      name: Parameters
+      bounds: 340 308 36 50
     Instructions_Warmup_1Back:
       type: DataObjectReference
       extensionElements:
@@ -98,13 +108,31 @@ Demo4_LLMBot:
             Aim for about 80% accuracy. Occasionally miss matches when your
             attention drifts. Never explain; reply with exactly Match or NonMatch.
       name: Instructions
-      bounds: 302 308 36 50
-      label: 280 363 80 15
+      bounds: 272 308 36 50
+      label: 250 363 80 15
     Main_2Back:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          configurations:
+          scene: NB
+      name: 2-Back main (expert)
+      participantRef:
+        - Claude
+      dataInputAssociations:
+        In_Main_2Back:
+          sourceRef:
+            - Instructions_Main_2Back
+          waypoint: 480,308 480,258
+        In_Main_2Back_Parameters:
+          sourceRef:
+            - Main_2Back_Parameters
+          waypoint: 548,308 548,258
+      bounds: 450 138 120 120
+    Main_2Back_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
             Blocks:
               Demo4_Main:
                 Name: Demo4_Main
@@ -155,16 +183,8 @@ Demo4_LLMBot:
               playerPaced: true
               useNonMatchButton: true
               maxResponseTime: 120
-          scene: NB
-      name: 2-Back main (expert)
-      participantRef:
-        - Claude
-      dataInputAssociations:
-        In_Main_2Back:
-          sourceRef:
-            - Instructions_Main_2Back
-          waypoint: 510,308 510,258
-      bounds: 450 138 120 120
+      name: Parameters
+      bounds: 530 308 36 50
     Instructions_Main_2Back:
       type: DataObjectReference
       extensionElements:
@@ -175,21 +195,12 @@ Demo4_LLMBot:
             exactly two trials ago, otherwise NonMatch. Aim for near-perfect
             accuracy. Reply with exactly Match or NonMatch; no explanation.
       name: Instructions
-      bounds: 492 308 36 50
-      label: 470 363 80 15
+      bounds: 462 308 36 50
+      label: 440 363 80 15
     Visual_WhichOne:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          configurations:
-            Timelines:
-              SimonTask: null
-            Bot:
-              IncludeScreenshot: true
-              Speed: 5
-              SkipInstructions: true
-              AutoClickInstructions: true
-              SkipFocusArea: true
           scene: WO
       name: WhichOne (vision)
       participantRef:
@@ -198,8 +209,27 @@ Demo4_LLMBot:
         In_Visual_WhichOne:
           sourceRef:
             - Instructions_Visual_WhichOne
-          waypoint: 700,308 700,258
+          waypoint: 670,308 670,258
+        In_Visual_WhichOne_Parameters:
+          sourceRef:
+            - Visual_WhichOne_Parameters
+          waypoint: 738,308 738,258
       bounds: 640 138 120 120
+    Visual_WhichOne_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
+            Timelines:
+              SimonTask: null
+            Bot:
+              IncludeScreenshot: true
+              Speed: 5
+              SkipInstructions: true
+              AutoClickInstructions: true
+              SkipFocusArea: true
+      name: Parameters
+      bounds: 720 308 36 50
     Instructions_Visual_WhichOne:
       type: DataObjectReference
       extensionElements:
@@ -209,8 +239,8 @@ Demo4_LLMBot:
             on the left and right of the screen; one matches a target shown above.
             Reply with exactly `Left` or `Right`; nothing else.
       name: Instructions
-      bounds: 682 308 36 50
-      label: 660 363 80 15
+      bounds: 652 308 36 50
+      label: 630 363 80 15
     End:
       type: EndEvent
       name: Done

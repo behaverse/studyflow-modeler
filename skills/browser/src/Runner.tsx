@@ -218,7 +218,7 @@ export function Runner() {
         addLog('info', `Read ${studyflow.flowNodes.size} flow nodes and ${studyflow.sequenceFlows.size} sequence flows.`);
 
         for (const name of overridden) {
-          addLog('info', `The link sets '${name}' to ${String(values[name])}, replacing the study's own value.`);
+          addLog('info', `The link sets '${name}' to ${parameters[name]}, replacing the study's own value.`);
         }
         for (const name of undeclared) {
           addLog('skip', `'${name}' is not a declared parameter of this studyflow; its value is bound anyway.`);

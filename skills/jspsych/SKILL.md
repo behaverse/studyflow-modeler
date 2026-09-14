@@ -8,6 +8,6 @@ metadata:
 
 Import only. "Open File..." in the modeler takes a `.json` jsPsych timeline and converts it on
 the way in: each timeline node becomes a `cognitive:CognitiveTask` with `instrument: jspsych`,
-its plugin bound as a `https://github.com/jspsych/...` implementation and its parameters kept as
-the task's configurations; a consent plugin becomes the study's consent form. Nothing here
-writes a timeline back.
+its plugin bound as a `https://github.com/jspsych/...` implementation and its parameters kept in
+a `studyflow:Parameters` object wired into the task; a consent plugin becomes the study's consent
+form. Nothing here writes a timeline back.

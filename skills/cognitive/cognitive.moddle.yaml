@@ -94,20 +94,12 @@ enumerations:
         value: alternating
 
 types:
-  - name: Configurations
-    description: Settings the delivering software reads, as YAML.
-    superClass:
-      - Element
-    properties:
-      - name: value
-        isBody: true
-        type: studyflow:YAMLString
-
   # A cognitive task is an exchange between the software that presents it and the actor who takes it: a human,
   # a model (`studyflow:Actor`), or a robot (`reachy:Robot`). The actor is what the diagram draws, most explicit first:
   # the participant on the task's receiving band, else the other end of a message flow touching the task, else
   # the pool the task sits in. A task naming no one on its bands is drawn as a plain task. Data edges still
-  # apply (`studyflow:ChoreographyData`).
+  # apply (`studyflow:ChoreographyData`): its settings (trials, timing, blocks) are the `studyflow:Parameters`
+  # wired into it.
   - name: CognitiveTask
     description: A cognitive test an actor takes (working memory, attention, ...), presented by the study's software.
     superClass:
@@ -120,7 +112,7 @@ types:
       presenter: "{instrument}"
     properties:
       - name: instrument
-        description: Software that delivers the task and reads its configurations.
+        description: Software that delivers the task and reads the Parameters wired into it.
         isAttr: true
         type: ExperimentSoftwareEnum
         meta:
@@ -139,12 +131,6 @@ types:
         description: Where the task's code lives, as `<scheme>://<ref>[@<version>]`.
         isAttr: true
         type: String
-        meta:
-          categories:
-            - Execution
-      - name: configurations
-        description: Settings the software reads, as YAML (trials, timing, blocks).
-        type: Configurations
         meta:
           categories:
             - Execution
@@ -295,13 +281,9 @@ templates:
         type: ChoreographyTask
         name: Video game
         documentation: |
-          Set the game engine in `instrument` and its levels, difficulty, and
-          scoring in `configurations`.
+          Set the game engine in `instrument`, and its levels, difficulty, and
+          scoring in a Parameters object wired into the task.
         extensionElements:
           - type: cognitive:CognitiveTask
             icon: iconify ph--game-controller
             instrument: unity
-            configurations: |
-              levels:
-              difficulty:
-              scoring:

@@ -32,7 +32,25 @@ Demo5_OllamaBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          configurations:
+          scene: NB
+      name: 1-Back warm-up (tired)
+      participantRef:
+        - Actor_Ollama__gemma4_e2b_mlx
+      dataInputAssociations:
+        In_Warmup_1Back:
+          sourceRef:
+            - Instructions_Warmup_1Back
+          waypoint: 290,308 290,258
+        In_Warmup_1Back_Parameters:
+          sourceRef:
+            - Warmup_1Back_Parameters
+          waypoint: 358,308 358,258
+      bounds: 260 138 120 120
+    Warmup_1Back_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
             Blocks:
               Demo5_Warmup:
                 Name: Demo5_Warmup
@@ -78,16 +96,8 @@ Demo5_OllamaBot:
               playerPaced: true
               useNonMatchButton: true
               maxResponseTime: 15
-          scene: NB
-      name: 1-Back warm-up (tired)
-      participantRef:
-        - Actor_Ollama__gemma4_e2b_mlx
-      dataInputAssociations:
-        In_Warmup_1Back:
-          sourceRef:
-            - Instructions_Warmup_1Back
-          waypoint: 320,308 320,258
-      bounds: 260 138 120 120
+      name: Parameters
+      bounds: 340 308 36 50
     Instructions_Warmup_1Back:
       type: DataObjectReference
       extensionElements:
@@ -97,13 +107,31 @@ Demo5_OllamaBot:
             Aim for about 80% accuracy. Occasionally miss matches when your
             attention drifts. Never explain; reply with exactly Match or NonMatch.
       name: Instructions
-      bounds: 302 308 36 50
-      label: 280 363 80 15
+      bounds: 272 308 36 50
+      label: 250 363 80 15
     Main_2Back:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          configurations:
+          scene: NB
+      name: 2-Back main (expert)
+      participantRef:
+        - Actor_Ollama__gemma4_e2b_mlx
+      dataInputAssociations:
+        In_Main_2Back:
+          sourceRef:
+            - Instructions_Main_2Back
+          waypoint: 480,308 480,258
+        In_Main_2Back_Parameters:
+          sourceRef:
+            - Main_2Back_Parameters
+          waypoint: 548,308 548,258
+      bounds: 450 138 120 120
+    Main_2Back_Parameters:
+      type: DataObjectReference
+      extensionElements:
+        - type: studyflow:Parameters
+          values:
             Blocks:
               Demo5_Main:
                 Name: Demo5_Main
@@ -153,16 +181,8 @@ Demo5_OllamaBot:
               playerPaced: true
               useNonMatchButton: true
               maxResponseTime: 15
-          scene: NB
-      name: 2-Back main (expert)
-      participantRef:
-        - Actor_Ollama__gemma4_e2b_mlx
-      dataInputAssociations:
-        In_Main_2Back:
-          sourceRef:
-            - Instructions_Main_2Back
-          waypoint: 510,308 510,258
-      bounds: 450 138 120 120
+      name: Parameters
+      bounds: 530 308 36 50
     Instructions_Main_2Back:
       type: DataObjectReference
       extensionElements:
@@ -173,8 +193,8 @@ Demo5_OllamaBot:
             exactly two trials ago, otherwise NonMatch. Aim for near-perfect
             accuracy. Reply with exactly Match or NonMatch; no explanation.
       name: Instructions
-      bounds: 492 308 36 50
-      label: 470 363 80 15
+      bounds: 462 308 36 50
+      label: 440 363 80 15
     End:
       type: EndEvent
       name: Done

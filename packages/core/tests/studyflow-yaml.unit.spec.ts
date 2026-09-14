@@ -13,7 +13,7 @@ import { freshModdle } from '@tests/schemas';
 const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'packages/core/tests/fixtures/state-properties.studyflow.yaml');
 
 test.describe('studyflow YAML format', () => {
-  test('the long spellings still load: value wrappers, an element list, a diagram section, geometry as mappings', async () => {
+  test('the long spellings still load: value wrappers, YAML as text, an element list, a diagram section, geometry as mappings', async () => {
     const legacy = `
 definitions:
   id: legacy_demo
@@ -36,12 +36,16 @@ elements:
           values:
             - type: cognitive:CognitiveTask
               instrument: jspsych
-              configurations:
-                value: |
-                  Timelines:
-                    XCIT_NB_01:
         incoming: [F1]
         outgoing: [F2]
+      - type: bpmn:DataObjectReference
+        id: C1
+        extensionElements:
+          values:
+            - type: studyflow:Parameters
+              values: |
+                Timelines:
+                  XCIT_NB_01:
       - type: bpmn:EndEvent
         id: End
         incoming: [F2]
@@ -75,7 +79,7 @@ diagram:
     expect(doc.diagram).toBeUndefined();
     const process = doc.P;
     expect(Array.isArray(process.extensionElements)).toBe(true);
-    expect(process.flowElements.T1.extensionElements[0].configurations.Timelines).toBeDefined();
+    expect(process.flowElements.C1.extensionElements[0].values).toEqual({ Timelines: { XCIT_NB_01: null } });
     expect(process.flowElements.Start.bounds).toBe('160 180 36 36');
     expect(process.flowElements.T1.bounds).toBe('100 0 100 80');
     expect(process.flowElements.F1.waypoint).toBe('36,18 100,18');
@@ -140,8 +144,8 @@ P:
     expect(back.P.artifacts.Assoc_1).toBe('Note_1 -> T1');
   });
 
-  test('a config body carrying XML-unsafe markup round-trips XML <-> YAML', async () => {
-    // moddle escapes a text body only when it is typed exactly `String`; raw `<`/`&` would break the export.
+  test('YAML carrying XML-unsafe markup round-trips XML <-> YAML', async () => {
+    // Raw `<`/`&` in the text would break the export.
     const doc = `
 id: escape_demo
 definitions:
@@ -149,24 +153,23 @@ definitions:
 P:
   type: bpmn:Process
   flowElements:
-    T1:
-      type: bpmn:Task
+    C1:
+      type: bpmn:DataObjectReference
       extensionElements:
-        - type: cognitive:CognitiveTask
-          instrument: jspsych
-          configurations:
+        - type: studyflow:Parameters
+          values:
             stimulus: "<p>&lt; L &amp; R <<< </p>"
 `;
     const xml = await studyflowToXml(doc, freshModdle());
     expect(xml).not.toContain('<<<');
 
     const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
-    expect(back.P.flowElements.T1.extensionElements[0].configurations.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
+    expect(back.P.flowElements.C1.extensionElements[0].values.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
   });
 
-  test('a config body with a comment keeps its long form, so the comment survives a round trip', async () => {
-    // Folded into a mapping, the body would come back without its comment.
-    const configurations = 'triggerChannel: markers  # sent with the biosignals';
+  test('YAML with a comment stays text, so the comment survives a round trip', async () => {
+    // Folded into a mapping, the text would come back without its comment.
+    const values = 'triggerChannel: markers  # sent with the biosignals';
     const doc = `
 id: comment_demo
 definitions:
@@ -174,18 +177,16 @@ definitions:
 P:
   type: Process
   flowElements:
-    T1:
-      type: Task
+    C1:
+      type: DataObjectReference
       extensionElements:
-        - type: cognitive:CognitiveTask
-          instrument: psychopy
-          configurations:
-            value: "${configurations}"
+        - type: studyflow:Parameters
+          values: "${values}"
 `;
     const xml = await studyflowToXml(doc, freshModdle());
-    expect(xml).toContain(configurations);
+    expect(xml).toContain(values);
     const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
-    expect(back.P.flowElements.T1.extensionElements[0].configurations).toEqual({ value: configurations });
+    expect(back.P.flowElements.C1.extensionElements[0].values).toBe(values);
   });
 
   test('a message flow names its message, and the message its item definition, through a round trip', async () => {

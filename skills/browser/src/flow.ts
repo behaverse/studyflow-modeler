@@ -5,6 +5,8 @@ export type FlowNode = {
   type: string;
   extensionType?: string;
   businessObject: any;
+  /** What the step reads: the `studyflow:Parameters` wired into it, merged; empty when none is. */
+  parameters: Record<string, unknown>;
   outgoing: string[];
   incoming: string[];
   scopeId: string;
