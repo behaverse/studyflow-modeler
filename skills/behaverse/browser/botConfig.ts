@@ -1,10 +1,8 @@
 import { RUNNER_ONLY_BOT_KEYS, type BehaverseBotPayload, type BehaverseTaskPayload } from '@skills/behaverse/browser/types';
 import type { LLMProviderConfig } from '@skills/behaverse/browser/llm/types';
 
-export function readResponseSource(bot: BehaverseTaskPayload['bot']): 'internal' | 'external' | 'llm' {
-  if (!bot || typeof bot !== 'object') return 'internal';
-  const value = (bot as Record<string, unknown>).ResponseSource;
-  return value === 'external' || value === 'llm' ? value : 'internal';
+export function readResponseSource(bot: BehaverseTaskPayload['bot']): 'internal' | 'llm' {
+  return bot && typeof bot === 'object' && (bot as Record<string, unknown>).ResponseSource === 'llm' ? 'llm' : 'internal';
 }
 
 export function readPrompt(bot: BehaverseTaskPayload['bot']): string {
@@ -13,29 +11,16 @@ export function readPrompt(bot: BehaverseTaskPayload['bot']): string {
   return typeof value === 'string' ? value : '';
 }
 
-/** The model a bot answers with unless its `bot.LLM` names another. */
-const LLM_DEFAULTS = {
-  provider: 'claude',
-  model: 'claude-haiku-4-5',
-  ollamaUrl: 'http://localhost:11434',
-  claudeProxyUrl: '/api/llm/claude',
-} as const;
+const OLLAMA_URL = 'http://localhost:11434';
+const CLAUDE_PROXY_URL = '/api/llm/claude';
 
+/** The model the task's band names, as the parser put it in `bot.LLM`. */
 export function resolveLLMConfig(bot: BehaverseTaskPayload['bot']): LLMProviderConfig {
-  const settings = LLM_DEFAULTS;
-  const override = (bot && typeof bot === 'object' ? (bot as Record<string, unknown>).LLM : undefined);
-  const llmOverride = override && typeof override === 'object' && !Array.isArray(override)
-    ? (override as Record<string, unknown>)
-    : {};
-  const provider = llmOverride.Provider === 'ollama' || llmOverride.Provider === 'claude'
-    ? llmOverride.Provider
-    : settings.provider;
-  const model = typeof llmOverride.Model === 'string' && llmOverride.Model.length > 0
-    ? llmOverride.Model
-    : settings.model;
-  return provider === 'claude'
-    ? { provider, model, proxyUrl: settings.claudeProxyUrl }
-    : { provider, model, url: settings.ollamaUrl };
+  const llm = (bot as Record<string, unknown> | undefined)?.LLM as { Provider?: unknown; Model?: unknown } | undefined;
+  const model = typeof llm?.Model === 'string' ? llm.Model : '';
+  if (llm?.Provider === 'claude' && model) return { provider: 'claude', model, proxyUrl: CLAUDE_PROXY_URL };
+  if (llm?.Provider === 'ollama' && model) return { provider: 'ollama', model, url: OLLAMA_URL };
+  throw new Error('The task\'s bot names no model: its band\'s actor sets one with its implementation.');
 }
 
 export function botForUnity(bot: BehaverseBotPayload | undefined): BehaverseBotPayload | undefined {

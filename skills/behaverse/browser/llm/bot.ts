@@ -61,41 +61,26 @@ function normalizeReply(raw: string): string {
   return raw.trim().replace(/^[`"'\s]+|[`"'.\s]+$/g, '');
 }
 
-function matchResponseOption(raw: string, options: string[]): string {
-  const lower = normalizeReply(raw).toLowerCase();
-
-  for (const c of options) {
-    if (c.toLowerCase() === lower) return c;
-  }
-
-  for (const c of options) {
-    if (lower.includes(c.toLowerCase())) return c;
-  }
-  return options[Math.floor(Math.random() * options.length)];
+/** The option the reply is, whole and without case; a reply that only mentions one names none ("NonMatch" holds "Match"). */
+function matchResponseOption(raw: string, options: string[]): string | undefined {
+  const reply = normalizeReply(raw).toLowerCase();
+  return options.find((option) => option.toLowerCase() === reply);
 }
 
+/** The model's answer to one trial, or why there is none. */
 export async function selectResponse(
   input: LLMBotInput,
   config: LLMProviderConfig,
-): Promise<{ response: string; source: 'llm' | 'random'; error?: string }> {
-  if (!input.responseOptions.length) {
-    return { response: '', source: 'random', error: 'no response options' };
-  }
+): Promise<{ response?: string; error?: string }> {
+  if (!input.responseOptions.length) return { error: 'no response options' };
   try {
     const req = buildPrompt(input, config.model);
     const raw = config.provider === 'claude'
       ? await callClaude(req, config.proxyUrl)
       : await callOllama(req, config.url);
-    const chosen = matchResponseOption(raw, input.responseOptions);
-    const wasInOptions = input.responseOptions.some(
-      (a) => a.toLowerCase() === normalizeReply(raw).toLowerCase(),
-    );
-    return wasInOptions
-      ? { response: chosen, source: 'llm' }
-      : { response: chosen, source: 'random', error: `LLM reply not in response options: "${raw.slice(0, 80)}"` };
+    const response = matchResponseOption(raw, input.responseOptions);
+    return response !== undefined ? { response } : { error: `the reply names no option: "${raw.slice(0, 80)}"` };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const random = input.responseOptions[Math.floor(Math.random() * input.responseOptions.length)];
-    return { response: random, source: 'random', error: message };
+    return { error: err instanceof Error ? err.message : String(err) };
   }
 }

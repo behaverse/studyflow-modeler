@@ -1,6 +1,6 @@
 ---
 name: behaverse
-description: "The Behaverse assessment battery: its tasks and BDM datasets, and the runner that plays the tasks on the Behaverse Unity WebGL build, in the browser runner's page or in a window of its own, played by a human, an LLM bot, or an external bridge. Use when a study includes Behaverse assessment tasks."
+description: "The Behaverse assessment battery: its tasks and BDM datasets, and the runner that plays the tasks on the Behaverse Unity WebGL build, in the browser runner's page or in a window of its own. A person takes a task, or a model on its band, the build's random bot, or whoever its message flows reach. Use when a study includes Behaverse assessment tasks."
 license: MIT
 compatibility: "Browser runtime, or the local runtime with uv; both need a Behaverse WebGL build (UNITY_BUILD_PATH)."
 metadata:
@@ -17,8 +17,14 @@ structure is some other skill's exchange, a flow naming none is taken for either
 named is an error rather than a guess. The task's trial records go to the `uri` its data output names, else
 `<id>.events.jsonl` in the run.
 
-- `browser/` is the browser runtime's node module: the Unity build in a frame, the bot players
-  (an LLM, or an external bridge such as a robot), and its dev-server plugins (`vite.ts`).
+Who answers is what the diagram draws, never a `Bot:` entry, which only says how the build's bot plays. In a local
+run a task with message flows sends each awaiting trial along the one out of it and injects the answer that comes
+back naming one of the trial's options; any other answer, or none in time, is a miss, and nothing stands in for it.
+The browser runner plays a person, a model on the task's band (its `implementation` names it), or the build's random
+bot (a `software` taker whose `implementation` is `random`); any other taker answers along message flows, locally.
+
+- `browser/` is the browser runtime's node module: the Unity build in a frame, the model bot, and its dev-server
+  plugins (`vite.ts`).
 - `local.py` serves the same build from a local port and opens it in a browser window per task;
   the build is looked for at `UNITY_BUILD_PATH`, then `run/assessment-unity/Build/WebGL`, then the assessment-unity checkout beside the repo.
-- `examples/` are bot-played studies; `tests/` cover the payload, the bots, the bridge, and the local runner.
+- `examples/` are bot-played studies; `tests/` cover the payload and the local runner.

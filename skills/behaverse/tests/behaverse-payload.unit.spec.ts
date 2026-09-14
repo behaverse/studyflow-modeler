@@ -15,7 +15,6 @@ async function payloadOf(xml: string): Promise<BehaverseTaskPayload | null> {
 }
 
 function taskXml(configurations: string): string {
-  const indented = `${configurations.trimEnd()}\nBot:\n  ResponseSource: external`;
   return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="payload_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:process id="PayloadFixture" name="Payload fixture">
@@ -24,8 +23,8 @@ function taskXml(configurations: string): string {
     </bpmn2:extensionElements>
     <bpmn2:task id="TheTask" name="The task">
       <bpmn2:extensionElements>
-        <behaverse:task scene="NB" agentType="bot">
-          <cognitive:configurations>${indented}</cognitive:configurations>
+        <behaverse:task scene="NB">
+          <cognitive:configurations>${configurations}</cognitive:configurations>
         </behaverse:task>
       </bpmn2:extensionElements>
     </bpmn2:task>
@@ -80,15 +79,15 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     error?: RegExp;
   }[] = [
     {
-      label: 'a timeline named but not defined runs the build\'s own, and `Bot:` leaves the parameters for the bot',
+      label: 'a timeline named but not defined runs the build\'s own, and a person with no one named takes it',
       xml: taskXml('Timelines:\n  XCIT_NB_01:\n'),
-      payload: { agentType: 'bot', configMode: 'builtin', timeline: 'XCIT_NB_01', bot: { ResponseSource: 'external' } },
+      payload: { agentType: 'human', configMode: 'builtin', timeline: 'XCIT_NB_01' },
     },
     {
       label: 'an inline timeline definition runs inline and keeps its definition',
       xml: taskXml('Blocks:\n  B1:\n    Name: B1\nTimelines:\n  T1:\n    Name: T1\n    blocks:\n      - name: B1\n'),
       payload: {
-        agentType: 'bot', configMode: 'inline', timeline: 'T1', bot: { ResponseSource: 'external' },
+        agentType: 'human', configMode: 'inline', timeline: 'T1',
         parameters: { Blocks: { B1: { Name: 'B1' } }, Timelines: { T1: { Name: 'T1', blocks: [{ name: 'B1' }] } } },
       },
     },
@@ -97,7 +96,7 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       label: 'inline overrides beside a timeline reference ship without the reference entry',
       xml: taskXml('Blocks:\n  B1:\n    Name: B1\nTimelines:\n  XCIT_NB_01:\n'),
       payload: {
-        agentType: 'bot', configMode: 'inline', timeline: 'XCIT_NB_01', bot: { ResponseSource: 'external' },
+        agentType: 'human', configMode: 'inline', timeline: 'XCIT_NB_01',
         parameters: { Blocks: { B1: { Name: 'B1' } } },
       },
     },
@@ -105,7 +104,7 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       label: 'a reference among inline timelines is stripped, and the first key still names the run',
       xml: taskXml('Timelines:\n  XCIT_NB_01:\n  T1:\n    Name: T1\n    blocks: []\n'),
       payload: {
-        agentType: 'bot', configMode: 'inline', timeline: 'XCIT_NB_01', bot: { ResponseSource: 'external' },
+        agentType: 'human', configMode: 'inline', timeline: 'XCIT_NB_01',
         parameters: { Timelines: { T1: { Name: 'T1', blocks: [] } } },
       },
     },
@@ -119,13 +118,25 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       unityBot: { Speed: 20, ResponseSource: 'external' },
     },
     {
-      label: 'a robot on the lower band answers over its bridge, where the schema\'s default says it listens',
+      label: 'a model on the lower band names the model it is, never a default',
+      xml: bandsXml('<cognitive:actor actorType="llm" />'),
+      error: /names none it can call/,
+    },
+    {
+      label: 'the build\'s random bot takes the task when the band says so, a software actor whose implementation is random',
+      xml: bandsXml('<cognitive:actor actorType="software" implementation="random" />'),
+      payload: { agentType: 'bot', configMode: 'builtin', bot: { Speed: 20 } },
+    },
+    {
+      // Its answers come along message flows from its own steps, which only the local runtime carries.
+      label: 'a robot on the lower band is refused here, and no one stands in for it',
       xml: bandsXml('<reachy:robot />'),
-      payload: {
-        agentType: 'bot', configMode: 'builtin',
-        bot: { Speed: 20, ResponseSource: 'external', BridgeUrl: 'ws://localhost:8765', Prompt: PROMPT },
-      },
-      unityBot: { Speed: 20, ResponseSource: 'external' },
+      error: /answers over message flows in the local runtime/,
+    },
+    {
+      label: 'a `Bot:` entry naming who answers is refused: the drawing says that',
+      xml: taskXml('Bot:\n  ResponseSource: external'),
+      error: /not who answers \(ResponseSource\)/,
     },
     {
       label: 'a person on the lower band plays the task, with no bot',

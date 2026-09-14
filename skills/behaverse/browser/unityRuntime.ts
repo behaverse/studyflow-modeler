@@ -2,8 +2,7 @@ import type { BehaverseTaskPayload } from '@skills/behaverse/browser/types';
 import type { TrialHistoryEntry } from '@skills/behaverse/browser/llm/types';
 import { decideResponse } from '@skills/behaverse/browser/botResponse';
 import type { LogFn } from '@runner/nodes/types';
-import { botForUnity, readResponseSource } from '@skills/behaverse/browser/botConfig';
-import { notifyBridge, readBridgeUrl } from '@skills/behaverse/browser/bridge';
+import { botForUnity } from '@skills/behaverse/browser/botConfig';
 import {
   AWAITING_RESPONSE,
   READY,
@@ -53,8 +52,9 @@ export function runOnUnity(
       if (seenRequestIds.has(detail.RequestId)) return;
       seenRequestIds.add(detail.RequestId);
 
+      // No decision, no response: the trial's own response window ends it, a miss.
       const decision = await decideResponse(payload, detail, history, log);
-      sendResponse(detail, decision.response, decision.agentId);
+      if (decision) sendResponse(detail, decision.response, decision.agentId);
     };
 
     const onCompleted = (detail: TaskCompletion | undefined) => {
@@ -62,10 +62,6 @@ export function runOnUnity(
         && detail.TaskId === payload.scene
         && (!payload.timeline || !detail.TimelineId || detail.TimelineId === payload.timeline);
       if (!matches) return;
-      // Let an embodied participant celebrate (fire-and-forget).
-      if (readResponseSource(payload.bot) === 'external') {
-        notifyBridge(readBridgeUrl(payload.bot), { type: 'completed', TaskId: detail!.TaskId });
-      }
       cleanup();
       resolve(detail);
     };

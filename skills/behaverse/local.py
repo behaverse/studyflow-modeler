@@ -14,13 +14,13 @@ Unity WebGL build and a small stage page from a local port, opens the page in th
 browser, starts the task through the build's `RunCognitiveTask` entry point, and waits for
 `studyflow:TaskCompleted`. The page relays what the build reports back to this process:
 every `studyflow:Event` to `<cache>/<element>.events.jsonl`, each answered trial to the
-terminal, and the completion, which becomes the element's `result`. A human plays the task
-as in the browser runner. A bot task that exchanges messages with another pool (a message flow
-drawn to or from it), or whose bot says `ResponseSource: external`, has each awaiting trial
-forwarded by the page to the response bridge (`BridgeUrl`, default ws://localhost:8765,
-e.g. `skills/reachy/local.py --participant`), random when nothing answers; an `agentic:Prompt`
-wired into the task is the player's instructions. `--auto` turns every task into a bot task so a
-run needs nobody at the screen.
+terminal, and the completion, which becomes the element's `result`. Who answers is what the
+diagram draws. A task with message flows sends each awaiting trial along the one out of it and
+takes the answer back from the one into it (skills/local/SKILL.md, "Messages"); an answer that
+names no option in time is no answer, and the trial's own window makes it a miss. Without flows,
+a person plays the task, or the build's own random bot does for a `software` taker whose
+`implementation` is `random`. `--auto` gives every person's task to that bot, so a run needs
+nobody at the screen.
 
 The build is looked for at `$UNITY_BUILD_PATH`, then `<repo>/run/assessment-unity/Build/WebGL`,
 then the assessment-unity checkout beside the repo (`<repo>/../assessment-unity/Build/WebGL`):
@@ -50,10 +50,9 @@ import yaml
 COGNITIVE = "http://behaverse.org/schemas/studyflow/cognitive"
 BEHAVERSE = "http://behaverse.org/schemas/studyflow/behaverse"
 BUILD_MOUNT = "/assessment-unity"
-DEFAULT_BRIDGE_URL = "ws://localhost:8765"
-# Bot keys this side reads and Unity's `BotReflection.Apply` refuses (the browser runner's types.ts).
-RUNNER_ONLY_BOT_KEYS = ("LLM", "Prompt", "BridgeUrl")
-MIME = {".wasm": "application/wasm", ".data": "application/octet-stream", ".unityweb": "application/octet-stream",
+# Who answers a task is the drawing's to say, never `Bot:`'s (the browser runner's types.ts `WHO_ANSWERS_KEYS`).
+WHO_ANSWERS_KEYS = ("ResponseSource", "LLM", "Prompt")
+MIME ={".wasm": "application/wasm", ".data": "application/octet-stream", ".unityweb": "application/octet-stream",
         ".js": "application/javascript", ".json": "application/json"}
 
 
@@ -77,21 +76,23 @@ def mapping_of(text: Any, what: str, element_id: str) -> dict[str, Any]:
 
 def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     """The `RunCognitiveTask` payload, built as the browser runner's parser.ts builds it; `plan` is every element
-    of the digest, for what the diagram wires into this task."""
+    of the digest, for what the diagram draws around this task."""
     element_id = str(element.get("id"))
     attrs = (behaverse_extension(element) or {}).get("attributes") or {}
     scene = str(attrs.get("scene") or "")
     if not scene:
         raise ValueError(f"behaverse:Task {element_id!r} has no scene; set it to a task the Unity build ships")
-    # Who takes the task is its participant (band, message flow, or pool): a person, or a bot of some kind.
-    actor = actor_of(element, plan or {})
     parameters = mapping_of(attrs.get("configurations"), "configurations", element_id)
-    # `Bot:` is not GameConfig: how a bot plays the task, sent to Unity as the payload's own `bot`.
+    # `Bot:` is not GameConfig: how the build's bot plays the task, sent to Unity as the payload's own `bot`.
     bot_settings = parameters.pop("Bot", None)
     bot_settings = bot_settings if isinstance(bot_settings, dict) else {}
-    agent = "bot" if auto or actor["kind"] not in ("", "human") or bot_settings.get("ResponseSource") else "human"
-    payload: dict[str, Any] = {"scene": scene, "agentType": agent, "configMode": "builtin",
-                               "metadata": {"studyflowNodeId": element_id}}
+    authored = [key for key in WHO_ANSWERS_KEYS if key in bot_settings]
+    if authored:
+        raise ValueError(f"behaverse:Task {element_id!r}: `Bot:` sets how the build's bot plays, not who answers "
+                         f"({', '.join(authored)}); draw who takes the task instead")
+    source = answered_by(element, plan or {}, auto)
+    payload: dict[str, Any] = {"scene": scene, "agentType": "human" if source == "human" else "bot",
+                               "configMode": "builtin", "metadata": {"studyflowNodeId": element_id}}
     timelines = parameters.get("Timelines")
     if isinstance(timelines, dict):
         if timelines:
@@ -105,30 +106,45 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
     if parameters:
         payload["configMode"] = "inline"
         payload["parameters"] = parameters
-    if agent == "bot":
-        bot = bot_settings
-        if actor["kind"] == "robot" or (actor["kind"] == "software" and actor["model"] != "random"):
-            bot["ResponseSource"] = "external"  # answered over the response bridge by whoever sits there
-            if actor["bridge"] and not bot.get("BridgeUrl"):
-                bot["BridgeUrl"] = actor["bridge"]  # where that partner said it listens
-        elif actor["kind"] == "software":
-            bot.pop("ResponseSource", None)  # the build's own random bot
-        elif actor["kind"] == "llm":
-            bot["ResponseSource"] = "llm"
-            if actor["model"]:
-                provider, model = split_model(actor["model"])
-                bot["LLM"] = {"Provider": provider, "Model": model}
-        prompt = prompt_of(element, plan or {})  # the one way to instruct whoever takes the task
-        if prompt and not bot.get("Prompt"):
-            bot["Prompt"] = prompt
-        if bot:
-            payload["bot"] = bot
+    # Along message flows, Unity waits for each answer from outside; the build's own bot answers by itself.
+    bot = {**bot_settings, **({"ResponseSource": "external"} if source == "messages" else {})}
+    if source != "human" and bot:
+        payload["bot"] = bot
     return payload
 
 
-AGENTIC = "https://w3id.org/studyflow/agentic"
+def answered_by(element: dict[str, Any], plan: dict[str, dict[str, Any]], auto: bool) -> str:
+    """How the task's trials get answered here: `messages` along its message flows, `internal` by the build's own
+    random bot, or `human`. Any other taker answers only along message flows, so drawing none of them is an error."""
+    if trial_flows(element, plan):
+        return "messages"
+    actor = actor_of(element, plan)
+    if actor["kind"] in ("", "human"):
+        return "internal" if auto else "human"
+    if actor["kind"] == "software" and actor["model"] == "random":
+        return "internal"
+    raise ValueError(f"{element.get('id')} is taken by a {actor['kind']} participant, which answers along message flows "
+                     "in a local run: draw one carrying each trial out of the task and one bringing the answer back")
+
+
+def trial_flows(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> tuple[str, str] | None:
+    """The message flow the task sends its trials along and the one it takes the answers back from, when it has
+    them; `message_partners` has checked the directions and that there is one partner."""
+    if not message_partners(element, plan):
+        return None
+    element_id = element.get("id")
+    ends = [(flow_id, (flow.get("attributes") or {}), message_structure(flow, plan)) for flow_id, flow in plan.items()
+            if flow.get("type") == "messageFlow"]
+    out = [flow_id for flow_id, attrs, structure in ends if attrs.get("sourceRef") == element_id and structure in ("", TRIAL)]
+    back = [flow_id for flow_id, attrs, structure in ends if attrs.get("targetRef") == element_id and structure in ("", RESPONSE)]
+    if len(out) != 1 or len(back) != 1:
+        raise ValueError(f"{element_id} sends its trials along one message flow and takes the answers back along one; "
+                         f"it has {len(out)} out and {len(back)} back")
+    return out[0], back[0]
+
+
 REACHY = "https://w3id.org/studyflow/reachy"
-EMPTY_ACTOR: dict[str, Any] = {"kind": "", "model": "", "bridge": ""}
+EMPTY_ACTOR: dict[str, Any] = {"kind": "", "model": ""}
 
 
 def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -146,10 +162,9 @@ def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[s
         for ext in (plan.get(str(participant_id)) or {}).get("extensions") or []:
             attributes = ext.get("attributes") or {}
             if ext.get("namespace") == REACHY and str(ext.get("type", "")).lower() == "robot":
-                # `bridge` is where the robot takes trials; the schema's default is the bridge's own default.
-                return {"kind": "robot", "model": "", "bridge": str(attributes.get("bridge") or "")}
+                return {"kind": "robot", "model": ""}
             if ext.get("namespace") == COGNITIVE and str(ext.get("type", "")).lower() == "actor":
-                return {"kind": str(attributes.get("actorType") or "human"), "model": str(attributes.get("implementation") or ""), "bridge": ""}
+                return {"kind": str(attributes.get("actorType") or "human"), "model": str(attributes.get("implementation") or "")}
     return dict(EMPTY_ACTOR)
 
 
@@ -216,43 +231,43 @@ def events_uri(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
     return f"{element['id']}.events.jsonl"
 
 
-def split_model(ref: str) -> tuple[str, str]:
-    """`<scheme>://<model>` as written, a bare `claude-*` name as Claude's, anything else as Ollama's."""
-    if "://" in ref:
-        provider, model = ref.split("://", 1)
-        return provider, model
-    return ("claude" if ref.startswith("claude") else "ollama"), ref
+def option_named(content: Any, options: list[str]) -> str | None:
+    """The option an answer is: its text, or the one value of a mapping (a send task's one data input), matched
+    whole and without case. An answer that only mentions an option names none ("NonMatch" holds "Match")."""
+    if isinstance(content, dict) and len(content) == 1:
+        content = next(iter(content.values()))
+    text = str(content or "").strip().strip("`\"'.").strip().lower()
+    return next((option for option in options if option.lower() == text), None)
 
 
-def prompt_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
-    """The `agentic:Prompt` data object wired into the element, as its template text."""
-    for binding in element.get("inputs") or []:
-        for ext in (plan.get(str(binding.get("source"))) or {}).get("extensions") or []:
-            if ext.get("namespace") == AGENTIC and str(ext.get("type", "")).lower() == "prompt":
-                return str((ext.get("attributes") or {}).get("template") or "")
-    return ""
+class Exchange:
+    """The task's end of its message flows (skills/local/SKILL.md, "Messages"): each awaiting trial goes out along
+    the trial flow through the outbox, and the answer that names it (`inReplyTo`) comes back into the inbox."""
 
+    def __init__(self, cache: Path, element_id: str, flow: str, agent: str) -> None:
+        self.outbox, self.inbox = cache / f"{element_id}.outbox.jsonl", cache / f"{element_id}.inbox.jsonl"
+        self.flow, self.agent, self.lock = flow, agent, threading.Lock()
 
-def bot_for_unity(bot: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not bot:
-        return None
-    stripped = {key: ("external" if key == "ResponseSource" and value == "llm" else value)
-                for key, value in bot.items() if key not in RUNNER_ONLY_BOT_KEYS}
-    return stripped or None
-
-
-def stage_config(payload: dict[str, Any]) -> dict[str, Any]:
-    """What the stage page needs beyond Unity's payload: how trials get answered."""
-    bot = payload.get("bot") or {}
-    source = bot.get("ResponseSource")
-    return {
-        "scene": payload["scene"],
-        "timeline": payload.get("timeline"),
-        "source": source if source in ("external", "llm") else "internal",
-        "bridge": bot.get("BridgeUrl") or DEFAULT_BRIDGE_URL,
-        "prompt": bot.get("Prompt") or "",
-        "llm": bot.get("LLM"),
-    }
+    def ask(self, trial: dict[str, Any]) -> dict[str, Any]:
+        """The trial's answer as the page injects it, or {} when none names an option within the response window."""
+        request = str(trial.get("RequestId") or "")
+        options = [str(option) for option in trial.get("ResponseOptions") or []]
+        with self.lock, self.outbox.open("a") as file:
+            content = {key: value for key, value in trial.items() if key != "RequestId" and value is not None}
+            file.write(json.dumps({"flow": self.flow, "id": request, "content": content}) + "\n")
+        window = float(trial.get("MaxResponseTime") or 0)
+        deadline = time.monotonic() + (max(1.0, window - 0.25) if window > 0 else 30.0)
+        while time.monotonic() < deadline:
+            for line in self.inbox.read_text().splitlines() if self.inbox.exists() else []:
+                try:
+                    message = json.loads(line)
+                except ValueError:
+                    continue  # the walk may be writing it
+                if message.get("inReplyTo") == request:
+                    choice = option_named(message.get("content"), options)
+                    return {"Response": choice, "Agent": self.agent} if choice else {}
+            time.sleep(0.05)
+        return {}
 
 
 # The stage: the build in a frame, exactly as the browser runner embeds it, and the template's
@@ -314,60 +329,24 @@ const poll = setInterval(() => {
   if (window.studyflowReady || (frame.contentWindow && frame.contentWindow.studyflowReady)) { clearInterval(poll); start(); }
 }, 100);
 
-// The response bridge, as the browser runner's bridge.ts speaks it.
-let socket = null;
-function bridge(timeoutMs) {
-  if (socket) return socket;
-  socket = new Promise((resolve, reject) => {
-    const ws = new WebSocket(STAGE.bridge);
-    const timer = setTimeout(() => { ws.close(); reject(new Error('bridge connect timed out')); }, Math.min(timeoutMs, 2000));
-    ws.onopen = () => { clearTimeout(timer); resolve(ws); };
-    ws.onerror = () => { clearTimeout(timer); reject(new Error('no response bridge at ' + STAGE.bridge)); };
-    ws.onclose = () => { socket = null; };
-  });
-  socket.catch(() => { socket = null; });
-  return socket;
-}
-async function askBridge(trial, timeoutMs) {
-  let ws;
-  try { ws = await bridge(timeoutMs); } catch (e) { return undefined; }
-  return new Promise((resolve) => {
-    const finish = (reply) => { clearTimeout(timer); ws.removeEventListener('message', onMessage); resolve(reply); };
-    const timer = setTimeout(() => finish(undefined), timeoutMs);
-    const onMessage = (m) => {
-      try {
-        const data = JSON.parse(m.data);
-        if (data.type === 'response' && data.RequestId === trial.RequestId) finish(typeof data.Response === 'string' ? data : undefined);
-      } catch (e) { /* not our message */ }
-    };
-    ws.addEventListener('message', onMessage);
-    try { ws.send(JSON.stringify(trial)); } catch (e) { finish(undefined); }
-  });
-}
-function notifyBridge(message) { bridge(2000).then((ws) => ws.send(JSON.stringify(message))).catch(() => {}); }
-
+// Along the task's message flows: the runner sends the trial and waits for the answer that names it. No answer, no
+// injection: the trial's own response window ends it, a miss.
 async function answer(d) {
   const options = d.ResponseOptions;
-  let reply;
-  if (STAGE.source !== 'internal') {
-    const timeoutMs = d.MaxResponseTime > 0 ? Math.max(1000, d.MaxResponseTime * 1000 - 250) : 30000;
-    reply = await askBridge({
-      type: 'trial', RequestId: d.RequestId, TrialIndex: d.TrialIndex, ResponseOptions: options,
-      MaxResponseTime: d.MaxResponseTime, Scene: STAGE.scene, Prompt: STAGE.prompt || undefined, LLM: STAGE.llm || undefined,
-      Screenshot: d.Screenshot || undefined,
-    }, timeoutMs);
-  }
-  const answered = reply && options.includes(reply.Response);
-  const response = answered ? reply.Response : options[Math.floor(Math.random() * options.length)];
-  const agent = answered ? ((reply.Agent && reply.Agent.Id) || 'external') : 'bot';
-  send('InjectResponse', JSON.stringify({ RequestId: d.RequestId, Response: response, ResponseOptionIndex: options.indexOf(response), Agent: { Id: agent } }));
-  post('/trial', { TrialIndex: d.TrialIndex, Response: response, Agent: agent });
+  const reply = await fetch('/respond', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ RequestId: d.RequestId, TrialIndex: d.TrialIndex, ResponseOptions: options,
+      MaxResponseTime: d.MaxResponseTime, Scene: STAGE.scene, Screenshot: d.Screenshot || undefined }),
+  }).then((r) => r.json()).catch(() => ({}));
+  if (!options.includes(reply.Response)) return;
+  send('InjectResponse', JSON.stringify({ RequestId: d.RequestId, Response: reply.Response, ResponseOptionIndex: options.indexOf(reply.Response), Agent: { Id: reply.Agent } }));
+  post('/trial', { TrialIndex: d.TrialIndex, Response: reply.Response, Agent: reply.Agent });
 }
 
 const seen = new Set();
 window.addEventListener('studyflow:AwaitingResponse', (e) => {
   const d = e.detail;
-  if (!d || !Array.isArray(d.ResponseOptions) || d.ResponseOptions.length === 0 || seen.has(d.RequestId)) return;
+  if (STAGE.source !== 'messages' || !d || !Array.isArray(d.ResponseOptions) || d.ResponseOptions.length === 0 || seen.has(d.RequestId)) return;
   seen.add(d.RequestId);
   answer(d);
 });
@@ -375,7 +354,6 @@ window.addEventListener('studyflow:Event', (e) => post('/event', e.detail));
 window.addEventListener('studyflow:TaskCompleted', (e) => {
   const d = e.detail;
   if (!d || d.TaskId !== STAGE.scene || (STAGE.timeline && d.TimelineId && d.TimelineId !== STAGE.timeline)) return;
-  if (STAGE.source !== 'internal') notifyBridge({ type: 'completed', TaskId: d.TaskId });
   status.hidden = false;
   status.textContent = d.IsCompleted ? 'Task complete — you can close this tab.' : 'The task stopped before the end.';
   post('/completed', d);
@@ -384,24 +362,29 @@ window.addEventListener('studyflow:TaskCompleted', (e) => {
 """
 
 
+def along_messages(payload: dict[str, Any]) -> bool:
+    """Whether the task's trials are answered along its message flows: only the runner sets `ResponseSource`."""
+    return (payload.get("bot") or {}).get("ResponseSource") == "external"
+
+
 def stage_page(payload: dict[str, Any]) -> bytes:
-    unity_payload = {**payload, "bot": bot_for_unity(payload.get("bot"))}
-    if unity_payload["bot"] is None:
-        del unity_payload["bot"]
     title = f"{payload['scene']} / {payload.get('timeline') or 'default timeline'}"
+    stage = {"scene": payload["scene"], "timeline": payload.get("timeline"),
+             "source": "messages" if along_messages(payload) else "unity"}
     page = (STAGE_HTML.replace("__TITLE__", title).replace("__MOUNT__", BUILD_MOUNT)
-            .replace("__PAYLOAD__", json.dumps(unity_payload)).replace("__STAGE__", json.dumps(stage_config(payload))))
+            .replace("__PAYLOAD__", json.dumps(payload)).replace("__STAGE__", json.dumps(stage)))
     return page.encode()
 
 
 class Stage(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port: int, build: Path, page: bytes, events: Path) -> None:
+    def __init__(self, port: int, build: Path, page: bytes, events: Path, exchange: Exchange | None = None) -> None:
         super().__init__(("127.0.0.1", port), StageHandler)
         self.build = build.resolve()
         self.page = page
         self.events = events
+        self.exchange = exchange
         self.trials = 0
         self.completion: dict[str, Any] = {}
         self.done = threading.Event()
@@ -454,6 +437,9 @@ class StageHandler(BaseHTTPRequestHandler):
         except ValueError:
             return self.reply(400, b"invalid JSON")
         server = self.server
+        if self.path == "/respond":
+            answer = server.exchange.ask(body) if server.exchange and isinstance(body, dict) else {}
+            return self.reply(200, json.dumps(answer).encode(), "application/json")
         if self.path == "/event":
             with server.lock:
                 with server.events.open("a") as file:
@@ -528,15 +514,18 @@ def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, d
     events = run_dir / events_uri(element, plan)
     events.parent.mkdir(parents=True, exist_ok=True)
     events.unlink(missing_ok=True)
-    stage = Stage(args.port, build, stage_page(payload), events)
+    exchange = None
+    if along_messages(payload):
+        trials, _ = trial_flows(element, plan) or ("", "")
+        partner = ", ".join((plan.get(p) or {}).get("name") or p for p in message_partners(element, plan))
+        exchange = Exchange(cache, str(element["id"]), trials, partner)
+    stage = Stage(args.port, build, stage_page(payload), events, exchange)
     threading.Thread(target=stage.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{stage.server_port}/"
-    config = stage_config(payload)
     print(f"□ {element.get('name') or element['id']}: {payload['scene']} / {payload.get('timeline') or 'default timeline'} "
           f"({payload['agentType']}) — {url}", flush=True)
-    if config["source"] != "internal":
-        note = " (no model proxy here: the bridge answers, else random)" if config["source"] == "llm" else ""
-        print(f"    trials go to the response bridge at {config['bridge']}{note}", flush=True)
+    if exchange:
+        print(f"    each trial goes along {exchange.flow} to {exchange.agent}, and its answer comes back", flush=True)
     browser = None if args.no_browser else open_stage(url)
     clock = time.perf_counter()
     try:

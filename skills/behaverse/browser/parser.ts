@@ -2,7 +2,7 @@ import * as yaml from 'js-yaml';
 import { getAttribute } from '@core/element';
 import type { FlowNode } from '@runner/flow';
 import type { Session } from '@runner/session';
-import { BEHAVERSE_TASK_TYPE, type BehaverseTaskPayload } from '@skills/behaverse/browser/types';
+import { BEHAVERSE_TASK_TYPE, WHO_ANSWERS_KEYS, type BehaverseTaskPayload } from '@skills/behaverse/browser/types';
 
 /** Who is running what: Unity stamps these onto every event it records. */
 export function withRunIdentity(
@@ -72,10 +72,17 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
   const botSettings = authoredBot && typeof authoredBot === 'object' && !Array.isArray(authoredBot)
     ? { ...(authoredBot as Record<string, unknown>) }
     : undefined;
+  const authored = WHO_ANSWERS_KEYS.filter((key) => botSettings && key in botSettings);
+  if (authored.length > 0) {
+    throw new Error(
+      `behaverse:Task '${node.id}': \`Bot:\` sets how the build's bot plays, not who answers (${authored.join(', ')}). `
+      + 'Draw who takes the task instead: the participant on its band, or the pool its message flows reach.',
+    );
+  }
 
   // Who takes the task is its participant (band, message flow, or pool): a person, or a bot of some kind.
   const actor = actorOf(node.businessObject);
-  const agentType: 'human' | 'bot' = (actor.kind && actor.kind !== 'human') || botSettings?.ResponseSource ? 'bot' : 'human';
+  const agentType: 'human' | 'bot' = actor.kind && actor.kind !== 'human' ? 'bot' : 'human';
 
   const payload: BehaverseTaskPayload = {
     scene,
@@ -103,27 +110,27 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
 
   if (agentType === 'bot') {
     const bot = botSettings ?? {};
-    if (actor.kind === 'robot' || (actor.kind === 'software' && actor.model !== 'random')) {
-      bot.ResponseSource = 'external'; // answered over the response bridge by whoever sits there
-      if (actor.bridge && !bot.BridgeUrl) bot.BridgeUrl = actor.bridge; // where that partner said it listens
-    } else if (actor.kind === 'software') {
-      delete bot.ResponseSource; // the build's own random bot
-    } else if (actor.kind === 'llm') {
+    if (actor.kind === 'llm') {
+      // The model on the band answers each trial, told what the Prompt wired into the task says.
+      const [provider, model] = splitModel(actor.model, node.id);
       bot.ResponseSource = 'llm';
-      if (actor.model) {
-        const [provider, model] = splitModel(actor.model);
-        bot.LLM = { Provider: provider, Model: model };
-      }
+      bot.LLM = { Provider: provider, Model: model };
+      const prompt = promptOf(node.businessObject);
+      if (prompt) bot.Prompt = prompt;
+    } else if (!(actor.kind === 'software' && actor.model === 'random')) {
+      // Anyone else answers along the task's message flows, which only the local runtime carries.
+      throw new Error(
+        `'${node.id}' is taken by a ${actor.kind} participant, which answers over message flows in the local runtime. `
+        + 'The browser runner plays a person, a model on the task\'s band, or the build\'s random bot (software, `implementation: random`).',
+      );
     }
-    const prompt = promptOf(node.businessObject); // the one way to instruct whoever takes the task
-    if (prompt && !bot.Prompt) bot.Prompt = prompt;
     if (Object.keys(bot).length > 0) payload.bot = bot;
   }
 
   return payload;
 }
 
-type Actor = { kind: string; model: string; bridge: string };
+type Actor = { kind: string; model: string };
 
 /** Who takes the task, from what the diagram draws, most explicit first: the task's receiving band; else the
  * other end of a message flow touching it (a pool, or a step's pool); else the pool the task sits in. A
@@ -137,19 +144,17 @@ export function actorOf(bo: any): Actor {
   for (const participant of candidates) {
     for (const ext of (participant.extensionElements?.values ?? []) as any[]) {
       const type = String(ext?.$type ?? '').toLowerCase();
-      // `bridge` is where the robot takes trials; the schema's default is the bridge's own default.
-      if (type === 'reachy:robot') return { kind: 'robot', model: '', bridge: String(getAttribute(participant, 'bridge') ?? '') };
+      if (type === 'reachy:robot') return { kind: 'robot', model: '' };
       if (type === 'cognitive:actor') {
         // Read through the participant: the catalog resolves a wrapper's attributes from its element.
         return {
           kind: String(getAttribute(participant, 'actorType') ?? 'human'),
           model: String(getAttribute(participant, 'implementation') ?? ''),
-          bridge: '',
         };
       }
     }
   }
-  return { kind: '', model: '', bridge: '' };
+  return { kind: '', model: '' };
 }
 
 function processOf(bo: any): any {
@@ -222,9 +227,11 @@ export function promptOf(bo: any): string {
   return '';
 }
 
-/** `<scheme>://<model>` as written, a bare `claude-*` name as Claude's, anything else as Ollama's. */
-export function splitModel(ref: string): [string, string] {
-  const at = ref.indexOf('://');
-  if (at > 0) return [ref.slice(0, at), ref.slice(at + 3)];
-  return [ref.startsWith('claude') ? 'claude' : 'ollama', ref];
+/** `claude://<model>` or `ollama://<model>`, as the actor's `implementation` writes it; there is no default. */
+export function splitModel(ref: string, taskId: string): ['claude' | 'ollama', string] {
+  const [, provider, model] = /^(claude|ollama):\/\/(.+)$/.exec(ref) ?? [];
+  if (!model) {
+    throw new Error(`The model taking '${taskId}' names none it can call: set its implementation to claude://<model> or ollama://<model>.`);
+  }
+  return [provider as 'claude' | 'ollama', model];
 }
