@@ -4,8 +4,8 @@
 # band of a task it takes, never a setting on a step. The rest of an agent workflow is BPMN and
 # the core sets: a model call is a task with message flows to the model's pool, a tool a service
 # task with an `implementation`, an agent loop an ad-hoc sub-process, a human sign-off a user task
-# with a timer. What stays here is what they cannot say: that a participant is a model, and a
-# prompt kept as data.
+# with a timer. What stays here is what they cannot say: that a participant is a model, the
+# request and reply its flows carry, and a prompt kept as data.
 
 name: Agentic
 prefix: agentic
@@ -20,12 +20,21 @@ xml:
 version: '26.9.1'
 
 enumerations:
-  - extends: cognitive:ActorTypeEnum
-    description: What an actor pool can be, beyond cognitive's human, software, and hardware.
+  - extends: studyflow:ActorTypeEnum
+    description: What an actor pool can be, beyond human, software, and hardware.
     literalValues:
       - name: Large language model
         value: llm
         description: A model, named by `implementation` (`claude://claude-haiku-4-5`, `ollama://gemma4:12b-it-qat`). As a pool of its own it answers what the study's steps send it; on a task's band it takes the task.
+  - extends: studyflow:MessageStructureEnum
+    description: What a message flow to or from a model's pool carries.
+    literalValues:
+      - name: One Request
+        value: agentic:Request
+        description: One request to the model, out of the step that asks it (what is wired into the step, in order; a Prompt gives its text, an image goes as an image).
+      - name: One Reply
+        value: agentic:Reply
+        description: The model's reply, back to the step that asked.
 
 types:
   - name: Prompt

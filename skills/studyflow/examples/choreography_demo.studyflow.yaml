@@ -1,0 +1,80 @@
+id: choreography_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+Dyadic_Study:
+  type: Choreography
+  documentation: A two-participant choreography where subject and experimenter exchange consent and two decision rounds.
+  extensionElements:
+    - type: studyflow:Study
+    - type: prov:Activity
+      action: created
+      when: "2026-07-30T22:51:28Z"
+      with: studyflow-modeler/26.0615
+  name: Dyadic decision study
+  participants:
+    Participant_Subject:
+      name: Subject
+    Participant_Experimenter:
+      name: Experimenter
+  messageFlows:
+    MessageFlow_Consent: Participant_Subject -> Participant_Experimenter
+    MessageFlow_Round: Participant_Experimenter -> Participant_Subject
+    MessageFlow_Round2: Participant_Subject -> Participant_Experimenter
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Both arrive
+      bounds: 160 202 36 36
+      label: 150 245 56 30
+    Consent:
+      type: ChoreographyTask
+      name: Give consent
+      participantRef:
+        - Participant_Subject
+        - Participant_Experimenter
+      initiatingParticipantRef: Participant_Subject
+      messageFlowRef:
+        - MessageFlow_Consent
+      bounds: 260 175 150 90
+    Round:
+      type: ChoreographyTask
+      name: First decision round
+      participantRef:
+        - Participant_Subject
+        - Participant_Experimenter
+      initiatingParticipantRef: Participant_Experimenter
+      messageFlowRef:
+        - MessageFlow_Round
+      bounds: 480 175 150 90
+    Round2:
+      type: ChoreographyTask
+      name: Second decision round
+      participantRef:
+        - Participant_Subject
+        - Participant_Experimenter
+      initiatingParticipantRef: Participant_Subject
+      messageFlowRef:
+        - MessageFlow_Round2
+      bounds: 700 175 150 90
+    End:
+      type: EndEvent
+      name: Debrief
+      bounds: 920 202 36 36
+      label: 922 245 34 15
+    Flow_Start_Consent:
+      sourceRef: Start
+      targetRef: Consent
+      waypoint: 196,220 260,220
+    Flow_Consent_Round:
+      sourceRef: Consent
+      targetRef: Round
+      waypoint: 410,220 480,220
+    Flow_Round_Round2:
+      sourceRef: Round
+      targetRef: Round2
+      waypoint: 630,220 700,220
+    Flow_Round2_End:
+      sourceRef: Round2
+      targetRef: End
+      waypoint: 850,220 920,220

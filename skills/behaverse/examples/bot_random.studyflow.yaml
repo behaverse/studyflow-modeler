@@ -1,0 +1,161 @@
+id: demo3_external_bot
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+Demo3_ExternalBot_Actors:
+  type: Collaboration
+  name: Random bot
+  participants:
+    Actor_Random_bot:
+      extensionElements:
+        - type: studyflow:Actor
+          actorType: software
+          implementation: random
+      name: Random bot
+Demo3_ExternalBot:
+  type: Process
+  documentation: A 1-back warm-up and a 2-back block played by the Behaverse build's own random bot.
+  extensionElements:
+    - type: studyflow:Study
+    - type: prov:Activity
+      action: created
+      when: "2026-07-30T22:51:26Z"
+      with: studyflow-modeler/26.0615
+  name: Random bot
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Start
+      bounds: 160 180 36 36
+      label: 166 223 24 15
+    Warmup_1Back:
+      type: ChoreographyTask
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Blocks:
+              Demo3_Warmup:
+                Name: Demo3_Warmup
+                Inherits: Default
+                Parameters:
+                  NValue: 1
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                  StreamSize: 8
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 2
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 1.5
+            Timelines:
+              Demo3_Warmup:
+                Name: Demo3_Warmup
+                blocks:
+                  - name: Demo3_Warmup
+            Bot:
+              Speed: 20
+              SkipInstructions: true
+              AutoClickInstructions: true
+              SkipFocusArea: true
+              OverrideTemporalParameters: true
+              StimulusDisplayDuration: 0.3
+              InterStimulusInterval: 0.3
+              TrialForeperiod: 0.1
+          scene: NB
+      name: 1-Back warm-up
+      participantRef:
+        - Actor_Random_bot
+      bounds: 260 138 120 120
+    Main_2Back:
+      type: ChoreographyTask
+      extensionElements:
+        - type: behaverse:Task
+          configurations:
+            Blocks:
+              Demo3_Main:
+                Name: Demo3_Main
+                Inherits: Default
+                Parameters:
+                  NValue: 2
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                            - 1
+                            - 2
+                            - 3
+                            - 1
+                  StreamSize: 12
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 2
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 1.5
+            Timelines:
+              Demo3_Main:
+                Name: Demo3_Main
+                blocks:
+                  - name: Demo3_Main
+            Bot:
+              Speed: 20
+              SkipInstructions: true
+              AutoClickInstructions: true
+              SkipFocusArea: true
+              OverrideTemporalParameters: true
+              StimulusDisplayDuration: 0.3
+              InterStimulusInterval: 0.3
+              TrialForeperiod: 0.1
+          scene: NB
+      name: 2-Back main
+      participantRef:
+        - Actor_Random_bot
+      bounds: 450 138 120 120
+    End:
+      type: EndEvent
+      name: Done
+      bounds: 640 180 36 36
+      label: 647 223 22 15
+    Flow_Start_Warmup:
+      sourceRef: Start
+      targetRef: Warmup_1Back
+      waypoint: 196,198 260,198
+    Flow_Warmup_Main:
+      sourceRef: Warmup_1Back
+      targetRef: Main_2Back
+      waypoint: 380,198 450,198
+    Flow_Main_End:
+      sourceRef: Main_2Back
+      targetRef: End
+      waypoint: 570,198 640,198
+state:
+  _meta:
+    prov:
+      - action: created
+        when: "2026-09-14T10:07:20+02:00"
+        with: studyflow-modeler/26.9.18

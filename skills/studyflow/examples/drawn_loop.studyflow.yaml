@@ -1,0 +1,64 @@
+id: drawn_loop
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Drawn_Loop:
+  type: Process
+  documentation: >-
+    The smallest cycle the notation can draw — one step, one gateway, a conditioned back-edge, and nothing that is not a
+    visible edge. The loop is bounded by the engine's own run state: `state.trace.count('Gate')` counts how often the
+    walk has reached the gateway, so `state.trace.count('Gate') < 8` takes the back-edge seven times, the step runs
+    eight, and the default edge exits. Runs as it stands: `studyflow run drawn_loop.studyflow.png` prints eight times
+    and `state._meta.reached` in the run's copy shows the count.
+  extensionElements:
+    - type: studyflow:Study
+    - type: prov:Activity
+      action: created
+      when: "2026-07-30T22:24:02Z"
+      with: studyflow-modeler/26.0615
+  name: drawn loop (eight turns, edges only)
+  flowElements:
+    Start:
+      type: StartEvent
+      name: go
+      bounds: 57 52 36 36
+    Say:
+      type: ServiceTask
+      name: Say it again
+      additionalArguments:
+        args:
+          - around we go
+      implementation: python://builtins.print
+      bounds: 175 30 100 80
+    Gate:
+      type: ExclusiveGateway
+      documentation: >-
+        The exit rule is on the edges, where a reader can see it: the back-edge holds while the engine's visit count is
+        under eight, and the exit is the gateway's native default.
+      name: eight times yet?
+      default: Exit
+      bounds: 350 45 50 50
+      isMarkerVisible: true
+    End:
+      type: EndEvent
+      name: done
+      bounds: 507 52 36 36
+    F1:
+      sourceRef: Start
+      targetRef: Say
+      waypoint: 93,70 175,70
+    F2:
+      sourceRef: Say
+      targetRef: Gate
+      waypoint: 275,70 350,70
+    Again:
+      name: again
+      conditionExpression: state.trace.count('Gate') < 8
+      sourceRef: Gate
+      targetRef: Say
+      waypoint: 375,95 375,140 225,140 225,110
+    Exit:
+      name: enough
+      sourceRef: Gate
+      targetRef: End
+      waypoint: 400,70 507,70
+  isExecutable: true

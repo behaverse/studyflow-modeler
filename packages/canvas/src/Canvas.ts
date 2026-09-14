@@ -600,9 +600,12 @@ export class Canvas {
     return this.gestures.startConnect(source, event);
   }
 
-  /** Connect `source` to `target` as the rules allow; `businessObject` is one the host built (a template's named flow). */
-  connectElements(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject): SceneEdge | undefined {
-    const edge = this.connect.connect(source, target, businessObject);
+  /**
+   * Connect `source` to `target` as the rules allow; `businessObject` is one the host built (a template's named flow),
+   * and `waypoints` the route it drew, else the flow is routed.
+   */
+  connectElements(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject, waypoints?: Point[]): SceneEdge | undefined {
+    const edge = this.connect.connect(source, target, businessObject, waypoints);
     if (!edge) return undefined;
     this.mount(edge);
     this.selection.select(edge);

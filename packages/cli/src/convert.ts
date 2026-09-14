@@ -90,8 +90,7 @@ async function renderPng(input: string, studyflow: string, origin: string): Prom
     ({ chromium } = await import('@playwright/test'));
   } catch {
     throw new Error(
-      '--modeler needs @playwright/test, which is not installed here — run it from the repo workspace '
-      + '(`npm run examples:render` re-renders every shipped example).',
+      '--modeler needs @playwright/test, which is not installed here — run it from the repo workspace.',
     );
   }
 

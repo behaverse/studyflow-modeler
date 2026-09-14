@@ -104,7 +104,7 @@ test('a cognitive task names who takes it: a declared pool, a new actor, or no o
   await inspector.getByRole('button', { name: 'bottom participant kind' }).click();
   await page.getByRole('option', { name: 'Software', exact: true }).click();
   await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Software');
-  const identifier = inspector.locator('input[name="cognitive:implementation"]');
+  const identifier = inspector.locator('input[name="studyflow:implementation"]');
   await identifier.fill('python://lab.bots.random');
   await identifier.blur();
   let studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));

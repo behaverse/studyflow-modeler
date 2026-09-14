@@ -88,7 +88,7 @@ function isOwnEnum(rawEnum: SchemaEnumModel): rawEnum is SchemaEnumModel & { nam
   return typeof rawEnum.name === 'string';
 }
 
-/** Literals a schema adds to another's enum (`extends: cognitive:ActorTypeEnum`), so a small skill grows a shared list instead of redeclaring it. */
+/** Literals a schema adds to another's enum (`extends: studyflow:ActorTypeEnum`), so a small skill grows a shared list instead of redeclaring it. */
 function extendEnums(rawSchemas: Record<string, SchemaModel>, catalog: TypeCatalog): void {
   for (const [prefix, raw] of Object.entries(rawSchemas)) {
     for (const rawEnum of raw.enumerations) {

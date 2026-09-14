@@ -1,12 +1,12 @@
-import { defaultSizeFor, isExpandable, type Bounds, type Canvas, type SceneNode, type ShapeDescriptor } from '@canvas/index.ts';
+import { defaultSizeFor, isExpandable, type Bounds, type Canvas, type Point, type SceneNode, type ShapeDescriptor } from '@canvas/index.ts';
 import { PLACEHOLDER, studyflowToDefinitions } from '@core/document';
 import type { Template } from '@core/notation';
 import type { EditorModel, ModelElement } from '@modeler/editor/port';
 
-/** What a template lays out inside its shape once that lands: its nodes where the template draws them, then the sequence flows between them. */
+/** What a template lays out inside its shape once that lands: its nodes where the template draws them, then the sequence flows between them, along the route it draws or routed. */
 export type TemplateFlow = {
   nodes: { businessObject: ModelElement; bounds: Bounds }[];
-  flows: ModelElement[];
+  flows: { businessObject: ModelElement; waypoints?: Point[] }[];
 };
 
 /** Left covers the pool's label band. */
@@ -98,8 +98,10 @@ export function createTemplateElement(
   else if (children.length > 0) root.set('flowElements', []);
 
   const bounds = new Map<ModelElement, Bounds>();
+  const routes = new Map<ModelElement, Point[]>();
   for (const di of definitions.diagrams?.[0]?.plane?.planeElement ?? []) {
     if (di.bounds) bounds.set(di.bpmnElement, { x: di.bounds.x, y: di.bounds.y, width: di.bounds.width, height: di.bounds.height });
+    if (di.waypoint?.length) routes.set(di.bpmnElement, di.waypoint.map(({ x, y }: Point) => ({ x, y })));
   }
   const isFlow = (bo: ModelElement): boolean => bo.$instanceOf('bpmn:SequenceFlow');
 
@@ -111,7 +113,7 @@ export function createTemplateElement(
         businessObject: bo,
         bounds: bounds.get(bo) ?? { x: 0, y: 0, ...defaultSizeFor(bo.$type) },
       })),
-      flows: children.filter(isFlow),
+      flows: children.filter(isFlow).map((bo) => ({ businessObject: bo, waypoints: routes.get(bo) })),
     },
   };
 }
@@ -127,13 +129,13 @@ export function materializeTemplateFlow(canvas: Canvas, container: SceneNode, fl
     if (node) placed.set(businessObject, node);
   }
 
-  for (const sequenceFlow of flow.flows) {
+  for (const { businessObject: sequenceFlow, waypoints } of flow.flows) {
     const source = placed.get(sequenceFlow.sourceRef);
     const target = placed.get(sequenceFlow.targetRef);
     if (!source || !target) {
       console.warn(`[templates] Skipping connection '${sequenceFlow.id}' - source or target not found.`);
       continue;
     }
-    canvas.connectElements(source, target, sequenceFlow);
+    canvas.connectElements(source, target, sequenceFlow, waypoints?.map(({ x, y }) => ({ x: x + shift.x, y: y + shift.y })));
   }
 }

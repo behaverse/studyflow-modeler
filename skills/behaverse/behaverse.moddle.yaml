@@ -24,14 +24,13 @@ enumerations:
       - name: BDM (Behaverse Data Model)
         value: bdm
         icon: iconify bi--hexagon
-  # Offered on a message flow's Message field; any other item definition's `structureRef` is accepted too.
-  - name: MessageStructureEnum
-    description: What a message flow to or from a Behaverse task carries, as the structure its message is an item of.
+  - extends: studyflow:MessageStructureEnum
+    description: What a message flow to or from a Behaverse task carries.
     literalValues:
-      - name: A trial
+      - name: One Trial
         value: behaverse:Trial
         description: One awaiting trial, out of the task to whoever answers it (its options, response window, and screenshot).
-      - name: A response
+      - name: One Response
         value: behaverse:Response
         description: The answer to a trial, back into the task.
   - name: SceneEnum

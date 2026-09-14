@@ -1,5 +1,6 @@
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-const STUDYFLOW_KEYWORD = 'studyflow';
+/** A PNG carries the `.studyflow.yaml` text, in the iTXt chunk its MIME type keys. */
+const KEYWORD = 'application/vnd.studyflow+yaml';
 
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
@@ -57,8 +58,8 @@ function chunkKeyword(png: Uint8Array, chunk: PngChunk): string | undefined {
   return end < 0 ? undefined : new TextDecoder().decode(data.subarray(0, end));
 }
 
-function withoutTextChunks(png: Uint8Array, keyword: string): Uint8Array {
-  const drop = [...pngChunks(png)].filter((chunk) => chunkKeyword(png, chunk) === keyword);
+function withoutPayloadChunks(png: Uint8Array): Uint8Array {
+  const drop = [...pngChunks(png)].filter((chunk) => chunkKeyword(png, chunk) === KEYWORD);
   if (drop.length === 0) return png;
 
   const removed = drop.reduce((total, chunk) => total + chunk.dataLength + 12, 0);
@@ -74,9 +75,9 @@ function withoutTextChunks(png: Uint8Array, keyword: string): Uint8Array {
   return out;
 }
 
-function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string, keyword: string): Uint8Array {
+function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string): Uint8Array {
   assertPngSignature(png);
-  const base = withoutTextChunks(png, keyword);
+  const base = withoutPayloadChunks(png);
 
   let offset = -1;
   for (const existing of pngChunks(base)) {
@@ -96,17 +97,17 @@ function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string, k
   return out;
 }
 
-/** `png` carrying `studyflow`, the text of a `.studyflow.yaml`, in an iTXt chunk keyed `studyflow`. */
+/** `png` carrying `studyflow`, the text of a `.studyflow.yaml`, in an iTXt chunk keyed by its MIME type. */
 export function embedStudyflowIntoPng(png: Uint8Array, studyflow: string): Uint8Array {
   const encoder = new TextEncoder();
-  const keyword = encoder.encode(STUDYFLOW_KEYWORD);
+  const keyword = encoder.encode(KEYWORD);
   const text = encoder.encode(studyflow);
   // iTXt layout: keyword NUL, flag+method (0 0 = uncompressed), empty language NUL, empty translated keyword NUL, UTF-8 text.
   const data = new Uint8Array(keyword.length + 5 + text.length);
   data.set(keyword, 0);
   data.set(text, keyword.length + 5);
 
-  return insertChunkBefore(png, buildChunk('iTXt', data), 'IEND', STUDYFLOW_KEYWORD);
+  return insertChunkBefore(png, buildChunk('iTXt', data), 'IEND');
 }
 
 /** The text {@link embedStudyflowIntoPng} put in the PNG. */
@@ -120,7 +121,7 @@ export function extractStudyflowFromPng(content: ArrayBuffer | Uint8Array): stri
     const data = png.subarray(offset + 8, offset + 8 + dataLength);
 
     const keywordEnd = data.indexOf(0);
-    if (keywordEnd < 0 || decoder.decode(data.subarray(0, keywordEnd)) !== STUDYFLOW_KEYWORD) continue;
+    if (keywordEnd < 0 || decoder.decode(data.subarray(0, keywordEnd)) !== KEYWORD) continue;
     if (data[keywordEnd + 1] !== 0) continue; // compressed text; this exporter never writes it
 
     const languageEnd = data.indexOf(0, keywordEnd + 3);

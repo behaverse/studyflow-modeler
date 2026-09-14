@@ -47,7 +47,7 @@ from urllib.parse import unquote
 
 import yaml
 
-COGNITIVE = "http://behaverse.org/schemas/studyflow/cognitive"
+STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 BEHAVERSE = "http://behaverse.org/schemas/studyflow/behaverse"
 BUILD_MOUNT = "/assessment-unity"
 # Who answers a task is the drawing's to say, never `Bot:`'s (the browser runner's types.ts `WHO_ANSWERS_KEYS`).
@@ -150,7 +150,7 @@ EMPTY_ACTOR: dict[str, Any] = {"kind": "", "model": ""}
 def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Who takes the task, from what the diagram draws, most explicit first: the task's receiving band; else the
     other end of a message flow touching it (a pool, or a step's pool); else the pool the task sits in. A
-    `reachy:Robot` is a robot; a `cognitive:Actor` is what its `actorType` says, with its `implementation` as the
+    `reachy:Robot` is a robot; a `studyflow:Actor` is what its `actorType` says, with its `implementation` as the
     model. `kind` is empty when no one is named any of those ways."""
     initiating = (element.get("attributes") or {}).get("initiatingParticipantRef")
     candidates = [p for p in element.get("participants") or [] if p != initiating]
@@ -163,7 +163,7 @@ def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[s
             attributes = ext.get("attributes") or {}
             if ext.get("namespace") == REACHY and str(ext.get("type", "")).lower() == "robot":
                 return {"kind": "robot", "model": ""}
-            if ext.get("namespace") == COGNITIVE and str(ext.get("type", "")).lower() == "actor":
+            if ext.get("namespace") == STUDYFLOW and str(ext.get("type", "")).lower() == "actor":
                 return {"kind": str(attributes.get("actorType") or "human"), "model": str(attributes.get("implementation") or "")}
     return dict(EMPTY_ACTOR)
 

@@ -191,7 +191,7 @@ has is dropped with a diagnostic, as is an `extends` that names no enumeration.
 
 ```yaml
 enumerations:
-  - extends: cognitive:ActorTypeEnum
+  - extends: studyflow:ActorTypeEnum
     description: What an actor pool can be, beyond cognitive's human, software, and hardware.
     literalValues:
       - name: Large language model
@@ -220,12 +220,9 @@ templates:
 
 ## Examples
 
-A skill ships whole diagrams in its `examples/` folder, not in its schema, each a `.studyflow.yaml` or a
-`.studyflow.png` (a picture of the diagram with the diagram embedded in it); the gallery shows them, and the skill
-is the shelf, so an example lands with the vocabulary or runner it exercises. The gallery draws a YAML example's
-card when it opens: the main canvas, without glyphs. `studyflow convert a.studyflow.png a.studyflow.yaml` turns
-one kind into the other, `studyflow convert --modeler <file>.studyflow.yaml <name>.studyflow.png` draws a picture,
-and `npm run examples:render` redraws every PNG example from its own embedded diagram.
+A skill ships whole diagrams in its `examples/` folder, not in its schema, each a `.studyflow.yaml`, never a
+picture; the gallery shows them, and the skill is the shelf, so an example lands with the vocabulary or runner it
+exercises. The gallery draws an example's card when it opens: the main canvas, without glyphs.
 
 ## Icons
 

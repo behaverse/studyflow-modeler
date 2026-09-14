@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
+import { extractStudyflowFromSvg } from '@core/document/svg';
+
 import {
   addPaletteElement,
   addSchemaPaletteElement,
   exportDiagram,
-  extractStudyflowFromSvg,
   gotoModeler,
   pressOnCanvas,
   readDownloadText,
@@ -33,8 +34,10 @@ test.describe('Studyflow modeler palette flows', () => {
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     expect(studyflowText).toContain('name: Review Task');
     expect(studyflowText).toMatch(/type: Task\n\s+extensionElements:\n\s+- type: cognitive:Rest\n/);
-    // The picture carries the .studyflow.yaml itself.
-    expect(extractStudyflowFromSvg(await readDownloadText(svgDownload))).toBe(studyflowText);
+    // The picture carries the diagram as BPMN XML, nested in its metadata.
+    const bpmn = extractStudyflowFromSvg(await readDownloadText(svgDownload));
+    expect(bpmn).toMatch(/^<(\w+:)?definitions /);
+    expect(bpmn).toContain('name="Review Task"');
   });
 
   test('a template arrives collapsed with its flow inside, keeps its ids where they are free, and a second drop rewrites its own references', async ({ page }) => {

@@ -1,6 +1,6 @@
 # Working in this repo
 
-Studyflow is a BPMN-based notation for experiments. The canonical file is `.studyflow.yaml`, a lossless spelling of BPMN XML. An example ships as that file, or as a `.studyflow.png` with it embedded; the gallery draws a YAML example's card itself.
+Studyflow is a BPMN-based notation for experiments. The canonical file is `.studyflow.yaml`, a lossless spelling of BPMN XML. An example ships as that file, never as a picture; the gallery draws its card itself.
 
 ## Commands
 
@@ -9,7 +9,6 @@ npm install
 npm run dev                  # the modeler at http://localhost:5173/app.html, the browser runner at /run/
 npm run typecheck && npm run lint && npm run test:unit   # the gate: CI and `npm run release` run exactly this
 npm run test:e2e             # Playwright against its own dev server on :4173; CI skips it, so run it after UI changes
-npm run examples:render      # after a canvas or file-format change: redraws the PNG examples; then test:unit
 ```
 
 A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the dev server, `*.webkit.spec.ts` in WebKit. Where specs live, and what each kind pins: [Tests](#tests).

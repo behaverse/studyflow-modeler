@@ -10,7 +10,7 @@ import type { Moddle } from '@core/element/moddle';
 export type SourceKind = 'yaml' | 'xml';
 
 export type StudyflowSource = {
-  /** The studyflow as text: YAML (what a `.studyflow.png` or `.studyflow.svg` embeds), or BPMN XML. */
+  /** The studyflow as text: YAML (what a `.studyflow.png` embeds), or BPMN XML (what a `.studyflow.svg` does). */
   text: string;
   kind: SourceKind;
   /** Where the text came from; `png` and `svg` mean it was extracted from an image. */

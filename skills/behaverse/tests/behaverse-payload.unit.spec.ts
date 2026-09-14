@@ -37,7 +37,7 @@ function bandsXml(actor: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:agentic="https://w3id.org/studyflow/agentic" xmlns:reachy="https://w3id.org/studyflow/reachy" id="bands_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:collaboration id="Actors">
-    <bpmn2:participant id="Screen" name="Screen"><bpmn2:extensionElements><cognitive:actor actorType="hardware" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:participant id="Screen" name="Screen"><bpmn2:extensionElements><studyflow:actor actorType="hardware" /></bpmn2:extensionElements></bpmn2:participant>
     <bpmn2:participant id="Taker" name="Taker"><bpmn2:extensionElements>${actor}</bpmn2:extensionElements></bpmn2:participant>
   </bpmn2:collaboration>
   <bpmn2:process id="BandsFixture" name="Bands fixture">
@@ -56,9 +56,9 @@ function bandsXml(actor: string): string {
 const TWO_PARTNERS_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="partners_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:collaboration id="C">
-    <bpmn2:participant id="Lab" name="Lab" processRef="P"><bpmn2:extensionElements><cognitive:actor actorType="human" /></bpmn2:extensionElements></bpmn2:participant>
-    <bpmn2:participant id="Claude" name="Claude"><bpmn2:extensionElements><cognitive:actor actorType="llm" implementation="claude://claude-haiku-4-5" /></bpmn2:extensionElements></bpmn2:participant>
-    <bpmn2:participant id="Agent" name="Agent"><bpmn2:extensionElements><cognitive:actor actorType="software" implementation="my-agent" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:participant id="Lab" name="Lab" processRef="P"><bpmn2:extensionElements><studyflow:actor actorType="human" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:participant id="Claude" name="Claude"><bpmn2:extensionElements><studyflow:actor actorType="llm" implementation="claude://claude-haiku-4-5" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:participant id="Agent" name="Agent"><bpmn2:extensionElements><studyflow:actor actorType="software" implementation="my-agent" /></bpmn2:extensionElements></bpmn2:participant>
     <bpmn2:messageFlow id="M1" sourceRef="TheTask" targetRef="Claude" />
     <bpmn2:messageFlow id="M2" sourceRef="TheTask" targetRef="Agent" />
   </bpmn2:collaboration>
@@ -110,7 +110,7 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     },
     {
       label: 'a model on the lower band answers through the runner, with the wired Prompt; Unity waits for an external answer',
-      xml: bandsXml('<cognitive:actor actorType="llm" implementation="claude://claude-haiku-4-5" />'),
+      xml: bandsXml('<studyflow:actor actorType="llm" implementation="claude://claude-haiku-4-5" />'),
       payload: {
         agentType: 'bot', configMode: 'builtin',
         bot: { Speed: 20, ResponseSource: 'llm', LLM: { Provider: 'claude', Model: 'claude-haiku-4-5' }, Prompt: PROMPT },
@@ -119,12 +119,12 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     },
     {
       label: 'a model on the lower band names the model it is, never a default',
-      xml: bandsXml('<cognitive:actor actorType="llm" />'),
+      xml: bandsXml('<studyflow:actor actorType="llm" />'),
       error: /names none it can call/,
     },
     {
       label: 'the build\'s random bot takes the task when the band says so, a software actor whose implementation is random',
-      xml: bandsXml('<cognitive:actor actorType="software" implementation="random" />'),
+      xml: bandsXml('<studyflow:actor actorType="software" implementation="random" />'),
       payload: { agentType: 'bot', configMode: 'builtin', bot: { Speed: 20 } },
     },
     {
@@ -140,7 +140,7 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     },
     {
       label: 'a person on the lower band plays the task, with no bot',
-      xml: bandsXml('<cognitive:actor actorType="human" />'),
+      xml: bandsXml('<studyflow:actor actorType="human" />'),
       payload: { agentType: 'human', configMode: 'builtin' },
     },
     {

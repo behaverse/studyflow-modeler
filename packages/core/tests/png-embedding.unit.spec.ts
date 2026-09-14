@@ -51,9 +51,12 @@ test.describe('PNG studyflow embedding', () => {
     expect(extractStudyflowFromPng(png.slice().buffer)).toBe(yaml);
   });
 
-  test('a second embedding replaces the first', () => {
+  test('the chunk is keyed by the MIME type of what it carries, and a second embedding replaces the first', () => {
     const png = embedStudyflowIntoPng(embedStudyflowIntoPng(minimalPng(), 'id: old\n'), 'id: new\n');
+    const bytes = Buffer.from(png);
+    const data = bytes.indexOf('iTXt') + 4;
 
+    expect(bytes.toString('latin1', data, bytes.indexOf(0, data))).toBe('application/vnd.studyflow+yaml');
     expect(extractStudyflowFromPng(png)).toBe('id: new\n');
     expect(png.length).toBe(embedStudyflowIntoPng(minimalPng(), 'id: new\n').length);
   });

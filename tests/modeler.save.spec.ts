@@ -1,11 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { blankDiagram, browseForDiagram, exampleFile, gotoModeler, runPaletteCommand } from './utils';
+import { embedStudyflowIntoPng } from '@core/document/png';
+
+import { blankDiagram, browseForDiagram, exampleText, gotoModeler, runPaletteCommand } from './utils';
 
 const DIAGRAM = blankDiagram().toString('utf8');
 const DIAGRAM_B64 = Buffer.from(DIAGRAM, 'utf8').toString('base64');
-/** A real PNG with the diagram embedded in it, as the modeler's own export produces: `choreography_demo` must stay a PNG. */
-const DIAGRAM_PNG_B64 = exampleFile('choreography_demo').toString('base64');
+/** A one-pixel PNG with a diagram embedded in it: opening reads the diagram, never the pixels. */
+const ONE_PIXEL_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+const DIAGRAM_PNG_B64 = Buffer.from(embedStudyflowIntoPng(ONE_PIXEL_PNG, exampleText('choreography_demo'))).toString('base64');
 
 /** `content` is base64 so the same fake disk can hold a text diagram or a real PNG. */
 type FakeDisk = { name: string; content: string; lastModified: number; writes: number };

@@ -16,7 +16,7 @@ flowchart TB
   IMG["`**.studyflow.png · .studyflow.svg**
   the rendered picture, carrying
   its source beside the pixels`"]
-  SOURCE[/"embedded source — that same YAML<br/>PNG: an iTXt chunk keyed studyflow<br/>SVG: metadata &gt; studyflow"/]
+  SOURCE[/"embedded source<br/>PNG: the YAML, in an iTXt chunk keyed application/vnd.studyflow+yaml<br/>SVG: the BPMN XML, nested in its metadata"/]
 
   DERIVED[".drawio · LinkML · NIDM-Results · ARTEM-IS<br/>derived views, each a skill's export"]
 
@@ -26,7 +26,8 @@ flowchart TB
   BPMN ==>|"projects back to, losslessly"| YAML
 
   MODELER -->|"renders to"| IMG
-  YAML -->|"is embedded in"| SOURCE
+  YAML -->|"is embedded in a PNG"| SOURCE
+  BPMN -->|"is embedded in an SVG"| SOURCE
   SOURCE -->|"travels inside"| IMG
   IMG ==>|"reopens from its source,<br/>never from its pixels"| MODELER
 

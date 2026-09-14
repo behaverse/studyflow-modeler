@@ -1,0 +1,29 @@
+id: demo0
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+Demo0_FromScratch:
+  type: Process
+  documentation: A minimal start-to-end skeleton for building a LabLink study from scratch.
+  extensionElements:
+    - type: studyflow:Study
+    - type: prov:Activity
+      action: created
+      when: "2026-07-30T22:51:35Z"
+      with: studyflow-modeler/26.0615
+  name: EPSYLON LabLink - Build a study from scratch
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Participant arrives
+      bounds: 200 200 36 36
+      label: 178 243 82 30
+    End:
+      type: EndEvent
+      name: Done
+      bounds: 600 200 36 36
+      label: 608 243 22 15
+    Flow_Start_End:
+      sourceRef: Start
+      targetRef: End
+      waypoint: 236,218 600,218

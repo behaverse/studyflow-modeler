@@ -43,7 +43,7 @@ test('ids the document does not hold are kept', () => {
 test('a held id is suffixed, and only code that names it follows: expressions and placeholders, not prose', () => {
   const { shape, flow } = createTemplateElement(model, LOOP, holding('Gate'));
   const [work, gate] = flow.nodes.map((node) => node.businessObject);
-  const back = flow.flows.find((sequenceFlow) => sequenceFlow.sourceRef === gate);
+  const back = flow.flows.find(({ businessObject }) => businessObject.sourceRef === gate)!.businessObject;
 
   expect(gate.id).toMatch(/^Gate_\d+$/);
   expect(work.id).toBe('Work');

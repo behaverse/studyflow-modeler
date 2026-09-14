@@ -564,28 +564,30 @@ templates:
           Flow_conversation_ask_say: conversation_ask -> conversation_say
           Flow_conversation_say_end: conversation_say -> conversation_end
 
-  - description: Take a task, trial by trial - each trial the task sends, take a picture, ask the model, answer, show it.
+  - description: Take a task, trial by trial - each trial the task sends, take a picture, ask the model, answer, show it, until the task is over.
     elements:
       Each_trial:
         type: SubProcess
         name: Each trial
         icon: iconify ph--game-controller
         documentation: |
-          The robot's side of a task another pool presents, one pass per trial. Expand it and draw the task's trial
-          flow into Receive the trial and the answer flow out of Answer the task, a flow from Ask the model to the
-          model's pool and one back, and a Prompt with the instructions into Ask the model, ending with
-          `Answer: <option>`. Put a message boundary event on it that the task's end event reaches, so the task
-          ending ends the loop.
-        loopCharacteristics:
-          type: StandardLoopCharacteristics
+          The robot's side of a task another pool presents. Next trial waits for whichever comes first: a trial goes
+          round the loop and back, the task's end leaves it. Expand it and draw the task's trial flow into Receive the
+          trial, the answer flow out of Answer the task, the task's end event into Task over, a flow from Ask the model
+          to the model's pool and one back, and a Prompt with the instructions into Ask the model, ending with
+          `Answer: <option>`.
         flowElements:
           trial_start:
             type: StartEvent
             bounds: 100 162 36 36
+          trial_next:
+            type: EventBasedGateway
+            name: Next trial
+            bounds: 170 155 50 50
           trial_receive:
             type: ReceiveTask
             name: Receive the trial
-            bounds: 170 140 100 80
+            bounds: 250 140 100 80
           trial_look:
             type: ServiceTask
             name: Take a camera frame
@@ -594,12 +596,12 @@ templates:
             dataOutputAssociations:
               Out_Frame:
                 targetRef: Frame
-            bounds: 310 140 100 80
+            bounds: 390 140 100 80
           Frame:
             type: DataObjectReference
             name: Frame
             uri: reachy/frames/
-            bounds: 412 262 36 50
+            bounds: 492 262 36 50
           trial_ask:
             type: ServiceTask
             name: Ask the model
@@ -611,11 +613,11 @@ templates:
               Out_Choice:
                 targetRef: Choice
                 transformation: result.split('Answer:')[-1].strip()
-            bounds: 450 140 100 80
+            bounds: 530 140 100 80
           Choice:
             type: DataObjectReference
             name: Choice
-            bounds: 552 262 36 50
+            bounds: 632 262 36 50
           trial_answer:
             type: SendTask
             name: Answer the task
@@ -623,20 +625,36 @@ templates:
               In_Choice:
                 sourceRef:
                   - Choice
-            bounds: 590 140 100 80
+            bounds: 670 140 100 80
           trial_show:
             type: ServiceTask
             name: Show it with the antennas
             extensionElements:
               - type: reachy:Signal
                 side: "{Choice}"
-            bounds: 730 140 100 80
+            bounds: 810 140 100 80
+          trial_over:
+            type: IntermediateCatchEvent
+            name: Task over
+            eventDefinitions:
+              trial_over_message:
+                type: MessageEventDefinition
+            bounds: 942 62 36 36
           trial_end:
             type: EndEvent
-            bounds: 882 162 36 36
-          Flow_trial_start_receive: trial_start -> trial_receive
+            bounds: 1022 62 36 36
+          Flow_trial_start_next: trial_start -> trial_next
+          Flow_trial_next_receive: trial_next -> trial_receive
           Flow_trial_receive_look: trial_receive -> trial_look
           Flow_trial_look_ask: trial_look -> trial_ask
           Flow_trial_ask_answer: trial_ask -> trial_answer
           Flow_trial_answer_show: trial_answer -> trial_show
-          Flow_trial_show_end: trial_show -> trial_end
+          Flow_trial_show_next:
+            sourceRef: trial_show
+            targetRef: trial_next
+            waypoint: 860,220 860,240 195,240 195,205
+          Flow_trial_next_over:
+            sourceRef: trial_next
+            targetRef: trial_over
+            waypoint: 195,155 195,80 942,80
+          Flow_trial_over_end: trial_over -> trial_end

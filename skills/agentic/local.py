@@ -5,7 +5,7 @@
 # ///
 """Play the language-model pools of a studyflow: each message a step sends to one is one request to that model.
 
-A partial runner (skills/local/SKILL.md): `--claims` names every participant that is a model (`cognitive:Actor`,
+A partial runner (skills/local/SKILL.md): `--claims` names every participant that is a model (`studyflow:Actor`,
 `actorType: llm`) with no process of its own; `--element <pool> --cache <dir>` answers the message the walk hands
 over under `message` in `<pool>.state.json`, and writes the model's reply back as `result`.
 """
@@ -22,7 +22,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-COGNITIVE = "http://behaverse.org/schemas/studyflow/cognitive"
+STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 AGENTIC = "https://w3id.org/studyflow/agentic"
 
 
@@ -36,13 +36,13 @@ def model_pools(elements: dict[str, dict[str, Any]]) -> list[str]:
     return [
         element_id for element_id, element in elements.items()
         if element.get("type") == "participant" and not (element.get("attributes") or {}).get("processRef")
-        and ((extension(element, COGNITIVE, "actor") or {}).get("attributes") or {}).get("actorType") == "llm"
+        and ((extension(element, STUDYFLOW, "actor") or {}).get("attributes") or {}).get("actorType") == "llm"
     ]
 
 
 def model_of(pool_id: str, pool: dict[str, Any]) -> tuple[str, str]:
     """`claude://<model>` or `ollama://<model>`, as the pool's `implementation` writes it; there is no default."""
-    ref = str(((extension(pool, COGNITIVE, "actor") or {}).get("attributes") or {}).get("implementation") or "")
+    ref = str(((extension(pool, STUDYFLOW, "actor") or {}).get("attributes") or {}).get("implementation") or "")
     if "://" not in ref:
         raise ValueError(f"{pool_id} names no model: set its implementation to claude://<model> or ollama://<model>")
     provider, model = ref.split("://", 1)

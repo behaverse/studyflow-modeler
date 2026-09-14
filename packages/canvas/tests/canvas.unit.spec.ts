@@ -206,6 +206,14 @@ test('connectElements mints a routed sequence flow and wires both ends', async (
   expect(canvas.connectElements(node(canvas, 'End_1'), task)).toBeUndefined();
 });
 
+test('connectElements keeps a route the host drew (a template\'s)', async () => {
+  const { canvas } = load();
+  const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 600, y: 118 })!;
+  canvas.getLabelEditing().cancel();
+  const route = [{ x: 385, y: 143 }, { x: 385, y: 200 }, { x: 600, y: 200 }, { x: 600, y: 158 }];
+  expect(canvas.connectElements(node(canvas, 'Gateway_1'), task, undefined, route)!.waypoints).toEqual(route);
+});
+
 test('a connect gesture drops the flow on the shape under the pointer', async () => {
   const { canvas } = load();
   const task = node(canvas, 'Task_1');

@@ -1,15 +1,15 @@
-/** `svg` carrying `studyflow`, the text of a `.studyflow.yaml`, as the text of `<metadata><studyflow>`. */
-export function embedStudyflowIntoSvg(svg: string, studyflow: string): string {
+/**
+ * `svg` carrying the diagram's BPMN XML, its `<definitions>` nested in `<metadata>` as elements:
+ * YAML there would be text whose indentation an editor reformatting the SVG could break.
+ */
+export function embedBpmnIntoSvg(svg: string, bpmn: string): string {
   const parser = new DOMParser();
   const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
   const svgEl = svgDoc.querySelector('svg') || svgDoc.documentElement;
 
-  const metadataEl = svgDoc.createElement('metadata');
+  const metadataEl = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'metadata');
   svgEl.insertBefore(metadataEl, svgEl.firstElementChild);
-
-  const studyflowEl = svgDoc.createElement('studyflow');
-  metadataEl.appendChild(studyflowEl);
-  studyflowEl.textContent = studyflow;
+  metadataEl.appendChild(svgDoc.importNode(parser.parseFromString(bpmn, 'application/xml').documentElement, true));
 
   return new XMLSerializer().serializeToString(svgDoc);
 }

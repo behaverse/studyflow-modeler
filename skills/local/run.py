@@ -778,8 +778,10 @@ class Runner:
                 self.claimed[element_id] = runner
                 if live:
                     self.live.add(element_id)
-        # Messages are interaction too: an element that sends or takes them never skips or replays.
-        self.live.update(eid for eid in studyflow.elements if eid in studyflow.flows_in or eid in studyflow.flows_out)
+        # Messages are interaction too: an element that sends or takes them never skips or replays, nor does a
+        # gateway the first message decides.
+        self.live.update(eid for eid, element in studyflow.elements.items()
+                         if eid in studyflow.flows_in or eid in studyflow.flows_out or local(element) == "eventBasedGateway")
         # Everything this run writes belongs to the repo; boundary inputs are looked up in `input_sources`.
         self.repo_dir = repo_dir
         self.input_sources = input_sources or [Path.cwd()]
@@ -1247,6 +1249,17 @@ class Runner:
                 )
                 return self.studyflow.elements.get(flow.get("targetRef"))
 
+            if local(element) == "eventBasedGateway":
+                self.event("event.waiting", f"    (waiting for the first message along {len(flows)} branches)")
+                try:
+                    return take(self.race(element_id, flows), "first message", message=True)
+                except Interrupted:
+                    self.end_entry(entry)
+                    raise
+                except BaseException as error:
+                    self.record.fail(entry, error)
+                    raise
+
             if branching == "random":
                 # Seeded, each visit draws from the seed, the gateway and the visit number, as the browser runner does.
                 try:
@@ -1441,13 +1454,40 @@ class Runner:
                         message = self.mail[flow.get("id")].pop(0)
                         self.heard(flow, message)
                         return message
-                if self.failed is not None:
-                    raise RuntimeError(f"{element_id}: no message will come, another pool failed")
-                # A pool no process depicts only answers what is sent to it, and that answer is already here.
-                if all(f.get("sourceRef") in self.studyflow.participants
-                       or self.studyflow.pool_of(f.get("sourceRef") or "") in self.pools_done for f in flows):
-                    raise RuntimeError(f"{element_id} waits along {', '.join(f.get('id') for f in flows)}, and nothing is left to send")
+                self.expect_more(element_id, flows)
                 self.arrived.wait()
+
+    def race(self, gateway_id: str, flows: list[ET.Element]) -> ET.Element:
+        """An event-based gateway's branch: the one whose event happens first. Each branch starts at a catch event or a
+        receive task a message flow reaches; the first message along one picks that branch, and stays in its mailbox
+        for the step to take."""
+        branches = []
+        for flow in flows:
+            target = flow.get("targetRef") or ""
+            into = self.studyflow.flows_in.get(target, [])
+            if not into:
+                raise RuntimeError(f"{gateway_id}: an event-based gateway waits for messages, and {target} takes none. "
+                                   "Start each branch with a catch event or a receive task a message flow reaches.")
+            branches.append((flow, into))
+        # ponytail: messages already waiting when the gateway is reached go by the branches' order, not by arrival; keep
+        # arrival order in the mailbox if a study queues rival messages ahead of its gateway.
+        with self.arrived:
+            while True:
+                self.check_interrupt()
+                for flow, into in branches:
+                    if any(self.mail.get(f.get("id")) for f in into):
+                        return flow
+                self.expect_more(gateway_id, [f for _, into in branches for f in into])
+                self.arrived.wait()
+
+    def expect_more(self, element_id: str, flows: list[ET.Element]) -> None:
+        """Raise when no message will come along `flows`: a pool failed, or every sender has nothing left to send."""
+        if self.failed is not None:
+            raise RuntimeError(f"{element_id}: no message will come, another pool failed")
+        # A pool no process depicts only answers what is sent to it, and that answer is already here.
+        if all(f.get("sourceRef") in self.studyflow.participants
+               or self.studyflow.pool_of(f.get("sourceRef") or "") in self.pools_done for f in flows):
+            raise RuntimeError(f"{element_id} waits along {', '.join(f.get('id') for f in flows)}, and nothing is left to send")
 
     def heard(self, flow: ET.Element, message: dict) -> None:
         """Remember the message this pool last took from the sender's pool: what it sends back answers it."""

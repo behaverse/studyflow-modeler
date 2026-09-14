@@ -26,7 +26,7 @@ studyflow info study.studyflow.yaml --json
 studyflow edit study.studyflow.png              # the desktop app on that file; `studyflow ui` for a blank canvas
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.yaml
 studyflow run ~/.studyflow/runs/*/sklearn_pipeline.bpmn --from <ref>   # re-run from an earlier step; --fresh for all
-studyflow run skills/reachy/examples/reachy_session.studyflow.png --auto        # every task answered by a bot
+studyflow run skills/reachy/examples/reachy_session.studyflow.yaml --auto        # every task answered by a bot
 ```
 
 `studyflow <command> --help` lists the options. Behaverse (Unity) tasks need the WebGL build at `UNITY_BUILD_PATH`; in a checkout, the `assessment-unity` repo beside this one is found by itself. How a skill executes elements is in [skills/local/SKILL.md](../../skills/local/SKILL.md).

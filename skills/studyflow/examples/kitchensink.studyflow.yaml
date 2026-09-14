@@ -9,7 +9,7 @@ Kitchen_Sink:
     the domain extensions that specialize it. Attribute values echo the paper's example study (consent form, completion
     code, eligibility criteria, N-back scene, BDM trials dataset). The loops band's For-each is a native sub-process
     carrying BPMN's own multi-instance marker, and Retry-until-good a task carrying the standard-loop marker. Data steps
-    are plain service tasks whose implementation names what runs. Pool/choreography types (cognitive:Actor, eeg:Session,
+    are plain service tasks whose implementation names what runs. Pool/choreography types (studyflow:Actor, eeg:Session,
     studyflow:ChoreographyTask) and the template presets (cognitive/eeg) are covered in kitchensink.md; the
     sklearn_pipeline example shows an analysis pipeline live.
   extensionElements:

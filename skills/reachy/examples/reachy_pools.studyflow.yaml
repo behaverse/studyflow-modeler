@@ -8,16 +8,17 @@ Collab_Pools:
     and a vision-language model decides. Run `studyflow run --runtime local` on this diagram: the robot finds the
     screen, asking the model about each view, greets, and tells the task it is ready. Then each trial the task sends,
     the robot takes a picture of the screen, asks the model with the instructions, passes the model's answer to the
-    task, and shows it with its antennas, until the task says it is over. Every exchange is a message flow, and no step
-    or pool names a model but the model's own pool. The robot's lines name their renderer, this machine's `say`, as
-    `shell://say` with the sentence as its argument; the sound plays on the unit.
+    task, and shows it with its antennas. Then it waits for whichever comes first, the next trial or the task saying it
+    is over. Every exchange is a message flow, and no step or pool names a model but the model's own pool. The robot's
+    lines name their renderer, this machine's `say`, as `shell://say` with the sentence as its argument; the sound plays
+    on the unit.
   extensionElements:
     - type: studyflow:Study
   name: Reachy plays WhichOne, a model deciding
   participants:
     Pool_Behaverse:
       extensionElements:
-        - type: cognitive:Actor
+        - type: studyflow:Actor
           actorType: software
       name: Behaverse (WhichOne on the screen)
       processRef: WhichOne_Task
@@ -31,7 +32,7 @@ Collab_Pools:
       bounds: 156 290 2724 360
     Pool_Model:
       extensionElements:
-        - type: cognitive:Actor
+        - type: studyflow:Actor
           actorType: llm
           implementation: ollama://gemma4:12b-it-qat
       name: Model, gemma4 on Ollama
@@ -44,14 +45,14 @@ Collab_Pools:
       waypoint: 998,452 998,138
       label: 1006 262 40 15
     Msg_Trial:
-      name: a trial
+      name: one trial
       sourceRef: Play
       targetRef: Receive
       messageRef: Trial
       waypoint: 1201,160 1201,430
       label: 1136 262 60 15
     Msg_Answer:
-      name: the answer
+      name: the response
       sourceRef: Answer
       targetRef: Play
       messageRef: Response
@@ -61,30 +62,34 @@ Collab_Pools:
       name: task over
       sourceRef: Task_Done
       targetRef: Over
-      waypoint: 2010,138 2010,312
+      waypoint: 2010,138 2010,297
       label: 2018 262 60 15
     Msg_Look_Frame:
       name: a view
       sourceRef: Look
       targetRef: Pool_Model
+      messageRef: Request
       waypoint: 350,510 350,690
       label: 300 662 44 15
     Msg_Look_Where:
       name: where the screen is
       sourceRef: Pool_Model
       targetRef: Look
+      messageRef: Reply
       waypoint: 390,690 390,510
       label: 398 662 110 15
     Msg_Ask:
       name: frame and instructions
       sourceRef: Ask
       targetRef: Pool_Model
+      messageRef: Request
       waypoint: 1500,510 1500,690
       label: 1360 662 134 15
     Msg_Reply:
       name: seen, rule, answer
       sourceRef: Pool_Model
       targetRef: Ask
+      messageRef: Reply
       waypoint: 1540,690 1540,510
       label: 1548 662 110 15
 Trial:
@@ -99,6 +104,18 @@ Trial_Item:
 Response_Item:
   type: ItemDefinition
   structureRef: behaverse:Response
+Request:
+  type: Message
+  itemRef: Request_Item
+Reply:
+  type: Message
+  itemRef: Reply_Item
+Request_Item:
+  type: ItemDefinition
+  structureRef: agentic:Request
+Reply_Item:
+  type: ItemDefinition
+  structureRef: agentic:Reply
 Reachy_Participant:
   type: Process
   name: Reachy plays WhichOne, a model deciding
@@ -150,132 +167,130 @@ Reachy_Participant:
           type: MessageEventDefinition
       bounds: 980 452 36 36
       label: 980 495 36 15
-    Each_Trial:
-      type: SubProcess
-      name: Each trial
-      loopCharacteristics:
-        type: StandardLoopCharacteristics
-      flowElements:
-        Trial_Start:
-          type: StartEvent
-          bounds: 1080 452 36 36
-        Receive:
-          type: ReceiveTask
-          name: Receive the trial
-          bounds: 1146 430 110 80
-        Take:
-          type: ServiceTask
-          extensionElements:
-            - type: reachy:Snapshot
-          name: Take a camera frame
-          dataOutputAssociations:
-            Out_Frame:
-              targetRef: Frame
-              waypoint: 1396,430 1426,380
-          bounds: 1306 430 110 80
-        Frame:
-          type: DataObjectReference
-          uri: reachy/frames/
-          name: Frame
-          bounds: 1415 330 36 50
-          label: 1405 312 56 15
-        Ask:
-          type: ServiceTask
-          name: Ask the model
-          dataInputAssociations:
-            In_Frame:
-              sourceRef:
-                - Frame
-              waypoint: 1442,380 1480,430
-            In_Instructions:
-              sourceRef:
-                - Instructions
-              waypoint: 1521,380 1521,430
-          dataOutputAssociations:
-            Out_Choice:
-              targetRef: Choice
-              transformation: result.split('Answer:')[-1].strip()
-              waypoint: 1562,430 1602,380
-          bounds: 1466 430 110 80
-        Instructions:
-          type: DataObjectReference
-          extensionElements:
-            - type: agentic:Prompt
-              template: |
-                You are a Reachy Mini robot seated in front of the WhichOne task
-                screen, playing a Simon task. The attached image is your view of
-                the screen. On each trial one coloured disk appears on the left or
-                the right inside the dark panel at the top of the game; the two
-                large circles below it are the response buttons (yellow on the
-                left, blue on the right), not the stimulus. Answer by the disk's
-                colour, not its position: Left when the disk is yellow, Right
-                when it is blue.
+    Next_Trial:
+      type: EventBasedGateway
+      documentation: >-
+        Waits for whichever message comes first: the task's next trial goes on to Receive the trial, its "task over" to
+        the finale. A trial answered, the robot is back here.
+      name: Next trial, or task over?
+      bounds: 1070 445 50 50
+      label: 1008 404 84 30
+    Receive:
+      type: ReceiveTask
+      name: Receive the trial
+      bounds: 1146 430 110 80
+    Take:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:Snapshot
+      name: Take a camera frame
+      dataOutputAssociations:
+        Out_Frame:
+          targetRef: Frame
+          waypoint: 1396,430 1426,394
+      bounds: 1306 430 110 80
+    Frame:
+      type: DataObjectReference
+      uri: reachy/frames/
+      name: Frame
+      bounds: 1415 344 36 50
+      label: 1405 327 56 15
+    Ask:
+      type: ServiceTask
+      name: Ask the model
+      dataInputAssociations:
+        In_Frame:
+          sourceRef:
+            - Frame
+          waypoint: 1442,394 1480,430
+        In_Instructions:
+          sourceRef:
+            - Instructions
+          waypoint: 1521,394 1521,430
+      dataOutputAssociations:
+        Out_Choice:
+          targetRef: Choice
+          transformation: result.split('Answer:')[-1].strip()
+          waypoint: 1562,430 1602,394
+      bounds: 1466 430 110 80
+    Instructions:
+      type: DataObjectReference
+      extensionElements:
+        - type: agentic:Prompt
+          template: |
+            You are a Reachy Mini robot seated in front of the WhichOne task
+            screen, playing a Simon task. The attached image is your view of
+            the screen. On each trial one coloured disk appears on the left or
+            the right inside the dark panel at the top of the game; the two
+            large circles below it are the response buttons (yellow on the
+            left, blue on the right), not the stimulus. Answer by the disk's
+            colour, not its position: Left when the disk is yellow, Right
+            when it is blue.
 
-                Reply with exactly three lines:
-                Seen: <the stimulus you see on the screen>
-                Rule: <what the instructions say that stimulus calls for>
-                Answer: <Left or Right>
-          name: Instructions
-          bounds: 1503 330 36 50
-          label: 1481 312 80 15
-        Choice:
-          type: DataObjectReference
-          name: Choice
-          bounds: 1595 330 36 50
-          label: 1588 312 50 15
-        Answer:
-          type: SendTask
-          name: Answer the task
-          dataInputAssociations:
-            In_Choice:
-              sourceRef:
-                - Choice
-              waypoint: 1618,380 1652,430
-          bounds: 1626 430 110 80
-        Show:
-          type: ServiceTask
-          extensionElements:
-            - type: reachy:Signal
-              side: "{Choice}"
-          name: Show it with the antennas
-          bounds: 1786 430 110 80
-        Trial_End:
-          type: EndEvent
-          bounds: 1946 452 36 36
-        Flow_Trial_Start_Receive:
-          sourceRef: Trial_Start
-          targetRef: Receive
-          waypoint: 1116,470 1146,470
-        Flow_Receive_Take:
-          sourceRef: Receive
-          targetRef: Take
-          waypoint: 1256,470 1306,470
-        Flow_Take_Ask:
-          sourceRef: Take
-          targetRef: Ask
-          waypoint: 1416,470 1466,470
-        Flow_Ask_Answer:
-          sourceRef: Ask
-          targetRef: Answer
-          waypoint: 1576,470 1626,470
-        Flow_Answer_Show:
-          sourceRef: Answer
-          targetRef: Show
-          waypoint: 1736,470 1786,470
-        Flow_Show_Trial_End:
-          sourceRef: Show
-          targetRef: Trial_End
-          waypoint: 1896,470 1946,470
-      bounds: 1060 300 950 320
+            Reply with exactly three lines:
+            Seen: <the stimulus you see on the screen>
+            Rule: <what the instructions say that stimulus calls for>
+            Answer: <Left or Right>
+      name: Instructions
+      bounds: 1503 344 36 50
+      label: 1481 327 80 15
+    Choice:
+      type: DataObjectReference
+      name: Choice
+      bounds: 1595 344 36 50
+      label: 1588 327 50 15
+    Answer:
+      type: SendTask
+      name: Answer the task
+      dataInputAssociations:
+        In_Choice:
+          sourceRef:
+            - Choice
+          waypoint: 1618,394 1652,430
+      bounds: 1626 430 110 80
+    Show:
+      type: ServiceTask
+      extensionElements:
+        - type: reachy:Signal
+          side: "{Choice}"
+      name: Show it with the antennas
+      bounds: 1786 430 110 80
     Over:
-      type: BoundaryEvent
+      type: IntermediateCatchEvent
       name: Task over
       eventDefinitions:
         Over_Message:
           type: MessageEventDefinition
-      attachedToRef: Each_Trial
-      bounds: 1992 312 36 36
-      label: 2032 300 60 15
+      bounds: 1992 297 36 36
+      label: 2032 307 60 15
+    Flow_Next_Receive:
+      sourceRef: Next_Trial
+      targetRef: Receive
+      waypoint: 1120,470 1146,470
+    Flow_Receive_Take:
+      sourceRef: Receive
+      targetRef: Take
+      waypoint: 1256,470 1306,470
+    Flow_Take_Ask:
+      sourceRef: Take
+      targetRef: Ask
+      waypoint: 1416,470 1466,470
+    Flow_Ask_Answer:
+      sourceRef: Ask
+      targetRef: Answer
+      waypoint: 1576,470 1626,470
+    Flow_Answer_Show:
+      sourceRef: Answer
+      targetRef: Show
+      waypoint: 1736,470 1786,470
+    Flow_Show_Next:
+      sourceRef: Show
+      targetRef: Next_Trial
+      waypoint: 1841,510 1841,570 1095,570 1095,495
+    Flow_Next_Over:
+      sourceRef: Next_Trial
+      targetRef: Over
+      waypoint: 1095,445 1095,315 1992,315
     Proud:
       type: ServiceTask
       extensionElements:
@@ -333,12 +348,12 @@ Reachy_Participant:
       waypoint: 940,470 980,470
     Flow_Sent_Trials:
       sourceRef: Ready_Sent
-      targetRef: Each_Trial
-      waypoint: 1016,470 1060,470
+      targetRef: Next_Trial
+      waypoint: 1016,470 1070,470
     Flow_Over_Proud:
       sourceRef: Over
       targetRef: Proud
-      waypoint: 2028,330 2070,330 2070,470 2110,470
+      waypoint: 2010,333 2010,470 2110,470
     Flow_Proud_Thanks:
       sourceRef: Proud
       targetRef: Thanks

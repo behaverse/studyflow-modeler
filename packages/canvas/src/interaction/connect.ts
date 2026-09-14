@@ -111,7 +111,7 @@ export class Connect {
   }
 
   /** Connect two elements without a gesture; `undefined` when the rules refuse. */
-  connect(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject): SceneEdge | undefined {
+  connect(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject, waypoints?: Point[]): SceneEdge | undefined {
     const mutator = this.options.getMutator();
     if (!mutator) return undefined;
     const spec = this.options.rules.canConnect(source, target);
@@ -120,7 +120,7 @@ export class Connect {
       type: spec.type,
       source,
       target,
-      waypoints: routeFor(spec.type, routableEnd(source), target, this.options.routeOptions?.()),
+      waypoints: waypoints ?? routeFor(spec.type, routableEnd(source), target, this.options.routeOptions?.()),
       ...(businessObject ? { businessObject } : {}),
     });
   }

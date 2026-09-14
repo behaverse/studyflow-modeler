@@ -33,7 +33,7 @@ test('opening a file says what its reading could not place', async ({ page }) =>
   await expect(page.getByTestId('notices')).toContainText('Reading retired.bpmn raised warnings:');
 });
 
-test('exports YAML, PNG and a skill\'s format; opens a layout-less file, a jsPsych timeline, and the exports again', async ({ page }) => {
+test('exports YAML, PNG, SVG and a skill\'s format; opens a layout-less file, a jsPsych timeline, and the exports again', async ({ page }) => {
   await gotoModeler(page);
   const open = page.getByTestId('open-file-input');
   const title = page.getByTitle('Click to edit diagram name');
@@ -46,6 +46,7 @@ test('exports YAML, PNG and a skill\'s format; opens a layout-less file, a jsPsy
   const png = await exportDiagram(page, 'png');
   expect(png.suggestedFilename()).toBe('diagram.studyflow.png');
   const pngBytes = await readDownload(png);
+  const svgText = await readDownloadText(await exportDiagram(page, 'svg'));
   // A skill's export is one more format in Save As.
   const drawio = await exportDiagram(page, 'drawio');
   expect(drawio.suggestedFilename()).toBe('diagram.drawio');
@@ -77,5 +78,8 @@ test('exports YAML, PNG and a skill\'s format; opens a layout-less file, a jsPsy
   await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
   await open.setInputFiles({ name: 'as-png.studyflow.png', mimeType: 'image/png', buffer: pngBytes });
   await expect(title).toHaveText('as-png');
+  await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
+  await open.setInputFiles({ name: 'as-svg.studyflow.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(svgText, 'utf8') });
+  await expect(title).toHaveText('as-svg');
   await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
 });

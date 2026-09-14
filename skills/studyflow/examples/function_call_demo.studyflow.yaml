@@ -1,0 +1,51 @@
+id: function_call_demo
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
+FunctionCallDemo:
+  type: Process
+  documentation: Demonstrates function references by binding a Map to a python callable and fetching a script by URL.
+  extensionElements:
+    - type: studyflow:Study
+    - type: prov:Activity
+      action: created
+      when: "2026-07-30T22:51:33Z"
+      with: studyflow-modeler/26.0615
+  name: Function calls demo
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Start
+      bounds: 162 182 36 36
+      label: 168 225 24 15
+    MapRT:
+      type: ServiceTask
+      name: Median RT per block
+      additionalArguments:
+        column: rt
+        fn: median
+      implementation: python://pkg_for_st.do_map@1.2
+      bounds: 260 160 100 80
+    FetchScript:
+      type: ServiceTask
+      name: Fetch cleaning script
+      implementation: https://example.org/scripts/clean.py@v2
+      bounds: 420 160 100 80
+    End:
+      type: EndEvent
+      name: Done
+      bounds: 582 182 36 36
+      label: 589 225 24 15
+    Flow_Start_Map:
+      sourceRef: Start
+      targetRef: MapRT
+      waypoint: 198,200 260,200
+    Flow_Map_Fetch:
+      sourceRef: MapRT
+      targetRef: FetchScript
+      waypoint: 360,200 420,200
+    Flow_Fetch_End:
+      sourceRef: FetchScript
+      targetRef: End
+      waypoint: 520,200 582,200
+  isExecutable: true

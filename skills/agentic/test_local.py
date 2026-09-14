@@ -11,7 +11,7 @@ spec.loader.exec_module(agentic)
 
 def actor(**attributes):
     return {"type": "participant", "attributes": attributes.pop("_", {}),
-            "extensions": [{"namespace": agentic.COGNITIVE, "type": "actor", "attributes": attributes}]}
+            "extensions": [{"namespace": agentic.STUDYFLOW, "type": "actor", "attributes": attributes}]}
 
 
 # It plays a model with no process of its own: not a person, not a model a pool walks.

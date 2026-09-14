@@ -155,6 +155,24 @@ enumerations:
       - name: boolean
         value: boolean
 
+  # Coarse on purpose: a skill adds the kinds it knows with `extends: studyflow:ActorTypeEnum` (agentic adds `llm`).
+  - name: ActorTypeEnum
+    description: What a participant pool stands for.
+    literalValues:
+      - name: Human
+        value: human
+      - name: Software
+        value: software
+        description: A program that takes part, such as an RL policy or a rule-based bot.
+      - name: Hardware
+        value: hardware
+        description: A device that takes part, such as an amplifier sending triggers.
+  # Offered on a message flow's Message field, as the structure its message is an item of. Empty here: a skill adds
+  # the messages it exchanges with `extends: studyflow:MessageStructureEnum`; any other `structureRef` is accepted too.
+  - name: MessageStructureEnum
+    description: What a message flow carries, as the structure its message is an item of.
+    literalValues: []
+
 types:
   - name: MarkdownString
     description: Text with markdown formatting.
@@ -432,6 +450,29 @@ types:
     isAbstract: true
     meta:
       icon: iconify ph--users
+
+  - name: Actor
+    description: 'A pool of participants: who or what takes part in the study.'
+    superClass:
+      - bpmn:Participant
+    meta:
+      icon: iconify ph--users-three
+      # What an actor that only takes bands can be: one kind per literal of this enum attribute.
+      participantKind: actorType
+    properties:
+      - name: actorType
+        description: Kind of actor this pool represents.
+        isAttr: true
+        type: ActorTypeEnum
+        default: human
+      - name: implementation
+        description: The program, model, or device, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://gemma4`, `lsl://triggers`).
+        isAttr: true
+        type: String
+        meta:
+          condition:
+            actorType:
+              $not: human
 
   # ===========================================================================
   # Data elements. Each is a BPMN data reference with a layout: what kind of

@@ -134,7 +134,7 @@ type Actor = { kind: string; model: string };
 
 /** Who takes the task, from what the diagram draws, most explicit first: the task's receiving band; else the
  * other end of a message flow touching it (a pool, or a step's pool); else the pool the task sits in. A
- * `reachy:Robot` is a robot; a `cognitive:Actor` is what its `actorType` says, with its `implementation` as the
+ * `reachy:Robot` is a robot; a `studyflow:Actor` is what its `actorType` says, with its `implementation` as the
  * model. `kind` is empty when no one is named any of those ways. */
 export function actorOf(bo: any): Actor {
   const initiating = bo?.initiatingParticipantRef;
@@ -145,7 +145,7 @@ export function actorOf(bo: any): Actor {
     for (const ext of (participant.extensionElements?.values ?? []) as any[]) {
       const type = String(ext?.$type ?? '').toLowerCase();
       if (type === 'reachy:robot') return { kind: 'robot', model: '' };
-      if (type === 'cognitive:actor') {
+      if (type === 'studyflow:actor') {
         // Read through the participant: the catalog resolves a wrapper's attributes from its element.
         return {
           kind: String(getAttribute(participant, 'actorType') ?? 'human'),

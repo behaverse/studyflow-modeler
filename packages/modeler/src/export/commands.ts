@@ -3,7 +3,7 @@ import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
 import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/export/formats';
 import { buildExportModel } from '@modeler/export/model';
 import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
-import { dropUnresolvedIcons, embedStudyflowIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
+import { dropUnresolvedIcons, embedBpmnIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
 import type { Editor } from '@modeler/editor/port';
@@ -16,6 +16,11 @@ export type ExportDiagramCommand = {
 async function toExportableXml(modeler: Editor): Promise<string> {
   const { xml } = await modeler.saveXML({ format: true });
   return toWireXml(xml, modeler.model.moddle());
+}
+
+// Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
+async function toBpmn(modeler: Editor): Promise<string> {
+  return toStandardBpmnXml(await toExportableXml(modeler), modeler.model.moddle());
 }
 
 /** The diagram as a `.studyflow.yaml` holds it. */
@@ -40,21 +45,18 @@ async function renderSvg(modeler: Editor): Promise<{ svg: string; studyflow: str
 
 const ENCODERS: Record<DiagramFormatId, (ctx: EncodeContext) => Promise<BlobPart> | BlobPart> = {
   studyflow: ({ modeler }) => toStudyflow(modeler),
+  bpmn: ({ modeler }) => toBpmn(modeler),
 
-  // Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
-  bpmn: async ({ modeler }) =>
-    toStandardBpmnXml(await toExportableXml(modeler), modeler.model.moddle()),
-
-  // The picture always carries its source, the `.studyflow.yaml`: an image that cannot be reopened
-  // is a dead end, and anyone wanting a draw.io file exports that format directly.
-  svg: async ({ renderSvg }) => {
-    const { svg, studyflow } = await renderSvg();
-    return embedStudyflowIntoSvg(svg, studyflow);
+  // The picture always carries its source, the BPMN XML in an SVG and the YAML in a PNG: an image that
+  // cannot be reopened is a dead end, and anyone wanting a draw.io file exports that format directly.
+  svg: async ({ modeler, renderSvg }) => {
+    const { svg } = await renderSvg();
+    return embedBpmnIntoSvg(svg, await toBpmn(modeler));
   },
 
+  // The payload lands in its own PNG chunk, at the offset its reader scans; the image is untouched.
   png: async ({ renderSvg }) => {
     const { svg, studyflow } = await renderSvg();
-    // The payload lands in its own PNG chunk, at the offset its reader scans; the image is untouched.
     return embedStudyflowIntoPng(dataUrlToBytes(await exportToPng(svg)), studyflow) as BlobPart;
   },
 };

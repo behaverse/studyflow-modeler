@@ -1,14 +1,9 @@
-const ENTITIES: Record<string, string> = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
-
 /**
- * The text of an SVG's `<studyflow>` (the modeler's export writes it in `<metadata>`), unescaped.
+ * The BPMN XML an SVG carries: the `<definitions>` the modeler's export nests in its `<metadata>`.
  * Read without a DOM, so the CLI reads what the modeler opens.
  */
 export function extractStudyflowFromSvg(svg: string): string {
-  const match = svg.match(/<studyflow(?:\s[^>]*)?>([\s\S]*?)<\/studyflow>/);
+  const match = svg.match(/<(\w+:)?definitions[\s>][\s\S]*<\/\1definitions>/);
   if (!match) throw new Error('The SVG carries no studyflow.');
-  return match[1].replace(
-    /&(?:#x([\da-fA-F]+)|#(\d+)|(lt|gt|amp|quot|apos));/g,
-    (_, hex, dec, name) => (hex ? String.fromCodePoint(parseInt(hex, 16)) : dec ? String.fromCodePoint(Number(dec)) : ENTITIES[name]),
-  );
+  return match[0];
 }

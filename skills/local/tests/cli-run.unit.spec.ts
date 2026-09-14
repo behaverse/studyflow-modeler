@@ -251,40 +251,10 @@ test.describe('partial runner hand-off', () => {
     expect(digest.names).toEqual({ T: 'fit', Dat: 'digits' });
   });
 
-  test('carries the messages between pools: a runner mid-run, a pool a runner plays, a loop a message ends', async () => {
-    // The screen waits for the robot's "ready", then its task (a runner) sends three trials mid-run. The robot's loop
-    // takes each, asks the model (a pool with no process, which a runner plays), and sends the answer back; the
-    // task's end sends "over", which ends the loop at its boundary event. Look asks the same model first: each
-    // answer goes back along the flow to the step that asked.
-    const xml = await studyflowToXml(`id: talk
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
-C:
-  type: Collaboration
-  participants:
-    Screen: { name: Screen, processRef: S }
-    Robot: { name: Robot, processRef: R }
-    Model: { name: Model }
-  messageFlows:
-    M_Look: { sourceRef: Look, targetRef: Model }
-    M_Seen: { sourceRef: Model, targetRef: Look }
-    M_Ready: { sourceRef: Ready, targetRef: Seated }
-    M_Trial: { sourceRef: Play, targetRef: Receive }
-    M_Answer: { sourceRef: Answer, targetRef: Play }
-    M_Ask: { sourceRef: Ask, targetRef: Model }
-    M_Reply: { sourceRef: Model, targetRef: Ask }
-    M_Over: { sourceRef: Over, targetRef: Stop }
-S:
-  type: Process
-  flowElements:
-    S0: { type: StartEvent }
-    Seated: { type: IntermediateCatchEvent }
-    Play: { type: Task }
-    Over: { type: EndEvent }
-    SF1: S0 -> Seated
-    SF2: Seated -> Play
-    SF3: Play -> Over
-R:
+  // The robot's side of one exchange, drawn two ways: a loop that "over" ends at its boundary event, and a cycle an
+  // event-based gateway leaves when "over" comes before the next trial. Either way `Stop` takes "over".
+  const ROBOTS: [label: string, robot: string, reached: Record<string, number>][] = [
+    ['a loop a message ends', `R:
   type: Process
   flowElements:
     R0: { type: StartEvent }
@@ -318,7 +288,74 @@ R:
     RF1: Look -> Ready
     RF2: Ready -> Each
     RF3: Stop -> R9
-`, moddle);
+`, { Receive: 4 }], // a fourth wait, which "over" ended
+    ['a cycle an event-based gateway leaves', `R:
+  type: Process
+  flowElements:
+    R0: { type: StartEvent }
+    Look: { type: ServiceTask }
+    Ready: { type: IntermediateThrowEvent }
+    Next: { type: EventBasedGateway }
+    Receive:
+      type: ReceiveTask
+      dataOutputAssociations: { Out_Seen: { targetRef: Seen } }
+    Seen: { type: DataObjectReference }
+    Ask:
+      type: ServiceTask
+      dataInputAssociations: { In_Seen: { sourceRef: [Seen] } }
+      dataOutputAssociations: { Out_Choice: { targetRef: Choice, transformation: result.upper() } }
+    Choice: { type: DataObjectReference }
+    Answer:
+      type: SendTask
+      dataInputAssociations: { In_Choice: { sourceRef: [Choice] } }
+    Stop: { type: IntermediateCatchEvent }
+    R9: { type: EndEvent }
+    RF0: R0 -> Look
+    RF1: Look -> Ready
+    RF2: Ready -> Next
+    RF3: Next -> Receive
+    RF4: Receive -> Ask
+    RF5: Ask -> Answer
+    RF6: Answer -> Next
+    RF7: Next -> Stop
+    RF8: Stop -> R9
+`, { Receive: 3, Next: 4 }], // "over" came first at the fourth visit
+  ];
+
+  for (const [label, robot, reachedToo] of ROBOTS) test(`carries the messages between pools: a runner mid-run, a pool a runner plays, ${label}`, async () => {
+    // The screen waits for the robot's "ready", then its task (a runner) sends three trials mid-run. The robot takes
+    // each, asks the model (a pool with no process, which a runner plays), and sends the answer back; the task's end
+    // sends "over", which ends the robot's trials. Look asks the same model first: each answer goes back along the
+    // flow to the step that asked.
+    const xml = await studyflowToXml(`id: talk
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Screen: { name: Screen, processRef: S }
+    Robot: { name: Robot, processRef: R }
+    Model: { name: Model }
+  messageFlows:
+    M_Look: { sourceRef: Look, targetRef: Model }
+    M_Seen: { sourceRef: Model, targetRef: Look }
+    M_Ready: { sourceRef: Ready, targetRef: Seated }
+    M_Trial: { sourceRef: Play, targetRef: Receive }
+    M_Answer: { sourceRef: Answer, targetRef: Play }
+    M_Ask: { sourceRef: Ask, targetRef: Model }
+    M_Reply: { sourceRef: Model, targetRef: Ask }
+    M_Over: { sourceRef: Over, targetRef: Stop }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Seated: { type: IntermediateCatchEvent }
+    Play: { type: Task }
+    Over: { type: EndEvent }
+    SF1: S0 -> Seated
+    SF2: Seated -> Play
+    SF3: Play -> Over
+${robot}`, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-talk-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
@@ -358,9 +395,9 @@ R:
 
     // Each answer is the send task's data input, narrowed by the edge from the model's reply, and answers its trial.
     expect(JSON.parse(fs.readFileSync(heard, 'utf8'))).toEqual([{ Choice: 'ANSWER 1' }, { Choice: 'ANSWER 2' }, { Choice: 'ANSWER 3' }]);
-    // Three passes, a fourth wait that "over" ended, and the walk went on from the boundary event.
+    // Three trials answered, and the walk went on from where "over" arrived.
     const reached = archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached;
-    expect(reached).toMatchObject({ Look: 1, Ask: 3, Receive: 4, Stop: 1, R9: 1, Over: 1 });
+    expect(reached).toMatchObject({ Look: 1, Ask: 3, Stop: 1, R9: 1, Over: 1, ...reachedToo });
   });
 
   test('records a staged input under the hand-off that reads it, not one running beside it', async () => {

@@ -1,0 +1,77 @@
+id: eeg_session
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+EEG_Session:
+  type: Process
+  documentation: An EEG session covering cap fitting through data export.
+  extensionElements:
+    - type: studyflow:Study
+  name: EEG session
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Start
+      bounds: 57 52 36 36
+    Mount_Cap:
+      type: ManualTask
+      documentation: |
+        Fit the cap, place the electrodes, and check that every one of them
+        makes good contact before recording starts.
+      name: Mount cap & check impedance
+      bounds: 175 30 100 80
+    Baseline:
+      type: Task
+      extensionElements:
+        - type: cognitive:Rest
+          restDuration: 120
+          eyes: closed
+      name: Resting baseline
+      bounds: 325 30 100 80
+    Cognitive_Task:
+      type: Task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          instrument: psychopy
+          configurations:
+            value: |
+              triggerChannel: markers  # stimulus marker stream sent with biosignals
+      name: Cognitive task
+      bounds: 475 30 100 80
+    Export_Recording:
+      type: ServiceTask
+      documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
+      name: Export recording
+      additionalArguments:
+        output_folder: bids/
+      implementation: python://datatrove.pipeline.writers.ParquetWriter
+      bounds: 625 30 100 80
+    End:
+      type: EndEvent
+      name: End
+      bounds: 807 52 36 36
+    Flow_Start_Mount:
+      sourceRef: Start
+      targetRef: Mount_Cap
+      waypoint: 93,70 175,70
+    Flow_Mount_Baseline:
+      sourceRef: Mount_Cap
+      targetRef: Baseline
+      waypoint: 275,70 325,70
+    Flow_Baseline_Task:
+      sourceRef: Baseline
+      targetRef: Cognitive_Task
+      waypoint: 425,70 475,70
+    Flow_Task_Export:
+      sourceRef: Cognitive_Task
+      targetRef: Export_Recording
+      waypoint: 575,70 625,70
+    Flow_Export_End:
+      sourceRef: Export_Recording
+      targetRef: End
+      waypoint: 725,70 807,70
+state:
+  _meta:
+    prov:
+      - action: created
+        when: "2026-09-12T23:21:22+02:00"
+        with: studyflow-modeler/26.9.18

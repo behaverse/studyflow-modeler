@@ -42,6 +42,7 @@ What comes back: `result`, `durationMs` and `error` are recorded. Any other top-
 - A claimed element's runner does its own while it runs. Each line it appends to `<cache>/<id>.outbox.jsonl`, `{"flow": <message flow id>, "content": ..., "id"?, "inReplyTo"?}`, goes along that flow. Each message along a flow into it is appended to `<cache>/<id>.inbox.jsonl`, including any that were waiting when it started.
 - A participant with no process is a pool a runner may claim. Each message sent to it is one hand-off of that participant, with the message under `message` in the state file. The runner's `result` is the answer, and it goes back along the pool's flow to the sender, or to the sender's pool. A hand-off that fails answers null, and the record keeps the error.
 - What an element sends answers the message its pool last took from the target's pool, by `inReplyTo`.
+- An event-based gateway takes the branch whose message comes first: each branch starts at a catch event or a receive task a message flow reaches, and that step takes the message. Its decision is never replayed.
 - A message at a boundary event ends the activity it sits on at that pool's next step, and the walk goes on from the event. A standard loop marker repeats its activity while `loopCondition` holds, up to `loopMaximum`, and with no condition until a boundary event ends it.
 - An element with message flows never replays. A wait with nothing left to send it, because every sender's pool has ended, fails the run.
 

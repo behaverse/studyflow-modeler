@@ -1,41 +1,41 @@
-id: demo4_llm_bot
+id: demo5_ollama_bot
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
   xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
-Demo4_LLMBot_Actors:
+Demo5_OllamaBot_Actors:
   type: Collaboration
-  name: LLM bot (Claude Code)
+  name: LLM bot (Ollama)
   participants:
-    Claude:
+    Actor_Ollama__gemma4_e2b_mlx:
       extensionElements:
         - type: studyflow:Actor
           actorType: llm
-          implementation: claude://claude-haiku-4-5
-      name: Claude
-Demo4_LLMBot:
+          implementation: ollama://gemma4:e2b-mlx
+      name: Ollama (gemma4:e2b-mlx)
+Demo5_OllamaBot:
   type: Process
-  documentation: A Claude bot plays a tired 1-back warm-up, an expert 2-back block, and a vision-based WhichOne task.
+  documentation: A tired 1-back warm-up and an expert 2-back block played by a local Ollama LLM bot.
   extensionElements:
     - type: studyflow:Study
     - type: prov:Activity
       action: created
-      when: "2026-07-30T22:51:25Z"
+      when: "2026-07-30T22:51:27Z"
       with: studyflow-modeler/26.0615
-  name: LLM bot (Claude Code)
+  name: LLM bot (Ollama)
   flowElements:
     Start:
       type: StartEvent
       name: Start
       bounds: 160 180 36 36
-      label: 154 223 48 15
+      label: 166 223 24 15
     Warmup_1Back:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
           configurations:
             Blocks:
-              Demo4_Warmup:
-                Name: Demo4_Warmup
+              Demo5_Warmup:
+                Name: Demo5_Warmup
                 Inherits: Default
                 Parameters:
                   NValue: 1
@@ -58,14 +58,13 @@ Demo4_LLMBot:
                             - 2
                   StreamSize: 8
                   FeatureValuesCount: 3
-                  MaxResponseTime: 30
                   StimulusDisplayDuration: 0.5
                   InterStimulusInterval: 1.5
             Timelines:
-              Demo4_Warmup:
-                Name: Demo4_Warmup
+              Demo5_Warmup:
+                Name: Demo5_Warmup
                 blocks:
-                  - name: Demo4_Warmup
+                  - name: Demo5_Warmup
             Bot:
               Speed: 20
               SkipInstructions: true
@@ -78,11 +77,11 @@ Demo4_LLMBot:
               overrideUserInputParameters: true
               playerPaced: true
               useNonMatchButton: true
-              maxResponseTime: 120
+              maxResponseTime: 15
           scene: NB
       name: 1-Back warm-up (tired)
       participantRef:
-        - Claude
+        - Actor_Ollama__gemma4_e2b_mlx
       dataInputAssociations:
         In_Warmup_1Back:
           sourceRef:
@@ -106,8 +105,8 @@ Demo4_LLMBot:
         - type: behaverse:Task
           configurations:
             Blocks:
-              Demo4_Main:
-                Name: Demo4_Main
+              Demo5_Main:
+                Name: Demo5_Main
                 Inherits: Default
                 Parameters:
                   NValue: 2
@@ -134,14 +133,13 @@ Demo4_LLMBot:
                             - 1
                   StreamSize: 12
                   FeatureValuesCount: 3
-                  MaxResponseTime: 30
                   StimulusDisplayDuration: 0.5
                   InterStimulusInterval: 1.5
             Timelines:
-              Demo4_Main:
-                Name: Demo4_Main
+              Demo5_Main:
+                Name: Demo5_Main
                 blocks:
-                  - name: Demo4_Main
+                  - name: Demo5_Main
             Bot:
               Speed: 20
               SkipInstructions: true
@@ -154,11 +152,11 @@ Demo4_LLMBot:
               overrideUserInputParameters: true
               playerPaced: true
               useNonMatchButton: true
-              maxResponseTime: 120
+              maxResponseTime: 15
           scene: NB
       name: 2-Back main (expert)
       participantRef:
-        - Claude
+        - Actor_Ollama__gemma4_e2b_mlx
       dataInputAssociations:
         In_Main_2Back:
           sourceRef:
@@ -177,45 +175,11 @@ Demo4_LLMBot:
       name: Instructions
       bounds: 492 308 36 50
       label: 470 363 80 15
-    Visual_WhichOne:
-      type: ChoreographyTask
-      extensionElements:
-        - type: behaverse:Task
-          configurations:
-            Timelines:
-              SimonTask: null
-            Bot:
-              IncludeScreenshot: true
-              Speed: 5
-              SkipInstructions: true
-              AutoClickInstructions: true
-              SkipFocusArea: true
-          scene: WO
-      name: WhichOne (vision)
-      participantRef:
-        - Claude
-      dataInputAssociations:
-        In_Visual_WhichOne:
-          sourceRef:
-            - Instructions_Visual_WhichOne
-          waypoint: 700,308 700,258
-      bounds: 640 138 120 120
-    Instructions_Visual_WhichOne:
-      type: DataObjectReference
-      extensionElements:
-        - type: agentic:Prompt
-          template: |
-            You will see a screenshot from the WhichOne task. Two stimuli appear
-            on the left and right of the screen; one matches a target shown above.
-            Reply with exactly `Left` or `Right`; nothing else.
-      name: Instructions
-      bounds: 682 308 36 50
-      label: 660 363 80 15
     End:
       type: EndEvent
       name: Done
-      bounds: 830 180 36 36
-      label: 825 223 46 15
+      bounds: 640 180 36 36
+      label: 647 223 22 15
     Flow_Start_Warmup:
       sourceRef: Start
       targetRef: Warmup_1Back
@@ -224,11 +188,7 @@ Demo4_LLMBot:
       sourceRef: Warmup_1Back
       targetRef: Main_2Back
       waypoint: 380,198 450,198
-    Flow_Main_Visual:
+    Flow_Main_End:
       sourceRef: Main_2Back
-      targetRef: Visual_WhichOne
-      waypoint: 570,198 640,198
-    Flow_Visual_End:
-      sourceRef: Visual_WhichOne
       targetRef: End
-      waypoint: 760,198 830,198
+      waypoint: 570,198 640,198

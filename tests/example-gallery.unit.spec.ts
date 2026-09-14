@@ -9,8 +9,7 @@ import { freshModdle } from './schemas';
 import { exampleNames, exampleStudyflow, exampleXml } from './utils';
 
 /**
- * An example ships as a `.studyflow.png`, the picture of a diagram with the diagram inside it, or
- * as a `.studyflow.yaml`. The skill it ships with — `skills/<name>/examples/` — is the shelf its
+ * An example ships as a `.studyflow.yaml`. The skill it ships with — `skills/<name>/examples/` — is the shelf its
  * card lands on, so the file itself carries no category.
  */
 
