@@ -135,11 +135,11 @@ test('a dotted link parameter replaces one value inside the Parameters a step re
   await expect(parseStudyflow(NESTED, freshPackages(), { Streams: '5' })).rejects.toThrow(/'Streams', a whole list in Config/);
 });
 
-test('the runner\'s Behaverse demo: a link picks the scene and timeline through the Parameters wired into the task', async () => {
+test('the runner\'s Behaverse demo: a link picks the scene through the study\'s `task`, the timeline through the task\'s Parameters', async () => {
   const demo = readFileSync(path.join(process.cwd(), 'assets/demos/behaverse.studyflow'), 'utf8');
   const CASES: [given: Record<string, string>, scene: string, timeline: string][] = [
     [{}, 'BCS', 'XCIT_BCS_02'],
-    [{ scene: 'NB', timeline: 'XCIT_NB_01' }, 'NB', 'XCIT_NB_01'],
+    [{ task: 'NB', timeline: 'XCIT_NB_01' }, 'NB', 'XCIT_NB_01'],
   ];
   for (const [given, scene, timeline] of CASES) {
     const task = (await parseStudyflow(demo, freshPackages(), given)).flowNodes.get('Task')!;
