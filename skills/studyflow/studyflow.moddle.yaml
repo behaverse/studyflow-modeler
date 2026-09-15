@@ -436,6 +436,7 @@ types:
     description: Where an activity or event sits on the study schedule.
     extends:
       - bpmn:Activity
+      - bpmn:ChoreographyActivity
       - bpmn:Event
     isAbstract: true
     properties:

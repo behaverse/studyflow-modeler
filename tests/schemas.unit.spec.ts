@@ -114,6 +114,16 @@ test('every template reads as studyflow with no warnings, is rooted on a BPMN el
     .toMatchObject({ bpmnType: 'bpmn:Participant', extensionType: 'eeg:Session', iconClass: 'iconify ph--head-circuit' });
 });
 
+// A cognitive task is a choreography task, not a bpmn:Activity, and a battery still puts each on the Gantt.
+test('a cognitive task takes an onset and a duration like any activity', () => {
+  const warnings: string[] = [];
+  const elements = {
+    Task: { type: 'ChoreographyTask', extensionElements: [{ type: 'cognitive:CognitiveTask' }], onset: 'T0+6min', duration: '5min' },
+  };
+  studyflowToDefinitions({ definitions: {}, elements }, freshModdle(), (message) => warnings.push(message));
+  expect(warnings).toEqual([]);
+});
+
 test('the inspector tabs are General, one per other schema, Documentation, Gantt, Data and Execution', () => {
   const others = catalog.schemas.filter((schema) => schema.prefix !== 'studyflow').map((schema) => schema.name);
   const categories = catalog.categories();
