@@ -2,9 +2,8 @@
 
 name: Behaverse
 prefix: behaverse
-description: >-
-  The Behaverse assessment battery: its tasks, the trials and responses they
-  exchange, and datasets in the Behaverse Data Model.
+description: |
+  The Behaverse assessment battery and the Behaverse Data Model.
 uri: http://behaverse.org/schemas/studyflow/behaverse
 icon: iconify tabler--hexagon-letter-b
 order: 4
@@ -14,7 +13,7 @@ version: '26.9.1'
 
 enumerations:
   - extends: cognitive:ExperimentSoftwareEnum
-    description: Adds Behaverse to the experiment software a cognitive task names.
+    description: Adds Behaverse to the list of softwares.
     literalValues:
       - name: Behaverse
         value: behaverse
@@ -25,16 +24,16 @@ enumerations:
         value: bdm
         icon: iconify bi--hexagon
   - extends: studyflow:MessageStructureEnum
-    description: What a message flow to or from a Behaverse task carries.
+    description: Add trial and reponse messages to the list of message structures.
     literalValues:
       - name: One Trial
         value: behaverse:Trial
-        description: One awaiting trial, out of the task to whoever answers it (its options, response window, and screenshot).
+        description: One awaiting trial, from the task to participants (contains stimulus, response options, response window, and screenshot).
       - name: One Response
         value: behaverse:Response
-        description: The answer to a trial, back into the task.
+        description: The response to a trial, from participant to task.
   - name: SceneEnum
-    description: Behaverse assessment delivered by a Behaverse task.
+    description: Visual scene that runs a Behaverse assessment.
     literalValues:
       - name: Belval Card Sorting (BCS)
         value: BCS
@@ -81,27 +80,27 @@ enumerations:
       - name: Which One (WO)
         value: WO
   - name: DataLevelEnum
-    description: Level of the BDM hierarchy the data sits at.
+    description: |
+        Level of the BDM hierarchy the data is formatted in. The BDM is a three-level hierarchy: events, trials, and models. Each level is derived from the one below it.
     literalValues:
       - name: Events
         value: events
         description: Every recorded occurrence, as it happened.
       - name: Trials
         value: trials
-        description: One row per trial, derived from events.
+        description: One opportunity to respond and a single interaction, derived from events.
       - name: Models
         value: models
-        description: Fitted parameters and scores, derived from trials.
+        description: Fitted parameters and scores, derived from events or trials.
 
 types:
   - name: Task
-    description: A task from the Behaverse assessment battery, configured by the Parameters wired into it.
+    description: A task from the Behaverse assessment battery, configured by its attributes and the "Parameters" wired into it.
     superClass:
       - cognitive:CognitiveTask
     meta:
       icon: iconify bi--hexagon
-      presenter: "Behaverse · {scene}"
-      # The attribute drawn as text over the icon: the hex alone does not say which assessment.
+      presenter: "Behaverse - {scene}"
       glyph: scene
     properties:
       - name: instrument
@@ -113,14 +112,14 @@ types:
           order: 0
           pinned: true
       - name: implementation
-        description: Unused here; the scene says what runs.
+        description: Unused; the scene says what runs.
         isAttr: true
         type: String
         redefines: cognitive:CognitiveTask#implementation
         meta:
           pinned: true
       - name: scene
-        description: Which Behaverse assessment runs (`NB`, `UFOV`, `DS`).
+        description: Which task runs (`NB`, `UFOV`, `DS`).
         isAttr: true
         type: SceneEnum
         meta:
@@ -128,7 +127,7 @@ types:
           categories:
             - Execution
       - name: timeline
-        description: 'Which timeline runs: one the build ships (`XCIT_NB_01`), or one the Parameters define under `Timelines`. Unset, the first of those runs.'
+        description: 'Which shipped timeline runs (`XCIT_NB_01`), or one the Parameters define under `Timelines`.'
         isAttr: true
         type: String
         meta:
@@ -151,7 +150,7 @@ types:
         meta:
           pinned: true
       - name: dataLevel
-        description: Level of the BDM hierarchy.
+        description: Level of the BDM hierarchy (events, trials, models).
         isAttr: true
         type: DataLevelEnum
         default: events
@@ -160,9 +159,6 @@ types:
           categories:
             - Data
 
-# Palette flyout entries: the elements a drop adds, spelled as in a `.studyflow.yaml` file.
-# A task's GameConfig is the `studyflow:Parameters` wired into it: a shipped timeline, or one defined inline. Its
-# `Bot:` says how a bot plays the task (`Speed: 20`), read when the participant taking it is not a person.
 templates:
   - description: The parameters of an N-Back task running a timeline that ships with the Behaverse build; wire it into the task.
     elements:
@@ -174,7 +170,7 @@ templates:
             values: |
               Timelines:
                 XCIT_NB_01:
-  - description: The parameters of an N-Back task with an inline timeline; author only the blocks that differ from the defaults.
+  - description: The parameters of an N-Back task with an inline timeline.
     elements:
       NBack_inline:
         type: DataObjectReference
