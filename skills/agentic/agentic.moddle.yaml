@@ -1,44 +1,48 @@
 # yaml-language-server: $schema=https://unpkg.com/moddle/resources/schema/moddle.json
 
-# A model is an actor: a pool of its own that the study's steps ask along message flows, or the
-# band of a task it takes, never a setting on a step. The rest of an agent workflow is BPMN and
-# the core sets: a model call is a task with message flows to the model's pool, a tool a service
-# task with an `implementation`, an agent loop an ad-hoc sub-process, a human sign-off a user task
-# with a timer. What stays here is what they cannot say: that a participant is a model, the
-# request and reply its flows carry, and a prompt kept as data.
+# A model is an actor. The rest is BPMN:
+#   - a model call is a task with message flows to the model's pool,
+#   - a tool is a service task with an `implementation`,
+#   - an agent loop is an ad-hoc sub-process,
+#   - a human approval is a user task or manual task with a timer.
+# What is here: a participant is a model, the request and response that message flows carry, and a prompt template as data object.
 
 name: Agentic
 prefix: agentic
-description: >-
-  Models as actors: the language-model kind of participant, and prompts
-  kept as data for the steps that ask one.
+description: |
+  Language models as actors in an experiment, with the request and response
+  message flows, and a prompt template as data for the elements that ask one.
 uri: https://w3id.org/studyflow/agentic
 icon: iconify tabler--hexagon-letter-a
 order: 102
 xml:
   tagAlias: lowerCase
-version: '26.9.1'
+version: '26.9.2'
 
 enumerations:
   - extends: studyflow:ActorTypeEnum
-    description: What an actor pool can be, beyond human, software, and hardware.
+    description: Extends what a pool can be, beyond human, software, and hardware.
     literalValues:
       - name: Large language model
         value: llm
-        description: A model, named by `implementation` (`claude://claude-haiku-4-5`, `ollama://gemma4:12b-it-qat`). As a pool of its own it answers what the study's steps send it; on a task's band it takes the task.
+        description: |
+          A model, named by `implementation` (`claude://claude-haiku-4-5`, `ollama://gemma4:12b-it-qat`). As a pool of its own it answers what the other sender elements send it.
+          On a choreography task's band it participates in the task.
   - extends: studyflow:MessageStructureEnum
-    description: What a message flow to or from a model's pool carries.
+    description: What a message flow to or from a model's pool carries over.
     literalValues:
       - name: One Request
         value: agentic:Request
-        description: One request to the model, out of the step that asks it (what is wired into the step, in order; a Prompt gives its text, an image goes as an image).
+        description: One request to the model, out of the sender that asks it (a prompt/image from a task or a sub-process).
       - name: One Reply
         value: agentic:Reply
-        description: The model's reply, back to the step that asked.
+        description: |
+          The model's reply, back to the step that asked (image or text).
+          It is a single message, but it can be a multi-part message (text, image, audio, etc.) in one flow.
 
 types:
   - name: Prompt
-    description: A prompt kept as a data element, wired into the steps that send it to a model.
+    description: A prompt kept as a data element, wired into the elements that send it to a model or receive it from another element.
     superClass:
       - bpmn:DataObjectReference
     meta:
