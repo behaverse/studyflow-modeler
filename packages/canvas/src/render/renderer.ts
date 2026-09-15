@@ -5,7 +5,7 @@
 
 import { BPMN } from '@core/constants.ts';
 import { effectiveAttribute } from '@core/document/index.ts';
-import { getAttribute, isDataOperationActivity, StudyflowElement } from '@core/element/index.ts';
+import { getAttribute, StudyflowElement } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog } from '@core/notation/index.ts';
 
@@ -14,7 +14,7 @@ import { normalizeColor } from '@canvas/model/color.ts';
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
 import { nameOf, prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
-import { isCollapsed, isHidden, zRankOf } from '@canvas/model/tree.ts';
+import { isHidden, zRankOf } from '@canvas/model/tree.ts';
 import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver } from '@canvas/render/icons.ts';
 import {
   alignedX,
@@ -29,6 +29,7 @@ import {
   wrap,
 } from '@canvas/render/labels.ts';
 import {
+  activityMarkers,
   bandPath,
   categoryOf,
   choreographyBandHeight,
@@ -405,21 +406,10 @@ export class Renderer {
     }
   }
 
-  /** Bottom-centre activity markers, in BPMN's order. */
+  /** Bottom-centre activity markers, in the row `CHROME.foot` keeps clear. */
   private drawMarkers(g: SVGGElement, node: SceneNode, color: string): void {
     const bo = node.businessObject;
-    const markers: string[] = [];
-    const checklist = getAttribute(bo, 'checklist');
-    if (Array.isArray(checklist) && checklist.length > 0) markers.push('checklist');
-    if (isDataOperationActivity(bo)) markers.push('function');
-    if (isCollapsed(node)) markers.push('subprocess');
-    if (node.type === 'bpmn:AdHocSubProcess') markers.push('adhoc');
-    if (prop(bo, 'isForCompensation') === true) markers.push('compensation');
-    const loop = prop(bo, 'loopCharacteristics') as ModdleObject | undefined;
-    if (loop) {
-      const sequential = prop(loop, 'isSequential');
-      markers.push(sequential === true ? 'sequential' : sequential === false ? 'parallel' : 'loop');
-    }
+    const markers = activityMarkers(node);
     if (markers.length === 0) return;
     const gap = 4;
     const y = node.height - MARKER_SIZE - 4;

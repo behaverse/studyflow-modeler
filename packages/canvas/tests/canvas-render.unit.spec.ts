@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { Canvas, INK } from '@canvas/index.ts';
 import { resolvePlaceholders, studyflowToDefinitions } from '@core/document';
+import { CHROME, LINE_HEIGHT } from '@canvas/render/labels.ts';
 import { choreographyBandHeight } from '@canvas/render/shapes.ts';
 
 import { diElements, edge, freshModdle, installDocument, loadCanvas, loadYaml, node } from './canvasHarness';
@@ -123,6 +124,36 @@ test('a text annotation draws its `text`, wrapped — not its `name`', async () 
   expect(lines.join(' ')).not.toContain('Text annotation');
   // A note reads left by default, and says so: its `font` may align it otherwise.
   expect(canvas.getGraphics('Bd_Annotation')!.querySelector('text')!.getAttribute('text-anchor')).toBe('start');
+});
+
+/** Names too long for the band between the glyph and marker rows, on tasks that draw a bottom marker. */
+const MARKED_YAML = `id: Defs_Marked
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_Marked:
+  type: Process
+  flowElements:
+    Implemented:
+      type: ServiceTask
+      name: Congruency effect (Flanker RT and accuracy)
+      implementation: python://stats.congruency
+      bounds: 100 100 140 80
+    Looped:
+      type: Task
+      name: Divergence (classifier vs random baseline)
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+      bounds: 300 100 100 80
+`;
+
+test('a wrapped name never runs into the marker row of a task that draws a marker', async () => {
+  const { canvas } = loadYaml(MARKED_YAML);
+  for (const id of ['Implemented', 'Looped']) {
+    const lines = [...canvas.getGraphics(id)!.querySelectorAll('text')];
+    expect(lines.length, id).toBeGreaterThan(2);
+    const lastBottom = Math.max(...lines.map((t) => Number(t.getAttribute('y')))) + LINE_HEIGHT / 2;
+    expect(lastBottom, id).toBeLessThanOrEqual(node(canvas, id).height - CHROME.foot);
+  }
 });
 
 /**

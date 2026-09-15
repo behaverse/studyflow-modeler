@@ -7,7 +7,7 @@
 import { isTypedChoreography } from '@canvas/model/choreography.ts';
 import type { Font, TextAlign } from '@canvas/model/font.ts';
 import type { Bounds, Point, SceneEdge, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
-import { categoryOf } from '@canvas/render/shapes.ts';
+import { activityMarkers, categoryOf } from '@canvas/render/shapes.ts';
 import { append, create } from '@canvas/render/svg.ts';
 
 export const LABEL_FONT = '"IBM Plex Sans", Helvetica, sans-serif';
@@ -131,21 +131,23 @@ export function drawInternalLabel(container: SVGElement, node: SceneNode, name: 
  * container captions its top strip. A task's name sits between the glyph row and the
  * marker row whether or not it carries either, so names line up across a row of tasks;
  * a name that needs more lines than that band holds, or a shape too short for it, takes
- * the next larger box. A plain choreography task has no glyph (its bands are its point),
- * so its name takes the whole middle band.
+ * the next larger box, which never reaches into the marker row while a marker is drawn
+ * there. A plain choreography task has no glyph (its bands are its point), so its name
+ * takes the whole middle band.
  */
 export function internalLabelRegion(node: SceneNode, name = ''): Bounds {
   const { width, height } = node;
   if (node.isExpanded === true) return { x: 0, y: 0, width, height: TOP_STRIP };
   const category = categoryOf(node.type);
+  const floor = activityMarkers(node).length > 0 ? height - CHROME.foot : height;
   const bands = category === 'task' || (category === 'choreography' && isTypedChoreography(node.businessObject))
-    ? [[CHROME.head, height - CHROME.foot], [CHROME.head, height]]
+    ? [[CHROME.head, height - CHROME.foot], [CHROME.head, floor]]
     : [];
   const needed = Math.max(LINE_HEIGHT, wrap(name, width - 4, FONT.internal, 4).length * LINE_HEIGHT);
   for (const [top, bottom] of bands) {
     if (bottom - top >= needed) return { x: 0, y: top, width, height: bottom - top };
   }
-  return { x: 0, y: 0, width, height };
+  return { x: 0, y: 0, width, height: floor };
 }
 
 // --- external labels (their own element) -------------------------------------

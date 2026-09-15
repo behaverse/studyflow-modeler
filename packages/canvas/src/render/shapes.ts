@@ -4,7 +4,11 @@
  */
 
 import { BPMN } from '@core/constants.ts';
+import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
 
+import { prop } from '@canvas/model/moddle.ts';
+import type { ModdleObject, SceneNode } from '@canvas/model/scene.ts';
+import { isCollapsed } from '@canvas/model/tree.ts';
 import { append, create } from '@canvas/render/svg.ts';
 import { DATA_TYPES } from '@canvas/rules/rules.ts';
 
@@ -32,6 +36,25 @@ export function categoryOf(type: string): NodeCategory {
   if (type === BPMN.TextAnnotation) return 'annotation';
   if (type === BPMN.Participant || type === BPMN.Lane) return 'participant';
   return 'unknown';
+}
+
+/** The bottom-centre markers an activity draws, in BPMN's order. */
+export function activityMarkers(node: SceneNode): string[] {
+  if (categoryOf(node.type) !== 'task') return [];
+  const bo = node.businessObject;
+  const markers: string[] = [];
+  const checklist = getAttribute(bo, 'checklist');
+  if (Array.isArray(checklist) && checklist.length > 0) markers.push('checklist');
+  if (isDataOperationActivity(bo)) markers.push('function');
+  if (isCollapsed(node)) markers.push('subprocess');
+  if (node.type === 'bpmn:AdHocSubProcess') markers.push('adhoc');
+  if (prop(bo, 'isForCompensation') === true) markers.push('compensation');
+  const loop = prop(bo, 'loopCharacteristics') as ModdleObject | undefined;
+  if (loop) {
+    const sequential = prop(loop, 'isSequential');
+    markers.push(sequential === true ? 'sequential' : sequential === false ? 'parallel' : 'loop');
+  }
+  return markers;
 }
 
 export interface ShapeStyle {

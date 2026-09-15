@@ -1,3 +1,4 @@
+import { resolvePlaceholders } from '@core/document';
 import { StudyflowElement } from '@core/element';
 import type { Editor } from '@modeler/editor/port';
 
@@ -119,14 +120,15 @@ function parseProgressPct(raw: string): number | undefined {
   return undefined;
 }
 
-function buildGanttRow(el: any, anchor: number): Row | null {
+function buildGanttRow(el: any, anchor: number, definitions: any): Row | null {
   const bo = el.businessObject;
   if (!bo) return null;
   const attrs = readTimingAttrs(bo);
   if (!ATTR_NAMES.some((k) => attrs[k] !== undefined)) return null;
   return {
     id: el.id || bo.id || '(unnamed)',
-    label: bo.name || bo.id || '(unnamed)',
+    // A view, like the canvas: `{reached}` in a name shows the last run's value.
+    label: resolvePlaceholders(bo.name || bo.id || '(unnamed)', definitions, bo.id ?? ''),
     type: bo.$type || el.type || 'Element',
     swimlane: findSwimlane(el),
     ...attrs,
@@ -141,9 +143,10 @@ export function collectGanttRows(modeler: Editor): Row[] {
   if (!modeler) return [];
   const rows: Row[] = [];
   const anchor = Date.now();
+  const definitions = modeler.getDefinitions();
   modeler.canvas.all().forEach((el: any) => {
     if (el.kind === 'label') return;
-    const row = buildGanttRow(el, anchor);
+    const row = buildGanttRow(el, anchor, definitions);
     if (row) rows.push(row);
   });
   return rows;

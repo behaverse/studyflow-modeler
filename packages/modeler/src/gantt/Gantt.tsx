@@ -75,15 +75,12 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                         const progressW = r.progressPct !== undefined ? (w * r.progressPct) / 100 : 0;
                         return (
                           <g key={r.id}>
-                            <text
-                              x={LABEL_W - 8}
-                              y={y + ROW_H / 2 + 4}
-                              textAnchor="end"
-                              fontSize={12}
-                              fill="#3f3f3f"
-                            >
-                              {r.label}
-                            </text>
+                            {/* HTML, so a long name ends in an ellipsis rather than spilling left out of the column. */}
+                            <foreignObject x={0} y={y} width={LABEL_W - 8} height={ROW_H}>
+                              <div title={r.label} className="truncate text-right text-xs leading-6 text-[#3f3f3f]">
+                                {r.label}
+                              </div>
+                            </foreignObject>
                             <rect
                               x={x}
                               y={y}
