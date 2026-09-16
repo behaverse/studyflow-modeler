@@ -212,7 +212,7 @@ export class Renderer {
       case 'event': {
         const kind = eventKind(node);
         drawEvent(g, node.width, node.height, style, kind);
-        this.drawEventIcons(g, node, kind === 'end' ? style.fill : style.stroke);
+        this.drawEventIcons(g, node, style.stroke, kind);
         break;
       }
       case 'task': {
@@ -335,7 +335,7 @@ export class Renderer {
     drawIcon(g, key, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, color, this.iconResolver, node.businessObject);
   }
 
-  private drawEventIcons(g: SVGGElement, node: SceneNode, color: string): void {
+  private drawEventIcons(g: SVGGElement, node: SceneNode, color: string, kind?: string): void {
     const resolver = this.iconResolver;
     if (!resolver) return;
     const bo = node.businessObject;
@@ -343,7 +343,9 @@ export class Renderer {
     const y = (node.height - EVENT_ICON_SIZE) / 2;
     const defs = prop(bo, 'eventDefinitions');
     const def = Array.isArray(defs) ? (defs[0] as ModdleObject | undefined) : undefined;
-    const defKey = def ? toLocalName(def.$type) : undefined;
+    let defKey = def ? toLocalName(def.$type) : undefined;
+    // BPMN draws a throwing (end) event's symbol filled: the host may name that variant under `<definition>:end`.
+    if (defKey && kind === 'end' && resolver(`${defKey}:end`, def)) defKey = `${defKey}:end`;
     let centreTaken = false;
     if (defKey && resolver(defKey, def)) {
       drawIcon(g, defKey, x, y, EVENT_ICON_SIZE, color, resolver, def);

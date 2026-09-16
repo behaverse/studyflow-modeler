@@ -22,6 +22,7 @@ export const BPMN_ICON_OVERRIDES: Record<string, string> = {
   'bpmn:MessageEventDefinition':     ICONS.envelope,
   'bpmn:TimerEventDefinition':       'iconify ph--clock',
   'bpmn:ErrorEventDefinition':       'iconify ph--lightning',
+  'bpmn:ErrorEventDefinition:end':   'iconify ph--lightning-fill',   // the throwing form, filled
   'bpmn:SignalEventDefinition':      'iconify ph--triangle',
   'bpmn:EscalationEventDefinition':  'iconify ph--caret-double-up',
   'bpmn:ConditionalEventDefinition': 'iconify ph--article',
