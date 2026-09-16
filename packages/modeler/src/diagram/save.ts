@@ -23,7 +23,7 @@ import {
   writeToFile,
   type LinkedFile,
 } from '@modeler/diagram/fileHandle';
-import { exportDiagramName } from '@modeler/export/common';
+import { exportDiagramName } from '@modeler/diagram/name';
 import { encodeDiagram, runExportDiagram, stampProvenance } from '@modeler/export/commands';
 import {
   autoSavable,
@@ -32,7 +32,7 @@ import {
   getExportFormat,
   type ExportFormat,
   type ExportFormatId,
-} from '@modeler/export/formats';
+} from '@modeler/diagram/formats';
 import type { Editor } from '@modeler/editor/port';
 
 export type SaveDiagramCommand = {

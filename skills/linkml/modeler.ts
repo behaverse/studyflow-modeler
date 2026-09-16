@@ -1,5 +1,5 @@
 /** What the linkml skill gives the modeler: a LinkML schema for the diagram's data elements. */
-import type { ExportFormat } from '@modeler/export/formats';
+import type { ExportFormat } from '@modeler/diagram/formats';
 import type { ModelerModule } from '@modeler/skillModules';
 import * as yaml from 'js-yaml';
 import { getCatalog, type AttributeSpec } from '@core/notation';

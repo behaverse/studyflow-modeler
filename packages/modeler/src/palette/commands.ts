@@ -2,7 +2,7 @@ import { isExpandable } from '@canvas/index.ts';
 import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
 import { buildBusinessObject } from '@modeler/palette/build';
-import { openPopupMenu } from '@modeler/editor/popupMenus';
+import { openPopupMenu, type PopupPosition } from '@modeler/editor/popupMenus';
 import type { Editor } from '@modeler/editor/port';
 
 export type PaletteStartCreateTemplateCommand = {
@@ -50,15 +50,6 @@ export function runPaletteStartCreate(modeler: Editor, command: PaletteStartCrea
 
   return shape;
 }
-
-type PopupPosition = {
-  x: number;
-  y: number;
-  cursor: {
-    x: number;
-    y: number;
-  };
-};
 
 export type PaletteOpenPopupCommand = {
   type: 'PaletteOpenPopup';

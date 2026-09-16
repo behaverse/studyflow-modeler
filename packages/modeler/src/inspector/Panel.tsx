@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { ICONS } from '@modeler/icons';
 import { useModeler } from '@modeler/app/useModeler';
-import { InspectorContext } from '@modeler/inspector/state';
+import { InspectorContext } from '@modeler/inspector/hooks';
 import { CategoryTabs } from '@modeler/inspector/CategoryTabs';
 import { getAttributesByCategory } from '@modeler/inspector/categories';
 import { getTypeName, resolveDisplayName } from '@modeler/inspector/element';

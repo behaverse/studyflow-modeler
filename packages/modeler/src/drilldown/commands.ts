@@ -9,7 +9,7 @@ export interface Crumb {
   isCurrent: boolean;
 }
 
-export function crumbLabel(root: EditorElement): string {
+function crumbLabel(root: EditorElement): string {
   const name = root?.businessObject?.name;
   if (typeof name === 'string' && name.trim()) return name;
   const id = root?.businessObject?.id ?? root?.id;

@@ -19,7 +19,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 | --- | --- |
 | `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles the skills' `*.moddle.yaml` (`notation/`), attribute access on one element (`element/`). No React. |
 | `packages/canvas` | The SVG canvas. `src/index.ts` is all the modeler may import. |
-| `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a feature's `commands.ts`; `src/commandBus.ts` lists the features. |
+| `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a module `src/commandBus.ts` lists (a feature's `commands.ts`, and `diagram/save.ts`). |
 | `packages/cli` | The `studyflow` CLI. `run` hands a local study to `skills/local/run.py`. |
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
 | `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (a moddle package in `*.moddle.yaml`, its palette templates included), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |

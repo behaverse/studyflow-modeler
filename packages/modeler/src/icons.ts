@@ -95,9 +95,10 @@ export const ICONS = {
 
   /* Context-pad */
   note: 'iconify fluent--comment-text-16-regular',
-  arrowUpRight: 'iconify bi--arrow-right',
+  arrowUpRight: 'iconify fluent--arrow-up-right-16-filled',
   trash: 'iconify fluent--delete-16-regular',
   expand: 'iconify fluent--resize-16-regular',
+  drilldown: 'iconify fluent--full-screen-maximize-16-filled',
   slash: 'iconify bi--slash-lg',
   swapVertical: 'iconify fluent--person-swap-16-regular',
 

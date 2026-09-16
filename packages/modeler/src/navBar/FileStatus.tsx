@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { useModeler } from '@modeler/app/useModeler';
 import { getLink, subscribeLink, type LinkState } from '@modeler/diagram/fileHandle';
 import { saveLinkedFile } from '@modeler/diagram/save';
-import { autoSavable } from '@modeler/export/formats';
+import { autoSavable } from '@modeler/diagram/formats';
 import { MOD_LABEL } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
 import { radius, text } from '@modeler/ui/styles';

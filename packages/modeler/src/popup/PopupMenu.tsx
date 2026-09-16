@@ -31,6 +31,7 @@ import {
 import { DRAG_THRESHOLD } from '@modeler/palette/usePaletteDrag';
 import { PaletteIcon } from '@modeler/palette/PaletteIcon';
 import { popupMenu as s } from '@modeler/popup/styles';
+import { uiScale } from '@modeler/ui/scale';
 import type { PopupPosition } from '@modeler/editor/popupMenus';
 
 /** One row (list variant) or one swatch (swatches variant). */
@@ -83,7 +84,7 @@ export type PopupMenuModel = {
 };
 
 /** Rows above which a list gets a search field whether or not one was requested. */
-export const SEARCH_THRESHOLD = 8;
+const SEARCH_THRESHOLD = 8;
 
 const MARGIN = 8;
 
@@ -91,12 +92,6 @@ const MARGIN = 8;
    the box has to be too, or a 4K screen gets 20px labels in a 260px column. */
 const DEFAULT_WIDTH = 260;
 const MAX_HEIGHT = 420;
-
-/** The UI scale as a plain factor — see `--ui-scale` in `assets/css/app.css`. */
-function uiScale(): number {
-  const root = parseFloat(getComputedStyle(document.documentElement).fontSize);
-  return Number.isFinite(root) && root > 0 ? root / 16 : 1;
-}
 
 type Props = {
   anchor: PopupPosition;

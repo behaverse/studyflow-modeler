@@ -11,7 +11,7 @@ import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
 import { getAttribute } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
-import { useAttributeState } from '@modeler/inspector/state';
+import { useAttributeState } from '@modeler/inspector/hooks';
 import { DATATYPES, parseBody, serialize, type Column, type SourceFormat } from '@modeler/inspector/schemaFormats';
 import { codeEditor as s } from '@modeler/inspector/styles';
 

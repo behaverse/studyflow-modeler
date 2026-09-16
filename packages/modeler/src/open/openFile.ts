@@ -6,7 +6,7 @@ import { useCallback, useRef, type ChangeEvent } from 'react';
 import { notify } from '@modeler/app/noticeStore';
 import { executeCommand } from '@modeler/commandBus';
 import { DIAGRAM_OPEN_ACCEPT, linkOpenedFile, pickFileToOpen, supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
-import { IMPORTABLE_FORMATS, OPENABLE_EXTENSIONS, OPENERS } from '@modeler/export/formats';
+import { IMPORTABLE_FORMATS, OPENABLE_EXTENSIONS, OPENERS } from '@modeler/diagram/formats';
 import type { Editor } from '@modeler/editor/port';
 
 const OPEN_INVALID_MESSAGE = `Choose a ${[

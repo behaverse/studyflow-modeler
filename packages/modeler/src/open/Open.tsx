@@ -3,7 +3,7 @@ import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
 import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
 import { droppedHandle, openDiagramFile } from '@modeler/open/openFile';
-import { extensionsOf, IMPORTABLE_FORMATS, OPENERS } from '@modeler/export/formats';
+import { extensionsOf, IMPORTABLE_FORMATS, OPENERS } from '@modeler/diagram/formats';
 import { radius, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 

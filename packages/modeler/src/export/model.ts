@@ -1,6 +1,6 @@
 import { getCatalog, type AttributeSpec, type TypeRole } from '@core/notation';
 import { isDataOperationActivity, StudyflowElement } from '@core/element';
-import { exportDiagramName } from '@modeler/export/common';
+import { exportDiagramName } from '@modeler/diagram/name';
 import type { Editor } from '@modeler/editor/port';
 
 /* exporters read this instead of the canvas */

@@ -10,6 +10,11 @@ export function smootherstep(t: number): number {
   return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
+/** Drop the points that repeat their predecessor (within half a unit): a zero-length segment would stall the sampler. */
+export function dedupePoints(points: Point[]): Point[] {
+  return points.filter((p, i) => i === 0 || Math.abs(p.x - points[i - 1].x) > 0.5 || Math.abs(p.y - points[i - 1].y) > 0.5);
+}
+
 export function computeSegLengths(points: Point[]): { segLengths: number[]; totalDist: number } {
   const segLengths: number[] = [];
   let totalDist = 0;

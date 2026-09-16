@@ -5,7 +5,7 @@
  */
 import { executeCommand } from '@modeler/commandBus';
 import { getLink, hasUnsavedEdits, markDirty } from '@modeler/diagram/fileHandle';
-import { autoSavable } from '@modeler/export/formats';
+import { autoSavable } from '@modeler/diagram/formats';
 import {
   clearAutosavedDiagram,
   getSettings,

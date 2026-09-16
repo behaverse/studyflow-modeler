@@ -16,7 +16,7 @@ function builtinItemTypes(): string[] {
     .map((literal) => String(literal.value));
 }
 
-export function getDeclaredItemTypes(elementOrBo: any): string[] {
+function getDeclaredItemTypes(elementOrBo: any): string[] {
   const rootElements: any[] = definitionsOf(elementOrBo)?.rootElements ?? [];
   const declared = rootElements
     .filter((re) => re?.$type === 'bpmn:ItemDefinition')

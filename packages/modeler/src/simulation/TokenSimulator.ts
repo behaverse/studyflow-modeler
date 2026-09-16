@@ -4,7 +4,7 @@ import { is } from '@modeler/editor/port';
 import type { Canvas, EditorElement, EventBus } from '@modeler/editor/port';
 import { isExpanded, isHidden, isRootElement, svgAppend, svgAttr, svgCreate, svgRemove, type Point } from '@canvas/index.ts';
 import { containerOf, nextHops, startEventsIn, tokenAnchor } from '@modeler/simulation/flowWalk';
-import { computeSegLengths, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
+import { computeSegLengths, dedupePoints, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
 
 export interface SimulationHost {
   events: Pick<EventBus, 'on' | 'off' | 'fire'>;
@@ -265,12 +265,7 @@ export default class TokenSimulator {
   }
 
   private _sendTokenAlongPath(token: Token, points: Point[], target: any, at: any) {
-    const cleaned: Point[] = [points[0]];
-    for (let i = 1; i < points.length; i++) {
-      const prev = cleaned[cleaned.length - 1];
-      const cur = points[i];
-      if (Math.abs(cur.x - prev.x) > 0.5 || Math.abs(cur.y - prev.y) > 0.5) cleaned.push(cur);
-    }
+    const cleaned = dedupePoints(points);
     const { segLengths, totalDist } = computeSegLengths(cleaned);
     token.pathPoints = cleaned;
     token.segLengths = segLengths;

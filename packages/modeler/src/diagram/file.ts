@@ -1,4 +1,4 @@
-import { COMPOUND_EXTENSIONS } from '@modeler/export/formats';
+import { COMPOUND_EXTENSIONS } from '@modeler/diagram/formats';
 
 /** Compound extensions count as one, read from the export catalog so a new format cannot drift. */
 export const filenameStem = (filename: string): string => {

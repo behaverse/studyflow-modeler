@@ -4,7 +4,7 @@ import { setAttribute } from '@core/element';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { filenameStem } from '@modeler/diagram/file';
 import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
-import { importableFormatFor, openerFor } from '@modeler/export/formats';
+import { importableFormatFor, openerFor } from '@modeler/diagram/formats';
 import { extractStudyflowFromPng } from '@core/document/png';
 import { extractStudyflowFromSvg } from '@core/document/svg';
 import { notify } from '@modeler/app/noticeStore';

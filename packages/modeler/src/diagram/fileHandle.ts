@@ -17,7 +17,7 @@ import {
   importableFormatFor,
   type ExportFormat,
   type ExportFormatId,
-} from '@modeler/export/formats';
+} from '@modeler/diagram/formats';
 
 export type LinkState =
   /** What is on disk is what is on screen. */

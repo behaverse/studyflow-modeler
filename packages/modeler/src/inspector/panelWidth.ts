@@ -10,6 +10,8 @@
  * Width stays state in px rather than rem because the drag that sets it is in px.
  */
 
+import { uiScale } from '@modeler/ui/scale';
+
 export const DEFAULT_PANEL_WIDTH = 288;
 
 export const MIN_PANEL_WIDTH = 240;
@@ -18,13 +20,6 @@ const HARD_MAX_PANEL_WIDTH = 720;
 
 /** What the canvas keeps for itself: a palette, plus room to actually draw in. */
 const ROOM_FOR_CANVAS = 320;
-
-/** The UI scale as a plain factor — 1 at the 16px root, which is what jsdom reports. */
-function uiScale(): number {
-  if (typeof document === 'undefined') return 1;
-  const root = parseFloat(getComputedStyle(document.documentElement).fontSize);
-  return Number.isFinite(root) && root > 0 ? root / 16 : 1;
-}
 
 /** Never past half the viewport, and never leaving the canvas less than a palette's worth of room. */
 export function maxPanelWidth(viewportWidth: number): number {

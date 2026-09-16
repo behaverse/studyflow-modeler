@@ -1,5 +1,5 @@
 /** What the nidm skill gives the modeler: the diagram's data operations and data elements as NIDM-Results provenance. */
-import type { ExportFormat } from '@modeler/export/formats';
+import type { ExportFormat } from '@modeler/diagram/formats';
 import type { ModelerModule } from '@modeler/skillModules';
 import { toLocalName } from '@core/naming';
 import type { ExportedElement, ExportModel } from '@modeler/export/model';

@@ -23,7 +23,7 @@ const LANES = [
 export const laneOf = (lane: number) => LANES[lane % LANES.length];
 
 /** Icons only where the shape says something at a glance: gateways, events, containers; the rest stay bare. */
-export function shapeIconOf(el: any): string | undefined {
+function shapeIconOf(el: any): string | undefined {
   if (el?.$instanceOf?.('bpmn:Gateway')) return ICONS.diamond;
   if (el?.$instanceOf?.('bpmn:Event')) return ICONS.circle;
   if (el?.$instanceOf?.('bpmn:SubProcess')) return ICONS.plusBox;

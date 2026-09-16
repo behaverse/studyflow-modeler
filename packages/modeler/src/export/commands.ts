@@ -1,6 +1,6 @@
-import { exportDiagramName } from '@modeler/export/common';
+import { exportDiagramName } from '@modeler/diagram/name';
 import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
-import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/export/formats';
+import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/diagram/formats';
 import { buildExportModel } from '@modeler/export/model';
 import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
 import { dropUnresolvedIcons, embedBpmnIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';

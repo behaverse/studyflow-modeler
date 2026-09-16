@@ -76,7 +76,7 @@ const EXPORT_FORMATS: ExportFormat[] = [
   ...SKILL_EXPORT_FORMATS,
 ];
 
-export const IMPORTABLE_EXTENSIONS: string[] = EXPORT_FORMATS
+const IMPORTABLE_EXTENSIONS: string[] = EXPORT_FORMATS
   .filter((format) => format.importable)
   .flatMap((format) => [format.extension, ...(format.alsoReads ?? [])]);
 

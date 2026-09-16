@@ -36,32 +36,27 @@ import { is, type EditorElement, type Editor } from '@modeler/editor/port';
 const OFFSET = 8;
 
 /**
- * How far the selection outline sits outside the element it wraps — the canvas's
+ * How far the selection outline sits outside the element it wraps: the canvas's
  * `OUTLINE_OFFSET`, in diagram units, so it scales with the zoom. The pad anchors on
- * the outline, not on the shape (measured in the reference: a task spanning
- * x 170→280 puts its pad at x 288, i.e. 275 + 5 + 8).
+ * the outline, not on the shape.
  */
 const OUTLINE_OFFSET = 5;
 
-/**
- * Where a tooltip sits relative to the POINTER (`preview/frame_04`, `frame_05`,
- * `frame_08` — measured off the frames at 2x, so ~3px right and ~16px down in CSS
- * pixels, rounded to the offsets a native `title` bubble uses).
- */
+/** Where a tooltip sits relative to the pointer: the offsets a native `title` bubble uses. */
 const TOOLTIP_GAP = 4;
 const TOOLTIP_DROP = 18;
 
 /**
- * How long the pointer must rest on an entry before its tooltip appears — a
- * native `title` bubble's beat, which is also what keeps the caption off the hover
- * ghost that goes up in the same instant (see `armTooltip`).
+ * How long the pointer must rest on an entry before its tooltip appears: a native `title`
+ * bubble's beat, which also keeps the caption off the hover ghost that goes up in the same
+ * instant (see `armTooltip`).
  */
 const TOOLTIP_DELAY = 700;
 
 /**
- * The entry table names its icons symbolically (it lives in the canvas package and
- * knows nothing of Iconify); this maps each key to the app's Iconify class at render
- * time, the way the titles go through `t()`.
+ * The entry table (`entries.ts`) names its icons symbolically, so it stays a pure table the
+ * unit spec pins; this maps each key to an Iconify class at render time, the way the titles
+ * go through `t()`.
  */
 const ICON_CLASSES: Record<ContextPadIcon, string> = {
   'end-event': ICONS.bpmnEndEvent,
@@ -74,7 +69,7 @@ const ICON_CLASSES: Record<ContextPadIcon, string> = {
   'default-flow': ICONS.slash,
   swap: ICONS.swapVertical,
   subprocess: ICONS.expand,
-  open: ICONS.folderOpen,
+  open: ICONS.drilldown,
 };
 
 /** Heading each pad entry that opens a popup gives the menu it opens. */
@@ -153,7 +148,7 @@ export function ContextPad() {
   }, [modeler]);
 
   const element = elements.length === 1 ? elements[0] : undefined;
-  /** A single selected caption — the two-entry pad of `labels/frame_08`. */
+  /** A single selected caption: it gets a two-entry pad of its own (trash, brush). */
   const label = element && isLabelElement(element) ? element : undefined;
   const visible = !isSimulating
     && elements.length > 0
@@ -169,17 +164,10 @@ export function ContextPad() {
   }, [modeler]);
 
   /**
-   * Arm the tooltip for the entry the pointer just entered — after a beat, and at
-   * the pointer, which is what a native `title` bubble does and what the reference's
-   * tooltips ARE (`preview/frame_04`, `frame_05`, `frame_08` show the browser's own
-   * dark bubble hanging off the cursor).
-   *
-   * The delay is the half that matters. The same hover puts up an append GHOST, and
-   * the ghost lands in the band immediately right of the pad — exactly where a
-   * caption at the cursor goes. Showing both at once buries the one thing the hover
-   * exists to show under its own label; showing the ghost first and the words only
-   * if the pointer stays is how the reference reads, and it costs the tooltip
-   * nothing (nobody hovers an icon for its caption and leaves within the beat).
+   * Arm the tooltip for the entry the pointer just entered: after a beat, at the pointer, as a
+   * native `title` bubble does. The delay matters: the same hover puts up an append ghost right
+   * of the pad, where a caption at the cursor would land, so the ghost shows first and the words
+   * only if the pointer stays.
    */
   const armTooltip = useCallback((text: string, x: number, y: number) => {
     clearTimeout(tooltipTimer.current);
@@ -411,15 +399,8 @@ export function ContextPad() {
               data-action={entry.action}
               data-testid={`context-pad-${entry.action}`}
               onMouseEnter={(event) => {
-                /* Down-and-right of the POINTER, the way a native `title` bubble
-                   sits — which is exactly what the reference's tooltips are, and
-                   why `preview/frame_04`, `frame_05` and `frame_08` each put the
-                   label at the cursor rather than squared to the entry it names.
-                   Anchoring to the entry's bottom edge instead lands the label in
-                   the band the hover GHOST occupies (`frame_02` draws the appended
-                   end event immediately right of the pad's second row), so the one
-                   thing the hover exists to show ends up underneath its own
-                   caption. One pointer offset fixes both. */
+                /* Down-and-right of the pointer, as a native `title` bubble sits. Anchored to
+                   the entry instead, the label would land in the band the hover ghost occupies. */
                 armTooltip(
                   title,
                   Math.round(event.clientX + TOOLTIP_GAP),

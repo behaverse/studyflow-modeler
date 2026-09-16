@@ -1,5 +1,5 @@
 import { SKILLS } from '@core/notation/loader';
-import type { ExportFormat } from '@modeler/export/formats';
+import type { ExportFormat } from '@modeler/diagram/formats';
 
 /** What "Open" hands a skill converting a foreign file. */
 export type OpenContext = {

@@ -11,7 +11,7 @@ import {
   recordDetails,
   shortWhen,
 } from '@modeler/provenance/records';
-import { computeSegLengths, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
+import { computeSegLengths, dedupePoints, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
 import { isHidden, type Point, type SceneEdge } from '@canvas/index.ts';
 import { tokenAnchor } from '@modeler/simulation/flowWalk';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
@@ -253,8 +253,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       && ((el.source === fromEl && el.target === target) || (el.source === target && el.target === fromEl)));
     const waypoints: Point[] = (flow?.waypoints ?? []).map((wp: any) => ({ x: wp.x, y: wp.y }));
     if (flow?.source === target) waypoints.reverse();
-    const points = [{ x: from.x, y: from.y }, ...waypoints, to].filter((p, i, all) =>
-      i === 0 || Math.abs(p.x - all[i - 1].x) > 0.5 || Math.abs(p.y - all[i - 1].y) > 0.5);
+    const points = dedupePoints([{ x: from.x, y: from.y }, ...waypoints, to]);
     const { segLengths, totalDist } = computeSegLengths(points);
     const duration = Math.min(450, Math.max(200, totalDist / 0.7));
     const start = performance.now();

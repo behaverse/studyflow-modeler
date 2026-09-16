@@ -23,7 +23,7 @@ import { getAttribute, getExpressionLanguage } from '@core/element';
 import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from '@core/document';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
-import { useAttributeState, useInspectedElement } from '@modeler/inspector/state';
+import { useAttributeState, useInspectedElement } from '@modeler/inspector/hooks';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { field as s } from '@modeler/inspector/styles';
 

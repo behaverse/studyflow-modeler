@@ -6,19 +6,17 @@ import type { AttributeSpec } from '@core/notation';
 import { t } from '@modeler/i18n';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
-import { useInspectedElement } from '@modeler/inspector/state';
+import { useInspectedElement } from '@modeler/inspector/hooks';
 import { isAttributeVisible } from '@modeler/inspector/categories';
 import { elementKey } from '@modeler/inspector/element';
 import { AttributeInput, OverriddenInput } from '@modeler/inspector/registry';
 import { ExpressionRow } from '@modeler/inspector/inputs';
 import { HelpTooltip } from '@modeler/inspector/widgets';
-import {
-  ChoreographyParticipantsSection,
-  DataFlowSection,
-  LoopSection,
-  MessageSection,
-  StateSection,
-} from '@modeler/inspector/sections';
+import { ChoreographyParticipantsSection } from '@modeler/inspector/participants';
+import { DataFlowSection } from '@modeler/inspector/dataFlow';
+import { LoopSection } from '@modeler/inspector/loop';
+import { MessageSection } from '@modeler/inspector/message';
+import { StateSection } from '@modeler/inspector/state';
 import { inspector as s, field as fld } from '@modeler/inspector/styles';
 
 function AttributeFields({ attrDefs }: { attrDefs: any[] }) {

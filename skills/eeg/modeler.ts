@@ -1,5 +1,5 @@
 /** What the eeg skill gives the modeler: the ARTEM-IS export, an EEG methods report over the diagram's acquisition, signal, and instrument elements. */
-import type { ExportFormat } from '@modeler/export/formats';
+import type { ExportFormat } from '@modeler/diagram/formats';
 import { hasRole, type ExportedElement, type ExportModel } from '@modeler/export/model';
 import type { ModelerModule } from '@modeler/skillModules';
 

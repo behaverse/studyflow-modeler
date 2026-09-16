@@ -8,7 +8,7 @@ import { executeCommand } from '@modeler/commandBus';
 import { ArrayInput, ChecklistInput, EnumInput, EnumListInput, ExpressionInput } from '@modeler/inspector/inputs';
 import { CodeEditor, SchemaEditor } from '@modeler/inspector/editors';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
-import { useAttributeState, useInspectedElement } from '@modeler/inspector/state';
+import { useAttributeState, useInspectedElement } from '@modeler/inspector/hooks';
 import { resolvePlaceholders, type AttributeOverride } from '@core/document';
 import { definitionsOf, getAttribute, toBusinessObject } from '@core/element';
 import { field as s } from '@modeler/inspector/styles';

@@ -12,7 +12,7 @@ import {
   exportFilename,
   getExportFormat,
   type ExportFormatId,
-} from '@modeler/export/formats';
+} from '@modeler/diagram/formats';
 import { ICONS } from '@modeler/icons';
 
 const s = {

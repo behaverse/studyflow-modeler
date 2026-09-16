@@ -1,7 +1,7 @@
 /** What the drawio skill gives the modeler: the draw.io export, the diagram on screen drawn with draw.io's own BPMN shapes. */
-import type { ExportFormat } from '@modeler/export/formats';
+import type { ExportFormat } from '@modeler/diagram/formats';
 import type { ModelerModule } from '@modeler/skillModules';
-import { exportDiagramName } from '@modeler/export/common';
+import { exportDiagramName } from '@modeler/diagram/name';
 import { readChoreographyBands } from '@core/document';
 import { choreographyBandHeight, isCollapsed, isHidden } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
