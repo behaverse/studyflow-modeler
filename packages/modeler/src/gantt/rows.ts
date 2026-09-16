@@ -160,3 +160,24 @@ export function groupBySwimlane(rows: Row[]): [string, Row[]][] {
   }
   return Array.from(map);
 }
+
+const TICK_STEPS_MIN = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360, 720, 1440, 2880, 10080];
+
+/** Tick positions (minutes) for a time axis from `min` to `max`: the smallest step giving at most `maxTicks` ticks. */
+export function axisTicks(min: number, max: number, maxTicks = 8): number[] {
+  const range = Math.max(1, max - min);
+  const step = TICK_STEPS_MIN.find((s) => range / s <= maxTicks) ?? TICK_STEPS_MIN[TICK_STEPS_MIN.length - 1];
+  const ticks: number[] = [];
+  for (let t = Math.ceil(min / step) * step; t <= max + 1e-9; t += step) ticks.push(t);
+  return ticks;
+}
+
+/** A tick's label: minutes since T0, in the largest unit that divides it. */
+export function tickLabel(min: number): string {
+  if (min === 0) return 'T0';
+  const sign = min < 0 ? '-' : '+';
+  const abs = Math.abs(min);
+  if (abs % 1440 === 0) return `${sign}${abs / 1440} d`;
+  if (abs % 60 === 0) return `${sign}${abs / 60} h`;
+  return `${sign}${abs} min`;
+}

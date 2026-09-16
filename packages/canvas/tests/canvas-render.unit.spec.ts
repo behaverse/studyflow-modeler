@@ -264,6 +264,53 @@ test('a routed edge renders as a path whose corners are quarter-arcs', async () 
   expect(straight.getAttribute('d')).not.toContain(' A ');
 });
 
+/** A horizontal flow at y=120 with two tasks above and below it, for a vertical flow to cross. */
+const CROSSING_YAML = `id: Defs_Cross
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Left:
+      type: Task
+      bounds: 100 80 100 80
+    Right:
+      type: Task
+      bounds: 400 80 100 80
+    Top:
+      type: Task
+      bounds: 250 -100 100 80
+    Bottom:
+      type: Task
+      bounds: 250 300 100 80
+    Flow_Across:
+      sourceRef: Left
+      targetRef: Right
+      waypoint: 200,120 400,120
+`;
+
+test('the flatter run jumps over the steeper edge it crosses, on either side of the drawing', async () => {
+  const { canvas } = loadYaml(CROSSING_YAML);
+  const across = canvas.getGraphics('Flow_Across')!.querySelector('path.sf-connection-line')!;
+  const pathOf = (id: string): string => canvas.getGraphics(id)!.querySelector('path.sf-connection-line')!.getAttribute('d')!;
+  const jumpsIn = (d: string): number => (d.match(/ A 5 5 /g) ?? []).length;
+  expect(pathOf('Flow_Across')).toBe('M 200 120 L 400 120');
+
+  // The vertical flow lands after the horizontal one was drawn: the crossing still cuts a
+  // semicircle into the horizontal path, centred on x=300, and leaves the vertical one straight.
+  const down = canvas.connectElements(node(canvas, 'Top'), node(canvas, 'Bottom'), undefined, [{ x: 300, y: -20 }, { x: 300, y: 300 }])!;
+  expect(pathOf('Flow_Across')).toBe('M 200 120 L 295 120 A 5 5 0 0 1 305 120 L 400 120');
+  expect(jumpsIn(pathOf(down.id))).toBe(0);
+  expect(across.getAttribute('data-waypoints')).toBe('200,120 400,120');
+
+  // A slant across both: flatter than the vertical, so it jumps that; steeper than the
+  // horizontal, so the horizontal jumps it (at x=275, its own arc apart from the first).
+  const slant = canvas.connectElements(node(canvas, 'Top'), node(canvas, 'Bottom'), undefined, [{ x: 100, y: -20 }, { x: 500, y: 300 }])!;
+  expect(pathOf('Flow_Across')).toBe('M 200 120 L 270 120 A 5 5 0 0 1 280 120 L 295 120 A 5 5 0 0 1 305 120 L 400 120');
+  expect(jumpsIn(pathOf(slant.id))).toBe(1);
+  expect(jumpsIn(pathOf(down.id))).toBe(0);
+});
+
 /**
  * Two pools and the message flow between them — no shipped example carries one, and
  * BPMN gives it a notation of its own: "a dashed line with an OPEN CIRCLE at the

@@ -16,6 +16,7 @@ import { nameOf, prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { isHidden, zRankOf } from '@canvas/model/tree.ts';
 import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver } from '@canvas/render/icons.ts';
+import { EDGE_CORNER_RADIUS, lineJumps, type Span } from '@canvas/render/jumps.ts';
 import {
   alignedX,
   drawBandText,
@@ -145,6 +146,7 @@ export class Renderer {
   readonly graphicsById = new Map<string, SVGGElement>();
   /** The drill-down scope, which decides what is drawn hidden. */
   scope?: SceneNode;
+  private scene?: Scene;
   private readonly iconResolver?: IconResolver;
   private readonly labelText?: RendererOptions['labelText'];
 
@@ -161,6 +163,7 @@ export class Renderer {
   renderScene(scene: Scene, layer: SVGElement): void {
     this.graphicsById.clear();
     this.scope = scene.scope;
+    this.scene = scene;
     const elements = [...scene.elementsById.values()].sort((a, b) => zRankOf(a) - zRankOf(b));
     for (const element of elements) {
       const g = this.draw(element);
@@ -284,7 +287,7 @@ export class Renderer {
     });
     append(g, create('path', {
       class: 'sf-connection-line',
-      d: roundedPathData(edge.waypoints),
+      d: roundedPathData(edge.waypoints, EDGE_CORNER_RADIUS, this.jumpsOf(edge)),
       'data-waypoints': edge.waypoints.map((p) => `${p.x},${p.y}`).join(' '),
       fill: 'none',
       stroke: edge.stroke ?? INK.stroke,
@@ -296,6 +299,26 @@ export class Renderer {
       'marker-start': markerStartFor(edge.type, isDefaultFlow(edge)),
     }));
     return g;
+  }
+
+  /** Re-cut every drawn edge's line jumps: a crossing belongs to two edges, and only one of them was redrawn. */
+  refreshJumps(): void {
+    for (const element of this.scene?.elementsById.values() ?? []) {
+      if (element.kind !== 'edge') continue;
+      const line = this.graphicsById.get(element.id)?.querySelector('.sf-connection-line');
+      line?.setAttribute('d', roundedPathData(element.waypoints, EDGE_CORNER_RADIUS, this.jumpsOf(element)));
+    }
+  }
+
+  private jumpsOf(edge: SceneEdge): Span[][] {
+    const below: Point[][] = [];
+    const above: Point[][] = [];
+    let seen = false;
+    for (const element of this.scene?.elementsById.values() ?? []) {
+      if (element === edge) seen = true;
+      else if (element.kind === 'edge' && !isHidden(element, this.scope)) (seen ? above : below).push(element.waypoints);
+    }
+    return lineJumps(edge.waypoints, below, above);
   }
 
   drawLabelElement(label: SceneLabel): SVGGElement {
@@ -472,30 +495,39 @@ export class Renderer {
   }
 }
 
-export const EDGE_CORNER_RADIUS = 6;
-
-/** Straight runs joined by quarter-arc corners; the waypoints stay the geometry. */
-export function roundedPathData(waypoints: readonly Point[], radius = EDGE_CORNER_RADIUS): string {
+/**
+ * Straight runs joined by quarter-arc corners, hopping over `jumps` (per segment, from
+ * `lineJumps`) with a semicircle; the waypoints stay the geometry.
+ */
+export function roundedPathData(
+  waypoints: readonly Point[], radius = EDGE_CORNER_RADIUS, jumps: readonly (readonly Span[])[] = [],
+): string {
   if (waypoints.length === 0) return '';
-  const first = waypoints[0];
-  if (waypoints.length === 1) return `M ${round(first.x)} ${round(first.y)}`;
-  let d = `M ${round(first.x)} ${round(first.y)}`;
-  for (let i = 1; i < waypoints.length - 1; i += 1) {
-    const prev = waypoints[i - 1];
-    const corner = waypoints[i];
-    const next = waypoints[i + 1];
-    const r = Math.min(radius, Math.hypot(corner.x - prev.x, corner.y - prev.y) / 2, Math.hypot(next.x - corner.x, next.y - corner.y) / 2);
-    const inDir = direction(prev, corner);
-    const outDir = direction(corner, next);
-    const cross = inDir.x * outDir.y - inDir.y * outDir.x;
+  let d = `M ${round(waypoints[0].x)} ${round(waypoints[0].y)}`;
+  for (let i = 0; i < waypoints.length - 1; i += 1) {
+    const from = waypoints[i];
+    const to = waypoints[i + 1];
+    const dir = direction(from, to);
+    // A jump bumps upward on a horizontal run (rightward on a vertical one): clockwise when heading right or down.
+    const sweep = dir.x < 0 || (dir.x === 0 && dir.y < 0) ? 0 : 1;
+    for (const [start, end] of jumps[i] ?? []) {
+      const r = (end - start) / 2;
+      d += ` L ${round(from.x + dir.x * start)} ${round(from.y + dir.y * start)}`
+        + ` A ${round(r)} ${round(r)} 0 0 ${sweep} ${round(from.x + dir.x * end)} ${round(from.y + dir.y * end)}`;
+    }
+    const next = waypoints[i + 2];
+    if (!next) break;
+    const r = Math.min(radius, Math.hypot(to.x - from.x, to.y - from.y) / 2, Math.hypot(next.x - to.x, next.y - to.y) / 2);
+    const outDir = direction(to, next);
+    const cross = dir.x * outDir.y - dir.y * outDir.x;
     if (r <= 0 || Math.abs(cross) < 1e-6) {
-      d += ` L ${round(corner.x)} ${round(corner.y)}`;
+      d += ` L ${round(to.x)} ${round(to.y)}`;
       continue;
     }
-    const from = { x: corner.x - inDir.x * r, y: corner.y - inDir.y * r };
-    const to = { x: corner.x + outDir.x * r, y: corner.y + outDir.y * r };
-    d += ` L ${round(from.x)} ${round(from.y)} A ${round(r)} ${round(r)} 0 0 ${cross > 0 ? 1 : 0} ${round(to.x)} ${round(to.y)}`;
+    d += ` L ${round(to.x - dir.x * r)} ${round(to.y - dir.y * r)}`
+      + ` A ${round(r)} ${round(r)} 0 0 ${cross > 0 ? 1 : 0} ${round(to.x + outDir.x * r)} ${round(to.y + outDir.y * r)}`;
   }
+  if (waypoints.length === 1) return d;
   const last = waypoints[waypoints.length - 1];
   return `${d} L ${round(last.x)} ${round(last.y)}`;
 }

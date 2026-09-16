@@ -2,6 +2,7 @@ import { layoutProcess } from 'bpmn-auto-layout';
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { layoutDataFlowTree, pickBounds } from '@modeler/diagram/dataFlowLayout';
+import { spreadEdges, type SpreadEdge } from '@modeler/diagram/edgeSpread';
 
 export function hasDiagramInterchange(xml: string): boolean {
   return /<(?:[\w.-]+:)?BPMNDiagram[\s/>]/.test(xml);
@@ -27,6 +28,7 @@ async function rebuildWithLayout(originalXml: string, laidOutXml: string, moddle
   definitions.diagrams = (laidOut.diagrams ?? [])
     .map((diagram: any) => copyDiagram(diagram, semanticById, moddle, definitions))
     .filter(Boolean);
+  for (const diagram of definitions.diagrams) spreadDiagramEdges(diagram, moddle);
 
   layoutDataFlowTree(definitions, moddle, { place: true });
 
@@ -44,6 +46,22 @@ async function drawMissingDataFlow(xml: string, moddle: any): Promise<string> {
     console.warn('Could not draw the data flow of a diagram; importing as-is.', err);
     return xml;
   }
+}
+
+/** Slide the plane's edges apart where auto-layout stacked them on one line. */
+function spreadDiagramEdges(diagram: any, moddle: any): void {
+  const planeElements: any[] = diagram.plane?.get('planeElement') ?? [];
+  const shapes = new Map<string, SpreadEdge['source']>();
+  for (const di of planeElements) {
+    if (di.$type === 'bpmndi:BPMNShape') shapes.set(di.bpmnElement.id, { ...pickBounds(di.bounds), type: di.bpmnElement.$type });
+  }
+  const edges = planeElements.filter((di) => di.$type === 'bpmndi:BPMNEdge');
+  const spread = spreadEdges(edges.map((di) => ({
+    waypoints: di.waypoint ?? [],
+    source: shapes.get(di.bpmnElement.sourceRef?.id),
+    target: shapes.get(di.bpmnElement.targetRef?.id),
+  })));
+  edges.forEach((di, i) => { di.waypoint = spread[i].map((p) => moddle.create('dc:Point', p)); });
 }
 
 function indexSemanticElements(definitions: any): Map<string, any> {

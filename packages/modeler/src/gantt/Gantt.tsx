@@ -1,16 +1,17 @@
 import { useMemo } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
-import { collectGanttRows, groupBySwimlane } from '@modeler/gantt/rows';
+import { axisTicks, collectGanttRows, groupBySwimlane, tickLabel } from '@modeler/gantt/rows';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
 
 type Props = { isOpen: boolean; onClose: () => void };
 
-const CHART_W = 640;
+const CHART_W = 580;
 const ROW_H = 24;
 const ROW_PAD = 6;
-const LABEL_W = 220;
+const LABEL_W = 280;
+const AXIS_H = 22;
 const PROGRESS_FILL = '#7c6f64';
 const BAR_FILL = '#c8b8a9';
 const BAR_STROKE = '#7c6f64';
@@ -38,6 +39,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
 
   const range = Math.max(1, maxOnset - minOnset);
   const xForMin = (min: number) => ((min - minOnset) / range) * CHART_W;
+  const ticks = hasScale ? axisTicks(minOnset, maxOnset) : [];
 
   return (
     <Modal
@@ -57,12 +59,15 @@ export function GanttDialog({ isOpen, onClose }: Props) {
               <div className={`${d.panelBody} space-y-5 pr-2`}>
                 {groups.map(([groupLabel, groupRows]) => (
                   <section key={groupLabel} className="overflow-x-auto">
-                    <h4 className="text-xs font-semibold uppercase tracking-wide text-stone-500 pb-1">
-                      {groupLabel}
-                    </h4>
+                    {/* The heading names the lane; a study without lanes has one group and no heading to give it. */}
+                    {(groups.length > 1 || groupLabel !== 'Unassigned') && (
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-stone-500 pb-1">
+                        {groupLabel}
+                      </h4>
+                    )}
                     <svg
                       width={LABEL_W + CHART_W + 16}
-                      height={groupRows.length * (ROW_H + ROW_PAD) + 8}
+                      height={groupRows.length * (ROW_H + ROW_PAD) + 8 + (hasScale ? AXIS_H : 0)}
                       role="img"
                       aria-label={`Gantt chart for ${groupLabel}`}
                     >
@@ -112,6 +117,17 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                           </g>
                         );
                       })}
+                      {hasScale && (
+                        <g transform={`translate(${LABEL_W}, ${groupRows.length * (ROW_H + ROW_PAD) + 6})`}>
+                          <line x1={0} x2={CHART_W} y1={0} y2={0} stroke={BAR_STROKE} strokeWidth={1} />
+                          {ticks.map((t) => (
+                            <g key={t} transform={`translate(${xForMin(t)}, 0)`}>
+                              <line y1={0} y2={4} stroke={BAR_STROKE} strokeWidth={1} />
+                              <text y={15} textAnchor="middle" fontSize={10} fill="#78716c">{tickLabel(t)}</text>
+                            </g>
+                          ))}
+                        </g>
+                      )}
                     </svg>
                   </section>
                 ))}
