@@ -754,7 +754,7 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
         digest["parent"] = studyflow.parents.get(element_id)  # the container, for lexical `{name}` lookups outward
         read = studyflow.reads(studyflow.elements[element_id])
         if read is not None:
-            # A key naming one of the element's attributes sets it (`scene: WO`); the rest is its `parameters`.
+            # A key naming one of the element's attributes sets it (`instrument: WO`); the rest is its `parameters`.
             attributes, digest["parameters"] = read
             ext = next((e for e in digest["extensions"] if e["namespace"] != PROV.PROV_TIMELINE), None)
             if attributes and ext:

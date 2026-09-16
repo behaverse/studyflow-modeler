@@ -7,10 +7,10 @@ import { fakeExportModel, wrapperElement } from './exporterFixture';
 
 test('building the export model leaves the catalog as it was', () => {
   // It lists an element's own attributes and its wrapper's. Adding the wrapper's to the catalog's list for the BPMN
-  // type made every later write of, say, `instrument` land on the task instead of on its wrapper.
+  // type made every later write of, say, `platform` land on the task instead of on its wrapper.
   const before = [...getCatalog().instanceAttributesOf('bpmn:Task')];
-  const model = fakeExportModel([wrapperElement('bpmn:Task', 'cognitive:CognitiveTask', { id: 'T', instrument: 'jspsych' })]);
+  const model = fakeExportModel([wrapperElement('bpmn:Task', 'cognitive:CognitiveTask', { id: 'T', platform: 'jspsych' })]);
 
-  expect(model.elements[0].attributes.instrument).toBe('jspsych');
+  expect(model.elements[0].attributes.platform).toBe('jspsych');
   expect(getCatalog().instanceAttributesOf('bpmn:Task')).toEqual(before);
 });

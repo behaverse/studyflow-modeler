@@ -442,7 +442,7 @@ Process_Cog:
       type: ChoreographyTask
       extensionElements:
         - type: cognitive:CognitiveTask
-          instrument: psychopy
+          platform: psychopy
       name: N-back
       participantRef:
         - Pool_Seat
@@ -451,7 +451,7 @@ Process_Cog:
 
 test('a cognitive task shows its presenter and the pool it names, and renaming the pool redraws it', async () => {
   const { canvas } = loadYaml(COGNITIVE_YAML);
-  // The upper band is the type's `meta.presenter` (`{instrument}`), the lower the participant.
+  // The upper band is the type's `meta.presenter` (`{platform}`), the lower the participant.
   expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['psychopy', 'Robot']));
 
   const pool = node(canvas, 'Pool_Seat');

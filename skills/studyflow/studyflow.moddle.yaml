@@ -894,7 +894,7 @@ types:
   # how a task is configured: a step reads the Parameters wired into it,
   # merged. Mappings merge key by key; a value two of them set is an error,
   # since nothing drawn orders the wires. A key naming one of the step's own
-  # attributes (`scene`) sets it, and the inspector shows that attribute
+  # attributes (`instrument`) sets it, and the inspector shows that attribute
   # locked; the rest is a task's configuration, or a sub-process's read-only
   # properties. Only a wire makes a Parameters object take effect.
   # ===========================================================================

@@ -106,7 +106,7 @@ export async function buildStudyflowXml(study: ImportedStudy, packages: Record<s
 }
 
 function buildTask(moddle: any, task: ImportedTask): any {
-  const cognitiveTask = moddle.create('cognitive:CognitiveTask', { instrument: task.instrument });
+  const cognitiveTask = moddle.create('cognitive:CognitiveTask', { platform: task.platform });
 
   const el = moddle.create('bpmn:UserTask', {
     id: task.id,

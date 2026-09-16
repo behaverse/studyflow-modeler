@@ -461,7 +461,7 @@ function bindParameters(
     for (const element of container.flowElements ?? []) {
       const sources = [...new Set(inputs.get(element.id))]
         .flatMap((id): [string, Record<string, unknown>][] => (reachable.has(id) ? [[id, reachable.get(id)!]] : []));
-      // A key naming one of the step's attributes sets it (`scene: WO`); the rest is a task's settings, a sub-process's
+      // A key naming one of the step's attributes sets it (`instrument: WO`); the rest is a task's settings, a sub-process's
       // read-only properties.
       let rest: Record<string, unknown> = {};
       if (sources.length > 0) {

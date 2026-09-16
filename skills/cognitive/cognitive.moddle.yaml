@@ -109,10 +109,10 @@ types:
       roles:
         - instrument
       # The upper band of the task: a template over its attributes, read raw.
-      presenter: "{instrument}"
+      presenter: "{platform}"
     properties:
-      - name: instrument
-        description: Software that delivers the task and reads the Parameters wired into it.
+      - name: platform
+        description: Software that delivers the task and reads the Parameters wired into it (PsychoPy, jsPsych, Behaverse).
         isAttr: true
         type: ExperimentSoftwareEnum
         meta:
@@ -274,16 +274,16 @@ templates:
               - "age_band: 18-29"
               - "age_band: 30-44"
               - "age_band: 45-65"
-  # A video game is a CognitiveTask whose instrument is a game engine, not its own type.
+  # A video game is a CognitiveTask whose platform is a game engine, not its own type.
   - description: A video game used as a paradigm or measurement instrument.
     elements:
       Video_game:
         type: ChoreographyTask
         name: Video game
         documentation: |
-          Set the game engine in `instrument`, and its levels, difficulty, and
+          Set the game engine in `platform`, and its levels, difficulty, and
           scoring in a Parameters object wired into the task.
         extensionElements:
           - type: cognitive:CognitiveTask
             icon: iconify ph--game-controller
-            instrument: unity
+            platform: unity

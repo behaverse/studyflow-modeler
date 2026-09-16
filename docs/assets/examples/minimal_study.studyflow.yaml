@@ -19,7 +19,7 @@ Minimal_Study:
       name: Flanker
       extensionElements:
         - type: cognitive:CognitiveTask
-          instrument: jspsych
+          platform: jspsych
           implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
 
     Done:

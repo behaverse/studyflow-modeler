@@ -24,7 +24,7 @@ const DEFAULT_PRESENTER = 'Task software';
 
 /**
  * What presents a typed task: its type's `meta.presenter`, a template over the extension's attributes
- * (`Behaverse \u00b7 {scene}`, `{instrument}`), read raw, or as the Parameters wired into the task set them. A type
+ * (`Behaverse - {instrument}`, `{platform}`), read raw, or as the Parameters wired into the task set them. A type
  * that declares none, or a template that comes out empty, presents as the study's software.
  */
 export function presenterLabel(bo: ModdleElement): string {

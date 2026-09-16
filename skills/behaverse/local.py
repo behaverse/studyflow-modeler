@@ -64,16 +64,17 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
     of the digest, for what the diagram draws around this task."""
     element_id = str(element.get("id"))
     attrs = (behaverse_extension(element) or {}).get("attributes") or {}
-    scene = str(attrs.get("scene") or "")
-    if not scene:
-        raise ValueError(f"behaverse:Task {element_id!r} has no scene; set it to a task the Unity build ships")
+    instrument = str(attrs.get("instrument") or "")
+    if not instrument:
+        raise ValueError(f"behaverse:Task {element_id!r} has no instrument; set it to a task the Unity build ships")
+    # The task's `timeline` is the one place that says what runs.
+    timeline = str(attrs.get("timeline") or "")
+    if not timeline:
+        raise ValueError(f"behaverse:Task {element_id!r} names no timeline, so it has no trials to run; set its timeline to one "
+                         "the build ships for the instrument, or to one the Parameters wired into it define under Timelines")
     # The task's GameConfig is what the Parameters wired into it say, merged, less the keys that set its attributes
     # (the plan's `parameters`).
     parameters = dict(element.get("parameters") or {})
-    named = str(attrs.get("timeline") or "")
-    if not parameters and not named:
-        raise ValueError(f"behaverse:Task {element_id!r} names no timeline and reads no GameConfig from the Parameters wired "
-                         "into it, so it has no trials to run; set its timeline to one the build ships, or define one inline")
     # `Bot:` is not GameConfig: how the build's bot plays the task, sent to Unity as the payload's own `bot`.
     bot_settings = parameters.pop("Bot", None)
     bot_settings = bot_settings if isinstance(bot_settings, dict) else {}
@@ -82,20 +83,16 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
         raise ValueError(f"behaverse:Task {element_id!r}: `Bot:` sets how the build's bot plays, not who answers "
                          f"({', '.join(authored)}); draw who takes the task instead")
     source = answered_by(element, plan or {}, auto)
-    payload: dict[str, Any] = {"scene": scene, "agentType": "human" if source == "human" else "bot",
+    # `scene` is the wire's name for the instrument (Unity's `Activity.Scene`).
+    payload: dict[str, Any] = {"scene": instrument, "timeline": timeline, "agentType": "human" if source == "human" else "bot",
                                "configMode": "builtin", "metadata": {"studyflowNodeId": element_id}}
-    if named:
-        payload["timeline"] = named
+    # `Timelines` defines timelines; Unity null-merges `parameters` over the build's own, so an empty entry would erase one.
     timelines = parameters.get("Timelines")
     if isinstance(timelines, dict):
-        if timelines and not named:
-            payload["timeline"] = next(iter(timelines))  # unnamed, the first timeline is what Unity runs
-        # Unity null-merges `parameters` over Resources/<scene>.json: a `{Name: null}` entry would erase that timeline.
-        inline = {name: definition for name, definition in timelines.items() if definition is not None}
-        if inline:
-            parameters["Timelines"] = inline
-        else:
-            del parameters["Timelines"]
+        empty = [name for name, definition in timelines.items() if definition is None]
+        if empty:
+            raise ValueError(f"behaverse:Task {element_id!r} defines no timeline called {', '.join(empty)}: Timelines defines "
+                             "timelines; the one that runs is the task's timeline")
     if parameters:
         payload["configMode"] = "inline"
         payload["parameters"] = parameters
@@ -361,8 +358,8 @@ def along_messages(payload: dict[str, Any]) -> bool:
 
 
 def stage_page(payload: dict[str, Any]) -> bytes:
-    title = f"{payload['scene']} / {payload.get('timeline') or 'default timeline'}"
-    stage = {"scene": payload["scene"], "timeline": payload.get("timeline"),
+    title = f"{payload['scene']} / {payload['timeline']}"
+    stage = {"scene": payload["scene"], "timeline": payload["timeline"],
              "source": "messages" if along_messages(payload) else "unity"}
     page = (STAGE_HTML.replace("__TITLE__", title).replace("__MOUNT__", BUILD_MOUNT)
             .replace("__PAYLOAD__", json.dumps(payload)).replace("__STAGE__", json.dumps(stage)))
@@ -515,7 +512,7 @@ def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, d
     stage = Stage(args.port, build, stage_page(payload), events, exchange)
     threading.Thread(target=stage.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{stage.server_port}/"
-    print(f"□ {element.get('name') or element['id']}: {payload['scene']} / {payload.get('timeline') or 'default timeline'} "
+    print(f"□ {element.get('name') or element['id']}: {payload['scene']} / {payload['timeline']} "
           f"({payload['agentType']}) — {url}", flush=True)
     if exchange:
         print(f"    each trial goes along {exchange.flow} to {exchange.agent}, and its answer comes back", flush=True)

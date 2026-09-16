@@ -49,7 +49,8 @@ Agent_Eval_Pool:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Eval_2Back
       name: Random baseline agent
       participantRef:
         - Actor_Random_bot
@@ -116,7 +117,8 @@ Agent_Eval_Pool:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Eval_2Back
       name: Claude LLM agent
       participantRef:
         - Actor_Claude__claude_haiku_4_5
@@ -203,7 +205,8 @@ Agent_Eval_Pool:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Eval_2Back
       name: Ollama LLM agent (local)
       participantRef:
         - Actor_Ollama__gemma4_e2b_mlx

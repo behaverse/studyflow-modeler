@@ -81,8 +81,8 @@ types point at (`prov:Activity`), and writes `superClass: [Element]`, moddle's r
 | `icon` | Canvas + palette + append-menu glyph (Iconify class). |
 | `editor` (on a value type or any other type) | Default editor for every attribute *of that type* (see editor names below). |
 | `roles` | What the type stands for to exporters and the data-operation marker (`instrument`, `signal`, `acquisition`, …). `data-element` alone follows from the BPMN attach point; don't restate it. |
-| `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {scene}"`), read raw. Empty or absent, the band reads "Task software". |
-| `glyph` | The attribute whose value is drawn as text over the type icon (`scene`). |
+| `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {instrument}"`), read raw. Empty or absent, the band reads "Task software". |
+| `glyph` | The attribute whose value is drawn as text over the type icon (`instrument`). |
 | `participantKind` (on a `bpmn:Participant` type) | What a band-only actor can be: the name of one of the type's enum attributes, one kind per literal (`actorType`), or the label of the one kind the type itself is (`Reachy Mini`). |
 | `branching` | Gateway semantics for both runners (`random`, `condition`, `model`); the allowed set is pinned by `tests/schemas.unit.spec.ts`. `skills/local/run.py` reads it from the schema file itself. |
 | `categories` | Palette-group override (rarely needed: groups derive from the BPMN ancestor). Distinct from an attribute's `meta.categories`, which is its inspector tab. |
@@ -103,7 +103,7 @@ Each entry of a type's `properties` is one attribute.
 | `isMany: true` | A list, one child element per entry. |
 | `isBody: true` | The element's text body: the one attribute of a value holder. |
 | `default` | The value a new element starts with, as plain YAML of the attribute's type (`csv`, `3`, `0.5`, `true`); `tests/schemas.unit.spec.ts` checks the type. Quote a value YAML would read as another type (`default: '50'`). On an enum attribute it must be one of the literal values (checked at compile). |
-| `redefines: Type#property`, `replaces: Type#property` | Overrides an inherited property; see precedence below. The type is named like any other (`cognitive:CognitiveTask#instrument`, `bpmn:ServiceTask#implementation`); anything not spelled `Type#property` overrides nothing (a diagnostic). Overriding a BPMN property also names it `bpmn:<property>`, or the value is written in the schema's own namespace. |
+| `redefines: Type#property`, `replaces: Type#property` | Overrides an inherited property; see precedence below. The type is named like any other (`cognitive:CognitiveTask#platform`, `bpmn:ServiceTask#implementation`); anything not spelled `Type#property` overrides nothing (a diagnostic). Overriding a BPMN property also names it `bpmn:<property>`, or the value is written in the schema's own namespace. |
 | `xml.serialize: xsi:type` | On a `bpmn:Expression` attribute: moddle writes the element with its `xsi:type`, as BPMN writes an expression. |
 | `meta` | The app's own keys; below. |
 

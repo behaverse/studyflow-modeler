@@ -64,7 +64,7 @@ Reachy_Session:
       type: Task
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
       name: N-Back
       dataInputAssociations:
         In_NBack_Parameters:
@@ -77,8 +77,7 @@ Reachy_Session:
       extensionElements:
         - type: studyflow:Parameters
           values:
-            Timelines:
-              XCIT_NB_01: null
+            timeline: XCIT_NB_01
       name: Parameters
       bounds: 807 300 36 50
     Celebrate:

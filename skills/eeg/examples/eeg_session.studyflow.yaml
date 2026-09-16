@@ -31,7 +31,7 @@ EEG_Session:
       type: Task
       extensionElements:
         - type: cognitive:CognitiveTask
-          instrument: psychopy
+          platform: psychopy
       name: Cognitive task
       dataInputAssociations:
         In_Cognitive_Task_Parameters:

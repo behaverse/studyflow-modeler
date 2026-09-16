@@ -27,7 +27,7 @@ test('an attribute is read and written where it lives, and a read takes the valu
     },
     {
       label: 'a wrapper attribute, on the wrapper', type: 'bpmn:Task', wrapper: 'cognitive:CognitiveTask',
-      writes: [['instrument', 'jsPsych']], reads: { instrument: 'jsPsych' }, holder: (bo) => wrapperOf(bo).instrument,
+      writes: [['platform', 'jsPsych']], reads: { platform: 'jsPsych' }, holder: (bo) => wrapperOf(bo).platform,
     },
     {
       label: 'a body-wrapped attribute, read as its body', type: 'bpmn:SequenceFlow',

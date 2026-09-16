@@ -33,7 +33,7 @@ function taskXml(...values: string[]): string {
     </bpmn2:extensionElements>
     <bpmn2:task id="TheTask" name="The task">
       <bpmn2:extensionElements>
-        <behaverse:task scene="NB" />
+        <behaverse:task instrument="NB" />
       </bpmn2:extensionElements>
       ${wires}
     </bpmn2:task>
@@ -54,7 +54,7 @@ function bandsXml(actor: string): string {
   <bpmn2:process id="BandsFixture" name="Bands fixture">
     <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
     <bpmn2:choreographyTask id="TheTask" name="The task" initiatingParticipantRef="Screen">
-      <bpmn2:extensionElements><behaverse:task scene="NB" /></bpmn2:extensionElements>
+      <bpmn2:extensionElements><behaverse:task instrument="NB" timeline="XCIT_NB_01" /></bpmn2:extensionElements>
       <bpmn2:participantRef>Screen</bpmn2:participantRef><bpmn2:participantRef>Taker</bpmn2:participantRef>
       <bpmn2:dataInputAssociation id="In1"><bpmn2:sourceRef>Instructions</bpmn2:sourceRef></bpmn2:dataInputAssociation>
       ${wires}
@@ -76,7 +76,7 @@ const TWO_PARTNERS_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn2:messageFlow id="M2" sourceRef="TheTask" targetRef="Agent" />
   </bpmn2:collaboration>
   <bpmn2:process id="P"><bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
-    <bpmn2:choreographyTask id="TheTask" name="The task"><bpmn2:extensionElements><behaverse:task scene="NB" /></bpmn2:extensionElements></bpmn2:choreographyTask>
+    <bpmn2:choreographyTask id="TheTask" name="The task"><bpmn2:extensionElements><behaverse:task instrument="NB" timeline="XCIT_NB_01" /></bpmn2:extensionElements></bpmn2:choreographyTask>
   </bpmn2:process>
 </bpmn2:definitions>`;
 
@@ -87,51 +87,34 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
   const CASES: {
     label: string;
     xml: string;
-    /** The scene is the fixture's own NB unless a row says otherwise. */
-    payload?: Omit<BehaverseTaskPayload, 'scene' | 'metadata'> & { scene?: string };
+    /** The instrument is the fixture's own NB, and the timeline XCIT_NB_01, unless a row says otherwise. */
+    payload?: Omit<BehaverseTaskPayload, 'scene' | 'timeline' | 'metadata'> & { scene?: string; timeline?: string };
     unityBot?: BehaverseBotPayload;
     error?: RegExp;
   }[] = [
     {
-      label: 'a timeline named but not defined runs the build\'s own, and a person with no one named takes it',
-      xml: taskXml('Timelines:\n  XCIT_NB_01:\n'),
-      payload: { agentType: 'human', configMode: 'builtin', timeline: 'XCIT_NB_01' },
+      label: 'a timeline the task names runs the build\'s own, with no GameConfig to send, and a person with no one named takes it',
+      xml: taskXml('timeline: XCIT_NB_01\n'),
+      payload: { agentType: 'human', configMode: 'builtin' },
     },
     {
-      label: 'an inline timeline definition runs inline and keeps its definition',
-      xml: taskXml('Blocks:\n  B1:\n    Name: B1\nTimelines:\n  T1:\n    Name: T1\n    blocks:\n      - name: B1\n'),
+      label: 'a timeline the Parameters define runs inline and keeps its definition',
+      xml: taskXml('timeline: T1\nBlocks:\n  B1:\n    Name: B1\nTimelines:\n  T1:\n    Name: T1\n    blocks:\n      - name: B1\n'),
       payload: {
         agentType: 'human', configMode: 'inline', timeline: 'T1',
         parameters: { Blocks: { B1: { Name: 'B1' } }, Timelines: { T1: { Name: 'T1', blocks: [{ name: 'B1' }] } } },
       },
     },
     {
-      // Unity null-merges `parameters` over the build's own, so a by-name entry would erase that timeline.
-      label: 'inline overrides beside a timeline reference ship without the reference entry',
-      xml: taskXml('Blocks:\n  B1:\n    Name: B1\nTimelines:\n  XCIT_NB_01:\n'),
-      payload: {
-        agentType: 'human', configMode: 'inline', timeline: 'XCIT_NB_01',
-        parameters: { Blocks: { B1: { Name: 'B1' } } },
-      },
-    },
-    {
-      label: 'a reference among inline timelines is stripped, and the first key still names the run',
-      xml: taskXml('Timelines:\n  XCIT_NB_01:\n  T1:\n    Name: T1\n    blocks: []\n'),
-      payload: {
-        agentType: 'human', configMode: 'inline', timeline: 'XCIT_NB_01',
-        parameters: { Timelines: { T1: { Name: 'T1', blocks: [] } } },
-      },
+      label: 'inline overrides beside a timeline the build ships run inline over it',
+      xml: taskXml('timeline: XCIT_NB_01\nBlocks:\n  B1:\n    Name: B1\n'),
+      payload: { agentType: 'human', configMode: 'inline', parameters: { Blocks: { B1: { Name: 'B1' } } } },
     },
     {
       // Nothing drawn orders the wires, so the objects merge key by key and a value set twice is refused.
       label: 'two Parameters objects wired into the task merge into one GameConfig',
-      xml: taskXml('Timelines:\n  XCIT_NB_01:\n', 'Blocks:\n  B1:\n    Name: B1\n'),
-      payload: { agentType: 'human', configMode: 'inline', timeline: 'XCIT_NB_01', parameters: { Blocks: { B1: { Name: 'B1' } } } },
-    },
-    {
-      label: 'a timeline the task names runs the build\'s own, with no GameConfig to send',
-      xml: taskXml('timeline: XCIT_NB_01\n'),
-      payload: { agentType: 'human', configMode: 'builtin', timeline: 'XCIT_NB_01' },
+      xml: taskXml('timeline: XCIT_NB_01\n', 'Blocks:\n  B1:\n    Name: B1\n'),
+      payload: { agentType: 'human', configMode: 'inline', parameters: { Blocks: { B1: { Name: 'B1' } } } },
     },
     {
       label: 'a timeline the task names runs, not the first one the Parameters define',
@@ -142,10 +125,21 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       },
     },
     {
-      // `scene` names an attribute of the task: it runs WO in place of the task's own NB, and never reaches the GameConfig.
-      label: 'a scene the wired Parameters set is the scene that runs',
-      xml: taskXml('scene: WO\nTimelines:\n  SimonTask:\n'),
+      // `instrument` names an attribute of the task: it runs WO in place of the task's own NB, and never reaches the GameConfig.
+      label: 'an instrument the wired Parameters set is the instrument that runs',
+      xml: taskXml('instrument: WO\ntimeline: SimonTask\n'),
       payload: { scene: 'WO', agentType: 'human', configMode: 'builtin', timeline: 'SimonTask' },
+    },
+    {
+      label: 'a task naming no timeline has no trials to run, and is refused',
+      xml: taskXml('Blocks:\n  B1:\n    Name: B1\n'),
+      error: /names no timeline/,
+    },
+    {
+      // Unity null-merges `parameters` over the build's own, so an empty entry would erase that timeline, not name it.
+      label: 'an empty Timelines entry defines nothing, and is refused',
+      xml: taskXml('timeline: XCIT_NB_01\nTimelines:\n  XCIT_NB_01:\n'),
+      error: /defines no timeline called XCIT_NB_01/,
     },
     {
       label: 'a value two wired Parameters objects both set is an error naming both',
@@ -179,7 +173,7 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     },
     {
       label: 'a `Bot:` entry naming who answers is refused: the drawing says that',
-      xml: taskXml('Bot:\n  ResponseSource: external'),
+      xml: taskXml('timeline: XCIT_NB_01\nBot:\n  ResponseSource: external'),
       error: /not who answers \(ResponseSource\)/,
     },
     {
@@ -201,7 +195,7 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       continue;
     }
     const built = await payloadOf(xml);
-    expect(built, label).toEqual({ scene: 'NB', metadata: { studyflowNodeId: 'TheTask' }, ...payload });
+    expect(built, label).toEqual({ scene: 'NB', timeline: 'XCIT_NB_01', metadata: { studyflowNodeId: 'TheTask' }, ...payload });
     expect(botForUnity(built?.bot), `${label}: the bot Unity gets`).toEqual(unityBot ?? payload?.bot);
   }
 });

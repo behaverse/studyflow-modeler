@@ -32,7 +32,8 @@ Demo5_OllamaBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Demo5_Warmup
       name: 1-Back warm-up (tired)
       participantRef:
         - Actor_Ollama__gemma4_e2b_mlx
@@ -113,7 +114,8 @@ Demo5_OllamaBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Demo5_Main
       name: 2-Back main (expert)
       participantRef:
         - Actor_Ollama__gemma4_e2b_mlx

@@ -32,7 +32,8 @@ Demo4_LLMBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Demo4_Warmup
       name: 1-Back warm-up (tired)
       participantRef:
         - Claude
@@ -114,7 +115,8 @@ Demo4_LLMBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Demo4_Main
       name: 2-Back main (expert)
       participantRef:
         - Claude
@@ -201,7 +203,8 @@ Demo4_LLMBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: WO
+          instrument: WO
+          timeline: SimonTask
       name: WhichOne (vision)
       participantRef:
         - Claude
@@ -220,8 +223,6 @@ Demo4_LLMBot:
       extensionElements:
         - type: studyflow:Parameters
           values:
-            Timelines:
-              SimonTask: null
             Bot:
               IncludeScreenshot: true
               Speed: 5

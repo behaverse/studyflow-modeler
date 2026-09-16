@@ -37,11 +37,19 @@ export function readBehaverseAttribute(bo: any, attributeName: string): string |
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
   if (node.extensionType !== BEHAVERSE_TASK_TYPE) return null;
 
-  const scene = readBehaverseAttribute(node.businessObject, 'scene') ?? '';
-  if (!scene || scene === 'undefined') {
+  const instrument = readBehaverseAttribute(node.businessObject, 'instrument') ?? '';
+  if (!instrument || instrument === 'undefined') {
     throw new Error(
-      `behaverse:Task '${node.id}' has no scene, so the browser runner cannot tell which task to load. `
-      + 'Set scene to a task the Unity build ships.',
+      `behaverse:Task '${node.id}' has no instrument, so the browser runner cannot tell which task to load. `
+      + 'Set instrument to a task the Unity build ships.',
+    );
+  }
+  // The task's `timeline` is the one place that says what runs; it keys the bridge's completion matcher too.
+  const timeline = readBehaverseAttribute(node.businessObject, 'timeline');
+  if (!timeline) {
+    throw new Error(
+      `behaverse:Task '${node.id}' names no timeline, so it has no trials to run. `
+      + 'Set timeline to one the build ships for the instrument (e.g. XCIT_NB_01), or to one the Parameters wired into it define under Timelines.',
     );
   }
 
@@ -65,26 +73,25 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
   const actor = actorOf(node.businessObject);
   const agentType: 'human' | 'bot' = actor.kind && actor.kind !== 'human' ? 'bot' : 'human';
 
+  // `scene` is the wire's name for the instrument (Unity's `Activity.Scene`).
   const payload: BehaverseTaskPayload = {
-    scene,
+    scene: instrument,
+    timeline,
     agentType,
     configMode: 'builtin',
     metadata: { studyflowNodeId: node.id },
   };
 
-  // The task's `timeline` names what Unity runs and keys the bridge's completion matcher; unset, the first under Timelines.
-  const named = readBehaverseAttribute(node.businessObject, 'timeline');
-  if (named) payload.timeline = named;
+  // `Timelines` defines timelines; Unity null-merges `parameters` over the build's own, so an empty entry would erase one, not name it.
   const timelines = parameters.Timelines as Record<string, unknown> | undefined;
   if (timelines && typeof timelines === 'object') {
-    const firstTimelineKey = Object.keys(timelines)[0];
-    if (firstTimelineKey && !named) payload.timeline = firstTimelineKey;
-    // Unity null-merges `parameters` over Resources/<scene>.json, so a `{Name: null}` entry would erase that timeline.
-    const inlineTimelines = Object.fromEntries(
-      Object.entries(timelines).filter(([, definition]) => definition != null),
-    );
-    if (Object.keys(inlineTimelines).length > 0) parameters.Timelines = inlineTimelines;
-    else delete parameters.Timelines;
+    const empty = Object.keys(timelines).filter((name) => timelines[name] == null);
+    if (empty.length > 0) {
+      throw new Error(
+        `behaverse:Task '${node.id}' defines no timeline called ${empty.join(', ')}: `
+        + 'Timelines defines timelines; the one that runs is the task\'s timeline.',
+      );
+    }
   }
   if (Object.keys(parameters).length > 0) {
     payload.configMode = 'inline';

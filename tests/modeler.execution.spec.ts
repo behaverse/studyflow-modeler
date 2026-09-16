@@ -135,9 +135,9 @@ test('an expression field carries a language select that persists, and emptying 
   expect(await readDownloadText(await exportDiagram(page, 'bpmn'))).not.toContain('conditionExpression');
 });
 
-/** A Behaverse task whose own scene is NB, and a Parameters object wired into it that sets WO; a sub-process with one
+/** A Behaverse task whose own instrument is NB, and a Parameters object wired into it that sets WO; a sub-process with one
  * wired into it too. */
-const OVERRIDDEN_SCENE = `id: overridden_scene
+const OVERRIDDEN_INSTRUMENT = `id: overridden_instrument
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Overridden_Scene:
@@ -148,7 +148,7 @@ Overridden_Scene:
       name: Play
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
       dataInputAssociations:
         In_Settings:
           sourceRef:
@@ -161,9 +161,8 @@ Overridden_Scene:
       extensionElements:
         - type: studyflow:Parameters
           values:
-            scene: WO
-            Timelines:
-              SimonTask: null
+            instrument: WO
+            timeline: SimonTask
       bounds: 302 308 36 50
     Block:
       type: SubProcess
@@ -188,19 +187,22 @@ Overridden_Scene:
 test('what the Parameters wired into a step set is shown locked, naming them, and one click selects them', async ({ page }) => {
   await gotoModeler(page);
   await page.getByTestId('open-file-input').setInputFiles({
-    name: 'overridden_scene.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(OVERRIDDEN_SCENE),
+    name: 'overridden_instrument.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(OVERRIDDEN_INSTRUMENT),
   });
   await page.locator('g[data-element-id="Play"]').click();
   const inspector = page.getByTestId('inspector-root');
   await inspector.getByRole('tab', { name: 'Execution' }).click();
 
-  const scene = inspector.locator('input[name$="scene"]');
-  await expect(scene).toHaveValue('WO');
-  await expect(scene).toBeDisabled();
-  await expect(inspector.getByTestId('overridden-scene'))
-    .toContainText("Set by WhichOne settings (scene); edit it there, not here. This element's own value, NB, is not used.");
+  const instrument = inspector.locator('input[name$="instrument"]');
+  await expect(instrument).toHaveValue('WO');
+  await expect(instrument).toBeDisabled();
+  await expect(inspector.getByTestId('overridden-instrument'))
+    .toContainText("Set by WhichOne settings (instrument); edit it there, not here. This element's own value, NB, is not used.");
+  // The same object sets the timeline, so that field is locked too, naming it.
+  await expect(inspector.locator('input[name$="timeline"]')).toHaveValue('SimonTask');
+  await expect(inspector.locator('input[name$="timeline"]')).toBeDisabled();
 
-  await inspector.getByRole('button', { name: 'WhichOne settings', exact: true }).click();
+  await inspector.getByRole('button', { name: 'WhichOne settings', exact: true }).first().click();
   await expect(inspector).toContainText('studyflow:Parameters');
 
   // Wired into a sub-process, they are its properties, read-only beside the ones it declares.

@@ -11,7 +11,7 @@ function eegDiagram(): any {
   const task = wrapperElement('bpmn:Task', 'cognitive:CognitiveTask', {
     id: 'Task_1',
     name: 'N-back',
-    instrument: 'jspsych',
+    platform: 'jspsych',
   });
   const recording = wrapperElement('bpmn:DataObjectReference', 'studyflow:Timeseries', {
     id: 'EEG_1',
@@ -51,9 +51,9 @@ test.describe('ARTEM-IS export', () => {
   test('fills the task, preprocessing, analysis and dataset blocks from the diagram\'s elements', () => {
     const { task, preprocessing, analysis, datasets } = report(eegDiagram());
 
-    // A list, not the `{ not_applicable: true }` placeholder: a wrapper-style type declaring `instrument` is all it asks.
+    // A list, not the `{ not_applicable: true }` placeholder: a wrapper-style type with the `instrument` role is all it asks.
     expect(task, JSON.stringify(task)).toEqual([expect.objectContaining({
-      element_id: 'Task_1', label: 'N-back', studyflow_type: 'cognitive:CognitiveTask', instrument: 'jspsych',
+      element_id: 'Task_1', label: 'N-back', studyflow_type: 'cognitive:CognitiveTask', platform: 'jspsych',
     })]);
     // The operation over the EEG recording is preprocessing; the one downstream of it, analysis.
     expect(preprocessing, JSON.stringify(preprocessing)).toEqual([expect.objectContaining({

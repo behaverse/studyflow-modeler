@@ -36,7 +36,7 @@ test('opens a timeline as a study that chains start -> tasks -> end, a cognitive
   expect(chain.map((node) => node.name)).toEqual(['Start', 'Instructions', 'Fixation', 'Flanker test', 'Debrief', 'Escapes', 'End']);
   expect(chain[0].get('studyflow:consentFormUri')).toBe('https://example.org/protocols/flanker/consent.md');
 
-  // Each trial is a cognitive task: instrument jspsych, a versioned `jspsych://` implementation, and a Parameters
+  // Each trial is a cognitive task: platform jspsych, a versioned `jspsych://` implementation, and a Parameters
   // object wired into it holding the trial's parameters bar `type`.
   const trials = [...FLANKER.slice(1), escapes];
   const wires: any[] = [];
@@ -44,7 +44,7 @@ test('opens a timeline as a study that chains start -> tasks -> end, a cognitive
     const ref = parseImplementationRef(task.implementation);
     expect(ref.ok && [ref.value.scheme, ref.value.version], task.name).toEqual(['jspsych', '8']);
     const [wrapper] = task.extensionElements.values;
-    expect([wrapper.$type, wrapper.get('instrument')], task.name).toEqual(['cognitive:CognitiveTask', 'jspsych']);
+    expect([wrapper.$type, wrapper.get('platform')], task.name).toEqual(['cognitive:CognitiveTask', 'jspsych']);
     const [wire] = task.dataInputAssociations;
     wires.push(wire);
     const [holder] = wire.sourceRef[0].extensionElements.values;

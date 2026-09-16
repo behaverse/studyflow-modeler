@@ -4,7 +4,7 @@ definitions:
 Behaverse_Demo:
   type: bpmn:Process
   name: Behaverse task
-  documentation: A single Behaverse assessment, run on its own. Its scene is the study's `task` property, its timeline the Parameters wired into it, and a link replaces either (`?task=NB&timeline=XCIT_NB_01`), so one diagram delivers any task the build ships. It carries no start or end event on purpose - nothing but the task itself is shown.
+  documentation: A single Behaverse assessment, run on its own. Its instrument is the study's `task` property, its timeline the Parameters wired into it, and a link replaces either (`?task=NB&timeline=XCIT_NB_01`), so one diagram delivers any task the build ships. It carries no start or end event on purpose - nothing but the task itself is shown.
   extensionElements:
     - type: studyflow:Study
   properties:
@@ -28,4 +28,4 @@ Behaverse_Demo:
             - Task_Parameters
       extensionElements:
         - type: behaverse:Task
-          scene: "{task}"
+          instrument: "{task}"

@@ -62,7 +62,8 @@ LabLink_Demo:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: LabLink_Inline
       name: |-
         1-Back
         (warm-up)
@@ -126,7 +127,7 @@ LabLink_Demo:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
       name: |-
         2-Back
         (Symbols)
@@ -143,15 +144,14 @@ LabLink_Demo:
       extensionElements:
         - type: studyflow:Parameters
           values:
-            Timelines:
-              XCIT_NB_05: null
+            timeline: XCIT_NB_05
       name: Parameters
       bounds: 1092 210 36 50
     Arm_XCIT_NB_03:
       type: Task
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
       name: |-
         2-Back
         (Digits, human)
@@ -166,15 +166,15 @@ LabLink_Demo:
       extensionElements:
         - type: studyflow:Parameters
           values:
-            Timelines:
-              XCIT_NB_02: null
+            timeline: XCIT_NB_02
       name: Parameters
       bounds: 1092 418 36 50
     Arm_Demo:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: LabLink_Inline
       name: 1-Back
       participantRef:
         - Actor_Random_bot

@@ -84,7 +84,7 @@ CONSORT_2025:
         - [ ] Adverse events review
       extensionElements:
         - type: cognitive:CognitiveTask
-          instrument: jspsych
+          platform: jspsych
       name: Follow-up
       bounds: 200 630 160 80
     LostFollowup_A:

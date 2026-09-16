@@ -392,7 +392,8 @@ WhichOne_Task:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: WO
+          instrument: WO
+          timeline: SimonTask
       name: WhichOne, 5 Simon trials
       dataInputAssociations:
         In_Play_Parameters:

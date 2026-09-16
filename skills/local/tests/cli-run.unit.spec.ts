@@ -235,7 +235,7 @@ test.describe('partial runner hand-off', () => {
   <bpmn:process id="P">
     <bpmn:startEvent id="Start"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
     <bpmn:task id="T" name="fit" implementation="python://m.f">
-      <bpmn:extensionElements><cognitive:cognitiveTask instrument="x"><cognitive:note>a</cognitive:note><cognitive:note>b</cognitive:note></cognitive:cognitiveTask></bpmn:extensionElements>
+      <bpmn:extensionElements><cognitive:cognitiveTask platform="x"><cognitive:note>a</cognitive:note><cognitive:note>b</cognitive:note></cognitive:cognitiveTask></bpmn:extensionElements>
       <bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing>
       <bpmn:ioSpecification><bpmn:dataInput id="In1" name="table"/></bpmn:ioSpecification>
       <bpmn:dataInputAssociation id="DIA"><bpmn:sourceRef>Dat</bpmn:sourceRef><bpmn:targetRef>In1</bpmn:targetRef><bpmn:transformation language="python">x = y</bpmn:transformation></bpmn:dataInputAssociation>
@@ -275,7 +275,7 @@ test.describe('partial runner hand-off', () => {
     const task = digest.elements.T;
     expect(task.type).toBe('task');
     expect(task.attributes.implementation).toBe('python://m.f');
-    expect(task.extensions).toEqual([{ namespace: 'http://behaverse.org/schemas/cognitive/v1', type: 'cognitiveTask', attributes: { instrument: 'x', note: ['a', 'b'] } }]);
+    expect(task.extensions).toEqual([{ namespace: 'http://behaverse.org/schemas/cognitive/v1', type: 'cognitiveTask', attributes: { platform: 'x', note: ['a', 'b'] } }]);
     expect(task.additionalArguments).toBe('k: 1');
     expect(task.ioSlots).toEqual({ In1: 'table' });
     expect(task.inputs).toEqual([{ source: 'Dat', target: 'In1', transformation: 'x = y', language: 'python' }]);

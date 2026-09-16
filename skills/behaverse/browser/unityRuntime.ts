@@ -60,7 +60,7 @@ export function runOnUnity(
     const onCompleted = (detail: TaskCompletion | undefined) => {
       const matches = !!detail
         && detail.TaskId === payload.scene
-        && (!payload.timeline || !detail.TimelineId || detail.TimelineId === payload.timeline);
+        && (!detail.TimelineId || detail.TimelineId === payload.timeline);
       if (!matches) return;
       cleanup();
       resolve(detail);

@@ -32,7 +32,8 @@ Demo3_ExternalBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Demo3_Warmup
       name: 1-Back warm-up
       participantRef:
         - Actor_Random_bot
@@ -95,7 +96,8 @@ Demo3_ExternalBot:
       type: ChoreographyTask
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: Demo3_Main
       name: 2-Back main
       participantRef:
         - Actor_Random_bot

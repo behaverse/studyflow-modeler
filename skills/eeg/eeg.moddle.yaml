@@ -247,7 +247,7 @@ templates:
             extensionElements:
               - type: cognitive:CognitiveTask
                 icon: iconify ph--puzzle-piece
-                instrument: psychopy
+                platform: psychopy
             dataInputAssociations:
               In_eeg_task_parameters:
                 sourceRef:

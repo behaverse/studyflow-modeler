@@ -12,7 +12,7 @@ export type JsPsychImportOptions = {
 export type ImportedTask = {
   id: string;
   name: string;
-  instrument: 'jspsych';
+  platform: 'jspsych';
   /** `<scheme>://<ref>[@<version>]`, validated against the `implementation` grammar. */
   functionRef: string;
   /** The trial's parameters, less `type`: the Parameters object wired into the task. */
@@ -206,7 +206,7 @@ export function importJsPsychTimeline(input: JsPsychTimelineInput, options: JsPs
     return {
       id: taskId,
       name: label,
-      instrument: 'jspsych' as const,
+      platform: 'jspsych' as const,
       functionRef,
       parameters: extractConfig(node, label, warnings),
     };

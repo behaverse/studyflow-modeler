@@ -32,8 +32,8 @@ enumerations:
       - name: One Response
         value: behaverse:Response
         description: The response to a trial, from participant to task.
-  - name: SceneEnum
-    description: Visual scene that runs a Behaverse assessment.
+  - name: InstrumentEnum
+    description: A task of the Behaverse battery, by its id (BDM `instrument_id`).
     literalValues:
       - name: Belval Card Sorting (BCS)
         value: BCS
@@ -95,39 +95,39 @@ enumerations:
 
 types:
   - name: Task
-    description: A task from the Behaverse assessment battery, configured by its attributes and the "Parameters" wired into it.
+    description: 'A task from the Behaverse assessment battery. Its `instrument` says which, its `timeline` what runs, and the "Parameters" wired into it configure it.'
     superClass:
       - cognitive:CognitiveTask
     meta:
       icon: iconify bi--hexagon
-      presenter: "Behaverse - {scene}"
-      glyph: scene
+      presenter: "Behaverse - {instrument}"
+      glyph: instrument
     properties:
-      - name: instrument
+      - name: platform
         default: behaverse
         type: String
         isAttr: true
-        redefines: cognitive:CognitiveTask#instrument
+        redefines: cognitive:CognitiveTask#platform
         meta:
           order: 0
           pinned: true
       - name: implementation
-        description: Unused; the scene says what runs.
+        description: Unused; the instrument says what runs.
         isAttr: true
         type: String
         redefines: cognitive:CognitiveTask#implementation
         meta:
           pinned: true
-      - name: scene
-        description: Which task runs (`NB`, `UFOV`, `DS`).
+      - name: instrument
+        description: Which task of the battery runs (`NB`, `UFOV`, `DS`), the wire's `scene` and BDM's `instrument_id`.
         isAttr: true
-        type: SceneEnum
+        type: InstrumentEnum
         meta:
           order: 1
           categories:
             - Execution
       - name: timeline
-        description: 'Which shipped timeline runs (`XCIT_NB_01`), or one the Parameters define under `Timelines`.'
+        description: 'The one timeline that runs: one the build ships for the instrument (`XCIT_NB_01`), or one the Parameters wired into the task define under `Timelines`.'
         isAttr: true
         type: String
         meta:
@@ -168,8 +168,7 @@ templates:
         extensionElements:
           - type: studyflow:Parameters
             values: |
-              Timelines:
-                XCIT_NB_01:
+              timeline: XCIT_NB_01
   - description: The parameters of an N-Back task with an inline timeline.
     elements:
       NBack_inline:
@@ -178,6 +177,7 @@ templates:
         extensionElements:
           - type: studyflow:Parameters
             values: |
+              timeline: LabLink_Inline
               Blocks:
                 LabLink_InlineBlock:
                   Name: LabLink_InlineBlock

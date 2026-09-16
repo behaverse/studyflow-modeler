@@ -1,4 +1,4 @@
-import { getBehaverseTaskPayload, readBehaverseAttribute } from '@skills/behaverse/browser/parser';
+import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { FlowNode } from '@runner/flow';
 import { RUNNER_ONLY_BOT_KEYS, type Manifest } from '@skills/behaverse/browser/types';
 import type { ValidationIssue } from '@runner/nodes/types';
@@ -28,33 +28,22 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
     return [{
       nodeId: node.id,
       message: `The Unity build ships no task called '${payload.scene}'. `
-        + `Set scene to one of: ${manifest.tasks.map((t) => t.id).join(', ')}.`,
+        + `Set instrument to one of: ${manifest.tasks.map((t) => t.id).join(', ')}.`,
     }];
   }
 
   // Validate what the author wrote, not the payload the parser stripped.
   const authored = node.parameters;
 
-  if (!payload.timeline && Object.keys(authored).length === 0) {
-    issues.push({
-      nodeId: node.id,
-      message: `'${payload.scene}' names no timeline and reads no GameConfig from the Parameters wired into it, so it has no trials to run. `
-        + 'Set its timeline to one the build ships (e.g. XCIT_NB_01), or define one inline under Timelines with its own blocks.',
-    });
-  }
-  // What the build must ship: every timeline Timelines names without defining, and the one the task names unless defined inline.
+  // The timeline that runs is defined in the wired Parameters, or the build ships it for the instrument.
   const timelines = authored.Timelines && typeof authored.Timelines === 'object' ? authored.Timelines as Record<string, unknown> : {};
-  const byName = new Set(Object.keys(timelines).filter((name) => timelines[name] == null));
-  const named = readBehaverseAttribute(node.businessObject, 'timeline');
-  if (named && timelines[named] == null) byName.add(named);
-  for (const name of byName) {
-    if (manifestTask.timelines.includes(name)) continue;
+  if (!(payload.timeline in timelines) && !manifestTask.timelines.includes(payload.timeline)) {
     issues.push({
       nodeId: node.id,
-      message: `'${payload.scene}' has no timeline called '${name}' in the Unity build. `
+      message: `'${payload.scene}' has no timeline called '${payload.timeline}' in the Unity build. `
         + (manifestTask.timelines.length > 0
-          ? `Use one of: ${manifestTask.timelines.join(', ')}.`
-          : 'The build ships none for this task, so define the timeline inline.'),
+          ? `Use one of: ${manifestTask.timelines.join(', ')}, or define it under Timelines in the Parameters wired into the task.`
+          : 'The build ships none for this task, so define it under Timelines in the Parameters wired into the task.'),
     });
   }
 

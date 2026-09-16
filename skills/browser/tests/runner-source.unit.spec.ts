@@ -135,16 +135,16 @@ test('a dotted link parameter replaces one value inside the Parameters a step re
   await expect(parseStudyflow(NESTED, freshPackages(), { Streams: '5' })).rejects.toThrow(/'Streams', a whole list in Config/);
 });
 
-test('the runner\'s Behaverse demo: a link picks the scene through the study\'s `task`, the timeline through the task\'s Parameters', async () => {
+test('the runner\'s Behaverse demo: a link picks the instrument through the study\'s `task`, the timeline through the task\'s Parameters', async () => {
   const demo = readFileSync(path.join(process.cwd(), 'assets/demos/behaverse.studyflow'), 'utf8');
-  const CASES: [given: Record<string, string>, scene: string, timeline: string][] = [
+  const CASES: [given: Record<string, string>, instrument: string, timeline: string][] = [
     [{}, 'BCS', 'XCIT_BCS_02'],
     [{ task: 'NB', timeline: 'XCIT_NB_01' }, 'NB', 'XCIT_NB_01'],
   ];
-  for (const [given, scene, timeline] of CASES) {
+  for (const [given, instrument, timeline] of CASES) {
     const task = (await parseStudyflow(demo, freshPackages(), given)).flowNodes.get('Task')!;
-    expect([getAttribute(task.businessObject, 'scene'), getAttribute(task.businessObject, 'timeline'), task.parameters], scene)
-      .toEqual([scene, timeline, {}]);
+    expect([getAttribute(task.businessObject, 'instrument'), getAttribute(task.businessObject, 'timeline'), task.parameters], instrument)
+      .toEqual([instrument, timeline, {}]);
   }
 });
 

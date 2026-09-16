@@ -16,10 +16,11 @@ export const RUNNER_ONLY_BOT_KEYS = ['LLM', 'Prompt'] as const;
 /** Who answers a task is the drawing's to say: a `Bot:` entry naming one of these is refused. */
 export const WHO_ANSWERS_KEYS = ['ResponseSource', ...RUNNER_ONLY_BOT_KEYS] as const;
 
-/** `RunCognitiveTask` payload Unity receives as JSON; `parameters` layers over Resources/<scene>.json. */
+/** `RunCognitiveTask` payload Unity receives as JSON: `scene` is the wire's name for the task's instrument (`NB`), and
+ * `parameters` layers over the build's own Resources/<scene>.json. */
 export type BehaverseTaskPayload = {
   scene: string;
-  timeline?: string;
+  timeline: string;
   configMode: 'builtin' | 'inline';
   parameters?: Record<string, unknown>;
   agentType: 'human' | 'bot';

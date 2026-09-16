@@ -35,7 +35,7 @@ elements:
         extensionElements:
           values:
             - type: cognitive:CognitiveTask
-              instrument: jspsych
+              platform: jspsych
         incoming: [F1]
         outgoing: [F2]
       - type: bpmn:DataObjectReference

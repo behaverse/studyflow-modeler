@@ -65,7 +65,7 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
           if (!cancelled) setStageReady(true);
         }, STAGE_REVEAL_DELAY_MS);
 
-        log('task', `Running ${job.payload.scene} / ${job.payload.timeline ?? '(no timeline)'}.`);
+        log('task', `Running ${job.payload.scene} / ${job.payload.timeline}.`);
         const result = await runOnUnity(
           unity,
           withRunIdentity(job.payload, session),
@@ -113,7 +113,7 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
   );
 }
 
-/** The Unity build's manifest, which the validator checks scenes and timelines against; without it, nothing is checked. */
+/** The Unity build's manifest, which the validator checks instruments and timelines against; without it, nothing is checked. */
 async function prepare(studyflow: Studyflow, log: LogFn): Promise<Manifest | undefined> {
   const needed = [...studyflow.flowNodes.values()].some((node) => node.extensionType === BEHAVERSE_TASK_TYPE);
   if (!needed) {

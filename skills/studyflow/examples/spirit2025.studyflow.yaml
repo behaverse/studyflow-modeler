@@ -137,7 +137,7 @@ SPIRIT_2025:
         - [ ] SPIRIT 19: adherence monitoring
       extensionElements:
         - type: cognitive:CognitiveTask
-          instrument: jspsych
+          platform: jspsych
       name: "Intervention: cognitive training"
       onset: T0+3 weeks
       duration: 4 weeks

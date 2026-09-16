@@ -20,7 +20,7 @@ const PLAN = {
     T: {
       id: 'T', type: 'task', name: 'Play', attributes: {},
       // `timeline` as a Parameters key sets it, as the plan hands it over; the rest is the task's GameConfig.
-      extensions: [{ namespace: BEHAVERSE, type: 'task', attributes: { scene: 'WO', timeline: 'SimonTask' } }],
+      extensions: [{ namespace: BEHAVERSE, type: 'task', attributes: { instrument: 'WO', timeline: 'SimonTask' } }],
       parameters: { Bot: { IncludeScreenshot: true } },
     },
     Receive: { id: 'Receive', type: 'receiveTask', parent: 'RobotSteps', attributes: {} },

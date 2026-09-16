@@ -31,14 +31,16 @@ Cognitive_Battery:
       type: Task
       extensionElements:
         - type: behaverse:Task
-          scene: NB
+          instrument: NB
+          timeline: XCIT_NB_01
       name: Working memory (N-Back)
       bounds: 420 158 120 80
     Task_DigitSpan:
       type: Task
       extensionElements:
         - type: behaverse:Task
-          scene: DS
+          instrument: DS
+          timeline: XCIT_DS_01
       name: Verbal span (Digit Span)
       bounds: 590 158 120 80
     Break:
@@ -53,14 +55,16 @@ Cognitive_Battery:
       type: Task
       extensionElements:
         - type: behaverse:Task
-          scene: SART
+          instrument: SART
+          timeline: XCIT_SART_01
       name: Sustained attention (SART)
       bounds: 850 158 120 80
     Task_WhichOne:
       type: Task
       extensionElements:
         - type: behaverse:Task
-          scene: WO
+          instrument: WO
+          timeline: XCIT_WO_01
       name: Visual WM (Which One)
       dataOutputAssociations:
         DataOutput_WhichOne_Data:
