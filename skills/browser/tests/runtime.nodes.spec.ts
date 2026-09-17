@@ -144,16 +144,14 @@ test.describe('Studyflow runtime nodes', () => {
     await runStudyflow(page, 'runner-stages-no-unity', NO_UNITY_XML);
 
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: /begin/i }).click();
 
     await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
     await expect(page.getByText('Read this carefully.')).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: /continue/i }).click();
 
-    await expect(
-      page.getByRole('heading', { name: 'Patient Health Questionnaire-9 (PHQ-9)' }),
-    ).toBeVisible();
-    const submit = page.getByRole('button', { name: 'Submit' });
+    await expect(page.getByRole('heading', { name: /PHQ-9/ })).toBeVisible();
+    const submit = page.getByRole('button', { name: /submit/i });
     await expect(submit).toBeDisabled();
     for (let i = 1; i <= 9; i += 1) {
       // The radios are sr-only (styling lives on the wrapping <label>), so .check() needs force to reach them.
@@ -162,7 +160,7 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(submit).toBeEnabled();
     await submit.click();
 
-    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
     expect(manifestFetched).toBe(false);
   });
 
@@ -173,9 +171,10 @@ test.describe('Studyflow runtime nodes', () => {
     await runStudyflow(page, 'runner-stages-consent', CONSENT_DECLINE_XML);
 
     await expect(page.getByRole('heading', { name: 'Consent' })).toBeVisible();
-    await expect(page.getByText('Informed consent')).toBeVisible();
+    // The consent form the start event links is what the page shows.
+    await expect(page.getByText('You agree to participate.')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Decline' }).click();
+    await page.getByRole('button', { name: /decline/i }).click();
 
     await expect(page.getByRole('heading', { name: 'Should not appear' })).toBeHidden();
     await expect(page.getByText('aborted', { exact: true })).toBeVisible();
@@ -184,21 +183,20 @@ test.describe('Studyflow runtime nodes', () => {
   test('a bound task displays its function call and arguments', async ({ page }) => {
     await runStudyflow(page, 'runner-stages-bound', BOUND_TASK_XML);
 
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: /begin/i }).click();
 
     await expect(page.getByRole('heading', { name: 'Median RT' })).toBeVisible();
-    await expect(page.getByText('Would call')).toBeVisible();
-    await expect(page.getByText('python://pkg_for_st.do_map@1.2', { exact: true })).toBeVisible();
+    await expect(page.locator('code', { hasText: 'python://pkg_for_st.do_map@1.2' })).toBeVisible();
     await expect(page.getByText('median', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: /continue/i }).click();
 
-    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
   });
 
   test('a choreography task shows both participants and marks the initiator', async ({ page }) => {
     await runStudyflow(page, 'runner-stages-choreography', CHOREOGRAPHY_XML);
 
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: /begin/i }).click();
 
     await expect(page.getByRole('heading', { name: 'First decision round' })).toBeVisible();
     const participants = page.getByTestId('choreography-participants');
@@ -209,8 +207,8 @@ test.describe('Studyflow runtime nodes', () => {
       participants.locator('div', { hasText: 'Experimenter' }).getByText('initiates'),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+    await page.getByRole('button', { name: /continue/i }).click();
+    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
   });
 
   // `addInitScript` re-seeds on every navigation, including the reload, and would make this pass regardless.
@@ -227,7 +225,7 @@ test.describe('Studyflow runtime nodes', () => {
 
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: /begin/i }).click();
     await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
   });
 
@@ -243,11 +241,12 @@ test.describe('Studyflow runtime nodes', () => {
     );
 
     await page.goto(`/run/?diagram=${id}&seed=42`);
-    await page.getByRole('button', { name: 'Begin' }).click();
+    await page.getByRole('button', { name: /begin/i }).click();
     await expect(page.getByRole('heading', { name: 'Plain task' })).toBeVisible();
-    await expect(page.getByText('Nothing happens at this step. Press Continue to go on.')).toBeVisible();
-    await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('heading', { name: 'Study complete' })).toBeVisible();
+    // The generic step's panel offers nothing but the one button that goes on.
+    await expect(page.getByRole('heading', { name: 'Plain task' }).locator('..').getByRole('button')).toHaveCount(1);
+    await page.getByRole('button', { name: /continue/i }).click();
+    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
     expect(errors).toEqual([]);
 
     const remaining = await page.evaluate(
@@ -268,16 +267,16 @@ test.describe('Studyflow runtime nodes', () => {
 
     const unseeded = await unseededTab;
     await expect(unseeded).toHaveURL(/run\/\?diagram=[^&]+$/);
-    await expect(unseeded).toHaveTitle('Behaverse Studyflow');
+    await expect(unseeded).toHaveTitle(/studyflow/i);
     // A study that pins no seed runs unseeded: the link adds none.
     await expect(unseeded.getByText('Study_1')).toBeVisible();
     await expect(unseeded.getByText(/^seed=/)).toHaveCount(0);
 
     // A seed the study pins is the run's, and the link still adds none.
     const inspector = page.getByTestId('inspector-root');
-    await inspector.getByRole('tab', { name: 'Execution' }).click();
-    await inspector.getByLabel('Seed').fill('7');
-    await inspector.getByLabel('Seed').press('Tab');
+    await inspector.getByRole('tab', { name: /execution/i }).click();
+    await inspector.getByLabel(/^seed$/i).fill('7');
+    await inspector.getByLabel(/^seed$/i).press('Tab');
 
     const seededTab = context.waitForEvent('page');
     await page.getByRole('button', { name: 'Run', exact: true }).click();

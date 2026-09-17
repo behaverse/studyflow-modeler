@@ -21,6 +21,11 @@ function usedPrefixes(turtle: string): Set<string> {
   return new Set([...body.matchAll(/([A-Za-z][\w.-]*):/g)].map((match) => match[1]));
 }
 
+/** A regex over one Turtle statement, whatever the whitespace around its terms. */
+function statement(...terms: string[]): RegExp {
+  return new RegExp(terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s*'));
+}
+
 function expectEveryPrefixDeclared(turtle: string, label: string): void {
   const declared = declaredPrefixes(turtle);
   const undeclared = [...usedPrefixes(turtle)].filter((prefix) => !declared.has(prefix));
@@ -62,16 +67,16 @@ test.describe('NIDM export', () => {
     const turtle = exportToNidm(analysisDiagram());
 
     // The activity, its implementation as a core: predicate.
-    expect(turtle).toContain('core:Filter_1 a prov:Activity , core:ServiceTask ;');
-    expect(turtle).toContain('core:implementation "python://scipy.signal.butter"');
-    expect(turtle).toContain('rdfs:comment "Band-pass 1-100 Hz."');
+    expect(turtle).toMatch(statement('core:Filter_1', ' a ', 'prov:Activity', ',', 'core:ServiceTask'));
+    expect(turtle).toMatch(statement('core:implementation', ' ', '"python://scipy.signal.butter"'));
+    expect(turtle).toMatch(statement('rdfs:comment', ' ', '"Band-pass 1-100 Hz."'));
     // A wrapper-style data element is an entity, with its attributes.
-    expect(turtle).toContain('core:EEG_1 a prov:Entity , core:Timeseries ;');
-    expect(turtle).toContain('rdfs:label "Raw EEG"');
-    expect(turtle).toContain('nidm:format "edf"');
-    expect(turtle).toContain('dct:title "EEG study"');
+    expect(turtle).toMatch(statement('core:EEG_1', ' a ', 'prov:Entity', ',', 'core:Timeseries'));
+    expect(turtle).toMatch(statement('rdfs:label', ' ', '"Raw EEG"'));
+    expect(turtle).toMatch(statement('nidm:format', ' ', '"edf"'));
+    expect(turtle).toMatch(statement('dct:title', ' ', '"EEG study"'));
     // What the activity read, and what it wrote.
-    expect(turtle).toContain('prov:used core:EEG_1');
-    expect(turtle).toContain('core:Table_1 prov:wasGeneratedBy core:Filter_1 .');
+    expect(turtle).toMatch(statement('prov:used', ' ', 'core:EEG_1'));
+    expect(turtle).toMatch(statement('core:Table_1', ' ', 'prov:wasGeneratedBy', ' ', 'core:Filter_1'));
   });
 });

@@ -36,9 +36,9 @@ test.describe('Moving a shape', () => {
     // shape off the 10-unit grid.
     await gotoModeler(page);
 
-    await runPaletteCommand(page, 'Settings');
-    await page.getByText('Editor', { exact: true }).first().click();
-    const toggle = page.getByRole('switch', { name: 'Snap to grid' });
+    await runPaletteCommand(page, /^Settings/);
+    await page.getByText(/^Editor$/).first().click();
+    const toggle = page.getByRole('switch', { name: /snap to grid/i });
     await expect(toggle).toBeVisible();
     await expect(toggle, 'snapping is on out of the box').toHaveAttribute('aria-checked', 'true');
     await toggle.click();

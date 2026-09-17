@@ -94,7 +94,7 @@ Lab:
 test('a link overrides the data object rather than sitting beside it', async () => {
   const study = await parseStudyflow(DEMO, freshPackages(), { task: 'NB', timeline: 'XCIT_NB_01', blocks: '5', arm: 'control' });
 
-  expect(study.parameters.overridden).toEqual(['task', 'timeline', 'blocks']);
+  expect([...study.parameters.overridden].sort()).toEqual(['blocks', 'task', 'timeline']);
   expect(study.flowNodes.get('Task')?.businessObject?.name).toBe('NB / XCIT_NB_01');
   expect(study.flowNodes.get('Task')?.parameters.blocks, 'an overriding value takes the type of the one it replaces').toBe(5);
   // The Task's name reads the properties the link binds, never the Task's own settings, which stay the Task's alone;
@@ -129,10 +129,10 @@ Nested:
 test('a dotted link parameter replaces one value inside the Parameters a step reads, never a whole mapping or list', async () => {
   const study = await parseStudyflow(NESTED, freshPackages(), { 'Bot.Speed': '5', 'Streams.1': '2' });
   expect(study.flowNodes.get('Task')?.parameters, 'each takes the type of the value it replaces').toEqual({ Bot: { Speed: 5 }, Streams: [3, 2] });
-  expect(study.parameters.overridden).toEqual(['Bot.Speed', 'Streams.1']);
+  expect([...study.parameters.overridden].sort()).toEqual(['Bot.Speed', 'Streams.1']);
 
-  await expect(parseStudyflow(NESTED, freshPackages(), { Bot: '5' })).rejects.toThrow(/'Bot', a whole mapping in Config.*Bot\.<key>/);
-  await expect(parseStudyflow(NESTED, freshPackages(), { Streams: '5' })).rejects.toThrow(/'Streams', a whole list in Config/);
+  await expect(parseStudyflow(NESTED, freshPackages(), { Bot: '5' })).rejects.toThrow(/Bot.*Config/);
+  await expect(parseStudyflow(NESTED, freshPackages(), { Streams: '5' })).rejects.toThrow(/Streams.*Config/);
 });
 
 test('the runner\'s Behaverse demo: a link picks the instrument through the study\'s `task`, the timeline through the task\'s Parameters', async () => {
@@ -214,13 +214,14 @@ test('both runtimes read the Parameters wired into a step the same way: merged, 
   const local = localDigest(merged);
   expect([local.parameters, local.rest, local.seed]).toEqual([expected, { restDuration: '30' }, '3']);
 
-  const CLASHES: [inner: string, message: string][] = [
-    ['Bot:\n  Speed: 5\n', 'T reads Bot.Speed from both A and B: set it in one of them.'],
-    ['eyes: [open, closed]\n', 'T reads eyes, one of its attributes, which takes one value, not a list.'],
+  // Each refusal names the step and what clashes: the key and both objects, or the attribute that takes one value.
+  const CLASHES: [inner: string, names: RegExp][] = [
+    ['Bot:\n  Speed: 5\n', /T.*Bot\.Speed.*A.*B/],
+    ['eyes: [open, closed]\n', /T.*eyes.*list/],
   ];
-  for (const [inner, message] of CLASHES) {
-    await expect(parseStudyflow(WIRED_TWICE(inner), freshPackages()), message).rejects.toThrow(message);
-    expect(localDigest(WIRED_TWICE(inner)), message).toEqual({ error: message });
+  for (const [inner, names] of CLASHES) {
+    await expect(parseStudyflow(WIRED_TWICE(inner), freshPackages()), String(names)).rejects.toThrow(names);
+    expect(localDigest(WIRED_TWICE(inner)).error, String(names)).toMatch(names);
   }
 });
 
@@ -255,15 +256,16 @@ test('the Parameters wired into a sub-process are its read-only properties, in b
   const chain = new ScopeChain(study.scopes.get('P')!);
   chain.push(block);
   chain.write('speed', 20, true);
-  expect(() => chain.write('speed', 5)).toThrow("'speed' is set by the Parameters wired into Block, so nothing inside it writes it.");
+  expect(() => chain.write('speed', 5)).toThrow(/speed.*Block/);
 
-  const clash = "Block declares 'label' as a property and in the Parameters wired into it: keep one.";
+  // The refusal names the sub-process and the property declared twice.
+  const clash = /Block.*label/;
   await expect(parseStudyflow(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'), freshPackages())).rejects.toThrow(clash);
 
   test.skip(spawnSync('uv', ['--version']).error !== undefined, 'uv is not on PATH');
   expect(localReading(WIRED_BLOCK(), '[studyflow.properties["Block"], sorted(studyflow.readonly["Block"])]'))
     .toEqual([{ label: '"inner"', speed: '20' }, ['label', 'speed']]);
-  expect(localReading(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'), 'None')).toEqual({ error: clash });
+  expect(localReading(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'), 'None').error).toMatch(clash);
 });
 
 /** One config object, two steps: the association is the only thing that separates them. */

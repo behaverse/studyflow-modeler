@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { ELEMENT_COLORS } from '@modeler/shape/colors';
+
 import {
   addPaletteElement,
   exportDiagram,
@@ -17,6 +19,9 @@ import {
 
 const popup = (page: Page) => page.getByTestId('popup-menu');
 
+/** The swatch's paint as an attribute matcher: the canvas may spell the hex in either case. */
+const swatch = (label: string, half: 'fill' | 'stroke'): RegExp => new RegExp(`^${ELEMENT_COLORS.find((c) => c.label === label)![half]!}$`, 'i');
+
 /** The `x` of the `bpmndi:BPMNShape` whose `bpmnElement` id starts with `prefix`. */
 function shapeX(bpmn: string, prefix: string): number {
   const match = new RegExp(
@@ -31,7 +36,7 @@ test.describe('App popup menus', () => {
 
     // The palette's more-elements button: a searchable create menu. Searching narrows the
     // list, and picking arms a create gesture, as a palette tile does: the next click places it.
-    await page.getByRole('button', { name: 'BPMN elements...' }).click();
+    await page.getByRole('button', { name: /^BPMN elements/ }).click();
     await expect(popup(page)).toBeVisible();
     await page.getByTestId('popup-menu-search').fill('service');
     await expect(page.getByTestId('popup-menu-entry-create-User')).toHaveCount(0);
@@ -45,7 +50,7 @@ test.describe('App popup menus', () => {
 
     // The canvas's `a` key opens the append menu on the selection.
     await pressOnCanvas(page, 'a');
-    await expect(popup(page)).toContainText('Append element');
+    await expect(popup(page)).toContainText(/append/i);
     await page.keyboard.press('Escape');
     await expect(popup(page)).toHaveCount(0);
 
@@ -82,7 +87,7 @@ test.describe('App popup menus', () => {
     // A swatch paints the element, and the menu stays up and reports what is set: colour and
     // text styles are set in one sitting, and a reopened menu shows the element's own.
     await menu.getByTestId('popup-menu-entry-blue-color').click();
-    await expect(body('Task_')).toHaveAttribute('fill', '#dde8fa');
+    await expect(body('Task_')).toHaveAttribute('fill', swatch('Blue', 'fill'));
     await expect(menu.getByTestId('popup-menu-entry-blue-color')).toHaveAttribute('aria-pressed', 'true');
     await expect(menu.getByTestId('popup-menu-entry-default-color')).toHaveAttribute('aria-pressed', 'false');
 
@@ -95,7 +100,7 @@ test.describe('App popup menus', () => {
     await menu.getByTestId('popup-menu-entry-align-right').click();
     await expect(text).toHaveAttribute('text-anchor', 'end');
     await menu.getByTestId('popup-menu-entry-red-text-color').click();
-    await expect(text).toHaveAttribute('fill', '#ac5a54');
+    await expect(text).toHaveAttribute('fill', swatch('Red', 'stroke'));
     await expect(menu.getByTestId('popup-menu-entry-bold')).toHaveAttribute('aria-pressed', 'true');
     await expect(menu.getByTestId('popup-menu-entry-align-right')).toHaveAttribute('aria-pressed', 'true');
     await expect(menu.getByTestId('popup-menu-entry-align-left')).toHaveAttribute('aria-pressed', 'false');
@@ -107,7 +112,7 @@ test.describe('App popup menus', () => {
 
     // The file carries the text style on one `font` line.
     const yamlText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-    expect(yamlText).toMatch(/font: ['"]?bold italic #ac5a54['"]?/);
+    expect(yamlText).toMatch(new RegExp(`font: ['"]?bold italic ${ELEMENT_COLORS.find((c) => c.label === 'Red')!.stroke}['"]?`, 'i'));
 
     // Multi-select both, then repaint: the menu acts on the whole selection.
     await task.click();
@@ -115,7 +120,7 @@ test.describe('App popup menus', () => {
     await page.getByTestId('context-pad-set-color').click();
     await page.getByTestId('popup-menu-entry-green-color').click();
     await page.keyboard.press('Escape');
-    await expect(body('Task_')).toHaveAttribute('fill', '#d9e7d6');
-    await expect(body('UserTask_')).toHaveAttribute('fill', '#d9e7d6');
+    await expect(body('Task_')).toHaveAttribute('fill', swatch('Green', 'fill'));
+    await expect(body('UserTask_')).toHaveAttribute('fill', swatch('Green', 'fill'));
   });
 });

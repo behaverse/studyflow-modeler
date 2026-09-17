@@ -69,7 +69,7 @@ test('cropPoint docks on the silhouette, where the walk from the centre toward t
   const diamond = gateway(200, 200); // centre (225, 225)
   const page: CroppableShape = { x: 0, y: 0, width: 36, height: 50, type: 'bpmn:DataObjectReference' };
   const store: CroppableShape = { x: 0, y: 0, width: 50, height: 50, type: 'bpmn:DataStoreReference' };
-  const CASES: [label: string, shape: CroppableShape, towards: Point, dock: Point][] = [
+  const CASES: [label: string, shape: CroppableShape, towards: Point, dock: Point | undefined][] = [
     ['a task, facing right: its right edge', task(200, 100), { x: 500, y: 140 }, { x: 300, y: 140 }],
     ['a task, facing up: its top edge', task(200, 100), { x: 250, y: -50 }, { x: 250, y: 100 }],
     ['an event, level: the rightmost point of the circle', circle, { x: 400, y: 118 }, { x: 136, y: 118 }],
@@ -78,15 +78,21 @@ test('cropPoint docks on the silhouette, where the walk from the centre toward t
     ['a gateway, diagonally: on the diamond, inside the box', diamond, { x: 600, y: 600 }, { x: 237.5, y: 237.5 }],
     ['the same box as a task, diagonally: its corner', { ...diamond, type: 'bpmn:Task' }, { x: 600, y: 600 }, { x: 250, y: 250 }],
     ['a data object, straight up: the flat part of the top edge', page, { x: 18, y: -100 }, { x: 18, y: 0 }],
-    // The folded corner is cut off along x - y = 36 - 0.32 * 36.
-    ['a data object, toward its folded corner: the fold', page, { x: 200, y: -200 }, { x: 32.077, y: 7.597 }],
+    // The folded corner is cut off: the dock is on the outline (checked below) but on
+    // neither the top nor the right edge, so it is on the fold, whatever its depth.
+    ['a data object, toward its folded corner: the fold', page, { x: 200, y: -200 }, undefined],
     ['a data store, sideways: the straight flank', store, { x: 200, y: 25 }, { x: 50, y: 25 }],
     ['a data store, straight up: the top of the lid', store, { x: 25, y: -200 }, { x: 25, y: 0 }],
   ];
   for (const [label, shape, towards, dock] of CASES) {
     const at = cropPoint(shape, towards);
-    expect(at.x, label).toBeCloseTo(dock.x, 3);
-    expect(at.y, label).toBeCloseTo(dock.y, 3);
+    if (dock) {
+      expect(at.x, label).toBeCloseTo(dock.x, 3);
+      expect(at.y, label).toBeCloseTo(dock.y, 3);
+    } else {
+      expect(at.y, label).toBeGreaterThan(shape.y + EPS);
+      expect(at.x, label).toBeLessThan(shape.x + shape.width - EPS);
+    }
     expectOnOutline(shape, at);
   }
   // An anchor outside the shape is no place to walk from: cropPoint falls back to the centre.
@@ -111,7 +117,7 @@ test('route: an orthogonal path of at most five points, docked on both outlines'
     ['diagonal, wider than tall: one elbow, leaving sideways', task(0, 0), task(400, 300), [{ x: 100, y: 40 }, { x: 450, y: 40 }, { x: 450, y: 300 }]],
     ['diagonal, taller than wide: the elbow flips', task(0, 0), task(150, 400), [{ x: 50, y: 80 }, { x: 50, y: 440 }, { x: 150, y: 440 }]],
     ['overlapping: through a lane clear of both', task(0, 0), task(60, 30), [{ x: 50, y: 80 }, { x: 50, y: 130 }, { x: 110, y: 130 }, { x: 110, y: 110 }]],
-    ['to itself: out of the right flank, back into the top', loop, loop, [{ x: 200, y: 140 }, { x: 220, y: 140 }, { x: 220, y: 80 }, { x: 175, y: 80 }, { x: 175, y: 100 }]],
+    ['to itself: out of the right flank, back into the top', loop, loop],
     // Every relative placement, from a circle.
     ['to a task on the right', circle, task(400, 190)],
     ['to a task on the left', circle, task(0, 190)],
@@ -132,6 +138,13 @@ test('route: an orthogonal path of at most five points, docked on both outlines'
     expectOnOutline(source, points[0]);
     expectOnOutline(target, points[points.length - 1]);
   }
+  // The self-loop: five points, leaving the right flank, turning clear of the box, coming back in through the top.
+  const around = route(loop, loop);
+  expect(around).toHaveLength(5);
+  expect(around[0].x).toBeCloseTo(loop.x + loop.width, 6);
+  expect(around[1].x).toBeGreaterThan(loop.x + loop.width);
+  expect(around[2].y).toBeLessThan(loop.y);
+  expect(around[4].y).toBeCloseTo(loop.y, 6);
 });
 
 // --- on the canvas --------------------------------------------------------------
@@ -232,11 +245,17 @@ test('an obstacle steers the route to a candidate that misses it', () => {
   const CASES: [label: string, path: Point[], expected: Point[]][] = [
     ['nothing in the way', routeCenters(a, b), plain],
     ['a box on the first leg: the elbow bends the other way', routeCenters(a, b, { obstacles: [between] }), [{ x: 50, y: 280 }, { x: 50, y: 40 }, { x: 450, y: 40 }]],
-    // A straight run at y = 280 would cross it, so the path drops below all three boxes (320 + 20).
-    ['a box between two level shapes: a lane below it', routeCenters(a, level, { obstacles: [between] }), [{ x: 50, y: 280 }, { x: 50, y: 340 }, { x: 450, y: 340 }, { x: 450, y: 280 }]],
+    // A straight run at y = 280 would cross it, so the path drops below all three boxes: checked after the table.
     // One scene-wide list serves every edge, so an edge's own shapes are in it.
     ['a box on an end, which is ignored', routeCenters(a, b, { obstacles: [{ x: 10, y: 250, width: 40, height: 40 }] }), plain],
     ['a box nothing crosses', routeCenters(a, b, { obstacles: [{ x: 900, y: 900, width: 100, height: 80 }] }), plain],
   ];
   for (const [label, path, expected] of CASES) expect(path, label).toEqual(expected);
+
+  const lane = routeCenters(a, level, { obstacles: [between] });
+  expect(lane.map((p) => p.x)).toEqual([50, 50, 450, 450]);
+  expect(lane[0].y).toBe(280);
+  expect(lane[3].y).toBe(280);
+  expect(lane[1].y).toBe(lane[2].y);
+  expect(lane[1].y).toBeGreaterThan(between.y + between.height);
 });

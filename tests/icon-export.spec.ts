@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { examplePath, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
+import { diagramTitle, examplePath, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
 
 /**
  * Icons, end to end. The canvas reads each class's glyph out of the app's own stylesheet
@@ -12,7 +12,7 @@ import { examplePath, exportDiagram, gotoModeler, readDownload, readDownloadText
 /** Open a shipped example and wait for its title. */
 async function openExample(page: Page, name: string, title: string): Promise<void> {
   await page.getByTestId('open-file-input').setInputFiles(examplePath(name));
-  await expect(page.getByTitle('Click to edit diagram name')).toContainText(title);
+  await expect(diagramTitle(page)).toContainText(title);
 }
 
 /** A user task whose icon is a `data:` image: red, so the raster shows whether it was painted. */

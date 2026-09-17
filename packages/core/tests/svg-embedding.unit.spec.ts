@@ -21,6 +21,6 @@ test.describe('SVG studyflow embedding', () => {
   });
 
   test('throws on an SVG without a studyflow', () => {
-    expect(() => extractStudyflowFromSvg('<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>')).toThrow(/carries no studyflow/);
+    expect(() => extractStudyflowFromSvg('<svg xmlns="http://www.w3.org/2000/svg"><g/></svg>')).toThrow(/studyflow/i);
   });
 });

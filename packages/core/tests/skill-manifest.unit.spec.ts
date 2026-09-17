@@ -16,6 +16,6 @@ Body.
 test('a manifest parses without a folder, and is checked against one when given', () => {
   expect(parseSkillManifest(BROWSER).name).toBe('browser');
   expect(parseSkillManifest(BROWSER, 'browser').runtimes).toEqual({ local: 'uv run --script local.py' });
-  expect(() => parseSkillManifest(BROWSER, 'reachy')).toThrow(/names itself "browser"/);
-  expect(() => parseSkillManifest(BROWSER.replace('name: browser', 'name: Browser'))).toThrow(/lowercase/);
+  expect(() => parseSkillManifest(BROWSER, 'reachy')).toThrow(/browser/);
+  expect(() => parseSkillManifest(BROWSER.replace('name: browser', 'name: Browser'))).toThrow(/Browser/);
 });

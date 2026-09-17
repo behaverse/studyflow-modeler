@@ -88,7 +88,7 @@ test('a subclass inherits its parent\'s attach point, attributes, defaults and r
     'skill:name', 'core:rows', 'core:format', 'core:notes', 'skill:live', 'skill:config',
   ]);
   expect(recording.defaults).toEqual({ 'core:rows': 3, 'core:format': 'csv', 'skill:live': true });
-  expect(recording.roles, 'data-element from bpmn:DataObjectReference, signal from Table').toEqual(['data-element', 'signal']);
+  expect([...recording.roles].sort(), 'data-element from bpmn:DataObjectReference, signal from Table').toEqual(['data-element', 'signal']);
   expect(catalog.getType('core:Holder')!.roles, 'no attach point, no data-element').toEqual([]);
 });
 

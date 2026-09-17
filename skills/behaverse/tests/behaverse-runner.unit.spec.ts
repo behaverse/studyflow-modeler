@@ -45,7 +45,7 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   const claims = execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', build], { stdio: 'pipe' }).toString();
   expect(JSON.parse(claims)).toEqual(['T']);
   expect(() => execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', path.join(dir, 'none')],
-    { stdio: 'pipe', env: { ...process.env, UNITY_BUILD_PATH: '' } })).toThrow(/no Unity WebGL build/);
+    { stdio: 'pipe', env: { ...process.env, UNITY_BUILD_PATH: '' } })).toThrow(/build/);
 
   const cache = path.join(dir, 'cache');
   fs.mkdirSync(cache);

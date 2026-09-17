@@ -55,6 +55,21 @@ function cellIds(xml: string): string[] {
   return [...xml.matchAll(/<mxCell id="([^"]+)"/g)].map((match) => match[1]).slice(2);
 }
 
+/** The attributes of one element (`tag`, or the mxCell `id` names), XML-decoded. */
+function attributesOf(xml: string, tag: string, id?: string): Record<string, string> {
+  const open = id ? new RegExp(`<${tag} id="${id}"([^>]*)>`) : new RegExp(`<${tag}([^>]*)>`);
+  const match = xml.match(open);
+  expect(match, `${tag}${id ? ` ${id}` : ''} is exported`).toBeTruthy();
+  const decode = (s: string) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+  return Object.fromEntries([...match![1].matchAll(/([\w:-]+)="([^"]*)"/g)].map((m) => [m[1], decode(m[2])]));
+}
+
+/** The `<mxPoint>`s of one connection cell, in order. */
+function bendsOf(xml: string, id: string): [number, number][] {
+  const cell = xml.match(new RegExp(`<mxCell id="${id}"[\\s\\S]*?</mxCell>`))?.[0] ?? '';
+  return [...cell.matchAll(/<mxPoint x="(-?\d+)" y="(-?\d+)"/g)].map((m) => [Number(m[1]), Number(m[2])]);
+}
+
 test.describe('draw.io export', () => {
   test('exports what the view shows, in an mxfile named after the diagram', () => {
     const pool = shape({ id: 'Pool', type: 'bpmn:Participant' });
@@ -71,18 +86,19 @@ test.describe('draw.io export', () => {
       flow('F1', 'bpmn:SequenceFlow', task, collapsed),
     ]));
 
-    expect(xml).toContain('<mxfile host="studyflow-modeler">');
-    expect(xml).toContain('name="My study"');
-    expect(xml).toContain('<mxCell id="0" />');
-    expect(xml).toContain('<mxCell id="1" parent="0" />');
+    expect(xml).toMatch(/<mxfile\b/);
+    expect(attributesOf(xml, 'diagram').name).toBe('My study');
+    // draw.io's two root cells, which every exported cell hangs from.
+    expect(xml).toMatch(/<mxCell id="0"\s*\/>/);
+    expect(attributesOf(xml, 'mxCell', '1').parent).toBe('0');
     // Frames before what they frame, then the rest, then connections; no label, and nothing folded in a collapsed container.
     expect(cellIds(xml)).toEqual(['Pool', 'Lane', 'Group', 'Sub', 'Task', 'F1']);
-    expect(xml).toContain('<mxGeometry x="100" y="200" width="100" height="80" as="geometry" />');
+    const geometry = xml.match(/<mxCell id="Task"[\s\S]*?<mxGeometry([^>]*)>/)![1];
+    expect(Object.fromEntries([...geometry.matchAll(/(\w+)="(\d+)"/g)].map((m) => [m[1], Number(m[2])])))
+      .toEqual({ x: 100, y: 200, width: 100, height: 80 });
     // A connection carries its bends, not the endpoints on the shape borders.
-    expect(xml).toContain('edge="1" parent="1" source="Task" target="Sub"');
-    expect(xml).toContain('<mxPoint x="50" y="0" />');
-    expect(xml).toContain('<mxPoint x="50" y="90" />');
-    expect(xml).not.toContain('<mxPoint x="0" y="0" />');
+    expect(attributesOf(xml, 'mxCell', 'F1')).toMatchObject({ edge: '1', parent: '1', source: 'Task', target: 'Sub' });
+    expect(bendsOf(xml, 'F1')).toEqual([[50, 0], [50, 90]]);
     expect(xml).not.toContain('sourcePoint');
 
     // Drilled into an expanded container, the view shows its contents, and so does the export.
@@ -105,10 +121,11 @@ test.describe('draw.io export', () => {
       shape({ id: 'Grp', type: 'bpmn:Group', bo: { categoryValueRef: { value: 'Enrolment' } } }),
     ]));
 
-    // A cell value is HTML inside an XML attribute, escaped twice: `&amp;amp;` parses to `&amp;`, renders `&`.
-    expect(xml).toContain('value="Trial 1&lt;br&gt;Round &amp;quot;A&amp;quot; &amp;amp; B"');
-    expect(xml).toContain('value="a &amp;lt;b&amp;gt; c"');
-    expect(xml).toContain('<mxCell id="Note" value="A free-form note."');
-    expect(xml).toContain('<mxCell id="Grp" value="Enrolment"');
+    // A cell value is HTML inside an XML attribute: once XML-decoded, a line break is `<br>` and the name's own
+    // markup and entities are still escaped, so draw.io renders them as text.
+    expect(attributesOf(xml, 'mxCell', 'T1').value).toBe('Trial 1<br>Round &quot;A&quot; &amp; B');
+    expect(attributesOf(xml, 'mxCell', 'T2').value).toBe('a &lt;b&gt; c');
+    expect(attributesOf(xml, 'mxCell', 'Note').value).toBe('A free-form note.');
+    expect(attributesOf(xml, 'mxCell', 'Grp').value).toBe('Enrolment');
   });
 });

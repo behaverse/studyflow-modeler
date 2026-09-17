@@ -3,6 +3,7 @@ import * as yaml from 'js-yaml';
 
 import { extractStudyflowFromSvg } from '@core/document/svg';
 
+import { loadSchemaModels } from './schemas';
 import {
   addPaletteElement,
   addSchemaPaletteElement,
@@ -54,7 +55,10 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(first.isExpanded).toBe(false);
     const inner = Object.values(first.flowElements) as any[];
     expect(inner.map((el) => el.name)).toEqual(expect.arrayContaining(['Listen', 'Heard', 'Ask the model', 'Reply', 'Say the reply']));
-    expect(inner.find((el) => el.name === 'Listen').bounds).toBe('180 140 100 80');
+    // Where the template drew it: the bounds its schema spells for that step.
+    const template = loadSchemaModels().flatMap((model) => model.templates ?? []).find((t) => t.elements?.Conversation)!;
+    const drawn = Object.values(template.elements!.Conversation.flowElements as Record<string, any>).find((el) => el.name === 'Listen')!;
+    expect(inner.find((el) => el.name === 'Listen').bounds).toBe(drawn.bounds);
     const heardOf = (sub: any) => Object.keys(sub.flowElements).find((id) => sub.flowElements[id].name === 'Heard')!;
     const loopOf = (sub: any) => sub.loopCharacteristics.loopCondition;
 

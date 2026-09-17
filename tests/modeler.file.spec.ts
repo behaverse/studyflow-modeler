@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
+import { diagramTitle, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
 
 test('opening a file says what its reading could not place', async ({ page }) => {
   await page.clock.install();
@@ -25,18 +25,18 @@ test('opening a file says what its reading could not place', async ({ page }) =>
   });
 
   await expect(page.locator('[data-element-id="Start"]')).toBeVisible();
-  await expect(page.getByTestId('notices')).toContainText('Reading retired.bpmn raised warnings:');
-  await expect(page.getByTestId('notices')).toContainText('unparsable content <studyflow:retired>');
+  await expect(page.getByTestId('notices')).toContainText(/retired\.bpmn/);
+  await expect(page.getByTestId('notices')).toContainText(/<studyflow:retired>/);
 
   // Past the time a warning clears itself: this one names what the next save drops, so it waits to be dismissed.
   await page.clock.fastForward(10_000);
-  await expect(page.getByTestId('notices')).toContainText('Reading retired.bpmn raised warnings:');
+  await expect(page.getByTestId('notices')).toContainText(/retired\.bpmn/);
 });
 
 test('exports YAML, PNG, SVG and a skill\'s format; opens a layout-less file, a jsPsych timeline, and the exports again', async ({ page }) => {
   await gotoModeler(page);
   const open = page.getByTestId('open-file-input');
-  const title = page.getByTitle('Click to edit diagram name');
+  const title = diagramTitle(page);
 
   // A download is an export, so the YAML carries the trail's first stamp.
   const yaml = await exportDiagram(page, 'studyflow');
@@ -50,7 +50,7 @@ test('exports YAML, PNG, SVG and a skill\'s format; opens a layout-less file, a 
   // A skill's export is one more format in Save As.
   const drawio = await exportDiagram(page, 'drawio');
   expect(drawio.suggestedFilename()).toBe('diagram.drawio');
-  expect(await readDownloadText(drawio)).toContain('<mxfile host="studyflow-modeler">');
+  expect(await readDownloadText(drawio)).toMatch(/^\s*(<\?xml[^>]*>\s*)?<mxfile\b/);
 
   // No diagram interchange, and the canvas never lays out: import lays the file out first.
   await open.setInputFiles({

@@ -265,7 +265,7 @@ state:
     studyflowToDefinitions({ definitions: {}, elements: {
       Outer: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' }, Inner: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' } } } } },
     } }, freshModdle(), (message) => warnings.push(message));
-    expect(warnings).toEqual(["the id 'Twin' names two elements; a reference to it reaches only the last"]);
+    expect(warnings).toEqual([expect.stringMatching(/'Twin'.*two elements/)]);
   });
 
   test('`studyflow validate` flags the attributes the modeler flags on open, and the own `icon` and `font` are declared', async () => {
@@ -293,8 +293,8 @@ Study:
     const opened: string[] = [];
     await fromWireXml(xml, moddle, (message) => opened.push(message));
 
-    expect(read).toEqual(['unknown attribute <studyflow:colour> on bpmn:SubProcess']);
-    expect(opened).toEqual(['Chain: unknown attribute <studyflow:colour>']);
+    expect(read).toEqual([expect.stringMatching(/unknown attribute <studyflow:colour>.*SubProcess/)]);
+    expect(opened).toEqual([expect.stringMatching(/^Chain: .*<studyflow:colour>/)]);
     expect(xml).toContain('<cognitive:cognitiveTask studyflow:icon="iconify ph--game-controller"');
     expect(xml).toContain('studyflow:icon="iconify ph--link"');
   });
@@ -316,7 +316,7 @@ Loose:
     const opened: string[] = [];
     await fromWireXml(xml, moddle, (message) => opened.push(message));
 
-    expect(read).toEqual(["unrecognized element <bpmn:ServiceTask> 'Loose' at the top level, which holds only root elements such as a process or a collaboration"]);
+    expect(read).toEqual([expect.stringMatching(/unrecognized element <bpmn:ServiceTask> 'Loose'/)]);
     expect(opened).toEqual([expect.stringContaining('unrecognized element <bpmn:serviceTask>')]);
   });
 

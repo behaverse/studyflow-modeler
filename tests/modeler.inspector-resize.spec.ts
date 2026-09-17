@@ -44,10 +44,13 @@ test.describe('Inspector resize', () => {
     await handle.dblclick();
     expect(await panelWidth(page)).toBe(initial);
 
+    // Each arrow widens by one keyboard step, whatever the step is; Home is the reset.
     await handle.focus();
     await page.keyboard.press('ArrowLeft');
+    const oneStep = await panelWidth(page);
+    expect(oneStep).toBeGreaterThan(initial);
     await page.keyboard.press('ArrowLeft');
-    expect(await panelWidth(page)).toBe(initial + 48);
+    expect((await panelWidth(page)) - oneStep).toBe(oneStep - initial);
     await page.keyboard.press('Home');
     expect(await panelWidth(page)).toBe(initial);
   });

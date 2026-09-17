@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { embedStudyflowIntoPng } from '@core/document/png';
 
-import { blankDiagram, browseForDiagram, exampleText, gotoModeler, runPaletteCommand } from './utils';
+import { blankDiagram, browseForDiagram, diagramTitle, exampleText, gotoModeler, runPaletteCommand } from './utils';
 
 const DIAGRAM = blankDiagram().toString('utf8');
 const DIAGRAM_B64 = Buffer.from(DIAGRAM, 'utf8').toString('base64');
@@ -81,7 +81,7 @@ const disk = async (page: Page) => {
 const stamps = (xml: string): number => (xml.match(/(?:&quot;|")action(?:&quot;|"):/g) ?? []).length;
 
 async function renameDiagram(page: Page, name: string): Promise<void> {
-  await page.getByTitle('Click to edit diagram name').click();
+  await diagramTitle(page).click();
   await page.getByTestId('diagram-name-input').fill(name);
   await page.getByTestId('diagram-name-input').press('Enter');
 }
@@ -92,7 +92,7 @@ test.describe('Saving back into the opened file', () => {
     await gotoModeler(page, { pickers: true });
 
     await browseForDiagram(page);
-    await expect(page.getByTitle('Click to edit diagram name')).toHaveText('demo');
+    await expect(diagramTitle(page)).toHaveText('demo');
 
     const status = page.getByTestId('file-status');
     await expect(status).toContainText('demo.bpmn');
@@ -110,7 +110,7 @@ test.describe('Saving back into the opened file', () => {
     expect(saved.text).toContain('renamed');
 
     // A new diagram is not that file, and must never be written over it.
-    await runPaletteCommand(page, 'New...');
+    await runPaletteCommand(page, /^New/);
     await page.getByTestId('new-diagram-blank').click();
     await expect(status).toHaveCount(0);
     await page.waitForTimeout(1500);
@@ -123,7 +123,7 @@ test.describe('Saving back into the opened file', () => {
     await installFakeDisk(page, 'unused.bpmn', '');
     await gotoModeler(page, { pickers: true });
 
-    await runPaletteCommand(page, 'Save As...');
+    await runPaletteCommand(page, /^Save As/);
     await page.getByTestId('export-format').selectOption('studyflow');
     await page.getByTestId('save-submit').click();
 
@@ -181,10 +181,10 @@ test.describe('Saving back into the opened file', () => {
 
     // The palette's Save is the same explicit save, written with nothing changed since, and no dialog;
     // Save As... is how the dialog is reached.
-    await runPaletteCommand(page, 'Save demo.bpmn');
+    await runPaletteCommand(page, /^Save demo\.bpmn/);
     await expect(page.getByTestId('save-dialog')).toHaveCount(0);
     await expect.poll(async () => (await disk(page)).writes).toBe(3);
-    await runPaletteCommand(page, 'Save As...');
+    await runPaletteCommand(page, /^Save As/);
     await expect(page.getByTestId('save-dialog')).toBeVisible();
   });
 
@@ -208,9 +208,9 @@ test.describe('Saving back into the opened file', () => {
   test('without a picker the modeler falls back to the file input and downloads', async ({ page }) => {
     await gotoModeler(page);
 
-    await runPaletteCommand(page, 'Save As...');
+    await runPaletteCommand(page, /^Save As/);
     // Same destination, different mechanism: the button offers a download, not a place to put it.
-    await expect(page.getByTestId('save-submit')).toContainText('Download');
+    await expect(page.getByTestId('save-submit')).toContainText(/download/i);
     await page.keyboard.press('Escape');
 
     const chooser = page.waitForEvent('filechooser');
@@ -221,7 +221,7 @@ test.describe('Saving back into the opened file', () => {
       buffer: Buffer.from(DIAGRAM, 'utf8'),
     });
 
-    await expect(page.getByTitle('Click to edit diagram name')).toHaveText('fallback');
+    await expect(diagramTitle(page)).toHaveText('fallback');
     // An `<input type=file>` yields bytes, never a handle, so there is nothing to save back into.
     await expect(page.getByTestId('file-status')).toHaveCount(0);
   });

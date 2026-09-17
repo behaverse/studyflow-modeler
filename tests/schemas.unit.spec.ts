@@ -111,7 +111,7 @@ test('every template reads as studyflow with no warnings, is rooted on a BPMN el
   }
   // The palette entry is read off the first element: the pool, not the process holding its flow.
   expect(catalog.allTemplates().find((template) => template.name === 'EEG session'))
-    .toMatchObject({ bpmnType: 'bpmn:Participant', extensionType: 'eeg:Session', iconClass: 'iconify ph--head-circuit' });
+    .toMatchObject({ bpmnType: 'bpmn:Participant', extensionType: 'eeg:Session', iconClass: expect.stringMatching(/^iconify \S+--/) });
 });
 
 // A cognitive task is a choreography task, not a bpmn:Activity, and a battery still puts each on the Gantt.

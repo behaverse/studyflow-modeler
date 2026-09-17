@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { gotoModeler, runPaletteCommand } from './utils';
+import { diagramTitle, gotoModeler, runPaletteCommand } from './utils';
 
 /** The New Diagram gallery: the blank card, then one card per shipped example, in shelves. */
 
 test.describe('New Diagram gallery', () => {
   test('a card previews its diagram, wears its skill\'s icon, sits on its shelf, and opens it', async ({ page }) => {
     await gotoModeler(page);
-    await runPaletteCommand(page, 'New...');
+    await runPaletteCommand(page, /^New/);
 
     const dialog = page.getByTestId('gallery-dialog');
     await expect(dialog).toBeVisible();
@@ -43,12 +43,11 @@ test.describe('New Diagram gallery', () => {
 
     await card.click();
     await expect(dialog).toBeHidden();
-    await expect(page.getByTitle('Click to edit diagram name'))
-      .toHaveText('Within-subject cognitive battery');
+    await expect(diagramTitle(page)).toHaveText('Within-subject cognitive battery');
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
 
     // The blank diagram is one click away, and replaces the one open.
-    await runPaletteCommand(page, 'New...');
+    await runPaletteCommand(page, /^New/);
     await page.getByTestId('new-diagram-blank').click();
     await expect(dialog).toBeHidden();
     await expect(page.locator('g[data-element-id="StartEvent_1"]')).toBeVisible();

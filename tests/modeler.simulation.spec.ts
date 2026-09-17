@@ -38,20 +38,20 @@ test.describe('token simulation', () => {
   test('tokens walk into an expanded sub-process and survive leaving a drilled-down plane', async ({ page }) => {
     await openExample(page, 'sklearn_pipeline');
     const app = page.getByTestId('modeler-app');
-    await page.getByRole('button', { name: 'Simulate' }).click();
+    await page.getByRole('button', { name: /^simulate$/i }).click();
     await expect(app).toHaveClass(/simulation-active/);
 
     // Some token reaches the inner tasks of `prepare_data`, which the walk used to skip.
     const inner = await Promise.all(['select_features', 'select_target', 'split_train_test'].map((id) => box(shape(page, id))));
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token'))
       .some((t) => t.shown && inner.some((b) => inside(t, b))), { timeout: 15_000 }).toBe(true);
-    await page.getByTitle('Stop simulation').click();
+    await page.getByTitle(/stop/i).click();
     await expect(app, 'Stop restores editing').not.toHaveClass(/simulation-active/);
 
     // Simulating inside the expanded container: tokens spawn at its own start and stay in its frame.
     await drilldown(page, 'prepare_data');
     await expect(shape(page, 'start_analysis')).toBeHidden();
-    await page.getByRole('button', { name: 'Simulate' }).click();
+    await page.getByRole('button', { name: /^simulate$/i }).click();
     // The container's own frame is not drawn on its plane, so its contents give the bounds.
     const contents = await Promise.all(['prepare_start', ...['select_features', 'select_target', 'split_train_test'], 'prepare_end'].map((id) => box(shape(page, id))));
     const frame = {
@@ -73,13 +73,13 @@ test.describe('token simulation', () => {
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token')).every((t) => t.shown)).toBe(true);
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token'))
       .some((t) => t.shown && !inside(t, root, 12)), { timeout: 15_000 }).toBe(true);
-    await page.getByTitle('Stop simulation').click();
+    await page.getByTitle(/stop/i).click();
 
     // A collapsed sub-process spawns tokens at its own start event; leaving its plane hides
     // the ones still inside instead of dropping them.
     await drilldown(page, 'select_model');
     await expect(shape(page, 'build_pipeline')).toBeVisible();
-    await page.getByRole('button', { name: 'Simulate' }).click();
+    await page.getByRole('button', { name: /^simulate$/i }).click();
     const plane = await box(shape(page, 'build_pipeline'));
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token'))
       .some((t) => t.shown && Math.abs(t.cy - (plane.y + plane.h / 2)) < plane.h), { timeout: 10_000 }).toBe(true);
@@ -101,9 +101,9 @@ test('the replay enters and leaves the plane of the element a record names', asy
   xml = stamped(xml, 'start_analysis', '2026-09-01T10:00:00Z');
   xml = stamped(xml, 'cross_validate', '2026-09-01T10:00:05Z');
   await openExample(page, 'sklearn_pipeline', xml);
-  await runPaletteCommand(page, 'Replay Provenance');
+  await runPaletteCommand(page, /replay provenance/i);
   const replay = page.getByTestId('provenance-replay');
-  await replay.getByRole('button', { name: 'Jump to end' }).click();
+  await replay.getByRole('button', { name: /end/i }).click();
 
   // `cross_validate` lives in the collapsed `select_model`: the replay drills in and lands on it.
   await expect(shape(page, 'cross_validate')).toBeVisible({ timeout: 10_000 });
@@ -114,7 +114,7 @@ test('the replay enters and leaves the plane of the element a record names', asy
   }, { timeout: 10_000 }).toBe(true);
 
   // Stepping back to the root-plane record surfaces again.
-  await replay.getByRole('button', { name: 'Step back' }).click();
+  await replay.getByRole('button', { name: /back/i }).click();
   await expect(shape(page, 'start_analysis')).toBeVisible({ timeout: 10_000 });
   await expect(shape(page, 'cross_validate')).toBeHidden();
   await expect.poll(async () => {

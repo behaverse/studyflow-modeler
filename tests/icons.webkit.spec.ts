@@ -14,7 +14,7 @@ import { gotoModeler, runPaletteCommand } from './utils';
  */
 test('every canvas icon paints something in WebKit — no masked glyph', async ({ page }) => {
   await gotoModeler(page);
-  await runPaletteCommand(page, 'New...');
+  await runPaletteCommand(page, /^New/);
   await page.getByTestId('example-cognitive_battery').click();
   await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
 

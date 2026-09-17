@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
+import * as yaml from 'js-yaml';
 
 import { studyflowToXml } from '@core/document';
 import { freshModdle } from '@tests/schemas';
@@ -114,7 +115,7 @@ S:
     } catch (error: any) {
       log = String(error.stdout);
     }
-    expect(log).toContain('Split: a parallel split');
+    expect(log).toMatch(/Split.*parallel/);
   });
   test('a seeded random gateway takes the arms the browser runner takes', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
@@ -132,7 +133,7 @@ S:
 
     // The same arms as skills/browser/tests/scoped-state.unit.spec.ts draws from the same seed.
     const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
-    expect([...log.matchAll(/drawn → F_([AB])/g)].map((match) => match[1])).toEqual(['A', 'A', 'B', 'A']);
+    expect([...log.matchAll(/drawn.*F_([AB])/g)].map((match) => match[1])).toEqual(['A', 'A', 'B', 'A']);
   });
 
   test('when no condition holds and there is no default, the one flow without a condition is taken', async () => {
@@ -483,7 +484,7 @@ ${robot}`, moddle);
       '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
 
     const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
-    expect(log.match(/▤ stage x\.json/g)).toHaveLength(1);
+    expect(log.match(/stage x\.json/g)).toHaveLength(1);
   });
 
   test('hands a step the read-only properties its sub-process takes from wired Parameters, and refuses a write to one', () => {
@@ -523,7 +524,7 @@ ${robot}`, moddle);
     expect(() => execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
       '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } })).toThrow();
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8'))
-      .toContain('T writes speed, which the Parameters wired into Block set, so nothing inside it writes them');
+      .toMatch(/T writes speed.*Block/);
   });
 });
 
@@ -576,7 +577,9 @@ S:
     // The run repository keeps the study as it came, YAML under the original's name, with the input the python
     // runner staged recorded on it.
     const kept = path.join(dir, 'run', 'dump.studyflow.yaml');
-    expect(fs.readFileSync(kept, 'utf8')).toMatch(/counts:\n\s+type: DataObjectReference\n\s+extensionElements:\n\s+- type: prov:Activity\n\s+action: imported/);
+    const counts = (yaml.load(fs.readFileSync(kept, 'utf8')) as any).S.flowElements.counts;
+    expect(counts.type).toBe('DataObjectReference');
+    expect(counts.extensionElements).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'prov:Activity', action: 'imported' })]));
     // Run again from there, the study runs on in that repository.
     studyflow(kept);
     expect(execFileSync('git', ['-C', path.join(dir, 'run'), 'log', '--format=%s'], { encoding: 'utf8' })).toMatch(/^finished[\s\S]*^finished/m);

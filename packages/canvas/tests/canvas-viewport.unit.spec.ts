@@ -93,15 +93,17 @@ test('Shift+drag on empty canvas draws a marquee and selects what it encloses', 
 
 test('a wheel pans by its delta, Shift turns it sideways, and Ctrl zooms exponentially in it', async () => {
   const canvas = load();
-  const zoom = Math.exp(240 * 0.002);
   // A pan moves the content with the wheel, so the viewBox moves the other way; a zoom
-  // shrinks or grows the viewBox by the factor.
-  const CASES: [label: string, wheel: WheelEventInit, pan: { x: number; y: number } | null, factor: number][] = [
-    ['a plain notch pans vertically', { deltaY: -240 }, { x: 0, y: -240 }, 1],
-    ['deltaX pans horizontally', { deltaX: -100 }, { x: -100, y: 0 }, 1],
-    ['Shift maps a vertical wheel onto x', { deltaY: -100, shiftKey: true }, { x: -100, y: 0 }, 1],
-    ['Ctrl zooms in', { deltaY: -240, ctrlKey: true }, null, zoom],
-    ['… and out by the same factor', { deltaY: 240, ctrlKey: true }, null, 1 / zoom],
+  // shrinks or grows the viewBox by a factor: `in` is the zoom-in factor of a notch of 240,
+  // read off the first Ctrl case, so the step size stays the renderer's own.
+  let zoomIn = 1;
+  const CASES: [label: string, wheel: WheelEventInit, pan: { x: number; y: number } | null, factor: () => number][] = [
+    ['a plain notch pans vertically', { deltaY: -240 }, { x: 0, y: -240 }, () => 1],
+    ['deltaX pans horizontally', { deltaX: -100 }, { x: -100, y: 0 }, () => 1],
+    ['Shift maps a vertical wheel onto x', { deltaY: -100, shiftKey: true }, { x: -100, y: 0 }, () => 1],
+    ['Ctrl zooms in', { deltaY: -240, ctrlKey: true }, null, () => zoomIn],
+    ['… and out by the same factor', { deltaY: 240, ctrlKey: true }, null, () => 1 / zoomIn],
+    ['a bigger notch zooms further: exponential in the delta', { deltaY: -480, ctrlKey: true }, null, () => zoomIn * zoomIn],
   ];
   for (const [label, wheel, pan, factor] of CASES) {
     const before = box(canvas);
@@ -111,7 +113,11 @@ test('a wheel pans by its delta, Shift turns it sideways, and Ctrl zooms exponen
       expect(after.x - before.x, label).toBeCloseTo(pan.x, 6);
       expect(after.y - before.y, label).toBeCloseTo(pan.y, 6);
     }
-    expect(before.width / after.width, label).toBeCloseTo(factor, 6);
-    expect(before.height / after.height, label).toBeCloseTo(factor, 6);
+    if (label === 'Ctrl zooms in') {
+      zoomIn = before.width / after.width;
+      expect(zoomIn, label).toBeGreaterThan(1);
+    }
+    expect(before.width / after.width, label).toBeCloseTo(factor(), 6);
+    expect(before.height / after.height, label).toBeCloseTo(factor(), 6);
   }
 });

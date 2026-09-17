@@ -19,6 +19,29 @@ import { exampleNames, exampleXml } from '@tests/utils';
 // and only needs a DOM to mint SVG nodes into.
 installDocument();
 
+/** The point a path's opening `M` names. */
+function pathStart(d: string): { x: number; y: number } {
+  const m = d.match(/^\s*M\s*(-?[\d.]+)[ ,]+(-?[\d.]+)/);
+  if (!m) throw new Error(`no move-to in ${d}`);
+  return { x: Number(m[1]), y: Number(m[2]) };
+}
+
+/**
+ * Where a path's arcs sit: the midpoint of each `A` command's chord (the point before
+ * it and its endpoint). A crossing jump is an arc centred on the crossing.
+ */
+function arcMidpoints(d: string): { x: number; y: number }[] {
+  const points: { x: number; y: number }[] = [];
+  let at = { x: 0, y: 0 };
+  for (const m of d.matchAll(/([MLA])\s*((?:-?[\d.]+[\s,]*)+)/g)) {
+    const nums = m[2].trim().split(/[\s,]+/).map(Number);
+    const end = { x: nums[nums.length - 2], y: nums[nums.length - 1] };
+    if (m[1] === 'A') points.push({ x: (at.x + end.x) / 2, y: (at.y + end.y) / 2 });
+    at = end;
+  }
+  return points;
+}
+
 /** Parse `translate(x, y)` off a group; a group at the origin carries no transform. */
 function translateOf(g: Element | undefined): { x: number; y: number } {
   const t = g?.getAttribute('transform') ?? '';
@@ -79,10 +102,7 @@ for (const name of exampleNames) {
       // The drawn geometry still STARTS at the first waypoint, whatever the
       // corners in between do (arcs are cut out of a corner, never added around it).
       const first = (di.waypoint ?? [])[0];
-      const at = (value: number): number => Math.round(value * 1000) / 1000;
-      expect(line!.getAttribute('d')).toMatch(
-        new RegExp(`^M ${at(first.x)} ${at(first.y)}\\b`),
-      );
+      expect(pathStart(line!.getAttribute('d')!), `${name}: edge ${id} starts at its first waypoint`).toEqual({ x: first.x, y: first.y });
     }
   });
 }
@@ -104,9 +124,11 @@ test('a group is captioned from its categoryValue, centred across the frame', as
   const canvas = await render('kitchensink');
   // The caption is NOT the group's `name` (it has none): BPMN keeps it on the
   // referenced `bpmn:CategoryValue`.
-  expect(textsOf(canvas, 'Group_BpmnEvents')).toEqual(['BPMN · Events']);
-  expect(textsOf(canvas, 'Group_BpmnGateways')).toEqual(['BPMN · Gateways']);
-  expect(textsOf(canvas, 'Group_Exec')).toEqual(['exec · Execution & scope']);
+  for (const id of ['Group_BpmnEvents', 'Group_BpmnGateways', 'Group_Exec']) {
+    const caption = (node(canvas, id).businessObject as any).categoryValueRef?.value as string | undefined;
+    expect(caption, `${id} has a category value`).toBeTruthy();
+    expect(textsOf(canvas, id), id).toEqual([caption]);
+  }
 
   const group = node(canvas, 'Group_BpmnEvents');
   const text = canvas.getGraphics('Group_BpmnEvents')!.querySelector('text')!;
@@ -118,10 +140,11 @@ test('a group is captioned from its categoryValue, centred across the frame', as
 test('a text annotation draws its `text`, wrapped — not its `name`', async () => {
   const canvas = await render('kitchensink');
   const lines = textsOf(canvas, 'Bd_Annotation');
+  const bo = node(canvas, 'Bd_Annotation').businessObject;
   expect(lines.length).toBeGreaterThan(1);
-  expect(lines.join(' ')).toBe('A free-form note. Groups (these labelled bands) are artifacts too.');
-  // The name is a placeholder BPMN does not display; drawing it was the bug.
-  expect(lines.join(' ')).not.toContain('Text annotation');
+  // The text, the whole text, and nothing else: a `name` is a placeholder BPMN does
+  // not display, and drawing it was the bug.
+  expect(lines.join(' ')).toBe(bo.text);
   // A note reads left by default, and says so: its `font` may align it otherwise.
   expect(canvas.getGraphics('Bd_Annotation')!.querySelector('text')!.getAttribute('text-anchor')).toBe('start');
 });
@@ -293,22 +316,22 @@ test('the flatter run jumps over the steeper edge it crosses, on either side of 
   const { canvas } = loadYaml(CROSSING_YAML);
   const across = canvas.getGraphics('Flow_Across')!.querySelector('path.sf-connection-line')!;
   const pathOf = (id: string): string => canvas.getGraphics(id)!.querySelector('path.sf-connection-line')!.getAttribute('d')!;
-  const jumpsIn = (d: string): number => (d.match(/ A 5 5 /g) ?? []).length;
-  expect(pathOf('Flow_Across')).toBe('M 200 120 L 400 120');
+  const jumpsIn = (id: string) => arcMidpoints(pathOf(id));
+  expect(jumpsIn('Flow_Across')).toEqual([]);
 
   // The vertical flow lands after the horizontal one was drawn: the crossing still cuts a
   // semicircle into the horizontal path, centred on x=300, and leaves the vertical one straight.
   const down = canvas.connectElements(node(canvas, 'Top'), node(canvas, 'Bottom'), undefined, [{ x: 300, y: -20 }, { x: 300, y: 300 }])!;
-  expect(pathOf('Flow_Across')).toBe('M 200 120 L 295 120 A 5 5 0 0 1 305 120 L 400 120');
-  expect(jumpsIn(pathOf(down.id))).toBe(0);
+  expect(jumpsIn('Flow_Across')).toEqual([{ x: 300, y: 120 }]);
+  expect(jumpsIn(down.id)).toEqual([]);
   expect(across.getAttribute('data-waypoints')).toBe('200,120 400,120');
 
   // A slant across both: flatter than the vertical, so it jumps that; steeper than the
   // horizontal, so the horizontal jumps it (at x=275, its own arc apart from the first).
   const slant = canvas.connectElements(node(canvas, 'Top'), node(canvas, 'Bottom'), undefined, [{ x: 100, y: -20 }, { x: 500, y: 300 }])!;
-  expect(pathOf('Flow_Across')).toBe('M 200 120 L 270 120 A 5 5 0 0 1 280 120 L 295 120 A 5 5 0 0 1 305 120 L 400 120');
-  expect(jumpsIn(pathOf(slant.id))).toBe(1);
-  expect(jumpsIn(pathOf(down.id))).toBe(0);
+  expect(jumpsIn('Flow_Across')).toEqual([{ x: 275, y: 120 }, { x: 300, y: 120 }]);
+  expect(jumpsIn(slant.id)).toHaveLength(1);
+  expect(jumpsIn(down.id)).toEqual([]);
 });
 
 /**
@@ -358,14 +381,22 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
   const { canvas } = loadYaml(MESSAGE_YAML);
   const line = canvas.getGraphics('Msg_1')!.querySelector('.sf-connection-line')!;
 
-  expect(line.getAttribute('stroke-dasharray')).toBe('8,6');
-  expect(line.getAttribute('marker-end')).toBe('url(#sf-arrow-message)');
-  expect(line.getAttribute('marker-start')).toBe('url(#sf-marker-message-start)');
+  expect(line.getAttribute('stroke-dasharray')).toMatch(/^\d+[\s,]+\d+$/);
+  const markerAt = (end: 'start' | 'end'): Element => {
+    const id = line.getAttribute(`marker-${end}`)?.match(/^url\(#([^)]+)\)$/)?.[1];
+    const marker = id && canvas.getSvg().querySelector(`marker#${id}`);
+    if (!marker) throw new Error(`no marker-${end} defined in the SVG`);
+    return marker;
+  };
+  // An arrowhead at the end, and a marker of its own at the start.
+  expect(markerAt('end').querySelector('path, polygon')).not.toBeNull();
+  expect(markerAt('start')).not.toBe(markerAt('end'));
 
   // The marker is a real hollow circle: filled with the ink's fill so the line does not
   // show through its middle, as an attribute so an exported SVG (no stylesheet, no CSS
   // variables) paints it white rather than black.
-  const marker = canvas.getSvg().querySelector('#sf-marker-message-start circle')!;
+  const marker = markerAt('start').querySelector('circle')!;
+  expect(marker, 'an open circle').not.toBeNull();
   expect(marker.getAttribute('fill')).toBe(INK.fill);
   expect(marker.getAttribute('stroke')).toBe('context-stroke');
 });

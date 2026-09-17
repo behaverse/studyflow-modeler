@@ -6,6 +6,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { studyflowToXml } from '@core/document';
 import { ensureDiagramLayout, hasDiagramInterchange } from '@modeler/diagram/autoLayout';
+import { SPREAD } from '@modeler/diagram/edgeSpread';
 import { freshModdle } from './schemas';
 import { exampleNames, exampleXml, withoutDiagramInterchange } from './utils';
 
@@ -68,10 +69,10 @@ test.describe('ensureDiagramLayout', () => {
       }
     }
 
-    // The two flows leaving the allocation gateway split 10px apart, the one that turns down below the straight
+    // The two flows leaving the allocation gateway split one spread apart, the one that turns down below the straight
     // one, and both still start on the diamond's outline: a docking slid off the tip is pulled back onto the slope.
     const [a, b] = [edges.get('Flow_Allocate_A')!, edges.get('Flow_Allocate_B')!];
-    expect(b[0].y - a[0].y).toBe(10);
+    expect(b[0].y - a[0].y).toBe(SPREAD);
     expect(b[1].y).toBe(b[0].y);
     expect(b[2].y).toBeGreaterThan(b[1].y);
     const gateway = definitions.diagrams[0].plane.get('planeElement')

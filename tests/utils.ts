@@ -80,6 +80,11 @@ export async function gotoModeler(page: Page, { pickers = false } = {}): Promise
   await expect(page.getByTestId('modeler-canvas')).toBeVisible();
 }
 
+/** The diagram's name on the nav bar: a `title`d span until clicked, so one locator serves every spec that reads it. */
+export function diagramTitle(page: Page): Locator {
+  return page.getByTitle(/diagram name/i);
+}
+
 /** The in-place label editor: the `<textarea>` the canvas overlays on the label being edited (`canvas/interaction/labelEditing.ts`). */
 export function labelEditor(page: Page): Locator {
   return page.locator('.sf-label-editor');
@@ -95,26 +100,29 @@ export async function pressOnCanvas(page: Page, key: string): Promise<void> {
 }
 
 export async function openCommandPalette(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Open command palette' }).click();
-  await expect(page.getByPlaceholder(/Search commands/)).toBeVisible();
+  await page.getByRole('button', { name: /command palette/i }).click();
+  await expect(page.getByRole('dialog').getByRole('textbox', { name: /search/i })).toBeVisible();
 }
 
-export async function runPaletteCommand(page: Page, ...labels: string[]): Promise<void> {
+/** Run palette commands by label: a string is the exact label, a regex its key word (`/^Save As/`) matched on the row. */
+export async function runPaletteCommand(page: Page, ...labels: (string | RegExp)[]): Promise<void> {
   await openCommandPalette(page);
+  const dialog = page.getByRole('dialog');
   for (const label of labels) {
-    await page.getByRole('dialog').getByText(label, { exact: true }).click();
+    const row = typeof label === 'string' ? dialog.getByText(label, { exact: true }) : dialog.getByRole('button', { name: label });
+    await row.click();
   }
 }
 
 /** "Open File..." now opens a dialog; the picker is behind its Browse button. */
 export async function browseForDiagram(page: Page): Promise<void> {
-  await runPaletteCommand(page, 'Open File...');
+  await runPaletteCommand(page, /^Open File/);
   await expect(page.getByTestId('open-dialog')).toBeVisible();
   await page.getByTestId('open-dropzone').click();
 }
 
 export async function exportDiagram(page: Page, format: string): Promise<Download> {
-  await runPaletteCommand(page, 'Save As...');
+  await runPaletteCommand(page, /^Save As/);
   await expect(page.getByTestId('save-dialog')).toBeVisible();
   await page.getByTestId('export-format').selectOption(format);
 

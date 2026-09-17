@@ -8,6 +8,9 @@ import { resolveFile, serveUi } from '../serve';
 /** `studyflow edit` (and `ui`) serves dist/ the way a static host does: `/app` is app.html, `/run/` is run/index.html,
  * `/run` redirects to it (its relative assets need the slash), and nothing outside the root is reachable. */
 
+/** Any redirect status: the location is the behaviour. */
+const REDIRECT = /^30[1278]$/;
+
 const root = join(mkdtempSync(join(tmpdir(), 'studyflow-ui-')), 'dist');
 mkdirSync(root);
 writeFileSync(`${root}.html`, 'beside the root, not in it: `/` never serves this');
@@ -46,13 +49,13 @@ test('serves over http, and serves the file `studyflow edit <file>` opens, readi
     // A malformed escape is not found, and the server still answers what follows.
     expect((await fetch(`${origin}/%E0%A4%A`)).status).toBe(404);
     // Nor does redirecting a path that decodes to a newline end it.
-    expect((await fetch(`${origin}/x%0A%2F..%2Frun`, { redirect: 'manual' })).status).toBe(301);
+    expect(String((await fetch(`${origin}/x%0A%2F..%2Frun`, { redirect: 'manual' })).status)).toMatch(REDIRECT);
     const app = await fetch(`${origin}/app`);
     expect(app.status).toBe(200);
     expect(app.headers.get('content-type')).toContain('text/html');
     expect(await app.text()).toContain('modeler');
     const run = await fetch(`${origin}/run`, { redirect: 'manual' });
-    expect(run.status).toBe(301);
+    expect(String(run.status)).toMatch(REDIRECT);
     expect(run.headers.get('location')).toBe('/run/');
     expect((await fetch(`${origin}/nope`)).status).toBe(404);
 

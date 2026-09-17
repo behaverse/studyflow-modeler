@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { Canvas } from '@canvas/index.ts';
+import { Canvas, INK } from '@canvas/index.ts';
 import type { IconDef } from '@canvas/index.ts';
 import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml } from '@core/notation/moddlePackage';
 
-import { installDocument, loadYaml } from './canvasHarness';
+import { installDocument, loadYaml, node } from './canvasHarness';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /**
@@ -85,7 +85,7 @@ test('a marker glyph goes through the same resolver, stamped with its key, in th
   // Real geometry in the SVG namespace, with `currentColor` written as the muted ink, so a
   // document opened anywhere paints the glyph.
   expect(path.namespaceURI).toBe('http://www.w3.org/2000/svg');
-  expect(path.getAttribute('fill')).toBe('#78716c');
+  expect(path.getAttribute('fill')).toBe(INK.muted);
   expect(canvas.toSVG()).not.toContain('currentColor');
 });
 
@@ -205,10 +205,15 @@ test('an event\'s centre takes its definition\'s symbol, else its own type\'s, a
   const g = graphics(canvas, 'End_1');
   // `^=`: an end event takes the filled `ErrorEventDefinition:end` variant when the host names one.
   const symbol = g.querySelector('svg.sf-icon[data-icon-key^="ErrorEventDefinition"]')!;
-  const badge = g.querySelector('svg.sf-icon[data-icon-key="iconify ph--sign-out"]')!;
-  expect(symbol.getAttribute('x')).toBe('8');
-  expect(Number(badge.getAttribute('x'))).toBeGreaterThan(8);
-  expect(Number(badge.getAttribute('y'))).toBeLessThan(8);
+  const badge = g.querySelector('svg.sf-icon:not([data-icon-key^="ErrorEventDefinition"])')!;
+  expect(badge, 'the badge is drawn beside the symbol').not.toBeNull();
+  const at = (el: Element) => ({ x: Number(el.getAttribute('x')), y: Number(el.getAttribute('y')) });
+  // The symbol sits inside the circle; the badge is up and to the right of it.
+  const end = node(canvas, 'End_1');
+  expect(at(symbol).x).toBeGreaterThan(0);
+  expect(at(symbol).x).toBeLessThan(end.width / 2);
+  expect(at(badge).x).toBeGreaterThan(at(symbol).x);
+  expect(at(badge).y).toBeLessThan(at(symbol).y);
 });
 
 /**
@@ -257,13 +262,13 @@ function dataResolver(key: string, bo?: any): IconDef | null | undefined {
 
 test('a data store draws its format\'s icon, a typed data object its type\'s, a plain one none', async () => {
   const { canvas } = loadYaml(DATA_YAML, { iconResolver: dataResolver });
-  const CASES: [label: string, id: string, keys: string[]][] = [
+  const CASES: [label: string, id: string, keys: unknown[]][] = [
     ['BIDS: the bundled logotype', 'Store_bids', ['bids-dataset-icon']],
-    ['Psych-DS: the class its format literal names', 'Store_psychds', ['iconify ph--flask']],
+    ['Psych-DS: the class its format literal names', 'Store_psychds', [expect.stringMatching(/^iconify /)]],
     ['a table: its type glyph', 'Obj_table', ['DataObjectReference']],
     ['a plain data object', 'Obj_plain', []],
   ];
   for (const [label, id, keys] of CASES) expect(iconKeys(canvas, id), label).toEqual(keys);
   // The bundled logotype is painted in the muted ink, like every other glyph.
-  expect(graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"] path')!.getAttribute('fill')).toBe('#78716c');
+  expect(graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"] path')!.getAttribute('fill')).toBe(INK.muted);
 });

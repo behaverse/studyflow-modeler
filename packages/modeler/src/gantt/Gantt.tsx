@@ -15,6 +15,8 @@ const MIN_CHART_W = 320;
 /** Room one tick label needs, so the axis picks a step whose labels never overlap. */
 const TICK_W = 56;
 const PITCH = ROW_H + ROW_PAD;
+/** An open group's bar is slimmer: its ears drop to the row's full height over the rows it spans. */
+const OPEN_H = ROW_H - 6;
 /** The label column hugs the widest label, up to this; a wider one wraps. */
 const LABEL_MAX = 200;
 const LABEL_PAD = 12;
@@ -112,7 +114,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
   const bands = visible.filter((g) => g.group && !collapsed.has(g.id)).map((g) => {
     const bar = bars.get(g.id)!;
     const bottom = Math.max(...visible.filter((r) => ancestors.get(r.id)!.includes(g.id)).map((r) => bars.get(r.id)!.y + ROW_H));
-    return { id: g.id, x: bar.x, w: bar.w, y: bar.y + ROW_H, h: bottom - bar.y - ROW_H, stroke: bar.stroke };
+    return { id: g.id, x: bar.x, w: bar.w, y: bar.y + OPEN_H, h: bottom - bar.y - OPEN_H, stroke: bar.stroke };
   });
   const labelOf = new Map(rows.map((r) => [r.id, r.label]));
   // A row under a folded group hands its arrows to the outermost folded group above it.
@@ -181,8 +183,9 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                       // An open group's bar hangs an ear off each end, over the rows it spans: one outline with a rounded top,
                       // so the progress fills into the ears and the border alone draws the rest. Any other bar is rounded all round.
                       const open = r.group && !collapsed.has(r.id);
+                      const h = open ? OPEN_H : ROW_H;
                       const outline = open
-                        ? `M ${x} ${y + ROW_H + 6} V ${y + 3} q 0 -3 3 -3 H ${x + w - 3} q 3 0 3 3 V ${y + ROW_H + 6} L ${x + w - 7} ${y + ROW_H} H ${x + 7} Z`
+                        ? `M ${x} ${y + h + 6} V ${y + 3} q 0 -3 3 -3 H ${x + w - 3} q 3 0 3 3 V ${y + h + 6} L ${x + w - 7} ${y + h} H ${x + 7} Z`
                         : undefined;
                       return (
                         <g key={r.id}>
@@ -220,18 +223,18 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                             <rect x={x} y={y} width={w} height={ROW_H} fill={fill} stroke={stroke} strokeWidth={1.5} rx={3} />
                           )}
                           {progressW > 0 && (
-                            <rect x={x} y={y} width={progressW} height={outline ? ROW_H + 6 : ROW_H} fill={stroke} rx={outline ? 0 : 3} clipPath={outline ? `url(#gantt-bar-${r.id})` : undefined} />
+                            <rect x={x} y={y} width={progressW} height={h + (outline ? 6 : 0)} fill={stroke} rx={outline ? 0 : 3} clipPath={outline ? `url(#gantt-bar-${r.id})` : undefined} />
                           )}
                           {/* The figure, when the bar has room for it: in the bar's ink, and in its paper where it crosses the filled part. */}
                           {r.progressText && w >= textWidth(r.progressText, `10px ${fontFamily}`) + 8 && (
                             <>
-                              <text {...figureAt(x + w / 2, y + ROW_H / 2)} fill={stroke}>{r.progressText}</text>
+                              <text {...figureAt(x + w / 2, y + h / 2)} fill={stroke}>{r.progressText}</text>
                               {progressW > 0 && (
                                 <>
                                   <clipPath id={`gantt-done-${r.id}`}>
-                                    <rect x={x} y={y} width={progressW} height={ROW_H} />
+                                    <rect x={x} y={y} width={progressW} height={h} />
                                   </clipPath>
-                                  <text {...figureAt(x + w / 2, y + ROW_H / 2)} fill={fill} clipPath={`url(#gantt-done-${r.id})`}>
+                                  <text {...figureAt(x + w / 2, y + h / 2)} fill={fill} clipPath={`url(#gantt-done-${r.id})`}>
                                     {r.progressText}
                                   </text>
                                 </>

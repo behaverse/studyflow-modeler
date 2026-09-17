@@ -29,14 +29,14 @@ test('convert warns about what reading drops; with --strict it writes nothing', 
 
   const yaml = path.join(dir, 'old.studyflow.yaml');
   const lax = convert(old, yaml);
-  expect(lax.stderr).toContain('warning: unparsable content <behaverse:dataset>');
-  expect(lax.stderr).toContain('unknown type <behaverse:Dataset>');
+  expect(lax.stderr).toMatch(/warning[^\n]*<behaverse:dataset>/i);
+  expect(lax.stderr).toMatch(/behaverse:Dataset/);
   expect(lax.status).toBe(0);
   expect(existsSync(yaml)).toBe(true);
 
   const strictYaml = path.join(dir, 'strict.studyflow.yaml');
   const strict = convert(old, strictYaml, '--strict');
-  expect(strict.stderr).toContain('warning: unparsable content <behaverse:dataset>');
+  expect(strict.stderr).toMatch(/warning[^\n]*<behaverse:dataset>/i);
   expect(strict.status).toBe(1);
   expect(existsSync(strictYaml)).toBe(false);
 });

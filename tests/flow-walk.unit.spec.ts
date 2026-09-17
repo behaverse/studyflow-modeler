@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { CONTENT_PADDING } from '@canvas/index.ts';
 import { containerOf, nextHops, startEventsIn, tokenAnchor, type Hop } from '@modeler/simulation/flowWalk';
 
 /** The pure flow-walk decision extracted from TokenSimulator. */
@@ -75,6 +76,9 @@ test.describe('containers', () => {
   test('a token rests on the centre of a node, or in the name strip of an expanded container', () => {
     expect(tokenAnchor(node('bpmn:Task'))).toEqual({ x: 50, y: 40 });
     expect(tokenAnchor(node('bpmn:SubProcess', undefined, { isExpanded: false }))).toEqual({ x: 50, y: 40 });
-    expect(tokenAnchor(node('bpmn:SubProcess', undefined, { width: 350, height: 200 }))).toEqual({ x: 175, y: 20 });
+    const strip = tokenAnchor(node('bpmn:SubProcess', undefined, { width: 350, height: 200 }));
+    expect(strip.x).toBe(175);
+    expect(strip.y).toBeGreaterThan(0);
+    expect(strip.y).toBeLessThan(CONTENT_PADDING.top);
   });
 });

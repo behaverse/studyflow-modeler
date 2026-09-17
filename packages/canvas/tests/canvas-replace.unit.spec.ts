@@ -67,12 +67,15 @@ test('replacing a task mints the new type, keeps the name, rewires both flows â€
   expect(xml).not.toContain('id="Task_1"');
   expect(xml).not.toContain('bpmnElement="Task_1"');
   // â€¦and the new one is filed in the process with the name carried across.
-  expect(xml).toMatch(/<bpmn:userTask[^>]*id="([^"]+)"[^>]*name="Read the brief"/);
+  expect(xml).toMatch(/<bpmn:userTask\b[^>]*\bname="Read the brief"/);
 
   // Both flows name the replacement on the reference AND on the back-reference.
   const id = replacement!.id;
-  expect(xml).toMatch(new RegExp(`<bpmn:sequenceFlow[^>]*id="Flow_1"[^>]*targetRef="${id}"`));
-  expect(xml).toMatch(new RegExp(`<bpmn:sequenceFlow[^>]*id="Flow_2"[^>]*sourceRef="${id}"`));
+  expect(xml).toMatch(new RegExp(`<bpmn:userTask\\b[^>]*\\bid="${id}"`));
+  /** The opening tag of the element `elementId` names. */
+  const tagOf = (elementId: string): string => xml.match(new RegExp(`<bpmn:\\w+\\b[^>]*\\bid="${elementId}"[^>]*>`))?.[0] ?? '';
+  expect(tagOf('Flow_1')).toContain(`targetRef="${id}"`);
+  expect(tagOf('Flow_2')).toContain(`sourceRef="${id}"`);
   expect(xml).toContain('<bpmn:incoming>Flow_1</bpmn:incoming>');
   expect(xml).toContain('<bpmn:outgoing>Flow_2</bpmn:outgoing>');
 

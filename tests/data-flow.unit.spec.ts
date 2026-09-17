@@ -123,7 +123,7 @@ Harness:
     expect(getInferredDataNeighbors(elementById(definitions, 'Score'), 'inputs')).toEqual([
       expect.objectContaining({
         name: 'Scoring rubric',
-        kind: 'data object',
+        kind: expect.stringMatching(/data object/i),
         outerScope: 'Evaluation harness',
         binding: 'rubric',
       }),

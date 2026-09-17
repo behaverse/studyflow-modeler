@@ -74,13 +74,14 @@ test('the two toggles say which way they will go', () => {
   const titleOf = (ctx: ContextPadContext, action: ContextPadAction): string | undefined =>
     contextPadEntries(ctx).find((entry) => entry.action === action)?.title;
   const flow = { isShape: false, isConnection: true, canToggleDefault: true };
-  const CASES: [label: string, title: string | undefined, expected: string][] = [
-    ['a flow that is not the default', titleOf(context(flow), 'flow.toggle-default'), 'Set as default flow'],
-    ['the default flow', titleOf(context({ ...flow, isDefault: true }), 'flow.toggle-default'), 'Unset default flow'],
-    ['a collapsed container', titleOf(context({ isExpandable: true, isExpanded: false }), 'expand.toggle'), 'Expand'],
-    ['an expanded container', titleOf(context({ isExpandable: true, isExpanded: true }), 'expand.toggle'), 'Collapse'],
+  // The wording is the UI's; what is pinned is that each state's title names the way it goes, and the two differ.
+  const CASES: [label: string, title: string | undefined, expected: RegExp][] = [
+    ['a flow that is not the default', titleOf(context(flow), 'flow.toggle-default'), /^(?!un)set.*default/i],
+    ['the default flow', titleOf(context({ ...flow, isDefault: true }), 'flow.toggle-default'), /unset.*default/i],
+    ['a collapsed container', titleOf(context({ isExpandable: true, isExpanded: false }), 'expand.toggle'), /expand/i],
+    ['an expanded container', titleOf(context({ isExpandable: true, isExpanded: true }), 'expand.toggle'), /collapse/i],
   ];
-  for (const [label, title, expected] of CASES) expect(title, label).toBe(expected);
+  for (const [label, title, expected] of CASES) expect(title, label).toMatch(expected);
 });
 
 test('exactly the two fixed-successor entries carry an append, and it is the one they commit', () => {

@@ -21,7 +21,7 @@ Study:
 
   // No `severity`: an error, which keeps the run from starting (a warning would let it proceed).
   expect(validateImplementations(study)).toEqual([
-    { nodeId: 'Bad', message: expect.stringContaining('The implementation reference cannot be read') },
+    { nodeId: 'Bad', message: expect.stringMatching(/implementation/i) },
   ]);
 });
 

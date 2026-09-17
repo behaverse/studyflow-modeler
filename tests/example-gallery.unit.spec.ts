@@ -44,10 +44,13 @@ test.describe('shipped examples', () => {
 
   test('a pool diagram is read from both its roots', async () => {
     // spirit2025 names its collaboration and documents its process.
-    expect(exampleMetadata(await definitionsOf('spirit2025'), 'spirit2025')).toEqual({
-      title: 'SPIRIT 2025 trial protocol',
-      summary: expect.stringMatching(/^A SPIRIT 2025 trial protocol in lanes/),
-    });
+    const definitions = await definitionsOf('spirit2025');
+    const rootOf = (type: string) => definitions.rootElements.find((root: any) => root.$type === type);
+    const { title, summary } = exampleMetadata(definitions, 'spirit2025');
+    expect(title).toBe(rootOf('bpmn:Collaboration').name);
+    const documentation = (rootOf('bpmn:Process').documentation?.[0]?.text ?? '').replace(/\s+/g, ' ').trim();
+    expect(summary).not.toBe('');
+    expect(documentation.startsWith(summary), 'the blurb is the process documentation\'s first sentence').toBe(true);
   });
 
   test('a YAML example\'s card draws the main canvas, without glyphs', async () => {

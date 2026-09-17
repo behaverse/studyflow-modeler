@@ -20,21 +20,22 @@ test('parseImplementationRef accepts a scheme, a ref, and an optional version', 
 });
 
 test('parseImplementationRef rejects a malformed reference and says why', () => {
-  const CASES: [label: string, input: string | null | undefined, error: string][] = [
-    ['empty string', '', 'empty function reference'],
-    ['whitespace only', '   ', 'empty function reference'],
-    ['null', null, 'empty function reference'],
-    ['undefined', undefined, 'empty function reference'],
-    ['no scheme', 'pkg_for_st.do_map@1.2', "missing '<scheme>://'"],
-    ['a malformed scheme separator', 'python:/oops', "missing '<scheme>://'"],
-    ['an empty ref', 'python://', 'empty ref'],
-    ['an empty ref before a version', 'python://@1.2', 'empty ref'],
-    ['a trailing @ with no version', 'python://pkg.fn@', 'empty version'],
-    ['whitespace inside the ref', 'python://pkg .fn@1.2', 'whitespace'],
+  // The error names the part at fault; its wording is the source's.
+  const CASES: [label: string, input: string | null | undefined, error: RegExp][] = [
+    ['empty string', '', /empty/],
+    ['whitespace only', '   ', /empty/],
+    ['null', null, /empty/],
+    ['undefined', undefined, /empty/],
+    ['no scheme', 'pkg_for_st.do_map@1.2', /scheme/],
+    ['a malformed scheme separator', 'python:/oops', /scheme/],
+    ['an empty ref', 'python://', /empty.*ref/],
+    ['an empty ref before a version', 'python://@1.2', /empty.*ref/],
+    ['a trailing @ with no version', 'python://pkg.fn@', /empty.*version/],
+    ['whitespace inside the ref', 'python://pkg .fn@1.2', /whitespace/],
   ];
   for (const [label, input, error] of CASES) {
     const result = parseImplementationRef(input);
     expect(result.ok, label).toBe(false);
-    if (!result.ok) expect(result.error, label).toContain(error);
+    if (!result.ok) expect(result.error, label).toMatch(error);
   }
 });

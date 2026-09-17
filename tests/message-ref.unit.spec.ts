@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import * as yaml from 'js-yaml';
 
 import { studyflowToDefinitions, xmlToStudyflow } from '@core/document';
 import type { Editor } from '@modeler/editor/port';
@@ -67,8 +68,8 @@ test('the Message field makes one message per structure, shares it, and drops it
   expect(roots('bpmn:Message')).toHaveLength(1);
   expect(roots('bpmn:ItemDefinition')).toHaveLength(2);
 
-  const text = await xmlToStudyflow((await m.toXML(definitions, { format: true })).xml, freshModdle());
-  expect(text).toContain('messageRef: Message_behaverse_Trial\n');
-  expect(text).toContain('Message_behaverse_Trial:\n  type: Message\n  itemRef: ItemDefinition_behaverse_Trial\n');
-  expect(text).toContain('ItemDefinition_behaverse_Trial:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');
+  const doc = yaml.load(await xmlToStudyflow((await m.toXML(definitions, { format: true })).xml, freshModdle())) as Record<string, any>;
+  expect(doc.C.messageFlows.Msg_Trial.messageRef).toBe('Message_behaverse_Trial');
+  expect(doc.Message_behaverse_Trial).toMatchObject({ type: 'Message', itemRef: 'ItemDefinition_behaverse_Trial' });
+  expect(doc.ItemDefinition_behaverse_Trial).toMatchObject({ type: 'ItemDefinition', structureRef: 'behaverse:Trial' });
 });

@@ -58,19 +58,26 @@ test('opens a timeline as a study that chains start -> tasks -> end, a cognitive
   expect(drawn.sort()).toEqual([...process.flowElements, ...wires].map((element: any) => element.id).sort());
 });
 
+/** The ids of the tasks the opened study holds. */
+async function taskIds(text: string): Promise<string[]> {
+  const { rootElement } = await freshModdle().fromXML((await open(text)).xml);
+  const process = rootElement.rootElements.find((element: any) => element.$type === 'bpmn:Process');
+  return process.flowElements.filter((element: any) => /Task$/.test(element.$type)).map((element: any) => element.id);
+}
+
 test('opens a timeline array or an experiment object holding one, and rejects JSON that is neither', async () => {
   const CASES: [string, RegExp | undefined][] = [
     [JSON.stringify({ timeline: FLANKER }), undefined],
-    ['{ not json', /not valid JSON/],
-    ['[1, 2, 3]', /does not look like a jsPsych timeline/],
-    ['[]', /does not look like a jsPsych timeline/],
-    ['[[{"type": "x"}]]', /does not look like a jsPsych timeline/],
-    ['{"timeline": ["a"]}', /does not look like a jsPsych timeline/],
-    ['{"name": "package.json", "version": "1.0.0"}', /timeline array/],
+    ['{ not json', /JSON/],
+    ['[1, 2, 3]', /timeline/i],
+    ['[]', /timeline/i],
+    ['[[{"type": "x"}]]', /timeline/i],
+    ['{"timeline": ["a"]}', /timeline/i],
+    ['{"name": "package.json", "version": "1.0.0"}', /timeline/i],
   ];
 
   for (const [text, error] of CASES) {
     if (error) await expect(open(text), text).rejects.toThrow(error);
-    else expect((await open(text)).xml, text).toContain('<bpmn:userTask id="Flanker_test"');
+    else expect(await taskIds(text), text).toContain('Flanker_test');
   }
 });

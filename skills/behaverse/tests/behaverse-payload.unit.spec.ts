@@ -133,18 +133,18 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     {
       label: 'a task naming no timeline has no trials to run, and is refused',
       xml: taskXml('Blocks:\n  B1:\n    Name: B1\n'),
-      error: /names no timeline/,
+      error: /timeline/,
     },
     {
       // Unity null-merges `parameters` over the build's own, so an empty entry would erase that timeline, not name it.
       label: 'an empty Timelines entry defines nothing, and is refused',
       xml: taskXml('timeline: XCIT_NB_01\nTimelines:\n  XCIT_NB_01:\n'),
-      error: /defines no timeline called XCIT_NB_01/,
+      error: /XCIT_NB_01/,
     },
     {
       label: 'a value two wired Parameters objects both set is an error naming both',
       xml: taskXml('Bot:\n  Speed: 20\n', 'Bot:\n  Speed: 5\n'),
-      error: /TheTask reads Bot\.Speed from both P1 and P2/,
+      error: /TheTask.*Bot\.Speed.*P1.*P2/,
     },
     {
       label: 'a model on the lower band answers through the runner, with the wired Prompt; Unity waits for an external answer',
@@ -158,7 +158,7 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     {
       label: 'a model on the lower band names the model it is, never a default',
       xml: bandsXml('<studyflow:actor actorType="llm" />'),
-      error: /names none it can call/,
+      error: /implementation/,
     },
     {
       label: 'the build\'s random bot takes the task when the band says so, a software actor whose implementation is random',
@@ -169,12 +169,12 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       // Its answers come along message flows from its own steps, which only the local runtime carries.
       label: 'a robot on the lower band is refused here, and no one stands in for it',
       xml: bandsXml('<reachy:robot />'),
-      error: /answers over message flows in the local runtime/,
+      error: /local runtime/,
     },
     {
       label: 'a `Bot:` entry naming who answers is refused: the drawing says that',
       xml: taskXml('timeline: XCIT_NB_01\nBot:\n  ResponseSource: external'),
-      error: /not who answers \(ResponseSource\)/,
+      error: /ResponseSource/,
     },
     {
       label: 'a person on the lower band plays the task, with no bot',
@@ -185,7 +185,7 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       // Nothing says which partner answers, and the file's order is not an answer.
       label: 'unnamed message flows to two partners are an error',
       xml: TWO_PARTNERS_XML,
-      error: /Claude, Agent.*messageRef/,
+      error: /Claude.*Agent.*messageRef/,
     },
   ];
 

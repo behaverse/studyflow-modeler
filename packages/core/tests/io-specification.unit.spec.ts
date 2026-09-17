@@ -17,6 +17,13 @@ async function canvasForm(text: string): Promise<string> {
   return fromWireXml(await studyflowToXml(text, freshModdle()), freshModdle());
 }
 
+/** The activity of that id, as moddle reads the XML: the structure, not the serializer's spelling of it. */
+async function activityOf(xml: string, id: string): Promise<any> {
+  const { rootElement } = await freshModdle().fromXML(xml);
+  const walk = (containers: any[]): any[] => containers.flatMap((c) => [c, ...walk(c.flowElements ?? [])]);
+  return walk(rootElement.rootElements).find((el: any) => el.id === id);
+}
+
 test.describe('standard-BPMN ioSpecification boundary', () => {
   test('the canvas form, lowered to standard BPMN, folds back to the shipped YAML', async () => {
     const fixture = readFileSync(STATE_PROPERTIES_FIXTURE, 'utf8');
@@ -25,17 +32,14 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
     const compact = await canvasForm(fixture);
     expect(compact).not.toContain('ioSpecification');
     const standard = await toStandardBpmnXml(compact, freshModdle());
-    for (const line of [
-      '<bpmn:ioSpecification id="Run_Trial_io">',
-      '<bpmn:dataInput id="Run_Trial_in_arm" name="arm" />',
-      '<bpmn:dataOutput id="Run_Trial_result" name="result" />',
-      '<bpmn:dataInputRefs>Run_Trial_in_arm</bpmn:dataInputRefs>',
-      '<bpmn:dataOutputRefs>Run_Trial_result</bpmn:dataOutputRefs>',
-      '<bpmn:targetRef>Run_Trial_in_arm</bpmn:targetRef>',
-      '<bpmn:sourceRef>Run_Trial_result</bpmn:sourceRef>',
-    ]) {
-      expect(standard).toContain(line);
-    }
+    const activity = await activityOf(standard, 'Run_Trial');
+    const io = activity.ioSpecification;
+    expect(io.dataInputs.map((input: any) => input.name)).toEqual(['arm']);
+    expect(io.dataOutputs.map((output: any) => output.name)).toEqual(['result']);
+    expect(io.inputSets[0].dataInputRefs).toEqual(io.dataInputs);
+    expect(io.outputSets[0].dataOutputRefs).toEqual(io.dataOutputs);
+    expect(activity.dataInputAssociations.map((assoc: any) => assoc.targetRef)).toEqual(io.dataInputs);
+    expect(activity.dataOutputAssociations.map((assoc: any) => assoc.sourceRef[0])).toEqual(io.dataOutputs);
 
     const CASES = [
       ...exampleNames.map((name): [string, string] => [name, exampleText(name)]),
@@ -58,7 +62,8 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
 </bpmn:definitions>`;
 
     const standard = await toStandardBpmnXml(compact, freshModdle());
-    expect(standard).toContain('<bpmn:dataInput id="Step_in_input" name="input" />');
+    // An unnamed source still gets a data input, named for what it is.
+    expect((await activityOf(standard, 'Step')).ioSpecification.dataInputs.map((input: any) => input.name)).toEqual(['input']);
     expect(standard).not.toContain('transformation');
 
     const folded = await fromWireXml(standard, freshModdle());

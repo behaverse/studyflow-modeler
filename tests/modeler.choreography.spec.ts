@@ -91,19 +91,19 @@ test('a cognitive task names who takes it: a declared pool, a new actor, or no o
   await expect(shape).toContainText('Behaverse');
   // The presenting side is the task itself: no top band, no initiator to pick; the kind is the pool's.
   await expect(inspector.locator('input[name="choreography:top"]')).toHaveCount(0);
-  await expect(inspector.getByRole('button', { name: 'Initiating participant' })).toHaveCount(0);
-  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Large language model');
+  await expect(inspector.getByRole('button', { name: /initiating participant/i })).toHaveCount(0);
+  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/language model/i);
 
   // Typing a new name makes an actor for this task; untyped, it reads as such.
   await taker.fill('Subject');
   await taker.press('Enter');
   await expect(shape).toContainText('Subject');
-  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Untyped');
+  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/untyped/i);
 
   // A band-only actor has no shape to select: its kind and that kind's settings are set here and reach the file.
-  await inspector.getByRole('button', { name: 'bottom participant kind' }).click();
-  await page.getByRole('option', { name: 'Software', exact: true }).click();
-  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText('Software');
+  await inspector.getByRole('button', { name: /bottom participant kind/i }).click();
+  await page.getByRole('option', { name: /^Software$/i }).click();
+  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/software/i);
   const identifier = inspector.locator('input[name="studyflow:implementation"]');
   await identifier.fill('python://lab.bots.random');
   await identifier.blur();
@@ -113,7 +113,7 @@ test('a cognitive task names who takes it: a declared pool, a new actor, or no o
 
   // None clears the band: the task draws plain and the pool it sits in takes it.
   await inspector.locator('button[aria-label="bottom participant choices"]').click();
-  await page.getByRole('option', { name: 'None' }).click();
+  await page.getByRole('option', { name: /^None$/i }).click();
   await expect(taker).toHaveValue('');
   await expect(shape).not.toContainText('Subject');
   await expect(shape).not.toContainText('Behaverse');

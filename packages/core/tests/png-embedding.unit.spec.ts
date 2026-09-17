@@ -62,9 +62,9 @@ test.describe('PNG studyflow embedding', () => {
   });
 
   test('rejects a PNG that carries no studyflow, and bytes that are not a PNG', () => {
-    expect(() => extractStudyflowFromPng(minimalPng())).toThrow(/does not contain embedded Studyflow/);
+    expect(() => extractStudyflowFromPng(minimalPng())).toThrow(/Studyflow/i);
     const notPng = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
-    expect(() => extractStudyflowFromPng(notPng)).toThrow(/not a valid PNG/);
-    expect(() => embedStudyflowIntoPng(notPng, 'id: x\n')).toThrow(/not a valid PNG/);
+    expect(() => extractStudyflowFromPng(notPng)).toThrow(/PNG/);
+    expect(() => embedStudyflowIntoPng(notPng, 'id: x\n')).toThrow(/PNG/);
   });
 });

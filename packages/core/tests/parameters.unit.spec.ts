@@ -59,12 +59,12 @@ test('a key naming one of a step\'s own attributes sets it, any other key is its
   expect([...overrides.keys()].sort(), 'beep is no attribute of a Rest').toEqual(['eyes', 'restDuration']);
   expect(effectiveAttribute(pause, 'eyes')).toBe('closed');
   // Two objects setting one attribute: both are named, and a run refuses it.
-  expect(overrides.get('restDuration')?.sources.map((source) => source.id)).toEqual(['Timing', 'Eyes']);
+  expect(overrides.get('restDuration')?.sources.map((source) => source.id).sort()).toEqual(['Eyes', 'Timing']);
   // Knobs is wired into nothing: its `seed` leaves the Study's alone, its `eyes` the Rest's.
   expect(attributeOverrides(process).size).toBe(0);
   expect(effectiveAttribute(process, 'seed')).toBe(3);
 
   expect(splitAttributes(pause, { eyes: 'open', beep: true }, 'Pause')).toEqual({ attributes: { eyes: 'open' }, rest: { beep: true } });
   expect(() => splitAttributes(pause, { restDuration: { seconds: 30 } }, 'Pause'))
-    .toThrow('Pause reads restDuration, one of its attributes, which takes one value, not a mapping.');
+    .toThrow(/Pause.*restDuration.*mapping/);
 });
