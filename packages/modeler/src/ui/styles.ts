@@ -63,6 +63,7 @@ export const dialog = {
   panelMd: 'w-full max-w-2xl',
   panelLg: 'w-full max-w-4xl',
   panelXl: 'w-full max-w-6xl',
+  panelFull: 'w-full max-w-none h-[calc(100vh-1rem)] sm:h-[calc(100vh-2rem)]',
   panelBody: 'flex-1 min-h-0 overflow-y-auto -mx-1 px-1',
 
   title: 'text-base tracking-tight text-stone-900 font-semibold',

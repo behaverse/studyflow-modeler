@@ -1,4 +1,4 @@
-import { resolvePlaceholders } from '@core/document';
+import { parseChecklistLines, resolvePlaceholders } from '@core/document';
 import { StudyflowElement } from '@core/element';
 import type { Editor } from '@modeler/editor/port';
 
@@ -13,10 +13,17 @@ export type Row = TimingAttrs & {
   label: string;
   type: string;
   swimlane: string;
+  /** The element's own colours, when the diagram gave it any: the bar wears them. */
+  fill?: string;
+  stroke?: string;
+  /** Ids of the nearest scheduled predecessors along sequence flows: what this row's bar waits on. */
+  after: string[];
   /** Best-effort parse of `onset` as minutes-since-epoch-or-T0. */
   onsetMin?: number;
   durationMin?: number;
   progressPct?: number;
+  /** The figure the bar shows when it has room: `60%`, or `3/5` from a checklist. */
+  progressText?: string;
 };
 
 const ATTR_NAMES: (keyof TimingAttrs)[] = ['onset', 'duration', 'progress'];
@@ -120,35 +127,78 @@ function parseProgressPct(raw: string): number | undefined {
   return undefined;
 }
 
+/** The progress a checklist implies when the element states none: ticked task items over all task items. */
+function checklistProgress(bo: any): { pct: number; label: string; text: string } | undefined {
+  const text = StudyflowElement.fromBusinessObject(bo).getAttribute('checklist');
+  if (typeof text !== 'string') return undefined;
+  let total = 0;
+  let checked = 0;
+  for (const line of parseChecklistLines(text)) {
+    if (line.kind !== 'task') continue;
+    total += 1;
+    if (line.checked) checked += 1;
+  }
+  return total > 0 ? { pct: (100 * checked) / total, label: `${checked} of ${total} items`, text: `${checked}/${total}` } : undefined;
+}
+
 function buildGanttRow(el: any, anchor: number, definitions: any): Row | null {
   const bo = el.businessObject;
   if (!bo) return null;
   const attrs = readTimingAttrs(bo);
   if (!ATTR_NAMES.some((k) => attrs[k] !== undefined)) return null;
+  const checklist = attrs.progress ? undefined : checklistProgress(bo);
+  const progressPct = attrs.progress ? parseProgressPct(attrs.progress) : checklist?.pct;
   return {
     id: el.id || bo.id || '(unnamed)',
     // A view, like the canvas: `{reached}` in a name shows the last run's value.
     label: resolvePlaceholders(bo.name || bo.id || '(unnamed)', definitions, bo.id ?? ''),
     type: bo.$type || el.type || 'Element',
     swimlane: findSwimlane(el),
+    fill: el.fill,
+    stroke: el.stroke,
+    after: [],
     ...attrs,
     onsetMin: attrs.onset ? parseOnsetMin(attrs.onset, anchor) : undefined,
     durationMin: attrs.duration ? parseDurationMin(attrs.duration) : undefined,
-    progressPct: attrs.progress ? parseProgressPct(attrs.progress) : undefined,
+    progress: attrs.progress ?? checklist?.label,
+    progressPct,
+    progressText: checklist?.text ?? (progressPct === undefined ? undefined : `${Math.round(progressPct)}%`),
   };
+}
+
+/** The scheduled elements upstream along sequence flows, looking through unscheduled ones (a gateway, an event). */
+function predecessorsOf(el: any, scheduled: Set<string>): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const stack: any[] = [el];
+  while (stack.length > 0) {
+    for (const edge of stack.pop().incoming ?? []) {
+      const source = edge.source;
+      if (edge.type !== 'bpmn:SequenceFlow' || !source || seen.has(source.id)) continue;
+      seen.add(source.id);
+      if (scheduled.has(source.id)) found.push(source.id);
+      else stack.push(source);
+    }
+  }
+  return found;
 }
 
 /** One row per element carrying a timing attribute; onsets are relative to a single shared anchor. */
 export function collectGanttRows(modeler: Editor): Row[] {
   if (!modeler) return [];
   const rows: Row[] = [];
+  const elements = new Map<string, any>();
   const anchor = Date.now();
   const definitions = modeler.getDefinitions();
   modeler.canvas.all().forEach((el: any) => {
     if (el.kind === 'label') return;
     const row = buildGanttRow(el, anchor, definitions);
-    if (row) rows.push(row);
+    if (!row) return;
+    rows.push(row);
+    elements.set(row.id, el);
   });
+  const scheduled = new Set(elements.keys());
+  for (const row of rows) row.after = predecessorsOf(elements.get(row.id), scheduled);
   return rows;
 }
 
@@ -166,7 +216,9 @@ const TICK_STEPS_MIN = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360, 720, 1440, 2880,
 /** Tick positions (minutes) for a time axis from `min` to `max`: the smallest step giving at most `maxTicks` ticks. */
 export function axisTicks(min: number, max: number, maxTicks = 8): number[] {
   const range = Math.max(1, max - min);
-  const step = TICK_STEPS_MIN.find((s) => range / s <= maxTicks) ?? TICK_STEPS_MIN[TICK_STEPS_MIN.length - 1];
+  let step = TICK_STEPS_MIN.find((s) => range / s <= maxTicks) ?? TICK_STEPS_MIN[TICK_STEPS_MIN.length - 1];
+  // Past the table (a study of months), whole weeks doubled until they fit.
+  while (range / step > maxTicks) step *= 2;
   const ticks: number[] = [];
   for (let t = Math.ceil(min / step) * step; t <= max + 1e-9; t += step) ticks.push(t);
   return ticks;
@@ -177,6 +229,7 @@ export function tickLabel(min: number): string {
   if (min === 0) return 'T0';
   const sign = min < 0 ? '-' : '+';
   const abs = Math.abs(min);
+  if (abs % 10080 === 0) return `${sign}${abs / 10080} w`;
   if (abs % 1440 === 0) return `${sign}${abs / 1440} d`;
   if (abs % 60 === 0) return `${sign}${abs / 60} h`;
   return `${sign}${abs} min`;

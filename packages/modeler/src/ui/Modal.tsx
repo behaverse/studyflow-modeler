@@ -3,7 +3,7 @@ import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import { dialog as d } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
-const SIZES = { sm: d.panelSm, md: d.panelMd, lg: d.panelLg, xl: d.panelXl } as const;
+const SIZES = { sm: d.panelSm, md: d.panelMd, lg: d.panelLg, xl: d.panelXl, full: d.panelFull } as const;
 
 type Props = {
   isOpen: boolean;

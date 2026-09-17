@@ -222,6 +222,16 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
   const { value, commit, flush } = useAttributeState<string>(attrDef, (raw) => raw || '', { debounceMs: 400 });
   const name = attrDef.ns.name;
   const lines = parseChecklistLines(value);
+  const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
+  const focusIndexRef = useRef<number | null>(null);
+
+  // Focus the item Enter or the add button minted, once it has rendered.
+  useEffect(() => {
+    if (focusIndexRef.current != null) {
+      inputRefs.current[focusIndexRef.current]?.focus();
+      focusIndexRef.current = null;
+    }
+  }, [value]);
 
   const update = (next: Line[]) => commit(serializeChecklistLines(next));
   const patch = (index: number, line: Line) => update(lines.map((l, i) => (i === index ? line : l)));
@@ -229,6 +239,7 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
   const addItem = (after?: number) => {
     const item: Line = { kind: 'task', indent: '', bullet: '-', checked: false, text: '' };
     const at = after === undefined ? lines.length : after + 1;
+    focusIndexRef.current = at;
     update([...lines.slice(0, at), item, ...lines.slice(at)]);
   };
 
@@ -271,6 +282,7 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
                 <span className="ml-2 my-auto shrink-0 text-stone-500" aria-hidden="true">•</span>
               )}
               <Input
+                ref={(el: HTMLInputElement | null) => { inputRefs.current[index] = el; }}
                 type="text"
                 aria-label={`Checklist item ${index + 1}`}
                 value={line.text}

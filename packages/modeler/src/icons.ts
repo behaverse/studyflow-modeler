@@ -16,6 +16,7 @@ export const ICONS = {
   cog: 'iconify ph--gear',
   list: 'iconify bi--list',
   fullscreen: 'iconify bi--fullscreen',
+  fullscreenExit: 'iconify bi--fullscreen-exit',
   sidebarExpand: 'iconify tabler--layout-sidebar-right-expand-filled',
   sidebarCollapse: 'iconify tabler--layout-sidebar-right-collapse-filled',
   help: 'iconify bi--patch-question',
