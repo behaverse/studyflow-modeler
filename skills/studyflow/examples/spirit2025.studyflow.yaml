@@ -15,7 +15,7 @@ SPIRIT_2025_Collaboration:
     Participant_SPIRIT:
       name: SPIRIT 2025 trial protocol
       processRef: SPIRIT_2025
-      bounds: 140 60 810 900
+      bounds: 140 60 810 1040
 SPIRIT_2025:
   type: Process
   documentation: A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
@@ -46,13 +46,13 @@ SPIRIT_2025:
             - Activity_Control
             - Visit_T1
             - Visit_T2
-          bounds: 170 390 780 370
+          bounds: 170 390 780 510
         Lane_Closeout:
           name: Close-out
           flowNodeRef:
             - Visit_Closeout
             - Protocol_End
-          bounds: 170 760 780 200
+          bounds: 170 900 780 200
   flowElements:
     Protocol_Start:
       type: StartEvent
@@ -143,6 +143,8 @@ SPIRIT_2025:
       duration: 4 weeks
       progress: 60%
       bounds: 290 420 180 80
+      fill: "#d9e7d6"
+      stroke: "#8cb26e"
     Activity_Control:
       type: Task
       checklist: |-
@@ -156,23 +158,53 @@ SPIRIT_2025:
       duration: 4 weeks
       progress: 60%
       bounds: 610 420 180 80
+      fill: "#fbe7cf"
+      stroke: "#ce9d35"
     Visit_T1:
       type: SubProcess
-      checklist: |-
-        - [ ] SPIRIT 18a: primary outcome reassessed
-        - [ ] SPIRIT 18b: secondary outcomes reassessed
-        - [ ] SPIRIT 22: adverse-event review
-        - [ ] SPIRIT 19: adherence check
       name: Follow-up visit (t = t1, week 4)
       dataOutputAssociations:
         DataOutput_T1_AE:
           targetRef: Dataset_AE
-          waypoint: 640,600 780,600 817,820
-      onset: T0+6 weeks
-      duration: 1 week
-      progress: in-progress
-      bounds: 440 550 200 80
-      isExpanded: false
+          waypoint: 790,640 817,820
+      flowElements:
+        T1_Outcomes:
+          type: Task
+          checklist: |-
+            - [x] SPIRIT 18a: primary outcome reassessed
+            - [x] SPIRIT 18b: secondary outcomes reassessed
+          name: Outcome assessment
+          onset: T0+6 weeks
+          duration: 3 days
+          bounds: 310 590 130 60
+        T1_AE_Review:
+          type: Task
+          checklist: |-
+            - [x] SPIRIT 22: adverse-event review
+            - [ ] SPIRIT 22: serious AE reporting
+          name: Adverse-event review
+          onset: T0+6 weeks+3 days
+          duration: 2 days
+          bounds: 470 590 130 60
+        T1_Adherence:
+          type: Task
+          checklist: "- [ ] SPIRIT 19: adherence check"
+          name: Adherence check
+          onset: T0+6 weeks+4 days
+          duration: 3 days
+          bounds: 630 590 130 60
+        Flow_T1_Outcomes_AE:
+          sourceRef: T1_Outcomes
+          targetRef: T1_AE_Review
+          waypoint: 440,620 470,620
+        Flow_T1_AE_Adherence:
+          sourceRef: T1_AE_Review
+          targetRef: T1_Adherence
+          waypoint: 600,620 630,620
+      bounds: 290 550 500 120
+      isExpanded: true
+      fill: "#dde8fa"
+      stroke: "#728cb9"
     Visit_T2:
       type: SubProcess
       checklist: |-
@@ -184,15 +216,17 @@ SPIRIT_2025:
       dataOutputAssociations:
         DataOutput_T2_Primary:
           targetRef: Dataset_Primary
-          waypoint: 640,710 817,700
+          waypoint: 640,770 817,700
         DataOutput_T2_AE:
           targetRef: Dataset_AE
-          waypoint: 640,720 817,820
+          waypoint: 640,790 817,820
       onset: T0+14 weeks
       duration: 1 week
       progress: todo
-      bounds: 440 670 200 80
+      bounds: 440 740 200 80
       isExpanded: false
+      fill: "#dfd5e6"
+      stroke: "#9174a3"
     Visit_Closeout:
       type: SubProcess
       checklist: |-
@@ -205,14 +239,14 @@ SPIRIT_2025:
       dataOutputAssociations:
         DataOutput_Closeout_Primary:
           targetRef: Dataset_Primary
-          waypoint: 640,820 780,820 817,710
+          waypoint: 640,960 780,960 817,710
         DataOutput_Closeout_AE:
           targetRef: Dataset_AE
-          waypoint: 640,830 817,830
+          waypoint: 640,970 780,970 817,830
       onset: T0+26 weeks
       duration: 1 week
       progress: todo
-      bounds: 440 790 200 80
+      bounds: 440 930 200 80
       isExpanded: false
     Schema_Outcomes:
       type: DataObjectReference
@@ -243,8 +277,8 @@ SPIRIT_2025:
     Protocol_End:
       type: EndEvent
       name: Trial complete
-      bounds: 522 910 36 36
-      label: 500 953 80 30
+      bounds: 522 1050 36 36
+      label: 500 1093 80 30
     Flow_Start_Screen:
       sourceRef: Protocol_Start
       targetRef: Visit_Screening
@@ -285,23 +319,23 @@ SPIRIT_2025:
     Flow_Treatment_Visit1:
       sourceRef: Activity_Intervention
       targetRef: Visit_T1
-      waypoint: 380,500 380,590 440,590
+      waypoint: 380,500 380,550
     Flow_Control_Visit1:
       sourceRef: Activity_Control
       targetRef: Visit_T1
-      waypoint: 700,500 700,590 640,590
+      waypoint: 700,500 700,550
     Flow_Visit1_Visit2:
       sourceRef: Visit_T1
       targetRef: Visit_T2
-      waypoint: 540,630 540,670
+      waypoint: 540,670 540,740
     Flow_Visit2_Closeout:
       sourceRef: Visit_T2
       targetRef: Visit_Closeout
-      waypoint: 540,750 540,790
+      waypoint: 540,820 540,930
     Flow_Closeout_End:
       sourceRef: Visit_Closeout
       targetRef: Protocol_End
-      waypoint: 540,870 540,910
+      waypoint: 540,1010 540,1050
   artifacts:
     Assoc_Schema_Primary:
       associationDirection: One

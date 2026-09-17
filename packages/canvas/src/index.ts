@@ -4,7 +4,7 @@
  */
 
 export { Canvas, type CanvasOptions } from './Canvas.ts';
-export type { Bounds, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, SceneNode, TextAlign } from './model/scene.ts';
+export type { Bounds, Font, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, SceneNode, TextAlign } from './model/scene.ts';
 export { isRootElement } from './model/scene.ts';
 export { ensureChoreographyParticipants, mintParticipant } from './model/choreography.ts';
 export { IdGenerator, idPrefixFor, needsId, prefixFor } from './model/ids.ts';

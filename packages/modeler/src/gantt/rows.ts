@@ -1,5 +1,6 @@
 import { parseChecklistLines, resolvePlaceholders } from '@core/document';
 import { StudyflowElement } from '@core/element';
+import type { Font } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 import { containerOf } from '@modeler/simulation/flowWalk';
 
@@ -13,15 +14,18 @@ export type Row = TimingAttrs & {
   id: string;
   label: string;
   type: string;
-  swimlane: string;
   /** The element's own colours, when the diagram gave it any: the bar wears them. */
   fill?: string;
   stroke?: string;
+  /** The caption's own style, when the diagram gave it one: the row's label wears it. */
+  font?: Font;
+  /** The caption sits outside the shape (an event, a gateway): the diagram sets it smaller and lighter. */
+  external?: boolean;
   /** Ids of the nearest scheduled predecessors along sequence flows: what this row's bar waits on. */
   after: string[];
-  /** The row of the sub-process this element sits in: this row is indented under it and hides when it folds. */
+  /** The row of the sub-process, lane or pool this element sits in: this row is indented under it and hides when it folds. */
   parent?: string;
-  /** A sub-process with rows inside it: what it states none of (onset, duration, progress) is summarized from them. */
+  /** A container with rows inside it: what it states none of (onset, duration, progress) is summarized from them. */
   group?: boolean;
   /** Best-effort parse of `onset` as minutes-since-epoch-or-T0. */
   onsetMin?: number;
@@ -33,24 +37,12 @@ export type Row = TimingAttrs & {
 
 const ATTR_NAMES: (keyof TimingAttrs)[] = ['onset', 'duration', 'progress'];
 
-function findSwimlane(el: any): string {
-  // Flow nodes are not reparented under their lane: membership is `businessObject.lanes`, `el.parent` the pool.
-  const bo = el?.businessObject;
-  const lanes = bo?.get?.('lanes') ?? bo?.lanes;
-  if (Array.isArray(lanes) && lanes.length > 0) {
-    const lane = lanes[0];
-    return lane?.name || lane?.id || '(Lane)';
-  }
-  let p = el?.parent;
-  while (p) {
-    const pbo = p.businessObject;
-    const type = pbo?.$type;
-    if (type === 'bpmn:Lane' || type === 'bpmn:Participant') {
-      return pbo.name || pbo.id || `(${type.split(':')[1]})`;
-    }
-    p = p.parent;
-  }
-  return 'Unassigned';
+/** The container an element folds under: its sub-process, else the lane or pool it sits in. */
+function groupOf(el: any): any | undefined {
+  const container = containerOf(el);
+  if (container) return container;
+  for (let p = el.parent; p; p = p.parent) if (p.type === 'bpmn:Lane' || p.type === 'bpmn:Participant') return p;
+  return undefined;
 }
 
 function readTimingAttrs(bo: any): TimingAttrs {
@@ -146,7 +138,7 @@ function checklistProgress(bo: any): { pct: number; label: string; text: string 
   return total > 0 ? { pct: (100 * checked) / total, label: `${checked} of ${total} items`, text: `${checked}/${total}` } : undefined;
 }
 
-/** The row for `el`, or null when it schedules nothing; `always` gives a sub-process one for the rows inside it. */
+/** The row for `el`, or null when it schedules nothing; `always` gives a container one for the rows inside it. */
 function buildGanttRow(el: any, anchor: number, definitions: any, always = false): Row | null {
   const bo = el.businessObject;
   if (!bo) return null;
@@ -159,9 +151,10 @@ function buildGanttRow(el: any, anchor: number, definitions: any, always = false
     // A view, like the canvas: `{reached}` in a name shows the last run's value.
     label: resolvePlaceholders(bo.name || bo.id || '(unnamed)', definitions, bo.id ?? ''),
     type: bo.$type || el.type || 'Element',
-    swimlane: findSwimlane(el),
     fill: el.fill,
     stroke: el.stroke,
+    font: el.font,
+    external: !!el.label,
     after: [],
     ...attrs,
     onsetMin: attrs.onset ? parseOnsetMin(attrs.onset, anchor) : undefined,
@@ -205,8 +198,8 @@ function summarize(group: Row, children: Row[]): void {
 }
 
 /**
- * One row per element carrying a timing attribute, and one per sub-process holding any, in tree order: a
- * sub-process's rows follow it. Onsets are relative to a single shared anchor.
+ * One row per element carrying a timing attribute, and one per container (sub-process, lane, pool) holding
+ * any, in tree order: a container's rows follow it. Onsets are relative to a single shared anchor.
  */
 export function collectGanttRows(modeler: Editor): Row[] {
   if (!modeler) return [];
@@ -214,20 +207,19 @@ export function collectGanttRows(modeler: Editor): Row[] {
   const elements = new Map<string, any>();
   const anchor = Date.now();
   const definitions = modeler.getDefinitions();
+  const all = modeler.canvas.all().filter((el: any) => el.kind !== 'label');
   const add = (el: any, always: boolean): Row | null => {
     const row = rows.get(el.id) ?? buildGanttRow(el, anchor, definitions, always);
     if (!row) return null;
-    // The enclosing sub-process (and its own) is a row too, so this one has a parent to fold under.
-    const container = containerOf(el);
+    // The enclosing container (and its own) is a row too, so this one has a parent to fold under.
+    const container = groupOf(el);
     const parent = container && (rows.get(container.id) ?? add(container, true));
     if (parent) row.parent = parent.id;
     rows.set(row.id, row);
     elements.set(row.id, el);
     return row;
   };
-  modeler.canvas.all().forEach((el: any) => {
-    if (el.kind !== 'label') add(el, false);
-  });
+  all.forEach((el: any) => add(el, false));
   for (const row of rows.values()) row.after = predecessorsOf(elements.get(row.id), new Set(rows.keys()));
 
   const childrenOf = new Map<string | undefined, Row[]>();
@@ -247,15 +239,6 @@ export function collectGanttRows(modeler: Editor): Row[] {
   };
   walk(undefined);
   return ordered;
-}
-
-export function groupBySwimlane(rows: Row[]): [string, Row[]][] {
-  const map = new Map<string, Row[]>();
-  for (const row of rows) {
-    if (!map.has(row.swimlane)) map.set(row.swimlane, []);
-    map.get(row.swimlane)!.push(row);
-  }
-  return Array.from(map);
 }
 
 const TICK_STEPS_MIN = [1, 2, 5, 10, 15, 30, 60, 120, 180, 360, 720, 1440, 2880, 10080];
@@ -282,8 +265,8 @@ export function tickLabel(min: number): string {
   return `${sign}${abs} min`;
 }
 
-export const ROW_H = 24;
-export const ROW_PAD = 8;
+export const ROW_H = 20;
+export const ROW_PAD = 12;
 /** How far an arrow steps out of the bar it leaves before it can turn back. */
 const STUB = 8;
 
@@ -307,18 +290,21 @@ function roundedPolyline(pts: [number, number][]): string {
 }
 
 /**
- * From the end of the bar waited on, across, then down into the top-left of the waiting bar (up into its
- * bottom-left when it sits above). When the waiting bar starts before that end, the arrow never runs back
- * over its bar: it steps out, drops to the gap just before the waiting row, comes back there, and turns in.
+ * From the end of the bar waited on, across, then down into the top of the waiting bar (up into its bottom
+ * when it sits above): near its left end, or further right where the leaving bar ends over it. Only when
+ * the waiting bar ends before that does the arrow turn back, and never over its bar: it steps out, drops to
+ * the gap just before the waiting row, comes back there, and turns in.
  */
 export function dependencyPath(from: Bar, to: Bar): string {
   const x0 = from.x + from.w;
   const y0 = from.y + ROW_H / 2;
-  const x1 = to.x + 6;
   const down = to.y > from.y;
   const y1 = down ? to.y : to.y + ROW_H;
+  // The landing keeps off the waiting bar's rounded ends, as far as a narrow bar allows.
+  const inset = Math.min(6, to.w / 2);
+  const x1 = Math.min(Math.max(to.x + inset, x0), to.x + to.w - inset);
   // ponytail: the drop at x1 crosses whatever bars lie between the two rows; route around them if it ever matters.
-  if (x1 >= x0) return roundedPolyline([[x0, y0], [x1, y0], [x1, y1]]);
+  if (x0 <= to.x + to.w) return roundedPolyline([[x0, y0], [x1, y0], [x1, y1]]);
   const yGap = down ? to.y - ROW_PAD / 2 : to.y + ROW_H + ROW_PAD / 2;
-  return roundedPolyline([[x0, y0], [x0 + STUB, y0], [x0 + STUB, yGap], [x1, yGap], [x1, y1]]);
+  return roundedPolyline([[x0, y0], [x0 + STUB, y0], [x0 + STUB, yGap], [to.x + inset, yGap], [to.x + inset, y1]]);
 }

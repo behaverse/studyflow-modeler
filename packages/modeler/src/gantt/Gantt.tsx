@@ -1,12 +1,13 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
-import { ROW_H, ROW_PAD, axisTicks, collectGanttRows, dependencyPath, groupBySwimlane, tickLabel } from '@modeler/gantt/rows';
+import { ROW_H, ROW_PAD, axisTicks, collectGanttRows, dependencyPath, tickLabel } from '@modeler/gantt/rows';
 import type { Bar } from '@modeler/gantt/rows';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
 import { DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
+import { INK } from '@canvas/index.ts';
 
 type Props = { isOpen: boolean; onClose: () => void };
 
@@ -20,8 +21,6 @@ const LABEL_PAD = 12;
 /** How far a row inside a group sits in from its group's label. */
 const INDENT = 14;
 const AXIS_H = 22;
-const HEADING_H = 24;
-const GROUP_GAP = 20;
 
 /** The attributes of a figure centred on a point. */
 function figureAt(x: number, y: number) {
@@ -91,34 +90,23 @@ export function GanttDialog({ isOpen, onClose }: Props) {
     };
   }, [rows]);
 
-  const groups = useMemo(() => groupBySwimlane(visible), [visible]);
-
   const range = Math.max(1, maxOnset - minOnset);
   const xForMin = (min: number) => ((min - minOnset) / range) * chartW;
   const ticks = hasScale ? axisTicks(minOnset, maxOnset, Math.max(2, Math.floor(chartW / TICK_W))) : [];
 
-  // One SVG for every lane, so a dependency can run from a bar in one lane to a bar in another,
-  // and one axis under them all: every lane is on the same scale.
+  // One SVG for every pool and lane, so a dependency can run from a bar in one to a bar in another,
+  // and one axis under them all: every row is on the same scale.
   const bars = new Map<string, Bar>();
-  const headings: { label: string; y: number }[] = [];
   let y = 4;
-  for (const [label, groupRows] of groups) {
-    // The heading names the lane; a study without lanes has one group and no heading to give it.
-    if (groups.length > 1 || label !== 'Unassigned') {
-      y += HEADING_H;
-      headings.push({ label, y: y - 8 });
-    }
-    for (const r of groupRows) {
-      const x = hasScale && r.onsetMin !== undefined ? labelW + xForMin(r.onsetMin) : labelW;
-      const w = hasScale && r.onsetMin !== undefined && r.durationMin !== undefined
-        ? Math.max(2, xForMin(r.onsetMin + r.durationMin) - xForMin(r.onsetMin))
-        : (r.durationMin !== undefined ? 24 : 6);
-      bars.set(r.id, { x, y, w, stroke: r.stroke ?? DEFAULT_STROKE });
-      y += PITCH;
-    }
-    y += GROUP_GAP;
+  for (const r of visible) {
+    const x = hasScale && r.onsetMin !== undefined ? labelW + xForMin(r.onsetMin) : labelW;
+    const w = hasScale && r.onsetMin !== undefined && r.durationMin !== undefined
+      ? Math.max(2, xForMin(r.onsetMin + r.durationMin) - xForMin(r.onsetMin))
+      : (r.durationMin !== undefined ? 24 : 6);
+    bars.set(r.id, { x, y, w, stroke: r.stroke ?? DEFAULT_STROKE });
+    y += PITCH;
   }
-  const axisY = y - GROUP_GAP + 2;
+  const axisY = y + 2;
   const height = axisY + (hasScale ? AXIS_H : 0) + 4;
   // An open group's column: its bar's span, drawn faintly down over the rows inside it.
   const bands = visible.filter((g) => g.group && !collapsed.has(g.id)).map((g) => {
@@ -127,11 +115,15 @@ export function GanttDialog({ isOpen, onClose }: Props) {
     return { id: g.id, x: bar.x, w: bar.w, y: bar.y + ROW_H, h: bottom - bar.y - ROW_H, stroke: bar.stroke };
   });
   const labelOf = new Map(rows.map((r) => [r.id, r.label]));
-  const edges = visible.flatMap((r) => r.after.flatMap((from) => {
+  // A row under a folded group hands its arrows to the outermost folded group above it.
+  const shown = (id: string) => ancestors.get(id)!.find((g) => collapsed.has(g)) ?? id;
+  const edges = [...new Map(rows.flatMap((r) => r.after.flatMap((after) => {
+    const from = shown(after);
+    const to = shown(r.id);
     const a = bars.get(from);
-    const b = bars.get(r.id);
-    return a && b ? [{ key: `${from}->${r.id}`, from, to: r.id, a, b }] : [];
-  }));
+    const b = bars.get(to);
+    return a && b && from !== to ? [[`${from}->${to}`, { key: `${from}->${to}`, from, to, a, b }] as const] : [];
+  }))).values()];
 
   return (
     <Modal
@@ -140,9 +132,9 @@ export function GanttDialog({ isOpen, onClose }: Props) {
       title="Gantt View"
       size="lg"
       help={<DialogHelp>
-                Every element carrying an <code>onset</code>, <code>duration</code>, or <code>progress</code>, laid out on one schedule and grouped by the container.
+                Every element carrying an <code>onset</code>, <code>duration</code>, or <code>progress</code>, laid out on one schedule.
                 An arrow joins two scheduled elements a sequence flow connects, through any unscheduled ones between them.
-                A sub-process holding scheduled elements is a group: fold it to a bar whose onset, duration and progress are summarized from theirs.
+                A pool, lane or sub-process holding scheduled elements is a group: fold it to a bar whose onset, duration and progress are summarized from theirs.
               </DialogHelp>}
     >
             {!hasRows ? (
@@ -159,11 +151,6 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                         <path d="M1,1 L6,3.5 L1,6" fill="none" stroke="context-stroke" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
                       </marker>
                     </defs>
-                    {headings.map((h) => (
-                      <text key={h.label} x={0} y={h.y} className="text-xs font-semibold uppercase tracking-wide fill-stone-500">
-                        {h.label}
-                      </text>
-                    ))}
                     {hasScale && (
                       <g transform={`translate(${labelW}, ${axisY})`}>
                         <line x1={0} x2={chartW} y1={0} y2={0} stroke={DEFAULT_STROKE} strokeWidth={1} />
@@ -191,22 +178,49 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                       // The bar wears the element's style: its fill, its stroke as the border and as the progress.
                       const fill = r.fill ?? DEFAULT_FILL;
                       const stroke = r.stroke ?? DEFAULT_STROKE;
+                      // An open group's bar hangs an ear off each end, over the rows it spans: one outline with a rounded top,
+                      // so the progress fills into the ears and the border alone draws the rest. Any other bar is rounded all round.
+                      const open = r.group && !collapsed.has(r.id);
+                      const outline = open
+                        ? `M ${x} ${y + ROW_H + 6} V ${y + 3} q 0 -3 3 -3 H ${x + w - 3} q 3 0 3 3 V ${y + ROW_H + 6} L ${x + w - 7} ${y + ROW_H} H ${x + 7} Z`
+                        : undefined;
                       return (
                         <g key={r.id}>
                           {/* HTML, so a long name wraps onto a second line (the row's full pitch) and ends in an ellipsis past that. */}
                           <foreignObject x={0} y={y - ROW_PAD / 2} width={labelW - 8} height={PITCH}>
-                            <div title={r.label} style={{ paddingLeft: depth * INDENT }} className={`flex h-full items-center text-xs leading-4 text-[#3f3f3f] ${r.group ? 'font-semibold' : ''}`}>
-                              {r.group && (
-                                <button type="button" onClick={() => toggle(r.id)} className={`${d.titleAction} shrink-0`} aria-expanded={!collapsed.has(r.id)} aria-label={collapsed.has(r.id) ? 'Expand' : 'Collapse'}>
-                                  <i className={`${ICONS.chevronRight} size-3.5 block transition-transform ${collapsed.has(r.id) ? '' : 'rotate-90'}`}></i>
-                                </button>
-                              )}
-                              <span className="line-clamp-2">{r.label}</span>
+                            {/* The caption as the diagram draws it: a shape's inside caption at 12/500, an outside one at 11/400, in the element's own font. */}
+                            <div
+                              title={r.label}
+                              style={{
+                                paddingLeft: depth * INDENT,
+                                fontSize: r.external ? 11 : 12,
+                                fontWeight: r.font?.bold ? 700 : r.external ? 400 : 500,
+                                fontStyle: r.font?.italic ? 'italic' : undefined,
+                                color: r.font?.color ?? INK.text,
+                              }}
+                              className="flex h-full items-center leading-4"
+                            >
+                              <span className="flex items-start">
+                                {/* The caret sits on the first line, at the text's own size. */}
+                                {r.group && (
+                                  <button type="button" onClick={() => toggle(r.id)} className={`${d.titleAction} mr-1.5 flex h-4 shrink-0 items-center`} aria-expanded={!collapsed.has(r.id)} aria-label={collapsed.has(r.id) ? 'Expand' : 'Collapse'}>
+                                    <i className={`${ICONS.chevronRight} size-2.5 block transition-transform ${collapsed.has(r.id) ? '' : 'rotate-90'}`}></i>
+                                  </button>
+                                )}
+                                <span className="line-clamp-2">{r.label}</span>
+                              </span>
                             </div>
                           </foreignObject>
-                          <rect x={x} y={y} width={w} height={ROW_H} fill={fill} stroke={stroke} strokeWidth={1.5} rx={3} />
+                          {outline ? (
+                            <>
+                              <path d={outline} fill={fill} stroke={stroke} strokeWidth={1.5} strokeLinejoin="round" />
+                              <clipPath id={`gantt-bar-${r.id}`}><path d={outline} /></clipPath>
+                            </>
+                          ) : (
+                            <rect x={x} y={y} width={w} height={ROW_H} fill={fill} stroke={stroke} strokeWidth={1.5} rx={3} />
+                          )}
                           {progressW > 0 && (
-                            <rect x={x} y={y} width={progressW} height={ROW_H} fill={stroke} rx={3} />
+                            <rect x={x} y={y} width={progressW} height={outline ? ROW_H + 6 : ROW_H} fill={stroke} rx={outline ? 0 : 3} clipPath={outline ? `url(#gantt-bar-${r.id})` : undefined} />
                           )}
                           {/* The figure, when the bar has room for it: in the bar's ink, and in its paper where it crosses the filled part. */}
                           {r.progressText && w >= textWidth(r.progressText, `10px ${fontFamily}`) + 8 && (
@@ -229,7 +243,6 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                               r.onset && `onset: ${r.onset}`,
                               r.duration && `duration: ${r.duration}`,
                               r.progress && `progress: ${r.progress}`,
-                              r.swimlane !== 'Unassigned' && `swimlane: ${r.swimlane}`,
                             ].filter(Boolean).join(' • ')}
                           </title>
                         </g>
