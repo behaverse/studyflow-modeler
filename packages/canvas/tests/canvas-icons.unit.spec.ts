@@ -203,7 +203,8 @@ test('an event\'s centre takes its definition\'s symbol, else its own type\'s, a
   const redirecting = GATEWAY_EVENT_YAML.replace('type: EndEvent', 'type: EndEvent\n      redirectTo: https://example.org/done');
   const { canvas } = loadYaml(redirecting, { iconResolver: () => GLYPH_DEF });
   const g = graphics(canvas, 'End_1');
-  const symbol = g.querySelector('svg.sf-icon[data-icon-key="ErrorEventDefinition"]')!;
+  // `^=`: an end event takes the filled `ErrorEventDefinition:end` variant when the host names one.
+  const symbol = g.querySelector('svg.sf-icon[data-icon-key^="ErrorEventDefinition"]')!;
   const badge = g.querySelector('svg.sf-icon[data-icon-key="iconify ph--sign-out"]')!;
   expect(symbol.getAttribute('x')).toBe('8');
   expect(Number(badge.getAttribute('x'))).toBeGreaterThan(8);

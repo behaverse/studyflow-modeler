@@ -1,21 +1,9 @@
-import { surface, shadow, text, radius } from '@modeler/ui/styles';
+import { surface, text, radius } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 
 export const settingsView = {
-  root: `fixed inset-0 z-[300] flex bg-black/40 backdrop-blur-xs
-         p-0 sm:p-4 md:p-8 md:px-12 lg:p-12 lg:px-24 xl:p-16 xl:px-48`,
-  panel: `flex flex-1 flex-col overflow-hidden ${surface.sheet}
-          rounded-none sm:rounded-2xl
-          border-0 sm:border sm:border-black/[0.08] ${shadow.sheet}`,
-
-  header: `flex items-center gap-2 px-3 h-14 shrink-0 border-b border-black/[0.06] ${surface.sheet}`,
-  headerTitle: `text-base font-semibold tracking-tight ${text.primary}`,
-  backButton: `flex items-center justify-center w-8 h-8 ${radius.field}
-                ${text.muted} hover:text-stone-900 hover:bg-black/[0.05]
-                active:bg-black/[0.08] transition-colors cursor-pointer`,
-  backIcon: `${ICONS.arrowLeft} text-base`,
-
-  body: 'flex flex-col sm:flex-row flex-1 min-h-0',
+  // Inside the shared Modal frame; the sidebar and content share the panel's height.
+  body: 'flex flex-col sm:flex-row flex-1 min-h-[60vh] -mx-5 sm:-mx-6 md:-mx-7 -mb-5 sm:-mb-6 md:-mb-7 border-t border-black/[0.06]',
 
   sidebar: `shrink-0 ${surface.sheet}
             overflow-x-auto sm:overflow-y-auto

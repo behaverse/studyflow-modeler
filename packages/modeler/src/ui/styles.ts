@@ -67,7 +67,7 @@ export const dialog = {
   panelBody: 'flex-1 min-h-0 overflow-y-auto -mx-1 px-1',
 
   title: 'text-base tracking-tight text-stone-900 font-semibold',
-  closeButton: 'text-sm/6 text-stone-500 hover:text-stone-900 ml-2 float-end cursor-pointer transition-colors',
+  closeButton: 'text-sm/6 text-stone-500 hover:text-stone-900 ml-2 cursor-pointer transition-colors',
   titleAction: 'text-sm/6 text-stone-500 enabled:hover:text-stone-900 enabled:cursor-pointer disabled:opacity-30 transition-colors',
 
   body: 'text-sm text-stone-600',

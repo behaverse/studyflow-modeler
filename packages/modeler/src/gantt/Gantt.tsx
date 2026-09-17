@@ -1,7 +1,8 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
-import { axisTicks, collectGanttRows, groupBySwimlane, tickLabel } from '@modeler/gantt/rows';
+import { ROW_H, ROW_PAD, axisTicks, collectGanttRows, dependencyPath, groupBySwimlane, tickLabel } from '@modeler/gantt/rows';
+import type { Bar } from '@modeler/gantt/rows';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
@@ -12,17 +13,15 @@ type Props = { isOpen: boolean; onClose: () => void };
 const MIN_CHART_W = 320;
 /** Room one tick label needs, so the axis picks a step whose labels never overlap. */
 const TICK_W = 56;
-const ROW_H = 24;
-const ROW_PAD = 8;
 const PITCH = ROW_H + ROW_PAD;
 /** The label column hugs the widest label, up to this; a wider one wraps. */
 const LABEL_MAX = 200;
 const LABEL_PAD = 12;
+/** How far a row inside a group sits in from its group's label. */
+const INDENT = 14;
 const AXIS_H = 22;
 const HEADING_H = 24;
 const GROUP_GAP = 20;
-
-type Bar = { x: number; y: number; w: number; stroke: string };
 
 /** The attributes of a figure centred on a point. */
 function figureAt(x: number, y: number) {
@@ -38,23 +37,25 @@ function textWidth(text: string, font: string): number {
   return measurer.measureText(text).width;
 }
 
-/** From the end of the bar waited on, across, then down into the top-left of the waiting bar (up into its bottom-left when it sits above). */
-function dependencyPath(from: Bar, to: Bar): string {
-  const x0 = from.x + from.w;
-  const y0 = from.y + ROW_H / 2;
-  const x1 = to.x + 6;
-  const y1 = to.y > from.y ? to.y : to.y + ROW_H;
-  // The corner is a quarter-curve, shrunk to fit when either leg is short.
-  const r = Math.min(8, Math.abs(x1 - x0), Math.abs(y1 - y0));
-  const dx = Math.sign(x1 - x0);
-  const dy = Math.sign(y1 - y0);
-  return `M ${x0} ${y0} H ${x1 - r * dx} Q ${x1} ${y0} ${x1} ${y0 + r * dy} V ${y1}`;
-}
-
 export function GanttDialog({ isOpen, onClose }: Props) {
   const modeler = useModeler();
   const rows = useMemo(() => (isOpen ? collectGanttRows(modeler) : []), [isOpen, modeler]);
-  const [maximized, setMaximized] = useState(false);
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (id: string) => setCollapsed((prev) => {
+    const next = new Set(prev);
+    if (!next.delete(id)) next.add(id);
+    return next;
+  });
+  // A row's groups, outermost first; a row under a folded one is not drawn.
+  const ancestors = useMemo(() => {
+    const of = new Map<string, string[]>();
+    for (const r of rows) of.set(r.id, r.parent ? [...of.get(r.parent) ?? [], r.parent] : []);
+    return of;
+  }, [rows]);
+  const visible = useMemo(
+    () => rows.filter((r) => !ancestors.get(r.id)!.some((id) => collapsed.has(id))),
+    [rows, ancestors, collapsed],
+  );
 
   // The chart fills the dialog: re-measured when the body resizes, which is what maximizing does to it.
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -69,9 +70,9 @@ export function GanttDialog({ isOpen, onClose }: Props) {
   }, [hasRows]);
   const fontFamily = useMemo(() => getComputedStyle(document.body).fontFamily, []);
   const labelW = useMemo(() => {
-    const widest = Math.max(0, ...rows.map((r) => textWidth(r.label, `12px ${fontFamily}`)));
+    const widest = Math.max(0, ...rows.map((r) => textWidth(r.label, `12px ${fontFamily}`) + INDENT * (ancestors.get(r.id)!.length + (r.group ? 1 : 0))));
     return Math.min(LABEL_MAX, Math.ceil(widest) + LABEL_PAD);
-  }, [rows, fontFamily]);
+  }, [rows, ancestors, fontFamily]);
   // Half a tick label past the axis end, so the last label is whole.
   const chartW = Math.max(MIN_CHART_W, bodyW - labelW - TICK_W / 2);
 
@@ -90,7 +91,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
     };
   }, [rows]);
 
-  const groups = useMemo(() => groupBySwimlane(rows), [rows]);
+  const groups = useMemo(() => groupBySwimlane(visible), [visible]);
 
   const range = Math.max(1, maxOnset - minOnset);
   const xForMin = (min: number) => ((min - minOnset) / range) * chartW;
@@ -119,8 +120,14 @@ export function GanttDialog({ isOpen, onClose }: Props) {
   }
   const axisY = y - GROUP_GAP + 2;
   const height = axisY + (hasScale ? AXIS_H : 0) + 4;
+  // An open group's column: its bar's span, drawn faintly down over the rows inside it.
+  const bands = visible.filter((g) => g.group && !collapsed.has(g.id)).map((g) => {
+    const bar = bars.get(g.id)!;
+    const bottom = Math.max(...visible.filter((r) => ancestors.get(r.id)!.includes(g.id)).map((r) => bars.get(r.id)!.y + ROW_H));
+    return { id: g.id, x: bar.x, w: bar.w, y: bar.y + ROW_H, h: bottom - bar.y - ROW_H, stroke: bar.stroke };
+  });
   const labelOf = new Map(rows.map((r) => [r.id, r.label]));
-  const edges = rows.flatMap((r) => r.after.flatMap((from) => {
+  const edges = visible.flatMap((r) => r.after.flatMap((from) => {
     const a = bars.get(from);
     const b = bars.get(r.id);
     return a && b ? [{ key: `${from}->${r.id}`, from, to: r.id, a, b }] : [];
@@ -131,21 +138,11 @@ export function GanttDialog({ isOpen, onClose }: Props) {
       isOpen={isOpen}
       onClose={onClose}
       title="Gantt View"
-      size={maximized ? 'full' : 'lg'}
-      actions={(
-        <button
-          type="button"
-          onClick={() => setMaximized((v) => !v)}
-          className={d.titleAction}
-          title={maximized ? 'Restore the dialog' : 'Fill the window'}
-          aria-label={maximized ? 'Restore' : 'Maximize'}
-        >
-          <i className={`${maximized ? ICONS.fullscreenExit : ICONS.fullscreen} size-3.5 block`}></i>
-        </button>
-      )}
+      size="lg"
       help={<DialogHelp>
                 Every element carrying an <code>onset</code>, <code>duration</code>, or <code>progress</code>, laid out on one schedule and grouped by the container.
                 An arrow joins two scheduled elements a sequence flow connects, through any unscheduled ones between them.
+                A sub-process holding scheduled elements is a group: fold it to a bar whose onset, duration and progress are summarized from theirs.
               </DialogHelp>}
     >
             {!hasRows ? (
@@ -178,14 +175,18 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                         ))}
                       </g>
                     )}
-                    {/* An arrow in its source's colour, so it reads as that bar's continuation. */}
+                    {bands.map((b) => (
+                      <rect key={b.id} x={b.x} y={b.y} width={b.w} height={b.h} fill={b.stroke} fillOpacity={0.08} pointerEvents="none" />
+                    ))}
+                    {/* An arrow in its source's colour but lighter, so it reads as that bar's continuation without competing with it. */}
                     {edges.map((e) => (
-                      <path key={e.key} d={dependencyPath(e.a, e.b)} fill="none" stroke={e.a.stroke} strokeWidth={1.5} markerEnd="url(#gantt-arrow)">
+                      <path key={e.key} d={dependencyPath(e.a, e.b)} fill="none" stroke={e.a.stroke} strokeWidth={1.5} opacity={0.55} markerEnd="url(#gantt-arrow)">
                         <title>{labelOf.get(e.to)} after {labelOf.get(e.from)}</title>
                       </path>
                     ))}
-                    {rows.map((r) => {
+                    {visible.map((r) => {
                       const { x, y, w } = bars.get(r.id)!;
+                      const depth = ancestors.get(r.id)!.length;
                       const progressW = r.progressPct !== undefined ? (w * r.progressPct) / 100 : 0;
                       // The bar wears the element's style: its fill, its stroke as the border and as the progress.
                       const fill = r.fill ?? DEFAULT_FILL;
@@ -194,7 +195,12 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                         <g key={r.id}>
                           {/* HTML, so a long name wraps onto a second line (the row's full pitch) and ends in an ellipsis past that. */}
                           <foreignObject x={0} y={y - ROW_PAD / 2} width={labelW - 8} height={PITCH}>
-                            <div title={r.label} className="flex h-full items-center justify-end text-right text-xs leading-4 text-[#3f3f3f]">
+                            <div title={r.label} style={{ paddingLeft: depth * INDENT }} className={`flex h-full items-center text-xs leading-4 text-[#3f3f3f] ${r.group ? 'font-semibold' : ''}`}>
+                              {r.group && (
+                                <button type="button" onClick={() => toggle(r.id)} className={`${d.titleAction} shrink-0`} aria-expanded={!collapsed.has(r.id)} aria-label={collapsed.has(r.id) ? 'Expand' : 'Collapse'}>
+                                  <i className={`${ICONS.chevronRight} size-3.5 block transition-transform ${collapsed.has(r.id) ? '' : 'rotate-90'}`}></i>
+                                </button>
+                              )}
                               <span className="line-clamp-2">{r.label}</span>
                             </div>
                           </foreignObject>
