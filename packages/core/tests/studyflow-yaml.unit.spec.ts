@@ -232,6 +232,91 @@ R:
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');
   });
 
+  test('a conditional boundary event and a multi-instance marker keep their spelling through a round trip', async () => {
+    // Both are BPMN's own: the boundary's `condition` says when the walk leaves a finished step, and the marker's
+    // `loopCardinality` how many instances of it run. An expression is a string, so an integer cardinality is quoted.
+    const text = `id: cohort
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Subject:
+      type: SubProcess
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
+        loopCardinality: "4"
+      flowElements:
+        S0:
+          type: StartEvent
+    Play:
+      type: Task
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
+        isSequential: true
+        loopCardinality: "3"
+    Noisy:
+      type: BoundaryEvent
+      eventDefinitions:
+        Cond_Noisy:
+          type: ConditionalEventDefinition
+          condition: "{Play.failedTrialRate} > 0.2"
+      attachedToRef: Play
+`;
+    const xml = await studyflowToXml(text, freshModdle());
+    expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics>');
+    expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics isSequential="true">');
+    expect(xml).toMatch(/<bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">4<\/bpmn:loopCardinality>/);
+    expect(xml).toMatch(/<bpmn:condition xsi:type="bpmn:tFormalExpression">\{Play.failedTrialRate\} &gt; 0.2<\/bpmn:condition>/);
+    expect(await xmlToStudyflow(xml, freshModdle())).toBe(text);
+  });
+
+  test('lanes inside a sub-process, and a pool\'s participant multiplicity, keep their spelling through a round trip', async () => {
+    // Both are BPMN's own: `laneSets` sit on any FlowElementsContainer, so an expanded sub-process may be divided
+    // into lanes like a pool, and a participant's `participantMultiplicity` says how many instances of its process run.
+    const text = `id: divided
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Pool_Subjects:
+      name: Subjects
+      participantMultiplicity:
+        minimum: 4
+        maximum: 4
+      processRef: P
+      bounds: 40 40 800 400
+P:
+  type: Process
+  flowElements:
+    Session:
+      type: SubProcess
+      laneSets:
+        LaneSet_Session:
+          lanes:
+            Lane_Screen:
+              name: Screen
+              flowNodeRef:
+                - S0
+              bounds: 130 100 570 130
+            Lane_Model:
+              name: Model
+              bounds: 130 230 570 130
+      flowElements:
+        S0:
+          type: StartEvent
+          bounds: 200 140 36 36
+      bounds: 100 100 600 260
+`;
+    const xml = await studyflowToXml(text, freshModdle());
+    expect(xml).toContain('<bpmn:participantMultiplicity minimum="4" maximum="4" />');
+    // The lane set is the sub-process's own, not the process's.
+    expect(xml).toMatch(/<bpmn:subProcess id="Session">\s*<bpmn:laneSet id="LaneSet_Session">/);
+    expect(xml).toContain('<bpmn:flowNodeRef>S0</bpmn:flowNodeRef>');
+    expect(await xmlToStudyflow(xml, freshModdle())).toBe(text);
+  });
+
   test('a pool diagram with no `diagram:` node draws its collaboration, whose Study takes the state', () => {
     const definitions = studyflowToDefinitions(`id: pools
 definitions:

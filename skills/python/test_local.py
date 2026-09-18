@@ -31,6 +31,17 @@ run.values["state"]["Study"].update({"durée": 3, "sid-12": 4})
 assert resolve("{durée} {sid-12}") == "3 4"
 assert python.placeholder_of("{a} and {b}") is None
 
+# Two levels of nesting: a step in a collapsed sub-process inside another reads what an outer scope holds, and the
+# elements it cites by name, which are the study's wherever they are drawn.
+plan.elements["Analysis"] = {"id": "Analysis", "parent": "Study"}
+plan.elements["Typed"] = {"id": "Typed", "parent": "Analysis"}
+plan.elements["Drop"] = {"id": "Drop", "parent": "Typed"}
+run.values["state"]["Analysis"] = {"folds": 9}
+nested = lambda value: run.resolve_argument(value, "Drop")  # noqa: E731
+assert nested("{folds}") == 9          # the nearest scope outward, two levels up
+assert nested("{split.train}") is table  # an element by name, wherever it sits
+assert nested("{state.Study.folds}") == 5
+
 # A `.jsonl` artifact (the behaverse runner's trial events) round-trips as a table, its nested keys as `a.b` columns.
 import importlib.util  # noqa: E402
 import tempfile  # noqa: E402

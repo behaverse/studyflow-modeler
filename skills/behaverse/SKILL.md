@@ -24,20 +24,23 @@ named is an error rather than a guess. The task's trial records go to the `uri` 
 `<id>.events.jsonl` in the run. Several tasks may deposit into one drawn dataset, and a task in a loop plays once
 per pass: the first write of a run starts that file, the rest append, and the next run starts it again.
 Each line carries the runner's own `context` beside what the build recorded:
-`subject`, the task's visit count study-lifetime, so a loop's iterations and a re-run number the subjects apart,
+`subject`, the instance the nearest repeating activity around the task is on (`state._meta.instance`, 1-based), so
+every task of one subject stamps the same number and a cohort of four sub-process instances numbers them 1 to 4
+(with no repeating activity around it, the task's own visit count, study-lifetime),
 and `state`, the properties in scope at the hand-off (an enclosing sub-process's `arm`, say), so the trials group
 by subject and by condition without joining anything in.
 
 Who answers is what the diagram draws, never a `Bot:` entry, which only says how the build's bot plays. In a local
-run a task with message flows sends each awaiting trial, and with it the task's data inputs (the `agentic:Prompt`
+run a task with message flows — its own, or the nearest enclosing sub-process's, which is where BPMN can draw them
+when that sub-process is collapsed — sends each awaiting trial, and with it the task's data inputs (the `agentic:Prompt`
 wired into it, above all), along the one out of it, and injects the answer that comes back naming one of the trial's options; any other answer, or none in time, is a miss, and nothing stands in for it.
 The browser runner plays a person, a model on the task's band (its `implementation` names it), or the build's random
 bot (a `software` taker whose `implementation` is `random`); any other taker answers along message flows, locally.
 The task's `failedTrialRate`, kept with its result, is the share of the trials the build showed that it recorded no
 valid response for — the build is the authority, so an answer injected too late for the trial's window counts as a
-miss however well it named an option, and a build that reports no trial reports no failure. A task whose
-`maxFailedTrialRate` that share exceeds fails, so the error boundary event drawn on it takes the walk on (unset,
-missed trials never fail it).
+miss however well it named an option, and a build that reports no trial reports no failure. It is data, not policy:
+a study that wants a bad run to leave the task draws a conditional boundary event on it
+(`{Play.failedTrialRate} > 0.2`), and the walk goes on from there.
 
 - `browser/` is the browser runtime's node module: the Unity build in a frame, the model bot, and its dev-server
   plugins (`vite.ts`).

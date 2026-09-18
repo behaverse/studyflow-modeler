@@ -19,9 +19,11 @@ import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver
 import { EDGE_CORNER_RADIUS, lineJumps, type Span } from '@canvas/render/jumps.ts';
 import {
   alignedX,
+  CHROME,
   drawBandText,
   drawInternalLabel,
   drawLabel,
+  fit,
   FONT,
   LINE_HEIGHT,
   styled,
@@ -44,6 +46,7 @@ import {
   drawParticipant,
   drawTask,
   drawTextAnnotation,
+  participantInstances,
   PARTICIPANT_BAND,
   STROKE_WIDTH,
   type EventKind,
@@ -58,9 +61,22 @@ const EDGE_TYPES = new Set<string>([
   BPMN.SequenceFlow, BPMN.MessageFlow, BPMN.Association, DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION,
 ]);
 
+/**
+ * The marker row a lane leaves to the container it divides: `CHROME.foot` when that container draws
+ * bottom-centre markers and the lane reaches its bottom edge, else nothing. Only a sub-process asks
+ * for it; a pool marks its multiplicity in its title band, which no lane covers.
+ */
+function footRoom(node: SceneNode): number {
+  const owner = node.parent;
+  if (node.type !== BPMN.Lane || !owner || activityMarkers(owner).length === 0) return 0;
+  return node.y + node.height >= owner.y + owner.height - 1 ? CHROME.foot : 0;
+}
+
 /** The type glyph, tucked into the top-left corner; its row is what `CHROME.head` keeps clear. */
 const TYPE_ICON = { x: 3, y: 3, size: 24 };
 const MARKER_SIZE = 16;
+/** The gap the pool's title-band marker keeps from the band's foot, and from the name above it. */
+const BAND_MARKER_GAP = 6;
 const OVERLAY_ICON_SIZE = 16;
 /** Badges share the glyph row's centre line. */
 const OVERLAY_ICON_Y = TYPE_ICON.y + (TYPE_ICON.size - OVERLAY_ICON_SIZE) / 2;
@@ -266,10 +282,12 @@ export class Renderer {
         this.drawAnnotationText(g, node, (typeof text === 'string' && text) || name, INK.text);
         break;
       }
-      case 'participant':
-        drawParticipant(g, node.width, node.height, style);
-        this.drawParticipantLabel(g, node, name, INK.text);
+      case 'participant': {
+        // A lane is painted after the container it divides, so it stops above that container's marker row.
+        drawParticipant(g, node.width, node.height - footRoom(node), style);
+        this.drawParticipantLabel(g, node, name, INK.text, this.drawBandMarker(g, node, iconColor));
         break;
+      }
       default:
         drawTask(g, node.width, node.height, { ...style, fill: 'none' });
         drawInternalLabel(g, node, name, INK.text);
@@ -444,6 +462,25 @@ export class Renderer {
     });
   }
 
+  /**
+   * A pool of several participant instances marks them at the foot of its own title band — the strip the
+   * rotated name runs up, which no lane reaches. BPMN puts participant multiplicity at the pool's bottom
+   * centre, where it sits under the bottom lane and reads as that lane's, and lanes carry no markers of
+   * their own to tell it apart. The bars stay upright, so it is the parallel marker a step carries,
+   * and `×N` under them — `participantMultiplicity/@maximum` — says how many instances that is.
+   * Returns the band length it takes, which the name gives up.
+   */
+  private drawBandMarker(g: SVGGElement, node: SceneNode, color: string): number {
+    const instances = participantInstances(node.businessObject);
+    if (node.type !== BPMN.Participant || instances < 2) return 0;
+    const centre = Math.min(PARTICIPANT_BAND, node.width) / 2;
+    const y = node.height - MARKER_SIZE - LINE_HEIGHT - BAND_MARKER_GAP;
+    drawIcon(g, 'parallel', centre - MARKER_SIZE / 2, y, MARKER_SIZE, color, this.iconResolver, node.businessObject);
+    append(g, textLine(`×${instances}`, centre, y + MARKER_SIZE + LINE_HEIGHT / 2,
+      { fontSize: FONT.band, color: INK.text, weight: WEIGHT.internal }));
+    return MARKER_SIZE + LINE_HEIGHT + 2 * BAND_MARKER_GAP;
+  }
+
   /** A group's caption lives on its `bpmn:CategoryValue`, centred on the top edge. */
   private drawGroupLabel(g: SVGGElement, node: SceneNode, color: string): void {
     const categoryValue = prop(node.businessObject, 'categoryValueRef');
@@ -461,11 +498,15 @@ export class Renderer {
     lines.forEach((line, i) => append(g, textLine(line, at.x, ANNOTATION_PADDING + (i + 0.5) * LINE_HEIGHT, style)));
   }
 
-  private drawParticipantLabel(g: SVGGElement, node: SceneNode, name: string, color: string): void {
+  /** The name, rotated up the title band and centred in the length the band's marker leaves it. */
+  private drawParticipantLabel(g: SVGGElement, node: SceneNode, name: string, color: string, markerRoom = 0): void {
     if (!name) return;
     const x = PARTICIPANT_BAND / 2;
-    const text = textLine(name, x, node.height / 2, styled({ fontSize: FONT.internal, color, weight: WEIGHT.internal }, node.font));
-    attr(text, { transform: `rotate(-90, ${x}, ${node.height / 2})`, 'dominant-baseline': 'central' });
+    const room = node.height - markerRoom;
+    const y = room / 2;
+    const text = textLine(markerRoom > 0 ? fit(name, room, FONT.internal) : name, x, y,
+      styled({ fontSize: FONT.internal, color, weight: WEIGHT.internal }, node.font));
+    attr(text, { transform: `rotate(-90, ${x}, ${y})`, 'dominant-baseline': 'central' });
     append(g, text);
   }
 

@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { Canvas, INK } from '@canvas/index.ts';
 import { resolvePlaceholders, studyflowToDefinitions } from '@core/document';
 import { CHROME, LINE_HEIGHT } from '@canvas/render/labels.ts';
-import { choreographyBandHeight } from '@canvas/render/shapes.ts';
+import { choreographyBandHeight, PARTICIPANT_BAND } from '@canvas/render/shapes.ts';
 
 import { diElements, edge, freshModdle, installDocument, loadCanvas, loadYaml, node } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';
@@ -118,6 +118,13 @@ async function render(name: string): Promise<Canvas> {
 function textsOf(canvas: Canvas, id: string): string[] {
   const g = canvas.getGraphics(id);
   return g ? Array.from(g.querySelectorAll('text')).map((t) => t.textContent ?? '') : [];
+}
+
+/** The one of those lines that reads `content`, whatever order they were drawn in. */
+function textAt(canvas: Canvas, id: string, content: string): SVGTextElement {
+  const found = Array.from(canvas.getGraphics(id)!.querySelectorAll('text')).find((t) => t.textContent === content);
+  if (!found) throw new Error(`${id} draws no "${content}" (it draws ${JSON.stringify(textsOf(canvas, id))})`);
+  return found;
 }
 
 test('a group is captioned from its categoryValue, centred across the frame', async () => {
@@ -583,4 +590,161 @@ test('mainCanvasOnly imports nothing inside a sub-process, collapsed or expanded
   expect(main.canvas.toSVG()).not.toContain('data-element-id="First"');
   // Import only reads: the definitions keep every DI element, so the option can run on a live document.
   expect(diElements(main.definitions)).toHaveLength(diElements(full.definitions).length);
+});
+
+/** A resolver that answers every marker key, so markers draw as real SVG. */
+const ICONS = { iconResolver: () => ({ content: '<path d="M0 0h24v24H0z"/>', viewBox: '0 0 24 24' }) };
+
+/** A pool of four subjects, its process divided into lanes inside an expanded sub-process — both BPMN's own. */
+const DIVIDED_YAML = `id: Defs_Divided
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Pool_Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 4
+      processRef: P
+      bounds: 40 40 800 400
+P:
+  type: Process
+  flowElements:
+    Session:
+      type: SubProcess
+      name: Session
+      laneSets:
+        LaneSet_Session:
+          lanes:
+            Lane_Screen:
+              name: Screen
+              flowNodeRef:
+                - S0
+              bounds: 130 100 570 130
+            Lane_Model:
+              name: Model
+              bounds: 130 230 570 130
+      flowElements:
+        S0:
+          type: StartEvent
+          bounds: 200 140 36 36
+      bounds: 100 100 600 260
+`;
+
+test('a sub-process divided into lanes draws them inside its frame, as a pool draws its own', async () => {
+  const { canvas } = loadYaml(DIVIDED_YAML);
+  const frame = node(canvas, 'Session');
+  for (const [id, name] of [['Lane_Screen', 'Screen'], ['Lane_Model', 'Model']]) {
+    const lane = node(canvas, id);
+    // Drawn, inside the sub-process's own frame, and stacked vertically inside it.
+    expect(lane.parent, `${id} sits in the sub-process`).toBe(frame);
+    expect(lane.x, id).toBeGreaterThanOrEqual(frame.x);
+    expect(lane.x + lane.width, id).toBeLessThanOrEqual(frame.x + frame.width);
+    expect(lane.y, id).toBeGreaterThanOrEqual(frame.y);
+    expect(lane.y + lane.height, id).toBeLessThanOrEqual(frame.y + frame.height);
+    expect(translateOf(canvas.getGraphics(id)!), `${id} sits at its DI bounds`).toEqual({ x: lane.x, y: lane.y });
+    // A band with a rotated title on the left, like a pool's lane.
+    expect(textsOf(canvas, id), id).toEqual([name]);
+    expect(canvas.getGraphics(id)!.querySelector('text')!.getAttribute('transform')).toMatch(/^rotate\(-90/);
+  }
+  // The lanes stack: the second starts where the first ends.
+  expect(node(canvas, 'Lane_Model').y).toBe(node(canvas, 'Lane_Screen').y + node(canvas, 'Lane_Screen').height);
+  // A node the lane claims by `flowNodeRef` is a child of it, and so of the sub-process.
+  expect(node(canvas, 'S0').parent).toBe(node(canvas, 'Lane_Screen'));
+
+  // A sub-process captions its top strip, not a title band, so its own multi-instance marker has nowhere
+  // else to go and stays in the foot row — where its filled bottom lane must still stop above it.
+  const mi = loadYaml(DIVIDED_YAML
+    .replace('      name: Session\n', '      name: Session\n      loopCharacteristics:\n        type: MultiInstanceLoopCharacteristics\n        isSequential: false\n')
+    .replace('              name: Model\n', '              name: Model\n              fill: "#e8eef5"\n'), ICONS).canvas;
+  const marker = mi.getGraphics('Session')!.querySelector('[data-icon-key="parallel"]')!;
+  expect(Number(marker.getAttribute('x')) + Number(marker.getAttribute('width')) / 2).toBeCloseTo(node(mi, 'Session').width / 2, 6);
+  const bottom = node(mi, 'Lane_Model');
+  expect(Number(mi.getGraphics('Lane_Model')!.querySelector('rect')!.getAttribute('height')))
+    .toBeLessThan(bottom.height);
+});
+
+const MARKED_POOL_YAML = `id: cohort
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Pool_Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 4
+      processRef: P
+      bounds: 40 40 800 400
+P:
+  type: Process
+  laneSets:
+    LaneSet_P:
+      lanes:
+        Lane_Screen:
+          name: Screen
+          fill: "#e8eef5"
+          flowNodeRef:
+            - S0
+          bounds: 70 40 770 400
+  flowElements:
+    S0:
+      type: StartEvent
+      bounds: 200 140 36 36
+`;
+
+/** The same pool without its lane, so a pool that carries multiplicity alone draws the same marker. */
+const BARE_POOL_YAML = MARKED_POOL_YAML.replace(/  laneSets:[\s\S]*?  flowElements:/, '  flowElements:');
+
+test('a pool of several participant instances marks them at the foot of its title band, not under its lanes', async () => {
+  // BPMN's participant multiplicity: N instances of the pool's process, marked as a parallel multi-instance
+  // activity is. At the pool's bottom centre that marker sits immediately under the bottom lane and reads as
+  // that lane's — and a filled lane, painted after the pool it divides, covered it outright. The title band
+  // is the pool's own and no lane reaches into it, so the marker goes at its foot, upright, under the name.
+  const { canvas } = loadYaml(MARKED_POOL_YAML, ICONS);
+  const pool = node(canvas, 'Pool_Subjects');
+  const lane = node(canvas, 'Lane_Screen');
+  const marker = canvas.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!;
+  const band = canvas.getGraphics('Lane_Screen')!.querySelector('rect')!;
+  const markerY = Number(marker.getAttribute('y'));
+  // Centred across the title band, at its foot, inside the pool, with the count under the bars.
+  expect(Number(marker.getAttribute('x')) + Number(marker.getAttribute('width')) / 2).toBeCloseTo(PARTICIPANT_BAND / 2, 6);
+  expect(markerY + Number(marker.getAttribute('height'))).toBeLessThan(pool.height);
+  expect(markerY).toBeGreaterThan(pool.height - 45);
+  const count = textAt(canvas, 'Pool_Subjects', '×4');
+  expect(Number(count.getAttribute('x'))).toBeCloseTo(PARTICIPANT_BAND / 2, 6);
+  expect(Number(count.getAttribute('y')), 'the maximum reads below the bars').toBeGreaterThan(markerY + Number(marker.getAttribute('height')));
+  expect(Number(count.getAttribute('y'))).toBeLessThan(pool.height);
+  expect(count.getAttribute('fill')).toBe(INK.text);
+  // The lane is filled and drawn after the pool, yet it starts right of the band and fills its own full height.
+  expect(band.getAttribute('fill')).toBe('#e8eef5');
+  expect(lane.x).toBeGreaterThanOrEqual(pool.x + PARTICIPANT_BAND);
+  expect(lane.y + lane.height).toBe(pool.y + pool.height);
+  expect(Number(band.getAttribute('height'))).toBe(lane.height);
+  // The rotated name is centred in what is left of the band, above the marker.
+  expect(Number(textAt(canvas, 'Pool_Subjects', 'Subjects').getAttribute('y'))).toBeLessThan(markerY);
+  // A pool without a multiplicity draws neither marker nor count; nor does a lane, which carries none of its own.
+  const plain = loadYaml(MARKED_POOL_YAML.replace(/      participantMultiplicity:\n        maximum: 4\n/, ''), ICONS).canvas;
+  expect(plain.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')).toBeNull();
+  expect(textsOf(plain, 'Pool_Subjects')).toEqual(['Subjects']);
+  expect(canvas.getGraphics('Lane_Screen')!.querySelector('[data-icon-key="parallel"]')).toBeNull();
+});
+
+test('a pool with multiplicity and no lanes marks it the same way, and a short band truncates the name instead', async () => {
+  const bare = loadYaml(BARE_POOL_YAML, ICONS).canvas;
+  expect(bare.get('Lane_Screen'), 'no lanes at all').toBeUndefined();
+  const marker = bare.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!;
+  expect(Number(marker.getAttribute('x')) + Number(marker.getAttribute('width')) / 2).toBeCloseTo(PARTICIPANT_BAND / 2, 6);
+  // The bars sit a count's row higher than the band's foot, and the count fills that row.
+  expect(Number(marker.getAttribute('y'))).toBe(node(bare, 'Pool_Subjects').height - 22 - LINE_HEIGHT);
+  expect(textsOf(bare, 'Pool_Subjects')).toContain('×4');
+  // Too short for both: the marker and its count keep their place and the name takes what the band has left.
+  const short = loadYaml(BARE_POOL_YAML
+    .replace('bounds: 40 40 800 400', 'bounds: 40 40 800 90')
+    .replace('name: Subjects', 'name: Subjects randomised to the cautious arm'), ICONS).canvas;
+  expect(Number(short.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!.getAttribute('y'))).toBe(90 - 22 - LINE_HEIGHT);
+  const texts = textsOf(short, 'Pool_Subjects');
+  expect(texts).toContain('×4');
+  expect(texts.find((t) => t !== '×4')).toMatch(/…$/);
 });

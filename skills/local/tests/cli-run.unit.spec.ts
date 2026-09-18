@@ -16,6 +16,7 @@ const moddle = freshModdle();
 const RUN = path.resolve(__dirname, '../run.py');
 const PROV = path.resolve(__dirname, '../../prov/prov.py');
 const SHELL = path.resolve(__dirname, '../../shell/local.py');
+const PYTHON = path.resolve(__dirname, '../../python/local.py');
 
 function hasUv(): boolean {
   try {
@@ -205,7 +206,67 @@ S:
     expect(log).toMatch(/run.finished.*\(ok\)/);
   });
 
-  test('a sub-process loops to its loopMaximum, resets its scope each pass, and its random gateway draws again each pass and each run', async () => {
+  // The other way off a finished step: a conditional boundary event, whose `condition` the walk reads once the
+  // step's result is in. Quality control the study states itself, instead of a threshold attribute the notation invents.
+  const RATES: [label: string, rate: string, reached: Record<string, number>][] = [
+    ['above it, the boundary takes the walk on', '0.4', { Start: 1, Measure: 1, Noisy: 1, Excluded: 1 }],
+    ['below it, the step\'s own flow carries on', '0.1', { Start: 1, Measure: 1, Completed: 1 }],
+  ];
+  for (const [label, rate, reached] of RATES) {
+    test(`a conditional boundary event reads the finished step's result: ${label}`, async () => {
+      const xml = await studyflowToXml(`id: quality
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+    Measure:
+      type: ServiceTask
+      implementation: python://builtins.dict
+      additionalArguments:
+        failedTrialRate: ${rate}
+      dataOutputAssociations:
+        Out_Quality:
+          targetRef: Quality
+    Quality:
+      type: DataObjectReference
+    Noisy:
+      type: BoundaryEvent
+      attachedToRef: Measure
+      eventDefinitions:
+        Cond_Noisy:
+          type: ConditionalEventDefinition
+          condition: "{Quality.failedTrialRate} > 0.2"
+    Excluded:
+      type: EndEvent
+    Completed:
+      type: EndEvent
+    F1: Start -> Measure
+    F2: Measure -> Completed
+    F3: Noisy -> Excluded
+`, moddle);
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-quality-'));
+      fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+      fs.writeFileSync(path.join(dir, 'quality.bpmn'), xml);
+      // Exit 0 either way: a boundary event is a path, not a failure.
+      execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'quality.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
+        cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV, STUDYFLOW_PYTHON_PY: PYTHON },
+      });
+
+      expect(archivedState(path.join(dir, 'run', 'quality.bpmn'))._meta.reached).toEqual(reached);
+    });
+  }
+
+  // Three passes over the cohort, drawn two ways: BPMN's standard loop marker, and the multi-instance marker a
+  // cohort of independent subjects carries (`loopCardinality` instances, which this runtime runs in order).
+  const COHORT_MARKERS: [label: string, marker: string][] = [
+    ['a standard loop marker, to its loopMaximum', 'type: StandardLoopCharacteristics\n        loopMaximum: 3'],
+    ['a multi-instance marker, loopCardinality times', 'type: MultiInstanceLoopCharacteristics\n        loopCardinality: "3"'],
+  ];
+  for (const [label, marker] of COHORT_MARKERS) {
+  test(`a sub-process repeats under ${label}, resets its scope each pass, and its random gateway draws again each pass and each run`, async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-subjects-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
     // The cognitive skill beside the copy, so the walk reads its schema's `meta.branching`; it runs nothing itself.
@@ -227,8 +288,7 @@ S:
     Subject:
       type: SubProcess
       loopCharacteristics:
-        type: StandardLoopCharacteristics
-        loopMaximum: 3
+        ${marker}
       properties:
         P_Arm:
           name: arm
@@ -270,7 +330,7 @@ S:
       "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
       'state = json.load(open(handoff))',
       `seen = json.load(open(${JSON.stringify(seen)})) if os.path.exists(${JSON.stringify(seen)}) else []`,
-      "seen.append(state['state']['Subject']['arm'])",
+      "seen.append([state['state']['Subject']['arm'], state['state']['_meta']['instance']['Subject']])",
       `json.dump(seen, open(${JSON.stringify(seen)}, 'w'))`,
       "json.dump({**state, 'P_Arm': 'cautious', 'result': 1, 'durationMs': 0}, open(handoff, 'w'))",
     ].join('\n'));
@@ -283,8 +343,9 @@ S:
     expect(archivedState(path.join(dir, 'run', 'subjects.bpmn'))._meta.reached).toMatchObject({ Subject: 1, S0: 3, Draw: 3, Check: 3, E9: 3 });
     // A data edge into a declared property writes its scope's state, whoever bound it.
     expect(archivedState(path.join(dir, 'run', 'subjects.bpmn')).Subject).toEqual({ arm: 'cautious' });
-    // A pass re-enters the scope, so a property with a `value` starts each pass at it, whatever the pass before wrote.
-    expect(JSON.parse(fs.readFileSync(seen, 'utf8'))).toEqual(['none', 'none', 'none']);
+    // A pass re-enters the scope, so a property with a `value` starts each pass at it, whatever the pass before wrote;
+    // and `_meta.instance` says which pass it is, so a step inside knows which of three subjects it is serving.
+    expect(JSON.parse(fs.readFileSync(seen, 'utf8'))).toEqual([['none', 1], ['none', 2], ['none', 3]]);
     // Seeded on the visit count, so the arms differ from pass to pass instead of repeating the first draw.
     expect(drawn()).toEqual(['A', 'B', 'A']);
 
@@ -294,6 +355,7 @@ S:
     expect(drawn()).toEqual(['B', 'A', 'B']);
     expect(archivedState(path.join(dir, 'run', 'subjects.bpmn'))._meta.reached).toMatchObject({ Draw: 6, Check: 6 });
   });
+  }
 
   test('when no condition holds and there is no default, the one flow without a condition is taken', async () => {
     const xml = await studyflowToXml(`id: otherwise
@@ -597,6 +659,276 @@ ${robot}`, moddle);
     // Three trials answered, and the walk went on from where "over" arrived.
     const reached = archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached;
     expect(reached).toMatchObject({ Look: 1, Ask: 3, Stop: 1, R9: 1, Over: 1, ...reachedToo });
+  });
+
+  test('a pool of two participant instances runs its process twice, one instance after another', async () => {
+    // BPMN's `participantMultiplicity`: N instances of the pool's process. They run serially here, as a
+    // multi-instance activity's passes do, and the model pool answers each instance in turn.
+    const xml = await studyflowToXml(`id: cohort
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 2
+      processRef: S
+    Model: { name: Model }
+  messageFlows:
+    M_Ask: { sourceRef: Ask, targetRef: Model }
+    M_Reply: { sourceRef: Model, targetRef: Ask }
+S:
+  type: Process
+  properties:
+    P_Seen:
+      name: seen
+      value: none
+  flowElements:
+    S0: { type: StartEvent }
+    Ask:
+      type: Task
+      dataOutputAssociations: { Out_Seen: { targetRef: P_Seen } }
+    S9: { type: EndEvent }
+    SF1: S0 -> Ask
+    SF2: Ask -> S9
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-cohort-'));
+    fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    const asked = path.join(dir, 'asked.json');
+    // The model: one hand-off per message, answering with the instance it is serving; it also records the
+    // pool's own scope as it finds it, which a fresh instance must have put back to its declared value.
+    fs.writeFileSync(path.join(dir, 'model.py'), [
+      'import json, os, sys',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Model'])); sys.exit()",
+      "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
+      'state = json.load(open(handoff))',
+      "instance = state['state']['_meta']['instance']['Subjects']",
+      `seen = json.load(open(${JSON.stringify(asked)})) if os.path.exists(${JSON.stringify(asked)}) else []`,
+      "seen.append([instance, state['state']['S']['seen']])",
+      `json.dump(seen, open(${JSON.stringify(asked)}, 'w'))`,
+      "json.dump({**state, 'result': f'answer {instance}', 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
+      '--runner', `model=python3 ${path.join(dir, 'model.py')}`],
+    { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
+
+    // Asked twice, once per instance: `_meta.instance.<pool id>` says which, and each instance re-enters the
+    // pool's scope, so `seen` starts at its declared value again instead of carrying the first answer over.
+    expect(JSON.parse(fs.readFileSync(asked, 'utf8'))).toEqual([[1, 'none'], [2, 'none']]);
+    // Every step inside was visited once per instance, and the walk kept counting across them.
+    expect(archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached).toMatchObject({ S0: 2, Ask: 2, S9: 2 });
+  });
+
+  test('a step inside a sub-process talks along the sub-process\'s message flows', async () => {
+    // A collapsed sub-process is the only place BPMN can draw a message flow to a step inside it, so the study draws
+    // the exchange on the cohort and the task inside it is what talks: out along the sub-process's flow, back in.
+    // The sub-process is divided into a lane too (BPMN allows a lane set on any FlowElementsContainer): the walk
+    // and the plan digest see through it, as they do through a pool's lanes.
+    const xml = await studyflowToXml(`id: nested
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Screen: { name: Screen, processRef: S }
+    Model: { name: Model }
+  messageFlows:
+    M_Trial: { sourceRef: Subject, targetRef: Model }
+    M_Answer: { sourceRef: Model, targetRef: Subject }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Subject:
+      type: SubProcess
+      dataOutputAssociations:
+        Out_Trials: { targetRef: Trials }
+      laneSets:
+        LaneSet_Subject:
+          lanes:
+            Lane_Screen: { name: Screen, flowNodeRef: [Play] }
+      flowElements:
+        E0: { type: StartEvent }
+        Play: { type: Task }
+        E9: { type: EndEvent }
+        EF0: E0 -> Play
+        EF1: Play -> E9
+    Trials:
+      type: DataObjectReference
+      uri: trials.jsonl
+    Done: { type: EndEvent }
+    SF1: S0 -> Subject
+    SF2: Subject -> Done
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-nested-talk-'));
+    fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    const heard = path.join(dir, 'heard.json');
+    fs.writeFileSync(path.join(dir, 'task.py'), [
+      'import json, os, sys, time',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Play'])); sys.exit()",
+      'eid, cache = sys.argv[3], sys.argv[5]',
+      "open(os.path.join(cache, eid + '.outbox.jsonl'), 'a').write(json.dumps({'flow': 'M_Trial', 'id': 't1', 'content': {'n': 1}}) + '\\n')",
+      'answers, deadline = [], time.monotonic() + 30',
+      "while not answers:",
+      '    assert time.monotonic() < deadline',
+      "    inbox = os.path.join(cache, eid + '.inbox.jsonl')",
+      '    answers = [json.loads(line) for line in open(inbox)] if os.path.exists(inbox) else []',
+      '    time.sleep(0.05)',
+      `open(${JSON.stringify(heard)}, 'w').write(json.dumps(answers))`,
+      "open(os.path.join(cache, '..', 'trials.jsonl'), 'w').write('{}')",
+      "handoff = os.path.join(cache, eid + '.state.json')",
+      "json.dump({**json.load(open(handoff)), 'result': 1, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    fs.writeFileSync(path.join(dir, 'model.py'), [
+      'import json, os, sys',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Model'])); sys.exit()",
+      "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
+      'state = json.load(open(handoff))',
+      `json.dump({**state, 'result': f"saw {state['message']['content']['n']}", 'durationMs': 0}, open(handoff, 'w'))`,
+    ].join('\n'));
+    execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
+      '--runner', `task=python3 ${path.join(dir, 'task.py')}`, '--runner', `model=python3 ${path.join(dir, 'model.py')}`],
+    { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
+
+    // The trial left along the sub-process's flow, and the model's answer came back into the task that sent it.
+    expect(JSON.parse(fs.readFileSync(heard, 'utf8'))).toMatchObject([{ flow: 'M_Answer', content: 'saw 1', inReplyTo: 't1' }]);
+    expect(archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached).toMatchObject({ Play: 1, Done: 1 });
+    // The dataset the steps inside filled is the sub-process's own data edge, so the sub-process generated it.
+    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/save trials\.jsonl/);
+  });
+
+  test('a step inside a pool talks along the pool\'s message flows', async () => {
+    // A pool\'s message flows belong to everything drawn in it, so a study that draws one exchange on the pool has
+    // the step inside doing the talking: out along the pool\'s flow, back in. The pool is divided into a lane, which
+    // the walk reads through, and the step draws no flow of its own.
+    const xml = await studyflowToXml(`id: pooled
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Cohort: { name: Cohort, processRef: S }
+    Model: { name: Model }
+  messageFlows:
+    M_Trial: { sourceRef: Cohort, targetRef: Model }
+    M_Answer: { sourceRef: Model, targetRef: Cohort }
+S:
+  type: Process
+  laneSets:
+    LaneSet_S:
+      lanes:
+        Lane_Screen:
+          name: Screen
+          flowNodeRef: [Play]
+  flowElements:
+    S0: { type: StartEvent }
+    Play: { type: Task }
+    S9: { type: EndEvent }
+    SF1: S0 -> Play
+    SF2: Play -> S9
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-pool-talk-'));
+    fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    const heard = path.join(dir, 'heard.json');
+    fs.writeFileSync(path.join(dir, 'task.py'), [
+      'import json, os, sys, time',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Play'])); sys.exit()",
+      'eid, cache = sys.argv[3], sys.argv[5]',
+      "open(os.path.join(cache, eid + '.outbox.jsonl'), 'a').write(json.dumps({'flow': 'M_Trial', 'id': 't1', 'content': {'n': 1}}) + '\\n')",
+      'answers, deadline = [], time.monotonic() + 30',
+      'while not answers:',
+      '    assert time.monotonic() < deadline',
+      "    inbox = os.path.join(cache, eid + '.inbox.jsonl')",
+      '    answers = [json.loads(line) for line in open(inbox)] if os.path.exists(inbox) else []',
+      '    time.sleep(0.05)',
+      `open(${JSON.stringify(heard)}, 'w').write(json.dumps(answers))`,
+      "handoff = os.path.join(cache, eid + '.state.json')",
+      "json.dump({**json.load(open(handoff)), 'result': 1, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    fs.writeFileSync(path.join(dir, 'model.py'), [
+      'import json, os, sys',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Model'])); sys.exit()",
+      "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
+      'state = json.load(open(handoff))',
+      `json.dump({**state, 'result': f"saw {state['message']['content']['n']}", 'durationMs': 0}, open(handoff, 'w'))`,
+    ].join('\n'));
+    execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
+      '--runner', `task=python3 ${path.join(dir, 'task.py')}`, '--runner', `model=python3 ${path.join(dir, 'model.py')}`],
+    { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
+
+    // The trial left along the pool's flow, and the model's answer came back into the step that sent it.
+    expect(JSON.parse(fs.readFileSync(heard, 'utf8'))).toMatchObject([{ flow: 'M_Answer', content: 'saw 1', inReplyTo: 't1' }]);
+    expect(archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached).toMatchObject({ Play: 1, S9: 1 });
+  });
+
+  test('a pool of many instances sends its outgoing message once, after the last instance', async () => {
+    // The whole pool is one sender: the flow out of the participant is the cohort's own, not each instance's, so the
+    // analysis pool's message start event ("All subjects complete") starts once, when the third subject is done.
+    const xml = await studyflowToXml(`id: allsubjects
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 3
+      processRef: S
+    Analysis: { name: Analysis, processRef: A }
+  messageFlows:
+    M_Done: { sourceRef: Subjects, targetRef: A0 }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Play: { type: Task }
+    S9: { type: EndEvent }
+    SF1: S0 -> Play
+    SF2: Play -> S9
+A:
+  type: Process
+  flowElements:
+    A0: { type: StartEvent, name: All subjects complete }
+    Analyze: { type: Task }
+    A9: { type: EndEvent }
+    AF1: A0 -> Analyze
+    AF2: Analyze -> A9
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-all-done-'));
+    fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    const analysed = path.join(dir, 'analysed.json');
+    // The analysis step records what it found when it ran: which instance the cohort reached, and the visit counts.
+    fs.writeFileSync(path.join(dir, 'analysis.py'), [
+      'import json, os, sys',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Analyze'])); sys.exit()",
+      "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
+      'state = json.load(open(handoff))',
+      `seen = json.load(open(${JSON.stringify(analysed)})) if os.path.exists(${JSON.stringify(analysed)}) else []`,
+      "seen.append([state['state']['_meta']['instance']['Subjects'], state['state']['_meta']['reached']])",
+      `json.dump(seen, open(${JSON.stringify(analysed)}, 'w'))`,
+      "json.dump({**state, 'result': 'ok', 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
+      '--runner', `analysis=python3 ${path.join(dir, 'analysis.py')}`],
+    { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
+
+    // Once, and only after the cohort's third instance ran every step: the analysis pool waited on the message
+    // instead of failing as a wait with nothing left to send it while the sender's instances were still running.
+    expect(JSON.parse(fs.readFileSync(analysed, 'utf8'))).toEqual([[3, { S0: 3, Play: 3, S9: 3, A0: 1, Analyze: 1 }]]);
+    expect(archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached).toEqual({ S0: 3, Play: 3, S9: 3, A0: 1, Analyze: 1, A9: 1 });
   });
 
   test('records a staged input under the hand-off that reads it, not one running beside it', async () => {

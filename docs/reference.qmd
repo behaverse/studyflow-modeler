@@ -51,7 +51,7 @@ Done:
 
 You declare a value as a `bpmn:Property` on a container element, and where you declare it decides how long it lives: on the study, it lasts for the whole diagram; on a sub-process, for one pass through that sub-process. A `Parameters` object wired into a sub-process declares its keys the same way, as properties of that sub-process, except that they are read-only: nothing inside the sub-process writes them, and a name it also declares itself is an error. Activities set these values, and gateways and other activities read them. The run state is the set of values at one moment in a run, and the run history is the sequence of those states across the run.
 
-A property may carry an initial `value`; after that only a data edge targeting it changes it. After a run the file holds the values under `state`, keyed by element id. The runner keeps its own entries under `state._meta`: `_meta.prov`, the run records, and `_meta.reached.<element_id>`, how many times a token reached each element, never reset. Names starting with `_` cannot be declared. Conditions test these values directly, as `state._meta.reached.Gate < 4`; text cites them with placeholders.
+A property may carry an initial `value`; after that only a data edge targeting it changes it. After a run the file holds the values under `state`, keyed by element id. The runner keeps its own entries under `state._meta`: `_meta.prov`, the run records, `_meta.reached.<element_id>`, how many times a token reached each element, never reset, and `_meta.instance.<element_id>`, which pass a repeating activity is on while it runs, 1-based, so a step inside a cohort of four subjects knows which subject it is serving (`{state._meta.instance.Subject}`). Names starting with `_` cannot be declared. Conditions test these values directly, as `state._meta.reached.Gate < 4`; text cites them with placeholders.
 
 ## Placeholders
 
@@ -153,7 +153,27 @@ A `RandomGateway` draws from the study's `seed`, the gateway's id and its visit 
 
 A pool stands for a group, not for one person. If you draw two pools that deal with each other, the file becomes a collaboration, with one choreography task per exchange. That is how you describe a dyadic experiment, or a study where a person and a model work together.
 
-When the pools have processes of their own, a run walks them all at once, each on its own token, and they talk only along message flows. The run carries each message. A send task sends its data inputs, a receive task waits for the next message, and a task with flows both ways to one pool asks it and takes the answer as its result. A catch event waits for its message and a throw or end event sends one, which is how a pool waits until another is ready. A pool with no process of its own, a model for instance, answers through the skill that plays it. A message at a boundary event ends the step it sits on, so a looping step can repeat until another pool says it is over; an event-based gateway waits for whichever message comes first, a branch starting at each catch event or receive task, so a cycle drawn back to it can take trials until the task's end arrives instead. The runners read the edges, so no step carries a setting for the exchange. What a flow carries is its `messageRef`: a `Message` whose `itemRef` names an `ItemDefinition`, and that item's `structureRef` is the name a runner recognises (`behaverse:Trial` out of a Behaverse task, `behaverse:Response` back into it; `agentic:Request` to a model's pool, `agentic:Reply` back). A flow that names no message is taken for either, which is enough with one partner; with several, name the messages. In the inspector a message flow has one field, "Message", offering the structures the loaded schemas declare.
+Lanes divide a container into roles. A `laneSets` mapping on a process gives its pool the bands you know from a protocol figure, and the same mapping on an expanded sub-process divides that sub-process instead, since BPMN puts lane sets on any container of flow elements. Each lane has a `name`, its own bounds, and a `flowNodeRef` list naming the steps that sit in it; a step drawn inside a lane's bounds joins it on its own. A lane is a partition of the drawing, not a step: nothing waits on it, and a run walks straight through it.
+
+A pool may also stand for several instances of itself. `participantMultiplicity` on the participant — `minimum` and `maximum` — says how many instances of its process take part, and the pool draws BPMN's three-bar parallel marker, the one a multi-instance step carries, at the foot of its own title band — the strip the rotated name runs up — rather than at the bottom centre BPMN names, where it sits under the bottom lane and reads as that lane's: the band is the pool's and no lane reaches into it, so the marker is unmistakably the pool's. Under the bars it writes the count, `×4`, so the drawing says how many instances without a word of the name; that count is `maximum`, which is what a run takes, so a pool whose `minimum` is lower still reads as its fullest. A run takes `maximum` instances, one after another, re-entering the pool's scope each time; `state._meta.instance.<pool id>` is the instance it is on, so the steps inside, and the pools they talk to, know which subject they are serving. A message flow drawn on the participant belongs to the whole pool, not to any one instance: a step inside with no flow of its own exchanges along it, instance by instance, while a flow to a step in another pool is the pool's own message, sent once, carrying null, when the last instance has ended — which is how a message start event named "All subjects complete" starts a pool that must wait for the cohort.
+
+```yaml
+Cohort:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity: { minimum: 4, maximum: 4 }
+      processRef: Session
+Session:
+  type: Process
+  laneSets:
+    LaneSet_1:
+      lanes:
+        Lane_Screen: { name: Screen, flowNodeRef: [Play] }
+```
+
+When the pools have processes of their own, a run walks them all at once, each on its own token, and they talk only along message flows. The run carries each message. A send task sends its data inputs, a receive task waits for the next message, and a task with flows both ways to one pool asks it and takes the answer as its result. A catch event waits for its message and a throw or end event sends one, which is how a pool waits until another is ready. A pool with no process of its own, a model for instance, answers through the skill that plays it. A message at a boundary event ends the step it sits on, so a looping step can repeat until another pool says it is over; an event-based gateway waits for whichever message comes first, a branch starting at each catch event or receive task, so a cycle drawn back to it can take trials until the task's end arrives instead. A message flow drawn on a sub-process is the one inside it that talks: a step with no message flow of its own exchanges along the nearest enclosing sub-process's, else along its pool's, which is what lets a collapsed sub-process, or a pool, carry the exchange its steps make. The runners read the edges, so no step carries a setting for the exchange. What a flow carries is its `messageRef`: a `Message` whose `itemRef` names an `ItemDefinition`, and that item's `structureRef` is the name a runner recognises (`behaverse:Trial` out of a Behaverse task, `behaverse:Response` back into it; `agentic:Request` to a model's pool, `agentic:Reply` back). A flow that names no message is taken for either, which is enough with one partner; with several, name the messages. In the inspector a message flow has one field, "Message", offering the structures the loaded schemas declare.
 
 ```yaml
 Collab:
@@ -178,8 +198,10 @@ Trial_Item:
 | `progress` | any activity or event | a percentage, or `done`, `blocked`, `in progress` |
 | `timeCycle` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval |
 | `timeDuration`, `timeDate` | a timer catch event | a delay, or a fixed moment |
-| `condition` | a conditional catch event | wait until this becomes true |
+| `condition` | a conditional catch or boundary event | wait until this becomes true; on a boundary event, leave the step when it does |
 | `loopCondition` | the repeat marker on a step | repeat while this holds |
+| `loopCardinality` | the multi-instance marker on a step | run this many instances of the step |
+| `participantMultiplicity` | a pool | run this many instances of the pool's process, one after another |
 | `completionCondition` | an ad-hoc sub-process | stop when this holds |
 
 These attributes describe the study's schedule in visits and days, which is what the Timeline view shows. The millisecond clock inside a recording is a different thing, and it lives with the recording.
@@ -211,7 +233,7 @@ The scheme says how the software is found: `python://` is an importable callable
 
 A data step is a plain service task: `implementation` names what runs, and the drawn data edges say what it reads and writes. A step that drops rows drops *data*, while a gateway changes the *path* a run takes, so the two are not interchangeable.
 
-A step that fails goes on from the error boundary event drawn on it, if it carries one, with the failure kept in its record and the run itself not failed; without one, the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event the same way, so a participant who cannot go on leaves the loop instead of stopping the study.
+A step that fails goes on from the error boundary event drawn on it, if it carries one, with the failure kept in its record and the run itself not failed; without one, the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event the same way, so a participant who cannot go on leaves the loop instead of stopping the study. A step that finishes takes the same path out when a conditional boundary event drawn on it holds: its `condition` is read once the step's result is in, written like a `conditionExpression` and citing values with the same placeholders (`{Play.failedTrialRate} > 0.2` reads the step's own result), and the walk goes on from that event instead of from the step. That is how a run leaves a task on a quality threshold the study itself sets, rather than on one the notation invents.
 
 ## Models, biosignals, and the trail
 
@@ -234,6 +256,7 @@ A model takes part as an actor, never as a setting on a step. It is a pool of it
 | `.bpmn` | the same study, as standard BPMN 2.0 XML | yes, also `.xml` |
 | `.studyflow.png` | a picture, and the study's `.studyflow.yaml` inside it | yes |
 | `.studyflow.svg` | a picture, and the study's BPMN XML nested in its metadata | yes |
+| `.svg`, `.png` (Manuscript view) | the figure alone, the `.svg` carrying the draw.io file that redraws it and the BPMN it came from | no |
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
 | `.json` (jsPsych timeline) | an existing timeline, on import only | read only |
 

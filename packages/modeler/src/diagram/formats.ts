@@ -1,5 +1,7 @@
 import type { Editor } from '@modeler/editor/port';
 import type { ExportModel } from '@modeler/export/model';
+import { dataUrlToBytes } from '@core/document/png';
+import { exportToPng } from '@modeler/export/svgEmbedding';
 import { SKILL_EXPORT_FORMATS, SKILL_OPENERS, type Opener } from '@modeler/skillModules';
 
 /** The formats that carry the diagram itself, encoded by `export/commands.ts`. */
@@ -11,11 +13,14 @@ export type ExportFormatId = DiagramFormatId | (string & {});
 export type EncodeContext = {
   modeler: Editor;
   renderSvg: () => Promise<{ svg: string; studyflow: string }>;
+  /** The diagram as standard BPMN XML, for a projection that carries its source. */
+  bpmn: () => Promise<string>;
   /** The semantic view of the diagram, built on demand; only projections read it. */
   exportModel: () => ExportModel;
 };
 
-export type ExportFormatGroup = 'Diagram' | 'Image' | 'Interchange';
+/** `Manuscript` is the figure view's own shelf, not the Save dialog's: see `MANUSCRIPT_FORMATS`. */
+export type ExportFormatGroup = 'Diagram' | 'Image' | 'Interchange' | 'Manuscript';
 
 export type ExportFormat = {
   id: ExportFormatId;
@@ -71,6 +76,15 @@ const EXPORT_FORMATS: ExportFormat[] = [
     embeddable: true,
     importable: true,
     alsoReads: ['.png'],
+  },
+  {
+    id: 'figure-png',
+    group: 'Manuscript',
+    label: 'PNG',
+    extension: '.png',
+    mimeType: 'image/png',
+    // The picture alone: a figure goes in a manuscript, and the `.studyflow.png` in Save is the one that reopens.
+    encode: async ({ renderSvg }) => dataUrlToBytes(await exportToPng((await renderSvg()).svg)) as BlobPart,
   },
   // A projection, a document derived for another tool, comes from a skill's `modeler.ts`, which carries its descriptor and its encoder.
   ...SKILL_EXPORT_FORMATS,
@@ -130,7 +144,8 @@ export const carriesDiagram = (format: ExportFormat): boolean =>
  * rendering the whole diagram — rasterizing, resolving icons, re-encoding — which is seconds of
  * work, so an image is only ever written by a save the user asked for.
  */
-export const autoSavable = (format: ExportFormat): boolean => format.group !== 'Image';
+export const autoSavable = (format: ExportFormat): boolean =>
+  format.group !== 'Image' && format.group !== 'Manuscript';
 
 /** The save picker offers one format: the one the file is being written back as. */
 export function formatAccept(format: ExportFormat): Record<string, string[]> {
@@ -146,9 +161,13 @@ export function importableFormatFor(filename: string): ExportFormat | undefined 
     .sort((a, b) => b.ext.length - a.ext.length)[0]?.format;
 }
 
+/** The shelves the Save dialog offers: a manuscript figure is made in its own view, not saved from here. */
 export const EXPORT_FORMAT_GROUPS: Array<[ExportFormatGroup, ExportFormat[]]> = (
   ['Diagram', 'Image', 'Interchange'] as ExportFormatGroup[]
 ).map((group) => [group, EXPORT_FORMATS.filter((format) => format.group === group)]);
+
+/** The figures the Manuscript view writes: the picture as a paper wants it, carrying no studyflow. */
+export const MANUSCRIPT_FORMATS: ExportFormat[] = EXPORT_FORMATS.filter((format) => format.group === 'Manuscript');
 
 export function getExportFormat(id: ExportFormatId): ExportFormat {
   const format = EXPORT_FORMATS.find((candidate) => candidate.id === id);

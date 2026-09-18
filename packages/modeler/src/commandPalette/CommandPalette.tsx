@@ -25,6 +25,7 @@ import { OpenDialog } from '@modeler/open/Open';
 import { SaveDialog } from '@modeler/export/Save';
 import { ChecklistDialog } from '@modeler/checklist/Checklist';
 import { GanttDialog } from '@modeler/gantt/Gantt';
+import { ManuscriptDialog } from '@modeler/manuscript/Manuscript';
 import { ProvenanceDialog } from '@modeler/provenance/Provenance';
 import { buildPaletteCommands } from '@modeler/commandPalette/menu';
 import {
@@ -43,6 +44,7 @@ const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<SubDialogProps>> = {
   save: SaveDialog,
   checklist: ChecklistDialog,
   gantt: GanttDialog,
+  manuscript: ManuscriptDialog,
   provenance: ProvenanceDialog,
 };
 

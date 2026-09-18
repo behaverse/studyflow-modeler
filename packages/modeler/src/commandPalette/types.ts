@@ -19,6 +19,7 @@ export type PaletteDialogId =
   | 'save'
   | 'checklist'
   | 'gantt'
+  | 'manuscript'
   | 'provenance';
 
 export function searchCommands(commands: PaletteCommand[], query: string): PaletteCommand[] {

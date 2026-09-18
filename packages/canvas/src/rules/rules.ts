@@ -155,7 +155,8 @@ function canContain(shapeType: string, containerType: string): boolean | 'attach
   if (containerType === 'bpmn:Collaboration') return shapeType === 'bpmn:Participant' || isArtifact(shapeType);
   if (isFlowContainer(containerType)) {
     if (shapeType === 'bpmn:Participant') return false;
-    if (shapeType === 'bpmn:Lane') return containerType === 'bpmn:Participant' || containerType === 'bpmn:Lane';
+    // BPMN puts lane sets on any FlowElementsContainer, so an expanded sub-process may be divided too.
+    if (shapeType === 'bpmn:Lane') return containerType !== 'bpmn:Process';
     return isBpmnSubtypeOf(shapeType, 'bpmn:FlowNode') || isDataShape(shapeType) || isArtifact(shapeType);
   }
   return false;

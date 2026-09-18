@@ -321,7 +321,7 @@ function findParentNode(
   return owner && owner !== element ? owner : undefined;
 }
 
-/** A node drawn inside a lane of its pool belongs to that lane even without a `flowNodeRef`. */
+/** A node drawn inside a lane of its container (a pool, or an expanded sub-process) belongs to that lane even without a `flowNodeRef`. */
 function resolveLaneMembership(elements: readonly Drawable[], parents: Map<Drawable, SceneNode | undefined>): void {
   const lanes = elements.filter((el): el is SceneNode => el.kind === 'node' && el.type === LANE_TYPE);
   if (lanes.length === 0) return;
@@ -337,7 +337,7 @@ function resolveLaneMembership(elements: readonly Drawable[], parents: Map<Drawa
   for (const element of elements) {
     if (element.kind !== 'node' || element.type === LANE_TYPE) continue;
     const pool = parents.get(element);
-    if (!pool || pool.type !== PARTICIPANT_TYPE) continue;
+    if (!pool) continue;
     const cx = element.x + element.width / 2;
     const cy = element.y + element.height / 2;
     let best: SceneNode | undefined;

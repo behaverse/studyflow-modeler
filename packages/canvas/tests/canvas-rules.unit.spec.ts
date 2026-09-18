@@ -173,6 +173,9 @@ test('what may be created, or retyped, where', () => {
     ['a lane into a pool', rules.canCreate(node('bpmn:Lane'), pool), true],
     ['a lane into a lane', rules.canCreate(node('bpmn:Lane'), lane), true],
     ['a lane into the process', rules.canCreate(node('bpmn:Lane')), false],
+    // BPMN puts lane sets on any FlowElementsContainer, so an expanded sub-process may be divided too.
+    ['a lane into an expanded sub-process', rules.canCreate(node('bpmn:Lane'), expanded), true],
+    ['a lane into a collapsed sub-process', rules.canCreate(node('bpmn:Lane'), collapsed), false],
     ['a task into a lane', rules.canCreate(task, lane), true],
     ['a task into an expanded sub-process', rules.canCreate(task, expanded), true],
     ['a task into a collapsed sub-process', rules.canCreate(task, collapsed), false],

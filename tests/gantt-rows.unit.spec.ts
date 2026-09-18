@@ -81,7 +81,7 @@ test('the time axis picks the smallest step that gives at most the ticks its wid
   expect(tickLabel(20160)).toMatch(/\b2\b/);
 });
 
-/** In one pool and lane: a sub-process stating no timing, holding two timed tasks, and a timed task outside it. */
+/** In one pool and lane: a sub-process stating no timing, holding two timed tasks, and a timed task outside it; a second pool whose analysis a message starts. */
 const GROUP_YAML = `id: Defs_GanttGroup
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -92,6 +92,15 @@ Collab_Group:
       name: Site
       processRef: Process_Group
       bounds: 50 20 700 300
+    Pool_Lab:
+      name: Lab
+      processRef: Process_Lab
+      bounds: 50 360 700 140
+  messageFlows:
+    Msg_Results:
+      sourceRef: B
+      targetRef: Analysis
+      waypoint: 450,250 450,400
 Process_Group:
   type: Process
   extensionElements:
@@ -132,6 +141,15 @@ Process_Group:
           onset: T0+2 d
           duration: 3 d
           bounds: 400 100 100 80
+Process_Lab:
+  type: Process
+  flowElements:
+    Analysis:
+      type: Task
+      name: Analysis
+      onset: T0+5 d
+      duration: 2 d
+      bounds: 400 400 100 80
 `;
 
 test('a pool, lane or sub-process holding scheduled elements is a group row ahead of them, with their span and mean progress when it states none', () => {
@@ -140,7 +158,10 @@ test('a pool, lane or sub-process holding scheduled elements is a group row ahea
   expect(rows.map((row) => [row.id, row.parent, row.group])).toEqual([
     ['Pool_Site', undefined, true], ['Lane_Ops', 'Pool_Site', true],
     ['Setup', 'Lane_Ops', undefined], ['WP', 'Lane_Ops', true], ['A', 'WP', undefined], ['B', 'WP', undefined],
+    ['Pool_Lab', undefined, true], ['Analysis', 'Pool_Lab', undefined],
   ]);
+  // A message flow waits the same as a sequence flow: the analysis starts on B's message, across pools.
+  expect(rows.find((row) => row.id === 'Analysis')!.after).toEqual(['B']);
   expect(rows[3]).toMatchObject({ onsetMin: 1440, durationMin: 4 * 1440, progressPct: 50, stroke: '#728cb9' });
   expect(rows[3].progressText).toBeTruthy();
   // The lane spans Setup and WP and averages them; the pool is the lane again.

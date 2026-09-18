@@ -35,21 +35,15 @@ def trial(n, types, **rest):
 simon = record(*[trial(n, ["TrialStart"]) for n in range(1, 16)],
                *[trial(n, ["Click"]) for n in range(6, 16)])
 assert (len(simon.shown), len(simon.answered)) == (15, 10)
-assert round(behaverse.failed_trial_rate(task(), simon.shown, simon.answered), 3) == 0.333
+assert round(behaverse.failed_trial_rate(simon.shown, simon.answered), 3) == 0.333
 # N-back: the trial ends with a `responseTime`, or with none, which is the miss.
 nback = record(*[trial(n, ["TrialStart"]) for n in range(1, 5)],
                trial(1, ["TrialEnd"], result={"responseTime": 9.66}), trial(2, ["TrialEnd"], result={"responseTime": None}),
                trial(3, ["TrialEnd"], result={"responseTime": 5.5}), trial(4, ["TrialEnd"], result={}))
-assert behaverse.failed_trial_rate(task(), nback.shown, nback.answered) == 0.5
+assert behaverse.failed_trial_rate(nback.shown, nback.answered) == 0.5
 # A build that reports no trial reports no failure; an event with no trial of its own is not one.
-assert behaverse.failed_trial_rate(task(maxFailedTrialRate=0.2), set(), set()) == 0.0
+assert behaverse.failed_trial_rate(set(), set()) == 0.0
 assert record({"trialContext": {"types": ["AppStarted"]}}).shown == set()
-try:
-    behaverse.failed_trial_rate(task(maxFailedTrialRate="0.2"), simon.shown, simon.answered)
-    raise AssertionError("a task above its maxFailedTrialRate fails")
-except RuntimeError as error:
-    assert "Play" in str(error) and "33%" in str(error), error
-assert behaverse.failed_trial_rate(task(maxFailedTrialRate=0.5), simon.shown, simon.answered) > 0  # under the threshold, it passes
 
 # Every trial line says whose it is: the task's visit count (study-lifetime, so a loop's iterations number the
 # subjects) and the properties in scope at the hand-off, an inner scope shadowing an outer one.
@@ -58,6 +52,42 @@ state = {"state": {"Study": {"arm": "none", "site": "lux"}, "Subject": {"arm": "
                    "_meta": {"reached": {"Play": 3}}}}
 assert behaverse.trial_context(task(), plan, state) == {"subject": 3, "state": {"arm": "cautious", "site": "lux"}}
 assert behaverse.trial_context(task(), plan, {}) == {"subject": 1, "state": {}}
+# With a repeating activity around it, the subject is the instance that activity is on, not the task's own count:
+# both tasks of one subject stamp the same number, and a task played twice per subject stamps it twice.
+subjects = {"state": {"_meta": {"reached": {"Play": 7}, "instance": {"Subject": 2}}}}
+assert behaverse.trial_context(task(), plan, subjects)["subject"] == 2
+
+# A task inside a sub-process talks along the sub-process's message flows when it draws none of its own.
+def flow(fid, source, target):
+    return (fid, {"id": fid, "type": "messageFlow", "attributes": {"sourceRef": source, "targetRef": target}})
+
+
+nested = {"Play": task(), "Subject": {"id": "Subject", "type": "subProcess", "parent": "Study"},
+          "Model": {"id": "Model", "type": "participant", "extensions": [
+              {"namespace": behaverse.STUDYFLOW, "type": "actor", "attributes": {"actorType": "llm", "implementation": "ollama://gemma4"}}]},
+          **dict([flow("M_Trial", "Subject", "Model"), flow("M_Answer", "Model", "Subject")])}
+assert behaverse.talking_scope(task(), nested) == "Subject"
+assert behaverse.trial_flows(task(), nested) == ("M_Trial", "M_Answer")
+assert behaverse.answered_by(task(), nested, auto=False) == "messages"
+# Its own flows win: nothing is inherited then.
+own = {**nested, **dict([flow("M_Own", "Play", "Model"), flow("M_Back", "Model", "Play")])}
+assert behaverse.talking_scope(task(), own) == "Play"
+assert behaverse.trial_flows(task(), own) == ("M_Own", "M_Back")
+
+# A task drawn straight in a pool, lane or no lane, talks along the pool's own message flows.
+pooled = {"Play": {**task(), "parent": "Example_Study"}, "Model": nested["Model"],
+          "Study": {"id": "Study", "type": "participant", "attributes": {"processRef": "Example_Study"}},
+          **dict([flow("M_Trial", "Study", "Model"), flow("M_Answer", "Model", "Study")])}
+assert behaverse.talking_scope(pooled["Play"], pooled) == "Study"
+assert behaverse.trial_flows(pooled["Play"], pooled) == ("M_Trial", "M_Answer")
+
+# Its dataset the same way: one edge on the sub-process is where every task inside it deposits its trials.
+trials = {**nested, "Dataset": {"id": "Dataset", "attributes": {"uri": "data/trials.jsonl"}}}
+trials["Subject"] = {**trials["Subject"], "outputs": [{"target": "Dataset"}]}
+assert behaverse.events_uri(task(), trials) == "data/trials.jsonl"
+assert behaverse.events_uri(task(), nested) == "Play.events.jsonl"  # nobody draws one
+own_dataset = {**trials, "Own": {"id": "Own", "attributes": {"uri": "play.jsonl"}}}
+assert behaverse.events_uri({**task(), "outputs": [{"target": "Own"}]}, own_dataset) == "play.jsonl"
 # Every trial carries the task's data inputs too, so the prompt wired into it reaches whoever answers.
 assert behaverse.data_inputs({"inputs": [{"source": "Instructions"}, {"source": "Knobs"}]}, {"Knobs": {"n": 1}}) == {
     "Instructions": None, "Knobs": {"n": 1}}

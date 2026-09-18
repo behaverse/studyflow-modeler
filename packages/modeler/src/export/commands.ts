@@ -84,7 +84,12 @@ export function encodeDiagram(
 ): Promise<BlobPart> | BlobPart {
   const encode = format.encode ?? ENCODERS[format.id as DiagramFormatId];
   if (!encode) throw new Error(`No encoder for export format: ${format.id}`);
-  return encode({ modeler, renderSvg: () => renderSvg(modeler), exportModel: () => buildExportModel(modeler) });
+  return encode({
+    modeler,
+    renderSvg: () => renderSvg(modeler),
+    bpmn: () => toBpmn(modeler),
+    exportModel: () => buildExportModel(modeler),
+  });
 }
 
 export async function runExportDiagram(modeler: Editor, command: ExportDiagramCommand): Promise<void> {

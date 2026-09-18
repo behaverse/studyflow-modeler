@@ -548,6 +548,46 @@ test('dropping a shape into an expanded container re-files it there', async () =
   expect(canvas.getScene()!.children).not.toContain(task);
 });
 
+/** An expanded sub-process divided into two lanes, as BPMN allows any FlowElementsContainer to be. */
+const LANED_SUB_YAML = `id: Defs_Laned
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_L:
+  type: Process
+  flowElements:
+    Session:
+      type: SubProcess
+      name: Session
+      laneSets:
+        LaneSet_1:
+          lanes:
+            Lane_Screen:
+              name: Screen
+              bounds: 130 100 570 130
+            Lane_Model:
+              name: Model
+              bounds: 130 230 570 130
+      bounds: 100 100 600 260
+    Outside:
+      type: Task
+      bounds: 800 100 100 80
+`;
+
+test('dropping a shape into a lane of a sub-process files it in the sub-process and in the lane', async () => {
+  // A lane claims its members by reference, whatever container holds the lane set.
+  const { canvas } = loadYaml(LANED_SUB_YAML);
+  const sub = node(canvas, 'Session');
+  const lane = node(canvas, 'Lane_Model');
+  const task = node(canvas, 'Outside');
+
+  click(canvas, centre(task));
+  dragBy(canvas, centre(task), centre(lane));
+
+  expect(task.parent).toBe(lane);
+  expect((sub.businessObject as any).flowElements).toContain(task.businessObject);
+  expect((lane.businessObject as any).flowNodeRef).toContain(task.businessObject);
+});
+
 // --- keyboard, colour, font -------------------------------------------------------------
 
 test('Ctrl+A selects everything on screen and the arrows nudge the selection', async () => {

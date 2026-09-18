@@ -122,7 +122,7 @@ def trial_flows(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> tup
     them; `message_partners` has checked the directions and that there is one partner."""
     if not message_partners(element, plan):
         return None
-    element_id = element.get("id")
+    element_id = talking_scope(element, plan)
     ends = [(flow_id, (flow.get("attributes") or {}), message_structure(flow, plan)) for flow_id, flow in plan.items()
             if flow.get("type") == "messageFlow"]
     out = [flow_id for flow_id, attrs, structure in ends if attrs.get("sourceRef") == element_id and structure in ("", TRIAL)]
@@ -183,6 +183,26 @@ def message_structure(flow: dict[str, Any], plan: dict[str, dict[str, Any]]) -> 
     return str((item.get("attributes") or {}).get("structureRef") or "")
 
 
+CONTAINERS = {"subprocess", "adhocsubprocess", "transaction"}
+
+
+def talking_scope(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
+    """Whose message flows the task exchanges along: its own, else the nearest enclosing sub-process that has some,
+    else its pool's. A collapsed sub-process is the only place BPMN can draw a message flow to a task inside it, and
+    a pool's flows are the whole pool's, lanes and all (the walk routes them the same way, skills/local/run.py
+    `message_scope`). A task with flows of its own inherits none."""
+    ends = {end for flow in plan.values() if flow.get("type") == "messageFlow"
+            for end in ((flow.get("attributes") or {}).get("sourceRef"), (flow.get("attributes") or {}).get("targetRef"))}
+    scope = str(element.get("id") or "")
+    while scope not in ends:
+        parent = str((plan.get(scope) or {}).get("parent") or "")
+        if str((plan.get(parent) or {}).get("type") or "").lower() not in CONTAINERS:
+            pool = next((pid for pid in pool_participants(element_process(element, plan), plan) if pid in ends), "")
+            return pool or str(element.get("id") or "")
+        scope = parent
+    return scope
+
+
 def message_partners(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> list[str]:
     """The participants at the other end of the message flows touching the element: a pool itself, or the
     pool of the step the flow ends at. A flow that names its message outranks one that does not, and counts
@@ -190,11 +210,12 @@ def message_partners(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -
     an ambiguity to fix in the diagram, not an order to guess."""
     typed: list[str] = []
     untyped: list[str] = []
+    talking = talking_scope(element, plan)
     for flow_id, flow in plan.items():
         attrs = flow.get("attributes") or {}
-        if flow.get("type") != "messageFlow" or element.get("id") not in (attrs.get("sourceRef"), attrs.get("targetRef")):
+        if flow.get("type") != "messageFlow" or talking not in (attrs.get("sourceRef"), attrs.get("targetRef")):
             continue
-        outgoing = attrs.get("sourceRef") == element.get("id")
+        outgoing = attrs.get("sourceRef") == talking
         structure = message_structure(flow, plan)
         if structure and structure not in (TRIAL, RESPONSE):
             continue  # another skill's exchange (a marker to an EEG pool, say)
@@ -212,9 +233,23 @@ def message_partners(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -
     return partners
 
 
+def output_scope(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Whose data output associations the task writes through: its own, else the nearest enclosing sub-process that
+    has some — the climb `talking_scope` makes, for the same reason. One edge on a collapsed sub-process is where a
+    study draws the dataset every task inside it fills. A task with outputs of its own inherits none."""
+    current = element
+    while not (current.get("outputs") or []):
+        parent = plan.get(str(current.get("parent") or ""))
+        if str((parent or {}).get("type") or "").lower() not in CONTAINERS:
+            return element
+        current = parent
+    return current
+
+
 def events_uri(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
-    """Where the task's events go: the `uri` of a data element its output edge targets, else `<id>.events.jsonl`."""
-    for binding in element.get("outputs") or []:
+    """Where the task's events go: the `uri` of a data element its output edge targets, its enclosing sub-process's
+    when it draws none of its own, else `<id>.events.jsonl`."""
+    for binding in output_scope(element, plan).get("outputs") or []:
         uri = ((plan.get(str(binding.get("target"))) or {}).get("attributes") or {}).get("uri")
         if uri and not str(uri).endswith("/"):
             return str(uri)
@@ -240,26 +275,22 @@ def opened_this_run(cache: Path, events: Path) -> bool:
     return False
 
 
-def failed_trial_rate(element: dict[str, Any], shown: set, answered: set) -> float:
-    """The share of the trials the build showed that it recorded no valid response for, and the verdict its
-    `maxFailedTrialRate` asks for: above that share the task fails, and its error boundary event takes the walk on.
-    The build is the authority, not the reply: an answer this runner injected too late for the window is a trial the
-    build recorded without a response. A build that reports no trial at all reports no failure."""
+def failed_trial_rate(shown: set, answered: set) -> float:
+    """The share of the trials the build showed that it recorded no valid response for. Data, not policy: what a
+    study does about it is a condition it draws. The build is the authority, not the reply: an answer this runner
+    injected too late for the window is a trial the build recorded without a response. A build that reports no
+    trial at all reports no failure."""
     trials = shown | answered
-    rate = len(trials - answered) / len(trials) if trials else 0.0
-    limit = ((behaverse_extension(element) or {}).get("attributes") or {}).get("maxFailedTrialRate")
-    if limit is not None and rate > float(limit):
-        raise RuntimeError(f"{element.get('id')}: {rate:.0%} of its {len(trials)} trials got no valid response, "
-                           f"above the maxFailedTrialRate of {float(limit):.0%} — the task fails")
-    return rate
+    return len(trials - answered) / len(trials) if trials else 0.0
 
 
 def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
-    """What this run knows about the task's trials beside what the build records: which subject (the task's own visit
-    count, which is study-lifetime, so a loop's iterations and a re-run number the subjects apart) and the properties
-    in scope at the hand-off, innermost last. ponytail: one visit per subject; a study that plays the same task twice
-    per subject needs a property of its own to tell them apart."""
+    """What this run knows about the task's trials beside what the build records: which subject, and the properties in
+    scope at the hand-off, innermost last. The subject is the instance the nearest enclosing repeating activity is on
+    (`state._meta.instance`, 1-based), so both tasks of one subject stamp the same number and a task played twice per
+    subject stamps it twice; with no repeating activity around it, the task's own visit count, study-lifetime."""
     tree = state.get("state") or {}
+    meta = tree.get("_meta") or {}
     scopes: list[str] = []
     scope = str(element.get("id") or "")
     while scope:
@@ -268,7 +299,10 @@ def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], stat
     held: dict[str, Any] = {}
     for scope in reversed(scopes):  # outward in, so an inner scope shadows an outer one
         held.update(tree.get(scope) or {})
-    return {"subject": ((tree.get("_meta") or {}).get("reached") or {}).get(element.get("id"), 1), "state": held}
+    instances = meta.get("instance") or {}
+    subject = next((instances[scope] for scope in scopes[1:] if scope in instances),
+                   (meta.get("reached") or {}).get(element.get("id"), 1))
+    return {"subject": subject, "state": held}
 
 
 def option_named(content: Any, options: list[str]) -> str | None:
@@ -627,8 +661,7 @@ def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, d
     print(f"    completed {completion.get('TaskId')} / {completion.get('TimelineId')} after {stage.trials} answered trials", flush=True)
     result = {**completion, "trials": stage.trials}
     if exchange is not None:
-        # Raises when too many trials went unanswered: the task fails, and its error boundary event takes over.
-        result["failedTrialRate"] = failed_trial_rate(element, stage.shown, stage.answered)
+        result["failedTrialRate"] = failed_trial_rate(stage.shown, stage.answered)
     if events.exists():
         result["events"] = str(events)
     return {"result": result, "durationMs": round((time.perf_counter() - clock) * 1000, 1)}

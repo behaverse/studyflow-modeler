@@ -1,5 +1,6 @@
-/** What the drawio skill gives the modeler: the draw.io export, the diagram on screen drawn with draw.io's own BPMN shapes. */
+/** What the drawio skill gives the modeler: the draw.io export and the editable SVG, the diagram on screen drawn with draw.io's own BPMN shapes. */
 import type { ExportFormat } from '@modeler/diagram/formats';
+import { embedBpmnIntoSvg } from '@modeler/export/svgEmbedding';
 import type { ModelerModule } from '@modeler/skillModules';
 import { exportDiagramName } from '@modeler/diagram/name';
 import { readChoreographyBands } from '@core/document';
@@ -321,9 +322,29 @@ export function exportToDrawio(modeler: Editor): string {
     + '</mxfile>\n';
 }
 
+/** draw.io reads a diagram back out of the root element's `content` attribute: that is what makes an SVG "editable". */
+function embedDrawioIntoSvg(svg: string, mxfile: string): string {
+  const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
+  (doc.querySelector('svg') ?? doc.documentElement).setAttribute('content', mxfile);
+  return new XMLSerializer().serializeToString(doc);
+}
+
 export const format: ExportFormat = {
-  id: 'drawio', group: 'Interchange', label: 'draw.io', extension: '.drawio', mimeType: 'application/xml;charset=utf-8',
+  id: 'drawio', group: 'Manuscript', label: 'draw.io', extension: '.drawio', mimeType: 'application/xml;charset=utf-8',
   encode: ({ modeler }) => exportToDrawio(modeler),
 };
 
-export default { exports: [format] } satisfies ModelerModule;
+/**
+ * The figure a manuscript takes: the picture as drawn, carrying the draw.io file that redraws it and the
+ * BPMN it came from, so the figure can be edited in draw.io and still says what it is a picture of.
+ */
+export const editableSvg: ExportFormat = {
+  id: 'editable-svg', group: 'Manuscript', label: 'Editable SVG', extension: '.svg',
+  mimeType: 'image/svg+xml;charset=utf-8',
+  encode: async ({ modeler, renderSvg, bpmn }) => {
+    const { svg } = await renderSvg();
+    return embedDrawioIntoSvg(embedBpmnIntoSvg(svg, await bpmn()), exportToDrawio(modeler));
+  },
+};
+
+export default { exports: [editableSvg, format] } satisfies ModelerModule;

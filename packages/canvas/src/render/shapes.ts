@@ -6,7 +6,7 @@
 import { BPMN } from '@core/constants.ts';
 import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
 
-import { prop } from '@canvas/model/moddle.ts';
+import { asModdle, prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, SceneNode } from '@canvas/model/scene.ts';
 import { isCollapsed } from '@canvas/model/tree.ts';
 import { append, create } from '@canvas/render/svg.ts';
@@ -38,7 +38,7 @@ export function categoryOf(type: string): NodeCategory {
   return 'unknown';
 }
 
-/** The bottom-centre markers an activity draws, in BPMN's order. */
+/** The bottom-centre markers an activity draws, in BPMN's order. A pool's own marker is `participantInstances`. */
 export function activityMarkers(node: SceneNode): string[] {
   if (categoryOf(node.type) !== 'task') return [];
   const bo = node.businessObject;
@@ -55,6 +55,15 @@ export function activityMarkers(node: SceneNode): string[] {
     markers.push(sequential === true ? 'sequential' : sequential === false ? 'parallel' : 'loop');
   }
   return markers;
+}
+
+/**
+ * How many instances of a pool's process run: BPMN's `participantMultiplicity/@maximum`, 1 by default.
+ * More than one is marked like a parallel multi-instance activity, but in the pool's title band.
+ */
+export function participantInstances(bo: ModdleObject | undefined): number {
+  const maximum = prop(asModdle(prop(bo, 'participantMultiplicity')), 'maximum');
+  return typeof maximum === 'number' && maximum > 0 ? maximum : 1;
 }
 
 export interface ShapeStyle {

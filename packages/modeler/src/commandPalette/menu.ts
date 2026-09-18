@@ -122,6 +122,14 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       action: () => openDialog('gantt'),
     },
     {
+      id: 'view-manuscript',
+      group: 'View',
+      label: 'View as Manuscript...',
+      icon: ICONS.figure,
+      keywords: 'figure svg png drawio paper export',
+      action: () => openDialog('manuscript'),
+    },
+    {
       id: 'view-provenance',
       group: 'View',
       label: 'View Provenance...',

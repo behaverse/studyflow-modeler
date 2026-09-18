@@ -21,7 +21,7 @@ export type Row = TimingAttrs & {
   font?: Font;
   /** The caption sits outside the shape (an event, a gateway): the diagram sets it smaller and lighter. */
   external?: boolean;
-  /** Ids of the nearest scheduled predecessors along sequence flows: what this row's bar waits on. */
+  /** Ids of the nearest scheduled predecessors along sequence and message flows: what this row's bar waits on. */
   after: string[];
   /** The row of the sub-process, lane or pool this element sits in: this row is indented under it and hides when it folds. */
   parent?: string;
@@ -165,7 +165,10 @@ function buildGanttRow(el: any, anchor: number, definitions: any, always = false
   };
 }
 
-/** The scheduled elements upstream along sequence flows, looking through unscheduled ones (a gateway, an event). */
+/** What a row waits on: the step before it, or the pool or step whose message starts it. */
+const WAITS_ON = new Set(['bpmn:SequenceFlow', 'bpmn:MessageFlow']);
+
+/** The scheduled elements upstream along those flows, looking through unscheduled ones (a gateway, an event). */
 function predecessorsOf(el: any, scheduled: Set<string>): string[] {
   const found: string[] = [];
   const seen = new Set<string>();
@@ -173,7 +176,7 @@ function predecessorsOf(el: any, scheduled: Set<string>): string[] {
   while (stack.length > 0) {
     for (const edge of stack.pop().incoming ?? []) {
       const source = edge.source;
-      if (edge.type !== 'bpmn:SequenceFlow' || !source || seen.has(source.id)) continue;
+      if (!WAITS_ON.has(edge.type) || !source || seen.has(source.id)) continue;
       seen.add(source.id);
       if (scheduled.has(source.id)) found.push(source.id);
       else stack.push(source);

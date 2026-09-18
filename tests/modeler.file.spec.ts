@@ -47,10 +47,10 @@ test('exports YAML, PNG, SVG and a skill\'s format; opens a layout-less file, a 
   expect(png.suggestedFilename()).toBe('diagram.studyflow.png');
   const pngBytes = await readDownload(png);
   const svgText = await readDownloadText(await exportDiagram(page, 'svg'));
-  // A skill's export is one more format in Save As.
-  const drawio = await exportDiagram(page, 'drawio');
-  expect(drawio.suggestedFilename()).toBe('diagram.drawio');
-  expect(await readDownloadText(drawio)).toMatch(/^\s*(<\?xml[^>]*>\s*)?<mxfile\b/);
+  // A skill's export is one more format in Save As; the figures a manuscript takes are in its own view.
+  const linkml = await exportDiagram(page, 'linkml');
+  expect(linkml.suggestedFilename()).toBe('diagram.linkml.yaml');
+  expect(await readDownloadText(linkml)).toContain('behaverse.org/schemas/studyflow');
 
   // No diagram interchange, and the canvas never lays out: import lays the file out first.
   await open.setInputFiles({
