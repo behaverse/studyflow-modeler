@@ -1,4 +1,4 @@
-import { primaryRoot } from '@core/document';
+import { primaryRoot, resolvePlaceholders } from '@core/document';
 import { readTrail } from '@modeler/provenance/trail';
 import { ICONS } from '@modeler/icons';
 
@@ -153,7 +153,7 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
   for (const entry of readTrail(definitions)) {
     records.push(toRecord(entry, {
       id: root?.id ?? '(document)',
-      label: root?.name || root?.id || '(document)',
+      label: resolvePlaceholders(root?.name || root?.id || '(document)', definitions, root?.id ?? ''),
       isDocument: true,
       icon: ICONS.document,
     }));
@@ -164,7 +164,7 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
       for (const entry of readActivities(el)) {
         records.push(toRecord(entry, {
           id: el.id || '(unnamed)',
-          label: el.name || el.id || '(unnamed)',
+          label: resolvePlaceholders(el.name || el.id || '(unnamed)', definitions, el.id ?? ''),
           isDocument: false,
           icon: shapeIconOf(el),
         }));

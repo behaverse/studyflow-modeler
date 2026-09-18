@@ -58,10 +58,11 @@ A property may carry an initial `value`; after that only a data edge targeting i
 Any string attribute may cite a value as `{name}`, or a field of it as `{name.field}`. A name starts with a letter, in any script, or `_`, and holds letters, digits, `_` and `-`; a dot starts a field. So the braces of YAML or JSON in a value are left alone. Every reader looks the name up in the same order and takes the first value it finds:
 
 1. `state`: the run state from its root, as in `{state._meta.reached.Excluded_Pre}`.
-2. The nearest scope that holds the name, from the element outward to the study: a property's value (`{count}`), or, for a lone name, the runner's counter of that name for the scope (`{reached}`).
+2. The nearest scope that holds the name, from the element outward to the study: a property's value (`{count}`).
 3. An element, by its id or by a name no other element has: the value it produced in this run (`{Play.trials}`).
+4. A lone `{reached}`, the runner's counter for the element citing it — never a container's: how often a token reached it, and 0 when none did, so a preregistered exit nobody took reads `n=0` in a file no run has touched.
 
-A placeholder that finds nothing stays as written, for whoever reads it later: the end event fills `{COMPLETION_CODE}` when it redirects. Each reader resolves what it knows when it reads. The canvas and exported figures show the last run's state, while the file and the inspector keep the placeholder. In a local run, the shell and python runners resolve all three in their arguments, and reachy in the lines it speaks; any other attribute reaches its runner as written. The browser runner resolves a placeholder once, before the walk, from the properties in scope, the file's values with the link's over the study's own (`/run/?diagram=…&n_trials=40`). A link binds a declared property of the study, an attribute of the study, or a key of a `studyflow:Parameters` object wired into a step (a dotted name, `Bot.Speed`, reaches one value inside it; a whole mapping or list is never replaced). The Parameters wired into a task are its settings and fill no placeholder; the ones wired into a sub-process are its properties. A key or an attribute the link leaves out keeps the value the file gives it. A placeholder that cites a declared name with no value blocks the run; any other stays as written.
+A placeholder that finds nothing stays as written, for whoever reads it later: the end event fills `{COMPLETION_CODE}` when it redirects. Each reader resolves what it knows when it reads. The canvas and exported figures show the last run's state, while the file and the inspector keep the placeholder. In a local run, the shell and python runners resolve them all in their arguments, and reachy in the lines it speaks; any other attribute reaches its runner as written. The browser runner resolves a placeholder once, before the walk, from the properties in scope, the file's values with the link's over the study's own (`/run/?diagram=…&n_trials=40`). A link binds a declared property of the study, an attribute of the study, or a key of a `studyflow:Parameters` object wired into a step (a dotted name, `Bot.Speed`, reaches one value inside it; a whole mapping or list is never replaced). The Parameters wired into a task are its settings and fill no placeholder; the ones wired into a sub-process are its properties. A key or an attribute the link leaves out keeps the value the file gives it. A placeholder that cites a declared name with no value blocks the run; any other stays as written.
 
 When an argument of a `python://` call is one placeholder and nothing else, the call gets the value itself, a table or a model, rather than its text. Quote it or not: `model: "{pipeline}"` and `model: {pipeline}` pass the same value.
 
@@ -142,6 +143,8 @@ A cognitive task's `platform` names the experiment package that delivers it (Psy
 
 Screening and allocation are separate types because they answer to different standards: a reviewer has to be able to read the eligibility criteria, and nobody should be able to predict an allocation draw.
 
+A `RandomGateway` draws from the study's `seed`, the gateway's id and its visit count (`_meta.reached`, which is study-lifetime), so each turn of a loop and each re-run of the same study draws again, and both runtimes draw the same arm on the same visit. `allocationRatio` and `blockSize` are recorded but not yet honoured: the draw is uniform over the outgoing edges.
+
 ## Who takes part
 
 | Type | Drawn as | Means | Attributes |
@@ -207,6 +210,8 @@ These attributes describe the study's schedule in visits and days, which is what
 The scheme says how the software is found: `python://` is an importable callable, `docker://` a container image pinned by tag or digest, and `https://` or `file://` a script at an address. A skill adds its own, such as the shell skill's `shell://`: which runner takes a step is settled when the study runs, by what the runners claim.
 
 A data step is a plain service task: `implementation` names what runs, and the drawn data edges say what it reads and writes. A step that drops rows drops *data*, while a gateway changes the *path* a run takes, so the two are not interchangeable.
+
+A step that fails goes on from the error boundary event drawn on it, if it carries one, with the failure kept in its record and the run itself not failed; without one, the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event the same way, so a participant who cannot go on leaves the loop instead of stopping the study.
 
 ## Models, biosignals, and the trail
 

@@ -30,4 +30,22 @@ assert resolve("Scores before {Report}") == "Scores before {Report}"
 run.values["state"]["Study"].update({"durée": 3, "sid-12": 4})
 assert resolve("{durée} {sid-12}") == "3 4"
 assert python.placeholder_of("{a} and {b}") is None
+
+# A `.jsonl` artifact (the behaverse runner's trial events) round-trips as a table, its nested keys as `a.b` columns.
+import importlib.util  # noqa: E402
+import tempfile  # noqa: E402
+
+if importlib.util.find_spec("pandas") is None:
+    print("ok (no pandas here, so the artifact codecs go unchecked)")
+    raise SystemExit
+
+with tempfile.TemporaryDirectory() as folder:
+    events = Path(folder) / "trials.jsonl"
+    events.write_text('{"object": {"name": "TrialEnd"}, "context": {"subject": 1}}\n'
+                      '{"object": {"name": "TrialEnd"}, "context": {"subject": 2}}\n')
+    assert python.format_for("data/trials.jsonl", None) == "jsonl"
+    table = python.load_artifact(events, "jsonl")
+    assert list(table["context.subject"]) == [1, 2], table
+    python.save_artifact(table, Path(folder) / "again.jsonl", "jsonl")
+    assert list(python.load_artifact(Path(folder) / "again.jsonl", "jsonl")["context.subject"]) == [1, 2]
 print("ok")

@@ -15,6 +15,7 @@ const moddle = freshModdle();
 
 const RUN = path.resolve(__dirname, '../run.py');
 const PROV = path.resolve(__dirname, '../../prov/prov.py');
+const SHELL = path.resolve(__dirname, '../../shell/local.py');
 
 function hasUv(): boolean {
   try {
@@ -134,6 +135,164 @@ S:
     // The same arms as skills/browser/tests/scoped-state.unit.spec.ts draws from the same seed.
     const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
     expect([...log.matchAll(/drawn.*F_([AB])/g)].map((match) => match[1])).toEqual(['A', 'A', 'B', 'A']);
+  });
+
+  test('a failing step takes its error boundary event, and an error end event ends its sub-process at that one', async () => {
+    // Discontinuation, drawn: the trial task fails, its boundary event leads to an error end event, and the
+    // sub-process around it ends at its own error boundary instead of ending normally. The run itself is not failed.
+    const xml = await studyflowToXml(`id: dropout
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+    Subject:
+      type: SubProcess
+      flowElements:
+        S0:
+          type: StartEvent
+        Play:
+          type: ServiceTask
+          implementation: shell://false
+        Missed:
+          type: BoundaryEvent
+          attachedToRef: Play
+          eventDefinitions:
+            Err_Missed:
+              type: ErrorEventDefinition
+        Discontinued:
+          type: EndEvent
+          name: Discontinued (n={reached})
+          eventDefinitions:
+            Err_Discontinued:
+              type: ErrorEventDefinition
+        Played:
+          type: EndEvent
+        EF0: S0 -> Play
+        EF1: Play -> Played
+        EF2: Missed -> Discontinued
+    Dropped:
+      type: BoundaryEvent
+      attachedToRef: Subject
+      eventDefinitions:
+        Err_Dropped:
+          type: ErrorEventDefinition
+    Analysis:
+      type: Task
+    Completed:
+      type: EndEvent
+    F1: Start -> Subject
+    F2: Subject -> Completed
+    F3: Dropped -> Analysis
+    F4: Analysis -> Completed
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-dropout-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.writeFileSync(path.join(dir, 'dropout.bpmn'), xml);
+    // `shell://false` is the shell skill's, and exits 1: a step that fails for a reason of its own.
+    execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'dropout.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
+      cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV, STUDYFLOW_SHELL_PY: SHELL },
+    });
+
+    const reached = archivedState(path.join(dir, 'run', 'dropout.bpmn'))._meta.reached;
+    // The walk went Play → Missed → Discontinued → Dropped → Analysis, and neither end event on the normal way was reached.
+    expect(reached).toEqual({ Start: 1, Subject: 1, S0: 1, Play: 1, Missed: 1, Discontinued: 1, Dropped: 1, Analysis: 1, Completed: 1 });
+    // The failure is kept where it happened, and the run is not failed by it.
+    const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
+    expect(log).toMatch(/Play: RuntimeError/);
+    expect(log).toMatch(/run.finished.*\(ok\)/);
+  });
+
+  test('a sub-process loops to its loopMaximum, resets its scope each pass, and its random gateway draws again each pass and each run', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-subjects-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    // The cognitive skill beside the copy, so the walk reads its schema's `meta.branching`; it runs nothing itself.
+    fs.mkdirSync(path.join(dir, 'skills', 'cognitive'), { recursive: true });
+    for (const file of ['SKILL.md', 'cognitive.moddle.yaml']) {
+      fs.copyFileSync(path.resolve(__dirname, '../../cognitive', file), path.join(dir, 'skills', 'cognitive', file));
+    }
+    const xml = await studyflowToXml(`id: subjects
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  extensionElements:
+    - type: studyflow:Study
+      seed: 15
+  flowElements:
+    Start:
+      type: StartEvent
+    Subject:
+      type: SubProcess
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+        loopMaximum: 3
+      properties:
+        P_Arm:
+          name: arm
+          value: none
+      flowElements:
+        S0:
+          type: StartEvent
+        Draw:
+          type: ExclusiveGateway
+          extensionElements:
+            - type: cognitive:RandomGateway
+        A:
+          type: Task
+        B:
+          type: Task
+        Check:
+          type: Task
+        E9:
+          type: EndEvent
+        EF_A: Draw -> A
+        EF_B: Draw -> B
+        EF0: S0 -> Draw
+        EF1: A -> Check
+        EF2: B -> Check
+        EF3: Check -> E9
+    Done:
+      type: EndEvent
+    F1: Start -> Subject
+    F2: Subject -> Done
+`, moddle);
+    fs.writeFileSync(path.join(dir, 'subjects.bpmn'), xml);
+    const seen = path.join(dir, 'seen.json');
+    // One runner for Check: it records the property its scope holds on entry, then binds the property by its id,
+    // the way a runner hands a data edge's value back (the python runner's shape).
+    fs.writeFileSync(path.join(dir, 'fake.py'), [
+      'import json, os, sys',
+      'plan, mode = sys.argv[1], sys.argv[2]',
+      "if mode == '--claims': print(json.dumps(['Check'])); sys.exit()",
+      "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
+      'state = json.load(open(handoff))',
+      `seen = json.load(open(${JSON.stringify(seen)})) if os.path.exists(${JSON.stringify(seen)}) else []`,
+      "seen.append(state['state']['Subject']['arm'])",
+      `json.dump(seen, open(${JSON.stringify(seen)}, 'w'))`,
+      "json.dump({**state, 'P_Arm': 'cautious', 'result': 1, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    const run = (plan: string, ...args: string[]) => execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), plan, '--repo', path.join(dir, 'run'), '--quiet',
+      ...args, '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
+    const drawn = () => [...fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8').matchAll(/drawn → EF_([AB])/g)].map((m) => m[1]);
+
+    run(path.join(dir, 'subjects.bpmn'));
+    // Three passes over the sub-process, three visits to every step inside it; the sub-process itself was reached once.
+    expect(archivedState(path.join(dir, 'run', 'subjects.bpmn'))._meta.reached).toMatchObject({ Subject: 1, S0: 3, Draw: 3, Check: 3, E9: 3 });
+    // A data edge into a declared property writes its scope's state, whoever bound it.
+    expect(archivedState(path.join(dir, 'run', 'subjects.bpmn')).Subject).toEqual({ arm: 'cautious' });
+    // A pass re-enters the scope, so a property with a `value` starts each pass at it, whatever the pass before wrote.
+    expect(JSON.parse(fs.readFileSync(seen, 'utf8'))).toEqual(['none', 'none', 'none']);
+    // Seeded on the visit count, so the arms differ from pass to pass instead of repeating the first draw.
+    expect(drawn()).toEqual(['A', 'B', 'A']);
+
+    // The visit count is study-lifetime: the same study run again draws on from where it left off, rather than
+    // drawing the first three arms a second time. (`--fresh`: a re-run otherwise replays each gateway's record.)
+    run(path.join(dir, 'run', 'subjects.bpmn'), '--fresh');
+    expect(drawn()).toEqual(['B', 'A', 'B']);
+    expect(archivedState(path.join(dir, 'run', 'subjects.bpmn'))._meta.reached).toMatchObject({ Draw: 6, Check: 6 });
   });
 
   test('when no condition holds and there is no default, the one flow without a condition is taken', async () => {

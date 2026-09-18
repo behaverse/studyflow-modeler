@@ -102,6 +102,11 @@ def load_artifact(path: Path, fmt: str) -> Any:
     if fmt == "csv":
         import pandas
         return pandas.read_csv(path)
+    if fmt == "jsonl":
+        # One JSON record per line (the behaverse runner's trial events): a flat table, nested keys as `a.b`
+        # columns, so an analysis groups by what the records nest.
+        import pandas
+        return pandas.json_normalize([json.loads(line) for line in path.read_text().splitlines() if line.strip()])
     if fmt == "json":
         return json.loads(path.read_text())
     if fmt == "joblib":
@@ -118,6 +123,8 @@ def save_artifact(value: Any, path: Path, fmt: str) -> None:
         import pandas
         positional = isinstance(value.index, pandas.RangeIndex)
         value.to_csv(path, index=not positional)
+    elif fmt == "jsonl":
+        value.to_json(path, orient="records", lines=True)
     elif fmt == "json":
         path.write_text(json.dumps(value, indent=2, default=str))
     elif fmt == "joblib":
@@ -228,9 +235,9 @@ class Run:
 
     def resolve(self, path: str, element_id: str) -> Any:
         """The placeholder rule (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
-        outward, what each scope holds under the name, a lone name also as the runner's counter for that scope; then
-        an element's value, by id or unique name, loaded from its artifact when it has one. `None` when nothing
-        holds the name."""
+        outward, what each scope holds under the name; then an element's value, by id or unique name, loaded from
+        its artifact when it has one; then, for a lone `{reached}`, the element's own counter, 0 when no run reached
+        it. `None` when nothing holds the name."""
         head, *fields = path.split(".")
         tree = self.values.get("state") or {}
         if head == "state":
@@ -238,14 +245,14 @@ class Run:
         scope = element_id
         while scope:
             found = dig(tree.get(scope), [head, *fields])
-            if found is None and not fields:
-                found = dig(tree.get("_meta"), [head, scope])
             if found is not None:
                 return found
             scope = (self.studyflow.elements.get(scope) or {}).get("parent")
+        # The element's own counter, never a container's: one no run reached counts 0.
+        counter = dig(tree.get("_meta"), ["reached", element_id]) or 0 if head == "reached" and not fields else None
         source = self.by_name(head)
         if source not in self.values and source not in self.studyflow.elements:
-            return None
+            return counter
         try:
             return dig(self.value_of(source), fields)
         except KeyError:

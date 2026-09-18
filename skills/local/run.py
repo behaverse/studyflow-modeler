@@ -298,12 +298,15 @@ class Studyflow:
         # declarations per scope, name -> initial `studyflow:value` text (None when undeclared).
         self.parents: dict[str, str] = {}
         self.properties: dict[str, dict[str, str | None]] = {}
+        self.property_ids: dict[tuple[str, str], str] = {}  # (scope, name) → the property element's id
 
         def declare(scope: ET.Element) -> None:
-            declared = {
-                (child.get("name") or child.get("id")): studyflow_attr(child, "value")
-                for child in scope if local(child) == "property" and (child.get("name") or child.get("id"))
-            }
+            declared: dict[str, str | None] = {}
+            for child in scope:
+                name = child.get("name") or child.get("id")
+                if local(child) == "property" and name:
+                    declared[name] = studyflow_attr(child, "value")
+                    self.property_ids[(scope.get("id"), name)] = child.get("id")
             if declared:
                 self.properties[scope.get("id")] = declared
 
@@ -986,6 +989,21 @@ class Runner:
     def store(self, element_id: str, value: Any) -> None:
         with self.lock:
             self.values[element_id] = value
+            declared = self.property_scope(element_id)
+            if declared:
+                # A data edge into a declared property writes the study state: `state.<scope>.<name>`, wherever
+                # the value came from — the walk's own binding, or a runner that handed it back under the id.
+                scope, name = declared
+                self.state.tree.setdefault(scope, {})[name] = plain(value)
+
+    def property_scope(self, element_id: str) -> tuple[str, str] | None:
+        """(scope, name) when the element is a `bpmn:Property` its scope declares, else None."""
+        element = self.studyflow.elements.get(element_id)
+        if element is None or local(element) != "property":
+            return None
+        scope = self.studyflow.parents.get(element_id) or ""
+        name = element.get("name") or element_id
+        return (scope, name) if name in self.studyflow.properties.get(scope, {}) else None
 
     def namespace(self) -> dict[str, Any]:
         space: dict[str, Any] = {"state": self.state}
@@ -1041,6 +1059,10 @@ class Runner:
             held = self.state.tree.setdefault(element_id, {})
             if reset or name not in held:
                 held[name] = literal(value)
+                # The value space reads the same, so a hand-off cannot echo the pass before back into a reset scope.
+                declared = self.studyflow.property_ids.get((element_id, name))
+                if declared:
+                    self.values[declared] = held[name]
 
     def stage_input(self, uri: str, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1232,6 +1254,8 @@ class Runner:
             self.end_entry(entry)
             raise
         except BaseException as error:
+            boundary = self.error_boundary(element)
+            status = self.record.status
             self.record.fail(entry, error)
             entry.pop("_runnerMs", None)
             self.event(
@@ -1239,7 +1263,13 @@ class Runner:
                 level=logging.ERROR,
             )
             self.checkpoint(f"failed {element_id}", self.moment(), {"Prov-Node": element_id})
-            raise
+            if boundary is None:
+                raise
+            # An error boundary event catches the failure: the record keeps the error, the run is not failed,
+            # and the walk goes on from the event, as a message at a boundary event ends an activity.
+            entry["interruptedBy"] = boundary.get("id")
+            self.record.status = status
+            raise Interrupted(element_id, boundary) from error
         self.end_entry(entry)
         when = self.moment()
         self.completed[element_id] = when
@@ -1255,6 +1285,11 @@ class Runner:
             f"executed {element_id}", when,
             {"Prov-Action": "executed", "Prov-Node": element_id},
         )
+
+    def error_boundary(self, element: ET.Element | None) -> ET.Element | None:
+        """The error boundary event an activity carries, if any: where a failure inside it goes on from."""
+        drawn = self.studyflow.boundaries.get(element.get("id") or "", []) if element is not None else []
+        return next((b for b in drawn if any(local(child) == "errorEventDefinition" for child in b)), None)
 
     def execute_activity(self, element: ET.Element, entry: dict) -> None:
         implementation = element.get("implementation")
@@ -1386,8 +1421,10 @@ class Runner:
 
             if branching == "random":
                 # Seeded, each visit draws from the seed, the gateway and the visit number, as the browser runner does.
+                # The count is `_meta.reached`, study-lifetime: each turn of a loop and each re-run draws again.
+                visits = (self.state.tree.get("_meta") or {}).get("reached") or {}
                 try:
-                    u = draw(int(self.seed), element_id, self.state.trace.count(element_id))
+                    u = draw(int(self.seed), element_id, visits.get(element_id, 1))
                 except (TypeError, ValueError):
                     u = random.random()  # unseeded: a re-run replays the recorded decision instead
                 return take(flows[int(u * len(flows))], "drawn", random=True)
@@ -1794,6 +1831,12 @@ class Runner:
                     self.reached[element_id] = self.moment()
                     self.event("event.reached", f"● {element_id}")
                     self.debug_state(element_id)
+                    container = self.studyflow.elements.get(self.studyflow.parents.get(element_id) or "")
+                    boundary = self.error_boundary(container) if any(
+                        local(child) == "errorEventDefinition" for child in element) else None
+                    if boundary is not None:
+                        # An error end event ends the sub-process around it at that sub-process's error boundary event.
+                        raise Interrupted(container.get("id"), boundary)
                     return
                 if tag == "parallelGateway" and len(self.studyflow.outgoing.get(element_id, [])) > 1:
                     # Each pool is one path, as in the browser runtime; walking on would run the first branch only.

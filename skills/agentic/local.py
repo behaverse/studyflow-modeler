@@ -17,6 +17,7 @@ import base64
 import json
 import mimetypes
 import os
+import re
 import time
 import urllib.request
 from pathlib import Path
@@ -60,14 +61,55 @@ def image_of(value: str, run_dir: Path) -> tuple[str, str] | None:
     return None
 
 
-def parts_of(content: Any, elements: dict[str, dict[str, Any]], run_dir: Path) -> list[dict[str, Any]]:
+PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")  # the modeler's PLACEHOLDER (packages/core/src/document/state.ts)
+
+
+def dig(value: Any, fields: list[str]) -> Any:
+    for field in fields:
+        value = value.get(field) if isinstance(value, dict) else None
+        if value is None:
+            break
+    return value
+
+
+def resolve(path: str, element_id: str, values: dict[str, Any], plan: dict[str, Any]) -> Any:
+    """The placeholder rule (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
+    outward, what each scope holds under the name; then an element's result, by id or unique name; then, for a lone
+    `{reached}`, the element's own counter, 0 when no run reached it. `None` when nothing holds the name."""
+    head, *fields = path.split(".")
+    tree = values.get("state") or {}
+    if head == "state":
+        return dig(tree, fields)
+    elements = plan.get("elements") or {}
+    scope = element_id
+    while scope:
+        found = dig(tree.get(scope), [head, *fields])
+        if found is not None:
+            return found
+        scope = (elements.get(scope) or {}).get("parent")
+    ids = {name: eid for eid, name in (plan.get("names") or {}).items()}
+    found = dig(values.get(head, values.get(ids.get(head, ""))), fields)
+    if found is None and head == "reached" and not fields:
+        # The element's own counter, never a container's: one no run reached counts 0.
+        return dig(tree.get("_meta"), ["reached", element_id]) or 0
+    return found
+
+
+def filled(text: str, element_id: str, values: dict[str, Any], plan: dict[str, Any]) -> str:
+    """A prompt as the model reads it: each placeholder the state resolves filled in, one it does not left as written."""
+    return PLACEHOLDER.sub(lambda m: m.group(0) if (v := resolve(m.group(1), element_id, values, plan)) is None else str(v), text)
+
+
+def parts_of(content: Any, plan: dict[str, Any], run_dir: Path, values: dict[str, Any], scope: str) -> list[dict[str, Any]]:
     """The request, part by part, in the content's order: a `Prompt`'s text for a null value its id names, an image
-    for an image, text for other text, and JSON for anything else. Nothing is added."""
+    for an image, text for other text, and JSON for anything else. Nothing is added; the prompt's placeholders are
+    resolved against the state the walk handed over, from the asking step's scope."""
+    elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
     parts: list[dict[str, Any]] = []
     for key, value in (content.items() if isinstance(content, dict) else [(None, content)]):
         if value is None:
             prompt = extension(elements.get(str(key)) or {}, AGENTIC, "prompt")
-            text = str((prompt or {}).get("attributes", {}).get("template") or "")
+            text = filled(str((prompt or {}).get("attributes", {}).get("template") or ""), scope, values, plan)
             if text:
                 parts.append({"text": text})
         elif isinstance(value, str) and (image := image_of(value, run_dir)):
@@ -123,7 +165,8 @@ def main() -> int:
     parser.add_argument("--auto", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
-    elements: dict[str, dict[str, Any]] = json.loads(args.plan.read_text()).get("elements") or {}
+    plan: dict[str, Any] = json.loads(args.plan.read_text())
+    elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
     if args.claims:
         print(json.dumps(model_pools(elements)))
         return 0
@@ -138,7 +181,10 @@ def main() -> int:
         if provider not in CLIENTS:
             raise ValueError(f"{args.element}: this runner speaks {', '.join(CLIENTS)}, not {provider}://")
         run_dir = cache.parent if cache.name == ".cache" else cache
-        parts = parts_of((state.get("message") or {}).get("content"), elements, run_dir)
+        message = state.get("message") or {}
+        # Placeholders resolve from the asking step's scope: the flow's `sourceRef`, else the pool itself.
+        asked_by = str(((elements.get(str(message.get("flow"))) or {}).get("attributes") or {}).get("sourceRef") or args.element)
+        parts = parts_of(message.get("content"), plan, run_dir, state, asked_by)
         if not parts:
             raise ValueError(f"the message to {args.element} carries nothing to ask")
         reply = CLIENTS[provider](model, parts)

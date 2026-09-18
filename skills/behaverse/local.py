@@ -221,6 +221,56 @@ def events_uri(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
     return f"{element['id']}.events.jsonl"
 
 
+def opened_this_run(cache: Path, events: Path) -> bool:
+    """Whether this run has already written this events file. Several tasks may deposit their trials in one drawn
+    dataset, and a task may play once per subject in a loop: the first to write it in a run starts it empty, the
+    rest append. The run is the walk's pid (`STUDYFLOW_RUN_PID`, skills/local/SKILL.md), so a later run truncates
+    again. ponytail: two pools writing one dataset at the same instant may both think they are first."""
+    marker = cache / "events.written.json"
+    run = os.environ.get("STUDYFLOW_RUN_PID", "")
+    try:
+        written = json.loads(marker.read_text())
+    except (OSError, ValueError):
+        written = {}
+    if written.get(str(events)) == run:
+        return True
+    written[str(events)] = run
+    cache.mkdir(parents=True, exist_ok=True)
+    marker.write_text(json.dumps(written))
+    return False
+
+
+def failed_trial_rate(element: dict[str, Any], shown: set, answered: set) -> float:
+    """The share of the trials the build showed that it recorded no valid response for, and the verdict its
+    `maxFailedTrialRate` asks for: above that share the task fails, and its error boundary event takes the walk on.
+    The build is the authority, not the reply: an answer this runner injected too late for the window is a trial the
+    build recorded without a response. A build that reports no trial at all reports no failure."""
+    trials = shown | answered
+    rate = len(trials - answered) / len(trials) if trials else 0.0
+    limit = ((behaverse_extension(element) or {}).get("attributes") or {}).get("maxFailedTrialRate")
+    if limit is not None and rate > float(limit):
+        raise RuntimeError(f"{element.get('id')}: {rate:.0%} of its {len(trials)} trials got no valid response, "
+                           f"above the maxFailedTrialRate of {float(limit):.0%} — the task fails")
+    return rate
+
+
+def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
+    """What this run knows about the task's trials beside what the build records: which subject (the task's own visit
+    count, which is study-lifetime, so a loop's iterations and a re-run number the subjects apart) and the properties
+    in scope at the hand-off, innermost last. ponytail: one visit per subject; a study that plays the same task twice
+    per subject needs a property of its own to tell them apart."""
+    tree = state.get("state") or {}
+    scopes: list[str] = []
+    scope = str(element.get("id") or "")
+    while scope:
+        scopes.append(scope)
+        scope = str((plan.get(scope) or {}).get("parent") or "")
+    held: dict[str, Any] = {}
+    for scope in reversed(scopes):  # outward in, so an inner scope shadows an outer one
+        held.update(tree.get(scope) or {})
+    return {"subject": ((tree.get("_meta") or {}).get("reached") or {}).get(element.get("id"), 1), "state": held}
+
+
 def option_named(content: Any, options: list[str]) -> str | None:
     """The option an answer is: its text, or the one value of a mapping (a send task's one data input), matched
     whole and without case. An answer that only mentions an option names none ("NonMatch" holds "Match")."""
@@ -230,20 +280,28 @@ def option_named(content: Any, options: list[str]) -> str | None:
     return next((option for option in options if option.lower() == text), None)
 
 
+def data_inputs(element: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    """What rides with every trial beside the trial itself: the task's data inputs by source id, each with the value
+    this run bound for it, else null — as an unclaimed activity sends its own (skills/local/SKILL.md, "Messages").
+    That is how the `agentic:Prompt` wired into the task reaches the pool that answers."""
+    return {source: state.get(source) for binding in element.get("inputs") or [] if (source := binding.get("source"))}
+
+
 class Exchange:
     """The task's end of its message flows (skills/local/SKILL.md, "Messages"): each awaiting trial goes out along
     the trial flow through the outbox, and the answer that names it (`inReplyTo`) comes back into the inbox."""
 
-    def __init__(self, cache: Path, element_id: str, flow: str, agent: str) -> None:
+    def __init__(self, cache: Path, element_id: str, flow: str, agent: str, inputs: dict[str, Any] | None = None) -> None:
         self.outbox, self.inbox = cache / f"{element_id}.outbox.jsonl", cache / f"{element_id}.inbox.jsonl"
         self.flow, self.agent, self.lock = flow, agent, threading.Lock()
+        self.inputs = inputs or {}
 
     def ask(self, trial: dict[str, Any]) -> dict[str, Any]:
         """The trial's answer as the page injects it, or {} when none names an option within the response window."""
         request = str(trial.get("RequestId") or "")
         options = [str(option) for option in trial.get("ResponseOptions") or []]
         with self.lock, self.outbox.open("a") as file:
-            content = {key: value for key, value in trial.items() if key != "RequestId" and value is not None}
+            content = {**self.inputs, **{key: value for key, value in trial.items() if key != "RequestId" and value is not None}}
             file.write(json.dumps({"flow": self.flow, "id": request, "content": content}) + "\n")
         window = float(trial.get("MaxResponseTime") or 0)
         deadline = time.monotonic() + (max(1.0, window - 0.25) if window > 0 else 30.0)
@@ -369,16 +427,35 @@ def stage_page(payload: dict[str, Any]) -> bytes:
 class Stage(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self, port: int, build: Path, page: bytes, events: Path, exchange: Exchange | None = None) -> None:
+    def __init__(self, port: int, build: Path, page: bytes, events: Path, exchange: Exchange | None = None,
+                 context: dict[str, Any] | None = None) -> None:
         super().__init__(("127.0.0.1", port), StageHandler)
         self.build = build.resolve()
         self.page = page
         self.events = events
         self.exchange = exchange
+        self.context = context or {}
+        self.shown: set[tuple] = set()      # the trials the build started
+        self.answered: set[tuple] = set()   # those it recorded a response for
         self.trials = 0
         self.completion: dict[str, Any] = {}
         self.done = threading.Event()
         self.lock = threading.Lock()
+
+
+def tally(stage: Stage, event: dict[str, Any]) -> None:
+    """One event, as the build's own record of a trial: `TrialStart` shows one, and a `Click` or a `TrialEnd` with a
+    `responseTime` answers it. Both markers are the BDM envelope's (`trialContext.types`, `result`), not an
+    instrument's own event names."""
+    context = event.get("trialContext") or {}
+    kinds = context.get("types") or []
+    trial = ((context.get("block") or {}).get("id"), (context.get("trial") or {}).get("id"))
+    if trial[1] is None:
+        return
+    if "TrialStart" in kinds:
+        stage.shown.add(trial)
+    if "Click" in kinds or ("TrialEnd" in kinds and (event.get("result") or {}).get("responseTime") is not None):
+        stage.answered.add(trial)
 
 
 class StageHandler(BaseHTTPRequestHandler):
@@ -431,9 +508,13 @@ class StageHandler(BaseHTTPRequestHandler):
             answer = server.exchange.ask(body) if server.exchange and isinstance(body, dict) else {}
             return self.reply(200, json.dumps(answer).encode(), "application/json")
         if self.path == "/event":
+            # The run's own context rides on every event: the build records the trial, this says whose it is.
+            line = {**body, "context": server.context} if isinstance(body, dict) else body
             with server.lock:
+                if isinstance(body, dict):
+                    tally(server, body)
                 with server.events.open("a") as file:
-                    file.write(json.dumps(body, separators=(",", ":")) + "\n")
+                    file.write(json.dumps(line, separators=(",", ":")) + "\n")
         elif self.path == "/trial":
             with server.lock:
                 server.trials += 1
@@ -464,10 +545,18 @@ def open_stage(url: str) -> subprocess.Popen | None:
         return None
     profile = tempfile.mkdtemp(prefix="studyflow-stage-")
     return subprocess.Popen(  # noqa: S603 - a browser we picked, opening a page we serve
-        [binary, f"--app={url}", f"--user-data-dir={profile}", "--start-fullscreen", "--no-first-run",
-         "--no-default-browser-check", "--autoplay-policy=no-user-gesture-required"],
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stage_argv(binary, url, profile), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
+
+
+def stage_argv(binary: str, url: str, profile: str) -> list[str]:
+    """The browser's command line. The three `--disable-*` flags keep the task at full speed when its window is
+    occluded or on another Space: Chrome throttles such a window to 1 fps while Unity keeps stepping, so every
+    timed phase stretches to a second of wall clock whatever `Bot.Speed` says."""
+    return [binary, f"--app={url}", f"--user-data-dir={profile}", "--start-fullscreen", "--no-first-run",
+            "--no-default-browser-check", "--autoplay-policy=no-user-gesture-required",
+            "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
+            "--disable-background-timer-throttling"]
 
 
 def profile_of(browser: subprocess.Popen) -> str:
@@ -493,7 +582,7 @@ def checked_build(explicit: Path | None) -> Path:
     return build
 
 
-def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
     """One task: serve, open, wait for the completion; the keys a hand-off merges into the state."""
     payload = task_payload(element, auto=args.auto, plan=plan)
     build = checked_build(args.build)
@@ -503,13 +592,14 @@ def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, d
     run_dir.mkdir(parents=True, exist_ok=True)
     events = run_dir / events_uri(element, plan)
     events.parent.mkdir(parents=True, exist_ok=True)
-    events.unlink(missing_ok=True)
+    if not opened_this_run(cache, events):
+        events.unlink(missing_ok=True)
     exchange = None
     if along_messages(payload):
         trials, _ = trial_flows(element, plan) or ("", "")
         partner = ", ".join((plan.get(p) or {}).get("name") or p for p in message_partners(element, plan))
-        exchange = Exchange(cache, str(element["id"]), trials, partner)
-    stage = Stage(args.port, build, stage_page(payload), events, exchange)
+        exchange = Exchange(cache, str(element["id"]), trials, partner, data_inputs(element, state))
+    stage = Stage(args.port, build, stage_page(payload), events, exchange, trial_context(element, plan, state))
     threading.Thread(target=stage.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{stage.server_port}/"
     print(f"□ {element.get('name') or element['id']}: {payload['scene']} / {payload['timeline']} "
@@ -536,6 +626,9 @@ def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, d
         raise RuntimeError(f"the task stopped before the end: {completion or 'no detail'}")
     print(f"    completed {completion.get('TaskId')} / {completion.get('TimelineId')} after {stage.trials} answered trials", flush=True)
     result = {**completion, "trials": stage.trials}
+    if exchange is not None:
+        # Raises when too many trials went unanswered: the task fails, and its error boundary event takes over.
+        result["failedTrialRate"] = failed_trial_rate(element, stage.shown, stage.answered)
     if events.exists():
         result["events"] = str(events)
     return {"result": result, "durationMs": round((time.perf_counter() - clock) * 1000, 1)}
@@ -577,7 +670,7 @@ def main() -> int:
         element = elements.get(args.element)
         if element is None or behaverse_extension(element) is None:
             raise KeyError(f"no behaverse:Task {args.element!r} in the diagram")
-        result = perform(element, args, elements)
+        result = perform(element, args, elements, state)
     except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
         result = {"error": f"{type(error).__name__}: {error}"}
     cache.mkdir(parents=True, exist_ok=True)

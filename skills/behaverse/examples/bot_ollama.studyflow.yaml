@@ -4,23 +4,65 @@ definitions:
   xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 Demo5_OllamaBot_Actors:
   type: Collaboration
-  name: LLM bot (Ollama)
-  participants:
-    Actor_Ollama__gemma4_e2b_mlx:
-      extensionElements:
-        - type: studyflow:Actor
-          actorType: llm
-          implementation: ollama://gemma4:e2b-mlx
-      name: Ollama (gemma4:e2b-mlx)
-Demo5_OllamaBot:
-  type: Process
-  documentation: A tired 1-back warm-up and an expert 2-back block played by a local Ollama LLM bot.
   extensionElements:
     - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:27Z"
       with: studyflow-modeler/26.0615
+  name: LLM bot (Ollama)
+  participants:
+    Pool_Session:
+      name: N-Back session
+      processRef: Demo5_OllamaBot
+      bounds: 120 100 660 300
+    Actor_Ollama__gemma4_e2b_mlx:
+      extensionElements:
+        - type: studyflow:Actor
+          actorType: llm
+          implementation: ollama://gemma4:e2b-mlx
+      name: Ollama (gemma4:e2b-mlx)
+      bounds: 120 440 660 100
+  messageFlows:
+    Msg_Warmup_Trial:
+      name: one trial
+      sourceRef: Warmup_1Back
+      targetRef: Actor_Ollama__gemma4_e2b_mlx
+      messageRef: Trial
+      waypoint: 312,258 312,440
+    Msg_Warmup_Response:
+      name: the response
+      sourceRef: Actor_Ollama__gemma4_e2b_mlx
+      targetRef: Warmup_1Back
+      messageRef: Response
+      waypoint: 330,440 330,258
+    Msg_Main_Trial:
+      name: one trial
+      sourceRef: Main_2Back
+      targetRef: Actor_Ollama__gemma4_e2b_mlx
+      messageRef: Trial
+      waypoint: 502,258 502,440
+    Msg_Main_Response:
+      name: the response
+      sourceRef: Actor_Ollama__gemma4_e2b_mlx
+      targetRef: Main_2Back
+      messageRef: Response
+      waypoint: 520,440 520,258
+Trial:
+  type: Message
+  itemRef: Trial_Item
+Response:
+  type: Message
+  itemRef: Response_Item
+Trial_Item:
+  type: ItemDefinition
+  structureRef: behaverse:Trial
+Response_Item:
+  type: ItemDefinition
+  structureRef: behaverse:Response
+Demo5_OllamaBot:
+  type: Process
+  documentation: A tired 1-back warm-up and an expert 2-back block played by a local Ollama LLM bot.
   name: LLM bot (Ollama)
   flowElements:
     Start:
@@ -35,8 +77,6 @@ Demo5_OllamaBot:
           instrument: NB
           timeline: Demo5_Warmup
       name: 1-Back warm-up (tired)
-      participantRef:
-        - Actor_Ollama__gemma4_e2b_mlx
       dataInputAssociations:
         In_Warmup_1Back:
           sourceRef:
@@ -117,8 +157,6 @@ Demo5_OllamaBot:
           instrument: NB
           timeline: Demo5_Main
       name: 2-Back main (expert)
-      participantRef:
-        - Actor_Ollama__gemma4_e2b_mlx
       dataInputAssociations:
         In_Main_2Back:
           sourceRef:

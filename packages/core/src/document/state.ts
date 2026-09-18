@@ -93,9 +93,13 @@ function lookup(node: unknown, keys: string[]): unknown {
   return current;
 }
 
+/** The runner counter a lone name may cite: how often a token reached the element citing it. */
+const REACHED = 'reached';
+
 /**
  * Lexical lookup of a dotted `path` from `elementId`: the element's own entry, then each container outward to
- * the study root; a single-segment path also falls back to that scope's runner counter, `_meta.<path>.<scope>`.
+ * the study root. A lone `{reached}` is the element's own counter, `_meta.reached.<element id>`, and 0 when it has
+ * none — a run that never reached it counts 0, and so does a file no run has touched, never a container's count.
  * `state.a.b` is absolute (`state._meta.reached.X` included). `undefined` when nothing resolves.
  */
 export function resolveState(definitions: ModdleElement | null | undefined, elementId: string, path: string): unknown {
@@ -105,10 +109,10 @@ export function resolveState(definitions: ModdleElement | null | undefined, elem
   if (keys[0] === 'state') return lookup(tree, keys.slice(1));
   for (let scope = findElement(definitions, elementId); scope && scope.$type !== 'bpmn:Definitions'; scope = scope.$parent) {
     if (typeof scope.id !== 'string') continue;
-    const value = lookup(tree, [scope.id, ...keys]) ?? (keys.length === 1 ? tree[META_KEY]?.[keys[0]]?.[scope.id] : undefined);
+    const value = lookup(tree, [scope.id, ...keys]);
     if (value !== undefined) return value;
   }
-  return undefined;
+  return keys.length === 1 && keys[0] === REACHED ? tree[META_KEY]?.[REACHED]?.[elementId] ?? 0 : undefined;
 }
 
 /**

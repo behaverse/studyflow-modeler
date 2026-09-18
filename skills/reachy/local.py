@@ -542,9 +542,9 @@ class Run:
         return answer or default
 
     # The placeholder rule (docs/reference.qmd, "Placeholders"): `{state.a.b}` from the root; then a dotted lookup
-    # from the element outward through its containers (`{count}`, `{screenGaze}`), a lone name also as the runner's
-    # counter `_meta.<name>.<scope>`; last an element's result by id or name (`{Play.trials}`). Unresolved, a
-    # placeholder stays as written.
+    # from the element outward through its containers (`{count}`, `{screenGaze}`); then an element's result by id or
+    # name (`{Play.trials}`); last a lone `{reached}`, the element's own counter, 0 when no run reached it.
+    # Unresolved, a placeholder stays as written.
     def resolve(self, path: str) -> Any:
         keys = [key.strip() for key in path.split(".") if key.strip()]
         if not keys:
@@ -553,12 +553,14 @@ class Run:
             return lookup(self.tree, keys[1:])
         for scope in self.studyflow.scope_chain(self.scope):
             value = lookup(self.tree, [scope, *keys])
-            if value is None and len(keys) == 1:
-                value = lookup(self.tree, ["_meta", keys[0], scope])
             if value is not None:
                 return value
         result = self.namespace().get(keys[0])
-        return lookup(result, keys[1:]) if len(keys) > 1 else result
+        found = lookup(result, keys[1:]) if len(keys) > 1 else result
+        if found is None and keys == ["reached"]:
+            # The element's own counter, never a container's: one no run reached counts 0.
+            return lookup(self.tree, ["_meta", "reached", self.scope]) or 0
+        return found
 
     def fill(self, text: str) -> str:
         return PLACEHOLDER.sub(lambda m: str(v) if (v := self.resolve(m.group(1))) is not None else m.group(0), text)

@@ -1,12 +1,11 @@
 # Behaverse Studyflow
 
-[Studyflow](https://behaverse.org/studyflow-modeler) is a visual notation for experiments, for machines and humans, based on BPMN. One diagram is the protocol, the runnable experiment, the analysis specification, and the publication figure. The canonical file is `.studyflow.yaml`; the same diagram embeds in a PNG, so the figure you publish is the file that runs.
+[Studyflow](https://behaverse.org/studyflow-modeler) is a BPMN-based visual notation for coordinating experiments, for machines and humans. One diagram is the protocol, the runnable experiment, the analysis specification, and the publication figure.
 
 ## Use
 
-- **Webapp**: [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler). Draw, validate, simulate, and export; `/run/` executes the participant-facing side in the browser.
-- **CLI**: `studyflow` converts, validates, inspects, and executes diagrams locally.
-- **Desktop app**: `studyflow ui`, or `studyflow edit <file>`, serves the modeler from your machine in a window of its own.
+- **Webapp**: [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler). Author, validate, simulate, export, and run diagrams in the browser.
+- **CLI**: `studyflow` manage and run diagrams locally. `studyflow ui`, or `studyflow edit <file>`, serves the modeler from your machine.
 
 ```bash
 brew trust https://github.com/behaverse/studyflow-modeler   # Homebrew 6 loads a third-party tap only once trusted
@@ -15,32 +14,22 @@ brew install studyflow
 studyflow run study.studyflow.png
 ```
 
-Example diagrams are in `skills/<name>/examples/` and in the modeler's Examples gallery.
-
 ## Develop
 
 ```bash
 npm install
-npm run dev            # modeler + browser runner at http://localhost:5173 (`-- --host` for the LAN)
+npm run dev            # modeler
 npm run dev:desktop    # the same, opened as the desktop app
-npm run test           # unit + e2e (Playwright)
-npm run build          # dist/: the webapp, and what the desktop app serves
+npm run test
+npm run build          # produces dist/
 ```
 
-| Where | What |
-| --- | --- |
-| [packages/core](packages/core/) | the document model |
-| [packages/canvas](packages/canvas/) | the SVG canvas |
-| [packages/modeler](packages/modeler/) | the editor, `/app.html` |
-| [skills/browser](skills/browser/) | the browser runner, `/run/` |
-| [skills/local](skills/local/) | the local runner, `studyflow run` |
-| [packages/cli](packages/cli/) | the `studyflow` CLI |
-| [packages/desktop](packages/desktop/) | the desktop app |
-| [skills/](skills/) | the vocabularies and runners |
-| [docs/](docs/) | the site |
+## license
 
-[AGENTS.md](AGENTS.md) has the commands, the map in more detail, and the rules the code keeps.
+MIT. See [LICENSE](LICENSE).
 
-## Contributing and license
+See also [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for third-party licenses.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). MIT. AI tools assisted with refactoring and improvements; the author reviewed and maintains all changes.
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). [AGENTS.md](AGENTS.md) has the commands, the map in more detail, and the rules the code follows.

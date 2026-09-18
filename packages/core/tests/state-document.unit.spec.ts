@@ -77,7 +77,7 @@ test.describe('state in the document', () => {
     expect(back.endsWith(STATE_BLOCK)).toBe(true);
   });
 
-  test('resolveState reads the element, its containers out to the study root, then its runner counter', () => {
+  test('resolveState reads the element, its containers out to the study root, and its own runner counter', () => {
     const definitions = studyflowToDefinitions(DOC, freshModdle());
     const CASES: [elementId: string, path: string, expected: unknown][] = [
       ['Excluded_Pre', 'count', 3],
@@ -86,10 +86,10 @@ test.describe('state in the document', () => {
       ['Example_Study', 'arm', 'A'],
       ['Trial', 'count', undefined], // a sibling's is out of scope
       ['Nope', 'count', undefined],
-      // A single segment falls back to `_meta.<path>.<scope>`, scope by scope.
+      // A lone `{reached}` is the element's own counter, and an element no run reached counts 0, never its container's.
       ['Excluded_Pre', 'reached', 4],
-      ['Trial', 'reached', 1], // Battery's counter, lexically
-      ['Example_Study', 'reached', undefined],
+      ['Trial', 'reached', 0], // inside Battery, which was reached once; Trial itself never was
+      ['Example_Study', 'reached', 0],
       ['Excluded_Pre', 'reached.Battery', undefined],
       // `state.` reads the tree from its top, `_meta` included.
       ['Trial', 'state.Excluded_Pre.count', 3],
@@ -107,6 +107,8 @@ test.describe('state in the document', () => {
       ['a name in scope', STATE, 'Excluded (n={count})', 'Excluded (n=3)'],
       ['an unresolved name stays', STATE, '{arm}/{missing} {reached} {state.Battery.failed_trials}', 'A/{missing} 4 2'],
       ['nothing resolves without state', undefined, 'Excluded (n={count})', 'Excluded (n={count})'],
+      // A deposited file no run has touched reads n=0, as a preregistered exit nobody took should.
+      ['a counter with no run behind it is 0', undefined, 'Excluded (n={reached})', 'Excluded (n=0)'],
       ['only the braces of a name: YAML and JSON in a value stay put', STATE, '{a: 1} {"arm": 2} {arm}', '{a: 1} {"arm": 2} A'],
       // As in the Python runners.
       ['a name of letters of any script, and hyphens', { Example_Study: { durée: 3 }, _meta: { reached: { 'sid-12': 4 } } }, '{durée} {state._meta.reached.sid-12}', '3 4'],

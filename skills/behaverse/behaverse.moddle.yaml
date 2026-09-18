@@ -134,6 +134,14 @@ types:
           order: 2
           categories:
             - Execution
+      - name: maxFailedTrialRate
+        description: The share of the trials the build showed (0 to 1) that it recorded no valid response for — a response that came too late for the window is one of them — above which the task fails, raising its error boundary event. Unset, a task never fails for missed trials.
+        isAttr: true
+        type: Real
+        meta:
+          order: 3
+          categories:
+            - Execution
 
   - name: BDMDataset
     description: A dataset in the Behaverse Data Model (BDM).

@@ -51,8 +51,8 @@ def dig(value: Any, fields: list[str]) -> Any:
 
 def resolve(path: str, element_id: str, values: dict[str, Any], digest: dict[str, Any]) -> Any:
     """The placeholder rule (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
-    outward, what each scope holds under the name, a lone name also as the runner's counter for that scope; then
-    an element's result, by id or unique name. `None` when nothing holds the name."""
+    outward, what each scope holds under the name; then an element's result, by id or unique name; then, for a lone
+    `{reached}`, the element's own counter, 0 when no run reached it. `None` when nothing holds the name."""
     head, *fields = path.split(".")
     tree = values.get("state") or {}
     if head == "state":
@@ -61,13 +61,15 @@ def resolve(path: str, element_id: str, values: dict[str, Any], digest: dict[str
     scope = element_id
     while scope:
         found = dig(tree.get(scope), [head, *fields])
-        if found is None and not fields:
-            found = dig(tree.get("_meta"), [head, scope])
         if found is not None:
             return found
         scope = (elements.get(scope) or {}).get("parent")
     ids = {name: eid for eid, name in (digest.get("names") or {}).items()}
-    return dig(values.get(head, values.get(ids.get(head, ""))), fields)
+    found = dig(values.get(head, values.get(ids.get(head, ""))), fields)
+    if found is None and head == "reached" and not fields:
+        # The element's own counter, never a container's: one no run reached counts 0.
+        return dig(tree.get("_meta"), ["reached", element_id]) or 0
+    return found
 
 
 def fill(value: Any, element_id: str, values: dict[str, Any], digest: dict[str, Any]) -> str:

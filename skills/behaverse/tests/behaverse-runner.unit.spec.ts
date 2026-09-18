@@ -47,6 +47,7 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   expect(() => execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', path.join(dir, 'none')],
     { stdio: 'pipe', env: { ...process.env, UNITY_BUILD_PATH: '' } })).toThrow(/build/);
 
+  const context = { subject: 1, state: {} };
   const cache = path.join(dir, 'cache');
   fs.mkdirSync(cache);
   fs.writeFileSync(path.join(cache, 'T.state.json'), JSON.stringify({ S: { seed: 1 } }));
@@ -95,8 +96,15 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   // An answer that names no option, or none within the trial's window, is no answer: a miss, never a stand-in.
   expect(await ask('r2', 5, 'Up')).toEqual({});
   expect(await ask('r3', 1)).toEqual({});
-  expect((await post('/event', { type: 'trial', n: 1 })).status).toBe(204);
-  await post('/event', { type: 'trial', n: 2 });
+  // The build's own record of each trial is what the failed-trial rate counts: three shown, one answered with a
+  // click, one with a response time, one that ended without one — however well the replies above named an option.
+  const shown = (n: number) => ({ trialContext: { block: { id: 1 }, trial: { id: n }, types: ['TrialStart'] } });
+  expect((await post('/event', shown(1))).status).toBe(204);
+  await post('/event', shown(2));
+  await post('/event', shown(3));
+  await post('/event', { trialContext: { block: { id: 1 }, trial: { id: 1 }, types: ['Click'] } });
+  await post('/event', { trialContext: { block: { id: 1 }, trial: { id: 2 }, types: ['TrialEnd'] }, result: { responseTime: 5.5 } });
+  await post('/event', { trialContext: { block: { id: 1 }, trial: { id: 3 }, types: ['TrialEnd'] }, result: { responseTime: null } });
   await post('/trial', { TrialIndex: 0, Response: 'Right', Agent: 'Reachy Mini' });
   await post('/completed', { TaskId: 'WO', TimelineId: 'SimonTask', IsCompleted: true });
 
@@ -104,7 +112,14 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   const state = JSON.parse(fs.readFileSync(path.join(cache, 'T.state.json'), 'utf8'));
   expect(state.S).toEqual({ seed: 1 });
   expect(state.result).toMatchObject({ TaskId: 'WO', TimelineId: 'SimonTask', IsCompleted: true, trials: 1 });
+  // One of the three trials the build showed ended with no response, and the share rides with the result.
+  expect(state.result.failedTrialRate).toBeCloseTo(1 / 3);
   expect(state.durationMs).toBeGreaterThan(0);
   expect(fs.readFileSync(state.result.events, 'utf8').trim().split('\n').map((line) => JSON.parse(line)))
-    .toEqual([{ type: 'trial', n: 1 }, { type: 'trial', n: 2 }]);
+    // Every event line says whose trial it is: the task's visit count, and the properties in scope at the hand-off.
+    .toEqual([shown(1), shown(2), shown(3),
+      { trialContext: { block: { id: 1 }, trial: { id: 1 }, types: ['Click'] } },
+      { trialContext: { block: { id: 1 }, trial: { id: 2 }, types: ['TrialEnd'] }, result: { responseTime: 5.5 } },
+      { trialContext: { block: { id: 1 }, trial: { id: 3 }, types: ['TrialEnd'] }, result: { responseTime: null } },
+    ].map((event) => ({ ...event, context })));
 });
