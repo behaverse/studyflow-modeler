@@ -19,15 +19,19 @@ are replayable, so studyflow-run-local's reuse and branching apply to them.
 from __future__ import annotations
 
 import argparse
+import difflib
+import functools
 import importlib
+import importlib.metadata
 import json
+import platform
 import random
 import re
 import shutil
 import sys
 import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 
 import yaml
 
@@ -150,10 +154,29 @@ BOUNDARY_INPUTS: dict[str, Callable[[Path], None]] = {
 }
 
 
+@functools.cache
+def distribution(top: str) -> str | None:
+    """`<distribution> <version>` of what provides a top-level package, the standard library being Python's own;
+    None when no installed metadata names one."""
+    if top in sys.stdlib_module_names:
+        return f"python {platform.python_version()}"
+    names = importlib.metadata.packages_distributions().get(top)
+    # ponytail: the first distribution naming the package; a namespace package several share wants the one holding the module.
+    return f"{names[0]} {importlib.metadata.version(names[0])}" if names else None
+
+
 def resolve_implementation(implementation: str) -> Any:
+    """The callable a `python://pkg.mod.fn` path names. A pin, `@1.2`, holds when the installed version starts with
+    its components (1.2.3, not 1.20); a mismatch, or no metadata to compare, is an error naming both."""
     if not implementation.startswith("python://"):
         raise ValueError(f"this runner only implements python://, not {implementation!r}")
-    path = implementation[len("python://"):].split("@")[0]
+    path, _, pin = implementation[len("python://"):].partition("@")
+    if pin:
+        found = distribution(path.split(".")[0])
+        wanted = re.split(r"[.+]", pin)
+        if not found or re.split(r"[.+]", found.split()[-1])[:len(wanted)] != wanted:
+            raise ImportError(f"{implementation} pins {pin}, and "
+                              + (f"{found} is installed" if found else f"no installed distribution provides {path.split('.')[0]}"))
     parts = path.split(".")
     for cut in range(len(parts), 0, -1):
         try:
@@ -165,6 +188,30 @@ def resolve_implementation(implementation: str) -> Any:
             target = getattr(target, attribute)
         return target
     raise ImportError(f"cannot import {path!r}")
+
+
+def strings(value: Any) -> Iterator[str]:
+    """Every string an argument holds, down its lists and mappings, keys included: what a step can name a column by."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, (list, tuple, dict)):
+        for item in value.items() if isinstance(value, dict) else value:
+            yield from strings(item)
+
+
+def missing_column(error: KeyError, arguments: list[Any]) -> str | None:
+    """What a KeyError means when its key, a column the step names, is not a column of a pandas DataFrame the step
+    received: `reads column 'X', which the table does not have (closest: 'Y')`. None for any other KeyError."""
+    pandas = sys.modules.get("pandas")
+    named = set(strings(arguments))  # only these read as column names: pandas words other KeyErrors as sentences
+    tables = [value for value in arguments if pandas and isinstance(value, pandas.DataFrame)]
+    key = error.args[0] if error.args else None
+    for column in key if isinstance(key, list) else [key]:  # `dropna(subset=...)` raises the missing ones as a list
+        table = next((t for t in tables if column not in t.columns), None) if isinstance(column, str) and column in named else None
+        if table is not None:
+            closest = difflib.get_close_matches(column, [str(c) for c in table.columns], n=1)
+            return f"reads column {column!r}, which the table does not have" + (f" (closest: {closest[0]!r})" if closest else "")
+    return None
 
 
 def jsonable(value: Any) -> bool:
@@ -323,7 +370,13 @@ class Run:
 
         target = resolve_implementation(implementation)
         print(f"implementation {implementation}")
-        result = target(*positional, **keywords)
+        try:
+            result = target(*positional, **keywords)
+        except KeyError as error:
+            missing = missing_column(error, [*positional, *keywords.values()])
+            if missing is None:
+                raise
+            raise LookupError(missing) from None
 
         for binding in element.get("outputs") or []:
             target_id = binding.get("target")
@@ -394,13 +447,16 @@ def main() -> int:
         if element is None:
             raise KeyError(f"no element {args.element!r} in the diagram")
         result = run.execute(element)
+        version = distribution(element["attributes"]["implementation"][len("python://"):].split(".")[0])
     except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
         state["error"] = f"{type(error).__name__}: {error}"
     else:
-        # The updated state: every JSON-able value this element bound, the result, and the timing.
+        # The updated state: every JSON-able value this element bound, the result, and the timing; and, for the
+        # record only, what provided the implementation.
         state.update({k: v for k, v in run.values.items() if jsonable(v)})
         state["result"] = result if jsonable(result) else str(type(result).__name__)
         state["durationMs"] = round((time.perf_counter() - clock) * 1000, 1)
+        state["record"] = {"version": version}
     cache.mkdir(parents=True, exist_ok=True)
     handoff.write_text(json.dumps(state, default=str))
     return 1 if "error" in state else 0

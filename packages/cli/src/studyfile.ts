@@ -3,7 +3,7 @@ import { extname } from 'node:path';
 
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, readerWarning, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
+import { looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, inlineIoSpecification, readerWarning, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
 import { loadAllSchemas } from '@core/notation/loader';
 import type { Moddle } from '@core/element/moddle';
 
@@ -54,7 +54,8 @@ export type ParseResult = {
   warnings: string[];
 };
 
-/** Parse to a moddle `bpmn:Definitions`, collecting non-fatal reader warnings. */
+/** Parse to a moddle `bpmn:Definitions`, collecting non-fatal reader warnings. XML is read into the form the YAML
+ * reader builds, compact data associations included, so a study checks and digests alike in either spelling. */
 export async function parseSource(source: StudyflowSource): Promise<ParseResult> {
   const moddle = await schemaModdle();
   const warnings: string[] = [];
@@ -64,5 +65,6 @@ export async function parseSource(source: StudyflowSource): Promise<ParseResult>
   }
   const { rootElement, warnings: xmlWarnings } = await moddle.fromXML(source.text);
   warnings.push(...xmlWarnings.map(readerWarning));
+  inlineIoSpecification(rootElement);
   return { definitions: rootElement, warnings };
 }

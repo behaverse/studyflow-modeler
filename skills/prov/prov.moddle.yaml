@@ -66,6 +66,15 @@ types:
         type: Integer
         meta:
           optional: true
+      - name: plan
+        description: >-
+          For `executed`, the digest of the protocol the run walked (`sha256:…`): the study without its
+          state, its provenance and its drawing. `studyflow validate` recomputes it, so a protocol edited
+          after the run no longer matches the record.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
       - name: commit
         description: >-
           For `executed`, the commit of the run repository that holds the step as it ran: its own

@@ -5,10 +5,14 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { declaredRuntime } from '@core/document';
+import { declaredRuntime, protocolDigest } from '@core/document';
+import { planChecks } from '@core/checks';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
 
 /* `studyflow run`: hand the study to the runtime it declares; this CLI runs `local` itself (skills/local/run.py). */
+
+/** What the run record names as the tool that ran it (`with`). */
+const TOOL = `studyflow-cli/${import.meta.env?.APP_VERSION ?? 'dev'}`;
 
 export type RunOptions = {
   runtime?: string;
@@ -111,7 +115,16 @@ export async function run(input: string, passthrough: string[], options: RunOpti
   const runtime = options.runtime ?? declaredRuntime(definitions);
 
   if (runtime === 'local') {
-    process.exitCode = await runLocal(input, source, passthrough);
+    // The checks `studyflow validate` applies to the plan; an error among them keeps the study from starting.
+    const issues = planChecks(definitions);
+    for (const { severity, message } of issues) (severity === 'error' ? console.error : console.warn)(`${severity}: ${message}`);
+    if (issues.some((issue) => issue.severity === 'error')) {
+      process.exitCode = 1;
+      return;
+    }
+    // Ahead of the caller's arguments, so a `--tool` of their own wins.
+    const provenance = ['--plan-digest', await protocolDigest(definitions), '--tool', TOOL];
+    process.exitCode = await runLocal(input, source, [...provenance, ...passthrough]);
     return;
   }
 

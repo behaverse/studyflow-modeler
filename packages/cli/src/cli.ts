@@ -30,7 +30,7 @@ program
 
 program
   .command('validate')
-  .description('Parse a studyflow and report reader warnings and errors.')
+  .description('Check a studyflow: that it reads, is sound, takes only paths the runners walk, and reads only columns its schemas define; once run, that its counts balance and its protocol is the one the run recorded.')
   .argument('<input>', 'file to check')
   .option('--strict', 'exit non-zero on warnings, not just errors')
   .action(async (input: string, options: { strict?: boolean }) => {
@@ -38,12 +38,12 @@ program
     for (const warning of report.warnings) console.warn(`warning: ${warning}`);
     for (const error of report.errors) console.error(`error: ${error}`);
     if (!report.ok || (options.strict && report.warnings.length > 0)) process.exitCode = 1;
-    else console.log(`${input}: OK${report.warnings.length ? ` (${report.warnings.length} warning${report.warnings.length === 1 ? '' : 's'})` : ''}`);
+    else console.log(`${input}: OK${report.warnings.length ? ` (${report.warnings.length} warning${report.warnings.length === 1 ? '' : 's'})` : ''}${report.note ? `, ${report.note}` : ''}`);
   });
 
 program
   .command('run')
-  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` runs the local runtime (skills/local/run.py, needs uv).')
+  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` runs the local runtime (skills/local/run.py, needs uv), once the plan passes the checks `validate` applies to it.')
   .passThroughOptions()
   .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
   .argument('[runnerArgs...]', 'forwarded to the local runtime (e.g. --repo, --fresh, --sim, --auto)')
@@ -85,9 +85,10 @@ program
       console.log(JSON.stringify(report, null, 2));
       return;
     }
-    const { study, file, elements, warnings } = report;
+    const { study, file, protocol, elements, warnings } = report;
     console.log(`${study.name ?? study.id ?? '(unnamed study)'}${study.version ? ` v${study.version}` : ''}`);
     if (study.id) console.log(`  id: ${study.id}`);
+    console.log(`  protocol: ${protocol}`);
     if (study.documentation) console.log(`  ${study.documentation.split('\n')[0]}`);
     console.log(`  source: ${file.kind}${file.container === 'text' ? '' : ` (embedded in ${file.container.toUpperCase()})`}`);
     const total = Object.values(elements).reduce((sum, n) => sum + n, 0);

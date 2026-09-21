@@ -64,6 +64,13 @@ export {
   inlineIoSpecification,
   toStandardBpmnXml,
 } from '@core/document/io-specification';
+export { protocolDigest } from '@core/document/digest';
+export {
+  parseSchemaBody,
+  type ParsedSchemaBody,
+  type SchemaColumn,
+  type SchemaFormat,
+} from '@core/document/schema-body';
 
 /* The `.studyflow` format is specified in docs. */
 

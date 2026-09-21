@@ -80,6 +80,20 @@ pooled = {"Play": {**task(), "parent": "Example_Study"}, "Model": nested["Model"
           **dict([flow("M_Trial", "Study", "Model"), flow("M_Answer", "Model", "Study")])}
 assert behaverse.talking_scope(pooled["Play"], pooled) == "Study"
 assert behaverse.trial_flows(pooled["Play"], pooled) == ("M_Trial", "M_Answer")
+# The pool also sends the cohort's once-only message to a step in another pool ("all subjects complete"). It names no
+# message, so the flows that carry a trial and a response outrank it, as they do in `message_partners`.
+def typed(fid, source, target, message):
+    return (fid, {"id": fid, "type": "messageFlow", "attributes": {"sourceRef": source, "targetRef": target, "messageRef": message}})
+
+
+cohort = {**pooled, "A0": {"id": "A0", "type": "startEvent", "parent": "Analysis_Report"},
+          "Trial": {"type": "message", "attributes": {"itemRef": "Trial_Item"}},
+          "Trial_Item": {"type": "itemDefinition", "attributes": {"structureRef": behaverse.TRIAL}},
+          "Response": {"type": "message", "attributes": {"itemRef": "Response_Item"}},
+          "Response_Item": {"type": "itemDefinition", "attributes": {"structureRef": behaverse.RESPONSE}},
+          **dict([typed("M_Trial", "Study", "Model", "Trial"), typed("M_Answer", "Model", "Study", "Response"),
+                  flow("M_Done", "Study", "A0")])}
+assert behaverse.trial_flows(cohort["Play"], cohort) == ("M_Trial", "M_Answer")
 
 # Its dataset the same way: one edge on the sub-process is where every task inside it deposits its trials.
 trials = {**nested, "Dataset": {"id": "Dataset", "attributes": {"uri": "data/trials.jsonl"}}}

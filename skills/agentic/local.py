@@ -7,7 +7,8 @@
 
 A partial runner (skills/local/SKILL.md): `--claims` names every participant that is a model (`studyflow:Actor`,
 `actorType: llm`) with no process of its own; `--element <pool> --cache <dir>` answers the message the walk hands
-over under `message` in `<pool>.state.json`, and writes the model's reply back as `result`.
+over under `message` in `<pool>.state.json`, and writes the model's reply back as `result`, with a `record` of what
+answered and what it was asked: the model and its executor's configuration, and the request as sent.
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ from typing import Any
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 AGENTIC = "https://w3id.org/studyflow/agentic"
+OLLAMA = "http://localhost:11434"
+MAX_TOKENS = 1024
 
 
 def extension(element: dict[str, Any], namespace: str, kind: str) -> dict[str, Any] | None:
@@ -125,7 +128,13 @@ def post(url: str, body: dict[str, Any], headers: dict[str, str], timeout: float
         return json.load(response)
 
 
-def ask_claude(model: str, parts: list[dict[str, Any]]) -> str:
+def get(url: str, timeout: float) -> dict[str, Any]:
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        return json.load(response)
+
+
+def ask_claude(model: str, parts: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
+    """The reply, and for the record the model asked for, the model the response names, and the options sent."""
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise RuntimeError("ANTHROPIC_API_KEY is not set")
@@ -134,22 +143,47 @@ def ask_claude(model: str, parts: list[dict[str, Any]]) -> str:
         if "image" in part else {"type": "text", "text": part["text"]}
         for part in parts
     ]
+    options = {"max_tokens": MAX_TOKENS}
     data = post("https://api.anthropic.com/v1/messages",
-                {"model": model, "max_tokens": 1024, "messages": [{"role": "user", "content": content}]},
+                {"model": model, **options, "messages": [{"role": "user", "content": content}]},
                 {"x-api-key": key, "anthropic-version": "2023-06-01"}, timeout=60)
-    return "".join(block.get("text", "") for block in data.get("content", []))
+    reply = "".join(block.get("text", "") for block in data.get("content", []))
+    return reply, {"model": model, "responseModel": data.get("model"), "options": options}
 
 
-def ask_ollama(model: str, parts: list[dict[str, Any]]) -> str:
+def listed(model: str) -> dict[str, Any]:
+    """The model's digest and quantization, as `/api/tags` lists it (a name without a tag is its `:latest`)."""
+    name = model if ":" in model else f"{model}:latest"
+    found = next((m for m in get(f"{OLLAMA}/api/tags", timeout=5).get("models", []) if m.get("name") == name), None)
+    if found is None:
+        raise LookupError(f"/api/tags lists no {name}")
+    return {"digest": found.get("digest"), "quantization": (found.get("details") or {}).get("quantization_level")}
+
+
+def ask_ollama(model: str, parts: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
+    """The reply, and for the record the model's digest and quantization (`/api/tags`), its default sampling
+    parameters (`/api/show`), Ollama's version (`/api/version`) and the options sent. The lookups are best effort: one
+    that fails is noted under `unrecorded`, and the answer stands."""
     message = {
         "role": "user",
         "content": "\n\n".join(part["text"] for part in parts if "text" in part),
         "images": [part["image"][1] for part in parts if "image" in part],
     }
     # `think: false` keeps a thinking model to its answer: a trial window is seconds long.
-    data = post("http://localhost:11434/api/chat", {"model": model, "stream": False, "think": False, "messages": [message]},
-                {}, timeout=120)
-    return data["message"]["content"]
+    options = {"stream": False, "think": False}
+    data = post(f"{OLLAMA}/api/chat", {"model": model, **options, "messages": [message]}, {}, timeout=120)
+    record: dict[str, Any] = {"model": model, "options": options}
+    # ponytail: three lookups a hand-off, after the answer; keep them in the cache folder if a trial window feels them.
+    for path, look in (
+        ("/api/tags", lambda: listed(model)),
+        ("/api/show", lambda: {"parameters": post(f"{OLLAMA}/api/show", {"model": model}, {}, timeout=5).get("parameters")}),
+        ("/api/version", lambda: {"version": f"ollama {get(f'{OLLAMA}/api/version', timeout=5)['version']}"}),
+    ):
+        try:
+            record.update(look())
+        except Exception as error:  # noqa: BLE001 - best effort: noted in the record, never failing the answer
+            record.setdefault("unrecorded", {})[path] = f"{type(error).__name__}: {error}"
+    return data["message"]["content"], record
 
 
 CLIENTS = {"claude": ask_claude, "ollama": ask_ollama}
@@ -187,9 +221,12 @@ def main() -> int:
         parts = parts_of(message.get("content"), plan, run_dir, state, asked_by)
         if not parts:
             raise ValueError(f"the message to {args.element} carries nothing to ask")
-        reply = CLIENTS[provider](model, parts)
+        reply, record = CLIENTS[provider](model, parts)
         print(f"    {provider}://{model}: {reply.strip()[:160]!r}")
-        result = {"result": reply, "durationMs": round((time.perf_counter() - clock) * 1000, 1)}
+        # The request as sent: its text, as far as a record needs it, and how many images went with it.
+        texts = "\n\n".join(part["text"] for part in parts if "text" in part)
+        record["sent"] = {"text": texts[:4000], "images": sum("image" in part for part in parts)}
+        result = {"result": reply, "durationMs": round((time.perf_counter() - clock) * 1000, 1), "record": record}
     except Exception as error:  # noqa: BLE001 - reported to the walk, which records it
         result = {"error": f"{type(error).__name__}: {error}"}
     handoff.write_text(json.dumps({**state, **result}, default=str))

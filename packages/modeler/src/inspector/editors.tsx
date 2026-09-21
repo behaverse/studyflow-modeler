@@ -12,7 +12,8 @@ import { ICONS } from '@modeler/icons';
 import { getAttribute } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
 import { useAttributeState } from '@modeler/inspector/hooks';
-import { DATATYPES, parseBody, serialize, type Column, type SourceFormat } from '@modeler/inspector/schemaFormats';
+import { parseSchemaBody, type SchemaColumn, type SchemaFormat } from '@core/document';
+import { DATATYPES, serialize } from '@modeler/inspector/schemaFormats';
 import { codeEditor as s } from '@modeler/inspector/styles';
 
 const SCRIPT_LANGUAGES = [
@@ -133,9 +134,9 @@ const cn = {
 export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
   const { value, commit, attributeName } = useAttributeState<string>(attrDef, (raw) => raw || '');
   const [session, setSession] = useState<number | null>(null);
-  const parsed = useMemo(() => parseBody(value), [value]);
-  const [columns, setColumns] = useState<Column[]>(parsed.columns);
-  const [format, setFormat] = useState<SourceFormat>(parsed.format);
+  const parsed = useMemo(() => parseSchemaBody(value), [value]);
+  const [columns, setColumns] = useState<SchemaColumn[]>(parsed.columns);
+  const [format, setFormat] = useState<SchemaFormat>(parsed.format);
   const [showSource, setShowSource] = useState(false);
 
   const modalOpen = session !== null;
@@ -156,7 +157,7 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
     setSession(null);
   }
 
-  function updateColumn(idx: number, patch: Partial<Column>) {
+  function updateColumn(idx: number, patch: Partial<SchemaColumn>) {
     setColumns((cs) => cs.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
   }
   function addColumn() {

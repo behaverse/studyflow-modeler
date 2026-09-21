@@ -47,6 +47,7 @@ export const BPMN = {
   ExtensionElements: 'bpmn:ExtensionElements',
 
   FlowElement: 'bpmn:FlowElement',
+  FlowElementsContainer: 'bpmn:FlowElementsContainer',
   FlowNode: 'bpmn:FlowNode',
   RootElement: 'bpmn:RootElement',
 } as const;

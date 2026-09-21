@@ -125,8 +125,12 @@ def trial_flows(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> tup
     element_id = talking_scope(element, plan)
     ends = [(flow_id, (flow.get("attributes") or {}), message_structure(flow, plan)) for flow_id, flow in plan.items()
             if flow.get("type") == "messageFlow"]
-    out = [flow_id for flow_id, attrs, structure in ends if attrs.get("sourceRef") == element_id and structure in ("", TRIAL)]
-    back = [flow_id for flow_id, attrs, structure in ends if attrs.get("targetRef") == element_id and structure in ("", RESPONSE)]
+    out = [(flow_id, structure) for flow_id, attrs, structure in ends if attrs.get("sourceRef") == element_id and structure in ("", TRIAL)]
+    back = [(flow_id, structure) for flow_id, attrs, structure in ends if attrs.get("targetRef") == element_id and structure in ("", RESPONSE)]
+    # A flow that names its message outranks one that does not, as in `message_partners`, so a pool's once-only untyped
+    # message to a step in another pool ("all subjects complete") is not the task's talk.
+    out = [flow_id for flow_id, structure in out if structure] or [flow_id for flow_id, _ in out]
+    back = [flow_id for flow_id, structure in back if structure] or [flow_id for flow_id, _ in back]
     if len(out) != 1 or len(back) != 1:
         raise ValueError(f"{element_id} sends its trials along one message flow and takes the answers back along one; "
                          f"it has {len(out)} out and {len(back)} back")

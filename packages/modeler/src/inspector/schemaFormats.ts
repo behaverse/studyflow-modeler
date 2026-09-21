@@ -1,13 +1,8 @@
 import * as yaml from 'js-yaml';
 
-export type Column = {
-  name: string;
-  datatype: string;
-  description: string;
-  required: boolean;
-};
+import type { SchemaColumn, SchemaFormat } from '@core/document';
 
-export type SourceFormat = 'csvw' | 'linkml';
+/* The schema editor's writer, the inverse of core's `parseSchemaBody`: columns back to a CSVW or a LinkML body. */
 
 export const DATATYPES = [
   'string',
@@ -20,58 +15,7 @@ export const DATATYPES = [
   'anyURI',
 ];
 
-export type ParsedBody = {
-  columns: Column[];
-  format: SourceFormat;
-  unparseable?: boolean;
-};
-
-export function parseBody(body: string): ParsedBody {
-  if (!body || !body.trim()) return { columns: [], format: 'csvw' };
-
-  try {
-    const json = JSON.parse(body);
-    const cols = json.tableSchema?.columns ?? json.columns ?? [];
-    if (Array.isArray(cols)) {
-      return {
-        columns: cols.map((c: any) => ({
-          name: c.name ?? '',
-          datatype: typeof c.datatype === 'string' ? c.datatype : c.datatype?.base ?? 'string',
-          description: c['dc:description'] ?? c.description ?? '',
-          required: c.required === true,
-        })),
-        format: 'csvw',
-      };
-    }
-  } catch {
-  }
-
-  try {
-    const doc: any = yaml.load(body);
-    if (doc && typeof doc === 'object') {
-      const classes = doc.classes ?? (doc.attributes ? { Root: doc } : null);
-      if (classes) {
-        const firstClassName = Object.keys(classes)[0];
-        const cls = classes[firstClassName];
-        const attrs = cls?.attributes ?? {};
-        return {
-          columns: Object.entries(attrs).map(([name, def]: [string, any]) => ({
-            name,
-            datatype: def?.range ?? 'string',
-            description: def?.description ?? '',
-            required: def?.required === true,
-          })),
-          format: 'linkml',
-        };
-      }
-    }
-  } catch {
-  }
-
-  return { columns: [], format: 'csvw', unparseable: true };
-}
-
-function serializeCsvw(columns: Column[]): string {
+function serializeCsvw(columns: SchemaColumn[]): string {
   const doc = {
     '@context': 'http://www.w3.org/ns/csvw',
     tableSchema: {
@@ -86,7 +30,7 @@ function serializeCsvw(columns: Column[]): string {
   return JSON.stringify(doc, null, 2);
 }
 
-function serializeLinkml(columns: Column[]): string {
+function serializeLinkml(columns: SchemaColumn[]): string {
   const attrs: Record<string, any> = {};
   for (const c of columns) {
     const def: Record<string, unknown> = { range: c.datatype || 'string' };
@@ -97,6 +41,6 @@ function serializeLinkml(columns: Column[]): string {
   return yaml.dump({ classes: { TableRow: { attributes: attrs } } }, { lineWidth: 100 });
 }
 
-export function serialize(columns: Column[], format: SourceFormat): string {
+export function serialize(columns: SchemaColumn[], format: SchemaFormat): string {
   return format === 'linkml' ? serializeLinkml(columns) : serializeCsvw(columns);
 }

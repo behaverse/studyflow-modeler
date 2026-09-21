@@ -1,9 +1,11 @@
-import { primaryRoot } from '@core/document';
+import { primaryRoot, protocolDigest } from '@core/document';
 import { parseSource, readSource, type StudyflowSource } from '@cli/studyfile';
 
 export type StudyInfo = {
   file: { container: StudyflowSource['container']; kind: StudyflowSource['kind'] };
   study: { id?: string; name?: string; version?: string; documentation?: string };
+  /** The protocol digest a run records as its `plan` (`sha256:…`). */
+  protocol: string;
   /** `bpmn:FlowElement` counts by `$type`, subprocesses included. */
   elements: Record<string, number>;
   warnings: string[];
@@ -36,6 +38,7 @@ export async function info(input: string): Promise<StudyInfo> {
       version: typeof root?.version === 'string' ? root.version : undefined,
       documentation: firstDocumentation(root),
     },
+    protocol: await protocolDigest(definitions),
     elements,
     warnings,
   };

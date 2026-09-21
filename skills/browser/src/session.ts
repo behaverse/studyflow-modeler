@@ -1,4 +1,4 @@
-import type { FlowNode } from '@runner/flow';
+import type { FlowNode, SequenceFlow } from '@runner/flow';
 import { getCatalog, type TypeCatalog } from '@core/notation';
 import { findByFlowNode } from '@runner/nodes/registry';
 import { draw, evaluateCondition } from '@runner/branching';
@@ -35,7 +35,8 @@ export class Session {
   private catalog: TypeCatalog;
   private onDiagnostic?: (message: string) => void;
   private trace: string[] = [];
-  /** The run's copy of the file's `state` tree: scope writes mirror to `state.<declaring id>.<name>`, visits count into `state._meta.reached.<id>`. */
+  /** The run's copy of the file's `state` tree: scope writes mirror to `state.<declaring id>.<name>`; each visit of a
+   * node, and each sequence flow followed, counts into `state._meta.reached.<id>`, as skills/local/run.py counts them. */
   private state: StateTree;
 
   constructor(studyflow: Studyflow, context: SessionContext = {}) {
@@ -86,8 +87,7 @@ export class Session {
       }
 
       this.trace.push(node.id);
-      const reached = ((this.state[META_KEY] ??= {}).reached ??= {});
-      reached[node.id] = (reached[node.id] ?? 0) + 1;
+      this.count(node.id);
 
       if (node.type === 'bpmn:SubProcess') {
         const scope = this.studyflow.scopes.get(node.id);
@@ -159,12 +159,25 @@ export class Session {
     return job;
   }
 
+  private count(id: string): void {
+    const reached = ((this.state[META_KEY] ??= {}).reached ??= {});
+    reached[id] = (reached[id] ?? 0) + 1;
+  }
+
+  /** Follows the flow `node` leaves by, counting it; the node it leads to, or `undefined` at the end of the path. */
   private advance(node: FlowNode): string | undefined {
+    const flow = this.pick(node);
+    if (!flow) return undefined;
+    this.count(flow.id);
+    return flow.targetId;
+  }
+
+  private pick(node: FlowNode): SequenceFlow | undefined {
     if (node.outgoing.length === 0) return undefined;
 
     if (this.branchingMode(node) === 'random') return this.pickRandomBranch(node);
     if (this.isExclusiveGateway(node)) return this.pickConditionBranch(node) ?? this.pickDefaultBranch(node);
-    return this.firstOutgoingTarget(node);
+    return this.studyflow.sequenceFlows.get(node.outgoing[0]);
   }
 
   private branchingMode(node: FlowNode): string | undefined {
@@ -177,40 +190,36 @@ export class Session {
     return node.type === 'bpmn:ExclusiveGateway' || node.type === 'bpmn:InclusiveGateway';
   }
 
-  private firstOutgoingTarget(node: FlowNode): string | undefined {
-    return this.studyflow.sequenceFlows.get(node.outgoing[0])?.targetId;
-  }
-
   /** Seeded, each visit draws from the seed, the gateway and the visit number (this one included), as run.py does. */
-  private pickRandomBranch(node: FlowNode): string | undefined {
-    const targets = node.outgoing
-      .map((id) => this.studyflow.sequenceFlows.get(id)?.targetId)
-      .filter((t): t is string => !!t);
-    if (targets.length === 0) return undefined;
+  private pickRandomBranch(node: FlowNode): SequenceFlow | undefined {
+    const flows = node.outgoing
+      .map((id) => this.studyflow.sequenceFlows.get(id))
+      .filter((flow): flow is SequenceFlow => !!flow?.targetId);
+    if (flows.length === 0) return undefined;
     const visit = this.trace.filter((id) => id === node.id).length;
     const u = this.seed != null ? draw(this.seed, node.id, visit) : Math.random();
-    return targets[Math.floor(u * targets.length)];
+    return flows[Math.floor(u * flows.length)];
   }
 
-  private pickConditionBranch(node: FlowNode): string | undefined {
+  private pickConditionBranch(node: FlowNode): SequenceFlow | undefined {
     for (const flowId of node.outgoing) {
       const flow = this.studyflow.sequenceFlows.get(flowId);
       if (flow?.conditionExpression
         && this.evalCondition(flow.conditionExpression, flowId, flow.conditionLanguage)) {
-        return flow.targetId;
+        return flow;
       }
     }
     return undefined;
   }
 
   /** No condition held: the default flow, else the one flow without a condition; else the run stops, as run.py's does. */
-  private pickDefaultBranch(node: FlowNode): string {
+  private pickDefaultBranch(node: FlowNode): SequenceFlow {
     const byDefault = this.studyflow.sequenceFlows.get(node.businessObject?.default?.id);
-    if (byDefault) return byDefault.targetId;
+    if (byDefault) return byDefault;
     const otherwise = node.outgoing
       .map((id) => this.studyflow.sequenceFlows.get(id))
       .filter((flow) => flow && !flow.conditionExpression);
-    if (otherwise.length === 1) return otherwise[0]!.targetId;
+    if (otherwise.length === 1) return otherwise[0]!;
     throw new Error(
       `No condition held at '${node.id}', and it has no default flow `
       + `${otherwise.length > 1 ? `but ${otherwise.length} flows without a condition` : 'and no flow without a condition'}. `

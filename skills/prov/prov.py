@@ -7,7 +7,6 @@ and overrides `log_event` and `shown` with its own; the runtime refuses to run w
 from __future__ import annotations
 
 import getpass
-import hashlib
 import html
 import json
 import logging
@@ -41,7 +40,7 @@ def local(element: ET.Element) -> str:
 PROV_TIMELINE = "https://w3id.org/studyflow/prov"
 
 
-TIMELINE_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "commit", "note")
+TIMELINE_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "plan", "commit", "note")
 
 
 def bind_prefix(xml: str, uri: str, preferred: str) -> tuple[str, str]:
@@ -221,10 +220,6 @@ def invalidated_elements(studyflow) -> list[str]:
     return marked
 
 
-def digest_of(data: bytes) -> str:
-    return "sha256:" + hashlib.sha256(data).hexdigest()
-
-
 def current_user() -> str:
     try:
         return getpass.getuser()
@@ -235,14 +230,16 @@ def current_user() -> str:
 class RunRecord:
     def __init__(
         self,
-        plan: str,
+        plan_digest: str | None,
         seed: str | None,
         started: datetime,
         run: str = "",
         who: str = "",
         tool: str = "studyflow-run-local.py",
     ) -> None:
-        self.plan_digest = digest_of(plan.encode())
+        # The protocol's digest as `studyflow run` computed it (core's `protocolDigest`): the study minus its state,
+        # its provenance and its drawing. None when the runtime is started without the CLI.
+        self.plan_digest = plan_digest
         self.seed = seed
         self.started = started
         self.run = run
@@ -284,7 +281,7 @@ class RunRecord:
 
     def header(self) -> dict:
         return {
-            "studyflow": self.plan_digest,
+            "plan": self.plan_digest,
             "run": self.run,
             "seed": self.seed,
             "who": self.who,

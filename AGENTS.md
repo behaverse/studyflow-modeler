@@ -17,10 +17,10 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 
 | Path | What |
 | --- | --- |
-| `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles the skills' `*.moddle.yaml` (`notation/`), attribute access on one element (`element/`). No React. |
+| `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles the skills' `*.moddle.yaml` (`notation/`), attribute access on one element (`element/`), and the checks `validate` and `run` apply (`checks/`). No React. |
 | `packages/canvas` | The SVG canvas. `src/index.ts` is all the modeler may import. |
 | `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a module `src/commandBus.ts` lists (a feature's `commands.ts`, and `diagram/save.ts`). |
-| `packages/cli` | The `studyflow` CLI. `run` hands a local study to `skills/local/run.py`. |
+| `packages/cli` | The `studyflow` CLI. `run` checks the plan, then hands a local study to `skills/local/run.py` with the protocol's digest. |
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
 | `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (a moddle package in `*.moddle.yaml`, its palette templates included), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
 | `skills/browser` | The browser runtime, served at `/run/`. |
@@ -38,7 +38,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 
 ## Tests
 
-- A spec lives next to the code it tests, in `packages/core/tests`, `packages/canvas/tests`, `packages/desktop/tests` or `skills/<name>/tests`. `tests/` holds the modeler's specs, every e2e spec, and the helpers they share: `schemas.ts` (`freshModdle()`; importing it installs the shipped catalog), `utils.ts` (the shipped examples, the e2e steps) and `exporterFixture.ts`.
+- A spec lives next to the code it tests, in `packages/core/tests`, `packages/canvas/tests`, `packages/desktop/tests` or `skills/<name>/tests`. `tests/` holds the modeler's specs, the CLI's, every e2e spec, and the helpers they share: `schemas.ts` (`freshModdle()`; importing it installs the shipped catalog), `utils.ts` (the shipped examples, the e2e steps) and `exporterFixture.ts`.
 - Pin a behaviour once, in the cheapest spec that sees it: a unit spec before an e2e one, the canvas through `src/index.ts` before a private helper. Look for the behaviour before adding a test, and add a row to its table rather than a near-copy.
 - An e2e spec is for what needs a browser, such as files, pickers and the UI wired end to end. One flow per feature.
 - Every shipped example gets two checks, each from one loop: its YAML is spelled the way the modeler writes it (`packages/core/tests/studyflow-yaml.unit.spec.ts`), and the canvas draws what its DI says (`packages/canvas/tests/canvas-render.unit.spec.ts`). No spec counts the examples or snapshots a drawing.

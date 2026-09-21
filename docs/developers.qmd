@@ -52,7 +52,7 @@ studyflow edit study.studyflow.png              # the desktop app: the modeler s
 
 ![What happens in one run: the file is validated first, the study's `runtime` attribute decides which runner takes it, and a Python run also leaves a repository behind.](assets/img/diagrams/run-lifecycle.svg){#fig-lifecycle fig-alt="A flowchart. An author saves a studyflow, validation gates it, and the run goes to the browser runner when runtime is browser or to the Python runner when runtime is local. The browser runner posts sessions and events, opt-in. The Python runner archives the plan into a run repository with one commit per checkpoint; per-element records let untouched steps skip on a partial re-run, and an invalidated record branches the repository at that step's parent."}
 
-`studyflow run` reads the `runtime` attribute on the study (`local` unless set) and decides where to send it, and a local run installs the study's `dependencies` into every partial runner's environment (`uv run --with`), so a runner script declares only what it needs itself: a `browser` study runs from the published `./run/` URL, and a `local` one goes to the local runners on your machine. An AI evaluation is the same walk with a model in the participant's seat (set `agentType` to `bot` on the task), so the same two runners execute it and you do not need a separate harness.
+`studyflow run` reads the `runtime` attribute on the study (`local` unless set) and decides where to send it, and a local run installs the study's `dependencies` into every partial runner's environment (`uv run --with`), so a runner script declares only what it needs itself: a `browser` study runs from the published `./run/` URL, and a `local` one goes to the local runners on your machine. An AI evaluation is the same walk with a model in the participant's seat (a pool whose `studyflow:Actor` has `actorType: llm`), so the same two runners execute it and you do not need a separate harness.
 
 ::: {layout-ncol=4}
 ![Consent, from the start event](assets/img/runner/consent.png){#fig-run-consent fig-alt="A browser screen presenting a consent document with an accept button."}
@@ -69,9 +69,9 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | Gateway | Rule |
 |:--|:--|
 | An exclusive gateway, and `cognitive:EligibilityGateway` | the first outgoing edge whose condition holds, otherwise the edge marked `default`, otherwise the one edge without a condition; with none of these the run stops |
-| `cognitive:RandomGateway` | a uniform draw over the outgoing edges, seeded from the study's `seed`, the gateway and the visit |
-| A parallel gateway | every outgoing edge; the matching join waits for all of them |
-| An inclusive gateway | every outgoing edge whose condition holds |
+| `cognitive:RandomGateway` | a draw seeded from the study's `seed`, the gateway and the visit, weighted by `allocationRatio`; `algorithm: block` deals permuted blocks (the local runtime; the browser runner, which sees one participant at a time, draws uniformly and warns) |
+| A parallel gateway | none: a pool walks one path, so `studyflow validate` reports a split as an error and `studyflow run` refuses the study |
+| An inclusive gateway | the first outgoing edge whose condition holds, as an exclusive gateway does; `studyflow validate` warns |
 
 - A runner that cannot evaluate a condition stops the run, rather than quietly taking the other branch.
 - A condition that names a value which is not in scope reports an exception, rather than evaluating to `false`.
@@ -86,10 +86,11 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
 | `bpmn:SubProcess` | - | descends; opens its own scope | walks one level in; no separate scope |
 | `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions, then `default`, then the one edge without a condition | the same rule, in Python |
-| `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | seeded uniform draw | the same draw |
+| `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | seeded uniform draw | the same draw, weighted by the ratio; permuted blocks |
 | `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | - | - | loaded and saved wherever they carry a `uri` |
 | `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | - |
-| Timers, and multi-instance markers | - | not executed | not executed |
+| Timers | - | not executed | not executed |
+| Multi-instance markers | - | not executed | one pass after another, `loopCardinality` times or once per item of `loopDataInputRef` |
 
 : What each runner does with each family of elements, and what is checked before the run starts. A dash means the runner passes that step over. {#tbl-support}
 
@@ -100,7 +101,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 
 Before it runs, a studyflow is a plan. As it runs, the record of what actually happened accumulates in the same file (this follows W3C PROV, which separates the prospective plan from the retrospective record). So "did the study deviate from the plan?" is a question you answer by diffing one file against an earlier version of itself, and there is no separate log to keep alongside it.
 
-The retrospective part lives under `state`, a tree keyed by element id (`state:` in the YAML file, a JSON string in `<studyflow:state>` in the XML). Everything the runner owns sits under `state._meta` (`META_KEY` in `@core/document`): `_meta.prov`, the run records, oldest first, and `_meta.reached.<element_id>`, incremented every time a token reaches an element and never reset. Per-element records stay on the elements. Everything else in the tree is a `bpmn:Property` value under `state.<scope_id>`, written only by data output associations. Keys starting with `_` cannot be declared.
+The retrospective part lives under `state`, a tree keyed by element id (`state:` in the YAML file, a JSON string in `<studyflow:state>` in the XML). Everything the runner owns sits under `state._meta` (`META_KEY` in `@core/document`): `_meta.prov`, the run records, oldest first, and `_meta.reached.<element_id>`, incremented every time a token reaches an element or follows a sequence flow, and never reset. Per-element records stay on the elements. Everything else in the tree is a `bpmn:Property` value under `state.<scope_id>`, written only by data output associations. Keys starting with `_` cannot be declared.
 
 | Attribute | Holds | | Action | Records |
 |:--|:--|:-:|:--|:--|
@@ -110,6 +111,7 @@ The retrospective part lives under `state`, a tree keyed by element id (`state:`
 | `with` | the tool that acted, as `name/version` | | `invalidated` | a marker voiding a named execution record |
 | `what` | element ids, or the `when` of the entry referred to | | `reused` | a step was skipped and an earlier record trusted |
 | `run`, `seed` | the run's identifier, and its root seed | | | |
+| `plan` | for `executed`, the digest of the protocol the run walked, which `studyflow validate` recomputes | | | |
 | `commit` | the commit an `executed` step's state is in | | | |
 
 These records are also what makes a partial re-run possible: the runner skips a step when its record still stands, nothing it reads was re-made during this run, its outputs are still there, and the `commit` its record names still holds what it ran with — every artifact it reads or makes, compared by git itself, and its own drawing, read back out of the plan that commit carries. So editing a step, a gateway's condition or an input file re-runs that step, and an output the worktree has lost comes back from the commit that made it rather than being recomputed. Invalidating a record cascades to everything downstream of the outputs that step re-makes.

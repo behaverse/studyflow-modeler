@@ -293,7 +293,7 @@ test.describe('reach counts and initial values', () => {
       targetRef: Excluded
 `;
 
-  test('the runner counts every visit into state._meta.reached; initial values seed the scopes', async () => {
+  test('the runner counts every visit, and every sequence flow it follows, into state._meta.reached; initial values seed the scopes', async () => {
     const studyflow = await load(REACH);
     expect(studyflow.scopes.get('Study')?.properties[0].value).toBe(0);
 
@@ -302,13 +302,19 @@ test.describe('reach counts and initial values', () => {
 
     const visited = await visits(session);
 
-    // The gateway is counted before it decides: reached 1 and 2 loop back, 3 takes the default.
+    // The gateway is counted before it decides: reached 1 and 2 loop back, 3 takes the default. The counts balance as
+    // `studyflow validate` checks: Battery's 3 came by F_A and F_Loop and left by F_B, Gate's by F_Loop and F_Out.
     expect(visited.filter((id) => id === 'Trial')).toHaveLength(3);
     expect(visited[visited.length - 1]).toBe('Excluded');
     expect(session.getState()).toEqual({
       Study: { total: 0 },
       Battery: { failed: 0 },
-      _meta: { reached: { Start: 1, Battery: 3, T_Start: 3, Trial: 3, T_End: 3, Gate: 3, Excluded: 1 } },
+      _meta: {
+        reached: {
+          Start: 1, F_A: 1, Battery: 3, T_Start: 3, F_T: 3, Trial: 3, F_T2: 3, T_End: 3, F_B: 3,
+          Gate: 3, F_Loop: 2, F_Out: 1, Excluded: 1,
+        },
+      },
     });
     expect(session.getUndeclaredVariables()).toEqual([]);
   });

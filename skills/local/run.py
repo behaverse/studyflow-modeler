@@ -33,6 +33,7 @@ pools talk only along message flows, and the walk carries every message
 from __future__ import annotations
 
 import argparse
+import bisect
 import copy
 import functools
 import itertools
@@ -325,6 +326,9 @@ class Studyflow:
                 if local(child) == "property" and name:
                     declared[name] = studyflow_attr(child, "value")
                     self.property_ids[(scope.get("id"), name)] = child.get("id")
+                elif local(child) == "multiInstanceLoopCharacteristics":
+                    # The item a pass over a list binds is a property of the activity, with no value of its own.
+                    declared.update({item.get("name"): None for item in child if local(item) == "inputDataItem" and item.get("name")})
             if declared:
                 self.properties[scope.get("id")] = declared
 
@@ -435,6 +439,20 @@ class Studyflow:
             scope = container.get("id") or ""
         return scope
 
+    def exchange(self, element: ET.Element) -> tuple[str, list[ET.Element], list[ET.Element]]:
+        """Where an activity no runner claims talks, and along which flows out and in: its own; else, when it has data
+        inputs to send, its sub-process's or pool's (`message_scope`), but only their talk with other pools, never a
+        pool's once-only message to a step elsewhere (`run_pool`). A step with nothing to send asks nothing."""
+        element_id = element.get("id") or ""
+        scope = self.message_scope(element_id)
+        outgoing, incoming = self.flows_out.get(scope, []), self.flows_in.get(scope, [])
+        if scope == element_id:
+            return scope, outgoing, incoming
+        if not any(local(child) == "dataInputAssociation" for child in element):
+            return scope, [], []
+        return (scope, [f for f in outgoing if f.get("targetRef") in self.participants],
+                [f for f in incoming if f.get("sourceRef") in self.participants])
+
     def mentions(self, text: str, element_id: str) -> bool:
         """The one staleness rule: a text touches an element when it names its id or its bound name."""
         name = self.names.get(element_id)
@@ -499,7 +517,8 @@ class Studyflow:
 class State:
     """Readable by expressions as `state`, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8`.
     `tree` is the document's `state` (docs/reference.qmd, "Run state"), reachable as `state.<element id>.<name>`;
-    the runner counts every visit in `state._meta.reached.<element id>`, study-lifetime."""
+    the runner counts every visit to an element, and every sequence flow it takes, in `state._meta.reached.<id>`,
+    study-lifetime."""
 
     def __init__(self, tree: dict | None = None) -> None:
         self.trace: list[str] = []
@@ -616,6 +635,56 @@ def draw(seed: int, gateway_id: str, visit: int) -> float:
     t = ((a ^ (a >> 15)) * (a | 1)) & mask
     t ^= (t + ((t ^ (t >> 7)) * (t | 61))) & mask
     return ((t ^ (t >> 14)) & mask) / 4294967296
+
+
+def pick(u: float, weights: list[int]) -> int:
+    """The arm a draw `u` in [0, 1) takes: over arms of equal weight `int(u * n)`, the pick every seed has always
+    made, else the first arm whose cumulative weight passes `u` times the total."""
+    if len(set(weights)) == 1:
+        return int(u * len(weights))
+    return bisect.bisect_right(list(itertools.accumulate(weights)), u * sum(weights))
+
+
+def permuted_block(seed: int | None, gateway_id: str, block: int, weights: list[int], size: int) -> list[int]:
+    """Block `block` (0-based) of a block-randomized gateway: `size` arms, each as often as its share of the ratio,
+    shuffled by Fisher-Yates on `draw(seed, "<gateway>:block<b>", i)`, or on `random.random()` unseeded."""
+    arms = [arm for arm, weight in enumerate(weights) for _ in range(size // sum(weights) * weight)]
+    for i in range(len(arms) - 1, 0, -1):
+        u = random.random() if seed is None else draw(seed, f"{gateway_id}:block{block}", i)
+        j = int(u * (i + 1))
+        arms[i], arms[j] = arms[j], arms[i]
+    return arms
+
+
+def allocation(gateway: ET.Element, ext: ET.Element, arms: int) -> tuple[str, list[int], int, str | None]:
+    """A random gateway's allocation as this runner applies it: `block` or `simple`, the arms' weights in branch order
+    (`allocationRatio`, equal without one), the block size, and a warning naming what the gateway asks for that this
+    runner does not apply (another algorithm, `stratifyBy`), else None. A ratio that does not give each branch a
+    positive whole number, or a block that cannot hold the arms in that ratio, stops the run before the walk."""
+    label = gateway.get("name") or gateway.get("id")
+    ratio = ext.get("allocationRatio") or ":".join("1" * arms)
+    parts = [part.strip() for part in ratio.split(":")]
+    if len(parts) != arms or not all(part.isdigit() and int(part) > 0 for part in parts):
+        raise SystemExit(f"'{label}' has allocationRatio {ratio!r}: it wants one positive whole number per outgoing "
+                         f"branch, in branch order, and the gateway has {arms}.")
+    weights = [int(part) for part in parts]
+    algorithm = ext.get("algorithm") or "simple"
+    size = int(ext.get("blockSize") or 4)
+    if algorithm == "block" and (size < 1 or size % sum(weights)):
+        raise SystemExit(f"'{label}' allocates in blocks of {size}, which cannot hold its {arms} arms in the ratio "
+                         f"{ratio}: make blockSize a multiple of {sum(weights)}.")
+    asked = [f"{algorithm} assignment"] if algorithm not in ("simple", "block") else []
+    if ext.get("stratifyBy"):
+        asked.append(f"stratification by '{ext.get('stratifyBy')}'")
+    equal = len(set(weights)) == 1
+    does = (f"allocates the whole cohort, in the order participants reach it, in permuted blocks of {size} that hold "
+            f"the {arms} outgoing branches {'equally' if equal else f'in the ratio {ratio}'}" if algorithm == "block" else
+            f"draws one of the {arms} outgoing branches for each participant, independently and "
+            f"{'with equal probability' if equal else f'in the ratio {ratio}'}")
+    warning = (f"'{label}' specifies {' and '.join(asked)}, which this runner does not apply: it {does}. Allocate "
+               "outside the diagram and pass the arm in as a study property, or drop the attribute so the file matches "
+               "what runs.") if asked else None
+    return "block" if algorithm == "block" else "simple", weights, size, warning
 
 
 def read_manifest(folder: Path) -> dict[str, Any]:
@@ -892,6 +961,14 @@ class PartialRunner:
         return state
 
 
+def keep_record(entry: dict, handed: dict) -> None:
+    """A hand-off's `record`, what the runner ran with (a package version, a model digest, the request as sent), merged
+    into its step's record entry and never read as a value; the walk's own keys stand."""
+    record = handed.get("record")
+    for key, value in (record.items() if isinstance(record, dict) else ()):
+        entry.setdefault(key, value)
+
+
 class Runner:
     def __init__(
         self,
@@ -906,11 +983,21 @@ class Runner:
         branched: bool = False,
         runners: dict[str, tuple[str, Path | None]] | None = None,
         debug: bool = False,
+        protocol: str | None = None,  # the protocol's digest, as `studyflow run` computed it (`--plan-digest`)
+        tool: str = "studyflow-run-local.py",
     ) -> None:
         self.studyflow = studyflow
         self.debug = debug
         self.seed = seed if seed is not None else studyflow.seed
-        self.branching = branching_modes()
+        # Each random gateway's allocation, read before the walk: one it cannot apply stops the run here.
+        branching = branching_modes()
+        self.allocations = {
+            gateway_id: allocation(gateway, ext, len(studyflow.outgoing.get(gateway_id, [])))
+            for gateway_id, gateway in studyflow.elements.items() if local(gateway) in GATEWAY_TAGS
+            for holder in gateway if local(holder) == "extensionElements"
+            for ext in holder if branching.get(ext.tag) == "random"
+        }
+        self.blocks: dict[tuple[str, int], list[int]] = {}  # (gateway, block) → its permuted arms, drawn once a run
         # Partial runners claim elements, not schemas: each is asked once which ids it will run.
         # Partial runners never open the diagram: they read `.cache/plan.json`, the plan as one JSON digest.
         handoff_plan = repo_dir / ".cache" / "plan.json"
@@ -940,9 +1027,15 @@ class Runner:
                 if live:
                     self.live.add(element_id)
         # Messages are interaction too: an element that sends or takes them never skips or replays, nor does a
-        # gateway the first message decides.
+        # gateway the first message decides, nor an unclaimed step that asks along its pool's flows.
         self.live.update(eid for eid, element in studyflow.elements.items()
-                         if eid in studyflow.flows_in or eid in studyflow.flows_out or local(element) == "eventBasedGateway")
+                         if eid in studyflow.flows_in or eid in studyflow.flows_out or local(element) == "eventBasedGateway"
+                         or (eid not in self.claimed and any(studyflow.exchange(element)[1:])))
+        # So is a pass over a list: a record keeps an element's last pass only, and each pass binds another item.
+        # ponytail: list passes only; a step inside another repeating activity still skips from its last pass's record.
+        over_lists = {eid for eid, element in studyflow.elements.items() for marker in element
+                      if local(marker) == "multiInstanceLoopCharacteristics" and any(local(c) == "loopDataInputRef" for c in marker)}
+        self.live.update(eid for eid in studyflow.elements if over_lists.intersection(self.scope_chain(eid)))
         # Everything this run writes belongs to the repo; boundary inputs are looked up in `input_sources`.
         self.repo_dir = repo_dir
         self.plan_name = plan_name
@@ -978,11 +1071,12 @@ class Runner:
         self.demanded: set[str] | None = None
         self.recorded = 0
         self.record = PROV.RunRecord(
-            studyflow.plan,
+            protocol,
             self.seed,
             started or datetime.now(timezone.utc),
             run=self.repo_dir.name,
             who=PROV.current_user(),
+            tool=tool,
         )
 
     @property
@@ -1402,15 +1496,14 @@ class Runner:
         runner = self.runner_for(element)
         if runner is not None:
             return self.execute_via_runner(element, entry, runner)
-        element_id = element.get("id") or ""
-        outgoing, incoming = self.studyflow.flows_out.get(element_id, []), self.studyflow.flows_in.get(element_id, [])
+        scope, outgoing, incoming = self.studyflow.exchange(element)
         if outgoing or incoming:
             # Unclaimed, an activity exchanges messages itself: it sends its data inputs along each flow out of it,
             # then takes the next message along a flow into it as its result. A send, a receive, or both: a request.
             for flow in outgoing:
                 self.send(flow, self.inputs_of(element), in_reply_to=self.answering(flow))
             if incoming:
-                self.bind_result(element, self.receive(element_id)["content"])
+                self.bind_result(element, self.receive(scope, incoming)["content"])
             return
         if implementation:
             scheme = implementation.split("://", 1)[0] if "://" in implementation else implementation
@@ -1424,7 +1517,8 @@ class Runner:
         )
 
     def execute_via_runner(self, element: ET.Element, entry: dict, runner: PartialRunner) -> None:
-        """One hand-off: state in, updated state out; what the runner bound or changed is adopted here."""
+        """One hand-off: state in, updated state out; what the runner bound or changed is adopted here, and what it
+        says it ran with (`record`) joins the step's entry."""
         element_id = element.get("id")
         entry["implementation"] = element.get("implementation") or f"runner://{runner.name}"
         self.event("runner.called", f"    → the {runner.name} runner takes this element")
@@ -1444,6 +1538,7 @@ class Runner:
         talks = talking in flow.flows_in or talking in flow.flows_out
         reported = runner.element(element_id, sent, pump=self.pump(element_id, talking) if talks else None)
         entry["_runnerMs"] = reported.get("durationMs")
+        keep_record(entry, reported)
         with self.lock:
             for key, value in reported.items():
                 if key == "state" and isinstance(value, dict):
@@ -1457,7 +1552,7 @@ class Runner:
                                 raise ValueError(f"{element_id} writes {', '.join(written)}, which the Parameters wired "
                                                  f"into {scope} set, so nothing inside it writes them")
                             self.state.tree.setdefault(scope, {}).update(held)
-                elif key not in ("result", "durationMs", "error") and sent.get(key, ...) != value:
+                elif key not in ("result", "durationMs", "error", "record") and sent.get(key, ...) != value:
                     self.store(key, value)
         for data_id, uri in absent.items():
             path = self.repo_dir / uri
@@ -1479,6 +1574,16 @@ class Runner:
                 self.produced[target_id] = self.moment()
                 self.event("artifact.saved", f"    ▤ save {uri}  {human_bytes(path.stat().st_size)}")
 
+    def count(self, element_id: str) -> None:
+        """One more token at an element, or along a sequence flow: `state._meta.reached.<id>`, study-lifetime."""
+        reached = self.state.tree.setdefault("_meta", {}).setdefault("reached", {})
+        reached[element_id] = reached.get(element_id, 0) + 1
+
+    def follow(self, flow: ET.Element) -> ET.Element | None:
+        """Take a sequence flow: counted like a visit, so a node is reached as often as its incoming flows are taken."""
+        self.count(flow.get("id"))
+        return self.studyflow.elements.get(flow.get("targetRef"))
+
     def next_element(self, element: ET.Element) -> ET.Element | None:
         element_id = element.get("id")
         flows = self.studyflow.outgoing.get(element_id, [])
@@ -1486,8 +1591,6 @@ class Runner:
             return None
 
         if local(element) in GATEWAY_TAGS:
-            branching = next((self.branching[ext.tag] for holder in element if local(holder) == "extensionElements"
-                              for ext in holder if ext.tag in self.branching), None)
             # A clean gateway replays its recorded decision: same inputs, same seed, same verdict.
             # An edited condition changes its fingerprint, so the edit is what forces re-evaluation.
             # A gateway a live runner samples decides live, so its decision never replays.
@@ -1501,7 +1604,7 @@ class Runner:
                         f"↻ {element_id} → {prior['what']}  (decision from run {prior['run']})",
                     )
                     self.note_reuse(element_id, prior, f"skipped {element_id} ({prior['what']}, run {prior['run']})")
-                    return self.studyflow.elements.get(flow.get("targetRef"))
+                    return self.follow(flow)
             entry = self.record.begin(element_id, self.studyflow.name_of(element_id), bpmn_type(element))
 
             def take(flow: ET.Element, how: str, **marks: bool) -> ET.Element | None:
@@ -1515,7 +1618,7 @@ class Runner:
                     f"executed {element_id}: {flow.get('id')}", when,
                     {"Prov-Action": "executed", "Prov-Node": element_id, "Prov-What": flow.get("id")},
                 )
-                return self.studyflow.elements.get(flow.get("targetRef"))
+                return self.follow(flow)
 
             if local(element) == "eventBasedGateway":
                 self.event("event.waiting", f"    (waiting for the first message along {len(flows)} branches)")
@@ -1528,15 +1631,24 @@ class Runner:
                     self.record.fail(entry, error)
                     raise
 
-            if branching == "random":
+            if element_id in self.allocations:
                 # Seeded, each visit draws from the seed, the gateway and the visit number, as the browser runner does.
                 # The count is `_meta.reached`, study-lifetime: each turn of a loop and each re-run draws again.
-                visits = (self.state.tree.get("_meta") or {}).get("reached") or {}
+                algorithm, weights, size, _ = self.allocations[element_id]
+                visit = ((self.state.tree.get("_meta") or {}).get("reached") or {}).get(element_id, 1)
                 try:
-                    u = draw(int(self.seed), element_id, visits.get(element_id, 1))
+                    seed = int(self.seed)
                 except (TypeError, ValueError):
-                    u = random.random()  # unseeded: a re-run replays the recorded decision instead
-                return take(flows[int(u * len(flows))], "drawn", random=True)
+                    seed = None  # unseeded: `random.random()`, and a re-run replays the recorded decision instead
+                if algorithm == "block":
+                    # Visit v sits at (v - 1) % size in block (v - 1) // size; a block is shuffled once, so it stays balanced.
+                    block, position = divmod(visit - 1, size)
+                    if (element_id, block) not in self.blocks:
+                        self.blocks[(element_id, block)] = permuted_block(seed, element_id, block, weights, size)
+                    arm = self.blocks[(element_id, block)][position]
+                else:
+                    arm = pick(random.random() if seed is None else draw(seed, element_id, visit), weights)
+                return take(flows[arm], "drawn", random=True)
 
             bindings: dict[str, Any] = {}
             runner = self.runner_for(element)
@@ -1545,6 +1657,7 @@ class Runner:
                 self.event("runner.called", f"    {runner.name} samples for {element_id}")
                 sampled = runner.element(element_id, self.json_values())
                 entry["_runnerMs"] = sampled.get("durationMs")
+                keep_record(entry, sampled)
                 bindings = sampled.get("result") or {}
                 if bindings:
                     entry["bindings"] = bindings
@@ -1590,7 +1703,7 @@ class Runner:
             )
             return None
 
-        return self.studyflow.elements.get(flows[0].get("targetRef"))
+        return self.follow(flows[0])
 
     def debug_state(self, element_id: str) -> None:
         """--debug: every element leaves `<id>.state.json` in `.cache/`, the updated state with its
@@ -1621,7 +1734,7 @@ class Runner:
         log_event("run.started", name)
         log_event(
             "run.started",
-            f"  [{study.get('id')}]  studyflow {self.record.plan_digest}"
+            f"  [{study.get('id')}]  plan {self.record.plan_digest or '(no digest: not started by studyflow run)'}"
             f"  rootSeed {self.record.seed}  repo {self.repo_dir}",
             level=logging.DEBUG,
         )
@@ -1631,6 +1744,9 @@ class Runner:
                 f"  {name} names more than one element, or is also an id: `{{{name}.…}}` cites nothing until it is unique",
                 level=logging.WARNING,
             )
+        for *_, unapplied in self.allocations.values():
+            if unapplied:
+                log_event("allocation.unapplied", f"  {unapplied}", level=logging.WARNING)
         # Study-scoped properties persist across runs, so only ones the tree lacks take their `value`;
         # a plain element's properties live with the study (`Excluded (n={count})` counts across runs).
         for scope in self.studyflow.properties:
@@ -1712,6 +1828,7 @@ class Runner:
             try:
                 answered = runner.element(pool, {**self.json_values(), "message": message})
                 entry["_runnerMs"] = answered.get("durationMs")
+                keep_record(entry, answered)
                 reply = answered.get("result")
                 if isinstance(reply, str):
                     entry["reply"] = reply[:2000]  # what the pool said, kept with the run's records
@@ -1730,10 +1847,11 @@ class Runner:
         if back is not None:
             self.send(back, reply, in_reply_to=message["id"])
 
-    def receive(self, element_id: str) -> dict:
-        """The next message along a flow into the element, waited for. A message at a boundary event of an activity
-        around it ends the wait, and so does a failed pool, or senders that have nothing left to send."""
-        flows = self.studyflow.flows_in.get(element_id, [])
+    def receive(self, element_id: str, flows: list[ET.Element] | None = None) -> dict:
+        """The next message along a flow into the element (or along `flows`, those it inherits), waited for. A message
+        at a boundary event of an activity around it ends the wait, and so does a failed pool, or senders that have
+        nothing left to send."""
+        flows = self.studyflow.flows_in.get(element_id, []) if flows is None else flows
         with self.arrived:
             while True:
                 self.check_interrupt()
@@ -1865,9 +1983,12 @@ class Runner:
         return run
 
     def perform(self, element: ET.Element, depth: int, max_steps: int) -> ET.Element | None:
-        """An activity, pass after pass while its loop marker asks for another. A message at one of its boundary
-        events ends it at the next step, and once it is done a conditional boundary event whose condition now holds
-        ends it too; that event is returned for the walk to go on from."""
+        """An activity, pass after pass while its loop marker asks for another, or once per item of the list its
+        multi-instance marker names: each such pass binds its item under the `inputDataItem`'s name in the activity's
+        own scope, and what that scope holds under the `outputDataItem`'s name after the pass joins the list stored
+        into `loopDataOutputRef`. A message at one of its boundary events ends it at the next step, and once it is
+        done a conditional boundary event whose condition now holds ends it too; that event is returned for the walk
+        to go on from."""
         element_id = element.get("id") or ""
         watching = self._thread.__dict__.setdefault("watching", [])
         watching.append((element_id, {
@@ -1878,17 +1999,31 @@ class Runner:
         try:
             passes = 0
             repeats = any(local(child) in LOOP_TAGS for child in element)
-            while self.loops_again(element, passes):
+            listed = self.loop_list(element)
+            items, item, output, into = listed or ([], None, None, None)
+            outputs: list[Any] = []
+            while (passes < len(items)) if listed else self.loops_again(element, passes):
                 passes += 1
                 if passes > max_steps:
                     raise RuntimeError(f"{element_id}: loop budget exhausted — does its loop ever end?")
                 if repeats:
                     # Which pass this is, for whatever runs inside: `state._meta.instance.<id>`, 1-based.
                     self.state.tree.setdefault("_meta", {}).setdefault("instance", {})[element_id] = passes
+                if listed:
+                    # The pass's item in the activity's own scope, `{C}` to the steps inside, and no output yet.
+                    held = self.state.tree.setdefault(element_id, {})
+                    if item:
+                        held[item] = items[passes - 1]
+                    held.pop(output, None)
                 if local(element) in CONTAINER_TAGS:
                     self.walk_container(element, depth, max_steps)
                 else:
                     self.run_activity(element)
+                if listed:
+                    outputs.append((self.state.tree.get(element_id) or {}).get(output))
+            if into:
+                self.store(into, outputs)
+                self.tainted.add(into)  # re-made each run, so a recorded step that reads it runs again
         except Interrupted as interrupt:
             if interrupt.activity != element_id:
                 raise
@@ -1921,10 +2056,33 @@ class Runner:
                 return boundary
         return None
 
+    def loop_list(self, element: ET.Element) -> tuple[list, str | None, str | None, str | None] | None:
+        """What a multi-instance marker whose `loopDataInputRef` names a list runs over, read once as the activity
+        starts: the items (a property's, its declared `value` until a data edge writes one, or the value a data object
+        holds this run), the names its `inputDataItem` and `outputDataItem` give a pass's item and output in the
+        activity's own scope, and the element its `loopDataOutputRef` names. None for any other activity."""
+        marker = next((c for c in element if local(c) == "multiInstanceLoopCharacteristics"), None)
+        parts = {local(c): c for c in (marker if marker is not None else ())}
+        source = text_of(parts.get("loopDataInputRef"))
+        if source is None:
+            return None
+        declared = self.property_scope(source)
+        if declared:
+            scope, name = declared
+            held = self.state.tree.get(scope) or {}
+            items = held[name] if name in held else literal(self.studyflow.properties[scope][name])
+        else:
+            items = self.values.get(source)
+        if not isinstance(items, list):
+            raise RuntimeError(f"{element.get('id')} runs once per item of {source}, which holds no list this run")
+        named = [parts[tag].get("name") if tag in parts else None for tag in ("inputDataItem", "outputDataItem")]
+        return items, *named, text_of(parts.get("loopDataOutputRef"))
+
     def loops_again(self, element: ET.Element, passes: int) -> bool:
         """Whether an activity takes another pass after `passes`: once without a loop marker; with a standard loop
         marker, while its `loopCondition` holds (tested first when `testBefore`), up to `loopMaximum`, and with no
-        condition until a boundary event ends it; with a multi-instance marker, `loopCardinality` times."""
+        condition until a boundary event ends it; with a multi-instance marker, `loopCardinality` times (one over a
+        list runs once per item instead, `loop_list`)."""
         instances = next((c for c in element if local(c) == "multiInstanceLoopCharacteristics"), None)
         if instances is not None:
             # ponytail: the instances run one after another, whichever way `isSequential` reads, so the parallel
@@ -1987,8 +2145,7 @@ class Runner:
                 self.depth = depth
                 element_id = element.get("id")
                 self.state.trace.append(element_id)
-                reached = self.state.tree.setdefault("_meta", {}).setdefault("reached", {})
-                reached[element_id] = reached.get(element_id, 0) + 1
+                self.count(element_id)
                 with self.arrived:
                     self.check_interrupt()
                 tag = local(element)
@@ -2029,6 +2186,7 @@ class Runner:
                             self.event("event.waiting", f"◐ {element_id}  (waiting via {runner.name})")
                             sensed = runner.element(element_id, self.json_values())
                             entry["_runnerMs"] = sensed.get("durationMs")
+                            keep_record(entry, sensed)
                             self.store(element_id, sensed.get("result"))
                         elif self.studyflow.flows_in.get(element_id):
                             # A catch event a message flow reaches waits for that message; its content is the result.
@@ -2051,7 +2209,7 @@ class Runner:
                         # The activity ended at one of its boundary events: the walk goes on from there.
                         boundary_id = boundary.get("id")
                         self.state.trace.append(boundary_id)
-                        reached[boundary_id] = reached.get(boundary_id, 0) + 1
+                        self.count(boundary_id)
                         self.reached[boundary_id] = self.moment()
                         self.event("event.reached", f"○ {boundary_id}  (ended {element_id})")
                         element = self.next_element(boundary)
@@ -2209,6 +2367,15 @@ def main() -> int:
         "--debug", action="store_true",
         help="keep the .cache folder and its hand-off state files instead of cleaning them",
     )
+    parser.add_argument(
+        "--plan-digest", default=None, metavar="SHA",
+        help="the protocol's digest, the study minus its state, provenance and drawing, recorded as the run's `plan` "
+             "(`studyflow run` computes it; core's `protocolDigest`)",
+    )
+    parser.add_argument(
+        "--tool", default="studyflow-run-local.py", metavar="NAME/VERSION",
+        help="what the run record names as the tool that ran it (`studyflow run` passes `studyflow-cli/<version>`)",
+    )
     parser.add_argument("--sim", action="store_true", help="partial runners drive a simulated robot")
     parser.add_argument("--auto", action="store_true", help="partial runners answer their prompts with canned values")
     args = parser.parse_args()
@@ -2254,9 +2421,10 @@ def main() -> int:
         "action": "executed",
         "when": timeline_timestamp(started),
         "who": who,
-        "with": "studyflow-run-local.py",
+        "with": args.tool,
         "run": run_id,
         "seed": seed,
+        "plan": args.plan_digest,
     })
     # The diagram is read before the fork below, because forking reverts the copy this may be reading from.
     # Branching has first claim on the run's branch name; a detached HEAD only attaches without one.
@@ -2301,13 +2469,14 @@ def main() -> int:
         seed=seed, fresh=args.fresh, plan_name=ran.name,
         repo=repo, branched=branched,
         runners=runners, debug=args.debug,
+        protocol=args.plan_digest, tool=args.tool,
     )
     # The trailers of a commit that stamps no element are the document stamp's own attributes.
     document_stamp = {
         "Prov-Action": "executed",
         "Prov-When": timeline_timestamp(started),
         "Prov-Who": who,
-        "Prov-With": "studyflow-run-local.py",
+        "Prov-With": args.tool,
         "Prov-Run": run_id,
         "Prov-Seed": seed,
     }

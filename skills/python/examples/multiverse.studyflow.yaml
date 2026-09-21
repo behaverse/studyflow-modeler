@@ -1,0 +1,140 @@
+id: multiverse_doc
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+multiverse:
+  type: Process
+  documentation: |
+    A specification curve in its smallest form: one estimator, one data set,
+    one analytic choice left open, and every value of that choice scored.
+
+    The choice here is the regularization strength `C` of a support vector
+    classifier on scikit-learn's digits. The values it may take are the
+    study's own `cs` property, and `each_c` carries BPMN's multi-instance
+    marker over that list: it runs once per value, binds the value as its
+    `C`, and after each pass takes what its `score` property holds. The
+    marker collects those, in the order of the list, into the study's
+    `scores` property, so the curve is a value of the run rather than a
+    table someone assembles afterwards.
+
+    Nothing is computed by code of the study's own: loading the data,
+    building the estimator and scoring it are library calls, named by their
+    `python://` paths.
+  extensionElements:
+    - type: studyflow:Study
+      seed: 42
+      dependencies:
+        - scikit-learn>=1.4
+  name: multiverse
+  properties:
+    cs:
+      name: cs
+      value: "[0.1, 1, 10]"
+    features:
+      uri: features.joblib
+      name: features
+    labels:
+      uri: labels.joblib
+      name: labels
+    scores:
+      name: scores
+  flowElements:
+    start:
+      type: StartEvent
+      name: start
+      bounds: 80 252 36 36
+    load_digits:
+      type: ServiceTask
+      documentation: >-
+        `load_digits(return_X_y=True)`: the 8x8 images as 64 features, and the digit each shows. One call fills both
+        properties, each output taking its half of the pair.
+      name: load_digits
+      dataOutputAssociations:
+        Out_Features:
+          targetRef: features
+          transformation: result[0]
+        Out_Labels:
+          targetRef: labels
+          transformation: result[1]
+      additionalArguments:
+        return_X_y: true
+      implementation: python://sklearn.datasets.load_digits
+      bounds: 156 230 120 80
+    each_c:
+      type: SubProcess
+      documentation: >-
+        One universe per value of `cs`: the value is this sub-process's `C` while a pass runs, and the pass's `score`
+        joins `scores` when it ends.
+      name: each_c
+      properties:
+        score:
+          name: score
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
+        loopDataInputRef: cs
+        loopDataOutputRef: scores
+        inputDataItem:
+          id: each_c_C
+          name: C
+        outputDataItem:
+          id: each_c_score
+          name: score
+      flowElements:
+        universe_start:
+          type: StartEvent
+          bounds: 346 252 36 36
+        score_svc:
+          type: ServiceTask
+          documentation: >-
+            `cross_val_score(SVC(C=C), features, labels, cv=5)`: the mean of its five fold accuracies is the universe's
+            `score`.
+          name: score_svc
+          dataInputAssociations:
+            In_Features:
+              sourceRef:
+                - features
+              transformation: X
+            In_Labels:
+              sourceRef:
+                - labels
+              transformation: "y"
+          dataOutputAssociations:
+            Out_Score:
+              targetRef: score
+              transformation: result.mean()
+          additionalArguments:
+            estimator:
+              implementation: python://sklearn.svm.SVC
+              arguments:
+                C: "{C}"
+            cv: 5
+          implementation: python://sklearn.model_selection.cross_val_score
+          bounds: 422 230 120 80
+        universe_end:
+          type: EndEvent
+          bounds: 582 252 36 36
+        flow_universe_score:
+          sourceRef: universe_start
+          targetRef: score_svc
+          waypoint: 382,270 422,270
+        flow_universe_end:
+          sourceRef: score_svc
+          targetRef: universe_end
+          waypoint: 542,270 582,270
+      bounds: 316 190 320 160
+      isExpanded: true
+    done:
+      type: EndEvent
+      name: done
+      bounds: 676 252 36 36
+    flow_load:
+      sourceRef: start
+      targetRef: load_digits
+      waypoint: 116,270 156,270
+    flow_each:
+      sourceRef: load_digits
+      targetRef: each_c
+      waypoint: 276,270 316,270
+    flow_done:
+      sourceRef: each_c
+      targetRef: done
+      waypoint: 636,270 676,270

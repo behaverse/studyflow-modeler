@@ -20,7 +20,7 @@ import { freshModdle } from '@tests/schemas';
 const STATE = {
   _meta: {
     prov: [{ action: 'executed', when: '2026-09-04T10:00:00Z', who: 'alice' }],
-    reached: { Battery: 1, Excluded_Pre: 4 },
+    reached: { Battery: 1, F1: 1, Excluded_Pre: 4 },
   },
   Example_Study: { arm: 'A' },
   Battery: { failed_trials: 2 },
@@ -90,6 +90,7 @@ test.describe('state in the document', () => {
       ['Excluded_Pre', 'reached', 4],
       ['Trial', 'reached', 0], // inside Battery, which was reached once; Trial itself never was
       ['Example_Study', 'reached', 0],
+      ['F1', 'reached', 1], // a sequence flow is found, and counted, like a node
       ['Excluded_Pre', 'reached.Battery', undefined],
       // `state.` reads the tree from its top, `_meta` included.
       ['Trial', 'state.Excluded_Pre.count', 3],

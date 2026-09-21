@@ -430,12 +430,19 @@ Process_State:
       name: Excluded (n={count})
       bounds: 300 120 36 36
       label: 280 160 80 14
+    Flow_1:
+      name: excluded (n={reached})
+      sourceRef: Task_1
+      targetRef: Excluded_Pre
+      waypoint: 200,140 300,138
+      label: 220 118 70 14
 state:
   Excluded_Pre:
     count: 3
   _meta:
     reached:
       Task_1: 2
+      Flow_1: 1
 `;
 
 test('a `labelText` option resolves placeholders in drawn labels; the model keeps the raw name', async () => {
@@ -449,6 +456,9 @@ test('a `labelText` option resolves placeholders in drawn labels; the model keep
   expect(textsOf(canvas, labelId).join(' ')).toBe('Excluded (n=3)');
   // The task has no `count` in scope: its placeholder stays as written; `{reached}` resolves from `_meta.reached`.
   expect(textsOf(canvas, 'Task_1').join(' ')).toBe('Screen (n={count}, reached 2)');
+  // A sequence flow's label too, from the flow's own count.
+  const flowLabel = canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Flow_1')!.id;
+  expect(textsOf(canvas, flowLabel).join(' ')).toBe('excluded (n=1)');
   // Serialization is untouched.
   expect(definitions.rootElements[0].flowElements[1].name).toBe('Excluded (n={count})');
 

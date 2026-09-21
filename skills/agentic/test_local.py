@@ -1,7 +1,12 @@
-"""One check for what the runner plays and what it sends; run it with `python3 skills/agentic/test_local.py`."""
+"""One check for what the runner plays, what it sends, and what it records; run it with
+`python3 skills/agentic/test_local.py`."""
 
 import importlib.util
+import json
+import os
+import sys
 import tempfile
+import urllib.error
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("agentic", Path(__file__).with_name("local.py"))
@@ -57,4 +62,55 @@ with tempfile.TemporaryDirectory() as run:
     # reached counts 0 rather than borrowing its container's count.
     assert agentic.parts_of({"Arm": None}, plan, Path(run), values, "Study")[0]["text"].startswith("Be impulsive.")
     assert agentic.resolve("reached", "Subject", values, plan) == 0
+
+# A hand-off hands back, beside the reply, a record of what answered and what it was asked: the model's digest and
+# quantization, its default sampling parameters, Ollama's version, the options sent, and the request's text and images.
+# No network: the HTTP helpers answer as Ollama and the Messages API would.
+TAGS = {"models": [{"name": "gemma4:12b-it-qat", "digest": "ab12", "details": {"quantization_level": "Q4_0"}}]}
+
+
+def post(url, body, headers, timeout):
+    if url.endswith("/api/chat"):
+        return {"message": {"content": "Left"}}
+    if url.endswith("/api/show"):
+        return {"parameters": "temperature 1\ntop_k 64"}
+    return {"model": "claude-haiku-4-5-20251001", "content": [{"type": "text", "text": "Right"}]}
+
+
+def get(url, timeout):
+    return TAGS if url.endswith("/api/tags") else {"version": "0.12.3"}
+
+
+agentic.post, agentic.get = post, get
+with tempfile.TemporaryDirectory() as run:
+    cache = Path(run) / ".cache"
+    cache.mkdir()
+    (cache / "plan.json").write_text(json.dumps({"elements": {
+        "Model": elements["Model"], "M_Ask": {"type": "messageFlow", "attributes": {"sourceRef": "Task", "targetRef": "Model"}}}}))
+    content = {"Note": "left is yellow", "Frame": "data:image/png;base64,AAAA", "Trial": {"n": 1}}
+    (cache / "Model.state.json").write_text(json.dumps({"message": {"id": "m1", "flow": "M_Ask", "content": content}}))
+    sys.argv = ["local.py", str(cache / "plan.json"), "--element", "Model", "--cache", str(cache)]
+    assert agentic.main() == 0
+    handed = json.loads((cache / "Model.state.json").read_text())
+    assert handed["result"] == "Left" and handed["record"] == {
+        "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False}, "digest": "ab12", "quantization": "Q4_0",
+        "parameters": "temperature 1\ntop_k 64", "version": "ollama 0.12.3",
+        "sent": {"text": 'left is yellow\n\n{"n": 1}', "images": 1},
+    }, handed
+
+
+# A lookup that fails is noted, and the answer stands.
+def unreachable(url, timeout):
+    raise urllib.error.URLError("connection refused")
+
+
+agentic.get = unreachable
+reply, record = agentic.ask_ollama("gemma4:12b-it-qat", [{"text": "Left or Right?"}])
+assert reply == "Left" and "digest" not in record and set(record["unrecorded"]) == {"/api/tags", "/api/version"}, record
+assert record["parameters"] == "temperature 1\ntop_k 64", record
+
+# Claude: the model asked for, the model the response names, and the options sent.
+os.environ.setdefault("ANTHROPIC_API_KEY", "not used: the helpers answer")
+assert agentic.ask_claude("claude-haiku-4-5", [{"text": "Left or Right?"}]) == (
+    "Right", {"model": "claude-haiku-4-5", "responseModel": "claude-haiku-4-5-20251001", "options": {"max_tokens": 1024}})
 print("ok")

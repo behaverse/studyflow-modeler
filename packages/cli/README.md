@@ -29,6 +29,8 @@ studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.yaml --from <ref>  
 studyflow run skills/reachy/examples/reachy_session.studyflow.yaml --auto        # every task answered by a bot
 ```
 
+`validate` checks the plan: it is sound (each step on a path from a start event to an end event), it splits only where the reference runners can follow (one path per pool), and a step reading data bound to a schema names only that schema's columns. In a file a run has stamped, it also checks that the counts balance at every node and that the protocol is still the one the run recorded: the digest `studyflow info` shows. `run` does not start a study that fails a plan check, and hands the local runtime the digest (`--plan-digest`) and itself (`--tool studyflow-cli/<version>`) for the run record.
+
 `studyflow <command> --help` lists the options. Behaverse (Unity) tasks need the WebGL build at `UNITY_BUILD_PATH`; in a checkout, the `assessment-unity` repo beside this one is found by itself. How a skill executes elements is in [skills/local/SKILL.md](../../skills/local/SKILL.md).
 
 ## Release
