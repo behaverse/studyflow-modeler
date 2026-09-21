@@ -3,6 +3,9 @@ import { loadAllSchemas } from '@core/notation/loader';
 import { shouldRecordEvents, setRecordEvents } from '@core/settings';
 import { clearDiagramHandoff, readDiagramHandoff } from '@core/storage';
 import { readParameters, resolveRunSource } from '@runner/source';
+import { describeForDebug, isDebug } from '@runner/debug';
+import { DebugPanel } from '@runner/nodes/DebugPanel';
+import { readSubjectId, withSubjectSeed } from '@runner/subject';
 import { Studyflow } from '@runner/studyflow';
 import { Session } from '@runner/session';
 import type { Job } from '@runner/jobs';
@@ -87,6 +90,11 @@ function NodeRenderer({ job, session, log, onResolve }: NodeRendererProps) {
 
   if (!def) return null;
 
+  // One interception rather than a branch inside every heavy node.
+  if (def.heavy && isDebug()) {
+    return <DebugPanel card={describeForDebug(job.node, def.type)} onContinue={complete} />;
+  }
+
   const Component = def.Component;
   return <Component {...({ job, session, log, complete, abort } as NodeProps<any>)} />;
 }
@@ -111,7 +119,10 @@ export function Runner() {
   const { source, handoffId, parameters } = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     const found = resolveRunSource(params.get('diagram') ?? '', DEMOS);
-    return { source: found, handoffId: found?.kind === 'handoff' ? found.id : '', parameters: readParameters(params) };
+    // A subject id fixes the seed, so the same participant always draws the
+    // same arm at every gateway. An explicit `seed=` still wins.
+    const given = withSubjectSeed(readParameters(params));
+    return { source: found, handoffId: found?.kind === 'handoff' ? found.id : '', parameters: given };
   }, []);
   const dataServerConfig = loadDataServerConfig();
 
@@ -204,7 +215,8 @@ export function Runner() {
         const schemas = await loadAllSchemas();
         const studyflow = await Studyflow.parse(xml, schemas, parameters);
         const { values, overridden, undeclared, unbound } = studyflow.parameters;
-        const agentId = `anon-${crypto.randomUUID().slice(0, 8)}`;
+        // A subject id names the run in the record too, not only its allocation.
+        const agentId = readSubjectId(parameters) ?? `anon-${crypto.randomUUID().slice(0, 8)}`;
         const session = new Session(studyflow, {
           seed: studyflow.seed,
           agentId,

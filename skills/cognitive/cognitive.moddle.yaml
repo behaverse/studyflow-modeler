@@ -83,6 +83,36 @@ enumerations:
         value: nasa-tlx
       - name: SF-36 (health-related quality of life)
         value: sf-36
+      - name: CFQ (everyday cognitive failures)
+        value: cfq
+      - name: ARCES (attention-related cognitive errors)
+        value: arces
+      - name: MAAS (mindful attention awareness)
+        value: maas
+      - name: ACS (attentional control)
+        value: acs
+      - name: MWQ (mind wandering)
+        value: mwq
+      - name: BIS-11 (impulsiveness)
+        value: bis-11
+      - name: BIS/BAS (behavioral inhibition and activation)
+        value: bis-bas
+      - name: UPPS-P (impulsive behavior)
+        value: upps-p
+      - name: ERQ (emotion regulation)
+        value: erq
+      - name: REI (rational-experiential thinking style)
+        value: rei
+      - name: NCS (need for cognition)
+        value: ncs
+      - name: Grit (perseverance and passion)
+        value: grit
+      - name: MMI (media multitasking index)
+        value: mmi
+      - name: IPAQ (physical activity)
+        value: ipaq
+      - name: EHI (Edinburgh handedness inventory)
+        value: ehi
   - name: RestEyesEnum
     description: Eye condition during a rest period.
     literalValues:

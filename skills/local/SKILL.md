@@ -36,6 +36,15 @@ What comes back: `result`, `durationMs` and `error` are recorded. Any other top-
 - `names`: element ids to the names a placeholder may cite (`{Play.trials}`), one element each. A name two elements share, or one that is also an id, binds nothing.
 - Nothing is inferred: an attribute the diagram omits is absent, and its default is the runner's to know.
 
+**Re-runs.** A step is skipped when its record still stands: nothing it reads was re-made earlier in this run, its
+outputs are where it left them, and the commit its record names still holds what it ran with — every artifact it reads
+or makes, compared by git itself, and its own drawing (at a gateway, the flows it weighs too), read back out of the
+plan that commit carries. Each run leaves the BPMN it walked in its repository before its first step, under the
+archive's name or, when that is a converted copy, beside it as `<name>.bpmn`. So editing a step, a condition or a file
+it reads re-runs that step and whatever reads what it re-makes, and nothing else. An output the worktree has lost comes
+back from the commit that made it. A record naming no commit cannot be checked, so its step runs once more and leaves
+one.
+
 **Messages.** Pools talk only along message flows, and the walk carries every message: `{"id", "flow", "content", "inReplyTo"?}`.
 
 - An element no runner claims does its own. An activity sends its data inputs along each flow out of it, as a mapping of source id to value; a data element with no value this run gives its `uri`, else null, and the receiver reads it from the plan. Then, if a flow comes into it, it waits for the next message along one and takes its content as its result, into its data outputs through their `transformation`s. So a send task sends, a receive task receives, and a task with flows both ways to one pool asks it. A catch or start event with a flow into it waits for a message. A throw or end event sends one carrying null.

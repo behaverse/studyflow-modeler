@@ -131,6 +131,8 @@ async function prepare(studyflow: Studyflow, log: LogFn): Promise<Manifest | und
 registerNode<BehaverseJob, Manifest>({
   type: 'behaverse',
   match: { extensionType: BEHAVERSE_TASK_TYPE },
+  // Boots a Unity build; debug shows the task's name instead.
+  heavy: true,
   toJob: behaverseToJob,
   Component: Behaverse,
   prepare,

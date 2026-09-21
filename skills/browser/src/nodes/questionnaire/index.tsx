@@ -139,6 +139,8 @@ function Questionnaire({ job, session, log, complete }: NodeProps<QuestionnaireJ
 
 registerNode({
   type: 'questionnaire',
+  // Renders a full instrument; debug shows its name instead.
+  heavy: true,
   match: { extensionType: 'cognitive:Questionnaire' },
   toJob: (node) => ({ type: 'questionnaire', node, instrument: readString(node, 'instrument') }),
   Component: Questionnaire,

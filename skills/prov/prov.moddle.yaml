@@ -12,7 +12,7 @@ order: 2
 required: true
 xml:
   tagAlias: lowerCase
-version: '26.9.1'
+version: '26.9.2'
 
 enumerations: []
 
@@ -64,6 +64,15 @@ types:
         description: For `executed`, the root seed the run used.
         isAttr: true
         type: Integer
+        meta:
+          optional: true
+      - name: commit
+        description: >-
+          For `executed`, the commit of the run repository that holds the step as it ran: its own
+          drawing, and every artifact it read or made. A run re-runs a step whose files or drawing
+          differ from what that commit holds.
+        isAttr: true
+        type: String
         meta:
           optional: true
       - name: note

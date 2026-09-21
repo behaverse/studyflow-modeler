@@ -35,6 +35,12 @@ export interface NodeDefinition<J extends Job = Job, C = unknown> {
   match: NodeMatcher;
   toJob: (node: FlowNode) => J | null;
   Component: ComponentType<NodeProps<J>>;
+  /**
+   * This definition mounts a long screen -- a task that boots an engine, an
+   * instrument with many items. Debug (`?debug=1`) shows its name instead
+   * of running it; cheap nodes ignore the flag and run for real.
+   */
+  heavy?: boolean;
   /** Runs once per studyflow before validation; what it returns reaches this definition's validators. */
   prepare?: (studyflow: Studyflow, log: LogFn) => Promise<C | undefined>;
   /** Runs once per flow node this definition matches. */

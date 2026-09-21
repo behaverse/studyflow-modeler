@@ -41,7 +41,7 @@ def local(element: ET.Element) -> str:
 PROV_TIMELINE = "https://w3id.org/studyflow/prov"
 
 
-TIMELINE_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "note")
+TIMELINE_FIELDS = ("action", "when", "who", "with", "what", "run", "seed", "commit", "note")
 
 
 def bind_prefix(xml: str, uri: str, preferred: str) -> tuple[str, str]:
@@ -177,7 +177,10 @@ def timeline_entries(element: ET.Element) -> tuple[list[dict], list[tuple[str | 
                 continue
             action = child.get("action")
             if action == "executed" and child.get("run"):
-                executed.append({"run": child.get("run"), "when": child.get("when"), "what": child.get("what")})
+                executed.append({
+                    "run": child.get("run"), "when": child.get("when"),
+                    "what": child.get("what"), "commit": child.get("commit"),
+                })
             elif action == "invalidated":
                 markers.append((child.get("run"), child.get("what")))
     return executed, markers
@@ -419,6 +422,29 @@ class RunRepo:
             return None
         found = done.stdout.strip().splitlines()
         return found[0] if found else None
+
+    def head(self) -> str:
+        """The commit just made: what a step's record points at."""
+        done = self.git("rev-parse", "HEAD", tolerate=True)
+        return done.stdout.strip() if done is not None and done.returncode == 0 else ""
+
+    def changed_since(self, commit: str, paths: list[str]) -> bool:
+        """Whether any of `paths` differs from what `commit` holds — git's own object hashes, not ours."""
+        done = self.git("diff", "--quiet", commit, "--", *paths, tolerate=True)
+        return done is None or done.returncode != 0
+
+    def file_at(self, commit: str, path: str) -> str | None:
+        """One file as `commit` holds it; None when that commit has no such file."""
+        done = self.git("show", f"{commit}:{path}", tolerate=True)
+        return done.stdout if done is not None and done.returncode == 0 else None
+
+    def restore(self, uri: str, commit: str | None) -> bool:
+        """Put an artifact back from the commit that made it: the history is this runtime's cache.
+        A checkout, not `show`, so an LFS pointer comes back as its file."""
+        if not commit:
+            return False
+        done = self.git("checkout", commit, "--", uri, tolerate=True)
+        return done is not None and done.returncode == 0 and (self.dir / uri).exists()
 
     def executed(self) -> set[tuple[str, str]]:
         """(element, when) of every step the checked-out history executed, read from its commits' trailers."""

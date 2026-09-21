@@ -237,6 +237,19 @@ def run_stamp(moment: datetime) -> str:
     return f"{utc.strftime('%y%m%d')}{ANIMALS[int(utc.timestamp() * 1000) % len(ANIMALS)]}"
 
 
+def element_shape(node: ET.Element | None) -> list | None:
+    """One element as a comparison sees it: tag, attributes, text and children, canonical, with the prov
+    timeline left out — a run's own stamps must not differ from the plan the run before it kept. The
+    drawing (`bpmndi`) is not under the element, so moving a box changes nothing here. None for an
+    element a plan does not have, which differs from every element one does."""
+    if node is None or node.tag.startswith(f"{{{PROV.PROV_TIMELINE}}}"):
+        return None
+    children = [shape for child in node if (shape := element_shape(child)) is not None]
+    if local(node) == "extensionElements" and not children:
+        return None  # a holder left empty by the timeline it carried reads as the one a step never had
+    return [local(node), sorted((k.split("}")[-1], v) for k, v in node.attrib.items()), (node.text or "").strip(), children]
+
+
 def condition_text(flows: list[ET.Element]) -> str:
     return " ".join((c.text or "") for f in flows for c in f if local(c) == "conditionExpression")
 
@@ -888,6 +901,7 @@ class Runner:
         started: datetime | None = None,
         seed: str | None = None,
         fresh: bool = False,
+        plan_name: str = "",  # what the plan is kept as in the repository, for reading a commit's copy back
         repo: Any = None,  # prov's RunRepo, loaded at run time (`load_prov`)
         branched: bool = False,
         runners: dict[str, tuple[str, Path | None]] | None = None,
@@ -931,6 +945,7 @@ class Runner:
                          if eid in studyflow.flows_in or eid in studyflow.flows_out or local(element) == "eventBasedGateway")
         # Everything this run writes belongs to the repo; boundary inputs are looked up in `input_sources`.
         self.repo_dir = repo_dir
+        self.plan_name = plan_name
         self.input_sources = input_sources or [Path.cwd()]
         self.repo = repo
         self.branched = branched
@@ -954,6 +969,8 @@ class Runner:
         self.completed: dict[str, str] = {}
         self.reached: dict[str, str] = {}
         self.decisions: dict[str, tuple[str, str]] = {}
+        self.commits: dict[str, str] = {}  # element id → the commit holding the step as it ran, for its record
+        self._plans: dict[str, dict[str, ET.Element] | None] = {}  # a commit's plan, parsed once
         self.produced: dict[str, str] = {}
         self.staged: dict[str, str] = {}
         self.reused: dict[str, tuple[str, str]] = {}
@@ -1016,6 +1033,9 @@ class Runner:
             trailers = {"Prov-Run": self.repo_dir.name, "Prov-When": when, **(extra_trailers or {})}
             self.repo.commit(subject, trailers, when=when, body=json.dumps(steps, default=str) if steps else None)
             self.recorded = len(self.record.entries)
+            # The commit a step's record points at: what it ran with, and what it made, as git holds them.
+            if trailers.get("Prov-Action") == "executed" and trailers.get("Prov-Node"):
+                self.commits[trailers["Prov-Node"]] = self.repo.head()
 
     def store(self, element_id: str, value: Any) -> None:
         with self.lock:
@@ -1141,6 +1161,41 @@ class Runner:
                 return True
         return False
 
+    def plan_then(self, commit: str) -> dict[str, ET.Element] | None:
+        """The plan as `commit` holds it, by element id: the XML the walk ran then, which every run leaves
+        in its repository before its first step. None when that commit has none, or it will not parse."""
+        if commit not in self._plans:
+            text = self.repo.file_at(commit, self.plan_name) if self.repo else None
+            try:
+                root = ET.fromstring(text) if text else None
+            except ET.ParseError:
+                root = None
+            self._plans[commit] = None if root is None else {
+                node.get("id"): node for node in root.iter() if node.get("id")
+            }
+        return self._plans[commit]
+
+    def stale_since(self, element: ET.Element, prior: dict | None) -> bool:
+        """The step is not what the commit in its record holds: an artifact it reads or makes differs, by
+        git's own comparison, or its drawing does — its element, and at a gateway the flows it weighs.
+        A record naming no commit cannot be checked, so its step runs once more and leaves one."""
+        if prior is None:
+            return False
+        commit = prior.get("commit")
+        if not commit or self.repo is None:
+            return True
+        element_id = element.get("id") or ""
+        sources, _ = self.studyflow.activity_dependencies(element)
+        paths = sorted({uri for data_id in set(sources) | set(output_targets(element))
+                        if (uri := self.studyflow.artifact(data_id)[0])})
+        if paths and self.repo.changed_since(commit, paths):
+            return True
+        then = self.plan_then(commit)
+        if then is None:
+            return True
+        drawn = [element, *(self.studyflow.outgoing.get(element_id, []) if local(element) in GATEWAY_TAGS else [])]
+        return any(element_shape(node) != element_shape(then.get(node.get("id"))) for node in drawn)
+
     def plan_demand(self) -> set[str] | None:
         """Who has to run: taint spreads forward from what is gone; memory-only bindings pull backward."""
         if not self.prior_records:
@@ -1159,17 +1214,18 @@ class Runner:
             sources, expressions = depends.get(consumer) or (set(), "")
             return data_id in sources or flow.mentions(expressions, data_id)
 
-        # Roots re-run and taint: no surviving record, or a recorded artifact the worktree no longer has.
+        # Roots re-run and taint: no surviving record, a recorded artifact the worktree no longer has,
+        # or a step whose fingerprint no longer matches the one its record kept.
         tainting: set[str] = set()
         for element_id in depends.keys() | set(produced.values()):
-            if element_id not in self.prior_records:
+            element, prior = flow.elements[element_id], self.prior_records.get(element_id)
+            if prior is None:
                 tainting.add(element_id)
                 continue
-            for target in output_targets(flow.elements[element_id]):
-                uri, _ = flow.artifact(target)
-                if uri and not (self.repo_dir / uri).exists():
-                    tainting.add(element_id)
-                    break
+            gone = any(uri and not (self.repo_dir / uri).exists()
+                       for uri, _ in (flow.artifact(target) for target in output_targets(element)))
+            if gone or self.stale_since(element, prior):
+                tainting.add(element_id)
         # Forward: a re-made output makes every recorded consumer stale, and stale re-runs taint on.
         queue = list(tainting)
         while queue:
@@ -1218,7 +1274,8 @@ class Runner:
         return any(self.studyflow.mentions(text, tainted_id) for tainted_id in tainted)
 
     def skip_activity(self, element: ET.Element, element_id: str) -> str:
-        """Verdicts: `skipped`, `volatile` (a memory-only output someone needs), `invalid` (artifact gone)."""
+        """Verdicts: `skipped`, `volatile` (a memory-only output someone needs), `invalid` (artifact gone),
+        `changed` (the step, or something it reads or made, is not what the record kept)."""
         targets: list[str] = []
         memory = False
         for target_id in output_targets(element):
@@ -1233,16 +1290,25 @@ class Runner:
         # Consumers load values themselves (partial runners, per hand-off): existence is enough here.
         try:
             for target_id in targets:
-                self.ensure_artifact(target_id)
+                self.ensure_artifact(target_id, element_id)
         except BaseException:  # noqa: BLE001 - a failed staging means a real run
             return "invalid"
+        # Last, so the comparison reads the artifacts as staging and the history have left them.
+        if self.stale_since(element, self.prior_records.get(element_id)):
+            return "changed"
         return "skipped"
 
-    def ensure_artifact(self, element_id: str) -> None:
+    def ensure_artifact(self, element_id: str, producer: str | None = None) -> None:
         uri, _ = self.studyflow.artifact(element_id)
         path = self.repo_dir / uri
-        if not path.exists():
-            self.stage_input(uri, path)
+        if path.exists():
+            return
+        # The history is this runtime's cache: an output that left the worktree comes back from the
+        # commit that made it, rather than from a source directory that may never have held it.
+        if self.repo is not None and producer and self.repo.restore(uri, self.repo.commit_for_node(producer)):
+            self.event("artifact.restored", f"    ▤ restore {uri}  {human_bytes(path.stat().st_size)}, from run history")
+            return
+        self.stage_input(uri, path)
 
     def end_entry(self, entry: dict) -> None:
         """Close the entry; a runner-reported duration replaces ours, which includes the subprocess spawn."""
@@ -1276,6 +1342,11 @@ class Runner:
                 "activity.invalidated",
                 f"    run {prior_run}'s record superseded — an input was re-made this run",
             )
+        elif verdict == "changed":
+            self.event(
+                "activity.invalidated",
+                f"    run {prior_run}'s record superseded — the step, or what it reads, is not what {(prior.get('commit') or '?')[:8]} holds",
+            )
         entry = self.record.begin(element_id, name, bpmn_type(element))
         try:
             with captured_output(indent=self.indent):
@@ -1305,7 +1376,7 @@ class Runner:
         when = self.moment()
         self.completed[element_id] = when
         # Taint what was re-made, so recorded consumers re-run too; a `volatile` re-run taints nothing.
-        if stale or verdict == "invalid" or (prior is None and bool(self.prior_records)):
+        if stale or verdict in ("invalid", "changed") or (prior is None and bool(self.prior_records)):
             self.tainted.add(element_id)
             self.tainted.update(output_targets(element))
         self.event(
@@ -1418,10 +1489,11 @@ class Runner:
             branching = next((self.branching[ext.tag] for holder in element if local(holder) == "extensionElements"
                               for ext in holder if ext.tag in self.branching), None)
             # A clean gateway replays its recorded decision: same inputs, same seed, same verdict.
-            # A condition edit is invisible to staleness: ✕ the gateway or `--fresh` forces re-evaluation.
+            # An edited condition changes its fingerprint, so the edit is what forces re-evaluation.
             # A gateway a live runner samples decides live, so its decision never replays.
             prior = None if element_id in self.live else self.prior_records.get(element_id)
-            if prior and prior.get("what") and not self.stale_expressions(flows):
+            if (prior and prior.get("what") and not self.stale_expressions(flows)
+                    and not self.stale_since(element, prior)):
                 flow = next((f for f in flows if f.get("id") == prior["what"]), None)
                 if flow is not None:
                     self.event(
@@ -2006,9 +2078,12 @@ class Runner:
                 return action
             return action if local(self.studyflow.elements[element_id]) in STRUCTURAL else None
 
+        head = self.repo.head() if self.repo else ""
         entries = [
-            *((eid, "executed", {}) for eid in sorted(self.completed | self.reached)),
-            *((eid, "executed", {"what": flow_id}) for eid, (flow_id, _) in sorted(self.decisions.items())),
+            # An event leaves no commit of its own: its record points at where the run had reached by the end.
+            *((eid, "executed", {"commit": self.commits.get(eid) or head}) for eid in sorted(self.completed | self.reached)),
+            *((eid, "executed", {"what": flow_id, "commit": self.commits.get(eid, "")})
+              for eid, (flow_id, _) in sorted(self.decisions.items())),
             *((eid, "created", {}) for eid in sorted(self.produced)),
             *((eid, "imported", {}) for eid in sorted(self.staged)),
             *((eid, "reused", {"what": trusted}) for eid, (_, trusted) in sorted(self.reused.items())),
@@ -2041,6 +2116,11 @@ class Runner:
         )
 
 
+def bpmn_name(name: str) -> str:
+    """What the plan is called when it is kept as BPMN: the archive's own name, or its stem plus `.bpmn`."""
+    return re.sub(r"(\.studyflow)?\.[^.]*$", "", name) + ".bpmn"
+
+
 def archive(repo_dir: Path, name: str, xml: str, convert: str | None) -> Path:
     """The diagram, kept as `name` in the run repository: this BPMN itself, or what `convert <diagram.bpmn> <name>`
     makes of it (`studyflow run` hands its own `convert`, so the copy keeps the format of the study it ran)."""
@@ -2057,7 +2137,7 @@ def archive(repo_dir: Path, name: str, xml: str, convert: str | None) -> Path:
         if not failure:
             return target
         # The stamps are the run's record: kept as BPMN rather than lost with a copy that could not be made.
-        target = repo_dir / (re.sub(r"(\.studyflow)?\.[^.]*$", "", name) + ".bpmn")
+        target = repo_dir / bpmn_name(name)
         log_event("diagram.unconverted", f"  {name}: {failure} — archived as {target.name}", level=logging.WARNING)
     target.write_text(xml)
     return target
@@ -2209,11 +2289,16 @@ def main() -> int:
         archive_name, _, convert = args.archive.partition("=")
     archived = archive(repo_dir, archive_name, studyflow.plan, convert)
     log_event("diagram.archived", f"  → {shown(archived)}", level=logging.DEBUG)
+    # The XML the walk runs, kept under its own name when the archive is a converted copy: a later run reads a
+    # step's element back out of the commit its record names, and only BPMN parses here.
+    ran = repo_dir / bpmn_name(archive_name)
+    if ran != archived:
+        ran.write_text(studyflow.plan)
     runner = Runner(
         studyflow, repo_dir,
         input_sources=list(dict.fromkeys([args.studyflow.parent.resolve(), *(d.resolve() for d in args.inputs), Path.cwd()])),
         started=started,
-        seed=seed, fresh=args.fresh,
+        seed=seed, fresh=args.fresh, plan_name=ran.name,
         repo=repo, branched=branched,
         runners=runners, debug=args.debug,
     )

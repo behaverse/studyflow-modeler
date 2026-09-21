@@ -110,8 +110,9 @@ The retrospective part lives under `state`, a tree keyed by element id (`state:`
 | `with` | the tool that acted, as `name/version` | | `invalidated` | a marker voiding a named execution record |
 | `what` | element ids, or the `when` of the entry referred to | | `reused` | a step was skipped and an earlier record trusted |
 | `run`, `seed` | the run's identifier, and its root seed | | | |
+| `commit` | the commit an `executed` step's state is in | | | |
 
-These records are also what makes a partial re-run possible: the runner skips a step when its record still stands, nothing it reads was re-made during this run, and its outputs are still there. Invalidating a record cascades to everything downstream of the outputs that step re-makes.
+These records are also what makes a partial re-run possible: the runner skips a step when its record still stands, nothing it reads was re-made during this run, its outputs are still there, and the `commit` its record names still holds what it ran with — every artifact it reads or makes, compared by git itself, and its own drawing, read back out of the plan that commit carries. So editing a step, a gateway's condition or an input file re-runs that step, and an output the worktree has lost comes back from the commit that made it rather than being recomputed. Invalidating a record cascades to everything downstream of the outputs that step re-makes.
 
 ## Extending the notation
 

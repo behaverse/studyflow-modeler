@@ -427,6 +427,51 @@ S:
       expect.arrayContaining(['skipped W (run run)', 'executed A', 'executed B']),
     );
   });
+
+  test('re-runs the step whose drawing, or whose input file, has changed since its record', () => {
+    // Raw XML: this needs `studyflow:uri` on a data object and `additionalArguments` on a task.
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="P">
+    <bpmn:startEvent id="S"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Read"><bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing>
+      <bpmn:dataInputAssociation id="In_X"><bpmn:sourceRef>X</bpmn:sourceRef></bpmn:dataInputAssociation>
+    </bpmn:task>
+    <bpmn:dataObjectReference id="X" name="inputs" studyflow:uri="x.json"/>
+    <bpmn:task id="Tune"><bpmn:incoming>F2</bpmn:incoming><bpmn:outgoing>F3</bpmn:outgoing>
+      <studyflow:additionalArguments>speed: 20</studyflow:additionalArguments>
+    </bpmn:task>
+    <bpmn:endEvent id="E"><bpmn:incoming>F3</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="F1" sourceRef="S" targetRef="Read"/>
+    <bpmn:sequenceFlow id="F2" sourceRef="Read" targetRef="Tune"/>
+    <bpmn:sequenceFlow id="F3" sourceRef="Tune" targetRef="E"/>
+  </bpmn:process>
+</bpmn:definitions>`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-digest-'));
+    const repo = path.join(dir, 'run');
+    const stamped = path.join(repo, 'p.bpmn');
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.writeFileSync(path.join(dir, 'p.bpmn'), xml);
+    const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+    const run = (plan: string, ...args: string[]) => execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), plan, '--quiet', ...args], {
+      cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
+    });
+    const since = (mark: string) => git('log', '--format=%s', `${mark}..HEAD`).split('\n');
+
+    run(path.join(dir, 'p.bpmn'), '--repo', repo);
+    fs.writeFileSync(path.join(repo, 'x.json'), '[1]');  // what a run reads lives in its repository
+    run(stamped);  // the file arrived, so Read runs once more and records what it read
+
+    let mark = git('rev-parse', 'HEAD');
+    fs.writeFileSync(path.join(repo, 'x.json'), '[1, 2]');
+    run(stamped);
+    expect(since(mark)).toEqual(expect.arrayContaining(['executed Read', 'skipped Tune (run run)']));
+
+    mark = git('rev-parse', 'HEAD');
+    fs.writeFileSync(stamped, fs.readFileSync(stamped, 'utf8').replace('speed: 20', 'speed: 40'));
+    run(stamped);
+    expect(since(mark)).toEqual(expect.arrayContaining(['executed Tune', 'skipped Read (run run)']));
+  });
 });
 
 /** What a partial runner is handed: `plan.json`, the plan as one JSON digest, never the diagram. */
@@ -978,6 +1023,50 @@ A:
     expect(log.match(/stage x\.json/g)).toHaveLength(1);
   });
 
+  test('restores an output the worktree lost from the commit that made it, rather than redoing the step', () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="P">
+    <bpmn:startEvent id="S"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="Make"><bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing>
+      <bpmn:dataOutputAssociation id="Out_Y"><bpmn:targetRef>Y</bpmn:targetRef></bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:dataObjectReference id="Y" name="result" studyflow:uri="out.json"/>
+    <bpmn:endEvent id="E"><bpmn:incoming>F2</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="F1" sourceRef="S" targetRef="Make"/>
+    <bpmn:sequenceFlow id="F2" sourceRef="Make" targetRef="E"/>
+  </bpmn:process>
+</bpmn:definitions>`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-restore-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.writeFileSync(path.join(dir, 'p.bpmn'), xml);
+    // A replayable runner (`live: false`), so the second run may skip what the first one made.
+    fs.writeFileSync(path.join(dir, 'fake.py'), [
+      'import json, os, sys',
+      'mode = sys.argv[2]',
+      "if mode == '--claims': print(json.dumps({'elements': ['Make'], 'live': False}))",
+      'else:',
+      '    eid, cache = sys.argv[3], sys.argv[5]',
+      "    open(os.path.join(os.path.dirname(cache), 'out.json'), 'w').write('{\"made\": 1}')",
+      "    handoff = os.path.join(cache, eid + '.state.json')",
+      '    state = json.load(open(handoff))',
+      "    json.dump({**state, 'result': eid, 'durationMs': 0}, open(handoff, 'w'))",
+    ].join('\n'));
+    const run = (plan: string, ...args: string[]) => execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), plan, '--quiet',
+      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`, ...args], {
+      cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
+    });
+    run(path.join(dir, 'p.bpmn'), '--repo', 'run');
+    const made = path.join(dir, 'run', 'out.json');
+    fs.rmSync(made);
+    run(path.join(dir, 'run', 'p.bpmn'));
+
+    const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
+    expect(fs.readFileSync(made, 'utf8')).toBe('{"made": 1}');
+    expect(log).toContain('restore out.json');
+    expect(log).toContain('↻ Make');  // restored, not redone
+  });
+
   test('hands a step the read-only properties its sub-process takes from wired Parameters, and refuses a write to one', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -1073,6 +1162,10 @@ S:
     expect(counts.extensionElements).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'prov:Activity', action: 'imported' })]));
     // Run again from there, the study runs on in that repository.
     studyflow(kept);
-    expect(execFileSync('git', ['-C', path.join(dir, 'run'), 'log', '--format=%s'], { encoding: 'utf8' })).toMatch(/^finished[\s\S]*^finished/m);
+    const log = execFileSync('git', ['-C', path.join(dir, 'run'), 'log', '--format=%s'], { encoding: 'utf8' });
+    expect(log).toMatch(/^finished[\s\S]*^finished/m);
+    // Nothing changed, so the step is reused: the BPMN kept beside the YAML is what the commit in its record
+    // is read back as, and the round trip through YAML leaves the element it compares the same.
+    expect(log).toContain('skipped Dump (run run)');
   });
 });
