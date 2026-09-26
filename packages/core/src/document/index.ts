@@ -89,7 +89,15 @@ export async function xmlToStudyflow(xml: string, moddle: Moddle, onWarning?: (m
   const { rootElement: definitions, warnings } = await moddle.fromXML(xml);
   if (onWarning) for (const warning of warnings) onWarning(readerWarning(warning));
   inlineIoSpecification(definitions);
-  return yaml.dump(definitionsToYamlDoc(definitions), YAML_DUMP_OPTIONS);
+  return definitionsToStudyflow(definitions, onWarning);
+}
+
+/**
+ * Definitions already in the form the canvas edits, as `.studyflow.yaml` text, synchronously. `onWarning` hears each
+ * reference left out because it names an element the document does not hold; without it, nothing is said.
+ */
+export function definitionsToStudyflow(definitions: any, onWarning?: (message: string) => void): string {
+  return yaml.dump(definitionsToYamlDoc(definitions, onWarning), YAML_DUMP_OPTIONS);
 }
 
 /** What turns a file's definitions into the form the canvas edits: a process root, planes on the process, compact data associations. */

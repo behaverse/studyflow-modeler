@@ -20,7 +20,33 @@ import {
 type SerializeContext = {
   di: Map<string, Record<string, unknown>>;
   foldedIds: Set<string>;
+  /** What the document contains; a reference to anything else could not be read back. */
+  held: Set<unknown>;
+  onWarning?: (message: string) => void;
 };
+
+/** Every element `definitions` contains, as opposed to one it only references. */
+function heldElements(definitions: any): Set<unknown> {
+  const held = new Set<unknown>();
+  const visit = (el: any): void => {
+    if (!isModdleElement(el) || held.has(el)) return;
+    held.add(el);
+    for (const p of el.$descriptor?.properties ?? []) {
+      if (p.isReference) continue;
+      const value = el[p.name];
+      for (const child of Array.isArray(value) ? value : [value]) visit(child);
+    }
+  };
+  visit(definitions);
+  return held;
+}
+
+/** `ref`, unless it names an element the document does not hold: that is left out, with a warning. */
+function heldReference(el: any, key: string, ref: any, ctx: SerializeContext | undefined): any {
+  if (!ctx || !isModdleElement(ref) || ctx.held.has(ref)) return ref;
+  ctx.onWarning?.(`'${el.id ?? el.$type}' refers by ${key} to '${ref.id ?? ref.$type}', which the document does not hold; the reference was left out`);
+  return undefined;
+}
 
 function serializeValue(value: any, declaredType: string | undefined, ctx?: SerializeContext): unknown {
   if (!isModdleElement(value)) return value;
@@ -48,7 +74,8 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
       if (!Array.isArray(value) || value.length === 0) continue;
       if (p.isReference) {
         if ((key === 'incoming' || key === 'outgoing') && isImpliedFlowList(el, key, value)) continue;
-        out[key] = value.map((ref: any) => ref?.id);
+        const ids = value.map((ref: any) => heldReference(el, key, ref, ctx)?.id).filter((id: unknown) => id !== undefined);
+        if (ids.length > 0) out[key] = ids;
         continue;
       }
       const docs = inlineDocumentationEntries(value);
@@ -62,7 +89,12 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
       continue;
     }
 
-    out[key] = p.isReference ? value?.id : inlineYamlValue(value, p) ?? serializeValue(value, p.type, ctx);
+    if (p.isReference) {
+      const id = heldReference(el, key, value, ctx)?.id;
+      if (id !== undefined) out[key] = id;
+      continue;
+    }
+    out[key] = inlineYamlValue(value, p) ?? serializeValue(value, p.type, ctx);
   }
 
   for (const [name, value] of Object.entries(el.$attrs ?? {})) {
@@ -116,10 +148,13 @@ function isRedundantDiagramNode(node: Record<string, any>, redundantRootIds: Set
   return plane.bpmnElement === undefined || redundantRootIds.has(plane.bpmnElement);
 }
 
-export function definitionsToYamlDoc(definitions: any): YamlDoc {
+/** `onWarning` hears each reference left out because it names an element the document does not hold. */
+export function definitionsToYamlDoc(definitions: any, onWarning?: (message: string) => void): YamlDoc {
   const ctx: SerializeContext = {
     di: planInlineDi(definitions, (el, declaredType) => serializeElement(el, declaredType)),
     foldedIds: new Set(),
+    held: heldElements(definitions),
+    onWarning,
   };
   const serialized = serializeElement(definitions, 'bpmn:Definitions', ctx);
   const { rootElements, diagrams: _diagrams, id, ...rest } = serialized;

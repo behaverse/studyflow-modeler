@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { fromWireXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
+import { definitionsToStudyflow, fromWireXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
 import { exampleNames as examples, exampleText } from '@tests/utils';
 import { freshModdle } from '@tests/schemas';
 
@@ -369,6 +369,42 @@ diagram:
 `;
     const written = await xmlToStudyflow(await studyflowToXml(text, freshModdle()), freshModdle());
     expect(studyflowToDefinitions(written, freshModdle()).diagrams[0].plane.bpmnElement.id).toBe('P');
+  });
+
+  test('a reference to an element the document no longer holds is left out with a warning, so the file reads back', () => {
+    const definitions = studyflowToDefinitions(`id: dangling
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Split:
+      type: ExclusiveGateway
+      default: Flow_2
+    A:
+      type: Task
+    B:
+      type: Task
+    Flow_1:
+      sourceRef: Split
+      targetRef: A
+    Flow_2:
+      sourceRef: Split
+      targetRef: B
+`, freshModdle());
+    // Deleted the way a careless edit would: unfiled and unwired, but still the gateway's default.
+    const [process] = definitions.rootElements;
+    const byId = (id: string) => process.flowElements.find((el: any) => el.id === id);
+    const [split, b, flow] = [byId('Split'), byId('B'), byId('Flow_2')];
+    process.flowElements.splice(process.flowElements.indexOf(flow), 1);
+    split.outgoing.splice(split.outgoing.indexOf(flow), 1);
+    b.incoming.splice(b.incoming.indexOf(flow), 1);
+
+    const warnings: string[] = [];
+    const text = definitionsToStudyflow(definitions, (message) => warnings.push(message));
+    expect(warnings).toEqual([expect.stringMatching(/'Split' refers by default to 'Flow_2'/)]);
+    const again = studyflowToDefinitions(text, freshModdle());
+    expect(again.rootElements[0].flowElements.find((el: any) => el.id === 'Split').default).toBeUndefined();
   });
 
   test('an id two elements share is reported: a reference to it could reach only one', () => {
