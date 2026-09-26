@@ -58,6 +58,7 @@ export {
   choreographyToProcessRoot,
   isTypedChoreography,
   readChoreographyBands,
+  toWireDefinitions,
   toWireXml,
 } from '@core/document/choreography';
 export {

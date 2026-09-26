@@ -1,7 +1,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { fromWireXml, readChoreographyBands, toWireXml } from '@core/document';
+import { fromWireXml, readChoreographyBands, toWireDefinitions, toWireXml } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
 /** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */
@@ -70,6 +70,13 @@ test('save emits the BPMN 2.0 choreography shape, load folds it back, and the ro
     expect(root.extensionElements?.values?.[0]?.$type, label).toBe('studyflow:Study');
     expect(root.$attrs['studyflow:signature'], label).toBe('abc123');
   }
+});
+
+test('the save rewrite gives the same file from definitions in place as from XML', async () => {
+  const moddle = freshModdle();
+  const { rootElement: definitions } = await moddle.fromXML(CANVAS_XML);
+  toWireDefinitions(definitions);
+  expect((await moddle.toXML(definitions, { format: true })).xml).toBe(await toWireXml(CANVAS_XML, freshModdle()));
 });
 
 /** A runner stamps `prov:activity` into every element it ran; a stamp is not a type, so the task stays a plain exchange. */

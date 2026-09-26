@@ -257,6 +257,15 @@ export function headlessPlaneToProcessRoot(definitions: any): boolean {
   return true;
 }
 
+/**
+ * What saving applies to the definitions the canvas edits, in place: a pure choreography goes back to a choreography
+ * root. The inverse of `fromWireDefinitions`; a Study writes its file from a copy this way, without XML.
+ */
+export function toWireDefinitions(definitions: any): void {
+  processToChoreographyRoot(definitions);
+}
+
+/** {@link toWireDefinitions} on XML text. */
 export async function toWireXml(xml: string, moddle: Moddle): Promise<string> {
   return applyXmlPasses(xml, moddle, [processToChoreographyRoot]);
 }
