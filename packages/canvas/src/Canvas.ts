@@ -173,11 +173,8 @@ export class Canvas {
 
   /** Build the scene from `definitions` (with DI), draw it and fit the viewport. */
   importDefinitions(definitions: ModdleObject): Scene {
-    this.gestures.cancel();
-    this.labelEditing.reset();
-    this.selection.clear();
+    this.resetInteraction();
     this.selection.forget();
-    this.selection.setHovered(undefined);
     this.scene = importDefinitions(definitions, this.importOptions);
     this.mutator = new Mutator(this.scene, this.bus);
     this.drag = new Drag({
@@ -326,16 +323,21 @@ export class Canvas {
   private setScope(node: SceneNode | undefined): boolean {
     const scene = this.scene;
     if (!scene || scene.scope === node) return false;
-    this.gestures.cancel();
-    this.labelEditing.reset();
-    this.selection.clear();
-    this.selection.setHovered(undefined);
+    this.resetInteraction();
     scene.scope = node;
     this.renderer.scope = node;
     this.redrawElements(this.all());
     this.zoomToFit();
     this.bus.fire('RootSet', { element: this.getRoot() });
     return true;
+  }
+
+  /** Drop what the user was in the middle of: a gesture, the label editor, the selection and the hover. */
+  private resetInteraction(): void {
+    this.gestures.cancel();
+    this.labelEditing.reset();
+    this.selection.clear();
+    this.selection.setHovered(undefined);
   }
 
   // --- view -------------------------------------------------------------------------

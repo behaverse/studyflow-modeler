@@ -233,9 +233,9 @@ export class Renderer {
       }
       case 'task': {
         drawTask(g, node.width, node.height, style, THICK_ACTIVITY.has(node.type));
-        const scene = iconGlyph(node.businessObject);
+        const glyph = iconGlyph(node.businessObject);
         this.drawTypeIcon(g, node, iconColor);
-        drawIconText(g, scene, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
+        drawIconText(g, glyph, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
         this.drawMarkers(g, node, iconColor);
         this.drawOverlayIcons(g, node, iconColor);
         drawInternalLabel(g, node, name, INK.text);
@@ -253,20 +253,20 @@ export class Renderer {
         this.drawOverlayIcons(g, node, iconColor);
         break;
       case 'choreography': {
-        const scene = iconGlyph(node.businessObject);
+        const glyph = iconGlyph(node.businessObject);
         const typed = isTypedChoreography(node.businessObject);
         if (!typed || (prop(node.businessObject, 'participantRef') as unknown[] | undefined)?.length) {
           // Bands name the parties; the type glyph sits in the middle band, where the task's own name is.
           this.drawChoreography(g, node, style, name);
           const inner = append(g, group(0, choreographyBandHeight(node.height)));
           this.drawTypeIcon(inner, node, iconColor);
-          drawIconText(inner, scene, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
+          drawIconText(inner, glyph, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
         } else {
           // A typed one (a cognitive task) naming no party: the study's own participant takes it, and it is drawn
           // as the plain task it reads as. A plain choreography task keeps its default bands, which are its point.
           drawTask(g, node.width, node.height, style, false);
           this.drawTypeIcon(g, node, iconColor);
-          drawIconText(g, scene, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
+          drawIconText(g, glyph, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
           drawInternalLabel(g, node, name, INK.text);
         }
         this.drawOverlayIcons(g, node, iconColor);
