@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { studyflowToDefinitions, xmlToStudyflow } from '@core/document';
+import { Study } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 import { runUpdateMessage } from '@modeler/inspector/commands';
 import { messageStructureOf } from '@modeler/inspector/stateProperties';
@@ -30,15 +31,9 @@ R:
     Answer: { type: ReceiveTask }
 `;
 
-function editorOver(m: any): Editor {
-  return {
-    model: { createBusinessObject: (type: string, props?: Record<string, unknown>) => m.create(type, props ?? {}) },
-    canvas: {
-      updateModdleProperties(_el: any, target: any, props: Record<string, any>) {
-        for (const [k, v] of Object.entries(props)) target.set(k, v);
-      },
-    },
-  } as unknown as Editor;
+/** The editor the command writes through: a study of `definitions`, which it edits in place. */
+function editorOver(definitions: any): Editor {
+  return { study: Study.fromDefinitions(definitions) } as unknown as Editor;
 }
 
 test('the Message field makes one message per structure, shares it, and drops it with its last flow', async () => {
@@ -46,7 +41,7 @@ test('the Message field makes one message per structure, shares it, and drops it
   const definitions = studyflowToDefinitions(FILE, m, () => {});
   const collaboration = definitions.rootElements.find((re: any) => re.$type === 'bpmn:Collaboration');
   const [trial, answer] = collaboration.messageFlows;
-  const editor = editorOver(m);
+  const editor = editorOver(definitions);
   const roots = (type: string) => definitions.rootElements.filter((re: any) => re.$type === type);
 
   expect(messageStructureOf(trial)).toBe('');

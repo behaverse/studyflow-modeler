@@ -1,8 +1,9 @@
 import { isReservedStateKey } from '@core/document';
-import { associationPropertyFor, definitionsOf, setAttribute, setExpressionLanguage, toBusinessObject, typeForDirection } from '@core/element';
+import { associationPropertyFor, definitionsOf, setExpressionLanguage, toBusinessObject, typeForDirection } from '@core/element';
 import { isPool, nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { ensureChoreographyParticipants, isTypedChoreography } from '@core/document';
 import { getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
+import type { StudyWriter } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 
 export type UpdateAttributeCommand = {
@@ -13,7 +14,7 @@ export type UpdateAttributeCommand = {
 };
 
 export function runUpdateAttribute(modeler: Editor, command: UpdateAttributeCommand): void {
-  setAttribute(command.element, command.attributeName, command.value, modeler.canvas);
+  modeler.study.set({ id: command.element.id, attribute: command.attributeName, value: command.value });
 }
 
 export type SelectElementCommand = {
@@ -39,7 +40,8 @@ export function runUpdateExpressionLanguage(
   modeler: Editor,
   command: UpdateExpressionLanguageCommand,
 ): void {
-  setExpressionLanguage(command.element, command.attributeName, command.language, modeler.canvas);
+  const { element, attributeName, language } = command;
+  modeler.study.edit(element.id, (writer) => setExpressionLanguage(element, attributeName, language, writer));
 }
 
 
@@ -56,29 +58,31 @@ export function runUpdateChoreographyParticipants(
   modeler: Editor,
   command: UpdateChoreographyParticipantsCommand,
 ): void {
-  const { canvas, model } = modeler;
-  const bo: any = toBusinessObject(command.element);
-  const pair = ensureChoreographyParticipants(bo, model.ids);
-  if (!pair) return;
-  const [top, bottom] = pair;
+  const { element } = command;
+  modeler.study.edit(element.id, (writer) => {
+    const bo: any = toBusinessObject(element);
+    const pair = ensureChoreographyParticipants(bo, writer.ids);
+    if (!pair) return;
+    const [top, bottom] = pair;
 
-  if (command.field === 'initiator') {
-    // Written even when it stands: a pair minted just now is an edit to record.
-    canvas.updateModdleProperties(command.element, bo, { initiatingParticipantRef: command.value === 'bottom' ? bottom : top });
-    return;
-  }
+    if (command.field === 'initiator') {
+      // Written even when it stands: a pair minted just now is an edit to record.
+      writer.set(bo, { initiatingParticipantRef: command.value === 'bottom' ? bottom : top });
+      return;
+    }
 
-  if ('select' in command) {
-    selectBandParticipant(command.element, canvas, model.ids, command.field, command.select);
-    return;
-  }
-  const participant = command.field === 'top' ? top : bottom;
-  // A typed task's actor that is a drawn pool keeps its name: typing another names a new actor for this task.
-  if (isTypedChoreography(bo) && isPool(participant, canvas)) {
-    nameNewActor(command.element, canvas, model.ids, command.value);
-    return;
-  }
-  canvas.updateModdleProperties(command.element, participant, { name: command.value });
+    if ('select' in command) {
+      selectBandParticipant(element, writer, modeler.canvas, command.field, command.select);
+      return;
+    }
+    const participant = command.field === 'top' ? top : bottom;
+    // A typed task's actor that is a drawn pool keeps its name: typing another names a new actor for this task.
+    if (isTypedChoreography(bo) && isPool(participant, modeler.canvas)) {
+      nameNewActor(element, writer, modeler.canvas, command.value);
+      return;
+    }
+    writer.set(participant, { name: command.value });
+  });
 }
 
 
@@ -92,7 +96,7 @@ export type UpdateParticipantKindCommand = {
 };
 
 export function runUpdateParticipantKind(modeler: Editor, command: UpdateParticipantKindCommand): void {
-  setParticipantKind(command.element, modeler.canvas, modeler.model, command.participant, command.kind);
+  modeler.study.edit(command.element.id, (writer) => setParticipantKind(writer, command.participant, command.kind));
 }
 
 
@@ -106,34 +110,29 @@ export type UpdateTransformationCommand = {
 
 export function runUpdateTransformation(modeler: Editor, command: UpdateTransformationCommand): void {
   const association = toBusinessObject(command.element);
-  if (command.field === 'language') {
-    const expression = association.get?.('transformation') ?? association.transformation;
-    if (expression) modeler.canvas.updateModdleProperties(command.element, expression, { language: command.value || undefined });
-    return;
-  }
-  // Committed on blur, so the stored expression can be the trimmed one.
-  writeTransformation(modeler, command.element, association, command.value.trim());
+  modeler.study.edit(command.element.id, (writer) => {
+    if (command.field === 'language') {
+      const expression = association.get?.('transformation') ?? association.transformation;
+      if (expression) writer.set(expression, { language: command.value || undefined });
+      return;
+    }
+    // Committed on blur, so the stored expression can be the trimmed one.
+    writeTransformation(writer, association, command.value.trim());
+  });
 }
 
 /** A data association's transformation set to `body` as given, its expression reused; an empty one removes it. */
-function writeTransformation(modeler: Editor, element: any, association: any, body: string): void {
+function writeTransformation(writer: StudyWriter, association: any, body: string): void {
   const expression = association.get?.('transformation') ?? association.transformation;
   if (!body) {
-    modeler.canvas.updateModdleProperties(element, association, { transformation: undefined });
+    writer.set(association, { transformation: undefined });
   } else if (expression) {
-    modeler.canvas.updateModdleProperties(element, expression, { body });
+    writer.set(expression, { body });
   } else {
-    const created = modeler.model.create('bpmn:FormalExpression', { body });
+    const created = writer.create('bpmn:FormalExpression', { body });
     created.$parent = association;
-    modeler.canvas.updateModdleProperties(element, association, { transformation: created });
+    writer.set(association, { transformation: created });
   }
-}
-
-/** `base`, else `base_2`, `base_3`…: the first id `taken` refuses. */
-function uniqueId(base: string, taken: (id: string) => boolean): string {
-  let id = base;
-  for (let n = 2; taken(id); n += 1) id = `${base}_${n}`;
-  return id;
 }
 
 
@@ -149,31 +148,31 @@ export function runUpdateLoopCharacteristics(modeler: Editor, command: UpdateLoo
   const businessObject = toBusinessObject(element);
   const existing = businessObject?.loopCharacteristics;
 
-  if (!loopType) {
-    if (existing) modeler.canvas.updateProperties(element, { loopCharacteristics: undefined });
-    return;
-  }
-
-  if (existing && existing.$type === loopType) {
-    if (Object.keys(properties).length > 0) {
-      modeler.canvas.updateModdleProperties(element, existing, coerceExpressions(modeler, properties, existing));
+  modeler.study.edit(element.id, (writer) => {
+    if (!loopType) {
+      if (existing) writer.set(businessObject, { loopCharacteristics: undefined });
+      return;
     }
-    return;
-  }
 
-  const loopCharacteristics = modeler.model.createBusinessObject(loopType, {});
-  loopCharacteristics.$parent = businessObject;
-  const coerced = coerceExpressions(modeler, properties, loopCharacteristics);
-  for (const [name, value] of Object.entries(coerced)) loopCharacteristics.set(name, value);
-  modeler.canvas.updateProperties(element, { loopCharacteristics });
+    if (existing && existing.$type === loopType) {
+      if (Object.keys(properties).length > 0) writer.set(existing, coerceExpressions(writer, properties, existing));
+      return;
+    }
+
+    const loopCharacteristics: any = writer.create(loopType);
+    loopCharacteristics.$parent = businessObject;
+    const coerced = coerceExpressions(writer, properties, loopCharacteristics);
+    for (const [name, value] of Object.entries(coerced)) loopCharacteristics.set(name, value);
+    writer.set(businessObject, { loopCharacteristics });
+  });
 }
 
 /** Wrap a string `loopCondition` into BPMN's concrete `xsi:type` expression form (empty clears it). */
-function coerceExpressions(editor: Editor, properties: Record<string, any>, parent: any): Record<string, any> {
+function coerceExpressions(writer: StudyWriter, properties: Record<string, any>, parent: any): Record<string, any> {
   if (!('loopCondition' in properties)) return properties;
   const raw = properties.loopCondition;
   if (typeof raw !== 'string' || raw === '') return { ...properties, loopCondition: undefined };
-  const expression = editor.model.createBusinessObject('bpmn:FormalExpression', { body: raw });
+  const expression = writer.create('bpmn:FormalExpression', { body: raw });
   expression.$parent = parent;
   return { ...properties, loopCondition: expression };
 }
@@ -190,30 +189,21 @@ export type UpdateStatePropertiesCommand = {
 );
 
 function findDefinitions(editor: Editor, businessObject: any): any {
-  return definitionsOf(businessObject)
-    ?? editor.canvas.getRoot()?.businessObject?.$parent
-    ?? null;
+  return definitionsOf(businessObject) ?? editor.study.definitions;
 }
 
-function ensureItemDefinition(editor: Editor, element: any, businessObject: any, structureRef: string): any {
-  const definitions = findDefinitions(editor, businessObject);
-  if (!definitions) return null;
-
+function ensureItemDefinition(writer: StudyWriter, definitions: any, structureRef: string): any {
   const rootElements: any[] = definitions.rootElements ?? [];
   const existing = rootElements.find(
     (re) => re?.$type === 'bpmn:ItemDefinition' && re.structureRef === structureRef,
   );
   if (existing) return existing;
 
-  const taken = new Set(rootElements.map((re) => re?.id));
   // A structureRef is free text but an id is an NCName, so non-NCName chars become underscores.
-  const id = uniqueId(`ItemDefinition_${structureRef.replace(/[^\w.-]/g, '_')}`, (candidate) => taken.has(candidate));
-
-  const itemDefinition = editor.model.createBusinessObject('bpmn:ItemDefinition', { id, structureRef });
+  const id = writer.freeId(`ItemDefinition_${structureRef.replace(/[^\w.-]/g, '_')}`);
+  const itemDefinition = writer.create('bpmn:ItemDefinition', { id, structureRef });
   itemDefinition.$parent = definitions;
-  editor.canvas.updateModdleProperties(element, definitions, {
-    rootElements: [...rootElements, itemDefinition],
-  });
+  writer.set(definitions, { rootElements: [...rootElements, itemDefinition] });
   return itemDefinition;
 }
 
@@ -225,41 +215,37 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
   const current = getStateProperties(element);
   const moddleElements = current.map((p) => p.moddleElement);
 
-  if (command.action === 'add') {
-    const id = nextPropertyId((candidate) => !!modeler.model.ids.assigned(candidate));
-    const property = modeler.model.createBusinessObject('bpmn:Property', { id, name: '' });
-    property.$parent = businessObject;
-    modeler.canvas.updateModdleProperties(element, businessObject, {
-      properties: [...moddleElements, property],
-    });
-    return;
-  }
+  modeler.study.edit(element.id, (writer) => {
+    if (command.action === 'add') {
+      const id = nextPropertyId((candidate) => writer.ids.assigned(candidate));
+      const property = writer.create('bpmn:Property', { id, name: '' });
+      property.$parent = businessObject;
+      writer.set(businessObject, { properties: [...moddleElements, property] });
+      return;
+    }
 
-  const target = current.find((p) => p.id === command.propertyId);
-  if (!target) return;
+    const target = current.find((p) => p.id === command.propertyId);
+    if (!target) return;
 
-  if (command.action === 'remove') {
-    modeler.canvas.updateModdleProperties(element, businessObject, {
-      properties: moddleElements.filter((p) => p !== target.moddleElement),
-    });
-    return;
-  }
+    if (command.action === 'remove') {
+      writer.set(businessObject, { properties: moddleElements.filter((p) => p !== target.moddleElement) });
+      return;
+    }
 
-  if (command.action === 'rename') {
-    // `_`-prefixed keys are the runner's (`_meta`); the rename is refused and the previous name stays.
-    if (isReservedStateKey(command.name)) return;
-    modeler.canvas.updateModdleProperties(element, target.moddleElement, { name: command.name });
-    return;
-  }
+    if (command.action === 'rename') {
+      // `_`-prefixed keys are the runner's (`_meta`); the rename is refused and the previous name stays.
+      if (isReservedStateKey(command.name)) return;
+      writer.set(target.moddleElement, { name: command.name });
+      return;
+    }
 
-  if (!command.itemType) {
-    modeler.canvas.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: undefined });
-    return;
-  }
-  const itemDefinition = ensureItemDefinition(modeler, element, businessObject, command.itemType);
-  if (itemDefinition) {
-    modeler.canvas.updateModdleProperties(element, target.moddleElement, { itemSubjectRef: itemDefinition });
-  }
+    if (!command.itemType) {
+      writer.set(target.moddleElement, { itemSubjectRef: undefined });
+      return;
+    }
+    const itemDefinition = ensureItemDefinition(writer, findDefinitions(modeler, businessObject), command.itemType);
+    writer.set(target.moddleElement, { itemSubjectRef: itemDefinition });
+  });
 }
 
 
@@ -275,35 +261,34 @@ export type UpdateMessageCommand = {
 export function runUpdateMessage(modeler: Editor, command: UpdateMessageCommand): void {
   const { element } = command;
   const flow = toBusinessObject(element);
+  if (!flow) return;
   const definitions = findDefinitions(modeler, flow);
-  if (!flow || !definitions) return;
   const rootElements: any[] = definitions.rootElements ?? [];
   const previous = flow.get?.('messageRef') ?? flow.messageRef;
   const structureRef = command.structureRef.trim();
 
-  const itemDefinition = structureRef ? ensureItemDefinition(modeler, element, flow, structureRef) : null;
-  let message = itemDefinition
-    ? (definitions.rootElements ?? []).find((re: any) => re?.$type === 'bpmn:Message' && re.itemRef === itemDefinition)
-    : undefined;
-  if (itemDefinition && !message) {
-    const taken = new Set((definitions.rootElements ?? []).map((re: any) => re?.id));
-    const id = uniqueId(`Message_${structureRef.replace(/[^\w.-]/g, '_')}`, (candidate) => taken.has(candidate));
-    message = modeler.model.createBusinessObject('bpmn:Message', { id, itemRef: itemDefinition });
-    message.$parent = definitions;
-    modeler.canvas.updateModdleProperties(element, definitions, { rootElements: [...definitions.rootElements, message] });
-  }
-  if (message === previous) return;
-  modeler.canvas.updateModdleProperties(element, flow, { messageRef: message });
+  modeler.study.edit(element.id, (writer) => {
+    const itemDefinition = structureRef ? ensureItemDefinition(writer, definitions, structureRef) : null;
+    let message = itemDefinition
+      ? (definitions.rootElements ?? []).find((re: any) => re?.$type === 'bpmn:Message' && re.itemRef === itemDefinition)
+      : undefined;
+    if (itemDefinition && !message) {
+      const id = writer.freeId(`Message_${structureRef.replace(/[^\w.-]/g, '_')}`);
+      message = writer.create('bpmn:Message', { id, itemRef: itemDefinition });
+      message.$parent = definitions;
+      writer.set(definitions, { rootElements: [...definitions.rootElements, message] });
+    }
+    if (message === previous) return;
+    writer.set(flow, { messageRef: message });
 
-  // The message the flow left behind goes when no other flow carries it; its item definition may still type a property.
-  const stillCarried = previous && rootElements.some((root: any) => (root?.messageFlows ?? []).some(
-    (other: any) => other !== flow && (other.get?.('messageRef') ?? other.messageRef) === previous,
-  ));
-  if (previous && !stillCarried) {
-    modeler.canvas.updateModdleProperties(element, definitions, {
-      rootElements: (definitions.rootElements ?? []).filter((re: any) => re !== previous),
-    });
-  }
+    // The message the flow left behind goes when no other flow carries it; its item definition may still type a property.
+    const stillCarried = previous && rootElements.some((root: any) => (root?.messageFlows ?? []).some(
+      (other: any) => other !== flow && (other.get?.('messageRef') ?? other.messageRef) === previous,
+    ));
+    if (previous && !stillCarried) {
+      writer.set(definitions, { rootElements: (definitions.rootElements ?? []).filter((re: any) => re !== previous) });
+    }
+  });
 }
 
 
@@ -334,56 +319,37 @@ function findPropertyInScope(businessObject: any, propertyId: string): any {
   return null;
 }
 
-function nextAssociationId(
-  model: Editor['model'],
-  businessObject: any,
-  propertyId: string,
-  direction: 'input' | 'output',
-): string {
-  const local = new Set(
-    [...associationsOf(businessObject, 'input'), ...associationsOf(businessObject, 'output')]
-      .map((a: any) => a?.id),
-  );
-  return uniqueId(
-    `${direction === 'input' ? 'DataInput' : 'DataOutput'}_${propertyId}`,
-    (id) => local.has(id) || Boolean(model.ids.assigned(id)),
-  );
-}
-
 export function runUpdateDataBinding(modeler: Editor, command: UpdateDataBindingCommand): void {
   const { element, direction } = command;
-  const { canvas: mutate, model } = modeler;
   const businessObject = toBusinessObject(element);
   if (!businessObject) return;
 
   const listName = associationPropertyFor(direction);
   const existing = associationsOf(businessObject, direction);
 
-  if (command.action === 'bind') {
-    const property = findPropertyInScope(businessObject, command.propertyId);
-    if (!property) return;
+  modeler.study.edit(element.id, (writer) => {
+    if (command.action === 'bind') {
+      const property = findPropertyInScope(businessObject, command.propertyId);
+      if (!property) return;
 
-    const association = model.createBusinessObject(typeForDirection(direction), {
-      id: nextAssociationId(model, businessObject, command.propertyId, direction),
-      ...(direction === 'input' ? { sourceRef: [property] } : { targetRef: property }),
-    });
-    association.$parent = businessObject;
-    mutate.updateModdleProperties(element, businessObject, {
-      [listName]: [...existing, association],
-    });
-    return;
-  }
+      const association = writer.create(typeForDirection(direction), {
+        id: writer.freeId(`${direction === 'input' ? 'DataInput' : 'DataOutput'}_${command.propertyId}`),
+        ...(direction === 'input' ? { sourceRef: [property] } : { targetRef: property }),
+      });
+      association.$parent = businessObject;
+      writer.set(businessObject, { [listName]: [...existing, association] });
+      return;
+    }
 
-  const target = existing.find((a: any) => a?.id === command.associationId);
-  if (!target) return;
+    const target = existing.find((a: any) => a?.id === command.associationId);
+    if (!target) return;
 
-  if (command.action === 'unbind') {
-    mutate.updateModdleProperties(element, businessObject, {
-      [listName]: existing.filter((a: any) => a !== target),
-    });
-    return;
-  }
+    if (command.action === 'unbind') {
+      writer.set(businessObject, { [listName]: existing.filter((a: any) => a !== target) });
+      return;
+    }
 
-  // Written on every keystroke of a controlled field: stored as typed, or a space would vanish as it is typed.
-  writeTransformation(modeler, element, target, command.value);
+    // Written on every keystroke of a controlled field: stored as typed, or a space would vanish as it is typed.
+    writeTransformation(writer, target, command.value);
+  });
 }

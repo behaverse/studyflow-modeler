@@ -32,10 +32,10 @@ export function runInvalidateProvenanceRecord(
   if (command.who) stamp.who = command.who;
   if (command.with) stamp.with = command.with;
 
-  const marker = modeler.model.create('prov:Activity', stamp);
-  marker.$parent = extensionElements;
-  modeler.canvas.updateModdleProperties(element, extensionElements, {
-    values: [...values, marker],
+  modeler.study.edit(element.id, (writer) => {
+    const marker = writer.create('prov:Activity', stamp);
+    marker.$parent = extensionElements;
+    writer.set(extensionElements, { values: [...values, marker] });
   });
   return true;
 }

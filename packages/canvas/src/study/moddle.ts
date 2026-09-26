@@ -47,6 +47,32 @@ export function refBO(value: unknown): ModdleObject | undefined {
   return refBOs(value)[0];
 }
 
+/** The element under `root` whose id is `id`, found along containment and references alike. */
+export function findById(root: ModdleObject, id: string): ModdleObject | undefined {
+  const seen = new Set<unknown>();
+  const visit = (value: unknown): ModdleObject | undefined => {
+    if (!value || typeof value !== 'object' || seen.has(value)) return undefined;
+    seen.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const hit = visit(item);
+        if (hit) return hit;
+      }
+      return undefined;
+    }
+    const element = asModdle(value);
+    if (!element) return undefined;
+    if (element.id === id) return element;
+    for (const [key, child] of Object.entries(element)) {
+      if (key.startsWith('$')) continue;
+      const hit = visit(child);
+      if (hit) return hit;
+    }
+    return undefined;
+  };
+  return visit(root);
+}
+
 export function parentOf(target: ModdleObject | undefined): ModdleObject | undefined {
   return asModdle((target as { $parent?: unknown } | undefined)?.$parent);
 }

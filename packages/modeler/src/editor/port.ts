@@ -3,7 +3,7 @@
  * them (the document model, templates, simulation). Built by `editor/mount.ts`.
  */
 
-import type { Canvas, EventBus, Selection, ShapeDescriptor } from '@canvas/index.ts';
+import type { Canvas, EventBus, Selection, ShapeDescriptor, Study } from '@canvas/index.ts';
 import { toBusinessObject } from '@core/element';
 import type { Template } from '@core/notation';
 
@@ -56,6 +56,8 @@ export interface Editor {
   /** What the canvas shows, as a standalone SVG drawn afresh, without the editor's chrome. */
   toSvg(): string;
   getDefinitions(): ModelElement | undefined;
+  /** The document, and every write on it: one command, one `edit`, one undo step. */
+  study: Study;
   canvas: Canvas;
   /** The canvas's own selection and bus. */
   selection: Selection;

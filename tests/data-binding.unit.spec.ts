@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { Study } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 import { runUpdateDataBinding, runUpdateTransformation } from '@modeler/inspector/commands';
 import { freshModdle } from './schemas';
@@ -9,27 +10,22 @@ import { freshModdle } from './schemas';
  * set by the binding field on every keystroke, or by the expression field on blur.
  */
 
-/** A step with one input association, in a study that declares one property; `held` ids the rest of the document holds. */
+/** A step with one input association, in a study that declares one property and holds `DataOutput_rate` elsewhere. */
 function build() {
   const moddle = freshModdle();
   const property = moddle.create('bpmn:Property', { id: 'rate', name: 'rate' });
   const association = moddle.create('bpmn:DataInputAssociation', { id: 'In' });
   const task = moddle.create('bpmn:Task', { id: 'Step', dataInputAssociations: [association] });
-  const process = moddle.create('bpmn:Process', { id: 'Study', properties: [property], flowElements: [task] });
+  const elsewhere = moddle.create('bpmn:Task', { id: 'DataOutput_rate' });
+  const process = moddle.create('bpmn:Process', { id: 'Study', properties: [property], flowElements: [task, elsewhere] });
+  const definitions = moddle.create('bpmn:Definitions', { id: 'Defs', rootElements: [process] });
   association.$parent = task;
   property.$parent = process;
   task.$parent = process;
-  const held = new Set<string>();
-  const create = (type: string, props?: Record<string, unknown>) => moddle.create(type, props ?? {});
-  const editor = {
-    model: { create, createBusinessObject: create, ids: { assigned: (id: string) => held.has(id) } },
-    canvas: {
-      updateModdleProperties(_element: any, target: any, props: Record<string, any>) {
-        for (const [key, value] of Object.entries(props)) target.set(key, value);
-      },
-    },
-  } as unknown as Editor;
-  return { task, association, property, editor, held };
+  elsewhere.$parent = process;
+  process.$parent = definitions;
+  const editor = { study: Study.fromDefinitions(definitions) } as unknown as Editor;
+  return { task, association, property, editor };
 }
 
 const body = (association: any): string | undefined => association.get('transformation')?.get('body');
@@ -62,11 +58,10 @@ test('the expression field, committed on blur, trims, and its language select se
 });
 
 test('a bound property\'s association is named for its direction and the property, clear of the ids taken', () => {
-  const { task, property, editor, held } = build();
+  const { task, property, editor } = build();
   const bind = (direction: 'input' | 'output') => runUpdateDataBinding(editor, {
     type: 'UpdateDataBinding', element: task, action: 'bind', direction, propertyId: 'rate',
   });
-  held.add('DataOutput_rate');
 
   bind('input');
   bind('input');

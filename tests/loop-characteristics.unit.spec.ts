@@ -1,57 +1,36 @@
 
 import { expect, test } from '@playwright/test';
 
+import { Study } from '@canvas/index.ts';
 import { runUpdateLoopCharacteristics } from '@modeler/inspector/commands';
 import { freshModdle } from './schemas';
 import { loopKindOf } from '@modeler/inspector/loopCharacteristics';
 import type { Editor } from '@modeler/editor/port';
 
-/** `UpdateLoopCharacteristics` writes every `loopCharacteristics` change through the canvas, one undoable write each. */
+/** `UpdateLoopCharacteristics` writes every `loopCharacteristics` change through the study, one commit each. */
 
-const moddle = freshModdle();
-
-/**
- * A partial `Editor`: the command reaches the document through `canvas` and
- * `model` alone, so those two are all the fake owes it. The canvas applies each
- * write and records which of its two writers ran: the child set on the
- * activity, or a field set on the child standing there.
- */
-function fakeModeler(): { modeler: Editor; calls: string[] } {
-  const calls: string[] = [];
-  const modeler = {
-    canvas: {
-      updateProperties(element: any, properties: Record<string, any>) {
-        calls.push('updateProperties');
-        for (const [name, value] of Object.entries(properties)) element.businessObject.set(name, value);
-      },
-      updateModdleProperties(_element: any, moddleElement: any, properties: Record<string, any>) {
-        calls.push('updateModdleProperties');
-        for (const [name, value] of Object.entries(properties)) moddleElement.set(name, value);
-      },
-    },
-    model: {
-      createBusinessObject: (type: string, properties: Record<string, any>) => moddle.create(type, properties),
-    },
-  } as unknown as Editor;
-
-  return { modeler, calls };
-}
-
-function activityElement(type = 'bpmn:SubProcess', id = 'Improve') {
-  return { id, businessObject: moddle.create(type, { id }) };
+/** An activity in a study of its own, and the editor the command writes through: that study, which it reaches alone. */
+function build() {
+  const moddle = freshModdle();
+  const activity = moddle.create('bpmn:SubProcess', { id: 'Improve' });
+  const process = moddle.create('bpmn:Process', { id: 'Study', flowElements: [activity] });
+  const definitions = moddle.create('bpmn:Definitions', { id: 'Defs', rootElements: [process] });
+  activity.$parent = process;
+  process.$parent = definitions;
+  const study = Study.fromDefinitions(definitions);
+  return { study, modeler: { study } as unknown as Editor, element: { id: 'Improve', businessObject: activity } };
 }
 
 test.describe('update-loop-characteristics command', () => {
-  test('a loop is added, switched to another kind, edited in place and removed, one write each', () => {
-    const { modeler, calls } = fakeModeler();
-    const element = activityElement();
+  test('a loop is added, switched to another kind, edited in place and removed, one commit each', () => {
+    const { study, modeler, element } = build();
     const update = (loopType: string | null, properties?: Record<string, any>) => runUpdateLoopCharacteristics(modeler, {
       type: 'UpdateLoopCharacteristics', element, loopType, properties,
     });
     const child = () => element.businessObject.loopCharacteristics;
 
     update(null);
-    expect(calls, 'removing a loop that is not there writes nothing').toEqual([]);
+    expect(study.revision, 'removing a loop that is not there writes nothing').toBe(0);
 
     update('bpmn:StandardLoopCharacteristics', { loopMaximum: 3 });
     expect(loopKindOf(element)).toBe('loop');
@@ -73,14 +52,11 @@ test.describe('update-loop-characteristics command', () => {
     update(null);
     expect(child()).toBeUndefined();
     expect(loopKindOf(element)).toBe('none');
-
-    // A child is set on the activity; a field of the child standing there is set on the child.
-    expect(calls).toEqual(['updateProperties', 'updateProperties', 'updateModdleProperties', 'updateProperties']);
+    expect(study.revision, 'one commit, one undo step, each').toBe(4);
   });
 
   test('a loop condition typed as text is stored as a BPMN formal expression, and cleared when emptied', () => {
-    const { modeler } = fakeModeler();
-    const element = activityElement();
+    const { modeler, element } = build();
     const update = (properties: Record<string, any>) => runUpdateLoopCharacteristics(modeler, {
       type: 'UpdateLoopCharacteristics', element, loopType: 'bpmn:StandardLoopCharacteristics', properties,
     });

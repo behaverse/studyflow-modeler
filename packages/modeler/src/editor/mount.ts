@@ -138,6 +138,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
     saveXML,
     toSvg: () => renderSvg(study, { ...drawing, scope: canvas.getScope() }),
     getDefinitions: () => study.definitions,
+    study,
     canvas,
     selection: canvas.getSelection(),
     events: bus,

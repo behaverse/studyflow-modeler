@@ -11,13 +11,13 @@ import {
   toBusinessObject,
 } from '@core/element/attributes';
 
-/** Where a write goes: straight onto moddle by default; the canvas implements it to redraw and record the edit. */
-export interface AttributeUpdater {
-  updateModdleProperties(element: any, target: ModdleElement, props: Record<string, any>): void;
+/** Where a write goes: straight onto moddle by default; a study records it as an edit and redraws what shows it. */
+export interface ModdleWriter {
+  set(target: ModdleElement, props: Record<string, any>): void;
 }
 
-const directUpdater: AttributeUpdater = {
-  updateModdleProperties(_element, target, props) {
+const directWriter: ModdleWriter = {
+  set(target, props) {
     for (const [name, value] of Object.entries(props)) setProperty(target, name, value);
   },
 };
@@ -112,19 +112,17 @@ function unwrapBodyValue(rawValue: any, attrDef: AttributeSpec | undefined): any
 }
 
 export class StudyflowElement {
-  private readonly element: any;
   readonly businessObject: ModdleElement;
-  private readonly updater: AttributeUpdater;
+  private readonly writer: ModdleWriter;
 
-  private constructor(element: any, businessObject: ModdleElement, updater: AttributeUpdater) {
-    this.element = element;
+  private constructor(businessObject: ModdleElement, writer: ModdleWriter) {
     this.businessObject = businessObject;
-    this.updater = updater;
+    this.writer = writer;
   }
 
-  /** A handle on the business object of `elementOrBO`; writes go through `updater` (default: straight onto moddle), which is handed `elementOrBO`. */
-  static fromBusinessObject(elementOrBO: any, updater: AttributeUpdater = directUpdater): StudyflowElement {
-    return new StudyflowElement(elementOrBO, toBusinessObject(elementOrBO), updater);
+  /** A handle on the business object of `elementOrBO`; writes go through `writer` (default: straight onto moddle). */
+  static fromBusinessObject(elementOrBO: any, writer: ModdleWriter = directWriter): StudyflowElement {
+    return new StudyflowElement(toBusinessObject(elementOrBO), writer);
   }
 
   get extension(): ModdleElement | null {
@@ -222,7 +220,7 @@ export class StudyflowElement {
   setExpressionLanguage(attributeName: string, language: string | undefined): void {
     const expression = this.expressionElement(attributeName);
     if (!expression) return;
-    this.updater.updateModdleProperties(this.element ?? expression, expression, { language: language || undefined });
+    this.writer.set(expression, { language: language || undefined });
   }
 
   setAttribute(attributeName: string, value: any): void {
@@ -239,28 +237,28 @@ export class StudyflowElement {
       if (attrDef?.isMany) {
         const { checklist: kept, prose } = documentationEntries(getProperty(r.target, r.attributeName));
         if (value == null || value === '') {
-          this.updater.updateModdleProperties(this.element, r.target, { [r.attributeName]: kept.length > 0 ? kept : undefined });
+          this.writer.set(r.target, { [r.attributeName]: kept.length > 0 ? kept : undefined });
           return;
         }
         if (prose.length === 1 && typeof prose[0] === 'object' && prose[0].$type) {
-          this.updater.updateModdleProperties(this.element, prose[0], { [bodyProp]: value });
+          this.writer.set(prose[0], { [bodyProp]: value });
           return;
         }
         const model = r.target?.$model ?? bo?.$model;
         if (model && attrDef?.type) {
           const child = model.create(attrDef.type, { [bodyProp]: value });
           child.$parent = r.target;
-          this.updater.updateModdleProperties(this.element, r.target, { [r.attributeName]: [child, ...kept] });
+          this.writer.set(r.target, { [r.attributeName]: [child, ...kept] });
           return;
         }
       }
       if (value == null || value.trim() === '') {
-        this.updater.updateModdleProperties(this.element, r.target, { [r.attributeName]: undefined });
+        this.writer.set(r.target, { [r.attributeName]: undefined });
         return;
       }
       const existing = getProperty(r.target, r.attributeName);
       if (existing && typeof existing === 'object' && existing.$type) {
-        this.updater.updateModdleProperties(this.element, existing, { [bodyProp]: value });
+        this.writer.set(existing, { [bodyProp]: value });
         return;
       }
       // A bare string under a wrapper property does not serialize; moddle needs the declared element, and `bpmn:Expression` is abstract.
@@ -273,7 +271,7 @@ export class StudyflowElement {
       }
     }
 
-    this.updater.updateModdleProperties(this.element, r.target, { [r.attributeName]: value });
+    this.writer.set(r.target, { [r.attributeName]: value });
   }
 
   private getChecklist(): any {
@@ -288,18 +286,18 @@ export class StudyflowElement {
     const text = typeof value === 'string' ? value : '';
     if (!text.trim()) {
       if (entry) {
-        this.updater.updateModdleProperties(this.element, bo, { ['documentation']: prose.length > 0 ? prose : undefined });
+        this.writer.set(bo, { ['documentation']: prose.length > 0 ? prose : undefined });
       }
       return;
     }
     if (entry) {
-      this.updater.updateModdleProperties(this.element, entry, { text });
+      this.writer.set(entry, { text });
       return;
     }
     const model = bo?.$model;
     if (!model) return;
     const created = model.create(DOCUMENTATION_TYPE, { [CHECKLIST_MARKER]: true, text });
     created.$parent = bo;
-    this.updater.updateModdleProperties(this.element, bo, { ['documentation']: [...prose, created] });
+    this.writer.set(bo, { ['documentation']: [...prose, created] });
   }
 }

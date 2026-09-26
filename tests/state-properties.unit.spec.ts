@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { IdGenerator } from '@canvas/index.ts';
+import { Study } from '@canvas/index.ts';
 import { runUpdateStateProperties } from '@modeler/inspector/commands';
 import { getPropertiesInScope, itemTypeOptions } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
@@ -8,24 +8,11 @@ import { freshModdle } from './schemas';
 
 /** State as BPMN's own declared variables. */
 
-/** The editor the state commands write through, over `root`: it claims every id it mints, as the editor's registry does. */
-function editorOver(m: any, root: any): Editor {
-  const ids = IdGenerator.fromDefinitions(root);
-  return {
-    model: {
-      createBusinessObject: (type: string, props?: Record<string, unknown>) => {
-        const element = m.create(type, props ?? {});
-        ids.claim(element.id);
-        return element;
-      },
-      ids: { assigned: (id: string) => ids.assigned(id) },
-    },
-    canvas: {
-      updateModdleProperties(_el: any, target: any, props: Record<string, any>) {
-        for (const [k, v] of Object.entries(props)) target.set(k, v);
-      },
-    },
-  } as unknown as Editor;
+/** The editor the state commands write through: a study of `process`, alone in a document. */
+function editorOver(m: any, process: any): Editor {
+  const definitions = process.$parent ?? m.create('bpmn:Definitions', { id: 'Defs', rootElements: [process] });
+  process.$parent = definitions;
+  return { study: Study.fromDefinitions(definitions) } as unknown as Editor;
 }
 
 test('a scope adds properties by the next free id, and types them with one item definition per structure', () => {
@@ -38,7 +25,7 @@ test('a scope adds properties by the next free id, and types them with one item 
   series.$parent = definitions;
   process.$parent = definitions;
   const element = { id: 'S', businessObject: process };
-  const modeler = editorOver(m, definitions);
+  const modeler = editorOver(m, process);
   const add = () => runUpdateStateProperties(modeler, { type: 'UpdateStateProperties', element, action: 'add' });
   const retype = (propertyId: string, itemType: string) =>
     runUpdateStateProperties(modeler, { type: 'UpdateStateProperties', element, action: 'retype', propertyId, itemType });

@@ -1,17 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 import { ensureChoreographyParticipants, readChoreographyBands } from '@core/document';
-import { IdGenerator } from '@canvas/index.ts';
+import { Study } from '@canvas/index.ts';
 import { selectBandParticipant, swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
 import { freshModdle } from './schemas';
 
 /** Flipping a choreography task's `initiatingParticipantRef`. Materializing the pair is core's (`packages/core/tests/choreography-root.unit.spec.ts`). */
-
-const updater = {
-  updateModdleProperties: (_el: any, target: any, props: Record<string, any>) => {
-    for (const [k, v] of Object.entries(props)) target.set(k, v);
-  },
-};
 
 function build() {
   const moddle = freshModdle();
@@ -20,20 +14,21 @@ function build() {
   const definitions = moddle.create('bpmn:Definitions', { id: 'Defs', rootElements: [process] });
   task.$parent = process;
   process.$parent = definitions;
-  definitions.$parent = null;
-  return { definitions, task, element: { businessObject: task }, ids: new IdGenerator() };
+  return { task, element: { businessObject: task }, study: Study.fromDefinitions(definitions) };
 }
 
 test('swap flips the initiating participant', () => {
-  const { task, element, ids } = build();
-  const [top, bottom] = ensureChoreographyParticipants(task, ids)!;
+  const { task, element, study } = build();
+  study.edit('Consent', (writer) => ensureChoreographyParticipants(task, writer.ids));
+  const [top, bottom] = task.get('participantRef');
   expect(task.get('initiatingParticipantRef')).toBe(top);
+  const swap = () => study.edit('Consent', (writer) => swapChoreographyInitiator(element, writer));
 
-  swapChoreographyInitiator(element, updater, ids);
+  swap();
   expect(task.get('initiatingParticipantRef')).toBe(bottom);
   expect(readChoreographyBands(task).initiator).toBe('bottom');
 
-  swapChoreographyInitiator(element, updater, ids);
+  swap();
   expect(task.get('initiatingParticipantRef')).toBe(top);
 });
 
@@ -51,14 +46,15 @@ test('clearing a band keeps a pool the canvas draws, even one with no process; a
   for (const [child, parent] of [[model, collaboration], [actor, collaboration], [task, process], [collaboration, definitions], [process, definitions]]) {
     child.$parent = parent;
   }
-  const canvas = { ...updater, get: (id: string) => (id === 'Model' ? {} : undefined) };
-  const ids = new IdGenerator();
+  const study = Study.fromDefinitions(definitions);
+  const canvas = { get: (id: string) => (id === 'Model' ? {} : undefined) };
+  const clearBottom = () => study.edit('Play', (writer) => selectBandParticipant({ businessObject: task }, writer, canvas, 'bottom', null));
 
   task.set('participantRef', [model]);
-  selectBandParticipant({ businessObject: task }, canvas, ids, 'bottom', null);
+  clearBottom();
   expect(collaboration.get('participants')).toEqual([model, actor]);
 
   task.set('participantRef', [actor]);
-  selectBandParticipant({ businessObject: task }, canvas, ids, 'bottom', null);
+  clearBottom();
   expect(collaboration.get('participants')).toEqual([model]);
 });

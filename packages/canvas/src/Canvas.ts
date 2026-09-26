@@ -16,15 +16,14 @@ import { Gestures, ZOOM_STEP } from '@canvas/interaction/gestures.ts';
 import { edgesIntersecting, hitTest, isContainerNode, nodesIntersecting, orderedNodes, pointInBox, type HitOptions } from '@canvas/study/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, Selection } from '@canvas/interaction/selection.ts';
-import { tasksReferencing } from '@canvas/study/choreography.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import type { IdGenerator } from '@canvas/study/ids.ts';
-import { prop, setProp } from '@canvas/study/moddle.ts';
+import { prop } from '@canvas/study/moddle.ts';
 import type { Commit, Mutator } from '@canvas/study/mutator.ts';
 import { studyInternals, type Study } from '@canvas/study/Study.ts';
 import { isRootElement, type Bounds, type Drawable, type ElementColors, type ElementRef, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
-import { categoryOf, isDataShape } from '@core/document/outline.ts';
+import { categoryOf } from '@core/document/outline.ts';
 import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer, type RendererOptions } from '@canvas/render/renderer.ts';
 import { append, create, remove, setDocument } from '@canvas/render/svg.ts';
 import { centerOf } from '@core/document/outline.ts';
@@ -725,28 +724,6 @@ export class Canvas {
       .filter((el): el is SceneElement => !!el);
   }
 
-  /** Write `properties` on an element's business object (or on the root's) and record the edit. */
-  updateProperties(element: SceneElement | RootElement, properties: Record<string, unknown>): void {
-    const target = this.resolveElement(element);
-    this.updateModdleProperties(element, target?.businessObject ?? element.businessObject, properties);
-  }
-
-  /**
-   * Write `properties` on any moddle object reachable from `element` and record the edit (core's `AttributeUpdater`).
-   * A caption stands for the element it names; anything else not on the canvas records the edit on the root.
-   */
-  updateModdleProperties(element: ElementRef, moddle: object, properties: Record<string, unknown>): void {
-    const mutator = this.mutator;
-    const scene = this.scene;
-    const moddleElement = moddle as ModdleObject;
-    for (const [key, value] of Object.entries(properties)) {
-      if (prop(moddleElement, key) !== value) setProp(moddleElement, key, value);
-    }
-    const target = this.resolveElement(element);
-    if (target) mutator.touch(drawnFrom(scene, target.kind === 'label' ? target.owner : target, moddleElement, properties));
-    else mutator.record(scene.rootElement);
-  }
-
   resizeShape(node: SceneNode, bounds: Bounds): void {
     this.mutator.setNodeBounds(node, bounds);
   }
@@ -809,32 +786,4 @@ export class Canvas {
   batch<T>(edit: () => T): T {
     return this.mutator.batch(edit);
   }
-}
-
-/** What draws something of `moddle` once `properties` are written on it: `target`, and whatever else shows it. */
-function drawnFrom(scene: Scene, target: Drawable, moddle: ModdleObject, properties: Record<string, unknown>): Drawable[] {
-  // A participant's name is drawn on every choreography task it takes a band of, not only where it was edited.
-  if (target.kind === 'node' && moddle.$type === 'bpmn:Participant' && 'name' in properties) {
-    return tasksReferencing(scene, moddle, target);
-  }
-  const drawn = new Set<Drawable>([target]);
-  // A flow draws its source's `default` as a slash, so a new default redraws every flow that leaves the source.
-  const source = scene.byBusinessObject.get(moddle);
-  if ('default' in properties && source?.kind === 'node') for (const edge of source.outgoing) drawn.add(edge);
-  // A step may draw what the data it reads holds (a glyph a Parameters object sets).
-  if (target.kind === 'node' && isDataShape(target.type)) for (const step of stepsReading(scene, target)) drawn.add(step);
-  return [...drawn];
-}
-
-/** Every step whose data inputs read `source`. */
-function stepsReading(scene: Scene, source: SceneNode): SceneNode[] {
-  const out: SceneNode[] = [];
-  for (const element of scene.elementsById.values()) {
-    if (element.kind !== 'node' || element === source) continue;
-    const associations = (prop(element.businessObject, 'dataInputAssociations') ?? []) as ModdleObject[];
-    if (associations.some((association) => ((prop(association, 'sourceRef') ?? []) as unknown[]).includes(source.businessObject))) {
-      out.push(element);
-    }
-  }
-  return out;
 }

@@ -17,6 +17,9 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Process_1:
   type: Process
+  properties:
+    Count:
+      name: count
   flowElements:
     Task_1:
       type: Task
@@ -182,4 +185,38 @@ test('the history holds what edits changed: nothing for a no-op, no redo past a 
   let steps = 0;
   while (study.undo()) steps += 1;
   expect(steps).toBe(50);
+});
+
+// --- writes ----------------------------------------------------------------------------
+
+test('set writes an attribute where its schema keeps it, by any id the document holds; an unknown id is refused', () => {
+  const study = open();
+  const heard: string[] = [];
+  study.on('change', (change) => heard.push(ids(change.changed).join()));
+
+  expect(study.set({ id: 'Task_1', attribute: 'name', value: 'Screen' })).toMatchObject({ ok: true, changed: ['Task_1'] });
+  // A property is drawn nowhere, so the root records the write.
+  expect(study.set({ id: 'Count', attribute: 'name', value: 'total' })).toMatchObject({ ok: true, changed: ['Process_1'] });
+  expect(study.set({ id: 'Nope', attribute: 'name', value: 'x' }))
+    .toEqual({ ok: false, reason: "no element 'Nope'", added: [], changed: [], removed: [] });
+
+  expect(heard, 'a refusal writes nothing and says nothing').toEqual(['Task_1', 'Process_1']);
+  expect(nodeOf(study, 'Task_1').businessObject.name).toBe('Screen');
+  expect((study.definitions.rootElements as any[])[0].properties[0].name).toBe('total');
+});
+
+test('an edit is one commit and one undo step, however many moddle writes it makes', () => {
+  const study = open();
+  const task = nodeOf(study, 'Task_1').businessObject;
+
+  const result = study.edit('Task_1', (writer) => {
+    writer.set(task, { name: 'Reads' });
+    writer.set(task, { name: 'Reads twice', isForCompensation: true });
+  });
+
+  expect(result).toEqual({ ok: true, added: [], changed: ['Task_1'], removed: [] });
+  expect(study.revision).toBe(1);
+  expect(study.undo()).toBe(true);
+  expect(study.canUndo, 'one undo takes back every write').toBe(false);
+  expect(nodeOf(study, 'Task_1').businessObject.name).toBe('Read');
 });

@@ -501,8 +501,7 @@ test('a cognitive task shows its presenter and the pool it names, and renaming t
   // The upper band is the type's `meta.presenter` (`{platform}`), the lower the participant.
   expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['psychopy', 'Robot']));
 
-  const pool = node(canvas, 'Pool_Seat');
-  canvas.updateModdleProperties(pool, pool.businessObject, { name: 'Volunteer' });
+  canvas.study.set({ id: 'Pool_Seat', attribute: 'name', value: 'Volunteer' });
   expect(textsOf(canvas, 'Play')).toEqual(expect.arrayContaining(['Volunteer']));
   expect(textsOf(canvas, 'Play')).not.toContain('Robot');
 });

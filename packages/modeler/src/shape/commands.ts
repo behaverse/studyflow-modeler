@@ -63,7 +63,7 @@ export type SwapChoreographyInitiatorCommand = {
 };
 
 export function runSwapChoreographyInitiator(modeler: Editor, command: SwapChoreographyInitiatorCommand): void {
-  swapChoreographyInitiator(command.element, modeler.canvas, modeler.model.ids);
+  modeler.study.edit(command.element.id, (writer) => swapChoreographyInitiator(command.element, writer));
 }
 
 export type ToggleDefaultFlowCommand = {
@@ -75,10 +75,10 @@ export type ToggleDefaultFlowCommand = {
 export function runToggleDefaultFlow(modeler: Editor, command: ToggleDefaultFlowCommand): void {
   const flow = modeler.canvas.resolveElement(command.element);
   if (!flow || flow.kind !== 'edge' || !flow.source?.businessObject) return;
-  const sourceBo = flow.source.businessObject as { default?: unknown };
-  modeler.canvas.updateModdleProperties(flow, flow.source.businessObject, {
-    default: sourceBo.default === flow.businessObject ? undefined : flow.businessObject,
-  });
+  const source = flow.source.businessObject;
+  modeler.study.edit(flow.id, (writer) => writer.set(source, {
+    default: source.default === flow.businessObject ? undefined : flow.businessObject,
+  }));
 }
 
 export type StartConnectCommand = {

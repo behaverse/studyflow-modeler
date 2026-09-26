@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { Study } from '@canvas/index.ts';
 import { readState, writeState } from '@core/document';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
@@ -61,23 +62,17 @@ function mockModeler(definitions: any) {
   const registry = new Map<string, any>();
   const index = (container: any) => {
     for (const el of container?.flowElements ?? []) {
-      if (el.id) registry.set(el.id, { businessObject: el });
+      if (el.id) registry.set(el.id, { id: el.id, businessObject: el });
       index(el);
     }
   };
   for (const root of definitions.rootElements ?? []) index(root);
 
-  // A partial `Editor`: invalidation looks an element up, creates one moddle
-  // object, and writes it back as a single undoable mutation.
+  // A partial `Editor`: invalidation looks an element up and writes one moddle object back as a single study edit.
   return {
     getDefinitions: () => definitions,
-    model: { create: (type: string, props: Record<string, any>) => moddle.create(type, props) },
-    canvas: {
-      get: (id: string) => registry.get(id),
-      updateModdleProperties(_element: any, moddleObject: any, props: Record<string, any>) {
-        Object.assign(moddleObject, props);
-      },
-    },
+    study: Study.fromDefinitions(definitions),
+    canvas: { get: (id: string) => registry.get(id) },
   };
 }
 

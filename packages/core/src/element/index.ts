@@ -7,7 +7,7 @@ import {
   isExtensionPrefix,
   toBusinessObject,
 } from '@core/element/attributes';
-import { StudyflowElement, type AttributeUpdater } from '@core/element/handle';
+import { StudyflowElement, type ModdleWriter } from '@core/element/handle';
 
 export {
   CHECKLIST_SPEC,
@@ -17,7 +17,7 @@ export {
   isExtensionPrefix,
   toBusinessObject,
   StudyflowElement,
-  type AttributeUpdater,
+  type ModdleWriter,
 };
 export type { ModdleElement } from '@core/element/moddle';
 
@@ -80,11 +80,11 @@ export function setExpressionLanguage(
   element: any,
   attributeName: string,
   language: string | undefined,
-  updater?: AttributeUpdater,
+  writer?: ModdleWriter,
 ): void {
-  StudyflowElement.fromBusinessObject(element, updater).setExpressionLanguage(attributeName, language);
+  StudyflowElement.fromBusinessObject(element, writer).setExpressionLanguage(attributeName, language);
 }
 
-export function setAttribute(element: any, attributeName: string, value: any, updater?: AttributeUpdater): void {
-  StudyflowElement.fromBusinessObject(element, updater).setAttribute(attributeName, value);
+export function setAttribute(element: any, attributeName: string, value: any, writer?: ModdleWriter): void {
+  StudyflowElement.fromBusinessObject(element, writer).setAttribute(attributeName, value);
 }

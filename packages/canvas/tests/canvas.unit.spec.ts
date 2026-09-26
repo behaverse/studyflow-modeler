@@ -224,9 +224,10 @@ test('a new default redraws the flow that lost the slash as well as the one that
   const toEnd = edge(canvas, 'Flow_3');
   const toTask = canvas.connectElements(gateway, node(canvas, 'Task_1'))!;
   const slash = (flow: SceneEdge) => canvas.getGraphics(flow.id)!.querySelector('.sf-connection-line')!.getAttribute('marker-start');
-  canvas.updateModdleProperties(toEnd, gateway.businessObject, { default: toEnd.businessObject });
+  const makeDefault = (flow: SceneEdge) => canvas.study.edit(flow.id, (writer) => writer.set(gateway.businessObject, { default: flow.businessObject }));
+  makeDefault(toEnd);
   expect(slash(toEnd)).toContain('sf-marker-default');
-  canvas.updateModdleProperties(toTask, gateway.businessObject, { default: toTask.businessObject });
+  makeDefault(toTask);
   expect(slash(toTask)).toContain('sf-marker-default');
   expect(slash(toEnd)).toBeNull();
 });
@@ -264,7 +265,7 @@ test('a data shape and an activity connect with a data input association', async
   // A step may draw what the data it reads holds (a glyph a Parameters object sets): editing the data redraws its readers.
   const taskBefore = canvas.getGraphics('Task_1');
   const gatewayBefore = canvas.getGraphics('Gateway_1');
-  canvas.updateProperties(data, { name: 'Rows' });
+  canvas.study.set({ id: data.id, attribute: 'name', value: 'Rows' });
   expect(canvas.getGraphics('Task_1')).not.toBe(taskBefore);
   expect(canvas.getGraphics('Gateway_1')).toBe(gatewayBefore);
 });
@@ -573,7 +574,7 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   canvas.getViewport().setViewbox({ x: 380, y: 380, width: 300, height: 200 });
   const viewbox = canvas.getViewport().getViewbox();
   canvas.getSelection().select(node(canvas, 'Task_In'));
-  canvas.updateProperties(node(canvas, 'Task_In'), { name: 'Deeper' });
+  canvas.study.set({ id: 'Task_In', attribute: 'name', value: 'Deeper' });
   const heard: string[] = [];
   canvas.getEventBus().on('RootSet', (event: any) => heard.push(`RootSet ${event.element.id}`));
   canvas.getEventBus().on('SelectionChanged', (event: any) => heard.push(`SelectionChanged ${event.newSelection.map((e: any) => e.id)}`));
@@ -593,7 +594,7 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
 
   // Drilled into nothing, with nothing selected, it still says what it shows: the root, another object now.
   canvas.goToScope(undefined);
-  canvas.updateProperties(node(canvas, 'Task_1'), { name: 'Other' });
+  canvas.study.set({ id: 'Task_1', attribute: 'name', value: 'Other' });
   heard.length = 0;
   canvas.study.undo();
   expect(heard).toEqual(['RootSet Process_1']);

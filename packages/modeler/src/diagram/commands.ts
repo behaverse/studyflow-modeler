@@ -1,6 +1,5 @@
 import new_diagram from '#assets/new_diagram.bpmn?raw';
 import { fromWireXml, looksLikeXml, studyflowToXml } from '@core/document';
-import { setAttribute } from '@core/element';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { filenameStem } from '@modeler/diagram/file';
 import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
@@ -113,7 +112,7 @@ export async function runOpenDiagram(modeler: Editor, command: OpenDiagramComman
   const root = modeler.canvas.getRoot();
   const embedded = root?.businessObject?.name;
   if (root && (typeof embedded !== 'string' || embedded.length === 0)) {
-    setAttribute(root, 'name', filenameStem(command.filename), modeler.canvas);
+    modeler.study.set({ id: root.id, attribute: 'name', value: filenameStem(command.filename) });
   }
 
   // Everything up to here is the file, not an edit of it, so auto-save has nothing to write yet.

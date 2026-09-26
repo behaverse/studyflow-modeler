@@ -5,11 +5,14 @@
  */
 
 import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireXml } from '@core/document';
+import { setAttribute } from '@core/element/index.ts';
 import type { Moddle } from '@core/element/moddle';
 import { writeDi } from '@canvas/study/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
+import { findById } from '@canvas/study/moddle.ts';
 import { Mutator, type Commit } from '@canvas/study/mutator.ts';
 import type { Drawable, ModdleObject, Scene } from '@canvas/study/scene.ts';
+import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
 /**
  * What one change did to the study, and why. An 'edit' is one commit: what it added, changed and removed. A
@@ -23,6 +26,18 @@ export interface StudyChange extends Commit {
 export interface OpenOptions extends ImportOptions {
   /** Reads the text: a moddle over the schemas the document uses. */
   moddle: Moddle;
+}
+
+/**
+ * What one verb did, as data a host or an AI reads alike: the ids of the elements it added, changed and removed,
+ * or, when `ok` is false, why it wrote nothing.
+ */
+export interface StudyResult {
+  readonly ok: boolean;
+  readonly reason?: string;
+  readonly added: readonly string[];
+  readonly changed: readonly string[];
+  readonly removed: readonly string[];
 }
 
 type ChangeListener = (change: StudyChange) => void;
@@ -50,6 +65,8 @@ export class Study {
   private snapshots: string[];
   /** The snapshot of the document the study holds. */
   private current = 0;
+  /** The last commit, for the verb that made it to report. */
+  private committed?: Commit;
 
   private constructor(definitions: ModdleObject, options: ImportOptions) {
     this.options = options;
@@ -93,6 +110,20 @@ export class Study {
     return studyInternals(this).scene.revision;
   }
 
+  /** Set `attribute` on the element `id` names, where its schema keeps it (core's `setAttribute`); 'name' renames. */
+  set({ id, attribute, value }: { id: string; attribute: string; value: unknown }): StudyResult {
+    const found = this.find(id);
+    if (!found) return refused(`no element '${id}'`);
+    return this.write(found.drawn, (writer) => setAttribute(found.moddle, attribute, value, writer));
+  }
+
+  /** Write the moddle behind `id` in place, as one commit: for what `set` cannot spell. In-process only, not a tool. */
+  edit(id: string, write: (writer: StudyWriter) => void): StudyResult {
+    const found = this.find(id);
+    if (!found) return refused(`no element '${id}'`);
+    return this.write(found.drawn, write);
+  }
+
   /** Go back to the document before the last edit; false when the history holds none. */
   undo(): boolean {
     return this.travel(-1);
@@ -126,8 +157,46 @@ export class Study {
     return scene;
   }
 
+  /**
+   * The element `id` names, and the moddle behind it: a drawn one (a caption stands for what it captions), the root,
+   * or anything else the document holds, which is not drawn.
+   */
+  private find(id: string): { drawn?: Drawable; moddle: ModdleObject } | undefined {
+    const { scene } = studyInternals(this);
+    if (id === scene.rootElement.id) return { moddle: scene.rootElement.businessObject };
+    const element = scene.elementsById.get(id);
+    if (element) {
+      const drawn = element.kind === 'label' ? element.owner : element;
+      return { drawn, moddle: drawn.businessObject };
+    }
+    const moddle = findById(scene.definitions, id);
+    return moddle && { moddle };
+  }
+
+  /** Run `write` as one commit about `drawn` (the root, without it), and say what it did by id. */
+  private write(drawn: Drawable | undefined, write: (writer: StudyWriter) => void): StudyResult {
+    const { scene, mutator } = studyInternals(this);
+    this.takeCommitted();
+    mutator.batch(() => write(writerFor(scene, mutator, drawn)));
+    const commit = this.takeCommitted();
+    return {
+      ok: true,
+      added: (commit?.added ?? []).map((element) => element.id),
+      changed: (commit?.changed ?? []).map((element) => element.id),
+      removed: (commit?.removed ?? []).map((element) => element.id),
+    };
+  }
+
+  /** The commit made since the last take: none when nothing was written, or when a batch around this one is still open. */
+  private takeCommitted(): Commit | undefined {
+    const commit = this.committed;
+    this.committed = undefined;
+    return commit;
+  }
+
   /** A commit: the document as it now stands is the newest snapshot, unless it is the one the study holds. */
   private edited(commit: Commit): void {
+    this.committed = commit;
     const { scene } = studyInternals(this);
     writeDi(scene);
     const snapshot = definitionsToStudyflow(scene.definitions);
@@ -162,6 +231,10 @@ export class Study {
   private announce(change: StudyChange): void {
     for (const listener of [...this.listeners]) listener(change);
   }
+}
+
+function refused(reason: string): StudyResult {
+  return { ok: false, reason, added: [], changed: [], removed: [] };
 }
 
 /** File text, `.studyflow.yaml` or BPMN XML, as definitions. */

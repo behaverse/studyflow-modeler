@@ -4,7 +4,8 @@
  */
 
 export { Canvas, type CanvasOptions } from './Canvas.ts';
-export { Study, type OpenOptions, type StudyChange } from './study/Study.ts';
+export { Study, type OpenOptions, type StudyChange, type StudyResult } from './study/Study.ts';
+export type { StudyWriter } from './study/writer.ts';
 export { renderSvg, type RenderSvgOptions } from './render/renderSvg.ts';
 export type { ImportOptions } from './study/import.ts';
 export type { Bounds, ElementRef, Font, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, SceneNode, TextAlign } from './study/scene.ts';
