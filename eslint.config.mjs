@@ -5,7 +5,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 
 // The enforced boundaries: core/ is framework-free and names no bpmn-js service; the modeler and the browser
 // runtime never import each other (what both need lives in core/, their shared localStorage in @core/storage);
-// and the modeler reaches the canvas through its index only.
+// the modeler reaches the canvas through its index only; and the canvas's study/ needs no DOM.
 export default [
   { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results'] },
   // The repo's JavaScript is Node scripts: the release, the example renderer, the Electron shell, a dev proxy.
@@ -59,6 +59,25 @@ export default [
           { group: ['@modeler/*'], message: 'runner/ may not import from modeler/. Move shared code into packages/core/.' },
         ],
       }],
+    },
+  },
+
+  // The canvas's study/ is the part that runs without a DOM (Node, tests, the CLI): it imports only itself and core,
+  // and names no DOM global. bus.ts is the one exception: the mutator fires `ElementsChanged` on it.
+  {
+    files: ['packages/canvas/src/study/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          { group: ['@canvas/*', '!@canvas/study', '!@canvas/bus.ts'], message: 'study/ runs without a DOM: import only study/ and @core.' },
+        ],
+      }],
+      'no-restricted-globals': ['error',
+        ...['document', 'window', 'navigator', 'getComputedStyle', 'requestAnimationFrame', 'ResizeObserver', 'XMLSerializer',
+          'DOMParser', 'Node', 'Element', 'HTMLElement', 'SVGElement', 'Event'].map((name) => ({
+          name, message: 'study/ runs without a DOM; drawing and input belong to render/, interaction/ and view/.',
+        })),
+      ],
     },
   },
 

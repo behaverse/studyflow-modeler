@@ -28,7 +28,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 
 ## Rules
 
-- ESLint holds three boundaries: core imports no React and names no bpmn-js service; the modeler and the browser runtime never import each other; the modeler reaches the canvas through its index.
+- ESLint holds four boundaries: core imports no React and names no bpmn-js service; the modeler and the browser runtime never import each other; the modeler reaches the canvas through its index; the canvas's `src/study/` needs no DOM (it imports only itself and core).
 - `packages/` names no skill but the required ones, whose schemas say `required: true` (`studyflow`, `prov`, `cognitive`, `local`). A skill declares what the apps need, in its schema ([skills/SCHEMAS.md](skills/SCHEMAS.md)), `modeler.ts` or `browser/vite.ts`, and the apps find it.
 - No backward-compatibility code: an old diagram is updated in place, never aliased.
 - A new short form in `.studyflow.yaml` must be reversible, and the long form must still load. `packages/core/tests/studyflow-yaml.unit.spec.ts` pins the spelling.
