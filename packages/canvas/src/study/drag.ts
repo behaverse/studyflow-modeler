@@ -49,6 +49,8 @@ export interface DragOptions {
   /** A resize's minimum size, and whether a container takes a drop. */
   rules: Rules;
   getScene: () => Scene | undefined;
+  /** The container the view is drilled into, which takes a move dropped on empty background. */
+  getScope: () => SceneNode | undefined;
   hitTest: (point: Point, options?: HitOptions) => SceneElement | undefined;
   /** Boxes a live re-route steers around, asked once per move. */
   obstacles?: (moving: readonly SceneNode[]) => Bounds[];
@@ -107,6 +109,7 @@ export class Drag {
   private readonly redraw: (elements: SceneElement[]) => void;
   private readonly rules: Rules;
   private readonly getScene: () => Scene | undefined;
+  private readonly getScope: () => SceneNode | undefined;
   private readonly hitTest: DragOptions['hitTest'];
   private readonly obstaclesFor?: (moving: readonly SceneNode[]) => Bounds[];
   private snap: boolean;
@@ -118,6 +121,7 @@ export class Drag {
     this.redraw = options.redraw;
     this.rules = options.rules;
     this.getScene = options.getScene;
+    this.getScope = options.getScope;
     this.hitTest = options.hitTest;
     this.snap = options.snapToGrid ?? true;
     this.obstaclesFor = options.obstacles;
@@ -267,7 +271,7 @@ export class Drag {
     const container = containerFor(hit) as SceneNode | undefined;
     const parent = container?.kind === 'node' ? container : undefined;
     const roots = state.nodes.filter((node) => !(node.parent && moving.has(node.parent.id)));
-    const scope = scene.scope;
+    const scope = this.getScope();
     const allowed = this.rules.canMove(roots, parent ?? (scope ? { ...scope, isExpanded: true } : scene.rootElement));
     const home = parent ?? scope;
     const rehomed = roots.filter((node) => node !== home && (node.parent ?? undefined) !== home);
@@ -286,7 +290,7 @@ export class Drag {
     }
     this.mutator.batch(() => {
       this.end(point, grid);
-      if (target && target.rehomed.length > 0) this.mutator.reparent(target.rehomed, target.parent ?? this.getScene()?.scope);
+      if (target && target.rehomed.length > 0) this.mutator.reparent(target.rehomed, target.parent ?? this.getScope());
     });
     return true;
   }

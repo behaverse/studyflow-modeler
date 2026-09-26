@@ -81,6 +81,8 @@ export class Canvas {
   private readonly importOptions: ImportOptions;
   private snapToGrid: boolean;
   private scene?: Scene;
+  /** The container the view is drilled into; `undefined` shows the whole diagram. */
+  private scope?: SceneNode;
   private mutator?: Mutator;
   private drag?: Drag;
   private appendPreview?: SVGGElement;
@@ -133,7 +135,7 @@ export class Canvas {
       hitTest: (point) => this.hitTest(point),
       layer: this.layers.getLayer('overlays'),
       snap: (point) => this.snapPoint(point),
-      getContainer: () => this.scene?.scope,
+      getContainer: () => this.scope,
       drawGhost: (prototype, bounds) => this.drawCreateGhost(prototype, bounds),
       markTarget: (target, allowed) => this.gestures.markDropTarget(target, allowed),
     });
@@ -185,6 +187,8 @@ export class Canvas {
     this.resetInteraction();
     this.selection.forget();
     this.scene = importDefinitions(definitions, this.importOptions);
+    this.scope = undefined;
+    this.renderer.scope = undefined;
     this.mutator = new Mutator(this.scene, this.bus, (commit) => this.drawCommit(commit));
     this.drag = new Drag({
       mutator: this.mutator,
@@ -192,6 +196,7 @@ export class Canvas {
       snapToGrid: this.snapToGrid,
       rules: this.rules,
       getScene: () => this.scene,
+      getScope: () => this.scope,
       hitTest: (point, options) => this.hitTest(point, options),
       obstacles: (moving) => this.routeObstacles(moving),
     });
@@ -280,7 +285,7 @@ export class Canvas {
 
   /** What the view shows: the drilled-into container, else the document root. */
   getRoot(): Root {
-    return this.scene?.scope ?? this.requireScene().rootElement;
+    return this.scope ?? this.requireScene().rootElement;
   }
 
   /** The nearest collapsed container `element` lives in, else the document root. */
@@ -298,7 +303,7 @@ export class Canvas {
   // --- drill-down scope -------------------------------------------------------------
 
   getScope(): SceneNode | undefined {
-    return this.scene?.scope;
+    return this.scope;
   }
 
   /** Show only `node`'s contents. */
@@ -316,16 +321,16 @@ export class Canvas {
   scopePath(): Root[] {
     const scene = this.requireScene();
     const path: Root[] = [];
-    for (let p = scene.scope; p; p = p.parent) if (isExpandable(p.type)) path.unshift(p);
+    for (let p = this.scope; p; p = p.parent) if (isExpandable(p.type)) path.unshift(p);
     path.unshift(scene.rootElement);
     return path;
   }
 
   private setScope(node: SceneNode | undefined): boolean {
     const scene = this.scene;
-    if (!scene || scene.scope === node) return false;
+    if (!scene || this.scope === node) return false;
     this.resetInteraction();
-    scene.scope = node;
+    this.scope = node;
     this.renderer.scope = node;
     this.redrawElements(this.all());
     this.zoomToFit();
@@ -345,7 +350,7 @@ export class Canvas {
 
   zoomToFit(): void {
     if (!this.scene) return;
-    const visible = this.all().filter((element) => !isHidden(element, this.scene?.scope));
+    const visible = this.all().filter((element) => !isHidden(element, this.scope));
     this.viewport.fitBounds(boundsOf(visible) ?? { x: 0, y: 0, width: 1000, height: 1000 }, 40);
   }
 
@@ -459,7 +464,7 @@ export class Canvas {
         box = undefined;
       }
     }
-    box ??= boundsOf(this.all().filter((element) => !isHidden(element, this.scene?.scope)));
+    box ??= boundsOf(this.all().filter((element) => !isHidden(element, this.scope)));
     if (!box) return undefined;
     return {
       x: box.x - EXPORT_MARGIN,
@@ -593,7 +598,7 @@ export class Canvas {
   // --- hit-testing --------------------------------------------------------------------
 
   hitTest(point: Point, options?: HitOptions): SceneElement | undefined {
-    return this.scene ? hitTest(this.scene, point, options) : undefined;
+    return this.scene ? hitTest(this.scene, point, { ...options, scope: this.scope }) : undefined;
   }
 
   /** The selected shapes and captions a move carries. */
@@ -666,13 +671,13 @@ export class Canvas {
   isAreaOccupied(bounds: Bounds, from?: SceneNode | SceneEdge): boolean {
     if (!this.scene) return false;
     const origin = from ? centerOf(appendSourceBounds(from)) : undefined;
-    const onNode = nodesIntersecting(this.scene, bounds).some((node) => {
+    const onNode = nodesIntersecting(this.scene, bounds, this.scope).some((node) => {
       if (node === from) return false;
       if (!isContainerNode(node)) return true;
       return origin !== undefined && !pointInBox(origin, node);
     });
     if (onNode) return true;
-    return edgesIntersecting(this.scene, bounds).some((edge) => edge !== from);
+    return edgesIntersecting(this.scene, bounds, this.scope).some((edge) => edge !== from);
   }
 
   /** Retype `node` in place, keeping its name, position and flows, as one edit. */
@@ -693,7 +698,7 @@ export class Canvas {
     };
     const name = prop(node.businessObject, 'name');
     const attrs = { ...prototype.attrs, ...(typeof name === 'string' && name ? { name } : {}) };
-    const parent = node.parent ?? this.scene.scope;
+    const parent = node.parent ?? this.scope;
     const replacement = mutator.batch(() => {
       const shape = mutator.addShape({
         type: prototype.type,
@@ -821,7 +826,7 @@ export class Canvas {
   private routeObstacles(exclude: readonly SceneNode[] = []): Bounds[] {
     if (!this.scene) return [];
     const skip = new Set<SceneNode>(exclude);
-    return orderedNodes(this.scene)
+    return orderedNodes(this.scene, this.scope)
       .filter((node) => !skip.has(node) && !isContainerNode(node))
       .map((node) => ({ x: node.x, y: node.y, width: node.width, height: node.height }));
   }
@@ -843,7 +848,7 @@ export class Canvas {
   }
 
   selectAll(): boolean {
-    const all = this.all().filter((element) => element.kind !== 'label' && !isHidden(element, this.scene?.scope));
+    const all = this.all().filter((element) => element.kind !== 'label' && !isHidden(element, this.scope));
     if (all.length === 0) return false;
     this.selection.select(all);
     return true;

@@ -319,7 +319,7 @@ export class Gestures {
       const scene = this.canvas.getScene();
       if (scene) {
         const rect = normalizeRect({ x: g.downDiagram.x, y: g.downDiagram.y, width: pt.x - g.downDiagram.x, height: pt.y - g.downDiagram.y });
-        const enclosed = nodesIntersecting(scene, rect);
+        const enclosed = nodesIntersecting(scene, rect, this.canvas.getScope());
         const selection = this.canvas.getSelection();
         selection.previewSelection(g.shift ? [...selection.get(), ...enclosed] : enclosed);
       }
@@ -432,7 +432,7 @@ export class Gestures {
       const lead = moving[0];
       const ids = new Set(moving.map((el) => el.id));
       this.snapContext = {
-        targets: collectSnapTargets(scene, ids, 'mid'),
+        targets: collectSnapTargets(scene, this.canvas.getScope(), ids, 'mid'),
         bounds: { x: lead.x, y: lead.y, width: lead.width, height: lead.height },
       };
       return;
@@ -441,7 +441,7 @@ export class Gestures {
       const target = g.handle.target;
       const handle = g.handle.handle;
       this.snapContext = {
-        targets: collectSnapTargets(scene, new Set([target.id]), 'bounds'),
+        targets: collectSnapTargets(scene, this.canvas.getScope(), new Set([target.id]), 'bounds'),
         point: {
           x: handle.includes('w') ? target.x : target.x + target.width,
           y: handle.includes('n') ? target.y : target.y + target.height,
@@ -452,7 +452,7 @@ export class Gestures {
     if (g.intent === 'waypoint' && g.waypoint) {
       const p = g.waypoint.insert ? g.downDiagram : g.waypoint.edge.waypoints[g.waypoint.index];
       if (!p) return;
-      this.snapContext = { targets: collectSnapTargets(scene, new Set<string>(), 'bounds'), point: { x: p.x, y: p.y } };
+      this.snapContext = { targets: collectSnapTargets(scene, this.canvas.getScope(), new Set<string>(), 'bounds'), point: { x: p.x, y: p.y } };
     }
   }
 
@@ -554,7 +554,7 @@ export class Gestures {
       }
     } else if (g.marquee) {
       const rect = normalizeRect({ x: g.downDiagram.x, y: g.downDiagram.y, width: pt.x - g.downDiagram.x, height: pt.y - g.downDiagram.y });
-      selection.select(nodesIntersecting(scene, rect), g.shift);
+      selection.select(nodesIntersecting(scene, rect, this.canvas.getScope()), g.shift);
     } else if ((g.intent === 'marquee' || g.intent === 'pan') && !g.shift) {
       selection.clear();
     } else if (g.collapseTo && Math.hypot(ev.clientX - g.downScreen.x, ev.clientY - g.downScreen.y) < DRAG_THRESHOLD_PX) {

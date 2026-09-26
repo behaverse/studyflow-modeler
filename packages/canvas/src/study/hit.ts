@@ -8,6 +8,8 @@ import { depthOf, isHidden } from '@canvas/study/tree.ts';
 import { distanceToSegment } from '@canvas/study/edit.ts';
 
 export interface HitOptions {
+  /** The container the view is drilled into: what lies outside it is invisible to the query. */
+  scope?: SceneNode;
   /** An element the predicate rejects is invisible to the query. */
   accept?: (element: SceneElement) => boolean;
 }
@@ -39,29 +41,29 @@ function drawOrderOf(scene: Scene): DrawOrder {
   return order;
 }
 
-export function orderedNodes(scene: Scene): SceneNode[] {
-  return drawOrderOf(scene).nodes.filter((node) => !isHidden(node, scene.scope));
+export function orderedNodes(scene: Scene, scope?: SceneNode): SceneNode[] {
+  return drawOrderOf(scene).nodes.filter((node) => !isHidden(node, scope));
 }
 
-function orderedEdges(scene: Scene): SceneEdge[] {
-  return drawOrderOf(scene).edges.filter((edge) => !isHidden(edge, scene.scope));
+function orderedEdges(scene: Scene, scope?: SceneNode): SceneEdge[] {
+  return drawOrderOf(scene).edges.filter((edge) => !isHidden(edge, scope));
 }
 
-function visibleLabels(scene: Scene): SceneLabel[] {
+function visibleLabels(scene: Scene, scope?: SceneNode): SceneLabel[] {
   const out: SceneLabel[] = [];
   for (const element of scene.elementsById.values()) {
-    if (element.kind === 'label' && !isHidden(element, scene.scope)) out.push(element);
+    if (element.kind === 'label' && !isHidden(element, scope)) out.push(element);
   }
   return out;
 }
 
 export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): SceneElement | undefined {
   const accept = options.accept;
-  for (const label of visibleLabels(scene).reverse()) {
+  for (const label of visibleLabels(scene, options.scope).reverse()) {
     if (accept && !accept(label)) continue;
     if (pointInBox(point, label)) return label;
   }
-  const nodes = orderedNodes(scene);
+  const nodes = orderedNodes(scene, options.scope);
   let container: SceneNode | undefined;
   for (let i = nodes.length - 1; i >= 0; i -= 1) {
     const node = nodes[i];
@@ -70,7 +72,7 @@ export function hitTest(scene: Scene, point: Point, options: HitOptions = {}): S
     if (!isContainerNode(node)) return node;
     if (!container || outranksFrame(node, container)) container = node;
   }
-  return nearestEdge(scene, point, EDGE_TOLERANCE, accept) ?? container;
+  return nearestEdge(scene, point, options) ?? container;
 }
 
 /** The smaller frame is the inner one; on a tie, the deeper. */
@@ -81,10 +83,10 @@ function outranksFrame(candidate: SceneNode, current: SceneNode): boolean {
   return depthOf(candidate) > depthOf(current);
 }
 
-function nearestEdge(scene: Scene, point: Point, tolerance: number, accept?: (element: SceneElement) => boolean): SceneEdge | undefined {
+function nearestEdge(scene: Scene, point: Point, { scope, accept }: HitOptions): SceneEdge | undefined {
   let best: SceneEdge | undefined;
-  let bestDist = tolerance;
-  for (const edge of orderedEdges(scene)) {
+  let bestDist = EDGE_TOLERANCE;
+  for (const edge of orderedEdges(scene, scope)) {
     if (accept && !accept(edge)) continue;
     const d = distanceToPolyline(point, edge.waypoints);
     if (d <= bestDist) {
@@ -110,15 +112,15 @@ export function pointInBox(point: Point, box: Bounds, padding = 0): boolean {
     && point.y >= box.y - padding && point.y <= box.y + box.height + padding;
 }
 
-export function nodesIntersecting(scene: Scene, rect: Bounds): SceneNode[] {
+export function nodesIntersecting(scene: Scene, rect: Bounds, scope?: SceneNode): SceneNode[] {
   const r = normalizeRect(rect);
-  return orderedNodes(scene).filter((node) => rectsIntersect(r, node));
+  return orderedNodes(scene, scope).filter((node) => rectsIntersect(r, node));
 }
 
 /** Edges whose route passes through `rect`. */
-export function edgesIntersecting(scene: Scene, rect: Bounds): SceneEdge[] {
+export function edgesIntersecting(scene: Scene, rect: Bounds, scope?: SceneNode): SceneEdge[] {
   const r = normalizeRect(rect);
-  return orderedEdges(scene).filter((edge) => {
+  return orderedEdges(scene, scope).filter((edge) => {
     const points = edge.waypoints;
     for (let i = 0; i < points.length - 1; i += 1) {
       if (segmentIntersectsRect(points[i], points[i + 1], r)) return true;

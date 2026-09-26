@@ -108,8 +108,6 @@ export interface Scene {
   byBusinessObject: Map<ModdleObject, SceneNode | SceneEdge>;
   /** Bumped on every committed edit. */
   revision: number;
-  /** View state: the container the editor is drilled into, if any. */
-  scope?: SceneNode;
 }
 
 export function isRootElement(value: unknown): value is RootElement {

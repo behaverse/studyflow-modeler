@@ -18,7 +18,7 @@ An edit, end to end: the modeler parses the XML and hands the definitions to `im
 - The scene is the truth while editing. The canvas reads DI only in `study/import.ts` and writes it only in `study/di.ts`, as one plane. It reads the first plane only; what a further one draws is dropped, with a warning.
 - A caption is an element of its own, with the id `<owner id>_label`.
 - Paint order is `zRankOf` (`study/tree.ts`).
-- Drilling into a container sets the scene's `scope`; it is a view of the same scene, not another plane.
+- Drilling into a container sets the canvas's `scope`: view state, not the scene's, so it is a view of the same scene, not another plane. An edge docks on what its own plane shows (`planeOf`), whatever a view is drilled into.
 
 ## What the host provides and gets
 

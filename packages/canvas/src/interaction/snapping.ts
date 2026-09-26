@@ -1,6 +1,6 @@
 /** Alignment snapping: pull a gesture onto a neighbour's centre or edge, and say where the guide goes. */
 
-import type { Bounds, Point, Scene } from '@canvas/study/scene.ts';
+import type { Bounds, Point, Scene, SceneNode } from '@canvas/study/scene.ts';
 import { isHidden } from '@canvas/study/tree.ts';
 
 const SNAP_TOLERANCE = 7;
@@ -13,11 +13,12 @@ export interface SnapTargets {
 /** `'mid'`: centres only (a move). `'bounds'`: centres and edges (a resize, a bendpoint). */
 export type SnapKind = 'mid' | 'bounds';
 
-export function collectSnapTargets(scene: Scene, exclude: ReadonlySet<string>, kind: SnapKind = 'mid'): SnapTargets {
+/** Snap targets from the nodes a view drilled into `scope` shows, but those `exclude` names. */
+export function collectSnapTargets(scene: Scene, scope: SceneNode | undefined, exclude: ReadonlySet<string>, kind: SnapKind = 'mid'): SnapTargets {
   const xs: number[] = [];
   const ys: number[] = [];
   for (const node of scene.elementsById.values()) {
-    if (node.kind !== 'node' || exclude.has(node.id) || isHidden(node, scene.scope)) continue;
+    if (node.kind !== 'node' || exclude.has(node.id) || isHidden(node, scope)) continue;
     xs.push(node.x + node.width / 2);
     ys.push(node.y + node.height / 2);
     if (kind === 'bounds') {

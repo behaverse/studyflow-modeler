@@ -171,7 +171,6 @@ export class Renderer {
 
   renderScene(scene: Scene, layer: SVGElement): void {
     this.graphicsById.clear();
-    this.scope = scene.scope;
     this.scene = scene;
     const elements = [...scene.elementsById.values()].sort((a, b) => zRankOf(a) - zRankOf(b));
     for (const element of elements) {
