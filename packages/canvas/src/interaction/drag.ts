@@ -11,7 +11,7 @@ import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNo
 import { nameOf } from '@canvas/model/moddle.ts';
 import { visibleEndpointOf, withDescendants } from '@canvas/model/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/render/labels.ts';
-import { cropPoint } from '@canvas/routing/crop.ts';
+import { cropPoint } from '@core/document/outline.ts';
 import { freeMoveEnd, moveBendpoint, moveTerminal, samePoints } from '@canvas/routing/edit.ts';
 import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
 import type { ResizeHandle } from '@canvas/interaction/selection.ts';

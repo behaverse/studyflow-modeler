@@ -3,40 +3,13 @@
  * appends to `parent` and returns the primary outline element.
  */
 
-import { BPMN } from '@core/constants.ts';
+import { categoryOf, dataObjectFold, dataStoreRim } from '@core/document/outline.ts';
 import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
 
 import { asModdle, prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, SceneNode } from '@canvas/model/scene.ts';
 import { isCollapsed } from '@canvas/model/tree.ts';
 import { append, create } from '@canvas/render/svg.ts';
-import { DATA_TYPES } from '@canvas/rules/rules.ts';
-
-export type NodeCategory =
-  | 'event' | 'task' | 'gateway' | 'data' | 'choreography' | 'group' | 'annotation' | 'participant' | 'unknown';
-
-const EVENT_TYPES = new Set<string>([
-  BPMN.StartEvent, BPMN.EndEvent, BPMN.IntermediateThrowEvent, BPMN.IntermediateCatchEvent, BPMN.BoundaryEvent,
-]);
-const TASK_TYPES = new Set<string>([
-  BPMN.Task, BPMN.UserTask, BPMN.ServiceTask, BPMN.ScriptTask, BPMN.ManualTask, BPMN.SendTask, BPMN.ReceiveTask,
-  BPMN.BusinessRuleTask, BPMN.CallActivity, BPMN.SubProcess, 'bpmn:AdHocSubProcess', 'bpmn:Transaction',
-]);
-const GATEWAY_TYPES = new Set<string>([
-  BPMN.ExclusiveGateway, BPMN.ParallelGateway, BPMN.InclusiveGateway, BPMN.ComplexGateway, BPMN.EventBasedGateway,
-]);
-
-export function categoryOf(type: string): NodeCategory {
-  if (type === BPMN.ChoreographyTask) return 'choreography';
-  if (EVENT_TYPES.has(type)) return 'event';
-  if (TASK_TYPES.has(type)) return 'task';
-  if (GATEWAY_TYPES.has(type)) return 'gateway';
-  if (DATA_TYPES.has(type)) return 'data';
-  if (type === BPMN.Group) return 'group';
-  if (type === BPMN.TextAnnotation) return 'annotation';
-  if (type === BPMN.Participant || type === BPMN.Lane) return 'participant';
-  return 'unknown';
-}
 
 /** The bottom-centre markers an activity draws, in BPMN's order. A pool's own marker is `participantInstances`. */
 export function activityMarkers(node: SceneNode): string[] {
@@ -117,11 +90,6 @@ export function drawDiamond(parent: SVGElement, w: number, h: number, style: Sha
   }));
 }
 
-/** Side of a data object's folded corner. */
-export function dataObjectFold(w: number, h: number): number {
-  return Math.min(w, h) * 0.32;
-}
-
 export function drawDataObject(parent: SVGElement, w: number, h: number, style: ShapeStyle): SVGElement {
   const fold = dataObjectFold(w, h);
   const body = append(parent, create('path', {
@@ -133,11 +101,6 @@ export function drawDataObject(parent: SVGElement, w: number, h: number, style: 
     fill: 'none', stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-linejoin': 'round',
   }));
   return body;
-}
-
-/** Half-height of a data store's rim ellipse; its body runs from twice this to the bottom. */
-export function dataStoreRim(h: number): number {
-  return Math.min(h * 0.12, 8);
 }
 
 export function drawDataStore(parent: SVGElement, w: number, h: number, style: ShapeStyle): SVGElement {
@@ -180,8 +143,6 @@ export function drawParticipant(parent: SVGElement, w: number, h: number, style:
   return rect;
 }
 
-const CHOREOGRAPHY_BAND_HEIGHT = 20;
-
 export function bandPath(width: number, bandHeight: number, height: number, edge: 'top' | 'bottom'): string {
   const r = CORNER_RADIUS;
   if (edge === 'top') {
@@ -189,8 +150,4 @@ export function bandPath(width: number, bandHeight: number, height: number, edge
   }
   const y = height - bandHeight;
   return `M0,${y} L${width},${y} L${width},${height - r} Q${width},${height} ${width - r},${height} L${r},${height} Q0,${height} 0,${height - r} Z`;
-}
-
-export function choreographyBandHeight(height: number): number {
-  return Math.min(CHOREOGRAPHY_BAND_HEIGHT, Math.floor(height / 3));
 }

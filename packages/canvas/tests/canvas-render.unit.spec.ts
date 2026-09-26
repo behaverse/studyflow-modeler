@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import { Canvas, INK } from '@canvas/index.ts';
 import { resolvePlaceholders, studyflowToDefinitions } from '@core/document';
 import { CHROME, LINE_HEIGHT } from '@canvas/render/labels.ts';
-import { choreographyBandHeight, PARTICIPANT_BAND } from '@canvas/render/shapes.ts';
+import { choreographyBandHeight } from '@core/document/outline.ts';
+import { PARTICIPANT_BAND } from '@canvas/render/shapes.ts';
 
 import { diElements, edge, freshModdle, installDocument, loadCanvas, loadYaml, node } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';

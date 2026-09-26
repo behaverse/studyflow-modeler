@@ -8,7 +8,7 @@ import { inlineIoSpecification, expandIoSpecification } from '@core/document/io-
 import { choreographyToProcessRoot, headlessPlaneToProcessRoot } from '@core/document/choreography';
 import { studyflowToDefinitions } from '@core/document/deserialize';
 
-/* The package's surface: outside `core/document`, only this barrel and `png.ts` are imported. */
+/* The package's surface: outside `core/document`, only this barrel, `png.ts`, `svg.ts` and `outline.ts` are imported. */
 export { studyflowToDefinitions } from '@core/document/deserialize';
 export {
   STUDY_EXTENSION_TYPE,

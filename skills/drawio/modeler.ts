@@ -4,7 +4,8 @@ import { embedBpmnIntoSvg } from '@modeler/export/svgEmbedding';
 import type { ModelerModule } from '@modeler/skillModules';
 import { exportDiagramName } from '@modeler/diagram/name';
 import { readChoreographyBands } from '@core/document';
-import { choreographyBandHeight, isCollapsed, isHidden } from '@canvas/index.ts';
+import { choreographyBandHeight } from '@core/document/outline';
+import { isCollapsed, isHidden } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 
 /** draw.io's connection points for a BPMN activity, as its palette emits them. */

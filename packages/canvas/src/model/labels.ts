@@ -8,7 +8,7 @@ import { BPMN } from '@core/constants.ts';
 import { nameOf } from '@canvas/model/moddle.ts';
 import type { Bounds, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { edgeLabelBox, labelHeightFor, nodeLabelBox } from '@canvas/render/labels.ts';
-import { DATA_TYPES } from '@canvas/rules/rules.ts';
+import { DATA_TYPES } from '@core/document/outline.ts';
 
 const EXTERNAL_LABEL_TYPES = new Set<string>([
   BPMN.StartEvent, BPMN.EndEvent, BPMN.IntermediateThrowEvent, BPMN.IntermediateCatchEvent,

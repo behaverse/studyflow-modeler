@@ -7,7 +7,7 @@
 import type { Mutator } from '@canvas/model/mutator.ts';
 import type { Bounds, ModdleObject, Point, Scene, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { EXPANDED_SIZE, isExpandable } from '@canvas/model/tree.ts';
-import { categoryOf, type NodeCategory } from '@canvas/render/shapes.ts';
+import { categoryOf, type NodeCategory } from '@core/document/outline.ts';
 import { append, remove } from '@canvas/render/svg.ts';
 import type { RuleElement, Rules } from '@canvas/rules/rules.ts';
 

@@ -1,12 +1,81 @@
 /**
- * Endpoint cropping: pull an edge end from inside a shape out to the drawn outline
- * (circle, diamond, page, cylinder, rectangle), walking along the incident segment
- * so an axis-aligned segment stays axis-aligned.
+ * A shape's outline as studyflow draws it, from its type and bounds: which silhouette a type takes (circle, diamond,
+ * page, cylinder, rectangle), its proportions, and endpoint cropping, which pulls an edge end from inside a shape
+ * out to that outline, walking along the incident segment so an axis-aligned segment stays axis-aligned. The canvas
+ * draws and docks with it; a layout pass over DI (before anything is drawn) and exporters read it too.
  */
 
-import type { Bounds, Point } from '@canvas/model/scene.ts';
-import { categoryOf, dataObjectFold, dataStoreRim } from '@canvas/render/shapes.ts';
-import { isDataStore } from '@canvas/rules/rules.ts';
+import { BPMN } from '@core/constants';
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface Bounds extends Point {
+  width: number;
+  height: number;
+}
+
+export type NodeCategory =
+  | 'event' | 'task' | 'gateway' | 'data' | 'choreography' | 'group' | 'annotation' | 'participant' | 'unknown';
+
+const EVENT_TYPES = new Set<string>([
+  BPMN.StartEvent, BPMN.EndEvent, BPMN.IntermediateThrowEvent, BPMN.IntermediateCatchEvent, BPMN.BoundaryEvent,
+]);
+const TASK_TYPES = new Set<string>([
+  BPMN.Task, BPMN.UserTask, BPMN.ServiceTask, BPMN.ScriptTask, BPMN.ManualTask, BPMN.SendTask, BPMN.ReceiveTask,
+  BPMN.BusinessRuleTask, BPMN.CallActivity, BPMN.SubProcess, 'bpmn:AdHocSubProcess', 'bpmn:Transaction',
+]);
+const GATEWAY_TYPES = new Set<string>([
+  BPMN.ExclusiveGateway, BPMN.ParallelGateway, BPMN.InclusiveGateway, BPMN.ComplexGateway, BPMN.EventBasedGateway,
+]);
+
+export const DATA_TYPES: ReadonlySet<string> = new Set([
+  'bpmn:DataObjectReference',
+  'bpmn:DataStoreReference',
+  'bpmn:DataObject',
+  'bpmn:DataStore',
+]);
+
+const DATA_STORE_TYPES: ReadonlySet<string> = new Set(['bpmn:DataStoreReference', 'bpmn:DataStore']);
+
+export function isDataShape(type: string): boolean {
+  return DATA_TYPES.has(type);
+}
+
+export function isDataStore(type: string): boolean {
+  return DATA_STORE_TYPES.has(type);
+}
+
+export function categoryOf(type: string): NodeCategory {
+  if (type === BPMN.ChoreographyTask) return 'choreography';
+  if (EVENT_TYPES.has(type)) return 'event';
+  if (TASK_TYPES.has(type)) return 'task';
+  if (GATEWAY_TYPES.has(type)) return 'gateway';
+  if (DATA_TYPES.has(type)) return 'data';
+  if (type === BPMN.Group) return 'group';
+  if (type === BPMN.TextAnnotation) return 'annotation';
+  if (type === BPMN.Participant || type === BPMN.Lane) return 'participant';
+  return 'unknown';
+}
+
+/** Side of a data object's folded corner. */
+export function dataObjectFold(w: number, h: number): number {
+  return Math.min(w, h) * 0.32;
+}
+
+/** Half-height of a data store's rim ellipse; its body runs from twice this to the bottom. */
+export function dataStoreRim(h: number): number {
+  return Math.min(h * 0.12, 8);
+}
+
+const CHOREOGRAPHY_BAND_HEIGHT = 20;
+
+/** The height of each participant band of a choreography task `height` tall. */
+export function choreographyBandHeight(height: number): number {
+  return Math.min(CHOREOGRAPHY_BAND_HEIGHT, Math.floor(height / 3));
+}
 
 export interface CroppableShape extends Bounds {
   readonly type?: string;

@@ -8,7 +8,7 @@ import type { Mutator } from '@canvas/model/mutator.ts';
 import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { markerEndFor, markerStartFor, previewEdge } from '@canvas/render/renderer.ts';
 import { append, create as svgCreate, remove } from '@canvas/render/svg.ts';
-import { cropPoint } from '@canvas/routing/crop.ts';
+import { cropPoint } from '@core/document/outline.ts';
 import { routableEnd, routeFor, type RouteOptions } from '@canvas/routing/orthogonal.ts';
 import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/rules/rules.ts';
 

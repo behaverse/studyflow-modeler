@@ -4,6 +4,7 @@
  * then plain structural BPMN sense.
  */
 
+import { isDataShape } from '@core/document/outline.ts';
 import { getExtensionType } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
@@ -39,23 +40,6 @@ export const CONNECTION = {
   dataInputAssociation: 'bpmn:DataInputAssociation',
   dataOutputAssociation: 'bpmn:DataOutputAssociation',
 } as const;
-
-export const DATA_TYPES: ReadonlySet<string> = new Set([
-  'bpmn:DataObjectReference',
-  'bpmn:DataStoreReference',
-  'bpmn:DataObject',
-  'bpmn:DataStore',
-]);
-
-const DATA_STORE_TYPES: ReadonlySet<string> = new Set(['bpmn:DataStoreReference', 'bpmn:DataStore']);
-
-export function isDataShape(type: string): boolean {
-  return DATA_TYPES.has(type);
-}
-
-export function isDataStore(type: string): boolean {
-  return DATA_STORE_TYPES.has(type);
-}
 
 function isArtifact(type: string): boolean {
   return isBpmnSubtypeOf(type, 'bpmn:Artifact');

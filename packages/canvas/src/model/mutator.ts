@@ -63,7 +63,7 @@ import {
   incidentEdgesOf,
   isExpandable,
 } from '@canvas/model/tree.ts';
-import { cropPoint } from '@canvas/routing/crop.ts';
+import { cropPoint } from '@core/document/outline.ts';
 import { samePoints } from '@canvas/routing/edit.ts';
 import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
 import { containerFor } from '@canvas/rules/rules.ts';

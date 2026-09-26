@@ -13,8 +13,6 @@ export { attachEventDefinitions, eventDefinitionTypeOf } from './model/moddle.ts
 export { CONTENT_PADDING, isCollapsed, isExpandable, isExpanded, isHidden } from './model/tree.ts';
 export { defaultSizeFor, type ShapeDescriptor } from './interaction/create.ts';
 export { Selection } from './interaction/selection.ts';
-export { choreographyBandHeight } from './render/shapes.ts';
-export { cropWaypoints, type CroppableShape } from './routing/crop.ts';
 export { SVG_ICON_PATHS, type IconDef } from './render/icons.ts';
 export { append as svgAppend, attr as svgAttr, create as svgCreate, remove as svgRemove, setDocument } from './render/svg.ts';
 export { INK } from './view/theme.ts';

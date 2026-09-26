@@ -8,7 +8,7 @@ import { BPMN } from '@core/constants.ts';
 
 import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
 import { visibleEndpointOf } from '@canvas/model/tree.ts';
-import { centerOf, cropPoint, cropWaypoints, distance, type CroppableShape } from '@canvas/routing/crop.ts';
+import { centerOf, cropPoint, cropWaypoints, distance, type CroppableShape } from '@core/document/outline.ts';
 
 export type RoutableShape = CroppableShape;
 

@@ -7,7 +7,8 @@
 import { isTypedChoreography } from '@canvas/model/choreography.ts';
 import type { Font, TextAlign } from '@canvas/model/font.ts';
 import type { Bounds, Point, SceneEdge, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
-import { activityMarkers, categoryOf } from '@canvas/render/shapes.ts';
+import { categoryOf } from '@core/document/outline.ts';
+import { activityMarkers } from '@canvas/render/shapes.ts';
 import { append, create } from '@canvas/render/svg.ts';
 
 export const LABEL_FONT = '"IBM Plex Sans", Helvetica, sans-serif';

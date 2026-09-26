@@ -55,7 +55,7 @@ import {
   type ModdleFactory,
 } from '@canvas/model/moddle.ts';
 import type { ModdleObject, SceneNode } from '@canvas/model/scene.ts';
-import { isDataShape } from '@canvas/rules/rules.ts';
+import { isDataShape } from '@core/document/outline.ts';
 
 /** The association a data shape feeding an activity is drawn as. */
 export const DATA_INPUT_ASSOCIATION = 'bpmn:DataInputAssociation';

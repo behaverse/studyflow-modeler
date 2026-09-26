@@ -1,7 +1,7 @@
 /** Waypoint editing geometry: moving a bendpoint or an endpoint of an existing route. */
 
 import type { Point } from '@canvas/model/scene.ts';
-import { cropPoint, cropWaypoints, type CroppableShape } from '@canvas/routing/crop.ts';
+import { cropPoint, cropWaypoints, type CroppableShape } from '@core/document/outline.ts';
 import { simplify } from '@canvas/routing/orthogonal.ts';
 
 export interface EndShapes {

@@ -5,6 +5,7 @@
 
 import { BPMN } from '@core/constants.ts';
 import { effectiveAttribute } from '@core/document/index.ts';
+import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore } from '@core/document/outline.ts';
 import { getAttribute, StudyflowElement } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
@@ -34,10 +35,7 @@ import {
 import {
   activityMarkers,
   bandPath,
-  categoryOf,
-  choreographyBandHeight,
   CORNER_RADIUS,
-  dataStoreRim,
   drawDataObject,
   drawDataStore,
   drawDiamond,
@@ -53,7 +51,6 @@ import {
   type ShapeStyle,
 } from '@canvas/render/shapes.ts';
 import { append, attr, create, group, remove } from '@canvas/render/svg.ts';
-import { isDataStore } from '@canvas/rules/rules.ts';
 import { INK } from '@canvas/view/theme.ts';
 
 const THICK_ACTIVITY = new Set<string>([BPMN.CallActivity, 'bpmn:Transaction']);

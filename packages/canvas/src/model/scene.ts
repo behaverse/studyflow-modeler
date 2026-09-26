@@ -6,6 +6,8 @@
  * everything semantic (names, references, containment, attributes).
  */
 
+import type { Bounds, Point } from '@core/document/outline.ts';
+
 import type { Font } from '@canvas/model/font.ts';
 
 export type ModdleObject = {
@@ -14,17 +16,7 @@ export type ModdleObject = {
   [key: string]: unknown;
 };
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Bounds {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+export type { Bounds, Point };
 
 export interface ElementColors {
   fill?: string | null;

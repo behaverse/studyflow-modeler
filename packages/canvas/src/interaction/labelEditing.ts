@@ -19,7 +19,7 @@ import {
   textWidth,
   WEIGHT,
 } from '@canvas/render/labels.ts';
-import { choreographyBandHeight } from '@canvas/render/shapes.ts';
+import { choreographyBandHeight } from '@core/document/outline.ts';
 import { ownerDocument } from '@canvas/render/svg.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
 

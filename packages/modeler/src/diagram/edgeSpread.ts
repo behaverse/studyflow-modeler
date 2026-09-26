@@ -4,7 +4,7 @@
  * point it moved back onto its shape's outline.
  */
 
-import { cropWaypoints, type CroppableShape, type Point } from '@canvas/index.ts';
+import { cropWaypoints, type CroppableShape, type Point } from '@core/document/outline';
 
 export interface SpreadEdge {
   waypoints: readonly Point[];

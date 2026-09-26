@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { centerOf, containsPoint, cropPoint, outlinePoint } from '@canvas/routing/crop.ts';
-import type { CroppableShape } from '@canvas/routing/crop.ts';
+import { centerOf, containsPoint, cropPoint, outlinePoint } from '@core/document/outline.ts';
+import type { CroppableShape } from '@core/document/outline.ts';
 import {
   isOrthogonal,
   isStraightRouted,
