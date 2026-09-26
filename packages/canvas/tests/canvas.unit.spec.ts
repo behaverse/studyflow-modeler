@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas, EventBus, IdGenerator, ensureChoreographyParticipants, isRootElement, type SceneEdge, type SceneNode } from '@canvas/index.ts';
-import { readChoreographyBands } from '@core/document';
+import { Canvas, EventBus, isRootElement, type SceneEdge, type SceneNode } from '@canvas/index.ts';
 
 import {
   centre,
@@ -735,41 +734,6 @@ test('toSVG exports the drawing without the editor chrome', async () => {
   expect(svg).not.toContain('selected');
   expect(svg).not.toContain('tabindex');
   expect(svg).toMatch(/viewBox="[-\d.]+ [-\d.]+ [\d.]+ [\d.]+"/);
-});
-
-// --- choreography participants -------------------------------------------------------
-
-/** A choreography task alone in a process, and an id generator. */
-function build() {
-  const moddle = freshModdle();
-  const task = moddle.create('bpmn:ChoreographyTask', { id: 'Consent', name: 'Give consent' });
-  const process = moddle.create('bpmn:Process', { id: 'Proc', flowElements: [task] });
-  const definitions = moddle.create('bpmn:Definitions', { id: 'Defs', rootElements: [process] });
-  task.$parent = process;
-  process.$parent = definitions;
-  definitions.$parent = null;
-  return { definitions, task, ids: new IdGenerator() };
-}
-
-test('materializes two participants into a headless collaboration on first need', () => {
-  const { definitions, task, ids } = build();
-
-  const [top, bottom] = ensureChoreographyParticipants(task, ids)!;
-  // Two named participants, told apart by name.
-  expect(top.name).toBeTruthy();
-  expect(bottom.name).toBeTruthy();
-  expect(top.name).not.toBe(bottom.name);
-
-  expect(task.get('participantRef')).toEqual([top, bottom]);
-  expect(task.get('initiatingParticipantRef')).toBe(top);
-  const collaboration = definitions.get('rootElements').find((r: any) => r.$type === 'bpmn:Collaboration');
-  expect(collaboration).toBeTruthy();
-  expect(collaboration.get('participants')).toEqual([top, bottom]);
-
-  expect(readChoreographyBands(task)).toEqual({ top: top.name, bottom: bottom.name, initiator: 'top' });
-
-  ensureChoreographyParticipants(task, ids);
-  expect(collaboration.get('participants')).toHaveLength(2);
 });
 
 // --- the event bus ------------------------------------------------------------------

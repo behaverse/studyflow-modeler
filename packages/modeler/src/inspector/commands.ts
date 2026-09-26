@@ -1,8 +1,8 @@
 import { isReservedStateKey } from '@core/document';
 import { definitionsOf, setAttribute, setExpressionLanguage, toBusinessObject } from '@core/element';
-import { associationPropertyFor, ensureChoreographyParticipants, typeForDirection } from '@canvas/index.ts';
+import { associationPropertyFor, typeForDirection } from '@canvas/index.ts';
 import { isPool, nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
-import { isTypedChoreography } from '@core/document';
+import { ensureChoreographyParticipants, isTypedChoreography } from '@core/document';
 import { getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
 

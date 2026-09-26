@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-import { readChoreographyBands } from '@core/document';
-import { IdGenerator, ensureChoreographyParticipants } from '@canvas/index.ts';
+import { ensureChoreographyParticipants, readChoreographyBands } from '@core/document';
+import { IdGenerator } from '@canvas/index.ts';
 import { selectBandParticipant, swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
 import { freshModdle } from './schemas';
 
-/** Flipping a choreography task's `initiatingParticipantRef`. Materializing the pair is the canvas's (`packages/canvas/tests/canvas.unit.spec.ts`). */
+/** Flipping a choreography task's `initiatingParticipantRef`. Materializing the pair is core's (`packages/core/tests/choreography-root.unit.spec.ts`). */
 
 const updater = {
   updateModdleProperties: (_el: any, target: any, props: Record<string, any>) => {

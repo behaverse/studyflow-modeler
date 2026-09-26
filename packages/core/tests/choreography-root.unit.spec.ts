@@ -1,7 +1,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { fromWireXml, readChoreographyBands, toWireDefinitions, toWireXml } from '@core/document';
+import { ensureChoreographyParticipants, fromWireXml, readChoreographyBands, toWireDefinitions, toWireXml } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
 /** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */
@@ -70,6 +70,32 @@ test('save emits the BPMN 2.0 choreography shape, load folds it back, and the ro
     expect(root.extensionElements?.values?.[0]?.$type, label).toBe('studyflow:Study');
     expect(root.$attrs['studyflow:signature'], label).toBe('abc123');
   }
+});
+
+test('a choreography task\'s participant pair is minted, into a headless collaboration, on first need only', () => {
+  const moddle = freshModdle();
+  const task = moddle.create('bpmn:ChoreographyTask', { id: 'Consent', name: 'Give consent' });
+  const process = moddle.create('bpmn:Process', { id: 'Proc', flowElements: [task] });
+  const definitions = moddle.create('bpmn:Definitions', { id: 'Defs', rootElements: [process] });
+  task.$parent = process;
+  process.$parent = definitions;
+  let minted = 0;
+  const ids = { nextPrefixed: (prefix: string) => `${prefix}${++minted}` };
+
+  const [top, bottom] = ensureChoreographyParticipants(task, ids)!;
+  // Two named participants, told apart by name.
+  expect(top.name).toBeTruthy();
+  expect(bottom.name).toBeTruthy();
+  expect(top.name).not.toBe(bottom.name);
+
+  expect(task.get('participantRef')).toEqual([top, bottom]);
+  expect(task.get('initiatingParticipantRef')).toBe(top);
+  const collaboration = definitions.get('rootElements').find((r: any) => r.$type === 'bpmn:Collaboration');
+  expect(collaboration.get('participants')).toEqual([top, bottom]);
+  expect(readChoreographyBands(task)).toEqual({ top: top.name, bottom: bottom.name, initiator: 'top' });
+
+  ensureChoreographyParticipants(task, ids);
+  expect(collaboration.get('participants')).toHaveLength(2);
 });
 
 test('the save rewrite gives the same file from definitions in place as from XML', async () => {

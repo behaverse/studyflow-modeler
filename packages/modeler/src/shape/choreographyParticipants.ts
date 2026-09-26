@@ -1,10 +1,9 @@
-import { ensureChoreographyParticipants, mintParticipant } from '@canvas/index.ts';
-import { DEFAULT_BOTTOM, DEFAULT_TOP, actorOf, isTypedChoreography } from '@core/document';
+import { DEFAULT_BOTTOM, DEFAULT_TOP, actorOf, ensureChoreographyParticipants, isTypedChoreography, mintParticipant } from '@core/document';
 import { definitionsOf, getAttribute, toBusinessObject, type AttributeUpdater } from '@core/element';
 import { getCatalog } from '@core/notation';
 
-/* Who takes a choreography task's bands, as inspector edits: the participants themselves are minted by the
-   canvas (`ensureChoreographyParticipants`, `mintParticipant`), and each edit here is recorded through `updater`. */
+/* Who takes a choreography task's bands, as inspector edits: the participants themselves are minted by core's
+   `ensureChoreographyParticipants` and `mintParticipant`, and each edit here is recorded through `updater`. */
 
 /** What mints participant ids: the editor's `model.ids`. */
 type Ids = { nextPrefixed(prefix: string): string };

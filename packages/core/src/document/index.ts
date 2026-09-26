@@ -55,11 +55,14 @@ export {
   DEFAULT_BOTTOM,
   DEFAULT_TOP,
   actorOf,
+  ensureChoreographyParticipants,
+  mintParticipant,
   choreographyToProcessRoot,
   isTypedChoreography,
   readChoreographyBands,
   toWireDefinitions,
   toWireXml,
+  type ParticipantIds,
 } from '@core/document/choreography';
 export {
   inlineIoSpecification,

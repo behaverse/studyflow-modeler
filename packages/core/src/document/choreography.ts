@@ -1,5 +1,6 @@
 import { BPMN } from '@core/constants';
-import { getProperty, moveProperties, type ModdleElement, type Moddle } from '@core/element/moddle';
+import { definitionsOf } from '@core/element/attributes';
+import { getProperty, moveProperties, setProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
 import { StudyflowElement } from '@core/element/handle';
 import { getCatalog, hasCatalog } from '@core/notation';
 import { applyXmlPasses, primaryRoot, isHeadlessCollaboration } from '@core/document/format';
@@ -44,6 +45,71 @@ export function actorOf(bo: ModdleElement): ModdleElement | undefined {
   const refs: ModdleElement[] = getProperty(bo, 'participantRef') ?? [];
   const initiating = getProperty(bo, 'initiatingParticipantRef');
   return refs.find((participant) => participant !== initiating) ?? refs[0];
+}
+
+/** What mints the ids of new participants and of the collaboration that holds them. */
+export type ParticipantIds = { nextPrefixed(prefix: string): string };
+
+/**
+ * The element that owns `participants` for a choreography task: its enclosing `bpmn:Choreography` or, in a
+ * process-rooted document, a `bpmn:Collaboration` among the root elements. One is created (with no DI plane, so its
+ * participants live in the file without drawing) when neither exists.
+ */
+function participantHolder(bo: ModdleElement, ids: ParticipantIds): ModdleElement | undefined {
+  const seen = new Set<ModdleElement>();
+  for (let current = bo.$parent; current && !seen.has(current); current = current.$parent) {
+    seen.add(current);
+    if (Array.isArray(getProperty(current, 'participants'))) return current;
+  }
+  const definitions = definitionsOf(bo);
+  if (!definitions?.$model?.create) return undefined;
+  const roots: ModdleElement[] = getProperty(definitions, 'rootElements') ?? [];
+  const existing = roots.find((root) => Array.isArray(getProperty(root, 'participants')));
+  if (existing) return existing;
+  const created = definitions.$model.create('bpmn:Collaboration', { id: ids.nextPrefixed('Collaboration_'), participants: [] });
+  created.$parent = definitions;
+  setProperty(definitions, 'rootElements', [...roots, created]);
+  return created;
+}
+
+/** A new participant named `name`, filed with the task's other participants; `undefined` without a moddle factory. */
+export function mintParticipant(bo: ModdleElement, name: string, ids: ParticipantIds): ModdleElement | undefined {
+  const model = bo.$model ?? definitionsOf(bo)?.$model;
+  const holder = model?.create ? participantHolder(bo, ids) : undefined;
+  if (!holder) return undefined;
+  const participant = model.create('bpmn:Participant', { id: ids.nextPrefixed('Participant_'), name });
+  participant.$parent = holder;
+  setProperty(holder, 'participants', [...(getProperty(holder, 'participants') ?? []), participant]);
+  return participant;
+}
+
+/**
+ * The `[top, bottom]` participants of a choreography task, minting what the document lacks: a plain
+ * task gets two, the top one initiating unless the task names one; a typed task gets one, the actor
+ * (both bands answer it), and no initiator, since the presenting side is the task itself. The writes go
+ * straight onto moddle; the caller records the edit. `undefined` when there is no moddle factory.
+ */
+export function ensureChoreographyParticipants(bo: ModdleElement, ids: ParticipantIds): [ModdleElement, ModdleElement] | undefined {
+  const list: ModdleElement[] = getProperty(bo, 'participantRef') ?? [];
+  const typed = isTypedChoreography(bo);
+  if (typed && list.length >= 1) {
+    const actor = actorOf(bo)!;
+    return [actor, actor];
+  }
+  if (list.length >= 2) return [list[0], list[1]];
+  if (typed) {
+    const actor = mintParticipant(bo, 'Participant', ids);
+    if (!actor) return undefined;
+    setProperty(bo, 'participantRef', [actor]);
+    setProperty(bo, 'initiatingParticipantRef', undefined);
+    return [actor, actor];
+  }
+  const top = list[0] ?? mintParticipant(bo, DEFAULT_TOP, ids);
+  const bottom = list[1] ?? mintParticipant(bo, DEFAULT_BOTTOM, ids);
+  if (!top || !bottom) return undefined;
+  setProperty(bo, 'participantRef', [top, bottom]);
+  setProperty(bo, 'initiatingParticipantRef', getProperty(bo, 'initiatingParticipantRef') ?? top);
+  return [top, bottom];
 }
 
 export function readChoreographyBands(
