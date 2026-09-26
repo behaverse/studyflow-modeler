@@ -1,5 +1,5 @@
 import { isModdleElement } from '@core/element/moddle';
-import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, primaryRoot, isHeadlessCollaboration, type YamlDoc } from '@core/document/format';
+import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, inferredRoot, isHeadlessCollaboration, type YamlDoc } from '@core/document/format';
 import { readState } from '@core/document/state';
 import {
   CHECKLIST_MARKER,
@@ -82,9 +82,10 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
 
 function serializeLeftoverDiagrams(definitions: any, ctx: SerializeContext): unknown[] {
   const diagrams: any[] = definitions.diagrams ?? [];
-  // A plane naming the inferred root, or a collaboration with no pool (it draws that same root), says nothing.
+  // A plane naming the root the reader would infer without it, or a collaboration with no pool (it draws that same
+  // root), says nothing. A plane naming a process beside a pool's collaboration says which one is drawn.
   const redundantRootIds = new Set<string | undefined>([
-    primaryRoot(definitions)?.id,
+    inferredRoot(definitions)?.id,
     ...(definitions?.rootElements ?? []).filter(isHeadlessCollaboration).map((root: any) => root.id),
   ]);
   return diagrams.flatMap((diagram, index) => {

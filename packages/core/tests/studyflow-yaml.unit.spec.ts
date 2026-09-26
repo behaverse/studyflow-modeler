@@ -345,6 +345,32 @@ state:
     expect(process.extensionElements).toBeUndefined();
   });
 
+  test('a plane naming the process beside a pool\'s collaboration keeps its `diagram:` node, so the process stays drawn', async () => {
+    // Without the node the reader would infer the collaboration, and a snapshot restored from it would draw a different root.
+    const text = `id: named
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Pool:
+      processRef: P
+P:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+      bounds: 100 100 36 36
+diagram:
+  - id: D
+    plane:
+      id: DP
+      bpmnElement: P
+`;
+    const written = await xmlToStudyflow(await studyflowToXml(text, freshModdle()), freshModdle());
+    expect(studyflowToDefinitions(written, freshModdle()).diagrams[0].plane.bpmnElement.id).toBe('P');
+  });
+
   test('an id two elements share is reported: a reference to it could reach only one', () => {
     const warnings: string[] = [];
     studyflowToDefinitions({ definitions: {}, elements: {

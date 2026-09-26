@@ -28,11 +28,16 @@ export function studyExtensionOf(definitions: ModdleElement | null | undefined):
 }
 
 /** The study's root: the element the DI plane names (it is what the canvas draws) unless that is a collaboration
- * without a process; else the first collaboration with a process, then the first process, then the first
- * choreography; else the first root with an id, of any kind. */
+ * without a process; else the root {@link inferredRoot} picks. */
 export function primaryRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
   const named = definitions?.diagrams?.[0]?.plane?.bpmnElement;
   if (named && !isHeadlessCollaboration(named)) return named;
+  return inferredRoot(definitions);
+}
+
+/** The root a document whose plane names none draws: the first collaboration with a process, then the first process,
+ * then the first choreography; else the first root with an id, of any kind. */
+export function inferredRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
   const roots: ModdleElement[] = definitions?.rootElements ?? [];
   const isType = (root: any, type: string) => (root?.$instanceOf ? root.$instanceOf(type) : root?.$type === type);
   for (const type of ['bpmn:Collaboration', 'bpmn:Process', 'bpmn:Choreography']) {
