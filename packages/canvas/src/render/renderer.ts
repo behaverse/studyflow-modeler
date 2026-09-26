@@ -6,13 +6,13 @@
 import { BPMN } from '@core/constants.ts';
 import { effectiveAttribute } from '@core/document/index.ts';
 import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore } from '@core/document/outline.ts';
-import { getAttribute, StudyflowElement } from '@core/element/index.ts';
+import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, getAttribute, isDataAssociationType, StudyflowElement } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 
 import { isTypedChoreography, readChoreographyBands } from '@canvas/model/choreography.ts';
 import { normalizeColor } from '@canvas/model/color.ts';
-import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
+
 import { nameOf, prop } from '@canvas/model/moddle.ts';
 import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { isHidden, zRankOf } from '@canvas/model/tree.ts';

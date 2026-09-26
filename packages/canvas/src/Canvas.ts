@@ -4,7 +4,7 @@
  */
 
 import { BPMN } from '@core/constants.ts';
-import { getExtensionType } from '@core/element/index.ts';
+import { eventDefinitionTypeOf, getExtensionType } from '@core/element/index.ts';
 import { EventBus } from '@canvas/bus.ts';
 
 import { appendElement as autoPlaceAppend, appendSourceBounds, freeAppendPosition } from '@canvas/interaction/autoplace.ts';
@@ -20,7 +20,7 @@ import { writeDi } from '@canvas/model/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/model/import.ts';
 import { labelIdOf, syncLabel } from '@canvas/model/labels.ts';
 import type { IdGenerator } from '@canvas/model/ids.ts';
-import { eventDefinitionTypeOf, prop, setProp } from '@canvas/model/moddle.ts';
+import { prop, setProp } from '@canvas/model/moddle.ts';
 import { Mutator, type Commit } from '@canvas/model/mutator.ts';
 import { isRootElement, type Bounds, type Drawable, type ElementColors, type ElementRef, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
 import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/model/tree.ts';

@@ -4,7 +4,9 @@
  * moddle tree and dropped from the scene.
  */
 
-import { activityOf, isDataAssociationType, pruneDataAssociation } from '@canvas/model/dataAssociation.ts';
+import { isDataAssociationType } from '@core/element/index.ts';
+
+import { activityOf, pruneDataAssociation } from '@canvas/model/dataAssociation.ts';
 import type { IdGenerator } from '@canvas/model/ids.ts';
 import { dropLabel } from '@canvas/model/labels.ts';
 import {

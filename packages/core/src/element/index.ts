@@ -21,6 +21,36 @@ export {
 };
 export type { ModdleElement } from '@core/element/moddle';
 
+/** The association a data shape feeding an activity is. */
+export const DATA_INPUT_ASSOCIATION = 'bpmn:DataInputAssociation';
+/** The association an activity producing a data shape is. */
+export const DATA_OUTPUT_ASSOCIATION = 'bpmn:DataOutputAssociation';
+
+/** Which way the data flows, relative to the activity. */
+export type DataAssociationDirection = 'input' | 'output';
+
+/** Whether `type` is one of the two data-association types. */
+export function isDataAssociationType(type: string): boolean {
+  return type === DATA_INPUT_ASSOCIATION || type === DATA_OUTPUT_ASSOCIATION;
+}
+
+/** The association type for a direction. */
+export function typeForDirection(direction: DataAssociationDirection): string {
+  return direction === 'input' ? DATA_INPUT_ASSOCIATION : DATA_OUTPUT_ASSOCIATION;
+}
+
+/** The list property on the activity a direction's associations are filed under. */
+export function associationPropertyFor(direction: DataAssociationDirection): string {
+  return direction === 'input' ? 'dataInputAssociations' : 'dataOutputAssociations';
+}
+
+/** The `$type` of an event's first definition (`'bpmn:TimerEventDefinition'`), or `undefined` for a plain event. */
+export function eventDefinitionTypeOf(bo: any): string | undefined {
+  const defs = bo?.eventDefinitions;
+  const first = Array.isArray(defs) ? defs[0] : undefined;
+  return first?.$type ?? first?.type;
+}
+
 /** Derived, not stored; shared by the canvas marker and the NIDM/Artemis exporters so it cannot drift. */
 export function isDataOperationActivity(elementOrBO: any): boolean {
   if (!elementOrBO) return false;

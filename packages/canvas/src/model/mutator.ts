@@ -5,7 +5,7 @@
  * touched here; it is rebuilt from the scene on save (`model/di.ts`).
  */
 
-import { getDefaults, getExtensionType, StudyflowElement } from '@core/element/index.ts';
+import { getDefaults, getExtensionType, isDataAssociationType, StudyflowElement } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import type { EventBus } from '@canvas/bus.ts';
 
@@ -19,7 +19,6 @@ import { normalizeColors } from '@canvas/model/color.ts';
 import { formatFont, mergeFont, type FontPatch } from '@canvas/model/font.ts';
 import {
   dataAssociationEnds,
-  isDataAssociationType,
   wireDataAssociation,
 } from '@canvas/model/dataAssociation.ts';
 import { IdGenerator } from '@canvas/model/ids.ts';

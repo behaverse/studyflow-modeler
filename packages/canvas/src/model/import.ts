@@ -8,7 +8,7 @@
  */
 
 import { readColorsOf } from '@canvas/model/color.ts';
-import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@canvas/model/dataAssociation.ts';
+import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@core/element/index.ts';
 import { FONT_PROPERTY, parseFont } from '@canvas/model/font.ts';
 import { mintLabel, syncLabel } from '@canvas/model/labels.ts';
 import { asList, asModdle, parentOf, prop, refBO } from '@canvas/model/moddle.ts';

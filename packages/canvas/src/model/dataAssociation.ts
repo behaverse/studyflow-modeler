@@ -56,24 +56,7 @@ import {
 } from '@canvas/model/moddle.ts';
 import type { ModdleObject, SceneNode } from '@canvas/model/scene.ts';
 import { isDataShape } from '@core/document/outline.ts';
-
-/** The association a data shape feeding an activity is drawn as. */
-export const DATA_INPUT_ASSOCIATION = 'bpmn:DataInputAssociation';
-/** The association an activity producing a data shape is drawn as. */
-export const DATA_OUTPUT_ASSOCIATION = 'bpmn:DataOutputAssociation';
-
-/** Which way the data flows, relative to the activity. */
-export type DataAssociationDirection = 'input' | 'output';
-
-/** Whether `type` is one of the two data-association types. */
-export function isDataAssociationType(type: string): boolean {
-  return type === DATA_INPUT_ASSOCIATION || type === DATA_OUTPUT_ASSOCIATION;
-}
-
-/** The association type for a direction. */
-export function typeForDirection(direction: DataAssociationDirection): string {
-  return direction === 'input' ? DATA_INPUT_ASSOCIATION : DATA_OUTPUT_ASSOCIATION;
-}
+import { associationPropertyFor, type DataAssociationDirection } from '@core/element/index.ts';
 
 /** The two ends of a data association, sorted into their BPMN roles. */
 export interface DataAssociationEnds {
@@ -133,11 +116,6 @@ function canHoldAssociations(bo: ModdleObject, direction: DataAssociationDirecti
 export function activityOf(bo: ModdleObject): ModdleObject | undefined {
   const parent = asModdle((bo as { $parent?: unknown }).$parent);
   return parent && !isDataShape(parent.$type) ? parent : undefined;
-}
-
-/** The list property a direction's associations are filed under. */
-export function associationPropertyFor(direction: DataAssociationDirection): string {
-  return direction === 'input' ? 'dataInputAssociations' : 'dataOutputAssociations';
 }
 
 /**

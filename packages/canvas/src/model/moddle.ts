@@ -92,13 +92,6 @@ export function attachEventDefinitions(factory: ModdleFactory | undefined, bo: M
   (bo as Record<string, unknown>).eventDefinitions = owned;
 }
 
-/** The `$type` of an event's first definition (`'bpmn:TimerEventDefinition'`), or `undefined` for a plain event. */
-export function eventDefinitionTypeOf(bo: ModdleObject | undefined): string | undefined {
-  const defs = (bo as { eventDefinitions?: unknown } | undefined)?.eventDefinitions;
-  const first = Array.isArray(defs) ? defs[0] : undefined;
-  return first?.$type ?? first?.type;
-}
-
 export function definitionsAbove(target: ModdleObject | undefined): ModdleObject | undefined {
   const guard = new Set<ModdleObject>();
   for (let cursor = target; cursor && !guard.has(cursor); cursor = parentOf(cursor)) {
