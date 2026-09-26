@@ -252,6 +252,13 @@ test('a data shape and an activity connect with a data input association', async
   expect(association.type).toBe('bpmn:DataInputAssociation');
   expect(task.businessObject.dataInputAssociations).toContain(association.businessObject);
   expect(association.businessObject.sourceRef).toEqual([data.businessObject]);
+
+  // A step may draw what the data it reads holds (a glyph a Parameters object sets): editing the data redraws its readers.
+  const taskBefore = canvas.getGraphics('Task_1');
+  const gatewayBefore = canvas.getGraphics('Gateway_1');
+  canvas.updateProperties(data, { name: 'Rows' });
+  expect(canvas.getGraphics('Task_1')).not.toBe(taskBefore);
+  expect(canvas.getGraphics('Gateway_1')).toBe(gatewayBefore);
 });
 
 // --- direct manipulation -------------------------------------------------------------

@@ -4,7 +4,6 @@
  */
 
 import { BPMN } from '@core/constants.ts';
-import { PARAMETERS_TYPE } from '@core/document/index.ts';
 import { getExtensionType } from '@core/element/index.ts';
 import { EventBus } from '@canvas/bus.ts';
 
@@ -29,7 +28,7 @@ import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer,
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
 import { centerOf } from '@canvas/routing/crop.ts';
 import { rerouteEdges as rerouteEdgeSet, routableEnd, routeFor } from '@canvas/routing/orthogonal.ts';
-import { CONNECTION, containerFor, Rules, type RuleElement } from '@canvas/rules/rules.ts';
+import { CONNECTION, containerFor, isDataShape, Rules, type RuleElement } from '@canvas/rules/rules.ts';
 import { CUSTOM_LAYER_ATTRIBUTE, Layers } from '@canvas/view/layers.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
 import { Viewport, type Viewbox } from '@canvas/view/viewport.ts';
@@ -829,12 +828,11 @@ export class Canvas {
       mutator.touch(target);
       if (touched) {
         // A participant's name is drawn on every choreography task it takes a band of, not only where it was edited,
-        // and what a Parameters object sets on every step it is wired into.
+        // and a step may draw what the data it reads holds (a glyph a Parameters object sets).
         const renamedParticipant = moddleElement.$type === 'bpmn:Participant' && 'name' in properties;
-        const editedParameters = getExtensionType(target.businessObject) === PARAMETERS_TYPE;
         this.redrawElements(target.kind !== 'node' ? [target]
           : renamedParticipant ? tasksReferencing(this.scene, moddleElement, target)
-          : editedParameters ? stepsReading(this.scene, target)
+          : isDataShape(target.type) ? stepsReading(this.scene, target)
           : [target]);
       }
     } else {
@@ -928,7 +926,7 @@ export class Canvas {
   }
 }
 
-/** A data object's node and every step whose data inputs read it. */
+/** A data shape's node and every step whose data inputs read it. */
 function stepsReading(scene: Scene | undefined, source: SceneNode): SceneElement[] {
   const out: SceneElement[] = [source];
   for (const element of scene?.elementsById.values() ?? []) {
