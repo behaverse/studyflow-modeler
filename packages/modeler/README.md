@@ -10,9 +10,9 @@ An example is a `.studyflow.yaml` in `skills/<name>/examples/`, saved from the m
 
 ## How it is put together
 
-`app.html` loads `src/index.tsx`, which renders `app/App.tsx`. `app/Modeler.tsx` boots: it loads the enabled schemas (`@core/notation/loader`), mounts the editor (`editor/mount.ts`: the canvas, a moddle, the undo history, templates, the token simulator) and opens the autosaved diagram or a new one. App then mounts the rest of the UI around it, each part reading the editor through `useModeler()`.
+`app.html` loads `src/index.tsx`, which renders `app/App.tsx`. `app/Modeler.tsx` boots: it loads the enabled schemas (`@core/notation/loader`), opens the autosaved diagram or a new one as a `Study`, and mounts the editor on it (`editor/mount.ts`: the canvas, templates, the token simulator). App then mounts the rest of the UI around it, each part reading the editor through `useModeler()`.
 
-A view changes the document by sending a command: `executeCommand(editor, { type: 'X', … })` travels the editor's event bus to `runX`, exported by one of the modules `commandBus.ts` lists (a feature's `commands.ts`, and `diagram/save.ts`), and `runX` edits through the canvas. `tests/commands.unit.spec.ts` checks that every `runX` is dispatched from somewhere. The canvas then fires `ElementsChanged` once for the edit, and the history takes a snapshot and fires `HistoryChanged`, which autosave and the provenance dialog listen to. Views read the canvas and the moddle objects directly and subscribe to the bus topics they care about.
+A view changes the document by sending a command: `executeCommand(editor, { type: 'X', … })` travels the editor's event bus to `runX`, exported by one of the modules `commandBus.ts` lists (a feature's `commands.ts`, and `diagram/save.ts`), and `runX` edits through the canvas. `tests/commands.unit.spec.ts` checks that every `runX` is dispatched from somewhere. The canvas then fires `ElementsChanged` once for the edit, and the editor fires `HistoryChanged` (on an undo and a redo too), which autosave and the provenance dialog listen to; the study keeps the undo history. Views read the canvas and the moddle objects directly and subscribe to the bus topics they care about.
 
 | Folder | What |
 | --- | --- |

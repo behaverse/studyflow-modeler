@@ -1,16 +1,15 @@
 /**
  * `mountEditor`: put a canvas on a study in a container and hand back the {@link Editor}.
- * Everything schema-, document- or app-shaped is assembled here and injected: the
- * snapshot history, the icon resolver, templates and the simulator.
+ * Everything schema-, document- or app-shaped is assembled here and injected: the icon
+ * resolver, templates and the simulator.
  */
 
-import { Canvas, SVG_ICON_PATHS, idPrefixFor, isRootElement, needsId } from '@canvas/index.ts';
-import type { IconDef, SceneElement, Study } from '@canvas/index.ts';
+import { Canvas, SVG_ICON_PATHS, idPrefixFor, needsId } from '@canvas/index.ts';
+import type { IconDef, Study } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
-import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
 import { createTemplateElement, materializeTemplateFlow, type TemplateFlow } from '@modeler/templates/factory';
@@ -87,38 +86,17 @@ export function mountEditor(options: MountEditorOptions): Editor {
 
   const saveXML = async (): Promise<{ xml: string }> => ({ xml: await study.toXml() });
 
-  const history = createSnapshotHistory({
-    serialize: () => study.toXml(),
-    restore: async (xml) => {
-      // An undo restores the document, not the session: selection, scope and viewbox survive.
-      const selectedIds = canvas.getSelection().get().map((element) => element.id);
-      const scopeId = canvas.getScope()?.id;
-      const viewbox = canvas.getViewport().getViewbox();
-      await study.load(xml);
-      const scope = scopeId ? canvas.get(scopeId) : undefined;
-      if (scope && !isRootElement(scope) && scope.kind === 'node') canvas.enterScope(scope);
-      canvas.getViewport().setViewbox(viewbox);
-      bus.fire('ImportDone', { error: null, warnings: [] });
-      bus.fire('RootSet', { element: canvas.getRoot() });
-      const reselect = selectedIds
-        .map((id) => canvas.get(id))
-        .filter((element): element is SceneElement => !!element && !isRootElement(element));
-      canvas.getSelection().select(reselect.length > 0 ? reselect : null);
-    },
-    onChanged: () => bus.fire('HistoryChanged', {}),
-  });
-
   const importXML = async (xml: string): Promise<{ warnings: unknown[] }> => {
     await study.load(xml);
-    history.reset();
-    bus.fire('ImportDone', { error: null, warnings: [] });
-    bus.fire('RootSet', { element: canvas.getRoot() });
     return { warnings: [] };
   };
 
-  // The canvas fires `ElementsChanged` once per committed edit; that is the history's commit point.
-  const onSceneChanged = (): void => history.record();
-  bus.on('ElementsChanged', onSceneChanged);
+  // What the app hears of the study, after the canvas has drawn it (and said `RootSet`): an edit, an undo or
+  // a redo moves the history; a load, an undo or a redo puts another document in place, which everything re-reads.
+  const stopHearing = study.on('change', ({ cause }) => {
+    if (cause !== 'edit') bus.fire('ImportDone', { error: null, warnings: [] });
+    if (cause !== 'load') bus.fire('HistoryChanged', {});
+  });
 
   // Templates: the palette drags a template's shape; the flow it holds is laid out inside once it lands.
   let pendingFlow: { businessObject: ModelElement; flow: TemplateFlow } | undefined;
@@ -148,27 +126,12 @@ export function mountEditor(options: MountEditorOptions): Editor {
   applySettings();
   const unsubscribeSettings = subscribeSettings(applySettings);
 
-  // Undo/redo from the keyboard, scoped to the canvas container.
-  const onHistoryKey = (event: KeyboardEvent): void => {
-    if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
-    const target = event.target as HTMLElement | null;
-    const tag = target?.tagName?.toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) return;
-    const key = event.key.toLowerCase();
-    if (key === 'z' && !event.shiftKey) history.undo();
-    else if (key === 'z' && event.shiftKey) history.redo();
-    else return;
-    event.preventDefault();
-    event.stopPropagation();
-  };
-  options.container.addEventListener('keydown', onHistoryKey);
-
   return {
-    revision: () => history.revision(),
-    undo: () => history.undo(),
-    redo: () => history.redo(),
-    canUndo: () => history.canUndo(),
-    canRedo: () => history.canRedo(),
+    revision: () => study.revision,
+    undo: () => study.undo(),
+    redo: () => study.redo(),
+    canUndo: () => study.canUndo,
+    canRedo: () => study.canRedo,
     importXML,
     saveXML,
     getDefinitions: () => study.definitions,
@@ -181,10 +144,8 @@ export function mountEditor(options: MountEditorOptions): Editor {
     destroy: () => {
       simulator.dispose();
       unsubscribeSettings();
-      options.container.removeEventListener('keydown', onHistoryKey);
-      bus.off('ElementsChanged', onSceneChanged);
+      stopHearing();
       bus.off('ElementsChanged', materializePending);
-      history.dispose();
       canvas.destroy();
     },
   };

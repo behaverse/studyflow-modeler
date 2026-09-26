@@ -10,7 +10,7 @@ The editable SVG canvas the modeler draws on: plain TypeScript and SVG, no bpmn-
 | `render/` | One `<g>` per element (`renderer.ts`), the shapes, captions and icons. |
 | `view/` | The viewport (pan, zoom, fit), the layers, the `INK` palette and the canvas CSS. |
 
-An edit, end to end: the modeler opens the file as a `Study` (`Study.open`), which builds the scene, and puts a `Canvas` on it, which draws it. A pointer press becomes a gesture; while it moves, the gesture writes geometry into the scene and redraws what it touched. On release the Mutator commits: the business objects change, `scene.revision` goes up, and the Study announces the change; the canvas draws what the commit added, changed and removed, then fires `ElementsChanged`, which the modeler's undo history records. An edit made of several (a replace, an append, a move into a container) is one commit: `batch()`. `study.load()` replaces the document, and each view draws it afresh. Saving calls `study.toXml()`, which rebuilds the DI from the scene and serializes.
+An edit, end to end: the modeler opens the file as a `Study` (`Study.open`), which builds the scene, and puts a `Canvas` on it, which draws it. A pointer press becomes a gesture; while it moves, the gesture writes geometry into the scene and redraws what it touched. On release the Mutator commits: the business objects change, `scene.revision` goes up, and the Study announces the change; the Study keeps the new state for undo; the canvas draws what the commit added, changed and removed, then fires `ElementsChanged`. An edit made of several (a replace, an append, a move into a container) is one commit: `batch()`. `study.load()` replaces the document, and each view draws it afresh. Saving calls `study.toXml()`, which rebuilds the DI from the scene and serializes.
 
 ## What holds
 
@@ -24,7 +24,7 @@ An edit, end to end: the modeler opens the file as a `Study` (`Study.open`), whi
 ## What the host provides and gets
 
 - `new Canvas(container, study, options)`. Options: `iconResolver` (a glyph for a type; answering `null` draws none), `labelText` (a caption's text, placeholders resolved). The study's: `onWarning` (import problems), `mainCanvasOnly` (import nothing inside a sub-process, for a view that only reads, such as a thumbnail).
-- On the event bus (`getEventBus()`): `SelectionChanged`, `ElementsChanged` (once per commit: `elements` added or changed, the root among them when its own properties changed, and `removed`), `RootSet`. The `a` key sends the command `OpenAppendMenu`, which the host must answer.
+- On the event bus (`getEventBus()`): `SelectionChanged`, `ElementsChanged` (once per commit: `elements` added or changed, the root among them when its own properties changed, and `removed`), `RootSet` (what the view shows: on a drill-down, and whenever it draws its study afresh after a load, an undo or a redo, before it reselects). The `a` key sends the command `OpenAppendMenu`, which the host must answer. Ctrl/Cmd+Z undoes and Shift+Ctrl/Cmd+Z redoes, through the study.
 - `getHostLayer(name)` gives the host a layer of its own above the diagram (the token simulation draws there). Outside a browser, `setDocument` supplies the DOM.
 
 ## Tests

@@ -192,12 +192,12 @@ export class Canvas {
     return studyInternals(this.study).mutator;
   }
 
-  /** Draw the study afresh, as a view that has just opened it: nothing selected, the whole diagram shown, fitted. */
-  private drawStudy(): void {
+  /** Draw the study afresh, as a view that has just opened it: nothing selected, drilled into `scope` or nothing, fitted; `RootSet` says what it shows. */
+  private drawStudy(scope?: SceneNode): void {
     this.resetInteraction();
     this.selection.forget();
-    this.scope = undefined;
-    this.renderer.scope = undefined;
+    this.scope = scope;
+    this.renderer.scope = scope;
     this.drag = new Drag({
       mutator: this.mutator,
       redraw: (elements) => this.redrawElements(elements),
@@ -212,16 +212,15 @@ export class Canvas {
     this.layers.clear();
     this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
     this.zoomToFit();
+    this.bus.fire('RootSet', { element: this.getRoot() });
   }
 
   /** Draw the study afresh after an undo or a redo, keeping what the view showed, by id: the scope, the camera, the selection. */
   private drawKeepingView(): void {
     const selected = this.selection.get().map((element) => element.id);
-    const scope = this.scope?.id;
+    const scope = this.scope && this.scene.elementsById.get(this.scope.id);
     const viewbox = this.viewport.getViewbox();
-    this.drawStudy();
-    const node = scope === undefined ? undefined : this.scene.elementsById.get(scope);
-    if (node?.kind === 'node') this.enterScope(node);
+    this.drawStudy(scope?.kind === 'node' && isExpandable(scope.type) ? scope : undefined);
     this.viewport.setViewbox(viewbox);
     const kept = selected.map((id) => this.scene.elementsById.get(id)).filter((element): element is SceneElement => !!element);
     if (kept.length > 0) this.selection.select(kept);

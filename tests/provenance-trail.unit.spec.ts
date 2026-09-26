@@ -30,8 +30,7 @@ test.describe('provenance trail', () => {
   test('stamps once per fact, not once per download', async () => {
     const definitions = stripTrail(await definitionsOf(await exampleXml('drawn_loop')));
     // A partial mock: stamping reads the document and `moddle`, and decides off the
-    // revision counter `editor/history.ts` serves, one bump per applied mutation.
-    // `edit()` is that bump.
+    // study's revision counter, one bump per change. `edit()` is that bump.
     let revision = 0;
     const modeler = {
       getDefinitions: () => definitions,
@@ -54,7 +53,8 @@ test.describe('provenance trail', () => {
     expect(readTrail(definitions)).toHaveLength(2);
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
 
-    // Reopened (import resets the edit history without moving the revision): a trail-carrying document nobody edits is left untouched.
+    // Reopened: the import moves the revision, and the baseline with it, so a trail-carrying document nobody edits is left untouched.
+    edit();
     resetTrailStamping(modeler);
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })).toBeUndefined();
     expect(readTrail(definitions)).toHaveLength(2);

@@ -574,8 +574,14 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   const viewbox = canvas.getViewport().getViewbox();
   canvas.getSelection().select(node(canvas, 'Task_In'));
   canvas.updateProperties(node(canvas, 'Task_In'), { name: 'Deeper' });
+  const heard: string[] = [];
+  canvas.getEventBus().on('RootSet', (event: any) => heard.push(`RootSet ${event.element.id}`));
+  canvas.getEventBus().on('SelectionChanged', (event: any) => heard.push(`SelectionChanged ${event.newSelection.map((e: any) => e.id)}`));
 
   expect(canvas.study.undo()).toBe(true);
+
+  // A host that shows the scope on `RootSet` ends on the selection, which is said last.
+  expect(heard).toEqual(['SelectionChanged ', 'RootSet Sub_1', 'SelectionChanged Task_In']);
 
   const drawn = canvas.getGraphics('Task_In')!.textContent;
   expect(drawn, 'drawn from the document as it was').toContain('Deep');
@@ -584,6 +590,13 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   expect(canvas.getViewport().getViewbox()).toEqual(viewbox);
   expect(canvas.getSelection().get()).toHaveLength(1);
   expect(canvas.getSelection().get()[0], 'the element as it is now, not as it was').toBe(node(canvas, 'Task_In'));
+
+  // Drilled into nothing, with nothing selected, it still says what it shows: the root, another object now.
+  canvas.goToScope(undefined);
+  canvas.updateProperties(node(canvas, 'Task_1'), { name: 'Other' });
+  heard.length = 0;
+  canvas.study.undo();
+  expect(heard).toEqual(['RootSet Process_1']);
 });
 
 test('dropping a shape into an expanded container re-files it there', async () => {
@@ -684,7 +697,7 @@ test('dropping a shape into a lane of a sub-process files it in the sub-process 
 
 // --- keyboard, colour, font -------------------------------------------------------------
 
-test('Ctrl+A selects everything on screen and the arrows nudge the selection', async () => {
+test('Ctrl+A selects everything on screen, the arrows nudge the selection, Ctrl+Z undoes and Shift+Ctrl+Z redoes', async () => {
   const { canvas } = load();
   const container = canvas.getContainer();
   container.dispatchEvent(keyEvent('keydown', { key: 'a', ctrlKey: true }));
@@ -701,6 +714,13 @@ test('Ctrl+A selects everything on screen and the arrows nudge the selection', a
   const step = { x: task.x - 200, y: task.y - 78 };
   expect(step.x).toBeGreaterThan(0);
   expect(step.y).toBeGreaterThan(step.x);
+
+  const at = (): { x: number; y: number } => ({ x: node(canvas, 'Task_1').x, y: node(canvas, 'Task_1').y });
+  const nudged = at();
+  container.dispatchEvent(keyEvent('keydown', { key: 'z', ctrlKey: true }));
+  expect(at(), 'the last nudge undone').toEqual({ x: nudged.x, y: 78 });
+  container.dispatchEvent(keyEvent('keydown', { key: 'Z', ctrlKey: true, shiftKey: true }));
+  expect(at()).toEqual(nudged);
 });
 
 test('setColor paints the element and the colour survives the round trip', async () => {

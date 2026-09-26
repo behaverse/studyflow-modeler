@@ -45,7 +45,7 @@ async function importXml(modeler: Editor, command: ImportXmlPayload): Promise<an
   const moddle = modeler.model.moddle();
   const xml = await ensureDiagramLayout(await fromWireXml(command.xml, moddle, command.onWarning), moddle);
   const result = await modeler.importXML(xml);
-  // `importXML` clears the command stack, so the trail bookkeeping has to restart with it.
+  // `importXML` starts the undo history over, so the trail bookkeeping restarts with it.
   resetTrailStamping(modeler);
   // The canvas is now exactly what was imported, whichever path got here. `runOpenDiagram` marks
   // again after its rename, which is the one edit that is part of opening rather than after it.

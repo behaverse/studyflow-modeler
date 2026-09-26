@@ -662,6 +662,7 @@ export class Gestures {
     if (mod) {
       switch (ev.key) {
         case 'a': case 'A': handled = canvas.selectAll(); break;
+        case 'z': case 'Z': handled = ev.shiftKey ? canvas.study.redo() : canvas.study.undo(); break;
         case '=': case '+': canvas.zoomIn(); handled = true; break;
         case '-': case '_': canvas.zoomOut(); handled = true; break;
         case '0': canvas.getViewport().zoom(1); handled = true; break;

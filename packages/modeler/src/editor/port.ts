@@ -1,6 +1,6 @@
 /**
- * The editor the app holds: the canvas plus the app services around it (the
- * document model, undo history, templates, simulation). Built by `editor/mount.ts`.
+ * The editor the app holds: the canvas and its study, plus the app services around
+ * them (the document model, templates, simulation). Built by `editor/mount.ts`.
  */
 
 import type { Canvas, EventBus, Selection, ShapeDescriptor } from '@canvas/index.ts';
@@ -42,16 +42,14 @@ export interface EditorSimulation {
   isActive(): boolean;
 }
 
-export interface EditorHistoryView {
-  /** Bumps on every applied, undone or redone mutation (not on import). */
+export interface Editor {
+  /** The study's revision: up by one on every change, an edit, an undo, a redo or an import. */
   revision(): number;
+  /** The study's undo history. */
   undo(): void;
   redo(): void;
   canUndo(): boolean;
   canRedo(): boolean;
-}
-
-export interface Editor extends EditorHistoryView {
   importXML(xml: string): Promise<{ warnings: unknown[] }>;
   /** The document as a BPMN XML file holds it (the study's `toXml`). */
   saveXML(): Promise<{ xml: string }>;
