@@ -17,7 +17,7 @@ An edit, end to end: the modeler parses the XML and hands the definitions to `im
 ## What holds
 
 - The Mutator is the only committed writer, and every commit bumps `scene.revision`.
-- The scene is the truth while editing. The canvas reads DI only in `model/import.ts` and writes it only in `model/di.ts`, as one plane.
+- The scene is the truth while editing. The canvas reads DI only in `model/import.ts` and writes it only in `model/di.ts`, as one plane. It reads the first plane only; what a further one draws is dropped, with a warning.
 - A caption is an element of its own, with the id `<owner id>_label`.
 - Paint order is `zRankOf` (`model/tree.ts`).
 - Drilling into a container sets the scene's `scope`; it is a view of the same scene, not another plane.

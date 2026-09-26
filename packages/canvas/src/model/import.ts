@@ -1,10 +1,10 @@
 /**
  * `bpmn:Definitions` (with DI) → {@link Scene}.
  *
- * Every plane's shapes and edges join one tree. A nested plane's contents are
- * parented under the container that owns the plane and keep the coordinates the
- * document gave them; expanding the container is what moves them into its frame
- * (`model/mutator.ts`).
+ * The first diagram's plane is the drawing: its shapes and edges form one tree, each
+ * element under the nearest drawn node its business object sits in. What only a
+ * further plane draws (another tool's collapsed sub-process) is left out, with a
+ * warning; the canvas writes one plane back (`model/di.ts`).
  */
 
 import { readColorsOf } from '@canvas/model/color.ts';
@@ -36,13 +36,6 @@ const EDGE_TYPE = 'bpmndi:BPMNEdge';
 const PARTICIPANT_TYPE = 'bpmn:Participant';
 const LANE_TYPE = 'bpmn:Lane';
 
-interface PlaneSource {
-  root: ModdleObject | undefined;
-  shapes: ModdleObject[];
-  edges: ModdleObject[];
-}
-
-
 function num(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
@@ -56,7 +49,9 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
   const warn = options.onWarning ?? ((message: string) => console.warn(`[canvas import] ${message}`));
   const elementsById = new Map<string, SceneElement>();
   const byBusinessObject = new Map<ModdleObject, Drawable>();
-  const planes = collectPlanes(definitions, options.mainCanvasOnly);
+  const plane = drawnPlane(definitions, warn);
+  const drawn = asList(prop(plane, 'planeElement'))
+    .filter((di) => !options.mainCanvasOnly || !insideSubProcess(asModdle(prop(di, 'bpmnElement'))));
 
   const index = (element: Drawable): void => {
     if (element.id) {
@@ -66,52 +61,32 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
     byBusinessObject.set(element.businessObject, element);
   };
 
-  // Shapes first, across every plane, so a nested plane's contents can find their container.
-  const shapesOf = new Map<PlaneSource, SceneNode[]>();
-  const edgesOf = new Map<PlaneSource, SceneEdge[]>();
-  for (const plane of planes) {
-    const nodes: SceneNode[] = [];
-    for (const shape of plane.shapes) {
-      const node = buildNode(shape, warn);
-      if (node) {
-        index(node);
-        nodes.push(node);
-      }
-    }
-    shapesOf.set(plane, nodes);
+  // Shapes first, so every edge finds its ends.
+  const elements: Drawable[] = [];
+  for (const shape of drawn.filter((di) => di.$type === SHAPE_TYPE)) {
+    const node = buildNode(shape, warn);
+    if (node) elements.push(node);
   }
-  for (const plane of planes) {
-    const edges: SceneEdge[] = [];
-    for (const di of plane.edges) {
-      const edge = buildEdge(di, warn);
-      if (edge) {
-        index(edge);
-        edges.push(edge);
-      }
-    }
-    edgesOf.set(plane, edges);
+  for (const di of drawn.filter((el) => el.$type === EDGE_TYPE)) {
+    const edge = buildEdge(di, warn);
+    if (edge) elements.push(edge);
   }
-  for (const edges of edgesOf.values()) for (const edge of edges) resolveEndpoints(edge, byBusinessObject);
+  for (const element of elements) index(element);
+  for (const element of elements) if (element.kind === 'edge') resolveEndpoints(element, byBusinessObject);
 
   const refContainment = collectRefContainment(byBusinessObject);
+  const parents = new Map<Drawable, SceneNode | undefined>();
+  for (const element of elements) parents.set(element, findParentNode(element, byBusinessObject, refContainment));
+  resolveLaneMembership(elements, parents);
   const children: SceneElement[] = [];
-  for (const plane of planes) {
-    const owner = plane.root ? asNode(byBusinessObject.get(plane.root)) : undefined;
-    const elements: Drawable[] = [...(shapesOf.get(plane) ?? []), ...(edgesOf.get(plane) ?? [])];
-    const parents = new Map<Drawable, SceneNode | undefined>();
-    for (const element of elements) {
-      parents.set(element, findParentNode(element, byBusinessObject, owner, refContainment));
-    }
-    resolveLaneMembership(elements, parents);
-    for (const element of elements) {
-      const parent = parents.get(element);
-      element.parent = parent;
-      if (parent) parent.children.push(element);
-      else children.push(element);
-    }
+  for (const element of elements) {
+    const parent = parents.get(element);
+    element.parent = parent;
+    if (parent) parent.children.push(element);
+    else children.push(element);
   }
 
-  const root = planes[0]?.root ?? asList(prop(definitions, 'rootElements'))[0] ?? definitions;
+  const root = asModdle(prop(plane, 'bpmnElement')) ?? asList(prop(definitions, 'rootElements'))[0] ?? definitions;
   const rootElement: RootElement = {
     id: idOf(root) ?? 'root',
     type: root.$type,
@@ -134,20 +109,14 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
   return scene;
 }
 
-function collectPlanes(definitions: ModdleObject, mainCanvasOnly = false): PlaneSource[] {
-  const sources: PlaneSource[] = [];
-  for (const diagram of asList(prop(definitions, 'diagrams'))) {
-    const plane = asModdle(prop(diagram, 'plane'));
-    if (!plane) continue;
-    const elements = asList(prop(plane, 'planeElement'))
-      .filter((di) => !mainCanvasOnly || !insideSubProcess(asModdle(prop(di, 'bpmnElement'))));
-    sources.push({
-      root: asModdle(prop(plane, 'bpmnElement')),
-      shapes: elements.filter((el) => el.$type === SHAPE_TYPE),
-      edges: elements.filter((el) => el.$type === EDGE_TYPE),
-    });
+/** The first diagram's plane. A further diagram is not drawn, and a warning names it. */
+function drawnPlane(definitions: ModdleObject, warn: (m: string) => void): ModdleObject | undefined {
+  const [first, ...others] = asList(prop(definitions, 'diagrams'));
+  for (const diagram of others) {
+    const count = asList(prop(asModdle(prop(diagram, 'plane')), 'planeElement')).length;
+    if (count > 0) warn(`diagram ${idOf(diagram) ?? '<no id>'} is not drawn: the canvas draws the first plane only, so its ${count} shapes and edges are dropped`);
   }
-  return sources;
+  return asModdle(prop(first, 'plane'));
 }
 
 /**
@@ -304,11 +273,10 @@ function laneNesting(lane: ModdleObject): number {
   return depth;
 }
 
-/** The nearest drawn node an element's business object sits in ({@link containerOf}), else the plane's owner. */
+/** The nearest drawn node an element's business object sits in ({@link containerOf}); `undefined` at the top level. */
 function findParentNode(
   element: Drawable,
   byBusinessObject: Map<ModdleObject, Drawable>,
-  owner: SceneNode | undefined,
   containment: Map<ModdleObject, ModdleObject>,
 ): SceneNode | undefined {
   const up = (bo: ModdleObject): ModdleObject | undefined => containment.get(bo) ?? containerOf(bo);
@@ -318,7 +286,7 @@ function findParentNode(
     const node = asNode(byBusinessObject.get(bo));
     if (node && node !== element) return node;
   }
-  return owner && owner !== element ? owner : undefined;
+  return undefined;
 }
 
 /** A node drawn inside a lane of its container (a pool, or an expanded sub-process) belongs to that lane even without a `flowNodeRef`. */

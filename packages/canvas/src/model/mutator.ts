@@ -287,8 +287,8 @@ export class Mutator {
 
   /**
    * Collapse to the plain activity box, or expand around the contents — moving
-   * them into the frame first when they sit elsewhere (a nested plane keeps its own
-   * coordinates until then). Incident and crossing edges re-dock to the new outline.
+   * them into the frame first when they sit elsewhere (placed while it was collapsed).
+   * Incident and crossing edges re-dock to the new outline.
    */
   setExpanded(node: SceneNode, expanded: boolean): { changed: SceneElement[]; contents: SceneElement[] } {
     if (!isExpandable(node.type) || (node.isExpanded !== false) === expanded) return { changed: [], contents: [] };

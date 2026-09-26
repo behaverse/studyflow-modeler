@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { EventBus, IdGenerator, ensureChoreographyParticipants, isRootElement, type SceneEdge, type SceneNode } from '@canvas/index.ts';
+import { Canvas, EventBus, IdGenerator, ensureChoreographyParticipants, isRootElement, type SceneEdge, type SceneNode } from '@canvas/index.ts';
 import { readChoreographyBands } from '@core/document';
-import type { Canvas } from '@canvas/index.ts';
 
 import {
   centre,
@@ -146,6 +145,24 @@ test('the DI round trip keeps geometry, pinned captions and the collapse flag', 
   expect(node(again.canvas, 'Task_In').parent).toBe(node(again.canvas, 'Sub_1'));
   const endLabel = label(again.canvas, 'End_1_label');
   expect({ x: endLabel.x, y: endLabel.y, pinned: endLabel.pinned }).toEqual({ x: 470, y: 140, pinned: true });
+});
+
+test('only the first diagram is drawn, and a warning names any further one', async () => {
+  // Another tool draws a collapsed sub-process's contents on a plane of their own.
+  const { canvas, moddle, definitions } = load();
+  canvas.syncDi();
+  const plane = definitions.diagrams[0].plane;
+  const inner = plane.planeElement.find((di: any) => di.bpmnElement.id === 'Task_In');
+  plane.planeElement = plane.planeElement.filter((di: any) => di !== inner);
+  const subPlane = moddle.create('bpmndi:BPMNPlane', { bpmnElement: node(canvas, 'Sub_1').businessObject, planeElement: [inner] });
+  definitions.diagrams.push(moddle.create('bpmndi:BPMNDiagram', { id: 'Diagram_Sub', plane: subPlane }));
+
+  const warnings: string[] = [];
+  const again = new Canvas({ onWarning: (warning) => warnings.push(warning) });
+  again.importDefinitions(definitions);
+  expect(again.get('Task_In')).toBeUndefined();
+  expect(node(again, 'Sub_1').children).toEqual([]);
+  expect(warnings).toEqual([expect.stringContaining('Diagram_Sub')]);
 });
 
 // --- creating -------------------------------------------------------------------------
