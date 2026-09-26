@@ -1,13 +1,12 @@
 /**
  * Every committed edit of the document: writes the scene and the business objects,
- * and ends in one commit per edit, or per `batch` of edits: the revision goes up once,
- * the canvas draws what the commit did, and `ElementsChanged` fires once. DI is never
+ * and ends in one commit per edit, or per `batch` of edits: the revision goes up once
+ * and the owner hears what the commit did (the Study, which tells its views). DI is never
  * touched here; it is rebuilt from the scene on save (`study/di.ts`).
  */
 
 import { getDefaults, getExtensionType, isDataAssociationType, StudyflowElement } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
-import type { EventBus } from '@canvas/bus.ts';
 
 import {
   applyBandName,
@@ -232,7 +231,7 @@ export interface ReconnectEnds {
   target?: SceneNode;
 }
 
-/** What one commit did to the scene. The canvas draws it; `ElementsChanged` announces it. */
+/** What one commit did to the scene: what a view draws, and what a listener hears. */
 export interface Commit {
   /** Nodes and edges new to the scene. */
   added: Drawable[];
@@ -251,14 +250,11 @@ interface OpenCommit {
 export class Mutator {
   readonly ids: IdGenerator;
   private readonly scene: Scene;
-  private readonly bus: EventBus;
-  private readonly onCommit?: (commit: Commit) => void;
+  private readonly onCommit: (commit: Commit) => void;
   private open?: OpenCommit;
 
-  /** `onCommit` runs before `ElementsChanged` fires, so a listener finds the commit drawn. */
-  constructor(scene: Scene, bus: EventBus, onCommit?: (commit: Commit) => void) {
+  constructor(scene: Scene, onCommit: (commit: Commit) => void) {
     this.scene = scene;
-    this.bus = bus;
     this.onCommit = onCommit;
     this.ids = IdGenerator.fromDefinitions(scene.definitions);
     for (const id of scene.elementsById.keys()) this.ids.claim(id);
@@ -269,7 +265,7 @@ export class Mutator {
   }
 
   /**
-   * Make every edit `edit` makes one commit: one revision, one drawing pass, one `ElementsChanged`, one undo
+   * Make every edit `edit` makes one commit: one revision, one drawing pass, one change announced, one undo
    * step. A batch inside a batch joins it. What `edit` wrote before it threw is committed all the same.
    */
   batch<T>(edit: () => T): T {
@@ -302,9 +298,7 @@ export class Mutator {
     for (const element of added) changed.delete(element);
     if (added.size + changed.size + removed.size === 0) return;
     this.scene.revision += 1;
-    const commit: Commit = { added: [...added], changed: [...changed], removed: [...removed] };
-    this.onCommit?.(commit);
-    this.bus.fire('ElementsChanged', { elements: [...commit.added, ...commit.changed], removed: commit.removed });
+    this.onCommit({ added: [...added], changed: [...changed], removed: [...removed] });
   }
 
   // --- geometry ---------------------------------------------------------------

@@ -63,13 +63,13 @@ export default [
   },
 
   // The canvas's study/ is the part that runs without a DOM (Node, tests, the CLI): it imports only itself and core,
-  // and names no DOM global. bus.ts is the one exception: the mutator fires `ElementsChanged` on it.
+  // and names no DOM global.
   {
     files: ['packages/canvas/src/study/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
-          { group: ['@canvas/*', '!@canvas/study', '!@canvas/bus.ts'], message: 'study/ runs without a DOM: import only study/ and @core.' },
+          { group: ['@canvas/*', '!@canvas/study'], message: 'study/ runs without a DOM: import only study/ and @core.' },
         ],
       }],
       'no-restricted-globals': ['error',

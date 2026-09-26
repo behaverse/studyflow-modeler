@@ -18,11 +18,12 @@ import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, OUTLINE_CLASS, Selection } from '@canvas/interaction/selection.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
 import { writeDi } from '@canvas/study/di.ts';
-import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
+import type { ImportOptions } from '@canvas/study/import.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import type { IdGenerator } from '@canvas/study/ids.ts';
 import { prop, setProp } from '@canvas/study/moddle.ts';
-import { Mutator, type Commit } from '@canvas/study/mutator.ts';
+import type { Commit, Mutator } from '@canvas/study/mutator.ts';
+import { Study, studyInternals } from '@canvas/study/Study.ts';
 import { isRootElement, type Bounds, type Drawable, type ElementColors, type ElementRef, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf, isDataShape } from '@core/document/outline.ts';
@@ -84,6 +85,8 @@ export class Canvas {
   /** The container the view is drilled into; `undefined` shows the whole diagram. */
   private scope?: SceneNode;
   private mutator?: Mutator;
+  /** Stops hearing the study's changes. */
+  private stopListening?: () => void;
   private drag?: Drag;
   private appendPreview?: SVGGElement;
   private resizeObserver?: ResizeObserver;
@@ -167,6 +170,7 @@ export class Canvas {
     if (this.destroyed) return;
     this.destroyed = true;
     this.gestures.destroy();
+    this.stopListening?.();
     this.resizeObserver?.disconnect();
     this.labelEditing.reset();
     this.clearAppendPreview();
@@ -186,10 +190,17 @@ export class Canvas {
   importDefinitions(definitions: ModdleObject): Scene {
     this.resetInteraction();
     this.selection.forget();
-    this.scene = importDefinitions(definitions, this.importOptions);
+    this.stopListening?.();
+    const study = new Study(definitions, this.importOptions);
+    const { scene, mutator } = studyInternals(study);
+    this.scene = scene;
+    this.mutator = mutator;
+    this.stopListening = study.on('change', (change) => {
+      this.drawCommit(change);
+      this.bus.fire('ElementsChanged', { elements: [...change.added, ...change.changed], removed: change.removed });
+    });
     this.scope = undefined;
     this.renderer.scope = undefined;
-    this.mutator = new Mutator(this.scene, this.bus, (commit) => this.drawCommit(commit));
     this.drag = new Drag({
       mutator: this.mutator,
       redraw: (elements) => this.redrawElements(elements),
