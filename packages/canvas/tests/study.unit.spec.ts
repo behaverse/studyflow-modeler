@@ -220,3 +220,19 @@ test('an edit is one commit and one undo step, however many moddle writes it mak
   expect(study.canUndo, 'one undo takes back every write').toBe(false);
   expect(nodeOf(study, 'Task_1').businessObject.name).toBe('Read');
 });
+
+// --- creation ----------------------------------------------------------------------------
+
+test('creation takes plain data: the caller\'s id, a container by its id, a free spot when none is given; a refusal says why', () => {
+  const study = open();
+
+  expect(study.add({ type: 'bpmn:Task', id: 'Consent' }), 'no `at`: beside the rightmost shape it joins').toMatchObject({ ok: true, id: 'Consent' });
+  expect({ x: nodeOf(study, 'Consent').x, y: nodeOf(study, 'Consent').y }).toEqual({ x: 350, y: 80 });
+  const inner = study.add({ type: 'bpmn:Task', into: 'Sub_1', at: { x: 700, y: 440 } });
+  expect(nodeOf(study, inner.id!).parent?.id, 'a container named by id takes it, drawn closed or not').toBe('Sub_1');
+
+  expect(study.add({ type: 'bpmn:Task', id: 'Task_1' })).toEqual({ ok: false, reason: "the id 'Task_1' is taken", added: [], changed: [], removed: [] });
+  expect(study.add({ type: 'bpmn:Task', into: 'Task_1' })).toMatchObject({ ok: false, reason: "a bpmn:Task cannot go into 'Task_1'" });
+  expect(study.connect({ from: 'Consent', to: 'Nope' })).toMatchObject({ ok: false, reason: "no shape 'Nope'" });
+  expect(study.revision, 'what was refused wrote nothing').toBe(2);
+});

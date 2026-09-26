@@ -10,7 +10,7 @@ An example is a `.studyflow.yaml` in `skills/<name>/examples/`, saved from the m
 
 ## How it is put together
 
-`app.html` loads `src/index.tsx`, which renders `app/App.tsx`. `app/Modeler.tsx` boots: it loads the enabled schemas (`@core/notation/loader`), opens the autosaved diagram or a new one as a `Study`, and mounts the editor on it (`editor/mount.ts`: the canvas, templates, the token simulator). App then mounts the rest of the UI around it, each part reading the editor through `useModeler()`.
+`app.html` loads `src/index.tsx`, which renders `app/App.tsx`. `app/Modeler.tsx` boots: it loads the enabled schemas (`@core/notation/loader`), opens the autosaved diagram or a new one as a `Study`, and mounts the editor on it (`editor/mount.ts`: the canvas, the template list, the token simulator). App then mounts the rest of the UI around it, each part reading the editor through `useModeler()`.
 
 A view changes the document by sending a command: `executeCommand(editor, { type: 'X', … })` travels the editor's event bus to `runX`, exported by one of the modules `commandBus.ts` lists (a feature's `commands.ts`, and `diagram/save.ts`), and `runX` edits through the study: `study.set` for an attribute, `study.edit` for anything more, one command one undo step. `tests/commands.unit.spec.ts` checks that every `runX` is dispatched from somewhere. The canvas then fires `ElementsChanged` once for the edit, and the editor fires `HistoryChanged` (on an undo and a redo too), which autosave and the provenance dialog listen to; the study keeps the undo history. Views read the canvas and the moddle objects directly and subscribe to the bus topics they care about.
 
@@ -23,7 +23,7 @@ A view changes the document by sending a command: `executeCommand(editor, { type
 | `inspector/` | The side panel. `Panel.tsx` follows the selection, `categories.ts` files attributes under tabs, `registry.tsx` picks an input per attribute (`inputs.tsx`, `editors.tsx`). A section a tab shows beyond attributes is its own file (`state.tsx`, `dataFlow.tsx`, `loop.tsx`, `participants.tsx`, `message.tsx`), each over a pure helper module the unit specs pin. |
 | `palette/`, `popup/`, `contextPad/`, `commandPalette/`, `navBar/`, `drilldown/` | The chrome around the canvas. The ⌘K palette also hosts the dialogs and the hidden `open-file-input` the CLI and the e2e specs drive. |
 | `provenance/`, `simulation/` | The run trail and its replay; the token simulator. |
-| `settings/`, `gallery/`, `examples/`, `checklist/`, `gantt/`, `templates/`, `shape/`, `draw/`, `ui/` | Settings, the examples gallery, the read-only views, templates, element commands, icon maps, shared styles. |
+| `settings/`, `gallery/`, `examples/`, `checklist/`, `gantt/`, `shape/`, `draw/`, `ui/` | Settings, the examples gallery, the read-only views, element commands, icon maps, shared styles. A template drops through the canvas (`study/templates.ts`). |
 
 Skills add to the modeler through `skills/<name>/modeler.ts` (`skillModules.ts`): exports it writes and foreign formats it opens.
 
@@ -39,4 +39,4 @@ The document lives in the canvas and its moddle; views keep React state. What ou
 | `editor/popupMenus.ts` | Which component opens each popup menu, so the palette, the pad and the canvas open one without holding a component. |
 | `examples/entries.ts` | The gallery cards, read once a page. |
 
-Everything else is derived from the document on each render, or held by the editor (`editor/mount.ts`: the history, the templates, the simulator).
+Everything else is derived from the document on each render, or held by the editor (`editor/mount.ts`: the study with its history, the template list, the simulator).

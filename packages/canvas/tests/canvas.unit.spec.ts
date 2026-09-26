@@ -162,47 +162,48 @@ test('only the first diagram is drawn, and a warning names any further one', asy
 
 // --- creating -------------------------------------------------------------------------
 
-test('createElement places a shape, files its business object and opens the editor of a task', async () => {
+test('add places a shape centred where it is asked and files its business object; a container drawn closed takes nothing', async () => {
   const { canvas, definitions } = load();
-  const created = canvas.createElement({ type: 'bpmn:Task' }, { x: 600, y: 118 })!;
+  const created = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 600, y: 118 } }).id!);
   expect({ x: created.x, y: created.y, width: created.width, height: created.height }).toEqual({ x: 550, y: 78, width: 100, height: 80 });
   expect(canvas.getScene()!.children).toContain(created);
   const process = definitions.rootElements[0];
   expect(process.flowElements.map((el: any) => el.id)).toContain(created.id);
-  expect(canvas.getSelection().get()).toEqual([created]);
-  expect(canvas.getLabelEditing().isActive()).toBe(true);
-  canvas.getLabelEditing().cancel();
 
-  // A collapsed container takes nothing.
-  expect(canvas.createElement({ type: 'bpmn:Task' }, centre(node(canvas, 'Sub_1')))).toBeUndefined();
+  expect(canvas.study.add({ type: 'bpmn:Task', at: centre(node(canvas, 'Sub_1')) })).toMatchObject({ ok: false });
 });
 
 test('a boundary event attaches to the activity it is dropped on', async () => {
   const { canvas } = load();
-  const boundary = canvas.createElement({ type: 'bpmn:BoundaryEvent' }, centre(node(canvas, 'Task_1')))!;
+  const boundary = node(canvas, canvas.study.add({ type: 'bpmn:BoundaryEvent', at: centre(node(canvas, 'Task_1')) }).id!);
   expect(boundary.businessObject.attachedToRef).toBe(node(canvas, 'Task_1').businessObject);
   expect(boundary.parent).toBeUndefined();
 });
 
-test('a palette create follows the pointer and lands, grid-snapped, where it is released', async () => {
+test('a palette create follows the pointer and lands, grid-snapped, where it is released: selected, and named when a task', async () => {
   const { canvas } = load();
-  expect(canvas.startCreate(undefined, { type: 'bpmn:ExclusiveGateway' })).toBe(true);
-  pointerMove(canvas, { x: 703, y: 297 });
-  pointerUp(canvas, { x: 703, y: 297 });
-  const gateway = canvas.getSelection().get()[0] as SceneNode;
+  const drop = (type: string, at: { x: number; y: number }): SceneNode => {
+    expect(canvas.startCreate(undefined, { type })).toBe(true);
+    pointerMove(canvas, at);
+    pointerUp(canvas, at);
+    return canvas.getSelection().get()[0] as SceneNode;
+  };
+  const gateway = drop('bpmn:ExclusiveGateway', { x: 703, y: 297 });
   expect(gateway.type).toBe('bpmn:ExclusiveGateway');
   expect(centre(gateway)).toEqual({ x: 700, y: 300 });
   expect(canvas.getLabelEditing().isActive()).toBe(false);
+
+  expect(drop('bpmn:Task', { x: 900, y: 300 }).type).toBe('bpmn:Task');
+  expect(canvas.getLabelEditing().isActive(), 'a task is named as it lands').toBe(true);
 });
 
 // --- connecting --------------------------------------------------------------------
 
-test('connectElements mints a routed sequence flow and wires both ends', async () => {
+test('connect mints a routed sequence flow and wires both ends', async () => {
   const { canvas } = load();
-  const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 600, y: 118 })!;
-  canvas.getLabelEditing().cancel();
+  const task = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 600, y: 118 } }).id!);
   const gateway = node(canvas, 'Gateway_1');
-  const flow = canvas.connectElements(gateway, task)!;
+  const flow = edge(canvas, canvas.study.connect({ from: 'Gateway_1', to: task.id }).id!);
   expect(flow.type).toBe('bpmn:SequenceFlow');
   expect(flow.source).toBe(gateway);
   expect(flow.target).toBe(task);
@@ -215,14 +216,14 @@ test('connectElements mints a routed sequence flow and wires both ends', async (
   expect(canvas.getGraphics(flow.id)).toBeTruthy();
 
   // Nothing flows out of an end event.
-  expect(canvas.connectElements(node(canvas, 'End_1'), task)).toBeUndefined();
+  expect(canvas.study.connect({ from: 'End_1', to: task.id })).toMatchObject({ ok: false });
 });
 
 test('a new default redraws the flow that lost the slash as well as the one that gained it', async () => {
   const { canvas } = load();
   const gateway = node(canvas, 'Gateway_1');
   const toEnd = edge(canvas, 'Flow_3');
-  const toTask = canvas.connectElements(gateway, node(canvas, 'Task_1'))!;
+  const toTask = edge(canvas, canvas.study.connect({ from: 'Gateway_1', to: 'Task_1' }).id!);
   const slash = (flow: SceneEdge) => canvas.getGraphics(flow.id)!.querySelector('.sf-connection-line')!.getAttribute('marker-start');
   const makeDefault = (flow: SceneEdge) => canvas.study.edit(flow.id, (writer) => writer.set(gateway.businessObject, { default: flow.businessObject }));
   makeDefault(toEnd);
@@ -230,14 +231,6 @@ test('a new default redraws the flow that lost the slash as well as the one that
   makeDefault(toTask);
   expect(slash(toTask)).toContain('sf-marker-default');
   expect(slash(toEnd)).toBeNull();
-});
-
-test('connectElements keeps a route the host drew (a template\'s)', async () => {
-  const { canvas } = load();
-  const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 600, y: 118 })!;
-  canvas.getLabelEditing().cancel();
-  const route = [{ x: 385, y: 143 }, { x: 385, y: 200 }, { x: 600, y: 200 }, { x: 600, y: 158 }];
-  expect(canvas.connectElements(node(canvas, 'Gateway_1'), task, undefined, route)!.waypoints).toEqual(route);
 });
 
 test('a connect gesture drops the flow on the shape under the pointer', async () => {
@@ -257,7 +250,7 @@ test('a data shape and an activity connect with a data input association', async
   const { canvas } = load();
   const data = node(canvas, 'Data_1');
   const task = node(canvas, 'Task_1');
-  const association = canvas.connectElements(data, task)!;
+  const association = edge(canvas, canvas.study.connect({ from: data.id, to: task.id }).id!);
   expect(association.type).toBe('bpmn:DataInputAssociation');
   expect(task.businessObject.dataInputAssociations).toContain(association.businessObject);
   expect(association.businessObject.sourceRef).toEqual([data.businessObject]);
@@ -398,7 +391,7 @@ state:
   const [documentation] = process.documentation;
 
   // The root turns collaboration, and the study stays the root: same id, name, documentation, Study.
-  const pool = canvas.createElement({ type: 'bpmn:Participant' }, { x: 300, y: 118 })!;
+  const pool = node(canvas, canvas.study.add({ type: 'bpmn:Participant', at: { x: 300, y: 118 } }).id!);
   const collaboration = canvas.getScene()!.root as any;
   expect(canvas.getRoot()).toMatchObject({ id: 'Study_1', type: 'bpmn:Collaboration' });
   expect(collaboration).toMatchObject({ id: 'Study_1', name: 'Pilot', documentation: [documentation] });
@@ -408,10 +401,10 @@ state:
   expect(process.name).toBeUndefined();
   expect(process.extensionElements).toBeUndefined();
   expect(JSON.parse(study.state)).toEqual({ [process.id]: { trials: 3 } });
-  const note = canvas.createElement({ type: 'bpmn:TextAnnotation' }, { x: 900, y: 600 })!;
+  const note = node(canvas, canvas.study.add({ type: 'bpmn:TextAnnotation', at: { x: 900, y: 600 } }).id!);
   expect((collaboration as any).artifacts).toEqual([note.businessObject]);
   // One pool of two going leaves the collaboration the root.
-  canvas.deleteElements(canvas.createElement({ type: 'bpmn:Participant' }, { x: 300, y: 900 })!);
+  canvas.deleteElements(node(canvas, canvas.study.add({ type: 'bpmn:Participant', at: { x: 300, y: 900 } }).id!));
   expect(canvas.getScene()!.root).toBe(collaboration);
 
   canvas.deleteElements(pool);
@@ -498,7 +491,7 @@ test('expanding a container frames its contents and re-docks its flows, and coll
   const { canvas } = load();
   const sub = node(canvas, 'Sub_1');
   const inner = node(canvas, 'Task_In');
-  const flow = canvas.connectElements(node(canvas, 'Start_1'), sub)!;
+  const flow = edge(canvas, canvas.study.connect({ from: 'Start_1', to: sub.id }).id!);
   const docked = { ...flow.waypoints.at(-1)! };
   expect(canvas.setExpanded(sub, true)).toBe(true);
   expect(sub.isExpanded).toBe(true);
@@ -559,8 +552,11 @@ test('drilling into a container shows only its contents until the trail leads ba
   expect(canvas.hitTest(centre(node(canvas, 'Task_1')))).toBeUndefined();
   expect(canvas.hitTest(centre(node(canvas, 'Task_In')))).toBe(node(canvas, 'Task_In'));
   // A shape dropped while drilled in belongs to the container.
-  const dropped = canvas.createElement({ type: 'bpmn:Task' }, { x: 700, y: 400 })!;
+  canvas.startCreate(undefined, { type: 'bpmn:Task' });
+  pointerMove(canvas, { x: 700, y: 400 });
+  pointerUp(canvas, { x: 700, y: 400 });
   canvas.getLabelEditing().cancel();
+  const dropped = canvas.getSelection().get()[0] as SceneNode;
   expect(dropped.parent).toBe(sub);
   expect(sub.businessObject.flowElements).toContain(dropped.businessObject);
   expect(canvas.goToScope(undefined)).toBe(true);
@@ -604,8 +600,7 @@ test('dropping a shape into an expanded container re-files it there', async () =
   const { canvas } = load();
   const sub = node(canvas, 'Sub_1');
   canvas.setExpanded(sub, true);
-  const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 800, y: 118 })!;
-  canvas.getLabelEditing().cancel();
+  const task = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 800, y: 118 } }).id!);
   click(canvas, centre(task));
   dragBy(canvas, centre(task), { x: sub.x + sub.width - 60, y: sub.y + sub.height - 50 });
   expect(task.parent).toBe(sub);
@@ -615,10 +610,8 @@ test('dropping a shape into an expanded container re-files it there', async () =
 
 test('a shape dropped into a container is drawn above it, even one drawn before the container', async () => {
   const { canvas } = load();
-  const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 800, y: 118 })!;
-  canvas.getLabelEditing().cancel();
-  const sub = canvas.createElement({ type: 'bpmn:SubProcess', isExpanded: true }, { x: 900, y: 400 })!;
-  canvas.getLabelEditing().cancel();
+  const task = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 800, y: 118 } }).id!);
+  const sub = node(canvas, canvas.study.add({ type: 'bpmn:SubProcess', expanded: true, at: { x: 900, y: 400 } }).id!);
   click(canvas, centre(task));
   dragBy(canvas, centre(task), centre(sub));
   expect(task.parent).toBe(sub);
@@ -633,11 +626,10 @@ test('an edit made of several is one commit: one revision, one ElementsChanged',
   canvas.getEventBus().on('ElementsChanged', () => { fired += 1; });
   const sub = node(canvas, 'Sub_1');
   canvas.setExpanded(sub, true);
-  const loose = canvas.createElement({ type: 'bpmn:Task' }, { x: 800, y: 118 })!;
-  canvas.getLabelEditing().cancel();
+  const loose = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 800, y: 118 } }).id!);
   const CASES: [what: string, edit: () => void][] = [
-    ['a replace: a new shape, the flows moved onto it, the old one deleted', () => canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:UserTask' })],
-    ['an append: a shape and the flow to it', () => canvas.appendElement(node(canvas, 'Gateway_1'), { type: 'bpmn:Task' })],
+    ['a replace: a new shape, the flows moved onto it, the old one deleted', () => canvas.study.replace({ id: 'Task_1', type: 'bpmn:UserTask' })],
+    ['an append: a shape and the flow to it', () => canvas.study.append({ from: 'Gateway_1', type: 'bpmn:Task' })],
     ['a move into a container: the move and the change of container', () => {
       click(canvas, centre(loose));
       dragBy(canvas, centre(loose), { x: sub.x + sub.width - 60, y: sub.y + sub.height - 50 });

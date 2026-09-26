@@ -1,10 +1,12 @@
 /** Where a click-append lands: one gap to the right of the source, nudged down until free. */
 
 import { BPMN } from '@core/constants.ts';
+import { centerOf } from '@core/document/outline.ts';
 
-import { createShape, type CreatePrototype, type ShapeDescriptor } from '@canvas/study/prototype.ts';
-import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
+import { edgesIntersecting, isContainerNode, nodesIntersecting, pointInBox } from '@canvas/study/hit.ts';
+import type { Bounds, Point, Scene, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 import { routableEnd } from '@canvas/study/orthogonal.ts';
+import { planeOf } from '@canvas/study/tree.ts';
 
 export const APPEND_DISTANCE = 50;
 const ANNOTATION_APPEND_DISTANCE = 50;
@@ -51,30 +53,34 @@ export function freeAppendPosition(
   return start;
 }
 
-export interface AutoPlaceHost {
-  createElement(descriptor: ShapeDescriptor | CreatePrototype, center: Point): SceneNode | undefined;
-  connectElements(source: SceneNode | SceneEdge, target: SceneNode): SceneEdge | undefined;
-  isAreaOccupied(bounds: Bounds, from?: SceneNode | SceneEdge): boolean;
+/**
+ * Whether a shape at `bounds` would land on a shape or across a flow of the plane `from` is drawn on (the view that
+ * shows `from` shows that plane): a container counts only when `from` sits outside it.
+ */
+export function isAreaOccupied(scene: Scene, bounds: Bounds, from: SceneNode | SceneEdge): boolean {
+  const plane = planeOf(from);
+  const origin = centerOf(appendSourceBounds(from));
+  const onNode = nodesIntersecting(scene, bounds, plane).some((node) => {
+    if (node === from) return false;
+    if (!isContainerNode(node)) return true;
+    return !pointInBox(origin, node);
+  });
+  if (onNode) return true;
+  return edgesIntersecting(scene, bounds, plane).some((edge) => edge !== from);
 }
 
-export interface AppendResult {
-  shape: SceneNode;
-  connection: SceneEdge | undefined;
+/** The first free centre for `size` appended from `source`, clear of what shares its plane. */
+export function appendSpot(scene: Scene, source: SceneNode | SceneEdge, size: { width: number; height: number }, type: string): Point {
+  return freeAppendPosition(appendSourceBounds(source), size, type, (bounds) => isAreaOccupied(scene, bounds, source));
 }
 
-export function appendElement(
-  host: AutoPlaceHost,
-  source: SceneNode | SceneEdge,
-  descriptor: ShapeDescriptor | CreatePrototype,
-): AppendResult | undefined {
-  const prototype = createShape(descriptor);
-  const position = freeAppendPosition(
-    appendSourceBounds(source),
-    prototype,
-    prototype.type,
-    (bounds) => host.isAreaOccupied(bounds, source),
-  );
-  const shape = host.createElement(prototype, position);
-  if (!shape) return undefined;
-  return { shape, connection: host.connectElements(source, shape) };
+/** Where a shape added without a place goes: beside the rightmost shape in `container`, else near its top-left. */
+export function freeSpot(scene: Scene, container: SceneNode | undefined, size: { width: number; height: number }, type: string): Point {
+  const siblings = container ? container.children : scene.children;
+  const rightmost = siblings
+    .filter((element): element is SceneNode => element.kind === 'node')
+    .reduce<SceneNode | undefined>((far, node) => (!far || node.x + node.width > far.x + far.width ? node : far), undefined);
+  if (rightmost) return appendSpot(scene, rightmost, size, type);
+  const corner = container ? { x: container.x + APPEND_DISTANCE, y: container.y + APPEND_DISTANCE } : { x: 100, y: 100 };
+  return { x: corner.x + size.width / 2, y: corner.y + size.height / 2 };
 }

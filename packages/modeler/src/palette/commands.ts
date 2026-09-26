@@ -1,7 +1,6 @@
-import { isExpandable } from '@canvas/index.ts';
 import { bpmnSelfAndAncestors, getCatalog } from '@core/notation';
 import { PALETTE_BPMN_ICONS } from '@modeler/palette/groups';
-import { buildBusinessObject } from '@modeler/palette/build';
+import { newShape } from '@modeler/palette/newShape';
 import { openPopupMenu, type PopupPosition } from '@modeler/editor/popupMenus';
 import type { Editor } from '@modeler/editor/port';
 
@@ -11,13 +10,9 @@ export type PaletteStartCreateTemplateCommand = {
   event: MouseEvent | any;
 };
 
-export function runPaletteStartCreateTemplate(modeler: Editor, command: PaletteStartCreateTemplateCommand): any {
-  const template = modeler.templates.getAll().find((t) => t.id === command.templateId);
-  if (!template) return undefined;
-
-  const shape = modeler.templates.createElement(template);
-  modeler.canvas.startCreate(command.event, shape);
-  return shape;
+/** Drag a template from the palette: it drops as its shape, its flow laid out inside. */
+export function runPaletteStartCreateTemplate(modeler: Editor, command: PaletteStartCreateTemplateCommand): boolean {
+  return modeler.canvas.startCreate(command.event, { template: command.templateId });
 }
 
 
@@ -29,26 +24,8 @@ export type PaletteStartCreateCommand = {
   extensionType?: string;
 };
 
-export function runPaletteStartCreate(modeler: Editor, command: PaletteStartCreateCommand): any {
-  const bo = buildBusinessObject(modeler.model, command.bpmnType, {
-    attributes: command.attributes,
-    extensionType: command.extensionType,
-  });
-  const shape = modeler.canvas.createShape({
-    type: command.bpmnType,
-    businessObject: bo,
-    // A container dropped from the palette is born COLLAPSED — a 100×80 activity box
-    // wearing the ⊞ marker and a drill-down badge, whose contents live in a nested
-    // plane the create path mints alongside it (`Writeback.addNestedPlane`).
-    // Without the explicit flag a `BPMNShape` that omits `isExpanded` reads as
-    // expanded, and the drop produced a bare rectangle with no marker, no badge and
-    // no way to author anything inside it.
-    ...(isExpandable(command.bpmnType) ? { isExpanded: false } : {}),
-  });
-
-  modeler.canvas.startCreate(command.event, shape);
-
-  return shape;
+export function runPaletteStartCreate(modeler: Editor, command: PaletteStartCreateCommand): boolean {
+  return modeler.canvas.startCreate(command.event, newShape(command.bpmnType, command.extensionType, command.attributes));
 }
 
 export type PaletteOpenPopupCommand = {

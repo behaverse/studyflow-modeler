@@ -1,15 +1,16 @@
 /**
  * Connect and reconnect: one state machine, a rubber band that turns into the
- * routed flow over an accepted target, a drop that mints or rewires the edge.
+ * routed flow over an accepted target, a drop that has the study connect the two,
+ * or rewires the edge.
  */
 
 import { freeMoveEnd, redockEnd } from '@canvas/study/edit.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
-import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { markerEndFor, markerStartFor, previewEdge } from '@canvas/render/renderer.ts';
 import { append, create as svgCreate, remove } from '@canvas/render/svg.ts';
 import { cropPoint } from '@core/document/outline.ts';
-import { routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
+import { routeFor } from '@canvas/study/orthogonal.ts';
 import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/study/rules.ts';
 
 export type ConnectionEnd = 'source' | 'target';
@@ -22,6 +23,8 @@ export interface ConnectOptions {
   layer: SVGGElement;
   markTarget?: (target: SceneNode | undefined, allowed: boolean) => void;
   snap?: (point: Point) => Point;
+  /** Connect `source` to `target`: the edge made, or nothing when refused. */
+  link: (source: SceneNode, target: SceneNode) => SceneEdge | undefined;
 }
 
 interface ConnectState {
@@ -99,7 +102,7 @@ export class Connect {
     this.update(point);
     this.state = undefined;
     this.clearPreview();
-    if (state.kind === 'connect') return state.target ? this.connect(state.source, state.target) : undefined;
+    if (state.kind === 'connect') return state.target ? this.options.link(state.source, state.target) : undefined;
     if (!state.candidate) return undefined;
     return this.reconnect(state.edge, state.end, state.candidate, this.snap(state.point)) ? state.edge : undefined;
   }
@@ -107,21 +110,6 @@ export class Connect {
   cancel(): void {
     this.state = undefined;
     this.clearPreview();
-  }
-
-  /** Connect two elements without a gesture; `undefined` when the rules refuse. */
-  connect(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject, waypoints?: Point[]): SceneEdge | undefined {
-    const mutator = this.options.getMutator();
-    if (!mutator) return undefined;
-    const spec = this.options.rules.canConnect(source, target);
-    if (!spec) return undefined;
-    return mutator.addConnection({
-      type: spec.type,
-      source,
-      target,
-      waypoints: waypoints ?? routeFor(spec.type, routableEnd(source), target),
-      ...(businessObject ? { businessObject } : {}),
-    });
   }
 
   /**

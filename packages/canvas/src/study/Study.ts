@@ -5,13 +5,21 @@
  */
 
 import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireXml } from '@core/document';
-import { setAttribute } from '@core/element/index.ts';
+import { categoryOf } from '@core/document/outline.ts';
+import { eventDefinitionTypeOf, getExtensionType, setAttribute } from '@core/element/index.ts';
 import type { Moddle } from '@core/element/moddle';
+import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { writeDi } from '@canvas/study/di.ts';
+import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
-import { findById } from '@canvas/study/moddle.ts';
-import { Mutator, type Commit } from '@canvas/study/mutator.ts';
-import type { Drawable, ModdleObject, Scene } from '@canvas/study/scene.ts';
+import { findById, prop } from '@canvas/study/moddle.ts';
+import { Mutator, type AddShapeSpec, type Commit } from '@canvas/study/mutator.ts';
+import { rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
+import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
+import { Rules } from '@canvas/study/rules.ts';
+import type { Bounds, Drawable, ModdleObject, Point, Scene, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
+import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
+import { edgesAffectedBy, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
 /**
@@ -35,6 +43,8 @@ export interface OpenOptions extends ImportOptions {
 export interface StudyResult {
   readonly ok: boolean;
   readonly reason?: string;
+  /** The element the verb made, when it made one. */
+  readonly id?: string;
   readonly added: readonly string[];
   readonly changed: readonly string[];
   readonly removed: readonly string[];
@@ -49,6 +59,8 @@ const UNDO_DEPTH = 50;
 export interface StudyInternals {
   readonly scene: Scene;
   readonly mutator: Mutator;
+  /** What may connect, contain or resize what: the study's verbs and every view's gestures ask the same rules. */
+  readonly rules: Rules;
 }
 
 const internals = new WeakMap<Study, StudyInternals>();
@@ -61,6 +73,7 @@ export function studyInternals(study: Study): StudyInternals {
 export class Study {
   private readonly listeners = new Set<ChangeListener>();
   private readonly options: ImportOptions;
+  private readonly rules = new Rules();
   /** The document after each edit, as `.studyflow.yaml` text, oldest first: what undo and redo go back and forth through. */
   private snapshots: string[];
   /** The snapshot of the document the study holds. */
@@ -88,7 +101,7 @@ export class Study {
   /** Replace the document with `source`, file text or definitions, as one change: a 'load', which the history starts over from. */
   async load(source: string | ModdleObject): Promise<void> {
     const definitions = typeof source === 'string' ? await parse(source, moddleOf(this.definitions), this.options.onWarning) : source;
-    this.replace(definitions, 'load');
+    this.swap(definitions, 'load');
   }
 
   /** The document as a BPMN XML file holds it: the drawing written into its DI, and a pure choreography on its own root. */
@@ -124,6 +137,114 @@ export class Study {
     return this.write(found.drawn, write);
   }
 
+  /**
+   * Add `what` centred on `at` (without it, beside the shapes it joins), into the container `into` names (the root's
+   * id for the top level; without one, whatever is under `at`). `id` names it, when free; a template keeps its own.
+   */
+  add(args: NewElement & { id?: string; at?: Point; into?: string }): StudyResult {
+    const { scene, rules } = studyInternals(this);
+    const shape = shapeOf(args);
+    if (!shape) return refused(`no template '${'template' in args ? args.template : ''}'`);
+    if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
+    const top = args.into === undefined || args.into === scene.rootElement.id;
+    const named = top ? undefined : scene.elementsById.get(args.into!);
+    if (!top && named?.kind !== 'node') return refused(`no container '${args.into}'`);
+    const container = named?.kind === 'node' ? named : args.into === undefined && args.at ? containerOf(hitTest(scene, args.at)) : undefined;
+    const prototype = prototypeOf(shape);
+    // A container named by id takes what fits in it however it is drawn; one found under `at` only when drawn open.
+    const context = named?.kind === 'node' ? { ...named, isExpanded: true } : container ?? scene.rootElement;
+    const verdict = rules.canCreate(prototype, context, { root: scene.rootElement });
+    if (!verdict) return refused(`a ${shape.type} cannot go ${container ? `into '${container.id}'` : 'at the top level'}`);
+    const at = args.at ?? freeSpot(scene, container, prototype, prototype.type);
+    const place = verdict === 'attach' && container ? { attachTo: container } : container ? { parent: container } : {};
+    return this.commit(() => this.drop(args, prototype, at, place));
+  }
+
+  /** Add `what` beside `from` and connect the two, as one edit: one gap to its right, clear of what shares its plane. */
+  append(args: NewElement & { from: string; id?: string }): StudyResult {
+    const { scene, rules } = studyInternals(this);
+    const source = scene.elementsById.get(args.from);
+    if (!source || source.kind === 'label') return refused(`no element '${args.from}'`);
+    const shape = shapeOf(args);
+    if (!shape) return refused(`no template '${'template' in args ? args.template : ''}'`);
+    if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
+    const prototype = prototypeOf(shape);
+    if (!rules.canAppendType(source, prototype.type)) return refused(`nothing appends a ${shape.type} to '${args.from}'`);
+    const at = appendSpot(scene, source, prototype, prototype.type);
+    return this.commit(() => {
+      const node = this.drop(args, prototype, at, source.parent ? { parent: source.parent } : {});
+      this.link(source, node);
+      return node;
+    });
+  }
+
+  /** Connect `from` to `to` with what the rules allow between them: a sequence or message flow, a data or plain association. */
+  connect(args: { from: string; to: string; id?: string }): StudyResult {
+    const { scene, rules } = studyInternals(this);
+    const source = scene.elementsById.get(args.from);
+    const target = scene.elementsById.get(args.to);
+    if (!source || source.kind === 'label') return refused(`no element '${args.from}'`);
+    if (target?.kind !== 'node') return refused(`no shape '${args.to}'`);
+    if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
+    if (!rules.canConnect(source, target)) return refused(`nothing connects '${args.from}' to '${args.to}'`);
+    return this.commit(() => this.link(source, target, args.id));
+  }
+
+  /** Retype `id` in place as `what`: a new shape in its stead, keeping its name, its centre and its flows, as one edit. */
+  replace(args: NewShape & { id: string }): StudyResult {
+    const { scene, mutator, rules } = studyInternals(this);
+    const node = scene.elementsById.get(args.id);
+    if (node?.kind !== 'node') return refused(`no shape '${args.id}'`);
+    const prototype = prototypeOf(args);
+    if (!rules.canReplace(node, prototype.type)) return refused(`'${args.id}' cannot become a ${args.type}`);
+    if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)
+      && eventDefinitionTypeOf(prototype.attrs as never) === eventDefinitionTypeOf(node.businessObject)) {
+      return { ok: true, id: node.id, added: [], changed: [], removed: [] };
+    }
+    const size = categoryOf(prototype.type) === categoryOf(node.type)
+      ? { width: node.width, height: node.height }
+      : defaultSizeFor(prototype.type, prototype.isExpanded);
+    const name = prop(node.businessObject, 'name');
+    const attrs = { ...prototype.attrs, ...(typeof name === 'string' && name ? { name } : {}) };
+    const spec: AddShapeSpec = {
+      ...shapeSpec({ ...prototype, ...size }, { x: node.x + node.width / 2, y: node.y + node.height / 2 }),
+      ...(Object.keys(attrs).length > 0 ? { attrs } : {}),
+      ...(node.parent ? { parent: node.parent } : {}),
+    };
+    return this.commit(() => {
+      const shape = mutator.addShape(spec);
+      for (const edge of [...node.incoming]) mutator.reconnect(edge, { target: shape });
+      for (const edge of [...node.outgoing]) mutator.reconnect(edge, { source: shape });
+      mutator.deleteElements([node]);
+      mutator.commit(rerouteEdges(edgesAffectedBy([shape]), { obstacles: obstaclesIn(scene, planeOf(shape)) }));
+      return shape;
+    });
+  }
+
+  /** Give the shape `id` new bounds, as one edit. */
+  resize(args: { id: string; bounds: Bounds }): StudyResult {
+    const { scene, mutator, rules } = studyInternals(this);
+    const node = scene.elementsById.get(args.id);
+    if (node?.kind !== 'node') return refused(`no shape '${args.id}'`);
+    if (!rules.canResize(node)) return refused(`'${args.id}' keeps its size`);
+    return this.commit(() => {
+      mutator.setNodeBounds(node, args.bounds);
+    });
+  }
+
+  /** Route the flow `id` through `waypoints`, or squarely between its ends without them, as one edit. */
+  reroute(args: { id: string; waypoints?: Point[] }): StudyResult {
+    const { scene, mutator } = studyInternals(this);
+    const edge = scene.elementsById.get(args.id);
+    if (edge?.kind !== 'edge') return refused(`no flow '${args.id}'`);
+    const { waypoints } = args;
+    if (waypoints && waypoints.length < 2) return refused('a route runs through two waypoints at least');
+    return this.commit(() => {
+      if (waypoints) mutator.setEdgeWaypoints(edge, waypoints);
+      else mutator.commit(rerouteEdges([edge], { obstacles: obstaclesIn(scene, planeOf(edge)) }));
+    });
+  }
+
   /** Go back to the document before the last edit; false when the history holds none. */
   undo(): boolean {
     return this.travel(-1);
@@ -153,7 +274,7 @@ export class Study {
     fromWireDefinitions(definitions, this.options.onWarning);
     const scene = importDefinitions(definitions, this.options);
     scene.revision = revision;
-    internals.set(this, { scene, mutator: new Mutator(scene, (commit) => this.edited(commit)) });
+    internals.set(this, { scene, mutator: new Mutator(scene, (commit) => this.edited(commit)), rules: this.rules });
     return scene;
   }
 
@@ -176,15 +297,46 @@ export class Study {
   /** Run `write` as one commit about `drawn` (the root, without it), and say what it did by id. */
   private write(drawn: Drawable | undefined, write: (writer: StudyWriter) => void): StudyResult {
     const { scene, mutator } = studyInternals(this);
+    return this.commit(() => write(writerFor(scene, mutator, drawn)));
+  }
+
+  /** Run `edit` as one commit, and say what it did by id: `id` is the element it made, when it returns one. */
+  private commit(edit: () => Drawable | undefined | void): StudyResult {
+    const { mutator } = studyInternals(this);
     this.takeCommitted();
-    mutator.batch(() => write(writerFor(scene, mutator, drawn)));
+    const made = mutator.batch(edit);
     const commit = this.takeCommitted();
     return {
       ok: true,
+      ...(made ? { id: made.id } : {}),
       added: (commit?.added ?? []).map((element) => element.id),
       changed: (commit?.changed ?? []).map((element) => element.id),
       removed: (commit?.removed ?? []).map((element) => element.id),
     };
+  }
+
+  /** Whether `id` names an element the document already holds. */
+  private taken(id: string | undefined): boolean {
+    return id !== undefined && studyInternals(this).mutator.ids.assigned(id);
+  }
+
+  /** Mint `what`, whose prototype is `prototype`, centred on `at` in `place`: a template lays its elements out inside. */
+  private drop(what: NewElement & { id?: string }, prototype: CreatePrototype, at: Point, place: Pick<AddShapeSpec, 'parent' | 'attachTo'>): SceneNode {
+    const { scene, mutator, rules } = studyInternals(this);
+    const template = 'template' in what ? findTemplate(what.template) : undefined;
+    if (!template) return mutator.addShape({ ...shapeSpec(prototype, at, what.id), ...place });
+    const build = buildTemplate(template, scene.definitions, mutator.ids);
+    const node = mutator.addShape({ ...shapeSpec(prototype, at), type: build.root.$type, businessObject: build.root, ...place });
+    layOutTemplate(mutator, rules, node, build);
+    return node;
+  }
+
+  /** Connect `source` to `target`, routed, as the rules allow; nothing when they refuse. */
+  private link(source: SceneNode | SceneEdge, target: SceneNode, id?: string): SceneEdge | undefined {
+    const { mutator, rules } = studyInternals(this);
+    const spec = rules.canConnect(source, target);
+    if (!spec) return undefined;
+    return mutator.addConnection({ type: spec.type, source, target, waypoints: routeFor(spec.type, routableEnd(source), target), ...(id ? { id } : {}) });
   }
 
   /** The commit made since the last take: none when nothing was written, or when a batch around this one is still open. */
@@ -213,12 +365,12 @@ export class Study {
     const snapshot = this.snapshots[this.current + step];
     if (snapshot === undefined) return false;
     this.current += step;
-    this.replace(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo');
+    this.swap(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo');
     return true;
   }
 
   /** Put `definitions` in place of the document, as one change; a load starts the history over. */
-  private replace(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): void {
+  private swap(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): void {
     const before = studyInternals(this).scene;
     const after = this.read(definitions, before.revision + 1);
     if (cause === 'load') {

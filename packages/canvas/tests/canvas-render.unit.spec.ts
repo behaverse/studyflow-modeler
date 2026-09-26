@@ -327,16 +327,23 @@ test('the flatter run jumps over the steeper edge it crosses, on either side of 
   const jumpsIn = (id: string) => arcMidpoints(pathOf(id));
   expect(jumpsIn('Flow_Across')).toEqual([]);
 
+  /** A flow from Top to Bottom, routed through `waypoints`. */
+  const connectThrough = (waypoints: { x: number; y: number }[]) => {
+    const { id } = canvas.study.connect({ from: 'Top', to: 'Bottom' });
+    canvas.study.reroute({ id: id!, waypoints });
+    return edge(canvas, id!);
+  };
+
   // The vertical flow lands after the horizontal one was drawn: the crossing still cuts a
   // semicircle into the horizontal path, centred on x=300, and leaves the vertical one straight.
-  const down = canvas.connectElements(node(canvas, 'Top'), node(canvas, 'Bottom'), undefined, [{ x: 300, y: -20 }, { x: 300, y: 300 }])!;
+  const down = connectThrough([{ x: 300, y: -20 }, { x: 300, y: 300 }]);
   expect(jumpsIn('Flow_Across')).toEqual([{ x: 300, y: 120 }]);
   expect(jumpsIn(down.id)).toEqual([]);
   expect(across.getAttribute('data-waypoints')).toBe('200,120 400,120');
 
   // A slant across both: flatter than the vertical, so it jumps that; steeper than the
   // horizontal, so the horizontal jumps it (at x=275, its own arc apart from the first).
-  const slant = canvas.connectElements(node(canvas, 'Top'), node(canvas, 'Bottom'), undefined, [{ x: 100, y: -20 }, { x: 500, y: 300 }])!;
+  const slant = connectThrough([{ x: 100, y: -20 }, { x: 500, y: 300 }]);
   expect(jumpsIn('Flow_Across')).toEqual([{ x: 275, y: 120 }, { x: 300, y: 120 }]);
   expect(jumpsIn(slant.id)).toHaveLength(1);
   expect(jumpsIn(down.id)).toEqual([]);

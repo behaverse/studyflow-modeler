@@ -13,7 +13,7 @@ import { RESIZING_MARKER } from '@canvas/interaction/selection.ts';
 import { collectSnapTargets, snapMove, snapPoint, type SnapTargets } from '@canvas/interaction/snapping.ts';
 import type { Connect, ConnectionEnd } from '@canvas/interaction/connect.ts';
 import type { Create } from '@canvas/interaction/create.ts';
-import type { CreatePrototype } from '@canvas/study/prototype.ts';
+import type { CreatePrototype, NewElement } from '@canvas/study/prototype.ts';
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { isExpandable } from '@canvas/study/tree.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
@@ -140,9 +140,9 @@ export class Gestures {
   }
 
   /** A palette create may begin outside the canvas, so it installs the document listeners itself. */
-  startCreate(event: MouseEvent | undefined, prototype: CreatePrototype): boolean {
+  startCreate(event: MouseEvent | undefined, what: NewElement, prototype: CreatePrototype): boolean {
     const point = event ? this.eventPoint(event) : this.tools.viewportCentre();
-    if (!this.tools.create.start(prototype, point)) return false;
+    if (!this.tools.create.start(what, prototype, point)) return false;
     this.canvas.getSvg().classList.add('sf-drag-active');
     this.markGesture('create');
     this.gesture = {

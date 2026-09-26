@@ -3,7 +3,7 @@
  * them (the document model, templates, simulation). Built by `editor/mount.ts`.
  */
 
-import type { Canvas, EventBus, Selection, ShapeDescriptor, Study } from '@canvas/index.ts';
+import type { Canvas, EventBus, Selection, Study } from '@canvas/index.ts';
 import { toBusinessObject } from '@core/element';
 import type { Template } from '@core/notation';
 
@@ -17,24 +17,15 @@ export type ModelElement = any;
 
 export type Moddle = import('bpmn-moddle').BpmnModdle;
 
-/** Schema-aware document model access (bpmn-moddle). */
+/** Schema-aware document model access (bpmn-moddle): what reads and writes files; the study mints what it adds. */
 export interface EditorModel {
   moddle(): Moddle;
   /** The schema packages the moddle was built from, untouched: a converted document is built with the same ones. */
   packages(): Record<string, any>;
-  create(type: string, properties?: Record<string, unknown>): ModelElement;
-  /** An id-assigning business object. */
-  createBusinessObject(type: string, properties?: Record<string, unknown>): ModelElement;
-  ids: {
-    nextPrefixed(prefix: string, element?: ModelElement): string;
-    assigned(id: string): unknown;
-  };
 }
 
 export interface EditorTemplates {
   getAll(): Template[];
-  /** The shape a palette drag drops; a flow the template holds is laid out inside it once it lands. */
-  createElement(template: Template): ShapeDescriptor;
 }
 
 export interface EditorSimulation {

@@ -101,6 +101,22 @@ const SUBPROCESS_TYPES = new Set(['bpmn:SubProcess', 'bpmn:AdHocSubProcess', 'bp
 const FRAME_TYPES = new Set(['bpmn:Participant', 'bpmn:Lane', 'bpmn:Group']);
 
 /** A frame around a transparent interior never shadows what it encloses. */
+/** The node a drop onto `hit` lands in: the node itself, a caption's owner's, or a flow's container. */
+export function containerOf(hit: SceneElement | undefined): SceneNode | undefined {
+  if (!hit) return undefined;
+  if (hit.kind === 'node') return hit;
+  if (hit.kind === 'label') return containerOf(hit.owner);
+  return hit.parent;
+}
+
+/** The boxes a route in `scope` steers around: the shapes shown there that hold nothing, but those in `exclude`. */
+export function obstaclesIn(scene: Scene, scope: SceneNode | undefined, exclude: readonly SceneNode[] = []): Bounds[] {
+  const skip = new Set<SceneNode>(exclude);
+  return orderedNodes(scene, scope)
+    .filter((node) => !skip.has(node) && !isContainerNode(node))
+    .map((node) => ({ x: node.x, y: node.y, width: node.width, height: node.height }));
+}
+
 export function isContainerNode(node: SceneNode): boolean {
   if (SUBPROCESS_TYPES.has(node.type)) return node.isExpanded !== false;
   if (FRAME_TYPES.has(node.type)) return true;

@@ -1,4 +1,5 @@
 import type { FontPatch } from '@canvas/index.ts';
+import { newShape } from '@modeler/palette/newShape';
 import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
 import type { EditorElement, Editor } from '@modeler/editor/port';
 
@@ -50,11 +51,10 @@ export type ReplaceElementCommand = {
 export function runReplaceElement(modeler: Editor, command: ReplaceElementCommand): EditorElement | undefined {
   const node = modeler.canvas.resolveElement(command.element);
   if (!node || node.kind !== 'node' || !command.bpmnType) return undefined;
-  return modeler.canvas.replaceElement(node, {
-    type: command.bpmnType,
-    ...(command.extensionType ? { extensionType: command.extensionType } : {}),
-    ...(command.attributes ? { attrs: command.attributes } : {}),
-  });
+  const { id } = modeler.study.replace({ id: node.id, ...newShape(command.bpmnType, command.extensionType, command.attributes) });
+  if (id === undefined) return undefined;
+  modeler.selection.select(id);
+  return modeler.canvas.get(id);
 }
 
 export type SwapChoreographyInitiatorCommand = {

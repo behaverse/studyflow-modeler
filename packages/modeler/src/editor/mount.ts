@@ -4,7 +4,7 @@
  * resolver, templates and the simulator.
  */
 
-import { Canvas, SVG_ICON_PATHS, idPrefixFor, needsId, renderSvg } from '@canvas/index.ts';
+import { Canvas, SVG_ICON_PATHS, renderSvg } from '@canvas/index.ts';
 import type { CanvasOptions, IconDef, Study } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
@@ -12,8 +12,7 @@ import { StudyflowElement } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
-import { createTemplateElement, materializeTemplateFlow, type TemplateFlow } from '@modeler/templates/factory';
-import type { Editor, EditorModel, EditorSimulation, EditorTemplates, ModelElement, Moddle } from '@modeler/editor/port';
+import type { Editor, EditorModel, EditorSimulation, EditorTemplates, Moddle } from '@modeler/editor/port';
 
 export type MountEditorOptions = {
   container: HTMLElement;
@@ -58,30 +57,9 @@ export function mountEditor(options: MountEditorOptions): Editor {
     labelText: (bo, name) => resolvePlaceholders(name, study.definitions as any, bo?.id ?? ''),
   };
   const canvas = new Canvas(options.container, study, drawing);
-  const moddle = options.moddle as any;
-
-  // The palette mints ids through the moddle, from those the study holds.
-  const ids = () => canvas.getIds();
-  moddle.ids = {
-    nextPrefixed: (prefix: string, element?: ModelElement) => ids().nextPrefixed(prefix, element),
-    assigned: (id: string) => ids().assigned(id),
-    claim: (id: string) => ids().claim(id),
-  };
-
   const model: EditorModel = {
-    moddle: () => moddle,
+    moddle: () => options.moddle,
     packages: () => options.extensionSchemas,
-    create: (type, properties) => moddle.create(type, properties),
-    createBusinessObject: (type, properties) => {
-      const element = moddle.create(type, properties);
-      if (element.id) ids().claim(element.id);
-      else if (needsId(element)) element.id = ids().nextPrefixed(idPrefixFor(element), element);
-      return element;
-    },
-    ids: {
-      nextPrefixed: (prefix, element) => ids().nextPrefixed(prefix, element),
-      assigned: (id) => ids().assigned(id),
-    },
   };
 
   const bus = canvas.getEventBus();
@@ -100,26 +78,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
     if (cause !== 'load') bus.fire('HistoryChanged', {});
   });
 
-  // Templates: the palette drags a template's shape; the flow it holds is laid out inside once it lands.
-  let pendingFlow: { businessObject: ModelElement; flow: TemplateFlow } | undefined;
-  const materializePending = (): void => {
-    const pending = pendingFlow;
-    const placed = pending && canvas.getScene()?.byBusinessObject.get(pending.businessObject);
-    if (!pending || placed?.kind !== 'node') return;
-    pendingFlow = undefined;
-    canvas.batch(() => materializeTemplateFlow(canvas, placed, pending.flow));
-    canvas.getSelection().select(placed);
-  };
-  bus.on('ElementsChanged', materializePending);
-
-  const templates: EditorTemplates = {
-    getAll: () => getCatalog().allTemplates(),
-    createElement: (template) => {
-      const { shape, flow } = createTemplateElement(model, template, study.definitions);
-      pendingFlow = flow.nodes.length > 0 ? { businessObject: shape.businessObject, flow } : undefined;
-      return shape;
-    },
-  };
+  const templates: EditorTemplates = { getAll: () => getCatalog().allTemplates() };
 
   const simulator = new TokenSimulator({ events: bus, canvas });
   const simulation: EditorSimulation = { toggle: () => simulator.toggle(), isActive: () => simulator.isActive() };
@@ -149,7 +108,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
       simulator.dispose();
       unsubscribeSettings();
       stopHearing();
-      bus.off('ElementsChanged', materializePending);
       canvas.destroy();
     },
   };

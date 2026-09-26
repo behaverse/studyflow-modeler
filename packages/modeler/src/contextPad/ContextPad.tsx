@@ -25,6 +25,7 @@ import { executeCommand } from '@modeler/commandBus';
 import { APPEND_MENU, COLOR_MENU, REPLACE_MENU, openPopupMenu } from '@modeler/editor/popupMenus';
 import { contextPadEntries, type ContextPadAppend, type ContextPadEntry, type ContextPadIcon } from '@modeler/contextPad/entries';
 import { ICONS } from '@modeler/icons';
+import { newShape } from '@modeler/palette/newShape';
 import { contextPad as s } from '@modeler/contextPad/styles';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
@@ -298,12 +299,8 @@ export function ContextPad() {
       modeler.canvas.clearAppendPreview();
       return;
     }
-    // No business object: a ghost is a picture, and minting one would claim an id
-    // for an element that is never created. The type carries the footprint, the
-    // silhouette and the rules verdict, which is everything the preview needs.
-    const shape = modeler.canvas.createShape({ type: append.bpmnType });
     const source = modeler.canvas.resolveElement(element);
-    if (source && source.kind !== 'label') modeler.canvas.previewAppend(source, shape);
+    if (source && source.kind !== 'label') modeler.canvas.previewAppend(source.id, newShape(append.bpmnType, append.extensionType));
   }, [modeler, element]);
 
   const run = useCallback((entry: ContextPadEntry) => {

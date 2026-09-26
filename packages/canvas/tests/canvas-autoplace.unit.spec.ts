@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import type { Canvas } from '@canvas/index.ts';
+import type { Canvas, NewShape } from '@canvas/index.ts';
 import { APPEND_DISTANCE } from '@canvas/study/autoplace.ts';
-import type { Bounds, Point, SceneEdge } from '@canvas/study/scene.ts';
+import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 
 import { diOf, edge, loadYaml, node, written, type Loaded } from './canvasHarness';
 
@@ -63,6 +63,12 @@ Process_1:
 `;
 
 /** The edge joining two elements, whichever direction it was drawn in. */
+/** Click-append `what` from `source`, as the context pad does: the shape made, or nothing when refused. */
+function appendFrom(canvas: Canvas, source: SceneNode, what: NewShape): SceneNode | undefined {
+  const { id } = canvas.append(source.id, what);
+  return id === undefined ? undefined : node(canvas, id);
+}
+
 function edgeBetween(canvas: Canvas, sourceId: string, targetId: string): SceneEdge | undefined {
   for (const element of canvas.getScene()!.elementsById.values()) {
     if (element.kind !== 'edge') continue;
@@ -135,7 +141,7 @@ test.describe('auto-place (click-append)', () => {
     const { canvas, definitions } = loaded;
     const source = node(canvas, 'Task_1');
 
-    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent', attrs: { name: 'Appended' } });
+    const appended = appendFrom(canvas, source, { type: 'bpmn:EndEvent', name: 'Appended' });
     expect(appended).toBeTruthy();
 
     // Placed, not stacked: left edge one gap past the source's right edge, centres level.
@@ -170,7 +176,7 @@ test.describe('auto-place (click-append)', () => {
     // `shape.append` is false for an end event (nothing may follow it), and the
     // gate is asked BEFORE the shape is minted — otherwise a refused connection
     // would leave an orphan behind.
-    expect(canvas.appendElement(node(canvas, 'End_1'), { type: 'bpmn:Task' })).toBeUndefined();
+    expect(appendFrom(canvas, node(canvas, 'End_1'), { type: 'bpmn:Task' })).toBeUndefined();
 
     const after = (definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process').flowElements ?? []).length;
     expect(after).toBe(before);
@@ -181,7 +187,7 @@ test.describe('auto-place (click-append)', () => {
     const source = node(canvas, 'Task_1');
     const blocker = node(canvas, 'Blocker_1');
 
-    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' });
+    const appended = appendFrom(canvas, source, { type: 'bpmn:EndEvent' });
 
     expect(appended, 'the append happened at all').toBeTruthy();
     // Same lane as always — only the row moved.
@@ -204,8 +210,8 @@ test.describe('auto-place (click-append)', () => {
     const { canvas } = loadYaml(SOLO_YAML);
     const source = node(canvas, 'Start_1');
 
-    const first = canvas.appendElement(source, { type: 'bpmn:Task' })!;
-    const second = canvas.appendElement(source, { type: 'bpmn:Task' })!;
+    const first = appendFrom(canvas, source, { type: 'bpmn:Task' })!;
+    const second = appendFrom(canvas, source, { type: 'bpmn:Task' })!;
     const flow = edgeBetween(canvas, source.id, second.id);
 
     // The first one is unnudged; the second fans out below it instead of stacking.
@@ -226,8 +232,8 @@ test.describe('auto-place (click-append)', () => {
     const { canvas } = load();
     const source = node(canvas, 'Task_1');
 
-    const first = canvas.appendElement(source, { type: 'bpmn:TextAnnotation' })!;
-    const second = canvas.appendElement(source, { type: 'bpmn:TextAnnotation' })!;
+    const first = appendFrom(canvas, source, { type: 'bpmn:TextAnnotation' })!;
+    const second = appendFrom(canvas, source, { type: 'bpmn:TextAnnotation' })!;
 
     expect(first.y + first.height).toBeLessThanOrEqual(source.y);
     expect(second.y).toBeLessThan(first.y);
@@ -241,7 +247,7 @@ test.describe('auto-place (click-append)', () => {
     const { canvas } = loadYaml(POOL_YAML);
     const source = node(canvas, 'Task_Top');
 
-    const appended = canvas.appendElement(source, { type: 'bpmn:Task' });
+    const appended = appendFrom(canvas, source, { type: 'bpmn:Task' });
 
     expect(appended, 'the append happened inside the pool').toBeTruthy();
     expect(appended!.x).toBe(source.x + source.width + APPEND_DISTANCE);
@@ -279,7 +285,7 @@ Process_1:
     const source = node(canvas, 'Start_1');
     const sub = node(canvas, 'Sub_1');
 
-    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' })!;
+    const appended = appendFrom(canvas, source, { type: 'bpmn:EndEvent' })!;
 
     expect(appended, 'the append happened').toBeTruthy();
     // Clear of the sub-process, and OUTSIDE it — not reparented into it.
@@ -299,9 +305,9 @@ Process_1:
     for (const [label, yaml, id, type] of CASES) {
       const { canvas } = loadYaml(yaml);
       const source = node(canvas, id);
-      const preview = canvas.previewAppend(source, { type });
+      const preview = canvas.previewAppend(source.id, { type });
       canvas.clearAppendPreview();
-      const appended = canvas.appendElement(source, { type })!;
+      const appended = appendFrom(canvas, source, { type })!;
       expect({ x: preview!.x, y: preview!.y }, label).toEqual({ x: appended.x, y: appended.y });
     }
   });
@@ -342,7 +348,7 @@ Process_1:
     const { canvas } = loadYaml(CROSSED_YAML);
     const source = node(canvas, 'Task_1');
 
-    const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent' })!;
+    const appended = appendFrom(canvas, source, { type: 'bpmn:EndEvent' })!;
 
     expect(appended, 'the append happened').toBeTruthy();
     for (const [a, b] of segments(edge(canvas, 'Flow_1').waypoints)) {

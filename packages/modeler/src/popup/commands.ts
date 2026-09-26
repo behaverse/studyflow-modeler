@@ -3,7 +3,7 @@
  * beside its source and connect it; a drag reuses the palette's create gesture.
  */
 
-import { buildBusinessObject } from '@modeler/palette/build';
+import { newShape } from '@modeler/palette/newShape';
 import { APPEND_MENU, openPopupMenu } from '@modeler/editor/popupMenus';
 import { t } from '@modeler/i18n';
 import type { Editor, EditorElement } from '@modeler/editor/port';
@@ -21,19 +21,12 @@ export type AppendElementCommand = {
   attributes?: Record<string, unknown>;
 };
 
+/** Click-append: the canvas places the shape beside its source, connects the two, selects it and opens its name. */
 export function runAppendElement(modeler: Editor, command: AppendElementCommand): EditorElement | undefined {
   const source = modeler.canvas.resolveElement(command.source);
   if (!source || source.kind === 'label') return undefined;
-  const businessObject = buildBusinessObject(modeler.model, command.bpmnType, {
-    attributes: command.attributes,
-    extensionType: command.extensionType,
-  });
-  const shape = modeler.canvas.createShape({ type: command.bpmnType, businessObject });
-  const created = modeler.canvas.appendElement(source, shape);
-  if (!created) return undefined;
-  // The canvas selects (and may open the label editor on) what it created; only select when nobody did.
-  if (modeler.selection.get()[0] !== created) modeler.selection.select(created);
-  return created;
+  const { id } = modeler.canvas.append(source.id, newShape(command.bpmnType, command.extensionType, command.attributes));
+  return id === undefined ? undefined : modeler.canvas.get(id);
 }
 
 export type StartAppendElementCommand = {
@@ -46,14 +39,8 @@ export type StartAppendElementCommand = {
 };
 
 /** Drag-append: the same shape, placed by the user and left unconnected. */
-export function runStartAppendElement(modeler: Editor, command: StartAppendElementCommand): EditorElement {
-  const businessObject = buildBusinessObject(modeler.model, command.bpmnType, {
-    attributes: command.attributes,
-    extensionType: command.extensionType,
-  });
-  const shape = modeler.canvas.createShape({ type: command.bpmnType, businessObject });
-  modeler.canvas.startCreate(command.event, shape);
-  return shape;
+export function runStartAppendElement(modeler: Editor, command: StartAppendElementCommand): boolean {
+  return modeler.canvas.startCreate(command.event, newShape(command.bpmnType, command.extensionType, command.attributes));
 }
 
 export type OpenAppendMenuCommand = {

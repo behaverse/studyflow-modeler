@@ -1,12 +1,14 @@
 import { expect, test } from '@playwright/test';
 
+import type { Canvas, NewShape } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/study/orthogonal.ts';
+import type { SceneNode } from '@canvas/study/scene.ts';
 
 import { canvasOn, edge, loadYaml, node, xmlOf, type Loaded } from './canvasHarness';
 
 /**
  * Retyping an element in place — the context pad's wrench, "Change element",
- * `Canvas.replaceElement`.
+ * `study.replace`.
  *
  * There is no rewriting a moddle object's `$type`, so a replace is a create, a
  * rewire and a delete pretending to be one edit. What has to be true afterwards is
@@ -49,12 +51,18 @@ function load(yaml = FIXTURE_YAML): Loaded {
   return loadYaml(yaml);
 }
 
-test('replacing a task mints the new type, keeps the name, rewires both flows — proven by toXML — and selects it', async () => {
+/** Retype `element` as `what` through the study: the replacement, or nothing when refused. */
+function retype(canvas: Canvas, element: SceneNode, what: NewShape): SceneNode | undefined {
+  const { id } = canvas.study.replace({ id: element.id, ...what });
+  return id === undefined ? undefined : node(canvas, id);
+}
+
+test('replacing a task mints the new type, keeps the name and rewires both flows — proven by toXML', async () => {
   const loaded = load();
   const { canvas, moddle } = loaded;
   const task = node(canvas, 'Task_1');
 
-  const replacement = canvas.replaceElement(task, { type: 'bpmn:UserTask' });
+  const replacement = retype(canvas, task, { type: 'bpmn:UserTask' });
 
   expect(replacement, 'the swap was allowed').toBeTruthy();
   expect(replacement!.type).toBe('bpmn:UserTask');
@@ -85,8 +93,6 @@ test('replacing a task mints the new type, keeps the name, rewires both flows �
   // dangling (a flow pointing at an unfiled business object throws here).
   const { rootElement: reimported } = await moddle.fromXML(xml);
   expect(canvasOn(reimported).get(id)).toBeTruthy();
-
-  expect(canvas.getSelection().get()).toEqual([replacement]);
 });
 
 test('a replacement keeps the centre, in its own type\'s footprint unless both types share a shape', async () => {
@@ -97,10 +103,9 @@ test('a replacement keeps the centre, in its own type\'s footprint unless both t
   ];
   for (const [label, type, size] of CASES) {
     const { canvas } = load();
-    const task = node(canvas, 'Task_1');
-    canvas.resizeShape(task, { x: 200, y: 80, width: 160, height: 120 });
+    canvas.study.resize({ id: 'Task_1', bounds: { x: 200, y: 80, width: 160, height: 120 } });
 
-    const replacement = canvas.replaceElement(task, { type })!;
+    const replacement = retype(canvas, node(canvas, 'Task_1'), { type })!;
 
     expect({ width: replacement.width, height: replacement.height }, label).toEqual(size);
     expect({ x: replacement.x + replacement.width / 2, y: replacement.y + replacement.height / 2 }, label).toEqual({ x: 280, y: 140 });
@@ -110,7 +115,7 @@ test('a replacement keeps the centre, in its own type\'s footprint unless both t
 test('the flows are re-routed onto the replacement, squarely', async () => {
   const { canvas } = load();
 
-  const replacement = canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:EndEvent' })!;
+  const replacement = retype(canvas, node(canvas, 'Task_1'), { type: 'bpmn:EndEvent' })!;
 
   for (const flow of [edge(canvas, 'Flow_1'), edge(canvas, 'Flow_2')]) {
     expect(isOrthogonal(flow.waypoints), `${flow.id} is square`).toBe(true);
@@ -125,7 +130,7 @@ test('replacing an element with the type it already is writes nothing', async ()
   const before = await xmlOf(loaded);
   const revision = canvas.getScene()!.revision;
 
-  expect(canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:Task' })).toBeUndefined();
+  expect(canvas.study.replace({ id: 'Task_1', type: 'bpmn:Task' })).toEqual({ ok: true, id: 'Task_1', added: [], changed: [], removed: [] });
 
   expect(canvas.getScene()!.revision).toBe(revision);
   expect(await xmlOf(loaded)).toBe(before);
@@ -140,7 +145,7 @@ test('a container with contents is not replaceable, so nothing inside it can be 
   const container = node(canvas, 'Task_1');
 
   expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(false);
-  expect(canvas.replaceElement(container, { type: 'bpmn:Task' })).toBeUndefined();
+  expect(canvas.study.replace({ id: container.id, type: 'bpmn:Task' })).toMatchObject({ ok: false });
   // Emptied, it is replaceable.
   canvas.deleteElements(node(canvas, 'Inner'));
   expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(true);
@@ -149,11 +154,11 @@ test('a container with contents is not replaceable, so nothing inside it can be 
 test('replacing an event with a variant of the same type mints the event definition', async () => {
   const { canvas } = load();
   const task = node(canvas, 'Task_1');
-  const end = canvas.replaceElement(task, { type: 'bpmn:EndEvent' })!;
-  const attrs = { eventDefinitions: [{ type: 'bpmn:ErrorEventDefinition' }] };
-  const errorEnd = canvas.replaceElement(end, { type: 'bpmn:EndEvent', attrs })!;
-  expect(errorEnd).toBeDefined();
+  const end = retype(canvas, task, { type: 'bpmn:EndEvent' })!;
+  const attributes = { eventDefinitions: [{ type: 'bpmn:ErrorEventDefinition' }] };
+  const errorEnd = retype(canvas, end, { type: 'bpmn:EndEvent', attributes })!;
+  expect(errorEnd.id).not.toBe(end.id);
   expect((errorEnd.businessObject as any).eventDefinitions[0].$type).toBe('bpmn:ErrorEventDefinition');
   // The same variant again is "what it already is".
-  expect(canvas.replaceElement(errorEnd, { type: 'bpmn:EndEvent', attrs })).toBeUndefined();
+  expect(canvas.study.replace({ id: errorEnd.id, type: 'bpmn:EndEvent', attributes })).toMatchObject({ ok: true, id: errorEnd.id, added: [], removed: [] });
 });

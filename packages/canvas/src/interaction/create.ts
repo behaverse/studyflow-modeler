@@ -1,23 +1,16 @@
 /**
  * The palette create gesture: a detached prototype follows the pointer as a ghost,
- * the rules judge the container under it on every frame, and the drop mints the
- * shape through the mutator.
+ * the rules judge the container under it on every frame, and the drop hands what
+ * it made, where, to the study to add.
  */
 
-import type { Mutator } from '@canvas/study/mutator.ts';
-import { boundsFor, type CreatePrototype } from '@canvas/study/prototype.ts';
+import { containerOf } from '@canvas/study/hit.ts';
+import { boundsFor, type CreatePrototype, type NewElement } from '@canvas/study/prototype.ts';
 import type { Bounds, Point, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { append, remove } from '@canvas/render/svg.ts';
 import type { RuleElement, Rules } from '@canvas/study/rules.ts';
 
 /** Dropping on a connection lands the shape in the connection's own container. */
-function containerOf(hit: SceneElement | undefined): SceneNode | undefined {
-  if (!hit) return undefined;
-  if (hit.kind === 'node') return hit;
-  if (hit.kind === 'label') return containerOf(hit.owner);
-  return hit.parent;
-}
-
 export interface DropTarget {
   parent?: SceneNode;
   verdict: boolean | 'attach';
@@ -25,7 +18,6 @@ export interface DropTarget {
 
 export interface CreateOptions {
   getScene: () => Scene | undefined;
-  getMutator: () => Mutator | undefined;
   rules: Rules;
   hitTest: (point: Point) => SceneElement | undefined;
   layer: SVGGElement;
@@ -33,12 +25,17 @@ export interface CreateOptions {
   snap?: (point: Point) => Point;
   /** The container a drop on empty background lands in (the drill-down scope). */
   getContainer?: () => SceneNode | undefined;
+  /** Add `what` centred on `center`, into `into` (the top level without it): the shape made, or nothing. */
+  drop: (what: NewElement, center: Point, into: SceneNode | undefined) => SceneNode | undefined;
   drawGhost?: (prototype: CreatePrototype, bounds: Bounds) => SVGElement | undefined;
   /** The element under the pointer and whether it would take the drop; `undefined` at the end. */
   markTarget?: (target: SceneElement | undefined, allowed: boolean) => void;
 }
 
 interface CreateState {
+  /** What the gesture makes, as the drop hands it on. */
+  what: NewElement;
+  /** Its shape before it exists, which the rules judge and the ghost draws. */
   prototype: CreatePrototype;
   center: Point;
   target: DropTarget;
@@ -57,9 +54,9 @@ export class Create {
     return this.state !== undefined;
   }
 
-  start(prototype: CreatePrototype, center: Point): boolean {
+  start(what: NewElement, prototype: CreatePrototype, center: Point): boolean {
     if (!this.options.getScene()) return false;
-    this.state = { prototype, center: { ...center }, target: { verdict: false } };
+    this.state = { what, prototype, center: { ...center }, target: { verdict: false } };
     this.update(center);
     return true;
   }
@@ -79,27 +76,16 @@ export class Create {
     const state = this.state;
     if (!state) return undefined;
     this.update(point);
-    const { prototype, center, target } = state;
+    const { what, center, target } = state;
     this.state = undefined;
     this.clearPreview();
     if (target.verdict === false) return undefined;
-    return this.commit(prototype, center, target);
+    return this.options.drop(what, center, target.parent ?? this.options.getContainer?.());
   }
 
   cancel(): void {
     this.state = undefined;
     this.clearPreview();
-  }
-
-  /** Place `prototype` exactly at `center` (a caller's coordinate is never grid-snapped). */
-  createAt(prototype: CreatePrototype, center: Point): SceneNode | undefined {
-    const target = this.resolveTarget(prototype, center);
-    if (target.verdict === false) return undefined;
-    return this.commit(prototype, center, target);
-  }
-
-  resolveTarget(prototype: CreatePrototype, center: Point): DropTarget {
-    return this.resolveTargetOver(prototype, this.options.hitTest(center));
   }
 
   private resolveTargetOver(prototype: CreatePrototype, over: SceneElement | undefined): DropTarget {
@@ -112,25 +98,6 @@ export class Create {
     const verdict = this.options.rules.canCreate(prototype, context, { root: scene.rootElement });
     if (verdict === 'attach') return parent ? { parent, verdict } : { verdict: false };
     return parent ? { parent, verdict: verdict !== false } : { verdict: verdict !== false };
-  }
-
-  private commit(prototype: CreatePrototype, center: Point, target: DropTarget): SceneNode | undefined {
-    const mutator = this.options.getMutator();
-    if (!mutator) return undefined;
-    const attach = target.verdict === 'attach' ? target.parent : undefined;
-    const container = target.parent ?? this.options.getContainer?.();
-    const node = mutator.addShape({
-      type: prototype.type,
-      bounds: boundsFor(prototype, center),
-      ...(prototype.businessObject ? { businessObject: prototype.businessObject } : {}),
-      ...(prototype.attrs ? { attrs: prototype.attrs } : {}),
-      ...(prototype.extensionType ? { extensionType: prototype.extensionType } : {}),
-      ...(prototype.isExpanded !== undefined ? { isExpanded: prototype.isExpanded } : {}),
-      ...(attach ? { attachTo: attach } : { ...(container ? { parent: container } : {}) }),
-    });
-    // A pre-built business object is filed once; the next drop mints a fresh one.
-    if (prototype.businessObject) prototype.businessObject = undefined;
-    return node;
   }
 
   private drawPreview(prototype: CreatePrototype, bounds: Bounds): void {

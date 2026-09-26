@@ -4,31 +4,29 @@
  */
 
 import { BPMN } from '@core/constants.ts';
-import { eventDefinitionTypeOf, getExtensionType } from '@core/element/index.ts';
 import { EventBus } from '@canvas/bus.ts';
 
-import { appendElement as autoPlaceAppend, appendSourceBounds, freeAppendPosition } from '@canvas/study/autoplace.ts';
+import { appendSpot } from '@canvas/study/autoplace.ts';
 import { Connect } from '@canvas/interaction/connect.ts';
 import { Create } from '@canvas/interaction/create.ts';
-import { boundsFor, createShape, defaultSizeFor, type CreatePrototype, type ShapeDescriptor } from '@canvas/study/prototype.ts';
+import { boundsFor, draftOf, prototypeOf, type CreatePrototype, type NewElement } from '@canvas/study/prototype.ts';
 import { DEFAULT_GRID_SIZE, Drag, snapTo, type Movable } from '@canvas/study/drag.ts';
 import { Gestures, ZOOM_STEP } from '@canvas/interaction/gestures.ts';
-import { edgesIntersecting, hitTest, isContainerNode, nodesIntersecting, orderedNodes, pointInBox, type HitOptions } from '@canvas/study/hit.ts';
+import { hitTest, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, Selection } from '@canvas/interaction/selection.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
-import type { IdGenerator } from '@canvas/study/ids.ts';
-import { prop } from '@canvas/study/moddle.ts';
+import { modelOf } from '@canvas/study/moddle.ts';
 import type { Commit, Mutator } from '@canvas/study/mutator.ts';
-import { studyInternals, type Study } from '@canvas/study/Study.ts';
+import { studyInternals, type Study, type StudyResult } from '@canvas/study/Study.ts';
 import { isRootElement, type Bounds, type Drawable, type ElementColors, type ElementRef, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
-import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
+import { shapeOf } from '@canvas/study/templates.ts';
+import { boundsOf, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf } from '@core/document/outline.ts';
 import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer, type RendererOptions } from '@canvas/render/renderer.ts';
 import { append, create, remove, setDocument } from '@canvas/render/svg.ts';
-import { centerOf } from '@core/document/outline.ts';
-import { rerouteEdges as rerouteEdgeSet, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
-import { CONNECTION, Rules, type RuleElement } from '@canvas/study/rules.ts';
+import { routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
+import { CONNECTION, type RuleElement, type Rules } from '@canvas/study/rules.ts';
 import { Layers } from '@canvas/view/layers.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
 import { Viewport, type Viewbox } from '@canvas/view/viewport.ts';
@@ -97,7 +95,7 @@ export class Canvas {
     }
     this.renderer = new Renderer(options);
     this.bus = new EventBus();
-    this.rules = new Rules();
+    this.rules = studyInternals(study).rules;
     this.selection = new Selection({
       layer: this.layers.getLayer('selection'),
       getGraphics: (id) => this.renderer.graphicsById.get(id),
@@ -120,12 +118,15 @@ export class Canvas {
 
     this.create = new Create({
       getScene: () => this.scene,
-      getMutator: () => this.mutator,
       rules: this.rules,
       hitTest: (point) => this.hitTest(point),
       layer: this.layers.getLayer('overlays'),
       snap: (point) => this.snapPoint(point),
       getContainer: () => this.scope,
+      drop: (what, center, into) => {
+        const made = this.made(this.study.add({ ...what, at: center, into: into?.id ?? this.scene.rootElement.id }));
+        return made?.kind === 'node' ? made : undefined;
+      },
       drawGhost: (prototype, bounds) => this.drawCreateGhost(prototype, bounds),
       markTarget: (target, allowed) => this.gestures.markDropTarget(target, allowed),
     });
@@ -137,6 +138,10 @@ export class Canvas {
       layer: this.layers.getLayer('overlays'),
       markTarget: (target, allowed) => this.gestures.markDropTarget(target, allowed),
       snap: (point) => this.snapPoint(point),
+      link: (source, target) => {
+        const made = this.made(this.study.connect({ from: source.id, to: target.id }));
+        return made?.kind === 'edge' ? made : undefined;
+      },
     });
     if (!this.root.hasAttribute('tabindex')) this.root.setAttribute('tabindex', '0');
     if (!this.container.hasAttribute('tabindex')) this.container.setAttribute('tabindex', '0');
@@ -204,7 +209,7 @@ export class Canvas {
       getScene: () => this.scene,
       getScope: () => this.scope,
       hitTest: (point, options) => this.hitTest(point, options),
-      obstacles: (moving) => this.routeObstacles(moving),
+      obstacles: (moving) => obstaclesIn(this.scene, this.scope, moving),
     });
     this.appendPreview = undefined;
     this.layers.clear();
@@ -250,11 +255,6 @@ export class Canvas {
 
   getRules(): Rules {
     return this.rules;
-  }
-
-  /** The ids the document holds and the next ones to mint. */
-  getIds(): IdGenerator {
-    return this.mutator.ids;
   }
 
   getLabelEditing(): LabelEditing {
@@ -559,25 +559,10 @@ export class Canvas {
 
   // --- create / connect ----------------------------------------------------------------
 
-  createShape(descriptor: ShapeDescriptor | CreatePrototype): CreatePrototype {
-    return createShape(descriptor);
-  }
-
-  /** Begin a create drag from the palette; `event` may originate outside the canvas. */
-  startCreate(event: MouseEvent | undefined, descriptor: ShapeDescriptor | CreatePrototype): boolean {
-    return this.gestures.startCreate(event, createShape(descriptor));
-  }
-
-  /** Place a shape centred on `center`; `undefined` when the rules refuse. */
-  createElement(descriptor: ShapeDescriptor | CreatePrototype, center: Point): SceneNode | undefined {
-    const node = this.create.createAt(createShape(descriptor), center);
-    if (node) this.placed(node);
-    return node;
-  }
-
-  /** Add a shape the host built (a template's inner flow) at `bounds` inside `parent`, as is: no rules, no selection, no label editor. */
-  addElement(descriptor: ShapeDescriptor, bounds: Bounds, parent?: SceneNode): SceneNode | undefined {
-    return this.mutator.addShape({ ...descriptor, bounds, ...(parent ? { parent } : {}) });
+  /** Begin a create drag from the palette; `event` may originate outside the canvas. False for a template the catalog lacks. */
+  startCreate(event: MouseEvent | undefined, what: NewElement): boolean {
+    const shape = shapeOf(what);
+    return !!shape && this.gestures.startCreate(event, what, prototypeOf(shape, draftOf(shape, modelOf(this.scene.definitions))));
   }
 
   /** A freshly created shape: selected, and (for a task-like shape) named. */
@@ -586,87 +571,32 @@ export class Canvas {
     if (EDIT_ON_CREATE_TYPES.has(node.type) || isCollapsed(node)) this.labelEditing.activate(node);
   }
 
+  /** The element a study verb made, as the scene holds it. */
+  private made(result: StudyResult): SceneElement | undefined {
+    return result.id === undefined ? undefined : this.scene.elementsById.get(result.id);
+  }
+
+  /** Click-append: the study adds `what` beside `from` and connects the two; then it is selected, and named when task-like. */
+  append(from: string, what: NewElement): StudyResult {
+    const result = this.study.append({ ...what, from });
+    const made = this.made(result);
+    if (made?.kind === 'node') this.placed(made);
+    return result;
+  }
+
   startConnect(source: SceneNode, event?: MouseEvent): boolean {
     return this.gestures.startConnect(source, event);
   }
 
-  /**
-   * Connect `source` to `target` as the rules allow; `businessObject` is one the host built (a template's named flow),
-   * and `waypoints` the route it drew, else the flow is routed.
-   */
-  connectElements(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject, waypoints?: Point[]): SceneEdge | undefined {
-    const edge = this.connect.connect(source, target, businessObject, waypoints);
-    if (edge) this.selection.select(edge);
-    return edge;
-  }
-
-  /** Click-append: place `descriptor` beside `source` and connect the two, as one edit. */
-  appendElement(source: SceneNode | SceneEdge, descriptor: ShapeDescriptor | CreatePrototype): SceneNode | undefined {
-    const prototype = createShape(descriptor);
-    if (!this.rules.canAppendType(source, prototype.type)) return undefined;
-    const result = this.batch(() => autoPlaceAppend(this, source, prototype));
-    if (!result) return undefined;
-    if (result.connection) this.selection.select(result.shape);
-    return result.shape;
-  }
-
-  /** Whether a shape at `bounds` would land on a shape or across a flow. */
-  isAreaOccupied(bounds: Bounds, from?: SceneNode | SceneEdge): boolean {
-    const origin = from ? centerOf(appendSourceBounds(from)) : undefined;
-    const onNode = nodesIntersecting(this.scene, bounds, this.scope).some((node) => {
-      if (node === from) return false;
-      if (!isContainerNode(node)) return true;
-      return origin !== undefined && !pointInBox(origin, node);
-    });
-    if (onNode) return true;
-    return edgesIntersecting(this.scene, bounds, this.scope).some((edge) => edge !== from);
-  }
-
-  /** Retype `node` in place, keeping its name, position and flows, as one edit. */
-  replaceElement(node: SceneNode, descriptor: ShapeDescriptor | CreatePrototype): SceneNode | undefined {
-    const mutator = this.mutator;
-    const prototype = createShape(descriptor);
-    if (!this.rules.canReplace(node, prototype.type)) return undefined;
-    if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)
-      && eventDefinitionTypeOf(prototype.attrs as never) === eventDefinitionTypeOf(node.businessObject)) return undefined;
-    const sameCategory = categoryOf(prototype.type) === categoryOf(node.type);
-    const size = sameCategory ? { width: node.width, height: node.height } : defaultSizeFor(prototype.type, prototype.isExpanded);
-    const bounds: Bounds = {
-      x: node.x + node.width / 2 - size.width / 2,
-      y: node.y + node.height / 2 - size.height / 2,
-      width: size.width,
-      height: size.height,
-    };
-    const name = prop(node.businessObject, 'name');
-    const attrs = { ...prototype.attrs, ...(typeof name === 'string' && name ? { name } : {}) };
-    const parent = node.parent ?? this.scope;
-    const replacement = mutator.batch(() => {
-      const shape = mutator.addShape({
-        type: prototype.type,
-        bounds,
-        ...(parent ? { parent } : {}),
-        ...(prototype.extensionType ? { extensionType: prototype.extensionType } : {}),
-        ...(Object.keys(attrs).length > 0 ? { attrs } : {}),
-        ...(prototype.isExpanded !== undefined ? { isExpanded: prototype.isExpanded } : {}),
-      });
-      for (const edge of [...node.incoming]) mutator.reconnect(edge, { target: shape });
-      for (const edge of [...node.outgoing]) mutator.reconnect(edge, { source: shape });
-      this.deleteElements([node]);
-      this.rerouteEdges([shape]);
-      return shape;
-    });
-    this.selection.select(replacement);
-    return replacement;
-  }
-
-  /** Ghost what appending `descriptor` from `source` would create; returns its bounds. */
-  previewAppend(source: SceneNode | SceneEdge, descriptor: ShapeDescriptor | CreatePrototype): Bounds | undefined {
+  /** Ghost what appending `what` to `from` would add, where the click puts it; returns its bounds. */
+  previewAppend(from: string, what: NewElement): Bounds | undefined {
     this.clearAppendPreview();
-    const prototype = createShape(descriptor);
+    const source = this.scene.elementsById.get(from);
+    const shape = shapeOf(what);
+    if (!source || source.kind === 'label' || !shape) return undefined;
+    const prototype = prototypeOf(shape, draftOf(shape, modelOf(this.scene.definitions)));
     if (!this.rules.canAppendType(source, prototype.type)) return undefined;
-    const bounds = boundsFor(prototype, freeAppendPosition(
-      appendSourceBounds(source), prototype, prototype.type, (area) => this.isAreaOccupied(area, source),
-    ));
+    const bounds = boundsFor(prototype, appendSpot(this.scene, source, prototype, prototype.type));
     const preview = create('g', { class: 'sf-preview sf-append-preview' }) as SVGGElement;
     const probe: RuleElement = { type: prototype.type, businessObject: prototype.businessObject, parent: source.parent };
     const spec = this.rules.canConnect(source, probe);
@@ -724,23 +654,6 @@ export class Canvas {
       .filter((el): el is SceneElement => !!el);
   }
 
-  resizeShape(node: SceneNode, bounds: Bounds): void {
-    this.mutator.setNodeBounds(node, bounds);
-  }
-
-  /** Re-route the edges docked to `nodes`, and commit. */
-  rerouteEdges(nodes: readonly SceneNode[]): SceneEdge[] {
-    const changed = rerouteEdgeSet(edgesAffectedBy(nodes), { obstacles: this.routeObstacles() });
-    this.mutator.commit(changed);
-    return changed;
-  }
-
-  private routeObstacles(exclude: readonly SceneNode[] = []): Bounds[] {
-    const skip = new Set<SceneNode>(exclude);
-    return orderedNodes(this.scene, this.scope)
-      .filter((node) => !skip.has(node) && !isContainerNode(node))
-      .map((node) => ({ x: node.x, y: node.y, width: node.width, height: node.height }));
-  }
 
   private nudgeSelection(dx: number, dy: number): boolean {
     const drag = this.drag;

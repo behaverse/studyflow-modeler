@@ -182,18 +182,18 @@ function load(): Loaded {
 test('rerouting twice commits nothing the second time', async () => {
   const { canvas } = load();
   const scene = canvas.getScene()!;
-  const task = node(canvas, 'Task_1');
   const kinked = edge(canvas, 'Flow_1');
   const before = scene.revision;
+  const reroute = (): string[] => ['Flow_1', 'Flow_2'].flatMap((id) => canvas.study.reroute({ id }).changed);
 
   // Both flows are rewritten from their ends: the hand-drawn kink goes, the off-level run is levelled.
-  expect(canvas.rerouteEdges([task]).map((e) => e.id).sort()).toEqual(['Flow_1', 'Flow_2']);
+  expect(reroute()).toEqual(['Flow_1', 'Flow_2']);
   expect(kinked.waypoints).toHaveLength(2);
   expect(scene.revision).toBeGreaterThan(before);
 
   // Routed already: nothing changes, and the revision holds still.
   const routed = scene.revision;
-  expect(canvas.rerouteEdges([task])).toEqual([]);
+  expect(reroute()).toEqual([]);
   expect(scene.revision).toBe(routed);
 });
 
