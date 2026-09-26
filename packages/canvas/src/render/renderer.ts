@@ -7,7 +7,7 @@ import { BPMN } from '@core/constants.ts';
 import { effectiveAttribute } from '@core/document/index.ts';
 import { getAttribute, StudyflowElement } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
-import { getCatalog } from '@core/notation/index.ts';
+import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 
 import { isTypedChoreography, readChoreographyBands } from '@canvas/model/choreography.ts';
 import { normalizeColor } from '@canvas/model/color.ts';
@@ -84,8 +84,17 @@ const EVENT_ICON_SIZE = 20;
 const DATA_ICON_SIZE = 20;
 const ANNOTATION_PADDING = 7;
 
-/** The value of the attribute a type's `meta.glyph` names, drawn as text over the type icon; a custom icon replaces it. */
+/** The schema type `bo` is an instance of: its extension type, else its BPMN type. */
+function schemaTypeOf(bo: ModdleObject): string {
+  return StudyflowElement.fromBusinessObject(bo).extensionType ?? bo.$type;
+}
+
+/**
+ * The value of the attribute a type's `meta.glyph` names, drawn as text over the type icon; a custom icon
+ * replaces it. Like the other schema decorations below, nothing is drawn before a catalog is installed.
+ */
 function iconGlyph(bo: ModdleObject | undefined): string | undefined {
+  if (!hasCatalog()) return undefined;
   const element = StudyflowElement.fromBusinessObject(bo);
   const name = getCatalog().getType(element.extensionType)?.meta?.glyph;
   if (typeof name !== 'string') return undefined;
@@ -98,33 +107,23 @@ function iconGlyph(bo: ModdleObject | undefined): string | undefined {
 
 /** Icon keys of schema attributes declaring `meta.icon` that hold a value on `bo`. */
 function overlayIconsOf(bo: ModdleObject | undefined): string[] {
-  if (!bo) return [];
-  let catalog: ReturnType<typeof getCatalog>;
-  try {
-    catalog = getCatalog();
-  } catch {
-    return [];
-  }
-  const typeName = StudyflowElement.fromBusinessObject(bo).extensionType ?? bo.$type;
+  if (!bo || !hasCatalog()) return [];
   const keys: string[] = [];
-  for (const attr of catalog.instanceAttributesOf(typeName)) {
+  for (const attr of getCatalog().instanceAttributesOf(schemaTypeOf(bo))) {
     const icon = attr.meta?.icon;
     if (typeof icon === 'string' && icon && getAttribute(bo, attr.name)) keys.push(icon);
   }
   return keys;
 }
 
-/** The icon of a data store's `format` literal, if the schema declares one. */
-function formatIconOf(bo: ModdleObject | undefined): string | undefined {
+/** The icon the schema gives the literal a data store's `format` holds, looked up in the enumeration that attribute declares. */
+function formatIconOf(bo: ModdleObject): string | undefined {
+  if (!hasCatalog()) return undefined;
   const format = getAttribute(bo, 'format');
   if (typeof format !== 'string' || !format) return undefined;
-  let catalog: ReturnType<typeof getCatalog>;
-  try {
-    catalog = getCatalog();
-  } catch {
-    return undefined;
-  }
-  const icon = catalog.enumOf('DatasetFormatEnum')?.literals.find((l) => l.value === format)?.icon;
+  const catalog = getCatalog();
+  const enumeration = catalog.enumOf(catalog.attributeOf(schemaTypeOf(bo), 'format')?.type);
+  const icon = enumeration?.literals.find((literal) => literal.value === format)?.icon;
   return typeof icon === 'string' && icon ? icon : undefined;
 }
 
