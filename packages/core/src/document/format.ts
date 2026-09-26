@@ -47,7 +47,38 @@ export function inferredRoot(definitions: ModdleElement | null | undefined): Mod
   return roots.find((root) => typeof root?.id === 'string');
 }
 
-export type XmlPass = (definitions: any) => boolean;
+/** Rewrites parsed definitions in place and says whether it changed anything; `onWarning` hears what it drops. */
+export type XmlPass = (definitions: any, onWarning?: (message: string) => void) => boolean;
+
+/**
+ * Drops every element from a namespace no loaded schema declares, which moddle keeps as a generic element (Camunda's
+ * `camunda:inputOutput` inside `extensionElements`, say). YAML has no spelling for one: a document holding it could be
+ * saved but not read back. An `extensionElements` the drop empties goes too.
+ */
+export const dropForeignElements: XmlPass = (definitions, onWarning) => {
+  let dropped = false;
+  const visit = (el: any): void => {
+    for (const p of el.$descriptor?.properties ?? []) {
+      if (p.isReference) continue;
+      const value = el[p.name];
+      for (const child of Array.isArray(value) ? [...value] : [value]) {
+        if (!child?.$descriptor) continue;
+        if (!child.$descriptor.isGeneric) {
+          visit(child);
+          continue;
+        }
+        const owner = el.$type === 'bpmn:ExtensionElements' ? el.$parent : el;
+        onWarning?.(`${owner?.id ?? owner?.$type}: <${child.$type}> is from a namespace no loaded schema declares, and was dropped`);
+        if (Array.isArray(value)) value.splice(value.indexOf(child), 1);
+        else el.set(p.name, undefined);
+        if (el.$type === 'bpmn:ExtensionElements' && value.length === 0) el.$parent?.set('extensionElements', undefined);
+        dropped = true;
+      }
+    }
+  };
+  visit(definitions);
+  return dropped;
+};
 
 export async function applyXmlPasses(
   xml: string,
@@ -65,7 +96,7 @@ export async function applyXmlPasses(
   let changed = false;
   for (const pass of passes) {
     // Not `changed ||= pass(...)`: every pass must run, and `||=` short-circuits.
-    if (pass(rootElement)) changed = true;
+    if (pass(rootElement, onWarning)) changed = true;
   }
   if (!changed) return xml;
 

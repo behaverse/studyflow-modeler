@@ -407,6 +407,28 @@ P:
     expect(again.rootElements[0].flowElements.find((el: any) => el.id === 'Split').default).toBeUndefined();
   });
 
+  test('an element from a namespace no schema declares is dropped on open and in conversion, with a warning, so the YAML reads back', async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="P">
+    <bpmn:task id="T">
+      <bpmn:extensionElements>
+        <camunda:inputOutput><camunda:inputParameter name="x">1</camunda:inputParameter></camunda:inputOutput>
+      </bpmn:extensionElements>
+    </bpmn:task>
+  </bpmn:process>
+</bpmn:definitions>`;
+    const opened: string[] = [];
+    expect(await fromWireXml(xml, freshModdle(), (message) => opened.push(message))).not.toContain('camunda:inputOutput');
+    expect(opened).toEqual([expect.stringMatching(/^T: <camunda:inputOutput> is from a namespace no loaded schema declares/)]);
+
+    const converted: string[] = [];
+    const text = await xmlToStudyflow(xml, freshModdle(), (message) => converted.push(message));
+    expect(converted).toEqual(opened);
+    const task = studyflowToDefinitions(text, freshModdle()).rootElements[0].flowElements[0];
+    expect(task.extensionElements).toBeUndefined();
+  });
+
   test('an id two elements share is reported: a reference to it could reach only one', () => {
     const warnings: string[] = [];
     studyflowToDefinitions({ definitions: {}, elements: {
