@@ -23,7 +23,7 @@ import {
   unfile,
 } from '@canvas/model/moddle.ts';
 import type { Drawable, ModdleObject, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
-import { handOverStudy } from '@canvas/model/study.ts';
+import { changeRoot } from '@canvas/model/study.ts';
 import { depthOf } from '@canvas/model/tree.ts';
 
 
@@ -102,7 +102,7 @@ export function deleteElements(
   // The last pool going hands the study back to its process, before the detach so `releaseProcessRef` keeps it.
   const collaboration = scene.root;
   const process = processLeftByLastPool(scene, removedSet);
-  if (process) handOverStudy(scene, collaboration, process, ids);
+  if (process) changeRoot(scene, collaboration, process, ids);
 
   // Edges first (they only reference), then nodes deepest-first.
   const edges = removed.filter((el): el is SceneEdge => el.kind === 'edge');

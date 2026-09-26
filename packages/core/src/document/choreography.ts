@@ -1,5 +1,5 @@
 import { BPMN } from '@core/constants';
-import { getProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
+import { getProperty, moveProperties, type ModdleElement, type Moddle } from '@core/element/moddle';
 import { StudyflowElement } from '@core/element/handle';
 import { getCatalog, hasCatalog } from '@core/notation';
 import { applyXmlPasses, primaryRoot, isHeadlessCollaboration } from '@core/document/format';
@@ -114,27 +114,12 @@ function moveRootProperties(target: any, source: any): void {
     if (OWN_STRUCTURE.has(p.name) || !targetByName[p.name]) continue;
     names.push(p.name);
   }
-  moveOnto(target, source, names);
+  moveProperties(target, source, names);
 
   for (const [name, value] of Object.entries(source.$attrs ?? {})) {
     if (OWN_STRUCTURE.has(name)) continue;
     target.$attrs[name] = value;
     delete source.$attrs[name];
-  }
-}
-
-function moveOnto(target: any, source: any, props: string[]): void {
-  const byName = source.$descriptor?.propertiesByName ?? {};
-  for (const prop of props) {
-    const value = source.get(prop);
-    if (value === undefined || (Array.isArray(value) && value.length === 0)) continue;
-    // moddle materializes defaults on the prototype, so a default-equal value already reads back on the target.
-    if (value === byName[prop]?.default) continue;
-    target.set(prop, value);
-    source.set(prop, undefined);
-    for (const child of Array.isArray(value) ? value : [value]) {
-      if (child && typeof child === 'object' && '$parent' in child) child.$parent = target;
-    }
   }
 }
 
@@ -214,7 +199,7 @@ function processToChoreographyRoot(definitions: any): boolean {
 
   choreography.set('participants', used);
   choreography.set('messageFlows', messageFlows);
-  moveOnto(choreography, process, ['flowElements']);
+  moveProperties(choreography, process, ['flowElements']);
 
   definitions.rootElements = [
     choreography,
@@ -241,7 +226,7 @@ export function choreographyToProcessRoot(definitions: any): boolean {
     el.set('messageFlowRef', undefined);
   }
 
-  moveOnto(process, choreography, ['flowElements']);
+  moveProperties(process, choreography, ['flowElements']);
 
   // A Participant is not a RootElement: survivors need a headless Collaboration to stay resolvable, and with no DI plane no pool is drawn.
   const newRoots = rootElements.map((re: any) => (re === choreography ? process : re));

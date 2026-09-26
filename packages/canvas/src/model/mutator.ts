@@ -49,7 +49,7 @@ import type {
   SceneElement,
   SceneNode,
 } from '@canvas/model/scene.ts';
-import { handOverStudy } from '@canvas/model/study.ts';
+import { changeRoot } from '@canvas/model/study.ts';
 import {
   boundsOf,
   COLLAPSED_SIZE,
@@ -617,7 +617,7 @@ export class Mutator {
     setParent(collaboration, scene.definitions);
     pushInto(scene.definitions, 'rootElements', collaboration);
     setRef(participant, 'processRef', process);
-    handOverStudy(scene, process, collaboration, this.ids);
+    changeRoot(scene, process, collaboration, this.ids);
     const adopt = scene.children.filter((child): child is Drawable => child.kind !== 'label');
     return { bounds: participantBoundsAround(dropped, adopt), adopt };
   }

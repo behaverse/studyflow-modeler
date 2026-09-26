@@ -1,4 +1,4 @@
-import { getProperty, setProperty, type Moddle, type ModdleElement } from '@core/element/moddle';
+import { getProperty, moveProperties, setProperty, type Moddle, type ModdleElement } from '@core/element/moddle';
 import { STUDY_EXTENSION_TYPE, primaryRoot, studyExtensionOf } from '@core/document/format';
 
 /**
@@ -22,16 +22,54 @@ export function ensureStudyExtension(definitions: ModdleElement, moddle: Moddle)
   if (existing) return existing;
   const root: any = primaryRoot(definitions);
   if (!root) return undefined;
-  let holder = root.extensionElements;
-  if (!holder) {
-    holder = moddle.create('bpmn:ExtensionElements', { values: [] });
-    holder.$parent = root;
-    root.set('extensionElements', holder);
-  }
+  const holder = extensionElementsOf(root, moddle);
   const study = moddle.create(STUDY_EXTENSION_TYPE, {});
   study.$parent = holder;
   holder.get('values').push(study);
   return study;
+}
+
+/** `element`'s `bpmn:ExtensionElements`, created when missing. */
+function extensionElementsOf(element: any, moddle: Moddle): any {
+  let holder = element.extensionElements;
+  if (!holder) {
+    holder = moddle.create('bpmn:ExtensionElements', { values: [] });
+    holder.$parent = element;
+    element.set('extensionElements', holder);
+  }
+  return holder;
+}
+
+/** What a root keeps when the study passes on: its id (swapped instead), its content, and its extensions but the Study. */
+const KEPT_BY_ROOT = new Set(['id', 'artifacts', 'extensionElements']);
+
+/**
+ * The study is the diagram's root, whichever kind it is: the canvas turns a process root into a collaboration
+ * when the first pool is drawn, and back when the last one is deleted, and the study stays one object through
+ * both. `to` takes the study over from `from`: its id, the fields both kinds declare (name, documentation, tags)
+ * and the Study; `from` takes `freshId`. The process's entry in the run state follows the process's id, since
+ * its properties are what the entry holds.
+ */
+export function handOverStudy(from: ModdleElement, to: ModdleElement, freshId: string): void {
+  const process = from.$type === 'bpmn:Process' ? from : to;
+  const scope = process.id;
+  to.id = from.id;
+  from.id = freshId;
+  const shared = to.$descriptor?.propertiesByName ?? {};
+  const names = (from.$descriptor?.properties ?? [])
+    .map((property: { name: string }) => property.name)
+    .filter((name: string) => !KEPT_BY_ROOT.has(name) && shared[name]);
+  moveProperties(to, from, names);
+
+  const values: ModdleElement[] = from.extensionElements?.get('values') ?? [];
+  const study = values.find((value) => value.$type === STUDY_EXTENSION_TYPE);
+  if (!study) return;
+  values.splice(values.indexOf(study), 1);
+  if (values.length === 0) from.set?.('extensionElements', undefined);
+  const holder = extensionElementsOf(to, from.$model);
+  study.$parent = holder;
+  holder.get('values').push(study);
+  if (scope && process.id) renameStateEntry(study, scope, process.id);
 }
 
 /** The parsed tree; `{}` when absent or not a JSON object. */
@@ -51,7 +89,7 @@ function stateOn(study: ModdleElement | undefined): StateTree {
 }
 
 /** A scope's entry on `study` follows its element to a new id; the other entries keep their place. */
-export function renameStateEntry(study: ModdleElement, from: string, to: string): void {
+function renameStateEntry(study: ModdleElement, from: string, to: string): void {
   const tree = stateOn(study);
   if (!(from in tree)) return;
   const renamed = Object.entries(tree).map(([key, value]) => [key === from ? to : key, value]);
