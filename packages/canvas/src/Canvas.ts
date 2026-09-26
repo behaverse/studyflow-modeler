@@ -15,7 +15,7 @@ import { DEFAULT_GRID_SIZE, Drag, snapTo, type Movable } from '@canvas/study/dra
 import { Gestures, ZOOM_STEP } from '@canvas/interaction/gestures.ts';
 import { edgesIntersecting, hitTest, isContainerNode, nodesIntersecting, orderedNodes, pointInBox, type HitOptions } from '@canvas/study/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
-import { EDITING_MARKER, OUTLINE_CLASS, Selection } from '@canvas/interaction/selection.ts';
+import { EDITING_MARKER, Selection } from '@canvas/interaction/selection.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import type { IdGenerator } from '@canvas/study/ids.ts';
@@ -26,11 +26,11 @@ import { isRootElement, type Bounds, type Drawable, type ElementColors, type Ele
 import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf, isDataShape } from '@core/document/outline.ts';
 import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer, type RendererOptions } from '@canvas/render/renderer.ts';
-import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
+import { append, create, remove, setDocument } from '@canvas/render/svg.ts';
 import { centerOf } from '@core/document/outline.ts';
 import { rerouteEdges as rerouteEdgeSet, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { CONNECTION, Rules, type RuleElement } from '@canvas/study/rules.ts';
-import { CUSTOM_LAYER_ATTRIBUTE, Layers } from '@canvas/view/layers.ts';
+import { Layers } from '@canvas/view/layers.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
 import { Viewport, type Viewbox } from '@canvas/view/viewport.ts';
 
@@ -46,8 +46,6 @@ export interface CanvasViewbox extends Viewbox {
 }
 
 export type Root = RootElement | SceneNode;
-
-const EXPORT_MARGIN = 4;
 
 /** Shapes created unnamed and useless: their label editor opens on drop. */
 const EDIT_ON_CREATE_TYPES = new Set<string>([
@@ -81,15 +79,16 @@ export class Canvas {
   private resizeObserver?: ResizeObserver;
   private destroyed = false;
 
-  /** Draw `study` into `container`, fitted, and follow its changes. */
+  /** Draw `study` into `container`, in the container's document, fitted, and follow its changes. */
   constructor(container: HTMLElement, study: Study, options: CanvasOptions = {}) {
     this.container = container;
     this.study = study;
     this.snapToGrid = options.snapToGrid ?? true;
+    setDocument(container.ownerDocument);
     this.root = create('svg', { class: 'sf-canvas', width: '100%', height: '100%', preserveAspectRatio: 'xMidYMid meet' }) as SVGSVGElement;
     this.root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     append(this.container, this.root);
-    injectCanvasStyles(this.root.ownerDocument ?? ownerDocument());
+    injectCanvasStyles(container.ownerDocument);
     this.layers = new Layers(this.root);
     ensureArrowMarkers(this.layers.defs);
     this.viewport = new Viewport(this.root, this.container);
@@ -428,53 +427,6 @@ export class Canvas {
   private viewportCentre(): Point {
     const box = this.viewport.getViewbox();
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  }
-
-  /** The drawing as a standalone SVG string: chrome stripped, framed on the content. */
-  toSVG(): string {
-    const doc = ownerDocument();
-    const copy = this.root.cloneNode(true) as SVGSVGElement;
-    copy.removeAttribute('tabindex');
-    copy.removeAttribute('data-gesture');
-    copy.removeAttribute('data-connect-status');
-    copy.removeAttribute('class');
-    copy.setAttribute('class', 'sf-canvas');
-    for (const stray of Array.from(copy.querySelectorAll(`[data-layer="selection"], [${CUSTOM_LAYER_ATTRIBUTE}], .${OUTLINE_CLASS}`))) {
-      stray.parentNode?.removeChild(stray);
-    }
-    const overlays = copy.querySelector('[data-layer="overlays"]');
-    while (overlays?.firstChild) overlays.removeChild(overlays.firstChild);
-    for (const selected of Array.from(copy.querySelectorAll('.selected'))) selected.classList.remove('selected');
-    const framed = this.exportBounds();
-    if (framed) {
-      copy.setAttribute('viewBox', `${framed.x} ${framed.y} ${framed.width} ${framed.height}`);
-      copy.setAttribute('width', String(framed.width));
-      copy.setAttribute('height', String(framed.height));
-    }
-    const view = (doc.defaultView ?? (typeof window !== 'undefined' ? window : undefined)) as (Window & typeof globalThis) | undefined;
-    if (view && typeof view.XMLSerializer === 'function') return new view.XMLSerializer().serializeToString(copy);
-    return copy.outerHTML ?? '';
-  }
-
-  private exportBounds(): Bounds | undefined {
-    const layer = this.layers.getLayer('elements') as SVGGElement & { getBBox?: () => DOMRect };
-    let box: Bounds | undefined;
-    if (typeof layer.getBBox === 'function') {
-      try {
-        const rect = layer.getBBox();
-        if (rect.width > 0 || rect.height > 0) box = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-      } catch {
-        box = undefined;
-      }
-    }
-    box ??= boundsOf(this.all().filter((element) => !isHidden(element, this.scope)));
-    if (!box) return undefined;
-    return {
-      x: box.x - EXPORT_MARGIN,
-      y: box.y - EXPORT_MARGIN,
-      width: Math.max(1, box.width + EXPORT_MARGIN * 2),
-      height: Math.max(1, box.height + EXPORT_MARGIN * 2),
-    };
   }
 
   // --- drawing ----------------------------------------------------------------------

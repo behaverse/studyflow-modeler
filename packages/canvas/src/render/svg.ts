@@ -3,10 +3,9 @@
  * `append`, `transform`, `clear` and `remove` cover everything the drawers do.
  *
  * SVG elements must be created in the SVG namespace; `foreignObject` children live
- * in the HTML namespace. The active {@link Document} defaults to the global one
- * (present under the playwright/chromium test DOM) but can be swapped with
- * {@link setDocument} for a headless harness — no other browser-only global is
- * touched at module load.
+ * in the HTML namespace. The active {@link Document} defaults to the global one; a
+ * canvas sets its container's ({@link setDocument}), and `renderSvg` the one it is
+ * handed ({@link withDocument}). No other browser-only global is touched at module load.
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -19,12 +18,23 @@ export function setDocument(doc: Document): void {
   activeDoc = doc;
 }
 
+/** Mint elements in `doc` while `draw` runs, then go back to the document before. */
+export function withDocument<T>(doc: Document, draw: () => T): T {
+  const before = activeDoc;
+  activeDoc = doc;
+  try {
+    return draw();
+  } finally {
+    activeDoc = before;
+  }
+}
+
 /** The {@link Document} used to mint elements; throws with a clear hint if none is set. */
 export function ownerDocument(): Document {
   if (!activeDoc) {
     throw new Error(
       '@behaverse/studyflow-canvas: no DOM Document available. '
-        + 'Run in a DOM environment or call setDocument() first.',
+        + 'Run in a DOM environment, or hand renderSvg a document.',
     );
   }
   return activeDoc;

@@ -12,7 +12,6 @@ import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType 
 import { FONT_PROPERTY, parseFont } from '@canvas/study/font.ts';
 import { mintLabel, syncLabel } from '@canvas/study/labels.ts';
 import { asList, asModdle, parentOf, prop, refBO } from '@canvas/study/moddle.ts';
-import { isExpandable } from '@canvas/study/tree.ts';
 import type {
   Drawable,
   ModdleObject,
@@ -27,8 +26,6 @@ import { labelHeightFor, nodeLabelBox } from '@canvas/study/text.ts';
 
 export interface ImportOptions {
   onWarning?: (message: string) => void;
-  /** Leave out whatever sits inside a sub-process (any expandable container), collapsed or expanded. */
-  mainCanvasOnly?: boolean;
 }
 
 const SHAPE_TYPE = 'bpmndi:BPMNShape';
@@ -50,8 +47,7 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
   const elementsById = new Map<string, SceneElement>();
   const byBusinessObject = new Map<ModdleObject, Drawable>();
   const plane = drawnPlane(definitions, warn);
-  const drawn = asList(prop(plane, 'planeElement'))
-    .filter((di) => !options.mainCanvasOnly || !insideSubProcess(asModdle(prop(di, 'bpmnElement'))));
+  const drawn = asList(prop(plane, 'planeElement'));
 
   const index = (element: Drawable): void => {
     if (element.id) {
@@ -126,15 +122,6 @@ function drawnPlane(definitions: ModdleObject, warn: (m: string) => void): Moddl
 function containerOf(businessObject: ModdleObject | undefined): ModdleObject | undefined {
   const parent = parentOf(businessObject);
   return businessObject && isDataAssociationType(businessObject.$type) ? parentOf(parent) : parent;
-}
-
-/** Whether `businessObject` sits inside a sub-process, however deep. */
-// ponytail: a message flow into a sub-process's contents keeps its line and loses its end; drop it too if one shows.
-function insideSubProcess(businessObject: ModdleObject | undefined): boolean {
-  for (let p = containerOf(businessObject); p; p = parentOf(p)) {
-    if (isExpandable(p.$type)) return true;
-  }
-  return false;
 }
 
 function buildNode(shape: ModdleObject, warn: (m: string) => void): SceneNode | undefined {

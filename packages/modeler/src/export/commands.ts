@@ -27,12 +27,12 @@ async function toStudyflow(modeler: Editor): Promise<string> {
  * The diagram as a self-contained SVG, plus the `.studyflow.yaml` text it carries.
  *
  * No icon substitution pass: the renderer inlines each glyph from the stylesheet as a
- * real `<svg>` body, so what the canvas serializes is already what the export carries.
+ * real `<svg>` body, so what `toSvg` draws is already what the export carries.
  */
 async function renderSvg(modeler: Editor): Promise<{ svg: string; studyflow: string }> {
-  // The SVG first, synchronously: it is a snapshot of the canvas as it stands, and
+  // The SVG first, synchronously: it is a snapshot of the study as it stands, and
   // `toStudyflow` walks the same live moddle tree.
-  const svg = modeler.canvas.toSVG();
+  const svg = modeler.toSvg();
   const studyflow = await toStudyflow(modeler);
   const cleaned = dropUnresolvedIcons(svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1'));
   return { svg: cleaned, studyflow };

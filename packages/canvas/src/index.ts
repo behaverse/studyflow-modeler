@@ -5,6 +5,7 @@
 
 export { Canvas, type CanvasOptions } from './Canvas.ts';
 export { Study, type OpenOptions, type StudyChange } from './study/Study.ts';
+export { renderSvg, type RenderSvgOptions } from './render/renderSvg.ts';
 export type { ImportOptions } from './study/import.ts';
 export type { Bounds, ElementRef, Font, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, SceneNode, TextAlign } from './study/scene.ts';
 export { isRootElement } from './study/scene.ts';
@@ -14,6 +15,6 @@ export { CONTENT_PADDING, isCollapsed, isExpandable, isExpanded, isHidden } from
 export { defaultSizeFor, type ShapeDescriptor } from './study/prototype.ts';
 export { Selection } from './interaction/selection.ts';
 export { SVG_ICON_PATHS, type IconDef } from './render/icons.ts';
-export { append as svgAppend, attr as svgAttr, create as svgCreate, remove as svgRemove, setDocument } from './render/svg.ts';
+export { append as svgAppend, attr as svgAttr, create as svgCreate, remove as svgRemove } from './render/svg.ts';
 export { INK } from './view/theme.ts';
 export { EventBus } from './bus.ts';

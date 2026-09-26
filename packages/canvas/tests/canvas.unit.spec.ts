@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { EventBus, isRootElement, type Canvas, type SceneEdge, type SceneNode } from '@canvas/index.ts';
+import { EventBus, isRootElement, renderSvg, type Canvas, type SceneEdge, type SceneNode } from '@canvas/index.ts';
 
 import {
   canvasOn,
@@ -760,10 +760,10 @@ test('setFont restyles the caption and the font survives the round trip', async 
   expect(task.font).toBeUndefined();
 });
 
-test('toSVG exports the drawing without the editor chrome', async () => {
+test('a picture of the study leaves out the editor\'s chrome, and is framed on the drawing', async () => {
   const { canvas } = load();
   click(canvas, centre(node(canvas, 'Task_1')));
-  const svg = canvas.toSVG();
+  const svg = renderSvg(canvas.study);
   expect(svg).toContain('data-element-id="Task_1"');
   expect(svg).not.toContain('sf-outline');
   expect(svg).not.toContain('selected');

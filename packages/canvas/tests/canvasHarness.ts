@@ -3,8 +3,8 @@
  *
  * A canvas spec needs the same three things before it can assert anything: a fresh
  * moddle over the shipped schemas, with their catalog installed (`@tests/schemas`), a
- * DOM for the canvas to mint SVG into (`setDocument` — the canvas ships no
- * rendering dependency), and a pointer shim, because a `Canvas` listens for real
+ * DOM to mint SVG into (jsdom: a canvas draws in its container's document, and a
+ * picture drawn without one in the document {@link installDocument} sets), and a pointer shim, because a `Canvas` listens for real
  * `pointerdown`/`pointermove`/`pointerup` events in *screen* coordinates while a
  * test only knows *diagram* coordinates. Then it reads what it did: a scene element
  * by id, a `bpmndi` element, the document as XML.
@@ -18,7 +18,8 @@
 
 import { JSDOM } from 'jsdom';
 
-import { Canvas, Study, isRootElement, setDocument } from '@canvas/index.ts';
+import { Canvas, Study, isRootElement } from '@canvas/index.ts';
+import { setDocument } from '@canvas/render/svg.ts';
 import type { Bounds, CanvasOptions, ImportOptions, SceneEdge, SceneLabel, SceneNode } from '@canvas/index.ts';
 import { studyflowToDefinitions } from '@core/document';
 import { freshModdle } from '@tests/schemas';
@@ -28,10 +29,10 @@ export { freshModdle };
 let jsdom: JSDOM | undefined;
 
 /**
- * The jsdom `Document` the canvas mints SVG nodes into, installed globally through
- * `setDocument`. Idempotent: one document backs every spec in a worker (the canvas
- * only ever uses it as a node factory), and calling it again re-points the global
- * at that document, so a spec that installs its own DOM cannot strand a later one.
+ * The jsdom `Document` specs mint SVG nodes in, installed as the one a picture is drawn in
+ * when nothing else says. Idempotent: one document backs every spec in a worker, and calling
+ * it again re-points the global at that document, so a spec that installs its own DOM cannot
+ * strand a later one.
  */
 export function installDocument(): Document {
   jsdom ??= new JSDOM('<!doctype html><html><body></body></html>');
@@ -53,9 +54,9 @@ export interface Loaded {
 export type LoadOptions = ImportOptions & CanvasOptions;
 
 /** A fresh {@link Canvas}, in a detached container, on a study of `definitions`. */
-export function canvasOn(definitions: any, { onWarning, mainCanvasOnly, ...options }: LoadOptions = {}): Canvas {
+export function canvasOn(definitions: any, { onWarning, ...options }: LoadOptions = {}): Canvas {
   const container = installDocument().createElement('div');
-  return new Canvas(container, Study.fromDefinitions(definitions, { onWarning, mainCanvasOnly }), options);
+  return new Canvas(container, Study.fromDefinitions(definitions, { onWarning }), options);
 }
 
 /** Parse `xml` and show it in a fresh {@link Canvas}. */

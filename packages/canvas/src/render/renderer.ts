@@ -169,10 +169,11 @@ export class Renderer {
     return this.labelText ? this.labelText(businessObject, name) : name;
   }
 
-  renderScene(scene: Scene, layer: SVGElement): void {
+  /** Draw `scene` into `layer` in paint order: every element, or those `shows` keeps. */
+  renderScene(scene: Scene, layer: SVGElement, shows: (element: SceneElement) => boolean = () => true): void {
     this.graphicsById.clear();
     this.scene = scene;
-    const elements = [...scene.elementsById.values()].sort((a, b) => zRankOf(a) - zRankOf(b));
+    const elements = [...scene.elementsById.values()].filter(shows).sort((a, b) => zRankOf(a) - zRankOf(b));
     for (const element of elements) {
       const g = this.draw(element);
       append(layer, g);

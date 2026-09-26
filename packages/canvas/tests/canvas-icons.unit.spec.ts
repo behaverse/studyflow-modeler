@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { INK, type Canvas } from '@canvas/index.ts';
+import { INK, renderSvg, type Canvas } from '@canvas/index.ts';
 import type { IconDef } from '@canvas/index.ts';
 import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml } from '@core/notation/moddlePackage';
@@ -70,7 +70,7 @@ test('the resolver\'s answer decides how a type glyph is drawn, and whether at a
     const canvas = load(resolver);
     expect(iconKeys(canvas, 'Task_1'), label).toEqual(drawn ? ['UserTask'] : []);
     if (drawn) expect(graphics(canvas, 'Task_1').querySelector(drawn), label).not.toBeNull();
-    if (exported) expect(canvas.toSVG(), label).toContain(exported);
+    if (exported) expect(renderSvg(canvas.study, { iconResolver: resolver }), label).toContain(exported);
     // The answer is per key: the loop marker, asked for separately, is drawn whatever the type's answer was.
     expect(iconKeys(canvas, 'Task_2'), label).toContain('loop');
   }
@@ -86,7 +86,7 @@ test('a marker glyph goes through the same resolver, stamped with its key, in th
   // document opened anywhere paints the glyph.
   expect(path.namespaceURI).toBe('http://www.w3.org/2000/svg');
   expect(path.getAttribute('fill')).toBe(INK.muted);
-  expect(canvas.toSVG()).not.toContain('currentColor');
+  expect(renderSvg(canvas.study, { iconResolver: () => GLYPH_DEF })).not.toContain('currentColor');
 });
 
 // --- `meta.glyph` ----------------------------------------------------------------

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { INK, type Canvas } from '@canvas/index.ts';
+import { INK, renderSvg, type Canvas } from '@canvas/index.ts';
 import { resolvePlaceholders, studyflowToDefinitions } from '@core/document';
 import { CHROME } from '@canvas/render/labels.ts';
 import { LINE_HEIGHT } from '@canvas/study/text.ts';
@@ -59,10 +59,10 @@ for (const name of exampleNames) {
     const shapes = diElements(definitions).filter((di) => di.$type === 'bpmndi:BPMNShape');
     const edges = diElements(definitions).filter((di) => di.$type === 'bpmndi:BPMNEdge');
 
-    // (a) A full render + serialize does not throw.
+    // (a) A full render, and a picture of it, do not throw.
     const warnings: string[] = [];
     const canvas = canvasOn(definitions, { onWarning: (w: string) => warnings.push(w) });
-    const svg = canvas.toSVG();
+    const svg = renderSvg(canvas.study);
     expect(svg, `${name}: produces an SVG string`).toContain('<svg');
     expect(svg.length, `${name}: SVG is non-empty`).toBeGreaterThan(0);
 
@@ -576,29 +576,22 @@ test('an expanded sub-process draws the flows between its children over its fram
   expect(order.indexOf('Into_Expanded')).toBeLessThan(order.indexOf('Expanded'));
 });
 
-test('a collapsed sub-process hides its contents but draws its own data associations, and mainCanvasOnly keeps them', async () => {
+test('a collapsed sub-process hides its contents but draws its own data associations', async () => {
   // A data association's moddle parent is its activity, but it sits beside it: it once
   // counted as the collapsed container's content and went hidden with it.
-  const full = loadYaml(SUBPROCESS_YAML);
-  expect(full.canvas.getGraphics('Hidden')!.getAttribute('display')).toBe('none');
-  expect(full.canvas.getGraphics('Writes')!.getAttribute('display')).toBeNull();
-  const main = loadYaml(SUBPROCESS_YAML, { mainCanvasOnly: true });
-  expect(main.canvas.get('Writes')).toBeTruthy();
+  const { canvas } = loadYaml(SUBPROCESS_YAML);
+  expect(canvas.getGraphics('Hidden')!.getAttribute('display')).toBe('none');
+  expect(canvas.getGraphics('Writes')!.getAttribute('display')).toBeNull();
 });
 
-test('mainCanvasOnly imports nothing inside a sub-process, collapsed or expanded', async () => {
-  const full = loadYaml(SUBPROCESS_YAML);
-  const main = loadYaml(SUBPROCESS_YAML, { mainCanvasOnly: true });
+test('a picture draws what a view shows: an expanded container\'s contents, a collapsed one\'s not, and in a scope only its contents', async () => {
+  const { canvas } = loadYaml(SUBPROCESS_YAML);
+  const drawn = (svg: string): string[] => [...svg.matchAll(/data-element-id="([^"]+)"/g)].map(([, id]) => id).sort();
 
-  // Both frames stay, neither's contents.
-  for (const id of ['Collapsed', 'Expanded']) expect(main.canvas.get(id), id).toBeTruthy();
-  for (const id of ['Hidden', 'First', 'Second', 'Inner_Flow']) {
-    expect(full.canvas.get(id), id).toBeTruthy();
-    expect(main.canvas.get(id), id).toBeUndefined();
-  }
-  expect(main.canvas.toSVG()).not.toContain('data-element-id="First"');
-  // Import only reads: the definitions keep every DI element, so the option can run on a live document.
-  expect(diElements(main.definitions)).toHaveLength(diElements(full.definitions).length);
+  expect(drawn(renderSvg(canvas.study))).toEqual(
+    ['Collapsed', 'Expanded', 'First', 'Inner_Flow', 'Into_Expanded', 'Record', 'Record_label', 'Second', 'Start', 'Writes'],
+  );
+  expect(drawn(renderSvg(canvas.study, { scope: node(canvas, 'Collapsed') }))).toEqual(['Hidden']);
 });
 
 /** A resolver that answers every marker key, so markers draw as real SVG. */

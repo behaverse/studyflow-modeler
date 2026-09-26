@@ -53,6 +53,8 @@ export interface Editor {
   importXML(xml: string): Promise<{ warnings: unknown[] }>;
   /** The document as a BPMN XML file holds it (the study's `toXml`). */
   saveXML(): Promise<{ xml: string }>;
+  /** What the canvas shows, as a standalone SVG drawn afresh, without the editor's chrome. */
+  toSvg(): string;
   getDefinitions(): ModelElement | undefined;
   canvas: Canvas;
   /** The canvas's own selection and bus. */

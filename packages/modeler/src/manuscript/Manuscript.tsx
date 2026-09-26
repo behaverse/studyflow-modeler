@@ -23,7 +23,7 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
   // An `<img>`, not inlined markup: the figure carries its own ids, and this keeps them out of the page.
   // A data URL rather than an object URL: nothing to revoke, so nothing to get the lifetime wrong.
   const src = useMemo(() => (isOpen
-    ? `data:image/svg+xml;utf8,${encodeURIComponent(padSvg(dropUnresolvedIcons(modeler.canvas.toSVG())))}`
+    ? `data:image/svg+xml;utf8,${encodeURIComponent(padSvg(dropUnresolvedIcons(modeler.toSvg())))}`
     : undefined), [isOpen, modeler]);
 
   async function write(id: string) {

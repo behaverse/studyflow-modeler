@@ -4,8 +4,8 @@
  * resolver, templates and the simulator.
  */
 
-import { Canvas, SVG_ICON_PATHS, idPrefixFor, needsId } from '@canvas/index.ts';
-import type { IconDef, Study } from '@canvas/index.ts';
+import { Canvas, SVG_ICON_PATHS, idPrefixFor, needsId, renderSvg } from '@canvas/index.ts';
+import type { CanvasOptions, IconDef, Study } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
@@ -51,11 +51,13 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
 
 export function mountEditor(options: MountEditorOptions): Editor {
   const { study } = options;
-  const canvas = new Canvas(options.container, study, {
+  // How the app draws a study, on the canvas and in a picture of it.
+  const drawing: CanvasOptions = {
     iconResolver: resolveIcon,
     // `{count}` in a label draws its run-state value; the model, the file and the inspector keep the raw text.
     labelText: (bo, name) => resolvePlaceholders(name, study.definitions as any, bo?.id ?? ''),
-  });
+  };
+  const canvas = new Canvas(options.container, study, drawing);
   const moddle = options.moddle as any;
 
   // The palette mints ids through the moddle, from those the study holds.
@@ -134,6 +136,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
     canRedo: () => study.canRedo,
     importXML,
     saveXML,
+    toSvg: () => renderSvg(study, { ...drawing, scope: canvas.getScope() }),
     getDefinitions: () => study.definitions,
     canvas,
     selection: canvas.getSelection(),
