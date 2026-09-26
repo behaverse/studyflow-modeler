@@ -47,12 +47,12 @@ const MIN_INTERNAL_PX = { width: 40, height: 16 };
 const MIN_EXTERNAL_PX = { width: 14, height: 14 };
 const EMPTY_EXTERNAL_WIDTH = 90;
 
-export function labelPlacement(element: SceneNode | SceneEdge): LabelPlacement {
+function labelPlacement(element: SceneNode | SceneEdge): LabelPlacement {
   if (element.kind === 'node' && isChoreographyTask(element)) return 'internal';
   return hasExternalLabel(element) ? 'external' : 'internal';
 }
 
-export function choreographyBandAt(node: SceneNode, point: Point): LabelBand {
+function choreographyBandAt(node: SceneNode, point: Point): LabelBand {
   const band = choreographyBandHeight(node.height);
   const rel = point.y - node.y;
   if (rel <= band) return isTypedChoreography(node.businessObject) ? 'name' : 'top';

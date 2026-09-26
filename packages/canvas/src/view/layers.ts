@@ -2,7 +2,7 @@
 
 import { append, create, remove } from '@canvas/render/svg.ts';
 
-export const LAYER_ORDER = ['elements', 'overlays', 'selection'] as const;
+const LAYER_ORDER = ['elements', 'overlays', 'selection'] as const;
 export type LayerName = (typeof LAYER_ORDER)[number];
 
 /** Marks a host layer, which an import drops and the host re-attaches on its next request. */

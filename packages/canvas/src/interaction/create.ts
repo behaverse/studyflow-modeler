@@ -34,7 +34,7 @@ export interface CreatePrototype extends RuleElement {
   isExpanded?: boolean;
 }
 
-export const DEFAULT_SIZES: Readonly<Record<NodeCategory, { width: number; height: number }>> = {
+const DEFAULT_SIZES: Readonly<Record<NodeCategory, { width: number; height: number }>> = {
   event: { width: 36, height: 36 },
   task: { width: 100, height: 80 },
   gateway: { width: 50, height: 50 },

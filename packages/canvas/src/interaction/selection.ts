@@ -7,7 +7,7 @@ import type { EventBus } from '@canvas/bus.ts';
 import type { Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 
-export const RESIZE_HANDLES = ['nw', 'ne', 'se', 'sw'] as const;
+const RESIZE_HANDLES = ['nw', 'ne', 'se', 'sw'] as const;
 export type ResizeHandle = (typeof RESIZE_HANDLES)[number];
 export type Resizable = SceneNode | SceneLabel;
 

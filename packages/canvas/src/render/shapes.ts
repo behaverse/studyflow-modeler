@@ -76,7 +76,7 @@ export const STROKE_WIDTH = 1.5;
 
 export type EventKind = 'start' | 'end' | 'intermediateThrow' | 'intermediateCatch' | 'boundary';
 
-export function eventRadius(w: number, h: number): number {
+function eventRadius(w: number, h: number): number {
   return Math.max(0, Math.round((w + h) / 4));
 }
 

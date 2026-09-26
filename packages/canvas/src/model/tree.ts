@@ -2,7 +2,7 @@
 
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 
-export const EXPANDABLE_TYPES: ReadonlySet<string> = new Set([
+const EXPANDABLE_TYPES: ReadonlySet<string> = new Set([
   'bpmn:SubProcess',
   'bpmn:AdHocSubProcess',
   'bpmn:Transaction',
@@ -66,7 +66,7 @@ export function zRankOf(element: SceneElement): number {
   return depthOf(element) * 2 + 1;
 }
 
-export function isDescendantOf(element: SceneElement, node: SceneNode): boolean {
+function isDescendantOf(element: SceneElement, node: SceneNode): boolean {
   const guard = new Set<SceneNode>();
   for (let p = element.parent; p && !guard.has(p); p = p.parent) {
     if (p === node) return true;

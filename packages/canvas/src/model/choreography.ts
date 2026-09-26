@@ -40,7 +40,7 @@ type Ids = Pick<IdGenerator, 'nextPrefixed'>;
 export { actorOf, DEFAULT_BOTTOM, DEFAULT_TOP, isTypedChoreography, readChoreographyBands };
 
 /** Whether `type` is drawn as a choreography task (two bands + a name band). */
-export function isChoreographyType(type: string): boolean {
+function isChoreographyType(type: string): boolean {
   return type === BPMN.ChoreographyTask;
 }
 

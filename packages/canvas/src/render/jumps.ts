@@ -8,7 +8,7 @@ import type { Point } from '@canvas/model/scene.ts';
 
 export const EDGE_CORNER_RADIUS = 6;
 /** How far a jump reaches to either side of its crossing, along the segment. */
-export const JUMP_RADIUS = 5;
+const JUMP_RADIUS = 5;
 
 /** `[from, to]`: distances along a segment from its first waypoint that one jump arc spans. */
 export type Span = readonly [number, number];

@@ -3,7 +3,7 @@
 import type { Bounds, Point, Scene } from '@canvas/model/scene.ts';
 import { isHidden } from '@canvas/model/tree.ts';
 
-export const SNAP_TOLERANCE = 7;
+const SNAP_TOLERANCE = 7;
 
 export interface SnapTargets {
   xs: number[];
@@ -28,7 +28,7 @@ export function collectSnapTargets(scene: Scene, exclude: ReadonlySet<string>, k
   return { xs, ys };
 }
 
-export function snapValue(value: number, candidates: readonly number[], tolerance = SNAP_TOLERANCE): number | undefined {
+function snapValue(value: number, candidates: readonly number[], tolerance = SNAP_TOLERANCE): number | undefined {
   let best: number | undefined;
   let bestDistance = tolerance;
   for (const candidate of candidates) {

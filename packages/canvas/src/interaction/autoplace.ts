@@ -7,8 +7,8 @@ import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts
 import { routableEnd } from '@canvas/routing/orthogonal.ts';
 
 export const APPEND_DISTANCE = 50;
-export const ANNOTATION_APPEND_DISTANCE = 50;
-export const APPEND_NUDGE = 100;
+const ANNOTATION_APPEND_DISTANCE = 50;
+const APPEND_NUDGE = 100;
 const MAX_PROBES = 200;
 
 /** The centre a shape of `size` appended from `source` takes; an annotation hangs above. */

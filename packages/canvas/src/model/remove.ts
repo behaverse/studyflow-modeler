@@ -62,7 +62,7 @@ function danglingRefIndex(scene: Scene): Map<ModdleObject, SceneEdge[]> {
 }
 
 /** The transitive closure of a deletion. */
-export function collectRemoval(scene: Scene, seeds: readonly SceneElement[]): Drawable[] {
+function collectRemoval(scene: Scene, seeds: readonly SceneElement[]): Drawable[] {
   const attached = attachedIndex(scene);
   const referencing = danglingRefIndex(scene);
   const out: Drawable[] = [];

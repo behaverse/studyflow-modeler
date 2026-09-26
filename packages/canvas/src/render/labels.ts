@@ -56,7 +56,7 @@ export function wrap(text: string, maxWidth: number, fontSize: number, maxLines:
   return lines;
 }
 
-export const LABEL_CLASS = 'sf-label';
+const LABEL_CLASS = 'sf-label';
 
 export interface TextStyle {
   fontSize: number;
@@ -103,7 +103,7 @@ export function textLine(content: string, x: number, y: number, style: TextStyle
 }
 
 /** Draw `lines` anchored at `x` (per `style.anchor`, centred by default), the first line's centre at `firstY`. */
-export function drawLines(
+function drawLines(
   container: SVGElement,
   lines: readonly string[],
   x: number,
@@ -181,7 +181,7 @@ function midSegment(waypoints: readonly Point[]): [Point, Point] {
 }
 
 /** The centre of an edge's default caption: the middle segment's midpoint, set off the line. */
-export function flowLabelPosition(waypoints: readonly Point[]): Point {
+function flowLabelPosition(waypoints: readonly Point[]): Point {
   if (waypoints.length === 0) return { x: 0, y: 0 };
   if (waypoints.length === 1) return { ...waypoints[0] };
   const [a, b] = midSegment(waypoints);
@@ -199,7 +199,7 @@ export function edgeLabelBox(edge: SceneEdge, name: string): Bounds {
 }
 
 /** The lines a label draws: wrapped to its own box. */
-export function labelLines(label: Pick<SceneLabel, 'width'>, name: string): string[] {
+function labelLines(label: Pick<SceneLabel, 'width'>, name: string): string[] {
   return wrap(name, label.width, FONT.external, 20);
 }
 
@@ -216,7 +216,7 @@ export function labelHeightFor(name: string, width: number): number {
   return Math.max(1, wrap(name, width, FONT.external, 20).length) * LINE_HEIGHT;
 }
 
-export const LABEL_ELEMENT_CLASS = 'sf-external-label';
+const LABEL_ELEMENT_CLASS = 'sf-external-label';
 
 /** Draw a label element's `<g>`, translated to its box, text centred inside. */
 export function drawLabel(label: SceneLabel, name: string, color: string): SVGGElement {

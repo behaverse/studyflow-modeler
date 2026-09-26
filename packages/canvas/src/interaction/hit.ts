@@ -43,11 +43,11 @@ export function orderedNodes(scene: Scene): SceneNode[] {
   return drawOrderOf(scene).nodes.filter((node) => !isHidden(node, scene.scope));
 }
 
-export function orderedEdges(scene: Scene): SceneEdge[] {
+function orderedEdges(scene: Scene): SceneEdge[] {
   return drawOrderOf(scene).edges.filter((edge) => !isHidden(edge, scene.scope));
 }
 
-export function visibleLabels(scene: Scene): SceneLabel[] {
+function visibleLabels(scene: Scene): SceneLabel[] {
   const out: SceneLabel[] = [];
   for (const element of scene.elementsById.values()) {
     if (element.kind === 'label' && !isHidden(element, scene.scope)) out.push(element);
@@ -156,7 +156,7 @@ function segmentIntersectsRect(a: Point, b: Point, rect: Bounds): boolean {
   return true;
 }
 
-export function distanceToPolyline(point: Point, waypoints: readonly Point[]): number {
+function distanceToPolyline(point: Point, waypoints: readonly Point[]): number {
   if (waypoints.length === 0) return Infinity;
   if (waypoints.length === 1) return Math.hypot(point.x - waypoints[0].x, point.y - waypoints[0].y);
   let min = Infinity;

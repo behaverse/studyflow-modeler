@@ -108,7 +108,7 @@ export function definitionsAbove(target: ModdleObject | undefined): ModdleObject
   return undefined;
 }
 
-export function isManyProperty(target: ModdleObject, name: string): boolean {
+function isManyProperty(target: ModdleObject, name: string): boolean {
   const descriptor = (target as {
     $descriptor?: { propertiesByName?: Record<string, { isMany?: boolean } | undefined> };
   }).$descriptor;
@@ -169,7 +169,7 @@ export function clearRef(owner: ModdleObject, name: string): void {
   setProp(owner, name, isManyProperty(owner, name) ? [] : undefined);
 }
 
-export function listPropertyNames(owner: ModdleObject): string[] {
+function listPropertyNames(owner: ModdleObject): string[] {
   return Object.keys(owner).filter(
     (key) => !key.startsWith('$') && Array.isArray((owner as Record<string, unknown>)[key]),
   );

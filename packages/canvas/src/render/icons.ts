@@ -88,7 +88,7 @@ export function drawIcon(
   return undefined;
 }
 
-export function drawInlineSvgIcon(
+function drawInlineSvgIcon(
   container: SVGElement,
   def: InlineSvgIconDef,
   x: number,
@@ -152,7 +152,7 @@ function rotated(iconClass: string, icon: InlineSvgIconDef): InlineSvgIconDef {
   return { ...icon, content: `<g transform="rotate(${turn} ${minX + width / 2} ${minY + height / 2})">${icon.content}</g>` };
 }
 
-export function drawCssIcon(
+function drawCssIcon(
   container: SVGElement,
   cssClass: string,
   x: number,

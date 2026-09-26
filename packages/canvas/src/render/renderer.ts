@@ -542,7 +542,7 @@ export class Renderer {
  * Straight runs joined by quarter-arc corners, hopping over `jumps` (per segment, from
  * `lineJumps`) with a semicircle; the waypoints stay the geometry.
  */
-export function roundedPathData(
+function roundedPathData(
   waypoints: readonly Point[], radius = EDGE_CORNER_RADIUS, jumps: readonly (readonly Span[])[] = [],
 ): string {
   if (waypoints.length === 0) return '';
@@ -590,11 +590,11 @@ export function edgeDashArray(type: string): string | null {
   return null;
 }
 
-export function isDefaultFlow(edge: SceneEdge): boolean {
+function isDefaultFlow(edge: SceneEdge): boolean {
   return edge.type === BPMN.SequenceFlow && prop(edge.source?.businessObject, 'default') === edge.businessObject;
 }
 
-export function markerIdFor(type: string): string {
+function markerIdFor(type: string): string {
   if (type === BPMN.MessageFlow) return 'sf-arrow-message';
   if (EDGE_TYPES.has(type) && type !== BPMN.SequenceFlow) return 'sf-arrow-open';
   return 'sf-arrow-sequence';

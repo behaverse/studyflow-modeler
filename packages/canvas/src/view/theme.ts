@@ -11,9 +11,9 @@ export const INK = {
   band: '#f5f5f4',
 } as const;
 
-export const CANVAS_STYLE_ID = 'sf-canvas-style';
+const CANVAS_STYLE_ID = 'sf-canvas-style';
 
-export const CANVAS_CSS = `
+const CANVAS_CSS = `
 .sf-canvas {
   --sf-accent: ${INK.accent};
   --sf-accent-soft: rgba(192, 40, 176, 0.1);

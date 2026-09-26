@@ -16,7 +16,7 @@ import type { ResizeHandle } from '@canvas/interaction/selection.ts';
 import type { Size } from '@canvas/rules/rules.ts';
 
 export const DEFAULT_GRID_SIZE = 10;
-export const DEFAULT_MIN_SIZE = 20;
+const DEFAULT_MIN_SIZE = 20;
 
 export type DragKind = 'move' | 'resize' | 'waypoint';
 export type Movable = SceneNode | SceneLabel;

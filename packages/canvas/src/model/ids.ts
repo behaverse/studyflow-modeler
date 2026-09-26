@@ -12,7 +12,7 @@ export function prefixFor(type: string): string {
 type Candidate = (ModdleObject & { $instanceOf?: (type: string) => boolean }) | undefined | null;
 
 /** The moddle types that carry an id (bpmn-js's `BpmnFactory` list). */
-export const ID_BEARING_TYPES = [
+const ID_BEARING_TYPES = [
   'bpmn:RootElement',
   'bpmn:FlowElement',
   'bpmn:MessageFlow',

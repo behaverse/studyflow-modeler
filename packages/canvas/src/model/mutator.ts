@@ -86,7 +86,7 @@ export interface FlowContainer {
  * container, a lane claims by reference and hands over to the pool, a pool files
  * into its process, and nothing at all means the diagram root.
  */
-export function flowContainerOf(parent: SceneNode | undefined, root: ModdleObject): FlowContainer {
+function flowContainerOf(parent: SceneNode | undefined, root: ModdleObject): FlowContainer {
   let lane: ModdleObject | undefined;
   let node = containerFor(parent) as SceneNode | undefined;
   const guard = new Set<SceneNode>();
@@ -100,7 +100,7 @@ export function flowContainerOf(parent: SceneNode | undefined, root: ModdleObjec
   return lane ? { owner, lane } : { owner };
 }
 
-export function containmentPropertyFor(type: string): 'participants' | 'artifacts' | 'flowElements' {
+function containmentPropertyFor(type: string): 'participants' | 'artifacts' | 'flowElements' {
   if (type === 'bpmn:Participant') return 'participants';
   if (isBpmnSubtypeOf(type, 'bpmn:Artifact')) return 'artifacts';
   return 'flowElements';
@@ -131,7 +131,7 @@ function collaborationOf(scene: Scene): ModdleObject | undefined {
 }
 
 /** Shift the docking waypoints of every edge on `node` by `(dx, dy)`. */
-export function dockConnectedEdges(node: SceneNode, dx: number, dy: number): SceneEdge[] {
+function dockConnectedEdges(node: SceneNode, dx: number, dy: number): SceneEdge[] {
   if (dx === 0 && dy === 0) return [];
   const affected = new Set<SceneEdge>();
   for (const edge of node.outgoing) {
@@ -151,7 +151,7 @@ export function dockConnectedEdges(node: SceneNode, dx: number, dy: number): Sce
 }
 
 /** Re-dock every edge on `node` against its new outline; bent routes keep their bends. */
-export function redockToOutline(node: SceneNode, scope?: SceneNode): SceneEdge[] {
+function redockToOutline(node: SceneNode, scope?: SceneNode): SceneEdge[] {
   const changed: SceneEdge[] = [];
   for (const edge of incidentEdgesOf(node)) {
     const before = edge.waypoints.map((p) => ({ x: p.x, y: p.y }));
@@ -170,7 +170,7 @@ export function redockToOutline(node: SceneNode, scope?: SceneNode): SceneEdge[]
 }
 
 /** Move nodes, edges and pinned labels by `(dx, dy)`. */
-export function translateElements(elements: Iterable<SceneElement>, dx: number, dy: number): void {
+function translateElements(elements: Iterable<SceneElement>, dx: number, dy: number): void {
   if (dx === 0 && dy === 0) return;
   for (const element of elements) {
     if (element.kind === 'node') {

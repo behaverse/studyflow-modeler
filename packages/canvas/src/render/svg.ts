@@ -9,7 +9,7 @@
  * touched at module load.
  */
 
-export const SVG_NS = 'http://www.w3.org/2000/svg';
+const SVG_NS = 'http://www.w3.org/2000/svg';
 
 let activeDoc: Document | undefined =
   typeof document !== 'undefined' ? document : undefined;

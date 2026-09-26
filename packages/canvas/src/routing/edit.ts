@@ -37,7 +37,7 @@ export function distanceToSegment(a: Point, b: Point, p: Point): number {
 }
 
 /** Drop interior joints that no longer bend anything. Endpoints are never dropped. */
-export function dropRedundant(points: readonly Point[]): Point[] {
+function dropRedundant(points: readonly Point[]): Point[] {
   const out = clonePath(points);
   for (let i = out.length - 2; i >= 1; i -= 1) {
     if (distanceToSegment(out[i - 1], out[i + 1], out[i]) <= COLLINEAR_TOLERANCE) out.splice(i, 1);
