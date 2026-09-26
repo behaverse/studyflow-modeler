@@ -520,11 +520,8 @@ export class Gestures {
       } else if (g.intent === 'connect' || g.intent === 'reconnect') {
         const kind = canvas.connect.getKind();
         const edge = canvas.connect.end(pt);
-        if (edge) {
-          if (kind === 'connect') canvas.mount(edge);
-          else canvas.redrawElements([edge]);
-          selection.select(edge);
-        } else if (kind === 'reconnect' && g.waypoint) {
+        if (edge) selection.select(edge);
+        else if (kind === 'reconnect' && g.waypoint) {
           // Dropped clear of every shape: a free endpoint move. Dropped on a refused shape: nothing.
           const over = canvas.hitTest(pt);
           if (!over || over.kind === 'edge') canvas.moveWaypoint(g.waypoint.edge, g.waypoint.index, pt);
@@ -534,8 +531,11 @@ export class Gestures {
         const target = drag?.getKind() === 'move' ? canvas.moveDropTarget(pt) : undefined;
         if (target && !target.allowed) drag?.cancel();
         else {
-          drag?.end(pt, snapped.grid);
-          if (target?.allowed) canvas.reparentDropped(target.parent);
+          // The move and the change of container it makes are one edit.
+          canvas.batch(() => {
+            drag?.end(pt, snapped.grid);
+            if (target?.allowed) canvas.reparentDropped(target.parent);
+          });
         }
       }
     } else if (g.marquee) {

@@ -94,8 +94,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
     return model.toXML(definitions, opts);
   };
 
-  let lastSceneRevision = 0;
-
   const history = createSnapshotHistory({
     serialize: async () => (await saveXML({ format: true })).xml,
     restore: async (xml) => {
@@ -108,7 +106,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
       const scope = scopeId ? canvas.get(scopeId) : undefined;
       if (scope && !isRootElement(scope) && scope.kind === 'node') canvas.enterScope(scope);
       canvas.getViewport().setViewbox(viewbox);
-      lastSceneRevision = canvas.getScene()?.revision ?? 0;
       bus.fire('ImportDone', { error: null, warnings: [] });
       bus.fire('RootSet', { element: canvas.getRoot() });
       const reselect = selectedIds
@@ -122,23 +119,15 @@ export function mountEditor(options: MountEditorOptions): Editor {
   const importXML = async (xml: string): Promise<{ warnings: unknown[] }> => {
     const { rootElement } = await model.fromXML(xml);
     canvas.importDefinitions(rootElement);
-    lastSceneRevision = canvas.getScene()?.revision ?? 0;
     history.reset();
     bus.fire('ImportDone', { error: null, warnings: [] });
     bus.fire('RootSet', { element: canvas.getRoot() });
     return { warnings: [] };
   };
 
-  // Every committing edit bumps the scene revision; that is the history's commit point.
-  const onSceneChanged = (): void => {
-    const revision = canvas.getScene()?.revision ?? 0;
-    if (revision === lastSceneRevision) return;
-    lastSceneRevision = revision;
-    history.record();
-  };
-  bus.on('ElementChanged', onSceneChanged);
+  // The canvas fires `ElementsChanged` once per committed edit; that is the history's commit point.
+  const onSceneChanged = (): void => history.record();
   bus.on('ElementsChanged', onSceneChanged);
-  bus.on('ElementsRemoved', onSceneChanged);
 
   // Templates: the palette drags a template's shape; the flow it holds is laid out inside once it lands.
   let pendingFlow: { businessObject: ModelElement; flow: TemplateFlow } | undefined;
@@ -147,10 +136,9 @@ export function mountEditor(options: MountEditorOptions): Editor {
     const placed = pending && canvas.getScene()?.byBusinessObject.get(pending.businessObject);
     if (!pending || placed?.kind !== 'node') return;
     pendingFlow = undefined;
-    materializeTemplateFlow(canvas, placed, pending.flow);
+    canvas.batch(() => materializeTemplateFlow(canvas, placed, pending.flow));
     canvas.getSelection().select(placed);
   };
-  bus.on('ElementChanged', materializePending);
   bus.on('ElementsChanged', materializePending);
 
   const templates: EditorTemplates = {
@@ -203,10 +191,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
       simulator.dispose();
       unsubscribeSettings();
       options.container.removeEventListener('keydown', onHistoryKey);
-      bus.off('ElementChanged', onSceneChanged);
       bus.off('ElementsChanged', onSceneChanged);
-      bus.off('ElementsRemoved', onSceneChanged);
-      bus.off('ElementChanged', materializePending);
       bus.off('ElementsChanged', materializePending);
       history.dispose();
       canvas.destroy();

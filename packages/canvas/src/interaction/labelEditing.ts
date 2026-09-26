@@ -29,8 +29,8 @@ export type LabelPlacement = 'internal' | 'external';
 export interface LabelEditingOptions {
   container: HTMLElement;
   viewport: Viewport;
+  /** Writes the text; its commit redraws what the text changes. */
   getMutator: () => Mutator | undefined;
-  redraw: (elements: SceneElement[]) => void;
   restoreFocus?: () => void;
   /** An edit opened or closed on `element`: the host hides its drawn text while the transparent editor stands in for it. */
   onEditing?: (element: SceneNode | SceneEdge, editing: boolean) => void;
@@ -149,9 +149,7 @@ export class LabelEditing {
     const value = this.input?.value ?? '';
     if (!session) return false;
     this.close();
-    const affected = this.write(session, value);
-    if (affected.length > 0) this.options.redraw(affected);
-    return affected.length > 0;
+    return this.write(session, value).length > 0;
   }
 
   cancel(): void {

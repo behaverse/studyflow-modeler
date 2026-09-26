@@ -4,7 +4,6 @@
  * moddle tree and dropped from the scene.
  */
 
-import type { EventBus } from '@canvas/bus.ts';
 import { activityOf, isDataAssociationType, pruneDataAssociation } from '@canvas/model/dataAssociation.ts';
 import type { IdGenerator } from '@canvas/model/ids.ts';
 import { dropLabel } from '@canvas/model/labels.ts';
@@ -85,16 +84,14 @@ export interface DeleteResult {
   removed: Drawable[];
   /** Survivors whose references or children changed. */
   changed: Drawable[];
+  /** The last pool went, and the process is the root again. */
+  rootChanged: boolean;
 }
 
-export function deleteElements(
-  scene: Scene,
-  bus: EventBus,
-  elements: readonly SceneElement[],
-  ids: IdGenerator,
-): DeleteResult {
+/** Remove `elements` and their closure from the scene and the document; the caller commits the result. */
+export function deleteElements(scene: Scene, elements: readonly SceneElement[], ids: IdGenerator): DeleteResult {
   const removed = collectRemoval(scene, elements);
-  if (removed.length === 0) return { removed: [], changed: [] };
+  if (removed.length === 0) return { removed: [], changed: [], rootChanged: false };
 
   const removedSet = new Set<SceneElement>(removed);
   const changed = new Set<Drawable>();
@@ -133,13 +130,7 @@ export function deleteElements(
   scene.rootElement.children = scene.children;
 
   for (const element of removed) changed.delete(element);
-  const changedList = [...changed];
-  scene.revision += 1;
-  bus.fire('ElementsRemoved', { elements: removed.slice() });
-  for (const element of changedList) bus.fire('ElementChanged', { element });
-  if (process) bus.fire('ElementChanged', { element: scene.rootElement });
-  bus.fire('ElementsChanged', { elements: [...removed, ...changedList] });
-  return { removed, changed: changedList };
+  return { removed, changed: [...changed], rootChanged: !!process };
 }
 
 /** The process of the collaboration root's first pool, when the deletion takes every pool it has. */

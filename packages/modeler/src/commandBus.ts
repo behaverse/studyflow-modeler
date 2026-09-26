@@ -30,7 +30,7 @@ type CommandResult<C extends ControllerCommand> = {
 }[RunKey];
 
 /**
- * Dispatch `command` over the editor's bus (`events.send`), the same bus `ElementChanged` & co.
+ * Dispatch `command` over the editor's bus (`events.send`), the same bus `ElementsChanged` & co.
  * travel on, so a finished command lands on `CommandDone` beside them.
  */
 export async function executeCommand<C extends ControllerCommand>(modeler: Editor, command: C): Promise<CommandResult<C>> {

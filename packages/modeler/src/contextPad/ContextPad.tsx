@@ -136,12 +136,12 @@ export function ContextPad() {
     const sync = (): void => setElements([...modeler.selection.get()]);
     sync();
     modeler.events.on('SelectionChanged', sync);
-    modeler.events.on('ElementChanged', sync);
+    modeler.events.on('ElementsChanged', sync);
     modeler.events.on('RootSet', sync);
     modeler.events.on('ImportDone', sync);
     return () => {
       modeler.events.off('SelectionChanged', sync);
-      modeler.events.off('ElementChanged', sync);
+      modeler.events.off('ElementsChanged', sync);
       modeler.events.off('RootSet', sync);
       modeler.events.off('ImportDone', sync);
     };

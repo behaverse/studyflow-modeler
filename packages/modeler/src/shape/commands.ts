@@ -76,11 +76,9 @@ export function runToggleDefaultFlow(modeler: Editor, command: ToggleDefaultFlow
   const flow = modeler.canvas.resolveElement(command.element);
   if (!flow || flow.kind !== 'edge' || !flow.source?.businessObject) return;
   const sourceBo = flow.source.businessObject as { default?: unknown };
-  const previous = flow.source.outgoing.find((edge) => edge !== flow && edge.businessObject === sourceBo.default);
   modeler.canvas.updateModdleProperties(flow, flow.source.businessObject, {
     default: sourceBo.default === flow.businessObject ? undefined : flow.businessObject,
   });
-  modeler.canvas.redrawElements(previous ? [flow, previous] : [flow]);
 }
 
 export type StartConnectCommand = {

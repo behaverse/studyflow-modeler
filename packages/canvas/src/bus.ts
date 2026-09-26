@@ -1,6 +1,6 @@
 /**
  * The canvas's event bus, a tiny publish/subscribe emitter: the canvas fires `SelectionChanged`,
- * `ElementChanged`, `ElementsChanged` and the rest on it, and the app holds the same bus as
+ * `ElementsChanged` and the rest on it, and the app holds the same bus as
  * `Editor.events` (`packages/modeler/src/editor/port.ts`). Listeners run in subscription order;
  * nothing has needed a priority.
  */

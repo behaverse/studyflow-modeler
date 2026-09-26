@@ -223,6 +223,19 @@ test('connectElements mints a routed sequence flow and wires both ends', async (
   expect(canvas.connectElements(node(canvas, 'End_1'), task)).toBeUndefined();
 });
 
+test('a new default redraws the flow that lost the slash as well as the one that gained it', async () => {
+  const { canvas } = load();
+  const gateway = node(canvas, 'Gateway_1');
+  const toEnd = edge(canvas, 'Flow_3');
+  const toTask = canvas.connectElements(gateway, node(canvas, 'Task_1'))!;
+  const slash = (flow: SceneEdge) => canvas.getGraphics(flow.id)!.querySelector('.sf-connection-line')!.getAttribute('marker-start');
+  canvas.updateModdleProperties(toEnd, gateway.businessObject, { default: toEnd.businessObject });
+  expect(slash(toEnd)).toContain('sf-marker-default');
+  canvas.updateModdleProperties(toTask, gateway.businessObject, { default: toTask.businessObject });
+  expect(slash(toTask)).toContain('sf-marker-default');
+  expect(slash(toEnd)).toBeNull();
+});
+
 test('connectElements keeps a route the host drew (a template\'s)', async () => {
   const { canvas } = load();
   const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 600, y: 118 })!;
@@ -572,6 +585,49 @@ test('dropping a shape into an expanded container re-files it there', async () =
   expect(canvas.getScene()!.children).not.toContain(task);
 });
 
+test('a shape dropped into a container is drawn above it, even one drawn before the container', async () => {
+  const { canvas } = load();
+  const task = canvas.createElement({ type: 'bpmn:Task' }, { x: 800, y: 118 })!;
+  canvas.getLabelEditing().cancel();
+  const sub = canvas.createElement({ type: 'bpmn:SubProcess', isExpanded: true }, { x: 900, y: 400 })!;
+  canvas.getLabelEditing().cancel();
+  click(canvas, centre(task));
+  dragBy(canvas, centre(task), centre(sub));
+  expect(task.parent).toBe(sub);
+  const drawn = Array.from(canvas.getGraphics(sub.id)!.parentNode!.children);
+  expect(drawn.indexOf(canvas.getGraphics(task.id)!)).toBeGreaterThan(drawn.indexOf(canvas.getGraphics(sub.id)!));
+});
+
+test('an edit made of several is one commit: one revision, one ElementsChanged', async () => {
+  const { canvas } = load();
+  const scene = canvas.getScene()!;
+  let fired = 0;
+  canvas.getEventBus().on('ElementsChanged', () => { fired += 1; });
+  const sub = node(canvas, 'Sub_1');
+  canvas.setExpanded(sub, true);
+  const loose = canvas.createElement({ type: 'bpmn:Task' }, { x: 800, y: 118 })!;
+  canvas.getLabelEditing().cancel();
+  const CASES: [what: string, edit: () => void][] = [
+    ['a replace: a new shape, the flows moved onto it, the old one deleted', () => canvas.replaceElement(node(canvas, 'Task_1'), { type: 'bpmn:UserTask' })],
+    ['an append: a shape and the flow to it', () => canvas.appendElement(node(canvas, 'Gateway_1'), { type: 'bpmn:Task' })],
+    ['a move into a container: the move and the change of container', () => {
+      click(canvas, centre(loose));
+      dragBy(canvas, centre(loose), { x: sub.x + sub.width - 60, y: sub.y + sub.height - 50 });
+    }],
+    ['a delete that takes a caption: the name cleared and the shape gone', () => canvas.deleteElements([node(canvas, 'Start_1'), label(canvas, 'End_1_label')])],
+  ];
+  for (const [what, edit] of CASES) {
+    const revision = scene.revision;
+    fired = 0;
+    edit();
+    canvas.getLabelEditing().cancel();
+    expect({ revisions: scene.revision - revision, fired }, what).toEqual({ revisions: 1, fired: 1 });
+  }
+  expect(loose.parent).toBe(sub);
+  expect(canvas.get('Start_1')).toBeUndefined();
+  expect(node(canvas, 'End_1').businessObject.name).toBe('');
+});
+
 /** An expanded sub-process divided into two lanes, as BPMN allows any FlowElementsContainer to be. */
 const LANED_SUB_YAML = `id: Defs_Laned
 definitions:
@@ -724,9 +780,9 @@ test('a command is a topic with one answering listener on the same bus the notif
   const bus = new EventBus();
   const seen: unknown[] = [];
 
-  bus.on('ElementChanged', () => { seen.push('a'); });
-  bus.on('ElementChanged', () => { seen.push('b'); });
-  expect(bus.fire('ElementChanged', { element: {} }), 'a notification has no answer').toBeUndefined();
+  bus.on('ElementsChanged', () => { seen.push('a'); });
+  bus.on('ElementsChanged', () => { seen.push('b'); });
+  expect(bus.fire('ElementsChanged', { elements: [] }), 'a notification has no answer').toBeUndefined();
   expect(seen, 'every listener still runs, in subscription order').toEqual(['a', 'b']);
 
   bus.on('Undo', async (command: any) => `ran ${command.type}`);

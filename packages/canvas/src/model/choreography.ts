@@ -28,7 +28,7 @@ import {
   setParent,
   setProp,
 } from '@canvas/model/moddle.ts';
-import type { ModdleObject, Scene, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import type { ModdleObject, Scene, SceneNode } from '@canvas/model/scene.ts';
 
 /** One of the two participant bands of a choreography task. */
 export type ParticipantBand = 'top' | 'bottom';
@@ -170,8 +170,8 @@ export function tasksReferencing(
   scene: Scene | undefined,
   participant: ModdleObject,
   first: SceneNode,
-): SceneElement[] {
-  const out: SceneElement[] = [first];
+): SceneNode[] {
+  const out: SceneNode[] = [first];
   if (!scene) return out;
   for (const element of scene.elementsById.values()) {
     if (element.kind !== 'node' || element === first) continue;

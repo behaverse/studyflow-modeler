@@ -14,14 +14,14 @@ export function useDiagramName(modeler: Editor): {
   useEffect(() => {
     const sync = () => setDiagramName(getDiagramName(modeler) ?? DEFAULT_DIAGRAM_NAME);
     const onRootChanged = (e: any) => {
-      if (e?.element === modeler.canvas.getRoot()) sync();
+      if (e?.elements?.includes(modeler.canvas.getRoot())) sync();
     };
     sync();
     modeler.events.on('ImportDone', sync);
-    modeler.events.on('ElementChanged', onRootChanged);
+    modeler.events.on('ElementsChanged', onRootChanged);
     return () => {
       modeler.events.off('ImportDone', sync);
-      modeler.events.off('ElementChanged', onRootChanged);
+      modeler.events.off('ElementsChanged', onRootChanged);
     };
   }, [modeler]);
 

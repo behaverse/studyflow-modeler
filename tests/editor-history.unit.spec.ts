@@ -139,7 +139,7 @@ test('the writes an undo itself causes are not recorded as edits', async () => {
     serialize: async () => state.xml,
     restore: async (xml) => {
       state.xml = xml;
-      // The canvas fires `ElementChanged` while a snapshot is being applied; the
+      // The canvas fires `ElementsChanged` while a snapshot is being applied; the
       // watcher in `editor/mount.ts` calls straight back into `record`.
       history.record();
       recordsDuringRestore += 1;

@@ -1,6 +1,7 @@
 /**
  * Every committed edit of the document: writes the scene and the business objects,
- * bumps the revision and fires `ElementChanged` / `ElementsChanged`. DI is never
+ * and ends in one commit per edit, or per `batch` of edits: the revision goes up once,
+ * the canvas draws what the commit did, and `ElementsChanged` fires once. DI is never
  * touched here; it is rebuilt from the scene on save (`model/di.ts`).
  */
 
@@ -44,6 +45,7 @@ import type {
   ElementColors,
   ModdleObject,
   Point,
+  RootElement,
   Scene,
   SceneEdge,
   SceneElement,
@@ -231,20 +233,79 @@ export interface ReconnectEnds {
   target?: SceneNode;
 }
 
+/** What one commit did to the scene. The canvas draws it; `ElementsChanged` announces it. */
+export interface Commit {
+  /** Nodes and edges new to the scene. */
+  added: Drawable[];
+  /** What else the commit wrote, or changed the drawing of; the root element when the diagram's own properties changed. */
+  changed: (SceneElement | RootElement)[];
+  /** Nodes and edges gone from the scene. */
+  removed: Drawable[];
+}
+
+interface OpenCommit {
+  added: Set<Drawable>;
+  changed: Set<SceneElement | RootElement>;
+  removed: Set<Drawable>;
+}
+
 export class Mutator {
   readonly ids: IdGenerator;
   private readonly scene: Scene;
   private readonly bus: EventBus;
+  private readonly onCommit?: (commit: Commit) => void;
+  private open?: OpenCommit;
 
-  constructor(scene: Scene, bus: EventBus, ids?: IdGenerator) {
+  /** `onCommit` runs before `ElementsChanged` fires, so a listener finds the commit drawn. */
+  constructor(scene: Scene, bus: EventBus, onCommit?: (commit: Commit) => void) {
     this.scene = scene;
     this.bus = bus;
-    this.ids = ids ?? IdGenerator.fromDefinitions(scene.definitions);
+    this.onCommit = onCommit;
+    this.ids = IdGenerator.fromDefinitions(scene.definitions);
     for (const id of scene.elementsById.keys()) this.ids.claim(id);
   }
 
   private get factory(): ModdleFactory | undefined {
     return modelOf(this.scene.definitions) ?? modelOf(this.scene.root);
+  }
+
+  /**
+   * Make every edit `edit` makes one commit: one revision, one drawing pass, one `ElementsChanged`, one undo
+   * step. A batch inside a batch joins it. What `edit` wrote before it threw is committed all the same.
+   */
+  batch<T>(edit: () => T): T {
+    if (this.open) return edit();
+    const open: OpenCommit = { added: new Set(), changed: new Set(), removed: new Set() };
+    this.open = open;
+    try {
+      return edit();
+    } finally {
+      this.open = undefined;
+      this.close(open);
+    }
+  }
+
+  private finish(changed: Iterable<SceneElement | RootElement>, added: Iterable<Drawable> = [], removed: Iterable<Drawable> = []): void {
+    this.batch(() => {
+      const open = this.open!;
+      for (const element of added) open.added.add(element);
+      for (const element of changed) open.changed.add(element);
+      for (const element of removed) open.removed.add(element);
+    });
+  }
+
+  /** An element added and removed in one commit was never there; one added is not also changed. */
+  private close({ added, changed, removed }: OpenCommit): void {
+    for (const element of removed) {
+      if (added.delete(element)) removed.delete(element);
+      changed.delete(element);
+    }
+    for (const element of added) changed.delete(element);
+    if (added.size + changed.size + removed.size === 0) return;
+    this.scene.revision += 1;
+    const commit: Commit = { added: [...added], changed: [...changed], removed: [...removed] };
+    this.onCommit?.(commit);
+    this.bus.fire('ElementsChanged', { elements: [...commit.added, ...commit.changed], removed: commit.removed });
   }
 
   // --- geometry ---------------------------------------------------------------
@@ -313,7 +374,8 @@ export class Mutator {
     for (const edge of crossingEdgesOf(node)) if (rerouteEdge(edge, { scope })) redocked.push(edge);
     const edges = [...new Set([...moved, ...redocked])];
     const changed: SceneElement[] = [node, ...edges];
-    this.finish(changed);
+    // The contents change too: they are shown or hidden, and may have moved into the frame.
+    this.finish([...changed, ...contents]);
     return { changed, contents };
   }
 
@@ -330,16 +392,15 @@ export class Mutator {
     return true;
   }
 
-  /** Record a change made through another path (the inspector writing a property). */
-  touch(element: Drawable): void {
-    syncLabel(this.scene, element);
-    this.finish([element]);
+  /** Record a change made through another path (the inspector writing a property): `elements` are what it changes the drawing of. */
+  touch(elements: readonly Drawable[]): void {
+    for (const element of elements) syncLabel(this.scene, element);
+    this.finish(elements);
   }
 
-  /** Record an edit of something that is not a scene element (the diagram root). */
-  record(element: unknown): void {
-    this.scene.revision += 1;
-    this.bus.fire('ElementChanged', { element });
+  /** Record an edit of the diagram's own properties, on the root. */
+  record(root: RootElement): void {
+    this.finish([root]);
   }
 
   setBandName(node: SceneNode, band: ParticipantBand, name: string): SceneElement[] {
@@ -393,7 +454,9 @@ export class Mutator {
   // --- deletion -----------------------------------------------------------------
 
   deleteElements(elements: readonly SceneElement[]): DeleteResult {
-    return removeFromScene(this.scene, this.bus, elements, this.ids);
+    const result = removeFromScene(this.scene, elements, this.ids);
+    this.finish(result.rootChanged ? [...result.changed, this.scene.rootElement] : result.changed, [], result.removed);
+    return result;
   }
 
   // --- containment --------------------------------------------------------------
@@ -495,7 +558,7 @@ export class Mutator {
     scene.elementsById.set(id, node);
     scene.byBusinessObject.set(bo, node);
     syncLabel(scene, node);
-    this.finish([node]);
+    this.finish(promotion ? [scene.rootElement, ...promotion.adopt] : [], [node]);
     return node;
   }
 
@@ -537,7 +600,7 @@ export class Mutator {
     scene.elementsById.set(id, edge);
     scene.byBusinessObject.set(bo, edge);
     syncLabel(scene, edge);
-    this.finish([edge, spec.source, spec.target]);
+    this.finish([spec.source, spec.target], [edge]);
     return edge;
   }
 
@@ -641,12 +704,5 @@ export class Mutator {
     const { owner } = flowContainerOf(source.parent ?? target.parent, this.scene.root);
     setParent(bo, owner);
     pushInto(owner, containmentPropertyFor(type), bo);
-  }
-
-  private finish(elements: SceneElement[]): void {
-    this.scene.revision += 1;
-    const touched = [...new Set(elements)];
-    for (const element of touched) this.bus.fire('ElementChanged', { element });
-    if (touched.length > 1) this.bus.fire('ElementsChanged', { elements: touched.slice() });
   }
 }

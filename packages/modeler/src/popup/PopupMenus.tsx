@@ -59,8 +59,8 @@ export function PopupMenus() {
 
   useEffect(() => {
     const bump = (): void => setRevision((n) => n + 1);
-    modeler.events.on('ElementChanged', bump);
-    return () => modeler.events.off('ElementChanged', bump);
+    modeler.events.on('ElementsChanged', bump);
+    return () => modeler.events.off('ElementsChanged', bump);
   }, [modeler]);
 
   useEffect(() => {

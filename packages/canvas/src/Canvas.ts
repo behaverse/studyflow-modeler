@@ -20,9 +20,9 @@ import { writeDi } from '@canvas/model/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/model/import.ts';
 import { labelIdOf, syncLabel } from '@canvas/model/labels.ts';
 import { eventDefinitionTypeOf, prop, setProp } from '@canvas/model/moddle.ts';
-import { Mutator } from '@canvas/model/mutator.ts';
-import { isRootElement, type Bounds, type ElementColors, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
-import { boundsOf, contentsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, withDescendants, zRankOf } from '@canvas/model/tree.ts';
+import { Mutator, type Commit } from '@canvas/model/mutator.ts';
+import { isRootElement, type Bounds, type Drawable, type ElementColors, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
+import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, withDescendants, zRankOf } from '@canvas/model/tree.ts';
 import { categoryOf } from '@canvas/render/shapes.ts';
 import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer, type RendererOptions } from '@canvas/render/renderer.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
@@ -115,7 +115,6 @@ export class Canvas {
       container: this.container,
       viewport: this.viewport,
       getMutator: () => this.mutator,
-      redraw: (elements) => this.redrawElements(elements),
       restoreFocus: () => this.focus(),
       // While its text is edited in place, an element drops its outline and its drawn text: the caption, else its own.
       onEditing: (element, editing) => {
@@ -175,7 +174,7 @@ export class Canvas {
     this.resetInteraction();
     this.selection.forget();
     this.scene = importDefinitions(definitions, this.importOptions);
-    this.mutator = new Mutator(this.scene, this.bus);
+    this.mutator = new Mutator(this.scene, this.bus, (commit) => this.drawCommit(commit));
     this.drag = new Drag({
       mutator: this.mutator,
       redraw: (elements) => this.redrawElements(elements),
@@ -471,8 +470,47 @@ export class Canvas {
 
   // --- drawing ----------------------------------------------------------------------
 
+  /** Draw what a commit did: erase what it removed, mount what it added, redraw what it changed, keep the paint order. */
+  private drawCommit({ added, changed, removed }: Commit): void {
+    if (removed.length > 0) this.eraseRemoved(removed);
+    for (const element of added) this.mount(element);
+    this.redrawElements(changed.filter((element): element is SceneElement => !isRootElement(element)));
+    this.restack();
+  }
+
+  /** Erase what a commit removed, and let go of it: the label editor, the hover, the markers, the selection. */
+  private eraseRemoved(removed: readonly Drawable[]): void {
+    const gone = new Set(removed.map((element) => element.id));
+    const session = this.labelEditing.getSession();
+    if (session && gone.has(session.element.id)) this.labelEditing.cancel();
+    const hovered = this.selection.getHovered();
+    if (hovered && gone.has(hovered.id)) this.selection.setHovered(undefined);
+    for (const element of removed) {
+      this.renderer.erase(element.id);
+      this.renderer.erase(labelIdOf(element));
+      this.selection.forget(element.id);
+    }
+    const selected = this.selection.get();
+    const keep = selected.filter((element) => !gone.has(element.kind === 'label' ? element.owner.id : element.id));
+    if (keep.length < selected.length) this.selection.select(keep.length > 0 ? keep : null);
+  }
+
+  /** Keep the elements layer in paint order (`zRankOf`): a commit that moves shapes into or out of a container re-sorts it. */
+  private restack(): void {
+    const scene = this.scene;
+    if (!scene) return;
+    const layer = this.layers.getLayer('elements');
+    const entries = Array.from(layer.children).map((g, index) => {
+      const element = scene.elementsById.get(g.getAttribute('data-element-id') ?? '');
+      return { g, index, rank: element ? zRankOf(element) : 0 };
+    });
+    if (entries.every((entry, i) => i === 0 || entries[i - 1].rank <= entry.rank)) return;
+    entries.sort((a, b) => a.rank - b.rank || a.index - b.index);
+    for (const { g } of entries) layer.appendChild(g);
+  }
+
   /** Re-draw `elements` (and their captions) from the scene, then refresh the selection chrome. */
-  redrawElements(elements: readonly SceneElement[]): void {
+  private redrawElements(elements: readonly SceneElement[]): void {
     const scene = this.scene;
     if (!scene) return;
     const seen = new Set<string>();
@@ -504,14 +542,15 @@ export class Canvas {
     this.selection.refresh();
   }
 
-  /** @internal Draw a new element into the elements layer at its z-rank. */
-  mount(element: SceneElement): SVGGElement {
+  /** Draw a new element into the elements layer at its z-rank, with what the selection already marks on it. */
+  private mount(element: SceneElement): SVGGElement {
     const g = this.renderer.draw(element);
     const layer = this.layers.getLayer('elements');
     const owner = element.kind === 'label' ? this.renderer.graphicsById.get(element.owner.id) : undefined;
     if (owner?.parentNode === layer) layer.insertBefore(g, owner.nextSibling);
     else layer.insertBefore(g, this.firstAbove(layer, element));
     this.renderer.graphicsById.set(element.id, g);
+    this.selection.restoreMarkers(element.id);
     if (element.kind === 'edge') this.renderer.refreshJumps();
     if (element.kind !== 'label' && element.label) this.mount(element.label);
     return g;
@@ -587,14 +626,11 @@ export class Canvas {
 
   /** Add a shape the host built (a template's inner flow) at `bounds` inside `parent`, as is: no rules, no selection, no label editor. */
   addElement(descriptor: ShapeDescriptor, bounds: Bounds, parent?: SceneNode): SceneNode | undefined {
-    const node = this.mutator?.addShape({ ...descriptor, bounds, ...(parent ? { parent } : {}) });
-    if (node) this.mount(node);
-    return node;
+    return this.mutator?.addShape({ ...descriptor, bounds, ...(parent ? { parent } : {}) });
   }
 
-  /** @internal A freshly created shape: drawn, selected, and (for a task-like shape) named. */
+  /** @internal A freshly created shape: selected, and (for a task-like shape) named. */
   placed(node: SceneNode): void {
-    this.mount(node);
     this.selection.select(node);
     if (EDIT_ON_CREATE_TYPES.has(node.type) || isCollapsed(node)) this.labelEditing.activate(node);
   }
@@ -610,18 +646,16 @@ export class Canvas {
    */
   connectElements(source: SceneNode | SceneEdge, target: SceneNode, businessObject?: ModdleObject, waypoints?: Point[]): SceneEdge | undefined {
     const edge = this.connect.connect(source, target, businessObject, waypoints);
-    if (!edge) return undefined;
-    this.mount(edge);
-    this.selection.select(edge);
+    if (edge) this.selection.select(edge);
     return edge;
   }
 
-  /** Click-append: place `descriptor` beside `source` and connect the two. */
+  /** Click-append: place `descriptor` beside `source` and connect the two, as one edit. */
   appendElement(source: SceneNode | SceneEdge, descriptor: ShapeDescriptor | CreatePrototype): SceneNode | undefined {
     if (!this.scene) return undefined;
     const prototype = createShape(descriptor);
     if (!this.rules.canAppendType(source, prototype.type)) return undefined;
-    const result = autoPlaceAppend(this, source, prototype);
+    const result = this.batch(() => autoPlaceAppend(this, source, prototype));
     if (!result) return undefined;
     if (result.connection) this.selection.select(result.shape);
     return result.shape;
@@ -640,7 +674,7 @@ export class Canvas {
     return edgesIntersecting(this.scene, bounds).some((edge) => edge !== from);
   }
 
-  /** Retype `node` in place, keeping its name, position and flows. */
+  /** Retype `node` in place, keeping its name, position and flows, as one edit. */
   replaceElement(node: SceneNode, descriptor: ShapeDescriptor | CreatePrototype): SceneNode | undefined {
     const mutator = this.mutator;
     if (!this.scene || !mutator) return undefined;
@@ -658,19 +692,22 @@ export class Canvas {
     };
     const name = prop(node.businessObject, 'name');
     const attrs = { ...prototype.attrs, ...(typeof name === 'string' && name ? { name } : {}) };
-    const replacement = mutator.addShape({
-      type: prototype.type,
-      bounds,
-      ...(node.parent ?? this.scene.scope ? { parent: node.parent ?? this.scene.scope } : {}),
-      ...(prototype.extensionType ? { extensionType: prototype.extensionType } : {}),
-      ...(Object.keys(attrs).length > 0 ? { attrs } : {}),
-      ...(prototype.isExpanded !== undefined ? { isExpanded: prototype.isExpanded } : {}),
+    const parent = node.parent ?? this.scene.scope;
+    const replacement = mutator.batch(() => {
+      const shape = mutator.addShape({
+        type: prototype.type,
+        bounds,
+        ...(parent ? { parent } : {}),
+        ...(prototype.extensionType ? { extensionType: prototype.extensionType } : {}),
+        ...(Object.keys(attrs).length > 0 ? { attrs } : {}),
+        ...(prototype.isExpanded !== undefined ? { isExpanded: prototype.isExpanded } : {}),
+      });
+      for (const edge of [...node.incoming]) mutator.reconnect(edge, { target: shape });
+      for (const edge of [...node.outgoing]) mutator.reconnect(edge, { source: shape });
+      this.deleteElements([node]);
+      this.rerouteEdges([shape]);
+      return shape;
     });
-    for (const edge of [...node.incoming]) mutator.reconnect(edge, { target: replacement });
-    for (const edge of [...node.outgoing]) mutator.reconnect(edge, { source: replacement });
-    this.deleteElements([node]);
-    this.mount(replacement);
-    this.rerouteEdges([replacement]);
     this.selection.select(replacement);
     return replacement;
   }
@@ -711,7 +748,6 @@ export class Canvas {
     if (!mutator || index < 0 || index >= edge.waypoints.length) return;
     const at = this.snapPoint(point);
     mutator.setEdgeWaypoints(edge, edge.waypoints.map((p, i) => (i === index ? at : p)));
-    this.redrawElements([edge]);
   }
 
   // --- move drops ------------------------------------------------------------------------
@@ -740,31 +776,11 @@ export class Canvas {
     return selected.filter((node) => !(node.parent && set.has(node.parent)) && node !== target && (node.parent ?? undefined) !== target);
   }
 
-  /** @internal Commit a drop's containment change and re-splice graphics at their new depth. */
+  /** @internal Commit a drop's containment change; the commit re-stacks what went deeper or shallower. */
   reparentDropped(parent: SceneNode | undefined): void {
     const scene = this.scene;
-    const mutator = this.mutator;
     const roots = this.reparentable(parent);
-    if (!scene || !mutator || roots.length === 0) return;
-    const changed = mutator.reparent(roots, parent ?? scene.scope);
-    const moved = new Set<SceneElement>();
-    const add = (element: SceneElement): void => {
-      moved.add(element);
-      if (element.kind === 'label') return;
-      if (element.label) moved.add(element.label);
-      if (element.kind === 'node') for (const edge of [...element.incoming, ...element.outgoing]) add(edge);
-    };
-    for (const element of changed) {
-      add(element);
-      if (element.kind === 'node') for (const inner of contentsOf(element)) add(inner);
-    }
-    const layer = this.layers.getLayer('elements');
-    const ordered = [...moved]
-      .map((element) => ({ element, g: this.renderer.graphicsById.get(element.id) }))
-      .filter((entry): entry is { element: SceneElement; g: SVGGElement } => !!entry.g)
-      .sort((a, b) => zRankOf(a.element) - zRankOf(b.element));
-    for (const { g } of ordered) remove(g);
-    for (const { element, g } of ordered) layer.insertBefore(g, this.firstAbove(layer, element));
+    if (scene && roots.length > 0) this.mutator?.reparent(roots, parent ?? scene.scope);
   }
 
   // --- edits --------------------------------------------------------------------------------
@@ -772,10 +788,7 @@ export class Canvas {
   setExpanded(node: SceneNode, expanded: boolean): boolean {
     const mutator = this.mutator;
     if (!mutator) return false;
-    const { changed, contents } = mutator.setExpanded(node, expanded);
-    if (changed.length === 0) return false;
-    this.redrawElements([...contents, ...changed]);
-    return true;
+    return mutator.setExpanded(node, expanded).changed.length > 0;
   }
 
   toggleExpanded(node: SceneNode): boolean {
@@ -787,16 +800,12 @@ export class Canvas {
   }
 
   setColor(elements: unknown, colors: ElementColors): SceneElement[] {
-    const changed = this.mutator?.setColor(this.resolveElements(elements), colors) ?? [];
-    if (changed.length > 0) this.redrawElements(changed);
-    return changed;
+    return this.mutator?.setColor(this.resolveElements(elements), colors) ?? [];
   }
 
   /** Restyle captions: an omitted field is left alone, a falsy one clears; a label restyles the element it names. */
   setFont(elements: unknown, font: FontPatch): SceneElement[] {
-    const changed = this.mutator?.setFont(this.resolveElements(elements), font) ?? [];
-    if (changed.length > 0) this.redrawElements(changed);
-    return changed;
+    return this.mutator?.setFont(this.resolveElements(elements), font) ?? [];
   }
 
   private resolveElements(elements: unknown): SceneElement[] {
@@ -812,37 +821,25 @@ export class Canvas {
     this.updateModdleProperties(element, bo, properties);
   }
 
-  /** Write `properties` on any moddle object reachable from `element` and record the edit (core's `AttributeUpdater`). */
+  /**
+   * Write `properties` on any moddle object reachable from `element` and record the edit (core's `AttributeUpdater`).
+   * A caption stands for the element it names; anything else not on the canvas records the edit on the root.
+   */
   updateModdleProperties(element: unknown, moddle: object, properties: Record<string, unknown>): void {
     const mutator = this.mutator;
+    const scene = this.scene;
+    if (!mutator || !scene) return;
     const moddleElement = moddle as ModdleObject;
-    if (!mutator) return;
-    let touched = false;
     for (const [key, value] of Object.entries(properties)) {
-      if (prop(moddleElement, key) === value) continue;
-      setProp(moddleElement, key, value);
-      touched = true;
+      if (prop(moddleElement, key) !== value) setProp(moddleElement, key, value);
     }
     const target = this.resolveElement(element);
-    if (target && target.kind !== 'label') {
-      mutator.touch(target);
-      if (touched) {
-        // A participant's name is drawn on every choreography task it takes a band of, not only where it was edited,
-        // and a step may draw what the data it reads holds (a glyph a Parameters object sets).
-        const renamedParticipant = moddleElement.$type === 'bpmn:Participant' && 'name' in properties;
-        this.redrawElements(target.kind !== 'node' ? [target]
-          : renamedParticipant ? tasksReferencing(this.scene, moddleElement, target)
-          : isDataShape(target.type) ? stepsReading(this.scene, target)
-          : [target]);
-      }
-    } else {
-      mutator.record(isRootElement(element) ? element : this.getRoot());
-    }
+    if (target) mutator.touch(drawnFrom(scene, target.kind === 'label' ? target.owner : target, moddleElement, properties));
+    else mutator.record(scene.rootElement);
   }
 
   resizeShape(node: SceneNode, bounds: Bounds): void {
-    const changed = this.mutator?.setNodeBounds(node, bounds) ?? [];
-    this.redrawElements(changed);
+    this.mutator?.setNodeBounds(node, bounds);
   }
 
   /** Re-route the edges docked to `nodes`, and commit. */
@@ -850,10 +847,7 @@ export class Canvas {
     const mutator = this.mutator;
     if (!this.scene || !mutator) return [];
     const changed = rerouteEdgeSet(edgesAffectedBy(nodes), { obstacles: this.routeObstacles(), scope: this.scene.scope });
-    if (changed.length > 0) {
-      mutator.commit(changed);
-      this.redrawElements(changed);
-    }
+    mutator.commit(changed);
     return changed;
   }
 
@@ -893,43 +887,45 @@ export class Canvas {
     return this.deleteElements(this.selection.get());
   }
 
-  /** Delete `elements` and their closure; a caption deletes its owner's name instead. */
+  /** Delete `elements` and their closure, as one edit; a caption deletes its owner's name instead. */
   deleteElements(elements: SceneElement | readonly SceneElement[]): SceneElement[] {
     const mutator = this.mutator;
-    if (!mutator || !this.scene) return [];
+    if (!mutator) return [];
     const list = Array.isArray(elements) ? (elements as readonly SceneElement[]).slice() : [elements as SceneElement];
-    const drawables = list.filter((element) => element.kind !== 'label');
-    for (const label of list) {
-      if (label.kind === 'label' && !drawables.includes(label.owner) && mutator.setName(label.owner, '')) {
-        this.redrawElements([label.owner]);
+    const drawables = list.filter((element): element is Drawable => element.kind !== 'label');
+    return mutator.batch(() => {
+      for (const label of list) {
+        if (label.kind === 'label' && !drawables.includes(label.owner)) mutator.setName(label.owner, '');
       }
-    }
-    if (drawables.length === 0) return [];
-    const session = this.labelEditing.getSession();
-    const { removed, changed } = mutator.deleteElements(drawables);
-    if (removed.length === 0) return [];
-    if (session && removed.includes(session.element)) this.labelEditing.cancel();
-    const removedIds = new Set(removed.map((element) => element.id));
-    const hovered = this.selection.getHovered();
-    if (hovered && removedIds.has(hovered.id)) this.selection.setHovered(undefined);
-    const keep = this.selection.get().filter((element) => (
-      !removedIds.has(element.id) && !(element.kind === 'label' && removedIds.has(element.owner.id))
-    ));
-    for (const element of removed) {
-      this.renderer.erase(element.id);
-      this.renderer.erase(labelIdOf(element));
-      this.selection.forget(element.id);
-    }
-    this.selection.select(keep.length > 0 ? keep : null);
-    this.redrawElements(changed);
-    return removed;
+      return drawables.length > 0 ? mutator.deleteElements(drawables).removed : [];
+    });
+  }
+
+  /** Make every edit `edit` makes one commit: one revision, one `ElementsChanged`, one undo step. */
+  batch<T>(edit: () => T): T {
+    return this.mutator ? this.mutator.batch(edit) : edit();
   }
 }
 
-/** A data shape's node and every step whose data inputs read it. */
-function stepsReading(scene: Scene | undefined, source: SceneNode): SceneElement[] {
-  const out: SceneElement[] = [source];
-  for (const element of scene?.elementsById.values() ?? []) {
+/** What draws something of `moddle` once `properties` are written on it: `target`, and whatever else shows it. */
+function drawnFrom(scene: Scene, target: Drawable, moddle: ModdleObject, properties: Record<string, unknown>): Drawable[] {
+  // A participant's name is drawn on every choreography task it takes a band of, not only where it was edited.
+  if (target.kind === 'node' && moddle.$type === 'bpmn:Participant' && 'name' in properties) {
+    return tasksReferencing(scene, moddle, target);
+  }
+  const drawn = new Set<Drawable>([target]);
+  // A flow draws its source's `default` as a slash, so a new default redraws every flow that leaves the source.
+  const source = scene.byBusinessObject.get(moddle);
+  if ('default' in properties && source?.kind === 'node') for (const edge of source.outgoing) drawn.add(edge);
+  // A step may draw what the data it reads holds (a glyph a Parameters object sets).
+  if (target.kind === 'node' && isDataShape(target.type)) for (const step of stepsReading(scene, target)) drawn.add(step);
+  return [...drawn];
+}
+
+/** Every step whose data inputs read `source`. */
+function stepsReading(scene: Scene, source: SceneNode): SceneNode[] {
+  const out: SceneNode[] = [];
+  for (const element of scene.elementsById.values()) {
     if (element.kind !== 'node' || element === source) continue;
     const associations = (prop(element.businessObject, 'dataInputAssociations') ?? []) as ModdleObject[];
     if (associations.some((association) => ((prop(association, 'sourceRef') ?? []) as unknown[]).includes(source.businessObject))) {
