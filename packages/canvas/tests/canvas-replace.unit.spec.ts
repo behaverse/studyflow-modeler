@@ -101,7 +101,7 @@ test('a replacement keeps the centre, in its own type\'s footprint unless both t
   for (const [label, type, size] of CASES) {
     const { canvas } = load();
     const task = node(canvas, 'Task_1');
-    canvas.getMutator()!.setNodeBounds(task, { x: 200, y: 80, width: 160, height: 120 });
+    canvas.resizeShape(task, { x: 200, y: 80, width: 160, height: 120 });
 
     const replacement = canvas.replaceElement(task, { type })!;
 

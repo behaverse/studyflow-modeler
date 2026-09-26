@@ -6,7 +6,7 @@ The editable SVG canvas the modeler draws on: plain TypeScript and SVG, no bpmn-
 | --- | --- |
 | `Canvas.ts` | The object the host holds. It owns the scene, the `<svg>`, the viewport, the renderer, the selection, the label editor and the gestures, and every public method is here. |
 | `model/` | The scene and its writes. `import.ts` builds one scene tree from the definitions and their DI; `mutator.ts` is the only thing that commits an edit; `di.ts` writes the DI back on save; `labels.ts` keeps captions; `tree.ts` answers containment, paint order and visibility. |
-| `interaction/` | Pointer and keyboard. `gestures.ts` turns a press into one gesture and drives `drag.ts`, `create.ts` or `connect.ts`; also `selection.ts`, `labelEditing.ts`, `hit.ts`, `snapping.ts`, `autoplace.ts`. |
+| `interaction/` | Pointer and keyboard. `gestures.ts` turns a press into one gesture and drives `drag.ts` (which also drops a move into a container), `create.ts` or `connect.ts`, through the canvas's public API and the few tools `Canvas.ts` hands it; also `selection.ts`, `labelEditing.ts`, `hit.ts`, `snapping.ts`, `autoplace.ts`. |
 | `render/` | One `<g>` per element (`renderer.ts`), the shapes, captions and icons. |
 | `routing/` | Orthogonal edge routes (`orthogonal.ts`), docking on a shape's outline (`crop.ts`), bendpoint edits (`edit.ts`). |
 | `rules/rules.ts` | What may connect, contain or resize what: a schema's `meta.connectsTo` first, then plain BPMN. |

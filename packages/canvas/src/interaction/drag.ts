@@ -1,11 +1,13 @@
 /**
  * Move, resize and waypoint drags. A gesture snapshots the original geometry,
  * re-derives every frame from that snapshot plus the total pointer delta, and
- * commits through the mutator on release. Cancel restores the snapshot.
+ * commits through the mutator on release. Cancel restores the snapshot. A move
+ * dropped on a container re-homes the moved shapes there, in the same commit.
  */
 
+import { isContainerNode, type HitOptions } from '@canvas/interaction/hit.ts';
 import type { Mutator } from '@canvas/model/mutator.ts';
-import type { Bounds, Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
+import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { nameOf } from '@canvas/model/moddle.ts';
 import { visibleEndpointOf, withDescendants } from '@canvas/model/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/render/labels.ts';
@@ -13,12 +15,20 @@ import { cropPoint } from '@canvas/routing/crop.ts';
 import { freeMoveEnd, moveBendpoint, moveTerminal, samePoints } from '@canvas/routing/edit.ts';
 import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
 import type { ResizeHandle } from '@canvas/interaction/selection.ts';
-import type { Size } from '@canvas/rules/rules.ts';
+import { containerFor, type Rules, type Size } from '@canvas/rules/rules.ts';
 
 export const DEFAULT_GRID_SIZE = 10;
-const DEFAULT_MIN_SIZE = 20;
 
 export type DragKind = 'move' | 'resize' | 'waypoint';
+
+/** Where a move would drop: the element under the pointer, the container that would take the shapes, and whether it may. */
+export interface MoveDrop {
+  over?: SceneElement;
+  parent?: SceneNode;
+  allowed: boolean;
+  /** The moved shapes whose container the drop changes. */
+  rehomed: SceneNode[];
+}
 export type Movable = SceneNode | SceneLabel;
 
 /** Which axes a frame may still grid-snap (an axis alignment already claimed is left alone). */
@@ -31,12 +41,15 @@ const BOTH_AXES: GridAxes = { x: true, y: true };
 
 export interface DragOptions {
   mutator: Mutator;
+  /** Draws a frame; the commit on release draws itself. */
   redraw: (elements: SceneElement[]) => void;
   snapToGrid?: boolean;
-  minSizeFor?: (node: SceneNode) => Size;
+  /** A resize's minimum size, and whether a container takes a drop. */
+  rules: Rules;
+  getScene: () => Scene | undefined;
+  hitTest: (point: Point, options?: HitOptions) => SceneElement | undefined;
   /** Boxes a live re-route steers around, asked once per move. */
   obstacles?: (moving: readonly SceneNode[]) => Bounds[];
-  getScope?: () => SceneNode | undefined;
 }
 
 type EdgeFollow = 'all' | 'first' | 'last';
@@ -90,9 +103,10 @@ export function snapTo(value: number, step: number): number {
 export class Drag {
   private readonly mutator: Mutator;
   private readonly redraw: (elements: SceneElement[]) => void;
-  private readonly minSizeOf?: (node: SceneNode) => Size;
+  private readonly rules: Rules;
+  private readonly getScene: () => Scene | undefined;
+  private readonly hitTest: DragOptions['hitTest'];
   private readonly obstaclesFor?: (moving: readonly SceneNode[]) => Bounds[];
-  private readonly getScope?: () => SceneNode | undefined;
   private snap: boolean;
   private state?: DragState;
   private axes: GridAxes = BOTH_AXES;
@@ -100,10 +114,11 @@ export class Drag {
   constructor(options: DragOptions) {
     this.mutator = options.mutator;
     this.redraw = options.redraw;
-    this.minSizeOf = options.minSizeFor;
+    this.rules = options.rules;
+    this.getScene = options.getScene;
+    this.hitTest = options.hitTest;
     this.snap = options.snapToGrid ?? true;
     this.obstaclesFor = options.obstacles;
-    this.getScope = options.getScope;
   }
 
   isActive(): boolean {
@@ -180,7 +195,7 @@ export class Drag {
     }
     const min = target.kind === 'label'
       ? labelMinSize(nameOf(target.businessObject))
-      : this.minSizeOf?.(target) ?? { width: DEFAULT_MIN_SIZE, height: DEFAULT_MIN_SIZE };
+      : this.rules.minSizeFor(target);
     const labelOrigin = target.kind === 'node' && target.label?.pinned ? { x: target.label.x, y: target.label.y } : undefined;
     this.state = {
       kind: 'resize',
@@ -239,6 +254,41 @@ export class Drag {
     return changed;
   }
 
+  /** Where the move in progress would drop at `point`; `undefined` for any other drag. */
+  dropAt(point: Point): MoveDrop | undefined {
+    const state = this.state;
+    const scene = this.getScene();
+    if (state?.kind !== 'move' || state.nodes.length === 0 || !scene) return undefined;
+    const moving = new Set(state.nodes.map((node) => node.id));
+    const over = this.hitTest(point, { accept: (el) => !moving.has(el.kind === 'label' ? el.owner.id : el.id) });
+    const hit = !over || over.kind === 'label' ? undefined : over.kind === 'node' && isContainerNode(over) ? over : over.parent;
+    const container = containerFor(hit) as SceneNode | undefined;
+    const parent = container?.kind === 'node' ? container : undefined;
+    const roots = state.nodes.filter((node) => !(node.parent && moving.has(node.parent.id)));
+    const scope = scene.scope;
+    const allowed = this.rules.canMove(roots, parent ?? (scope ? { ...scope, isExpanded: true } : scene.rootElement));
+    const home = parent ?? scope;
+    const rehomed = roots.filter((node) => node !== home && (node.parent ?? undefined) !== home);
+    return { ...(over ? { over } : {}), ...(parent ? { parent } : {}), allowed, rehomed };
+  }
+
+  /**
+   * End a move dropped at `point`. A container that refuses the shapes cancels it; else the move and the
+   * change of container it makes are one commit. `false` when it was cancelled.
+   */
+  drop(point: Point, grid: GridAxes = BOTH_AXES): boolean {
+    const target = this.dropAt(point);
+    if (target && !target.allowed) {
+      this.cancel();
+      return false;
+    }
+    this.mutator.batch(() => {
+      this.end(point, grid);
+      if (target && target.rehomed.length > 0) this.mutator.reparent(target.rehomed, target.parent ?? this.getScene()?.scope);
+    });
+    return true;
+  }
+
   /** Put the snapshot back verbatim (a zero delta is not the identity under grid snapping). */
   cancel(): SceneElement[] {
     const state = this.state;
@@ -280,7 +330,7 @@ export class Drag {
       label.x = from.x + dx;
       label.y = from.y + dy;
     }
-    const scope = this.getScope?.();
+    const scope = this.getScene()?.scope;
     for (const edge of state.edges) {
       const original = state.edgeOrigins.get(edge);
       if (!original || original.length === 0) continue;

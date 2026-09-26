@@ -19,16 +19,17 @@ import { tasksReferencing } from '@canvas/model/choreography.ts';
 import { writeDi } from '@canvas/model/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/model/import.ts';
 import { labelIdOf, syncLabel } from '@canvas/model/labels.ts';
+import type { IdGenerator } from '@canvas/model/ids.ts';
 import { eventDefinitionTypeOf, prop, setProp } from '@canvas/model/moddle.ts';
 import { Mutator, type Commit } from '@canvas/model/mutator.ts';
-import { isRootElement, type Bounds, type Drawable, type ElementColors, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
-import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, withDescendants, zRankOf } from '@canvas/model/tree.ts';
+import { isRootElement, type Bounds, type Drawable, type ElementColors, type ElementRef, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/model/scene.ts';
+import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/model/tree.ts';
 import { categoryOf } from '@canvas/render/shapes.ts';
 import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer, type RendererOptions } from '@canvas/render/renderer.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
 import { centerOf } from '@canvas/routing/crop.ts';
 import { rerouteEdges as rerouteEdgeSet, routableEnd, routeFor } from '@canvas/routing/orthogonal.ts';
-import { CONNECTION, containerFor, isDataShape, Rules, type RuleElement } from '@canvas/rules/rules.ts';
+import { CONNECTION, isDataShape, Rules, type RuleElement } from '@canvas/rules/rules.ts';
 import { CUSTOM_LAYER_ATTRIBUTE, Layers } from '@canvas/view/layers.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
 import { Viewport, type Viewbox } from '@canvas/view/viewport.ts';
@@ -63,8 +64,8 @@ const EDIT_ON_CREATE_TYPES = new Set<string>([
 ]);
 
 export class Canvas {
-  readonly create: Create;
-  readonly connect: Connect;
+  private readonly create: Create;
+  private readonly connect: Connect;
   private readonly container: HTMLElement;
   private readonly root: SVGSVGElement;
   private readonly layers: Layers;
@@ -147,7 +148,17 @@ export class Canvas {
     });
     if (!this.root.hasAttribute('tabindex')) this.root.setAttribute('tabindex', '0');
     if (!this.container.hasAttribute('tabindex')) this.container.setAttribute('tabindex', '0');
-    this.gestures = new Gestures(this);
+    this.gestures = new Gestures(this, {
+      create: this.create,
+      connect: this.connect,
+      drag: () => this.drag,
+      overlays: this.layers.getLayer('overlays'),
+      movableSelection: () => this.movableSelection(),
+      viewportCentre: () => this.viewportCentre(),
+      placed: (node) => this.placed(node),
+      moveWaypoint: (edge, index, point) => this.moveWaypoint(edge, index, point),
+      nudgeSelection: (dx, dy) => this.nudgeSelection(dx, dy),
+    });
   }
 
   destroy(): void {
@@ -179,9 +190,10 @@ export class Canvas {
       mutator: this.mutator,
       redraw: (elements) => this.redrawElements(elements),
       snapToGrid: this.snapToGrid,
-      minSizeFor: (node) => this.rules.minSizeFor(node),
+      rules: this.rules,
+      getScene: () => this.scene,
+      hitTest: (point, options) => this.hitTest(point, options),
       obstacles: (moving) => this.routeObstacles(moving),
-      getScope: () => this.scene?.scope,
     });
     this.appendPreview = undefined;
     this.layers.clear();
@@ -227,22 +239,13 @@ export class Canvas {
     return this.rules;
   }
 
-  getMutator(): Mutator | undefined {
-    return this.mutator;
+  /** The ids the open document holds and the next ones to mint; none before an import. */
+  getIds(): IdGenerator | undefined {
+    return this.mutator?.ids;
   }
 
   getLabelEditing(): LabelEditing {
     return this.labelEditing;
-  }
-
-  /** @internal */
-  getDrag(): Drag | undefined {
-    return this.drag;
-  }
-
-  /** @internal */
-  getOverlays(): SVGGElement {
-    return this.layers.getLayer('overlays');
   }
 
   getGraphics(id: string): SVGGElement | undefined {
@@ -263,8 +266,8 @@ export class Canvas {
     return this.scene ? [...this.scene.elementsById.values()] : [];
   }
 
-  /** The live element behind an id, an element or a stale copy; `undefined` when nothing answers. */
-  resolveElement(value: unknown): SceneElement | undefined {
+  /** The live element behind an id, an element or a stale copy; `undefined` when nothing answers (the root included). */
+  resolveElement(value: ElementRef | undefined): SceneElement | undefined {
     const scene = this.scene;
     if (!scene || !value) return undefined;
     if (typeof value === 'string') return scene.elementsById.get(value);
@@ -281,7 +284,7 @@ export class Canvas {
   }
 
   /** The nearest collapsed container `element` lives in, else the document root. */
-  rootOf(element: unknown): Root | undefined {
+  rootOf(element: ElementRef): Root | undefined {
     const scene = this.scene;
     if (!scene) return undefined;
     if (isRootElement(element)) return element;
@@ -365,22 +368,22 @@ export class Canvas {
   }
 
   /** The screen-space box of `element`. */
-  getAbsoluteBBox(element: unknown): Bounds {
+  getAbsoluteBBox(element: ElementRef): Bounds {
     const target = this.resolveElement(element);
     return this.viewport.getAbsoluteBBox((target && boundsOf([target])) ?? { x: 0, y: 0, width: 0, height: 0 });
   }
 
-  addMarker(element: unknown, marker: string): void {
+  addMarker(element: ElementRef, marker: string): void {
     const target = this.resolveElement(element);
     if (target) this.selection.addMarker(target, marker);
   }
 
-  removeMarker(element: unknown, marker: string): void {
+  removeMarker(element: ElementRef, marker: string): void {
     const target = this.resolveElement(element);
     if (target) this.selection.removeMarker(target, marker);
   }
 
-  scrollToElement(element: unknown): void {
+  scrollToElement(element: ElementRef): void {
     const target = this.resolveElement(element);
     if (!target) throw new Error('@behaverse/studyflow-canvas: element is not on the canvas');
     this.viewport.scrollToElement(target);
@@ -408,14 +411,12 @@ export class Canvas {
     this.drag?.setSnapToGrid(on);
   }
 
-  /** @internal */
-  snapPoint(point: Point): Point {
+  private snapPoint(point: Point): Point {
     if (!this.snapToGrid) return { ...point };
     return { x: snapTo(point.x, DEFAULT_GRID_SIZE), y: snapTo(point.y, DEFAULT_GRID_SIZE) };
   }
 
-  /** @internal */
-  viewportCentre(): Point {
+  private viewportCentre(): Point {
     const box = this.viewport.getViewbox();
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   }
@@ -595,8 +596,8 @@ export class Canvas {
     return this.scene ? hitTest(this.scene, point, options) : undefined;
   }
 
-  /** @internal The selected shapes and captions a move carries. */
-  movableSelection(): Movable[] {
+  /** The selected shapes and captions a move carries. */
+  private movableSelection(): Movable[] {
     return this.selection.get().filter((e): e is Movable => e.kind !== 'edge');
   }
 
@@ -629,8 +630,8 @@ export class Canvas {
     return this.mutator?.addShape({ ...descriptor, bounds, ...(parent ? { parent } : {}) });
   }
 
-  /** @internal A freshly created shape: selected, and (for a task-like shape) named. */
-  placed(node: SceneNode): void {
+  /** A freshly created shape: selected, and (for a task-like shape) named. */
+  private placed(node: SceneNode): void {
     this.selection.select(node);
     if (EDIT_ON_CREATE_TYPES.has(node.type) || isCollapsed(node)) this.labelEditing.activate(node);
   }
@@ -742,45 +743,12 @@ export class Canvas {
     this.appendPreview = undefined;
   }
 
-  /** @internal Move one waypoint and commit it. */
-  moveWaypoint(edge: SceneEdge, index: number, point: Point): void {
+  /** Move one waypoint and commit it. */
+  private moveWaypoint(edge: SceneEdge, index: number, point: Point): void {
     const mutator = this.mutator;
     if (!mutator || index < 0 || index >= edge.waypoints.length) return;
     const at = this.snapPoint(point);
     mutator.setEdgeWaypoints(edge, edge.waypoints.map((p, i) => (i === index ? at : p)));
-  }
-
-  // --- move drops ------------------------------------------------------------------------
-
-  /** @internal The container a move hovering `point` would land in, and whether it may. */
-  moveDropTarget(point: Point): { over?: SceneElement; parent?: SceneNode; allowed: boolean } | undefined {
-    const scene = this.scene;
-    if (!scene) return undefined;
-    const moving = withDescendants(this.movableSelection().filter((el): el is SceneNode => el.kind === 'node'));
-    if (moving.length === 0) return undefined;
-    const ids = new Set(moving.map((node) => node.id));
-    const over = this.hitTest(point, { accept: (el) => !ids.has(el.kind === 'label' ? el.owner.id : el.id) });
-    const hit = !over || over.kind === 'label' ? undefined : over.kind === 'node' && isContainerNode(over) ? over : over.parent;
-    const container = containerFor(hit) as SceneNode | undefined;
-    const parent = container && container.kind === 'node' ? container : undefined;
-    const roots = moving.filter((node) => !(node.parent && ids.has(node.parent.id)));
-    const allowed = this.rules.canMove(roots, parent ?? (scene.scope ? { ...scene.scope, isExpanded: true } : scene.rootElement));
-    return { ...(over ? { over } : {}), ...(parent ? { parent } : {}), allowed };
-  }
-
-  /** @internal The moved nodes whose container would change by landing in `parent`. */
-  reparentable(parent: SceneNode | undefined): SceneNode[] {
-    const selected = this.movableSelection().filter((el): el is SceneNode => el.kind === 'node');
-    const set = new Set(selected);
-    const target = parent ?? this.scene?.scope;
-    return selected.filter((node) => !(node.parent && set.has(node.parent)) && node !== target && (node.parent ?? undefined) !== target);
-  }
-
-  /** @internal Commit a drop's containment change; the commit re-stacks what went deeper or shallower. */
-  reparentDropped(parent: SceneNode | undefined): void {
-    const scene = this.scene;
-    const roots = this.reparentable(parent);
-    if (scene && roots.length > 0) this.mutator?.reparent(roots, parent ?? scene.scope);
   }
 
   // --- edits --------------------------------------------------------------------------------
@@ -799,33 +767,32 @@ export class Canvas {
     return isExpandable(node.type);
   }
 
-  setColor(elements: unknown, colors: ElementColors): SceneElement[] {
+  setColor(elements: ElementRef | readonly ElementRef[], colors: ElementColors): SceneElement[] {
     return this.mutator?.setColor(this.resolveElements(elements), colors) ?? [];
   }
 
   /** Restyle captions: an omitted field is left alone, a falsy one clears; a label restyles the element it names. */
-  setFont(elements: unknown, font: FontPatch): SceneElement[] {
+  setFont(elements: ElementRef | readonly ElementRef[], font: FontPatch): SceneElement[] {
     return this.mutator?.setFont(this.resolveElements(elements), font) ?? [];
   }
 
-  private resolveElements(elements: unknown): SceneElement[] {
+  private resolveElements(elements: ElementRef | readonly ElementRef[]): SceneElement[] {
     return (Array.isArray(elements) ? elements : [elements])
       .map((el) => this.resolveElement(el))
       .filter((el): el is SceneElement => !!el);
   }
 
-  /** Write `properties` on an element's business object (or on the root) and record the edit. */
-  updateProperties(element: unknown, properties: Record<string, unknown>): void {
+  /** Write `properties` on an element's business object (or on the root's) and record the edit. */
+  updateProperties(element: SceneElement | RootElement, properties: Record<string, unknown>): void {
     const target = this.resolveElement(element);
-    const bo = (target?.businessObject ?? (element as { businessObject?: ModdleObject })?.businessObject ?? element) as ModdleObject;
-    this.updateModdleProperties(element, bo, properties);
+    this.updateModdleProperties(element, target?.businessObject ?? element.businessObject, properties);
   }
 
   /**
    * Write `properties` on any moddle object reachable from `element` and record the edit (core's `AttributeUpdater`).
    * A caption stands for the element it names; anything else not on the canvas records the edit on the root.
    */
-  updateModdleProperties(element: unknown, moddle: object, properties: Record<string, unknown>): void {
+  updateModdleProperties(element: ElementRef, moddle: object, properties: Record<string, unknown>): void {
     const mutator = this.mutator;
     const scene = this.scene;
     if (!mutator || !scene) return;
@@ -859,8 +826,7 @@ export class Canvas {
       .map((node) => ({ x: node.x, y: node.y, width: node.width, height: node.height }));
   }
 
-  /** @internal */
-  nudgeSelection(dx: number, dy: number): boolean {
+  private nudgeSelection(dx: number, dy: number): boolean {
     const drag = this.drag;
     if (!drag || drag.isActive()) return false;
     const movable = this.movableSelection();

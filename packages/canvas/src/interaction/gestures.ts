@@ -6,13 +6,13 @@
  */
 
 import type { Canvas } from '@canvas/Canvas.ts';
-import type { GridAxes, Movable } from '@canvas/interaction/drag.ts';
+import type { Drag, GridAxes, Movable } from '@canvas/interaction/drag.ts';
 import { nodesIntersecting, normalizeRect } from '@canvas/interaction/hit.ts';
 import type { HandleHit, WaypointHit } from '@canvas/interaction/selection.ts';
 import { RESIZING_MARKER } from '@canvas/interaction/selection.ts';
 import { collectSnapTargets, snapMove, snapPoint, type SnapTargets } from '@canvas/interaction/snapping.ts';
-import type { ConnectionEnd } from '@canvas/interaction/connect.ts';
-import type { CreatePrototype } from '@canvas/interaction/create.ts';
+import type { Connect, ConnectionEnd } from '@canvas/interaction/connect.ts';
+import type { Create, CreatePrototype } from '@canvas/interaction/create.ts';
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
 import { isExpandable } from '@canvas/model/tree.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
@@ -71,8 +71,28 @@ function segmentAt(waypoints: readonly Point[], point: Point): number | undefine
   return undefined;
 }
 
+/** What the gestures need of the canvas beyond its public API: the tools they drive and the edits a key or a click makes. */
+export interface GestureTools {
+  create: Create;
+  connect: Connect;
+  /** The move, resize and waypoint drags; none before an import. */
+  drag(): Drag | undefined;
+  overlays: SVGGElement;
+  /** The selected shapes and captions a move carries. */
+  movableSelection(): Movable[];
+  /** Where a create started without a pointer lands. */
+  viewportCentre(): Point;
+  /** A shape a create just landed: selected, and (for a task-like shape) named. */
+  placed(node: SceneNode): void;
+  /** Move one waypoint and commit it. */
+  moveWaypoint(edge: SceneEdge, index: number, point: Point): void;
+  /** Move the selection by `(dx, dy)` as one edit; `false` when nothing moved. */
+  nudgeSelection(dx: number, dy: number): boolean;
+}
+
 export class Gestures {
   private readonly canvas: Canvas;
+  private readonly tools: GestureTools;
   private gesture?: Gesture;
   private marqueeRect?: SVGRectElement;
   private snapLines?: SVGGElement;
@@ -93,8 +113,9 @@ export class Gestures {
   private readonly onHover = (ev: Event) => this.handleHover(ev as MouseEvent);
   private readonly onWheel = (ev: Event) => this.handleWheel(ev as WheelEvent);
 
-  constructor(canvas: Canvas) {
+  constructor(canvas: Canvas, tools: GestureTools) {
     this.canvas = canvas;
+    this.tools = tools;
     const root = canvas.getSvg();
     root.addEventListener('pointerdown', this.onDown);
     root.addEventListener('dblclick', this.onDblClick);
@@ -119,8 +140,8 @@ export class Gestures {
 
   /** A palette create may begin outside the canvas, so it installs the document listeners itself. */
   startCreate(event: MouseEvent | undefined, prototype: CreatePrototype): boolean {
-    const point = event ? this.eventPoint(event) : this.canvas.viewportCentre();
-    if (!this.canvas.create.start(prototype, point)) return false;
+    const point = event ? this.eventPoint(event) : this.tools.viewportCentre();
+    if (!this.tools.create.start(prototype, point)) return false;
     this.canvas.getSvg().classList.add('sf-drag-active');
     this.markGesture('create');
     this.gesture = {
@@ -137,7 +158,7 @@ export class Gestures {
 
   startConnect(source: SceneNode, event?: MouseEvent): boolean {
     const point = event ? this.eventPoint(event) : { x: source.x + source.width, y: source.y + source.height / 2 };
-    if (!this.canvas.connect.start(source, point)) return false;
+    if (!this.tools.connect.start(source, point)) return false;
     this.markGesture('connect');
     this.gesture = {
       downScreen: event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 },
@@ -154,9 +175,9 @@ export class Gestures {
 
   /** Abandon whatever is in flight, writing nothing. */
   cancel(): void {
-    this.canvas.getDrag()?.cancel();
-    this.canvas.create.cancel();
-    this.canvas.connect.cancel();
+    this.tools.drag()?.cancel();
+    this.tools.create.cancel();
+    this.tools.connect.cancel();
     this.endGesture();
     this.clearMarquee();
   }
@@ -200,8 +221,8 @@ export class Gestures {
       const drop = this.eventPoint(ev);
       g.downScreen = { x: ev.clientX, y: ev.clientY };
       g.downDiagram = drop;
-      if (g.intent === 'create') canvas.create.update(drop);
-      else canvas.connect.update(drop);
+      if (g.intent === 'create') this.tools.create.update(drop);
+      else this.tools.connect.update(drop);
       return;
     }
     canvas.focus();
@@ -311,12 +332,11 @@ export class Gestures {
   }
 
   private updateGesture(g: Gesture, point: Point): void {
-    const canvas = this.canvas;
-    if (g.intent === 'create') canvas.create.update(point);
-    else if (g.intent === 'connect' || g.intent === 'reconnect') canvas.connect.update(point);
+    if (g.intent === 'create') this.tools.create.update(point);
+    else if (g.intent === 'connect' || g.intent === 'reconnect') this.tools.connect.update(point);
     else {
       const snapped = this.snapGesture(g, point);
-      canvas.getDrag()?.update(snapped.point, snapped.grid);
+      this.tools.drag()?.update(snapped.point, snapped.grid);
       if (g.intent === 'move') this.trackMoveDropTarget(point);
     }
   }
@@ -348,7 +368,7 @@ export class Gestures {
 
   private beginDrag(g: Gesture): boolean {
     const canvas = this.canvas;
-    const drag = canvas.getDrag();
+    const drag = this.tools.drag();
     if (!drag) return false;
     const selection = canvas.getSelection();
     if (g.intent === 'resize' && g.handle) {
@@ -368,10 +388,10 @@ export class Gestures {
     }
     if (g.intent === 'reconnect' && g.waypoint) {
       const end = endpointOf(g.waypoint.edge, g.waypoint.index);
-      return !!end && canvas.connect.startReconnect(g.waypoint.edge, end, g.downDiagram);
+      return !!end && this.tools.connect.startReconnect(g.waypoint.edge, end, g.downDiagram);
     }
     if (g.intent === 'move') {
-      const movable = canvas.movableSelection();
+      const movable = this.tools.movableSelection();
       if (!drag.startMove(movable, g.downDiagram)) return false;
       this.beginSnapping(g, movable);
       return true;
@@ -382,10 +402,10 @@ export class Gestures {
   // --- drop targets (a move into or out of a container) ---------------------------
 
   private trackMoveDropTarget(point: Point): void {
-    const target = this.canvas.moveDropTarget(point);
-    if (!target) return;
-    const show = !target.allowed || this.canvas.reparentable(target.parent).length > 0;
-    this.markDropTarget(show ? target.over : undefined, show && target.allowed);
+    const drop = this.tools.drag()?.dropAt(point);
+    if (!drop) return;
+    const show = !drop.allowed || drop.rehomed.length > 0;
+    this.markDropTarget(show ? drop.over : undefined, show && drop.allowed);
   }
 
   /** Tint the element a gesture hovers: accepting or refusing the drop. */
@@ -438,7 +458,7 @@ export class Gestures {
   /** Alignment first (with guides), then whatever axis it left alone is the grid's. */
   private snapGesture(g: Gesture, point: Point): { point: Point; grid: GridAxes } {
     const ctx = this.snapContext;
-    if (!ctx || !this.canvas.getDrag()?.isActive()) {
+    if (!ctx || !this.tools.drag()?.isActive()) {
       this.hideSnapLines();
       return { point, grid: { x: true, y: true } };
     }
@@ -473,7 +493,7 @@ export class Gestures {
     const box = this.canvas.getViewport().getViewbox();
     if (!this.snapLines) {
       this.snapLines = create('g', { class: 'sf-snap-lines' }) as SVGGElement;
-      append(this.canvas.getOverlays(), this.snapLines);
+      append(this.tools.overlays, this.snapLines);
     }
     while (this.snapLines.firstChild) this.snapLines.removeChild(this.snapLines.firstChild);
     if (x !== undefined) append(this.snapLines, create('line', { class: 'sf-snap-line', x1: x, y1: box.y, x2: x, y2: box.y + box.height }));
@@ -515,28 +535,21 @@ export class Gestures {
       // The viewbox already moved.
     } else if (g.dragging) {
       if (g.intent === 'create') {
-        const node = canvas.create.end(pt);
-        if (node) canvas.placed(node);
+        const node = this.tools.create.end(pt);
+        if (node) this.tools.placed(node);
       } else if (g.intent === 'connect' || g.intent === 'reconnect') {
-        const kind = canvas.connect.getKind();
-        const edge = canvas.connect.end(pt);
+        const kind = this.tools.connect.getKind();
+        const edge = this.tools.connect.end(pt);
         if (edge) selection.select(edge);
         else if (kind === 'reconnect' && g.waypoint) {
           // Dropped clear of every shape: a free endpoint move. Dropped on a refused shape: nothing.
           const over = canvas.hitTest(pt);
-          if (!over || over.kind === 'edge') canvas.moveWaypoint(g.waypoint.edge, g.waypoint.index, pt);
+          if (!over || over.kind === 'edge') this.tools.moveWaypoint(g.waypoint.edge, g.waypoint.index, pt);
         }
       } else {
-        const drag = canvas.getDrag();
-        const target = drag?.getKind() === 'move' ? canvas.moveDropTarget(pt) : undefined;
-        if (target && !target.allowed) drag?.cancel();
-        else {
-          // The move and the change of container it makes are one edit.
-          canvas.batch(() => {
-            drag?.end(pt, snapped.grid);
-            if (target?.allowed) canvas.reparentDropped(target.parent);
-          });
-        }
+        const drag = this.tools.drag();
+        if (drag?.getKind() === 'move') drag.drop(pt, snapped.grid);
+        else drag?.end(pt, snapped.grid);
       }
     } else if (g.marquee) {
       const rect = normalizeRect({ x: g.downDiagram.x, y: g.downDiagram.y, width: pt.x - g.downDiagram.x, height: pt.y - g.downDiagram.y });
@@ -583,7 +596,7 @@ export class Gestures {
   private drawMarquee(a: Point, b: Point): void {
     const rect = normalizeRect({ x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y });
     if (!this.marqueeRect) {
-      this.marqueeRect = append(this.canvas.getOverlays(), create('rect', { class: 'sf-marquee' })) as SVGRectElement;
+      this.marqueeRect = append(this.tools.overlays, create('rect', { class: 'sf-marquee' })) as SVGRectElement;
     }
     for (const [name, value] of Object.entries(rect)) this.marqueeRect.setAttribute(name, String(value));
   }
@@ -657,10 +670,10 @@ export class Gestures {
       const step = ev.shiftKey ? LARGE_NUDGE : NUDGE;
       switch (ev.key) {
         case 'Delete': case 'Backspace': handled = canvas.deleteSelection().length > 0; break;
-        case 'ArrowLeft': handled = canvas.nudgeSelection(-step, 0); break;
-        case 'ArrowRight': handled = canvas.nudgeSelection(step, 0); break;
-        case 'ArrowUp': handled = canvas.nudgeSelection(0, -step); break;
-        case 'ArrowDown': handled = canvas.nudgeSelection(0, step); break;
+        case 'ArrowLeft': handled = this.tools.nudgeSelection(-step, 0); break;
+        case 'ArrowRight': handled = this.tools.nudgeSelection(step, 0); break;
+        case 'ArrowUp': handled = this.tools.nudgeSelection(0, -step); break;
+        case 'ArrowDown': handled = this.tools.nudgeSelection(0, step); break;
         case 'e': handled = canvas.editLabel(); break;
         case 'a': {
           const elements = canvas.getSelection().get();

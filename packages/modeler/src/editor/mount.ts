@@ -60,7 +60,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
 
   // Before the first import there is no scene-wide generator; a standalone one covers the palette.
   const preImportIds = new IdGenerator();
-  const ids = (): IdGenerator => canvas.getMutator()?.ids ?? preImportIds;
+  const ids = (): IdGenerator => canvas.getIds() ?? preImportIds;
   moddle.ids = {
     nextPrefixed: (prefix: string, element?: ModelElement) => ids().nextPrefixed(prefix, element),
     assigned: (id: string) => ids().assigned(id),

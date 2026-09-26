@@ -102,6 +102,9 @@ export interface RootElement {
   parent: undefined;
 }
 
+/** What names an element to the canvas: the element (a stale copy will do), its id, or the diagram root. */
+export type ElementRef = SceneElement | RootElement | string;
+
 export interface Scene {
   definitions: ModdleObject;
   /** The business object the diagram depicts (`bpmn:Process` or `bpmn:Collaboration`). */

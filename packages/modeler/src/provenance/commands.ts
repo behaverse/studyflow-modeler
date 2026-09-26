@@ -15,7 +15,8 @@ export function runInvalidateProvenanceRecord(
   command: InvalidateProvenanceRecordCommand,
 ): boolean {
   const element = modeler.canvas.get(command.elementId);
-  const bo: any = element?.businessObject;
+  if (!element) return false;
+  const bo: any = element.businessObject;
   const extensionElements = bo?.extensionElements;
   const values: any[] = extensionElements?.values ?? [];
   if (!values.includes(command.entry)) return false;

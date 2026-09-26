@@ -4,7 +4,7 @@
  */
 
 import type { EventBus } from '@canvas/bus.ts';
-import type { Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
+import type { ElementRef, Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 
 const RESIZE_HANDLES = ['nw', 'ne', 'se', 'sw'] as const;
@@ -22,7 +22,7 @@ export interface SelectionOptions {
   bus: EventBus;
   canResize?: (target: Resizable) => boolean;
   /** Turns whatever a caller names an element by (an id, a stale copy) into the scene element. */
-  resolve?: (value: unknown) => SceneElement | undefined;
+  resolve?: (value: ElementRef) => SceneElement | undefined;
 }
 
 const HANDLE_SIZE = 7;
@@ -51,7 +51,7 @@ export class Selection {
   private readonly getGraphics: (id: string) => SVGGElement | undefined;
   private readonly bus: EventBus;
   private readonly canResize: (target: Resizable) => boolean;
-  private readonly resolve: (value: unknown) => SceneElement | undefined;
+  private readonly resolve: (value: ElementRef) => SceneElement | undefined;
   private selected: SceneElement[] = [];
   private hovered?: SceneEdge;
   private previewed: SceneElement[] = [];
@@ -75,10 +75,10 @@ export class Selection {
   }
 
   /** Replace the selection (or union it in with `add`); unresolvable names are dropped. */
-  select(elements: unknown, add = false): void {
+  select(elements: ElementRef | readonly ElementRef[] | null, add = false): void {
     const named = elements == null ? [] : Array.isArray(elements) ? elements : [elements];
     const next: SceneElement[] = add ? this.selected.slice() : [];
-    for (const value of named as readonly unknown[]) {
+    for (const value of named) {
       const element = this.resolve(value);
       if (element && !next.some((e) => e.id === element.id)) next.push(element);
     }
