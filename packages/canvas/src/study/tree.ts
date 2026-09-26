@@ -88,6 +88,16 @@ export function isHidden(element: SceneElement, scope?: SceneNode): boolean {
   return false;
 }
 
+/**
+ * The collapsed container whose drill-down draws `element` (a caption goes with its owner); `undefined` when
+ * the root plane draws it.
+ */
+export function planeOf(element: SceneElement): SceneNode | undefined {
+  const owner = element.kind === 'label' ? element.owner : element;
+  for (let p = owner.parent; p; p = p.parent) if (isCollapsed(p)) return p;
+  return undefined;
+}
+
 /** The shape actually on screen for an edge end: the outermost collapsed ancestor, if any. */
 export function visibleEndpointOf(node: SceneNode, scope?: SceneNode): SceneNode {
   let visible = node;

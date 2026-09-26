@@ -9,7 +9,7 @@ import { isContainerNode, type HitOptions } from '@canvas/study/hit.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { nameOf } from '@canvas/study/moddle.ts';
-import { visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
+import { planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/study/text.ts';
 import { cropPoint } from '@core/document/outline.ts';
 import { freeMoveEnd, moveBendpoint, moveTerminal, samePoints } from '@canvas/study/edit.ts';
@@ -332,7 +332,6 @@ export class Drag {
       label.x = from.x + dx;
       label.y = from.y + dy;
     }
-    const scope = this.getScene()?.scope;
     for (const edge of state.edges) {
       const original = state.edgeOrigins.get(edge);
       if (!original || original.length === 0) continue;
@@ -345,7 +344,7 @@ export class Drag {
       const end: 'source' | 'target' = mode === 'first' ? 'source' : 'target';
       const index = mode === 'first' ? 0 : points.length - 1;
       const shape = mode === 'first' ? edge.source : edge.target;
-      const docked = shape && visibleEndpointOf(shape, scope);
+      const docked = shape && visibleEndpointOf(shape, planeOf(edge));
       // A route the author bent is re-docked, never re-cut.
       if (state.reroute && points.length > 2 && docked) {
         moveTerminal(points, end, cropPoint(docked, points[index === 0 ? 1 : index - 1]));
@@ -354,7 +353,7 @@ export class Drag {
       }
       points[index] = { x: original[index].x + dx, y: original[index].y + dy };
       edge.waypoints = points;
-      if (state.reroute) rerouteEdge(edge, { obstacles: state.obstacles, scope });
+      if (state.reroute) rerouteEdge(edge, { obstacles: state.obstacles });
     }
     return [...state.nodes, ...state.edges, ...state.loose];
   }

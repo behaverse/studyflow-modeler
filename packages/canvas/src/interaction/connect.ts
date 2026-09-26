@@ -9,7 +9,7 @@ import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } f
 import { markerEndFor, markerStartFor, previewEdge } from '@canvas/render/renderer.ts';
 import { append, create as svgCreate, remove } from '@canvas/render/svg.ts';
 import { cropPoint } from '@core/document/outline.ts';
-import { routableEnd, routeFor, type RouteOptions } from '@canvas/study/orthogonal.ts';
+import { routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/study/rules.ts';
 
 export type ConnectionEnd = 'source' | 'target';
@@ -20,7 +20,6 @@ export interface ConnectOptions {
   rules: Rules;
   hitTest: (point: Point) => SceneElement | undefined;
   layer: SVGGElement;
-  routeOptions?: () => RouteOptions;
   markTarget?: (target: SceneNode | undefined, allowed: boolean) => void;
   snap?: (point: Point) => Point;
 }
@@ -120,7 +119,7 @@ export class Connect {
       type: spec.type,
       source,
       target,
-      waypoints: waypoints ?? routeFor(spec.type, routableEnd(source), target, this.options.routeOptions?.()),
+      waypoints: waypoints ?? routeFor(spec.type, routableEnd(source), target),
       ...(businessObject ? { businessObject } : {}),
     });
   }
@@ -136,7 +135,7 @@ export class Connect {
     const target = end === 'target' ? node : edge.target;
     let waypoints = isRedock(edge, end, node)
       ? edge.waypoints.map((p) => ({ x: p.x, y: p.y }))
-      : source && target ? routeFor(edge.type, source, target, this.options.routeOptions?.()) : undefined;
+      : source && target ? routeFor(edge.type, source, target) : undefined;
     if (waypoints) waypoints = redockEnd(waypoints, end, node, at, { source, target });
     mutator.reconnect(edge, end === 'source' ? { source: node } : { target: node }, waypoints);
     return true;
@@ -159,7 +158,7 @@ export class Connect {
   }
 
   private connectPreviewPoints(state: ConnectState): Point[] {
-    if (state.target) return routeFor(state.spec?.type, state.source, state.target, this.options.routeOptions?.());
+    if (state.target) return routeFor(state.spec?.type, state.source, state.target);
     return [cropPoint(state.source, state.point), state.point];
   }
 
@@ -170,7 +169,7 @@ export class Connect {
     if (candidate) {
       const base = isRedock(edge, end, candidate)
         ? edge.waypoints
-        : source && target ? routeFor(edge.type, source, target, this.options.routeOptions?.()) : undefined;
+        : source && target ? routeFor(edge.type, source, target) : undefined;
       if (base) return redockEnd(base, end, candidate, this.snap(state.point), { source, target });
     }
     return freeMoveEnd(edge.waypoints, end, this.snap(state.point));

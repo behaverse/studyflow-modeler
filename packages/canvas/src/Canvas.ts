@@ -143,7 +143,6 @@ export class Canvas {
       rules: this.rules,
       hitTest: (point) => this.hitTest(point),
       layer: this.layers.getLayer('overlays'),
-      routeOptions: () => ({ scope: this.scene?.scope }),
       markTarget: (target, allowed) => this.gestures.markDropTarget(target, allowed),
       snap: (point) => this.snapPoint(point),
     });
@@ -814,7 +813,7 @@ export class Canvas {
   rerouteEdges(nodes: readonly SceneNode[]): SceneEdge[] {
     const mutator = this.mutator;
     if (!this.scene || !mutator) return [];
-    const changed = rerouteEdgeSet(edgesAffectedBy(nodes), { obstacles: this.routeObstacles(), scope: this.scene.scope });
+    const changed = rerouteEdgeSet(edgesAffectedBy(nodes), { obstacles: this.routeObstacles() });
     mutator.commit(changed);
     return changed;
   }

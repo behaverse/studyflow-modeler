@@ -13,7 +13,7 @@ import {
 } from '@canvas/study/orthogonal.ts';
 import type { Point } from '@canvas/study/scene.ts';
 
-import { edge, installDocument, loadYaml, node, type Loaded } from './canvasHarness';
+import { centre, click, dragBy, edge, installDocument, loadYaml, node, type Loaded } from './canvasHarness';
 
 /**
  * Routing and docking. `route()` draws an orthogonal path of at most five points
@@ -195,6 +195,43 @@ test('rerouting twice commits nothing the second time', async () => {
   const routed = scene.revision;
   expect(canvas.rerouteEdges([task])).toEqual([]);
   expect(scene.revision).toBe(routed);
+});
+
+test('an edge docks on what its own plane shows, whichever container the view is drilled into', () => {
+  // The annotation's link crosses into a collapsed sub-process: the root plane draws it docked on the container.
+  const { canvas } = loadYaml(`id: Defs_Plane
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    Sub_1:
+      type: SubProcess
+      bounds: 300 100 100 80
+      isExpanded: false
+      flowElements:
+        Inner:
+          type: Task
+          bounds: 600 400 100 80
+  artifacts:
+    Note:
+      type: TextAnnotation
+      text: About the inner task
+      bounds: 100 120 100 40
+    Link:
+      type: Association
+      sourceRef: Note
+      targetRef: Inner
+      waypoint: 200,140 300,140
+`);
+  const sub = node(canvas, 'Sub_1');
+  const inner = node(canvas, 'Inner');
+  expect(canvas.enterScope(sub)).toBe(true);
+  click(canvas, centre(inner));
+  dragBy(canvas, centre(inner), { x: centre(inner).x + 60, y: centre(inner).y + 40 });
+  expect(inner.x).toBe(660);
+  // Moving the task inside it leaves the link where the root plane draws it: on the container.
+  expectOnOutline(sub, edge(canvas, 'Link').waypoints.at(-1)!);
 });
 
 // --- squaring a bent route ------------------------------------------------------

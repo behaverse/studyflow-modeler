@@ -7,7 +7,7 @@
 import { BPMN } from '@core/constants.ts';
 
 import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
-import { visibleEndpointOf } from '@canvas/study/tree.ts';
+import { planeOf, visibleEndpointOf } from '@canvas/study/tree.ts';
 import { centerOf, cropPoint, cropWaypoints, distance, type CroppableShape } from '@core/document/outline.ts';
 
 export type RoutableShape = CroppableShape;
@@ -20,8 +20,6 @@ const STRAIGHT_TOLERANCE = 10;
 export interface RouteOptions {
   /** Boxes to steer around; advisory — a pair with no clean candidate keeps its route. */
   obstacles?: readonly Bounds[];
-  /** The drill-down scope, for resolving which shape an edge end docks on. */
-  scope?: SceneNode;
 }
 
 const EPSILON = 1e-6;
@@ -119,14 +117,15 @@ export function routeCenters(source: RoutableShape, target: RoutableShape, optio
 }
 
 /**
- * Fresh waypoints for an existing edge, each end docked on the shape actually on
- * screen for it. `undefined` when the edge is dangling or both ends collapse into
- * the same container.
+ * Fresh waypoints for an existing edge, each end docked on the shape the edge's own plane
+ * shows for it, whatever plane a view is drilled into. `undefined` when the edge is
+ * dangling or both ends collapse into the same container.
  */
 function routeEdge(edge: SceneEdge, options?: RouteOptions): Point[] | undefined {
   if (!edge.source || !edge.target) return undefined;
-  const source = visibleEndpointOf(edge.source, options?.scope);
-  const target = visibleEndpointOf(edge.target, options?.scope);
+  const plane = planeOf(edge);
+  const source = visibleEndpointOf(edge.source, plane);
+  const target = visibleEndpointOf(edge.target, plane);
   if (source === target && edge.source !== edge.target) return undefined;
   return routeFor(edge.type, source, target, options);
 }

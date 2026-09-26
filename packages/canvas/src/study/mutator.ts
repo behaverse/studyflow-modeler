@@ -152,12 +152,12 @@ function dockConnectedEdges(node: SceneNode, dx: number, dy: number): SceneEdge[
 }
 
 /** Re-dock every edge on `node` against its new outline; bent routes keep their bends. */
-function redockToOutline(node: SceneNode, scope?: SceneNode): SceneEdge[] {
+function redockToOutline(node: SceneNode): SceneEdge[] {
   const changed: SceneEdge[] = [];
   for (const edge of incidentEdgesOf(node)) {
     const before = edge.waypoints.map((p) => ({ x: p.x, y: p.y }));
     if (edge.waypoints.length <= 2) {
-      rerouteEdge(edge, { scope });
+      rerouteEdge(edge);
     } else {
       const points = edge.waypoints.map((p) => ({ x: p.x, y: p.y }));
       const last = points.length - 1;
@@ -368,9 +368,8 @@ export class Mutator {
       }
     }
     const moved = this.applyBounds(node, bounds);
-    const scope = this.scene.scope;
-    const redocked = [...redockToOutline(node, scope)];
-    for (const edge of crossingEdgesOf(node)) if (rerouteEdge(edge, { scope })) redocked.push(edge);
+    const redocked = [...redockToOutline(node)];
+    for (const edge of crossingEdgesOf(node)) if (rerouteEdge(edge)) redocked.push(edge);
     const edges = [...new Set([...moved, ...redocked])];
     const changed: SceneElement[] = [node, ...edges];
     // The contents change too: they are shown or hidden, and may have moved into the frame.
