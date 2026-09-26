@@ -1,16 +1,16 @@
 # @behaverse/studyflow-canvas
 
-The editable SVG canvas the modeler draws on: plain TypeScript and SVG, no bpmn-js and no framework. The modeler holds one `Canvas` (as `editor.canvas`) and imports nothing but `src/index.ts`.
+The editable SVG canvas the modeler draws on: plain TypeScript and SVG, no bpmn-js and no framework. A `Study` is the document and its edits; a `Canvas` is a view of one. The modeler holds one `Canvas` (as `editor.canvas`, its study as `editor.canvas.study`) and imports nothing but `src/index.ts`.
 
 | Folder | What |
 | --- | --- |
-| `Canvas.ts` | The object the host holds. It owns the scene, the `<svg>`, the viewport, the renderer, the selection, the label editor and the gestures, and every public method is here. |
-| `study/` | Everything that needs no DOM (lint-enforced): the document and its writes. `Study.ts` holds a study's scene and mutator and announces each commit to the views that draw it; `import.ts` builds one scene tree from the definitions and their DI; `mutator.ts` is the only thing that commits an edit; `di.ts` writes the DI back on save; `labels.ts` keeps captions and `text.ts` measures them; `tree.ts` answers containment, paint order and visibility; `rules.ts` says what may connect, contain or resize what (a schema's `meta.connectsTo` first, then plain BPMN); `orthogonal.ts` routes edges and `edit.ts` edits bendpoints, both docking on core's `document/outline.ts`; `drag.ts` moves, resizes and drops, `hit.ts` hit-tests, `autoplace.ts` places an append, `prototype.ts` describes a shape before it exists. |
+| `Canvas.ts` | The object the host holds: a view of a study. It owns the `<svg>`, the viewport, the renderer, the selection, the label editor and the gestures, and every public method is here. |
+| `study/` | Everything that needs no DOM (lint-enforced): the document and its writes. `Study.ts` opens a file (YAML or XML) or definitions, holds the scene and mutator, announces each change to the views that draw it, and writes the file back; `import.ts` builds one scene tree from the definitions and their DI; `mutator.ts` is the only thing that commits an edit; `di.ts` writes the DI back on save; `labels.ts` keeps captions and `text.ts` measures them; `tree.ts` answers containment, paint order and visibility; `rules.ts` says what may connect, contain or resize what (a schema's `meta.connectsTo` first, then plain BPMN); `orthogonal.ts` routes edges and `edit.ts` edits bendpoints, both docking on core's `document/outline.ts`; `drag.ts` moves, resizes and drops, `hit.ts` hit-tests, `autoplace.ts` places an append, `prototype.ts` describes a shape before it exists. |
 | `interaction/` | Pointer and keyboard. `gestures.ts` turns a press into one gesture and drives `study/drag.ts`, `create.ts` or `connect.ts`, through the canvas's public API and the few tools `Canvas.ts` hands it; also `selection.ts`, `labelEditing.ts`, `snapping.ts`. |
 | `render/` | One `<g>` per element (`renderer.ts`), the shapes, captions and icons. |
 | `view/` | The viewport (pan, zoom, fit), the layers, the `INK` palette and the canvas CSS. |
 
-An edit, end to end: the modeler parses the XML and hands the definitions to `importDefinitions`, which builds the scene and draws it. A pointer press becomes a gesture; while it moves, the gesture writes geometry into the scene and redraws what it touched. On release the Mutator commits: the business objects change, `scene.revision` goes up, and the Study announces the change; the canvas draws what the commit added, changed and removed, then fires `ElementsChanged`, which the modeler's undo history records. An edit made of several (a replace, an append, a move into a container) is one commit: `batch()`. Saving calls `syncDi()`, which rebuilds the DI from the scene, and then serializes.
+An edit, end to end: the modeler opens the file as a `Study` (`Study.open`), which builds the scene, and puts a `Canvas` on it, which draws it. A pointer press becomes a gesture; while it moves, the gesture writes geometry into the scene and redraws what it touched. On release the Mutator commits: the business objects change, `scene.revision` goes up, and the Study announces the change; the canvas draws what the commit added, changed and removed, then fires `ElementsChanged`, which the modeler's undo history records. An edit made of several (a replace, an append, a move into a container) is one commit: `batch()`. `study.load()` replaces the document, and each view draws it afresh. Saving calls `study.toXml()`, which rebuilds the DI from the scene and serializes.
 
 ## What holds
 
@@ -22,7 +22,7 @@ An edit, end to end: the modeler parses the XML and hands the definitions to `im
 
 ## What the host provides and gets
 
-- Options: `iconResolver` (a glyph for a type; answering `null` draws none), `labelText` (a caption's text, placeholders resolved), `onWarning` (import problems), `mainCanvasOnly` (import nothing inside a sub-process, for a view that only reads, such as a thumbnail).
+- `new Canvas(container, study, options)`. Options: `iconResolver` (a glyph for a type; answering `null` draws none), `labelText` (a caption's text, placeholders resolved). The study's: `onWarning` (import problems), `mainCanvasOnly` (import nothing inside a sub-process, for a view that only reads, such as a thumbnail).
 - On the event bus (`getEventBus()`): `SelectionChanged`, `ElementsChanged` (once per commit: `elements` added or changed, the root among them when its own properties changed, and `removed`), `RootSet`. The `a` key sends the command `OpenAppendMenu`, which the host must answer.
 - `getHostLayer(name)` gives the host a layer of its own above the diagram (the token simulation draws there). Outside a browser, `setDocument` supplies the DOM.
 

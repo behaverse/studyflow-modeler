@@ -1,5 +1,5 @@
 import { exportDiagramName } from '@modeler/diagram/name';
-import { toStandardBpmnXml, toWireXml, xmlToStudyflow } from '@core/document';
+import { toStandardBpmnXml, xmlToStudyflow } from '@core/document';
 import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/diagram/formats';
 import { buildExportModel } from '@modeler/export/model';
 import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
@@ -13,19 +13,14 @@ export type ExportDiagramCommand = {
   format?: ExportFormatId;
 };
 
-async function toExportableXml(modeler: Editor): Promise<string> {
-  const { xml } = await modeler.saveXML({ format: true });
-  return toWireXml(xml, modeler.model.moddle());
-}
-
 // Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
 async function toBpmn(modeler: Editor): Promise<string> {
-  return toStandardBpmnXml(await toExportableXml(modeler), modeler.model.moddle());
+  return toStandardBpmnXml((await modeler.saveXML()).xml, modeler.model.moddle());
 }
 
 /** The diagram as a `.studyflow.yaml` holds it. */
 async function toStudyflow(modeler: Editor): Promise<string> {
-  return xmlToStudyflow(await toExportableXml(modeler), modeler.model.moddle());
+  return xmlToStudyflow((await modeler.saveXML()).xml, modeler.model.moddle());
 }
 
 /**

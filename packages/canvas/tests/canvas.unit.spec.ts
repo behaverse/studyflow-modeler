@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas, EventBus, isRootElement, type SceneEdge, type SceneNode } from '@canvas/index.ts';
+import { EventBus, isRootElement, type Canvas, type SceneEdge, type SceneNode } from '@canvas/index.ts';
 
 import {
+  canvasOn,
   centre,
   click,
   doubleClick,
   dragBy,
   edge,
-  freshModdle,
   installDocument,
   keyEvent,
   label,
@@ -24,7 +24,7 @@ import {
 
 /**
  * The canvas, driven the way the app drives it: the public API for edits, pointer
- * events for gestures, and the document (`syncDi` + `toXML`) for what was written.
+ * events for gestures, and the file its study writes for what was written.
  */
 
 const YAML = `id: Defs_1
@@ -130,10 +130,8 @@ test('the DI round trip keeps geometry, pinned captions and the collapse flag', 
   const xml = await xmlOf(loaded);
   expect(xml.match(/<bpmndi:BPMNLabel>/g) ?? []).toHaveLength(1);
 
-  const moddle = freshModdle();
-  const { rootElement } = await moddle.fromXML(xml);
   const again = loadYaml(YAML);
-  again.canvas.importDefinitions(rootElement);
+  await again.canvas.study.load(xml);
   for (const id of ['Start_1', 'Task_1', 'Gateway_1', 'End_1', 'Sub_1', 'Task_In', 'Data_1']) {
     const a = node(loaded.canvas, id);
     const b = node(again.canvas, id);
@@ -149,7 +147,6 @@ test('the DI round trip keeps geometry, pinned captions and the collapse flag', 
 test('only the first diagram is drawn, and a warning names any further one', async () => {
   // Another tool draws a collapsed sub-process's contents on a plane of their own.
   const { canvas, moddle, definitions } = load();
-  canvas.syncDi();
   const plane = definitions.diagrams[0].plane;
   const inner = plane.planeElement.find((di: any) => di.bpmnElement.id === 'Task_In');
   plane.planeElement = plane.planeElement.filter((di: any) => di !== inner);
@@ -157,8 +154,7 @@ test('only the first diagram is drawn, and a warning names any further one', asy
   definitions.diagrams.push(moddle.create('bpmndi:BPMNDiagram', { id: 'Diagram_Sub', plane: subPlane }));
 
   const warnings: string[] = [];
-  const again = new Canvas({ onWarning: (warning) => warnings.push(warning) });
-  again.importDefinitions(definitions);
+  const again = canvasOn(definitions, { onWarning: (warning) => warnings.push(warning) });
   expect(again.get('Task_In')).toBeUndefined();
   expect(node(again, 'Sub_1').children).toEqual([]);
   expect(warnings).toEqual([expect.stringContaining('Diagram_Sub')]);

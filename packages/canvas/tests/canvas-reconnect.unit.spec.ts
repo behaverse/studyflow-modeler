@@ -4,7 +4,7 @@ import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/study/orthogonal.ts';
 import type { Point, SceneEdge } from '@canvas/study/scene.ts';
 
-import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
+import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, written, type Loaded } from './canvasHarness';
 
 /**
  * Dragging a connection's end. What is under the drop decides the outcome:
@@ -112,7 +112,7 @@ test('dragging the target end onto another task rewires it and docks where it wa
 
 test('a rules-refused target leaves the edge untouched', async () => {
   const loaded = load();
-  const { canvas, definitions } = loaded;
+  const { canvas } = loaded;
   const flow = edge(canvas, 'Flow_1');
   const before = flow.waypoints.map((p) => ({ ...p }));
   const revision = canvas.getScene()!.revision;
@@ -122,9 +122,9 @@ test('a rules-refused target leaves the edge untouched', async () => {
 
   expect(flow.target?.id).toBe('Task_1');
   expect(flow.waypoints).toEqual(before);
-  canvas.syncDi();
-  expect(diOf(definitions, 'Flow_1').waypoint).toMatchObject(before);
-  expect(flowElement(definitions, 'Flow_1').targetRef.id).toBe('Task_1');
+  const saved = await written(loaded);
+  expect(diOf(saved, 'Flow_1').waypoint).toMatchObject(before);
+  expect(flowElement(saved, 'Flow_1').targetRef.id).toBe('Task_1');
   expect(canvas.getScene()!.revision).toBe(revision);
 });
 
@@ -132,7 +132,7 @@ test('a rules-refused target leaves the edge untouched', async () => {
 
 test('dropped on empty space the endpoint free-moves, exactly like a bendpoint', async () => {
   const loaded = load();
-  const { canvas, definitions } = loaded;
+  const { canvas } = loaded;
   const flow = edge(canvas, 'Flow_1');
 
   dragTargetEnd(canvas, flow, { x: 300, y: 320 });
@@ -150,8 +150,7 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
   expect(isOrthogonal(flow.waypoints)).toBe(false);
   expect(flow.waypoints[0]).toEqual({ x: 136, y: 118 });
 
-  canvas.syncDi();
-  expect(diOf(definitions, 'Flow_1').waypoint).toMatchObject(flow.waypoints);
+  expect(diOf(await written(loaded), 'Flow_1').waypoint).toMatchObject(flow.waypoints);
 });
 
 test('a reconnect drop lands on the grid, like every other waypoint gesture', async () => {

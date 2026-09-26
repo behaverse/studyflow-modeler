@@ -4,6 +4,8 @@
  */
 
 export { Canvas, type CanvasOptions } from './Canvas.ts';
+export { Study, type OpenOptions, type StudyChange } from './study/Study.ts';
+export type { ImportOptions } from './study/import.ts';
 export type { Bounds, ElementRef, Font, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, SceneNode, TextAlign } from './study/scene.ts';
 export { isRootElement } from './study/scene.ts';
 export { IdGenerator, idPrefixFor, needsId, prefixFor } from './study/ids.ts';

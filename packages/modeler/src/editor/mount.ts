@@ -1,12 +1,11 @@
 /**
- * `mountEditor`: put a canvas in a container and hand back the {@link Editor}.
+ * `mountEditor`: put a canvas on a study in a container and hand back the {@link Editor}.
  * Everything schema-, document- or app-shaped is assembled here and injected: the
- * moddle, the snapshot history, the icon resolver, templates and the simulator.
+ * snapshot history, the icon resolver, templates and the simulator.
  */
 
-import { BpmnModdle } from 'bpmn-moddle';
-import { Canvas, IdGenerator, SVG_ICON_PATHS, idPrefixFor, isRootElement, needsId } from '@canvas/index.ts';
-import type { IconDef, SceneElement } from '@canvas/index.ts';
+import { Canvas, SVG_ICON_PATHS, idPrefixFor, isRootElement, needsId } from '@canvas/index.ts';
+import type { IconDef, SceneElement, Study } from '@canvas/index.ts';
 import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
@@ -15,10 +14,14 @@ import { createSnapshotHistory } from '@modeler/editor/history';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
 import { createTemplateElement, materializeTemplateFlow, type TemplateFlow } from '@modeler/templates/factory';
-import type { Editor, EditorModel, EditorSimulation, EditorTemplates, ModelElement } from '@modeler/editor/port';
+import type { Editor, EditorModel, EditorSimulation, EditorTemplates, ModelElement, Moddle } from '@modeler/editor/port';
 
 export type MountEditorOptions = {
   container: HTMLElement;
+  /** The document the editor opens on, read by `moddle`. */
+  study: Study;
+  /** A moddle over `extensionSchemas`, the schemas enabled in Settings. */
+  moddle: Moddle;
   extensionSchemas: Record<string, any>;
 };
 
@@ -48,19 +51,16 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
 }
 
 export function mountEditor(options: MountEditorOptions): Editor {
-  const canvas: Canvas = new Canvas({
-    container: options.container,
-    onWarning: (warning: unknown) => console.warn('Canvas import warning:', warning),
+  const { study } = options;
+  const canvas = new Canvas(options.container, study, {
     iconResolver: resolveIcon,
     // `{count}` in a label draws its run-state value; the model, the file and the inspector keep the raw text.
-    labelText: (bo, name) => resolvePlaceholders(name, canvas.getDefinitions() as any, bo?.id ?? ''),
+    labelText: (bo, name) => resolvePlaceholders(name, study.definitions as any, bo?.id ?? ''),
   });
-  // moddle rewrites the property descriptors it registers, so it gets a copy: `packages()` hands out the original.
-  const moddle = new BpmnModdle(structuredClone(options.extensionSchemas)) as any;
+  const moddle = options.moddle as any;
 
-  // Before the first import there is no scene-wide generator; a standalone one covers the palette.
-  const preImportIds = new IdGenerator();
-  const ids = (): IdGenerator => canvas.getIds() ?? preImportIds;
+  // The palette mints ids through the moddle, from those the study holds.
+  const ids = () => canvas.getIds();
   moddle.ids = {
     nextPrefixed: (prefix: string, element?: ModelElement) => ids().nextPrefixed(prefix, element),
     assigned: (id: string) => ids().assigned(id),
@@ -77,8 +77,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
       else if (needsId(element)) element.id = ids().nextPrefixed(idPrefixFor(element), element);
       return element;
     },
-    fromXML: (xml) => moddle.fromXML(xml),
-    toXML: (definitions, opts) => moddle.toXML(definitions, opts),
     ids: {
       nextPrefixed: (prefix, element) => ids().nextPrefixed(prefix, element),
       assigned: (id) => ids().assigned(id),
@@ -87,22 +85,16 @@ export function mountEditor(options: MountEditorOptions): Editor {
 
   const bus = canvas.getEventBus();
 
-  const saveXML = async (opts?: { format?: boolean }): Promise<{ xml: string }> => {
-    const definitions = canvas.getDefinitions();
-    if (!definitions) throw new Error('@behaverse/studyflow-modeler: nothing to serialize');
-    canvas.syncDi();
-    return model.toXML(definitions, opts);
-  };
+  const saveXML = async (): Promise<{ xml: string }> => ({ xml: await study.toXml() });
 
   const history = createSnapshotHistory({
-    serialize: async () => (await saveXML({ format: true })).xml,
+    serialize: () => study.toXml(),
     restore: async (xml) => {
       // An undo restores the document, not the session: selection, scope and viewbox survive.
       const selectedIds = canvas.getSelection().get().map((element) => element.id);
       const scopeId = canvas.getScope()?.id;
       const viewbox = canvas.getViewport().getViewbox();
-      const { rootElement } = await model.fromXML(xml);
-      canvas.importDefinitions(rootElement);
+      await study.load(xml);
       const scope = scopeId ? canvas.get(scopeId) : undefined;
       if (scope && !isRootElement(scope) && scope.kind === 'node') canvas.enterScope(scope);
       canvas.getViewport().setViewbox(viewbox);
@@ -117,8 +109,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
   });
 
   const importXML = async (xml: string): Promise<{ warnings: unknown[] }> => {
-    const { rootElement } = await model.fromXML(xml);
-    canvas.importDefinitions(rootElement);
+    await study.load(xml);
     history.reset();
     bus.fire('ImportDone', { error: null, warnings: [] });
     bus.fire('RootSet', { element: canvas.getRoot() });
@@ -144,7 +135,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
   const templates: EditorTemplates = {
     getAll: () => getCatalog().allTemplates(),
     createElement: (template) => {
-      const { shape, flow } = createTemplateElement(model, template, canvas.getDefinitions());
+      const { shape, flow } = createTemplateElement(model, template, study.definitions);
       pendingFlow = flow.nodes.length > 0 ? { businessObject: shape.businessObject, flow } : undefined;
       return shape;
     },
@@ -180,7 +171,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
     canRedo: () => history.canRedo(),
     importXML,
     saveXML,
-    getDefinitions: () => canvas.getDefinitions(),
+    getDefinitions: () => study.definitions,
     canvas,
     selection: canvas.getSelection(),
     events: bus,

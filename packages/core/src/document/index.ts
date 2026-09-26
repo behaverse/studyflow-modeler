@@ -120,9 +120,9 @@ export async function fromWireXml(xml: string, moddle: Moddle, onWarning?: (mess
   return applyXmlPasses(xml, moddle, INBOUND_PASSES, (warning) => onWarning?.(readerWarning(warning)));
 }
 
-/** {@link fromWireXml} on definitions already built, in place: a YAML example drawn for its gallery card. */
-export function fromWireDefinitions(definitions: any): void {
-  for (const pass of INBOUND_PASSES) pass(definitions);
+/** {@link fromWireXml} on definitions already built, in place: what a Study opens. `onWarning` hears what is dropped. */
+export function fromWireDefinitions(definitions: any, onWarning?: (message: string) => void): void {
+  for (const pass of INBOUND_PASSES) pass(definitions, onWarning);
 }
 
 /** `onWarning` as {@link studyflowToDefinitions} takes it: the console when not given. */

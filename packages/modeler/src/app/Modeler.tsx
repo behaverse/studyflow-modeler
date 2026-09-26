@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import { BpmnModdle } from 'bpmn-moddle';
 
 import new_diagram from '#assets/new_diagram.bpmn?raw';
+import { Study } from '@canvas/index.ts';
 import { fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
 import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
@@ -13,7 +15,7 @@ import { notify } from '@modeler/app/noticeStore';
 import { openDiagramFile } from '@modeler/open/openFile';
 import { surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
-import type { Editor } from '@modeler/editor/port';
+import type { Editor, Moddle } from '@modeler/editor/port';
 
 const s = {
   root: 'relative flex flex-1 h-full',
@@ -41,19 +43,24 @@ async function openFromUrl(editor: Editor): Promise<void> {
 
 /** Mount the editor in `container` with the enabled schemas, on the autosaved diagram if it opens, else a new one. */
 async function bootEditor(container: HTMLElement, autosaved: string | undefined): Promise<Editor> {
-  const editor = mountEditor({ container, extensionSchemas: await loadSchemas(getSettings().enabledSchemas) });
+  const extensionSchemas = await loadSchemas(getSettings().enabledSchemas);
+  // moddle rewrites the property descriptors it registers, so it gets a copy: `packages()` hands out the original.
+  const moddle = new BpmnModdle(structuredClone(extensionSchemas));
+  return mountEditor({ container, study: await openStudy(autosaved, moddle), moddle, extensionSchemas });
+}
+
+/** The autosaved diagram if it opens, else a new one. */
+async function openStudy(autosaved: string | undefined, moddle: Moddle): Promise<Study> {
+  const onWarning = (warning: string) => console.warn('Canvas import warning:', warning);
   if (autosaved) {
     try {
-      const moddle = editor.model.moddle();
-      await editor.importXML(await ensureDiagramLayout(await fromWireXml(autosaved, moddle), moddle));
-      return editor;
+      return await Study.open(await ensureDiagramLayout(await fromWireXml(autosaved, moddle), moddle), { moddle, onWarning });
     } catch (err) {
       console.warn('Could not open the autosaved diagram; starting a new one, and the autosave is cleared.', err);
       clearAutosavedDiagram();
     }
   }
-  await editor.importXML(new_diagram);
-  return editor;
+  return Study.open(new_diagram, { moddle, onWarning });
 }
 
 /** The canvas and the boot that puts an editor on it; `onReady` hands the editor to the app. */

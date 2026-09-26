@@ -25,8 +25,6 @@ export interface EditorModel {
   create(type: string, properties?: Record<string, unknown>): ModelElement;
   /** An id-assigning business object. */
   createBusinessObject(type: string, properties?: Record<string, unknown>): ModelElement;
-  fromXML(xml: string): Promise<{ rootElement: ModelElement }>;
-  toXML(definitions: ModelElement, options?: { format?: boolean }): Promise<{ xml: string }>;
   ids: {
     nextPrefixed(prefix: string, element?: ModelElement): string;
     assigned(id: string): unknown;
@@ -55,7 +53,8 @@ export interface EditorHistoryView {
 
 export interface Editor extends EditorHistoryView {
   importXML(xml: string): Promise<{ warnings: unknown[] }>;
-  saveXML(options?: { format?: boolean }): Promise<{ xml: string }>;
+  /** The document as a BPMN XML file holds it (the study's `toXml`). */
+  saveXML(): Promise<{ xml: string }>;
   getDefinitions(): ModelElement | undefined;
   canvas: Canvas;
   /** The canvas's own selection and bus. */

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
 
-import { diOf, loadYaml, node, pointerDown, pointerMove, pointerUp } from './canvasHarness';
+import { diOf, loadYaml, node, pointerDown, pointerMove, pointerUp, written } from './canvasHarness';
 
 /**
  * The two snaps a move runs under, and how they compose, axis by axis:
@@ -52,7 +52,8 @@ test('a move aligns each axis with a neighbour\'s centre within 7 units, else la
     ['2 above its centre line, x near nothing: level on y, the grid on x', { x: 287, y: 121 }, { x: 240, y: 83 }, ['y=123']],
   ];
   for (const [label, to, landed, drawn] of CASES) {
-    const { canvas, definitions } = loadYaml(FIXTURE_YAML);
+    const loaded = loadYaml(FIXTURE_YAML);
+    const { canvas } = loaded;
     const task = node(canvas, 'Task_1');
     pointerDown(canvas, { x: 250, y: 120 });
     pointerMove(canvas, to);
@@ -61,8 +62,7 @@ test('a move aligns each axis with a neighbour\'s centre within 7 units, else la
 
     // What was on screen is what is committed, DI included, and the guides go with the gesture.
     pointerUp(canvas, to);
-    canvas.syncDi();
-    expect(diOf(definitions, 'Task_1').bounds, label).toMatchObject(landed);
+    expect(diOf(await written(loaded), 'Task_1').bounds, label).toMatchObject(landed);
     expect(guides(canvas), label).toEqual([]);
   }
 });

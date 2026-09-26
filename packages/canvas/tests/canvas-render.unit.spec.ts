@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas, INK } from '@canvas/index.ts';
+import { INK, type Canvas } from '@canvas/index.ts';
 import { resolvePlaceholders, studyflowToDefinitions } from '@core/document';
 import { CHROME } from '@canvas/render/labels.ts';
 import { LINE_HEIGHT } from '@canvas/study/text.ts';
 import { choreographyBandHeight } from '@core/document/outline.ts';
 import { PARTICIPANT_BAND } from '@canvas/render/shapes.ts';
 
-import { diElements, edge, freshModdle, installDocument, loadCanvas, loadYaml, node } from './canvasHarness';
+import { canvasOn, diElements, edge, freshModdle, installDocument, loadCanvas, loadYaml, node } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';
 
 /**
@@ -61,8 +61,7 @@ for (const name of exampleNames) {
 
     // (a) A full render + serialize does not throw.
     const warnings: string[] = [];
-    const canvas = new Canvas({ onWarning: (w: string) => warnings.push(w) });
-    canvas.importDefinitions(definitions);
+    const canvas = canvasOn(definitions, { onWarning: (w: string) => warnings.push(w) });
     const svg = canvas.toSVG();
     expect(svg, `${name}: produces an SVG string`).toContain('<svg');
     expect(svg.length, `${name}: SVG is non-empty`).toBeGreaterThan(0);
@@ -448,10 +447,8 @@ state:
 `;
 
 test('a `labelText` option resolves placeholders in drawn labels; the model keeps the raw name', async () => {
-  installDocument();
   const definitions = studyflowToDefinitions(STATE_YAML, freshModdle());
-  const canvas = new Canvas({ labelText: (bo, name) => resolvePlaceholders(name, definitions, bo?.id ?? '') });
-  canvas.importDefinitions(definitions);
+  const canvas = canvasOn(definitions, { labelText: (bo, name) => resolvePlaceholders(name, definitions, bo?.id ?? '') });
 
   // The external label of the end event: resolved from its own state entry.
   const labelId = canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Excluded_Pre')!.id;

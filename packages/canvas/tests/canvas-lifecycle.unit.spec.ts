@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas } from '@canvas/index.ts';
+import { Canvas, Study } from '@canvas/index.ts';
 import { studyflowToDefinitions } from '@core/document';
 
 import {
@@ -71,9 +71,8 @@ function trackListeners(target: any): { live: () => string[] } {
 test('destroy hands the container back clean, so a stale canvas no longer answers keys on it', async () => {
   const host = container();
   const tracked = trackListeners(host);
-  const stale = new Canvas({ container: host });
   const staleDefs = parse();
-  stale.importDefinitions(staleDefs);
+  const stale = new Canvas(host, Study.fromDefinitions(staleDefs));
   stale.getSelection().select(node(stale, 'Task_1'));
   expect(tracked.live(), 'the shortcut listener sits on the host container').toContain('keydown');
   expect(host.contains(stale.getSvg() as unknown as Node)).toBe(true);
@@ -85,9 +84,8 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
   expect(tracked.live(), 'a second destroy is a no-op').toEqual([]);
 
   // The host reuses the same element for the next editor: Delete reaches only the live canvas.
-  const live = new Canvas({ container: host });
   const liveDefs = parse();
-  live.importDefinitions(liveDefs);
+  const live = new Canvas(host, Study.fromDefinitions(liveDefs));
   live.getSelection().select(node(live, 'Start_1'));
   host.dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
 
@@ -99,9 +97,8 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
 
 test('destroy mid-gesture abandons the drag and drops the document-level listeners', async () => {
   const host = container();
-  const canvas = new Canvas({ container: host });
   const definitions = parse();
-  canvas.importDefinitions(definitions);
+  const canvas = new Canvas(host, Study.fromDefinitions(definitions));
   const doc = canvas.getSvg().ownerDocument!;
   const tracked = trackListeners(doc);
   const task = node(canvas, 'Task_1');

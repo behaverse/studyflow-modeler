@@ -42,7 +42,7 @@ export async function runOpenRunner(modeler: Editor, command: OpenRunnerCommand)
 
   let xml: string;
   try {
-    ({ xml } = await modeler.saveXML({ format: true }));
+    ({ xml } = await modeler.saveXML());
   } catch (err) {
     target.close();
     throw err;

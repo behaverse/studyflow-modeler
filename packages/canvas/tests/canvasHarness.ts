@@ -9,8 +9,8 @@
  * test only knows *diagram* coordinates. Then it reads what it did: a scene element
  * by id, a `bpmndi` element, the document as XML.
  *
- * All of it lives here once. A spec that drives the editor calls {@link loadCanvas},
- * which installs the document for it.
+ * All of it lives here once. A spec that drives the editor calls {@link loadCanvas}
+ * or {@link loadYaml}, which install the document for it.
  *
  * Keep this file free of assertions and fixtures: a fixture belongs to the spec that
  * reads it, so a fixture change can never silently move another suite.
@@ -18,8 +18,8 @@
 
 import { JSDOM } from 'jsdom';
 
-import { Canvas, isRootElement, setDocument } from '@canvas/index.ts';
-import type { Bounds, CanvasOptions, SceneEdge, SceneLabel, SceneNode } from '@canvas/index.ts';
+import { Canvas, Study, isRootElement, setDocument } from '@canvas/index.ts';
+import type { Bounds, CanvasOptions, ImportOptions, SceneEdge, SceneLabel, SceneNode } from '@canvas/index.ts';
 import { studyflowToDefinitions } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
@@ -40,33 +40,36 @@ export function installDocument(): Document {
   return doc;
 }
 
-/** A parsed fixture and the canvas that imported it — the shape every spec used. */
+/** A parsed fixture and the canvas that shows it — the shape every spec used. */
 export interface Loaded {
   canvas: Canvas;
-  /** The live `bpmn:Definitions` tree the canvas edits in place. */
+  /** The live `bpmn:Definitions` tree the canvas's study edits in place. */
   definitions: any;
-  /** The moddle instance it was parsed with — reuse it to serialize the tree back. */
+  /** The moddle instance it was parsed with. */
   moddle: any;
 }
 
-/** Parse `xml` and import it into a fresh {@link Canvas}. */
-export async function loadCanvas(xml: string, options: CanvasOptions = {}): Promise<Loaded> {
-  installDocument();
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  const canvas = new Canvas(options);
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+/** How the study reads the document, and how the canvas draws it. */
+export type LoadOptions = ImportOptions & CanvasOptions;
+
+/** A fresh {@link Canvas}, in a detached container, on a study of `definitions`. */
+export function canvasOn(definitions: any, { onWarning, mainCanvasOnly, ...options }: LoadOptions = {}): Canvas {
+  const container = installDocument().createElement('div');
+  return new Canvas(container, Study.fromDefinitions(definitions, { onWarning, mainCanvasOnly }), options);
 }
 
-/** Build `yaml`, a `.studyflow.yaml` text, and import it into a fresh {@link Canvas}, as the modeler opens the file. */
-export function loadYaml(yaml: string, options: CanvasOptions = {}): Loaded {
-  installDocument();
+/** Parse `xml` and show it in a fresh {@link Canvas}. */
+export async function loadCanvas(xml: string, options: LoadOptions = {}): Promise<Loaded> {
+  const moddle = freshModdle();
+  const { rootElement: definitions } = await moddle.fromXML(xml);
+  return { canvas: canvasOn(definitions, options), definitions, moddle };
+}
+
+/** Build `yaml`, a `.studyflow.yaml` text, and show it in a fresh {@link Canvas}, as the modeler opens the file. */
+export function loadYaml(yaml: string, options: LoadOptions = {}): Loaded {
   const moddle = freshModdle();
   const definitions = studyflowToDefinitions(yaml, moddle);
-  const canvas = new Canvas(options);
-  canvas.importDefinitions(definitions);
-  return { canvas, definitions, moddle };
+  return { canvas: canvasOn(definitions, options), definitions, moddle };
 }
 
 /** A point in DIAGRAM coordinates — what a spec reads off the scene or the DI. */
@@ -177,7 +180,7 @@ export function centre(box: Bounds): Pt {
 
 /**
  * Every `bpmndi:BPMNShape` and `bpmndi:BPMNEdge` the definitions hold, across their
- * planes. The canvas writes its geometry back only on `syncDi()`.
+ * planes. A study writes its geometry back only when it writes its file ({@link written}).
  */
 export function diElements(definitions: any): any[] {
   return (definitions.diagrams ?? []).flatMap((diagram: any) => diagram.plane?.planeElement ?? []);
@@ -188,8 +191,12 @@ export function diOf(definitions: any, id: string): any {
   return diElements(definitions).find((di) => di.bpmnElement?.id === id);
 }
 
-/** The document as XML, with the scene's geometry written back to its DI first. */
-export async function xmlOf({ canvas, moddle, definitions }: Loaded): Promise<string> {
-  canvas.syncDi();
-  return (await moddle.toXML(definitions, { format: true })).xml;
+/** The document as the study writes its file. */
+export async function xmlOf({ canvas }: Loaded): Promise<string> {
+  return canvas.study.toXml();
+}
+
+/** The file the study writes, read back: the DI a spec finds there is what was saved. */
+export async function written(loaded: Loaded): Promise<any> {
+  return (await loaded.moddle.fromXML(await xmlOf(loaded))).rootElement;
 }

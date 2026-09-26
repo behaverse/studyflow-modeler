@@ -1,5 +1,5 @@
 /**
- * The canvas: owns the scene, the SVG, the viewport, the renderer and the
+ * The canvas: a view of a study. Owns the SVG, the viewport, the renderer and the
  * interaction modules, and is the API the host talks to.
  */
 
@@ -17,13 +17,11 @@ import { edgesIntersecting, hitTest, isContainerNode, nodesIntersecting, ordered
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, OUTLINE_CLASS, Selection } from '@canvas/interaction/selection.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
-import { writeDi } from '@canvas/study/di.ts';
-import type { ImportOptions } from '@canvas/study/import.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import type { IdGenerator } from '@canvas/study/ids.ts';
 import { prop, setProp } from '@canvas/study/moddle.ts';
 import type { Commit, Mutator } from '@canvas/study/mutator.ts';
-import { Study, studyInternals } from '@canvas/study/Study.ts';
+import { studyInternals, type Study } from '@canvas/study/Study.ts';
 import { isRootElement, type Bounds, type Drawable, type ElementColors, type ElementRef, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { boundsOf, edgesAffectedBy, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf, isDataShape } from '@core/document/outline.ts';
@@ -37,15 +35,7 @@ import { injectCanvasStyles } from '@canvas/view/theme.ts';
 import { Viewport, type Viewbox } from '@canvas/view/viewport.ts';
 
 export interface CanvasOptions extends RendererOptions {
-  /** Host element the SVG root is appended to; a detached `<div>` when omitted. */
-  container?: HTMLElement;
-  onWarning?: ImportOptions['onWarning'];
   snapToGrid?: boolean;
-  /**
-   * Import only the main canvas: nothing inside a sub-process, collapsed or expanded. For views
-   * that read rather than edit, such as a thumbnail or an overview; drilling in finds it empty.
-   */
-  mainCanvasOnly?: boolean;
 }
 
 export interface CanvasViewbox extends Viewbox {
@@ -66,6 +56,8 @@ const EDIT_ON_CREATE_TYPES = new Set<string>([
 ]);
 
 export class Canvas {
+  /** What the canvas shows and edits. */
+  readonly study: Study;
   private readonly create: Create;
   private readonly connect: Connect;
   private readonly container: HTMLElement;
@@ -79,28 +71,25 @@ export class Canvas {
   private readonly rules: Rules;
   private readonly gestures: Gestures;
   private readonly customLayers = new Map<string, SVGGElement>();
-  private readonly importOptions: ImportOptions;
+  /** Stops hearing the study's changes. */
+  private readonly stopListening: () => void;
   private snapToGrid: boolean;
-  private scene?: Scene;
   /** The container the view is drilled into; `undefined` shows the whole diagram. */
   private scope?: SceneNode;
-  private mutator?: Mutator;
-  /** Stops hearing the study's changes. */
-  private stopListening?: () => void;
   private drag?: Drag;
   private appendPreview?: SVGGElement;
   private resizeObserver?: ResizeObserver;
   private destroyed = false;
 
-  constructor(options: CanvasOptions = {}) {
-    const doc = ownerDocument();
-    this.container = options.container ?? doc.createElement('div');
-    this.importOptions = { onWarning: options.onWarning, mainCanvasOnly: options.mainCanvasOnly };
+  /** Draw `study` into `container`, fitted, and follow its changes. */
+  constructor(container: HTMLElement, study: Study, options: CanvasOptions = {}) {
+    this.container = container;
+    this.study = study;
     this.snapToGrid = options.snapToGrid ?? true;
     this.root = create('svg', { class: 'sf-canvas', width: '100%', height: '100%', preserveAspectRatio: 'xMidYMid meet' }) as SVGSVGElement;
     this.root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     append(this.container, this.root);
-    injectCanvasStyles(this.root.ownerDocument ?? doc);
+    injectCanvasStyles(this.root.ownerDocument ?? ownerDocument());
     this.layers = new Layers(this.root);
     ensureArrowMarkers(this.layers.defs);
     this.viewport = new Viewport(this.root, this.container);
@@ -164,13 +153,22 @@ export class Canvas {
       moveWaypoint: (edge, index, point) => this.moveWaypoint(edge, index, point),
       nudgeSelection: (dx, dy) => this.nudgeSelection(dx, dy),
     });
+    this.stopListening = study.on('change', (change) => {
+      if (change.cause === 'load') {
+        this.drawStudy();
+      } else {
+        this.drawCommit(change);
+        this.bus.fire('ElementsChanged', { elements: [...change.added, ...change.changed], removed: change.removed });
+      }
+    });
+    this.drawStudy();
   }
 
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
     this.gestures.destroy();
-    this.stopListening?.();
+    this.stopListening();
     this.resizeObserver?.disconnect();
     this.labelEditing.reset();
     this.clearAppendPreview();
@@ -179,26 +177,23 @@ export class Canvas {
     this.customLayers.clear();
     this.renderer.graphicsById.clear();
     remove(this.root);
-    this.scene = undefined;
-    this.mutator = undefined;
     this.drag = undefined;
   }
 
   // --- the document ---------------------------------------------------------------
 
-  /** Build the scene from `definitions` (with DI), draw it and fit the viewport. */
-  importDefinitions(definitions: ModdleObject): Scene {
+  private get scene(): Scene {
+    return studyInternals(this.study).scene;
+  }
+
+  private get mutator(): Mutator {
+    return studyInternals(this.study).mutator;
+  }
+
+  /** Draw the study afresh, as a view that has just opened it: nothing selected, the whole diagram shown, fitted. */
+  private drawStudy(): void {
     this.resetInteraction();
     this.selection.forget();
-    this.stopListening?.();
-    const study = new Study(definitions, this.importOptions);
-    const { scene, mutator } = studyInternals(study);
-    this.scene = scene;
-    this.mutator = mutator;
-    this.stopListening = study.on('change', (change) => {
-      this.drawCommit(change);
-      this.bus.fire('ElementsChanged', { elements: [...change.added, ...change.changed], removed: change.removed });
-    });
     this.scope = undefined;
     this.renderer.scope = undefined;
     this.drag = new Drag({
@@ -215,20 +210,10 @@ export class Canvas {
     this.layers.clear();
     this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
     this.zoomToFit();
+  }
+
+  getScene(): Scene {
     return this.scene;
-  }
-
-  /** Rebuild the DI from the scene, so `definitions` is ready to serialize. */
-  syncDi(): void {
-    if (this.scene) writeDi(this.scene);
-  }
-
-  getScene(): Scene | undefined {
-    return this.scene;
-  }
-
-  getDefinitions(): ModdleObject | undefined {
-    return this.scene?.definitions;
   }
 
   getContainer(): HTMLElement {
@@ -255,9 +240,9 @@ export class Canvas {
     return this.rules;
   }
 
-  /** The ids the open document holds and the next ones to mint; none before an import. */
-  getIds(): IdGenerator | undefined {
-    return this.mutator?.ids;
+  /** The ids the document holds and the next ones to mint. */
+  getIds(): IdGenerator {
+    return this.mutator.ids;
   }
 
   getLabelEditing(): LabelEditing {
@@ -272,20 +257,19 @@ export class Canvas {
 
   get(id: string): SceneElement | RootElement | undefined {
     const scene = this.scene;
-    if (!scene) return undefined;
     if (id === scene.rootElement.id) return scene.rootElement;
     return scene.elementsById.get(id);
   }
 
   /** Every node, edge and label, in scene order. */
   all(): SceneElement[] {
-    return this.scene ? [...this.scene.elementsById.values()] : [];
+    return [...this.scene.elementsById.values()];
   }
 
   /** The live element behind an id, an element or a stale copy; `undefined` when nothing answers (the root included). */
   resolveElement(value: ElementRef | undefined): SceneElement | undefined {
     const scene = this.scene;
-    if (!scene || !value) return undefined;
+    if (!value) return undefined;
     if (typeof value === 'string') return scene.elementsById.get(value);
     if (isRootElement(value)) return undefined;
     const candidate = value as { id?: string; kind?: string };
@@ -296,19 +280,17 @@ export class Canvas {
 
   /** What the view shows: the drilled-into container, else the document root. */
   getRoot(): Root {
-    return this.scope ?? this.requireScene().rootElement;
+    return this.scope ?? this.scene.rootElement;
   }
 
   /** The nearest collapsed container `element` lives in, else the document root. */
   rootOf(element: ElementRef): Root | undefined {
-    const scene = this.scene;
-    if (!scene) return undefined;
     if (isRootElement(element)) return element;
     const target = this.resolveElement(element);
     if (!target) return undefined;
     const owner = target.kind === 'label' ? target.owner : target;
     for (let p = owner.parent; p; p = p.parent) if (isCollapsed(p)) return p;
-    return scene.rootElement;
+    return this.scene.rootElement;
   }
 
   // --- drill-down scope -------------------------------------------------------------
@@ -330,16 +312,14 @@ export class Canvas {
 
   /** Root first, then every container on the way in. */
   scopePath(): Root[] {
-    const scene = this.requireScene();
     const path: Root[] = [];
     for (let p = this.scope; p; p = p.parent) if (isExpandable(p.type)) path.unshift(p);
-    path.unshift(scene.rootElement);
+    path.unshift(this.scene.rootElement);
     return path;
   }
 
   private setScope(node: SceneNode | undefined): boolean {
-    const scene = this.scene;
-    if (!scene || this.scope === node) return false;
+    if (this.scope === node) return false;
     this.resetInteraction();
     this.scope = node;
     this.renderer.scope = node;
@@ -360,7 +340,6 @@ export class Canvas {
   // --- view -------------------------------------------------------------------------
 
   zoomToFit(): void {
-    if (!this.scene) return;
     const visible = this.all().filter((element) => !isHidden(element, this.scope));
     this.viewport.fitBounds(boundsOf(visible) ?? { x: 0, y: 0, width: 1000, height: 1000 }, 40);
   }
@@ -464,7 +443,6 @@ export class Canvas {
   }
 
   private exportBounds(): Bounds | undefined {
-    if (!this.scene) return undefined;
     const layer = this.layers.getLayer('elements') as SVGGElement & { getBBox?: () => DOMRect };
     let box: Bounds | undefined;
     if (typeof layer.getBBox === 'function') {
@@ -515,7 +493,6 @@ export class Canvas {
   /** Keep the elements layer in paint order (`zRankOf`): a commit that moves shapes into or out of a container re-sorts it. */
   private restack(): void {
     const scene = this.scene;
-    if (!scene) return;
     const layer = this.layers.getLayer('elements');
     const entries = Array.from(layer.children).map((g, index) => {
       const element = scene.elementsById.get(g.getAttribute('data-element-id') ?? '');
@@ -529,7 +506,6 @@ export class Canvas {
   /** Re-draw `elements` (and their captions) from the scene, then refresh the selection chrome. */
   private redrawElements(elements: readonly SceneElement[]): void {
     const scene = this.scene;
-    if (!scene) return;
     const seen = new Set<string>();
     for (const element of elements) {
       if (seen.has(element.id)) continue;
@@ -575,7 +551,6 @@ export class Canvas {
 
   private firstAbove(layer: SVGGElement, element: SceneElement): ChildNode | null {
     const scene = this.scene;
-    if (!scene) return null;
     const rank = zRankOf(element);
     for (const child of Array.from(layer.childNodes)) {
       const id = (child as Element).getAttribute?.('data-element-id');
@@ -609,17 +584,12 @@ export class Canvas {
   // --- hit-testing --------------------------------------------------------------------
 
   hitTest(point: Point, options?: HitOptions): SceneElement | undefined {
-    return this.scene ? hitTest(this.scene, point, { ...options, scope: this.scope }) : undefined;
+    return hitTest(this.scene, point, { ...options, scope: this.scope });
   }
 
   /** The selected shapes and captions a move carries. */
   private movableSelection(): Movable[] {
     return this.selection.get().filter((e): e is Movable => e.kind !== 'edge');
-  }
-
-  private requireScene(): Scene {
-    if (!this.scene) throw new Error('@behaverse/studyflow-canvas: no diagram imported yet');
-    return this.scene;
   }
 
   // --- create / connect ----------------------------------------------------------------
@@ -630,7 +600,6 @@ export class Canvas {
 
   /** Begin a create drag from the palette; `event` may originate outside the canvas. */
   startCreate(event: MouseEvent | undefined, descriptor: ShapeDescriptor | CreatePrototype): boolean {
-    if (!this.scene) return false;
     return this.gestures.startCreate(event, createShape(descriptor));
   }
 
@@ -643,7 +612,7 @@ export class Canvas {
 
   /** Add a shape the host built (a template's inner flow) at `bounds` inside `parent`, as is: no rules, no selection, no label editor. */
   addElement(descriptor: ShapeDescriptor, bounds: Bounds, parent?: SceneNode): SceneNode | undefined {
-    return this.mutator?.addShape({ ...descriptor, bounds, ...(parent ? { parent } : {}) });
+    return this.mutator.addShape({ ...descriptor, bounds, ...(parent ? { parent } : {}) });
   }
 
   /** A freshly created shape: selected, and (for a task-like shape) named. */
@@ -653,7 +622,6 @@ export class Canvas {
   }
 
   startConnect(source: SceneNode, event?: MouseEvent): boolean {
-    if (!this.scene) return false;
     return this.gestures.startConnect(source, event);
   }
 
@@ -669,7 +637,6 @@ export class Canvas {
 
   /** Click-append: place `descriptor` beside `source` and connect the two, as one edit. */
   appendElement(source: SceneNode | SceneEdge, descriptor: ShapeDescriptor | CreatePrototype): SceneNode | undefined {
-    if (!this.scene) return undefined;
     const prototype = createShape(descriptor);
     if (!this.rules.canAppendType(source, prototype.type)) return undefined;
     const result = this.batch(() => autoPlaceAppend(this, source, prototype));
@@ -680,7 +647,6 @@ export class Canvas {
 
   /** Whether a shape at `bounds` would land on a shape or across a flow. */
   isAreaOccupied(bounds: Bounds, from?: SceneNode | SceneEdge): boolean {
-    if (!this.scene) return false;
     const origin = from ? centerOf(appendSourceBounds(from)) : undefined;
     const onNode = nodesIntersecting(this.scene, bounds, this.scope).some((node) => {
       if (node === from) return false;
@@ -694,7 +660,6 @@ export class Canvas {
   /** Retype `node` in place, keeping its name, position and flows, as one edit. */
   replaceElement(node: SceneNode, descriptor: ShapeDescriptor | CreatePrototype): SceneNode | undefined {
     const mutator = this.mutator;
-    if (!this.scene || !mutator) return undefined;
     const prototype = createShape(descriptor);
     if (!this.rules.canReplace(node, prototype.type)) return undefined;
     if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)
@@ -732,7 +697,6 @@ export class Canvas {
   /** Ghost what appending `descriptor` from `source` would create; returns its bounds. */
   previewAppend(source: SceneNode | SceneEdge, descriptor: ShapeDescriptor | CreatePrototype): Bounds | undefined {
     this.clearAppendPreview();
-    if (!this.scene) return undefined;
     const prototype = createShape(descriptor);
     if (!this.rules.canAppendType(source, prototype.type)) return undefined;
     const bounds = boundsFor(prototype, freeAppendPosition(
@@ -761,18 +725,15 @@ export class Canvas {
 
   /** Move one waypoint and commit it. */
   private moveWaypoint(edge: SceneEdge, index: number, point: Point): void {
-    const mutator = this.mutator;
-    if (!mutator || index < 0 || index >= edge.waypoints.length) return;
+    if (index < 0 || index >= edge.waypoints.length) return;
     const at = this.snapPoint(point);
-    mutator.setEdgeWaypoints(edge, edge.waypoints.map((p, i) => (i === index ? at : p)));
+    this.mutator.setEdgeWaypoints(edge, edge.waypoints.map((p, i) => (i === index ? at : p)));
   }
 
   // --- edits --------------------------------------------------------------------------------
 
   setExpanded(node: SceneNode, expanded: boolean): boolean {
-    const mutator = this.mutator;
-    if (!mutator) return false;
-    return mutator.setExpanded(node, expanded).changed.length > 0;
+    return this.mutator.setExpanded(node, expanded).changed.length > 0;
   }
 
   toggleExpanded(node: SceneNode): boolean {
@@ -784,12 +745,12 @@ export class Canvas {
   }
 
   setColor(elements: ElementRef | readonly ElementRef[], colors: ElementColors): SceneElement[] {
-    return this.mutator?.setColor(this.resolveElements(elements), colors) ?? [];
+    return this.mutator.setColor(this.resolveElements(elements), colors);
   }
 
   /** Restyle captions: an omitted field is left alone, a falsy one clears; a label restyles the element it names. */
   setFont(elements: ElementRef | readonly ElementRef[], font: FontPatch): SceneElement[] {
-    return this.mutator?.setFont(this.resolveElements(elements), font) ?? [];
+    return this.mutator.setFont(this.resolveElements(elements), font);
   }
 
   private resolveElements(elements: ElementRef | readonly ElementRef[]): SceneElement[] {
@@ -811,7 +772,6 @@ export class Canvas {
   updateModdleProperties(element: ElementRef, moddle: object, properties: Record<string, unknown>): void {
     const mutator = this.mutator;
     const scene = this.scene;
-    if (!mutator || !scene) return;
     const moddleElement = moddle as ModdleObject;
     for (const [key, value] of Object.entries(properties)) {
       if (prop(moddleElement, key) !== value) setProp(moddleElement, key, value);
@@ -822,20 +782,17 @@ export class Canvas {
   }
 
   resizeShape(node: SceneNode, bounds: Bounds): void {
-    this.mutator?.setNodeBounds(node, bounds);
+    this.mutator.setNodeBounds(node, bounds);
   }
 
   /** Re-route the edges docked to `nodes`, and commit. */
   rerouteEdges(nodes: readonly SceneNode[]): SceneEdge[] {
-    const mutator = this.mutator;
-    if (!this.scene || !mutator) return [];
     const changed = rerouteEdgeSet(edgesAffectedBy(nodes), { obstacles: this.routeObstacles() });
-    mutator.commit(changed);
+    this.mutator.commit(changed);
     return changed;
   }
 
   private routeObstacles(exclude: readonly SceneNode[] = []): Bounds[] {
-    if (!this.scene) return [];
     const skip = new Set<SceneNode>(exclude);
     return orderedNodes(this.scene, this.scope)
       .filter((node) => !skip.has(node) && !isContainerNode(node))
@@ -872,7 +829,6 @@ export class Canvas {
   /** Delete `elements` and their closure, as one edit; a caption deletes its owner's name instead. */
   deleteElements(elements: SceneElement | readonly SceneElement[]): SceneElement[] {
     const mutator = this.mutator;
-    if (!mutator) return [];
     const list = Array.isArray(elements) ? (elements as readonly SceneElement[]).slice() : [elements as SceneElement];
     const drawables = list.filter((element): element is Drawable => element.kind !== 'label');
     return mutator.batch(() => {
@@ -885,7 +841,7 @@ export class Canvas {
 
   /** Make every edit `edit` makes one commit: one revision, one `ElementsChanged`, one undo step. */
   batch<T>(edit: () => T): T {
-    return this.mutator ? this.mutator.batch(edit) : edit();
+    return this.mutator.batch(edit);
   }
 }
 

@@ -34,7 +34,7 @@ export function attachAutosave(modeler: Editor): () => void {
 
   const flush = () => {
     if (localIsOn()) {
-      modeler.saveXML({ format: true })
+      modeler.saveXML()
         .then(({ xml }: { xml: string }) => {
           if (xml) saveAutosavedDiagram(xml);
         })

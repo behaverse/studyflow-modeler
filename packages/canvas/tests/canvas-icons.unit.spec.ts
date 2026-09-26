@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { Canvas, INK } from '@canvas/index.ts';
+import { INK, type Canvas } from '@canvas/index.ts';
 import type { IconDef } from '@canvas/index.ts';
 import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml } from '@core/notation/moddlePackage';
 
-import { installDocument, loadYaml, node } from './canvasHarness';
+import { canvasOn, loadYaml, node } from './canvasHarness';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /**
@@ -139,10 +139,8 @@ test('the attribute a type\'s `meta.glyph` names is drawn over its icon, upper-c
   const shipped = getCatalog();
   setCatalog(buildCatalog(models));
   try {
-    installDocument();
     const { rootElement } = await new BpmnModdle(schemaPackages(models) as any).fromXML(GLYPH_XML);
-    const canvas = new Canvas({ iconResolver: () => GLYPH_DEF });
-    canvas.importDefinitions(rootElement);
+    const canvas = canvasOn(rootElement, { iconResolver: () => GLYPH_DEF });
     const glyphOf = (id: string) => graphics(canvas, id).querySelector('text.sf-icon-text');
 
     expect(glyphOf('Short')?.textContent).toBe('NB');

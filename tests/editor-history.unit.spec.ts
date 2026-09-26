@@ -10,8 +10,8 @@ import { createSnapshotHistory } from '@modeler/editor/history';
 
 /**
  * A document that is one string. `serialize` reads it, `restore` writes it — the
- * same contract `editor/mount.ts` fulfils with `saveXML` /
- * `canvas.importDefinitions`.
+ * same contract `editor/mount.ts` fulfils with `study.toXml` /
+ * `study.load`.
  */
 function fakeDocument(initial: string) {
   const state = { xml: initial, changes: 0 };

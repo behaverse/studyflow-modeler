@@ -4,7 +4,7 @@ import type { Canvas } from '@canvas/index.ts';
 import { APPEND_DISTANCE } from '@canvas/study/autoplace.ts';
 import type { Bounds, Point, SceneEdge } from '@canvas/study/scene.ts';
 
-import { diOf, edge, loadYaml, node, type Loaded } from './canvasHarness';
+import { diOf, edge, loadYaml, node, written, type Loaded } from './canvasHarness';
 
 /**
  * Click-append (`study/autoplace.ts`). A clicked append needs no pointer, so the
@@ -131,7 +131,8 @@ Process_1:
 
 test.describe('auto-place (click-append)', () => {
   test('appends the shape and the flow that reaches it, both written to the document, and selects the shape', async () => {
-    const { canvas, definitions } = load();
+    const loaded = load();
+    const { canvas, definitions } = loaded;
     const source = node(canvas, 'Task_1');
 
     const appended = canvas.appendElement(source, { type: 'bpmn:EndEvent', attrs: { name: 'Appended' } });
@@ -154,9 +155,9 @@ test.describe('auto-place (click-append)', () => {
     expect(flow.sourceRef.id).toBe('Task_1');
 
     // ...and DI for both halves, which is what makes the append survive a round-trip.
-    canvas.syncDi();
-    expect(diOf(definitions, appended!.id)?.$type).toBe('bpmndi:BPMNShape');
-    expect(diOf(definitions, flow.id)?.$type).toBe('bpmndi:BPMNEdge');
+    const saved = await written(loaded);
+    expect(diOf(saved, appended!.id)?.$type).toBe('bpmndi:BPMNShape');
+    expect(diOf(saved, flow.id)?.$type).toBe('bpmndi:BPMNEdge');
 
     // The shape is what is left selected, not the flow drawn to it.
     expect(canvas.getSelection().get()).toEqual([appended]);

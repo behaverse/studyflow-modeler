@@ -1,9 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/study/orthogonal.ts';
 
-import { edge, loadYaml, node, xmlOf, type Loaded } from './canvasHarness';
+import { canvasOn, edge, loadYaml, node, xmlOf, type Loaded } from './canvasHarness';
 
 /**
  * Retyping an element in place — the context pad's wrench, "Change element",
@@ -85,9 +84,7 @@ test('replacing a task mints the new type, keeps the name, rewires both flows �
   // And the whole thing re-imports — the strongest statement that nothing was left
   // dangling (a flow pointing at an unfiled business object throws here).
   const { rootElement: reimported } = await moddle.fromXML(xml);
-  const reloaded = new Canvas();
-  reloaded.importDefinitions(reimported);
-  expect(reloaded.getScene()!.elementsById.get(id)).toBeTruthy();
+  expect(canvasOn(reimported).get(id)).toBeTruthy();
 
   expect(canvas.getSelection().get()).toEqual([replacement]);
 });
