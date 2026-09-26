@@ -1,10 +1,10 @@
 /**
  * A study: the document (its BPMN definitions and the scene drawn from them), the one place it is
- * edited, and the news of each edit. It needs no DOM: a canvas is one view of a study, and several
- * views may share one.
+ * edited, its undo history, and the news of each change. It needs no DOM: a canvas is one view of a
+ * study, and several views may share one.
  */
 
-import { fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireXml } from '@core/document';
+import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireXml } from '@core/document';
 import type { Moddle } from '@core/element/moddle';
 import { writeDi } from '@canvas/study/di.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
@@ -12,11 +12,12 @@ import { Mutator, type Commit } from '@canvas/study/mutator.ts';
 import type { Drawable, ModdleObject, Scene } from '@canvas/study/scene.ts';
 
 /**
- * What one commit did to the study, and why. An 'edit' says what it added, changed and removed; a 'load' is a
- * whole new document: everything before it removed, everything after it added, and the root changed.
+ * What one change did to the study, and why. An 'edit' is one commit: what it added, changed and removed. A
+ * 'load', an 'undo' and a 'redo' put another document in place, and say so by id: what only the old one held is
+ * removed, what only the new one holds added, and everything else changed, the root among it.
  */
 export interface StudyChange extends Commit {
-  readonly cause: 'edit' | 'load';
+  readonly cause: 'edit' | 'load' | 'undo' | 'redo';
 }
 
 export interface OpenOptions extends ImportOptions {
@@ -25,6 +26,9 @@ export interface OpenOptions extends ImportOptions {
 }
 
 type ChangeListener = (change: StudyChange) => void;
+
+/** How many edits an undo can go back through. */
+const UNDO_DEPTH = 50;
 
 /** What the canvas package reads and writes behind a study's public surface. */
 export interface StudyInternals {
@@ -42,10 +46,16 @@ export function studyInternals(study: Study): StudyInternals {
 export class Study {
   private readonly listeners = new Set<ChangeListener>();
   private readonly options: ImportOptions;
+  /** The document after each edit, as `.studyflow.yaml` text, oldest first: what undo and redo go back and forth through. */
+  private snapshots: string[];
+  /** The snapshot of the document the study holds. */
+  private current = 0;
 
   private constructor(definitions: ModdleObject, options: ImportOptions) {
     this.options = options;
     this.read(definitions, 0);
+    // As read, before any edit: the DI is the file's, so nothing is written back yet.
+    this.snapshots = [definitionsToStudyflow(definitions)];
   }
 
   /** A study of `text`, a `.studyflow.yaml` or BPMN XML file. */
@@ -58,12 +68,10 @@ export class Study {
     return new Study(definitions, options);
   }
 
-  /** Replace the document with `source`, file text or definitions, as one change: a 'load'. */
+  /** Replace the document with `source`, file text or definitions, as one change: a 'load', which the history starts over from. */
   async load(source: string | ModdleObject): Promise<void> {
     const definitions = typeof source === 'string' ? await parse(source, moddleOf(this.definitions), this.options.onWarning) : source;
-    const before = studyInternals(this).scene;
-    const after = this.read(definitions, before.revision + 1);
-    this.announce({ cause: 'load', added: drawables(after), changed: [after.rootElement], removed: drawables(before) });
+    this.replace(definitions, 'load');
   }
 
   /** The document as a BPMN XML file holds it: the drawing written into its DI, and a pure choreography on its own root. */
@@ -75,7 +83,7 @@ export class Study {
     return toWireXml(xml, moddle);
   }
 
-  /** The `bpmn:Definitions` the study edits. */
+  /** The `bpmn:Definitions` the study edits: another object after a load, an undo or a redo. */
   get definitions(): ModdleObject {
     return studyInternals(this).scene.definitions;
   }
@@ -83,6 +91,24 @@ export class Study {
   /** Goes up by one on every change. */
   get revision(): number {
     return studyInternals(this).scene.revision;
+  }
+
+  /** Go back to the document before the last edit; false when the history holds none. */
+  undo(): boolean {
+    return this.travel(-1);
+  }
+
+  /** Go forward to the edit the last undo went back from; false when there is none. */
+  redo(): boolean {
+    return this.travel(1);
+  }
+
+  get canUndo(): boolean {
+    return this.current > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.current < this.snapshots.length - 1;
   }
 
   /** Hear each change, once, in the order listeners subscribed; the returned function unsubscribes. */
@@ -96,8 +122,41 @@ export class Study {
     fromWireDefinitions(definitions, this.options.onWarning);
     const scene = importDefinitions(definitions, this.options);
     scene.revision = revision;
-    internals.set(this, { scene, mutator: new Mutator(scene, (commit) => this.announce({ cause: 'edit', ...commit })) });
+    internals.set(this, { scene, mutator: new Mutator(scene, (commit) => this.edited(commit)) });
     return scene;
+  }
+
+  /** A commit: the document as it now stands is the newest snapshot, unless it is the one the study holds. */
+  private edited(commit: Commit): void {
+    const { scene } = studyInternals(this);
+    writeDi(scene);
+    const snapshot = definitionsToStudyflow(scene.definitions);
+    if (snapshot !== this.snapshots[this.current]) {
+      this.snapshots.length = this.current + 1;
+      this.snapshots.push(snapshot);
+      if (this.snapshots.length > UNDO_DEPTH + 1) this.snapshots.shift();
+      this.current = this.snapshots.length - 1;
+    }
+    this.announce({ cause: 'edit', ...commit });
+  }
+
+  private travel(step: -1 | 1): boolean {
+    const snapshot = this.snapshots[this.current + step];
+    if (snapshot === undefined) return false;
+    this.current += step;
+    this.replace(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo');
+    return true;
+  }
+
+  /** Put `definitions` in place of the document, as one change; a load starts the history over. */
+  private replace(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): void {
+    const before = studyInternals(this).scene;
+    const after = this.read(definitions, before.revision + 1);
+    if (cause === 'load') {
+      this.snapshots = [definitionsToStudyflow(definitions)];
+      this.current = 0;
+    }
+    this.announce({ cause, ...byId(before, after) });
   }
 
   private announce(change: StudyChange): void {
@@ -118,6 +177,13 @@ function moddleOf(definitions: ModdleObject): Moddle {
   return definitions.$model as Moddle;
 }
 
-function drawables(scene: Scene): Drawable[] {
-  return [...scene.elementsById.values()].filter((element): element is Drawable => element.kind !== 'label');
+/** One scene in place of another, by id: the nodes and edges only `before` held, those only `after` holds, and the rest. */
+function byId(before: Scene, after: Scene): Commit {
+  const drawables = (scene: Scene): Drawable[] => [...scene.elementsById.values()].filter((element): element is Drawable => element.kind !== 'label');
+  const kept = drawables(after).filter((element) => before.elementsById.has(element.id));
+  return {
+    added: drawables(after).filter((element) => !before.elementsById.has(element.id)),
+    changed: [after.rootElement, ...kept],
+    removed: drawables(before).filter((element) => !after.elementsById.has(element.id)),
+  };
 }

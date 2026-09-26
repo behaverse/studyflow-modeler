@@ -5,7 +5,7 @@ The editable SVG canvas the modeler draws on: plain TypeScript and SVG, no bpmn-
 | Folder | What |
 | --- | --- |
 | `Canvas.ts` | The object the host holds: a view of a study. It owns the `<svg>`, the viewport, the renderer, the selection, the label editor and the gestures, and every public method is here. |
-| `study/` | Everything that needs no DOM (lint-enforced): the document and its writes. `Study.ts` opens a file (YAML or XML) or definitions, holds the scene and mutator, announces each change to the views that draw it, and writes the file back; `import.ts` builds one scene tree from the definitions and their DI; `mutator.ts` is the only thing that commits an edit; `di.ts` writes the DI back on save; `labels.ts` keeps captions and `text.ts` measures them; `tree.ts` answers containment, paint order and visibility; `rules.ts` says what may connect, contain or resize what (a schema's `meta.connectsTo` first, then plain BPMN); `orthogonal.ts` routes edges and `edit.ts` edits bendpoints, both docking on core's `document/outline.ts`; `drag.ts` moves, resizes and drops, `hit.ts` hit-tests, `autoplace.ts` places an append, `prototype.ts` describes a shape before it exists. |
+| `study/` | Everything that needs no DOM (lint-enforced): the document and its writes. `Study.ts` opens a file (YAML or XML) or definitions, holds the scene, the mutator and the undo history, announces each change to the views that draw it, and writes the file back; `import.ts` builds one scene tree from the definitions and their DI; `mutator.ts` is the only thing that commits an edit; `di.ts` writes the DI back on save; `labels.ts` keeps captions and `text.ts` measures them; `tree.ts` answers containment, paint order and visibility; `rules.ts` says what may connect, contain or resize what (a schema's `meta.connectsTo` first, then plain BPMN); `orthogonal.ts` routes edges and `edit.ts` edits bendpoints, both docking on core's `document/outline.ts`; `drag.ts` moves, resizes and drops, `hit.ts` hit-tests, `autoplace.ts` places an append, `prototype.ts` describes a shape before it exists. |
 | `interaction/` | Pointer and keyboard. `gestures.ts` turns a press into one gesture and drives `study/drag.ts`, `create.ts` or `connect.ts`, through the canvas's public API and the few tools `Canvas.ts` hands it; also `selection.ts`, `labelEditing.ts`, `snapping.ts`. |
 | `render/` | One `<g>` per element (`renderer.ts`), the shapes, captions and icons. |
 | `view/` | The viewport (pan, zoom, fit), the layers, the `INK` palette and the canvas CSS. |
@@ -19,6 +19,7 @@ An edit, end to end: the modeler opens the file as a `Study` (`Study.open`), whi
 - A caption is an element of its own, with the id `<owner id>_label`.
 - Paint order is `zRankOf` (`study/tree.ts`).
 - Drilling into a container sets the canvas's `scope`: view state, not the scene's, so it is a view of the same scene, not another plane. An edge docks on what its own plane shows (`planeOf`), whatever a view is drilled into.
+- Undo is the Study's. After each commit it keeps the document as `.studyflow.yaml` text (unless the text is what it already holds); `undo()` and `redo()` read one back as a new scene, and each view draws it afresh, keeping its scope, camera and selection by id. A load starts the history over.
 
 ## What the host provides and gets
 

@@ -154,11 +154,13 @@ export class Canvas {
       nudgeSelection: (dx, dy) => this.nudgeSelection(dx, dy),
     });
     this.stopListening = study.on('change', (change) => {
-      if (change.cause === 'load') {
-        this.drawStudy();
-      } else {
+      if (change.cause === 'edit') {
         this.drawCommit(change);
         this.bus.fire('ElementsChanged', { elements: [...change.added, ...change.changed], removed: change.removed });
+      } else if (change.cause === 'load') {
+        this.drawStudy();
+      } else {
+        this.drawKeepingView();
       }
     });
     this.drawStudy();
@@ -210,6 +212,19 @@ export class Canvas {
     this.layers.clear();
     this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
     this.zoomToFit();
+  }
+
+  /** Draw the study afresh after an undo or a redo, keeping what the view showed, by id: the scope, the camera, the selection. */
+  private drawKeepingView(): void {
+    const selected = this.selection.get().map((element) => element.id);
+    const scope = this.scope?.id;
+    const viewbox = this.viewport.getViewbox();
+    this.drawStudy();
+    const node = scope === undefined ? undefined : this.scene.elementsById.get(scope);
+    if (node?.kind === 'node') this.enterScope(node);
+    this.viewport.setViewbox(viewbox);
+    const kept = selected.map((id) => this.scene.elementsById.get(id)).filter((element): element is SceneElement => !!element);
+    if (kept.length > 0) this.selection.select(kept);
   }
 
   getScene(): Scene {

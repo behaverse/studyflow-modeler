@@ -567,6 +567,25 @@ test('drilling into a container shows only its contents until the trail leads ba
   expect(isHiddenGraphics(canvas, 'Task_1')).toBe(false);
 });
 
+test('an undo draws the study again and keeps the view on it, by id: the scope, the camera and the selection', async () => {
+  const { canvas } = load();
+  canvas.enterScope(node(canvas, 'Sub_1'));
+  canvas.getViewport().setViewbox({ x: 380, y: 380, width: 300, height: 200 });
+  const viewbox = canvas.getViewport().getViewbox();
+  canvas.getSelection().select(node(canvas, 'Task_In'));
+  canvas.updateProperties(node(canvas, 'Task_In'), { name: 'Deeper' });
+
+  expect(canvas.study.undo()).toBe(true);
+
+  const drawn = canvas.getGraphics('Task_In')!.textContent;
+  expect(drawn, 'drawn from the document as it was').toContain('Deep');
+  expect(drawn).not.toContain('Deeper');
+  expect(canvas.getScope()?.id).toBe('Sub_1');
+  expect(canvas.getViewport().getViewbox()).toEqual(viewbox);
+  expect(canvas.getSelection().get()).toHaveLength(1);
+  expect(canvas.getSelection().get()[0], 'the element as it is now, not as it was').toBe(node(canvas, 'Task_In'));
+});
+
 test('dropping a shape into an expanded container re-files it there', async () => {
   const { canvas } = load();
   const sub = node(canvas, 'Sub_1');
