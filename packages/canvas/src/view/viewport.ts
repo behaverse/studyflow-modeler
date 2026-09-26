@@ -1,6 +1,6 @@
 /** Pan and zoom, expressed as the root `viewBox`; screen ↔ diagram transforms. */
 
-import type { Bounds, Point, SceneElement } from '@canvas/model/scene.ts';
+import type { Bounds, Point, SceneElement } from '@canvas/study/scene.ts';
 
 export interface Viewbox {
   x: number;

@@ -6,18 +6,19 @@
  */
 
 import type { Canvas } from '@canvas/Canvas.ts';
-import type { Drag, GridAxes, Movable } from '@canvas/interaction/drag.ts';
-import { nodesIntersecting, normalizeRect } from '@canvas/interaction/hit.ts';
+import type { Drag, GridAxes, Movable } from '@canvas/study/drag.ts';
+import { nodesIntersecting, normalizeRect } from '@canvas/study/hit.ts';
 import type { HandleHit, WaypointHit } from '@canvas/interaction/selection.ts';
 import { RESIZING_MARKER } from '@canvas/interaction/selection.ts';
 import { collectSnapTargets, snapMove, snapPoint, type SnapTargets } from '@canvas/interaction/snapping.ts';
 import type { Connect, ConnectionEnd } from '@canvas/interaction/connect.ts';
-import type { Create, CreatePrototype } from '@canvas/interaction/create.ts';
-import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
-import { isExpandable } from '@canvas/model/tree.ts';
+import type { Create } from '@canvas/interaction/create.ts';
+import type { CreatePrototype } from '@canvas/study/prototype.ts';
+import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import { isExpandable } from '@canvas/study/tree.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
-import { distanceToSegment } from '@canvas/routing/edit.ts';
+import { distanceToSegment } from '@canvas/study/edit.ts';
 
 const DRAG_THRESHOLD_PX = 3;
 const NUDGE = 1;

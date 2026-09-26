@@ -6,9 +6,9 @@
 import { categoryOf, dataObjectFold, dataStoreRim } from '@core/document/outline.ts';
 import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
 
-import { asModdle, prop } from '@canvas/model/moddle.ts';
-import type { ModdleObject, SceneNode } from '@canvas/model/scene.ts';
-import { isCollapsed } from '@canvas/model/tree.ts';
+import { asModdle, prop } from '@canvas/study/moddle.ts';
+import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
+import { isCollapsed } from '@canvas/study/tree.ts';
 import { append, create } from '@canvas/render/svg.ts';
 
 /** The bottom-centre markers an activity draws, in BPMN's order. A pool's own marker is `participantInstances`. */

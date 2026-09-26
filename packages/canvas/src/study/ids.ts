@@ -2,7 +2,7 @@
 
 import { toLocalName } from '@core/naming.ts';
 
-import type { ModdleObject } from '@canvas/model/scene.ts';
+import type { ModdleObject } from '@canvas/study/scene.ts';
 
 /** `'bpmn:UserTask'` → `'UserTask_'`. */
 export function prefixFor(type: string): string {

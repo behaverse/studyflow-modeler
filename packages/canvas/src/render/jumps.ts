@@ -4,7 +4,7 @@
  * arcs into the path.
  */
 
-import type { Point } from '@canvas/model/scene.ts';
+import type { Point } from '@canvas/study/scene.ts';
 
 export const EDGE_CORNER_RADIUS = 6;
 /** How far a jump reaches to either side of its crossing, along the segment. */

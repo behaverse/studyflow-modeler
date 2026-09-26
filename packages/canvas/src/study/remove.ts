@@ -6,9 +6,9 @@
 
 import { isDataAssociationType } from '@core/element/index.ts';
 
-import { activityOf, pruneDataAssociation } from '@canvas/model/dataAssociation.ts';
-import type { IdGenerator } from '@canvas/model/ids.ts';
-import { dropLabel } from '@canvas/model/labels.ts';
+import { activityOf, pruneDataAssociation } from '@canvas/study/dataAssociation.ts';
+import type { IdGenerator } from '@canvas/study/ids.ts';
+import { dropLabel } from '@canvas/study/labels.ts';
 import {
   asList,
   asModdle,
@@ -22,10 +22,10 @@ import {
   setParent,
   setProp,
   unfile,
-} from '@canvas/model/moddle.ts';
-import type { Drawable, ModdleObject, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
-import { changeRoot } from '@canvas/model/study.ts';
-import { depthOf } from '@canvas/model/tree.ts';
+} from '@canvas/study/moddle.ts';
+import type { Drawable, ModdleObject, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import { changeRoot } from '@canvas/study/root.ts';
+import { depthOf } from '@canvas/study/tree.ts';
 
 
 function attachedIndex(scene: Scene): Map<ModdleObject, SceneNode[]> {

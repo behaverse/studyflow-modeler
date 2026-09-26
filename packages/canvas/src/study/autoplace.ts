@@ -2,9 +2,9 @@
 
 import { BPMN } from '@core/constants.ts';
 
-import { createShape, type CreatePrototype, type ShapeDescriptor } from '@canvas/interaction/create.ts';
-import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/model/scene.ts';
-import { routableEnd } from '@canvas/routing/orthogonal.ts';
+import { createShape, type CreatePrototype, type ShapeDescriptor } from '@canvas/study/prototype.ts';
+import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
+import { routableEnd } from '@canvas/study/orthogonal.ts';
 
 export const APPEND_DISTANCE = 50;
 const ANNOTATION_APPEND_DISTANCE = 50;

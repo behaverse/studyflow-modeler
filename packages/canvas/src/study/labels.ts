@@ -5,9 +5,9 @@
 
 import { BPMN } from '@core/constants.ts';
 
-import { nameOf } from '@canvas/model/moddle.ts';
-import type { Bounds, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
-import { edgeLabelBox, labelHeightFor, nodeLabelBox } from '@canvas/render/labels.ts';
+import { nameOf } from '@canvas/study/moddle.ts';
+import type { Bounds, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
+import { edgeLabelBox, labelHeightFor, nodeLabelBox } from '@canvas/study/text.ts';
 import { DATA_TYPES } from '@core/document/outline.ts';
 
 const EXTERNAL_LABEL_TYPES = new Set<string>([

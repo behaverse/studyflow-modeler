@@ -16,9 +16,9 @@
 import { BPMN } from '@core/constants.ts';
 import { ensureChoreographyParticipants, isTypedChoreography, readChoreographyBands } from '@core/document/index.ts';
 
-import { IdGenerator } from '@canvas/model/ids.ts';
-import { asList, nameOf, prop, setProp } from '@canvas/model/moddle.ts';
-import type { ModdleObject, Scene, SceneNode } from '@canvas/model/scene.ts';
+import { IdGenerator } from '@canvas/study/ids.ts';
+import { asList, nameOf, prop, setProp } from '@canvas/study/moddle.ts';
+import type { ModdleObject, Scene, SceneNode } from '@canvas/study/scene.ts';
 
 /** One of the two participant bands of a choreography task. */
 export type ParticipantBand = 'top' | 'bottom';

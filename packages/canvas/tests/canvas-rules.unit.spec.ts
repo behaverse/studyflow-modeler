@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { buildCatalog, setCatalog } from '@core/notation';
 import type { TypeCatalog } from '@core/notation/query.ts';
-import { Rules, type ConnectionSpec, type RuleElement } from '@canvas/rules/rules.ts';
+import { Rules, type ConnectionSpec, type RuleElement } from '@canvas/study/rules.ts';
 
 import { connectsToFixture, loadSchemaModels } from '@tests/schemas';
 

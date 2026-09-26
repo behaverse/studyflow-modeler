@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
-import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
-import type { Point, SceneEdge } from '@canvas/model/scene.ts';
+import { isOrthogonal } from '@canvas/study/orthogonal.ts';
+import type { Point, SceneEdge } from '@canvas/study/scene.ts';
 
 import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, type Loaded } from './canvasHarness';
 

@@ -2,7 +2,7 @@
  * Every committed edit of the document: writes the scene and the business objects,
  * and ends in one commit per edit, or per `batch` of edits: the revision goes up once,
  * the canvas draws what the commit did, and `ElementsChanged` fires once. DI is never
- * touched here; it is rebuilt from the scene on save (`model/di.ts`).
+ * touched here; it is rebuilt from the scene on save (`study/di.ts`).
  */
 
 import { getDefaults, getExtensionType, isDataAssociationType, StudyflowElement } from '@core/element/index.ts';
@@ -14,15 +14,15 @@ import {
   isChoreographyTask,
   tasksReferencing,
   type ParticipantBand,
-} from '@canvas/model/choreography.ts';
-import { normalizeColors } from '@canvas/model/color.ts';
-import { formatFont, mergeFont, type FontPatch } from '@canvas/model/font.ts';
+} from '@canvas/study/choreography.ts';
+import { normalizeColors } from '@canvas/study/color.ts';
+import { formatFont, mergeFont, type FontPatch } from '@canvas/study/font.ts';
 import {
   dataAssociationEnds,
   wireDataAssociation,
-} from '@canvas/model/dataAssociation.ts';
-import { IdGenerator } from '@canvas/model/ids.ts';
-import { syncLabel } from '@canvas/model/labels.ts';
+} from '@canvas/study/dataAssociation.ts';
+import { IdGenerator } from '@canvas/study/ids.ts';
+import { syncLabel } from '@canvas/study/labels.ts';
 import {
   asModdle,
   mint,
@@ -36,8 +36,8 @@ import {
   setRef,
   unfile,
   type ModdleFactory,
-} from '@canvas/model/moddle.ts';
-import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/model/remove.ts';
+} from '@canvas/study/moddle.ts';
+import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/study/remove.ts';
 import type {
   Bounds,
   Drawable,
@@ -49,8 +49,8 @@ import type {
   SceneEdge,
   SceneElement,
   SceneNode,
-} from '@canvas/model/scene.ts';
-import { changeRoot } from '@canvas/model/study.ts';
+} from '@canvas/study/scene.ts';
+import { changeRoot } from '@canvas/study/root.ts';
 import {
   boundsOf,
   COLLAPSED_SIZE,
@@ -61,11 +61,11 @@ import {
   frameAround,
   incidentEdgesOf,
   isExpandable,
-} from '@canvas/model/tree.ts';
+} from '@canvas/study/tree.ts';
 import { cropPoint } from '@core/document/outline.ts';
-import { samePoints } from '@canvas/routing/edit.ts';
-import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
-import { containerFor } from '@canvas/rules/rules.ts';
+import { samePoints } from '@canvas/study/edit.ts';
+import { orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
+import { containerFor } from '@canvas/study/rules.ts';
 
 
 export interface PartialBounds {
@@ -663,9 +663,9 @@ export class Mutator {
 
   /**
    * Turn a process root into a collaboration so a pool can hold it: the collaboration
-   * becomes the root and takes the study over (`model/study.ts`), the process stays a
+   * becomes the root and takes the study over (`study/root.ts`), the process stays a
    * root element under a fresh id, and the new pool depicts it and adopts what is
-   * drawn. Deleting the last pool undoes it (`model/remove.ts`).
+   * drawn. Deleting the last pool undoes it (`study/remove.ts`).
    */
   private promoteRootToCollaboration(
     participant: ModdleObject,

@@ -4,12 +4,12 @@
  */
 
 export { Canvas, type CanvasOptions } from './Canvas.ts';
-export type { Bounds, ElementRef, Font, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, SceneNode, TextAlign } from './model/scene.ts';
-export { isRootElement } from './model/scene.ts';
-export { IdGenerator, idPrefixFor, needsId, prefixFor } from './model/ids.ts';
-export { attachEventDefinitions } from './model/moddle.ts';
-export { CONTENT_PADDING, isCollapsed, isExpandable, isExpanded, isHidden } from './model/tree.ts';
-export { defaultSizeFor, type ShapeDescriptor } from './interaction/create.ts';
+export type { Bounds, ElementRef, Font, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, SceneNode, TextAlign } from './study/scene.ts';
+export { isRootElement } from './study/scene.ts';
+export { IdGenerator, idPrefixFor, needsId, prefixFor } from './study/ids.ts';
+export { attachEventDefinitions } from './study/moddle.ts';
+export { CONTENT_PADDING, isCollapsed, isExpandable, isExpanded, isHidden } from './study/tree.ts';
+export { defaultSizeFor, type ShapeDescriptor } from './study/prototype.ts';
 export { Selection } from './interaction/selection.ts';
 export { SVG_ICON_PATHS, type IconDef } from './render/icons.ts';
 export { append as svgAppend, attr as svgAttr, create as svgCreate, remove as svgRemove, setDocument } from './render/svg.ts';

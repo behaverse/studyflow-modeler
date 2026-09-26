@@ -9,7 +9,7 @@ import { getExtensionType } from '@core/element/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 import type { TypeCatalog } from '@core/notation/query.ts';
-import type { ModdleObject } from '@canvas/model/scene.ts';
+import type { ModdleObject } from '@canvas/study/scene.ts';
 
 /** The structural minimum a rule needs; a detached palette shape satisfies it. */
 export interface RuleElement {

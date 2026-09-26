@@ -4,15 +4,15 @@
  * The first diagram's plane is the drawing: its shapes and edges form one tree, each
  * element under the nearest drawn node its business object sits in. What only a
  * further plane draws (another tool's collapsed sub-process) is left out, with a
- * warning; the canvas writes one plane back (`model/di.ts`).
+ * warning; the canvas writes one plane back (`study/di.ts`).
  */
 
-import { readColorsOf } from '@canvas/model/color.ts';
+import { readColorsOf } from '@canvas/study/color.ts';
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@core/element/index.ts';
-import { FONT_PROPERTY, parseFont } from '@canvas/model/font.ts';
-import { mintLabel, syncLabel } from '@canvas/model/labels.ts';
-import { asList, asModdle, parentOf, prop, refBO } from '@canvas/model/moddle.ts';
-import { isExpandable } from '@canvas/model/tree.ts';
+import { FONT_PROPERTY, parseFont } from '@canvas/study/font.ts';
+import { mintLabel, syncLabel } from '@canvas/study/labels.ts';
+import { asList, asModdle, parentOf, prop, refBO } from '@canvas/study/moddle.ts';
+import { isExpandable } from '@canvas/study/tree.ts';
 import type {
   Drawable,
   ModdleObject,
@@ -22,8 +22,8 @@ import type {
   SceneEdge,
   SceneElement,
   SceneNode,
-} from '@canvas/model/scene.ts';
-import { labelHeightFor, nodeLabelBox } from '@canvas/render/labels.ts';
+} from '@canvas/study/scene.ts';
+import { labelHeightFor, nodeLabelBox } from '@canvas/study/text.ts';
 
 export interface ImportOptions {
   onWarning?: (message: string) => void;

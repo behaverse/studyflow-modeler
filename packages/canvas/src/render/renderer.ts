@@ -10,12 +10,12 @@ import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, getAttribute, isDataAs
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 
-import { isTypedChoreography, readChoreographyBands } from '@canvas/model/choreography.ts';
-import { normalizeColor } from '@canvas/model/color.ts';
+import { isTypedChoreography, readChoreographyBands } from '@canvas/study/choreography.ts';
+import { normalizeColor } from '@canvas/study/color.ts';
 
-import { nameOf, prop } from '@canvas/model/moddle.ts';
-import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
-import { isHidden, zRankOf } from '@canvas/model/tree.ts';
+import { nameOf, prop } from '@canvas/study/moddle.ts';
+import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
+import { isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver } from '@canvas/render/icons.ts';
 import { EDGE_CORNER_RADIUS, lineJumps, type Span } from '@canvas/render/jumps.ts';
 import {
@@ -24,14 +24,11 @@ import {
   drawBandText,
   drawInternalLabel,
   drawLabel,
-  fit,
-  FONT,
-  LINE_HEIGHT,
   styled,
   textLine,
   WEIGHT,
-  wrap,
 } from '@canvas/render/labels.ts';
+import { fit, FONT, LINE_HEIGHT, wrap } from '@canvas/study/text.ts';
 import {
   activityMarkers,
   bandPath,

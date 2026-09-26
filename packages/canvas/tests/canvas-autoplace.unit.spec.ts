@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
-import { APPEND_DISTANCE } from '@canvas/interaction/autoplace.ts';
-import type { Bounds, Point, SceneEdge } from '@canvas/model/scene.ts';
+import { APPEND_DISTANCE } from '@canvas/study/autoplace.ts';
+import type { Bounds, Point, SceneEdge } from '@canvas/study/scene.ts';
 
 import { diOf, edge, loadYaml, node, type Loaded } from './canvasHarness';
 
 /**
- * Click-append (`interaction/autoplace.ts`). A clicked append needs no pointer, so the
+ * Click-append (`study/autoplace.ts`). A clicked append needs no pointer, so the
  * canvas picks the spot — one fixed gap to the right of the source, vertically centred
  * on it, stepped past whatever occupies it — mints the successor there and connects
  * the two, writing the business objects and the DI as a dropped shape and a drawn

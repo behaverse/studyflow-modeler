@@ -4,7 +4,7 @@
  * rather than a hard-coded list.
  */
 
-import type { ModdleObject } from '@canvas/model/scene.ts';
+import type { ModdleObject } from '@canvas/study/scene.ts';
 
 export function prop(target: ModdleObject | undefined, name: string): unknown {
   if (!target) return undefined;

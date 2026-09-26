@@ -4,21 +4,13 @@
  * choreography band. Enter commits, Escape abandons.
  */
 
-import { isChoreographyTask, isTypedChoreography, participantRefs, readChoreographyBands } from '@canvas/model/choreography.ts';
-import { hasExternalLabel } from '@canvas/model/labels.ts';
-import { nameOf } from '@canvas/model/moddle.ts';
-import type { Mutator } from '@canvas/model/mutator.ts';
-import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
-import {
-  edgeLabelBox,
-  FONT,
-  internalLabelRegion,
-  LABEL_FONT,
-  LINE_HEIGHT,
-  nodeLabelBox,
-  textWidth,
-  WEIGHT,
-} from '@canvas/render/labels.ts';
+import { isChoreographyTask, isTypedChoreography, participantRefs, readChoreographyBands } from '@canvas/study/choreography.ts';
+import { hasExternalLabel } from '@canvas/study/labels.ts';
+import { nameOf } from '@canvas/study/moddle.ts';
+import type { Mutator } from '@canvas/study/mutator.ts';
+import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import { edgeLabelBox, FONT, LINE_HEIGHT, nodeLabelBox, textWidth } from '@canvas/study/text.ts';
+import { internalLabelRegion, LABEL_FONT, WEIGHT } from '@canvas/render/labels.ts';
 import { choreographyBandHeight } from '@core/document/outline.ts';
 import { ownerDocument } from '@canvas/render/svg.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';

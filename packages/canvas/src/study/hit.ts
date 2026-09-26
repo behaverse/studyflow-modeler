@@ -3,9 +3,9 @@
  * edges within tolerance, then the innermost container frame.
  */
 
-import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
-import { depthOf, isHidden } from '@canvas/model/tree.ts';
-import { distanceToSegment } from '@canvas/routing/edit.ts';
+import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
+import { depthOf, isHidden } from '@canvas/study/tree.ts';
+import { distanceToSegment } from '@canvas/study/edit.ts';
 
 export interface HitOptions {
   /** An element the predicate rejects is invisible to the query. */

@@ -1,13 +1,13 @@
 /**
  * The study is the diagram's root, whichever kind it is. The first pool turns a process root into a
- * collaboration (`model/mutator.ts`) and deleting the last pool turns it back (`model/remove.ts`). What
+ * collaboration (`study/mutator.ts`) and deleting the last pool turns it back (`study/remove.ts`). What
  * that means for the document is core's `handOverStudy`; the scene only changes which root it depicts.
  */
 
 import { handOverStudy } from '@core/document/index.ts';
 
-import type { IdGenerator } from '@canvas/model/ids.ts';
-import type { ModdleObject, Scene } from '@canvas/model/scene.ts';
+import type { IdGenerator } from '@canvas/study/ids.ts';
+import type { ModdleObject, Scene } from '@canvas/study/scene.ts';
 
 /** `to` becomes the root the diagram depicts and takes the study over from `from`, which gets a fresh id. */
 export function changeRoot(scene: Scene, from: ModdleObject, to: ModdleObject, ids: IdGenerator): void {

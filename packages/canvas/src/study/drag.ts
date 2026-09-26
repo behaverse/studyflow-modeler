@@ -5,21 +5,23 @@
  * dropped on a container re-homes the moved shapes there, in the same commit.
  */
 
-import { isContainerNode, type HitOptions } from '@canvas/interaction/hit.ts';
-import type { Mutator } from '@canvas/model/mutator.ts';
-import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
-import { nameOf } from '@canvas/model/moddle.ts';
-import { visibleEndpointOf, withDescendants } from '@canvas/model/tree.ts';
-import { labelHeightFor, labelMinSize } from '@canvas/render/labels.ts';
+import { isContainerNode, type HitOptions } from '@canvas/study/hit.ts';
+import type { Mutator } from '@canvas/study/mutator.ts';
+import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
+import { nameOf } from '@canvas/study/moddle.ts';
+import { visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
+import { labelHeightFor, labelMinSize } from '@canvas/study/text.ts';
 import { cropPoint } from '@core/document/outline.ts';
-import { freeMoveEnd, moveBendpoint, moveTerminal, samePoints } from '@canvas/routing/edit.ts';
-import { orthogonalize, rerouteEdge } from '@canvas/routing/orthogonal.ts';
-import type { ResizeHandle } from '@canvas/interaction/selection.ts';
-import { containerFor, type Rules, type Size } from '@canvas/rules/rules.ts';
+import { freeMoveEnd, moveBendpoint, moveTerminal, samePoints } from '@canvas/study/edit.ts';
+import { orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
+import { containerFor, type Rules, type Size } from '@canvas/study/rules.ts';
 
 export const DEFAULT_GRID_SIZE = 10;
 
 export type DragKind = 'move' | 'resize' | 'waypoint';
+
+/** The corner a resize drags. */
+export type ResizeHandle = 'nw' | 'ne' | 'se' | 'sw';
 
 /** Where a move would drop: the element under the pointer, the container that would take the shapes, and whether it may. */
 export interface MoveDrop {

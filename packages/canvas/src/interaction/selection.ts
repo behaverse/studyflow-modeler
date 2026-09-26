@@ -4,11 +4,11 @@
  */
 
 import type { EventBus } from '@canvas/bus.ts';
-import type { ElementRef, Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/model/scene.ts';
+import type { ElementRef, Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
+import type { ResizeHandle } from '@canvas/study/drag.ts';
 
-const RESIZE_HANDLES = ['nw', 'ne', 'se', 'sw'] as const;
-export type ResizeHandle = (typeof RESIZE_HANDLES)[number];
+const RESIZE_HANDLES: readonly ResizeHandle[] = ['nw', 'ne', 'se', 'sw'];
 export type Resizable = SceneNode | SceneLabel;
 
 export interface SelectionChangedEvent {

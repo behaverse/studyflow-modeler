@@ -1,6 +1,6 @@
 /** Containment-tree helpers: depth, z-order, visibility, expansion. */
 
-import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 
 const EXPANDABLE_TYPES: ReadonlySet<string> = new Set([
   'bpmn:SubProcess',

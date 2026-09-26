@@ -10,8 +10,8 @@ import {
   routeCenters,
   routeFor,
   straightRoute,
-} from '@canvas/routing/orthogonal.ts';
-import type { Point } from '@canvas/model/scene.ts';
+} from '@canvas/study/orthogonal.ts';
+import type { Point } from '@canvas/study/scene.ts';
 
 import { edge, installDocument, loadYaml, node, type Loaded } from './canvasHarness';
 

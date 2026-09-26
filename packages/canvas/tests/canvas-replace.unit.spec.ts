@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
-import { isOrthogonal } from '@canvas/routing/orthogonal.ts';
+import { isOrthogonal } from '@canvas/study/orthogonal.ts';
 
 import { edge, loadYaml, node, xmlOf, type Loaded } from './canvasHarness';
 

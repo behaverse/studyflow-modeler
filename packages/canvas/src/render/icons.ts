@@ -3,7 +3,7 @@
  * inline SVG paths, an SVG body, a CSS class the host's icon pipeline paints, or an image.
  */
 
-import type { ModdleObject } from '@canvas/model/scene.ts';
+import type { ModdleObject } from '@canvas/study/scene.ts';
 import { append, create, createHtml, ownerDocument } from '@canvas/render/svg.ts';
 
 export interface SvgIconDef {

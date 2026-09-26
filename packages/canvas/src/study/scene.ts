@@ -2,13 +2,13 @@
  * The scene graph: one tree of nodes, edges and labels in a single coordinate space.
  *
  * Geometry, colours and the DI flags live here and are written out to BPMN DI on
- * save (`model/di.ts`). The business objects stay the source of truth for
+ * save (`study/di.ts`). The business objects stay the source of truth for
  * everything semantic (names, references, containment, attributes).
  */
 
 import type { Bounds, Point } from '@core/document/outline.ts';
 
-import type { Font } from '@canvas/model/font.ts';
+import type { Font } from '@canvas/study/font.ts';
 
 export type ModdleObject = {
   readonly $type: string;
@@ -23,7 +23,7 @@ export interface ElementColors {
   stroke?: string | null;
 }
 
-export type { Font, FontPatch, TextAlign } from '@canvas/model/font.ts';
+export type { Font, FontPatch, TextAlign } from '@canvas/study/font.ts';
 
 interface Base {
   readonly id: string;

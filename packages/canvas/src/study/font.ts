@@ -4,7 +4,7 @@
  * spells `font`) holding space-separated tokens, `bold italic right #ac5a54` like `fill` and `stroke`.
  */
 
-import { normalizeColor } from '@canvas/model/color.ts';
+import { normalizeColor } from '@canvas/study/color.ts';
 
 export type TextAlign = 'left' | 'center' | 'right';
 

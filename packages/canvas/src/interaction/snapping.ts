@@ -1,7 +1,7 @@
 /** Alignment snapping: pull a gesture onto a neighbour's centre or edge, and say where the guide goes. */
 
-import type { Bounds, Point, Scene } from '@canvas/model/scene.ts';
-import { isHidden } from '@canvas/model/tree.ts';
+import type { Bounds, Point, Scene } from '@canvas/study/scene.ts';
+import { isHidden } from '@canvas/study/tree.ts';
 
 const SNAP_TOLERANCE = 7;
 

@@ -1,7 +1,7 @@
 /** Element colors: `#rrggbb` normalization and the two bpmn.io DI vocabularies. */
 
-import type { ElementColors, ModdleObject } from '@canvas/model/scene.ts';
-import { prop } from '@canvas/model/moddle.ts';
+import type { ElementColors, ModdleObject } from '@canvas/study/scene.ts';
+import { prop } from '@canvas/study/moddle.ts';
 
 /** DI attribute names per colour role, current vocabulary first, legacy second. */
 export const COLOR_PROPERTIES: Readonly<Record<'fill' | 'stroke', readonly string[]>> = {

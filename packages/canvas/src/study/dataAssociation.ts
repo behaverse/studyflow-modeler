@@ -33,11 +33,11 @@
  * from instead of leaving a declared-but-unassociated `dataInput` behind — which
  * would silently make the activity un-inlineable on the next save.
  *
- * Like `model/remove.ts`, this module only mutates the moddle tree; the scene
+ * Like `study/remove.ts`, this module only mutates the moddle tree; the scene
  * bookkeeping, the revision bump and the events are the Mutator's.
  */
 
-import { IdGenerator } from '@canvas/model/ids.ts';
+import { IdGenerator } from '@canvas/study/ids.ts';
 import {
   asList,
   asModdle,
@@ -53,8 +53,8 @@ import {
   setProp,
   setRef,
   type ModdleFactory,
-} from '@canvas/model/moddle.ts';
-import type { ModdleObject, SceneNode } from '@canvas/model/scene.ts';
+} from '@canvas/study/moddle.ts';
+import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
 import { isDataShape } from '@core/document/outline.ts';
 import { associationPropertyFor, type DataAssociationDirection } from '@core/element/index.ts';
 
@@ -71,7 +71,7 @@ export interface DataAssociationEnds {
  * Sort a `source → target` pair into `{ data, activity, direction }`.
  *
  * The drawn direction *is* the BPMN direction — the rules already classify the pair
- * that way (`rules/rules.ts` `structuralConnection`: a data shape as source yields a
+ * that way (`study/rules.ts` `structuralConnection`: a data shape as source yields a
  * `DataInputAssociation`, a data shape as target a `DataOutputAssociation`) — so the
  * type is derived from which end is the data shape rather than trusted from the
  * caller.

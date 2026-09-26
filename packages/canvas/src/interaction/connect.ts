@@ -3,14 +3,14 @@
  * routed flow over an accepted target, a drop that mints or rewires the edge.
  */
 
-import { freeMoveEnd, redockEnd } from '@canvas/routing/edit.ts';
-import type { Mutator } from '@canvas/model/mutator.ts';
-import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/model/scene.ts';
+import { freeMoveEnd, redockEnd } from '@canvas/study/edit.ts';
+import type { Mutator } from '@canvas/study/mutator.ts';
+import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { markerEndFor, markerStartFor, previewEdge } from '@canvas/render/renderer.ts';
 import { append, create as svgCreate, remove } from '@canvas/render/svg.ts';
 import { cropPoint } from '@core/document/outline.ts';
-import { routableEnd, routeFor, type RouteOptions } from '@canvas/routing/orthogonal.ts';
-import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/rules/rules.ts';
+import { routableEnd, routeFor, type RouteOptions } from '@canvas/study/orthogonal.ts';
+import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/study/rules.ts';
 
 export type ConnectionEnd = 'source' | 'target';
 
