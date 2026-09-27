@@ -17,7 +17,9 @@ import {
 import { normalizeColors } from '@canvas/study/color.ts';
 import { formatFont, mergeFont, type FontPatch } from '@canvas/study/font.ts';
 import {
+  activityOf,
   dataAssociationEnds,
+  pruneDataAssociation,
   wireDataAssociation,
 } from '@canvas/study/dataAssociation.ts';
 import { IdGenerator } from '@canvas/study/ids.ts';
@@ -598,9 +600,13 @@ export class Mutator {
   reconnect(edge: SceneEdge, ends: ReconnectEnds, waypoints?: Point[]): SceneElement[] {
     const changed: SceneElement[] = [edge];
     const isSequenceFlow = isBpmnSubtypeOf(edge.type, 'bpmn:SequenceFlow');
+    // A data association's references are its wiring on the activity, not its two drawn ends.
+    const isDataAssociation = isDataAssociationType(edge.type);
     const track = (node: SceneNode | undefined): void => {
       if (node && !changed.includes(node)) changed.push(node);
     };
+    const moves = (ends.source && ends.source !== edge.source) || (ends.target && ends.target !== edge.target);
+    if (isDataAssociation && moves) this.rewireDataAssociation(edge, ends.source ?? edge.source, ends.target ?? edge.target);
     if (ends.source && ends.source !== edge.source) {
       const previous = edge.source;
       if (previous) {
@@ -609,7 +615,7 @@ export class Mutator {
       }
       edge.source = ends.source;
       if (!ends.source.outgoing.includes(edge)) ends.source.outgoing.push(edge);
-      setRef(edge.businessObject, 'sourceRef', ends.source.businessObject);
+      if (!isDataAssociation) setRef(edge.businessObject, 'sourceRef', ends.source.businessObject);
       if (isSequenceFlow) pushInto(ends.source.businessObject, 'outgoing', edge.businessObject);
       track(previous);
       track(ends.source);
@@ -622,7 +628,7 @@ export class Mutator {
       }
       edge.target = ends.target;
       if (!ends.target.incoming.includes(edge)) ends.target.incoming.push(edge);
-      setRef(edge.businessObject, 'targetRef', ends.target.businessObject);
+      if (!isDataAssociation) setRef(edge.businessObject, 'targetRef', ends.target.businessObject);
       if (isSequenceFlow) pushInto(ends.target.businessObject, 'incoming', edge.businessObject);
       track(previous);
       track(ends.target);
@@ -630,6 +636,22 @@ export class Mutator {
     if (waypoints) edge.waypoints = waypoints.map((p) => ({ x: p.x, y: p.y }));
     this.finish(changed);
     return changed;
+  }
+
+  /**
+   * Move a data association onto new ends: it gives back its slot in the old activity's `ioSpecification` and
+   * leaves that activity, as a removal does, and is wired to the new ends as {@link addConnection} wires one.
+   */
+  private rewireDataAssociation(edge: SceneEdge, source: SceneNode | undefined, target: SceneNode | undefined): void {
+    const next = dataAssociationEnds(source, target);
+    if (!next) throw new Error(`${edge.type} is not valid between ${source?.type} and ${target?.type}`);
+    const bo = edge.businessObject;
+    const owner = activityOf(bo);
+    pruneDataAssociation(bo, owner);
+    setRef(bo, 'sourceRef', undefined);
+    setRef(bo, 'targetRef', undefined);
+    if (owner) unfile(bo, [owner]);
+    wireDataAssociation(bo, next, this.ids);
   }
 
   // --- filing -------------------------------------------------------------------

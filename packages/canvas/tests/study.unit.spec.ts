@@ -316,6 +316,30 @@ test('move takes shapes by a delta with their flows, and into a container the ru
   expect(study.reconnect({ id: 'Flow_1' }).reason).toBe('give the new end: from, to, or both');
 });
 
+test('a reconnected data association is filed on its new activity, the one that reads or writes the data', () => {
+  const study = open();
+  study.add({ type: 'bpmn:Task', id: 'Two', at: { x: 600, y: 120 } });
+  study.add({ type: 'bpmn:DataObjectReference', id: 'Data', at: { x: 400, y: 320 } });
+  study.add({ type: 'bpmn:DataObjectReference', id: 'Other', at: { x: 500, y: 320 } });
+  study.connect({ from: 'Data', to: 'Task_1', id: 'In_1' });
+  study.connect({ from: 'Task_1', to: 'Data', id: 'Out_1' });
+  // What the file says, read back: the activity an association hangs off is the one that takes or makes the data.
+  const reopened = () => Study.fromDefinitions(studyflowToDefinitions(study.toYaml(), freshModdle()));
+  const ownerOf = (again: Study, id: string) => (again.businessObject(id)?.$parent as { id?: string } | undefined)?.id;
+
+  const CASES: [label: string, args: { id: string; from?: string; to?: string }, ends: { source: string; target: string }, owner: string][] = [
+    ['an input onto another activity', { id: 'In_1', to: 'Two' }, { source: 'Data', target: 'Two' }, 'Two'],
+    ['an input from other data', { id: 'In_1', from: 'Other' }, { source: 'Other', target: 'Two' }, 'Two'],
+    ['an output from another activity', { id: 'Out_1', from: 'Two' }, { source: 'Two', target: 'Data' }, 'Two'],
+  ];
+  for (const [label, args, ends, owner] of CASES) {
+    expect(study.reconnect(args), label).toMatchObject({ ok: true });
+    const again = reopened();
+    expect(again.get(args.id), label).toMatchObject(ends);
+    expect(ownerOf(again, args.id), label).toBe(owner);
+  }
+});
+
 test('remove takes what goes with an element; expand and collapse take only what holds contents', () => {
   const study = open();
   expect(study.remove({ ids: ['Nope'] })).toMatchObject({ ok: false, reason: "no element 'Nope'" });
