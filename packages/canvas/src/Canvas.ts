@@ -722,7 +722,6 @@ export class Canvas {
     return true;
   }
 
-  /** Open the inline editor on `element` (default: the single selected element). */
   /** Open the name of the element `id` names (without one, of the one selected) for typing. */
   editLabel(id?: string): boolean {
     const selected = this.selectionSet.get();
