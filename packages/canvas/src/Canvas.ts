@@ -312,6 +312,12 @@ export class Canvas {
     return this.scope;
   }
 
+  /** Whether this view draws the element `id`: on the plane it shows, not folded inside a collapsed container. */
+  draws(id: string): boolean {
+    const element = this.scene.elementsById.get(id);
+    return element !== undefined && !isHidden(element, this.scope);
+  }
+
   /** Show only `node`'s contents. */
   enterScope(node: SceneNode): boolean {
     if (!isExpandable(node.type)) return false;

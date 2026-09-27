@@ -120,9 +120,10 @@ test('import builds one tree, with captions as elements of their own', async () 
   expect({ x: endLabel.x, y: endLabel.y, width: endLabel.width }).toEqual({ x: 470, y: 140, width: 60 });
   expect(label(canvas, 'Flow_2_label').owner).toBe(edge(canvas, 'Flow_2'));
 
-  // The contents of a collapsed container exist but are not drawn.
+  // The contents of a collapsed container exist but are not drawn, and the view says so.
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(true);
   expect(isHiddenGraphics(canvas, 'Task_1')).toBe(false);
+  expect([canvas.draws('Task_In'), canvas.draws('Task_1')]).toEqual([false, true]);
 });
 
 test('the DI round trip keeps geometry, pinned captions and the collapse flag', async () => {
@@ -549,6 +550,7 @@ test('drilling into a container shows only its contents until the trail leads ba
   expect(canvas.scopePath().map((root) => root.id)).toEqual(['Process_1', 'Sub_1']);
   expect(isHiddenGraphics(canvas, 'Task_1')).toBe(true);
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(false);
+  expect([canvas.draws('Task_1'), canvas.draws('Task_In')]).toEqual([false, true]);
   expect(canvas.hitTest(centre(node(canvas, 'Task_1')))).toBeUndefined();
   expect(canvas.hitTest(centre(node(canvas, 'Task_In')))).toBe(node(canvas, 'Task_In'));
   // A shape dropped while drilled in belongs to the container.
