@@ -340,7 +340,9 @@ test('a tool call the study cannot run is refused with a reason, as data: nothin
     ['add', { type: 'bpmn:Task', template: 'cognitive::template:1' }, 'give a type or a template, not both'],
     ['add', { name: 'Nameless' }, 'give a type or a template'],
     ['add', { template: 'nope::template:1' }, "no template 'nope::template:1'"],
-    ['add', { type: 'bpmn:Task', extension: 'nope:Nope' }, 'unknown type <nope:Nope>'],
+    ['add', { type: 'bpmn:Task', extension: 'nope:Nope' }, "no schema type 'nope:Nope'"],
+    ['add', { type: 'bpmn:Task', extension: 'studyflow:Actor' }, 'a bpmn:Task cannot be a studyflow:Actor'],
+    ['set', { id: 'Task_1', attribute: 'nope', value: 1 }, "no schema gives 'Task_1' an attribute 'nope'"],
     ['get', { id: 'Nope' }, "no element 'Nope'"],
     ['undo', {}, 'nothing to undo'],
   ];

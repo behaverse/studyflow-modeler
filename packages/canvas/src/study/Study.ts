@@ -6,8 +6,9 @@
 
 import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireDefinitions, toWireXml } from '@core/document';
 import { categoryOf } from '@core/document/outline.ts';
-import { eventDefinitionTypeOf, getExtensionType, setAttribute } from '@core/element/index.ts';
+import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute, StudyflowElement } from '@core/element/index.ts';
 import type { Moddle } from '@core/element/moddle';
+import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { writeDi } from '@canvas/study/di.ts';
@@ -205,10 +206,14 @@ export class Study {
     return studyInternals(this).scene.revision;
   }
 
-  /** Set `attribute` on the element `id` names, where its schema keeps it (core's `setAttribute`); 'name' renames. */
+  /**
+   * Set `attribute` on the element `id` names, where its schema keeps it (core's `setAttribute`); 'name' renames. An
+   * attribute neither a schema nor BPMN gives the element is refused, never written as a stray.
+   */
   set({ id, attribute, value }: { id: string; attribute: string; value: unknown }): StudyResult {
     const found = this.find(id);
     if (!found) return refused(`no element '${id}'`);
+    if (!declares(found.moddle, attribute)) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
     return this.write(found.drawn, (writer) => setAttribute(found.moddle, attribute, value, writer));
   }
 
@@ -277,6 +282,8 @@ export class Study {
     const { scene, mutator, rules } = studyInternals(this);
     const node = scene.elementsById.get(args.id);
     if (node?.kind !== 'node') return refused(`no shape '${args.id}'`);
+    const misfit = extensionMisfit(args);
+    if (misfit) return refused(misfit);
     const prototype = prototypeOf(args);
     if (!rules.canReplace(node, prototype.type)) return refused(`'${args.id}' cannot become a ${args.type}`);
     if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)
@@ -589,7 +596,24 @@ function refused(reason: string): StudyResult {
 /** The shape `what` makes, or why it makes none. */
 function shapeFor(what: NewElement): NewShape | string {
   if ('template' in what) return 'type' in what ? 'give a type or a template, not both' : shapeOf(what) ?? `no template '${what.template}'`;
-  return typeof what.type === 'string' ? what : 'give a type or a template';
+  if (typeof what.type !== 'string') return 'give a type or a template';
+  return extensionMisfit(what) ?? what;
+}
+
+/** Why `shape` cannot carry its extension, or nothing: a schema type, by its full name, that extends `shape.type`. */
+function extensionMisfit({ type, extension }: NewShape): string | undefined {
+  if (extension === undefined) return undefined;
+  const entry = hasCatalog() ? getCatalog().getType(extension) : undefined;
+  if (!entry?.bpmnType || entry.name !== extension) return `no schema type '${extension}'`;
+  return isBpmnSubtypeOf(type, entry.bpmnType) ? undefined : `a ${type} cannot be a ${extension}`;
+}
+
+/** Whether a schema, or BPMN, gives the element behind `moddle` the attribute `name`. */
+function declares(moddle: ModdleObject, name: string): boolean {
+  const element = StudyflowElement.fromBusinessObject(moddle);
+  const extension = element.extension;
+  const descriptor = moddle.$descriptor as { propertiesByName?: Record<string, unknown> } | undefined;
+  return !!element.attribute(name) || !!(extension && getAttributeSpec(extension, name)) || !!descriptor?.propertiesByName?.[name];
 }
 
 function idsOf({ added, changed, removed }: Commit): ChangedIds {
