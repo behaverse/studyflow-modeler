@@ -71,10 +71,7 @@ test.describe('sub-process drill-down', () => {
     await page.getByTestId('diagram-name-input').press('Enter');
     await expect(diagramTitle(page)).toHaveText('Pipeline');
 
-    // Back out and in again: the trail is drawn afresh, from what the document holds.
-    await page.getByTestId('breadcrumb-sklearn_pipeline').click();
-    await page.locator('g[data-element-id="select_model"]').click();
-    await drilldown(page).click();
+    // The trail reads the new name at once, and the sub-process keeps its own.
     await expect(page.getByTestId('breadcrumb-sklearn_pipeline')).toContainText('Pipeline');
     await expect(page.getByTestId('breadcrumb-select_model')).toContainText('select_model');
   });

@@ -6,7 +6,8 @@
  * It reads `canvas.scopePath` and moves with `canvas.setScope()` (drilldown/commands.ts),
  * and renders nothing at the document root, where the trail is one crumb long. Navigation
  * writes nothing: no command, no undo step. `RootSet` tells the trail it moved, the same
- * topic an import fires, so an import collapses the bar by itself.
+ * topic an import fires, so an import collapses the bar by itself; an edit re-reads its
+ * names, so a rename shows at once.
  */
 
 import { useCallback, useEffect, useLayoutEffect, useState, Fragment } from 'react';
@@ -27,9 +28,11 @@ export function Breadcrumbs() {
     sync();
     modeler.events.on('RootSet', sync);
     modeler.events.on('ImportDone', sync);
+    modeler.events.on('ElementsChanged', sync);
     return () => {
       modeler.events.off('RootSet', sync);
       modeler.events.off('ImportDone', sync);
+      modeler.events.off('ElementsChanged', sync);
     };
   }, [modeler]);
 
