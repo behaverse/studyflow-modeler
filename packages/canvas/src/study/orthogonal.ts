@@ -130,6 +130,19 @@ function routeEdge(edge: SceneEdge, options?: RouteOptions): Point[] | undefined
   return routeFor(edge.type, source, target, options);
 }
 
+/** A route off by at most this much still reads as the router's: what a file stores is rounded. */
+const ROUTED_TOLERANCE = 1;
+
+/**
+ * Whether `edge` still runs the way the router draws it, steering round `obstacles` or not: a route nobody bent by
+ * hand, which a move may draw afresh.
+ */
+export function isRouted(edge: SceneEdge, obstacles?: readonly Bounds[]): boolean {
+  const near = (points: Point[] | undefined): boolean => !!points && points.length === edge.waypoints.length
+    && points.every((p, i) => Math.abs(p.x - edge.waypoints[i].x) <= ROUTED_TOLERANCE && Math.abs(p.y - edge.waypoints[i].y) <= ROUTED_TOLERANCE);
+  return near(routeEdge(edge)) || (!!obstacles && near(routeEdge(edge, { obstacles })));
+}
+
 /** Re-route `edge` in the scene; whether the geometry changed. */
 export function rerouteEdge(edge: SceneEdge, options?: RouteOptions): boolean {
   const points = routeEdge(edge, options);

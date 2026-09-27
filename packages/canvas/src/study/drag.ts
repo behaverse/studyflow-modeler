@@ -5,7 +5,7 @@
  * dropped on a container re-homes the moved shapes there, in the same commit.
  */
 
-import { isContainerNode, type HitOptions } from '@canvas/study/hit.ts';
+import { isContainerNode, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { nameOf } from '@canvas/study/moddle.ts';
@@ -13,7 +13,7 @@ import { planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.
 import { labelHeightFor, labelMinSize } from '@canvas/study/text.ts';
 import { cropPoint } from '@core/document/outline.ts';
 import { freeMoveEnd, moveBendpoint, moveTerminal, samePoints } from '@canvas/study/edit.ts';
-import { orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
+import { isRouted, orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
 import { containerFor, type Rules, type Size } from '@canvas/study/rules.ts';
 
 export const DEFAULT_GRID_SIZE = 10;
@@ -74,6 +74,8 @@ interface MoveState {
   edges: SceneEdge[];
   edgeOrigins: Map<SceneEdge, Point[]>;
   follow: Map<SceneEdge, EdgeFollow>;
+  /** The edges whose routes are still the router's, drawn afresh as their ends move. */
+  routed: ReadonlySet<SceneEdge>;
 }
 
 interface ResizeState {
@@ -169,6 +171,9 @@ export class Drag {
       }
     }
     for (const label of labels) labelOrigins.set(label, { x: label.x, y: label.y });
+    // The routes still as the router drew them: a move draws those afresh, where a route bent by hand stays bent.
+    const scene = this.getScene();
+    const routed = new Set(scene ? edges.filter((edge) => follow.get(edge) !== 'all' && isRouted(edge, obstaclesIn(scene, planeOf(edge)))) : []);
 
     this.state = {
       kind: 'move',
@@ -184,6 +189,7 @@ export class Drag {
       edges,
       edgeOrigins,
       follow,
+      routed,
     };
     return true;
   }
@@ -350,7 +356,7 @@ export class Drag {
       const shape = mode === 'first' ? edge.source : edge.target;
       const docked = shape && visibleEndpointOf(shape, planeOf(edge));
       // A route the author bent is re-docked, never re-cut.
-      if (state.reroute && points.length > 2 && docked) {
+      if (state.reroute && points.length > 2 && docked && !state.routed.has(edge)) {
         moveTerminal(points, end, cropPoint(docked, points[index === 0 ? 1 : index - 1]));
         edge.waypoints = orthogonalize(points);
         continue;

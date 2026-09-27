@@ -197,6 +197,40 @@ test('rerouting twice commits nothing the second time', async () => {
   expect(scene.revision).toBe(routed);
 });
 
+test('moving a shape draws a route the router drew afresh, and leaves a route bent by hand bent', () => {
+  const { study } = loadYaml(`id: Defs_Moves
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  flowElements:
+    A:
+      type: Task
+      bounds: 100 100 100 80
+    B:
+      type: Task
+      bounds: 300 300 100 80
+    C:
+      type: Task
+      bounds: 100 500 100 80
+    D:
+      type: Task
+      bounds: 300 700 100 80
+`).canvas;
+  study.connect({ from: 'A', to: 'B', id: 'Routed' });
+  study.connect({ from: 'C', to: 'D', id: 'Bent' });
+  const bend = [{ x: 250, y: 540 }, { x: 250, y: 620 }, { x: 350, y: 620 }];
+  study.reroute({ id: 'Bent', waypoints: [{ x: 200, y: 540 }, ...bend, { x: 350, y: 700 }] });
+
+  study.move({ ids: ['A', 'C'], by: { x: 0, y: 60 } });
+  // The router's route follows the move: asked again, the router has nothing to change.
+  expect(study.reroute({ id: 'Routed' }).changed).toEqual([]);
+  // The bent route keeps its bends: the joint next to the moved end slides to keep that run square, the rest stay.
+  const [, first, ...rest] = study.get('Bent')!.waypoints!;
+  expect(first.x).toBe(bend[0].x);
+  expect(rest.slice(0, -1)).toEqual(bend.slice(1));
+});
+
 test('an edge docks on what its own plane shows, whichever container the view is drilled into', () => {
   // The annotation's link crosses into a collapsed sub-process: the root plane draws it docked on the container.
   const { canvas } = loadYaml(`id: Defs_Plane
