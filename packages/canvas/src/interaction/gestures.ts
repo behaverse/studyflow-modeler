@@ -103,6 +103,8 @@ export interface GestureTools {
   rules: Rules;
   /** The camera: pan, zoom, and screen to diagram and back. */
   viewport: Viewport;
+  /** A gesture began, or ended. */
+  gesture(active: boolean): void;
 }
 
 export class Gestures {
@@ -210,9 +212,7 @@ export class Gestures {
   }
 
   private markGesture(intent: Intent | undefined): void {
-    const root = this.canvas.getSvg();
-    if (intent) root.setAttribute('data-gesture', intent);
-    else root.removeAttribute('data-gesture');
+    this.tools.gesture(intent !== undefined);
   }
 
   // --- pointer down -------------------------------------------------------------

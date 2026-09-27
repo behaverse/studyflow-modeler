@@ -13,10 +13,8 @@
  * (`canvas.previewAppend`). Nothing is committed, and the ghost and the click place the
  * shape the same way, so what the hover shows is where the click lands.
  *
- * Positioning runs on an animation frame rather than an event, for the reason the
- * toolbar did: the canvas publishes no viewbox topic, and a pan, a zoom and a drag
- * of the selected shape all have to move the pad. One bbox read per frame, only
- * while something is selected.
+ * The canvas places the pad (`canvas.anchor`): beside the selection's outline as the camera
+ * and the edits move it, out of the way of a gesture.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
@@ -30,18 +28,7 @@ import { contextPad as s } from '@modeler/contextPad/styles';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';
-import { isExpandable, type Bounds, type ElementRecord } from '@canvas/index.ts';
-import type { Editor } from '@modeler/editor/port';
-
-/** Gap between the selection outline's right edge and the pad. */
-const OFFSET = 8;
-
-/**
- * How far the selection outline sits outside the element it wraps: the canvas's
- * `OUTLINE_OFFSET`, in diagram units, so it scales with the zoom. The pad anchors on
- * the outline, not on the shape.
- */
-const OUTLINE_OFFSET = 5;
+import { isExpandable, type ElementRecord } from '@canvas/index.ts';
 
 /** Where a tooltip sits relative to the pointer: the offsets a native `title` bubble uses. */
 const TOOLTIP_GAP = 4;
@@ -79,26 +66,6 @@ const MENU_TITLES: Record<string, string> = {
   [REPLACE_MENU]: 'Change element',
   [COLOR_MENU]: 'Style',
 };
-
-/** The union bbox of the elements `ids` names, in screen coordinates, skipping what the view does not draw. */
-function selectionBBox(editor: Editor, ids: readonly string[]): Bounds | undefined {
-  let box: Bounds | undefined;
-  for (const id of ids) {
-    const next = editor.canvas.screenBox(id);
-    if (!next) continue;
-    if (!box) {
-      box = { ...next };
-      continue;
-    }
-    const right = Math.max(box.x + box.width, next.x + next.width);
-    const bottom = Math.max(box.y + box.height, next.y + next.height);
-    box.x = Math.min(box.x, next.x);
-    box.y = Math.min(box.y, next.y);
-    box.width = right - box.x;
-    box.height = bottom - box.y;
-  }
-  return box;
-}
 
 export function ContextPad() {
   const modeler = useModeler();
@@ -158,62 +125,6 @@ export function ContextPad() {
 
   useEffect(() => clearPreview, [clearPreview, ids]);
 
-  /* Written straight to the node: a pan is 60 position changes a second, and none
-     of them is a React state change. */
-  useEffect(() => {
-    if (!visible) return;
-    // The canvas publishes the gesture in flight on its root as `data-gesture`; the pad goes
-    // away for the duration of one, or it would sit on the ghost being aimed and put its
-    // trash under the cursor at the drop.
-    const diagram = modeler.canvas.getContainer().querySelector('svg.sf-canvas');
-    let frame = 0;
-    let last = '';
-    // Tracked separately from `last`, because the two answer different questions:
-    // `last` skips a redundant transform, `shown` guarantees the pad is revealed on
-    // the first frame it has an anchor for. Folding them into one check would let a
-    // re-mount that lands on the same coordinates leave the node `visibility:hidden`
-    // forever — it renders hidden and only the tick ever clears that.
-    let shown = false;
-
-    const tick = (): void => {
-      frame = requestAnimationFrame(tick);
-      const node = ref.current;
-      if (!node) return;
-      const box = diagram?.hasAttribute('data-gesture') ? undefined : selectionBBox(modeler, ids);
-      if (!box) {
-        if (shown) {
-          node.style.visibility = 'hidden';
-          shown = false;
-          // Whatever the pointer was hovering when the gesture began goes with it —
-          // a tooltip left floating beside a pad that is no longer there, or a hover
-          // ghost of an append nobody is going to make, is worse than nothing.
-          clearPreview();
-        }
-        return;
-      }
-      const outline = OUTLINE_OFFSET * modeler.canvas.viewbox.scale;
-      const left = Math.round(Math.max(4, Math.min(
-        box.x + box.width + outline + OFFSET,
-        window.innerWidth - node.offsetWidth - 4,
-      )));
-      const top = Math.round(Math.max(4, Math.min(
-        box.y - outline,
-        window.innerHeight - node.offsetHeight - 4,
-      )));
-      const next = `${left},${top}`;
-      if (next !== last) {
-        last = next;
-        node.style.transform = `translate(${left}px, ${top}px)`;
-      }
-      if (!shown) {
-        node.style.visibility = 'visible';
-        shown = true;
-      }
-    };
-
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [modeler, visible, ids, clearPreview]);
 
   const entries = useMemo<ContextPadEntry[]>(() => {
     if (!visible) return [];
@@ -250,6 +161,15 @@ export function ContextPad() {
       isExpanded: !!expandable && expandable.expanded !== false,
     });
   }, [modeler, visible, element, records]);
+
+  /* The canvas keeps the pad beside the selection and out of the way of a gesture; anchored afresh
+     when the entries change, so a pad of another size is kept inside the view. */
+  useEffect(() => {
+    const node = ref.current;
+    if (!visible || !node) return;
+    modeler.canvas.anchor(node, ids);
+    return () => modeler.canvas.anchor(node, null);
+  }, [modeler, visible, ids, entries]);
 
   const openMenu = useCallback((providerId: string) => {
     const node = ref.current;

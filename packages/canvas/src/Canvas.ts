@@ -13,7 +13,7 @@ import { DEFAULT_GRID_SIZE, Drag, snapTo, type Movable } from '@canvas/study/dra
 import { Gestures, ZOOM_STEP } from '@canvas/interaction/gestures.ts';
 import { hitTest, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
-import { EDITING_MARKER, Selection } from '@canvas/interaction/selection.ts';
+import { EDITING_MARKER, OUTLINE_OFFSET, Selection } from '@canvas/interaction/selection.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import { modelOf } from '@canvas/study/moddle.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
@@ -40,6 +40,10 @@ export interface CanvasViewbox extends Viewbox {
   /** The container, in screen pixels. */
   outer: { width: number; height: number };
 }
+
+/** How far an anchored host element sits right of the outline it follows, in screen pixels; and from the view's edge. */
+const ANCHOR_GAP = 8;
+const ANCHOR_MARGIN = 4;
 
 /** Shapes created unnamed and useless: their label editor opens on drop. */
 const EDIT_ON_CREATE_TYPES = new Set<string>([
@@ -85,6 +89,10 @@ export class Canvas {
   private drag?: Drag;
   private appendPreview?: SVGGElement;
   private resizeObserver?: ResizeObserver;
+  /** A host element kept beside the outline of the elements it follows (`anchor`). */
+  private anchored?: { el: HTMLElement; ids: readonly string[] };
+  /** Whether a gesture is under way: an anchored element steps aside for it. */
+  private gesturing = false;
   private destroyed = false;
 
   /** Draw `study` into `container`, in the container's document, fitted, and follow its changes. */
@@ -99,9 +107,12 @@ export class Canvas {
     injectCanvasStyles(container.ownerDocument);
     this.layers = new Layers(this.root);
     ensureArrowMarkers(this.layers.defs);
-    this.viewport = new Viewport(this.root, this.container);
+    this.viewport = new Viewport(this.root, this.container, () => this.placeAnchor());
     if (typeof ResizeObserver !== 'undefined') {
-      this.resizeObserver = new ResizeObserver(() => this.viewport.refitIfPending());
+      this.resizeObserver = new ResizeObserver(() => {
+        this.viewport.refitIfPending();
+        this.placeAnchor();
+      });
       this.resizeObserver.observe(this.container);
     }
     this.renderer = new Renderer(options);
@@ -171,6 +182,10 @@ export class Canvas {
       scene: () => this.scene,
       rules: this.rules,
       viewport: this.viewport,
+      gesture: (active) => {
+        this.gesturing = active;
+        this.placeAnchor();
+      },
     });
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
@@ -399,6 +414,35 @@ export class Canvas {
     return box && this.viewport.getAbsoluteBBox(box);
   }
 
+  /**
+   * Keep `el`, a host element fixed to the page, beside the outline of the elements `ids` names: right of it, level
+   * with its top, inside the view, as the camera and the edits move them; hidden during a gesture and while the view
+   * draws none of them. `null` lets it go. What the context pad floats on.
+   */
+  anchor(el: HTMLElement, ids: readonly string[] | null): void {
+    this.anchored = ids ? { el, ids } : undefined;
+    this.placeAnchor();
+  }
+
+  private placeAnchor(): void {
+    if (!this.anchored) return;
+    const { el, ids } = this.anchored;
+    const boxes = this.gesturing ? [] : ids.flatMap((id) => this.screenBox(id) ?? []);
+    if (boxes.length === 0) {
+      el.style.visibility = 'hidden';
+      return;
+    }
+    const outline = OUTLINE_OFFSET * this.viewport.zoom();
+    const right = Math.max(...boxes.map((box) => box.x + box.width)) + outline;
+    const top = Math.min(...boxes.map((box) => box.y)) - outline;
+    const frame = this.container.getBoundingClientRect();
+    const clamp = (value: number, low: number, high: number): number => Math.round(Math.max(low, Math.min(value, high)));
+    const x = clamp(right + ANCHOR_GAP, frame.left + ANCHOR_MARGIN, frame.right - el.offsetWidth - ANCHOR_MARGIN);
+    const y = clamp(top, frame.top + ANCHOR_MARGIN, frame.bottom - el.offsetHeight - ANCHOR_MARGIN);
+    el.style.transform = `translate(${x}px, ${y}px)`;
+    el.style.visibility = 'visible';
+  }
+
   addMarker(element: ElementRef, marker: string): void {
     const target = this.resolveElement(element);
     if (target) this.selectionSet.addMarker(target, marker);
@@ -450,6 +494,7 @@ export class Canvas {
     for (const element of drawn(added)) this.mount(element);
     this.redrawElements(drawn(changed));
     this.restack();
+    this.placeAnchor();
   }
 
   /** Erase what a commit removed, and let go of it: the label editor, the hover, the markers, the selection. */

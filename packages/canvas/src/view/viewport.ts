@@ -25,11 +25,14 @@ export class Viewport {
   private readonly root: SVGSVGElement;
   private readonly container: HTMLElement;
   private box = { x: 0, y: 0, width: 1000, height: 1000 };
+  /** Told after every move of the camera, once constructed. */
+  private onChange?: () => void;
 
-  constructor(root: SVGSVGElement, container: HTMLElement) {
+  constructor(root: SVGSVGElement, container: HTMLElement, onChange?: () => void) {
     this.root = root;
     this.container = container;
     this.applyViewbox();
+    this.onChange = onChange;
   }
 
   private clientWidth(): number {
@@ -44,6 +47,7 @@ export class Viewport {
 
   private applyViewbox(): void {
     this.root.setAttribute('viewBox', `${this.box.x} ${this.box.y} ${this.box.width} ${this.box.height}`);
+    this.onChange?.();
   }
 
   getViewbox(): Viewbox {

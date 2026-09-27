@@ -432,6 +432,26 @@ test('deleting a caption clears its owner\'s name', async () => {
   expect(node(canvas, 'Start_1')).toBe(start);
 });
 
+test('a host element anchored to elements is shown beside them, and steps aside for a gesture and for what the view does not draw', async () => {
+  const { canvas } = load();
+  const pad = installDocument().createElement('div');
+  const task = node(canvas, 'Task_1');
+
+  canvas.anchor(pad, ['Task_1']);
+  expect(pad.style.visibility).toBe('visible');
+  pointerDown(canvas, centre(task));
+  pointerMove(canvas, { x: centre(task).x + 60, y: centre(task).y + 40 });
+  expect(pad.style.visibility, 'out of the way while the shape is dragged').toBe('hidden');
+  pointerUp(canvas, { x: centre(task).x + 60, y: centre(task).y + 40 });
+  expect(pad.style.visibility, 'back once it lands').toBe('visible');
+
+  canvas.anchor(pad, ['Task_In']);
+  expect(pad.style.visibility, 'the contents of a closed container are not drawn').toBe('hidden');
+  canvas.setScope('Sub_1');
+  expect(pad.style.visibility, 'until the view drills in').toBe('visible');
+  canvas.anchor(pad, null);
+});
+
 // --- captions ------------------------------------------------------------------------
 
 test('a dragged caption moves alone and becomes pinned in the document', async () => {
