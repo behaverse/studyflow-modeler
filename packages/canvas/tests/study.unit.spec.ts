@@ -284,6 +284,9 @@ test('reads are plain data: a record by id, the root, a filtered list; the moddl
   expect(study.get('Flow_1')).toMatchObject({ kind: 'edge', type: 'bpmn:SequenceFlow', source: 'Task_1', target: 'Sub_1' });
   expect(study.get('Sub_1')).toMatchObject({ kind: 'node', expanded: false });
   expect(study.get('Nope')).toBeUndefined();
+  study.style({ ids: ['Task_1', 'Flow_1'], stroke: '#aa3333', font: { bold: true } });
+  expect(study.get('Task_1'), 'what style wrote, a read returns').toMatchObject({ stroke: '#aa3333', font: { bold: true } });
+  expect(study.get('Flow_1')).toMatchObject({ stroke: '#aa3333', font: { bold: true } });
 
   expect(study.list().map((record) => record.id).sort()).toEqual(['Flow_1', 'Sub_1', 'Task_1', 'Task_In']);
   expect(study.list({ within: 'Sub_1' }).map((record) => record.id)).toEqual(['Task_In']);

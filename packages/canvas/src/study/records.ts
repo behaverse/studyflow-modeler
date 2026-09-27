@@ -6,7 +6,7 @@
 
 import { getExtensionType } from '@core/element/index.ts';
 import { nameOf, prop } from '@canvas/study/moddle.ts';
-import { isRootElement, type Bounds, type ModdleObject, type Point, type RootElement, type SceneElement } from '@canvas/study/scene.ts';
+import { isRootElement, type Bounds, type Font, type ModdleObject, type Point, type RootElement, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { isExpandable } from '@canvas/study/tree.ts';
 
 export interface ElementRecord {
@@ -35,6 +35,10 @@ export interface ElementRecord {
   readonly waypoints?: readonly Point[];
   /** A caption's: what it captions. */
   readonly owner?: string;
+  /** Its own colours and its caption's look, where the drawing departs from the stock ones: what `style` writes. */
+  readonly fill?: string;
+  readonly stroke?: string;
+  readonly font?: Font;
 }
 
 /** `element` as data. */
@@ -50,6 +54,7 @@ export function recordOf(element: SceneElement | RootElement): ElementRecord {
       ...(element.source ? { source: element.source.id } : {}),
       ...(element.target ? { target: element.target.id } : {}),
       waypoints: element.waypoints.map(({ x, y }) => ({ x, y })),
+      ...styleOf(element),
     };
   }
   const host = prop(element.businessObject, 'attachedToRef') as ModdleObject | undefined;
@@ -61,6 +66,17 @@ export function recordOf(element: SceneElement | RootElement): ElementRecord {
     ...(host?.id ? { attachedTo: host.id } : {}),
     incoming: element.incoming.map((edge) => edge.id),
     outgoing: element.outgoing.map((edge) => edge.id),
+    ...styleOf(element),
+  };
+}
+
+/** What `element`'s drawing sets of its look. */
+function styleOf(element: SceneNode | SceneEdge): Pick<ElementRecord, 'fill' | 'stroke' | 'font'> {
+  const fill = element.kind === 'node' ? element.fill : undefined;
+  return {
+    ...(fill ? { fill } : {}),
+    ...(element.stroke ? { stroke: element.stroke } : {}),
+    ...(element.font ? { font: { ...element.font } } : {}),
   };
 }
 
