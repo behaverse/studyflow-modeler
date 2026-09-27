@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
 import { Study, studyInternals, type StudyChange } from '@canvas/study/Study.ts';
+import type { StudyTool } from '@canvas/study/tools.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
 
@@ -289,4 +290,76 @@ test('reads are plain data: a record by id, the root, a filtered list; the moddl
   expect(study.list({ kind: 'edge', type: 'bpmn:SequenceFlow' }).map((record) => record.id)).toEqual(['Flow_1']);
   expect(JSON.parse(JSON.stringify(study.list())), 'JSON through and through').toEqual(study.list());
   expect(study.businessObject('Count')?.$type).toBe('bpmn:Property');
+});
+
+// --- tools -------------------------------------------------------------------------------
+
+/** A call as an MCP client makes it: the argument and the answer each cross JSON. */
+const call = (study: Study, tool: string, args: unknown = {}): any =>
+  JSON.parse(JSON.stringify(study.call(tool, JSON.parse(JSON.stringify(args)))));
+
+test('an MCP client drives a study through its tools: listed as JSON, called with JSON, the changes heard by id, the file read back', async () => {
+  const study = open();
+  const heard: string[] = [];
+  study.on('change', (change) => heard.push(`${change.cause} +${change.added} -${change.removed}`));
+
+  const tools = JSON.parse(JSON.stringify(Study.tools)) as StudyTool[];
+  expect(tools, 'JSON through and through').toEqual(Study.tools);
+  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'catalog']);
+  expect(tools.find((tool) => tool.name === 'connect')?.inputSchema).toMatchObject({ type: 'object', required: ['from', 'to'] });
+
+  const appended = call(study, 'append', { from: 'Task_1', type: 'bpmn:EndEvent', id: 'Done' });
+  expect(appended).toMatchObject({ ok: true, id: 'Done' });
+  const flow = call(study, 'get', { id: 'Done' }).element.incoming[0];
+  expect(appended.added).toEqual(['Done', flow]);
+  expect(call(study, 'get', { id: flow })).toMatchObject({ ok: true, element: { kind: 'edge', source: 'Task_1', target: 'Done' } });
+  expect(call(study, 'set', { id: 'Done', attribute: 'name', value: 'Finished' })).toMatchObject({ ok: true, changed: ['Done'] });
+  expect(call(study, 'list', { type: 'bpmn:EndEvent' }).elements).toMatchObject([{ id: 'Done', name: 'Finished' }]);
+
+  const reopened = await Study.open(call(study, 'document').yaml, { moddle: freshModdle() });
+  expect(reopened.get('Done')).toEqual(study.get('Done'));
+
+  expect(call(study, 'undo')).toMatchObject({ ok: true });
+  expect(study.get('Done')?.name, 'undo takes back the last edit').toBeUndefined();
+  expect(heard).toEqual([`edit +Done,${flow} -`, 'edit + -', 'undo + -']);
+});
+
+test('a tool call the study cannot run is refused with a reason, as data: nothing written, nothing heard', () => {
+  const study = open();
+  let heard = 0;
+  study.on('change', () => (heard += 1));
+  const REFUSALS: [tool: string, args: unknown, reason: string][] = [
+    ['move', {}, "no tool 'move'"],
+    ['add', [], 'the argument should be an object'],
+    ['add', { type: 'bpmn:Lane' }, "'type' should be one of \"bpmn:StartEvent\", "],
+    ['connect', { from: 'Task_1' }, "'to' is required"],
+    ['get', { id: 'Task_1', depth: 2 }, "the argument takes no 'depth'"],
+    ['resize', { id: 'Task_1', bounds: { x: 0, y: 0, width: '100', height: 80 } }, "'bounds.width' should be a number"],
+    ['style', { ids: ['Task_1', 7] }, "'ids[1]' should be a string"],
+    ['batch', { steps: [{ tool: 'undo', args: {} }] }, "'steps[0].tool' should be one of \"add\", "],
+    ['add', { type: 'bpmn:Task', template: 'cognitive::template:1' }, 'give a type or a template, not both'],
+    ['add', { name: 'Nameless' }, 'give a type or a template'],
+    ['add', { template: 'nope::template:1' }, "no template 'nope::template:1'"],
+    ['add', { type: 'bpmn:Task', extension: 'nope:Nope' }, 'unknown type <nope:Nope>'],
+    ['get', { id: 'Nope' }, "no element 'Nope'"],
+    ['undo', {}, 'nothing to undo'],
+  ];
+  for (const [tool, args, reason] of REFUSALS) {
+    const result = call(study, tool, args);
+    expect(result, `${tool} ${JSON.stringify(args)}`).toEqual({ ok: false, reason: result.reason, added: [], changed: [], removed: [] });
+    expect(result.reason.startsWith(reason), `${tool} ${JSON.stringify(args)}: ${result.reason}`).toBe(true);
+  }
+  expect(heard).toBe(0);
+  expect(study.revision).toBe(0);
+});
+
+test('what the catalog lists, add makes: every BPMN shape type, every schema type paired with its own, every template', () => {
+  const { types, templates } = call(open(), 'catalog');
+  expect(types).toContainEqual({ type: 'bpmn:UserTask' });
+  expect(types).toContainEqual(expect.objectContaining({ type: 'bpmn:ChoreographyTask', extension: 'cognitive:CognitiveTask', title: 'Cognitive Task' }));
+
+  for (const { title, description, ...what } of [...types, ...templates]) {
+    const into = what.type === 'bpmn:BoundaryEvent' ? { into: 'Task_1' } : {};
+    expect(call(open(), 'add', { ...what, ...into }), JSON.stringify(what)).toMatchObject({ ok: true });
+  }
 });

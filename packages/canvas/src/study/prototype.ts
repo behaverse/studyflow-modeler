@@ -17,7 +17,7 @@ import { EXPANDED_SIZE, isExpandable } from '@canvas/study/tree.ts';
 export interface NewShape {
   /** `bpmn:Task`, `bpmn:StartEvent`, … */
   type: string;
-  /** A schema's type that extends `type`: a cognitive task on `bpmn:Task`, say. */
+  /** A schema's type that extends `type`: a cognitive task on `bpmn:ChoreographyTask`, say. */
   extension?: string;
   /** A container drawn open, its contents in view; one is born closed unless this says otherwise. */
   expanded?: boolean;

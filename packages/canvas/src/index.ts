@@ -6,6 +6,8 @@
 export { Canvas, type CanvasOptions } from './Canvas.ts';
 export { Study, type ChangedIds, type OpenOptions, type StudyChange, type StudyResult } from './study/Study.ts';
 export type { ElementRecord } from './study/records.ts';
+export type { Catalog, CatalogTemplate, CatalogType } from './study/catalog.ts';
+export type { StudyTool, ToolResult } from './study/tools.ts';
 export type { StudyWriter } from './study/writer.ts';
 export { renderSvg, type RenderSvgOptions } from './render/renderSvg.ts';
 export type { ImportOptions } from './study/import.ts';

@@ -9,6 +9,7 @@ import { categoryOf } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf, getExtensionType, setAttribute } from '@core/element/index.ts';
 import type { Moddle } from '@core/element/moddle';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
+import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { writeDi } from '@canvas/study/di.ts';
 import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
@@ -20,6 +21,7 @@ import { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
+import { isStepTool, misfitOf, STUDY_TOOLS, type StepTool, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
 import { edgesAffectedBy, isDescendantOf, isExpandable, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
@@ -76,6 +78,9 @@ export function studyInternals(study: Study): StudyInternals {
 }
 
 export class Study {
+  /** The tools an AI drives a study with, as MCP lists them: each a name, a description, the JSON Schema of its argument, hints. */
+  static readonly tools: readonly StudyTool[] = STUDY_TOOLS;
+
   private readonly listeners = new Set<ChangeListener>();
   private readonly options: ImportOptions;
   private readonly rules = new Rules();
@@ -166,6 +171,35 @@ export class Study {
     return this.find(id)?.moddle;
   }
 
+  /** What `add`, `append` and `replace` make, as data: the BPMN shape types, the schema types extending them, the templates. */
+  catalog(): Catalog {
+    const moddle = moddleOf(this.definitions);
+    return installedCatalog((prefix) => moddle.getPackage(prefix) !== undefined);
+  }
+
+  /**
+   * Run the tool `name` on `args`, parsed JSON, as an MCP client calls one: the argument checked against the tool's
+   * schema, a write all or nothing. Answers with one JSON object; `ok` false, and why, when the tool did nothing.
+   */
+  call(name: string, args: unknown = {}): ToolResult {
+    if (isStepTool(name)) return this.atomic(() => this.step(name, args));
+    const misfit = misfitOf(name, args);
+    if (misfit) return refused(misfit);
+    const argument = args as any;
+    switch (name as Exclude<ToolName, StepTool>) {
+      case 'document': return { ok: true, yaml: this.toYaml() };
+      case 'get': {
+        const element = this.get(argument.id);
+        return element ? { ok: true, element } : refused(`no element '${argument.id}'`);
+      }
+      case 'list': return { ok: true, elements: this.list(argument) };
+      case 'catalog': return { ok: true, ...this.catalog() };
+      case 'batch': return this.batch(argument);
+      case 'undo': return this.undo();
+      case 'redo': return this.redo();
+    }
+  }
+
   /** Goes up by one on every change. */
   get revision(): number {
     return studyInternals(this).scene.revision;
@@ -191,8 +225,8 @@ export class Study {
    */
   add(args: NewElement & { id?: string; at?: Point; into?: string }): StudyResult {
     const { scene, rules } = studyInternals(this);
-    const shape = shapeOf(args);
-    if (!shape) return refused(`no template '${'template' in args ? args.template : ''}'`);
+    const shape = shapeFor(args);
+    if (typeof shape === 'string') return refused(shape);
     if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
     const top = args.into === undefined || args.into === scene.rootElement.id;
     const named = top ? undefined : scene.elementsById.get(args.into!);
@@ -213,8 +247,8 @@ export class Study {
     const { scene, rules } = studyInternals(this);
     const source = scene.elementsById.get(args.from);
     if (!source || source.kind === 'label') return refused(`no element '${args.from}'`);
-    const shape = shapeOf(args);
-    if (!shape) return refused(`no template '${'template' in args ? args.template : ''}'`);
+    const shape = shapeFor(args);
+    if (typeof shape === 'string') return refused(shape);
     if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
     const prototype = prototypeOf(shape);
     if (!rules.canAppendType(source, prototype.type)) return refused(`nothing appends a ${shape.type} to '${args.from}'`);
@@ -339,24 +373,13 @@ export class Study {
    * takes back those before it, and the result says which step, and why.
    */
   batch(args: { steps: { tool: string; args: unknown }[] }): StudyResult {
-    const before = this.snapshots[this.current];
-    let refusal: StudyResult | undefined;
-    const result = this.commit(() => {
+    return this.atomic(() => {
       for (const [index, step] of args.steps.entries()) {
         const outcome = this.step(step.tool, step.args);
-        if (!outcome.ok) {
-          refusal = refused(`step ${index + 1} (${step.tool}): ${outcome.reason}`);
-          return;
-        }
+        if (!outcome.ok) return refused(`step ${index + 1} (${step.tool}): ${outcome.reason}`);
       }
+      return { ok: true, ...NOTHING };
     });
-    if (!refusal) return result;
-    if (this.snapshots[this.current] !== before) {
-      this.travel(-1);
-      // What the refused batch wrote is no state to go forward to.
-      this.snapshots.length = this.current + 1;
-    }
-    return refusal;
   }
 
   /** Go back to the document before the last edit, as one change of the whole, by id. */
@@ -444,9 +467,28 @@ export class Study {
     });
   }
 
-  /** A batch's step: the verb `tool` names, run on `args`; a step that throws is refused. */
+  /** Run `run` as one commit, all or nothing: when it is refused, what it wrote first is taken back. */
+  private atomic(run: () => StudyResult): StudyResult {
+    const before = this.snapshots[this.current];
+    let outcome = refused('nothing ran');
+    const result = this.commit(() => {
+      outcome = run();
+    });
+    if (outcome.ok) return { ...result, ...(outcome.id ? { id: outcome.id } : {}) };
+    if (this.snapshots[this.current] !== before) {
+      this.travel(-1);
+      // What the refused edit wrote is no state to go forward to.
+      this.snapshots.length = this.current + 1;
+    }
+    return outcome;
+  }
+
+  /** A write tool as a batch runs it: on `args` checked against the tool's schema; one that throws is refused. */
   private step(tool: string, args: unknown): StudyResult {
-    const verbs: Record<string, (args: any) => StudyResult> = {
+    const misfit = misfitOf(tool, args);
+    if (misfit) return refused(misfit);
+    if (!isStepTool(tool)) return refused(`a batch runs no '${tool}'`);
+    const verbs: Record<StepTool, (args: any) => StudyResult> = {
       add: (a) => this.add(a),
       append: (a) => this.append(a),
       connect: (a) => this.connect(a),
@@ -459,10 +501,8 @@ export class Study {
       expand: (a) => this.expand(a),
       collapse: (a) => this.collapse(a),
     };
-    const verb = verbs[tool];
-    if (!verb) return refused(`no tool '${tool}'`);
     try {
-      return verb(args);
+      return verbs[tool](args);
     } catch (error) {
       return refused(error instanceof Error ? error.message : String(error));
     }
@@ -544,6 +584,12 @@ const NOTHING: ChangedIds = { added: [], changed: [], removed: [] };
 
 function refused(reason: string): StudyResult {
   return { ok: false, reason, ...NOTHING };
+}
+
+/** The shape `what` makes, or why it makes none. */
+function shapeFor(what: NewElement): NewShape | string {
+  if ('template' in what) return 'type' in what ? 'give a type or a template, not both' : shapeOf(what) ?? `no template '${what.template}'`;
+  return typeof what.type === 'string' ? what : 'give a type or a template';
 }
 
 function idsOf({ added, changed, removed }: Commit): ChangedIds {
