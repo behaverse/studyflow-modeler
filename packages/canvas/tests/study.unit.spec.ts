@@ -283,6 +283,7 @@ test('reads are plain data: a record by id, the root, a filtered list; the moddl
   });
   expect(study.get('Flow_1')).toMatchObject({ kind: 'edge', type: 'bpmn:SequenceFlow', source: 'Task_1', target: 'Sub_1' });
   expect(study.get('Sub_1')).toMatchObject({ kind: 'node', expanded: false });
+  expect(study.get('Task_In'), 'drawn on the plane of the closed container it sits in').toMatchObject({ parent: 'Sub_1', plane: 'Sub_1' });
   expect(study.get('Nope')).toBeUndefined();
   study.style({ ids: ['Task_1', 'Flow_1'], stroke: '#aa3333', font: { bold: true } });
   expect(study.get('Task_1'), 'what style wrote, a read returns').toMatchObject({ stroke: '#aa3333', font: { bold: true } });

@@ -7,7 +7,7 @@
 import { getExtensionType } from '@core/element/index.ts';
 import { nameOf, prop } from '@canvas/study/moddle.ts';
 import { isRootElement, type Bounds, type Font, type ModdleObject, type Point, type RootElement, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
-import { isExpandable } from '@canvas/study/tree.ts';
+import { isExpandable, planeOf } from '@canvas/study/tree.ts';
 
 export interface ElementRecord {
   readonly id: string;
@@ -20,6 +20,8 @@ export interface ElementRecord {
   readonly name?: string;
   /** The shape it sits in; absent at the top level. */
   readonly parent?: string;
+  /** The collapsed container whose drill-down draws it; absent on the root plane. */
+  readonly plane?: string;
   /** A shape's or a caption's box. */
   readonly bounds?: Bounds;
   /** A container's: drawn open. */
@@ -46,7 +48,14 @@ export function recordOf(element: SceneElement | RootElement): ElementRecord {
   if (isRootElement(element)) return { id: element.id, kind: 'root', type: element.type, ...describe(element.businessObject) };
   const box = (bounds: Bounds): Bounds => ({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
   if (element.kind === 'label') return { id: element.id, kind: 'label', type: element.type, owner: element.owner.id, bounds: box(element) };
-  const placed = { id: element.id, type: element.type, ...describe(element.businessObject), ...(element.parent ? { parent: element.parent.id } : {}) };
+  const plane = planeOf(element);
+  const placed = {
+    id: element.id,
+    type: element.type,
+    ...describe(element.businessObject),
+    ...(element.parent ? { parent: element.parent.id } : {}),
+    ...(plane ? { plane: plane.id } : {}),
+  };
   if (element.kind === 'edge') {
     return {
       ...placed,
