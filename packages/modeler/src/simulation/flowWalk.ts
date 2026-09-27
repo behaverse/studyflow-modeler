@@ -1,6 +1,6 @@
 import { isBpmnSubtypeOf } from '@core/notation';
 import { isExpandable } from '@core/document/outline';
-import { CONTENT_PADDING, type ElementRecord, type Point } from '@canvas/index.ts';
+import type { ElementRecord, Point } from '@canvas/index.ts';
 
 /** Reads an element by id: a study's `get`. */
 export type Lookup = (id: string) => ElementRecord | undefined;
@@ -45,8 +45,8 @@ export function startEventsIn(elements: readonly ElementRecord[], within: string
     && containerOf(element, get)?.id === within);
 }
 
-/** Where a token rests on the shape `element`: its centre, or the name strip of an expanded container, clear of its contents. */
+/** Where a token rests on the shape `element`: its centre, or the top edge of an expanded container, clear of its contents. */
 export function tokenAnchor(element: ElementRecord): Point {
   const { x, y, width, height } = element.bounds!;
-  return { x: x + width / 2, y: y + (element.expanded ? CONTENT_PADDING.top / 2 : height / 2) };
+  return { x: x + width / 2, y: element.expanded ? y : y + height / 2 };
 }

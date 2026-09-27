@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { CONTENT_PADDING, type ElementRecord } from '@canvas/index.ts';
+import type { ElementRecord } from '@canvas/index.ts';
 import { containerOf, nextHops, startEventsIn, tokenAnchor, type Hop, type Lookup } from '@modeler/simulation/flowWalk';
 
 /** The pure flow-walk decisions the token simulation takes, over records and a lookup by id. */
@@ -58,12 +58,10 @@ test.describe('containers', () => {
     expect(startEventsIn(all, 'sub', get)).toEqual([inner]);
   });
 
-  test('a token rests on the centre of a node, or in the name strip of an expanded container', () => {
+  test('a token rests on the centre of a node, or on the top edge of an expanded container', () => {
     expect(tokenAnchor(shape('task', 'bpmn:Task'))).toEqual({ x: 50, y: 40 });
     expect(tokenAnchor(shape('sub', 'bpmn:SubProcess', { expanded: false }))).toEqual({ x: 50, y: 40 });
-    const strip = tokenAnchor(shape('sub', 'bpmn:SubProcess', { expanded: true, bounds: { x: 0, y: 0, width: 350, height: 200 } }));
-    expect(strip.x).toBe(175);
-    expect(strip.y).toBeGreaterThan(0);
-    expect(strip.y).toBeLessThan(CONTENT_PADDING.top);
+    expect(tokenAnchor(shape('sub', 'bpmn:SubProcess', { expanded: true, bounds: { x: 0, y: 0, width: 350, height: 200 } })))
+      .toEqual({ x: 175, y: 0 });
   });
 });
