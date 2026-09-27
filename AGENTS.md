@@ -18,7 +18,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 | Path | What |
 | --- | --- |
 | `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles the skills' `*.moddle.yaml` (`notation/`), attribute access on one element (`element/`), and the checks `validate` and `run` apply (`checks/`). No React. |
-| `packages/canvas` | The SVG canvas. `src/index.ts` is all the modeler may import. |
+| `packages/canvas` | The SVG canvas: a DOM-free `Study` (the document, its verbs and their tools for an AI, undo) and `Canvas` views of it. `src/index.ts` (`Study`, `Canvas`, `renderSvg` and their types) is all the modeler may import; `src/element.ts` is `<studyflow-canvas>`. |
 | `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a module `src/commandBus.ts` lists (a feature's `commands.ts`, and `diagram/save.ts`). |
 | `packages/cli` | The `studyflow` CLI. `run` checks the plan, then hands a local study to `skills/local/run.py` with the protocol's digest. |
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |

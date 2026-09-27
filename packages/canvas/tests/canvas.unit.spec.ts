@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { renderSvg, type Canvas, type SceneEdge, type SceneNode } from '@canvas/index.ts';
+import { renderSvg, type Canvas } from '@canvas/index.ts';
+import type { SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 
 import {
   canvasOn,

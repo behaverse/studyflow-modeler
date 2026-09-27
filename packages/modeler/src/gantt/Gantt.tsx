@@ -7,7 +7,6 @@ import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
 import { DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
-import { INK } from '@canvas/index.ts';
 
 type Props = { isOpen: boolean; onClose: () => void };
 
@@ -199,7 +198,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                                 fontSize: r.external ? 11 : 12,
                                 fontWeight: r.font?.bold ? 700 : r.external ? 400 : 500,
                                 fontStyle: r.font?.italic ? 'italic' : undefined,
-                                color: r.font?.color ?? INK.text,
+                                color: r.font?.color ?? 'var(--sf-ink-text)',
                               }}
                               className="flex h-full items-center leading-4"
                             >

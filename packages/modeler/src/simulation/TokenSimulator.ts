@@ -2,7 +2,7 @@
 
 import { isBpmnSubtypeOf } from '@core/notation';
 import type { Canvas, EventBus } from '@modeler/editor/port';
-import { svgAppend, svgAttr, svgCreate, svgRemove, type ElementRecord, type Point, type Study } from '@canvas/index.ts';
+import type { ElementRecord, Point, Study } from '@canvas/index.ts';
 import { containerOf, nextHops, startEventsIn, tokenAnchor } from '@modeler/simulation/flowWalk';
 import { computeSegLengths, dedupePoints, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
 
@@ -16,12 +16,16 @@ export interface SimulationHost {
 
 const TOKEN_RADIUS = 8;
 
+function setAttributes(element: Element, attributes: Record<string, string | number>): void {
+  for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, String(value));
+}
+
 /** The `studyflow-simulation-token` class is the selector e2e tests count tokens by. */
-function createTokenSvg(layer: any, color: string, cx = 0, cy = 0): any {
-  const svg = svgCreate('circle');
-  svgAttr(svg, { cx, cy, r: TOKEN_RADIUS, class: 'studyflow-simulation-token' });
+function createTokenSvg(layer: SVGGElement, color: string, cx = 0, cy = 0): SVGCircleElement {
+  const svg = layer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  setAttributes(svg, { cx, cy, r: TOKEN_RADIUS, class: 'studyflow-simulation-token' });
   svg.style.fill = color;
-  svgAppend(layer, svg);
+  layer.appendChild(svg);
   return svg;
 }
 
@@ -165,7 +169,7 @@ export default class TokenSimulator {
   private _clearTokens() {
     for (const token of this._tokens) {
       token.done = true;
-      if (token.svg) svgRemove(token.svg);
+      token.svg?.remove();
     }
     this._tokens = [];
   }
@@ -186,7 +190,7 @@ export default class TokenSimulator {
     }
     for (let i = this._tokens.length - 1; i >= 0; i--) {
       if (this._tokens[i].done) {
-        svgRemove(this._tokens[i].svg);
+        this._tokens[i].svg.remove();
         this._tokens.splice(i, 1);
       }
     }
@@ -324,7 +328,7 @@ export default class TokenSimulator {
   private _setTokenPos(token: Token, x: number, y: number) {
     token.cx = x;
     token.cy = y;
-    svgAttr(token.svg, { cx: x, cy: y });
+    setAttributes(token.svg, { cx: x, cy: y });
   }
 
   private _fadeOutToken(token: Token) {

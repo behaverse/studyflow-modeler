@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { INK, renderSvg, type Canvas } from '@canvas/index.ts';
-import type { IconDef } from '@canvas/index.ts';
+import { renderSvg, type Canvas, type IconDef } from '@canvas/index.ts';
+import { INK } from '@canvas/view/theme.ts';
 import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml } from '@core/notation/moddlePackage';
 

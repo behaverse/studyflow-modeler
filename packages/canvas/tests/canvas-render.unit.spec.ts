@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { INK, renderSvg, type Canvas } from '@canvas/index.ts';
+import { renderSvg, type Canvas } from '@canvas/index.ts';
+import { INK } from '@canvas/view/theme.ts';
 import { studyflowToDefinitions } from '@core/document';
 import { CHROME } from '@canvas/render/labels.ts';
 import { LINE_HEIGHT } from '@canvas/study/text.ts';

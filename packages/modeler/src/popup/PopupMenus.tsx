@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { INK, type FontPatch, type TextAlign } from '@canvas/index.ts';
+import type { FontPatch, TextAlign } from '@canvas/index.ts';
 import { eventDefinitionTypeOf } from '@core/element';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { useModeler } from '@modeler/app/useModeler';
@@ -163,7 +163,7 @@ export function PopupMenus() {
             items: INKS.map(({ label, color }): PopupMenuItem => ({
               id: `${label.toLowerCase()}-text-color`,
               label,
-              swatch: { fill: color ?? INK.text, stroke: color ?? INK.text },
+              swatch: { fill: color ?? 'var(--sf-ink-text)', stroke: color ?? 'var(--sf-ink-text)' },
               pressed: (font?.color ?? undefined) === color?.toLowerCase(),
               keepOpen: true,
               onSelect: () => setFont({ color: color ?? null }),

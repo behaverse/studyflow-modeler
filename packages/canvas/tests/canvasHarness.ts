@@ -23,7 +23,8 @@ import { setDocument } from '@canvas/render/svg.ts';
 import type { Rules } from '@canvas/study/rules.ts';
 import type { Scene } from '@canvas/study/scene.ts';
 import { studyInternals } from '@canvas/study/Study.ts';
-import type { Bounds, CanvasOptions, ImportOptions, SceneEdge, SceneLabel, SceneNode } from '@canvas/index.ts';
+import type { Bounds, CanvasOptions, ImportOptions } from '@canvas/index.ts';
+import type { SceneEdge, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { studyflowToDefinitions } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 

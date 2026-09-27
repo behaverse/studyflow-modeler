@@ -4,7 +4,7 @@
  * resolver, templates and the simulator.
  */
 
-import { Canvas, SVG_ICON_PATHS, renderSvg } from '@canvas/index.ts';
+import { Canvas, renderSvg } from '@canvas/index.ts';
 import type { CanvasOptions, IconDef, Study } from '@canvas/index.ts';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
@@ -45,7 +45,8 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
     const icon = templateIcon || extEntry?.iconClass || bpmnFallback;
     if (typeof icon === 'string' && icon) return iconFor(icon);
   }
-  return SVG_ICON_PATHS[iconKey] ?? null;
+  // Anything else is the canvas's: its own glyph, when it has one.
+  return undefined;
 }
 
 export function mountEditor(options: MountEditorOptions): Editor {

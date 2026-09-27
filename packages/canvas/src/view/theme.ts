@@ -13,7 +13,11 @@ export const INK = {
 
 const CANVAS_STYLE_ID = 'sf-canvas-style';
 
+/** The palette as CSS properties (`--sf-ink-text`), for a host that draws beside the canvas in its colours. */
+const INK_PROPERTIES = Object.entries(INK).map(([name, value]) => `--sf-ink-${name}: ${value};`).join(' ');
+
 const CANVAS_CSS = `
+:root { ${INK_PROPERTIES} }
 .sf-canvas {
   --sf-accent: ${INK.accent};
   --sf-accent-soft: rgba(192, 40, 176, 0.1);
