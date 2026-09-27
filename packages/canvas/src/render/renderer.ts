@@ -4,7 +4,7 @@
  */
 
 import { BPMN } from '@core/constants.ts';
-import { effectiveAttribute } from '@core/document/index.ts';
+import { effectiveAttribute, resolvePlaceholders } from '@core/document/index.ts';
 import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore } from '@core/document/outline.ts';
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, getAttribute, isDataAssociationType, StudyflowElement } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
@@ -147,8 +147,6 @@ function darken(color: string, amount = 0.12): string {
 
 export interface RendererOptions {
   iconResolver?: IconResolver;
-  /** Maps a raw `name` to the text drawn (placeholder resolution); the model keeps the raw name. */
-  labelText?: (businessObject: ModdleObject | undefined, name: string) => string;
 }
 
 export class Renderer {
@@ -157,16 +155,14 @@ export class Renderer {
   scope?: SceneNode;
   private scene?: Scene;
   private readonly iconResolver?: IconResolver;
-  private readonly labelText?: RendererOptions['labelText'];
 
   constructor(options: RendererOptions = {}) {
     this.iconResolver = options.iconResolver;
-    this.labelText = options.labelText;
   }
 
+  /** The name drawn for `businessObject`: `{count}` shows its run-state value; the model keeps the raw name. */
   private nameOf(businessObject: ModdleObject | undefined): string {
-    const name = nameOf(businessObject);
-    return this.labelText ? this.labelText(businessObject, name) : name;
+    return resolvePlaceholders(nameOf(businessObject), this.scene?.definitions, businessObject?.id ?? '');
   }
 
   /** Draw `scene` into `layer` in paint order: every element, or those `shows` keeps. */

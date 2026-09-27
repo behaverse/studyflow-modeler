@@ -6,7 +6,6 @@
 
 import { Canvas, SVG_ICON_PATHS, renderSvg } from '@canvas/index.ts';
 import type { CanvasOptions, IconDef, Study } from '@canvas/index.ts';
-import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
@@ -52,11 +51,7 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
 export function mountEditor(options: MountEditorOptions): Editor {
   const { study } = options;
   // How the app draws a study, on the canvas and in a picture of it.
-  const drawing: CanvasOptions = {
-    iconResolver: resolveIcon,
-    // `{count}` in a label draws its run-state value; the model, the file and the inspector keep the raw text.
-    labelText: (bo, name) => resolvePlaceholders(name, study.definitions as any, bo?.id ?? ''),
-  };
+  const drawing: CanvasOptions = { iconResolver: resolveIcon };
   const canvas = new Canvas(options.container, study, drawing);
   const model: EditorModel = {
     moddle: () => options.moddle,

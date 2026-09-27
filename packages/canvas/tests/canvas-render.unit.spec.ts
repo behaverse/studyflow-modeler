@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { INK, renderSvg, type Canvas } from '@canvas/index.ts';
-import { resolvePlaceholders, studyflowToDefinitions } from '@core/document';
+import { studyflowToDefinitions } from '@core/document';
 import { CHROME } from '@canvas/render/labels.ts';
 import { LINE_HEIGHT } from '@canvas/study/text.ts';
 import { choreographyBandHeight } from '@core/document/outline.ts';
@@ -417,9 +417,8 @@ test('a message flow is dashed AND starts with the open circle BPMN gives it', a
 });
 
 /**
- * `{count}` in a name draws its run-state value (docs/reference.qmd, "Run state"): the host
- * passes `labelText`, the renderer routes both the internal caption and the external
- * label element through it, and the model keeps the raw name.
+ * `{count}` in a name draws its run-state value (docs/reference.qmd, "Run state"), in the internal
+ * caption and the external label element alike, on the canvas and in a picture; the model keeps the raw name.
  */
 const STATE_YAML = `id: Defs_State
 definitions:
@@ -453,9 +452,9 @@ state:
       Flow_1: 1
 `;
 
-test('a `labelText` option resolves placeholders in drawn labels; the model keeps the raw name', async () => {
+test('a drawn label shows the run state its placeholders name; the model keeps the raw name', async () => {
   const definitions = studyflowToDefinitions(STATE_YAML, freshModdle());
-  const canvas = canvasOn(definitions, { labelText: (bo, name) => resolvePlaceholders(name, definitions, bo?.id ?? '') });
+  const canvas = canvasOn(definitions);
 
   // The external label of the end event: resolved from its own state entry.
   const captionOf = (of: typeof canvas, owner: string): string => of.study.list({ kind: 'label' }).find((caption) => caption.owner === owner)!.id;
@@ -469,10 +468,8 @@ test('a `labelText` option resolves placeholders in drawn labels; the model keep
   // Serialization is untouched.
   expect(definitions.rootElements[0].flowElements[1].name).toBe('Excluded (n={count})');
 
-  // Without the option, nothing is resolved.
-  const plain = loadYaml(STATE_YAML);
-  const plainLabel = captionOf(plain.canvas, 'Excluded_Pre');
-  expect(textsOf(plain.canvas, plainLabel).join(' ')).toBe('Excluded (n={count})');
+  // A picture shows what the view shows (the caption wraps after its first word).
+  expect(renderSvg(canvas.study)).toContain('>(n=3)</text>');
 });
 
 /**
