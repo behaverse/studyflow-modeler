@@ -11,7 +11,7 @@ export interface SimulationHost {
   /** What the tokens walk. */
   study: Pick<Study, 'get' | 'list'>;
   /** Where they are drawn, and whether the view shows where they are. */
-  canvas: Pick<Canvas, 'getHostLayer' | 'draws' | 'scope'>;
+  canvas: Pick<Canvas, 'layer' | 'draws' | 'scope'>;
 }
 
 const TOKEN_RADIUS = 8;
@@ -102,7 +102,7 @@ export default class TokenSimulator {
     if (this._active) return;
     this._active = true;
     this._ensureBounceKeyframes();
-    this._layer = this._host.canvas.getHostLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
+    this._layer = this._host.canvas.layer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
     this._startEvents = this._getVisibleStartEvents();
     for (const startEvent of this._startEvents) this._spawnToken(startEvent);
     this._spawnIntervalId = window.setInterval(() => {
@@ -135,7 +135,7 @@ export default class TokenSimulator {
   /** A new document: every token refers to elements that are gone, so start over. */
   private _handleImport = () => {
     if (!this._active) return;
-    this._layer = this._host.canvas.getHostLayer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
+    this._layer = this._host.canvas.layer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
     this._clearTokens();
     this._handleRootSet();
   };

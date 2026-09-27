@@ -443,18 +443,21 @@ export class Canvas {
     el.style.visibility = 'visible';
   }
 
-  addMarker(element: ElementRef, marker: string): void {
-    const target = this.resolveElement(element);
-    if (target) this.selectionSet.addMarker(target, marker);
+  /**
+   * Mark the elements `ids` names, or clear the mark with `on` false: the view draws `dimmed` faded and `error`
+   * glowing red; any other marker is a class, `sf-mark-<marker>`, on each element's group for the host's CSS. A mark
+   * outlives the element's redraws; an id the view holds nothing for is skipped.
+   */
+  mark(ids: string | readonly string[], marker: string, on = true): void {
+    for (const id of typeof ids === 'string' ? [ids] : ids) {
+      if (!this.scene.elementsById.has(id)) continue;
+      if (on) this.selectionSet.addMarker(id, `sf-mark-${marker}`);
+      else this.selectionSet.removeMarker(id, `sf-mark-${marker}`);
+    }
   }
 
-  removeMarker(element: ElementRef, marker: string): void {
-    const target = this.resolveElement(element);
-    if (target) this.selectionSet.removeMarker(target, marker);
-  }
-
-  /** A host-owned `<g>` above the built-in layers, created on first use and re-attached after an import. */
-  getHostLayer(name: string, index = 0): SVGGElement {
+  /** A host-owned `<g>` above the built-in layers, in diagram coordinates: created on first use, kept across loads. */
+  layer(name: string, index = 0): SVGGElement {
     let layer = this.customLayers.get(name);
     if (!layer) {
       layer = create('g', { class: `sf-layer sf-layer-${name}`, 'data-layer': name }) as SVGGElement;

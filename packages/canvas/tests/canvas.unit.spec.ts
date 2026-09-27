@@ -452,6 +452,18 @@ test('a host element anchored to elements is shown beside them, and steps aside 
   canvas.anchor(pad, null);
 });
 
+test('a mark is a class on the element, kept through its redraws, and cleared by id', async () => {
+  const { canvas } = load();
+  const marked = (id: string): boolean => canvas.getGraphics(id)!.classList.contains('sf-mark-dimmed');
+
+  canvas.mark(['Task_1', 'Nope'], 'dimmed');
+  expect(marked('Task_1')).toBe(true);
+  canvas.study.set({ id: 'Task_1', attribute: 'name', value: 'Renamed' });
+  expect(marked('Task_1'), 'redrawn, still marked').toBe(true);
+  canvas.mark('Task_1', 'dimmed', false);
+  expect(marked('Task_1')).toBe(false);
+});
+
 // --- captions ------------------------------------------------------------------------
 
 test('a dragged caption moves alone and becomes pinned in the document', async () => {

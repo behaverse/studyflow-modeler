@@ -34,12 +34,16 @@ function elementsOf(record: ProvenanceRecord, study: Study): ElementRecord[] {
   return [scope, mentioned].filter((element): element is ElementRecord => element !== undefined);
 }
 
-function resetSvgStyles(canvas: Canvas): void {
-  const svg = canvas.getContainer()?.querySelector('svg');
-  if (!svg) return;
-  svg.style.transition = '';
-  svg.style.transform = '';
-  svg.style.opacity = '';
+/** The view the replay fades through a plane change: the element the canvas is mounted in, the app's own. */
+function viewOf(canvas: Canvas): HTMLElement {
+  return canvas.getContainer();
+}
+
+function resetFade(canvas: Canvas): void {
+  const view = viewOf(canvas);
+  view.style.transition = '';
+  view.style.transform = '';
+  view.style.opacity = '';
 }
 
 /** Dim the canvas, light up elements as their records land, and float a token on the active one. */
@@ -53,13 +57,13 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   useEffect(() => {
     const { canvas } = editor;
     return () => {
-      for (const [id, m] of marked.current) if (editor.study.get(id)) canvas.removeMarker(id, m);
+      for (const [id, m] of marked.current) canvas.mark(id, m, false);
       marked.current = [];
       if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
       glideFrame.current = null;
       if (planeShift.current) clearTimeout(planeShift.current);
       planeShift.current = null;
-      resetSvgStyles(canvas);
+      resetFade(canvas);
       tokenPos.current = null;
       tokenRef.current?.remove();
       tokenRef.current = null;
@@ -86,20 +90,20 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       if (flow.source && flow.target && touched.has(flow.source) && touched.has(flow.target)) touched.add(flow.id);
     }
 
-    for (const [id, m] of marked.current) if (study.get(id)) canvas.removeMarker(id, m);
+    for (const [id, m] of marked.current) canvas.mark(id, m, false);
     marked.current = [];
     const add = (id: string, m: string) => {
-      if (!study.get(id)) return;
-      canvas.addMarker(id, m);
+      canvas.mark(id, m);
       marked.current.push([id, m]);
     };
-    for (const id of touched) add(id, 'replay-touched');
-    for (const [id, r] of newest) if (r.invalidated) add(id, 'replay-voided');
+    // The canvas dims, and what the records touched lights up; what they invalidated glows red.
+    for (const element of study.list()) if (!touched.has(element.id)) add(element.id, 'dimmed');
+    for (const [id, r] of newest) if (r.invalidated) add(id, 'error');
 
     // The token: a pulsing circle on the element the newest record activates or mentions.
     const current = shown[shown.length - 1];
     const target = current ? elementsOf(current, study).find((el) => el.bounds) : undefined;
-    const layer = canvas.getHostLayer('provenance-replay', 1000);
+    const layer = canvas.layer('provenance-replay', 1000);
     if (!tokenRef.current) {
       tokenRef.current = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       tokenRef.current.setAttribute('r', '8');
@@ -122,7 +126,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     if (planeShift.current) {
       clearTimeout(planeShift.current);
       planeShift.current = null;
-      resetSvgStyles(canvas);
+      resetFade(canvas);
     }
 
     if (!target) {
@@ -158,8 +162,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
         canvas.reveal(target.id);
         canvas.setViewbox(camera(to));
       };
-      const svg = canvas.getContainer()?.querySelector('svg');
-      if (!from || !svg) {
+      const view = viewOf(canvas);
+      if (!from) {
         place();
         return;
       }
@@ -189,7 +193,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
             width: vb0.width + (dest.width - vb0.width) * eased,
             height: vb0.height + (dest.height - vb0.height) * eased,
           });
-          svg.style.opacity = String(fade === 'out' ? 1 - eased : eased);
+          view.style.opacity = String(fade === 'out' ? 1 - eased : eased);
           if (t < 1) glideFrame.current = requestAnimationFrame(frame);
           else { glideFrame.current = null; then?.(); }
         };
@@ -200,17 +204,17 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
         // Fly into the collapsed shape, fading out, then surface inside its plane.
         fly(doorway(inward), 420, 'out', () => {
           place();
-          svg.style.transition = 'none';
-          svg.style.transform = 'scale(0.92)';
-          svg.style.transformOrigin = '50% 50%';
+          view.style.transition = 'none';
+          view.style.transform = 'scale(0.92)';
+          view.style.transformOrigin = '50% 50%';
           // A forced reflow commits the pose, so the settle transitions from it; no
           // `requestAnimationFrame` here: it starves in hidden tabs, freezing the dive midway.
-          void svg.getBoundingClientRect();
-          svg.style.transition = 'opacity 300ms ease-out, transform 300ms ease-out';
-          svg.style.opacity = '1';
-          svg.style.transform = 'scale(1)';
+          void view.getBoundingClientRect();
+          view.style.transition = 'opacity 300ms ease-out, transform 300ms ease-out';
+          view.style.opacity = '1';
+          view.style.transform = 'scale(1)';
           planeShift.current = window.setTimeout(() => {
-            resetSvgStyles(canvas);
+            resetFade(canvas);
             planeShift.current = null;
           }, 320);
         });
@@ -218,30 +222,30 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       }
       if (outward) {
         // Quick fade, then pull back out of the shape the plane belonged to.
-        svg.style.transition = 'opacity 160ms ease-in';
-        svg.style.opacity = '0';
+        view.style.transition = 'opacity 160ms ease-in';
+        view.style.opacity = '0';
         planeShift.current = window.setTimeout(() => {
           planeShift.current = null;
           canvas.setScope(plane);
           setPos(to, target.id, rootId);
           const dest = camera(to);
           canvas.setViewbox(doorway(outward));
-          svg.style.transition = 'none';
-          fly(dest, 420, 'in', () => resetSvgStyles(canvas));
+          view.style.transition = 'none';
+          fly(dest, 420, 'in', () => resetFade(canvas));
         }, 170);
         return;
       }
       // No doorway to fly through (a sibling plane, say): a plain crossfade.
-      svg.style.transition = 'opacity 200ms ease-in';
-      svg.style.opacity = '0';
+      view.style.transition = 'opacity 200ms ease-in';
+      view.style.opacity = '0';
       planeShift.current = window.setTimeout(() => {
         place();
-        svg.style.transition = 'none';
-        void svg.getBoundingClientRect();
-        svg.style.transition = 'opacity 280ms ease-out';
-        svg.style.opacity = '1';
+        view.style.transition = 'none';
+        void view.getBoundingClientRect();
+        view.style.transition = 'opacity 280ms ease-out';
+        view.style.opacity = '1';
         planeShift.current = window.setTimeout(() => {
-          resetSvgStyles(canvas);
+          resetFade(canvas);
           planeShift.current = null;
         }, 300);
       }, 210);

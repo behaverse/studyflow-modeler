@@ -39,6 +39,11 @@ const CANVAS_CSS = `
 }
 .sf-canvas .selected > .sf-outline { visibility: visible; stroke: var(--sf-accent); }
 .sf-canvas .sf-resizing > .sf-outline, .sf-canvas .sf-editing > .sf-outline { visibility: hidden; }
+
+/* The marks a host puts on elements (canvas.mark): faded, or glowing red. */
+.sf-canvas .sf-shape, .sf-canvas .sf-connection { transition: opacity 0.25s ease; }
+.sf-canvas .sf-mark-dimmed { opacity: 0.22; }
+.sf-canvas .sf-mark-error { filter: drop-shadow(0 0 3px var(--sf-danger)); }
 .sf-canvas .sf-connection.selected .sf-connection-line { stroke: var(--sf-accent); }
 
 .sf-canvas .sf-handle-visual { fill: #ffffff; stroke: var(--sf-accent); stroke-width: 1.5px; }
