@@ -54,9 +54,10 @@ test('the entries a selection gets, in the order they wrap into rows', () => {
     ['a multi-selection: only what means something for a set', context({ count: 2, canAppend: true, canAnnotate: true }), ['delete', 'set-color']],
     // A note may hang off a flow; the entries that need a shape to flow OUT of stay away,
     // and the wrench is withheld by the shape test even when the rule would allow it.
-    ['a connection', context({ isShape: false, isConnection: true, canAnnotate: true, canReplace: true }), ['append.text-annotation', 'delete', 'set-color']],
-    ['a connection the rules give no note', context({ isShape: false, isConnection: true }), ['delete', 'set-color']],
-    ['a flow whose source takes a default', context({ isShape: false, isConnection: true, canToggleDefault: true }), ['delete', 'set-color', 'flow.toggle-default']],
+    ['a connection', context({ isShape: false, isConnection: true, canAnnotate: true, canReplace: true }), ['append.text-annotation', 'delete', 'set-color', 'flow.reroute']],
+    ['a connection the rules give no note', context({ isShape: false, isConnection: true }), ['delete', 'set-color', 'flow.reroute']],
+    ['a flow whose source takes a default', context({ isShape: false, isConnection: true, canToggleDefault: true }), ['delete', 'set-color', 'flow.toggle-default', 'flow.reroute']],
+    ['several connections: no re-route, which acts on one', context({ count: 2, isShape: false, isConnection: true }), ['delete', 'set-color']],
     ['a choreography task: the swap, last', context({ canAppend: true, canAnnotate: true, canReplace: true, isChoreographyTask: true }), [...task, 'choreography.swap-initiator']],
     ['several choreography tasks: no swap, which acts on one', context({ count: 3, isChoreographyTask: true }), ['delete', 'set-color']],
     ['an expandable container: the toggle and the trip in, last', context({ canAppend: true, canAnnotate: true, canReplace: true, isExpandable: true }), [...task, 'expand.toggle', 'drilldown']],

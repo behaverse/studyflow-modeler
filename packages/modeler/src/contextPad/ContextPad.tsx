@@ -56,6 +56,7 @@ const ICON_CLASSES: Record<ContextPadIcon, string> = {
   trash: ICONS.trash,
   palette: ICONS.paintBrush,
   'default-flow': ICONS.slash,
+  reroute: ICONS.route,
   swap: ICONS.swapVertical,
   subprocess: ICONS.expand,
   open: ICONS.drilldown,
@@ -239,6 +240,9 @@ export function ContextPad() {
         return;
       case 'flow.toggle-default':
         if (element) void executeCommand(modeler, { type: 'ToggleDefaultFlow', id: element.id });
+        return;
+      case 'flow.reroute':
+        if (element) void executeCommand(modeler, { type: 'RerouteFlow', id: element.id });
         return;
       case 'choreography.swap-initiator':
         if (element) void executeCommand(modeler, { type: 'SwapChoreographyInitiator', id: element.id });

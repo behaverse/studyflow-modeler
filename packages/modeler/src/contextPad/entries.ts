@@ -11,6 +11,7 @@ export type ContextPadAction =
   | 'delete'
   | 'set-color'
   | 'flow.toggle-default'
+  | 'flow.reroute'
   | 'choreography.swap-initiator'
   | 'expand.toggle'
   | 'drilldown';
@@ -24,6 +25,7 @@ export type ContextPadIcon =
   | 'palette'
   | 'connect'
   | 'default-flow'
+  | 'reroute'
   | 'swap'
   | 'subprocess'
   | 'open';
@@ -85,6 +87,7 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
       icon: 'default-flow',
     });
   }
+  if (single && context.isConnection) entries.push({ action: 'flow.reroute', title: 'Re-route', icon: 'reroute' });
   if (shape && context.canConnect) entries.push({ action: 'connect', title: 'Connect to other element', icon: 'connect' });
   if (single && context.isChoreographyTask) {
     entries.push({ action: 'choreography.swap-initiator', title: 'Switch initiating participant', icon: 'swap' });

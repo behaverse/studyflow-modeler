@@ -102,6 +102,7 @@ export const ICONS = {
   expand: 'iconify fluent--resize-16-regular',
   drilldown: 'iconify fluent--full-screen-maximize-16-filled',
   slash: 'iconify bi--slash-lg',
+  route: 'iconify ph--path',
   swapVertical: 'iconify fluent--person-swap-16-regular',
 
   /* Text-style bar */

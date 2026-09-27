@@ -79,6 +79,16 @@ export function runToggleDefaultFlow(modeler: Editor, command: ToggleDefaultFlow
   }));
 }
 
+export type RerouteFlowCommand = {
+  type: 'RerouteFlow';
+  id: string;
+};
+
+/** Draw a connection's route afresh, squarely between its ends and round what stands in the way, as one edit. */
+export function runRerouteFlow(modeler: Editor, command: RerouteFlowCommand): void {
+  modeler.study.reroute({ id: command.id });
+}
+
 export type StartConnectCommand = {
   type: 'StartConnect';
   from: string;
