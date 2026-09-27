@@ -40,9 +40,10 @@ function flow(id: string, type: string, source: any, target: any): any {
   };
 }
 
-/** The canvas as the export reads it; `scope` is the container the view is drilled into. */
+/** The study and the canvas as the export reads them; `scope` is the container the view is drilled into. */
 function fakeModeler(elements: any[], scope?: any): any {
   return {
+    study: { root: { id: ROOT.id, kind: 'root', type: ROOT.type, name: ROOT.businessObject.name } },
     canvas: {
       all: () => elements,
       getRoot: () => scope ?? ROOT,

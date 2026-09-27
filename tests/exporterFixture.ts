@@ -23,6 +23,7 @@ function fakeModeler(businessObjects: any[], { diagramName }: FakeModelerOptions
     : undefined;
 
   return {
+    study: { root: { id: 'Process_1', kind: 'root', type: 'bpmn:Process', ...(diagramName ? { name: diagramName } : {}) } },
     canvas: {
       all: () => elements,
       getRoot: () => root,

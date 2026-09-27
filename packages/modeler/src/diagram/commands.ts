@@ -109,11 +109,8 @@ export async function runOpenDiagram(modeler: Editor, command: OpenDiagramComman
     console.warn('Zoom to fit-viewport failed after open; leaving default zoom.', err);
   }
 
-  const root = modeler.canvas.getRoot();
-  const embedded = root?.businessObject?.name;
-  if (root && (typeof embedded !== 'string' || embedded.length === 0)) {
-    modeler.study.set({ id: root.id, attribute: 'name', value: filenameStem(command.filename) });
-  }
+  const root = modeler.study.root;
+  if (!root.name) modeler.study.set({ id: root.id, attribute: 'name', value: filenameStem(command.filename) });
 
   // Everything up to here is the file, not an edit of it, so auto-save has nothing to write yet.
   markOpened();

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import {
   addPaletteElement,
+  diagramTitle,
   examplePath,
   exportDiagram,
   gotoModeler,
@@ -57,6 +58,25 @@ test.describe('sub-process drill-down', () => {
       await expect(shape(outside), id).toBeVisible();
       await expect(crumbs, id).toHaveCount(0);
     }
+  });
+
+  test('drilled in, the nav bar names the study, and a rename renames the study, not the sub-process', async ({ page }) => {
+    await openExample(page);
+    await page.locator('g[data-element-id="select_model"]').click();
+    await drilldown(page).click();
+    await expect(diagramTitle(page)).toHaveText('sklearn_pipeline');
+
+    await diagramTitle(page).click();
+    await page.getByTestId('diagram-name-input').fill('Pipeline');
+    await page.getByTestId('diagram-name-input').press('Enter');
+    await expect(diagramTitle(page)).toHaveText('Pipeline');
+
+    // Back out and in again: the trail is drawn afresh, from what the document holds.
+    await page.getByTestId('breadcrumb-sklearn_pipeline').click();
+    await page.locator('g[data-element-id="select_model"]').click();
+    await drilldown(page).click();
+    await expect(page.getByTestId('breadcrumb-sklearn_pipeline')).toContainText('Pipeline');
+    await expect(page.getByTestId('breadcrumb-select_model')).toContainText('select_model');
   });
 
   test('a sub-process dropped from the palette is authorable: badge, plane, contents', async ({ page }) => {

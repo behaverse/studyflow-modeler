@@ -13,23 +13,14 @@ export function useDiagramName(modeler: Editor): {
 
   useEffect(() => {
     const sync = () => setDiagramName(getDiagramName(modeler) ?? DEFAULT_DIAGRAM_NAME);
-    const onRootChanged = (e: any) => {
-      if (e?.elements?.includes(modeler.canvas.getRoot())) sync();
-    };
     sync();
-    modeler.events.on('ImportDone', sync);
-    modeler.events.on('ElementsChanged', onRootChanged);
-    return () => {
-      modeler.events.off('ImportDone', sync);
-      modeler.events.off('ElementsChanged', onRootChanged);
-    };
+    return modeler.study.on('change', sync);
   }, [modeler]);
 
   const rename = useCallback((name: string) => {
-    const root = modeler.canvas.getRoot();
-    if (!root) return;
+    const root = modeler.study.root;
     const value = name === DEFAULT_DIAGRAM_NAME ? undefined : name;
-    if (root.businessObject.name === value) return;
+    if (root.name === value) return;
     executeCommand(modeler, { type: 'UpdateAttribute', element: root, attributeName: 'name', value });
   }, [modeler]);
 
