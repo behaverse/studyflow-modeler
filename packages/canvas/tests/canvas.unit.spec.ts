@@ -572,8 +572,8 @@ test('drilling into a container shows only its contents until the trail leads ba
 test('an undo draws the study again and keeps the view on it, by id: the scope, the camera and the selection', async () => {
   const { canvas } = load();
   canvas.setScope('Sub_1');
-  canvas.getViewport().setViewbox({ x: 380, y: 380, width: 300, height: 200 });
-  const viewbox = canvas.getViewport().getViewbox();
+  canvas.setViewbox({ x: 380, y: 380, width: 300, height: 200 });
+  const viewbox = canvas.viewbox;
   canvas.select('Task_In');
   canvas.study.set({ id: 'Task_In', attribute: 'name', value: 'Deeper' });
   const heard: string[] = [];
@@ -589,7 +589,7 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   expect(drawn, 'drawn from the document as it was').toContain('Deep');
   expect(drawn).not.toContain('Deeper');
   expect(canvas.scope).toBe('Sub_1');
-  expect(canvas.getViewport().getViewbox()).toEqual(viewbox);
+  expect(canvas.viewbox).toEqual(viewbox);
   expect(canvas.selection).toEqual(['Task_In']);
   expect(canvas.getGraphics('Task_In')!.classList.contains('selected'), 'the element as it is drawn now, not as it was').toBe(true);
 

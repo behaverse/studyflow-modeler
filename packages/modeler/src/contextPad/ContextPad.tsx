@@ -80,18 +80,12 @@ const MENU_TITLES: Record<string, string> = {
   [COLOR_MENU]: 'Style',
 };
 
-/** The union bbox of the elements `ids` names, in screen coordinates, skipping off-plane ones. */
+/** The union bbox of the elements `ids` names, in screen coordinates, skipping what the view does not draw. */
 function selectionBBox(editor: Editor, ids: readonly string[]): Bounds | undefined {
   let box: Bounds | undefined;
   for (const id of ids) {
-    let next: Bounds;
-    try {
-      next = editor.canvas.getAbsoluteBBox(id);
-    } catch {
-      // Off-plane elements throw rather than answer; skip them.
-      continue;
-    }
-    if (!Number.isFinite(next.x) || !Number.isFinite(next.y)) continue;
+    const next = editor.canvas.screenBox(id);
+    if (!next) continue;
     if (!box) {
       box = { ...next };
       continue;
@@ -197,7 +191,7 @@ export function ContextPad() {
         }
         return;
       }
-      const outline = OUTLINE_OFFSET * modeler.canvas.getViewport().zoom();
+      const outline = OUTLINE_OFFSET * modeler.canvas.viewbox.scale;
       const left = Math.round(Math.max(4, Math.min(
         box.x + box.width + outline + OFFSET,
         window.innerWidth - node.offsetWidth - 4,

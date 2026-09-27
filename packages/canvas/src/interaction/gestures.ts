@@ -16,6 +16,7 @@ import type { Create } from '@canvas/interaction/create.ts';
 import type { CreatePrototype, NewElement } from '@canvas/study/prototype.ts';
 import type { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Viewport } from '@canvas/view/viewport.ts';
 import { isExpandable } from '@canvas/study/tree.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
@@ -100,6 +101,8 @@ export interface GestureTools {
   scene(): Scene;
   /** What may connect, contain or resize what. */
   rules: Rules;
+  /** The camera: pan, zoom, and screen to diagram and back. */
+  viewport: Viewport;
 }
 
 export class Gestures {
@@ -195,7 +198,7 @@ export class Gestures {
   }
 
   private eventPoint(ev: MouseEvent): Point {
-    return this.canvas.getViewport().toDiagram({ x: ev.clientX, y: ev.clientY });
+    return this.tools.viewport.toDiagram({ x: ev.clientX, y: ev.clientY });
   }
 
   private listen(): void {
@@ -293,7 +296,7 @@ export class Gestures {
     const [a, b] = [...this.touches.values()];
     const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const dist = Math.hypot(b.x - a.x, b.y - a.y);
-    const viewport = this.canvas.getViewport();
+    const viewport = this.tools.viewport;
     if (p.prevDist > 0 && dist > 0) {
       const center = viewport.toDiagram(mid);
       viewport.zoom(viewport.getViewbox().scale * (dist / p.prevDist), center);
@@ -366,7 +369,7 @@ export class Gestures {
   }
 
   private panBy(dxScreen: number, dyScreen: number): void {
-    const viewport = this.canvas.getViewport();
+    const viewport = this.tools.viewport;
     const box = viewport.getViewbox();
     const rect = this.canvas.getContainer().getBoundingClientRect();
     viewport.pan(dxScreen * (box.width / (rect.width || box.width)), dyScreen * (box.height / (rect.height || box.height)));
@@ -501,7 +504,7 @@ export class Gestures {
       this.hideSnapLines();
       return;
     }
-    const box = this.canvas.getViewport().getViewbox();
+    const box = this.tools.viewport.getViewbox();
     if (!this.snapLines) {
       this.snapLines = create('g', { class: 'sf-snap-lines' }) as SVGGElement;
       append(this.tools.overlays, this.snapLines);
@@ -655,7 +658,7 @@ export class Gestures {
     const deltaX = (ev.deltaX ?? 0) * lines;
     const deltaY = (ev.deltaY ?? 0) * lines;
     if (ev.ctrlKey || ev.metaKey) {
-      const viewport = this.canvas.getViewport();
+      const viewport = this.tools.viewport;
       viewport.zoom(viewport.getViewbox().scale * Math.exp(-deltaY * WHEEL_ZOOM), this.eventPoint(ev));
       return;
     }
@@ -674,9 +677,9 @@ export class Gestures {
       switch (ev.key) {
         case 'a': case 'A': handled = canvas.selectAll(); break;
         case 'z': case 'Z': handled = (ev.shiftKey ? canvas.study.redo() : canvas.study.undo()).ok; break;
-        case '=': case '+': canvas.zoomIn(); handled = true; break;
-        case '-': case '_': canvas.zoomOut(); handled = true; break;
-        case '0': canvas.getViewport().zoom(1); handled = true; break;
+        case '=': case '+': canvas.zoom('in'); handled = true; break;
+        case '-': case '_': canvas.zoom('out'); handled = true; break;
+        case '0': canvas.zoom(1); handled = true; break;
         default: break;
       }
     } else {

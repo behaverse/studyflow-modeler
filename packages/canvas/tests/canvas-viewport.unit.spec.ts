@@ -9,7 +9,7 @@ import { jsdomWindow, loadYaml, pointerDown, pointerMove, pointerUp } from './ca
  * marquee, a plain wheel pans and `Ctrl`+wheel zooms.
  *
  * jsdom has no layout engine: `getBoundingClientRect` is all zeros, so screen and
- * diagram units are 1:1 and `getViewbox().scale` reads 1.
+ * diagram units are 1:1 and `viewbox.scale` reads 1.
  */
 
 const win = jsdomWindow();
@@ -44,7 +44,7 @@ function fireWheel(canvas: Canvas, init: WheelEventInit): void {
   }));
 }
 
-const box = (canvas: Canvas) => canvas.getViewport().getViewbox();
+const box = (canvas: Canvas) => canvas.viewbox;
 
 // --- dragging empty canvas ---------------------------------------------------
 

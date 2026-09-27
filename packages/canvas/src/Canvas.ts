@@ -170,6 +170,7 @@ export class Canvas {
       selection: this.selectionSet,
       scene: () => this.scene,
       rules: this.rules,
+      viewport: this.viewport,
     });
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
@@ -228,7 +229,7 @@ export class Canvas {
     this.appendPreview = undefined;
     this.layers.clear();
     this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
-    this.zoomToFit();
+    this.zoom('fit');
     this.emit('scope', this.scope);
   }
 
@@ -249,10 +250,6 @@ export class Canvas {
 
   getSvg(): SVGSVGElement {
     return this.root;
-  }
-
-  getViewport(): Viewport {
-    return this.viewport;
   }
 
   /** Hear `event`, as this view announces it by id; the returned function stops hearing it. */
@@ -342,7 +339,7 @@ export class Canvas {
     this.scopeNode = node;
     this.renderer.scope = node;
     this.redrawElements(this.all());
-    this.zoomToFit();
+    this.zoom('fit');
     this.emit('scope', this.scope);
     return true;
   }
@@ -357,20 +354,11 @@ export class Canvas {
 
   // --- view -------------------------------------------------------------------------
 
-  zoomToFit(): void {
-    const visible = this.all().filter((element) => !isHidden(element, this.scopeNode));
-    this.viewport.fitBounds(boundsOf(visible) ?? { x: 0, y: 0, width: 1000, height: 1000 }, 40);
-  }
-
-  zoomIn(): number {
-    return this.viewport.zoom(this.viewport.getViewbox().scale * ZOOM_STEP);
-  }
-
-  zoomOut(): number {
-    return this.viewport.zoom(this.viewport.getViewbox().scale / ZOOM_STEP);
-  }
-
-  getViewbox(): CanvasViewbox {
+  /**
+   * What the view shows: a region of the diagram and the scale it is drawn at (screen pixels per unit), with the
+   * diagram's own extent (`inner`) and the view's size on screen (`outer`).
+   */
+  get viewbox(): CanvasViewbox {
     const box = this.viewport.getViewbox();
     const drawable = this.all().filter((element) => element.kind !== 'label');
     return {
@@ -380,10 +368,35 @@ export class Canvas {
     };
   }
 
-  /** The screen-space box of `element`. */
-  getAbsoluteBBox(element: ElementRef): Bounds {
-    const target = this.resolveElement(element);
-    return this.viewport.getAbsoluteBBox((target && boundsOf([target])) ?? { x: 0, y: 0, width: 0, height: 0 });
+  /** Show `box`, a region of the diagram. */
+  setViewbox(box: Bounds): void {
+    this.viewport.setViewbox(box);
+  }
+
+  /** Zoom to a scale, a step in or out about the view's centre, or to fit what the view draws; the scale it lands on. */
+  zoom(to: number | 'in' | 'out' | 'fit'): number {
+    if (to === 'fit') {
+      const drawn = this.all().filter((element) => !isHidden(element, this.scopeNode));
+      this.viewport.fitBounds(boundsOf(drawn) ?? { x: 0, y: 0, width: 1000, height: 1000 }, 40);
+      return this.viewport.zoom();
+    }
+    const scale = this.viewport.zoom();
+    return this.viewport.zoom(to === 'in' ? scale * ZOOM_STEP : to === 'out' ? scale / ZOOM_STEP : to);
+  }
+
+  /** Centre the view on the element `id`; false when the view draws nothing for it. */
+  reveal(id: string): boolean {
+    const element = this.scene.elementsById.get(id);
+    if (!element || !this.draws(id)) return false;
+    this.viewport.scrollToElement(element);
+    return true;
+  }
+
+  /** The element's box on screen, in the page's pixels; nothing for what the view does not draw. */
+  screenBox(id: string): Bounds | undefined {
+    const element = this.scene.elementsById.get(id);
+    const box = element && this.draws(id) ? boundsOf([element]) : undefined;
+    return box && this.viewport.getAbsoluteBBox(box);
   }
 
   addMarker(element: ElementRef, marker: string): void {
@@ -394,12 +407,6 @@ export class Canvas {
   removeMarker(element: ElementRef, marker: string): void {
     const target = this.resolveElement(element);
     if (target) this.selectionSet.removeMarker(target, marker);
-  }
-
-  scrollToElement(element: ElementRef): void {
-    const target = this.resolveElement(element);
-    if (!target) throw new Error('@behaverse/studyflow-canvas: element is not on the canvas');
-    this.viewport.scrollToElement(target);
   }
 
   /** A host-owned `<g>` above the built-in layers, created on first use and re-attached after an import. */

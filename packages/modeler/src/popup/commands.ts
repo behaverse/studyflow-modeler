@@ -46,9 +46,8 @@ export type OpenAppendMenuCommand = {
 
 /** The canvas's `a` key, forwarded by `editor/mount.ts`: the append menu, beside the first element. */
 export function runOpenAppendMenu(modeler: Editor, command: OpenAppendMenuCommand): void {
-  const id = command.ids[0];
-  if (id === undefined) return;
-  const box = modeler.canvas.getAbsoluteBBox(id);
+  const box = command.ids[0] === undefined ? undefined : modeler.canvas.screenBox(command.ids[0]);
+  if (!box) return;
   const x = box.x + box.width + 12;
   openPopupMenu(APPEND_MENU, { x, y: box.y, cursor: { x, y: box.y + box.height / 2 } }, { title: t('Append element') });
 }

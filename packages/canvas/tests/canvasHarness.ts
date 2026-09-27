@@ -82,6 +82,12 @@ export interface Pt {
   y: number;
 }
 
+/** Where a diagram point lands on screen: jsdom lays the view out at the page's origin, drawing its viewbox from there. */
+function toScreen(canvas: Canvas, at: Pt): Pt {
+  const { x, y, scale } = canvas.viewbox;
+  return { x: (at.x - x) * scale, y: (at.y - y) * scale };
+}
+
 /** Dispatch one mouse event at a diagram point, converted to screen coordinates. */
 function firePointer(
   canvas: Canvas,
@@ -90,7 +96,7 @@ function firePointer(
   at: Pt,
   init: MouseEventInit = {},
 ): void {
-  const screen = canvas.getViewport().toScreen(at);
+  const screen = toScreen(canvas, at);
   const view = canvas.getSvg().ownerDocument!.defaultView!;
   target.dispatchEvent(new view.MouseEvent(type, {
     bubbles: true,

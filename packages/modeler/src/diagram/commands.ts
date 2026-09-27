@@ -15,7 +15,7 @@ export type ResetZoomCommand = {
 };
 
 export function runResetZoom(modeler: Editor, _command: ResetZoomCommand): void {
-  modeler.canvas.zoomToFit();
+  modeler.canvas.zoom('fit');
 }
 
 
@@ -25,7 +25,7 @@ export type NewDiagramCommand = {
 
 export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand): Promise<any> {
   const result = await importXml(modeler, { xml: new_diagram });
-  modeler.canvas.zoomToFit();
+  modeler.canvas.zoom('fit');
   return result;
 }
 
@@ -104,7 +104,7 @@ export async function runOpenDiagram(modeler: Editor, command: OpenDiagramComman
   }
 
   try {
-    modeler.canvas.zoomToFit();
+    modeler.canvas.zoom('fit');
   } catch (err) {
     console.warn('Zoom to fit-viewport failed after open; leaving default zoom.', err);
   }
