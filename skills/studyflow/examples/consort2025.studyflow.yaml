@@ -37,6 +37,7 @@ CONSORT_2025:
       extensionElements:
         - type: cognitive:EligibilityGateway
       name: Assessed for eligibility
+      default: Flow_Eligible
       bounds: 405 280 50 50
       isMarkerVisible: true
       label: 370 337 120 30

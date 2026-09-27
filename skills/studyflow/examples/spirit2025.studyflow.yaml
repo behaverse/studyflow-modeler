@@ -89,6 +89,7 @@ SPIRIT_2025:
             - Pregnancy or lactation
             - Participation in another interventional trial within 30 days
       name: Eligible?
+      default: Flow_Eligible_Yes
       bounds: 515 85 50 50
       isMarkerVisible: true
       label: 520 142 40 15

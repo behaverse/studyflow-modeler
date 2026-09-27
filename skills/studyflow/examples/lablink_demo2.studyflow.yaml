@@ -21,6 +21,7 @@ OmniProcessLabLinkDemo:
     CacheCheck:
       type: ExclusiveGateway
       name: Cached?
+      default: Flow_Cache_Miss
       bounds: 295 375 50 50
       isMarkerVisible: true
       label: 299 432 43 15
