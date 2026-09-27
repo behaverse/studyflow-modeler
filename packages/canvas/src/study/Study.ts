@@ -5,6 +5,8 @@
  */
 
 import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireDefinitions, toWireXml } from '@core/document';
+import type { YamlDoc } from '@core/document/format.ts';
+import { definitionsToYamlDoc } from '@core/document/serialize.ts';
 import { categoryOf, isExpandable } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute, StudyflowElement } from '@core/element/index.ts';
 import { getProperty, type Moddle } from '@core/element/moddle.ts';
@@ -94,6 +96,14 @@ export function studyInternals(study: Study): StudyInternals {
   return internals.get(study)!;
 }
 
+/**
+ * The document as an undo snapshot: its `.studyflow.yaml` tree as JSON rather than YAML text, which holds the same and
+ * is written and read back several times faster.
+ */
+function snapshotOf(definitions: ModdleObject): string {
+  return JSON.stringify(definitionsToYamlDoc(definitions));
+}
+
 export class Study {
   /** The tools an AI drives a study with, as MCP lists them: each a name, a description, the JSON Schema of its argument, hints. */
   static readonly tools: readonly StudyTool[] = STUDY_TOOLS;
@@ -101,7 +111,7 @@ export class Study {
   private readonly listeners = new Set<ChangeListener>();
   private readonly options: ImportOptions;
   private readonly rules = new Rules();
-  /** The document after each edit, as `.studyflow.yaml` text, oldest first: what undo and redo go back and forth through. */
+  /** The document after each edit, as its `.studyflow.yaml` tree in JSON ({@link snapshotOf}), oldest first: what undo and redo go back and forth through. */
   private snapshots: string[];
   /** The snapshot of the document the study holds. */
   private current = 0;
@@ -115,7 +125,7 @@ export class Study {
     this.options = options;
     this.read(definitions, 0);
     // As read, before any edit: the DI is the file's, so nothing is written back yet.
-    this.snapshots = [definitionsToStudyflow(definitions)];
+    this.snapshots = [snapshotOf(definitions)];
   }
 
   /** A study of `text`, a `.studyflow.yaml` or BPMN XML file. */
@@ -697,7 +707,7 @@ export class Study {
     this.committed = commit;
     const { scene } = studyInternals(this);
     writeDi(scene);
-    const snapshot = definitionsToStudyflow(scene.definitions);
+    const snapshot = snapshotOf(scene.definitions);
     const now = Date.now();
     const carriesOn = this.runKey !== undefined && this.run?.key === this.runKey && now - this.run.at <= RUN_WINDOW_MS;
     if (snapshot !== this.snapshots[this.current]) {
@@ -719,7 +729,8 @@ export class Study {
     if (snapshot === undefined) return undefined;
     this.current += step;
     this.run = undefined;
-    return { ok: true, ...this.swap(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo') };
+    const definitions = studyflowToDefinitions(JSON.parse(snapshot) as YamlDoc, moddleOf(this.definitions), this.options.onWarning);
+    return { ok: true, ...this.swap(definitions, step < 0 ? 'undo' : 'redo') };
   }
 
   /** Put `definitions` in place of the document, as one change; a load starts the history over. */
@@ -727,7 +738,7 @@ export class Study {
     const before = studyInternals(this).scene;
     const after = this.read(definitions, before.revision + 1);
     if (cause === 'load') {
-      this.snapshots = [definitionsToStudyflow(definitions)];
+      this.snapshots = [snapshotOf(definitions)];
       this.current = 0;
       this.run = undefined;
     }
