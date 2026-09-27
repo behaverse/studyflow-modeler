@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import type { Canvas } from '@canvas/index.ts';
 
-import { diOf, loadYaml, node, pointerDown, pointerMove, pointerUp, written } from './canvasHarness';
+import { diOf, loadYaml, node, pointerDown, pointerMove, pointerUp, svgOf, written } from './canvasHarness';
 
 /**
  * The two snaps a move runs under, and how they compose, axis by axis:
@@ -38,7 +38,7 @@ Process_1:
 
 /** The snap guides on screen, each as the line it draws: `x=418` is vertical, `y=123` horizontal. */
 function guides(canvas: Canvas): string[] {
-  return Array.from(canvas.getSvg().querySelectorAll('.sf-snap-line')).map((line) => (
+  return Array.from(svgOf(canvas).querySelectorAll('.sf-snap-line')).map((line) => (
     line.getAttribute('x1') === line.getAttribute('x2') ? `x=${line.getAttribute('x1')}` : `y=${line.getAttribute('y1')}`
   ));
 }

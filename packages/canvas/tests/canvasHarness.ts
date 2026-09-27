@@ -19,12 +19,14 @@
 import { JSDOM } from 'jsdom';
 
 import { Canvas, Study } from '@canvas/index.ts';
+import { canvasInternals } from '@canvas/Canvas.ts';
+import type { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { setDocument } from '@canvas/render/svg.ts';
 import type { Rules } from '@canvas/study/rules.ts';
 import type { Scene } from '@canvas/study/scene.ts';
 import { studyInternals } from '@canvas/study/Study.ts';
 import type { Bounds, CanvasOptions, ImportOptions } from '@canvas/index.ts';
-import type { SceneEdge, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
+import type { SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { studyflowToDefinitions } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
@@ -98,7 +100,7 @@ function firePointer(
   init: MouseEventInit = {},
 ): void {
   const screen = toScreen(canvas, at);
-  const view = canvas.getSvg().ownerDocument!.defaultView!;
+  const view = svgOf(canvas).ownerDocument!.defaultView!;
   target.dispatchEvent(new view.MouseEvent(type, {
     bubbles: true,
     cancelable: true,
@@ -111,17 +113,17 @@ function firePointer(
 
 /** Press on the canvas SVG at a diagram point (the gesture always starts there). */
 export function pointerDown(canvas: Canvas, at: Pt, init: MouseEventInit = {}): void {
-  firePointer(canvas, canvas.getSvg(), 'pointerdown', at, init);
+  firePointer(canvas, svgOf(canvas), 'pointerdown', at, init);
 }
 
 /** Move, on the DOCUMENT — a drag keeps tracking once the pointer leaves the SVG. */
 export function pointerMove(canvas: Canvas, at: Pt, init: MouseEventInit = {}): void {
-  firePointer(canvas, canvas.getSvg().ownerDocument!, 'pointermove', at, init);
+  firePointer(canvas, svgOf(canvas).ownerDocument!, 'pointermove', at, init);
 }
 
 /** Release, on the document, for the same reason as {@link pointerMove}. */
 export function pointerUp(canvas: Canvas, at: Pt, init: MouseEventInit = {}): void {
-  firePointer(canvas, canvas.getSvg().ownerDocument!, 'pointerup', at, init);
+  firePointer(canvas, svgOf(canvas).ownerDocument!, 'pointerup', at, init);
 }
 
 /**
@@ -158,10 +160,30 @@ export function click(canvas: Canvas, at: Pt): void {
 
 /** A double click at a diagram point, on the canvas SVG. */
 export function doubleClick(canvas: Canvas, at: Pt): void {
-  firePointer(canvas, canvas.getSvg(), 'dblclick', at);
+  firePointer(canvas, svgOf(canvas), 'dblclick', at);
 }
 
 // --- reading back -------------------------------------------------------------
+
+/** The view's root `<svg>`, where presses land. */
+export function svgOf(canvas: Canvas): SVGSVGElement {
+  return canvasInternals(canvas).svg;
+}
+
+/** An element's `<g>`, as the view draws it. */
+export function graphicsOf(canvas: Canvas, id: string): SVGGElement | undefined {
+  return canvasInternals(canvas).graphics(id);
+}
+
+/** The view's label editor. */
+export function labelEditingOf(canvas: Canvas): LabelEditing {
+  return canvasInternals(canvas).labelEditing;
+}
+
+/** What the view shows at a diagram point. */
+export function hitAt(canvas: Canvas, point: Pt): SceneElement | undefined {
+  return canvasInternals(canvas).hitTest(point);
+}
 
 /** The scene a canvas draws, as its study holds it: what a spec reads geometry and structure off. */
 export function sceneOf(canvas: Canvas): Scene {

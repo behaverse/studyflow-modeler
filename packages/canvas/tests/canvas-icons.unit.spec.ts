@@ -6,7 +6,7 @@ import { INK } from '@canvas/view/theme.ts';
 import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml } from '@core/notation/moddlePackage';
 
-import { canvasOn, loadYaml, node } from './canvasHarness';
+import { canvasOn, graphicsOf, loadYaml, node } from './canvasHarness';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 /**
@@ -46,7 +46,7 @@ function load(iconResolver?: Resolver): Canvas {
 
 /** The `<g>` the renderer drew for `id`. */
 function graphics(canvas: Canvas, id: string): SVGGElement {
-  const g = canvas.getGraphics(id);
+  const g = graphicsOf(canvas, id);
   if (!g) throw new Error(`no graphics for ${id}`);
   return g;
 }

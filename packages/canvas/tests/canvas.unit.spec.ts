@@ -10,9 +10,12 @@ import {
   doubleClick,
   dragBy,
   edge,
+  graphicsOf,
+  hitAt,
   installDocument,
   keyEvent,
   label,
+  labelEditingOf,
   loadCanvas,
   loadYaml,
   node,
@@ -21,6 +24,7 @@ import {
   pointerUp,
   rulesOf,
   sceneOf,
+  svgOf,
   xmlOf,
   type Loaded,
 } from './canvasHarness';
@@ -97,7 +101,7 @@ const onOutline = (box: { x: number; y: number; width: number; height: number },
 };
 
 const isHiddenGraphics = (canvas: Canvas, id: string): boolean =>
-  canvas.getGraphics(id)?.getAttribute('display') === 'none';
+  graphicsOf(canvas, id)?.getAttribute('display') === 'none';
 
 const load = (): Loaded => loadYaml(YAML);
 
@@ -195,10 +199,10 @@ test('a palette create follows the pointer and lands, grid-snapped, where it is 
   const gateway = drop('bpmn:ExclusiveGateway', { x: 703, y: 297 });
   expect(gateway.type).toBe('bpmn:ExclusiveGateway');
   expect(centre(gateway)).toEqual({ x: 700, y: 300 });
-  expect(canvas.getLabelEditing().isActive()).toBe(false);
+  expect(labelEditingOf(canvas).isActive()).toBe(false);
 
   expect(drop('bpmn:Task', { x: 900, y: 300 }).type).toBe('bpmn:Task');
-  expect(canvas.getLabelEditing().isActive(), 'a task is named as it lands').toBe(true);
+  expect(labelEditingOf(canvas).isActive(), 'a task is named as it lands').toBe(true);
 });
 
 // --- connecting --------------------------------------------------------------------
@@ -217,7 +221,7 @@ test('connect mints a routed sequence flow and wires both ends', async () => {
   expect(flow.businessObject.sourceRef).toBe(gateway.businessObject);
   expect(gateway.businessObject.outgoing).toContain(flow.businessObject);
   expect(task.businessObject.incoming).toContain(flow.businessObject);
-  expect(canvas.getGraphics(flow.id)).toBeTruthy();
+  expect(graphicsOf(canvas, flow.id)).toBeTruthy();
 
   // Nothing flows out of an end event.
   expect(canvas.study.connect({ from: 'End_1', to: task.id })).toMatchObject({ ok: false });
@@ -228,7 +232,7 @@ test('a new default redraws the flow that lost the slash as well as the one that
   const gateway = node(canvas, 'Gateway_1');
   const toEnd = edge(canvas, 'Flow_3');
   const toTask = edge(canvas, canvas.study.connect({ from: 'Gateway_1', to: 'Task_1' }).id!);
-  const slash = (flow: SceneEdge) => canvas.getGraphics(flow.id)!.querySelector('.sf-connection-line')!.getAttribute('marker-start');
+  const slash = (flow: SceneEdge) => graphicsOf(canvas, flow.id)!.querySelector('.sf-connection-line')!.getAttribute('marker-start');
   const makeDefault = (flow: SceneEdge) => canvas.study.edit(flow.id, (writer) => writer.set(gateway.businessObject, { default: flow.businessObject }));
   makeDefault(toEnd);
   expect(slash(toEnd)).toContain('sf-marker-default');
@@ -260,11 +264,11 @@ test('a data shape and an activity connect with a data input association', async
   expect(association.businessObject.sourceRef).toEqual([data.businessObject]);
 
   // A step may draw what the data it reads holds (a glyph a Parameters object sets): editing the data redraws its readers.
-  const taskBefore = canvas.getGraphics('Task_1');
-  const gatewayBefore = canvas.getGraphics('Gateway_1');
+  const taskBefore = graphicsOf(canvas, 'Task_1');
+  const gatewayBefore = graphicsOf(canvas, 'Gateway_1');
   canvas.study.set({ id: data.id, attribute: 'name', value: 'Rows' });
-  expect(canvas.getGraphics('Task_1')).not.toBe(taskBefore);
-  expect(canvas.getGraphics('Gateway_1')).toBe(gatewayBefore);
+  expect(graphicsOf(canvas, 'Task_1')).not.toBe(taskBefore);
+  expect(graphicsOf(canvas, 'Gateway_1')).toBe(gatewayBefore);
 });
 
 // --- direct manipulation -------------------------------------------------------------
@@ -278,7 +282,7 @@ test('dragging a selected task moves it, re-docks its flows and leaves its capti
   expect(onOutline(task, edge(canvas, 'Flow_1').waypoints.at(-1)!)).toBe(true);
   expect(onOutline(node(canvas, 'Start_1'), edge(canvas, 'Flow_1').waypoints[0])).toBe(true);
   expect(onOutline(task, edge(canvas, 'Flow_2').waypoints[0])).toBe(true);
-  expect(canvas.getGraphics('Task_1')!.getAttribute('transform')).toMatch(/^translate\(\s*240[ ,]+140\s*\)$/);
+  expect(graphicsOf(canvas, 'Task_1')!.getAttribute('transform')).toMatch(/^translate\(\s*240[ ,]+140\s*\)$/);
   expect(sceneOf(canvas).revision).toBeGreaterThan(0);
 });
 
@@ -289,7 +293,7 @@ test('Escape abandons a drag and puts the snapshot back', async () => {
   pointerDown(canvas, centre(task));
   pointerMove(canvas, { x: centre(task).x + 50, y: centre(task).y + 50 });
   expect(task.x).not.toBe(200);
-  canvas.getSvg().ownerDocument!.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
+  svgOf(canvas).ownerDocument!.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
   pointerUp(canvas, { x: 250, y: 168 });
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 78 });
   expect(edge(canvas, 'Flow_1').waypoints).toEqual([{ x: 136, y: 118 }, { x: 200, y: 118 }]);
@@ -299,7 +303,7 @@ test('Escape abandons a drag and puts the snapshot back', async () => {
   pointerDown(canvas, grab);
   pointerMove(canvas, { x: grab.x + 33, y: grab.y + 17 });
   expect(task.width).not.toBe(100);
-  canvas.getSvg().ownerDocument!.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
+  svgOf(canvas).ownerDocument!.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
   pointerUp(canvas, { x: grab.x + 33, y: grab.y + 17 });
   expect({ x: task.x, y: task.y, width: task.width, height: task.height }).toEqual({ x: 200, y: 78, width: 100, height: 80 });
   expect(edge(canvas, 'Flow_1').waypoints).toEqual([{ x: 136, y: 118 }, { x: 200, y: 118 }]);
@@ -363,7 +367,7 @@ test('Delete removes the selection with its flows from the scene and the documen
   expect(canvas.study.get('Flow_1')).toBeUndefined();
   expect(canvas.study.get('Flow_2')).toBeUndefined();
   expect(canvas.study.get('Flow_2_label')).toBeUndefined();
-  expect(canvas.getGraphics('Task_1')).toBeUndefined();
+  expect(graphicsOf(canvas, 'Task_1')).toBeUndefined();
   const ids = definitions.rootElements[0].flowElements.map((el: any) => el.id);
   expect(ids).not.toContain('Task_1');
   expect(ids).not.toContain('Flow_1');
@@ -429,7 +433,7 @@ test('deleting a caption clears its owner\'s name', async () => {
   canvas.deleteSelection();
   expect(start.businessObject.name).toBe('');
   expect(canvas.study.get('Start_1_label')).toBeUndefined();
-  expect(canvas.getGraphics('Start_1_label')).toBeUndefined();
+  expect(graphicsOf(canvas, 'Start_1_label')).toBeUndefined();
   expect(node(canvas, 'Start_1')).toBe(start);
 });
 
@@ -455,7 +459,7 @@ test('a host element anchored to elements is shown beside them, and steps aside 
 
 test('a mark is a class on the element, kept through its redraws, and cleared by id', async () => {
   const { canvas } = load();
-  const marked = (id: string): boolean => canvas.getGraphics(id)!.classList.contains('sf-mark-dimmed');
+  const marked = (id: string): boolean => graphicsOf(canvas, id)!.classList.contains('sf-mark-dimmed');
 
   canvas.mark(['Task_1', 'Nope'], 'dimmed');
   expect(marked('Task_1')).toBe(true);
@@ -477,7 +481,7 @@ test('a dragged caption moves alone and becomes pinned in the document', async (
   click(canvas, from);
   expect(canvas.selection).toEqual([caption.id]);
   // A selected caption offers its four corner handles, as a resizable shape does.
-  expect(canvas.getSvg().querySelectorAll('.sf-handle')).toHaveLength(4);
+  expect(svgOf(canvas).querySelectorAll('.sf-handle')).toHaveLength(4);
   dragBy(canvas, from, { x: from.x + 30, y: from.y + 30 });
   expect(caption.pinned).toBe(true);
   expect(Math.round(centre(caption).x - from.x)).toBe(30);
@@ -490,22 +494,22 @@ test('renaming through the inline editor re-fits a caption, and naming an unname
   const start = node(canvas, 'Start_1');
   const before = label(canvas, 'Start_1_label').width;
   expect(canvas.editLabel(start.id)).toBe(true);
-  canvas.getLabelEditing().setValue('A much longer caption');
-  canvas.getLabelEditing().complete();
+  labelEditingOf(canvas).setValue('A much longer caption');
+  labelEditingOf(canvas).complete();
   expect(start.businessObject.name).toBe('A much longer caption');
   const caption = label(canvas, 'Start_1_label');
   expect(caption.width).toBeGreaterThan(before);
   expect(Math.abs(centre(caption).x - centre(start).x)).toBeLessThan(0.01);
-  expect(canvas.getGraphics('Start_1_label')!.textContent).toContain('caption');
+  expect(graphicsOf(canvas, 'Start_1_label')!.textContent).toContain('caption');
 
   // Flow_1 has no name, so no caption until it gets one.
   const flow = edge(canvas, 'Flow_1');
   expect(canvas.study.get('Flow_1_label')).toBeUndefined();
   expect(canvas.editLabel(flow.id)).toBe(true);
-  canvas.getLabelEditing().setValue('hello');
-  canvas.getLabelEditing().complete();
+  labelEditingOf(canvas).setValue('hello');
+  labelEditingOf(canvas).complete();
   expect(label(canvas, 'Flow_1_label').owner).toBe(flow);
-  expect(canvas.getGraphics('Flow_1_label')!.textContent).toContain('hello');
+  expect(graphicsOf(canvas, 'Flow_1_label')!.textContent).toContain('hello');
 });
 
 test('a moved node carries its pinned caption and re-derives an unpinned one', async () => {
@@ -569,12 +573,12 @@ test('a double click opens or shuts a container in place; on an open one\'s capt
   canvas.study.expand({ id: sub.id });
   doubleClick(canvas, { x: sub.x + 10, y: sub.y + 5 });
   expect(sub.isExpanded).toBe(true);
-  expect(canvas.getLabelEditing().getSession()?.element).toBe(sub);
-  canvas.getLabelEditing().cancel();
+  expect(labelEditingOf(canvas).getSession()?.element).toBe(sub);
+  labelEditingOf(canvas).cancel();
   // So does `e` on the selected container.
   canvas.select(sub.id);
   canvas.getContainer().dispatchEvent(keyEvent('keydown', { key: 'e' }));
-  expect(canvas.getLabelEditing().getSession()?.element).toBe(sub);
+  expect(labelEditingOf(canvas).getSession()?.element).toBe(sub);
 });
 
 test('drilling into a container shows only its contents until the trail leads back out', async () => {
@@ -587,13 +591,13 @@ test('drilling into a container shows only its contents until the trail leads ba
   expect(isHiddenGraphics(canvas, 'Task_1')).toBe(true);
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(false);
   expect([canvas.draws('Task_1'), canvas.draws('Task_In')]).toEqual([false, true]);
-  expect(canvas.hitTest(centre(node(canvas, 'Task_1')))).toBeUndefined();
-  expect(canvas.hitTest(centre(node(canvas, 'Task_In')))).toBe(node(canvas, 'Task_In'));
+  expect(hitAt(canvas, centre(node(canvas, 'Task_1')))).toBeUndefined();
+  expect(hitAt(canvas, centre(node(canvas, 'Task_In')))).toBe(node(canvas, 'Task_In'));
   // A shape dropped while drilled in belongs to the container.
   canvas.startCreate(undefined, { type: 'bpmn:Task' });
   pointerMove(canvas, { x: 700, y: 400 });
   pointerUp(canvas, { x: 700, y: 400 });
-  canvas.getLabelEditing().cancel();
+  labelEditingOf(canvas).cancel();
   const dropped = node(canvas, canvas.selection[0]);
   expect(dropped.parent).toBe(sub);
   expect(sub.businessObject.flowElements).toContain(dropped.businessObject);
@@ -618,13 +622,13 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   // A host that shows the scope when it hears it ends on the selection, which is said last.
   expect(heard).toEqual(['select ', 'scope Sub_1', 'select Task_In']);
 
-  const drawn = canvas.getGraphics('Task_In')!.textContent;
+  const drawn = graphicsOf(canvas, 'Task_In')!.textContent;
   expect(drawn, 'drawn from the document as it was').toContain('Deep');
   expect(drawn).not.toContain('Deeper');
   expect(canvas.scope).toBe('Sub_1');
   expect(canvas.viewbox).toEqual(viewbox);
   expect(canvas.selection).toEqual(['Task_In']);
-  expect(canvas.getGraphics('Task_In')!.classList.contains('selected'), 'the element as it is drawn now, not as it was').toBe(true);
+  expect(graphicsOf(canvas, 'Task_In')!.classList.contains('selected'), 'the element as it is drawn now, not as it was').toBe(true);
 
   // Drilled into nothing, with nothing selected, it still says what it shows: the root, another object now.
   canvas.setScope(undefined);
@@ -653,8 +657,8 @@ test('a shape dropped into a container is drawn above it, even one drawn before 
   click(canvas, centre(task));
   dragBy(canvas, centre(task), centre(sub));
   expect(task.parent).toBe(sub);
-  const drawn = Array.from(canvas.getGraphics(sub.id)!.parentNode!.children);
-  expect(drawn.indexOf(canvas.getGraphics(task.id)!)).toBeGreaterThan(drawn.indexOf(canvas.getGraphics(sub.id)!));
+  const drawn = Array.from(graphicsOf(canvas, sub.id)!.parentNode!.children);
+  expect(drawn.indexOf(graphicsOf(canvas, task.id)!)).toBeGreaterThan(drawn.indexOf(graphicsOf(canvas, sub.id)!));
 });
 
 test('an edit made of several is one commit: one revision, one change', async () => {
@@ -678,7 +682,7 @@ test('an edit made of several is one commit: one revision, one change', async ()
     const revision = scene.revision;
     fired = 0;
     edit();
-    canvas.getLabelEditing().cancel();
+    labelEditingOf(canvas).cancel();
     expect({ revisions: scene.revision - revision, fired }, what).toEqual({ revisions: 1, fired: 1 });
   }
   expect(loose.parent).toBe(sub);
@@ -764,7 +768,7 @@ test('style paints the element and the colour survives the round trip', async ()
   const task = node(canvas, 'Task_1');
   canvas.study.style({ ids: ['Task_1', 'Flow_1'], fill: '#dde8fa', stroke: '#728cb9' });
   expect({ fill: task.fill, stroke: task.stroke }).toEqual({ fill: '#dde8fa', stroke: '#728cb9' });
-  expect(canvas.getGraphics('Task_1')!.querySelector('rect:not(.sf-outline)')!.getAttribute('fill')).toBe('#dde8fa');
+  expect(graphicsOf(canvas, 'Task_1')!.querySelector('rect:not(.sf-outline)')!.getAttribute('fill')).toBe('#dde8fa');
   expect(edge(canvas, 'Flow_1').stroke).toBe('#728cb9');
   const xml = await xmlOf(loaded);
   expect(xml).toContain('background-color="#dde8fa"');
@@ -780,13 +784,13 @@ test('style restyles the caption and the font survives the round trip', async ()
   const task = node(canvas, 'Task_1');
   canvas.study.style({ ids: ['Task_1', 'Flow_2'], font: { bold: true, align: 'right', color: '#4a6f9c' } });
   expect(task.font).toEqual({ bold: true, align: 'right', color: '#4a6f9c' });
-  const text = canvas.getGraphics('Task_1')!.querySelector('text.sf-label')!;
+  const text = graphicsOf(canvas, 'Task_1')!.querySelector('text.sf-label')!;
   const BOLD = /^(bold|[6-9]00)$/;
   expect(text.getAttribute('font-weight')).toMatch(BOLD);
   expect(text.getAttribute('text-anchor')).toBe('end');
   expect(text.getAttribute('fill')).toBe('#4a6f9c');
   // A flow's caption is an element of its own, painted from the flow's font.
-  expect(canvas.getGraphics('Flow_2_label')!.querySelector('text.sf-label')!.getAttribute('font-weight')).toMatch(BOLD);
+  expect(graphicsOf(canvas, 'Flow_2_label')!.querySelector('text.sf-label')!.getAttribute('font-weight')).toMatch(BOLD);
   const xml = await xmlOf(loaded);
   expect(xml).toContain('studyflow:font="bold right #4a6f9c"');
   const again = await loadCanvas(xml);

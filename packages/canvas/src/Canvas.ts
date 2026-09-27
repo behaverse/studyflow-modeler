@@ -66,6 +66,23 @@ export interface CanvasEvents {
   appendMenu: readonly string[];
 }
 
+/** What the canvas's own specs read behind a view's public face. The package index does not export it. */
+export interface CanvasInternals {
+  readonly svg: SVGSVGElement;
+  readonly labelEditing: LabelEditing;
+  /** An element's `<g>`, as the view draws it. */
+  graphics(id: string): SVGGElement | undefined;
+  /** What the view shows at `point`, in diagram coordinates. */
+  hitTest(point: Point, options?: HitOptions): SceneElement | undefined;
+}
+
+const internals = new WeakMap<Canvas, CanvasInternals>();
+
+/** The SVG, the label editor, an element's group and the hit test behind `canvas`. */
+export function canvasInternals(canvas: Canvas): CanvasInternals {
+  return internals.get(canvas)!;
+}
+
 export class Canvas {
   /** What the canvas shows and edits. */
   readonly study: Study;
@@ -191,6 +208,15 @@ export class Canvas {
         this.placeAnchor();
       },
       editable: () => this.isEditable,
+      svg: this.root,
+      labelEditing: this.labelEditing,
+      hitTest: (point, options) => this.hitTest(point, options),
+    });
+    internals.set(this, {
+      svg: this.root,
+      labelEditing: this.labelEditing,
+      graphics: (id) => this.renderer.graphicsById.get(id),
+      hitTest: (point, options) => this.hitTest(point, options),
     });
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
@@ -268,10 +294,6 @@ export class Canvas {
     return this.container;
   }
 
-  getSvg(): SVGSVGElement {
-    return this.root;
-  }
-
   /** Hear `event`, as this view announces it by id; the returned function stops hearing it. */
   on<E extends keyof CanvasEvents>(event: E, listener: (value: CanvasEvents[E]) => void): () => void {
     const listeners = this.listeners.get(event) ?? new Set();
@@ -294,14 +316,6 @@ export class Canvas {
   /** Select the elements `ids` names: one, several, or none with `null`; an id the view holds nothing for is skipped. */
   select(ids: string | readonly string[] | null): void {
     this.selectionSet.select(ids);
-  }
-
-  getLabelEditing(): LabelEditing {
-    return this.labelEditing;
-  }
-
-  getGraphics(id: string): SVGGElement | undefined {
-    return this.renderer.graphicsById.get(id);
   }
 
   // --- elements -------------------------------------------------------------------
@@ -629,7 +643,7 @@ export class Canvas {
 
   // --- hit-testing --------------------------------------------------------------------
 
-  hitTest(point: Point, options?: HitOptions): SceneElement | undefined {
+  private hitTest(point: Point, options?: HitOptions): SceneElement | undefined {
     return hitTest(this.scene, point, { ...options, scope: this.scopeNode });
   }
 

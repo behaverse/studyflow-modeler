@@ -8,7 +8,7 @@ import { LINE_HEIGHT } from '@canvas/study/text.ts';
 import { choreographyBandHeight } from '@core/document/outline.ts';
 import { PARTICIPANT_BAND } from '@canvas/render/shapes.ts';
 
-import { canvasOn, diElements, edge, freshModdle, installDocument, loadCanvas, loadYaml, node } from './canvasHarness';
+import { canvasOn, diElements, edge, freshModdle, graphicsOf, installDocument, loadCanvas, loadYaml, node, svgOf } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';
 
 /**
@@ -67,7 +67,7 @@ for (const name of exampleNames) {
     expect(svg, `${name}: produces an SVG string`).toContain('<svg');
     expect(svg.length, `${name}: SVG is non-empty`).toBeGreaterThan(0);
 
-    const root = canvas.getSvg();
+    const root = svgOf(canvas);
 
     // (b) One shape group per BPMNShape, translated to its dc:Bounds origin.
     const shapeGroups = root.querySelectorAll('g.sf-shape');
@@ -76,7 +76,7 @@ for (const name of exampleNames) {
     );
     for (const shape of shapes) {
       const id = shape.bpmnElement?.id as string;
-      const g = canvas.getGraphics(id);
+      const g = graphicsOf(canvas, id);
       expect(g, `${name}: shape ${id} has a rendered group`).toBeTruthy();
       expect(g!.getAttribute('data-element-type')).toBe(shape.bpmnElement.$type);
       expect(translateOf(g), `${name}: shape ${id} sits at its DI bounds`).toEqual({
@@ -93,7 +93,7 @@ for (const name of exampleNames) {
     );
     for (const di of edges) {
       const id = di.bpmnElement?.id as string;
-      const g = canvas.getGraphics(id);
+      const g = graphicsOf(canvas, id);
       expect(g, `${name}: edge ${id} has a rendered group`).toBeTruthy();
       const line = g!.querySelector('path.sf-connection-line');
       expect(line, `${name}: edge ${id} draws a connection path`).toBeTruthy();
@@ -118,13 +118,13 @@ async function render(name: string): Promise<Canvas> {
 
 /** The `<text>` lines the renderer drew inside an element's `<g>`. */
 function textsOf(canvas: Canvas, id: string): string[] {
-  const g = canvas.getGraphics(id);
+  const g = graphicsOf(canvas, id);
   return g ? Array.from(g.querySelectorAll('text')).map((t) => t.textContent ?? '') : [];
 }
 
 /** The one of those lines that reads `content`, whatever order they were drawn in. */
 function textAt(canvas: Canvas, id: string, content: string): SVGTextElement {
-  const found = Array.from(canvas.getGraphics(id)!.querySelectorAll('text')).find((t) => t.textContent === content);
+  const found = Array.from(graphicsOf(canvas, id)!.querySelectorAll('text')).find((t) => t.textContent === content);
   if (!found) throw new Error(`${id} draws no "${content}" (it draws ${JSON.stringify(textsOf(canvas, id))})`);
   return found;
 }
@@ -140,7 +140,7 @@ test('a group is captioned from its categoryValue, centred across the frame', as
   }
 
   const group = node(canvas, 'Group_BpmnEvents');
-  const text = canvas.getGraphics('Group_BpmnEvents')!.querySelector('text')!;
+  const text = graphicsOf(canvas, 'Group_BpmnEvents')!.querySelector('text')!;
   // Node-local coordinates: horizontally centred on the frame.
   expect(Number(text.getAttribute('x'))).toBeCloseTo(group.width / 2, 6);
   expect(text.getAttribute('text-anchor')).toBe('middle');
@@ -155,7 +155,7 @@ test('a text annotation draws its `text`, wrapped — not its `name`', async () 
   // not display, and drawing it was the bug.
   expect(lines.join(' ')).toBe(bo.text);
   // A note reads left by default, and says so: its `font` may align it otherwise.
-  expect(canvas.getGraphics('Bd_Annotation')!.querySelector('text')!.getAttribute('text-anchor')).toBe('start');
+  expect(graphicsOf(canvas, 'Bd_Annotation')!.querySelector('text')!.getAttribute('text-anchor')).toBe('start');
 });
 
 /** Names too long for the band between the glyph and marker rows, on tasks that draw a bottom marker. */
@@ -181,7 +181,7 @@ Process_Marked:
 test('a wrapped name never runs into the marker row of a task that draws a marker', async () => {
   const { canvas } = loadYaml(MARKED_YAML);
   for (const id of ['Implemented', 'Looped']) {
-    const lines = [...canvas.getGraphics(id)!.querySelectorAll('text')];
+    const lines = [...graphicsOf(canvas, id)!.querySelectorAll('text')];
     expect(lines.length, id).toBeGreaterThan(2);
     const lastBottom = Math.max(...lines.map((t) => Number(t.getAttribute('y')))) + LINE_HEIGHT / 2;
     expect(lastBottom, id).toBeLessThanOrEqual(node(canvas, id).height - CHROME.foot);
@@ -217,13 +217,13 @@ Process_Data:
 
 test('a bare bpmn:DataStore draws as a cylinder, like a data store REFERENCE', async () => {
   const { canvas } = loadYaml(DATA_YAML);
-  const pathOf = (id: string): string => canvas.getGraphics(id)!.querySelector('path')!.getAttribute('d') ?? '';
+  const pathOf = (id: string): string => graphicsOf(canvas, id)!.querySelector('path')!.getAttribute('d') ?? '';
 
   // A cylinder: the body path opens with the lid's elliptical arc.
   expect(pathOf('Store_1')).toContain('A');
   expect(pathOf('Store_1')).toBe(pathOf('StoreRef_1'));
   // …and it is NOT the unknown-vocabulary fallback, which is a rounded <rect>.
-  expect(canvas.getGraphics('Store_1')!.querySelector('rect')).toBeNull();
+  expect(graphicsOf(canvas, 'Store_1')!.querySelector('rect')).toBeNull();
 
   // A data OBJECT still draws as the dog-eared page (no arcs at all).
   expect(pathOf('ObjRef_1')).not.toContain('A');
@@ -232,7 +232,7 @@ test('a bare bpmn:DataStore draws as a cylinder, like a data store REFERENCE', a
 test('a choreography task draws its name in the MIDDLE band, and shades the band that does not initiate', async () => {
   const canvas = await render('choreography_demo');
   const task = node(canvas, 'Consent');
-  const g = canvas.getGraphics('Consent')!;
+  const g = graphicsOf(canvas, 'Consent')!;
   const name = Array.from(g.querySelectorAll('text')).find((t) => t.textContent === 'Give consent')!;
   // The name is drawn inside a nested group translated down by one band height, so
   // its EFFECTIVE y is the local y plus that shift.
@@ -243,7 +243,7 @@ test('a choreography task draws its name in the MIDDLE band, and shades the band
   expect(shift + Number(name.getAttribute('y'))).toBeCloseTo(task.height / 2, 6);
 
   // The initiating participant's band has the task's plain fill; the other is shaded.
-  const bandFills = (id: string) => Array.from(canvas.getGraphics(id)!.querySelectorAll('path[data-band]'))
+  const bandFills = (id: string) => Array.from(graphicsOf(canvas, id)!.querySelectorAll('path[data-band]'))
     .map((band) => band.getAttribute('fill'));
   expect(bandFills('Consent'), 'Subject, on top, initiates').toEqual([INK.fill, INK.band]);
   expect(bandFills('Round'), 'Experimenter, below, initiates').toEqual([INK.band, INK.fill]);
@@ -283,7 +283,7 @@ test('a routed edge renders as a path whose corners are quarter-arcs', async () 
   const flow1 = edge(canvas, 'Flow_1');
   expect(flow1.waypoints.length).toBeGreaterThan(2);
 
-  const line = canvas.getGraphics('Flow_1')!.querySelector('path.sf-connection-line')!;
+  const line = graphicsOf(canvas, 'Flow_1')!.querySelector('path.sf-connection-line')!;
   const d = line.getAttribute('d')!;
   // One arc per corner, cut out of the waypoints rather than added around them —
   // the raw list is still on the element for anything that reads geometry.
@@ -292,7 +292,7 @@ test('a routed edge renders as a path whose corners are quarter-arcs', async () 
   expect(line.getAttribute('data-waypoints'))
     .toBe(flow1.waypoints.map((p) => `${p.x},${p.y}`).join(' '));
   // The straight two-point flow has nothing to round.
-  const straight = canvas.getGraphics('Flow_2')!.querySelector('path.sf-connection-line')!;
+  const straight = graphicsOf(canvas, 'Flow_2')!.querySelector('path.sf-connection-line')!;
   expect(straight.getAttribute('d')).not.toContain(' A ');
 });
 
@@ -323,8 +323,8 @@ Process_1:
 
 test('the flatter run jumps over the steeper edge it crosses, on either side of the drawing', async () => {
   const { canvas } = loadYaml(CROSSING_YAML);
-  const across = canvas.getGraphics('Flow_Across')!.querySelector('path.sf-connection-line')!;
-  const pathOf = (id: string): string => canvas.getGraphics(id)!.querySelector('path.sf-connection-line')!.getAttribute('d')!;
+  const across = graphicsOf(canvas, 'Flow_Across')!.querySelector('path.sf-connection-line')!;
+  const pathOf = (id: string): string => graphicsOf(canvas, id)!.querySelector('path.sf-connection-line')!.getAttribute('d')!;
   const jumpsIn = (id: string) => arcMidpoints(pathOf(id));
   expect(jumpsIn('Flow_Across')).toEqual([]);
 
@@ -395,12 +395,12 @@ Process_B:
 
 test('a message flow is dashed AND starts with the open circle BPMN gives it', async () => {
   const { canvas } = loadYaml(MESSAGE_YAML);
-  const line = canvas.getGraphics('Msg_1')!.querySelector('.sf-connection-line')!;
+  const line = graphicsOf(canvas, 'Msg_1')!.querySelector('.sf-connection-line')!;
 
   expect(line.getAttribute('stroke-dasharray')).toMatch(/^\d+[\s,]+\d+$/);
   const markerAt = (end: 'start' | 'end'): Element => {
     const id = line.getAttribute(`marker-${end}`)?.match(/^url\(#([^)]+)\)$/)?.[1];
-    const marker = id && canvas.getSvg().querySelector(`marker#${id}`);
+    const marker = id && svgOf(canvas).querySelector(`marker#${id}`);
     if (!marker) throw new Error(`no marker-${end} defined in the SVG`);
     return marker;
   };
@@ -573,10 +573,10 @@ test('an expanded sub-process draws the flows between its children over its fram
   // Paint order is the one element layer's. A flow inside a container once sat in a layer
   // under every shape, where the container's opaque frame painted over it.
   const { canvas } = loadYaml(SUBPROCESS_YAML);
-  const order = Array.from(canvas.getSvg().querySelectorAll('[data-layer="elements"] > g'))
+  const order = Array.from(svgOf(canvas).querySelectorAll('[data-layer="elements"] > g'))
     .map((g) => g.getAttribute('data-element-id'));
   expect(order.indexOf('Inner_Flow')).toBeGreaterThan(order.indexOf('Expanded'));
-  expect(canvas.getGraphics('Inner_Flow')!.getAttribute('display')).toBeNull();
+  expect(graphicsOf(canvas, 'Inner_Flow')!.getAttribute('display')).toBeNull();
   // A root-level flow still passes under the shape it points at.
   expect(order.indexOf('Into_Expanded')).toBeLessThan(order.indexOf('Expanded'));
 });
@@ -585,8 +585,8 @@ test('a collapsed sub-process hides its contents but draws its own data associat
   // A data association's moddle parent is its activity, but it sits beside it: it once
   // counted as the collapsed container's content and went hidden with it.
   const { canvas } = loadYaml(SUBPROCESS_YAML);
-  expect(canvas.getGraphics('Hidden')!.getAttribute('display')).toBe('none');
-  expect(canvas.getGraphics('Writes')!.getAttribute('display')).toBeNull();
+  expect(graphicsOf(canvas, 'Hidden')!.getAttribute('display')).toBe('none');
+  expect(graphicsOf(canvas, 'Writes')!.getAttribute('display')).toBeNull();
 });
 
 test('a picture draws what a view shows: an expanded container\'s contents, a collapsed one\'s not, and in a scope only its contents', async () => {
@@ -650,10 +650,10 @@ test('a sub-process divided into lanes draws them inside its frame, as a pool dr
     expect(lane.x + lane.width, id).toBeLessThanOrEqual(frame.x + frame.width);
     expect(lane.y, id).toBeGreaterThanOrEqual(frame.y);
     expect(lane.y + lane.height, id).toBeLessThanOrEqual(frame.y + frame.height);
-    expect(translateOf(canvas.getGraphics(id)!), `${id} sits at its DI bounds`).toEqual({ x: lane.x, y: lane.y });
+    expect(translateOf(graphicsOf(canvas, id)!), `${id} sits at its DI bounds`).toEqual({ x: lane.x, y: lane.y });
     // A band with a rotated title on the left, like a pool's lane.
     expect(textsOf(canvas, id), id).toEqual([name]);
-    expect(canvas.getGraphics(id)!.querySelector('text')!.getAttribute('transform')).toMatch(/^rotate\(-90/);
+    expect(graphicsOf(canvas, id)!.querySelector('text')!.getAttribute('transform')).toMatch(/^rotate\(-90/);
   }
   // The lanes stack: the second starts where the first ends.
   expect(node(canvas, 'Lane_Model').y).toBe(node(canvas, 'Lane_Screen').y + node(canvas, 'Lane_Screen').height);
@@ -665,10 +665,10 @@ test('a sub-process divided into lanes draws them inside its frame, as a pool dr
   const mi = loadYaml(DIVIDED_YAML
     .replace('      name: Session\n', '      name: Session\n      loopCharacteristics:\n        type: MultiInstanceLoopCharacteristics\n        isSequential: false\n')
     .replace('              name: Model\n', '              name: Model\n              fill: "#e8eef5"\n'), ICONS).canvas;
-  const marker = mi.getGraphics('Session')!.querySelector('[data-icon-key="parallel"]')!;
+  const marker = graphicsOf(mi, 'Session')!.querySelector('[data-icon-key="parallel"]')!;
   expect(Number(marker.getAttribute('x')) + Number(marker.getAttribute('width')) / 2).toBeCloseTo(node(mi, 'Session').width / 2, 6);
   const bottom = node(mi, 'Lane_Model');
-  expect(Number(mi.getGraphics('Lane_Model')!.querySelector('rect')!.getAttribute('height')))
+  expect(Number(graphicsOf(mi, 'Lane_Model')!.querySelector('rect')!.getAttribute('height')))
     .toBeLessThan(bottom.height);
 });
 
@@ -712,8 +712,8 @@ test('a pool of several participant instances marks them at the foot of its titl
   const { canvas } = loadYaml(MARKED_POOL_YAML, ICONS);
   const pool = node(canvas, 'Pool_Subjects');
   const lane = node(canvas, 'Lane_Screen');
-  const marker = canvas.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!;
-  const band = canvas.getGraphics('Lane_Screen')!.querySelector('rect')!;
+  const marker = graphicsOf(canvas, 'Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!;
+  const band = graphicsOf(canvas, 'Lane_Screen')!.querySelector('rect')!;
   const markerY = Number(marker.getAttribute('y'));
   // Centred across the title band, at its foot, inside the pool, with the count under the bars.
   expect(Number(marker.getAttribute('x')) + Number(marker.getAttribute('width')) / 2).toBeCloseTo(PARTICIPANT_BAND / 2, 6);
@@ -733,15 +733,15 @@ test('a pool of several participant instances marks them at the foot of its titl
   expect(Number(textAt(canvas, 'Pool_Subjects', 'Subjects').getAttribute('y'))).toBeLessThan(markerY);
   // A pool without a multiplicity draws neither marker nor count; nor does a lane, which carries none of its own.
   const plain = loadYaml(MARKED_POOL_YAML.replace(/      participantMultiplicity:\n        maximum: 4\n/, ''), ICONS).canvas;
-  expect(plain.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')).toBeNull();
+  expect(graphicsOf(plain, 'Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')).toBeNull();
   expect(textsOf(plain, 'Pool_Subjects')).toEqual(['Subjects']);
-  expect(canvas.getGraphics('Lane_Screen')!.querySelector('[data-icon-key="parallel"]')).toBeNull();
+  expect(graphicsOf(canvas, 'Lane_Screen')!.querySelector('[data-icon-key="parallel"]')).toBeNull();
 });
 
 test('a pool with multiplicity and no lanes marks it the same way, and a short band truncates the name instead', async () => {
   const bare = loadYaml(BARE_POOL_YAML, ICONS).canvas;
   expect(bare.study.get('Lane_Screen'), 'no lanes at all').toBeUndefined();
-  const marker = bare.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!;
+  const marker = graphicsOf(bare, 'Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!;
   expect(Number(marker.getAttribute('x')) + Number(marker.getAttribute('width')) / 2).toBeCloseTo(PARTICIPANT_BAND / 2, 6);
   // The bars sit a count's row higher than the band's foot, and the count fills that row.
   expect(Number(marker.getAttribute('y'))).toBe(node(bare, 'Pool_Subjects').height - 22 - LINE_HEIGHT);
@@ -750,7 +750,7 @@ test('a pool with multiplicity and no lanes marks it the same way, and a short b
   const short = loadYaml(BARE_POOL_YAML
     .replace('bounds: 40 40 800 400', 'bounds: 40 40 800 90')
     .replace('name: Subjects', 'name: Subjects randomised to the cautious arm'), ICONS).canvas;
-  expect(Number(short.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!.getAttribute('y'))).toBe(90 - 22 - LINE_HEIGHT);
+  expect(Number(graphicsOf(short, 'Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!.getAttribute('y'))).toBe(90 - 22 - LINE_HEIGHT);
   const texts = textsOf(short, 'Pool_Subjects');
   expect(texts).toContain('×4');
   expect(texts.find((t) => t !== '×4')).toMatch(/…$/);

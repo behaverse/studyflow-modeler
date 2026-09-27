@@ -4,7 +4,7 @@ import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/study/orthogonal.ts';
 import type { Point, SceneEdge } from '@canvas/study/scene.ts';
 
-import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, sceneOf, written, type Loaded } from './canvasHarness';
+import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, sceneOf, svgOf, written, type Loaded } from './canvasHarness';
 
 /**
  * Dragging a connection's end. What is under the drop decides the outcome:
@@ -186,7 +186,7 @@ test('the drag ghost shows the path the release commits, dock included', async (
   canvas.select(flow.id);
   pointerDown(canvas, last(flow));
   pointerMove(canvas, drop);
-  const ghost = canvas.getSvg().querySelector('.sf-connect-preview-line')!
+  const ghost = svgOf(canvas).querySelector('.sf-connect-preview-line')!
     .getAttribute('data-waypoints');
   pointerUp(canvas, drop);
 

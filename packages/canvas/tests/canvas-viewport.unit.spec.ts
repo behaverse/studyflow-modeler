@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { Canvas } from '@canvas/index.ts';
 
-import { jsdomWindow, loadYaml, pointerDown, pointerMove, pointerUp } from './canvasHarness';
+import { hitAt, jsdomWindow, loadYaml, pointerDown, pointerMove, pointerUp, svgOf } from './canvasHarness';
 
 /**
  * Getting around the canvas: dragging empty canvas pans it, Shift+drag draws a
@@ -39,7 +39,7 @@ function load(): Canvas {
 }
 
 function fireWheel(canvas: Canvas, init: WheelEventInit): void {
-  canvas.getSvg().dispatchEvent(new win.WheelEvent('wheel', {
+  svgOf(canvas).dispatchEvent(new win.WheelEvent('wheel', {
     bubbles: true, cancelable: true, deltaMode: 0, ...init,
   }));
 }
@@ -50,10 +50,10 @@ const box = (canvas: Canvas) => canvas.viewbox;
 
 test('empty canvas: a drag PANS the viewport', async () => {
   const canvas = load();
-  const svg = canvas.getSvg();
+  const svg = svgOf(canvas);
   const before = box(canvas);
   const empty = { x: before.x + 10, y: before.y + 10 };
-  expect(canvas.hitTest(empty), 'the gesture starts on empty space').toBeUndefined();
+  expect(hitAt(canvas, empty), 'the gesture starts on empty space').toBeUndefined();
 
   pointerDown(canvas, empty);
   pointerMove(canvas, { x: empty.x + 120, y: empty.y + 80 });
@@ -74,7 +74,7 @@ test('empty canvas: a drag PANS the viewport', async () => {
 
 test('Shift+drag on empty canvas draws a marquee and selects what it encloses', async () => {
   const canvas = load();
-  const svg = canvas.getSvg();
+  const svg = svgOf(canvas);
   const before = box(canvas);
   const from = { x: before.x + 10, y: before.y + 10 };
   const to = { x: 350, y: 200 };

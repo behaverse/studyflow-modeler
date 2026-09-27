@@ -7,12 +7,14 @@ import {
   centre,
   diOf,
   freshModdle,
+  graphicsOf,
   installDocument,
   keyEvent,
   node,
   pointerDown,
   pointerMove,
   pointerUp,
+  svgOf,
 } from './canvasHarness';
 
 /**
@@ -76,11 +78,11 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
   const stale = new Canvas(host, Study.fromDefinitions(staleDefs));
   stale.select('Task_1');
   expect(tracked.live(), 'the shortcut listener sits on the host container').toContain('keydown');
-  expect(host.contains(stale.getSvg() as unknown as Node)).toBe(true);
+  expect(host.contains(svgOf(stale) as unknown as Node)).toBe(true);
 
   stale.destroy();
   expect(tracked.live(), 'the container is handed back clean').toEqual([]);
-  expect(host.contains(stale.getSvg() as unknown as Node), 'the SVG is detached').toBe(false);
+  expect(host.contains(svgOf(stale) as unknown as Node), 'the SVG is detached').toBe(false);
   stale.destroy();
   expect(tracked.live(), 'a second destroy is a no-op').toEqual([]);
 
@@ -102,13 +104,13 @@ test('several views draw one study: an edit reaches each, each keeps its own sel
   const right = new Canvas(container(), study);
 
   study.set({ id: 'Task_1', attribute: 'name', value: 'Screen' });
-  for (const view of [left, right]) expect(view.getGraphics('Task_1')!.textContent).toContain('Screen');
+  for (const view of [left, right]) expect(graphicsOf(view, 'Task_1')!.textContent).toContain('Screen');
   left.select('Task_1');
   expect(right.selection).toEqual([]);
 
   left.destroy();
   study.set({ id: 'Task_1', attribute: 'name', value: 'Consent' });
-  expect(right.getGraphics('Task_1')!.textContent).toContain('Consent');
+  expect(graphicsOf(right, 'Task_1')!.textContent).toContain('Consent');
   right.destroy();
 });
 
@@ -136,7 +138,7 @@ test('destroy mid-gesture abandons the drag and drops the document-level listene
   const host = container();
   const definitions = parse();
   const canvas = new Canvas(host, Study.fromDefinitions(definitions));
-  const doc = canvas.getSvg().ownerDocument!;
+  const doc = svgOf(canvas).ownerDocument!;
   const tracked = trackListeners(doc);
   const task = node(canvas, 'Task_1');
 

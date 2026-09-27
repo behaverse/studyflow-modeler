@@ -7,7 +7,8 @@
 
 import type { Canvas } from '@canvas/Canvas.ts';
 import type { Drag, GridAxes, Movable } from '@canvas/study/drag.ts';
-import { nodesIntersecting, normalizeRect } from '@canvas/study/hit.ts';
+import { nodesIntersecting, normalizeRect, type HitOptions } from '@canvas/study/hit.ts';
+import type { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import type { HandleHit, Selection, WaypointHit } from '@canvas/interaction/selection.ts';
 import { RESIZING_MARKER } from '@canvas/interaction/selection.ts';
 import { collectSnapTargets, snapMove, snapPoint, type SnapTargets } from '@canvas/interaction/snapping.ts';
@@ -107,6 +108,11 @@ export interface GestureTools {
   gesture(active: boolean): void;
   /** Whether a person may edit through this view: otherwise a press selects and pans, and no key edits. */
   editable(): boolean;
+  /** The view's root, where presses land and its gesture classes go. */
+  svg: SVGSVGElement;
+  labelEditing: LabelEditing;
+  /** What the view shows at a point, in diagram coordinates. */
+  hitTest(point: Point, options?: HitOptions): SceneElement | undefined;
 }
 
 export class Gestures {
@@ -135,7 +141,7 @@ export class Gestures {
   constructor(canvas: Canvas, tools: GestureTools) {
     this.canvas = canvas;
     this.tools = tools;
-    const root = canvas.getSvg();
+    const root = this.tools.svg;
     root.addEventListener('pointerdown', this.onDown);
     root.addEventListener('dblclick', this.onDblClick);
     root.addEventListener('pointermove', this.onHover);
@@ -145,7 +151,7 @@ export class Gestures {
 
   destroy(): void {
     this.cancel();
-    const root = this.canvas.getSvg();
+    const root = this.tools.svg;
     root.removeEventListener('pointerdown', this.onDown);
     root.removeEventListener('dblclick', this.onDblClick);
     root.removeEventListener('pointermove', this.onHover);
@@ -161,7 +167,7 @@ export class Gestures {
   startCreate(event: MouseEvent | undefined, what: NewElement, prototype: CreatePrototype): boolean {
     const point = event ? this.eventPoint(event) : this.tools.viewportCentre();
     if (!this.tools.create.start(what, prototype, point)) return false;
-    this.canvas.getSvg().classList.add('sf-drag-active');
+    this.tools.svg.classList.add('sf-drag-active');
     this.markGesture('create');
     this.gesture = {
       downScreen: event ? { x: event.clientX, y: event.clientY } : { x: 0, y: 0 },
@@ -206,7 +212,7 @@ export class Gestures {
   }
 
   private listen(): void {
-    const doc = this.canvas.getSvg().ownerDocument ?? ownerDocument();
+    const doc = this.tools.svg.ownerDocument ?? ownerDocument();
     doc.addEventListener('pointermove', this.onMove);
     doc.addEventListener('pointerup', this.onUp);
     doc.addEventListener('pointercancel', this.onCancel);
@@ -256,7 +262,7 @@ export class Gestures {
     if (handle) intent = 'resize';
     else if (waypoint) intent = endpointOf(waypoint.edge, waypoint.index) ? 'reconnect' : 'waypoint';
     else {
-      const hit = canvas.hitTest(pt);
+      const hit = this.tools.hitTest(pt);
       if (hit) {
         if (ev.shiftKey) selection.toggle(hit);
         else if (!selection.isSelected(hit)) selection.select(hit);
@@ -364,7 +370,7 @@ export class Gestures {
       if (Math.hypot(ev.clientX - g.downScreen.x, ev.clientY - g.downScreen.y) < DRAG_THRESHOLD_PX) return;
       g.dragging = true;
       this.panFrom = { ...g.downScreen };
-      this.canvas.getSvg().classList.add('sf-panning');
+      this.tools.svg.classList.add('sf-panning');
     }
     const from = this.panFrom ?? g.downScreen;
     this.panBy(ev.clientX - from.x, ev.clientY - from.y);
@@ -380,7 +386,7 @@ export class Gestures {
 
   private startDrag(g: Gesture): boolean {
     const started = this.beginDrag(g);
-    if (started) this.canvas.getSvg().classList.add('sf-drag-active');
+    if (started) this.tools.svg.classList.add('sf-drag-active');
     return started;
   }
 
@@ -533,7 +539,6 @@ export class Gestures {
       }
       return;
     }
-    const canvas = this.canvas;
     const g = this.gesture;
     if (g?.intent === 'connect' && g.sticky) {
       g.sticky = false;
@@ -560,7 +565,7 @@ export class Gestures {
         if (edge) selection.select(edge);
         else if (kind === 'reconnect' && g.waypoint) {
           // Dropped clear of every shape: a free endpoint move. Dropped on a refused shape: nothing.
-          const over = canvas.hitTest(pt);
+          const over = this.tools.hitTest(pt);
           if (!over || over.kind === 'edge') this.tools.moveWaypoint(g.waypoint.edge, g.waypoint.index, pt);
         }
       } else {
@@ -592,7 +597,7 @@ export class Gestures {
     this.snapContext = undefined;
     this.panFrom = undefined;
     this.markGesture(undefined);
-    const root = this.canvas.getSvg();
+    const root = this.tools.svg;
     root.classList.remove('sf-drag-active', 'sf-panning');
     const doc = root.ownerDocument ?? ownerDocument();
     doc.removeEventListener('pointermove', this.onMove);
@@ -631,7 +636,7 @@ export class Gestures {
     const canvas = this.canvas;
     if (!this.tools.scene()) return;
     const pt = this.eventPoint(ev);
-    const element = canvas.hitTest(pt);
+    const element = this.tools.hitTest(pt);
     if (!element) return;
     const selected = this.tools.selection.get();
     if (selected.length !== 1 || selected[0]?.id !== element.id) this.tools.selection.select(element);
@@ -644,13 +649,12 @@ export class Gestures {
         return;
       }
     }
-    canvas.getLabelEditing().activate(element, { at: pt });
+    this.tools.labelEditing.activate(element, { at: pt });
   }
 
   private handleHover(ev: MouseEvent): void {
-    const canvas = this.canvas;
     if (!this.tools.scene() || this.gesture || this.pinch) return;
-    const hit = canvas.hitTest(this.eventPoint(ev));
+    const hit = this.tools.hitTest(this.eventPoint(ev));
     this.tools.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined);
   }
 
@@ -674,7 +678,7 @@ export class Gestures {
 
   private handleShortcut(ev: KeyboardEvent): void {
     const canvas = this.canvas;
-    if (ev.defaultPrevented || canvas.getLabelEditing().isActive() || isTextEntry(ev.target) || ev.altKey) return;
+    if (ev.defaultPrevented || this.tools.labelEditing.isActive() || isTextEntry(ev.target) || ev.altKey) return;
     const mod = ev.ctrlKey || ev.metaKey;
     const editable = this.tools.editable();
     let handled = false;
