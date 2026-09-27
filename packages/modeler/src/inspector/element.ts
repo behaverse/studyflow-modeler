@@ -1,11 +1,11 @@
-import { StudyflowElement, getAttribute } from '@core/element';
+import { StudyflowElement, getAttribute, toBusinessObject } from '@core/element';
 import { toLocalName } from '@core/naming';
 
 /** How the inspected element names itself: the studyflow extension type when it has one, else its BPMN type. */
 export function getTypeName(element: any): string {
   return StudyflowElement.fromBusinessObject(element).extensionType
-    || element?.businessObject?.$type
-    || element.type;
+    || toBusinessObject(element)?.$type
+    || '';
 }
 
 export function resolveDisplayName(element: any): string {

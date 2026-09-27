@@ -30,13 +30,17 @@ function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boo
   );
 }
 
-/** What the view shows: the container it is drilled into, else the document root. */
-function viewRoot(editor: Editor): any {
-  return editor.canvas.get(editor.canvas.scope ?? editor.study.root.id);
+/**
+ * What the inspector shows: the business object behind the one selected element (a caption's is what it
+ * captions), else behind what the view shows, the container it is drilled into or the document root.
+ */
+function inspected(editor: Editor, selection: readonly { id: string }[]): any {
+  const id = selection.length === 1 ? selection[0].id : editor.canvas.scope ?? editor.study.root.id;
+  return editor.study.businessObject(id);
 }
 
 function useSelectedElement(editor: Editor): any {
-  const [element, setElement] = useState<any>(() => viewRoot(editor));
+  const [element, setElement] = useState<any>(() => inspected(editor, []));
   const [, bumpVersion] = useReducer((version) => version + 1, 0);
   const elementRef = useRef<any>(element);
 
@@ -46,11 +50,8 @@ function useSelectedElement(editor: Editor): any {
   }, [element]);
 
   useEffect(() => {
-    const onRootSet = () => setElement(viewRoot(editor));
-    const onSelectionChanged = (e: any) => {
-      const selection = e.newSelection ?? [];
-      setElement(selection.length === 1 ? selection[0] : viewRoot(editor));
-    };
+    const onRootSet = () => setElement(inspected(editor, []));
+    const onSelectionChanged = (e: any) => setElement(inspected(editor, e.newSelection ?? []));
     const onElementsChanged = (e: any) => {
       const inspected = elementRef.current;
       if (inspected && e.elements?.some((element: any) => element.id === inspected.id)) bumpVersion();
