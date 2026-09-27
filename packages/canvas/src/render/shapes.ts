@@ -5,8 +5,9 @@
 
 import { categoryOf, dataObjectFold, dataStoreRim } from '@core/document/outline.ts';
 import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
+import { getProperty } from '@core/element/moddle.ts';
 
-import { asModdle, prop } from '@canvas/study/moddle.ts';
+import { asModdle } from '@canvas/study/moddle.ts';
 import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
 import { isCollapsed } from '@canvas/study/tree.ts';
 import { append, create } from '@canvas/render/svg.ts';
@@ -21,10 +22,10 @@ export function activityMarkers(node: SceneNode): string[] {
   if (isDataOperationActivity(bo)) markers.push('function');
   if (isCollapsed(node)) markers.push('subprocess');
   if (node.type === 'bpmn:AdHocSubProcess') markers.push('adhoc');
-  if (prop(bo, 'isForCompensation') === true) markers.push('compensation');
-  const loop = prop(bo, 'loopCharacteristics') as ModdleObject | undefined;
+  if (getProperty(bo, 'isForCompensation') === true) markers.push('compensation');
+  const loop = getProperty(bo, 'loopCharacteristics') as ModdleObject | undefined;
   if (loop) {
-    const sequential = prop(loop, 'isSequential');
+    const sequential = getProperty(loop, 'isSequential');
     markers.push(sequential === true ? 'sequential' : sequential === false ? 'parallel' : 'loop');
   }
   return markers;
@@ -35,7 +36,7 @@ export function activityMarkers(node: SceneNode): string[] {
  * More than one is marked like a parallel multi-instance activity, but in the pool's title band.
  */
 export function participantInstances(bo: ModdleObject | undefined): number {
-  const maximum = prop(asModdle(prop(bo, 'participantMultiplicity')), 'maximum');
+  const maximum = getProperty(asModdle(getProperty(bo, 'participantMultiplicity')), 'maximum');
   return typeof maximum === 'number' && maximum > 0 ? maximum : 1;
 }
 

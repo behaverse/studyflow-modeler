@@ -5,34 +5,35 @@
 
 import { COLOR_PROPERTIES } from '@canvas/study/color.ts';
 import { FONT_PROPERTY, formatFont, type Font } from '@canvas/study/font.ts';
-import { asList, asModdle, mint, modelOf, prop, setParent, setProp, type ModdleFactory } from '@canvas/study/moddle.ts';
+import { asList, asModdle, mint, modelOf, setParent, type ModdleFactory } from '@canvas/study/moddle.ts';
 import type { ModdleObject, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { isExpandable } from '@core/document/outline.ts';
+import { getProperty, setProperty } from '@core/element/moddle.ts';
 import { drawablesOf } from '@canvas/study/tree.ts';
 
 export function writeDi(scene: Scene): void {
   const definitions = scene.definitions;
   const factory = modelOf(definitions);
-  let diagram = asList(prop(definitions, 'diagrams'))[0];
+  let diagram = asList(getProperty(definitions, 'diagrams'))[0];
   if (!diagram) {
     diagram = mint(factory, 'bpmndi:BPMNDiagram', { id: 'BPMNDiagram_1' });
     setParent(diagram, definitions);
   }
-  let plane = asModdle(prop(diagram, 'plane'));
+  let plane = asModdle(getProperty(diagram, 'plane'));
   if (!plane) {
     plane = mint(factory, 'bpmndi:BPMNPlane', { id: 'BPMNPlane_1' });
     setParent(plane, diagram);
-    setProp(diagram, 'plane', plane);
+    setProperty(diagram, 'plane', plane);
   }
-  setProp(plane, 'bpmnElement', scene.root);
+  setProperty(plane, 'bpmnElement', scene.root);
   const elements: ModdleObject[] = [];
   for (const element of drawablesOf(scene)) {
     const di = element.kind === 'node' ? shapeDi(element, factory) : edgeDi(element, factory);
     setParent(di, plane);
     elements.push(di);
   }
-  setProp(plane, 'planeElement', elements);
-  setProp(definitions, 'diagrams', [diagram]);
+  setProperty(plane, 'planeElement', elements);
+  setProperty(definitions, 'diagrams', [diagram]);
 }
 
 function shapeDi(node: SceneNode, factory: ModdleFactory | undefined): ModdleObject {
@@ -41,11 +42,11 @@ function shapeDi(node: SceneNode, factory: ModdleFactory | undefined): ModdleObj
     bpmnElement: node.businessObject,
     bounds: bounds(factory, node),
   });
-  setParent(prop(di, 'bounds') as ModdleObject, di);
+  setParent(getProperty(di, 'bounds') as ModdleObject, di);
   if (node.isExpanded !== undefined && (isExpandable(node.type) || node.type === 'bpmn:Participant')) {
-    setProp(di, 'isExpanded', node.isExpanded);
+    setProperty(di, 'isExpanded', node.isExpanded);
   }
-  if (node.isMarkerVisible !== undefined) setProp(di, 'isMarkerVisible', node.isMarkerVisible);
+  if (node.isMarkerVisible !== undefined) setProperty(di, 'isMarkerVisible', node.isMarkerVisible);
   writeColors(di, node.fill, node.stroke);
   writeFont(di, node.font);
   writeLabel(di, node.label, factory);
@@ -58,7 +59,7 @@ function edgeDi(edge: SceneEdge, factory: ModdleFactory | undefined): ModdleObje
     bpmnElement: edge.businessObject,
     waypoint: edge.waypoints.map((p) => mint(factory, 'dc:Point', { x: p.x, y: p.y })),
   });
-  for (const point of asList(prop(di, 'waypoint'))) setParent(point, di);
+  for (const point of asList(getProperty(di, 'waypoint'))) setParent(point, di);
   writeColors(di, undefined, edge.stroke);
   writeFont(di, edge.font);
   writeLabel(di, edge.label, factory);
@@ -70,19 +71,19 @@ function bounds(factory: ModdleFactory | undefined, box: { x: number; y: number;
 }
 
 function writeColors(di: ModdleObject, fill: string | undefined, stroke: string | undefined): void {
-  if (fill) for (const name of COLOR_PROPERTIES.fill) setProp(di, name, fill);
-  if (stroke) for (const name of COLOR_PROPERTIES.stroke) setProp(di, name, stroke);
+  if (fill) for (const name of COLOR_PROPERTIES.fill) setProperty(di, name, fill);
+  if (stroke) for (const name of COLOR_PROPERTIES.stroke) setProperty(di, name, stroke);
 }
 
 function writeFont(di: ModdleObject, font: Font | undefined): void {
   const text = formatFont(font);
-  if (text) setProp(di, FONT_PROPERTY, text);
+  if (text) setProperty(di, FONT_PROPERTY, text);
 }
 
 function writeLabel(di: ModdleObject, label: SceneLabel | undefined, factory: ModdleFactory | undefined): void {
   if (!label?.pinned) return;
   const labelDi = mint(factory, 'bpmndi:BPMNLabel', { bounds: bounds(factory, label) });
-  setParent(prop(labelDi, 'bounds') as ModdleObject, labelDi);
+  setParent(getProperty(labelDi, 'bounds') as ModdleObject, labelDi);
   setParent(labelDi, di);
-  setProp(di, 'label', labelDi);
+  setProperty(di, 'label', labelDi);
 }

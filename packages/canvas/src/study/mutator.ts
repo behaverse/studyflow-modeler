@@ -27,11 +27,9 @@ import {
   mint,
   modelOf,
   parentOf,
-  prop,
   pullFrom,
   pushInto,
   setParent,
-  setProp,
   setRef,
   unfile,
   type ModdleFactory,
@@ -61,6 +59,7 @@ import {
   incidentEdgesOf,
 } from '@canvas/study/tree.ts';
 import { cropPoint, isExpandable } from '@core/document/outline.ts';
+import { getProperty, setProperty } from '@core/element/moddle.ts';
 import { samePoints } from '@canvas/study/edit.ts';
 import { orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
 import { containerFor } from '@canvas/study/rules.ts';
@@ -95,7 +94,7 @@ function flowContainerOf(parent: SceneNode | undefined, root: ModdleObject): Flo
     node = containerFor(node.parent) as SceneNode | undefined;
   }
   let owner = node ? node.businessObject : root;
-  if (node?.type === 'bpmn:Participant') owner = asModdle(prop(node.businessObject, 'processRef')) ?? owner;
+  if (node?.type === 'bpmn:Participant') owner = asModdle(getProperty(node.businessObject, 'processRef')) ?? owner;
   return lane ? { owner, lane } : { owner };
 }
 
@@ -375,9 +374,9 @@ export class Mutator {
   /** Write `name` on `element`'s business object; a no-op edit writes nothing. */
   setName(element: Drawable, name: string): boolean {
     const bo = element.businessObject;
-    const current = prop(bo, 'name');
+    const current = getProperty(bo, 'name');
     if ((typeof current === 'string' ? current : '') === name) return false;
-    setProp(bo, 'name', name);
+    setProperty(bo, 'name', name);
     syncLabel(this.scene, element);
     this.finish([element]);
     return true;
@@ -496,7 +495,7 @@ export class Mutator {
     const factory = this.factory ?? modelOf(spec.businessObject);
     const bo = spec.businessObject ?? mint(factory, spec.type, { ...(spec.attrs ?? {}) });
     if (spec.businessObject && spec.attrs) {
-      for (const [name, value] of Object.entries(spec.attrs)) setProp(bo, name, value);
+      for (const [name, value] of Object.entries(spec.attrs)) setProperty(bo, name, value);
     }
     const type = typeof bo.$type === 'string' ? bo.$type : spec.type;
     const id = spec.id ?? (typeof bo.id === 'string' && bo.id ? bo.id : this.ids.next(spec.extensionType ?? type, bo));
@@ -638,12 +637,12 @@ export class Mutator {
   private fileBusinessObject(bo: ModdleObject, type: string, owner: ModdleObject): void {
     const factory = this.factory;
     if (type === 'bpmn:Lane') {
-      const laneSet = asModdle((prop(owner, 'laneSets') as ModdleObject[] | undefined)?.[0]) ?? this.createLaneSet(owner);
+      const laneSet = asModdle((getProperty(owner, 'laneSets') as ModdleObject[] | undefined)?.[0]) ?? this.createLaneSet(owner);
       setParent(bo, laneSet);
       pushInto(laneSet, 'lanes', bo);
       return;
     }
-    if (type === 'bpmn:Participant' && !asModdle(prop(bo, 'processRef'))) {
+    if (type === 'bpmn:Participant' && !asModdle(getProperty(bo, 'processRef'))) {
       const process = mint(factory, 'bpmn:Process', { id: this.ids.next('bpmn:Process'), isExecutable: false });
       setParent(process, this.scene.definitions);
       pushInto(this.scene.definitions, 'rootElements', process);

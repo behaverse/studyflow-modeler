@@ -45,18 +45,17 @@ import {
   mint,
   modelOf,
   nameOf,
-  prop,
   pullFrom,
   pushInto,
   refBOs,
   setParent,
-  setProp,
   setRef,
   type ModdleFactory,
 } from '@canvas/study/moddle.ts';
 import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
 import { isDataShape } from '@core/document/outline.ts';
 import { associationPropertyFor, type DataAssociationDirection } from '@core/element/index.ts';
+import { getProperty, setProperty } from '@core/element/moddle.ts';
 
 /** The two ends of a data association, sorted into their BPMN roles. */
 export interface DataAssociationEnds {
@@ -164,23 +163,23 @@ export function pruneDataAssociation(bo: ModdleObject, activity: ModdleObject | 
   if (!io) return;
 
   const declarations = [
-    ...refBOs(prop(bo, 'targetRef')),
-    ...refBOs(prop(bo, 'sourceRef')),
+    ...refBOs(getProperty(bo, 'targetRef')),
+    ...refBOs(getProperty(bo, 'sourceRef')),
   ].filter((ref) => ref.$type === 'bpmn:DataInput' || ref.$type === 'bpmn:DataOutput');
 
   for (const declaration of declarations) {
     if (isStillDeclared(activity, declaration, bo)) continue;
     pullFrom(io, declaration.$type === 'bpmn:DataInput' ? 'dataInputs' : 'dataOutputs', declaration);
-    for (const set of asList(prop(io, 'inputSets'))) pullFrom(set, 'dataInputRefs', declaration);
-    for (const set of asList(prop(io, 'outputSets'))) pullFrom(set, 'dataOutputRefs', declaration);
+    for (const set of asList(getProperty(io, 'inputSets'))) pullFrom(set, 'dataInputRefs', declaration);
+    for (const set of asList(getProperty(io, 'outputSets'))) pullFrom(set, 'dataOutputRefs', declaration);
     clearParent(declaration);
   }
 
-  if (asList(prop(io, 'dataInputs')).length > 0) return;
-  if (asList(prop(io, 'dataOutputs')).length > 0) return;
+  if (asList(getProperty(io, 'dataInputs')).length > 0) return;
+  if (asList(getProperty(io, 'dataOutputs')).length > 0) return;
   // An `ioSpecification` declaring neither inputs nor outputs is noise the compact
   // form has no room for; core's own inlining drops it for exactly this reason.
-  setProp(activity, 'ioSpecification', undefined);
+  setProperty(activity, 'ioSpecification', undefined);
   clearParent(io);
 }
 
@@ -188,7 +187,7 @@ export function pruneDataAssociation(bo: ModdleObject, activity: ModdleObject | 
 
 /** The activity's `bpmn:InputOutputSpecification`, when it declares one. */
 function ioSpecificationOf(activity: ModdleObject): ModdleObject | undefined {
-  return asModdle(prop(activity, 'ioSpecification'));
+  return asModdle(getProperty(activity, 'ioSpecification'));
 }
 
 /** Whether anything other than `exclude` still needs `declaration`. */
@@ -198,18 +197,18 @@ function isStillDeclared(
   exclude: ModdleObject,
 ): boolean {
   for (const direction of ['input', 'output'] as const) {
-    for (const association of asList(prop(activity, associationPropertyFor(direction)))) {
+    for (const association of asList(getProperty(activity, associationPropertyFor(direction)))) {
       if (association === exclude) continue;
-      if (refBOs(prop(association, 'sourceRef')).includes(declaration)) return true;
-      if (refBOs(prop(association, 'targetRef')).includes(declaration)) return true;
+      if (refBOs(getProperty(association, 'sourceRef')).includes(declaration)) return true;
+      if (refBOs(getProperty(association, 'targetRef')).includes(declaration)) return true;
     }
   }
   // A multi-instance marker may bind the same slot (`@core/document/io-specification.ts`
   // refuses to inline an activity whose `loopCharacteristics` reference it).
-  const loop = asModdle(prop(activity, 'loopCharacteristics'));
+  const loop = asModdle(getProperty(activity, 'loopCharacteristics'));
   if (!loop) return false;
   return ['loopDataInputRef', 'loopDataOutputRef', 'inputDataItem', 'outputDataItem']
-    .some((name) => refBOs(prop(loop, name)).includes(declaration));
+    .some((name) => refBOs(getProperty(loop, name)).includes(declaration));
 }
 
 /** A document-unique id for `base`, falling back to a counter suffix when taken. */
@@ -256,7 +255,7 @@ function mintDataOutput(
   factory: ModdleFactory | undefined,
   ids: IdGenerator,
 ): ModdleObject {
-  const existing = asList(prop(io, 'dataOutputs')).find((out) => nameOf(out) === 'result');
+  const existing = asList(getProperty(io, 'dataOutputs')).find((out) => nameOf(out) === 'result');
   if (existing) {
     pushInto(setOf(io, 'outputSets', activity, factory, ids), 'dataOutputRefs', existing);
     return existing;
@@ -279,7 +278,7 @@ function setOf(
   factory: ModdleFactory | undefined,
   ids: IdGenerator,
 ): ModdleObject {
-  const existing = asList(prop(io, property))[0];
+  const existing = asList(getProperty(io, property))[0];
   if (existing) return existing;
   const suffix = property === 'inputSets' ? 'inputSet' : 'outputSet';
   const created = mint(factory, property === 'inputSets' ? 'bpmn:InputSet' : 'bpmn:OutputSet', {

@@ -5,9 +5,10 @@
 
 import { PLACEHOLDER, studyflowToDefinitions } from '@core/document/index.ts';
 import { getCatalog, hasCatalog, type Template } from '@core/notation/index.ts';
+import { getProperty } from '@core/element/moddle.ts';
 
 import type { IdGenerator } from '@canvas/study/ids.ts';
-import { modelOf, prop } from '@canvas/study/moddle.ts';
+import { modelOf } from '@canvas/study/moddle.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import { routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
@@ -48,20 +49,20 @@ export function shapeOf(what: NewElement): NewShape | undefined {
 /** `template`'s elements, built for `document`: an id `document` holds is suffixed from `ids`, and code naming it follows. */
 export function buildTemplate(template: Template, document: ModdleObject, ids: Pick<IdGenerator, 'nextPrefixed'>): TemplateBuild {
   const definitions = buildElements(template.elements, document, ids);
-  const root = (prop(definitions, 'rootElements') as Described[])[0];
+  const root = (getProperty(definitions, 'rootElements') as Described[])[0];
   const isPool = root.$type === 'bpmn:Participant';
-  const children = (prop(isPool ? prop(root, 'processRef') as ModdleObject : root, 'flowElements') ?? []) as Described[];
+  const children = (getProperty(isPool ? getProperty(root, 'processRef') as ModdleObject : root, 'flowElements') ?? []) as Described[];
   // The layout files each element as it places it; a pool takes its process from the layout, only its flow from the template.
   if (isPool) root.set('processRef', undefined);
   else if (children.length > 0) root.set('flowElements', []);
 
   const bounds = new Map<ModdleObject, Bounds>();
   const routes = new Map<ModdleObject, Point[]>();
-  const diagram = (prop(definitions, 'diagrams') as ModdleObject[] | undefined)?.[0];
-  for (const di of (prop(prop(diagram, 'plane') as ModdleObject | undefined, 'planeElement') ?? []) as ModdleObject[]) {
-    const element = prop(di, 'bpmnElement') as ModdleObject;
-    const box = prop(di, 'bounds') as Bounds | undefined;
-    const waypoints = prop(di, 'waypoint') as Point[] | undefined;
+  const diagram = (getProperty(definitions, 'diagrams') as ModdleObject[] | undefined)?.[0];
+  for (const di of (getProperty(getProperty(diagram, 'plane') as ModdleObject | undefined, 'planeElement') ?? []) as ModdleObject[]) {
+    const element = getProperty(di, 'bpmnElement') as ModdleObject;
+    const box = getProperty(di, 'bounds') as Bounds | undefined;
+    const waypoints = getProperty(di, 'waypoint') as Point[] | undefined;
     if (box) bounds.set(element, { x: box.x, y: box.y, width: box.width, height: box.height });
     if (waypoints?.length) routes.set(element, waypoints.map(({ x, y }) => ({ x, y })));
   }
@@ -88,8 +89,8 @@ export function layOutTemplate(mutator: Mutator, rules: Rules, container: SceneN
   }
 
   for (const { businessObject: flow, waypoints } of build.flows) {
-    const source = placed.get(prop(flow, 'sourceRef'));
-    const target = placed.get(prop(flow, 'targetRef'));
+    const source = placed.get(getProperty(flow, 'sourceRef'));
+    const target = placed.get(getProperty(flow, 'targetRef'));
     const spec = source && target ? rules.canConnect(source, target) : false;
     if (!source || !target || !spec) {
       console.warn(`[templates] Skipping connection '${flow.id}' - source or target not found.`);
@@ -169,12 +170,12 @@ function buildElements(elements: Record<string, unknown>, document: ModdleObject
   const definitions = studyflowToDefinitions({ definitions: {}, elements }, modelOf(document) as never) as ModdleObject;
   const held = new Set([...elementsIn(document)].map((element) => element.id));
   const renamed = new Map<string, string>();
-  for (const element of elementsIn(prop(definitions, 'rootElements'))) {
+  for (const element of elementsIn(getProperty(definitions, 'rootElements'))) {
     if (typeof element.id !== 'string' || !held.has(element.id)) continue;
     const id = ids.nextPrefixed(`${element.id}_`);
     renamed.set(element.id, id);
     element.id = id;
   }
-  if (renamed.size > 0) for (const element of elementsIn(prop(definitions, 'rootElements'))) renameInCode(element, renamed);
+  if (renamed.size > 0) for (const element of elementsIn(getProperty(definitions, 'rootElements'))) renameInCode(element, renamed);
   return definitions;
 }

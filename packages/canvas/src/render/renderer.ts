@@ -9,11 +9,12 @@ import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore } from '@
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, getAttribute, isDataAssociationType, StudyflowElement } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
+import { getProperty } from '@core/element/moddle.ts';
 
 import { isTypedChoreography, readChoreographyBands } from '@canvas/study/choreography.ts';
 import { normalizeColor } from '@canvas/study/color.ts';
 
-import { nameOf, prop } from '@canvas/study/moddle.ts';
+import { nameOf } from '@canvas/study/moddle.ts';
 import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver } from '@canvas/render/icons.ts';
@@ -244,7 +245,7 @@ export class Renderer {
       case 'choreography': {
         const glyph = iconGlyph(node.businessObject);
         const typed = isTypedChoreography(node.businessObject);
-        if (!typed || (prop(node.businessObject, 'participantRef') as unknown[] | undefined)?.length) {
+        if (!typed || (getProperty(node.businessObject, 'participantRef') as unknown[] | undefined)?.length) {
           // Bands name the parties; the type glyph sits in the middle band, where the task's own name is.
           this.drawChoreography(g, node, style, name);
           const inner = append(g, group(0, choreographyBandHeight(node.height)));
@@ -267,7 +268,7 @@ export class Renderer {
         break;
       case 'annotation': {
         drawTextAnnotation(g, node.width, node.height, style);
-        const text = prop(node.businessObject, 'text');
+        const text = getProperty(node.businessObject, 'text');
         this.drawAnnotationText(g, node, (typeof text === 'string' && text) || name, INK.text);
         break;
       }
@@ -348,7 +349,7 @@ export class Renderer {
     const bo = node.businessObject;
     const x = (node.width - EVENT_ICON_SIZE) / 2;
     const y = (node.height - EVENT_ICON_SIZE) / 2;
-    const defs = prop(bo, 'eventDefinitions');
+    const defs = getProperty(bo, 'eventDefinitions');
     const def = Array.isArray(defs) ? (defs[0] as ModdleObject | undefined) : undefined;
     let defKey = def ? toLocalName(def.$type) : undefined;
     // BPMN draws a throwing (end) event's symbol filled: the host may name that variant under `<definition>:end`.
@@ -472,8 +473,8 @@ export class Renderer {
 
   /** A group's caption lives on its `bpmn:CategoryValue`, centred on the top edge. */
   private drawGroupLabel(g: SVGGElement, node: SceneNode, color: string): void {
-    const categoryValue = prop(node.businessObject, 'categoryValueRef');
-    const value = categoryValue && typeof categoryValue === 'object' ? prop(categoryValue as ModdleObject, 'value') : undefined;
+    const categoryValue = getProperty(node.businessObject, 'categoryValueRef');
+    const value = categoryValue && typeof categoryValue === 'object' ? getProperty(categoryValue as ModdleObject, 'value') : undefined;
     if (typeof value !== 'string' || !value) return;
     drawBandText(g, value, node.width / 2, 10, node.width, color, FONT.external, WEIGHT.external, node.font);
   }
@@ -580,7 +581,7 @@ export function edgeDashArray(type: string): string | null {
 }
 
 function isDefaultFlow(edge: SceneEdge): boolean {
-  return edge.type === BPMN.SequenceFlow && prop(edge.source?.businessObject, 'default') === edge.businessObject;
+  return edge.type === BPMN.SequenceFlow && getProperty(edge.source?.businessObject, 'default') === edge.businessObject;
 }
 
 function markerIdFor(type: string): string {
@@ -592,7 +593,7 @@ function markerIdFor(type: string): string {
 /** A plain association is arrowless unless directed; everything else points somewhere. */
 export function markerEndFor(type: string, businessObject?: ModdleObject): string | null {
   if (type === BPMN.Association) {
-    const dir = prop(businessObject, 'associationDirection');
+    const dir = getProperty(businessObject, 'associationDirection');
     if (dir !== 'One' && dir !== 'Both') return null;
   }
   return `url(#${markerIdFor(type)})`;

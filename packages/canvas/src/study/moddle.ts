@@ -1,29 +1,15 @@
 /**
- * Moddle access. Every helper works on a real `bpmn-moddle` object (through
- * `get`/`set`) and on a plain bag alike, and reads cardinality off the descriptor
- * rather than a hard-coded list.
+ * Moddle access, over core's `getProperty` and `setProperty`. Every helper works on a real
+ * `bpmn-moddle` object (through `get`/`set`) and on a plain bag alike, and reads cardinality
+ * off the descriptor rather than a hard-coded list.
  */
+
+import { getProperty, isModdleElement, setProperty } from '@core/element/moddle.ts';
 
 import type { ModdleObject } from '@canvas/study/scene.ts';
 
-export function prop(target: ModdleObject | undefined, name: string): unknown {
-  if (!target) return undefined;
-  const getter = (target as { get?: (n: string) => unknown }).get;
-  return typeof getter === 'function'
-    ? getter.call(target, name)
-    : (target as Record<string, unknown>)[name];
-}
-
-export function setProp(target: ModdleObject, name: string, value: unknown): void {
-  const setter = (target as { set?: (n: string, v: unknown) => void }).set;
-  if (typeof setter === 'function') setter.call(target, name, value);
-  else (target as Record<string, unknown>)[name] = value;
-}
-
 export function asModdle(value: unknown): ModdleObject | undefined {
-  return value && typeof value === 'object' && typeof (value as ModdleObject).$type === 'string'
-    ? (value as ModdleObject)
-    : undefined;
+  return isModdleElement(value) ? (value as ModdleObject) : undefined;
 }
 
 export function asList(value: unknown): ModdleObject[] {
@@ -32,7 +18,7 @@ export function asList(value: unknown): ModdleObject[] {
 }
 
 export function nameOf(target: ModdleObject | undefined): string {
-  const value = prop(target, 'name');
+  const value = getProperty(target, 'name');
   return typeof value === 'string' ? value : '';
 }
 
@@ -135,17 +121,17 @@ function isManyProperty(target: ModdleObject, name: string): boolean {
 }
 
 export function pushInto(owner: ModdleObject, name: string, value: ModdleObject): void {
-  const current = prop(owner, name);
+  const current = getProperty(owner, name);
   if (Array.isArray(current)) {
     if (!current.includes(value)) current.push(value);
     return;
   }
-  setProp(owner, name, [value]);
+  setProperty(owner, name, [value]);
 }
 
 export function pullFrom(owner: ModdleObject | undefined, name: string, value: ModdleObject): boolean {
   if (!owner) return false;
-  const current = prop(owner, name);
+  const current = getProperty(owner, name);
   if (!Array.isArray(current)) return false;
   const index = current.indexOf(value);
   if (index < 0) return false;
@@ -156,13 +142,13 @@ export function pullFrom(owner: ModdleObject | undefined, name: string, value: M
 /** Write a reference at the schema's cardinality (`sourceRef` is a list on a data association). */
 export function setRef(owner: ModdleObject, name: string, value: ModdleObject | undefined): void {
   const many = isManyProperty(owner, name);
-  if (!value) setProp(owner, name, many ? [] : undefined);
-  else setProp(owner, name, many ? [value] : value);
+  if (!value) setProperty(owner, name, many ? [] : undefined);
+  else setProperty(owner, name, many ? [value] : value);
 }
 
 export function clearRef(owner: ModdleObject, name: string): void {
-  if (prop(owner, name) === undefined) return;
-  setProp(owner, name, isManyProperty(owner, name) ? [] : undefined);
+  if (getProperty(owner, name) === undefined) return;
+  setProperty(owner, name, isManyProperty(owner, name) ? [] : undefined);
 }
 
 function listPropertyNames(owner: ModdleObject): string[] {

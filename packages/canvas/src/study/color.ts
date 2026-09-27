@@ -1,7 +1,8 @@
 /** Element colors: `#rrggbb` normalization and the two bpmn.io DI vocabularies. */
 
+import { getProperty } from '@core/element/moddle.ts';
+
 import type { ElementColors, ModdleObject } from '@canvas/study/scene.ts';
-import { prop } from '@canvas/study/moddle.ts';
 
 /** DI attribute names per colour role, current vocabulary first, legacy second. */
 export const COLOR_PROPERTIES: Readonly<Record<'fill' | 'stroke', readonly string[]>> = {
@@ -49,7 +50,7 @@ export function readColorsOf(di: ModdleObject | undefined): { fill?: string; str
   const out: { fill?: string; stroke?: string } = {};
   for (const role of ['fill', 'stroke'] as const) {
     for (const name of READ_ORDER[role]) {
-      const value = prop(di, name);
+      const value = getProperty(di, name);
       if (typeof value === 'string' && value) {
         out[role] = value;
         break;

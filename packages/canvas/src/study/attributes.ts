@@ -6,8 +6,8 @@
 
 import { CHECKLIST_SPEC, isExtensionPrefix, StudyflowElement } from '@core/element/index.ts';
 import { getCatalog, hasCatalog, type AttributeSpec } from '@core/notation/index.ts';
+import { getProperty } from '@core/element/moddle.ts';
 
-import { prop } from '@canvas/study/moddle.ts';
 import type { ModdleObject } from '@canvas/study/scene.ts';
 
 export interface AttributeRecord {
@@ -67,7 +67,7 @@ function keyOf(spec: AttributeSpec): string {
 
 function hasProperty(moddle: ModdleObject, name: string): boolean {
   const descriptor = moddle.$descriptor as { propertiesByName?: Record<string, unknown> } | undefined;
-  return !!descriptor?.propertiesByName?.[name] || prop(moddle, name) !== undefined;
+  return !!descriptor?.propertiesByName?.[name] || getProperty(moddle, name) !== undefined;
 }
 
 /** `value` as plain JSON: text, a number, true or false, or a list of those; nothing for a structured value. */

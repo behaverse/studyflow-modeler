@@ -5,9 +5,10 @@
  */
 
 import { getExtensionType } from '@core/element/index.ts';
-import { nameOf, prop } from '@canvas/study/moddle.ts';
+import { nameOf } from '@canvas/study/moddle.ts';
 import { isRootElement, type Bounds, type Font, type ModdleObject, type Point, type RootElement, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { isExpandable } from '@core/document/outline.ts';
+import { getProperty } from '@core/element/moddle.ts';
 import { planeOf } from '@canvas/study/tree.ts';
 
 export interface ElementRecord {
@@ -67,7 +68,7 @@ export function recordOf(element: SceneElement | RootElement): ElementRecord {
       ...styleOf(element),
     };
   }
-  const host = prop(element.businessObject, 'attachedToRef') as ModdleObject | undefined;
+  const host = getProperty(element.businessObject, 'attachedToRef') as ModdleObject | undefined;
   return {
     ...placed,
     kind: 'node',

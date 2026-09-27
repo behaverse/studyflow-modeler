@@ -7,7 +7,7 @@
 import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireDefinitions, toWireXml } from '@core/document';
 import { categoryOf, isExpandable } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute, StudyflowElement } from '@core/element/index.ts';
-import type { Moddle } from '@core/element/moddle';
+import { getProperty, type Moddle } from '@core/element/moddle.ts';
 import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
@@ -16,7 +16,7 @@ import { writeDi } from '@canvas/study/di.ts';
 import { Drag, type Movable } from '@canvas/study/drag.ts';
 import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
-import { findById, prop } from '@canvas/study/moddle.ts';
+import { findById } from '@canvas/study/moddle.ts';
 import { Mutator, type AddShapeSpec, type Commit } from '@canvas/study/mutator.ts';
 import { rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
@@ -319,7 +319,7 @@ export class Study {
     const size = categoryOf(prototype.type) === categoryOf(node.type)
       ? { width: node.width, height: node.height }
       : defaultSizeFor(prototype.type, prototype.isExpanded);
-    const name = prop(node.businessObject, 'name');
+    const name = getProperty(node.businessObject, 'name');
     const attrs = { ...prototype.attrs, ...(typeof name === 'string' && name ? { name } : {}) };
     const spec: AddShapeSpec = {
       ...shapeSpec({ ...prototype, ...size }, { x: node.x + node.width / 2, y: node.y + node.height / 2 }),

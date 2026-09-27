@@ -5,9 +5,10 @@
 
 import { isDataShape } from '@core/document/outline.ts';
 import type { ModdleWriter } from '@core/element/index.ts';
+import { getProperty, setProperty } from '@core/element/moddle.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
 import { idPrefixFor, needsId, type IdGenerator } from '@canvas/study/ids.ts';
-import { mint, modelOf, prop, setProp } from '@canvas/study/moddle.ts';
+import { mint, modelOf } from '@canvas/study/moddle.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Drawable, ModdleObject, Scene, SceneNode } from '@canvas/study/scene.ts';
 
@@ -28,7 +29,7 @@ export function writerFor(scene: Scene, mutator: Mutator, about: Drawable | unde
     set(target, props) {
       const moddle = target as ModdleObject;
       for (const [key, value] of Object.entries(props)) {
-        if (prop(moddle, key) !== value) setProp(moddle, key, value);
+        if (getProperty(moddle, key) !== value) setProperty(moddle, key, value);
       }
       if (about) mutator.touch(drawnFrom(scene, about, moddle, props));
       else mutator.record(scene.rootElement);
@@ -69,8 +70,8 @@ function stepsReading(scene: Scene, source: SceneNode): SceneNode[] {
   const out: SceneNode[] = [];
   for (const element of scene.elementsById.values()) {
     if (element.kind !== 'node' || element === source) continue;
-    const associations = (prop(element.businessObject, 'dataInputAssociations') ?? []) as ModdleObject[];
-    if (associations.some((association) => ((prop(association, 'sourceRef') ?? []) as unknown[]).includes(source.businessObject))) {
+    const associations = (getProperty(element.businessObject, 'dataInputAssociations') ?? []) as ModdleObject[];
+    if (associations.some((association) => ((getProperty(association, 'sourceRef') ?? []) as unknown[]).includes(source.businessObject))) {
       out.push(element);
     }
   }

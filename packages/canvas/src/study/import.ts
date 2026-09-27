@@ -9,9 +9,10 @@
 
 import { readColorsOf } from '@canvas/study/color.ts';
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@core/element/index.ts';
+import { getProperty } from '@core/element/moddle.ts';
 import { FONT_PROPERTY, parseFont } from '@canvas/study/font.ts';
 import { mintLabel, syncLabel } from '@canvas/study/labels.ts';
-import { asList, asModdle, parentOf, prop, refBO } from '@canvas/study/moddle.ts';
+import { asList, asModdle, parentOf, refBO } from '@canvas/study/moddle.ts';
 import type {
   Drawable,
   ModdleObject,
@@ -38,7 +39,7 @@ function num(value: unknown): number | undefined {
 }
 
 function idOf(target: ModdleObject | undefined): string | undefined {
-  const id = prop(target, 'id');
+  const id = getProperty(target, 'id');
   return typeof id === 'string' && id ? id : undefined;
 }
 
@@ -47,7 +48,7 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
   const elementsById = new Map<string, SceneElement>();
   const byBusinessObject = new Map<ModdleObject, Drawable>();
   const plane = drawnPlane(definitions, warn);
-  const drawn = asList(prop(plane, 'planeElement'));
+  const drawn = asList(getProperty(plane, 'planeElement'));
 
   const index = (element: Drawable): void => {
     if (element.id) {
@@ -82,7 +83,7 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
     else children.push(element);
   }
 
-  const root = asModdle(prop(plane, 'bpmnElement')) ?? asList(prop(definitions, 'rootElements'))[0] ?? definitions;
+  const root = asModdle(getProperty(plane, 'bpmnElement')) ?? asList(getProperty(definitions, 'rootElements'))[0] ?? definitions;
   const rootElement: RootElement = {
     id: idOf(root) ?? 'root',
     type: root.$type,
@@ -107,12 +108,12 @@ export function importDefinitions(definitions: ModdleObject, options: ImportOpti
 
 /** The first diagram's plane. A further diagram is not drawn, and a warning names it. */
 function drawnPlane(definitions: ModdleObject, warn: (m: string) => void): ModdleObject | undefined {
-  const [first, ...others] = asList(prop(definitions, 'diagrams'));
+  const [first, ...others] = asList(getProperty(definitions, 'diagrams'));
   for (const diagram of others) {
-    const count = asList(prop(asModdle(prop(diagram, 'plane')), 'planeElement')).length;
+    const count = asList(getProperty(asModdle(getProperty(diagram, 'plane')), 'planeElement')).length;
     if (count > 0) warn(`diagram ${idOf(diagram) ?? '<no id>'} is not drawn: the canvas draws the first plane only, so its ${count} shapes and edges are dropped`);
   }
-  return asModdle(prop(first, 'plane'));
+  return asModdle(getProperty(first, 'plane'));
 }
 
 /**
@@ -125,46 +126,46 @@ function containerOf(businessObject: ModdleObject | undefined): ModdleObject | u
 }
 
 function buildNode(shape: ModdleObject, warn: (m: string) => void): SceneNode | undefined {
-  const businessObject = asModdle(prop(shape, 'bpmnElement'));
+  const businessObject = asModdle(getProperty(shape, 'bpmnElement'));
   if (!businessObject) {
     warn(`BPMNShape ${idOf(shape) ?? '<no id>'} has no bpmnElement — skipped`);
     return undefined;
   }
-  const bounds = asModdle(prop(shape, 'bounds'));
+  const bounds = asModdle(getProperty(shape, 'bounds'));
   if (!bounds) warn(`BPMNShape for ${idOf(businessObject) ?? '<no id>'} has no dc:Bounds — placed at 0,0`);
   const node: SceneNode = {
     id: idOf(businessObject) ?? idOf(shape) ?? '',
     kind: 'node',
     type: businessObject.$type,
     businessObject,
-    x: num(prop(bounds, 'x')) ?? 0,
-    y: num(prop(bounds, 'y')) ?? 0,
-    width: num(prop(bounds, 'width')) ?? 0,
-    height: num(prop(bounds, 'height')) ?? 0,
+    x: num(getProperty(bounds, 'x')) ?? 0,
+    y: num(getProperty(bounds, 'y')) ?? 0,
+    width: num(getProperty(bounds, 'width')) ?? 0,
+    height: num(getProperty(bounds, 'height')) ?? 0,
     children: [],
     incoming: [],
     outgoing: [],
     ...readColorsOf(shape),
   };
-  const font = parseFont(prop(shape, FONT_PROPERTY));
+  const font = parseFont(getProperty(shape, FONT_PROPERTY));
   if (font) node.font = font;
-  const isExpanded = prop(shape, 'isExpanded');
+  const isExpanded = getProperty(shape, 'isExpanded');
   if (typeof isExpanded === 'boolean') node.isExpanded = isExpanded;
-  const isMarkerVisible = prop(shape, 'isMarkerVisible');
+  const isMarkerVisible = getProperty(shape, 'isMarkerVisible');
   if (typeof isMarkerVisible === 'boolean') node.isMarkerVisible = isMarkerVisible;
   (node as { di?: ModdleObject }).di = shape;
   return node;
 }
 
 function buildEdge(di: ModdleObject, warn: (m: string) => void): SceneEdge | undefined {
-  const businessObject = asModdle(prop(di, 'bpmnElement'));
+  const businessObject = asModdle(getProperty(di, 'bpmnElement'));
   if (!businessObject) {
     warn(`BPMNEdge ${idOf(di) ?? '<no id>'} has no bpmnElement — skipped`);
     return undefined;
   }
-  const waypoints: Point[] = asList(prop(di, 'waypoint')).map((wp) => ({
-    x: num(prop(wp, 'x')) ?? 0,
-    y: num(prop(wp, 'y')) ?? 0,
+  const waypoints: Point[] = asList(getProperty(di, 'waypoint')).map((wp) => ({
+    x: num(getProperty(wp, 'x')) ?? 0,
+    y: num(getProperty(wp, 'y')) ?? 0,
   }));
   const edge: SceneEdge = {
     id: idOf(businessObject) ?? idOf(di) ?? '',
@@ -175,7 +176,7 @@ function buildEdge(di: ModdleObject, warn: (m: string) => void): SceneEdge | und
   };
   const { stroke } = readColorsOf(di);
   if (stroke) edge.stroke = stroke;
-  const font = parseFont(prop(di, FONT_PROPERTY));
+  const font = parseFont(getProperty(di, FONT_PROPERTY));
   if (font) edge.font = font;
   (edge as { di?: ModdleObject }).di = di;
   return edge;
@@ -185,14 +186,14 @@ function buildEdge(di: ModdleObject, warn: (m: string) => void): SceneEdge | und
 function attachLabel(scene: Scene, owner: Drawable): void {
   const di = (owner as { di?: ModdleObject }).di;
   delete (owner as { di?: ModdleObject }).di;
-  const bounds = asModdle(prop(asModdle(prop(di, 'label')), 'bounds'));
-  const x = num(prop(bounds, 'x'));
-  const y = num(prop(bounds, 'y'));
-  const name = prop(owner.businessObject, 'name');
+  const bounds = asModdle(getProperty(asModdle(getProperty(di, 'label')), 'bounds'));
+  const x = num(getProperty(bounds, 'x'));
+  const y = num(getProperty(bounds, 'y'));
+  const name = getProperty(owner.businessObject, 'name');
   if (x !== undefined && y !== undefined && typeof name === 'string' && name) {
-    const width = num(prop(bounds, 'width'))
+    const width = num(getProperty(bounds, 'width'))
       ?? (owner.kind === 'node' ? nodeLabelBox(owner, name).width : 90);
-    const height = num(prop(bounds, 'height')) ?? labelHeightFor(name, width);
+    const height = num(getProperty(bounds, 'height')) ?? labelHeightFor(name, width);
     const label = mintLabel(owner, { x, y, width, height }, true);
     scene.elementsById.set(label.id, label);
   }
@@ -204,8 +205,8 @@ function attachLabel(scene: Scene, owner: Drawable): void {
  * its moddle `$parent`.
  */
 function resolveEndpoints(edge: SceneEdge, byBusinessObject: Map<ModdleObject, Drawable>): void {
-  let source = asNode(byBusinessObject.get(refBO(prop(edge.businessObject, 'sourceRef'))!));
-  let target = asNode(byBusinessObject.get(refBO(prop(edge.businessObject, 'targetRef'))!));
+  let source = asNode(byBusinessObject.get(refBO(getProperty(edge.businessObject, 'sourceRef'))!));
+  let target = asNode(byBusinessObject.get(refBO(getProperty(edge.businessObject, 'targetRef'))!));
   if (!source || !target) {
     const owner = asNode(byBusinessObject.get(parentOf(edge.businessObject)!));
     if (owner && owner !== source && owner !== target) {
@@ -233,13 +234,13 @@ function collectRefContainment(byBusinessObject: Map<ModdleObject, Drawable>): M
   for (const [bo, element] of byBusinessObject) {
     if (element.kind !== 'node') continue;
     if (bo.$type === PARTICIPANT_TYPE) {
-      const processRef = asModdle(prop(bo, 'processRef'));
+      const processRef = asModdle(getProperty(bo, 'processRef'));
       if (processRef && processRef !== bo) containment.set(processRef, bo);
       continue;
     }
     if (bo.$type !== LANE_TYPE) continue;
     const depth = laneNesting(bo);
-    for (const member of asList(prop(bo, 'flowNodeRef'))) {
+    for (const member of asList(getProperty(bo, 'flowNodeRef'))) {
       if (member === bo) continue;
       const claimed = claimDepth.get(member);
       if (claimed !== undefined && claimed >= depth) continue;

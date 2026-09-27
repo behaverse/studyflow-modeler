@@ -15,9 +15,10 @@
 
 import { BPMN } from '@core/constants.ts';
 import { ensureChoreographyParticipants, isTypedChoreography, readChoreographyBands } from '@core/document/index.ts';
+import { getProperty, setProperty } from '@core/element/moddle.ts';
 
 import { IdGenerator } from '@canvas/study/ids.ts';
-import { asList, nameOf, prop, setProp } from '@canvas/study/moddle.ts';
+import { asList, nameOf } from '@canvas/study/moddle.ts';
 import type { ModdleObject, Scene, SceneNode } from '@canvas/study/scene.ts';
 
 /** One of the two participant bands of a choreography task. */
@@ -38,7 +39,7 @@ export function isChoreographyTask(node: SceneNode): boolean {
 
 /** The task's ordered `participantRef` list (possibly shorter than two, or empty). */
 export function participantRefs(bo: ModdleObject): ModdleObject[] {
-  return asList(prop(bo, 'participantRef'));
+  return asList(getProperty(bo, 'participantRef'));
 }
 
 /** What a band write did, and which depictions of it went stale. */
@@ -72,7 +73,7 @@ export function applyBandName(
   if (!pair) return undefined;
   const participant = (band === 'top' ? pair[0] : pair[1]) as ModdleObject;
   const renamed = nameOf(participant) !== name;
-  if (renamed) setProp(participant, 'name', name);
+  if (renamed) setProperty(participant, 'name', name);
   return { participant, minted, renamed };
 }
 
