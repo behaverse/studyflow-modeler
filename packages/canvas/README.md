@@ -59,10 +59,11 @@ An edit, end to end: a pointer press becomes a gesture; while it moves, the gest
 
 - The mutator is the only committed writer, and every commit bumps `scene.revision`. A view draws from the commit, so an edit never redraws by hand.
 - The scene is the truth while editing. The canvas reads DI only in `study/import.ts` and writes it only in `study/di.ts`, as one plane. It reads the first plane only; what a further one draws is dropped, with a warning.
-- A caption is an element of its own, with the id `<owner id>_label`.
+- A caption is an element of its own, with the id `<owner id>_label`. What it captions places it, until it is moved by hand or the file gives it a box: then it is `pinned` (its record says so) and stays where it was put.
 - Paint order is `zRankOf` (`study/tree.ts`).
 - A view's scope is its own state, not the scene's. An edge docks on what its own plane shows (`planeOf`), whatever a view is drilled into.
-- Undo is the study's. After each commit it keeps the document as `.studyflow.yaml` text (unless the text is what it already holds); `undo()` and `redo()` read one back as a new scene, and each view draws it afresh, keeping its scope, camera and selection by id. A load starts the history over.
+- A move takes a shape's contents, its boundary events and its pinned caption along. A route still as the router would draw it is drawn afresh as its ends move; a route bent by hand keeps its bends, re-docked at the moving end.
+- Undo is the study's. After each commit it keeps the document as `.studyflow.yaml` text (unless the text is what it already holds); `undo()` and `redo()` read one back as a new scene, and each view draws it afresh, keeping its scope, camera and selection by id. A load starts the history over. A run of arrow-key nudges of one selection is one step.
 
 ## Tests
 
