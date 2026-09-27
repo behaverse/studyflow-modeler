@@ -349,6 +349,24 @@ test('reads are plain data: a record by id, the root, a filtered list; the moddl
   expect(study.businessObject('Count')?.$type).toBe('bpmn:Property');
 });
 
+test('attributes lists what set takes on an element, by the names the file spells, with what each holds now', () => {
+  const study = open();
+  const named = (id: string, name: string) => study.attributes(id)!.find((attribute) => attribute.name === name);
+
+  expect(named('Task_1', 'name')).toEqual({ name: 'name', type: 'String', value: 'Read' });
+  expect(named('Task_1', 'duration')).toMatchObject({ type: 'String', description: expect.stringContaining('How long') });
+  expect(named('Task_1', 'duration')).not.toHaveProperty('value');
+  expect(named('Task_1', 'documentation'), 'kept in a body, it is text').toMatchObject({ type: 'String' });
+  expect(named('Task_1', 'documentation')).not.toHaveProperty('many');
+  expect(study.set({ id: 'Task_1', attribute: 'duration', value: 'PT5M' }).ok).toBe(true);
+  expect(named('Task_1', 'duration')?.value).toBe('PT5M');
+  // Each name is one set takes: written back as it stands, every one is accepted.
+  for (const { name, value } of study.attributes('Task_1')!) {
+    expect(study.set({ id: 'Task_1', attribute: name, value: value ?? null }).ok, name).toBe(true);
+  }
+  expect(study.attributes('Nope')).toBeUndefined();
+});
+
 // --- tools -------------------------------------------------------------------------------
 
 /** A call as an MCP client makes it: the argument and the answer each cross JSON. */
@@ -362,7 +380,7 @@ test('an MCP client drives a study through its tools: listed as JSON, called wit
 
   const tools = JSON.parse(JSON.stringify(Study.tools)) as StudyTool[];
   expect(tools, 'JSON through and through').toEqual(Study.tools);
-  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'catalog', 'can']);
+  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'attributes', 'catalog', 'can']);
   expect(tools.find((tool) => tool.name === 'connect')?.inputSchema).toMatchObject({ type: 'object', required: ['from', 'to'] });
 
   const appended = call(study, 'append', { from: 'Task_1', type: 'bpmn:EndEvent', id: 'Done' });

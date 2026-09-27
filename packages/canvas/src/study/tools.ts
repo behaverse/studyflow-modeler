@@ -4,6 +4,7 @@
  * answers with one JSON object; a write also says what it added, changed and removed, by id.
  */
 
+import type { AttributeRecord } from '@canvas/study/attributes.ts';
 import { SHAPE_TYPES, type Catalog } from '@canvas/study/catalog.ts';
 import type { ElementRecord } from '@canvas/study/records.ts';
 import type { StudyResult, Verdict } from '@canvas/study/Study.ts';
@@ -39,7 +40,7 @@ export interface StudyTool {
 export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'resize', 'reroute', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
-export type ToolName = StepTool | 'document' | 'get' | 'list' | 'catalog' | 'can' | 'batch' | 'undo' | 'redo';
+export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'catalog' | 'can' | 'batch' | 'undo' | 'redo';
 
 /** The verbs `can` answers for: what makes or retypes something, where the rules decide. */
 export const ASKABLE_TOOLS = ['append', 'connect', 'replace'] as const;
@@ -52,6 +53,7 @@ export type ToolResult =
   | { readonly ok: true; readonly yaml: string }
   | { readonly ok: true; readonly element: ElementRecord }
   | { readonly ok: true; readonly elements: readonly ElementRecord[] }
+  | { readonly ok: true; readonly attributes: readonly AttributeRecord[] }
   | ({ readonly ok: true } & Catalog)
   | Verdict;
 
@@ -109,6 +111,7 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     type: STRING,
     within: ID,
   }, []),
+  tool('attributes', "The attributes an element (or the root) takes, by the names `set` takes: each one's type, description and, for an enumeration, its values; when the inspector shows it; and what it holds now, when that is plain JSON.", { id: ID }, ['id']),
   tool('catalog', "What add, append and replace make: the BPMN types, the schema types extending them, and the templates, each with a title and a description.", {}, []),
   tool('can', "Whether append, connect or replace would run on `args`, without writing, and why not. Leave out what is not decided yet to ask about any: append's `type`, whether anything may follow `from`; connect's `to`, whether a flow may leave it; replace's `type`, whether it may be retyped at all.", {
     tool: { type: 'string', enum: ASKABLE_TOOLS },
@@ -141,7 +144,7 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     id: ID,
     waypoints: { type: 'array', items: POINT, description: 'Two points at least, from its source to its target.' },
   }, ['id'], write(false, true)),
-  tool('set', "Set an attribute of an element, or of the root, where its schema keeps it; 'name' renames, and null clears.", {
+  tool('set', "Set an attribute of an element, or of the root, where its schema keeps it (`attributes` lists them); 'name' renames, and null clears.", {
     id: ID,
     attribute: { type: 'string', description: "Its name, as the document spells it: 'name', 'duration', 'cognitive:instrument'." },
     value: { description: 'Any JSON value the attribute takes.' },

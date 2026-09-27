@@ -9,6 +9,7 @@ import { categoryOf, isExpandable } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute, StudyflowElement } from '@core/element/index.ts';
 import type { Moddle } from '@core/element/moddle';
 import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts';
+import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { writeDi } from '@canvas/study/di.ts';
@@ -174,6 +175,12 @@ export class Study {
       .filter((record) => !filter.type || record.type === filter.type || record.extension === filter.type);
   }
 
+  /** The attributes the element `id` takes, as data: by the names `set` takes, with what each holds now. */
+  attributes(id: string): AttributeRecord[] | undefined {
+    const found = this.find(id);
+    return found && attributesOf(found.moddle);
+  }
+
   /** The moddle behind `id`, for in-process hosts reading what a record leaves out; not a tool. */
   businessObject(id: string): ModdleObject | undefined {
     return this.find(id)?.moddle;
@@ -203,6 +210,10 @@ export class Study {
       case 'list': return { ok: true, elements: this.list(argument) };
       case 'catalog': return { ok: true, ...this.catalog() };
       case 'can': return this.can(argument.tool, argument.args);
+      case 'attributes': {
+        const attributes = this.attributes(argument.id);
+        return attributes ? { ok: true, attributes } : refused(`no element '${argument.id}'`);
+      }
       case 'batch': return this.batch(argument);
       case 'undo': return this.undo();
       case 'redo': return this.redo();
