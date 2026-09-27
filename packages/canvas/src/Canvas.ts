@@ -28,13 +28,20 @@ import { routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { CONNECTION, type RuleElement, type Rules } from '@canvas/study/rules.ts';
 import { Layers } from '@canvas/view/layers.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
-import { Viewport, type Viewbox } from '@canvas/view/viewport.ts';
+import { Viewport, type Insets, type Viewbox } from '@canvas/view/viewport.ts';
 
 export interface CanvasOptions extends RendererOptions {
   snapToGrid?: boolean;
   /** Whether a person may edit the study through this view (the default); one that is not only selects, pans and zooms. */
   editable?: boolean;
+  /**
+   * How far the host's own UI (a palette, a panel) reaches into the view from each edge, asked at each fit and
+   * reveal: those keep the diagram inside the rest.
+   */
+  insets?: () => Insets;
 }
+
+export type { Insets };
 
 export interface CanvasViewbox extends Viewbox {
   /** The drawn diagram. */
@@ -128,7 +135,7 @@ export class Canvas {
     injectCanvasStyles(container.ownerDocument);
     this.layers = new Layers(this.root);
     ensureArrowMarkers(this.layers.defs);
-    this.viewport = new Viewport(this.root, this.container, () => this.placeAnchor());
+    this.viewport = new Viewport(this.root, this.container, () => this.placeAnchor(), options.insets);
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => {
         this.viewport.refitIfPending();

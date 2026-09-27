@@ -11,6 +11,14 @@ export interface Viewbox {
   scale: number;
 }
 
+/** How far a host's own UI reaches into the view from each edge, in CSS pixels. */
+export interface Insets {
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+}
+
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
 
@@ -27,10 +35,13 @@ export class Viewport {
   private box = { x: 0, y: 0, width: 1000, height: 1000 };
   /** Told after every move of the camera, once constructed. */
   private onChange?: () => void;
+  /** What the host's UI covers now, asked at each fit and reveal. */
+  private readonly insets?: () => Insets;
 
-  constructor(root: SVGSVGElement, container: HTMLElement, onChange?: () => void) {
+  constructor(root: SVGSVGElement, container: HTMLElement, onChange?: () => void, insets?: () => Insets) {
     this.root = root;
     this.container = container;
+    this.insets = insets;
     this.applyViewbox();
     this.onChange = onChange;
   }
@@ -96,26 +107,37 @@ export class Viewport {
     this.fitBounds(pending.bounds, pending.padding);
   }
 
-  /** Fit `bounds` with `padding`, never magnifying past the UI scale. */
+  /**
+   * The part of the view the host's UI leaves free, in CSS pixels from the view's top left. Insets that would leave
+   * nothing along an axis are ignored along it.
+   */
+  private free(): { left: number; top: number; width: number; height: number } {
+    const width = this.clientWidth();
+    const height = this.clientHeight();
+    const { top = 0, right = 0, bottom = 0, left = 0 } = this.insets?.() ?? {};
+    const across = width - left - right > 0;
+    const down = height - top - bottom > 0;
+    return {
+      left: across ? left : 0,
+      top: down ? top : 0,
+      width: across ? width - left - right : width,
+      height: down ? height - top - bottom : height,
+    };
+  }
+
+  /** Fit `bounds` with `padding` in the part of the view the host's UI leaves free, never magnifying past the UI scale. */
   fitBounds(bounds: Bounds, padding = 40): void {
     this.pendingFit = this.container.clientWidth > 0 && this.container.clientHeight > 0 ? undefined : { bounds, padding };
     const width = Math.max(1, bounds.width);
     const height = Math.max(1, bounds.height);
-    const aspect = this.clientWidth() / this.clientHeight() || 1;
-    let boxWidth = width + padding * 2;
-    let boxHeight = height + padding * 2;
-    if (boxWidth / boxHeight < aspect) boxWidth = boxHeight * aspect;
-    else boxHeight = boxWidth / aspect;
-    const magnification = this.clientWidth() / boxWidth / uiScale();
-    if (Number.isFinite(magnification) && magnification > 1) {
-      boxWidth *= magnification;
-      boxHeight *= magnification;
-    }
+    const free = this.free();
+    const scale = Math.min(free.width / (width + padding * 2), free.height / (height + padding * 2), uiScale());
+    // The whole view at that scale, placed so the bounds sit centred in the free part.
     this.box = {
-      x: bounds.x + width / 2 - boxWidth / 2,
-      y: bounds.y + height / 2 - boxHeight / 2,
-      width: boxWidth,
-      height: boxHeight,
+      x: bounds.x + width / 2 - (free.left + free.width / 2) / scale,
+      y: bounds.y + height / 2 - (free.top + free.height / 2) / scale,
+      width: this.clientWidth() / scale,
+      height: this.clientHeight() / scale,
     };
     this.applyViewbox();
   }
@@ -145,10 +167,17 @@ export class Viewport {
     return { x: topLeft.x, y: topLeft.y, width: bottomRight.x - topLeft.x, height: bottomRight.y - topLeft.y };
   }
 
+  /** Centre `element` in the part of the view the host's UI leaves free, at the scale the view has. */
   scrollToElement(element: SceneElement): void {
     const center = elementCenter(element);
     if (!center) return;
-    this.box = { ...this.box, x: center.x - this.box.width / 2, y: center.y - this.box.height / 2 };
+    const { scale, ox, oy } = this.rendering();
+    const free = this.free();
+    this.box = {
+      ...this.box,
+      x: center.x - (free.left + free.width / 2 - ox) / scale,
+      y: center.y - (free.top + free.height / 2 - oy) / scale,
+    };
     this.applyViewbox();
   }
 }

@@ -5,7 +5,7 @@
  * only (eslint.config.mjs), and the canvas's own specs may reach in. `./element` is `<studyflow-canvas>`.
  */
 
-export { Canvas, type CanvasEvents, type CanvasOptions, type CanvasViewbox } from './Canvas.ts';
+export { Canvas, type CanvasEvents, type CanvasOptions, type CanvasViewbox, type Insets } from './Canvas.ts';
 export { Study, type ChangedIds, type OpenOptions, type StudyChange, type StudyResult, type Verdict } from './study/Study.ts';
 export { renderSvg, type RenderSvgOptions } from './render/renderSvg.ts';
 export type { ElementRecord } from './study/records.ts';

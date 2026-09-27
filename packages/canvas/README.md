@@ -23,10 +23,10 @@ canvas.select(made.id!);
 
 ## Canvas
 
-`new Canvas(container, study, { iconResolver, editable, snapToGrid })` draws in the container's document. Each view keeps its own selection, scope and camera; `editable: false` (or `setEditable`) makes one a view to look at: it selects, pans and zooms, and edits nothing.
+`new Canvas(container, study, { iconResolver, editable, snapToGrid, insets })` draws in the container's document. Each view keeps its own selection, scope and camera; `editable: false` (or `setEditable`) makes one a view to look at: it selects, pans and zooms, and edits nothing.
 
 - **Selection and scope:** `selection` (ids) and `select(ids)`; `scope` (the id of the container the view is drilled into), `setScope(id)` (`undefined` goes back out) and `scopePath`; `draws(id)`, whether the view draws an element.
-- **Camera:** `viewbox` and `setViewbox(box)`, `zoom(to)` (a scale, `'in'`, `'out'` or `'fit'`), `reveal(id)`, `screenBox(id)` (an element's box on screen).
+- **Camera:** `viewbox` and `setViewbox(box)`, `zoom(to)` (a scale, `'in'`, `'out'` or `'fit'`), `reveal(id)`, `screenBox(id)` (an element's box on screen). A fit and a reveal keep the diagram clear of the host's own UI: `insets()` says how far that reaches into the view from each edge, and is asked each time, so it may measure the page.
 - **Host overlays:** `anchor(el, ids)` keeps a host element beside the outline of those elements, following the camera and the edits and stepping aside for a gesture (the context pad floats on it); `mark(ids, marker, on?)` draws `dimmed` and `error` itself, and any other marker is a class `sf-mark-<marker>` for the host's CSS; `layer(name)` is a layer of the host's own above the diagram, in diagram coordinates. The palette is also CSS properties (`--sf-ink-text` and the rest), for a host drawing beside it.
 - **A person's edits:** `startCreate(event, what)`, `append(from, what)` and its ghost `previewAppend(from, what)`, `startConnect(from, event)`, `editLabel(id)`, `selectAll()`, `deleteSelection()`, each over the study's verbs. Ctrl/Cmd+Z undoes and Shift+Ctrl/Cmd+Z redoes, through the study.
 - **Events**, through `on(event, listener)`: `select` (the ids selected), `scope` (what it shows: on a drill-down, and whenever it draws its study afresh after a load, an undo or a redo, before it reselects), `appendMenu` (the `a` key, on the selection). What an edit did, the study says, after every view has drawn it.
