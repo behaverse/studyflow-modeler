@@ -13,7 +13,7 @@ import {
 } from '@canvas/study/orthogonal.ts';
 import type { Point } from '@canvas/study/scene.ts';
 
-import { centre, click, dragBy, edge, installDocument, loadYaml, node, type Loaded } from './canvasHarness';
+import { centre, click, dragBy, edge, installDocument, loadYaml, node, sceneOf, type Loaded } from './canvasHarness';
 
 /**
  * Routing and docking. `route()` draws an orthogonal path of at most five points
@@ -181,7 +181,7 @@ function load(): Loaded {
 
 test('rerouting twice commits nothing the second time', async () => {
   const { canvas } = load();
-  const scene = canvas.getScene()!;
+  const scene = sceneOf(canvas);
   const kinked = edge(canvas, 'Flow_1');
   const before = scene.revision;
   const reroute = (): string[] => ['Flow_1', 'Flow_2'].flatMap((id) => canvas.study.reroute({ id }).changed);

@@ -4,7 +4,7 @@ import type { Canvas, NewShape } from '@canvas/index.ts';
 import { APPEND_DISTANCE } from '@canvas/study/autoplace.ts';
 import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 
-import { diOf, edge, loadYaml, node, written, type Loaded } from './canvasHarness';
+import { diOf, edge, loadYaml, node, sceneOf, written, type Loaded } from './canvasHarness';
 
 /**
  * Click-append (`study/autoplace.ts`). A clicked append needs no pointer, so the
@@ -70,7 +70,7 @@ function appendFrom(canvas: Canvas, source: SceneNode, what: NewShape): SceneNod
 }
 
 function edgeBetween(canvas: Canvas, sourceId: string, targetId: string): SceneEdge | undefined {
-  for (const element of canvas.getScene()!.elementsById.values()) {
+  for (const element of sceneOf(canvas).elementsById.values()) {
     if (element.kind !== 'edge') continue;
     const edge = element as SceneEdge;
     if (edge.source?.id === sourceId && edge.target?.id === targetId) return edge;

@@ -18,8 +18,11 @@
 
 import { JSDOM } from 'jsdom';
 
-import { Canvas, Study, isRootElement } from '@canvas/index.ts';
+import { Canvas, Study } from '@canvas/index.ts';
 import { setDocument } from '@canvas/render/svg.ts';
+import type { Rules } from '@canvas/study/rules.ts';
+import type { Scene } from '@canvas/study/scene.ts';
+import { studyInternals } from '@canvas/study/Study.ts';
 import type { Bounds, CanvasOptions, ImportOptions, SceneEdge, SceneLabel, SceneNode } from '@canvas/index.ts';
 import { studyflowToDefinitions } from '@core/document';
 import { freshModdle } from '@tests/schemas';
@@ -153,24 +156,34 @@ export function doubleClick(canvas: Canvas, at: Pt): void {
 
 // --- reading back -------------------------------------------------------------
 
+/** The scene a canvas draws, as its study holds it: what a spec reads geometry and structure off. */
+export function sceneOf(canvas: Canvas): Scene {
+  return studyInternals(canvas.study).scene;
+}
+
+/** The rules the canvas's gestures and its study ask. */
+export function rulesOf(canvas: Canvas): Rules {
+  return studyInternals(canvas.study).rules;
+}
+
 /** The node `id` names; a spec that asks for anything else fails here, not on a later property. */
 export function node(canvas: Canvas, id: string): SceneNode {
-  const element = canvas.get(id);
-  if (!element || isRootElement(element) || element.kind !== 'node') throw new Error(`no node ${id}`);
+  const element = sceneOf(canvas).elementsById.get(id);
+  if (element?.kind !== 'node') throw new Error(`no node ${id}`);
   return element;
 }
 
 /** The edge `id` names. */
 export function edge(canvas: Canvas, id: string): SceneEdge {
-  const element = canvas.get(id);
-  if (!element || isRootElement(element) || element.kind !== 'edge') throw new Error(`no edge ${id}`);
+  const element = sceneOf(canvas).elementsById.get(id);
+  if (element?.kind !== 'edge') throw new Error(`no edge ${id}`);
   return element;
 }
 
 /** The caption `id` names (`<owner id>_label`). */
 export function label(canvas: Canvas, id: string): SceneLabel {
-  const element = canvas.get(id);
-  if (!element || isRootElement(element) || element.kind !== 'label') throw new Error(`no label ${id}`);
+  const element = sceneOf(canvas).elementsById.get(id);
+  if (element?.kind !== 'label') throw new Error(`no label ${id}`);
   return element;
 }
 

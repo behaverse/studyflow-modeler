@@ -18,7 +18,7 @@ import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import { modelOf } from '@canvas/study/moddle.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import { studyInternals, type ChangedIds, type Study, type StudyResult } from '@canvas/study/Study.ts';
-import { isRootElement, type Bounds, type ElementRef, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
+import { isRootElement, type Bounds, type ElementRef, type ModdleObject, type Point, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { shapeOf } from '@canvas/study/templates.ts';
 import { boundsOf, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf } from '@core/document/outline.ts';
@@ -168,6 +168,8 @@ export class Canvas {
       scope: () => this.scopeNode,
       appendMenu: (ids) => this.emit('appendMenu', ids),
       selection: this.selectionSet,
+      scene: () => this.scene,
+      rules: this.rules,
     });
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
@@ -241,10 +243,6 @@ export class Canvas {
     if (kept.length > 0) this.selectionSet.select(kept);
   }
 
-  getScene(): Scene {
-    return this.scene;
-  }
-
   getContainer(): HTMLElement {
     return this.container;
   }
@@ -281,10 +279,6 @@ export class Canvas {
     this.selectionSet.select(ids);
   }
 
-  getRules(): Rules {
-    return this.rules;
-  }
-
   getLabelEditing(): LabelEditing {
     return this.labelEditing;
   }
@@ -295,19 +289,13 @@ export class Canvas {
 
   // --- elements -------------------------------------------------------------------
 
-  get(id: string): SceneElement | RootElement | undefined {
-    const scene = this.scene;
-    if (id === scene.rootElement.id) return scene.rootElement;
-    return scene.elementsById.get(id);
-  }
-
   /** Every node, edge and label, in scene order. */
-  all(): SceneElement[] {
+  private all(): SceneElement[] {
     return [...this.scene.elementsById.values()];
   }
 
   /** The live element behind an id, an element or a stale copy; `undefined` when nothing answers (the root included). */
-  resolveElement(value: ElementRef | undefined): SceneElement | undefined {
+  private resolveElement(value: ElementRef | undefined): SceneElement | undefined {
     const scene = this.scene;
     if (!value) return undefined;
     if (typeof value === 'string') return scene.elementsById.get(value);

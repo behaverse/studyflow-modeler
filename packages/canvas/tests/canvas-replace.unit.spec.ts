@@ -4,7 +4,7 @@ import type { Canvas, NewShape } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/study/orthogonal.ts';
 import type { SceneNode } from '@canvas/study/scene.ts';
 
-import { canvasOn, edge, loadYaml, node, xmlOf, type Loaded } from './canvasHarness';
+import { canvasOn, edge, loadYaml, node, rulesOf, sceneOf, xmlOf, type Loaded } from './canvasHarness';
 
 /**
  * Retyping an element in place — the context pad's wrench, "Change element",
@@ -92,7 +92,7 @@ test('replacing a task mints the new type, keeps the name and rewires both flows
   // And the whole thing re-imports — the strongest statement that nothing was left
   // dangling (a flow pointing at an unfiled business object throws here).
   const { rootElement: reimported } = await moddle.fromXML(xml);
-  expect(canvasOn(reimported).get(id)).toBeTruthy();
+  expect(canvasOn(reimported).study.get(id)).toBeTruthy();
 });
 
 test('a replacement keeps the centre, in its own type\'s footprint unless both types share a shape', async () => {
@@ -128,11 +128,11 @@ test('replacing an element with the type it already is writes nothing', async ()
   const loaded = load();
   const { canvas } = loaded;
   const before = await xmlOf(loaded);
-  const revision = canvas.getScene()!.revision;
+  const revision = sceneOf(canvas).revision;
 
   expect(canvas.study.replace({ id: 'Task_1', type: 'bpmn:Task' })).toEqual({ ok: true, id: 'Task_1', added: [], changed: [], removed: [] });
 
-  expect(canvas.getScene()!.revision).toBe(revision);
+  expect(sceneOf(canvas).revision).toBe(revision);
   expect(await xmlOf(loaded)).toBe(before);
 });
 
@@ -144,11 +144,11 @@ test('a container with contents is not replaceable, so nothing inside it can be 
   ));
   const container = node(canvas, 'Task_1');
 
-  expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(false);
+  expect(rulesOf(canvas).canReplace(container, 'bpmn:Task')).toBe(false);
   expect(canvas.study.replace({ id: container.id, type: 'bpmn:Task' })).toMatchObject({ ok: false });
   // Emptied, it is replaceable.
   canvas.study.remove({ ids: ['Inner'] });
-  expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(true);
+  expect(rulesOf(canvas).canReplace(container, 'bpmn:Task')).toBe(true);
 });
 
 test('replacing an event with a variant of the same type mints the event definition', async () => {

@@ -458,19 +458,20 @@ test('a `labelText` option resolves placeholders in drawn labels; the model keep
   const canvas = canvasOn(definitions, { labelText: (bo, name) => resolvePlaceholders(name, definitions, bo?.id ?? '') });
 
   // The external label of the end event: resolved from its own state entry.
-  const labelId = canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Excluded_Pre')!.id;
+  const captionOf = (of: typeof canvas, owner: string): string => of.study.list({ kind: 'label' }).find((caption) => caption.owner === owner)!.id;
+  const labelId = captionOf(canvas, 'Excluded_Pre');
   expect(textsOf(canvas, labelId).join(' ')).toBe('Excluded (n=3)');
   // The task has no `count` in scope: its placeholder stays as written; `{reached}` resolves from `_meta.reached`.
   expect(textsOf(canvas, 'Task_1').join(' ')).toBe('Screen (n={count}, reached 2)');
   // A sequence flow's label too, from the flow's own count.
-  const flowLabel = canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Flow_1')!.id;
+  const flowLabel = captionOf(canvas, 'Flow_1');
   expect(textsOf(canvas, flowLabel).join(' ')).toBe('excluded (n=1)');
   // Serialization is untouched.
   expect(definitions.rootElements[0].flowElements[1].name).toBe('Excluded (n={count})');
 
   // Without the option, nothing is resolved.
   const plain = loadYaml(STATE_YAML);
-  const plainLabel = plain.canvas.all().find((el) => el.kind === 'label' && (el as any).owner?.id === 'Excluded_Pre')!.id;
+  const plainLabel = captionOf(plain.canvas, 'Excluded_Pre');
   expect(textsOf(plain.canvas, plainLabel).join(' ')).toBe('Excluded (n={count})');
 });
 
@@ -741,7 +742,7 @@ test('a pool of several participant instances marks them at the foot of its titl
 
 test('a pool with multiplicity and no lanes marks it the same way, and a short band truncates the name instead', async () => {
   const bare = loadYaml(BARE_POOL_YAML, ICONS).canvas;
-  expect(bare.get('Lane_Screen'), 'no lanes at all').toBeUndefined();
+  expect(bare.study.get('Lane_Screen'), 'no lanes at all').toBeUndefined();
   const marker = bare.getGraphics('Pool_Subjects')!.querySelector('[data-icon-key="parallel"]')!;
   expect(Number(marker.getAttribute('x')) + Number(marker.getAttribute('width')) / 2).toBeCloseTo(PARTICIPANT_BAND / 2, 6);
   // The bars sit a count's row higher than the band's foot, and the count fills that row.

@@ -14,7 +14,8 @@ import { collectSnapTargets, snapMove, snapPoint, type SnapTargets } from '@canv
 import type { Connect, ConnectionEnd } from '@canvas/interaction/connect.ts';
 import type { Create } from '@canvas/interaction/create.ts';
 import type { CreatePrototype, NewElement } from '@canvas/study/prototype.ts';
-import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Rules } from '@canvas/study/rules.ts';
+import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { isExpandable } from '@canvas/study/tree.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
@@ -95,6 +96,10 @@ export interface GestureTools {
   appendMenu(ids: string[]): void;
   /** The selected elements and their chrome. */
   selection: Selection;
+  /** The scene the view draws: another one after a load, an undo or a redo. */
+  scene(): Scene;
+  /** What may connect, contain or resize what. */
+  rules: Rules;
 }
 
 export class Gestures {
@@ -211,7 +216,7 @@ export class Gestures {
 
   private handlePointerDown(ev: PointerEvent): void {
     const canvas = this.canvas;
-    const scene = canvas.getScene();
+    const scene = this.tools.scene();
     if (!scene) return;
     if (typeof ev.button === 'number' && ev.button !== 0) return;
     if (ev.pointerType === 'touch') {
@@ -322,7 +327,7 @@ export class Gestures {
     if (g.intent === 'marquee') {
       g.marquee = true;
       this.drawMarquee(g.downDiagram, pt);
-      const scene = this.canvas.getScene();
+      const scene = this.tools.scene();
       if (scene) {
         const rect = normalizeRect({ x: g.downDiagram.x, y: g.downDiagram.y, width: pt.x - g.downDiagram.x, height: pt.y - g.downDiagram.y });
         const enclosed = nodesIntersecting(scene, rect, this.tools.scope());
@@ -374,13 +379,12 @@ export class Gestures {
   }
 
   private beginDrag(g: Gesture): boolean {
-    const canvas = this.canvas;
     const drag = this.tools.drag();
     if (!drag) return false;
     const selection = this.tools.selection;
     if (g.intent === 'resize' && g.handle) {
       const target = g.handle.target;
-      if (target.kind === 'node' && !canvas.getRules().canResize(target)) return false;
+      if (target.kind === 'node' && !this.tools.rules.canResize(target)) return false;
       if (!drag.startResize(target, g.handle.handle, g.downDiagram)) return false;
       this.beginSnapping(g);
       selection.addMarker(target.id, RESIZING_MARKER);
@@ -432,7 +436,7 @@ export class Gestures {
 
   private beginSnapping(g: Gesture, moving?: readonly Movable[]): void {
     this.snapContext = undefined;
-    const scene = this.canvas.getScene();
+    const scene = this.tools.scene();
     if (!scene) return;
     if (g.intent === 'move' && moving && moving.length > 0) {
       const lead = moving[0];
@@ -529,7 +533,7 @@ export class Gestures {
       g.sticky = false;
       if (Math.hypot(ev.clientX - g.downScreen.x, ev.clientY - g.downScreen.y) < DRAG_THRESHOLD_PX) return;
     }
-    const scene = canvas.getScene();
+    const scene = this.tools.scene();
     const snapped = g && scene ? this.snapGesture(g, this.eventPoint(ev)) : undefined;
     this.endGesture();
     if (!g || !scene || !snapped) {
@@ -619,7 +623,7 @@ export class Gestures {
   /** Rename, or toggle an expandable container unless the press is on its caption strip. */
   private handleDoubleClick(ev: MouseEvent): void {
     const canvas = this.canvas;
-    if (!canvas.getScene()) return;
+    if (!this.tools.scene()) return;
     const pt = this.eventPoint(ev);
     const element = canvas.hitTest(pt);
     if (!element) return;
@@ -638,14 +642,14 @@ export class Gestures {
 
   private handleHover(ev: MouseEvent): void {
     const canvas = this.canvas;
-    if (!canvas.getScene() || this.gesture || this.pinch) return;
+    if (!this.tools.scene() || this.gesture || this.pinch) return;
     const hit = canvas.hitTest(this.eventPoint(ev));
     this.tools.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined);
   }
 
   /** Wheel pans; `Ctrl`/`Cmd`+wheel zooms about the cursor. */
   private handleWheel(ev: WheelEvent): void {
-    if (!this.canvas.getScene()) return;
+    if (!this.tools.scene()) return;
     ev.preventDefault?.();
     const lines = ev.deltaMode !== 0 ? 16 : 1;
     const deltaX = (ev.deltaX ?? 0) * lines;

@@ -18,6 +18,8 @@ import {
   pointerDown,
   pointerMove,
   pointerUp,
+  rulesOf,
+  sceneOf,
   xmlOf,
   type Loaded,
 } from './canvasHarness';
@@ -105,7 +107,7 @@ test('import builds one tree, with captions as elements of their own', async () 
   expect(node(canvas, 'Task_1').parent).toBeUndefined();
   expect(node(canvas, 'Task_In').parent).toBe(node(canvas, 'Sub_1'));
   expect(node(canvas, 'Sub_1').children).toContain(node(canvas, 'Task_In'));
-  expect(canvas.getScene()!.children.map((el) => el.id)).not.toContain('Task_In');
+  expect(sceneOf(canvas).children.map((el) => el.id)).not.toContain('Task_In');
 
   // An event's name is a label element under the shape; a task's is drawn inside it.
   const startLabel = label(canvas, 'Start_1_label');
@@ -156,7 +158,7 @@ test('only the first diagram is drawn, and a warning names any further one', asy
 
   const warnings: string[] = [];
   const again = canvasOn(definitions, { onWarning: (warning) => warnings.push(warning) });
-  expect(again.get('Task_In')).toBeUndefined();
+  expect(again.study.get('Task_In')).toBeUndefined();
   expect(node(again, 'Sub_1').children).toEqual([]);
   expect(warnings).toEqual([expect.stringContaining('Diagram_Sub')]);
 });
@@ -167,7 +169,7 @@ test('add places a shape centred where it is asked and files its business object
   const { canvas, definitions } = load();
   const created = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 600, y: 118 } }).id!);
   expect({ x: created.x, y: created.y, width: created.width, height: created.height }).toEqual({ x: 550, y: 78, width: 100, height: 80 });
-  expect(canvas.getScene()!.children).toContain(created);
+  expect(sceneOf(canvas).children).toContain(created);
   const process = definitions.rootElements[0];
   expect(process.flowElements.map((el: any) => el.id)).toContain(created.id);
 
@@ -276,7 +278,7 @@ test('dragging a selected task moves it, re-docks its flows and leaves its capti
   expect(onOutline(node(canvas, 'Start_1'), edge(canvas, 'Flow_1').waypoints[0])).toBe(true);
   expect(onOutline(task, edge(canvas, 'Flow_2').waypoints[0])).toBe(true);
   expect(canvas.getGraphics('Task_1')!.getAttribute('transform')).toMatch(/^translate\(\s*240[ ,]+140\s*\)$/);
-  expect(canvas.getScene()!.revision).toBeGreaterThan(0);
+  expect(sceneOf(canvas).revision).toBeGreaterThan(0);
 });
 
 test('Escape abandons a drag and puts the snapshot back', async () => {
@@ -316,7 +318,7 @@ test('a corner handle resizes, clamped to the rules\' minimum', async () => {
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 78 });
   const again = { x: task.x + task.width + 4, y: task.y + task.height + 4 };
   dragBy(canvas, again, { x: again.x - 200, y: again.y - 200 });
-  expect({ width: task.width, height: task.height }).toEqual(canvas.getRules().minSizeFor(task));
+  expect({ width: task.width, height: task.height }).toEqual(rulesOf(canvas).minSizeFor(task));
   // An event has a fixed footprint: no handles to grab.
   const start = node(canvas, 'Start_1');
   click(canvas, centre(start));
@@ -356,10 +358,10 @@ test('Delete removes the selection with its flows from the scene and the documen
   const task = node(canvas, 'Task_1');
   click(canvas, centre(task));
   canvas.getContainer().dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
-  expect(canvas.get('Task_1')).toBeUndefined();
-  expect(canvas.get('Flow_1')).toBeUndefined();
-  expect(canvas.get('Flow_2')).toBeUndefined();
-  expect(canvas.get('Flow_2_label')).toBeUndefined();
+  expect(canvas.study.get('Task_1')).toBeUndefined();
+  expect(canvas.study.get('Flow_1')).toBeUndefined();
+  expect(canvas.study.get('Flow_2')).toBeUndefined();
+  expect(canvas.study.get('Flow_2_label')).toBeUndefined();
   expect(canvas.getGraphics('Task_1')).toBeUndefined();
   const ids = definitions.rootElements[0].flowElements.map((el: any) => el.id);
   expect(ids).not.toContain('Task_1');
@@ -393,7 +395,7 @@ state:
 
   // The root turns collaboration, and the study stays the root: same id, name, documentation, Study.
   const pool = node(canvas, canvas.study.add({ type: 'bpmn:Participant', at: { x: 300, y: 118 } }).id!);
-  const collaboration = canvas.getScene()!.root as any;
+  const collaboration = sceneOf(canvas).root as any;
   expect(canvas.study.root).toMatchObject({ id: 'Study_1', type: 'bpmn:Collaboration' });
   expect(collaboration).toMatchObject({ id: 'Study_1', name: 'Pilot', documentation: [documentation] });
   expect(collaboration.extensionElements.values).toEqual([study]);
@@ -406,10 +408,10 @@ state:
   expect((collaboration as any).artifacts).toEqual([note.businessObject]);
   // One pool of two going leaves the collaboration the root.
   canvas.study.remove({ ids: [canvas.study.add({ type: 'bpmn:Participant', at: { x: 300, y: 900 } }).id!] });
-  expect(canvas.getScene()!.root).toBe(collaboration);
+  expect(sceneOf(canvas).root).toBe(collaboration);
 
   canvas.study.remove({ ids: [pool.id] });
-  expect(canvas.getScene()!.root).toBe(process);
+  expect(sceneOf(canvas).root).toBe(process);
   expect(canvas.study.root).toMatchObject({ id: 'Study_1', type: 'bpmn:Process' });
   expect(process).toMatchObject({ id: 'Study_1', name: 'Pilot', documentation: [documentation] });
   expect(process.extensionElements.values).toEqual([study]);
@@ -425,9 +427,9 @@ test('deleting a caption clears its owner\'s name', async () => {
   canvas.select('Start_1_label');
   canvas.deleteSelection();
   expect(start.businessObject.name).toBe('');
-  expect(canvas.get('Start_1_label')).toBeUndefined();
+  expect(canvas.study.get('Start_1_label')).toBeUndefined();
   expect(canvas.getGraphics('Start_1_label')).toBeUndefined();
-  expect(canvas.get('Start_1')).toBe(start);
+  expect(node(canvas, 'Start_1')).toBe(start);
 });
 
 // --- captions ------------------------------------------------------------------------
@@ -465,7 +467,7 @@ test('renaming through the inline editor re-fits a caption, and naming an unname
 
   // Flow_1 has no name, so no caption until it gets one.
   const flow = edge(canvas, 'Flow_1');
-  expect(canvas.get('Flow_1_label')).toBeUndefined();
+  expect(canvas.study.get('Flow_1_label')).toBeUndefined();
   expect(canvas.editLabel(flow)).toBe(true);
   canvas.getLabelEditing().setValue('hello');
   canvas.getLabelEditing().complete();
@@ -512,7 +514,7 @@ test('expanding a container frames its contents and re-docks its flows, and coll
 
 test('a double click opens or shuts a container in place; on an open one\'s caption strip, or with `e`, it renames it', async () => {
   const { canvas } = load();
-  const scene = canvas.getScene()!;
+  const scene = sceneOf(canvas);
   const sub = node(canvas, 'Sub_1');
 
   // Collapsed, a double click on its body expands it where it stands, as one edit, and does not drill in.
@@ -608,7 +610,7 @@ test('dropping a shape into an expanded container re-files it there', async () =
   dragBy(canvas, centre(task), { x: sub.x + sub.width - 60, y: sub.y + sub.height - 50 });
   expect(task.parent).toBe(sub);
   expect(sub.businessObject.flowElements).toContain(task.businessObject);
-  expect(canvas.getScene()!.children).not.toContain(task);
+  expect(sceneOf(canvas).children).not.toContain(task);
 });
 
 test('a shape dropped into a container is drawn above it, even one drawn before the container', async () => {
@@ -624,7 +626,7 @@ test('a shape dropped into a container is drawn above it, even one drawn before 
 
 test('an edit made of several is one commit: one revision, one change', async () => {
   const { canvas } = load();
-  const scene = canvas.getScene()!;
+  const scene = sceneOf(canvas);
   let fired = 0;
   canvas.study.on('change', () => { fired += 1; });
   const sub = node(canvas, 'Sub_1');
@@ -647,7 +649,7 @@ test('an edit made of several is one commit: one revision, one change', async ()
     expect({ revisions: scene.revision - revision, fired }, what).toEqual({ revisions: 1, fired: 1 });
   }
   expect(loose.parent).toBe(sub);
-  expect(canvas.get('Start_1')).toBeUndefined();
+  expect(canvas.study.get('Start_1')).toBeUndefined();
   expect(node(canvas, 'End_1').businessObject.name).toBe('');
 });
 

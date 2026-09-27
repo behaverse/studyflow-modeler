@@ -4,7 +4,7 @@ import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/study/orthogonal.ts';
 import type { Point, SceneEdge } from '@canvas/study/scene.ts';
 
-import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, written, type Loaded } from './canvasHarness';
+import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, sceneOf, written, type Loaded } from './canvasHarness';
 
 /**
  * Dragging a connection's end. What is under the drop decides the outcome:
@@ -115,7 +115,7 @@ test('a rules-refused target leaves the edge untouched', async () => {
   const { canvas } = loaded;
   const flow = edge(canvas, 'Flow_1');
   const before = flow.waypoints.map((p) => ({ ...p }));
-  const revision = canvas.getScene()!.revision;
+  const revision = sceneOf(canvas).revision;
 
   // A start event takes no incoming flow.
   dragTargetEnd(canvas, flow, { x: 618, y: 118 });
@@ -125,7 +125,7 @@ test('a rules-refused target leaves the edge untouched', async () => {
   const saved = await written(loaded);
   expect(diOf(saved, 'Flow_1').waypoint).toMatchObject(before);
   expect(flowElement(saved, 'Flow_1').targetRef.id).toBe('Task_1');
-  expect(canvas.getScene()!.revision).toBe(revision);
+  expect(sceneOf(canvas).revision).toBe(revision);
 });
 
 // --- empty space -------------------------------------------------------------
