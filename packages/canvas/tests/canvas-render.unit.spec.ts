@@ -5,8 +5,7 @@ import { INK } from '@canvas/view/theme.ts';
 import { studyflowToDefinitions } from '@core/document';
 import { CHROME } from '@canvas/render/labels.ts';
 import { LINE_HEIGHT } from '@canvas/study/text.ts';
-import { choreographyBandHeight } from '@core/document/outline.ts';
-import { PARTICIPANT_BAND } from '@canvas/render/shapes.ts';
+import { choreographyBandHeight, PARTICIPANT_BAND } from '@core/document/outline.ts';
 
 import { canvasOn, diElements, edge, freshModdle, graphicsOf, installDocument, loadCanvas, loadYaml, node, svgOf } from './canvasHarness';
 import { exampleNames, exampleXml } from '@tests/utils';

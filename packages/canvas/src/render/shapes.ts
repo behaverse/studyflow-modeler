@@ -3,7 +3,7 @@
  * appends to `parent` and returns the primary outline element.
  */
 
-import { categoryOf, dataObjectFold, dataStoreRim } from '@core/document/outline.ts';
+import { categoryOf, dataObjectFold, dataStoreRim, PARTICIPANT_BAND } from '@core/document/outline.ts';
 import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
 import { getProperty } from '@core/element/moddle.ts';
 
@@ -132,8 +132,6 @@ export function drawTextAnnotation(parent: SVGElement, w: number, h: number, sty
     fill: 'none', stroke: style.stroke, 'stroke-width': STROKE_WIDTH, 'stroke-linejoin': 'round',
   }));
 }
-
-export const PARTICIPANT_BAND = 30;
 
 export function drawParticipant(parent: SVGElement, w: number, h: number, style: ShapeStyle): SVGElement {
   const rect = append(parent, create('rect', {

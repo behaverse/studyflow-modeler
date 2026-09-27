@@ -83,6 +83,9 @@ export function dataStoreRim(h: number): number {
   return Math.min(h * 0.12, 8);
 }
 
+/** How wide a pool's or a lane's title band is, the strip its name runs up on its left. */
+export const PARTICIPANT_BAND = 30;
+
 const CHOREOGRAPHY_BAND_HEIGHT = 20;
 
 /** The height of each participant band of a choreography task `height` tall. */

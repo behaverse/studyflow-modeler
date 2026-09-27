@@ -5,7 +5,7 @@
 
 import { BPMN } from '@core/constants.ts';
 import { effectiveAttribute, resolvePlaceholders } from '@core/document/index.ts';
-import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore } from '@core/document/outline.ts';
+import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore, PARTICIPANT_BAND } from '@core/document/outline.ts';
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, getAttribute, isDataAssociationType, StudyflowElement } from '@core/element/index.ts';
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
@@ -43,7 +43,6 @@ import {
   drawTask,
   drawTextAnnotation,
   participantInstances,
-  PARTICIPANT_BAND,
   STROKE_WIDTH,
   type EventKind,
   type ShapeStyle,
