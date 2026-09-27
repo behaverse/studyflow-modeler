@@ -6,7 +6,7 @@
  *
  * `contextPad/entries.ts` decides what is offered (pure, unit-tested); this file positions
  * the box and wires each `action` to a command on the bus, or to `openPopupMenu` for the
- * three menus its entries open. Its gates are the canvas's rules (`canvas.getRules()`).
+ * three menus its entries open. Its gates are the study's rules, asked by id (`study.can`).
  *
  * **Hover preview**: an entry that appends one known element previews it, a ghost of the
  * shape at its auto-place position with the connection that would reach it
@@ -30,8 +30,8 @@ import { contextPad as s } from '@modeler/contextPad/styles';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';
-import { isExpandable, type Bounds } from '@canvas/index.ts';
-import { is, type EditorElement, type Editor } from '@modeler/editor/port';
+import { isExpandable, type Bounds, type ElementRecord } from '@canvas/index.ts';
+import type { Editor } from '@modeler/editor/port';
 
 /** Gap between the selection outline's right edge and the pad. */
 const OFFSET = 8;
@@ -80,30 +80,13 @@ const MENU_TITLES: Record<string, string> = {
   [COLOR_MENU]: 'Style',
 };
 
-function isShapeElement(element: EditorElement): boolean {
-  return element?.kind === 'node';
-}
-
-function isConnectionElement(element: EditorElement): boolean {
-  return element?.kind === 'edge';
-}
-
-/** A caption gets a two-entry pad of its own: trash (clears the name) and brush. */
-function isLabelElement(element: EditorElement): boolean {
-  return element?.kind === 'label';
-}
-
-function ownerOf(element: EditorElement): EditorElement {
-  return element?.kind === 'label' ? element.owner : element;
-}
-
-/** The union bbox of `elements` in screen coordinates, skipping off-plane ones. */
-function selectionBBox(editor: Editor, elements: EditorElement[]): Bounds | undefined {
+/** The union bbox of the elements `ids` names, in screen coordinates, skipping off-plane ones. */
+function selectionBBox(editor: Editor, ids: readonly string[]): Bounds | undefined {
   let box: Bounds | undefined;
-  for (const element of elements) {
+  for (const id of ids) {
     let next: Bounds;
     try {
-      next = editor.canvas.getAbsoluteBBox(element);
+      next = editor.canvas.getAbsoluteBBox(id);
     } catch {
       // Off-plane elements throw rather than answer; skip them.
       continue;
@@ -126,7 +109,7 @@ function selectionBBox(editor: Editor, elements: EditorElement[]): Bounds | unde
 export function ContextPad() {
   const modeler = useModeler();
   const isSimulating = useIsSimulating(modeler);
-  const [elements, setElements] = useState<EditorElement[]>([]);
+  const [ids, setIds] = useState<readonly string[]>([]);
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const tooltipTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -134,7 +117,7 @@ export function ContextPad() {
   useEffect(() => {
     // A fresh array every sync: a mutation that keeps the selection (toggling a
     // flow's default) must still recompute the entries.
-    const sync = (): void => setElements([...modeler.selection.get()]);
+    const sync = (): void => setIds([...modeler.canvas.selection]);
     sync();
     modeler.events.on('SelectionChanged', sync);
     modeler.events.on('ElementsChanged', sync);
@@ -148,14 +131,16 @@ export function ContextPad() {
     };
   }, [modeler]);
 
-  const element = elements.length === 1 ? elements[0] : undefined;
+  /** The selection as the study holds it, read afresh on every sync. */
+  const records = useMemo<ElementRecord[]>(() => ids.flatMap((id) => modeler.study.get(id) ?? []), [modeler, ids]);
+  const element = records.length === 1 ? records[0] : undefined;
   /** A single selected caption: it gets a two-entry pad of its own (trash, brush). */
-  const label = element && isLabelElement(element) ? element : undefined;
+  const label = element?.kind === 'label' ? element : undefined;
   const visible = !isSimulating
-    && elements.length > 0
+    && records.length > 0
     // A caption gets the pad only on its OWN: mixed with real elements there is no
     // one meaning for "delete" to have.
-    && (!elements.some(isLabelElement) || !!label);
+    && (!records.some((record) => record.kind === 'label') || !!label);
 
   /** Drop the ghost and the tooltip whenever the pad goes away or the selection moves. */
   const clearPreview = useCallback(() => {
@@ -177,7 +162,7 @@ export function ContextPad() {
 
   useEffect(() => () => clearTimeout(tooltipTimer.current), []);
 
-  useEffect(() => clearPreview, [clearPreview, elements]);
+  useEffect(() => clearPreview, [clearPreview, ids]);
 
   /* Written straight to the node: a pan is 60 position changes a second, and none
      of them is a React state change. */
@@ -200,7 +185,7 @@ export function ContextPad() {
       frame = requestAnimationFrame(tick);
       const node = ref.current;
       if (!node) return;
-      const box = diagram?.hasAttribute('data-gesture') ? undefined : selectionBBox(modeler, elements);
+      const box = diagram?.hasAttribute('data-gesture') ? undefined : selectionBBox(modeler, ids);
       if (!box) {
         if (shown) {
           node.style.visibility = 'hidden';
@@ -234,48 +219,43 @@ export function ContextPad() {
 
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [modeler, visible, elements, clearPreview]);
+  }, [modeler, visible, ids, clearPreview]);
 
   const entries = useMemo<ContextPadEntry[]>(() => {
     if (!visible) return [];
-    const single = elements.length === 1 ? elements[0] : undefined;
-    // The scene node behind the selection, when it is a container that can be
-    // expanded — both container entries are gated on the one answer, so no subclass
-    // can get the toggle without the drill-down or the other way round.
-    const resolved = single ? modeler.canvas.resolveElement(single) : undefined;
-    const expandable = resolved && resolved.kind === 'node' && isExpandable(resolved.type)
-      ? resolved
-      : undefined;
+    const { study } = modeler;
+    const single = element;
+    // A container that can be expanded: both container entries are gated on the one
+    // answer, so no subclass can get the toggle without the drill-down or the other way round.
+    const expandable = single?.kind === 'node' && isExpandable(single.type) ? single : undefined;
     // A sequence flow leaving a source that takes a `default` (the exclusive
     // gateway family, or an activity) gets the toggle-default entry.
-    const flow = resolved && resolved.kind === 'edge' && resolved.type === 'bpmn:SequenceFlow'
-      ? resolved
-      : undefined;
-    const flowSourceType = flow?.source?.type;
-    const canToggleDefault = !!flowSourceType && (
-      ['bpmn:ExclusiveGateway', 'bpmn:InclusiveGateway', 'bpmn:ComplexGateway'].includes(flowSourceType)
-      || isBpmnSubtypeOf(flowSourceType, 'bpmn:Activity')
+    const flow = single?.kind === 'edge' && single.type === 'bpmn:SequenceFlow' ? single : undefined;
+    const flowSource = flow?.source === undefined ? undefined : study.get(flow.source);
+    const canToggleDefault = !!flowSource && (
+      ['bpmn:ExclusiveGateway', 'bpmn:InclusiveGateway', 'bpmn:ComplexGateway'].includes(flowSource.type)
+      || isBpmnSubtypeOf(flowSource.type, 'bpmn:Activity')
     );
-    const isDefault = canToggleDefault
-      && (flow?.source?.businessObject as { default?: unknown } | undefined)?.default === flow?.businessObject;
-    const rules = modeler.canvas.getRules();
-    const askAppend = (targetType?: string): boolean => !!single && rules.canAppendType(single, targetType);
+    const isDefault = canToggleDefault && !!flow && !!flowSource
+      && (study.businessObject(flowSource.id) as { default?: unknown } | undefined)?.default === study.businessObject(flow.id);
+    // What the rules let the one selected element take part in.
+    const can = (tool: 'append' | 'connect' | 'replace', args: Record<string, unknown>): boolean => !!single && study.can(tool, args).ok;
     return contextPadEntries({
-      count: elements.length,
-      isShape: !!single && isShapeElement(single),
-      isConnection: !!single && isConnectionElement(single),
-      isLabel: !!single && isLabelElement(single),
-      canAppend: askAppend(),
-      canConnect: !!single && rules.canStartConnection(single),
-      canAnnotate: askAppend('bpmn:TextAnnotation'),
-      canReplace: !!single && rules.canReplace(single),
+      count: records.length,
+      isShape: single?.kind === 'node',
+      isConnection: single?.kind === 'edge',
+      isLabel: single?.kind === 'label',
+      canAppend: can('append', { from: single?.id }),
+      canConnect: can('connect', { from: single?.id }),
+      canAnnotate: can('append', { from: single?.id, type: 'bpmn:TextAnnotation' }),
+      canReplace: can('replace', { id: single?.id }),
       canToggleDefault,
       isDefault,
-      isChoreographyTask: !!single && is(single, 'bpmn:ChoreographyTask'),
+      isChoreographyTask: single?.type === 'bpmn:ChoreographyTask',
       isExpandable: !!expandable,
-      isExpanded: !!expandable && expandable.isExpanded !== false,
+      isExpanded: !!expandable && expandable.expanded !== false,
     });
-  }, [modeler, visible, elements]);
+  }, [modeler, visible, element, records]);
 
   const openMenu = useCallback((providerId: string) => {
     const node = ref.current;
@@ -295,12 +275,11 @@ export function ContextPad() {
     // already fires before the neighbour's `mouseenter`, so this is belt-and-braces
     // — but it is the belt that survives a pointer jumping between entries without
     // ever crossing the gap between them.
-    if (!append || !element) {
+    if (!append || !element || element.kind === 'label') {
       modeler.canvas.clearAppendPreview();
       return;
     }
-    const source = modeler.canvas.resolveElement(element);
-    if (source && source.kind !== 'label') modeler.canvas.previewAppend(source.id, newShape(append.bpmnType, append.extensionType));
+    modeler.canvas.previewAppend(element.id, newShape(append.bpmnType, append.extensionType));
   }, [modeler, element]);
 
   const run = useCallback((entry: ContextPadEntry) => {
@@ -335,13 +314,13 @@ export function ContextPad() {
         if (label) {
           void executeCommand(modeler, {
             type: 'UpdateAttribute',
-            element: ownerOf(label),
+            element: modeler.study.businessObject(label.owner!),
             attributeName: 'name',
             value: '',
           });
           return;
         }
-        void executeCommand(modeler, { type: 'DeleteElements', ids: elements.map((selected) => selected.id) });
+        void executeCommand(modeler, { type: 'DeleteElements', ids: [...ids] });
         return;
       case 'flow.toggle-default':
         if (element) void executeCommand(modeler, { type: 'ToggleDefaultFlow', id: element.id });
@@ -358,7 +337,7 @@ export function ContextPad() {
       default:
         return;
     }
-  }, [modeler, element, elements, label, openMenu, clearPreview]);
+  }, [modeler, element, ids, label, openMenu, clearPreview]);
 
   /** The connect entry is DRAGGED out of the pad, so it acts on press, not on click. */
   const startConnect = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {

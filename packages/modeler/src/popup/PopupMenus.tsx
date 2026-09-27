@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { INK, type FontPatch, type TextAlign } from '@canvas/index.ts';
-import { eventDefinitionTypeOf, getExtensionType } from '@core/element';
+import { eventDefinitionTypeOf } from '@core/element';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
@@ -11,7 +11,6 @@ import { buildElementEntries } from '@modeler/popup/entries';
 import { mustDragToAppend } from '@modeler/popup/commands';
 import { PopupMenu, type PopupMenuModel, type PopupMenuItem } from '@modeler/popup/PopupMenu';
 import { t } from '@modeler/i18n';
-import type { EditorElement } from '@modeler/editor/port';
 
 
 const ALIGNMENTS: { align: TextAlign; glyph: string; label: string }[] = [
@@ -30,8 +29,8 @@ type OpenMenu = {
   providerId: string;
   position: PopupPosition;
   options?: PopupOptions;
-  /** Snapshotted when the menu opened: what append/colour act on. */
-  elements: EditorElement[];
+  /** Snapshotted when the menu opened: the ids append, replace and colour act on. */
+  ids: readonly string[];
 };
 
 /**
@@ -67,7 +66,7 @@ export function PopupMenus() {
     const opener = (providerId: string) => (position: PopupPosition, options?: PopupOptions) => {
       // Snapshot the selection: the menu is chrome outside the diagram, and what it
       // acts on must not drift while it is open.
-      setOpen({ providerId, position, options, elements: modeler.selection.get() });
+      setOpen({ providerId, position, options, ids: [...modeler.canvas.selection] });
     };
 
     const detach = [CREATE_MENU, APPEND_MENU, REPLACE_MENU, COLOR_MENU]
@@ -88,18 +87,19 @@ export function PopupMenus() {
 
   const menu = useMemo<PopupMenuModel | null>(() => {
     if (!open) return null;
-    const { providerId, position, options, elements } = open;
+    const { providerId, position, options, ids } = open;
+    const { study } = modeler;
 
     if (providerId === COLOR_MENU) {
       // A caption is styled through the element it names, which is what `SetFont`
       // and `SetColor` both resolve a label to; read the state back the same way.
-      const first = elements[0];
-      const styled = first?.kind === 'label' ? first.owner : first;
+      const first = ids[0] === undefined ? undefined : study.get(ids[0]);
+      const styled = first?.kind === 'label' && first.owner !== undefined ? study.get(first.owner) : first;
       const font = styled?.font;
       const setFont = (patch: FontPatch): void => {
-        executeCommand(modeler, { type: 'SetFont', ids: elements.map((selected) => selected.id), font: patch });
+        executeCommand(modeler, { type: 'SetFont', ids: [...ids], font: patch });
       };
-      const empty = elements.length === 0;
+      const empty = ids.length === 0;
       // A connection carries only a stroke, so that is the half of a swatch it is set to.
       const painted = styled?.kind === 'edge' ? styled?.stroke : styled?.fill;
       const paintOf = (color: { fill?: string; stroke?: string }): string | undefined =>
@@ -122,7 +122,7 @@ export function PopupMenus() {
               onSelect: () => {
                 // The swatches are the app's only route to `SetColor`; the handler
                 // reaches the diagram through the `Editor` facade like every other.
-                executeCommand(modeler, { type: 'SetColor', ids: elements.map((selected) => selected.id), color });
+                executeCommand(modeler, { type: 'SetColor', ids: [...ids], color });
               },
             })),
           },
@@ -175,7 +175,7 @@ export function PopupMenus() {
 
     const isAppend = providerId === APPEND_MENU;
     const isReplace = providerId === REPLACE_MENU;
-    const source = elements[0];
+    const source = ids[0] === undefined ? undefined : study.get(ids[0]);
     if ((isAppend || isReplace) && !source) {
       return {
         title: options?.title ?? t(isReplace ? 'Change element' : 'Append element'),
@@ -192,9 +192,9 @@ export function PopupMenus() {
       // Offered within the element's own family only (a task becomes another task,
       // a gateway another gateway): a cross-family retype rewires semantics the
       // in-place swap cannot carry, so the menu keeps it to siblings.
-      const currentBpmn = (source as { type?: string })?.type;
-      const currentExtension = getExtensionType(source);
-      const currentDefinition = eventDefinitionTypeOf((source as { businessObject?: any }).businessObject);
+      const currentBpmn = source?.type;
+      const currentExtension = source?.extension;
+      const currentDefinition = eventDefinitionTypeOf(source && study.businessObject(source.id));
       const families = ['bpmn:Activity', 'bpmn:ChoreographyActivity', 'bpmn:Event', 'bpmn:Gateway', 'bpmn:Artifact'];
       const familyOf = (type?: string): string | undefined => (
         type ? families.find((family) => isBpmnSubtypeOf(type, family)) : undefined
@@ -209,7 +209,7 @@ export function PopupMenus() {
               !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension
                 && eventDefinitionTypeOf(entry.attributes as never) === currentDefinition)
               && familyOf(entry.bpmnType) === currentFamily
-              && modeler.canvas.getRules().canReplace(source, entry.bpmnType)
+              && !!source && study.can('replace', { id: source.id, type: entry.bpmnType }).ok
             ))
             .map((entry): PopupMenuItem => ({
               id: entry.id,
@@ -220,7 +220,7 @@ export function PopupMenus() {
               onSelect: () => {
                 executeCommand(modeler, {
                   type: 'ReplaceElement',
-                  id: source.id,
+                  id: source!.id,
                   bpmnType: entry.bpmnType,
                   extensionType: entry.extensionType,
                   attributes: entry.attributes,
@@ -280,7 +280,7 @@ export function PopupMenus() {
               if (isAppend && !mustDragToAppend(entry.bpmnType)) {
                 executeCommand(modeler, {
                   type: 'AppendElement',
-                  from: source.id,
+                  from: source!.id,
                   bpmnType: entry.bpmnType,
                   extensionType: entry.extensionType,
                   attributes: entry.attributes,

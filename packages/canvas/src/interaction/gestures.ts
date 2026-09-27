@@ -8,7 +8,7 @@
 import type { Canvas } from '@canvas/Canvas.ts';
 import type { Drag, GridAxes, Movable } from '@canvas/study/drag.ts';
 import { nodesIntersecting, normalizeRect } from '@canvas/study/hit.ts';
-import type { HandleHit, WaypointHit } from '@canvas/interaction/selection.ts';
+import type { HandleHit, Selection, WaypointHit } from '@canvas/interaction/selection.ts';
 import { RESIZING_MARKER } from '@canvas/interaction/selection.ts';
 import { collectSnapTargets, snapMove, snapPoint, type SnapTargets } from '@canvas/interaction/snapping.ts';
 import type { Connect, ConnectionEnd } from '@canvas/interaction/connect.ts';
@@ -93,6 +93,8 @@ export interface GestureTools {
   scope(): SceneNode | undefined;
   /** Ask the host for the append menu on these selected ids (the `a` key). */
   appendMenu(ids: string[]): void;
+  /** The selected elements and their chrome. */
+  selection: Selection;
 }
 
 export class Gestures {
@@ -232,7 +234,7 @@ export class Gestures {
     }
     canvas.focus();
     canvas.clearAppendPreview();
-    const selection = canvas.getSelection();
+    const selection = this.tools.selection;
     selection.setHovered(undefined);
     const pt = this.eventPoint(ev);
 
@@ -324,7 +326,7 @@ export class Gestures {
       if (scene) {
         const rect = normalizeRect({ x: g.downDiagram.x, y: g.downDiagram.y, width: pt.x - g.downDiagram.x, height: pt.y - g.downDiagram.y });
         const enclosed = nodesIntersecting(scene, rect, this.tools.scope());
-        const selection = this.canvas.getSelection();
+        const selection = this.tools.selection;
         selection.previewSelection(g.shift ? [...selection.get(), ...enclosed] : enclosed);
       }
       return;
@@ -375,7 +377,7 @@ export class Gestures {
     const canvas = this.canvas;
     const drag = this.tools.drag();
     if (!drag) return false;
-    const selection = canvas.getSelection();
+    const selection = this.tools.selection;
     if (g.intent === 'resize' && g.handle) {
       const target = g.handle.target;
       if (target.kind === 'node' && !canvas.getRules().canResize(target)) return false;
@@ -415,7 +417,7 @@ export class Gestures {
 
   /** Tint the element a gesture hovers: accepting or refusing the drop. */
   markDropTarget(target: SceneElement | undefined, allowed: boolean): void {
-    const selection = this.canvas.getSelection();
+    const selection = this.tools.selection;
     for (const id of this.dropTargetIds) {
       selection.removeMarker(id, 'sf-drop-ok');
       selection.removeMarker(id, 'sf-drop-not-ok');
@@ -535,7 +537,7 @@ export class Gestures {
       return;
     }
     const pt = snapped.point;
-    const selection = canvas.getSelection();
+    const selection = this.tools.selection;
     if (g.dragging && g.intent === 'pan') {
       // The viewbox already moved.
     } else if (g.dragging) {
@@ -570,7 +572,7 @@ export class Gestures {
   private endGesture(): void {
     this.gesture = undefined;
     this.pinch = undefined;
-    const selection = this.canvas.getSelection();
+    const selection = this.tools.selection;
     if (this.resizingId) {
       selection.removeMarker(this.resizingId, RESIZING_MARKER);
       this.resizingId = undefined;
@@ -609,7 +611,7 @@ export class Gestures {
   private clearMarquee(): void {
     remove(this.marqueeRect);
     this.marqueeRect = undefined;
-    this.canvas.getSelection().clearPreview();
+    this.tools.selection.clearPreview();
   }
 
   // --- double click, hover, wheel ----------------------------------------------------
@@ -621,8 +623,8 @@ export class Gestures {
     const pt = this.eventPoint(ev);
     const element = canvas.hitTest(pt);
     if (!element) return;
-    const selected = canvas.getSelection().get();
-    if (selected.length !== 1 || selected[0]?.id !== element.id) canvas.getSelection().select(element);
+    const selected = this.tools.selection.get();
+    if (selected.length !== 1 || selected[0]?.id !== element.id) this.tools.selection.select(element);
     if (element.kind === 'node' && isExpandable(element.type)) {
       const onCaption = element.isExpanded === true && pt.y - element.y <= TOP_STRIP;
       if (!onCaption) {
@@ -638,7 +640,7 @@ export class Gestures {
     const canvas = this.canvas;
     if (!canvas.getScene() || this.gesture || this.pinch) return;
     const hit = canvas.hitTest(this.eventPoint(ev));
-    canvas.getSelection().setHovered(hit && hit.kind === 'edge' ? hit : undefined);
+    this.tools.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined);
   }
 
   /** Wheel pans; `Ctrl`/`Cmd`+wheel zooms about the cursor. */
@@ -687,7 +689,7 @@ export class Gestures {
         case 'ArrowDown': handled = this.tools.nudgeSelection(0, step); break;
         case 'e': handled = canvas.editLabel(); break;
         case 'a': {
-          const elements = canvas.getSelection().get();
+          const elements = this.tools.selection.get();
           if (elements.length === 0) break;
           this.tools.appendMenu(elements.map((element) => element.id));
           handled = true;

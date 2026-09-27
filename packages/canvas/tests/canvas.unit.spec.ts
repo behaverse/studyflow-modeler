@@ -187,7 +187,7 @@ test('a palette create follows the pointer and lands, grid-snapped, where it is 
     expect(canvas.startCreate(undefined, { type })).toBe(true);
     pointerMove(canvas, at);
     pointerUp(canvas, at);
-    return canvas.getSelection().get()[0] as SceneNode;
+    return node(canvas, canvas.selection[0]);
   };
   const gateway = drop('bpmn:ExclusiveGateway', { x: 703, y: 297 });
   expect(gateway.type).toBe('bpmn:ExclusiveGateway');
@@ -241,7 +241,7 @@ test('a connect gesture drops the flow on the shape under the pointer', async ()
   expect(canvas.startConnect(task.id)).toBe(true);
   pointerMove(canvas, centre(end));
   pointerUp(canvas, centre(end));
-  const flow = canvas.getSelection().get()[0] as SceneEdge;
+  const flow = edge(canvas, canvas.selection[0]);
   expect(flow.kind).toBe('edge');
   expect(flow.source).toBe(task);
   expect(flow.target).toBe(end);
@@ -320,14 +320,14 @@ test('a corner handle resizes, clamped to the rules\' minimum', async () => {
   // An event has a fixed footprint: no handles to grab.
   const start = node(canvas, 'Start_1');
   click(canvas, centre(start));
-  expect(canvas.getSelection().handleAt({ x: start.x + 40, y: start.y + 40 })).toBeUndefined();
+  expect(canvas.getContainer().querySelector('.sf-handles[data-overlay-for="Start_1"]')).toBeNull();
 });
 
 test('a press on a selected flow drags a new bendpoint out of it', async () => {
   const { canvas } = load();
   const flow = edge(canvas, 'Flow_2');
   click(canvas, { x: 330, y: 118 });
-  expect(canvas.getSelection().get()).toEqual([flow]);
+  expect(canvas.selection).toEqual([flow.id]);
   dragBy(canvas, { x: 330, y: 118 }, { x: 330, y: 180 });
   expect(flow.waypoints).toHaveLength(3);
   expect(flow.waypoints[1]).toEqual({ x: 330, y: 180 });
@@ -340,15 +340,15 @@ test('click selects, Shift+click toggles, and an empty click clears', async () =
   const task = node(canvas, 'Task_1');
   const gateway = node(canvas, 'Gateway_1');
   click(canvas, centre(task));
-  expect(canvas.getSelection().get()).toEqual([task]);
+  expect(canvas.selection).toEqual([task.id]);
   pointerDown(canvas, centre(gateway), { shiftKey: true });
   pointerUp(canvas, centre(gateway), { shiftKey: true });
-  expect(canvas.getSelection().get()).toEqual([task, gateway]);
+  expect(canvas.selection).toEqual([task.id, gateway.id]);
   pointerDown(canvas, centre(task), { shiftKey: true });
   pointerUp(canvas, centre(task), { shiftKey: true });
-  expect(canvas.getSelection().get()).toEqual([gateway]);
+  expect(canvas.selection).toEqual([gateway.id]);
   click(canvas, { x: 700, y: 700 });
-  expect(canvas.getSelection().get()).toEqual([]);
+  expect(canvas.selection).toEqual([]);
 });
 
 test('Delete removes the selection with its flows from the scene and the document', async () => {
@@ -422,7 +422,7 @@ state:
 test('deleting a caption clears its owner\'s name', async () => {
   const { canvas } = load();
   const start = node(canvas, 'Start_1');
-  canvas.getSelection().select(label(canvas, 'Start_1_label'));
+  canvas.select('Start_1_label');
   canvas.deleteSelection();
   expect(start.businessObject.name).toBe('');
   expect(canvas.get('Start_1_label')).toBeUndefined();
@@ -440,7 +440,7 @@ test('a dragged caption moves alone and becomes pinned in the document', async (
   const from = centre(caption);
   canvas.setSnapToGrid(false);
   click(canvas, from);
-  expect(canvas.getSelection().get()).toEqual([caption]);
+  expect(canvas.selection).toEqual([caption.id]);
   // A selected caption offers its four corner handles, as a resizable shape does.
   expect(canvas.getSvg().querySelectorAll('.sf-handle')).toHaveLength(4);
   dragBy(canvas, from, { x: from.x + 30, y: from.y + 30 });
@@ -537,7 +537,7 @@ test('a double click opens or shuts a container in place; on an open one\'s capt
   expect(canvas.getLabelEditing().getSession()?.element).toBe(sub);
   canvas.getLabelEditing().cancel();
   // So does `e` on the selected container.
-  canvas.getSelection().select(sub);
+  canvas.select(sub.id);
   canvas.getContainer().dispatchEvent(keyEvent('keydown', { key: 'e' }));
   expect(canvas.getLabelEditing().getSession()?.element).toBe(sub);
 });
@@ -559,7 +559,7 @@ test('drilling into a container shows only its contents until the trail leads ba
   pointerMove(canvas, { x: 700, y: 400 });
   pointerUp(canvas, { x: 700, y: 400 });
   canvas.getLabelEditing().cancel();
-  const dropped = canvas.getSelection().get()[0] as SceneNode;
+  const dropped = node(canvas, canvas.selection[0]);
   expect(dropped.parent).toBe(sub);
   expect(sub.businessObject.flowElements).toContain(dropped.businessObject);
   expect(canvas.setScope(undefined)).toBe(true);
@@ -572,7 +572,7 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   canvas.setScope('Sub_1');
   canvas.getViewport().setViewbox({ x: 380, y: 380, width: 300, height: 200 });
   const viewbox = canvas.getViewport().getViewbox();
-  canvas.getSelection().select(node(canvas, 'Task_In'));
+  canvas.select('Task_In');
   canvas.study.set({ id: 'Task_In', attribute: 'name', value: 'Deeper' });
   const heard: string[] = [];
   canvas.on('scope', (scope) => heard.push(`scope ${scope ?? canvas.study.root.id}`));
@@ -588,8 +588,8 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   expect(drawn).not.toContain('Deeper');
   expect(canvas.scope).toBe('Sub_1');
   expect(canvas.getViewport().getViewbox()).toEqual(viewbox);
-  expect(canvas.getSelection().get()).toHaveLength(1);
-  expect(canvas.getSelection().get()[0], 'the element as it is now, not as it was').toBe(node(canvas, 'Task_In'));
+  expect(canvas.selection).toEqual(['Task_In']);
+  expect(canvas.getGraphics('Task_In')!.classList.contains('selected'), 'the element as it is drawn now, not as it was').toBe(true);
 
   // Drilled into nothing, with nothing selected, it still says what it shows: the root, another object now.
   canvas.setScope(undefined);
@@ -697,13 +697,13 @@ test('Ctrl+A selects everything on screen, A asks for the append menu, the arrow
   const { canvas } = load();
   const container = canvas.getContainer();
   container.dispatchEvent(keyEvent('keydown', { key: 'a', ctrlKey: true }));
-  const ids = canvas.getSelection().get().map((el) => el.id);
+  const ids = canvas.selection;
   expect(ids).toContain('Task_1');
   expect(ids).toContain('Flow_1');
   expect(ids).not.toContain('Task_In');
   expect(ids).not.toContain('Start_1_label');
   const task = node(canvas, 'Task_1');
-  canvas.getSelection().select(task);
+  canvas.select(task.id);
   const asked: (readonly string[])[] = [];
   canvas.on('appendMenu', (selected) => asked.push(selected));
   container.dispatchEvent(keyEvent('keydown', { key: 'a' }));

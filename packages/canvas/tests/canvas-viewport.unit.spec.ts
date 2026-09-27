@@ -67,7 +67,7 @@ test('empty canvas: a drag PANS the viewport', async () => {
 
   pointerUp(canvas, { x: empty.x + 120, y: empty.y + 80 });
   expect(svg.classList.contains('sf-panning')).toBe(false);
-  expect(canvas.getSelection().get()).toEqual([]);
+  expect(canvas.selection).toEqual([]);
 });
 
 // --- the marquee ---------------------------------------------------------------
@@ -85,7 +85,7 @@ test('Shift+drag on empty canvas draws a marquee and selects what it encloses', 
   // A marquee does not pan.
   expect({ x: box(canvas).x, y: box(canvas).y }).toEqual({ x: before.x, y: before.y });
   pointerUp(canvas, to, { shiftKey: true });
-  expect(canvas.getSelection().get().map((e) => e.id).sort()).toEqual(['Start_1', 'Task_1']);
+  expect([...canvas.selection].sort()).toEqual(['Start_1', 'Task_1']);
   expect(svg.querySelector('.sf-marquee')).toBeNull();
 });
 

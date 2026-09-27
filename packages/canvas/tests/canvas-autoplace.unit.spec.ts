@@ -166,7 +166,7 @@ test.describe('auto-place (click-append)', () => {
     expect(diOf(saved, flow.id)?.$type).toBe('bpmndi:BPMNEdge');
 
     // The shape is what is left selected, not the flow drawn to it.
-    expect(canvas.getSelection().get()).toEqual([appended]);
+    expect(canvas.selection).toEqual([appended!.id]);
   });
 
   test('refuses to append from an end event, writing nothing at all', async () => {

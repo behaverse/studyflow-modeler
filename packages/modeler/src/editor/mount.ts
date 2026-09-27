@@ -108,7 +108,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
     getDefinitions: () => study.definitions,
     study,
     canvas,
-    selection: canvas.getSelection(),
     events: bus,
     model,
     templates,

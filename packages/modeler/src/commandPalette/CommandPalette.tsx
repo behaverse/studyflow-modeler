@@ -146,8 +146,9 @@ export function CommandPalette({ ref }: Props) {
       }
       // `p` on a selected element opens its provenance, the way the inspector follows the selection.
       if (isBareKey(e, 'p') && !isOpen && !dialog && !isTyping(e.target)) {
-        const selected = modeler.selection.get();
-        const scopeId = selected.length === 1 ? selected[0]?.businessObject?.id : undefined;
+        const selected = modeler.canvas.selection;
+        // A caption stands for what it captions.
+        const scopeId = selected.length === 1 ? modeler.study.businessObject(selected[0])?.id : undefined;
         if (!scopeId) return;
         e.preventDefault();
         setDialog({ id: 'provenance', scopeId });

@@ -71,7 +71,8 @@ export class Canvas {
   private readonly viewport: Viewport;
   private readonly renderer: Renderer;
   private readonly listeners = new Map<keyof CanvasEvents, Set<(value: never) => void>>();
-  private readonly selection: Selection;
+  /** The selected elements and their chrome: outlines, handles, bendpoints, markers. */
+  private readonly selectionSet: Selection;
   private readonly labelEditing: LabelEditing;
   private readonly rules: Rules;
   private readonly gestures: Gestures;
@@ -105,7 +106,7 @@ export class Canvas {
     }
     this.renderer = new Renderer(options);
     this.rules = studyInternals(study).rules;
-    this.selection = new Selection({
+    this.selectionSet = new Selection({
       layer: this.layers.getLayer('selection'),
       getGraphics: (id) => this.renderer.graphicsById.get(id),
       onChange: (ids) => this.emit('select', ids),
@@ -119,7 +120,7 @@ export class Canvas {
       restoreFocus: () => this.focus(),
       // While its text is edited in place, an element drops its outline and its drawn text: the caption, else its own.
       onEditing: (element, editing) => {
-        const mark = editing ? this.selection.addMarker.bind(this.selection) : this.selection.removeMarker.bind(this.selection);
+        const mark = editing ? this.selectionSet.addMarker.bind(this.selectionSet) : this.selectionSet.removeMarker.bind(this.selectionSet);
         mark(element.id, EDITING_MARKER);
         mark((element.label ?? element).id, 'sf-label-hidden');
       },
@@ -166,6 +167,7 @@ export class Canvas {
       nudgeSelection: (dx, dy) => this.nudgeSelection(dx, dy),
       scope: () => this.scopeNode,
       appendMenu: (ids) => this.emit('appendMenu', ids),
+      selection: this.selectionSet,
     });
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
@@ -208,7 +210,7 @@ export class Canvas {
   /** Draw the study afresh, as a view that has just opened it: nothing selected, drilled into `scope` or nothing, fitted; `RootSet` says what it shows. */
   private drawStudy(scope?: SceneNode): void {
     this.resetInteraction();
-    this.selection.forget();
+    this.selectionSet.forget();
     this.scopeNode = scope;
     this.renderer.scope = scope;
     this.drag = new Drag({
@@ -230,13 +232,13 @@ export class Canvas {
 
   /** Draw the study afresh after an undo or a redo, keeping what the view showed, by id: the scope, the camera, the selection. */
   private drawKeepingView(): void {
-    const selected = this.selection.get().map((element) => element.id);
+    const selected = this.selectionSet.get().map((element) => element.id);
     const scope = this.scopeNode && this.scene.elementsById.get(this.scopeNode.id);
     const viewbox = this.viewport.getViewbox();
     this.drawStudy(scope?.kind === 'node' && isExpandable(scope.type) ? scope : undefined);
     this.viewport.setViewbox(viewbox);
     const kept = selected.map((id) => this.scene.elementsById.get(id)).filter((element): element is SceneElement => !!element);
-    if (kept.length > 0) this.selection.select(kept);
+    if (kept.length > 0) this.selectionSet.select(kept);
   }
 
   getScene(): Scene {
@@ -269,8 +271,14 @@ export class Canvas {
     for (const listener of [...(this.listeners.get(event) ?? [])]) (listener as (value: CanvasEvents[E]) => void)(value);
   }
 
-  getSelection(): Selection {
-    return this.selection;
+  /** The ids of the selected elements, captions among them. */
+  get selection(): string[] {
+    return this.selectionSet.get().map((element) => element.id);
+  }
+
+  /** Select the elements `ids` names: one, several, or none with `null`; an id the view holds nothing for is skipped. */
+  select(ids: string | readonly string[] | null): void {
+    this.selectionSet.select(ids);
   }
 
   getRules(): Rules {
@@ -355,8 +363,8 @@ export class Canvas {
   private resetInteraction(): void {
     this.gestures.cancel();
     this.labelEditing.reset();
-    this.selection.clear();
-    this.selection.setHovered(undefined);
+    this.selectionSet.clear();
+    this.selectionSet.setHovered(undefined);
   }
 
   // --- view -------------------------------------------------------------------------
@@ -392,12 +400,12 @@ export class Canvas {
 
   addMarker(element: ElementRef, marker: string): void {
     const target = this.resolveElement(element);
-    if (target) this.selection.addMarker(target, marker);
+    if (target) this.selectionSet.addMarker(target, marker);
   }
 
   removeMarker(element: ElementRef, marker: string): void {
     const target = this.resolveElement(element);
-    if (target) this.selection.removeMarker(target, marker);
+    if (target) this.selectionSet.removeMarker(target, marker);
   }
 
   scrollToElement(element: ElementRef): void {
@@ -454,16 +462,16 @@ export class Canvas {
     const gone = new Set(removed);
     const session = this.labelEditing.getSession();
     if (session && gone.has(session.element.id)) this.labelEditing.cancel();
-    const hovered = this.selection.getHovered();
-    if (hovered && gone.has(hovered.id)) this.selection.setHovered(undefined);
+    const hovered = this.selectionSet.getHovered();
+    if (hovered && gone.has(hovered.id)) this.selectionSet.setHovered(undefined);
     for (const id of removed) {
       this.renderer.erase(id);
       this.renderer.erase(labelIdOf({ id }));
-      this.selection.forget(id);
+      this.selectionSet.forget(id);
     }
-    const selected = this.selection.get();
+    const selected = this.selectionSet.get();
     const keep = selected.filter((element) => !gone.has(element.kind === 'label' ? element.owner.id : element.id));
-    if (keep.length < selected.length) this.selection.select(keep.length > 0 ? keep : null);
+    if (keep.length < selected.length) this.selectionSet.select(keep.length > 0 ? keep : null);
   }
 
   /** Keep the elements layer in paint order (`zRankOf`): a commit that moves shapes into or out of a container re-sorts it. */
@@ -489,26 +497,26 @@ export class Canvas {
       if (element.kind === 'label') {
         if (!element.owner.label) continue;
         this.renderer.redraw(element);
-        this.selection.restoreMarkers(element.id);
+        this.selectionSet.restoreMarkers(element.id);
         continue;
       }
       const label = syncLabel(scene, element);
       if (!this.renderer.redraw(element)) continue;
-      this.selection.restoreMarkers(element.id);
+      this.selectionSet.restoreMarkers(element.id);
       if (!label) {
         const labelId = labelIdOf(element);
         if (this.renderer.erase(labelId)) {
-          this.selection.forget(labelId);
-          if (this.selection.isSelected(labelId)) this.selection.select(this.selection.get().filter((e) => e.id !== labelId));
+          this.selectionSet.forget(labelId);
+          if (this.selectionSet.isSelected(labelId)) this.selectionSet.select(this.selectionSet.get().filter((e) => e.id !== labelId));
         }
       } else {
         if (this.renderer.graphicsById.has(label.id)) this.renderer.redraw(label);
         else this.mount(label);
-        this.selection.restoreMarkers(label.id);
+        this.selectionSet.restoreMarkers(label.id);
       }
     }
     this.renderer.refreshJumps();
-    this.selection.refresh();
+    this.selectionSet.refresh();
   }
 
   /** Draw a new element into the elements layer at its z-rank, with what the selection already marks on it. */
@@ -519,7 +527,7 @@ export class Canvas {
     if (owner?.parentNode === layer) layer.insertBefore(g, owner.nextSibling);
     else layer.insertBefore(g, this.firstAbove(layer, element));
     this.renderer.graphicsById.set(element.id, g);
-    this.selection.restoreMarkers(element.id);
+    this.selectionSet.restoreMarkers(element.id);
     if (element.kind === 'edge') this.renderer.refreshJumps();
     if (element.kind !== 'label' && element.label) this.mount(element.label);
     return g;
@@ -565,7 +573,7 @@ export class Canvas {
 
   /** The selected shapes and captions a move carries. */
   private movableSelection(): Movable[] {
-    return this.selection.get().filter((e): e is Movable => e.kind !== 'edge');
+    return this.selectionSet.get().filter((e): e is Movable => e.kind !== 'edge');
   }
 
   // --- create / connect ----------------------------------------------------------------
@@ -578,7 +586,7 @@ export class Canvas {
 
   /** A freshly created shape: selected, and (for a task-like shape) named. */
   private placed(node: SceneNode): void {
-    this.selection.select(node);
+    this.selectionSet.select(node);
     if (EDIT_ON_CREATE_TYPES.has(node.type) || isCollapsed(node)) this.labelEditing.activate(node);
   }
 
@@ -653,19 +661,19 @@ export class Canvas {
 
   /** Open the inline editor on `element` (default: the single selected element). */
   editLabel(element?: SceneElement): boolean {
-    const target = element ?? (this.selection.get().length === 1 ? this.selection.get()[0] : undefined);
+    const target = element ?? (this.selectionSet.get().length === 1 ? this.selectionSet.get()[0] : undefined);
     return !!target && this.labelEditing.activate(target);
   }
 
   selectAll(): boolean {
     const all = this.all().filter((element) => element.kind !== 'label' && !isHidden(element, this.scopeNode));
     if (all.length === 0) return false;
-    this.selection.select(all);
+    this.selectionSet.select(all);
     return true;
   }
 
   /** Remove what is selected, as one edit (a caption clears the name it shows). */
   deleteSelection(): StudyResult {
-    return this.study.remove({ ids: this.selection.get().map((element) => element.id) });
+    return this.study.remove({ ids: this.selectionSet.get().map((element) => element.id) });
   }
 }

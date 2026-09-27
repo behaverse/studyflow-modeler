@@ -73,7 +73,7 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
   const tracked = trackListeners(host);
   const staleDefs = parse();
   const stale = new Canvas(host, Study.fromDefinitions(staleDefs));
-  stale.getSelection().select(node(stale, 'Task_1'));
+  stale.select('Task_1');
   expect(tracked.live(), 'the shortcut listener sits on the host container').toContain('keydown');
   expect(host.contains(stale.getSvg() as unknown as Node)).toBe(true);
 
@@ -86,7 +86,7 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
   // The host reuses the same element for the next editor: Delete reaches only the live canvas.
   const liveDefs = parse();
   const live = new Canvas(host, Study.fromDefinitions(liveDefs));
-  live.getSelection().select(node(live, 'Start_1'));
+  live.select('Start_1');
   host.dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
 
   const ids = (defs: any): string[] => defs.rootElements[0].flowElements.map((el: any) => el.id).sort();

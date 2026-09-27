@@ -66,7 +66,7 @@ function last(edge: SceneEdge): Point {
 
 /** Select `flow`, grab its LAST waypoint and drop it at `to`. */
 function dragTargetEnd(canvas: Canvas, flow: SceneEdge, to: Point): void {
-  canvas.getSelection().select(flow);
+  canvas.select(flow.id);
   const grab = { ...last(flow) };
   pointerDown(canvas, grab);
   pointerMove(canvas, to);
@@ -183,7 +183,7 @@ test('the drag ghost shows the path the release commits, dock included', async (
   const target = node(canvas, 'Task_2');
   const drop = { x: target.x + 20, y: target.y + 65 };
 
-  canvas.getSelection().select(flow);
+  canvas.select(flow.id);
   pointerDown(canvas, last(flow));
   pointerMove(canvas, drop);
   const ghost = canvas.getSvg().querySelector('.sf-connect-preview-line')!
@@ -223,7 +223,7 @@ test('an end on a square run takes the joint behind it along; on a bent run it l
   const bent = load(BENT_YAML);
   // Bend the second one's last run first, by dragging its joint sideways.
   const bentFlow = edge(bent.canvas, 'Flow_B');
-  bent.canvas.getSelection().select(bentFlow);
+  bent.canvas.select(bentFlow.id);
   pointerDown(bent.canvas, bentFlow.waypoints[1]);
   pointerMove(bent.canvas, { x: 400, y: 118 });
   pointerUp(bent.canvas, { x: 400, y: 118 });

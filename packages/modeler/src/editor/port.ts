@@ -3,12 +3,12 @@
  * them (the document model, templates, simulation). Built by `editor/mount.ts`.
  */
 
-import type { Canvas, Selection, Study } from '@canvas/index.ts';
+import type { Canvas, Study } from '@canvas/index.ts';
 import { toBusinessObject } from '@core/element';
 import type { Template } from '@core/notation';
 import type { EventBus } from '@modeler/editor/bus';
 
-export type { Canvas, EventBus, Selection };
+export type { Canvas, EventBus };
 
 /** A diagram element as app chrome reads it (a scene element or the root). */
 export type EditorElement = any;
@@ -50,9 +50,9 @@ export interface Editor {
   getDefinitions(): ModelElement | undefined;
   /** The document, and every write on it: one command, one `edit`, one undo step. */
   study: Study;
+  /** The view: its selection, scope and camera, by id. */
   canvas: Canvas;
-  /** The canvas's own selection and bus. */
-  selection: Selection;
+  /** The app's bus: what the canvas and the study announce, forwarded, and the commands. */
   events: EventBus;
   model: EditorModel;
   templates: EditorTemplates;

@@ -22,10 +22,9 @@ export type SelectElementCommand = {
   id: string;
 };
 
-/** Selects the element with `id`, when the canvas shows it. */
+/** Selects the element with `id`, when the canvas holds it. */
 export function runSelectElement(modeler: Editor, command: SelectElementCommand): void {
-  const target = modeler.canvas.resolveElement(command.id);
-  if (target) modeler.selection.select(target);
+  modeler.canvas.select(command.id);
 }
 
 

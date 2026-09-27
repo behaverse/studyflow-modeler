@@ -48,7 +48,7 @@ export type ReplaceElementCommand = {
 /** Retype the selected shape in place, keeping its name, position and flows, and select it: its new id, when it took. */
 export function runReplaceElement(modeler: Editor, command: ReplaceElementCommand): string | undefined {
   const { id } = modeler.study.replace({ id: command.id, ...newShape(command.bpmnType, command.extensionType, command.attributes) });
-  if (id !== undefined) modeler.selection.select(id);
+  if (id !== undefined) modeler.canvas.select(id);
   return id;
 }
 
