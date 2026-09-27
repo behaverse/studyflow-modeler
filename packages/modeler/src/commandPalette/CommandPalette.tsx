@@ -27,7 +27,7 @@ import { ChecklistDialog } from '@modeler/checklist/Checklist';
 import { GanttDialog } from '@modeler/gantt/Gantt';
 import { ManuscriptDialog } from '@modeler/manuscript/Manuscript';
 import { ProvenanceDialog } from '@modeler/provenance/Provenance';
-import { buildPaletteCommands } from '@modeler/commandPalette/menu';
+import { buildElementEntries, buildPaletteCommands } from '@modeler/commandPalette/menu';
 import {
   groupCommands,
   searchCommands,
@@ -109,7 +109,13 @@ export function CommandPalette({ ref }: Props) {
     [modeler, openSettings, isSimulating, openReplay, linkedFileName],
   );
 
-  const filtered = useMemo(() => searchCommands(commands, query), [query, commands]);
+  // The study's elements, read as the palette opens; they join the list once something is typed.
+  const elements = useMemo(() => (isOpen && modeler ? buildElementEntries(modeler) : []), [isOpen, modeler]);
+
+  const filtered = useMemo(
+    () => [...searchCommands(commands, query), ...(query.trim() ? searchCommands(elements, query) : [])],
+    [query, commands, elements],
+  );
 
   const grouped = useMemo(() => groupCommands(filtered), [filtered]);
 

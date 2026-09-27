@@ -6,6 +6,7 @@ import {
   examplePath,
   exportDiagram,
   gotoModeler,
+  openCommandPalette,
   pressOnCanvas,
   readDownloadText,
 } from './utils';
@@ -58,6 +59,18 @@ test.describe('sub-process drill-down', () => {
       await expect(shape(outside), id).toBeVisible();
       await expect(crumbs, id).toHaveCount(0);
     }
+  });
+
+  test('the command palette finds a step by name and shows it, inside the sub-process that holds it', async ({ page }) => {
+    await openExample(page);
+    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeHidden();
+    await openCommandPalette(page);
+    await page.getByRole('dialog').getByRole('textbox').fill('cross_val');
+    await page.getByRole('dialog').getByRole('button', { name: /cross_validate/ }).click();
+
+    await expect(page.getByTestId('breadcrumb-select_model')).toBeVisible();
+    await expect(page.locator('g[data-element-id="cross_validate"]')).toHaveClass(/selected/);
+    await expect(page.locator('g[data-element-id="cross_validate"]')).toBeInViewport();
   });
 
   test('drilled in, the nav bar names the study, and a rename renames the study, not the sub-process', async ({ page }) => {

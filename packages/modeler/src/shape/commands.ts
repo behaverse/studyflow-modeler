@@ -79,6 +79,20 @@ export function runToggleDefaultFlow(modeler: Editor, command: ToggleDefaultFlow
   }));
 }
 
+export type GoToElementCommand = {
+  type: 'GoToElement';
+  id: string;
+};
+
+/** Show the element `id`: the plane that draws it, with it selected and brought to the middle of the view. */
+export function runGoToElement(modeler: Editor, command: GoToElementCommand): void {
+  const record = modeler.study.get(command.id);
+  if (!record || record.kind === 'root' || record.kind === 'label') return;
+  modeler.canvas.setScope(record.plane);
+  modeler.canvas.select([record.id]);
+  modeler.canvas.reveal(record.id);
+}
+
 export type RerouteFlowCommand = {
   type: 'RerouteFlow';
   id: string;

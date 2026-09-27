@@ -3,6 +3,7 @@ import { openRunnerTab } from '@modeler/app/commands';
 import { saveLinkedFile } from '@modeler/diagram/save';
 import { MOD_LABEL, URLS } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
+import { getPaletteIconForBpmnType } from '@modeler/palette/groups';
 import type { PaletteCommand, PaletteDialogId } from '@modeler/commandPalette/types';
 import type { Editor } from '@modeler/editor/port';
 
@@ -15,6 +16,24 @@ export type PaletteCommandDeps = {
   /** Name of the file the diagram is linked to, if any; it decides what "Save" is called. */
   linkedFileName?: string;
 };
+
+/** Every shape and every named flow of the study, as a row that shows it: found by name, id or type. */
+export function buildElementEntries(modeler: Editor): PaletteCommand[] {
+  return modeler.study.list()
+    .filter((record) => record.kind === 'node' || !!record.name?.trim())
+    .map((record) => {
+      const type = (record.extension ?? record.type).split(':').pop()!;
+      return {
+        id: `element-${record.id}`,
+        group: 'Elements',
+        label: record.name?.trim() || record.id,
+        hint: type,
+        icon: getPaletteIconForBpmnType(record.type) ?? ICONS.square,
+        keywords: `${record.id} ${type}`,
+        action: () => executeCommand(modeler, { type: 'GoToElement', id: record.id }),
+      };
+    });
+}
 
 export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[] {
   const { modeler, isSimulating, openSettings, openDialog, openReplay, linkedFileName } = deps;
