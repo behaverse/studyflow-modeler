@@ -595,8 +595,10 @@ export class Canvas {
     return result;
   }
 
-  startConnect(source: SceneNode, event?: MouseEvent): boolean {
-    return this.gestures.startConnect(source, event);
+  /** Draw a connection out of the shape `from` names, following the pointer until it lands. */
+  startConnect(from: string, event?: MouseEvent): boolean {
+    const source = this.scene.elementsById.get(from);
+    return source?.kind === 'node' && this.gestures.startConnect(source, event);
   }
 
   /** Ghost what appending `what` to `from` would add, where the click puts it; returns its bounds. */

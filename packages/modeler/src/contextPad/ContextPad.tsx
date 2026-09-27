@@ -311,7 +311,7 @@ export function ContextPad() {
         if (element && entry.append) {
           void executeCommand(modeler, {
             type: 'AppendElement',
-            source: element,
+            from: element.id,
             bpmnType: entry.append.bpmnType,
             extensionType: entry.append.extensionType,
           });
@@ -341,19 +341,19 @@ export function ContextPad() {
           });
           return;
         }
-        void executeCommand(modeler, { type: 'DeleteElements', elements });
+        void executeCommand(modeler, { type: 'DeleteElements', ids: elements.map((selected) => selected.id) });
         return;
       case 'flow.toggle-default':
-        if (element) void executeCommand(modeler, { type: 'ToggleDefaultFlow', element });
+        if (element) void executeCommand(modeler, { type: 'ToggleDefaultFlow', id: element.id });
         return;
       case 'choreography.swap-initiator':
-        if (element) void executeCommand(modeler, { type: 'SwapChoreographyInitiator', element });
+        if (element) void executeCommand(modeler, { type: 'SwapChoreographyInitiator', id: element.id });
         return;
       case 'expand.toggle':
-        if (element) void executeCommand(modeler, { type: 'ToggleExpanded', element });
+        if (element) void executeCommand(modeler, { type: 'ToggleExpanded', id: element.id });
         return;
       case 'drilldown':
-        if (element) void executeCommand(modeler, { type: 'DrillDown', element });
+        if (element) void executeCommand(modeler, { type: 'DrillDown', id: element.id });
         return;
       default:
         return;
@@ -366,7 +366,7 @@ export function ContextPad() {
     if (!element) return;
     const native = (event as unknown as { nativeEvent?: MouseEvent }).nativeEvent
       ?? (event as unknown as MouseEvent);
-    void executeCommand(modeler, { type: 'StartConnect', source: element, event: native });
+    void executeCommand(modeler, { type: 'StartConnect', from: element.id, event: native });
   }, [modeler, element, clearPreview]);
 
   if (!visible || entries.length === 0) return null;

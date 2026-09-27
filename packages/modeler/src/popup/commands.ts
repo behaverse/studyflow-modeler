@@ -6,7 +6,7 @@
 import { newShape } from '@modeler/palette/newShape';
 import { APPEND_MENU, openPopupMenu } from '@modeler/editor/popupMenus';
 import { t } from '@modeler/i18n';
-import type { Editor, EditorElement } from '@modeler/editor/port';
+import type { Editor } from '@modeler/editor/port';
 
 /** A boundary event needs an explicit host, so it can never be auto-placed. */
 export function mustDragToAppend(bpmnType: string): boolean {
@@ -15,23 +15,19 @@ export function mustDragToAppend(bpmnType: string): boolean {
 
 export type AppendElementCommand = {
   type: 'AppendElement';
-  source: EditorElement;
+  from: string;
   bpmnType: string;
   extensionType?: string;
   attributes?: Record<string, unknown>;
 };
 
-/** Click-append: the canvas places the shape beside its source, connects the two, selects it and opens its name. */
-export function runAppendElement(modeler: Editor, command: AppendElementCommand): EditorElement | undefined {
-  const source = modeler.canvas.resolveElement(command.source);
-  if (!source || source.kind === 'label') return undefined;
-  const { id } = modeler.canvas.append(source.id, newShape(command.bpmnType, command.extensionType, command.attributes));
-  return id === undefined ? undefined : modeler.canvas.get(id);
+/** Click-append: the canvas places the shape beside `from`, connects the two, selects it and opens its name; its id. */
+export function runAppendElement(modeler: Editor, command: AppendElementCommand): string | undefined {
+  return modeler.canvas.append(command.from, newShape(command.bpmnType, command.extensionType, command.attributes)).id;
 }
 
 export type StartAppendElementCommand = {
   type: 'StartAppendElement';
-  source: EditorElement;
   bpmnType: string;
   extensionType?: string;
   attributes?: Record<string, unknown>;
@@ -45,14 +41,14 @@ export function runStartAppendElement(modeler: Editor, command: StartAppendEleme
 
 export type OpenAppendMenuCommand = {
   type: 'OpenAppendMenu';
-  elements: EditorElement[];
+  ids: string[];
 };
 
-/** The canvas's `a` key (a bus command, since the canvas cannot import the modeler): the append menu, beside the first element. */
+/** The canvas's `a` key, forwarded by `editor/mount.ts`: the append menu, beside the first element. */
 export function runOpenAppendMenu(modeler: Editor, command: OpenAppendMenuCommand): void {
-  const element = command.elements[0];
-  if (!element) return;
-  const box = modeler.canvas.getAbsoluteBBox(element);
+  const id = command.ids[0];
+  if (id === undefined) return;
+  const box = modeler.canvas.getAbsoluteBBox(id);
   const x = box.x + box.width + 12;
   openPopupMenu(APPEND_MENU, { x, y: box.y, cursor: { x, y: box.y + box.height / 2 } }, { title: t('Append element') });
 }

@@ -97,7 +97,7 @@ export function PopupMenus() {
       const styled = first?.kind === 'label' ? first.owner : first;
       const font = styled?.font;
       const setFont = (patch: FontPatch): void => {
-        executeCommand(modeler, { type: 'SetFont', elements, font: patch });
+        executeCommand(modeler, { type: 'SetFont', ids: elements.map((selected) => selected.id), font: patch });
       };
       const empty = elements.length === 0;
       // A connection carries only a stroke, so that is the half of a swatch it is set to.
@@ -122,7 +122,7 @@ export function PopupMenus() {
               onSelect: () => {
                 // The swatches are the app's only route to `SetColor`; the handler
                 // reaches the diagram through the `Editor` facade like every other.
-                executeCommand(modeler, { type: 'SetColor', elements, color });
+                executeCommand(modeler, { type: 'SetColor', ids: elements.map((selected) => selected.id), color });
               },
             })),
           },
@@ -220,7 +220,7 @@ export function PopupMenus() {
               onSelect: () => {
                 executeCommand(modeler, {
                   type: 'ReplaceElement',
-                  element: source,
+                  id: source.id,
                   bpmnType: entry.bpmnType,
                   extensionType: entry.extensionType,
                   attributes: entry.attributes,
@@ -251,7 +251,6 @@ export function PopupMenus() {
             if (isAppend) {
               executeCommand(modeler, {
                 type: 'StartAppendElement',
-                source,
                 bpmnType: entry.bpmnType,
                 extensionType: entry.extensionType,
                 attributes: entry.attributes,
@@ -281,7 +280,7 @@ export function PopupMenus() {
               if (isAppend && !mustDragToAppend(entry.bpmnType)) {
                 executeCommand(modeler, {
                   type: 'AppendElement',
-                  source,
+                  from: source.id,
                   bpmnType: entry.bpmnType,
                   extensionType: entry.extensionType,
                   attributes: entry.attributes,

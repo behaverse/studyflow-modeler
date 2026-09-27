@@ -238,7 +238,7 @@ test('a connect gesture drops the flow on the shape under the pointer', async ()
   const { canvas } = load();
   const task = node(canvas, 'Task_1');
   const end = node(canvas, 'End_1');
-  expect(canvas.startConnect(task)).toBe(true);
+  expect(canvas.startConnect(task.id)).toBe(true);
   pointerMove(canvas, centre(end));
   pointerUp(canvas, centre(end));
   const flow = canvas.getSelection().get()[0] as SceneEdge;

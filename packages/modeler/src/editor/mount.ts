@@ -68,7 +68,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
   const stopHearingCanvas = [
     canvas.on('select', (ids) => bus.fire('SelectionChanged', { newSelection: ids })),
     canvas.on('scope', (scope) => bus.fire('RootSet', { scope })),
-    canvas.on('appendMenu', (ids) => void bus.send({ type: 'OpenAppendMenu', elements: ids }).catch(() => undefined)),
+    canvas.on('appendMenu', (ids) => void bus.send({ type: 'OpenAppendMenu', ids }).catch(() => undefined)),
   ];
 
   const saveXML = async (): Promise<{ xml: string }> => ({ xml: await study.toXml() });
