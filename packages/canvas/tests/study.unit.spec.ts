@@ -295,6 +295,27 @@ test('can answers what a verb would do, by the same rules, without writing; what
   expect(study.revision, 'asking writes nothing').toBe(revision);
 });
 
+test('move takes shapes by a delta with their flows, and into a container the rules allow; reconnect moves a flow\'s ends', () => {
+  const study = open();
+  study.add({ type: 'bpmn:Task', id: 'Two', at: { x: 600, y: 120 } });
+  study.add({ type: 'bpmn:Task', id: 'Three', at: { x: 600, y: 320 } });
+  study.connect({ from: 'Task_1', to: 'Two', id: 'Flow_1' });
+  const at = study.get('Task_1')!.bounds!;
+
+  expect(study.move({ ids: ['Task_1'], by: { x: 20, y: 30 } })).toMatchObject({ ok: true, changed: expect.arrayContaining(['Task_1', 'Flow_1']) });
+  expect(study.get('Task_1')!.bounds).toMatchObject({ x: at.x + 20, y: at.y + 30 });
+  expect(study.move({ ids: ['Flow_1'], by: { x: 1, y: 1 } }).reason).toContain('moves with its ends');
+  expect(study.move({ ids: ['Two'], by: { x: 0, y: 0 }, into: 'Sub_1' }), 'a sequence flow would cross into it').toMatchObject({ ok: false });
+  expect(study.move({ ids: ['Three'], by: { x: 0, y: 0 }, into: 'Sub_1' })).toMatchObject({ ok: true });
+  expect(study.get('Three')).toMatchObject({ parent: 'Sub_1', plane: 'Sub_1' });
+
+  expect(study.reconnect({ id: 'Flow_1', to: 'Task_1' })).toMatchObject({ ok: false });
+  study.move({ ids: ['Three'], by: { x: 0, y: 0 }, into: 'Process_1' });
+  expect(study.reconnect({ id: 'Flow_1', to: 'Three' })).toMatchObject({ ok: true, changed: expect.arrayContaining(['Flow_1', 'Two', 'Three']) });
+  expect(study.get('Flow_1')).toMatchObject({ source: 'Task_1', target: 'Three' });
+  expect(study.reconnect({ id: 'Flow_1' }).reason).toBe('give the new end: from, to, or both');
+});
+
 test('remove takes what goes with an element; expand and collapse take only what holds contents', () => {
   const study = open();
   expect(study.remove({ ids: ['Nope'] })).toMatchObject({ ok: false, reason: "no element 'Nope'" });
@@ -365,7 +386,7 @@ test('a tool call the study cannot run is refused with a reason, as data: nothin
   let heard = 0;
   study.on('change', () => (heard += 1));
   const REFUSALS: [tool: string, args: unknown, reason: string][] = [
-    ['move', {}, "no tool 'move'"],
+    ['rename', {}, "no tool 'rename'"],
     ['add', [], 'the argument should be an object'],
     ['add', { type: 'bpmn:Lane' }, "'type' should be one of \"bpmn:StartEvent\", "],
     ['connect', { from: 'Task_1' }, "'to' is required"],

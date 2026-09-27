@@ -36,7 +36,7 @@ export interface StudyTool {
 }
 
 /** The write tools a batch runs as its steps. */
-export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'resize', 'reroute', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
+export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'resize', 'reroute', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
 export type ToolName = StepTool | 'document' | 'get' | 'list' | 'catalog' | 'can' | 'batch' | 'undo' | 'redo';
@@ -126,6 +126,16 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     id: { type: 'string', description: "The flow's id, when free." },
   }, ['from', 'to'], write(false, false)),
   tool('replace', 'Retype a shape: a new shape of `type` in its stead, keeping its name, its centre and its flows.', { id: ID, ...SHAPE }, ['id', 'type'], write(true, true)),
+  tool('move', "Move shapes and captions by `by`, in diagram units, their contents and flows along; into a container (`into`, the root's id for the top level) when given, as the rules allow.", {
+    ids: IDS,
+    by: { ...POINT, description: 'How far, right and down.' },
+    into: ID,
+  }, ['ids', 'by'], write(false, false)),
+  tool('reconnect', 'Move the ends of a flow onto other shapes: its source to `from`, its target to `to`, as the rules allow its kind of flow; routed afresh.', {
+    id: ID,
+    from: ID,
+    to: ID,
+  }, ['id'], write(false, true)),
   tool('resize', 'Give a shape new bounds.', { id: ID, bounds: BOUNDS }, ['id', 'bounds'], write(false, true)),
   tool('reroute', 'Route a flow through `waypoints`, or squarely between its ends without them.', {
     id: ID,

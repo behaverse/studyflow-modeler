@@ -12,6 +12,7 @@ import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { writeDi } from '@canvas/study/di.ts';
+import { Drag, type Movable } from '@canvas/study/drag.ts';
 import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
 import { findById, prop } from '@canvas/study/moddle.ts';
@@ -324,6 +325,62 @@ export class Study {
     });
   }
 
+  /**
+   * Move the shapes and captions `ids` names by `by`, in diagram units, their contents and flows along, the flows
+   * routed afresh; into the container `into` names (the root's id for the top level) when given, as the rules allow.
+   * One edit.
+   */
+  move(args: { ids: string[]; by: Point; into?: string }): StudyResult {
+    const { scene, mutator, rules } = studyInternals(this);
+    const found = this.elements(args.ids);
+    if (typeof found === 'string') return refused(`no element '${found}'`);
+    const flow = found.find((element) => element.kind === 'edge');
+    if (flow) return refused(`'${flow.id}' is a flow: it moves with its ends, and reroute moves its route`);
+    const movable = found as Movable[];
+    const nodes = movable.filter((element): element is SceneNode => element.kind === 'node');
+    // The shapes that move by themselves: not those inside another that moves.
+    const roots = nodes.filter((node) => !nodes.some((other) => other !== node && isDescendantOf(node, other)));
+    const top = args.into === scene.rootElement.id;
+    const named = args.into === undefined || top ? undefined : scene.elementsById.get(args.into);
+    if (args.into !== undefined && !top && named?.kind !== 'node') return refused(`no container '${args.into}'`);
+    const into = named?.kind === 'node' ? named : undefined;
+    // A container named by id takes what fits in it however it is drawn, as with `add`.
+    if (args.into !== undefined && !rules.canMove(roots, into ? { ...into, isExpanded: true } : scene.rootElement)) {
+      return refused(`${roots.map((node) => `'${node.id}'`).join(', ')} cannot go ${into ? `into '${into.id}'` : 'to the top level'}`);
+    }
+    const drag = new Drag({
+      mutator,
+      rules,
+      redraw: () => {},
+      getScene: () => scene,
+      getScope: () => undefined,
+      hitTest: () => undefined,
+      obstacles: (moving) => obstaclesIn(scene, moving[0] && planeOf(moving[0]), moving),
+    });
+    return this.commit(() => {
+      if (!drag.startMove(movable, { x: 0, y: 0 }, { snapToGrid: false })) return;
+      drag.end(args.by);
+      const rehomed = args.into === undefined ? [] : roots.filter((node) => node.parent !== into);
+      if (rehomed.length > 0) mutator.reparent(rehomed, into);
+    });
+  }
+
+  /** Move the ends of the flow `id` onto other shapes, `from` and `to`, as the rules allow its kind of flow; routed afresh, one edit. */
+  reconnect(args: { id: string; from?: string; to?: string }): StudyResult {
+    const { scene, mutator, rules } = studyInternals(this);
+    const edge = scene.elementsById.get(args.id);
+    if (edge?.kind !== 'edge') return refused(`no flow '${args.id}'`);
+    if (args.from === undefined && args.to === undefined) return refused('give the new end: from, to, or both');
+    const source = args.from === undefined ? edge.source : scene.elementsById.get(args.from);
+    const target = args.to === undefined ? edge.target : scene.elementsById.get(args.to);
+    if (source?.kind !== 'node') return refused(`no shape '${args.from ?? edge.source?.id}'`);
+    if (target?.kind !== 'node') return refused(`no shape '${args.to ?? edge.target?.id}'`);
+    if (!rules.canReconnect(edge, source, target)) return refused(`a ${edge.type} cannot run from '${source.id}' to '${target.id}'`);
+    return this.commit(() => {
+      mutator.reconnect(edge, { source, target }, routeFor(edge.type, source, target));
+    });
+  }
+
   /** Give the shape `id` new bounds, as one edit. */
   resize(args: { id: string; bounds: Bounds }): StudyResult {
     const { scene, mutator, rules } = studyInternals(this);
@@ -548,6 +605,8 @@ export class Study {
       append: (a) => this.append(a),
       connect: (a) => this.connect(a),
       replace: (a) => this.replace(a),
+      move: (a) => this.move(a),
+      reconnect: (a) => this.reconnect(a),
       resize: (a) => this.resize(a),
       reroute: (a) => this.reroute(a),
       set: (a) => this.set(a),
