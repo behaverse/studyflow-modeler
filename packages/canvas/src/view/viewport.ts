@@ -167,6 +167,25 @@ export class Viewport {
     return { x: topLeft.x, y: topLeft.y, width: bottomRight.x - topLeft.x, height: bottomRight.y - topLeft.y };
   }
 
+  /** Pan the least that shows `bounds` whole, with `margin` screen pixels round it, in the part of the view left free. */
+  bringIntoView(bounds: Bounds, margin = 20): void {
+    const { scale, ox, oy } = this.rendering();
+    const free = this.free();
+    // The free part, in diagram units.
+    const left = this.box.x + (free.left - ox) / scale;
+    const top = this.box.y + (free.top - oy) / scale;
+    const right = left + free.width / scale;
+    const bottom = top + free.height / scale;
+    const room = margin / scale;
+    const shift = (low: number, high: number, from: number, to: number): number =>
+      low - room < from ? low - room - from : high + room > to ? high + room - to : 0;
+    const dx = shift(bounds.x, bounds.x + bounds.width, left, right);
+    const dy = shift(bounds.y, bounds.y + bounds.height, top, bottom);
+    if (dx === 0 && dy === 0) return;
+    this.box = { ...this.box, x: this.box.x + dx, y: this.box.y + dy };
+    this.applyViewbox();
+  }
+
   /** Centre `element` in the part of the view the host's UI leaves free, at the scale the view has. */
   scrollToElement(element: SceneElement): void {
     const center = elementCenter(element);

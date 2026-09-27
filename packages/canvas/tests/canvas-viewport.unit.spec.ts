@@ -161,3 +161,14 @@ test('a fit and a reveal keep the diagram inside what the host\'s own UI leaves 
   const task = beside.screenBox('Task_1')!;
   expect(task.x + task.width / 2).toBeCloseTo(275, 6);
 });
+
+test('an appended shape the view does not show is panned into it, the least that shows it whole', async () => {
+  // The fit leaves Task_1 near the view's right edge: what follows it lands past that edge.
+  const canvas = covered({});
+  const result = canvas.append('Task_1', { type: 'bpmn:Task' });
+  const made = canvas.screenBox(result.id!)!;
+  expect(made.x).toBeGreaterThanOrEqual(0);
+  expect(made.x + made.width).toBeLessThanOrEqual(400);
+  // The least pan: it now sits just inside the right edge, the margin away.
+  expect(made.x + made.width).toBeCloseTo(380, 6);
+});

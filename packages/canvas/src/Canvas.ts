@@ -679,12 +679,18 @@ export class Canvas {
     return result.id === undefined ? undefined : this.scene.elementsById.get(result.id);
   }
 
-  /** Click-append: the study adds `what` beside `from` and connects the two; then it is selected, and named when task-like. */
+  /**
+   * Click-append: the study adds `what` beside `from` and connects the two; then the view pans to show it, and it is
+   * selected, and named when task-like.
+   */
   append(from: string, what: NewElement): StudyResult {
     if (!this.isEditable) return { ok: false, reason: 'this view is not editable', added: [], changed: [], removed: [] };
     const result = this.study.append({ ...what, from });
     const made = this.made(result);
-    if (made?.kind === 'node') this.placed(made);
+    if (made?.kind === 'node') {
+      this.viewport.bringIntoView(made);
+      this.placed(made);
+    }
     return result;
   }
 
