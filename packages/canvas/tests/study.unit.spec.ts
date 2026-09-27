@@ -365,6 +365,12 @@ test('reads are plain data: a record by id, the root, a filtered list; the moddl
   study.style({ ids: ['Task_1', 'Flow_1'], stroke: '#aa3333', font: { bold: true } });
   expect(study.get('Task_1'), 'what style wrote, a read returns').toMatchObject({ stroke: '#aa3333', font: { bold: true } });
   expect(study.get('Flow_1')).toMatchObject({ stroke: '#aa3333', font: { bold: true } });
+  // A caption says whether it is kept where it was put (a move pins it) or placed by what it captions.
+  study.set({ id: 'Flow_1', attribute: 'name', value: 'go' });
+  const caption = study.list({ kind: 'label' }).find((record) => record.owner === 'Flow_1')!;
+  expect(caption).not.toHaveProperty('pinned');
+  study.move({ ids: [caption.id], by: { x: 10, y: 0 } });
+  expect(study.get(caption.id)).toMatchObject({ kind: 'label', owner: 'Flow_1', pinned: true });
 
   expect(study.list().map((record) => record.id).sort()).toEqual(['Flow_1', 'Sub_1', 'Task_1', 'Task_In']);
   expect(study.list({ within: 'Sub_1' }).map((record) => record.id)).toEqual(['Task_In']);

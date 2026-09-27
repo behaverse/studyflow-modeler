@@ -39,6 +39,8 @@ export interface ElementRecord {
   readonly waypoints?: readonly Point[];
   /** A caption's: what it captions. */
   readonly owner?: string;
+  /** A caption's: kept where it was put, rather than placed by what it captions. */
+  readonly pinned?: boolean;
   /** Its own colours and its caption's look, where the drawing departs from the stock ones: what `style` writes. */
   readonly fill?: string;
   readonly stroke?: string;
@@ -49,7 +51,9 @@ export interface ElementRecord {
 export function recordOf(element: SceneElement | RootElement): ElementRecord {
   if (isRootElement(element)) return { id: element.id, kind: 'root', type: element.type, ...describe(element.businessObject) };
   const box = (bounds: Bounds): Bounds => ({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
-  if (element.kind === 'label') return { id: element.id, kind: 'label', type: element.type, owner: element.owner.id, bounds: box(element) };
+  if (element.kind === 'label') {
+    return { id: element.id, kind: 'label', type: element.type, owner: element.owner.id, bounds: box(element), ...(element.pinned ? { pinned: true } : {}) };
+  }
   const plane = planeOf(element);
   const placed = {
     id: element.id,
