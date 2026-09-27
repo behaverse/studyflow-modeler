@@ -226,7 +226,7 @@ Process_1:
 `);
   const sub = node(canvas, 'Sub_1');
   const inner = node(canvas, 'Inner');
-  expect(canvas.enterScope(sub)).toBe(true);
+  expect(canvas.setScope(sub.id)).toBe(true);
   click(canvas, centre(inner));
   dragBy(canvas, centre(inner), { x: centre(inner).x + 60, y: centre(inner).y + 40 });
   expect(inner.x).toBe(660);

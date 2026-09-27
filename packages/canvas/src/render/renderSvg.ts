@@ -11,8 +11,8 @@ import { studyInternals, type Study } from '@canvas/study/Study.ts';
 import { boundsOf, isHidden } from '@canvas/study/tree.ts';
 
 export interface RenderSvgOptions extends RendererOptions {
-  /** Draw what a view drilled into this container shows; without one, the whole diagram. */
-  scope?: SceneNode;
+  /** Draw what a view drilled into the container of this id shows; without one, the whole diagram. */
+  scope?: string;
   /** Where to mint the picture: the page's document when not given. */
   document?: Document;
 }
@@ -22,7 +22,8 @@ const MARGIN = 4;
 
 /** What a view of `study` shows, as SVG text framed on it: nothing inside a collapsed container, nothing outside `scope`. */
 export function renderSvg(study: Study, { scope, document, ...options }: RenderSvgOptions = {}): string {
-  const draw = (): string => picture(study, scope, options);
+  const container = scope === undefined ? undefined : studyInternals(study).scene.elementsById.get(scope);
+  const draw = (): string => picture(study, container?.kind === 'node' ? container : undefined, options);
   return document ? withDocument(document, draw) : draw();
 }
 

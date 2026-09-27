@@ -11,7 +11,7 @@ export interface SimulationHost {
   /** What the tokens walk. */
   study: Pick<Study, 'get' | 'list'>;
   /** Where they are drawn, and whether the view shows where they are. */
-  canvas: Pick<Canvas, 'getHostLayer' | 'draws' | 'getScope'>;
+  canvas: Pick<Canvas, 'getHostLayer' | 'draws' | 'scope'>;
 }
 
 const TOKEN_RADIUS = 8;
@@ -152,7 +152,7 @@ export default class TokenSimulator {
 
   /** Start events at the top of what is on screen: the root, or the drilled-into container. */
   private _getVisibleStartEvents(): ElementRecord[] {
-    return startEventsIn(this._host.study.list(), this._host.canvas.getScope()?.id, this._get);
+    return startEventsIn(this._host.study.list(), this._host.canvas.scope, this._get);
   }
 
   private _syncVisibility(token: Token) {

@@ -12,7 +12,7 @@ import {
   shortWhen,
 } from '@modeler/provenance/records';
 import { computeSegLengths, dedupePoints, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
-import { isHidden, type Point, type SceneEdge } from '@canvas/index.ts';
+import { type Point, type SceneEdge } from '@canvas/index.ts';
 import { tokenAnchor } from '@modeler/simulation/flowWalk';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
@@ -132,9 +132,11 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     }
     token.style.display = '';
     token.style.opacity = '';
-    const to = tokenAnchor(editor.study.get(target.id)!);
-    const newRoot = canvas.rootOf(target);
-    const rootId = newRoot?.id;
+    const record = editor.study.get(target.id)!;
+    const to = tokenAnchor(record);
+    // The plane that draws the target: a collapsed container's, by id, or the root's (`undefined`).
+    const plane = record.plane;
+    const rootId = plane ?? editor.study.root.id;
     const from = tokenPos.current;
 
     // The follow-camera: center a point at a comfortable zoom, keeping the user's own zoom when it is already readable.
@@ -149,9 +151,9 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     // A glide only makes sense within one plane: the first step lands directly, and a plane
     // change (or a target the current drill-down hides) dives, the old context zooming away
     // while the new one settles in.
-    if (!from || from.rootId !== rootId || isHidden(target, canvas.getScope())) {
+    if (!from || from.rootId !== rootId || !canvas.draws(target.id)) {
       const place = () => {
-        canvas.goToScope(newRoot);
+        canvas.setScope(plane);
         setPos(to, target.id, rootId);
         try { canvas.scrollToElement(target); } catch { /* off-root elements can decline */ }
         viewport.setViewbox(camera(to));
@@ -163,12 +165,11 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       }
       // The doorway: the collapsed shape being entered (on the old plane), or the shape the old
       // plane belongs to (on the new one); the camera flies through it, so the move is visible.
-      const shapeOf = (root: any): any => (root?.businessObject?.id ? canvas.get(root.businessObject.id) : undefined);
-      const oldRoot = canvas.getRoot();
-      const doorIn = shapeOf(newRoot);
-      const doorOut = shapeOf(oldRoot);
-      const inward = !!doorIn?.width && canvas.rootOf(doorIn) === oldRoot;
-      const outward = !inward && !!doorOut?.width && canvas.rootOf(doorOut) === newRoot;
+      const oldScope = canvas.scope;
+      const doorIn = plane === undefined ? undefined : editor.study.get(plane);
+      const doorOut = oldScope === undefined ? undefined : editor.study.get(oldScope);
+      const inward = doorIn && doorIn.plane === oldScope ? doorIn.bounds : undefined;
+      const outward = !inward && doorOut && doorOut.plane === plane ? doorOut.bounds : undefined;
       const doorway = (shape: any) => {
         const vb = canvas.getViewbox();
         const scale = Math.min(3, vb.outer.width / (shape.width * 1.5), vb.outer.height / (shape.height * 1.5));
@@ -197,7 +198,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
 
       if (inward) {
         // Fly into the collapsed shape, fading out, then surface inside its plane.
-        fly(doorway(doorIn), 420, 'out', () => {
+        fly(doorway(inward), 420, 'out', () => {
           place();
           svg.style.transition = 'none';
           svg.style.transform = 'scale(0.92)';
@@ -221,10 +222,10 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
         svg.style.opacity = '0';
         planeShift.current = window.setTimeout(() => {
           planeShift.current = null;
-          canvas.goToScope(newRoot);
+          canvas.setScope(plane);
           setPos(to, target.id, rootId);
           const dest = camera(to);
-          viewport.setViewbox(doorway(doorOut));
+          viewport.setViewbox(doorway(outward));
           svg.style.transition = 'none';
           fly(dest, 420, 'in', () => resetSvgStyles(canvas));
         }, 170);

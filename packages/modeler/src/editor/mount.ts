@@ -95,7 +95,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
     canRedo: () => study.canRedo,
     importXML,
     saveXML,
-    toSvg: () => renderSvg(study, { ...drawing, scope: canvas.getScope() }),
+    toSvg: () => renderSvg(study, { ...drawing, scope: canvas.scope }),
     getDefinitions: () => study.definitions,
     study,
     canvas,

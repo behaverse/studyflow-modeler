@@ -3,7 +3,7 @@
  * contents (the canvas's scope), and this is the way back out. It is app chrome, a pill of
  * text over the diagram, so a zoom never shrinks it.
  *
- * It reads `canvas.scopePath()` and moves with `canvas.goToScope()` (drilldown/commands.ts),
+ * It reads `canvas.scopePath` and moves with `canvas.setScope()` (drilldown/commands.ts),
  * and renders nothing at the document root, where the trail is one crumb long. Navigation
  * writes nothing: no command, no undo step. `RootSet` tells the trail it moved, the same
  * topic an import fires, so an import collapses the bar by itself.

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { EventBus, isRootElement, renderSvg, type Canvas, type SceneEdge, type SceneNode } from '@canvas/index.ts';
+import { EventBus, renderSvg, type Canvas, type SceneEdge, type SceneNode } from '@canvas/index.ts';
 
 import {
   canvasOn,
@@ -394,7 +394,7 @@ state:
   // The root turns collaboration, and the study stays the root: same id, name, documentation, Study.
   const pool = node(canvas, canvas.study.add({ type: 'bpmn:Participant', at: { x: 300, y: 118 } }).id!);
   const collaboration = canvas.getScene()!.root as any;
-  expect(canvas.getRoot()).toMatchObject({ id: 'Study_1', type: 'bpmn:Collaboration' });
+  expect(canvas.study.root).toMatchObject({ id: 'Study_1', type: 'bpmn:Collaboration' });
   expect(collaboration).toMatchObject({ id: 'Study_1', name: 'Pilot', documentation: [documentation] });
   expect(collaboration.extensionElements.values).toEqual([study]);
   // The process is the pool's now, under an id of its own; its properties' run state follows it.
@@ -410,7 +410,7 @@ state:
 
   canvas.study.remove({ ids: [pool.id] });
   expect(canvas.getScene()!.root).toBe(process);
-  expect(canvas.getRoot()).toMatchObject({ id: 'Study_1', type: 'bpmn:Process' });
+  expect(canvas.study.root).toMatchObject({ id: 'Study_1', type: 'bpmn:Process' });
   expect(process).toMatchObject({ id: 'Study_1', name: 'Pilot', documentation: [documentation] });
   expect(process.extensionElements.values).toEqual([study]);
   expect(JSON.parse(study.state)).toEqual({ Study_1: { trials: 3 } });
@@ -520,7 +520,7 @@ test('a double click opens or shuts a container in place; on an open one\'s capt
   doubleClick(canvas, centre(sub));
   expect(sub.isExpanded).toBe(true);
   expect(scene.revision).toBe(revision + 1);
-  expect(canvas.getScope()).toBeUndefined();
+  expect(canvas.scope).toBeUndefined();
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(false);
 
   // Expanded, a double click on its body, clear of its contents and its caption strip, collapses it.
@@ -545,9 +545,10 @@ test('a double click opens or shuts a container in place; on an open one\'s capt
 test('drilling into a container shows only its contents until the trail leads back out', async () => {
   const { canvas } = load();
   const sub = node(canvas, 'Sub_1');
-  expect(canvas.enterScope(sub)).toBe(true);
-  expect(canvas.getRoot()).toBe(sub);
-  expect(canvas.scopePath().map((root) => root.id)).toEqual(['Process_1', 'Sub_1']);
+  expect(canvas.setScope('Task_1'), 'a task holds no contents to show').toBe(false);
+  expect(canvas.setScope('Sub_1')).toBe(true);
+  expect(canvas.scope).toBe('Sub_1');
+  expect(canvas.scopePath).toEqual(['Process_1', 'Sub_1']);
   expect(isHiddenGraphics(canvas, 'Task_1')).toBe(true);
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(false);
   expect([canvas.draws('Task_1'), canvas.draws('Task_In')]).toEqual([false, true]);
@@ -561,20 +562,20 @@ test('drilling into a container shows only its contents until the trail leads ba
   const dropped = canvas.getSelection().get()[0] as SceneNode;
   expect(dropped.parent).toBe(sub);
   expect(sub.businessObject.flowElements).toContain(dropped.businessObject);
-  expect(canvas.goToScope(undefined)).toBe(true);
-  expect(isRootElement(canvas.getRoot())).toBe(true);
+  expect(canvas.setScope(undefined)).toBe(true);
+  expect(canvas.scopePath).toEqual(['Process_1']);
   expect(isHiddenGraphics(canvas, 'Task_1')).toBe(false);
 });
 
 test('an undo draws the study again and keeps the view on it, by id: the scope, the camera and the selection', async () => {
   const { canvas } = load();
-  canvas.enterScope(node(canvas, 'Sub_1'));
+  canvas.setScope('Sub_1');
   canvas.getViewport().setViewbox({ x: 380, y: 380, width: 300, height: 200 });
   const viewbox = canvas.getViewport().getViewbox();
   canvas.getSelection().select(node(canvas, 'Task_In'));
   canvas.study.set({ id: 'Task_In', attribute: 'name', value: 'Deeper' });
   const heard: string[] = [];
-  canvas.getEventBus().on('RootSet', (event: any) => heard.push(`RootSet ${event.element.id}`));
+  canvas.getEventBus().on('RootSet', (event: any) => heard.push(`RootSet ${event.scope ?? canvas.study.root.id}`));
   canvas.getEventBus().on('SelectionChanged', (event: any) => heard.push(`SelectionChanged ${event.newSelection.map((e: any) => e.id)}`));
 
   expect(canvas.study.undo().ok).toBe(true);
@@ -585,13 +586,13 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   const drawn = canvas.getGraphics('Task_In')!.textContent;
   expect(drawn, 'drawn from the document as it was').toContain('Deep');
   expect(drawn).not.toContain('Deeper');
-  expect(canvas.getScope()?.id).toBe('Sub_1');
+  expect(canvas.scope).toBe('Sub_1');
   expect(canvas.getViewport().getViewbox()).toEqual(viewbox);
   expect(canvas.getSelection().get()).toHaveLength(1);
   expect(canvas.getSelection().get()[0], 'the element as it is now, not as it was').toBe(node(canvas, 'Task_In'));
 
   // Drilled into nothing, with nothing selected, it still says what it shows: the root, another object now.
-  canvas.goToScope(undefined);
+  canvas.setScope(undefined);
   canvas.study.set({ id: 'Task_1', attribute: 'name', value: 'Other' });
   heard.length = 0;
   canvas.study.undo();

@@ -597,7 +597,7 @@ test('a picture draws what a view shows: an expanded container\'s contents, a co
   expect(drawn(renderSvg(canvas.study))).toEqual(
     ['Collapsed', 'Expanded', 'First', 'Inner_Flow', 'Into_Expanded', 'Record', 'Record_label', 'Second', 'Start', 'Writes'],
   );
-  expect(drawn(renderSvg(canvas.study, { scope: node(canvas, 'Collapsed') }))).toEqual(['Hidden']);
+  expect(drawn(renderSvg(canvas.study, { scope: 'Collapsed' }))).toEqual(['Hidden']);
 });
 
 /** A resolver that answers every marker key, so markers draw as real SVG. */

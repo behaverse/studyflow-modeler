@@ -42,8 +42,6 @@ export interface CanvasViewbox extends Viewbox {
   outer: { width: number; height: number };
 }
 
-export type Root = RootElement | SceneNode;
-
 /** Shapes created unnamed and useless: their label editor opens on drop. */
 const EDIT_ON_CREATE_TYPES = new Set<string>([
   BPMN.Task, BPMN.UserTask, BPMN.ServiceTask, BPMN.ScriptTask, BPMN.ManualTask, BPMN.SendTask,
@@ -70,7 +68,7 @@ export class Canvas {
   private readonly stopListening: () => void;
   private snapToGrid: boolean;
   /** The container the view is drilled into; `undefined` shows the whole diagram. */
-  private scope?: SceneNode;
+  private scopeNode?: SceneNode;
   private drag?: Drag;
   private appendPreview?: SVGGElement;
   private resizeObserver?: ResizeObserver;
@@ -122,7 +120,7 @@ export class Canvas {
       hitTest: (point) => this.hitTest(point),
       layer: this.layers.getLayer('overlays'),
       snap: (point) => this.snapPoint(point),
-      getContainer: () => this.scope,
+      getContainer: () => this.scopeNode,
       drop: (what, center, into) => {
         const made = this.made(this.study.add({ ...what, at: center, into: into?.id ?? this.scene.rootElement.id }));
         return made?.kind === 'node' ? made : undefined;
@@ -155,6 +153,7 @@ export class Canvas {
       placed: (node) => this.placed(node),
       moveWaypoint: (edge, index, point) => this.moveWaypoint(edge, index, point),
       nudgeSelection: (dx, dy) => this.nudgeSelection(dx, dy),
+      scope: () => this.scopeNode,
     });
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
@@ -200,7 +199,7 @@ export class Canvas {
   private drawStudy(scope?: SceneNode): void {
     this.resetInteraction();
     this.selection.forget();
-    this.scope = scope;
+    this.scopeNode = scope;
     this.renderer.scope = scope;
     this.drag = new Drag({
       mutator: this.mutator,
@@ -208,21 +207,21 @@ export class Canvas {
       snapToGrid: this.snapToGrid,
       rules: this.rules,
       getScene: () => this.scene,
-      getScope: () => this.scope,
+      getScope: () => this.scopeNode,
       hitTest: (point, options) => this.hitTest(point, options),
-      obstacles: (moving) => obstaclesIn(this.scene, this.scope, moving),
+      obstacles: (moving) => obstaclesIn(this.scene, this.scopeNode, moving),
     });
     this.appendPreview = undefined;
     this.layers.clear();
     this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
     this.zoomToFit();
-    this.bus.fire('RootSet', { element: this.getRoot() });
+    this.bus.fire('RootSet', { scope: this.scope });
   }
 
   /** Draw the study afresh after an undo or a redo, keeping what the view showed, by id: the scope, the camera, the selection. */
   private drawKeepingView(): void {
     const selected = this.selection.get().map((element) => element.id);
-    const scope = this.scope && this.scene.elementsById.get(this.scope.id);
+    const scope = this.scopeNode && this.scene.elementsById.get(this.scopeNode.id);
     const viewbox = this.viewport.getViewbox();
     this.drawStudy(scope?.kind === 'node' && isExpandable(scope.type) ? scope : undefined);
     this.viewport.setViewbox(viewbox);
@@ -291,60 +290,44 @@ export class Canvas {
     return candidate.kind === 'node' || candidate.kind === 'edge' || candidate.kind === 'label' ? (value as SceneElement) : undefined;
   }
 
-  /** What the view shows: the drilled-into container, else the document root. */
-  getRoot(): Root {
-    return this.scope ?? this.scene.rootElement;
-  }
-
-  /** The nearest collapsed container `element` lives in, else the document root. */
-  rootOf(element: ElementRef): Root | undefined {
-    if (isRootElement(element)) return element;
-    const target = this.resolveElement(element);
-    if (!target) return undefined;
-    const owner = target.kind === 'label' ? target.owner : target;
-    for (let p = owner.parent; p; p = p.parent) if (isCollapsed(p)) return p;
-    return this.scene.rootElement;
-  }
-
   // --- drill-down scope -------------------------------------------------------------
 
-  getScope(): SceneNode | undefined {
-    return this.scope;
+  /** The id of the container the view is drilled into; `undefined` while it shows the whole diagram. */
+  get scope(): string | undefined {
+    return this.scopeNode?.id;
+  }
+
+  /**
+   * Drill into the container `id` names, drawn open or closed, to show only its contents; `undefined` shows the whole
+   * diagram. False when that is what the view shows already, or `id` names nothing that holds contents.
+   */
+  setScope(id: string | undefined): boolean {
+    const node = id === undefined ? undefined : this.scene.elementsById.get(id);
+    if (id !== undefined && (node?.kind !== 'node' || !isExpandable(node.type))) return false;
+    return this.showScope(node as SceneNode | undefined);
+  }
+
+  /** The ids of the document root and of every container on the way into the scope, the root's first. */
+  get scopePath(): string[] {
+    const path: string[] = [];
+    for (let p = this.scopeNode; p; p = p.parent) if (isExpandable(p.type)) path.unshift(p.id);
+    return [this.scene.rootElement.id, ...path];
   }
 
   /** Whether this view draws the element `id`: on the plane it shows, not folded inside a collapsed container. */
   draws(id: string): boolean {
     const element = this.scene.elementsById.get(id);
-    return element !== undefined && !isHidden(element, this.scope);
+    return element !== undefined && !isHidden(element, this.scopeNode);
   }
 
-  /** Show only `node`'s contents. */
-  enterScope(node: SceneNode): boolean {
-    if (!isExpandable(node.type)) return false;
-    return this.setScope(node);
-  }
-
-  /** Show `target`'s contents, or the whole diagram for the root / `undefined`. */
-  goToScope(target: Root | undefined): boolean {
-    return this.setScope(target && !isRootElement(target) ? target : undefined);
-  }
-
-  /** Root first, then every container on the way in. */
-  scopePath(): Root[] {
-    const path: Root[] = [];
-    for (let p = this.scope; p; p = p.parent) if (isExpandable(p.type)) path.unshift(p);
-    path.unshift(this.scene.rootElement);
-    return path;
-  }
-
-  private setScope(node: SceneNode | undefined): boolean {
-    if (this.scope === node) return false;
+  private showScope(node: SceneNode | undefined): boolean {
+    if (this.scopeNode === node) return false;
     this.resetInteraction();
-    this.scope = node;
+    this.scopeNode = node;
     this.renderer.scope = node;
     this.redrawElements(this.all());
     this.zoomToFit();
-    this.bus.fire('RootSet', { element: this.getRoot() });
+    this.bus.fire('RootSet', { scope: this.scope });
     return true;
   }
 
@@ -359,7 +342,7 @@ export class Canvas {
   // --- view -------------------------------------------------------------------------
 
   zoomToFit(): void {
-    const visible = this.all().filter((element) => !isHidden(element, this.scope));
+    const visible = this.all().filter((element) => !isHidden(element, this.scopeNode));
     this.viewport.fitBounds(boundsOf(visible) ?? { x: 0, y: 0, width: 1000, height: 1000 }, 40);
   }
 
@@ -557,7 +540,7 @@ export class Canvas {
   // --- hit-testing --------------------------------------------------------------------
 
   hitTest(point: Point, options?: HitOptions): SceneElement | undefined {
-    return hitTest(this.scene, point, { ...options, scope: this.scope });
+    return hitTest(this.scene, point, { ...options, scope: this.scopeNode });
   }
 
   /** The selected shapes and captions a move carries. */
@@ -653,7 +636,7 @@ export class Canvas {
   }
 
   selectAll(): boolean {
-    const all = this.all().filter((element) => element.kind !== 'label' && !isHidden(element, this.scope));
+    const all = this.all().filter((element) => element.kind !== 'label' && !isHidden(element, this.scopeNode));
     if (all.length === 0) return false;
     this.selection.select(all);
     return true;

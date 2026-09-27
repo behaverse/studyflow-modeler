@@ -110,7 +110,5 @@ export type DrillDownCommand = {
 
 /** Show only the contents of an expandable container; the breadcrumb trail leads back out. */
 export function runDrillDown(modeler: Editor, command: DrillDownCommand): boolean {
-  const node = modeler.canvas.resolveElement(command.element);
-  if (!node || node.kind !== 'node') return false;
-  return modeler.canvas.enterScope(node);
+  return modeler.canvas.setScope(command.element.id);
 }
