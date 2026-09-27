@@ -8,7 +8,6 @@ import { extractStudyflowFromPng } from '@core/document/png';
 import { extractStudyflowFromSvg } from '@core/document/svg';
 import { notify } from '@modeler/app/noticeStore';
 import { resetTrailStamping } from '@modeler/provenance/trail';
-import { tidyLayout } from '@modeler/diagram/tidy';
 import type { Editor } from '@modeler/editor/port';
 
 export type ResetZoomCommand = {
@@ -23,11 +22,10 @@ export type TidyLayoutCommand = {
   type: 'TidyLayout';
 };
 
-/** Lay the diagram out afresh as one edit, and fit it; say why when the layout engine cannot. */
-export async function runTidyLayout(modeler: Editor, _command: TidyLayoutCommand): Promise<void> {
-  const result = await tidyLayout(modeler.study, modeler.model.moddle());
-  if (typeof result === 'string') notify('warning', result);
-  else if (!result.ok) notify('error', `Tidy Layout failed: ${result.reason}`);
+/** Lay the diagram out afresh as one edit (the study's `layout`), and fit it. */
+export function runTidyLayout(modeler: Editor, _command: TidyLayoutCommand): void {
+  const result = modeler.study.layout();
+  if (!result.ok) notify('error', `Tidy Layout failed: ${result.reason}`);
   else modeler.canvas.zoom('fit');
 }
 
