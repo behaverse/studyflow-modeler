@@ -68,6 +68,7 @@ export function Breadcrumbs() {
       className={s.root}
       style={{ left: anchor.left, top: anchor.top }}
       data-testid="drilldown-breadcrumbs"
+      data-covers="top"
       aria-label="Diagram plane"
     >
       {crumbs.map((crumb, index) => (

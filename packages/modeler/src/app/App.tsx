@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modeler } from '@modeler/app/Modeler';
 import { ModelerContext, ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
 import { ReplayPanel } from '@modeler/provenance/Replay';
@@ -18,6 +18,11 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const isSimulating = useIsSimulating(modeler);
+
+  // The editor fitted its first diagram before the app drew its chrome over the canvas: fit it again, clear of it.
+  useEffect(() => {
+    modeler?.canvas.zoom('fit');
+  }, [modeler]);
 
   return (
     <ModelerContext.Provider value={modeler}>

@@ -114,7 +114,7 @@ export function NavBar() {
 
   return (
     <>
-        <a href="../" target="_blank" className={navbar.brand}>
+        <a href="../" target="_blank" className={navbar.brand} data-covers="top">
           <img src={logo_image} className={navbar.brandImage} alt="Studyflow Modeler" title="Studyflow Modeler" />
           <span className={navbar.brandWordmark}>
             <span className={navbar.brandWordmarkLight}>Studyflow</span>
@@ -123,7 +123,7 @@ export function NavBar() {
           </span>
         </a>
 
-        <div className={navbar.shell}>
+        <div className={navbar.shell} data-covers="top">
           <CommandPalette ref={paletteRef} />
           <button
             type="button"

@@ -377,7 +377,7 @@ function ReplayTimeline({ onClose }: Props) {
   const frac = (n: number) => `${(n / Math.max(total, 1)) * 100}%`;
 
   return (
-    <div className="fixed bottom-2 inset-x-2 z-[220]" data-testid="provenance-replay">
+    <div className="fixed bottom-2 inset-x-2 z-[220]" data-testid="provenance-replay" data-covers="bottom">
       <div className={`${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat} text-stone-900 px-3 py-2`}>
         <div className="flex items-center gap-1">
           <h1

@@ -5,7 +5,7 @@
  */
 
 import { Canvas, renderSvg } from '@canvas/index.ts';
-import type { CanvasOptions, IconDef, Study } from '@canvas/index.ts';
+import type { CanvasOptions, IconDef, Insets, Study } from '@canvas/index.ts';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
@@ -49,11 +49,31 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
   return undefined;
 }
 
+/** Room left between the diagram and the app's chrome, in CSS pixels. */
+const CHROME_GAP = 8;
+
+/**
+ * How far the app's floating chrome reaches into the canvas from each edge, measured now: every element marked
+ * `data-covers="<edge>"` (the palette, the nav bar, the inspector), while it shows.
+ */
+function coveredEdges(container: HTMLElement): Insets {
+  const view = container.getBoundingClientRect();
+  const insets = { top: 0, right: 0, bottom: 0, left: 0 };
+  for (const element of container.ownerDocument.querySelectorAll<HTMLElement>('[data-covers]')) {
+    const box = element.getBoundingClientRect();
+    if (box.width === 0 || box.height === 0) continue;
+    const reach = { top: box.bottom - view.top, right: view.right - box.left, bottom: view.bottom - box.top, left: box.right - view.left };
+    const edge = element.dataset.covers as keyof typeof reach;
+    if (edge in reach) insets[edge] = Math.max(insets[edge], reach[edge] + CHROME_GAP);
+  }
+  return insets;
+}
+
 export function mountEditor(options: MountEditorOptions): Editor {
   const { study } = options;
   // How the app draws a study, on the canvas and in a picture of it.
   const drawing: CanvasOptions = { iconResolver: resolveIcon };
-  const canvas = new Canvas(options.container, study, drawing);
+  const canvas = new Canvas(options.container, study, { ...drawing, insets: () => coveredEdges(options.container) });
   const model: EditorModel = {
     moddle: () => options.moddle,
     packages: () => options.extensionSchemas,

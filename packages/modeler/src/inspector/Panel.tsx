@@ -112,6 +112,7 @@ export function Panel() {
       <div className={s.wrapper}>
         <div
           data-testid="inspector-root"
+          data-covers={isVisible && element ? 'right' : undefined}
           className={`${s.panel} ${isVisible ? '' : s.panelHidden}`}
           style={{ width }}
         >

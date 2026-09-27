@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { STORAGE_KEYS } from '@core/storage';
+
 import { diagramTitle, gotoModeler, runPaletteCommand } from './utils';
 
 /** The New Diagram gallery: the blank card, then one card per shipped example, in shelves. */
@@ -46,6 +48,17 @@ test.describe('New Diagram gallery', () => {
     await expect(dialog).toBeHidden();
     await expect(diagramTitle(page)).toHaveText('Within-subject cognitive battery');
     await expect(page.locator('g[data-element-id="Task_NBack"]')).toBeVisible();
+    // It opens fitted to what the app's floating chrome leaves free, and a reload restores it fitted the same way.
+    const clearsPalette = async () => {
+      const palette = (await page.getByTestId('palette-root').boundingBox())!;
+      const start = (await page.locator('g[data-element-id="Start"]').boundingBox())!;
+      expect(start.x).toBeGreaterThan(palette.x + palette.width);
+    };
+    await clearsPalette();
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', STORAGE_KEYS.autosaveDiagram)).toContain('Task_NBack');
+    await page.reload();
+    await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
+    await clearsPalette();
 
     // The blank diagram is one click away, and replaces the one open.
     await runPaletteCommand(page, /^New/);

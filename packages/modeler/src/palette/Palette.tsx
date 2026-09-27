@@ -143,6 +143,7 @@ export function Palette({ className = '' }: { className?: string }) {
     <div
       className={`${palette.wrapper} ${className}`}
       data-testid="palette-root"
+      data-covers="left"
       ref={rootRef}
     >
       {PALETTE_GROUPS.map((group) => {
