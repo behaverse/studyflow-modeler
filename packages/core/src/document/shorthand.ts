@@ -374,10 +374,23 @@ export function expandDiNode(props: Record<string, unknown>): void {
 
 /* 9. incoming / outgoing: implied by the sequence flows, so only a list that says something else is written */
 
-export function isImpliedFlowList(el: any, key: 'incoming' | 'outgoing', refs: unknown[]): boolean {
-  const end = key === 'incoming' ? 'targetRef' : 'sourceRef';
-  const siblings: any[] = el.$parent?.flowElements ?? [];
-  const implied = siblings.filter((item) => item?.$instanceOf?.('bpmn:SequenceFlow') && item[end] === el);
+/** A container's sequence flows by the flow node at each end, in the order the container lists them. */
+export type FlowEnds = Map<unknown, { incoming: unknown[]; outgoing: unknown[] }>;
+
+export function flowEndsOf(container: any): FlowEnds {
+  const ends: FlowEnds = new Map();
+  const at = (node: unknown) => ends.get(node) ?? ends.set(node, { incoming: [], outgoing: [] }).get(node)!;
+  for (const item of container?.flowElements ?? []) {
+    if (!item?.$instanceOf?.('bpmn:SequenceFlow')) continue;
+    if (item.targetRef) at(item.targetRef).incoming.push(item);
+    if (item.sourceRef) at(item.sourceRef).outgoing.push(item);
+  }
+  return ends;
+}
+
+/** Whether `refs` is the list `el`'s container's flows imply; `ends` is that container's {@link flowEndsOf}, built once per run. */
+export function isImpliedFlowList(el: any, key: 'incoming' | 'outgoing', refs: unknown[], ends: FlowEnds = flowEndsOf(el.$parent)): boolean {
+  const implied = ends.get(el)?.[key] ?? [];
   return implied.length === refs.length && implied.every((flow, i) => flow === refs[i]);
 }
 

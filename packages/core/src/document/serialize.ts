@@ -5,6 +5,7 @@ import {
   CHECKLIST_MARKER,
   DI_NODE_TYPES,
   compactDiNode,
+  flowEndsOf,
   inlineDocumentationEntries,
   inlineElementList,
   inlineExpressionBody,
@@ -15,6 +16,7 @@ import {
   keyItemsById,
   planInlineDi,
   shortTypeName,
+  type FlowEnds,
 } from '@core/document/shorthand';
 
 type SerializeContext = {
@@ -22,8 +24,18 @@ type SerializeContext = {
   foldedIds: Set<string>;
   /** What the document contains; a reference to anything else could not be read back. */
   held: Set<unknown>;
+  /** Each container's sequence flows by their ends, built once per run: what `incoming` and `outgoing` are checked against. */
+  flowEnds: Map<unknown, FlowEnds>;
   onWarning?: (message: string) => void;
 };
+
+function flowEndsIn(ctx: SerializeContext, container: unknown): FlowEnds {
+  const known = ctx.flowEnds.get(container);
+  if (known) return known;
+  const ends = flowEndsOf(container);
+  ctx.flowEnds.set(container, ends);
+  return ends;
+}
 
 /** Every element `definitions` contains, as opposed to one it only references. */
 function heldElements(definitions: any): Set<unknown> {
@@ -73,7 +85,7 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
     if (p.isMany) {
       if (!Array.isArray(value) || value.length === 0) continue;
       if (p.isReference) {
-        if ((key === 'incoming' || key === 'outgoing') && isImpliedFlowList(el, key, value)) continue;
+        if ((key === 'incoming' || key === 'outgoing') && isImpliedFlowList(el, key, value, ctx && flowEndsIn(ctx, el.$parent))) continue;
         const ids = value.map((ref: any) => heldReference(el, key, ref, ctx)?.id).filter((id: unknown) => id !== undefined);
         if (ids.length > 0) out[key] = ids;
         continue;
@@ -154,6 +166,7 @@ export function definitionsToYamlDoc(definitions: any, onWarning?: (message: str
     di: planInlineDi(definitions, (el, declaredType) => serializeElement(el, declaredType)),
     foldedIds: new Set(),
     held: heldElements(definitions),
+    flowEnds: new Map(),
     onWarning,
   };
   const serialized = serializeElement(definitions, 'bpmn:Definitions', ctx);
