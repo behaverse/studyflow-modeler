@@ -338,6 +338,14 @@ P:
   expect(study.get('Timer')!.bounds).toMatchObject({ x: 182, y: 182 });
 });
 
+test('a caption keeps up with what it names, in a study no view draws', () => {
+  const study = open();
+  study.add({ type: 'bpmn:StartEvent', id: 'Go', name: 'go', at: { x: 100, y: 400 } });
+  const was = study.get('Go_label')!.bounds!;
+  study.move({ ids: ['Go'], by: { x: 40, y: 10 } });
+  expect(study.get('Go_label')!.bounds).toMatchObject({ x: was.x + 40, y: was.y + 10 });
+});
+
 test('a reconnected data association is filed on its new activity, the one that reads or writes the data', () => {
   const study = open();
   study.add({ type: 'bpmn:Task', id: 'Two', at: { x: 600, y: 120 } });

@@ -49,6 +49,7 @@ import type {
   SceneElement,
   SceneNode,
 } from '@canvas/study/scene.ts';
+import { isRootElement } from '@canvas/study/scene.ts';
 import { changeRoot } from '@canvas/study/root.ts';
 import {
   boundsOf,
@@ -297,6 +298,8 @@ export class Mutator {
     }
     for (const element of added) changed.delete(element);
     if (added.size + changed.size + removed.size === 0) return;
+    // Captions keep step with their owners, drawn or not.
+    for (const element of [...added, ...changed]) if (!isRootElement(element) && element.kind !== 'label') syncLabel(this.scene, element);
     this.scene.revision += 1;
     this.onCommit({ added: [...added], changed: [...changed], removed: [...removed] });
   }
