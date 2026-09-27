@@ -596,6 +596,35 @@ S:
     expect(archivedState(path.join(dir, 'run', 'otherwise.bpmn'))._meta.reached).toEqual({ Start: 1, F1: 1, Gate: 1, F_Otherwise: 1, Otherwise: 1 });
   });
 
+  test('steps past a sub-process without a start event, as the browser runner does', async () => {
+    const xml = await studyflowToXml(`id: listed
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+    Visit:
+      type: SubProcess
+      flowElements:
+        Inside:
+          type: Task
+    Done:
+      type: EndEvent
+    F1: Start -> Visit
+    F2: Visit -> Done
+`, moddle);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
+    fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.writeFileSync(path.join(dir, 'listed.bpmn'), xml);
+    execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'listed.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
+      cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
+    });
+    expect(archivedState(path.join(dir, 'run', 'listed.bpmn'))._meta.reached).toEqual({ Start: 1, F1: 1, Visit: 1, F2: 1, Done: 1 });
+    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toContain('Visit has no start event');
+  });
+
   test('--from a step redoes it and every step after it, and reuses the steps before it', async () => {
     const xml = await studyflowToXml(`id: again
 definitions:

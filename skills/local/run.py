@@ -2109,8 +2109,17 @@ class Runner:
         entry = self.record.begin(element_id, self.studyflow.name_of(element_id), bpmn_type(element))
         self.event("activity.started", f"⊞ {element_id}")
         self.start_scope(element_id, reset=True)
+        start = next((child for child in element if local(child) == "startEvent"), None)
         try:
-            self.walk(self.studyflow.start_event(element), depth + 1, max_steps)
+            if start is None:
+                # A sub-process without a start event only lists what it holds: the walk steps past it, as the
+                # browser runner does (the plan check asks for one only where sequence flows run inside).
+                self.event(
+                    "subProcess.unwalked", f"    {element_id} has no start event, so nothing inside it runs; stepping past it",
+                    level=logging.WARNING,
+                )
+            else:
+                self.walk(start, depth + 1, max_steps)
         except Interrupted as interrupt:
             entry["interruptedBy"] = interrupt.boundary.get("id")
             self.record.end(entry)
