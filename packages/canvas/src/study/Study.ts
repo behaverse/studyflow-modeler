@@ -77,7 +77,15 @@ export interface StudyInternals {
   readonly mutator: Mutator;
   /** What may connect, contain or resize what: the study's verbs and every view's gestures ask the same rules. */
   readonly rules: Rules;
+  /**
+   * Make the edits `edit` commits part of the run `key`: edits under one key, each within `RUN_WINDOW_MS` of the last,
+   * are one undo step (a run of arrow-key nudges of one selection).
+   */
+  runAs(key: string, edit: () => void): void;
 }
+
+/** Edits of one run this close together are one undo step. */
+const RUN_WINDOW_MS = 1000;
 
 const internals = new WeakMap<Study, StudyInternals>();
 
@@ -99,6 +107,9 @@ export class Study {
   private current = 0;
   /** The last commit, for the verb that made it to report. */
   private committed?: Commit;
+  /** The run the edit under way belongs to, and the run the last edit did, with when it was made. */
+  private runKey?: string;
+  private run?: { key: string; at: number };
 
   private constructor(definitions: ModdleObject, options: ImportOptions) {
     this.options = options;
@@ -500,7 +511,12 @@ export class Study {
     fromWireDefinitions(definitions, this.options.onWarning);
     const scene = importDefinitions(definitions, this.options);
     scene.revision = revision;
-    internals.set(this, { scene, mutator: new Mutator(scene, (commit) => this.edited(commit)), rules: this.rules });
+    internals.set(this, {
+      scene,
+      mutator: new Mutator(scene, (commit) => this.edited(commit)),
+      rules: this.rules,
+      runAs: (key, edit) => this.runAs(key, edit),
+    });
     return scene;
   }
 
@@ -664,18 +680,36 @@ export class Study {
     return commit;
   }
 
-  /** A commit: the document as it now stands is the newest snapshot, unless it is the one the study holds. */
+  private runAs(key: string, edit: () => void): void {
+    this.runKey = key;
+    try {
+      edit();
+    } finally {
+      this.runKey = undefined;
+    }
+  }
+
+  /**
+   * A commit: the document as it now stands is the newest snapshot, unless it is the one the study holds. An edit
+   * that carries on the last one's run takes the place of its snapshot, so the run undoes as one step.
+   */
   private edited(commit: Commit): void {
     this.committed = commit;
     const { scene } = studyInternals(this);
     writeDi(scene);
     const snapshot = definitionsToStudyflow(scene.definitions);
+    const now = Date.now();
+    const carriesOn = this.runKey !== undefined && this.run?.key === this.runKey && now - this.run.at <= RUN_WINDOW_MS;
     if (snapshot !== this.snapshots[this.current]) {
-      this.snapshots.length = this.current + 1;
-      this.snapshots.push(snapshot);
-      if (this.snapshots.length > UNDO_DEPTH + 1) this.snapshots.shift();
-      this.current = this.snapshots.length - 1;
+      if (carriesOn && this.current > 0) this.snapshots[this.current] = snapshot;
+      else {
+        this.snapshots.length = this.current + 1;
+        this.snapshots.push(snapshot);
+        if (this.snapshots.length > UNDO_DEPTH + 1) this.snapshots.shift();
+        this.current = this.snapshots.length - 1;
+      }
     }
+    this.run = this.runKey === undefined ? undefined : { key: this.runKey, at: now };
     this.announce({ cause: 'edit', ...idsOf(commit) });
   }
 
@@ -684,6 +718,7 @@ export class Study {
     const snapshot = this.snapshots[this.current + step];
     if (snapshot === undefined) return undefined;
     this.current += step;
+    this.run = undefined;
     return { ok: true, ...this.swap(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo') };
   }
 
@@ -694,6 +729,7 @@ export class Study {
     if (cause === 'load') {
       this.snapshots = [definitionsToStudyflow(definitions)];
       this.current = 0;
+      this.run = undefined;
     }
     const change = idsOf(byId(before, after));
     this.announce({ cause, ...change });

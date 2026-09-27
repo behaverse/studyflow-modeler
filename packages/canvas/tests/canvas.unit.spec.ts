@@ -791,7 +791,7 @@ test('Ctrl+A selects everything on screen, A asks for the append menu, the arrow
   const at = (): { x: number; y: number } => ({ x: node(canvas, 'Task_1').x, y: node(canvas, 'Task_1').y });
   const nudged = at();
   container.dispatchEvent(keyEvent('keydown', { key: 'z', ctrlKey: true }));
-  expect(at(), 'the last nudge undone').toEqual({ x: nudged.x, y: 78 });
+  expect(at(), 'the run of nudges undone at once').toEqual({ x: 200, y: 78 });
   container.dispatchEvent(keyEvent('keydown', { key: 'Z', ctrlKey: true, shiftKey: true }));
   expect(at()).toEqual(nudged);
 });

@@ -744,7 +744,9 @@ export class Canvas {
     const movable = this.movableSelection();
     if (movable.length === 0) return false;
     if (!drag.startMove(movable, { x: 0, y: 0 }, { snapToGrid: false, rerouteEdges: false })) return false;
-    drag.end({ x: dx, y: dy });
+    // A run of nudges of one selection is one undo step.
+    const run = `nudge:${movable.map((element) => element.id).sort().join(',')}`;
+    studyInternals(this.study).runAs(run, () => drag.end({ x: dx, y: dy }));
     return true;
   }
 
