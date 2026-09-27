@@ -81,6 +81,16 @@ export default [
     },
   },
 
+  // The <studyflow-canvas> element is built on the canvas's index alone: what it needs, any host has.
+  {
+    files: ['packages/canvas/src/element.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{ regex: '^(?!\\./index\\.ts$)', message: 'element.ts is built on the index alone: export what it needs there.' }],
+      }],
+    },
+  },
+
   {
     files: ['packages/core/src/**/*.ts'],
     rules: {

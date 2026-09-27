@@ -9,6 +9,7 @@ The editable SVG canvas the modeler draws on: plain TypeScript and SVG, no bpmn-
 | `interaction/` | Pointer and keyboard. `gestures.ts` turns a press into one gesture and drives `study/drag.ts`, `create.ts` or `connect.ts`, through the canvas's public API and the few tools `Canvas.ts` hands it; also `selection.ts`, `labelEditing.ts`, `snapping.ts`. |
 | `render/` | One `<g>` per element (`renderer.ts`), the shapes, captions and icons; `renderSvg.ts` draws a study as a standalone SVG, without a canvas. |
 | `view/` | The viewport (pan, zoom, fit), the layers, the `INK` palette and the canvas CSS. |
+| `element.ts` | `<studyflow-canvas>`, built on the index alone (lint-enforced): the package's second entry, `./element`. |
 
 An edit, end to end: the modeler opens the file as a `Study` (`Study.open`), which builds the scene, and puts a `Canvas` on it, which draws it. A pointer press becomes a gesture; while it moves, the gesture writes geometry into the scene and redraws what it touched. On release the Mutator commits: the business objects change, `scene.revision` goes up, and the Study announces the change; the Study keeps the new state for undo; the canvas draws what the commit added, changed and removed, then fires `ElementsChanged`. An edit made of several (a replace, an append, a move into a container) is one commit: `batch()`. `study.load()` replaces the document, and each view draws it afresh. Saving calls `study.toXml()`, which rebuilds the DI from the scene and serializes.
 
@@ -30,6 +31,10 @@ An edit, end to end: the modeler opens the file as a `Study` (`Study.open`), whi
 - `renderSvg(study, { scope, document, ...options })` is a picture of what a view drilled into `scope` shows, framed on it, with none of the editor's chrome: a gallery card, an export. Outside a browser, hand it a `document` (jsdom's).
 - A view announces by id, through `canvas.on(event, listener)`: `select` (the ids selected), `scope` (what it shows: on a drill-down, and whenever it draws its study afresh after a load, an undo or a redo, before it reselects), `appendMenu` (the `a` key, on the selection). What an edit did, the study says (`study.on('change')`), after every view has drawn it. Ctrl/Cmd+Z undoes and Shift+Ctrl/Cmd+Z redoes, through the study.
 - `mark(ids, marker, on?)` marks elements: `dimmed` draws them faded and `error` glowing red, and any other marker is a class `sf-mark-<marker>` for the host's CSS (the replay dims what no record touched). `layer(name)` gives the host a layer of its own above the diagram, in diagram coordinates (the token simulation and the replay's token draw there).
+
+## The element
+
+`defineStudyflowCanvas()` registers `<studyflow-canvas>`. A page hands it a study (`element.study = study`), or names a file with `src` once `element.moddle` says how to read one (a `studyflow-error` event says why a read failed); `readonly` makes it a view to look at, and `element.canvas` is the view while it shows one. It draws in its own light DOM, so give it a size. Its icons are what the view's `iconResolver` draws (the modeler's come from the app's stylesheet).
 
 ## Tests
 
