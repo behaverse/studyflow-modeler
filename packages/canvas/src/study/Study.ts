@@ -22,7 +22,7 @@ import { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
-import { isStepTool, misfitOf, STUDY_TOOLS, type StepTool, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
+import { isStepTool, misfitOf, STUDY_TOOLS, type AskableTool, type StepTool, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
 import { edgesAffectedBy, isDescendantOf, isExpandable, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
@@ -56,6 +56,12 @@ export interface StudyResult extends ChangedIds {
   readonly reason?: string;
   /** The element the verb made, when it made one. */
   readonly id?: string;
+}
+
+/** Whether a verb would run, and why not: what `can` answers. */
+export interface Verdict {
+  readonly ok: boolean;
+  readonly reason?: string;
 }
 
 type ChangeListener = (change: StudyChange) => void;
@@ -195,10 +201,23 @@ export class Study {
       }
       case 'list': return { ok: true, elements: this.list(argument) };
       case 'catalog': return { ok: true, ...this.catalog() };
+      case 'can': return this.can(argument.tool, argument.args);
       case 'batch': return this.batch(argument);
       case 'undo': return this.undo();
       case 'redo': return this.redo();
     }
+  }
+
+  /**
+   * Whether the rules let `append`, `connect` or `replace` run on `args`, without writing, and why not: what a menu asks
+   * before it offers an entry. Leave out what is not decided yet to ask about any: `can('append', { from })` asks
+   * whether anything may follow `from`, `can('connect', { from })` whether a flow may leave it, `can('replace', { id })`
+   * whether it may be retyped at all.
+   */
+  can(tool: AskableTool, args: Record<string, unknown>): Verdict {
+    const checked = misfitOf(tool, args, ['to', 'type'])
+      ?? (tool === 'append' ? this.appending(args as never) : tool === 'connect' ? this.connecting(args as never) : this.replacing(args as never));
+    return typeof checked === 'string' ? { ok: false, reason: checked } : { ok: true };
   }
 
   /** Goes up by one on every change. */
@@ -249,14 +268,13 @@ export class Study {
 
   /** Add `what` beside `from` and connect the two, as one edit: one gap to its right, clear of what shares its plane. */
   append(args: NewElement & { from: string; id?: string }): StudyResult {
-    const { scene, rules } = studyInternals(this);
-    const source = scene.elementsById.get(args.from);
-    if (!source || source.kind === 'label') return refused(`no element '${args.from}'`);
-    const shape = shapeFor(args);
-    if (typeof shape === 'string') return refused(shape);
+    const { scene } = studyInternals(this);
+    const checked = this.appending(args);
+    if (typeof checked === 'string') return refused(checked);
+    const { source, shape } = checked;
+    if (!shape) return refused('give a type or a template');
     if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
     const prototype = prototypeOf(shape);
-    if (!rules.canAppendType(source, prototype.type)) return refused(`nothing appends a ${shape.type} to '${args.from}'`);
     const at = appendSpot(scene, source, prototype, prototype.type);
     return this.commit(() => {
       const node = this.drop(args, prototype, at, source.parent ? { parent: source.parent } : {});
@@ -267,25 +285,21 @@ export class Study {
 
   /** Connect `from` to `to` with what the rules allow between them: a sequence or message flow, a data or plain association. */
   connect(args: { from: string; to: string; id?: string }): StudyResult {
-    const { scene, rules } = studyInternals(this);
-    const source = scene.elementsById.get(args.from);
-    const target = scene.elementsById.get(args.to);
-    if (!source || source.kind === 'label') return refused(`no element '${args.from}'`);
-    if (target?.kind !== 'node') return refused(`no shape '${args.to}'`);
+    const checked = this.connecting(args);
+    if (typeof checked === 'string') return refused(checked);
+    const { source, target } = checked;
+    if (!target) return refused(`no shape '${args.to}'`);
     if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
-    if (!rules.canConnect(source, target)) return refused(`nothing connects '${args.from}' to '${args.to}'`);
     return this.commit(() => this.link(source, target, args.id));
   }
 
   /** Retype `id` in place as `what`: a new shape in its stead, keeping its name, its centre and its flows, as one edit. */
   replace(args: NewShape & { id: string }): StudyResult {
-    const { scene, mutator, rules } = studyInternals(this);
-    const node = scene.elementsById.get(args.id);
-    if (node?.kind !== 'node') return refused(`no shape '${args.id}'`);
-    const misfit = extensionMisfit(args);
-    if (misfit) return refused(misfit);
-    const prototype = prototypeOf(args);
-    if (!rules.canReplace(node, prototype.type)) return refused(`'${args.id}' cannot become a ${args.type}`);
+    const { scene, mutator } = studyInternals(this);
+    const checked = this.replacing(args);
+    if (typeof checked === 'string') return refused(checked);
+    const { node, prototype } = checked;
+    if (!prototype) return refused('give a type');
     if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)
       && eventDefinitionTypeOf(prototype.attrs as never) === eventDefinitionTypeOf(node.businessObject)) {
       return { ok: true, id: node.id, ...NOTHING };
@@ -472,6 +486,40 @@ export class Study {
     return this.commit(() => {
       mutator.setExpanded(node, expanded);
     });
+  }
+
+  /** What `append` would join, or why it would refuse; without a shape or a template, whether anything may follow `from`. */
+  private appending(args: { from: string } & Partial<NewShape> & { template?: string }): { source: Drawable; shape?: NewShape } | string {
+    const { scene, rules } = studyInternals(this);
+    const source = scene.elementsById.get(args.from);
+    if (!source || source.kind === 'label') return `no element '${args.from}'`;
+    const shape = 'type' in args || 'template' in args ? shapeFor(args as NewElement) : undefined;
+    if (typeof shape === 'string') return shape;
+    if (!rules.canAppendType(source, shape?.type)) return shape ? `nothing appends a ${shape.type} to '${args.from}'` : `nothing follows '${args.from}'`;
+    return { source, ...(shape ? { shape } : {}) };
+  }
+
+  /** What `connect` would join, or why it would refuse; without `to`, whether any flow may leave `from`. */
+  private connecting(args: { from: string; to?: string }): { source: Drawable; target?: SceneNode } | string {
+    const { scene, rules } = studyInternals(this);
+    const source = scene.elementsById.get(args.from);
+    if (!source || source.kind === 'label') return `no element '${args.from}'`;
+    if (args.to === undefined) return rules.canStartConnection(source) ? { source } : `nothing leaves '${args.from}'`;
+    const target = scene.elementsById.get(args.to);
+    if (target?.kind !== 'node') return `no shape '${args.to}'`;
+    return rules.canConnect(source, target) ? { source, target } : `nothing connects '${args.from}' to '${args.to}'`;
+  }
+
+  /** What `replace` would retype, and into what, or why it would refuse; without `type`, whether `id` may be retyped at all. */
+  private replacing(args: { id: string } & Partial<NewShape>): { node: SceneNode; prototype?: CreatePrototype } | string {
+    const { scene, rules } = studyInternals(this);
+    const node = scene.elementsById.get(args.id);
+    if (node?.kind !== 'node') return `no shape '${args.id}'`;
+    if (args.type === undefined) return rules.canReplace(node) ? { node } : `'${args.id}' cannot be retyped`;
+    const misfit = extensionMisfit(args as NewShape);
+    if (misfit) return misfit;
+    const prototype = prototypeOf(args as NewShape);
+    return rules.canReplace(node, prototype.type) ? { node, prototype } : `'${args.id}' cannot become a ${args.type}`;
   }
 
   /** Run `run` as one commit, all or nothing: when it is refused, what it wrote first is taken back. */

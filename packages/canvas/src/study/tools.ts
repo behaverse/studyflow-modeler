@@ -6,7 +6,7 @@
 
 import { SHAPE_TYPES, type Catalog } from '@canvas/study/catalog.ts';
 import type { ElementRecord } from '@canvas/study/records.ts';
-import type { StudyResult } from '@canvas/study/Study.ts';
+import type { StudyResult, Verdict } from '@canvas/study/Study.ts';
 
 type JsonType = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null';
 
@@ -39,7 +39,12 @@ export interface StudyTool {
 export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'resize', 'reroute', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
-export type ToolName = StepTool | 'document' | 'get' | 'list' | 'catalog' | 'batch' | 'undo' | 'redo';
+export type ToolName = StepTool | 'document' | 'get' | 'list' | 'catalog' | 'can' | 'batch' | 'undo' | 'redo';
+
+/** The verbs `can` answers for: what makes or retypes something, where the rules decide. */
+export const ASKABLE_TOOLS = ['append', 'connect', 'replace'] as const;
+
+export type AskableTool = (typeof ASKABLE_TOOLS)[number];
 
 /** What `call` answers: a write's result, or what a read found; `ok` false, and why, when the tool did nothing. */
 export type ToolResult =
@@ -47,7 +52,8 @@ export type ToolResult =
   | { readonly ok: true; readonly yaml: string }
   | { readonly ok: true; readonly element: ElementRecord }
   | { readonly ok: true; readonly elements: readonly ElementRecord[] }
-  | ({ readonly ok: true } & Catalog);
+  | ({ readonly ok: true } & Catalog)
+  | Verdict;
 
 const READ = { readOnlyHint: true, openWorldHint: false } as const;
 
@@ -104,6 +110,10 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     within: ID,
   }, []),
   tool('catalog', "What add, append and replace make: the BPMN types, the schema types extending them, and the templates, each with a title and a description.", {}, []),
+  tool('can', "Whether append, connect or replace would run on `args`, without writing, and why not. Leave out what is not decided yet to ask about any: append's `type`, whether anything may follow `from`; connect's `to`, whether a flow may leave it; replace's `type`, whether it may be retyped at all.", {
+    tool: { type: 'string', enum: ASKABLE_TOOLS },
+    args: { type: 'object', description: "The verb's argument, as far as it is decided." },
+  }, ['tool', 'args']),
   tool('add', "Add a shape of `type` (or a template's elements) centred on `at`, or without it in free space beside what shares its container. `into` names the container; the root's id is the top level; without it, whatever is under `at`.", {
     ...NEW,
     at: { ...POINT, description: 'Its centre, in diagram coordinates.' },
@@ -164,11 +174,12 @@ export function isStepTool(name: string): name is StepTool {
   return (STEP_TOOLS as readonly string[]).includes(name);
 }
 
-/** Why `args` is no argument for the tool `name`, or nothing when it is one. */
-export function misfitOf(name: string, args: unknown): string | undefined {
+/** Why `args` is no argument for the tool `name`, or nothing when it is one; `leftOut` names required keys it may lack. */
+export function misfitOf(name: string, args: unknown, leftOut: readonly string[] = []): string | undefined {
   const found = STUDY_TOOLS.find((candidate) => candidate.name === name);
   if (!found) return `no tool '${name}'`;
-  return misfit(found.inputSchema, args, '');
+  const required = found.inputSchema.required?.filter((key) => !leftOut.includes(key));
+  return misfit({ ...found.inputSchema, required }, args, '');
 }
 
 const A: Record<JsonType, string> = {

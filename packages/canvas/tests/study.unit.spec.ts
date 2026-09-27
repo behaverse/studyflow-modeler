@@ -263,6 +263,38 @@ test('a batch is one edit and one undo step, its steps plain data; a refused ste
   expect(nodeOf(study, 'Start'), 'one undo takes back the whole batch').toBeUndefined();
 });
 
+test('can answers what a verb would do, by the same rules, without writing; what it leaves out, it asks about any', () => {
+  const withEnd = (): Study => {
+    const made = open();
+    made.add({ type: 'bpmn:EndEvent', id: 'End' });
+    return made;
+  };
+  const study = withEnd();
+  const revision = study.revision;
+  // [tool, what it is asked, the answer]: each question naming all the verb needs is asked of the verb too.
+  const CASES: [tool: 'append' | 'connect' | 'replace', args: Record<string, unknown>, ok: boolean][] = [
+    ['append', { from: 'Task_1' }, true],
+    ['append', { from: 'End' }, false],
+    ['append', { from: 'Task_1', type: 'bpmn:EndEvent' }, true],
+    ['append', { from: 'End', type: 'bpmn:TextAnnotation' }, true],
+    ['append', { from: 'Nope', type: 'bpmn:Task' }, false],
+    ['connect', { from: 'Task_1' }, true],
+    ['connect', { from: 'Task_1', to: 'Sub_1' }, true],
+    ['connect', { from: 'Task_1', to: 'Nope' }, false],
+    ['replace', { id: 'Task_1' }, true],
+    ['replace', { id: 'Task_1', type: 'bpmn:UserTask' }, true],
+    ['replace', { id: 'Task_1', type: 'bpmn:Task', extension: 'studyflow:Actor' }, false],
+  ];
+  for (const [tool, args, ok] of CASES) {
+    expect(study.can(tool, args).ok, `${tool} ${JSON.stringify(args)}`).toBe(ok);
+    const complete = tool === 'append' ? 'type' in args : tool === 'connect' ? 'to' in args : 'type' in args;
+    if (complete) expect((withEnd() as any)[tool](args).ok, `the verb: ${tool} ${JSON.stringify(args)}`).toBe(ok);
+  }
+  expect(study.can('append', { from: 'End' }).reason).toBe("nothing follows 'End'");
+  expect(study.can('replace', { id: 'Task_1', type: 7 }).reason).toBe("'type' should be a string");
+  expect(study.revision, 'asking writes nothing').toBe(revision);
+});
+
 test('remove takes what goes with an element; expand and collapse take only what holds contents', () => {
   const study = open();
   expect(study.remove({ ids: ['Nope'] })).toMatchObject({ ok: false, reason: "no element 'Nope'" });
@@ -309,7 +341,7 @@ test('an MCP client drives a study through its tools: listed as JSON, called wit
 
   const tools = JSON.parse(JSON.stringify(Study.tools)) as StudyTool[];
   expect(tools, 'JSON through and through').toEqual(Study.tools);
-  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'catalog']);
+  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'catalog', 'can']);
   expect(tools.find((tool) => tool.name === 'connect')?.inputSchema).toMatchObject({ type: 'object', required: ['from', 'to'] });
 
   const appended = call(study, 'append', { from: 'Task_1', type: 'bpmn:EndEvent', id: 'Done' });

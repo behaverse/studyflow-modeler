@@ -4,7 +4,7 @@
  */
 
 export { Canvas, type CanvasEvents, type CanvasOptions } from './Canvas.ts';
-export { Study, type ChangedIds, type OpenOptions, type StudyChange, type StudyResult } from './study/Study.ts';
+export { Study, type ChangedIds, type OpenOptions, type StudyChange, type StudyResult, type Verdict } from './study/Study.ts';
 export type { ElementRecord } from './study/records.ts';
 export type { Catalog, CatalogTemplate, CatalogType } from './study/catalog.ts';
 export type { StudyTool, ToolResult } from './study/tools.ts';
