@@ -10,6 +10,7 @@ import { Connect } from '@canvas/interaction/connect.ts';
 import { Create } from '@canvas/interaction/create.ts';
 import { boundsFor, draftOf, prototypeOf, type CreatePrototype, type NewElement } from '@canvas/study/prototype.ts';
 import { DEFAULT_GRID_SIZE, Drag, snapTo, type Movable } from '@canvas/study/drag.ts';
+import { freeMoveEnd } from '@canvas/study/edit.ts';
 import { Gestures, ZOOM_STEP } from '@canvas/interaction/gestures.ts';
 import { hitTest, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
@@ -202,7 +203,7 @@ export class Canvas {
       movableSelection: () => this.movableSelection(),
       viewportCentre: () => this.viewportCentre(),
       placed: (node) => this.placed(node),
-      moveWaypoint: (edge, index, point) => this.moveWaypoint(edge, index, point),
+      moveEnd: (edge, end, point) => this.moveEnd(edge, end, point),
       nudgeSelection: (dx, dy) => this.nudgeSelection(dx, dy),
       scope: () => this.scopeNode,
       appendMenu: (ids) => this.emit('appendMenu', ids),
@@ -723,11 +724,9 @@ export class Canvas {
     this.appendPreview = undefined;
   }
 
-  /** Move one waypoint and commit it. */
-  private moveWaypoint(edge: SceneEdge, index: number, point: Point): void {
-    if (index < 0 || index >= edge.waypoints.length) return;
-    const at = this.snapPoint(point);
-    this.mutator.setEdgeWaypoints(edge, edge.waypoints.map((p, i) => (i === index ? at : p)));
+  /** An end dropped clear of every shape, committed as the reconnect ghost drew it. */
+  private moveEnd(edge: SceneEdge, end: 'source' | 'target', point: Point): void {
+    this.mutator.setEdgeWaypoints(edge, freeMoveEnd(edge.waypoints, end, this.snapPoint(point)));
   }
 
   // --- edits --------------------------------------------------------------------------------

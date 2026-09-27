@@ -142,10 +142,10 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
   expect(last(flow).x).toBeCloseTo(300, 3);
   expect(last(flow).y).toBeCloseTo(320, 3);
 
-  // …and NOTHING else moved. The endpoint is dragged the way an interior joint is
-  // (`moveBendpoint`): the neighbour stays put and the terminal run goes diagonal. It
-  // used to grow an elbow to keep every run square — the one gesture whose whole point
-  // is "put the tip here" answering by re-cutting the edge into a shape nobody drew.
+  // …and NOTHING else moved. A lone run has no joint to keep square, so it goes
+  // diagonal. It used to grow an elbow to keep every run square — the one gesture
+  // whose whole point is "put the tip here" answering by re-cutting the edge into a
+  // shape nobody drew.
   expect(flow.waypoints).toHaveLength(2);
   expect(isOrthogonal(flow.waypoints)).toBe(false);
   expect(flow.waypoints[0]).toEqual({ x: 136, y: 118 });
@@ -173,24 +173,27 @@ test('a reconnect drop lands on the grid, like every other waypoint gesture', as
   expect(last(edge(next.canvas, 'Flow_1'))).not.toEqual(last(edge(near.canvas, 'Flow_1')));
 });
 
-test('the drag ghost shows the path the release commits, dock included', async () => {
+test('the drag ghost shows the path the release commits, onto a shape and in open space', async () => {
   // "What the hover shows is what the click takes" applies to this gesture too: the
   // ghost is built from the same base path and the same snapped drop point the
-  // commit uses, so an endpoint dragged across a shape does not preview one route
-  // and land on another.
-  const { canvas } = load();
-  const flow = edge(canvas, 'Flow_1');
-  const target = node(canvas, 'Task_2');
-  const drop = { x: target.x + 20, y: target.y + 65 };
-
-  canvas.select(flow.id);
-  pointerDown(canvas, last(flow));
-  pointerMove(canvas, drop);
-  const ghost = svgOf(canvas).querySelector('.sf-connect-preview-line')!
-    .getAttribute('data-waypoints');
-  pointerUp(canvas, drop);
-
-  expect(ghost).toBe(flow.waypoints.map((p) => `${p.x},${p.y}`).join(' '));
+  // commit uses, so an endpoint dragged across a shape, or let go clear of one, does
+  // not preview one route and land on another.
+  const ghostThenPath = (canvas: Canvas, id: string, drop: Point): [string | null, string] => {
+    const flow = edge(canvas, id);
+    canvas.select(flow.id);
+    pointerDown(canvas, last(flow));
+    pointerMove(canvas, drop);
+    const ghost = svgOf(canvas).querySelector('.sf-connect-preview-line')!.getAttribute('data-waypoints');
+    pointerUp(canvas, drop);
+    return [ghost, flow.waypoints.map((p) => `${p.x},${p.y}`).join(' ')];
+  };
+  const onto = load();
+  const target = node(onto.canvas, 'Task_2');
+  const [ontoGhost, ontoPath] = ghostThenPath(onto.canvas, 'Flow_1', { x: target.x + 20, y: target.y + 65 });
+  expect(ontoGhost).toBe(ontoPath);
+  // Flow_B's last run is square: let go in open space, it stays square in the ghost and the commit alike.
+  const [openGhost, openPath] = ghostThenPath(load(BENT_YAML).canvas, 'Flow_B', { x: 520, y: 300 });
+  expect(openGhost).toBe(openPath);
 });
 
 /**

@@ -89,7 +89,8 @@ export interface GestureTools {
   /** A shape a create just landed: selected, and (for a task-like shape) named. */
   placed(node: SceneNode): void;
   /** Move one waypoint and commit it. */
-  moveWaypoint(edge: SceneEdge, index: number, point: Point): void;
+  /** Commit an end dropped clear of every shape: the route the reconnect ghost drew. */
+  moveEnd(edge: SceneEdge, end: 'source' | 'target', point: Point): void;
   /** Move the selection by `(dx, dy)` as one edit; `false` when nothing moved. */
   nudgeSelection(dx: number, dy: number): boolean;
   /** The container the view is drilled into, whose contents a marquee and snapping see. */
@@ -568,7 +569,8 @@ export class Gestures {
         else if (kind === 'reconnect' && g.waypoint) {
           // Dropped clear of every shape: a free endpoint move. Dropped on a refused shape: nothing.
           const over = this.tools.hitTest(pt);
-          if (!over || over.kind === 'edge') this.tools.moveWaypoint(g.waypoint.edge, g.waypoint.index, pt);
+          const end = endpointOf(g.waypoint.edge, g.waypoint.index);
+          if (end && (!over || over.kind === 'edge')) this.tools.moveEnd(g.waypoint.edge, end, pt);
         }
       } else {
         const drag = this.tools.drag();
