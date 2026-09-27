@@ -2,53 +2,51 @@ import { expect, test } from '@playwright/test';
 
 import { exportToDrawio } from '@skills/drawio/modeler';
 
-/** The BPMN -> draw.io mapping, over a hand-built element registry. */
-
-const ROOT = { id: 'Study_1', type: 'bpmn:Process', businessObject: { $type: 'bpmn:Process', name: 'My study' } };
+/** The BPMN -> draw.io mapping, over hand-built records and the business objects behind them. */
 
 type ShapeSpec = {
   id: string;
   type: string;
   bo?: Record<string, unknown>;
-  parent?: any;
-  isExpanded?: boolean;
+  parent?: string;
+  expanded?: boolean;
 };
 
-function shape({ id, type, bo = {}, parent = ROOT, isExpanded }: ShapeSpec): any {
+/** A shape as the study lists it, and the business object behind it. */
+function shape({ id, type, bo = {}, parent, expanded }: ShapeSpec): any {
   return {
     id,
+    kind: 'node',
     type,
-    x: 100,
-    y: 200,
-    width: 100,
-    height: 80,
-    isExpanded,
-    parent,
+    ...(parent ? { parent } : {}),
+    bounds: { x: 100, y: 200, width: 100, height: 80 },
+    ...(expanded === undefined ? {} : { expanded }),
     businessObject: { $type: type, ...bo },
   };
 }
 
-function flow(id: string, type: string, source: any, target: any): any {
+function flow(id: string, type: string, source: string, target: string): any {
   return {
     id,
+    kind: 'edge',
     type,
-    parent: ROOT,
     source,
     target,
-    businessObject: { $type: type },
     waypoints: [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 50, y: 90 }, { x: 100, y: 90 }],
+    businessObject: { $type: type },
   };
 }
 
-/** The study and the canvas as the export reads them; `scope` is the container the view is drilled into. */
-function fakeModeler(elements: any[], scope?: any): any {
+/** The study and the view as the export reads them: the view draws all but `hidden`. */
+function fakeModeler(elements: any[], hidden: string[] = []): any {
+  const byId = new Map(elements.map((element) => [element.id, element]));
   return {
-    study: { root: { id: ROOT.id, kind: 'root', type: ROOT.type, name: ROOT.businessObject.name } },
-    canvas: {
-      all: () => elements,
-      getRoot: () => scope ?? ROOT,
-      getScope: () => scope,
+    study: {
+      root: { id: 'Study_1', kind: 'root', type: 'bpmn:Process', name: 'My study' },
+      list: () => elements.map(({ businessObject, ...record }) => record),
+      businessObject: (id: string) => byId.get(id)?.businessObject,
     },
+    canvas: { draws: (id: string) => !hidden.includes(id) },
   };
 }
 
@@ -74,25 +72,24 @@ function bendsOf(xml: string, id: string): [number, number][] {
 test.describe('draw.io export', () => {
   test('exports what the view shows, in an mxfile named after the diagram', () => {
     const pool = shape({ id: 'Pool', type: 'bpmn:Participant' });
-    const lane = shape({ id: 'Lane', type: 'bpmn:Lane', parent: pool });
-    const task = shape({ id: 'Task', type: 'bpmn:Task', parent: lane });
+    const lane = shape({ id: 'Lane', type: 'bpmn:Lane', parent: 'Pool' });
+    const task = shape({ id: 'Task', type: 'bpmn:Task', parent: 'Lane' });
     const group = shape({ id: 'Group', type: 'bpmn:Group' });
-    const collapsed = shape({ id: 'Sub', type: 'bpmn:SubProcess', isExpanded: false });
+    const collapsed = shape({ id: 'Sub', type: 'bpmn:SubProcess', expanded: false });
 
-    // Registry order is deliberately scrambled: paint order must come from the ranking, not arrival order.
+    // The order is deliberately scrambled: paint order must come from the ranking, not the study's order.
     const xml = exportToDrawio(fakeModeler([
-      ROOT, task, group, lane, pool, collapsed,
-      shape({ id: 'Hidden', type: 'bpmn:Task', parent: collapsed }),
-      { id: 'Task_label', kind: 'label', x: 0, y: 0, width: 10, height: 10, parent: ROOT, businessObject: {} },
-      flow('F1', 'bpmn:SequenceFlow', task, collapsed),
-    ]));
+      task, group, lane, pool, collapsed,
+      shape({ id: 'Hidden', type: 'bpmn:Task', parent: 'Sub' }),
+      flow('F1', 'bpmn:SequenceFlow', 'Task', 'Sub'),
+    ], ['Hidden']));
 
     expect(xml).toMatch(/<mxfile\b/);
     expect(attributesOf(xml, 'diagram').name).toBe('My study');
     // draw.io's two root cells, which every exported cell hangs from.
     expect(xml).toMatch(/<mxCell id="0"\s*\/>/);
     expect(attributesOf(xml, 'mxCell', '1').parent).toBe('0');
-    // Frames before what they frame, then the rest, then connections; no label, and nothing folded in a collapsed container.
+    // Frames before what they frame, then the rest, then connections; nothing the view does not draw.
     expect(cellIds(xml)).toEqual(['Pool', 'Lane', 'Group', 'Sub', 'Task', 'F1']);
     const geometry = xml.match(/<mxCell id="Task"[\s\S]*?<mxGeometry([^>]*)>/)![1];
     expect(Object.fromEntries([...geometry.matchAll(/(\w+)="(\d+)"/g)].map((m) => [m[1], Number(m[2])])))
@@ -101,21 +98,10 @@ test.describe('draw.io export', () => {
     expect(attributesOf(xml, 'mxCell', 'F1')).toMatchObject({ edge: '1', parent: '1', source: 'Task', target: 'Sub' });
     expect(bendsOf(xml, 'F1')).toEqual([[50, 0], [50, 90]]);
     expect(xml).not.toContain('sourcePoint');
-
-    // Drilled into an expanded container, the view shows its contents, and so does the export.
-    const open = shape({ id: 'Open', type: 'bpmn:SubProcess' });
-    const drilled = exportToDrawio(fakeModeler([
-      ROOT,
-      open,
-      shape({ id: 'Outside', type: 'bpmn:Task' }),
-      shape({ id: 'Inside', type: 'bpmn:Task', parent: open }),
-    ], open));
-    expect(cellIds(drilled)).toEqual(['Inside']);
   });
 
   test('labels survive as HTML, and markup in a name stays text', () => {
     const xml = exportToDrawio(fakeModeler([
-      ROOT,
       shape({ id: 'T1', type: 'bpmn:Task', bo: { name: 'Trial 1\nRound "A" & B' } }),
       shape({ id: 'T2', type: 'bpmn:Task', bo: { name: 'a <b> c' } }),
       shape({ id: 'Note', type: 'bpmn:TextAnnotation', bo: { text: 'A free-form note.' } }),

@@ -5,7 +5,7 @@ import type { ModelerModule } from '@modeler/skillModules';
 import { exportDiagramName } from '@modeler/diagram/name';
 import { readChoreographyBands } from '@core/document';
 import { choreographyBandHeight } from '@core/document/outline';
-import { isCollapsed, isHidden } from '@canvas/index.ts';
+import type { ElementRecord } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 
 /** draw.io's connection points for a BPMN activity, as its palette emits them. */
@@ -89,9 +89,9 @@ function toCellId(id: string): string {
   return id === '0' || id === '1' ? `cell-${id}` : id;
 }
 
-function depthOf(element: any): number {
+function depthOf(element: ElementRecord, byId: ReadonlyMap<string, ElementRecord>): number {
   let depth = 0;
-  for (let current = element.parent; current; current = current.parent) depth++;
+  for (let current = byId.get(element.parent ?? ''); current; current = byId.get(current.parent ?? '')) depth++;
   return depth;
 }
 
@@ -100,8 +100,7 @@ function paintRank(element: any): number {
   if (element.type === 'bpmn:Group') return 1;
   const isSubProcess = element.type === 'bpmn:SubProcess' || element.type === 'bpmn:Transaction'
     || element.type === 'bpmn:AdHocSubProcess';
-  const collapsed = isCollapsed(element);
-  const isFrame = CONTAINER_TYPES.has(element.type) || (isSubProcess && !collapsed);
+  const isFrame = CONTAINER_TYPES.has(element.type) || (isSubProcess && element.expanded !== false);
   return isFrame ? 0 : 2;
 }
 
@@ -182,8 +181,7 @@ function shapeStyle(element: any, bo: any): string {
   if (type === 'bpmn:SubProcess' || type === 'bpmn:Transaction' || type === 'bpmn:AdHocSubProcess') {
     // `bpmnShapeType` only for the transaction: draw.io reads its `subprocess` value as an *event* sub-process.
     const transaction = type === 'bpmn:Transaction' ? 'bpmnShapeType=transaction;' : '';
-    const collapsed = isCollapsed(element)
-      ? 'isLoopSub=1;' : 'verticalAlign=top;';
+    const collapsed = element.expanded === false ? 'isLoopSub=1;' : 'verticalAlign=top;';
     return `${ACTIVITY_BASE}taskMarker=abstract;${transaction}${collapsed}${activityMarkers(bo)}`;
   }
   if (type === 'bpmn:CallActivity') {
@@ -210,7 +208,7 @@ function edgeStyle(element: any, bo: any): string {
 
   const base = 'edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;verticalAlign=bottom;'
     + 'endArrow=blockThin;endFill=1;endSize=6;';
-  if (element.source?.businessObject?.default === bo) return `${base}startArrow=dash;startFill=0;startSize=6;`;
+  if (element.sourceObject?.default === bo) return `${base}startArrow=dash;startFill=0;startSize=6;`;
   if (bo?.conditionExpression) return `${base}startArrow=diamondThin;startFill=0;startSize=10;`;
   return base;
 }
@@ -260,8 +258,8 @@ function edgeCell(element: any, known: Set<string>): string {
   const waypoints: Array<{ x: number; y: number }> = element.waypoints ?? [];
 
   // draw.io re-derives attached endpoints from the shape perimeter; only a dangling end is pinned.
-  const sourceId = element.source && known.has(element.source.id) ? toCellId(element.source.id) : null;
-  const targetId = element.target && known.has(element.target.id) ? toCellId(element.target.id) : null;
+  const sourceId = element.source && known.has(element.source) ? toCellId(element.source) : null;
+  const targetId = element.target && known.has(element.target) ? toCellId(element.target) : null;
   const ends = (sourceId ? ` source="${escapeXml(sourceId)}"` : '')
     + (targetId ? ` target="${escapeXml(targetId)}"` : '');
 
@@ -288,20 +286,22 @@ function edgeCell(element: any, known: Set<string>): string {
 }
 
 export function exportToDrawio(modeler: Editor): string {
-  const root = modeler.canvas.getRoot();
-  const scope = modeler.canvas.getScope();
+  const { study, canvas } = modeler;
+  const records = study.list();
+  const byId = new Map(records.map((record) => [record.id, record]));
   const shapes: any[] = [];
   const connections: any[] = [];
 
-  modeler.canvas.all().forEach((element: any) => {
-    if (element.kind === 'label' || !element.businessObject) return;
+  for (const record of records) {
     // Only what is on screen: the drilled-into container's contents, and nothing folded inside a collapsed one.
-    if (isHidden(element, scope)) return;
-    if (element.waypoints) connections.push(element);
-    else if (Number.isFinite(element.x) && Number.isFinite(element.y)) shapes.push(element);
-  });
+    if (!canvas.draws(record.id)) continue;
+    // A record, its box spread flat, and the business objects the styles read.
+    const element = { ...record, ...record.bounds, businessObject: study.businessObject(record.id) };
+    if (record.kind === 'edge') connections.push({ ...element, sourceObject: record.source && study.businessObject(record.source) });
+    else shapes.push(element);
+  }
 
-  shapes.sort((a, b) => paintRank(a) - paintRank(b) || depthOf(a) - depthOf(b));
+  shapes.sort((a, b) => paintRank(a) - paintRank(b) || depthOf(a, byId) - depthOf(b, byId));
 
   const known = new Set(shapes.map((shape) => shape.id));
   const cells = shapes.map(vertexCell).join('')
@@ -310,7 +310,7 @@ export function exportToDrawio(modeler: Editor): string {
   const name = exportDiagramName(modeler);
 
   return '<mxfile host="studyflow-modeler">\n'
-    + `  <diagram id="${escapeXml(toCellId(root?.id ?? 'studyflow'))}" name="${escapeXml(name)}">\n`
+    + `  <diagram id="${escapeXml(toCellId(study.root.id))}" name="${escapeXml(name)}">\n`
     + '    <mxGraphModel dx="0" dy="0" grid="0" gridSize="10" guides="1" tooltips="1" connect="1"'
     + ' arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">\n'
     + '      <root>\n'
