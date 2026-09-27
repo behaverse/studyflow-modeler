@@ -116,6 +116,11 @@ export function pointerDown(canvas: Canvas, at: Pt, init: MouseEventInit = {}): 
   firePointer(canvas, svgOf(canvas), 'pointerdown', at, init);
 }
 
+/** The pointer crossing a diagram point with no button down: a move on the SVG, which is where hover listens. */
+export function hover(canvas: Canvas, at: Pt): void {
+  firePointer(canvas, svgOf(canvas), 'pointermove', at);
+}
+
 /** Move, on the DOCUMENT — a drag keeps tracking once the pointer leaves the SVG. */
 export function pointerMove(canvas: Canvas, at: Pt, init: MouseEventInit = {}): void {
   firePointer(canvas, svgOf(canvas).ownerDocument!, 'pointermove', at, init);

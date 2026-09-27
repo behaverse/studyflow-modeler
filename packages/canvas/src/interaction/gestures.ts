@@ -251,12 +251,14 @@ export class Gestures {
     canvas.focus();
     canvas.clearAppendPreview();
     const selection = this.tools.selection;
-    selection.setHovered(undefined);
     const pt = this.eventPoint(ev);
 
     const editable = this.tools.editable();
     const handle = editable ? selection.handleAt(pt) : undefined;
+    // A hovered connection shows its bendpoints too, so they are looked for before the hover goes; grabbing one selects it.
     let waypoint = handle || !editable ? undefined : selection.waypointAt(pt);
+    selection.setHovered(undefined);
+    if (waypoint && !selection.isSelected(waypoint.edge)) selection.select(waypoint.edge);
     let intent: Intent = ev.shiftKey ? 'marquee' : 'pan';
     let collapseTo: SceneElement | undefined;
     if (handle) intent = 'resize';

@@ -12,6 +12,7 @@ import {
   edge,
   graphicsOf,
   hitAt,
+  hover,
   installDocument,
   keyEvent,
   label,
@@ -330,7 +331,7 @@ test('a corner handle resizes, clamped to the rules\' minimum', async () => {
   expect(canvas.getContainer().querySelector('.sf-handles[data-overlay-for="Start_1"]')).toBeNull();
 });
 
-test('a press on a selected flow drags a new bendpoint out of it', async () => {
+test('a press on a selected flow drags a new bendpoint out of it, and a hovered flow\'s bendpoint drags where it is', async () => {
   const { canvas } = load();
   const flow = edge(canvas, 'Flow_2');
   click(canvas, { x: 330, y: 118 });
@@ -338,6 +339,14 @@ test('a press on a selected flow drags a new bendpoint out of it', async () => {
   dragBy(canvas, { x: 330, y: 118 }, { x: 330, y: 180 });
   expect(flow.waypoints).toHaveLength(3);
   expect(flow.waypoints[1]).toEqual({ x: 330, y: 180 });
+
+  // Unselected, the flow shows its bendpoint while hovered: grabbing it moves it, and selects the flow.
+  click(canvas, { x: 700, y: 700 });
+  hover(canvas, { x: 330, y: 180 });
+  dragBy(canvas, { x: 330, y: 180 }, { x: 330, y: 210 });
+  expect(flow.waypoints).toHaveLength(3);
+  expect(flow.waypoints[1]).toEqual({ x: 330, y: 210 });
+  expect(canvas.selection).toEqual([flow.id]);
 });
 
 // --- selection and deletion -----------------------------------------------------------
