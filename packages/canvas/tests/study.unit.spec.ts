@@ -316,6 +316,28 @@ test('move takes shapes by a delta with their flows, and into a container the ru
   expect(study.reconnect({ id: 'Flow_1' }).reason).toBe('give the new end: from, to, or both');
 });
 
+test('an activity moved takes the boundary events on it along', () => {
+  const study = Study.fromDefinitions(studyflowToDefinitions(`id: Defs_B
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Host:
+      type: Task
+      bounds: 100 100 100 80
+    Timer:
+      type: BoundaryEvent
+      attachedToRef: Host
+      eventDefinitions:
+        T_1:
+          type: TimerEventDefinition
+      bounds: 132 162 36 36
+`, freshModdle()));
+  expect(study.move({ ids: ['Host'], by: { x: 50, y: 20 } })).toMatchObject({ ok: true, changed: expect.arrayContaining(['Host', 'Timer']) });
+  expect(study.get('Timer')!.bounds).toMatchObject({ x: 182, y: 182 });
+});
+
 test('a reconnected data association is filed on its new activity, the one that reads or writes the data', () => {
   const study = open();
   study.add({ type: 'bpmn:Task', id: 'Two', at: { x: 600, y: 120 } });

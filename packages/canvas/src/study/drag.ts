@@ -12,6 +12,7 @@ import { nameOf } from '@canvas/study/moddle.ts';
 import { planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/study/text.ts';
 import { cropPoint } from '@core/document/outline.ts';
+import { getProperty } from '@core/element/moddle.ts';
 import { freeMoveEnd, moveBendpoint, moveBendpointSquare, moveTerminal, samePoints } from '@canvas/study/edit.ts';
 import { isRouted, orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
 import { containerFor, type Rules, type Size } from '@canvas/study/rules.ts';
@@ -144,7 +145,10 @@ export class Drag {
   /** Begin moving nodes (contents come along) and captions from `origin`. */
   startMove(elements: readonly Movable[], origin: Point, options?: { snapToGrid?: boolean; rerouteEdges?: boolean }): boolean {
     this.state = undefined;
-    const nodes = withDescendants(elements.filter((el): el is SceneNode => el.kind === 'node'));
+    const scene = this.getScene();
+    const moving = withDescendants(elements.filter((el): el is SceneNode => el.kind === 'node'));
+    // A boundary event sits on its activity: wherever the activity goes, it goes.
+    const nodes = scene ? [...moving, ...attachedTo(scene, moving)] : moving;
     const nodeSet = new Set(nodes);
     const loose = elements.filter((el): el is SceneLabel => el.kind === 'label' && !(el.owner.kind === 'node' && nodeSet.has(el.owner)));
     if (nodes.length === 0 && loose.length === 0) return false;
@@ -172,7 +176,6 @@ export class Drag {
     }
     for (const label of labels) labelOrigins.set(label, { x: label.x, y: label.y });
     // The routes still as the router drew them: a move draws those afresh, where a route bent by hand stays bent.
-    const scene = this.getScene();
     const routed = new Set(scene ? edges.filter((edge) => follow.get(edge) !== 'all' && isRouted(edge, obstaclesIn(scene, planeOf(edge)))) : []);
 
     this.state = {
@@ -429,6 +432,14 @@ export class Drag {
       : state.insert ? moveBendpoint(base, state.index, to, shapes) : moveBendpointSquare(base, state.index, to, shapes);
     return [edge];
   }
+}
+
+/** The shapes attached to `hosts` (boundary events) that are not among them already. */
+function attachedTo(scene: Scene, hosts: readonly SceneNode[]): SceneNode[] {
+  const moving = new Set(hosts);
+  const bos = new Set(hosts.map((host) => host.businessObject));
+  return [...scene.elementsById.values()].filter((element): element is SceneNode =>
+    element.kind === 'node' && !moving.has(element) && bos.has(getProperty(element.businessObject, 'attachedToRef')));
 }
 
 function movedFrom(state: DragState, element: SceneElement): boolean {
