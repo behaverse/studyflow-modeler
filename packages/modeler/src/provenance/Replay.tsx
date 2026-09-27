@@ -12,7 +12,7 @@ import {
   shortWhen,
 } from '@modeler/provenance/records';
 import { computeSegLengths, dedupePoints, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
-import { type Point, type SceneEdge } from '@canvas/index.ts';
+import type { ElementRecord, Point, Study } from '@canvas/index.ts';
 import { tokenAnchor } from '@modeler/simulation/flowWalk';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
@@ -26,13 +26,12 @@ const SPEEDS = [
 ];
 
 
-/** An element the editor knows for this record: its own scope, or the flow its `what` mentions. */
-function elementsOf(record: ProvenanceRecord, canvas: Canvas): any[] {
-  const found: any[] = [];
-  if (!record.isDocument && canvas.get(record.scopeId)) found.push(canvas.get(record.scopeId));
+/** The elements the study holds for this record: its own scope, or the flow its `what` mentions. */
+function elementsOf(record: ProvenanceRecord, study: Study): ElementRecord[] {
+  const scope = record.isDocument ? undefined : study.get(record.scopeId);
   // `what` is a flow id on gateway decisions, a timestamp elsewhere; only the former resolves.
-  if (record.what && canvas.get(record.what)) found.push(canvas.get(record.what));
-  return found;
+  const mentioned = record.what ? study.get(record.what) : undefined;
+  return [scope, mentioned].filter((element): element is ElementRecord => element !== undefined);
 }
 
 function resetSvgStyles(canvas: Canvas): void {
@@ -54,7 +53,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   useEffect(() => {
     const { canvas } = editor;
     return () => {
-      for (const [id, m] of marked.current) if (canvas.get(id)) canvas.removeMarker(id, m);
+      for (const [id, m] of marked.current) if (editor.study.get(id)) canvas.removeMarker(id, m);
       marked.current = [];
       if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
       glideFrame.current = null;
@@ -68,27 +67,30 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   }, [editor]);
 
   useEffect(() => {
-    const { canvas } = editor;
+    const { canvas, study } = editor;
     const viewport = canvas.getViewport();
 
+    const captions = new Map(study.list({ kind: 'label' }).map((label) => [label.owner, label.id]));
     const touched = new Set<string>();
     const newest = new Map<string, ProvenanceRecord>();
     for (const r of shown) {
-      for (const el of elementsOf(r, canvas)) {
+      for (const el of elementsOf(r, study)) {
         touched.add(el.id);
-        if (el.label?.id) touched.add(el.label.id);
+        const caption = captions.get(el.id);
+        if (caption) touched.add(caption);
       }
       if (!r.isDocument && r.action === 'executed') newest.set(r.scopeId, r);
     }
     // A flow between two lit elements is part of the story even when no record names it.
-    for (const conn of canvas.all()) {
-      if (conn.kind === 'edge' && conn.source && conn.target && touched.has(conn.source.id) && touched.has(conn.target.id)) touched.add(conn.id);
+    const flows = study.list({ kind: 'edge' });
+    for (const flow of flows) {
+      if (flow.source && flow.target && touched.has(flow.source) && touched.has(flow.target)) touched.add(flow.id);
     }
 
-    for (const [id, m] of marked.current) if (canvas.get(id)) canvas.removeMarker(id, m);
+    for (const [id, m] of marked.current) if (study.get(id)) canvas.removeMarker(id, m);
     marked.current = [];
     const add = (id: string, m: string) => {
-      if (!canvas.get(id)) return;
+      if (!study.get(id)) return;
       canvas.addMarker(id, m);
       marked.current.push([id, m]);
     };
@@ -97,7 +99,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
 
     // The token: a pulsing circle on the element the newest record activates or mentions.
     const current = shown[shown.length - 1];
-    const target = current ? elementsOf(current, canvas).find((el) => el.width) : undefined;
+    const target = current ? elementsOf(current, study).find((el) => el.bounds) : undefined;
     const layer = canvas.getHostLayer('provenance-replay', 1000);
     if (!tokenRef.current) {
       tokenRef.current = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -132,11 +134,10 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     }
     token.style.display = '';
     token.style.opacity = '';
-    const record = editor.study.get(target.id)!;
-    const to = tokenAnchor(record);
+    const to = tokenAnchor(target);
     // The plane that draws the target: a collapsed container's, by id, or the root's (`undefined`).
-    const plane = record.plane;
-    const rootId = plane ?? editor.study.root.id;
+    const plane = target.plane;
+    const rootId = plane ?? study.root.id;
     const from = tokenPos.current;
 
     // The follow-camera: center a point at a comfortable zoom, keeping the user's own zoom when it is already readable.
@@ -155,7 +156,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       const place = () => {
         canvas.setScope(plane);
         setPos(to, target.id, rootId);
-        try { canvas.scrollToElement(target); } catch { /* off-root elements can decline */ }
+        try { canvas.scrollToElement(target.id); } catch { /* off-root elements can decline */ }
         viewport.setViewbox(camera(to));
       };
       const svg = canvas.getContainer()?.querySelector('svg');
@@ -166,8 +167,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       // The doorway: the collapsed shape being entered (on the old plane), or the shape the old
       // plane belongs to (on the new one); the camera flies through it, so the move is visible.
       const oldScope = canvas.scope;
-      const doorIn = plane === undefined ? undefined : editor.study.get(plane);
-      const doorOut = oldScope === undefined ? undefined : editor.study.get(oldScope);
+      const doorIn = plane === undefined ? undefined : study.get(plane);
+      const doorOut = oldScope === undefined ? undefined : study.get(oldScope);
       const inward = doorIn && doorIn.plane === oldScope ? doorIn.bounds : undefined;
       const outward = !inward && doorOut && doorOut.plane === plane ? doorOut.bounds : undefined;
       const doorway = (shape: any) => {
@@ -249,11 +250,10 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     }
     if (from.x === to.x && from.y === to.y) return;
     // Follow the sequence flow when one directly links the two steps, either way around.
-    const fromEl = canvas.get(from.elId);
-    const flow = canvas.all().find((el): el is SceneEdge => el.kind === 'edge'
-      && ((el.source === fromEl && el.target === target) || (el.source === target && el.target === fromEl)));
-    const waypoints: Point[] = (flow?.waypoints ?? []).map((wp: any) => ({ x: wp.x, y: wp.y }));
-    if (flow?.source === target) waypoints.reverse();
+    const flow = flows.find((edge) => (edge.source === from.elId && edge.target === target.id)
+      || (edge.source === target.id && edge.target === from.elId));
+    const waypoints: Point[] = (flow?.waypoints ?? []).map((wp) => ({ x: wp.x, y: wp.y }));
+    if (flow?.source === target.id) waypoints.reverse();
     const points = dedupePoints([{ x: from.x, y: from.y }, ...waypoints, to]);
     const { segLengths, totalDist } = computeSegLengths(points);
     const duration = Math.min(450, Math.max(200, totalDist / 0.7));
