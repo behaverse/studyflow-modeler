@@ -66,7 +66,8 @@ export function zRankOf(element: SceneElement): number {
   return depthOf(element) * 2 + 1;
 }
 
-function isDescendantOf(element: SceneElement, node: SceneNode): boolean {
+/** Whether `element` sits inside `node`, however deep. */
+export function isDescendantOf(element: SceneElement, node: SceneNode): boolean {
   const guard = new Set<SceneNode>();
   for (let p = element.parent; p && !guard.has(p); p = p.parent) {
     if (p === node) return true;

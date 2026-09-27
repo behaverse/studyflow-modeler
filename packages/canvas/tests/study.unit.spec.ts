@@ -71,12 +71,11 @@ const nodeOf = (study: Study, id: string): SceneNode => studyInternals(study).sc
 const rename = (study: Study, name: string): unknown => mutatorOf(study).setName(nodeOf(study, 'Task_1'), name);
 
 const rootTypes = (study: Study): string[] => (study.definitions.rootElements as ModdleObject[]).map((root) => root.$type);
-const ids = (elements: readonly { id: string }[]): string[] => elements.map((element) => element.id);
 
 test('a study announces each commit once, to each listener in turn, with no DOM', () => {
   const study = open();
   const heard: string[] = [];
-  study.on('change', (change) => heard.push(`first: ${change.cause} ${ids(change.changed)}`));
+  study.on('change', (change) => heard.push(`first: ${change.cause} ${change.changed}`));
   const stop = study.on('change', () => heard.push('second'));
 
   rename(study, 'Renamed');
@@ -96,21 +95,25 @@ test('a load replaces the document, read as a file opens, in one change, and the
 
   await study.load(CHOREOGRAPHY);
 
-  expect(heard.map(({ cause, added, removed }) => [cause, ids(added), ids(removed)]))
+  expect(heard.map(({ cause, added, removed }) => [cause, added, removed]))
     .toEqual([['load', ['Consent'], ['Task_1', 'Sub_1', 'Task_In']]]);
   expect(rootTypes(study), 'the choreography is edited on a process').toContain('bpmn:Process');
   expect([study.canUndo, study.canRedo]).toEqual([false, false]);
   expect(study.revision, 'the revision carries on').toBe(2);
 });
 
-test('a study writes its file as a file holds it, without touching what it edits, and reopens it the same', async () => {
+test('a study writes its file as a file holds it, XML or YAML, without touching what it edits, and reopens it the same', async () => {
   const study = await Study.open(CHOREOGRAPHY, { moddle: freshModdle() });
 
   const xml = await study.toXml();
+  const yaml = study.toYaml();
 
   expect(xml).toContain('<bpmn:choreography id="Dyad"');
+  expect(yaml).toContain('Dyad:\n  type: Choreography');
   expect(rootTypes(study), 'still a process to edit').toContain('bpmn:Process');
   expect(await (await Study.open(xml, { moddle: freshModdle() })).toXml()).toBe(xml);
+  expect((await Study.open(yaml, { moddle: freshModdle() })).toYaml()).toBe(yaml);
+  expect(open().toYaml(), 'a process is written as it is edited').toContain('Process_1:\n  type: Process');
 });
 
 // --- undo ------------------------------------------------------------------------------
@@ -155,7 +158,7 @@ test('an undo and a redo each put the document back as one change, by id, and ar
   const study = open();
   const heard: string[] = [];
   study.on('change', ({ cause, added, removed }) => {
-    heard.push(`${cause} +${ids(added)} -${ids(removed)} undo:${study.canUndo} redo:${study.canRedo}`);
+    heard.push(`${cause} +${added} -${removed} undo:${study.canUndo} redo:${study.canRedo}`);
   });
 
   mutatorOf(study).addShape({ type: 'bpmn:Task', bounds: { x: 400, y: 80, width: 100, height: 80 }, id: 'Task_2' });
@@ -192,7 +195,7 @@ test('the history holds what edits changed: nothing for a no-op, no redo past a 
 test('set writes an attribute where its schema keeps it, by any id the document holds; an unknown id is refused', () => {
   const study = open();
   const heard: string[] = [];
-  study.on('change', (change) => heard.push(ids(change.changed).join()));
+  study.on('change', (change) => heard.push(change.changed.join()));
 
   expect(study.set({ id: 'Task_1', attribute: 'name', value: 'Screen' })).toMatchObject({ ok: true, changed: ['Task_1'] });
   // A property is drawn nowhere, so the root records the write.
@@ -265,4 +268,25 @@ test('remove takes what goes with an element; expand and collapse take only what
   expect(study.expand({ id: 'Task_1' })).toMatchObject({ ok: false, reason: "'Task_1' holds no contents to show" });
   expect(study.expand({ id: 'Sub_1' })).toMatchObject({ ok: true, changed: expect.arrayContaining(['Sub_1']) });
   expect([...study.remove({ ids: ['Sub_1'] }).removed].sort()).toEqual(['Sub_1', 'Task_In']);
+});
+
+// --- reads -------------------------------------------------------------------------------
+
+test('reads are plain data: a record by id, the root, a filtered list; the moddle behind an id stays in-process', () => {
+  const study = open();
+  study.connect({ from: 'Task_1', to: 'Sub_1', id: 'Flow_1' });
+
+  expect(study.root).toEqual({ id: 'Process_1', kind: 'root', type: 'bpmn:Process' });
+  expect(study.get('Task_1')).toEqual({
+    id: 'Task_1', kind: 'node', type: 'bpmn:Task', name: 'Read', bounds: { x: 200, y: 80, width: 100, height: 80 }, incoming: [], outgoing: ['Flow_1'],
+  });
+  expect(study.get('Flow_1')).toMatchObject({ kind: 'edge', type: 'bpmn:SequenceFlow', source: 'Task_1', target: 'Sub_1' });
+  expect(study.get('Sub_1')).toMatchObject({ kind: 'node', expanded: false });
+  expect(study.get('Nope')).toBeUndefined();
+
+  expect(study.list().map((record) => record.id).sort()).toEqual(['Flow_1', 'Sub_1', 'Task_1', 'Task_In']);
+  expect(study.list({ within: 'Sub_1' }).map((record) => record.id)).toEqual(['Task_In']);
+  expect(study.list({ kind: 'edge', type: 'bpmn:SequenceFlow' }).map((record) => record.id)).toEqual(['Flow_1']);
+  expect(JSON.parse(JSON.stringify(study.list())), 'JSON through and through').toEqual(study.list());
+  expect(study.businessObject('Count')?.$type).toBe('bpmn:Property');
 });

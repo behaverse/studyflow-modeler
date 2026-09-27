@@ -325,10 +325,11 @@ export function headlessPlaneToProcessRoot(definitions: any): boolean {
 
 /**
  * What saving applies to the definitions the canvas edits, in place: a pure choreography goes back to a choreography
- * root. The inverse of `fromWireDefinitions`; a Study writes its file from a copy this way, without XML.
+ * root. The inverse of `fromWireDefinitions`; a Study writes its file from a copy this way, without XML. Whether it
+ * changed anything.
  */
-export function toWireDefinitions(definitions: any): void {
-  processToChoreographyRoot(definitions);
+export function toWireDefinitions(definitions: any): boolean {
+  return processToChoreographyRoot(definitions);
 }
 
 /** {@link toWireDefinitions} on XML text. */

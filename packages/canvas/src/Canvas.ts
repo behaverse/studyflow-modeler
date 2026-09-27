@@ -17,9 +17,9 @@ import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, Selection } from '@canvas/interaction/selection.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import { modelOf } from '@canvas/study/moddle.ts';
-import type { Commit, Mutator } from '@canvas/study/mutator.ts';
-import { studyInternals, type Study, type StudyResult } from '@canvas/study/Study.ts';
-import { isRootElement, type Bounds, type Drawable, type ElementRef, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
+import type { Mutator } from '@canvas/study/mutator.ts';
+import { studyInternals, type ChangedIds, type Study, type StudyResult } from '@canvas/study/Study.ts';
+import { isRootElement, type Bounds, type ElementRef, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { shapeOf } from '@canvas/study/templates.ts';
 import { boundsOf, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf } from '@core/document/outline.ts';
@@ -159,7 +159,8 @@ export class Canvas {
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
         this.drawCommit(change);
-        this.bus.fire('ElementsChanged', { elements: [...change.added, ...change.changed], removed: change.removed });
+        const elements = [...change.added, ...change.changed].map((id) => this.get(id)).filter((element) => element !== undefined);
+        this.bus.fire('ElementsChanged', { elements, removed: change.removed });
       } else if (change.cause === 'load') {
         this.drawStudy();
       } else {
@@ -431,24 +432,25 @@ export class Canvas {
   // --- drawing ----------------------------------------------------------------------
 
   /** Draw what a commit did: erase what it removed, mount what it added, redraw what it changed, keep the paint order. */
-  private drawCommit({ added, changed, removed }: Commit): void {
+  private drawCommit({ added, changed, removed }: ChangedIds): void {
+    const drawn = (ids: readonly string[]): SceneElement[] => ids.flatMap((id) => this.scene.elementsById.get(id) ?? []);
     if (removed.length > 0) this.eraseRemoved(removed);
-    for (const element of added) this.mount(element);
-    this.redrawElements(changed.filter((element): element is SceneElement => !isRootElement(element)));
+    for (const element of drawn(added)) this.mount(element);
+    this.redrawElements(drawn(changed));
     this.restack();
   }
 
   /** Erase what a commit removed, and let go of it: the label editor, the hover, the markers, the selection. */
-  private eraseRemoved(removed: readonly Drawable[]): void {
-    const gone = new Set(removed.map((element) => element.id));
+  private eraseRemoved(removed: readonly string[]): void {
+    const gone = new Set(removed);
     const session = this.labelEditing.getSession();
     if (session && gone.has(session.element.id)) this.labelEditing.cancel();
     const hovered = this.selection.getHovered();
     if (hovered && gone.has(hovered.id)) this.selection.setHovered(undefined);
-    for (const element of removed) {
-      this.renderer.erase(element.id);
-      this.renderer.erase(labelIdOf(element));
-      this.selection.forget(element.id);
+    for (const id of removed) {
+      this.renderer.erase(id);
+      this.renderer.erase(labelIdOf({ id }));
+      this.selection.forget(id);
     }
     const selected = this.selection.get();
     const keep = selected.filter((element) => !gone.has(element.kind === 'label' ? element.owner.id : element.id));

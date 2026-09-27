@@ -4,7 +4,7 @@
  * study, and several views may share one.
  */
 
-import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireXml } from '@core/document';
+import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireDefinitions, toWireXml } from '@core/document';
 import { categoryOf } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf, getExtensionType, setAttribute } from '@core/element/index.ts';
 import type { Moddle } from '@core/element/moddle';
@@ -18,16 +18,24 @@ import { rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts
 import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
 import { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
-import { edgesAffectedBy, isExpandable, planeOf } from '@canvas/study/tree.ts';
+import { edgesAffectedBy, isDescendantOf, isExpandable, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
+
+/** The ids of the nodes and flows a change added, changed (the root's, when the diagram's own properties changed) and removed. */
+export interface ChangedIds {
+  readonly added: readonly string[];
+  readonly changed: readonly string[];
+  readonly removed: readonly string[];
+}
 
 /**
  * What one change did to the study, and why. An 'edit' is one commit: what it added, changed and removed. A
- * 'load', an 'undo' and a 'redo' put another document in place, and say so by id: what only the old one held is
- * removed, what only the new one holds added, and everything else changed, the root among it.
+ * 'load', an 'undo' and a 'redo' put another document in place: what only the old one held is removed, what only
+ * the new one holds added, and everything else changed, the root among it.
  */
-export interface StudyChange extends Commit {
+export interface StudyChange extends ChangedIds {
   readonly cause: 'edit' | 'load' | 'undo' | 'redo';
 }
 
@@ -40,14 +48,11 @@ export interface OpenOptions extends ImportOptions {
  * What one verb did, as data a host or an AI reads alike: the ids of the elements it added, changed and removed,
  * or, when `ok` is false, why it wrote nothing.
  */
-export interface StudyResult {
+export interface StudyResult extends ChangedIds {
   readonly ok: boolean;
   readonly reason?: string;
   /** The element the verb made, when it made one. */
   readonly id?: string;
-  readonly added: readonly string[];
-  readonly changed: readonly string[];
-  readonly removed: readonly string[];
 }
 
 type ChangeListener = (change: StudyChange) => void;
@@ -104,6 +109,16 @@ export class Study {
     this.swap(definitions, 'load');
   }
 
+  /** The document as a `.studyflow.yaml` file holds it: the drawing written into its DI, and a pure choreography on its own root. */
+  toYaml(): string {
+    const { scene } = studyInternals(this);
+    writeDi(scene);
+    const text = definitionsToStudyflow(scene.definitions);
+    // A pure choreography is edited on a process; its file holds it on a choreography root, written from a copy.
+    const copy = studyflowToDefinitions(text, moddleOf(scene.definitions), () => {});
+    return toWireDefinitions(copy) ? definitionsToStudyflow(copy) : text;
+  }
+
   /** The document as a BPMN XML file holds it: the drawing written into its DI, and a pure choreography on its own root. */
   async toXml(): Promise<string> {
     const { scene } = studyInternals(this);
@@ -116,6 +131,39 @@ export class Study {
   /** The `bpmn:Definitions` the study edits: another object after a load, an undo or a redo. */
   get definitions(): ModdleObject {
     return studyInternals(this).scene.definitions;
+  }
+
+  /** The document's root, a process or a collaboration, as data: always the document's, whatever a view shows. */
+  get root(): ElementRecord {
+    return recordOf(studyInternals(this).scene.rootElement);
+  }
+
+  /** The element `id` names, as data: a shape, a flow, a caption, or the root. */
+  get(id: string): ElementRecord | undefined {
+    const { scene } = studyInternals(this);
+    if (id === scene.rootElement.id) return this.root;
+    const element = scene.elementsById.get(id);
+    return element && recordOf(element);
+  }
+
+  /**
+   * The shapes and flows, as data, in the order the document holds them: those of `kind` (captions too, with
+   * 'label'), of `type` (a BPMN type or the schema type extending it), `within` a container however deep.
+   */
+  list(filter: { kind?: 'node' | 'edge' | 'label'; type?: string; within?: string } = {}): ElementRecord[] {
+    const { scene } = studyInternals(this);
+    const within = filter.within === undefined ? undefined : scene.elementsById.get(filter.within);
+    if (filter.within !== undefined && within?.kind !== 'node') return [];
+    return [...scene.elementsById.values()]
+      .filter((element) => (filter.kind ? element.kind === filter.kind : element.kind !== 'label'))
+      .filter((element) => !within || isDescendantOf(element, within as SceneNode))
+      .map(recordOf)
+      .filter((record) => !filter.type || record.type === filter.type || record.extension === filter.type);
+  }
+
+  /** The moddle behind `id`, for in-process hosts reading what a record leaves out; not a tool. */
+  businessObject(id: string): ModdleObject | undefined {
+    return this.find(id)?.moddle;
   }
 
   /** Goes up by one on every change. */
@@ -199,7 +247,7 @@ export class Study {
     if (!rules.canReplace(node, prototype.type)) return refused(`'${args.id}' cannot become a ${args.type}`);
     if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)
       && eventDefinitionTypeOf(prototype.attrs as never) === eventDefinitionTypeOf(node.businessObject)) {
-      return { ok: true, id: node.id, added: [], changed: [], removed: [] };
+      return { ok: true, id: node.id, ...NOTHING };
     }
     const size = categoryOf(prototype.type) === categoryOf(node.type)
       ? { width: node.width, height: node.height }
@@ -372,13 +420,7 @@ export class Study {
     this.takeCommitted();
     const made = mutator.batch(edit);
     const commit = this.takeCommitted();
-    return {
-      ok: true,
-      ...(made ? { id: made.id } : {}),
-      added: (commit?.added ?? []).map((element) => element.id),
-      changed: (commit?.changed ?? []).map((element) => element.id),
-      removed: (commit?.removed ?? []).map((element) => element.id),
-    };
+    return { ok: true, ...(made ? { id: made.id } : {}), ...(commit ? idsOf(commit) : NOTHING) };
   }
 
   /** The elements `ids` name, or the first id that names none. */
@@ -469,7 +511,7 @@ export class Study {
       if (this.snapshots.length > UNDO_DEPTH + 1) this.snapshots.shift();
       this.current = this.snapshots.length - 1;
     }
-    this.announce({ cause: 'edit', ...commit });
+    this.announce({ cause: 'edit', ...idsOf(commit) });
   }
 
   /** Step through the history: what the step changed, or nothing past either end. */
@@ -477,24 +519,18 @@ export class Study {
     const snapshot = this.snapshots[this.current + step];
     if (snapshot === undefined) return undefined;
     this.current += step;
-    const change = this.swap(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo');
-    return {
-      ok: true,
-      added: change.added.map((element) => element.id),
-      changed: change.changed.map((element) => element.id),
-      removed: change.removed.map((element) => element.id),
-    };
+    return { ok: true, ...this.swap(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo') };
   }
 
   /** Put `definitions` in place of the document, as one change; a load starts the history over. */
-  private swap(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): Commit {
+  private swap(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): ChangedIds {
     const before = studyInternals(this).scene;
     const after = this.read(definitions, before.revision + 1);
     if (cause === 'load') {
       this.snapshots = [definitionsToStudyflow(definitions)];
       this.current = 0;
     }
-    const change = byId(before, after);
+    const change = idsOf(byId(before, after));
     this.announce({ cause, ...change });
     return change;
   }
@@ -504,8 +540,15 @@ export class Study {
   }
 }
 
+const NOTHING: ChangedIds = { added: [], changed: [], removed: [] };
+
 function refused(reason: string): StudyResult {
-  return { ok: false, reason, added: [], changed: [], removed: [] };
+  return { ok: false, reason, ...NOTHING };
+}
+
+function idsOf({ added, changed, removed }: Commit): ChangedIds {
+  const ids = (elements: readonly { id: string }[]): string[] => elements.map((element) => element.id);
+  return { added: ids(added), changed: ids(changed), removed: ids(removed) };
 }
 
 /** File text, `.studyflow.yaml` or BPMN XML, as definitions. */
