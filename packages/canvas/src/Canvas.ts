@@ -32,6 +32,8 @@ import { Viewport, type Viewbox } from '@canvas/view/viewport.ts';
 
 export interface CanvasOptions extends RendererOptions {
   snapToGrid?: boolean;
+  /** Whether a person may edit the study through this view (the default); one that is not only selects, pans and zooms. */
+  editable?: boolean;
 }
 
 export interface CanvasViewbox extends Viewbox {
@@ -84,6 +86,7 @@ export class Canvas {
   /** Stops hearing the study's changes. */
   private readonly stopListening: () => void;
   private snapToGrid: boolean;
+  private isEditable: boolean;
   /** The container the view is drilled into; `undefined` shows the whole diagram. */
   private scopeNode?: SceneNode;
   private drag?: Drag;
@@ -100,6 +103,7 @@ export class Canvas {
     this.container = container;
     this.study = study;
     this.snapToGrid = options.snapToGrid ?? true;
+    this.isEditable = options.editable ?? true;
     setDocument(container.ownerDocument);
     this.root = create('svg', { class: 'sf-canvas', width: '100%', height: '100%', preserveAspectRatio: 'xMidYMid meet' }) as SVGSVGElement;
     this.root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -186,6 +190,7 @@ export class Canvas {
         this.gesturing = active;
         this.placeAnchor();
       },
+      editable: () => this.isEditable,
     });
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
@@ -478,6 +483,20 @@ export class Canvas {
     this.drag?.setSnapToGrid(on);
   }
 
+  /** Whether a person may edit the study through this view: move, resize, create, connect, rename, delete, undo. */
+  get editable(): boolean {
+    return this.isEditable;
+  }
+
+  /** Let a person edit through this view, or not; an edit under way is dropped. */
+  setEditable(on: boolean): void {
+    this.isEditable = on;
+    if (on) return;
+    this.gestures.cancel();
+    this.labelEditing.reset();
+    this.clearAppendPreview();
+  }
+
   private snapPoint(point: Point): Point {
     if (!this.snapToGrid) return { ...point };
     return { x: snapTo(point.x, DEFAULT_GRID_SIZE), y: snapTo(point.y, DEFAULT_GRID_SIZE) };
@@ -624,7 +643,7 @@ export class Canvas {
   /** Begin a create drag from the palette; `event` may originate outside the canvas. False for a template the catalog lacks. */
   startCreate(event: MouseEvent | undefined, what: NewElement): boolean {
     const shape = shapeOf(what);
-    return !!shape && this.gestures.startCreate(event, what, prototypeOf(shape, draftOf(shape, modelOf(this.scene.definitions))));
+    return this.isEditable && !!shape && this.gestures.startCreate(event, what, prototypeOf(shape, draftOf(shape, modelOf(this.scene.definitions))));
   }
 
   /** A freshly created shape: selected, and (for a task-like shape) named. */
@@ -640,6 +659,7 @@ export class Canvas {
 
   /** Click-append: the study adds `what` beside `from` and connects the two; then it is selected, and named when task-like. */
   append(from: string, what: NewElement): StudyResult {
+    if (!this.isEditable) return { ok: false, reason: 'this view is not editable', added: [], changed: [], removed: [] };
     const result = this.study.append({ ...what, from });
     const made = this.made(result);
     if (made?.kind === 'node') this.placed(made);
@@ -649,7 +669,7 @@ export class Canvas {
   /** Draw a connection out of the shape `from` names, following the pointer until it lands. */
   startConnect(from: string, event?: MouseEvent): boolean {
     const source = this.scene.elementsById.get(from);
-    return source?.kind === 'node' && this.gestures.startConnect(source, event);
+    return this.isEditable && source?.kind === 'node' && this.gestures.startConnect(source, event);
   }
 
   /** Ghost what appending `what` to `from` would add, where the click puts it; returns its bounds. */
@@ -657,7 +677,7 @@ export class Canvas {
     this.clearAppendPreview();
     const source = this.scene.elementsById.get(from);
     const shape = shapeOf(what);
-    if (!source || source.kind === 'label' || !shape) return undefined;
+    if (!this.isEditable || !source || source.kind === 'label' || !shape) return undefined;
     const prototype = prototypeOf(shape, draftOf(shape, modelOf(this.scene.definitions)));
     if (!this.rules.canAppendType(source, prototype.type)) return undefined;
     const bounds = boundsFor(prototype, appendSpot(this.scene, source, prototype, prototype.type));
@@ -703,9 +723,11 @@ export class Canvas {
   }
 
   /** Open the inline editor on `element` (default: the single selected element). */
-  editLabel(element?: SceneElement): boolean {
-    const target = element ?? (this.selectionSet.get().length === 1 ? this.selectionSet.get()[0] : undefined);
-    return !!target && this.labelEditing.activate(target);
+  /** Open the name of the element `id` names (without one, of the one selected) for typing. */
+  editLabel(id?: string): boolean {
+    const selected = this.selectionSet.get();
+    const target = id === undefined ? (selected.length === 1 ? selected[0] : undefined) : this.scene.elementsById.get(id);
+    return this.isEditable && !!target && this.labelEditing.activate(target);
   }
 
   selectAll(): boolean {
@@ -717,6 +739,7 @@ export class Canvas {
 
   /** Remove what is selected, as one edit (a caption clears the name it shows). */
   deleteSelection(): StudyResult {
+    if (!this.isEditable) return { ok: false, reason: 'this view is not editable', added: [], changed: [], removed: [] };
     return this.study.remove({ ids: this.selectionSet.get().map((element) => element.id) });
   }
 }

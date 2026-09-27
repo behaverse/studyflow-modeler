@@ -105,6 +105,8 @@ export interface GestureTools {
   viewport: Viewport;
   /** A gesture began, or ended. */
   gesture(active: boolean): void;
+  /** Whether a person may edit through this view: otherwise a press selects and pans, and no key edits. */
+  editable(): boolean;
 }
 
 export class Gestures {
@@ -246,8 +248,9 @@ export class Gestures {
     selection.setHovered(undefined);
     const pt = this.eventPoint(ev);
 
-    const handle = selection.handleAt(pt);
-    let waypoint = handle ? undefined : selection.waypointAt(pt);
+    const editable = this.tools.editable();
+    const handle = editable ? selection.handleAt(pt) : undefined;
+    let waypoint = handle || !editable ? undefined : selection.waypointAt(pt);
     let intent: Intent = ev.shiftKey ? 'marquee' : 'pan';
     let collapseTo: SceneElement | undefined;
     if (handle) intent = 'resize';
@@ -258,9 +261,9 @@ export class Gestures {
         if (ev.shiftKey) selection.toggle(hit);
         else if (!selection.isSelected(hit)) selection.select(hit);
         if (!ev.shiftKey && selection.isSelected(hit) && selection.get().length > 1) collapseTo = hit;
-        intent = selection.isSelected(hit) ? 'move' : 'none';
+        intent = editable && selection.isSelected(hit) ? 'move' : 'none';
         // A press on a selected connection's body drags a new joint out of it.
-        if (hit.kind === 'edge' && selection.isSelected(hit) && selection.get().length === 1) {
+        if (editable && hit.kind === 'edge' && selection.isSelected(hit) && selection.get().length === 1) {
           const index = segmentAt(hit.waypoints, pt);
           if (index !== undefined) {
             waypoint = { edge: hit, index: index + 1, insert: true };
@@ -632,6 +635,7 @@ export class Gestures {
     if (!element) return;
     const selected = this.tools.selection.get();
     if (selected.length !== 1 || selected[0]?.id !== element.id) this.tools.selection.select(element);
+    if (!this.tools.editable()) return;
     if (element.kind === 'node' && isExpandable(element.type)) {
       const onCaption = element.isExpanded === true && pt.y - element.y <= TOP_STRIP;
       if (!onCaption) {
@@ -672,17 +676,18 @@ export class Gestures {
     const canvas = this.canvas;
     if (ev.defaultPrevented || canvas.getLabelEditing().isActive() || isTextEntry(ev.target) || ev.altKey) return;
     const mod = ev.ctrlKey || ev.metaKey;
+    const editable = this.tools.editable();
     let handled = false;
     if (mod) {
       switch (ev.key) {
         case 'a': case 'A': handled = canvas.selectAll(); break;
-        case 'z': case 'Z': handled = (ev.shiftKey ? canvas.study.redo() : canvas.study.undo()).ok; break;
+        case 'z': case 'Z': handled = editable && (ev.shiftKey ? canvas.study.redo() : canvas.study.undo()).ok; break;
         case '=': case '+': canvas.zoom('in'); handled = true; break;
         case '-': case '_': canvas.zoom('out'); handled = true; break;
         case '0': canvas.zoom(1); handled = true; break;
         default: break;
       }
-    } else {
+    } else if (editable) {
       const step = ev.shiftKey ? LARGE_NUDGE : NUDGE;
       switch (ev.key) {
         case 'Delete': case 'Backspace': {

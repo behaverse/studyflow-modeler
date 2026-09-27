@@ -4,6 +4,7 @@ import { Canvas, Study } from '@canvas/index.ts';
 import { studyflowToDefinitions } from '@core/document';
 
 import {
+  centre,
   diOf,
   freshModdle,
   installDocument,
@@ -93,6 +94,42 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
   expect(ids(staleDefs), 'the destroyed canvas kept its hands off its document').toEqual(['Start_1', 'Task_1']);
   expect(ids(liveDefs), 'the live canvas deleted its own selection').toEqual(['Task_1']);
   live.destroy();
+});
+
+test('several views draw one study: an edit reaches each, each keeps its own selection, and destroying one leaves the others drawing', () => {
+  const study = Study.fromDefinitions(parse());
+  const left = new Canvas(container(), study);
+  const right = new Canvas(container(), study);
+
+  study.set({ id: 'Task_1', attribute: 'name', value: 'Screen' });
+  for (const view of [left, right]) expect(view.getGraphics('Task_1')!.textContent).toContain('Screen');
+  left.select('Task_1');
+  expect(right.selection).toEqual([]);
+
+  left.destroy();
+  study.set({ id: 'Task_1', attribute: 'name', value: 'Consent' });
+  expect(right.getGraphics('Task_1')!.textContent).toContain('Consent');
+  right.destroy();
+});
+
+test('a view that is not editable selects, pans and zooms, and edits nothing until it is', () => {
+  const study = Study.fromDefinitions(parse());
+  const view = new Canvas(container(), study, { editable: false });
+  const task = node(view, 'Task_1');
+
+  pointerDown(view, centre(task));
+  pointerMove(view, { x: centre(task).x + 60, y: centre(task).y + 40 });
+  pointerUp(view, { x: centre(task).x + 60, y: centre(task).y + 40 });
+  expect(view.selection).toEqual(['Task_1']);
+  expect({ x: task.x, y: task.y }, 'a drag moves nothing').toEqual({ x: 200, y: 80 });
+  view.getContainer().dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
+  expect([view.startCreate(undefined, { type: 'bpmn:Task' }), view.editLabel(), view.append('Task_1', { type: 'bpmn:EndEvent' }).ok]).toEqual([false, false, false]);
+  expect(study.revision, 'nothing written').toBe(0);
+
+  view.setEditable(true);
+  view.getContainer().dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
+  expect(study.get('Task_1')).toBeUndefined();
+  view.destroy();
 });
 
 test('destroy mid-gesture abandons the drag and drops the document-level listeners', async () => {

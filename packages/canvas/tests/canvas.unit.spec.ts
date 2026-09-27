@@ -488,7 +488,7 @@ test('renaming through the inline editor re-fits a caption, and naming an unname
   const { canvas } = load();
   const start = node(canvas, 'Start_1');
   const before = label(canvas, 'Start_1_label').width;
-  expect(canvas.editLabel(start)).toBe(true);
+  expect(canvas.editLabel(start.id)).toBe(true);
   canvas.getLabelEditing().setValue('A much longer caption');
   canvas.getLabelEditing().complete();
   expect(start.businessObject.name).toBe('A much longer caption');
@@ -500,7 +500,7 @@ test('renaming through the inline editor re-fits a caption, and naming an unname
   // Flow_1 has no name, so no caption until it gets one.
   const flow = edge(canvas, 'Flow_1');
   expect(canvas.study.get('Flow_1_label')).toBeUndefined();
-  expect(canvas.editLabel(flow)).toBe(true);
+  expect(canvas.editLabel(flow.id)).toBe(true);
   canvas.getLabelEditing().setValue('hello');
   canvas.getLabelEditing().complete();
   expect(label(canvas, 'Flow_1_label').owner).toBe(flow);
