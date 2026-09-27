@@ -1,6 +1,7 @@
 import { parseChecklistLines, resolvePlaceholders } from '@core/document';
 import { StudyflowElement } from '@core/element';
-import { isExpandable, type ElementRecord, type Font } from '@canvas/index.ts';
+import { isExpandable } from '@core/document/outline';
+import type { ElementRecord, Font } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 
 type TimingAttrs = {

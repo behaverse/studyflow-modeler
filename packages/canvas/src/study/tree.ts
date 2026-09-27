@@ -1,23 +1,12 @@
 /** Containment-tree helpers: depth, z-order, visibility, expansion. */
 
+import { isExpandable } from '@core/document/outline.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
-
-const EXPANDABLE_TYPES: ReadonlySet<string> = new Set([
-  'bpmn:SubProcess',
-  'bpmn:AdHocSubProcess',
-  'bpmn:Transaction',
-  'bpmn:SubChoreography',
-  'bpmn:CallChoreography',
-]);
 
 export const COLLAPSED_SIZE = { width: 100, height: 80 } as const;
 export const EXPANDED_SIZE = { width: 350, height: 200 } as const;
 /** Inset of a container's contents inside its frame; the top leaves room for the name. */
 export const CONTENT_PADDING = { top: 40, right: 30, bottom: 30, left: 30 } as const;
-
-export function isExpandable(type: string): boolean {
-  return EXPANDABLE_TYPES.has(type);
-}
 
 /** Only an explicit `false` counts: a shape that omits the flag is drawn expanded. */
 export function isCollapsed(node: SceneNode): boolean {

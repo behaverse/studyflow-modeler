@@ -1,5 +1,6 @@
 import { isBpmnSubtypeOf } from '@core/notation';
-import { CONTENT_PADDING, isExpandable, type ElementRecord, type Point } from '@canvas/index.ts';
+import { isExpandable } from '@core/document/outline';
+import { CONTENT_PADDING, type ElementRecord, type Point } from '@canvas/index.ts';
 
 /** Reads an element by id: a study's `get`. */
 export type Lookup = (id: string) => ElementRecord | undefined;

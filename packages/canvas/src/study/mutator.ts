@@ -59,9 +59,8 @@ import {
   EXPANDED_SIZE,
   frameAround,
   incidentEdgesOf,
-  isExpandable,
 } from '@canvas/study/tree.ts';
-import { cropPoint } from '@core/document/outline.ts';
+import { cropPoint, isExpandable } from '@core/document/outline.ts';
 import { samePoints } from '@canvas/study/edit.ts';
 import { orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
 import { containerFor } from '@canvas/study/rules.ts';

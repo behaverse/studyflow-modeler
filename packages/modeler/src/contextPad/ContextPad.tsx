@@ -28,7 +28,8 @@ import { contextPad as s } from '@modeler/contextPad/styles';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';
-import { isExpandable, type ElementRecord } from '@canvas/index.ts';
+import { isExpandable } from '@core/document/outline';
+import type { ElementRecord } from '@canvas/index.ts';
 
 /** Where a tooltip sits relative to the pointer: the offsets a native `title` bubble uses. */
 const TOOLTIP_GAP = 4;

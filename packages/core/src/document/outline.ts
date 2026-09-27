@@ -48,6 +48,19 @@ export function isDataStore(type: string): boolean {
   return DATA_STORE_TYPES.has(type);
 }
 
+const EXPANDABLE_TYPES: ReadonlySet<string> = new Set([
+  'bpmn:SubProcess',
+  'bpmn:AdHocSubProcess',
+  'bpmn:Transaction',
+  'bpmn:SubChoreography',
+  'bpmn:CallChoreography',
+]);
+
+/** Whether `type` holds a flow of its own, which a diagram draws open or closed: a sub-process, say. */
+export function isExpandable(type: string): boolean {
+  return EXPANDABLE_TYPES.has(type);
+}
+
 export function categoryOf(type: string): NodeCategory {
   if (type === BPMN.ChoreographyTask) return 'choreography';
   if (EVENT_TYPES.has(type)) return 'event';

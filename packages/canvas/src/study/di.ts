@@ -7,7 +7,8 @@ import { COLOR_PROPERTIES } from '@canvas/study/color.ts';
 import { FONT_PROPERTY, formatFont, type Font } from '@canvas/study/font.ts';
 import { asList, asModdle, mint, modelOf, prop, setParent, setProp, type ModdleFactory } from '@canvas/study/moddle.ts';
 import type { ModdleObject, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
-import { drawablesOf, isExpandable } from '@canvas/study/tree.ts';
+import { isExpandable } from '@core/document/outline.ts';
+import { drawablesOf } from '@canvas/study/tree.ts';
 
 export function writeDi(scene: Scene): void {
   const definitions = scene.definitions;

@@ -7,7 +7,8 @@
 import { getExtensionType } from '@core/element/index.ts';
 import { nameOf, prop } from '@canvas/study/moddle.ts';
 import { isRootElement, type Bounds, type Font, type ModdleObject, type Point, type RootElement, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
-import { isExpandable, planeOf } from '@canvas/study/tree.ts';
+import { isExpandable } from '@core/document/outline.ts';
+import { planeOf } from '@canvas/study/tree.ts';
 
 export interface ElementRecord {
   readonly id: string;

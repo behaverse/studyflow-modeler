@@ -13,7 +13,7 @@ export { renderSvg, type RenderSvgOptions } from './render/renderSvg.ts';
 export type { ImportOptions } from './study/import.ts';
 export type { Bounds, ElementRef, Font, FontPatch, Point, SceneEdge, SceneElement, SceneLabel, SceneNode, TextAlign } from './study/scene.ts';
 export { isRootElement } from './study/scene.ts';
-export { CONTENT_PADDING, isCollapsed, isExpandable, isExpanded, isHidden } from './study/tree.ts';
+export { CONTENT_PADDING, isCollapsed, isExpanded, isHidden } from './study/tree.ts';
 export type { NewElement, NewShape } from './study/prototype.ts';
 export { SVG_ICON_PATHS, type IconDef } from './render/icons.ts';
 export { append as svgAppend, attr as svgAttr, create as svgCreate, remove as svgRemove } from './render/svg.ts';

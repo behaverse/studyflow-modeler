@@ -4,14 +4,14 @@
  * mints it.
  */
 
-import { categoryOf, type NodeCategory } from '@core/document/outline.ts';
+import { categoryOf, isExpandable, type NodeCategory } from '@core/document/outline.ts';
 import { getDefaults, StudyflowElement } from '@core/element/index.ts';
 
 import { mint, type ModdleFactory } from '@canvas/study/moddle.ts';
 import type { AddShapeSpec } from '@canvas/study/mutator.ts';
 import type { RuleElement } from '@canvas/study/rules.ts';
 import type { Bounds, ModdleObject, Point } from '@canvas/study/scene.ts';
-import { EXPANDED_SIZE, isExpandable } from '@canvas/study/tree.ts';
+import { EXPANDED_SIZE } from '@canvas/study/tree.ts';
 
 /** A new shape: a BPMN type, typed further by a schema's extension. */
 export interface NewShape {

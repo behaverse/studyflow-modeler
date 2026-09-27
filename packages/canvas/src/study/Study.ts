@@ -5,7 +5,7 @@
  */
 
 import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireDefinitions, toWireXml } from '@core/document';
-import { categoryOf } from '@core/document/outline.ts';
+import { categoryOf, isExpandable } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute, StudyflowElement } from '@core/element/index.ts';
 import type { Moddle } from '@core/element/moddle';
 import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts';
@@ -23,7 +23,7 @@ import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, S
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
 import { isStepTool, misfitOf, STUDY_TOOLS, type AskableTool, type StepTool, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
-import { edgesAffectedBy, isDescendantOf, isExpandable, planeOf } from '@canvas/study/tree.ts';
+import { edgesAffectedBy, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
 /** The ids of the nodes and flows a change added, changed (the root's, when the diagram's own properties changed) and removed. */

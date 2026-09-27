@@ -17,7 +17,7 @@ import type { CreatePrototype, NewElement } from '@canvas/study/prototype.ts';
 import type { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
-import { isExpandable } from '@canvas/study/tree.ts';
+import { isExpandable } from '@core/document/outline.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
 import { distanceToSegment } from '@canvas/study/edit.ts';
