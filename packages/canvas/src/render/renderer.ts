@@ -18,7 +18,7 @@ import { nameOf } from '@canvas/study/moddle.ts';
 import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver } from '@canvas/render/icons.ts';
-import { EDGE_CORNER_RADIUS, lineJumps, type Span } from '@canvas/render/jumps.ts';
+import { boxesMeet, boxOf, EDGE_CORNER_RADIUS, lineJumps, type Box, type Span } from '@canvas/render/jumps.ts';
 import {
   alignedX,
   CHROME,
@@ -156,6 +156,11 @@ export class Renderer {
   scope?: SceneNode;
   private scene?: Scene;
   private readonly iconResolver?: IconResolver;
+  /** Each drawn edge's box when its jumps were last cut, by id; and the boxes of erased edges, whose crossings go. */
+  private readonly jumpBoxes = new Map<string, Box>();
+  private readonly vacated: Box[] = [];
+  /** While a whole scene is drawn, the jumps wait for one pass at the end. */
+  private drawingScene = false;
 
   constructor(options: RendererOptions = {}) {
     this.iconResolver = options.iconResolver;
@@ -169,13 +174,22 @@ export class Renderer {
   /** Draw `scene` into `layer` in paint order: every element, or those `shows` keeps. */
   renderScene(scene: Scene, layer: SVGElement, shows: (element: SceneElement) => boolean = () => true): void {
     this.graphicsById.clear();
+    this.jumpBoxes.clear();
+    this.vacated.length = 0;
     this.scene = scene;
     const elements = [...scene.elementsById.values()].filter(shows).sort((a, b) => zRankOf(a) - zRankOf(b));
-    for (const element of elements) {
-      const g = this.draw(element);
-      append(layer, g);
-      if (element.id) this.graphicsById.set(element.id, g);
+    // The jumps are cut once, over the whole scene, when everything is drawn.
+    this.drawingScene = true;
+    try {
+      for (const element of elements) {
+        const g = this.draw(element);
+        append(layer, g);
+        if (element.id) this.graphicsById.set(element.id, g);
+      }
+    } finally {
+      this.drawingScene = false;
     }
+    this.refreshJumps();
   }
 
   draw(element: SceneElement): SVGGElement {
@@ -200,6 +214,10 @@ export class Renderer {
     if (!g) return false;
     remove(g);
     this.graphicsById.delete(id);
+    // What jumped over an erased edge no longer crosses anything there.
+    const box = this.jumpBoxes.get(id);
+    if (box) this.vacated.push(box);
+    this.jumpBoxes.delete(id);
     return true;
   }
 
@@ -295,7 +313,7 @@ export class Renderer {
     });
     append(g, create('path', {
       class: 'sf-connection-line',
-      d: roundedPathData(edge.waypoints, EDGE_CORNER_RADIUS, this.jumpsOf(edge)),
+      d: roundedPathData(edge.waypoints, EDGE_CORNER_RADIUS, this.drawingScene ? [] : this.jumpsOf(edge)),
       'data-waypoints': edge.waypoints.map((p) => `${p.x},${p.y}`).join(' '),
       fill: 'none',
       stroke: edge.stroke ?? INK.stroke,
@@ -309,22 +327,52 @@ export class Renderer {
     return g;
   }
 
-  /** Re-cut every drawn edge's line jumps: a crossing belongs to two edges, and only one of them was redrawn. */
-  refreshJumps(): void {
-    for (const element of this.scene?.elementsById.values() ?? []) {
-      if (element.kind !== 'edge') continue;
-      const line = this.graphicsById.get(element.id)?.querySelector('.sf-connection-line');
-      line?.setAttribute('d', roundedPathData(element.waypoints, EDGE_CORNER_RADIUS, this.jumpsOf(element)));
+  /**
+   * Re-cut line jumps where they may have changed: a crossing belongs to two edges, and only one of them was redrawn.
+   * Given what changed, the edges re-cut are those whose boxes meet a changed edge's old or new box, or an erased
+   * edge's; without, every edge is.
+   */
+  refreshJumps(changed?: Iterable<SceneElement>): void {
+    const edges = this.edges();
+    const boxes = new Map(edges.map((edge) => [edge, boxOf(edge.waypoints)] as const));
+    let affected = edges;
+    if (changed) {
+      const regions = this.vacated.splice(0);
+      const moved = new Set<SceneEdge>();
+      for (const element of changed) {
+        if (element.kind !== 'edge') continue;
+        moved.add(element);
+        const before = this.jumpBoxes.get(element.id);
+        if (before) regions.push(before);
+        const now = boxes.get(element);
+        if (now) regions.push(now);
+      }
+      if (regions.length === 0) return;
+      affected = edges.filter((edge) => moved.has(edge) || regions.some((region) => boxesMeet(region, boxes.get(edge)!)));
+    }
+    for (const edge of affected) {
+      const line = this.graphicsById.get(edge.id)?.querySelector('.sf-connection-line');
+      line?.setAttribute('d', roundedPathData(edge.waypoints, EDGE_CORNER_RADIUS, this.jumpsOf(edge, edges, boxes)));
+      // Kept only here, once the box it replaces has been read: a redraw of the edge must not overwrite it first.
+      this.jumpBoxes.set(edge.id, boxes.get(edge)!);
     }
   }
 
-  private jumpsOf(edge: SceneEdge): Span[][] {
+  private edges(): SceneEdge[] {
+    return [...this.scene?.elementsById.values() ?? []].filter((element): element is SceneEdge => element.kind === 'edge');
+  }
+
+  /** Where `edge` hops the edges it crosses, in paint order; only the edges whose boxes meet its own are tried. */
+  private jumpsOf(edge: SceneEdge, edges = this.edges(), boxes?: ReadonlyMap<SceneEdge, Box>): Span[][] {
+    const box = boxes?.get(edge) ?? boxOf(edge.waypoints);
     const below: Point[][] = [];
     const above: Point[][] = [];
     let seen = false;
-    for (const element of this.scene?.elementsById.values() ?? []) {
-      if (element === edge) seen = true;
-      else if (element.kind === 'edge' && !isHidden(element, this.scope)) (seen ? above : below).push(element.waypoints);
+    for (const other of edges) {
+      if (other === edge) seen = true;
+      else if (boxesMeet(box, boxes?.get(other) ?? boxOf(other.waypoints)) && !isHidden(other, this.scope)) {
+        (seen ? above : below).push(other.waypoints);
+      }
     }
     return lineJumps(edge.waypoints, below, above);
   }

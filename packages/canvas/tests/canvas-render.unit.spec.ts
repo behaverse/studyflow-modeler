@@ -348,6 +348,12 @@ test('the flatter run jumps over the steeper edge it crosses, on either side of 
   expect(jumpsIn('Flow_Across')).toEqual([{ x: 275, y: 120 }, { x: 300, y: 120 }]);
   expect(jumpsIn(slant.id)).toHaveLength(1);
   expect(jumpsIn(down.id)).toEqual([]);
+
+  // Only the paths near an edit are re-cut, so a hop must still go when what it crossed moves away, or goes.
+  canvas.study.reroute({ id: down.id, waypoints: [{ x: 600, y: -20 }, { x: 600, y: 300 }] });
+  expect(jumpsIn('Flow_Across')).toEqual([{ x: 275, y: 120 }]);
+  canvas.study.remove({ ids: [slant.id] });
+  expect(jumpsIn('Flow_Across')).toEqual([]);
 });
 
 /**

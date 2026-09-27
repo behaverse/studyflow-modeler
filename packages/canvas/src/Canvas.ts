@@ -599,7 +599,7 @@ export class Canvas {
         this.selectionSet.restoreMarkers(label.id);
       }
     }
-    this.renderer.refreshJumps();
+    this.renderer.refreshJumps(elements);
     this.selectionSet.refresh();
   }
 
@@ -612,7 +612,7 @@ export class Canvas {
     else layer.insertBefore(g, this.firstAbove(layer, element));
     this.renderer.graphicsById.set(element.id, g);
     this.selectionSet.restoreMarkers(element.id);
-    if (element.kind === 'edge') this.renderer.refreshJumps();
+    if (element.kind === 'edge') this.renderer.refreshJumps([element]);
     if (element.kind !== 'label' && element.label) this.mount(element.label);
     return g;
   }

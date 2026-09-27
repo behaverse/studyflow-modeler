@@ -10,6 +10,29 @@ export const EDGE_CORNER_RADIUS = 6;
 /** How far a jump reaches to either side of its crossing, along the segment. */
 const JUMP_RADIUS = 5;
 
+/** A path's bounding box: two paths whose boxes do not meet cannot cross. */
+export interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+export function boxOf(points: readonly Point[]): Box {
+  const box = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+  for (const { x, y } of points) {
+    if (x < box.left) box.left = x;
+    if (x > box.right) box.right = x;
+    if (y < box.top) box.top = y;
+    if (y > box.bottom) box.bottom = y;
+  }
+  return box;
+}
+
+export function boxesMeet(a: Box, b: Box): boolean {
+  return a.left <= b.right && b.left <= a.right && a.top <= b.bottom && b.top <= a.bottom;
+}
+
 /** `[from, to]`: distances along a segment from its first waypoint that one jump arc spans. */
 export type Span = readonly [number, number];
 
