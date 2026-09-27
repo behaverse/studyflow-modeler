@@ -19,7 +19,7 @@ import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import { modelOf } from '@canvas/study/moddle.ts';
 import type { Commit, Mutator } from '@canvas/study/mutator.ts';
 import { studyInternals, type Study, type StudyResult } from '@canvas/study/Study.ts';
-import { isRootElement, type Bounds, type Drawable, type ElementColors, type ElementRef, type FontPatch, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
+import { isRootElement, type Bounds, type Drawable, type ElementRef, type ModdleObject, type Point, type RootElement, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { shapeOf } from '@canvas/study/templates.ts';
 import { boundsOf, isCollapsed, isExpandable, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf } from '@core/document/outline.ts';
@@ -627,33 +627,6 @@ export class Canvas {
 
   // --- edits --------------------------------------------------------------------------------
 
-  setExpanded(node: SceneNode, expanded: boolean): boolean {
-    return this.mutator.setExpanded(node, expanded).changed.length > 0;
-  }
-
-  toggleExpanded(node: SceneNode): boolean {
-    return this.setExpanded(node, node.isExpanded === false);
-  }
-
-  canExpand(node: SceneNode): boolean {
-    return isExpandable(node.type);
-  }
-
-  setColor(elements: ElementRef | readonly ElementRef[], colors: ElementColors): SceneElement[] {
-    return this.mutator.setColor(this.resolveElements(elements), colors);
-  }
-
-  /** Restyle captions: an omitted field is left alone, a falsy one clears; a label restyles the element it names. */
-  setFont(elements: ElementRef | readonly ElementRef[], font: FontPatch): SceneElement[] {
-    return this.mutator.setFont(this.resolveElements(elements), font);
-  }
-
-  private resolveElements(elements: ElementRef | readonly ElementRef[]): SceneElement[] {
-    return (Array.isArray(elements) ? elements : [elements])
-      .map((el) => this.resolveElement(el))
-      .filter((el): el is SceneElement => !!el);
-  }
-
 
   private nudgeSelection(dx: number, dy: number): boolean {
     const drag = this.drag;
@@ -678,25 +651,8 @@ export class Canvas {
     return true;
   }
 
-  deleteSelection(): SceneElement[] {
-    return this.deleteElements(this.selection.get());
-  }
-
-  /** Delete `elements` and their closure, as one edit; a caption deletes its owner's name instead. */
-  deleteElements(elements: SceneElement | readonly SceneElement[]): SceneElement[] {
-    const mutator = this.mutator;
-    const list = Array.isArray(elements) ? (elements as readonly SceneElement[]).slice() : [elements as SceneElement];
-    const drawables = list.filter((element): element is Drawable => element.kind !== 'label');
-    return mutator.batch(() => {
-      for (const label of list) {
-        if (label.kind === 'label' && !drawables.includes(label.owner)) mutator.setName(label.owner, '');
-      }
-      return drawables.length > 0 ? mutator.deleteElements(drawables).removed : [];
-    });
-  }
-
-  /** Make every edit `edit` makes one commit: one revision, one `ElementsChanged`, one undo step. */
-  batch<T>(edit: () => T): T {
-    return this.mutator.batch(edit);
+  /** Remove what is selected, as one edit (a caption clears the name it shows). */
+  deleteSelection(): StudyResult {
+    return this.study.remove({ ids: this.selection.get().map((element) => element.id) });
   }
 }

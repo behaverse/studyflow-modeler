@@ -1,7 +1,10 @@
-import type { FontPatch } from '@canvas/index.ts';
+import type { FontPatch, StudyResult } from '@canvas/index.ts';
 import { newShape } from '@modeler/palette/newShape';
 import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
 import type { EditorElement, Editor } from '@modeler/editor/port';
+
+/** The ids of `elements`, as a command names them: elements, or their ids. */
+const idsOf = (elements: readonly (EditorElement | string)[]): string[] => elements.map((element) => (typeof element === 'string' ? element : element.id));
 
 export type SetColorCommand = {
   type: 'SetColor';
@@ -11,7 +14,7 @@ export type SetColorCommand = {
 
 /** A caption paints in its owner's colour, so colouring a label colours the element it names. */
 export function runSetColor(modeler: Editor, command: SetColorCommand): void {
-  modeler.canvas.setColor(command.elements, command.color);
+  modeler.study.style({ ids: idsOf(command.elements), ...command.color });
 }
 
 export type SetFontCommand = {
@@ -22,7 +25,7 @@ export type SetFontCommand = {
 
 /** Restyle captions (weight, slant, alignment, ink); a label restyles the element it names. */
 export function runSetFont(modeler: Editor, command: SetFontCommand): void {
-  modeler.canvas.setFont(command.elements, command.font);
+  modeler.study.style({ ids: idsOf(command.elements), font: command.font });
 }
 
 export type DeleteElementsCommand = {
@@ -30,13 +33,9 @@ export type DeleteElementsCommand = {
   elements: EditorElement[];
 };
 
-/** Delete the elements and their closure (contents, incident edges). Returns what was removed. */
-export function runDeleteElements(modeler: Editor, command: DeleteElementsCommand): EditorElement[] {
-  const elements = (command.elements ?? [])
-    .map((element) => modeler.canvas.resolveElement(element))
-    .filter((element): element is NonNullable<typeof element> => !!element);
-  if (elements.length === 0) return [];
-  return modeler.canvas.deleteElements(elements);
+/** Delete the elements and their closure (contents, incident edges), as one edit. */
+export function runDeleteElements(modeler: Editor, command: DeleteElementsCommand): StudyResult {
+  return modeler.study.remove({ ids: idsOf(command.elements ?? []) });
 }
 
 export type ReplaceElementCommand = {
@@ -100,8 +99,8 @@ export type ToggleExpandedCommand = {
 
 export function runToggleExpanded(modeler: Editor, command: ToggleExpandedCommand): boolean {
   const node = modeler.canvas.resolveElement(command.element);
-  if (!node || node.kind !== 'node' || !modeler.canvas.canExpand(node)) return false;
-  return modeler.canvas.toggleExpanded(node);
+  if (!node || node.kind !== 'node') return false;
+  return (node.isExpanded === false ? modeler.study.expand({ id: node.id }) : modeler.study.collapse({ id: node.id })).ok;
 }
 
 export type DrillDownCommand = {

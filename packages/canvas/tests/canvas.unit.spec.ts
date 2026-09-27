@@ -404,10 +404,10 @@ state:
   const note = node(canvas, canvas.study.add({ type: 'bpmn:TextAnnotation', at: { x: 900, y: 600 } }).id!);
   expect((collaboration as any).artifacts).toEqual([note.businessObject]);
   // One pool of two going leaves the collaboration the root.
-  canvas.deleteElements(node(canvas, canvas.study.add({ type: 'bpmn:Participant', at: { x: 300, y: 900 } }).id!));
+  canvas.study.remove({ ids: [canvas.study.add({ type: 'bpmn:Participant', at: { x: 300, y: 900 } }).id!] });
   expect(canvas.getScene()!.root).toBe(collaboration);
 
-  canvas.deleteElements(pool);
+  canvas.study.remove({ ids: [pool.id] });
   expect(canvas.getScene()!.root).toBe(process);
   expect(canvas.getRoot()).toMatchObject({ id: 'Study_1', type: 'bpmn:Process' });
   expect(process).toMatchObject({ id: 'Study_1', name: 'Pilot', documentation: [documentation] });
@@ -493,7 +493,7 @@ test('expanding a container frames its contents and re-docks its flows, and coll
   const inner = node(canvas, 'Task_In');
   const flow = edge(canvas, canvas.study.connect({ from: 'Start_1', to: sub.id }).id!);
   const docked = { ...flow.waypoints.at(-1)! };
-  expect(canvas.setExpanded(sub, true)).toBe(true);
+  expect(canvas.study.expand({ id: sub.id }).changed).toContain(sub.id);
   expect(sub.isExpanded).toBe(true);
   expect(sub.width).toBeGreaterThan(100);
   expect(inner.x).toBeGreaterThanOrEqual(sub.x);
@@ -504,7 +504,7 @@ test('expanding a container frames its contents and re-docks its flows, and coll
   // The outline grew, so the flow docked on it moved onto the new one.
   expect(flow.waypoints.at(-1)).not.toEqual(docked);
   expect(onOutline(sub, flow.waypoints.at(-1)!)).toBe(true);
-  expect(canvas.setExpanded(sub, false)).toBe(true);
+  expect(canvas.study.collapse({ id: sub.id }).changed).toContain(sub.id);
   expect({ width: sub.width, height: sub.height }).toEqual({ width: 100, height: 80 });
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(true);
 });
@@ -530,7 +530,7 @@ test('a double click opens or shuts a container in place; on an open one\'s capt
   expect(isHiddenGraphics(canvas, 'Task_In')).toBe(true);
 
   // On an expanded container's caption strip, it opens the name editor instead.
-  canvas.setExpanded(sub, true);
+  canvas.study.expand({ id: sub.id });
   doubleClick(canvas, { x: sub.x + 10, y: sub.y + 5 });
   expect(sub.isExpanded).toBe(true);
   expect(canvas.getLabelEditing().getSession()?.element).toBe(sub);
@@ -575,7 +575,7 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   canvas.getEventBus().on('RootSet', (event: any) => heard.push(`RootSet ${event.element.id}`));
   canvas.getEventBus().on('SelectionChanged', (event: any) => heard.push(`SelectionChanged ${event.newSelection.map((e: any) => e.id)}`));
 
-  expect(canvas.study.undo()).toBe(true);
+  expect(canvas.study.undo().ok).toBe(true);
 
   // A host that shows the scope on `RootSet` ends on the selection, which is said last.
   expect(heard).toEqual(['SelectionChanged ', 'RootSet Sub_1', 'SelectionChanged Task_In']);
@@ -599,7 +599,7 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
 test('dropping a shape into an expanded container re-files it there', async () => {
   const { canvas } = load();
   const sub = node(canvas, 'Sub_1');
-  canvas.setExpanded(sub, true);
+  canvas.study.expand({ id: sub.id });
   const task = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 800, y: 118 } }).id!);
   click(canvas, centre(task));
   dragBy(canvas, centre(task), { x: sub.x + sub.width - 60, y: sub.y + sub.height - 50 });
@@ -625,7 +625,7 @@ test('an edit made of several is one commit: one revision, one ElementsChanged',
   let fired = 0;
   canvas.getEventBus().on('ElementsChanged', () => { fired += 1; });
   const sub = node(canvas, 'Sub_1');
-  canvas.setExpanded(sub, true);
+  canvas.study.expand({ id: sub.id });
   const loose = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 800, y: 118 } }).id!);
   const CASES: [what: string, edit: () => void][] = [
     ['a replace: a new shape, the flows moved onto it, the old one deleted', () => canvas.study.replace({ id: 'Task_1', type: 'bpmn:UserTask' })],
@@ -634,7 +634,7 @@ test('an edit made of several is one commit: one revision, one ElementsChanged',
       click(canvas, centre(loose));
       dragBy(canvas, centre(loose), { x: sub.x + sub.width - 60, y: sub.y + sub.height - 50 });
     }],
-    ['a delete that takes a caption: the name cleared and the shape gone', () => canvas.deleteElements([node(canvas, 'Start_1'), label(canvas, 'End_1_label')])],
+    ['a delete that takes a caption: the name cleared and the shape gone', () => canvas.study.remove({ ids: ['Start_1', 'End_1_label'] })],
   ];
   for (const [what, edit] of CASES) {
     const revision = scene.revision;
@@ -716,11 +716,11 @@ test('Ctrl+A selects everything on screen, the arrows nudge the selection, Ctrl+
   expect(at()).toEqual(nudged);
 });
 
-test('setColor paints the element and the colour survives the round trip', async () => {
+test('style paints the element and the colour survives the round trip', async () => {
   const loaded = load();
   const { canvas } = loaded;
   const task = node(canvas, 'Task_1');
-  canvas.setColor([task, edge(canvas, 'Flow_1')], { fill: '#dde8fa', stroke: '#728cb9' });
+  canvas.study.style({ ids: ['Task_1', 'Flow_1'], fill: '#dde8fa', stroke: '#728cb9' });
   expect({ fill: task.fill, stroke: task.stroke }).toEqual({ fill: '#dde8fa', stroke: '#728cb9' });
   expect(canvas.getGraphics('Task_1')!.querySelector('rect:not(.sf-outline)')!.getAttribute('fill')).toBe('#dde8fa');
   expect(edge(canvas, 'Flow_1').stroke).toBe('#728cb9');
@@ -728,15 +728,15 @@ test('setColor paints the element and the colour survives the round trip', async
   expect(xml).toContain('background-color="#dde8fa"');
   const again = await loadCanvas(xml);
   expect(node(again.canvas, 'Task_1').fill).toBe('#dde8fa');
-  canvas.setColor([task], { fill: null, stroke: null });
+  canvas.study.style({ ids: ['Task_1'], fill: null, stroke: null });
   expect(task.fill).toBeUndefined();
 });
 
-test('setFont restyles the caption and the font survives the round trip', async () => {
+test('style restyles the caption and the font survives the round trip', async () => {
   const loaded = load();
   const { canvas } = loaded;
   const task = node(canvas, 'Task_1');
-  canvas.setFont([task, edge(canvas, 'Flow_2')], { bold: true, align: 'right', color: '#4a6f9c' });
+  canvas.study.style({ ids: ['Task_1', 'Flow_2'], font: { bold: true, align: 'right', color: '#4a6f9c' } });
   expect(task.font).toEqual({ bold: true, align: 'right', color: '#4a6f9c' });
   const text = canvas.getGraphics('Task_1')!.querySelector('text.sf-label')!;
   const BOLD = /^(bold|[6-9]00)$/;
@@ -749,7 +749,7 @@ test('setFont restyles the caption and the font survives the round trip', async 
   expect(xml).toContain('studyflow:font="bold right #4a6f9c"');
   const again = await loadCanvas(xml);
   expect(node(again.canvas, 'Task_1').font).toEqual({ bold: true, align: 'right', color: '#4a6f9c' });
-  canvas.setFont([task], { bold: false, align: null, color: null });
+  canvas.study.style({ ids: ['Task_1'], font: { bold: false, align: null, color: null } });
   expect(task.font).toBeUndefined();
 });
 

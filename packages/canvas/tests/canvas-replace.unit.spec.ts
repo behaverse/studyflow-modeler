@@ -147,7 +147,7 @@ test('a container with contents is not replaceable, so nothing inside it can be 
   expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(false);
   expect(canvas.study.replace({ id: container.id, type: 'bpmn:Task' })).toMatchObject({ ok: false });
   // Emptied, it is replaceable.
-  canvas.deleteElements(node(canvas, 'Inner'));
+  canvas.study.remove({ ids: ['Inner'] });
   expect(canvas.getRules().canReplace(container, 'bpmn:Task')).toBe(true);
 });
 

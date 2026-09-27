@@ -622,7 +622,8 @@ export class Gestures {
     if (element.kind === 'node' && isExpandable(element.type)) {
       const onCaption = element.isExpanded === true && pt.y - element.y <= TOP_STRIP;
       if (!onCaption) {
-        canvas.toggleExpanded(element);
+        if (element.isExpanded === false) canvas.study.expand({ id: element.id });
+        else canvas.study.collapse({ id: element.id });
         return;
       }
     }
@@ -662,7 +663,7 @@ export class Gestures {
     if (mod) {
       switch (ev.key) {
         case 'a': case 'A': handled = canvas.selectAll(); break;
-        case 'z': case 'Z': handled = ev.shiftKey ? canvas.study.redo() : canvas.study.undo(); break;
+        case 'z': case 'Z': handled = (ev.shiftKey ? canvas.study.redo() : canvas.study.undo()).ok; break;
         case '=': case '+': canvas.zoomIn(); handled = true; break;
         case '-': case '_': canvas.zoomOut(); handled = true; break;
         case '0': canvas.getViewport().zoom(1); handled = true; break;
@@ -671,7 +672,11 @@ export class Gestures {
     } else {
       const step = ev.shiftKey ? LARGE_NUDGE : NUDGE;
       switch (ev.key) {
-        case 'Delete': case 'Backspace': handled = canvas.deleteSelection().length > 0; break;
+        case 'Delete': case 'Backspace': {
+          const { changed, removed } = canvas.deleteSelection();
+          handled = changed.length + removed.length > 0;
+          break;
+        }
         case 'ArrowLeft': handled = this.tools.nudgeSelection(-step, 0); break;
         case 'ArrowRight': handled = this.tools.nudgeSelection(step, 0); break;
         case 'ArrowUp': handled = this.tools.nudgeSelection(0, -step); break;

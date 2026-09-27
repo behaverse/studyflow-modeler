@@ -140,15 +140,15 @@ test('each edit is one undo step: undo walks the file back through every one, an
   expect(files[6], 'and its deletion undid that').not.toContain('<bpmn:collaboration');
 
   for (let step = EDITS.length - 1; step >= 0; step -= 1) {
-    expect(study.undo()).toBe(true);
+    expect(study.undo().ok).toBe(true);
     expect(await study.toXml(), `undo ${EDITS[step][0]}`).toBe(files[step]);
   }
-  expect(study.undo(), 'back at the file as opened').toBe(false);
+  expect(study.undo().ok, 'back at the file as opened').toBe(false);
   for (let step = 0; step < EDITS.length; step += 1) {
-    expect(study.redo()).toBe(true);
+    expect(study.redo().ok).toBe(true);
     expect(await study.toXml(), `redo ${EDITS[step][0]}`).toBe(files[step + 1]);
   }
-  expect(study.redo()).toBe(false);
+  expect(study.redo().ok).toBe(false);
 });
 
 test('an undo and a redo each put the document back as one change, by id, and are no edits: the redo stays', () => {
@@ -183,7 +183,7 @@ test('the history holds what edits changed: nothing for a no-op, no redo past a 
 
   for (let i = 0; i < 60; i += 1) rename(study, `Name ${i}`);
   let steps = 0;
-  while (study.undo()) steps += 1;
+  while (study.undo().ok) steps += 1;
   expect(steps).toBe(50);
 });
 
@@ -216,7 +216,7 @@ test('an edit is one commit and one undo step, however many moddle writes it mak
 
   expect(result).toEqual({ ok: true, added: [], changed: ['Task_1'], removed: [] });
   expect(study.revision).toBe(1);
-  expect(study.undo()).toBe(true);
+  expect(study.undo().ok).toBe(true);
   expect(study.canUndo, 'one undo takes back every write').toBe(false);
   expect(nodeOf(study, 'Task_1').businessObject.name).toBe('Read');
 });
@@ -235,4 +235,34 @@ test('creation takes plain data: the caller\'s id, a container by its id, a free
   expect(study.add({ type: 'bpmn:Task', into: 'Task_1' })).toMatchObject({ ok: false, reason: "a bpmn:Task cannot go into 'Task_1'" });
   expect(study.connect({ from: 'Consent', to: 'Nope' })).toMatchObject({ ok: false, reason: "no shape 'Nope'" });
   expect(study.revision, 'what was refused wrote nothing').toBe(2);
+});
+
+test('a batch is one edit and one undo step, its steps plain data; a refused step takes back those before it and says which', async () => {
+  const study = open();
+
+  const made = study.batch({ steps: [
+    { tool: 'add', args: { type: 'bpmn:StartEvent', id: 'Start', at: { x: 100, y: 120 } } },
+    { tool: 'connect', args: { from: 'Start', to: 'Task_1', id: 'Go' } },
+  ] });
+  expect(made).toMatchObject({ ok: true, added: ['Start', 'Go'] });
+  expect(study.revision).toBe(1);
+
+  const file = await study.toXml();
+  expect(study.batch({ steps: [
+    { tool: 'add', args: { type: 'bpmn:Task', id: 'Lost' } },
+    { tool: 'connect', args: { from: 'Lost', to: 'Nope' } },
+  ] })).toEqual({ ok: false, reason: "step 2 (connect): no shape 'Nope'", added: [], changed: [], removed: [] });
+  expect(await study.toXml(), 'as if it never ran').toBe(file);
+  expect(study.canRedo).toBe(false);
+
+  expect(study.undo().ok).toBe(true);
+  expect(nodeOf(study, 'Start'), 'one undo takes back the whole batch').toBeUndefined();
+});
+
+test('remove takes what goes with an element; expand and collapse take only what holds contents', () => {
+  const study = open();
+  expect(study.remove({ ids: ['Nope'] })).toMatchObject({ ok: false, reason: "no element 'Nope'" });
+  expect(study.expand({ id: 'Task_1' })).toMatchObject({ ok: false, reason: "'Task_1' holds no contents to show" });
+  expect(study.expand({ id: 'Sub_1' })).toMatchObject({ ok: true, changed: expect.arrayContaining(['Sub_1']) });
+  expect([...study.remove({ ids: ['Sub_1'] }).removed].sort()).toEqual(['Sub_1', 'Task_In']);
 });

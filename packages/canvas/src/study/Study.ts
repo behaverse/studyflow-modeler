@@ -17,9 +17,9 @@ import { Mutator, type AddShapeSpec, type Commit } from '@canvas/study/mutator.t
 import { rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
 import { Rules } from '@canvas/study/rules.ts';
-import type { Bounds, Drawable, ModdleObject, Point, Scene, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
+import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
-import { edgesAffectedBy, planeOf } from '@canvas/study/tree.ts';
+import { edgesAffectedBy, isExpandable, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
 /**
@@ -245,14 +245,80 @@ export class Study {
     });
   }
 
-  /** Go back to the document before the last edit; false when the history holds none. */
-  undo(): boolean {
-    return this.travel(-1);
+  /** Remove `ids` and all that goes with them (contents, flows), as one edit; a caption's id clears the name it shows. */
+  remove(args: { ids: string[] }): StudyResult {
+    const { mutator } = studyInternals(this);
+    const found = this.elements(args.ids);
+    if (typeof found === 'string') return refused(`no element '${found}'`);
+    const drawables = found.filter((element): element is Drawable => element.kind !== 'label');
+    return this.commit(() => {
+      for (const label of found) {
+        if (label.kind === 'label' && !drawables.includes(label.owner)) mutator.setName(label.owner, '');
+      }
+      if (drawables.length > 0) mutator.deleteElements(drawables);
+    });
   }
 
-  /** Go forward to the edit the last undo went back from; false when there is none. */
-  redo(): boolean {
-    return this.travel(1);
+  /**
+   * Colour and letter `ids`, as one edit: `fill` and `stroke` a CSS colour, `null` for the stock one; `font` the
+   * caption's look (`bold`, `italic`, `align`, `color`). What is left out stays as it is; a caption styles what it captions.
+   */
+  style(args: { ids: string[]; fill?: string | null; stroke?: string | null; font?: FontPatch }): StudyResult {
+    const { mutator } = studyInternals(this);
+    const found = this.elements(args.ids);
+    if (typeof found === 'string') return refused(`no element '${found}'`);
+    const colors: ElementColors = {};
+    if ('fill' in args) colors.fill = args.fill;
+    if ('stroke' in args) colors.stroke = args.stroke;
+    return this.commit(() => {
+      if (Object.keys(colors).length > 0) mutator.setColor(found, colors);
+      if (args.font) mutator.setFont(found, args.font);
+    });
+  }
+
+  /** Draw the container `id` open, its contents framed inside it, as one edit. */
+  expand(args: { id: string }): StudyResult {
+    return this.open(args.id, true);
+  }
+
+  /** Draw the container `id` closed, its contents hidden until a view drills in, as one edit. */
+  collapse(args: { id: string }): StudyResult {
+    return this.open(args.id, false);
+  }
+
+  /**
+   * Run `steps`, each a verb by name and its argument, as one edit and one undo step, all or nothing: a refused step
+   * takes back those before it, and the result says which step, and why.
+   */
+  batch(args: { steps: { tool: string; args: unknown }[] }): StudyResult {
+    const before = this.snapshots[this.current];
+    let refusal: StudyResult | undefined;
+    const result = this.commit(() => {
+      for (const [index, step] of args.steps.entries()) {
+        const outcome = this.step(step.tool, step.args);
+        if (!outcome.ok) {
+          refusal = refused(`step ${index + 1} (${step.tool}): ${outcome.reason}`);
+          return;
+        }
+      }
+    });
+    if (!refusal) return result;
+    if (this.snapshots[this.current] !== before) {
+      this.travel(-1);
+      // What the refused batch wrote is no state to go forward to.
+      this.snapshots.length = this.current + 1;
+    }
+    return refusal;
+  }
+
+  /** Go back to the document before the last edit, as one change of the whole, by id. */
+  undo(): StudyResult {
+    return this.travel(-1) ?? refused('nothing to undo');
+  }
+
+  /** Go forward to the edit the last undo went back from, as one change of the whole, by id. */
+  redo(): StudyResult {
+    return this.travel(1) ?? refused('nothing to redo');
   }
 
   get canUndo(): boolean {
@@ -315,6 +381,51 @@ export class Study {
     };
   }
 
+  /** The elements `ids` name, or the first id that names none. */
+  private elements(ids: readonly string[]): SceneElement[] | string {
+    const { scene } = studyInternals(this);
+    const found: SceneElement[] = [];
+    for (const id of ids) {
+      const element = scene.elementsById.get(id);
+      if (!element) return id;
+      found.push(element);
+    }
+    return found;
+  }
+
+  private open(id: string, expanded: boolean): StudyResult {
+    const { scene, mutator } = studyInternals(this);
+    const node = scene.elementsById.get(id);
+    if (node?.kind !== 'node' || !isExpandable(node.type)) return refused(`'${id}' holds no contents to ${expanded ? 'show' : 'hide'}`);
+    return this.commit(() => {
+      mutator.setExpanded(node, expanded);
+    });
+  }
+
+  /** A batch's step: the verb `tool` names, run on `args`; a step that throws is refused. */
+  private step(tool: string, args: unknown): StudyResult {
+    const verbs: Record<string, (args: any) => StudyResult> = {
+      add: (a) => this.add(a),
+      append: (a) => this.append(a),
+      connect: (a) => this.connect(a),
+      replace: (a) => this.replace(a),
+      resize: (a) => this.resize(a),
+      reroute: (a) => this.reroute(a),
+      set: (a) => this.set(a),
+      remove: (a) => this.remove(a),
+      style: (a) => this.style(a),
+      expand: (a) => this.expand(a),
+      collapse: (a) => this.collapse(a),
+    };
+    const verb = verbs[tool];
+    if (!verb) return refused(`no tool '${tool}'`);
+    try {
+      return verb(args);
+    } catch (error) {
+      return refused(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   /** Whether `id` names an element the document already holds. */
   private taken(id: string | undefined): boolean {
     return id !== undefined && studyInternals(this).mutator.ids.assigned(id);
@@ -361,23 +472,31 @@ export class Study {
     this.announce({ cause: 'edit', ...commit });
   }
 
-  private travel(step: -1 | 1): boolean {
+  /** Step through the history: what the step changed, or nothing past either end. */
+  private travel(step: -1 | 1): StudyResult | undefined {
     const snapshot = this.snapshots[this.current + step];
-    if (snapshot === undefined) return false;
+    if (snapshot === undefined) return undefined;
     this.current += step;
-    this.swap(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo');
-    return true;
+    const change = this.swap(studyflowToDefinitions(snapshot, moddleOf(this.definitions), this.options.onWarning), step < 0 ? 'undo' : 'redo');
+    return {
+      ok: true,
+      added: change.added.map((element) => element.id),
+      changed: change.changed.map((element) => element.id),
+      removed: change.removed.map((element) => element.id),
+    };
   }
 
   /** Put `definitions` in place of the document, as one change; a load starts the history over. */
-  private swap(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): void {
+  private swap(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): Commit {
     const before = studyInternals(this).scene;
     const after = this.read(definitions, before.revision + 1);
     if (cause === 'load') {
       this.snapshots = [definitionsToStudyflow(definitions)];
       this.current = 0;
     }
-    this.announce({ cause, ...byId(before, after) });
+    const change = byId(before, after);
+    this.announce({ cause, ...change });
+    return change;
   }
 
   private announce(change: StudyChange): void {

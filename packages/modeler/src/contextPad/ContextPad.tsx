@@ -30,7 +30,7 @@ import { contextPad as s } from '@modeler/contextPad/styles';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';
-import type { Bounds } from '@canvas/index.ts';
+import { isExpandable, type Bounds } from '@canvas/index.ts';
 import { is, type EditorElement, type Editor } from '@modeler/editor/port';
 
 /** Gap between the selection outline's right edge and the pad. */
@@ -243,7 +243,7 @@ export function ContextPad() {
     // expanded — both container entries are gated on the one answer, so no subclass
     // can get the toggle without the drill-down or the other way round.
     const resolved = single ? modeler.canvas.resolveElement(single) : undefined;
-    const expandable = resolved && resolved.kind === 'node' && modeler.canvas.canExpand(resolved)
+    const expandable = resolved && resolved.kind === 'node' && isExpandable(resolved.type)
       ? resolved
       : undefined;
     // A sequence flow leaving a source that takes a `default` (the exclusive
