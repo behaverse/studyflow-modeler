@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { EventBus, renderSvg, type Canvas, type SceneEdge, type SceneNode } from '@canvas/index.ts';
+import { renderSvg, type Canvas, type SceneEdge, type SceneNode } from '@canvas/index.ts';
 
 import {
   canvasOn,
@@ -575,13 +575,13 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   canvas.getSelection().select(node(canvas, 'Task_In'));
   canvas.study.set({ id: 'Task_In', attribute: 'name', value: 'Deeper' });
   const heard: string[] = [];
-  canvas.getEventBus().on('RootSet', (event: any) => heard.push(`RootSet ${event.scope ?? canvas.study.root.id}`));
-  canvas.getEventBus().on('SelectionChanged', (event: any) => heard.push(`SelectionChanged ${event.newSelection.map((e: any) => e.id)}`));
+  canvas.on('scope', (scope) => heard.push(`scope ${scope ?? canvas.study.root.id}`));
+  canvas.on('select', (ids) => heard.push(`select ${ids}`));
 
   expect(canvas.study.undo().ok).toBe(true);
 
-  // A host that shows the scope on `RootSet` ends on the selection, which is said last.
-  expect(heard).toEqual(['SelectionChanged ', 'RootSet Sub_1', 'SelectionChanged Task_In']);
+  // A host that shows the scope when it hears it ends on the selection, which is said last.
+  expect(heard).toEqual(['select ', 'scope Sub_1', 'select Task_In']);
 
   const drawn = canvas.getGraphics('Task_In')!.textContent;
   expect(drawn, 'drawn from the document as it was').toContain('Deep');
@@ -596,7 +596,7 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
   canvas.study.set({ id: 'Task_1', attribute: 'name', value: 'Other' });
   heard.length = 0;
   canvas.study.undo();
-  expect(heard).toEqual(['RootSet Process_1']);
+  expect(heard).toEqual(['scope Process_1']);
 });
 
 test('dropping a shape into an expanded container re-files it there', async () => {
@@ -622,11 +622,11 @@ test('a shape dropped into a container is drawn above it, even one drawn before 
   expect(drawn.indexOf(canvas.getGraphics(task.id)!)).toBeGreaterThan(drawn.indexOf(canvas.getGraphics(sub.id)!));
 });
 
-test('an edit made of several is one commit: one revision, one ElementsChanged', async () => {
+test('an edit made of several is one commit: one revision, one change', async () => {
   const { canvas } = load();
   const scene = canvas.getScene()!;
   let fired = 0;
-  canvas.getEventBus().on('ElementsChanged', () => { fired += 1; });
+  canvas.study.on('change', () => { fired += 1; });
   const sub = node(canvas, 'Sub_1');
   canvas.study.expand({ id: sub.id });
   const loose = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 800, y: 118 } }).id!);
@@ -693,7 +693,7 @@ test('dropping a shape into a lane of a sub-process files it in the sub-process 
 
 // --- keyboard, colour, font -------------------------------------------------------------
 
-test('Ctrl+A selects everything on screen, the arrows nudge the selection, Ctrl+Z undoes and Shift+Ctrl+Z redoes', async () => {
+test('Ctrl+A selects everything on screen, A asks for the append menu, the arrows nudge the selection, Ctrl+Z undoes and Shift+Ctrl+Z redoes', async () => {
   const { canvas } = load();
   const container = canvas.getContainer();
   container.dispatchEvent(keyEvent('keydown', { key: 'a', ctrlKey: true }));
@@ -704,6 +704,10 @@ test('Ctrl+A selects everything on screen, the arrows nudge the selection, Ctrl+
   expect(ids).not.toContain('Start_1_label');
   const task = node(canvas, 'Task_1');
   canvas.getSelection().select(task);
+  const asked: (readonly string[])[] = [];
+  canvas.on('appendMenu', (selected) => asked.push(selected));
+  container.dispatchEvent(keyEvent('keydown', { key: 'a' }));
+  expect(asked, 'the host answers with its menu, on the selection by id').toEqual([['Task_1']]);
   container.dispatchEvent(keyEvent('keydown', { key: 'ArrowRight' }));
   container.dispatchEvent(keyEvent('keydown', { key: 'ArrowDown', shiftKey: true }));
   // A plain arrow is a fine step, Shift a coarse one.
@@ -765,25 +769,4 @@ test('a picture of the study leaves out the editor\'s chrome, and is framed on t
   expect(svg).not.toContain('selected');
   expect(svg).not.toContain('tabindex');
   expect(svg).toMatch(/viewBox="[-\d.]+ [-\d.]+ [\d.]+ [\d.]+"/);
-});
-
-// --- the event bus ------------------------------------------------------------------
-
-test('a command is a topic with one answering listener on the same bus the notifications use', async () => {
-  // `send` is what makes the two mechanisms one: a leaf package (the canvas cannot import
-  // `@modeler/*`) sends on the bus it already holds, and the fact lands on `CommandDone`.
-  const bus = new EventBus();
-  const seen: unknown[] = [];
-
-  bus.on('ElementsChanged', () => { seen.push('a'); });
-  bus.on('ElementsChanged', () => { seen.push('b'); });
-  expect(bus.fire('ElementsChanged', { elements: [] }), 'a notification has no answer').toBeUndefined();
-  expect(seen, 'every listener still runs, in subscription order').toEqual(['a', 'b']);
-
-  bus.on('Undo', async (command: any) => `ran ${command.type}`);
-  bus.on('CommandDone', (done) => seen.push(done));
-  expect(await bus.send<string>({ type: 'Undo' })).toBe('ran Undo');
-  // The fact is a message like any other: same `{ type, ... }` shape a command is sent in.
-  expect(seen[2]).toEqual({ type: 'CommandDone', command: { type: 'Undo' }, result: 'ran Undo' });
-  await expect(bus.send({ type: 'Nope' }), 'no handler').rejects.toThrow();
 });

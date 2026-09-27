@@ -10,6 +10,7 @@ import { resolvePlaceholders } from '@core/document';
 import { getCatalog } from '@core/notation';
 import { StudyflowElement } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
+import { EventBus } from '@modeler/editor/bus';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
 import type { Editor, EditorModel, EditorSimulation, EditorTemplates, Moddle } from '@modeler/editor/port';
@@ -62,7 +63,13 @@ export function mountEditor(options: MountEditorOptions): Editor {
     packages: () => options.extensionSchemas,
   };
 
-  const bus = canvas.getEventBus();
+  // The app's bus: the view's news and the study's, forwarded in the topics the app's modules hear.
+  const bus = new EventBus();
+  const stopHearingCanvas = [
+    canvas.on('select', (ids) => bus.fire('SelectionChanged', { newSelection: ids })),
+    canvas.on('scope', (scope) => bus.fire('RootSet', { scope })),
+    canvas.on('appendMenu', (ids) => void bus.send({ type: 'OpenAppendMenu', elements: ids }).catch(() => undefined)),
+  ];
 
   const saveXML = async (): Promise<{ xml: string }> => ({ xml: await study.toXml() });
 
@@ -71,10 +78,12 @@ export function mountEditor(options: MountEditorOptions): Editor {
     return { warnings: [] };
   };
 
-  // What the app hears of the study, after the canvas has drawn it (and said `RootSet`): an edit, an undo or
-  // a redo moves the history; a load, an undo or a redo puts another document in place, which everything re-reads.
-  const stopHearing = study.on('change', ({ cause }) => {
-    if (cause !== 'edit') bus.fire('ImportDone', { error: null, warnings: [] });
+  // What the app hears of the study, after the canvas has drawn it (and said `RootSet`): an edit, by id; an edit,
+  // an undo or a redo moves the history; a load, an undo or a redo puts another document in place, which
+  // everything re-reads.
+  const stopHearing = study.on('change', ({ cause, added, changed, removed }) => {
+    if (cause === 'edit') bus.fire('ElementsChanged', { added, changed, removed });
+    else bus.fire('ImportDone', { error: null, warnings: [] });
     if (cause !== 'load') bus.fire('HistoryChanged', {});
   });
 
@@ -108,7 +117,9 @@ export function mountEditor(options: MountEditorOptions): Editor {
       simulator.dispose();
       unsubscribeSettings();
       stopHearing();
+      for (const stop of stopHearingCanvas) stop();
       canvas.destroy();
+      bus.clear();
     },
   };
 }

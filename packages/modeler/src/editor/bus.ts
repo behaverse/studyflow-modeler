@@ -1,7 +1,7 @@
 /**
- * The canvas's event bus, a tiny publish/subscribe emitter: the canvas fires `SelectionChanged`,
- * `ElementsChanged` and the rest on it, and the app holds the same bus as
- * `Editor.events` (`packages/modeler/src/editor/port.ts`). Listeners run in subscription order;
+ * The editor's event bus, a tiny publish/subscribe emitter, held as `Editor.events`: `editor/mount.ts`
+ * forwards the canvas's and the study's news onto it (`SelectionChanged`, `RootSet`, `ElementsChanged`,
+ * `ImportDone`, `HistoryChanged`), and commands travel on it too. Listeners run in subscription order;
  * nothing has needed a priority.
  */
 

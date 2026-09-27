@@ -3,7 +3,6 @@
  * `<g>`, corner handles and bendpoints in the selection layer, marker classes.
  */
 
-import type { EventBus } from '@canvas/bus.ts';
 import type { ElementRef, Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 import type { ResizeHandle } from '@canvas/study/drag.ts';
@@ -11,15 +10,11 @@ import type { ResizeHandle } from '@canvas/study/drag.ts';
 const RESIZE_HANDLES: readonly ResizeHandle[] = ['nw', 'ne', 'se', 'sw'];
 export type Resizable = SceneNode | SceneLabel;
 
-export interface SelectionChangedEvent {
-  newSelection: SceneElement[];
-  oldSelection: SceneElement[];
-}
-
 export interface SelectionOptions {
   layer: SVGGElement;
   getGraphics: (id: string) => SVGGElement | undefined;
-  bus: EventBus;
+  /** The selection changed, to these ids. */
+  onChange: (ids: string[]) => void;
   canResize?: (target: Resizable) => boolean;
   /** Turns whatever a caller names an element by (an id, a stale copy) into the scene element. */
   resolve?: (value: ElementRef) => SceneElement | undefined;
@@ -49,7 +44,7 @@ export interface WaypointHit {
 export class Selection {
   private readonly layer: SVGGElement;
   private readonly getGraphics: (id: string) => SVGGElement | undefined;
-  private readonly bus: EventBus;
+  private readonly onChange: (ids: string[]) => void;
   private readonly canResize: (target: Resizable) => boolean;
   private readonly resolve: (value: ElementRef) => SceneElement | undefined;
   private selected: SceneElement[] = [];
@@ -60,7 +55,7 @@ export class Selection {
   constructor(options: SelectionOptions) {
     this.layer = options.layer;
     this.getGraphics = options.getGraphics;
-    this.bus = options.bus;
+    this.onChange = options.onChange;
     this.canResize = options.canResize ?? (() => true);
     this.resolve = options.resolve ?? ((value) => value as SceneElement | undefined);
   }
@@ -227,8 +222,7 @@ export class Selection {
     this.selected = next;
     for (const el of next) this.applyOutline(el);
     this.drawOverlay();
-    const event: SelectionChangedEvent = { newSelection: next.slice(), oldSelection: old.slice() };
-    this.bus.fire('SelectionChanged', event);
+    this.onChange(next.map((element) => element.id));
   }
 
   /** A rounded rect just outside the element, drawn once and toggled by class. */

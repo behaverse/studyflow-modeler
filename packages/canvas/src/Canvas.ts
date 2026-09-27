@@ -4,7 +4,6 @@
  */
 
 import { BPMN } from '@core/constants.ts';
-import { EventBus } from '@canvas/bus.ts';
 
 import { appendSpot } from '@canvas/study/autoplace.ts';
 import { Connect } from '@canvas/interaction/connect.ts';
@@ -48,6 +47,19 @@ const EDIT_ON_CREATE_TYPES = new Set<string>([
   BPMN.ReceiveTask, BPMN.BusinessRuleTask, BPMN.TextAnnotation, BPMN.Group,
 ]);
 
+/** What a view announces, each by id: a host hears it with `canvas.on(event, listener)`. */
+export interface CanvasEvents {
+  /** The selection changed: the ids now selected. */
+  select: readonly string[];
+  /**
+   * What the view shows: the id of the container it is drilled into, `undefined` for the whole diagram. Said on a
+   * drill-down, and whenever the view draws its study afresh after a load, an undo or a redo, before it reselects.
+   */
+  scope: string | undefined;
+  /** The `a` key asked for the append menu, on the selection by id. */
+  appendMenu: readonly string[];
+}
+
 export class Canvas {
   /** What the canvas shows and edits. */
   readonly study: Study;
@@ -58,7 +70,7 @@ export class Canvas {
   private readonly layers: Layers;
   private readonly viewport: Viewport;
   private readonly renderer: Renderer;
-  private readonly bus: EventBus;
+  private readonly listeners = new Map<keyof CanvasEvents, Set<(value: never) => void>>();
   private readonly selection: Selection;
   private readonly labelEditing: LabelEditing;
   private readonly rules: Rules;
@@ -92,12 +104,11 @@ export class Canvas {
       this.resizeObserver.observe(this.container);
     }
     this.renderer = new Renderer(options);
-    this.bus = new EventBus();
     this.rules = studyInternals(study).rules;
     this.selection = new Selection({
       layer: this.layers.getLayer('selection'),
       getGraphics: (id) => this.renderer.graphicsById.get(id),
-      bus: this.bus,
+      onChange: (ids) => this.emit('select', ids),
       canResize: (target) => target.kind === 'label' || this.rules.canResize(target),
       resolve: (value) => this.resolveElement(value),
     });
@@ -154,12 +165,11 @@ export class Canvas {
       moveWaypoint: (edge, index, point) => this.moveWaypoint(edge, index, point),
       nudgeSelection: (dx, dy) => this.nudgeSelection(dx, dy),
       scope: () => this.scopeNode,
+      appendMenu: (ids) => this.emit('appendMenu', ids),
     });
     this.stopListening = study.on('change', (change) => {
       if (change.cause === 'edit') {
         this.drawCommit(change);
-        const elements = [...change.added, ...change.changed].map((id) => this.get(id)).filter((element) => element !== undefined);
-        this.bus.fire('ElementsChanged', { elements, removed: change.removed });
       } else if (change.cause === 'load') {
         this.drawStudy();
       } else {
@@ -177,7 +187,7 @@ export class Canvas {
     this.resizeObserver?.disconnect();
     this.labelEditing.reset();
     this.clearAppendPreview();
-    this.bus.clear();
+    this.listeners.clear();
     this.layers.clear();
     this.customLayers.clear();
     this.renderer.graphicsById.clear();
@@ -215,7 +225,7 @@ export class Canvas {
     this.layers.clear();
     this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
     this.zoomToFit();
-    this.bus.fire('RootSet', { scope: this.scope });
+    this.emit('scope', this.scope);
   }
 
   /** Draw the study afresh after an undo or a redo, keeping what the view showed, by id: the scope, the camera, the selection. */
@@ -245,8 +255,18 @@ export class Canvas {
     return this.viewport;
   }
 
-  getEventBus(): EventBus {
-    return this.bus;
+  /** Hear `event`, as this view announces it by id; the returned function stops hearing it. */
+  on<E extends keyof CanvasEvents>(event: E, listener: (value: CanvasEvents[E]) => void): () => void {
+    const listeners = this.listeners.get(event) ?? new Set();
+    listeners.add(listener as (value: never) => void);
+    this.listeners.set(event, listeners);
+    return () => {
+      listeners.delete(listener as (value: never) => void);
+    };
+  }
+
+  private emit<E extends keyof CanvasEvents>(event: E, value: CanvasEvents[E]): void {
+    for (const listener of [...(this.listeners.get(event) ?? [])]) (listener as (value: CanvasEvents[E]) => void)(value);
   }
 
   getSelection(): Selection {
@@ -327,7 +347,7 @@ export class Canvas {
     this.renderer.scope = node;
     this.redrawElements(this.all());
     this.zoomToFit();
-    this.bus.fire('RootSet', { scope: this.scope });
+    this.emit('scope', this.scope);
     return true;
   }
 

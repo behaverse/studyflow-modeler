@@ -34,8 +34,8 @@ function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boo
  * What the inspector shows: the business object behind the one selected element (a caption's is what it
  * captions), else behind what the view shows, the container it is drilled into or the document root.
  */
-function inspected(editor: Editor, selection: readonly { id: string }[]): any {
-  const id = selection.length === 1 ? selection[0].id : editor.canvas.scope ?? editor.study.root.id;
+function inspected(editor: Editor, selection: readonly string[]): any {
+  const id = selection.length === 1 ? selection[0] : editor.canvas.scope ?? editor.study.root.id;
   return editor.study.businessObject(id);
 }
 
@@ -52,9 +52,9 @@ function useSelectedElement(editor: Editor): any {
   useEffect(() => {
     const onRootSet = () => setElement(inspected(editor, []));
     const onSelectionChanged = (e: any) => setElement(inspected(editor, e.newSelection ?? []));
-    const onElementsChanged = (e: any) => {
-      const inspected = elementRef.current;
-      if (inspected && e.elements?.some((element: any) => element.id === inspected.id)) bumpVersion();
+    const onElementsChanged = (e: { added: string[]; changed: string[] }) => {
+      const shown = elementRef.current;
+      if (shown && [...e.added, ...e.changed].includes(shown.id)) bumpVersion();
     };
 
     editor.events.on('SelectionChanged', onSelectionChanged);

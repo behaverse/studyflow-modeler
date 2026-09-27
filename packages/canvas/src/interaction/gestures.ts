@@ -91,6 +91,8 @@ export interface GestureTools {
   nudgeSelection(dx: number, dy: number): boolean;
   /** The container the view is drilled into, whose contents a marquee and snapping see. */
   scope(): SceneNode | undefined;
+  /** Ask the host for the append menu on these selected ids (the `a` key). */
+  appendMenu(ids: string[]): void;
 }
 
 export class Gestures {
@@ -687,7 +689,7 @@ export class Gestures {
         case 'a': {
           const elements = canvas.getSelection().get();
           if (elements.length === 0) break;
-          void canvas.getEventBus().send({ type: 'OpenAppendMenu', elements }).catch(() => undefined);
+          this.tools.appendMenu(elements.map((element) => element.id));
           handled = true;
           break;
         }

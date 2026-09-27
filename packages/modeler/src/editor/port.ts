@@ -3,9 +3,10 @@
  * them (the document model, templates, simulation). Built by `editor/mount.ts`.
  */
 
-import type { Canvas, EventBus, Selection, Study } from '@canvas/index.ts';
+import type { Canvas, Selection, Study } from '@canvas/index.ts';
 import { toBusinessObject } from '@core/element';
 import type { Template } from '@core/notation';
+import type { EventBus } from '@modeler/editor/bus';
 
 export type { Canvas, EventBus, Selection };
 
