@@ -10,9 +10,6 @@ import type { EventBus } from '@modeler/editor/bus';
 
 export type { Canvas, EventBus };
 
-/** A diagram element as app chrome reads it (a scene element or the root). */
-export type EditorElement = any;
-
 /** A moddle object (business object, DI, or extension element). */
 export type ModelElement = any;
 
@@ -60,7 +57,7 @@ export interface Editor {
   destroy(): void;
 }
 
-export function is(element: EditorElement | ModelElement, type: string): boolean {
+export function is(element: ModelElement, type: string): boolean {
   const bo: any = toBusinessObject(element);
   return !!bo && typeof bo.$instanceOf === 'function' && bo.$instanceOf(type);
 }

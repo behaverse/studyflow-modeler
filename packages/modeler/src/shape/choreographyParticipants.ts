@@ -6,19 +6,19 @@ import type { StudyWriter } from '@canvas/index.ts';
 /* Who takes a choreography task's bands, as inspector edits: the participants themselves are minted by core's
    `ensureChoreographyParticipants` and `mintParticipant`, and each edit here goes through a study edit's `writer`. */
 
-/** What finds what the canvas draws: the editor's canvas. */
+/** What finds what the study draws, by id: the editor's study. */
 type Drawn = { get(id: string): unknown };
 
-/** A pool on the canvas, as against an actor that only takes bands: one with a process, or one the canvas draws
+/** A pool on the canvas, as against an actor that only takes bands: one with a process, or one the study draws
  * (a model's pool has no process of its own). */
-export function isPool(participant: any, canvas: Drawn): boolean {
-  return Boolean(participant?.processRef) || Boolean(participant?.id && canvas.get(participant.id));
+export function isPool(participant: any, drawn: Drawn): boolean {
+  return Boolean(participant?.processRef) || Boolean(participant?.id && drawn.get(participant.id));
 }
 
 /** A new actor for a typed task, named as typed, put on its band in place of a drawn pool that must keep its name. */
-export function nameNewActor(element: any, writer: StudyWriter, canvas: Drawn, name: string): void {
+export function nameNewActor(element: any, writer: StudyWriter, drawn: Drawn, name: string): void {
   const actor = mintParticipant(toBusinessObject(element) as any, name, writer.ids);
-  if (actor) selectBandParticipant(element, writer, canvas, 'bottom', actor);
+  if (actor) selectBandParticipant(element, writer, drawn, 'bottom', actor);
 }
 
 /** Whether another choreography task in the file still shows `participant` on a band. */
@@ -29,8 +29,8 @@ function referencedElsewhere(definitions: any, participant: any, except: any): b
 }
 
 /** Drop a participant that only ever took bands and takes none any more; a pool on the canvas stays. */
-function dropIfOrphan(element: any, writer: StudyWriter, canvas: Drawn, participant: any): void {
-  if (!participant || isPool(participant, canvas)) return;
+function dropIfOrphan(element: any, writer: StudyWriter, drawn: Drawn, participant: any): void {
+  if (!participant || isPool(participant, drawn)) return;
   const definitions = definitionsOf(participant);
   if (referencedElsewhere(definitions, participant, toBusinessObject(element))) return;
   const holder = participant.$parent;
@@ -131,13 +131,13 @@ export function setParticipantKind(writer: StudyWriter, participant: any, id: st
  * Put an existing participant (a pool, or an actor) on a band, or clear the band with `null`: a typed task then
  * falls back to the pool it sits in, a plain task gets a fresh placeholder. The initiator follows a replaced band.
  */
-export function selectBandParticipant(element: any, writer: StudyWriter, canvas: Drawn, band: 'top' | 'bottom', participant: any | null): void {
+export function selectBandParticipant(element: any, writer: StudyWriter, drawn: Drawn, band: 'top' | 'bottom', participant: any | null): void {
   const bo: any = toBusinessObject(element);
   if (isTypedChoreography(bo)) {
     const replaced = actorOf(bo);
     if (replaced === participant) return;
     writer.set(bo, { participantRef: participant ? [participant] : [], initiatingParticipantRef: undefined });
-    dropIfOrphan(element, writer, canvas, replaced);
+    dropIfOrphan(element, writer, drawn, replaced);
     return;
   }
   const pair = ensureChoreographyParticipants(bo, writer.ids);
@@ -153,5 +153,5 @@ export function selectBandParticipant(element: any, writer: StudyWriter, canvas:
     participantRef: refs,
     initiatingParticipantRef: initiating === replaced ? next : initiating,
   });
-  dropIfOrphan(element, writer, canvas, replaced);
+  dropIfOrphan(element, writer, drawn, replaced);
 }

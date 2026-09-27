@@ -47,8 +47,9 @@ test('clearing a band keeps a pool the canvas draws, even one with no process; a
     child.$parent = parent;
   }
   const study = Study.fromDefinitions(definitions);
-  const canvas = { get: (id: string) => (id === 'Model' ? {} : undefined) };
-  const clearBottom = () => study.edit('Play', (writer) => selectBandParticipant({ businessObject: task }, writer, canvas, 'bottom', null));
+  // The model's pool is drawn, with no process of its own; the actor only takes bands.
+  const drawn = { get: (id: string) => (id === 'Model' ? {} : undefined) };
+  const clearBottom = () => study.edit('Play', (writer) => selectBandParticipant({ businessObject: task }, writer, drawn, 'bottom', null));
 
   task.set('participantRef', [model]);
   clearBottom();

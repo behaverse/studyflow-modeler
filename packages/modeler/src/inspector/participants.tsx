@@ -106,13 +106,13 @@ function ParticipantField({ element, field, participant, label, help, declared, 
             </ComboboxOptions>
           </Combobox>
         </div>
-        {isPool(participant, modeler.canvas) && (
+        {isPool(participant, modeler.study) && (
           <div className="mt-1 text-xs text-stone-500" data-testid={`choreography-${field}-kind`}>
             {t('participantKind')}: {kindLabel(kind)}
           </div>
         )}
       </Field>
-      {participant && !isPool(participant, modeler.canvas)
+      {participant && !isPool(participant, modeler.study)
         && <ActorFields key={participant.id} element={element} field={field} participant={participant} kind={kind} />}
     </>
   );

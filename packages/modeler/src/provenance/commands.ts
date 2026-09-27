@@ -14,10 +14,9 @@ export function runInvalidateProvenanceRecord(
   modeler: Editor,
   command: InvalidateProvenanceRecordCommand,
 ): boolean {
-  const element = modeler.canvas.get(command.elementId);
-  if (!element) return false;
-  const bo: any = element.businessObject;
-  const extensionElements = bo?.extensionElements;
+  const bo: any = modeler.study.businessObject(command.elementId);
+  if (!bo) return false;
+  const extensionElements = bo.extensionElements;
   const values: any[] = extensionElements?.values ?? [];
   if (!values.includes(command.entry)) return false;
 
@@ -32,7 +31,7 @@ export function runInvalidateProvenanceRecord(
   if (command.who) stamp.who = command.who;
   if (command.with) stamp.with = command.with;
 
-  modeler.study.edit(element.id, (writer) => {
+  modeler.study.edit(command.elementId, (writer) => {
     const marker = writer.create('prov:Activity', stamp);
     marker.$parent = extensionElements;
     writer.set(extensionElements, { values: [...values, marker] });

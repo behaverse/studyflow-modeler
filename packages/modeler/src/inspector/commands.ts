@@ -71,13 +71,13 @@ export function runUpdateChoreographyParticipants(
     }
 
     if ('select' in command) {
-      selectBandParticipant(element, writer, modeler.canvas, command.field, command.select);
+      selectBandParticipant(element, writer, modeler.study, command.field, command.select);
       return;
     }
     const participant = command.field === 'top' ? top : bottom;
     // A typed task's actor that is a drawn pool keeps its name: typing another names a new actor for this task.
-    if (isTypedChoreography(bo) && isPool(participant, modeler.canvas)) {
-      nameNewActor(element, writer, modeler.canvas, command.value);
+    if (isTypedChoreography(bo) && isPool(participant, modeler.study)) {
+      nameNewActor(element, writer, modeler.study, command.value);
       return;
     }
     writer.set(participant, { name: command.value });
