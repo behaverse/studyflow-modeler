@@ -4,9 +4,12 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { studyflowToXml } from '@core/document';
+import { Study } from '@canvas/index.ts';
+import type { Bounds } from '@canvas/index.ts';
+import { studyflowToDefinitions, studyflowToXml } from '@core/document';
 import { ensureDiagramLayout, hasDiagramInterchange } from '@modeler/diagram/autoLayout';
 import { SPREAD } from '@modeler/diagram/edgeSpread';
+import { tidyLayout } from '@modeler/diagram/tidy';
 import { freshModdle } from './schemas';
 import { exampleNames, exampleXml, withoutDiagramInterchange } from './utils';
 
@@ -123,5 +126,116 @@ test.describe('ensureDiagramLayout', () => {
     expect(dataset.x).toBeGreaterThan(selectFeatures.x); // pulled toward its consumers, off the left column
     const model = shapes.get('fitted_model')!;
     expect(model.y).toBeGreaterThan(summarize.y); // likewise for the produced artifact
+  });
+});
+
+test.describe('tidyLayout', () => {
+  const open = (yaml: string): Study => Study.fromDefinitions(studyflowToDefinitions(yaml, freshModdle()));
+  const header = (id: string) => `id: ${id}
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+`;
+
+  test('lays a drawn process out afresh, left to right with nothing overlapping, as one undo step', async () => {
+    // Drawn anyhow: backwards, and shapes on top of each other.
+    const study = open(`${header('Defs_Messy')}Process_M:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+      bounds: 500 300 36 36
+    Ask:
+      type: Task
+      name: Ask
+      bounds: 100 100 100 80
+    Gate:
+      type: ExclusiveGateway
+      bounds: 120 120 50 50
+    Yes:
+      type: Task
+      name: Yes
+      bounds: 50 400 100 80
+    No:
+      type: Task
+      name: No
+      bounds: 60 410 100 80
+    End:
+      type: EndEvent
+      bounds: 0 0 36 36
+`);
+    for (const [from, to] of [['Start', 'Ask'], ['Ask', 'Gate'], ['Gate', 'Yes'], ['Gate', 'No'], ['Yes', 'End'], ['No', 'End']]) {
+      expect(study.connect({ from, to }).ok).toBe(true);
+    }
+    const before = study.get('Start')!.bounds;
+
+    expect(await tidyLayout(study, freshModdle())).toMatchObject({ ok: true });
+    const box = (id: string): Bounds => study.get(id)!.bounds!;
+    const middle = (id: string): number => box(id).x + box(id).width / 2;
+    for (const flow of study.list({ kind: 'edge' })) expect(middle(flow.target!), flow.id).toBeGreaterThan(middle(flow.source!));
+    const overlap = (a: Bounds, b: Bounds): boolean =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    const shapes = study.list({ kind: 'node' });
+    for (const a of shapes) for (const b of shapes) if (a !== b) expect(overlap(a.bounds!, b.bounds!), `${a.id} and ${b.id}`).toBe(false);
+
+    study.undo();
+    expect(study.get('Start')!.bounds).toEqual(before);
+  });
+
+  test('refuses what the engine cannot draw, and says why', async () => {
+    const CASES: [label: string, yaml: string, why: RegExp][] = [
+      ['pools', `${header('Defs_Pools')}C:
+  type: Collaboration
+  participants:
+    Pool:
+      name: Pool
+      processRef: P
+      bounds: 40 40 600 250
+P:
+  type: Process
+  flowElements:
+    S:
+      type: StartEvent
+      bounds: 100 100 36 36
+`, /pools/],
+      ['lanes', `${header('Defs_Lanes')}P:
+  type: Process
+  laneSets:
+    LS:
+      lanes:
+        L1:
+          name: One
+          flowNodeRef:
+            - S
+          bounds: 70 40 770 400
+  flowElements:
+    S:
+      type: StartEvent
+      bounds: 200 140 36 36
+`, /lanes/],
+      ['an open sub-process', `${header('Defs_Open')}P:
+  type: Process
+  flowElements:
+    Sub:
+      type: SubProcess
+      bounds: 100 100 300 200
+      isExpanded: true
+      flowElements:
+        In:
+          type: Task
+          bounds: 150 150 100 80
+`, /collapse/],
+      ['groups', `${header('Defs_Groups')}P:
+  type: Process
+  flowElements:
+    S:
+      type: StartEvent
+      bounds: 200 140 36 36
+  artifacts:
+    Phase:
+      type: Group
+      bounds: 150 100 200 120
+`, /groups/],
+    ];
+    for (const [label, yaml, why] of CASES) expect(await tidyLayout(open(yaml), freshModdle()), label).toMatch(why);
   });
 });

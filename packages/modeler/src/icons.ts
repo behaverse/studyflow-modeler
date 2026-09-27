@@ -103,6 +103,7 @@ export const ICONS = {
   drilldown: 'iconify fluent--full-screen-maximize-16-filled',
   slash: 'iconify bi--slash-lg',
   route: 'iconify ph--path',
+  tidy: 'iconify ph--tree-structure',
   swapVertical: 'iconify fluent--person-swap-16-regular',
 
   /* Text-style bar */

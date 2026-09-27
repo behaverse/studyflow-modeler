@@ -108,6 +108,15 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
         .catch((err) => console.warn('Zoom to fit failed', err)),
     },
     {
+      id: 'tidy-layout',
+      group: 'View',
+      label: 'Tidy Layout',
+      icon: ICONS.tidy,
+      keywords: 'auto layout arrange clean up',
+      action: () => executeCommand(modeler, { type: 'TidyLayout' })
+        .catch((err) => console.warn('Tidy layout failed', err)),
+    },
+    {
       id: 'view-checklist',
       group: 'View',
       label: 'View as Checklist...',
