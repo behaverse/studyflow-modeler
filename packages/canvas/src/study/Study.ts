@@ -20,7 +20,8 @@ import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
 import { findById } from '@canvas/study/moddle.ts';
 import { Mutator, type AddShapeSpec, type Commit } from '@canvas/study/mutator.ts';
-import { rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
+import { layoutScene } from '@canvas/study/layout.ts';
+import { rerouteEdge, rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
 import { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
@@ -437,6 +438,20 @@ export class Study {
     });
   }
 
+  /**
+   * Lay the whole diagram out afresh (`study/layout.ts`): each flow left to right, lanes as bands, pools stacked, data
+   * under its steps, groups round what they hold. Shapes keep their sizes, and every flow is routed anew. One edit.
+   */
+  layout(_args: Record<string, never> = {}): StudyResult {
+    const { scene, mutator } = studyInternals(this);
+    return this.commit(() => {
+      const moved = layoutScene(scene);
+      const flows = [...scene.elementsById.values()].filter((element): element is SceneEdge => element.kind === 'edge');
+      for (const flow of flows) rerouteEdge(flow, { obstacles: obstaclesIn(scene, planeOf(flow)) });
+      mutator.commit([...moved, ...flows]);
+    });
+  }
+
   /** Remove `ids` and all that goes with them (contents, flows), as one edit; a caption's id clears the name it shows. */
   remove(args: { ids: string[] }): StudyResult {
     const { mutator } = studyInternals(this);
@@ -646,6 +661,7 @@ export class Study {
       reconnect: (a) => this.reconnect(a),
       resize: (a) => this.resize(a),
       reroute: (a) => this.reroute(a),
+      layout: () => this.layout(),
       set: (a) => this.set(a),
       remove: (a) => this.remove(a),
       style: (a) => this.style(a),

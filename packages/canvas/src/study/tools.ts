@@ -37,7 +37,7 @@ export interface StudyTool {
 }
 
 /** The write tools a batch runs as its steps. */
-export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'resize', 'reroute', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
+export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'resize', 'reroute', 'layout', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
 export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'catalog' | 'can' | 'batch' | 'undo' | 'redo';
@@ -144,6 +144,7 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     id: ID,
     waypoints: { type: 'array', items: POINT, description: 'Two points at least, from its source to its target.' },
   }, ['id'], write(false, true)),
+  tool('layout', 'Lay the whole diagram out afresh: each flow left to right, lanes as bands, pools stacked, data under its steps, groups round what they hold; shapes keep their sizes, and every flow is routed anew.', {}, [], write(false, true)),
   tool('set', "Set an attribute of an element, or of the root, where its schema keeps it (`attributes` lists them); 'name' renames, and null clears.", {
     id: ID,
     attribute: { type: 'string', description: "Its name, as the document spells it: 'name', 'duration', 'cognitive:instrument'." },
