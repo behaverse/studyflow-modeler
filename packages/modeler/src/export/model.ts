@@ -37,14 +37,10 @@ export function hasRole(element: ExportedElement, role: TypeRole): boolean {
   return element.roles.includes(role);
 }
 
-/** The one registry walk the interchange exporters are built from. */
+/** The one walk over the study the interchange exporters are built from. */
 export function buildExportModel(modeler: Editor): ExportModel {
-  const elements: ExportedElement[] = [];
-  modeler.canvas.all().forEach((el: any) => {
-    if (el.kind === 'label') return;
-    if (!el.businessObject) return;
-    elements.push(readElement(el.businessObject, el.id));
-  });
+  const { study } = modeler;
+  const elements = study.list().map((record) => readElement(study.businessObject(record.id), record.id));
 
   const dataElements = elements.filter((element) => element.isDataElement);
 

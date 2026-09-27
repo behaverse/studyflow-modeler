@@ -1,8 +1,7 @@
 import { parseChecklistLines, resolvePlaceholders } from '@core/document';
 import { StudyflowElement } from '@core/element';
-import type { Font } from '@canvas/index.ts';
+import { isExpandable, type ElementRecord, type Font } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
-import { containerOf } from '@modeler/simulation/flowWalk';
 
 type TimingAttrs = {
   onset?: string;
@@ -37,12 +36,14 @@ export type Row = TimingAttrs & {
 
 const ATTR_NAMES: (keyof TimingAttrs)[] = ['onset', 'duration', 'progress'];
 
-/** The container an element folds under: its sub-process, else the lane or pool it sits in. */
-function groupOf(el: any): any | undefined {
-  const container = containerOf(el);
-  if (container) return container;
-  for (let p = el.parent; p; p = p.parent) if (p.type === 'bpmn:Lane' || p.type === 'bpmn:Participant') return p;
-  return undefined;
+/** The container an element folds under: its nearest sub-process, else the lane or pool it sits in. */
+function groupOf(record: ElementRecord, byId: ReadonlyMap<string, ElementRecord>): ElementRecord | undefined {
+  let lane: ElementRecord | undefined;
+  for (let parent = byId.get(record.parent ?? ''); parent; parent = byId.get(parent.parent ?? '')) {
+    if (isExpandable(parent.type)) return parent;
+    if (!lane && (parent.type === 'bpmn:Lane' || parent.type === 'bpmn:Participant')) lane = parent;
+  }
+  return lane;
 }
 
 function readTimingAttrs(bo: any): TimingAttrs {
@@ -138,23 +139,24 @@ function checklistProgress(bo: any): { pct: number; label: string; text: string 
   return total > 0 ? { pct: (100 * checked) / total, label: `${checked} of ${total} items`, text: `${checked}/${total}` } : undefined;
 }
 
-/** The row for `el`, or null when it schedules nothing; `always` gives a container one for the rows inside it. */
-function buildGanttRow(el: any, anchor: number, definitions: any, always = false): Row | null {
-  const bo = el.businessObject;
-  if (!bo) return null;
+/**
+ * The row for `record`, whose business object is `bo`, or null when it schedules nothing; `always` gives a container
+ * one for the rows inside it. `external`: its caption sits beside it.
+ */
+function buildGanttRow(record: ElementRecord, bo: any, anchor: number, definitions: any, external: boolean, always = false): Row | null {
   const attrs = readTimingAttrs(bo);
   if (!always && !ATTR_NAMES.some((k) => attrs[k] !== undefined)) return null;
   const checklist = attrs.progress ? undefined : checklistProgress(bo);
   const progressPct = attrs.progress ? parseProgressPct(attrs.progress) : checklist?.pct;
   return {
-    id: el.id || bo.id || '(unnamed)',
+    id: record.id,
     // A view, like the canvas: `{reached}` in a name shows the last run's value.
     label: resolvePlaceholders(bo.name || bo.id || '(unnamed)', definitions, bo.id ?? ''),
-    type: bo.$type || el.type || 'Element',
-    fill: el.fill,
-    stroke: el.stroke,
-    font: el.font,
-    external: !!el.label,
+    type: bo.$type || record.type,
+    fill: record.fill,
+    stroke: record.stroke,
+    font: record.font,
+    external,
     after: [],
     ...attrs,
     onsetMin: attrs.onset ? parseOnsetMin(attrs.onset, anchor) : undefined,
@@ -169,14 +171,15 @@ function buildGanttRow(el: any, anchor: number, definitions: any, always = false
 const WAITS_ON = new Set(['bpmn:SequenceFlow', 'bpmn:MessageFlow']);
 
 /** The scheduled elements upstream along those flows, looking through unscheduled ones (a gateway, an event). */
-function predecessorsOf(el: any, scheduled: Set<string>): string[] {
+function predecessorsOf(record: ElementRecord, scheduled: Set<string>, byId: ReadonlyMap<string, ElementRecord>): string[] {
   const found: string[] = [];
   const seen = new Set<string>();
-  const stack: any[] = [el];
+  const stack: ElementRecord[] = [record];
   while (stack.length > 0) {
-    for (const edge of stack.pop().incoming ?? []) {
-      const source = edge.source;
-      if (!WAITS_ON.has(edge.type) || !source || seen.has(source.id)) continue;
+    for (const flowId of stack.pop()!.incoming ?? []) {
+      const flow = byId.get(flowId);
+      const source = byId.get(flow?.source ?? '');
+      if (!flow || !WAITS_ON.has(flow.type) || !source || seen.has(source.id)) continue;
       seen.add(source.id);
       if (scheduled.has(source.id)) found.push(source.id);
       else stack.push(source);
@@ -206,24 +209,25 @@ function summarize(group: Row, children: Row[]): void {
  */
 export function collectGanttRows(modeler: Editor): Row[] {
   if (!modeler) return [];
+  const { study } = modeler;
+  const records = study.list();
+  const byId = new Map(records.map((record) => [record.id, record]));
+  const captioned = new Set(study.list({ kind: 'label' }).map((label) => label.owner));
   const rows = new Map<string, Row>();
-  const elements = new Map<string, any>();
   const anchor = Date.now();
-  const definitions = modeler.getDefinitions();
-  const all = modeler.canvas.all().filter((el: any) => el.kind !== 'label');
-  const add = (el: any, always: boolean): Row | null => {
-    const row = rows.get(el.id) ?? buildGanttRow(el, anchor, definitions, always);
+  const add = (record: ElementRecord, always: boolean): Row | null => {
+    const row = rows.get(record.id)
+      ?? buildGanttRow(record, study.businessObject(record.id), anchor, study.definitions, captioned.has(record.id), always);
     if (!row) return null;
     // The enclosing container (and its own) is a row too, so this one has a parent to fold under.
-    const container = groupOf(el);
+    const container = groupOf(record, byId);
     const parent = container && (rows.get(container.id) ?? add(container, true));
     if (parent) row.parent = parent.id;
     rows.set(row.id, row);
-    elements.set(row.id, el);
     return row;
   };
-  all.forEach((el: any) => add(el, false));
-  for (const row of rows.values()) row.after = predecessorsOf(elements.get(row.id), new Set(rows.keys()));
+  records.forEach((record) => add(record, false));
+  for (const row of rows.values()) row.after = predecessorsOf(byId.get(row.id)!, new Set(rows.keys()), byId);
 
   const childrenOf = new Map<string | undefined, Row[]>();
   for (const row of rows.values()) childrenOf.set(row.parent, [...(childrenOf.get(row.parent) ?? []), row]);

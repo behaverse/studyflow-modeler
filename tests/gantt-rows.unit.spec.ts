@@ -49,8 +49,8 @@ state:
 `;
 
 test('a Gantt row wears its element\'s colours, waits on the scheduled steps upstream through a gateway, takes its progress from its checklist when it states none, and shows the last run\'s state where its name cites it; the model keeps the placeholder', () => {
-  const { canvas, definitions } = loadYaml(STATE_YAML);
-  const rows = collectGanttRows({ canvas, getDefinitions: () => definitions } as any);
+  const { study } = loadYaml(STATE_YAML).canvas;
+  const rows = collectGanttRows({ study } as any);
   const [screening, baseline] = rows;
   expect(rows.map((row) => row.id)).toEqual(['Screening', 'Baseline']);
   expect(screening.label).toContain('96');
@@ -59,7 +59,7 @@ test('a Gantt row wears its element\'s colours, waits on the scheduled steps ups
   expect(rows.map((row) => row.after)).toEqual([[], ['Screening']]);
   expect(baseline.progressPct).toBe(40);
   expect(baseline.progressText).toBeTruthy();
-  expect(canvas.all().find((el) => el.id === 'Screening')!.businessObject.name).toContain('{reached}');
+  expect(study.get('Screening')?.name).toContain('{reached}');
 });
 
 test('the time axis picks the smallest step that gives at most the ticks its width holds, labelled from T0', () => {
@@ -153,8 +153,7 @@ Process_Lab:
 `;
 
 test('a pool, lane or sub-process holding scheduled elements is a group row ahead of them, with their span and mean progress when it states none', () => {
-  const { canvas, definitions } = loadYaml(GROUP_YAML);
-  const rows = collectGanttRows({ canvas, getDefinitions: () => definitions } as any);
+  const rows = collectGanttRows({ study: loadYaml(GROUP_YAML).canvas.study } as any);
   expect(rows.map((row) => [row.id, row.parent, row.group])).toEqual([
     ['Pool_Site', undefined, true], ['Lane_Ops', 'Pool_Site', true],
     ['Setup', 'Lane_Ops', undefined], ['WP', 'Lane_Ops', true], ['A', 'WP', undefined], ['B', 'WP', undefined],

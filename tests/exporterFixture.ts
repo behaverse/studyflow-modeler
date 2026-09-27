@@ -12,22 +12,17 @@ export type FakeModelerOptions = {
 };
 
 /**
- * A partial `Editor`: the exporters walk `elements` and read the diagram's name
- * off the root, and that is the whole of what they ask the editor for — which is
- * why one registry stand-in serves every interchange format.
+ * A partial `Editor`: the exporters list the study's elements, read each one's business object, and take the
+ * diagram's name off the root, and that is the whole of what they ask the editor for — which is why one study
+ * stand-in serves every interchange format.
  */
 function fakeModeler(businessObjects: any[], { diagramName }: FakeModelerOptions = {}): any {
-  const elements = businessObjects.map((bo) => ({ businessObject: bo, type: 'shape', id: bo.id }));
-  const root = diagramName
-    ? { businessObject: { $type: 'bpmn:Process', name: diagramName } }
-    : undefined;
-
+  const byId = new Map(businessObjects.map((bo) => [bo.id, bo]));
   return {
-    study: { root: { id: 'Process_1', kind: 'root', type: 'bpmn:Process', ...(diagramName ? { name: diagramName } : {}) } },
-    canvas: {
-      all: () => elements,
-      getRoot: () => root,
-      rootOf: () => root,
+    study: {
+      root: { id: 'Process_1', kind: 'root', type: 'bpmn:Process', ...(diagramName ? { name: diagramName } : {}) },
+      list: () => businessObjects.map((bo) => ({ id: bo.id, kind: 'node', type: bo.$type })),
+      businessObject: (id: string) => byId.get(id),
     },
   };
 }

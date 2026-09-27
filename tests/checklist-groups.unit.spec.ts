@@ -29,10 +29,10 @@ const REACHED = `state:
 
 test("a checklist group heading shows the last run's state where its name cites it, and 0 where no run reached it", () => {
   for (const [yaml, expected] of [[YAML + REACHED, 'Battery (n=3)'], [YAML, 'Battery (n=0)']] as const) {
-    const { canvas, definitions } = loadYaml(yaml);
-    const groups = collectChecklistGroups({ canvas, getDefinitions: () => definitions } as any);
+    const { study } = loadYaml(yaml).canvas;
+    const groups = collectChecklistGroups({ study } as any);
     expect(groups.map((g) => g.label), expected).toEqual([expected]);
     // The model keeps the placeholder; only the view resolves it.
-    expect(canvas.all().find((el) => el.id === 'Battery')!.businessObject.name).toContain('{reached}');
+    expect(study.get('Battery')?.name).toContain('{reached}');
   }
 });
