@@ -1,24 +1,27 @@
-import { is } from '@modeler/editor/port';
-import { CONTENT_PADDING, isExpandable, isExpanded, type Point } from '@canvas/index.ts';
+import { isBpmnSubtypeOf } from '@core/notation';
+import { CONTENT_PADDING, isExpandable, type ElementRecord, type Point } from '@canvas/index.ts';
+
+/** Reads an element by id: a study's `get`. */
+export type Lookup = (id: string) => ElementRecord | undefined;
 
 export type Hop =
   | { kind: 'end' }
   | { kind: 'deadend' }
-  | { kind: 'advance'; flows: any[] }
-  | { kind: 'fork'; flows: any[] };
+  | { kind: 'advance'; flows: ElementRecord[] }
+  | { kind: 'fork'; flows: ElementRecord[] };
 
-export function nextHops(element: any): Hop {
-  if (is(element, 'bpmn:EndEvent')) {
+export function nextHops(element: ElementRecord, get: Lookup): Hop {
+  if (isBpmnSubtypeOf(element.type, 'bpmn:EndEvent')) {
     return { kind: 'end' };
   }
 
-  const outgoing = (element.outgoing || []).filter((c: any) => is(c, 'bpmn:SequenceFlow'));
+  const outgoing = (element.outgoing ?? []).map(get).filter((flow): flow is ElementRecord => flow?.type === 'bpmn:SequenceFlow');
 
   if (outgoing.length === 0) {
     return { kind: 'deadend' };
   }
 
-  const isFork = is(element, 'bpmn:ParallelGateway') || is(element, 'bpmn:InclusiveGateway');
+  const isFork = element.type === 'bpmn:ParallelGateway' || element.type === 'bpmn:InclusiveGateway';
   if (isFork && outgoing.length > 1) {
     return { kind: 'fork', flows: outgoing };
   }
@@ -28,21 +31,21 @@ export function nextHops(element: any): Hop {
 }
 
 /** The nearest sub-process (or sub-choreography) `element` lives in; pools and lanes are seen through. */
-export function containerOf(element: any): any | undefined {
-  for (let p = element?.parent; p; p = p.parent) if (isExpandable(p.type)) return p;
+export function containerOf(element: ElementRecord, get: Lookup): ElementRecord | undefined {
+  for (let p = element.parent === undefined ? undefined : get(element.parent); p; p = p.parent === undefined ? undefined : get(p.parent)) {
+    if (isExpandable(p.type)) return p;
+  }
   return undefined;
 }
 
-/** Start events directly under `container` (the whole diagram when `undefined`), wherever their pool or lane. */
-export function startEventsIn(elements: any[], container: any | undefined): any[] {
-  return elements.filter((el) => el.kind === 'node' && is(el, 'bpmn:StartEvent') && containerOf(el) === container);
+/** Start events directly under the container `within` names (the whole diagram when `undefined`), wherever their pool or lane. */
+export function startEventsIn(elements: readonly ElementRecord[], within: string | undefined, get: Lookup): ElementRecord[] {
+  return elements.filter((element) => element.kind === 'node' && isBpmnSubtypeOf(element.type, 'bpmn:StartEvent')
+    && containerOf(element, get)?.id === within);
 }
 
-/** Where a token rests on `element`: its centre, or the name strip of an expanded container, clear of its contents. */
-export function tokenAnchor(element: any): Point {
-  const expanded = element.kind === 'node' && isExpanded(element);
-  return {
-    x: element.x + element.width / 2,
-    y: element.y + (expanded ? CONTENT_PADDING.top / 2 : element.height / 2),
-  };
+/** Where a token rests on the shape `element`: its centre, or the name strip of an expanded container, clear of its contents. */
+export function tokenAnchor(element: ElementRecord): Point {
+  const { x, y, width, height } = element.bounds!;
+  return { x: x + width / 2, y: y + (element.expanded ? CONTENT_PADDING.top / 2 : height / 2) };
 }

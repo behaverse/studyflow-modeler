@@ -80,7 +80,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
 
   const templates: EditorTemplates = { getAll: () => getCatalog().allTemplates() };
 
-  const simulator = new TokenSimulator({ events: bus, canvas });
+  const simulator = new TokenSimulator({ events: bus, study, canvas });
   const simulation: EditorSimulation = { toggle: () => simulator.toggle(), isActive: () => simulator.isActive() };
 
   const applySettings = (): void => canvas.setSnapToGrid(getSettings().snapToGrid);

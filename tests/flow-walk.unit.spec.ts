@@ -1,53 +1,39 @@
 import { expect, test } from '@playwright/test';
 
-import { CONTENT_PADDING } from '@canvas/index.ts';
-import { containerOf, nextHops, startEventsIn, tokenAnchor, type Hop } from '@modeler/simulation/flowWalk';
+import { CONTENT_PADDING, type ElementRecord } from '@canvas/index.ts';
+import { containerOf, nextHops, startEventsIn, tokenAnchor, type Hop, type Lookup } from '@modeler/simulation/flowWalk';
 
-/** The pure flow-walk decision extracted from TokenSimulator. */
+/** The pure flow-walk decisions the token simulation takes, over records and a lookup by id. */
 
-// Minimal type hierarchy: each concrete type reports itself plus its supertypes, so `is()` behaves like moddle.
-const SUPERTYPES: Record<string, string[]> = {
-  'bpmn:StartEvent': ['bpmn:StartEvent', 'bpmn:Event', 'bpmn:FlowNode'],
-  'bpmn:EndEvent': ['bpmn:EndEvent', 'bpmn:Event', 'bpmn:FlowNode'],
-  'bpmn:Task': ['bpmn:Task', 'bpmn:Activity', 'bpmn:FlowNode'],
-  'bpmn:ExclusiveGateway': ['bpmn:ExclusiveGateway', 'bpmn:Gateway', 'bpmn:FlowNode'],
-  'bpmn:ParallelGateway': ['bpmn:ParallelGateway', 'bpmn:Gateway', 'bpmn:FlowNode'],
-  'bpmn:InclusiveGateway': ['bpmn:InclusiveGateway', 'bpmn:Gateway', 'bpmn:FlowNode'],
-  'bpmn:SequenceFlow': ['bpmn:SequenceFlow', 'bpmn:FlowElement'],
-};
+const BOX = { x: 0, y: 0, width: 100, height: 80 };
 
-function el(type: string, outgoing: any[] = [], id = type) {
-  const types = SUPERTYPES[type] || [type];
-  return {
-    id,
-    type,
-    outgoing,
-    businessObject: {
-      $type: type,
-      $instanceOf: (t: string) => types.includes(t),
-    },
-  };
+const shape = (id: string, type: string, extra: Partial<ElementRecord> = {}): ElementRecord => ({ id, kind: 'node', type, bounds: BOX, ...extra });
+const flow = (id: string, type = 'bpmn:SequenceFlow'): ElementRecord => ({ id, kind: 'edge', type, waypoints: [] });
+
+function lookup(...records: ElementRecord[]): Lookup {
+  const byId = new Map(records.map((record) => [record.id, record]));
+  return (id) => byId.get(id);
 }
-
-const flow = (id = 'F') => el('bpmn:SequenceFlow', [], id);
 
 test('nextHops: an end ends, no sequence flow is a dead end, a fork gateway takes every flow, anything else one', () => {
   const [f1, f2, f3] = [flow('F1'), flow('F2'), flow('F3')];
-  const association = el('bpmn:Association');
+  const association = flow('A', 'bpmn:Association');
+  const get = lookup(f1, f2, f3, association);
+  const node = (type: string, outgoing: ElementRecord[] = []): ElementRecord => shape(type, type, { outgoing: outgoing.map((out) => out.id) });
   // [label, element, the hop's kind, the flows it may take: a fork takes all of them, an advance one]
-  const CASES: Array<[string, any, Hop['kind'], any[]]> = [
-    ['an end event, whatever leaves it', el('bpmn:EndEvent', [f1]), 'end', []],
-    ['no outgoing flow', el('bpmn:Task'), 'deadend', []],
-    ['an association is not a way on', el('bpmn:Task', [association]), 'deadend', []],
-    ['one sequence flow', el('bpmn:Task', [f1]), 'advance', [f1]],
-    ['an exclusive gateway picks one of its flows', el('bpmn:ExclusiveGateway', [f1, f2]), 'advance', [f1, f2]],
-    ['a parallel gateway forks', el('bpmn:ParallelGateway', [f1, f2, f3]), 'fork', [f1, f2, f3]],
-    ['an inclusive gateway forks', el('bpmn:InclusiveGateway', [f1, f2]), 'fork', [f1, f2]],
-    ['a parallel gateway with one flow just advances', el('bpmn:ParallelGateway', [f1]), 'advance', [f1]],
-    ['only sequence flows count toward a fork', el('bpmn:ParallelGateway', [f1, association]), 'advance', [f1]],
+  const CASES: Array<[string, ElementRecord, Hop['kind'], ElementRecord[]]> = [
+    ['an end event, whatever leaves it', node('bpmn:EndEvent', [f1]), 'end', []],
+    ['no outgoing flow', node('bpmn:Task'), 'deadend', []],
+    ['an association is not a way on', node('bpmn:Task', [association]), 'deadend', []],
+    ['one sequence flow', node('bpmn:Task', [f1]), 'advance', [f1]],
+    ['an exclusive gateway picks one of its flows', node('bpmn:ExclusiveGateway', [f1, f2]), 'advance', [f1, f2]],
+    ['a parallel gateway forks', node('bpmn:ParallelGateway', [f1, f2, f3]), 'fork', [f1, f2, f3]],
+    ['an inclusive gateway forks', node('bpmn:InclusiveGateway', [f1, f2]), 'fork', [f1, f2]],
+    ['a parallel gateway with one flow just advances', node('bpmn:ParallelGateway', [f1]), 'advance', [f1]],
+    ['only sequence flows count toward a fork', node('bpmn:ParallelGateway', [f1, association]), 'advance', [f1]],
   ];
   for (const [label, element, kind, flows] of CASES) {
-    const hop = nextHops(element);
+    const hop = nextHops(element, get);
     expect(hop.kind, label).toBe(kind);
     if (hop.kind === 'fork') expect(hop.flows, label).toEqual(flows);
     if (hop.kind === 'advance') {
@@ -58,25 +44,24 @@ test('nextHops: an end ends, no sequence flow is a dead end, a fork gateway take
 });
 
 test.describe('containers', () => {
-  const node = (type: string, parent?: any, extra: any = {}) => ({ ...el(type), kind: 'node', parent, x: 0, y: 0, width: 100, height: 80, ...extra });
-
   test('start events are found through pools and lanes, but not inside sub-processes', () => {
-    const pool = node('bpmn:Participant');
-    const lane = node('bpmn:Lane', pool);
-    const sub = node('bpmn:SubProcess', lane, { id: 'sub' });
-    const top = node('bpmn:StartEvent', lane, { id: 'top' });
-    const inner = node('bpmn:StartEvent', sub, { id: 'inner' });
+    const pool = shape('pool', 'bpmn:Participant');
+    const lane = shape('lane', 'bpmn:Lane', { parent: 'pool' });
+    const sub = shape('sub', 'bpmn:SubProcess', { parent: 'lane', expanded: true });
+    const top = shape('top', 'bpmn:StartEvent', { parent: 'lane' });
+    const inner = shape('inner', 'bpmn:StartEvent', { parent: 'sub' });
     const all = [pool, lane, sub, top, inner];
-    expect(containerOf(top)).toBeUndefined();
-    expect(containerOf(inner)).toBe(sub);
-    expect(startEventsIn(all, undefined)).toEqual([top]);
-    expect(startEventsIn(all, sub)).toEqual([inner]);
+    const get = lookup(...all);
+    expect(containerOf(top, get)).toBeUndefined();
+    expect(containerOf(inner, get)).toBe(sub);
+    expect(startEventsIn(all, undefined, get)).toEqual([top]);
+    expect(startEventsIn(all, 'sub', get)).toEqual([inner]);
   });
 
   test('a token rests on the centre of a node, or in the name strip of an expanded container', () => {
-    expect(tokenAnchor(node('bpmn:Task'))).toEqual({ x: 50, y: 40 });
-    expect(tokenAnchor(node('bpmn:SubProcess', undefined, { isExpanded: false }))).toEqual({ x: 50, y: 40 });
-    const strip = tokenAnchor(node('bpmn:SubProcess', undefined, { width: 350, height: 200 }));
+    expect(tokenAnchor(shape('task', 'bpmn:Task'))).toEqual({ x: 50, y: 40 });
+    expect(tokenAnchor(shape('sub', 'bpmn:SubProcess', { expanded: false }))).toEqual({ x: 50, y: 40 });
+    const strip = tokenAnchor(shape('sub', 'bpmn:SubProcess', { expanded: true, bounds: { x: 0, y: 0, width: 350, height: 200 } }));
     expect(strip.x).toBe(175);
     expect(strip.y).toBeGreaterThan(0);
     expect(strip.y).toBeLessThan(CONTENT_PADDING.top);

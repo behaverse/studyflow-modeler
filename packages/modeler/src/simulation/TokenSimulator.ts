@@ -1,14 +1,17 @@
 /** Token simulation: tokens spawned at the start events of the current scope, walking the flows. */
 
-import { is } from '@modeler/editor/port';
-import type { Canvas, EditorElement, EventBus } from '@modeler/editor/port';
-import { isExpanded, isHidden, isRootElement, svgAppend, svgAttr, svgCreate, svgRemove, type Point } from '@canvas/index.ts';
+import { isBpmnSubtypeOf } from '@core/notation';
+import type { Canvas, EventBus } from '@modeler/editor/port';
+import { svgAppend, svgAttr, svgCreate, svgRemove, type ElementRecord, type Point, type Study } from '@canvas/index.ts';
 import { containerOf, nextHops, startEventsIn, tokenAnchor } from '@modeler/simulation/flowWalk';
 import { computeSegLengths, dedupePoints, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
 
 export interface SimulationHost {
   events: Pick<EventBus, 'on' | 'off' | 'fire'>;
-  canvas: Pick<Canvas, 'getHostLayer' | 'all' | 'getRoot' | 'getScope'>;
+  /** What the tokens walk. */
+  study: Pick<Study, 'get' | 'list'>;
+  /** Where they are drawn, and whether the view shows where they are. */
+  canvas: Pick<Canvas, 'getHostLayer' | 'draws' | 'getScope'>;
 }
 
 const TOKEN_RADIUS = 8;
@@ -40,9 +43,10 @@ interface Token {
   segLengths: number[];
   totalDist: number;
   travelled: number;
-  targetElement: any | null;
-  /** The node or flow the token is on: decides whether it is on screen in the current drill-down scope. */
-  at: any | null;
+  /** The id of the node the token is heading for. */
+  target: string | null;
+  /** The id of the node or flow the token is on: decides whether it is on screen in the current drill-down scope. */
+  at: string | null;
   hidden: boolean;
   paused: boolean;
   pauseRemaining: number;
@@ -53,11 +57,11 @@ interface Token {
   cy: number;
 }
 
-function makeToken(svg: any, color: string, cx: number, cy: number, at: any): Token {
+function makeToken(svg: any, color: string, cx: number, cy: number, at: string | null): Token {
   return {
     svg, color, cx, cy, at, hidden: false,
     pathPoints: [], segLengths: [], totalDist: 0, travelled: 0,
-    targetElement: null, paused: false, pauseRemaining: 0, done: false, bouncing: false, bounceElementId: null,
+    target: null, paused: false, pauseRemaining: 0, done: false, bouncing: false, bounceElementId: null,
   };
 }
 
@@ -70,7 +74,8 @@ export default class TokenSimulator {
   private _layer: any = null;
   private _colorIndex = 0;
   private _lastTimestamp = 0;
-  private _startEvents: any[] = [];
+  private _startEvents: ElementRecord[] = [];
+  private _get = (id: string): ElementRecord | undefined => this._host.study.get(id);
 
   constructor(host: SimulationHost) {
     this._host = host;
@@ -141,23 +146,17 @@ export default class TokenSimulator {
     this._startEvents = this._getVisibleStartEvents();
     for (const token of this._tokens) this._syncVisibility(token);
     for (const startEvent of this._startEvents) {
-      if (!this._tokens.some((token) => !token.done && token.at === startEvent)) this._spawnToken(startEvent);
+      if (!this._tokens.some((token) => !token.done && token.at === startEvent.id)) this._spawnToken(startEvent);
     }
   };
 
   /** Start events at the top of what is on screen: the root, or the drilled-into container. */
-  private _getVisibleStartEvents(): EditorElement[] {
-    let root: EditorElement;
-    try {
-      root = this._host.canvas.getRoot();
-    } catch {
-      return [];
-    }
-    return startEventsIn(this._host.canvas.all(), isRootElement(root) ? undefined : root);
+  private _getVisibleStartEvents(): ElementRecord[] {
+    return startEventsIn(this._host.study.list(), this._host.canvas.getScope()?.id, this._get);
   }
 
   private _syncVisibility(token: Token) {
-    const hidden = !!token.at && isHidden(token.at, this._host.canvas.getScope());
+    const hidden = !!token.at && !this._host.canvas.draws(token.at);
     if (hidden === token.hidden) return;
     token.hidden = hidden;
     token.svg.style.display = hidden ? 'none' : '';
@@ -202,21 +201,21 @@ export default class TokenSimulator {
     if (progress >= 1) this._onTokenArrived(token);
   }
 
-  private _spawnToken(element: any) {
+  private _spawnToken(element: ElementRecord) {
     const color = TOKEN_COLORS[this._colorIndex++ % TOKEN_COLORS.length];
     const { x, y } = tokenAnchor(element);
-    const token = makeToken(createTokenSvg(this._layer, color), color, x, y, element);
+    const token = makeToken(createTokenSvg(this._layer, color), color, x, y, element.id);
     this._setTokenPos(token, x, y);
     this._syncVisibility(token);
     this._tokens.push(token);
     this._advanceFromElement(token, element);
   }
 
-  private _advanceFromElement(token: Token, element: any) {
-    const hop = nextHops(element);
+  private _advanceFromElement(token: Token, element: ElementRecord) {
+    const hop = nextHops(element, this._get);
     if (hop.kind === 'end') {
       // An end inside a sub-process leaves through the container's own outgoing flows.
-      const container = containerOf(element);
+      const container = containerOf(element, this._get);
       if (container) this._advanceFromElement(token, container);
       else this._popToken(token);
       return;
@@ -240,49 +239,50 @@ export default class TokenSimulator {
     this._sendTokenAlongFlow(token, hop.flows[0]);
   }
 
-  private _sendTokenAlongFlow(token: Token, flow: any) {
+  private _sendTokenAlongFlow(token: Token, flow: ElementRecord) {
     const waypoints = flow.waypoints;
-    if (!waypoints || waypoints.length < 2) {
+    const target = flow.target === undefined ? undefined : this._get(flow.target);
+    if (!waypoints || waypoints.length < 2 || !target) {
       this._fadeOutToken(token);
       return;
     }
-    const target = flow.target;
     const points: Point[] = [
       { x: token.cx, y: token.cy },
-      ...waypoints.map((wp: any) => ({ x: wp.x, y: wp.y })),
+      ...waypoints.map((wp) => ({ x: wp.x, y: wp.y })),
       tokenAnchor(target),
     ];
-    this._sendTokenAlongPath(token, points, target, flow);
+    this._sendTokenAlongPath(token, points, target.id, flow.id);
   }
 
   /** Straight in from the container's edge to each of its start events, one token per start. */
-  private _enterContainer(token: Token, starts: any[]) {
+  private _enterContainer(token: Token, starts: ElementRecord[]) {
     starts.forEach((start, i) => {
       const walker = i === 0 ? token : this._cloneToken(token);
       const anchor = tokenAnchor(start);
-      this._sendTokenAlongPath(walker, [{ x: walker.cx, y: walker.cy }, anchor], start, start);
+      this._sendTokenAlongPath(walker, [{ x: walker.cx, y: walker.cy }, anchor], start.id, start.id);
     });
   }
 
-  private _sendTokenAlongPath(token: Token, points: Point[], target: any, at: any) {
+  private _sendTokenAlongPath(token: Token, points: Point[], target: string, at: string) {
     const cleaned = dedupePoints(points);
     const { segLengths, totalDist } = computeSegLengths(cleaned);
     token.pathPoints = cleaned;
     token.segLengths = segLengths;
     token.totalDist = totalDist;
     token.travelled = 0;
-    token.targetElement = target;
+    token.target = target;
     token.at = at;
     this._syncVisibility(token);
   }
 
   private _onTokenArrived(token: Token) {
-    const target = token.targetElement;
+    // Read where it arrives as it now stands: an edit may have moved or removed it on the way.
+    const target = token.target === null ? undefined : this._get(token.target);
     token.pathPoints = [];
     token.segLengths = [];
     token.totalDist = 0;
     token.travelled = 0;
-    token.targetElement = null;
+    token.target = null;
     if (!target) {
       this._fadeOutToken(token);
       return;
@@ -290,14 +290,14 @@ export default class TokenSimulator {
     const anchor = tokenAnchor(target);
     token.cx = anchor.x;
     token.cy = anchor.y;
-    token.at = target;
+    token.at = target.id;
     // An expanded sub-process is walked through its own start events; a collapsed one is a plain pause.
-    const starts = target.kind === 'node' && isExpanded(target) ? startEventsIn(this._host.canvas.all(), target) : [];
+    const starts = target.expanded ? startEventsIn(this._host.study.list(), target.id, this._get) : [];
     if (starts.length > 0) {
       this._enterContainer(token, starts);
       return;
     }
-    if (is(target, 'bpmn:Activity') || is(target, 'bpmn:SubProcess')) {
+    if (isBpmnSubtypeOf(target.type, 'bpmn:Activity')) {
       token.paused = true;
       token.pauseRemaining = ACTIVITY_PAUSE_MS;
       setTimeout(() => {

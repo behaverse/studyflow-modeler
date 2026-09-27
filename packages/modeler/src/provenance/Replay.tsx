@@ -132,7 +132,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     }
     token.style.display = '';
     token.style.opacity = '';
-    const to = tokenAnchor(target);
+    const to = tokenAnchor(editor.study.get(target.id)!);
     const newRoot = canvas.rootOf(target);
     const rootId = newRoot?.id;
     const from = tokenPos.current;
