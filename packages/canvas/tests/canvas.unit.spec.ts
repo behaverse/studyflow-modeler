@@ -349,6 +349,31 @@ test('a press on a selected flow drags a new bendpoint out of it, and a hovered 
   expect(canvas.selection).toEqual([flow.id]);
 });
 
+test('a bend dragged keeps the runs that met it square, a dock sliding along its shape', async () => {
+  const { canvas } = loadYaml(`id: Defs_Z
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_Z:
+  type: Process
+  flowElements:
+    From:
+      type: Task
+      bounds: 100 100 100 80
+    To:
+      type: Task
+      bounds: 400 300 100 80
+    Z:
+      sourceRef: From
+      targetRef: To
+      waypoint: 200,140 300,140 300,340 400,340
+`);
+  const z = edge(canvas, 'Z');
+  canvas.select('Z');
+  dragBy(canvas, { x: 300, y: 140 }, { x: 320, y: 160 });
+  // The upright run came along sideways; the level one slid down the task's side with it.
+  expect(z.waypoints).toEqual([{ x: 200, y: 160 }, { x: 320, y: 160 }, { x: 320, y: 340 }, { x: 400, y: 340 }]);
+});
+
 // --- selection and deletion -----------------------------------------------------------
 
 test('click selects, Shift+click toggles, and an empty click clears', async () => {

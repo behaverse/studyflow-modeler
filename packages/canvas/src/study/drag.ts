@@ -12,7 +12,7 @@ import { nameOf } from '@canvas/study/moddle.ts';
 import { planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/study/text.ts';
 import { cropPoint } from '@core/document/outline.ts';
-import { freeMoveEnd, moveBendpoint, moveTerminal, samePoints } from '@canvas/study/edit.ts';
+import { freeMoveEnd, moveBendpoint, moveBendpointSquare, moveTerminal, samePoints } from '@canvas/study/edit.ts';
 import { isRouted, orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
 import { containerFor, type Rules, type Size } from '@canvas/study/rules.ts';
 
@@ -422,9 +422,11 @@ export class Drag {
     const to = { x: this.maybeSnap(from.x + dx, 'x'), y: this.maybeSnap(from.y + dy, 'y') };
     const terminal = state.index === 0 || state.index === base.length - 1;
     const edge = state.edge;
+    // A joint just drawn out of a run bends it; one already there keeps the runs meeting it square.
+    const shapes = { source: edge.source, target: edge.target };
     edge.waypoints = terminal
       ? freeMoveEnd(base, state.index === 0 ? 'source' : 'target', to)
-      : moveBendpoint(base, state.index, to, { source: edge.source, target: edge.target });
+      : state.insert ? moveBendpoint(base, state.index, to, shapes) : moveBendpointSquare(base, state.index, to, shapes);
     return [edge];
   }
 }
