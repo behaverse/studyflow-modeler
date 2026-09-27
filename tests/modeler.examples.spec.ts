@@ -20,14 +20,15 @@ test.describe('New Diagram gallery', () => {
     const preview = card.getByTestId('example-thumb');
     await expect(preview).toBeVisible();
     await expect(preview).toHaveAttribute('src', /^blob:/);
-    expect(await preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    // A picture decodes after it is visible: wait for it rather than read it once.
+    await expect.poll(() => preview.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
 
     // The badge is the icon of the schema its skill ships: an icon class (cognitive's), or a data
     // URL drawn as an image (reachy's); python ships a runner and no schema, so no badge.
     await expect(card.getByTestId('example-badge')).toBeVisible();
     const reachy = page.getByTestId('example-reachy_pools').getByTestId('example-badge').locator('img');
     await expect(reachy).toBeVisible();
-    expect(await reachy.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    await expect.poll(() => reachy.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
     await expect(page.getByTestId('example-sklearn_pipeline').getByTestId('example-badge')).toHaveCount(0);
 
     // A shelf holds its skill's examples; the blank card sits under All only, while the header's
