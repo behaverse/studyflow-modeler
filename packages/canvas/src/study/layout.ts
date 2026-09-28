@@ -298,12 +298,13 @@ function spread(items: readonly { want: number; size: number }[]): number[] {
 
 /**
  * Where each of `nodes` stands in a block of them, from the block's top left, and the block's size: as they stand
- * now, or in rows no wider than `across` when their rooms overlap (as a drawing drafted at one point has them).
+ * now, or in rows no wider than `across` when the shapes themselves lie on each other (as a drawing drafted at one
+ * point has them; captions reaching over a neighbour are an arrangement still).
  */
 function arrangement(nodes: readonly SceneNode[], reach: (node: SceneNode) => Reach, across: number): { at: Map<SceneNode, Point>; width: number; height: number } {
   const rooms = nodes.map((node) => roomOf(node, reach(node)));
   const at = new Map<SceneNode, Point>();
-  if (!rooms.some((room, i) => rooms.slice(i + 1).some((other) => overlaps(room, other)))) {
+  if (!nodes.some((node, i) => nodes.slice(i + 1).some((other) => overlaps(node, other)))) {
     const box = hull(rooms);
     nodes.forEach((node) => at.set(node, { x: node.x - box.x, y: node.y - box.y }));
     return { at, width: box.width, height: box.height };

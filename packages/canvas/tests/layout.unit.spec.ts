@@ -355,6 +355,25 @@ Phase:
   for (const [i, a] of piled.entries()) for (const b of piled.slice(i + 1)) expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
   const around = box(study, 'Around');
   expect([holds(around, box(study, 'One')), holds(around, box(study, 'Two')), holds(around, box(study, 'Three'))]).toEqual([true, true, false]);
+
+  // Captions reaching over a neighbour are an arrangement still: the shapes keep it.
+  const named = open(`id: Defs_Named
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    A:
+      type: StartEvent
+      name: a rather long caption for a start
+      bounds: 100 100 36 36
+    B:
+      type: StartEvent
+      name: another long caption beside it
+      bounds: 150 100 36 36
+`);
+  named.layout();
+  expect([box(named, 'B').x - box(named, 'A').x, box(named, 'B').y - box(named, 'A').y]).toEqual([50, 0]);
 });
 
 test('flows the router would lay on one line are slid apart', async () => {
