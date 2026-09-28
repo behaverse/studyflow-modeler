@@ -37,10 +37,10 @@ export interface StudyTool {
 }
 
 /** The write tools a batch runs as its steps. */
-export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'resize', 'reroute', 'layout', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
+export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'resize', 'reroute', 'paste', 'layout', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
-export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'catalog' | 'can' | 'batch' | 'undo' | 'redo';
+export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'catalog' | 'can' | 'copy' | 'batch' | 'undo' | 'redo';
 
 /** The verbs `can` answers for: what makes or retypes something, where the rules decide. */
 export const ASKABLE_TOOLS = ['append', 'connect', 'replace'] as const;
@@ -117,6 +117,9 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     tool: { type: 'string', enum: ASKABLE_TOOLS },
     args: { type: 'object', description: "The verb's argument, as far as it is decided." },
   }, ['tool', 'args']),
+  tool('copy', 'The shapes `ids` name, with what they hold, the boundary events on them and the flows between them, as a .studyflow.yaml document of their own: what paste takes. Pools, lanes and a flow without its ends stay behind, and so does every reference to what does.', {
+    ids: { type: 'array', items: ID },
+  }, ['ids']),
   tool('add', "Add a shape of `type` (or a template's elements) centred on `at`, or without it in free space beside what shares its container. `into` names the container; the root's id is the top level; without it, whatever is under `at`.", {
     ...NEW,
     at: { ...POINT, description: 'Its centre, in diagram coordinates.' },
@@ -144,6 +147,11 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     id: ID,
     waypoints: { type: 'array', items: POINT, description: 'Two points at least, from its source to its target.' },
   }, ['id'], write(false, true)),
+  tool('paste', "Add the shapes and flows of a .studyflow.yaml document's process (what copy gives, or one written in its spelling), centred on `at`, or without it a step right of and below where the document draws them; into the container `into` names, or whatever is under `at`. An id the study holds is swapped for a fresh one, and code naming it follows.", {
+    yaml: { type: 'string', description: 'The document, as its .studyflow.yaml text.' },
+    at: { ...POINT, description: 'Where its middle goes, in diagram coordinates.' },
+    into: ID,
+  }, ['yaml'], write(false, false)),
   tool('layout', 'Lay the whole diagram out afresh: each flow left to right, lanes as bands, pools stacked, data under its steps, groups round what they hold; shapes keep their sizes, and every flow is routed anew.', {}, [], write(false, true)),
   tool('set', "Set an attribute of an element, or of the root, where its schema keeps it (`attributes` lists them); 'name' renames, and null clears.", {
     id: ID,

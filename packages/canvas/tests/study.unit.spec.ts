@@ -338,6 +338,110 @@ P:
   expect(study.get('Timer')!.bounds).toMatchObject({ x: 182, y: 182 });
 });
 
+const CLIPBOARD = `id: Defs_C
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Ask:
+      type: Task
+      name: Ask
+      bounds: 100 100 100 80
+      dataInputAssociations:
+        In_1:
+          sourceRef:
+            - Form
+          waypoint: 150,260 150,180
+    Late:
+      type: BoundaryEvent
+      name: too late
+      attachedToRef: Ask
+      eventDefinitions:
+        T_1:
+          type: TimerEventDefinition
+      bounds: 132 162 36 36
+    Form:
+      type: DataObjectReference
+      name: form
+      bounds: 132 260 36 50
+    Gate:
+      type: ExclusiveGateway
+      default: To_Other
+      bounds: 260 115 50 50
+    Other:
+      type: Task
+      bounds: 400 100 100 80
+    Sub:
+      type: SubProcess
+      bounds: 100 400 300 200
+      isExpanded: true
+      flowElements:
+        Inner:
+          type: Task
+          bounds: 150 450 100 80
+    F1:
+      sourceRef: Ask
+      targetRef: Gate
+      waypoint: 200,140 260,140
+    To_Other:
+      sourceRef: Gate
+      targetRef: Other
+      waypoint: 310,140 400,140
+  artifacts:
+    Around:
+      type: Group
+      categoryValueRef: Phase_1
+      bounds: 80 80 250 250
+Phase:
+  type: Category
+  categoryValue:
+    Phase_1:
+      value: Phase one
+`;
+
+test('copy writes shapes as a document of their own: what they hold, what sits on them, the flows between them, and nothing of what stays', () => {
+  const study = Study.fromDefinitions(studyflowToDefinitions(CLIPBOARD, freshModdle()));
+  const copied = study.copy({ ids: ['Ask', 'Gate', 'Form_label', 'Sub', 'Around'] });
+  expect(copied.ok).toBe(true);
+  const yaml = (copied as { yaml: string }).yaml;
+  for (const id of ['Ask', 'Late', 'Form', 'In_1', 'Gate', 'F1', 'Sub', 'Inner', 'Around', 'Phase one']) expect(yaml, id).toContain(id);
+  for (const id of ['Other', 'To_Other']) expect(yaml, id).not.toContain(id);
+  expect(study.toYaml(), 'a copy is a read').toContain('default: To_Other');
+
+  expect(study.copy({ ids: ['Late'] }), 'what sits on an activity goes only with it').toMatchObject({ ok: false });
+  expect(study.copy({ ids: ['F1'] })).toMatchObject({ ok: false });
+  expect(study.copy({ ids: ['Ask', 'Nowhere'] })).toEqual({ ok: false, reason: "no element 'Nowhere'" });
+});
+
+test('paste draws a copy in as one edit: fresh ids for taken ones, centred where it is put, into what is there; a document it cannot take is refused', () => {
+  const study = Study.fromDefinitions(studyflowToDefinitions(CLIPBOARD, freshModdle()));
+  const yaml = (study.copy({ ids: ['Ask', 'Gate', 'Form'] }) as { yaml: string }).yaml;
+  const before = study.list().length;
+
+  const pasted = study.paste({ yaml, at: { x: 700, y: 500 } });
+  expect(pasted).toMatchObject({ ok: true, changed: [], removed: [] });
+  const records = pasted.added.map((id) => study.get(id)!);
+  expect(records.map((r) => r.id)).not.toContain('Ask');
+  const task = records.find((r) => r.name === 'Ask')!;
+  const gate = records.find((r) => r.type === 'bpmn:ExclusiveGateway')!;
+  expect(records.find((r) => r.type === 'bpmn:SequenceFlow')).toMatchObject({ source: task.id, target: gate.id });
+  expect(records.find((r) => r.type === 'bpmn:BoundaryEvent')).toMatchObject({ attachedTo: task.id });
+  expect(records.find((r) => r.type === 'bpmn:DataInputAssociation')).toMatchObject({ target: task.id });
+  const shapes = records.filter((r) => r.kind === 'node').map((r) => r.bounds!);
+  const left = Math.min(...shapes.map((b) => b.x));
+  const right = Math.max(...shapes.map((b) => b.x + b.width));
+  expect(Math.abs((left + right) / 2 - 700)).toBeLessThanOrEqual(1);
+
+  expect(study.paste({ yaml, into: 'Sub' }).added.map((id) => study.get(id)!.parent)).toContain('Sub');
+  study.undo();
+  study.undo();
+  expect(study.list().length).toBe(before);
+
+  expect(study.paste({ yaml: 'just words' }).reason).toContain('not a studyflow document');
+  expect(study.paste({ yaml, into: 'Other' }), 'a task holds nothing').toMatchObject({ ok: false });
+});
+
 test('a caption keeps up with what it names, in a study no view draws', () => {
   const study = open();
   study.add({ type: 'bpmn:StartEvent', id: 'Go', name: 'go', at: { x: 100, y: 400 } });
@@ -440,7 +544,7 @@ test('an MCP client drives a study through its tools: listed as JSON, called wit
 
   const tools = JSON.parse(JSON.stringify(Study.tools)) as StudyTool[];
   expect(tools, 'JSON through and through').toEqual(Study.tools);
-  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'attributes', 'catalog', 'can']);
+  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'attributes', 'catalog', 'can', 'copy']);
   expect(tools.find((tool) => tool.name === 'connect')?.inputSchema).toMatchObject({ type: 'object', required: ['from', 'to'] });
 
   const appended = call(study, 'append', { from: 'Task_1', type: 'bpmn:EndEvent', id: 'Done' });

@@ -161,13 +161,19 @@ function renameInCode(element: Described, renamed: Map<string, string>): void {
   }
 }
 
-/**
- * The template's elements, built as a file holding them builds. An id `document` already holds is suffixed (a
- * second drop gets `eo_gate_…`): references follow the element they point at, and so does code that names it by
- * text, an expression (`state.trace.count('eo_gate')`) or a `{placeholder}`. Names and documentation keep the word.
- */
+/** The template's elements, built as a file holding them builds, their ids clear of `document`'s. */
 function buildElements(elements: Record<string, unknown>, document: ModdleObject, ids: Pick<IdGenerator, 'nextPrefixed'>): ModdleObject {
   const definitions = studyflowToDefinitions({ definitions: {}, elements }, modelOf(document) as never) as ModdleObject;
+  renameClashes(definitions, document, ids);
+  return definitions;
+}
+
+/**
+ * An id of `definitions` that `document` already holds is suffixed (a second drop gets `eo_gate_…`): references
+ * follow the element they point at, and so does code that names it by text, an expression
+ * (`state.trace.count('eo_gate')`) or a `{placeholder}`. Names and documentation keep the word.
+ */
+export function renameClashes(definitions: ModdleObject, document: ModdleObject, ids: Pick<IdGenerator, 'nextPrefixed'>): void {
   const held = new Set([...elementsIn(document)].map((element) => element.id));
   const renamed = new Map<string, string>();
   for (const element of elementsIn(getProperty(definitions, 'rootElements'))) {
@@ -177,5 +183,4 @@ function buildElements(elements: Record<string, unknown>, document: ModdleObject
     element.id = id;
   }
   if (renamed.size > 0) for (const element of elementsIn(getProperty(definitions, 'rootElements'))) renameInCode(element, renamed);
-  return definitions;
 }

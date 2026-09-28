@@ -25,6 +25,7 @@ import {
 import { IdGenerator } from '@canvas/study/ids.ts';
 import { syncLabel } from '@canvas/study/labels.ts';
 import {
+  asList,
   asModdle,
   mint,
   modelOf,
@@ -555,6 +556,50 @@ export class Mutator {
     syncLabel(scene, node);
     this.finish(promotion ? [scene.rootElement, ...promotion.adopt] : [], [node]);
     return node;
+  }
+
+  /**
+   * Draw `fragment`, a document drawn on its own (a paste), into `parent` (the root when none), moved `by`: what it
+   * holds at its top is filed there, the rest stays in what holds it; what else it brings (a group's category)
+   * becomes the document's.
+   */
+  graft(fragment: Scene, parent: SceneNode | undefined, by: Point): void {
+    const scene = this.scene;
+    const { owner, lane } = flowContainerOf(parent, scene.root);
+    const added: Drawable[] = [];
+    const collect = (element: SceneElement): void => {
+      if (element.kind === 'label') return;
+      added.push(element);
+      if (element.kind === 'node') element.children.forEach(collect);
+    };
+    const top = [...fragment.rootElement.children];
+    top.forEach(collect);
+    for (const element of fragment.elementsById.values()) {
+      if (element.kind === 'edge') element.waypoints = element.waypoints.map((p) => ({ x: p.x + by.x, y: p.y + by.y }));
+      else {
+        element.x += by.x;
+        element.y += by.y;
+      }
+      scene.elementsById.set(element.id, element);
+      if (element.kind === 'label') continue;
+      scene.byBusinessObject.set(element.businessObject, element);
+      this.ids.claim(element.id);
+    }
+    for (const element of top) {
+      if (element.kind === 'label') continue;
+      linkIntoTree(scene, element, parent);
+      // A data association stays filed on its activity.
+      if (isDataAssociationType(element.type)) continue;
+      setParent(element.businessObject, owner);
+      pushInto(owner, containmentPropertyFor(element.type), element.businessObject);
+      if (lane && element.kind === 'node' && isBpmnSubtypeOf(element.type, 'bpmn:FlowNode')) pushInto(lane, 'flowNodeRef', element.businessObject);
+    }
+    for (const root of asList(getProperty(fragment.definitions, 'rootElements'))) {
+      if (root === fragment.root) continue;
+      setParent(root, scene.definitions);
+      pushInto(scene.definitions, 'rootElements', root);
+    }
+    this.finish([], added);
   }
 
   addConnection(spec: AddConnectionSpec): SceneEdge {

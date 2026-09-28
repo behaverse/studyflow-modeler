@@ -28,12 +28,17 @@ export function writeDi(scene: Scene): void {
   setProperty(plane, 'bpmnElement', scene.root);
   const elements: ModdleObject[] = [];
   for (const element of drawablesOf(scene)) {
-    const di = element.kind === 'node' ? shapeDi(element, factory) : edgeDi(element, factory);
+    const di = diOf(element, factory);
     setParent(di, plane);
     elements.push(di);
   }
   setProperty(plane, 'planeElement', elements);
   setProperty(definitions, 'diagrams', [diagram]);
+}
+
+/** How a file draws `element`: its `BPMNShape` or `BPMNEdge`. */
+export function diOf(element: SceneNode | SceneEdge, factory: ModdleFactory | undefined): ModdleObject {
+  return element.kind === 'node' ? shapeDi(element, factory) : edgeDi(element, factory);
 }
 
 function shapeDi(node: SceneNode, factory: ModdleFactory | undefined): ModdleObject {

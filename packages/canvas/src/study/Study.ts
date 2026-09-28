@@ -27,8 +27,9 @@ import { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
+import { copyOf, fragmentOf } from '@canvas/study/clipboard.ts';
 import { isStepTool, misfitOf, STUDY_TOOLS, type AskableTool, type StepTool, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
-import { edgesAffectedBy, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
+import { boundsOf, edgesAffectedBy, hostOf, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
 /** The ids of the nodes and flows a change added, changed (the root's, when the diagram's own properties changed) and removed. */
@@ -89,6 +90,8 @@ export interface StudyInternals {
 
 /** Edits of one run this close together are one undo step. */
 const RUN_WINDOW_MS = 1000;
+/** How far right and down a paste with no place lands from where its document draws it: beside what it copied. */
+const PASTE_STEP = 20;
 
 const internals = new WeakMap<Study, StudyInternals>();
 
@@ -225,6 +228,7 @@ export class Study {
     const argument = args as any;
     switch (name as Exclude<ToolName, StepTool>) {
       case 'document': return { ok: true, yaml: this.toYaml() };
+      case 'copy': return this.copy(argument);
       case 'get': {
         const element = this.get(argument.id);
         return element ? { ok: true, element } : refused(`no element '${argument.id}'`);
@@ -452,6 +456,42 @@ export class Study {
     });
   }
 
+  /**
+   * The shapes `ids` name, with what they hold, the boundary events on them and the flows between them, as a
+   * `.studyflow.yaml` document of their own: what `paste` takes. A read.
+   */
+  copy(args: { ids: string[] }): { ok: true; yaml: string } | { ok: false; reason: string } {
+    const found = this.elements(args.ids);
+    if (typeof found === 'string') return { ok: false, reason: `no element '${found}'` };
+    const yaml = copyOf(studyInternals(this).scene, args.ids);
+    return yaml === undefined ? { ok: false, reason: 'nothing to copy: pools, lanes and a flow without its ends stay behind' } : { ok: true, yaml };
+  }
+
+  /**
+   * Draw the shapes and flows of `yaml`, a `.studyflow.yaml` document's process (what `copy` gives), as one edit:
+   * centred on `at`, or without it a step right of and below where the document draws them; into the container
+   * `into` names (the root's id for the top level; without one, whatever is under `at`). An id the study holds is
+   * swapped for a fresh one, and code naming it follows.
+   */
+  paste(args: { yaml: string; at?: Point; into?: string }): StudyResult {
+    const { scene, rules, mutator } = studyInternals(this);
+    const top = args.into === undefined || args.into === scene.rootElement.id;
+    const named = top ? undefined : scene.elementsById.get(args.into!);
+    if (!top && named?.kind !== 'node') return refused(`no container '${args.into}'`);
+    const container = named?.kind === 'node' ? named : args.into === undefined && args.at ? containerOf(hitTest(scene, args.at)) : undefined;
+    const fragment = fragmentOf(args.yaml, scene.definitions, mutator.ids);
+    if (typeof fragment === 'string') return refused(fragment);
+    const shapes = fragment.rootElement.children.filter((element): element is SceneNode => element.kind === 'node');
+    const context = named?.kind === 'node' ? { ...named, isExpanded: true } : container ?? scene.rootElement;
+    const misfit = shapes.find((shape) => !hostOf(fragment, shape) && !rules.canCreate(shape, context, { root: scene.rootElement }));
+    if (misfit) return refused(`a ${misfit.type} cannot go ${container ? `into '${container.id}'` : 'at the top level'}`);
+    const box = boundsOf(shapes)!;
+    const by = args.at
+      ? { x: Math.round(args.at.x - box.x - box.width / 2), y: Math.round(args.at.y - box.y - box.height / 2) }
+      : { x: PASTE_STEP, y: PASTE_STEP };
+    return this.commit(() => mutator.graft(fragment, container, by));
+  }
+
   /** Remove `ids` and all that goes with them (contents, flows), as one edit; a caption's id clears the name it shows. */
   remove(args: { ids: string[] }): StudyResult {
     const { mutator } = studyInternals(this);
@@ -661,6 +701,7 @@ export class Study {
       reconnect: (a) => this.reconnect(a),
       resize: (a) => this.resize(a),
       reroute: (a) => this.reroute(a),
+      paste: (a) => this.paste(a),
       layout: () => this.layout(),
       set: (a) => this.set(a),
       remove: (a) => this.remove(a),
