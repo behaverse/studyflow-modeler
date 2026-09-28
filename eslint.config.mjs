@@ -7,7 +7,8 @@ import reactHooks from 'eslint-plugin-react-hooks'
 // runtime never import each other (what both need lives in core/, their shared localStorage in @core/storage);
 // the modeler reaches the canvas through its index only; and the canvas's study/ needs no DOM.
 export default [
-  { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results'] },
+  // `.claude/worktrees` holds other checkouts of this repo, each linted in its own.
+  { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results', '.claude'] },
   // The repo's JavaScript is Node scripts: the release, the example renderer, the Electron shell, a dev proxy.
   {
     files: ['**/*.mjs'],

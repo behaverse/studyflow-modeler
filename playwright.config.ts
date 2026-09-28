@@ -3,7 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   // Project-wide specs in tests/, each package's under packages/<name>/tests/, each skill's under skills/<name>/tests/.
   testDir: '.',
-  testIgnore: ['**/node_modules/**', '**/dist/**', 'playwright-report/**', 'test-results/**'],
+  // `.claude/worktrees` holds other checkouts of this repo, with specs of their own.
+  testIgnore: ['**/node_modules/**', '**/dist/**', 'playwright-report/**', 'test-results/**', '.claude/**'],
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -27,7 +28,7 @@ export default defineConfig({
     // Browser specs against the one editor the app ships.
     {
       name: 'e2e',
-      testIgnore: ['**/node_modules/**', '**/dist/**', '**/*.unit.spec.ts', '**/*.webkit.spec.ts'],
+      testIgnore: ['**/node_modules/**', '**/dist/**', '.claude/**', '**/*.unit.spec.ts', '**/*.webkit.spec.ts'],
       use: {
         ...devices['Desktop Chrome'],
       },
