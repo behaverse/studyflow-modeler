@@ -20,8 +20,6 @@ export type Settings = {
   autoSaveToFile: boolean;
   /** Whether a drag lands on the 10-unit grid; alignment snapping wins inside its own threshold either way. */
   snapToGrid: boolean;
-  /** Whether the whole diagram shows small in the canvas's corner, the region in view marked on it. */
-  minimap: boolean;
   /** Moddle prefixes of extension schemas to load at boot. */
   enabledSchemas: string[];
 };
@@ -30,7 +28,6 @@ const DEFAULT_SETTINGS: Settings = {
   diagramAutoSave: 'local',
   autoSaveToFile: true,
   snapToGrid: true,
-  minimap: true,
   enabledSchemas: [...SCHEMA_NAMES],
 };
 

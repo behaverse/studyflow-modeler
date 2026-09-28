@@ -104,7 +104,6 @@ export const ICONS = {
   slash: 'iconify bi--slash-lg',
   route: 'iconify ph--path',
   tidy: 'iconify ph--tree-structure',
-  map: 'iconify ph--map-trifold',
   swapVertical: 'iconify fluent--person-swap-16-regular',
 
   /* Text-style bar */

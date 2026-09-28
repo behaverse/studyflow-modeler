@@ -1,13 +1,12 @@
 /**
- * The minimap's look: a small card of the app's chrome in the canvas's bottom-left corner, just right of the palette
- * and under its flyouts (the palette is 210); the region the canvas shows is marked in the drill-down blue.
+ * The minimap's look: a small card of the app's chrome; what it rings is ringed in the drill-down blue. Where it
+ * stands is its host's.
  */
 
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
 
 export const minimap = {
-  root: `fixed bottom-2 left-[3.75rem] z-[205] hidden md:block w-[200px] h-[130px] overflow-hidden
-         ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}`,
+  root: `hidden md:block w-[200px] h-[130px] overflow-hidden ${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat}`,
 } as const;
 
 /**
@@ -16,14 +15,13 @@ export const minimap = {
  */
 export const MAP_CSS = `
 div { width: 100%; height: 100%; }
-svg { cursor: pointer; }
 svg * { vector-effect: non-scaling-stroke; }
 `;
 
-/** The region the canvas shows, as the map draws it: a thin frame at any zoom, lightly filled. */
-export const VIEW_MARK = {
+/** The ring round an element the map points at: a frame at any zoom, lightly filled. */
+export const FOCUS_RING = {
   fill: 'hsl(205,100%,45%)',
-  'fill-opacity': '0.08',
+  'fill-opacity': '0.15',
   stroke: 'hsl(205,100%,45%)',
-  'stroke-width': '1.5',
+  'stroke-width': '2',
 } as const;

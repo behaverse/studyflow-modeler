@@ -9,7 +9,6 @@ import { Palette } from '@modeler/palette/Palette';
 import { PopupMenus } from '@modeler/popup/PopupMenus';
 import { ContextPad } from '@modeler/contextPad/ContextPad';
 import { Breadcrumbs } from '@modeler/drilldown/Breadcrumbs';
-import { Minimap } from '@modeler/minimap/Minimap';
 import { SettingsView } from '@modeler/settings/SettingsView';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import type { Editor } from '@modeler/editor/port';
@@ -53,8 +52,6 @@ export function App() {
           {/* The sub-process drill-down trail. Like the pad it stands down during a
               replay, where the view is driven by the recording rather than the user. */}
           {modeler && !isReplaying && <Breadcrumbs />}
-          {/* The whole diagram small in a corner; it stands down with the pad during a replay. */}
-          {modeler && !isReplaying && <Minimap />}
           {isSettingsOpen && <SettingsView onClose={() => setIsSettingsOpen(false)} />}
           <Notices />
         </div>

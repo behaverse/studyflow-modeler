@@ -258,17 +258,6 @@ function EditorSection() {
         }
       />
 
-      <Row
-        label="Minimap"
-        help="Show the whole diagram small in the corner, with the part in view marked on it. Click or drag it to move the view there."
-        control={
-          <ToggleControl
-            label="Minimap"
-            checked={settings.minimap}
-            onChange={(minimap) => update({ minimap })}
-          />
-        }
-      />
 
       <Row
         label="Auto-save"

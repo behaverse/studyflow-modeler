@@ -22,7 +22,7 @@ A view changes the document by sending a command: `executeCommand(editor, { type
 | `open/`, `export/`, `publish/` | The Open dialog and the picker; the encoders (`commands.ts`), the Save dialog and the export model the projections read; the upload to the Behaverse API. |
 | `inspector/` | The side panel. `Panel.tsx` follows the selection, `categories.ts` files attributes under tabs, `registry.tsx` picks an input per attribute (`inputs.tsx`, `editors.tsx`). A section a tab shows beyond attributes is its own file (`state.tsx`, `dataFlow.tsx`, `loop.tsx`, `participants.tsx`, `message.tsx`), each over a pure helper module the unit specs pin. |
 | `palette/`, `popup/`, `contextPad/`, `commandPalette/`, `navBar/`, `drilldown/` | The chrome around the canvas. The ⌘K palette also hosts the dialogs and the hidden `open-file-input` the CLI and the e2e specs drive. |
-| `provenance/`, `simulation/` | The run trail and its replay; the token simulator. |
+| `provenance/`, `simulation/`, `minimap/` | The run trail and its replay; the token simulator; the minimap, the whole diagram small with the elements a host names ringed (the replay's current step). |
 | `settings/`, `gallery/`, `examples/`, `checklist/`, `gantt/`, `shape/`, `draw/`, `ui/` | Settings, the examples gallery, the read-only views, element commands, icon maps, shared styles. A template drops through the canvas (`study/templates.ts`). |
 
 Skills add to the modeler through `skills/<name>/modeler.ts` (`skillModules.ts`): exports it writes and foreign formats it opens.

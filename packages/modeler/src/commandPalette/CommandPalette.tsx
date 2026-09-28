@@ -39,8 +39,6 @@ import { ICONS } from '@modeler/icons';
 
 type SubDialogProps = { isOpen: boolean; onClose: () => void; scopeId?: string; onBrowse?: () => void };
 
-const isMinimapOn = (): boolean => getSettings().minimap;
-
 const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<SubDialogProps>> = {
   gallery: GalleryDialog,
   open: OpenDialog,
@@ -81,7 +79,6 @@ export function CommandPalette({ ref }: Props) {
   const isSimulating = useIsSimulating(modeler);
   // A string selector, so the palette does not re-render through every save state transition.
   const linkedFileName = useSyncExternalStore(subscribeLink, getLinkedFileName, getLinkedFileName);
-  const isMinimapShown = useSyncExternalStore(subscribeSettings, isMinimapOn, isMinimapOn);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -104,14 +101,13 @@ export function CommandPalette({ ref }: Props) {
       buildPaletteCommands({
         modeler,
         isSimulating,
-        isMinimapShown,
         openSettings,
         // Palette-opened dialogs are unscoped; only the `p`-on-selection path sets a provenance scope.
         openDialog: (id: PaletteDialogId) => setDialog({ id }),
         openReplay,
         linkedFileName,
       }),
-    [modeler, openSettings, isSimulating, isMinimapShown, openReplay, linkedFileName],
+    [modeler, openSettings, isSimulating, openReplay, linkedFileName],
   );
 
   // The study's elements, read as the palette opens; they join the list once something is typed.

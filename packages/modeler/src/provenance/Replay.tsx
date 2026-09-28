@@ -18,6 +18,7 @@ import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
 
 import { ICONS } from '@modeler/icons';
+import { Minimap } from '@modeler/minimap/Minimap';
 
 const SPEEDS = [
   { label: '½×', ms: 1600 },
@@ -333,6 +334,7 @@ function ReplayTimeline({ onClose }: Props) {
   const shown = applyStatuses(records.slice(0, at).map((r) => ({ ...r })));
   const current = shown[shown.length - 1];
   useReplayHighlights(editor, shown);
+  const focus = current ? elementsOf(current, editor.study).map((element) => element.id) : [];
 
   const jump = (to: number) => {
     setPlaying(false);
@@ -378,6 +380,8 @@ function ReplayTimeline({ onClose }: Props) {
 
   return (
     <div className="fixed bottom-2 inset-x-2 z-[220]" data-testid="provenance-replay" data-covers="bottom">
+      {/* Over the bar's right end, where the inspector stood: the whole study, the step's element ringed. */}
+      <Minimap focus={focus} className="absolute bottom-full right-0 mb-2" covers="right" />
       <div className={`${radius.card} ${surface.chrome} ${border.hairline} ${shadow.panelFlat} text-stone-900 px-3 py-2`}>
         <div className="flex items-center gap-1">
           <h1

@@ -96,14 +96,22 @@ function stamped(xml: string, id: string, when: string): string {
   return xml.replace(ext, `$1<prov:activity action="executed" when="${when}" />`);
 }
 
-test('the replay enters and leaves the plane of the element a record names', async ({ page }) => {
+test('the replay enters and leaves the plane of the element a record names, and its minimap rings that element on the main diagram', async ({ page }) => {
   let xml = await exampleXml('sklearn_pipeline');
   xml = stamped(xml, 'start_analysis', '2026-09-01T10:00:00Z');
   xml = stamped(xml, 'cross_validate', '2026-09-01T10:00:05Z');
   await openExample(page, 'sklearn_pipeline', xml);
+  const minimap = page.getByTestId('minimap');
+  await expect(minimap, 'only a replay shows it').toHaveCount(0);
   await runPaletteCommand(page, /replay provenance/i);
   const replay = page.getByTestId('provenance-replay');
   await replay.getByRole('button', { name: /end/i }).click();
+  // It keeps to the main diagram: a step inside a collapsed sub-process rings the sub-process.
+  await expect(minimap).toHaveAttribute('data-focus', 'select_model');
+  // It stands over the bar's right end.
+  const [map, bar] = [(await minimap.boundingBox())!, (await replay.boundingBox())!];
+  expect(map.y + map.height).toBeLessThanOrEqual(bar.y);
+  expect(map.x + map.width).toBeCloseTo(bar.x + bar.width, 0);
 
   // `cross_validate` lives in the collapsed `select_model`: the replay drills in and lands on it.
   await expect(shape(page, 'cross_validate')).toBeVisible({ timeout: 10_000 });
@@ -115,10 +123,14 @@ test('the replay enters and leaves the plane of the element a record names', asy
 
   // Stepping back to the root-plane record surfaces again.
   await replay.getByRole('button', { name: /back/i }).click();
+  await expect(minimap).toHaveAttribute('data-focus', 'start_analysis');
   await expect(shape(page, 'start_analysis')).toBeVisible({ timeout: 10_000 });
   await expect(shape(page, 'cross_validate')).toBeHidden();
   await expect.poll(async () => {
     const [token] = await tokens(page, '.studyflow-replay-token');
     return token?.shown && inside(token, await box(shape(page, 'start_analysis')));
   }, { timeout: 10_000 }).toBe(true);
+
+  await replay.getByRole('button', { name: /close replay/i }).click();
+  await expect(minimap).toHaveCount(0);
 });
