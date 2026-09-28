@@ -96,6 +96,12 @@ export function transform(element: SVGElement, x: number, y: number): void {
   element.setAttribute('transform', `translate(${x}, ${y})`);
 }
 
+/** Where the `translate` in an element's `transform` puts it; the origin when it has none. */
+export function translation(element: Element): { x: number; y: number } {
+  const match = /translate\(\s*([^\s,)]+)[\s,]+([^\s,)]+)\s*\)/.exec(element.getAttribute('transform') ?? '');
+  return match ? { x: Number(match[1]), y: Number(match[2]) } : { x: 0, y: 0 };
+}
+
 /** Create a `<g>` translated to `(x, y)`, optionally carrying `attrs`. */
 export function group(x = 0, y = 0, attrs?: Record<string, AttrValue>): SVGGElement {
   const g = create('g', attrs) as SVGGElement;

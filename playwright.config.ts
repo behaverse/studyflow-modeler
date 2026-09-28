@@ -14,6 +14,8 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     acceptDownloads: true,
+    // The canvas animates its camera and its edits; a spec reads where they land, at once.
+    contextOptions: { reducedMotion: 'reduce' },
   },
   projects: [
     // Node-side unit specs, browserless; `test:unit` runs them via playwright.unit.config.ts.

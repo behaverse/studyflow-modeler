@@ -208,10 +208,11 @@ export class Renderer {
     return g;
   }
 
-  erase(id: string): boolean {
+  /** Stop drawing the element `id`: its group goes to `dispose`, which removes it unless told otherwise. */
+  erase(id: string, dispose: (g: SVGGElement) => void = remove): boolean {
     const g = this.graphicsById.get(id);
     if (!g) return false;
-    remove(g);
+    dispose(g);
     this.graphicsById.delete(id);
     // What jumped over an erased edge no longer crosses anything there.
     const box = this.jumpBoxes.get(id);

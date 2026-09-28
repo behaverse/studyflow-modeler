@@ -1,6 +1,7 @@
 /** Pan and zoom, expressed as the root `viewBox`; screen ↔ diagram transforms. */
 
 import type { Bounds, Point, SceneElement } from '@canvas/study/scene.ts';
+import { DURATION, easeOut, moves } from '@canvas/view/motion.ts';
 
 export interface Viewbox {
   x: number;
@@ -19,6 +20,8 @@ export interface Insets {
   left?: number;
 }
 
+type Box = { x: number; y: number; width: number; height: number };
+
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 20;
 
@@ -32,7 +35,10 @@ function uiScale(): number {
 export class Viewport {
   private readonly root: SVGSVGElement;
   private readonly container: HTMLElement;
-  private box = { x: 0, y: 0, width: 1000, height: 1000 };
+  private box: Box = { x: 0, y: 0, width: 1000, height: 1000 };
+  /** Where a glide is taking the camera, while one is under way. */
+  private goal?: Box;
+  private frame?: number;
   /** Told after every move of the camera, once constructed. */
   private onChange?: () => void;
   /** What the host's UI covers now, asked at each fit and reveal. */
@@ -61,39 +67,80 @@ export class Viewport {
     this.onChange?.();
   }
 
+  /**
+   * Show `box`: at once, or with `glide` travelling there, its centre in a line and its scale evenly. Any other move
+   * of the camera stops a glide where it is and goes on from there.
+   */
+  private moveTo(box: Box, glide = false): void {
+    const view = this.root.ownerDocument?.defaultView;
+    if (this.frame !== undefined) view?.cancelAnimationFrame(this.frame);
+    this.frame = undefined;
+    this.goal = undefined;
+    if (!glide || !view || !moves(this.root)) {
+      this.box = box;
+      this.applyViewbox();
+      return;
+    }
+    const from = this.box;
+    const cx = (b: Box): number => b.x + b.width / 2;
+    const cy = (b: Box): number => b.y + b.height / 2;
+    let start: number | undefined;
+    const step = (now: number): void => {
+      start ??= now;
+      const t = Math.min(1, (now - start) / DURATION.camera);
+      const k = easeOut(t);
+      const width = from.width * (box.width / from.width) ** k;
+      const height = from.height * (box.height / from.height) ** k;
+      const x = cx(from) + (cx(box) - cx(from)) * k - width / 2;
+      const y = cy(from) + (cy(box) - cy(from)) * k - height / 2;
+      this.box = t < 1 ? { x, y, width, height } : box;
+      this.frame = t < 1 ? view.requestAnimationFrame(step) : undefined;
+      if (t >= 1) this.goal = undefined;
+      this.applyViewbox();
+    };
+    this.goal = box;
+    this.frame = view.requestAnimationFrame(step);
+  }
+
   getViewbox(): Viewbox {
     return { ...this.box, scale: this.rendering().scale };
   }
 
   setViewbox(box: Partial<Omit<Viewbox, 'scale'>>): void {
-    this.box = {
+    this.moveTo({
       x: box.x ?? this.box.x,
       y: box.y ?? this.box.y,
       width: box.width && box.width > 0 ? box.width : this.box.width,
       height: box.height && box.height > 0 ? box.height : this.box.height,
-    };
-    this.applyViewbox();
+    });
   }
 
   zoom(): number;
-  zoom(scale: number, center?: Point): number;
-  zoom(scale?: number, center?: Point): number {
+  zoom(scale: number, center?: Point, glide?: boolean): number;
+  zoom(scale?: number, center?: Point, glide = false): number {
     if (scale === undefined) return this.getViewbox().scale;
     const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
-    const cx = center?.x ?? this.box.x + this.box.width / 2;
-    const cy = center?.y ?? this.box.y + this.box.height / 2;
+    // A glide under way zooms about where it is going.
+    const box = glide ? this.goal ?? this.box : this.box;
+    const cx = center?.x ?? box.x + box.width / 2;
+    const cy = center?.y ?? box.y + box.height / 2;
     const newWidth = this.clientWidth() / clamped;
     const newHeight = this.clientHeight() / clamped;
-    const relX = (cx - this.box.x) / this.box.width;
-    const relY = (cy - this.box.y) / this.box.height;
-    this.box = { x: cx - relX * newWidth, y: cy - relY * newHeight, width: newWidth, height: newHeight };
-    this.applyViewbox();
+    const relX = (cx - box.x) / box.width;
+    const relY = (cy - box.y) / box.height;
+    this.moveTo({ x: cx - relX * newWidth, y: cy - relY * newHeight, width: newWidth, height: newHeight }, glide);
     return clamped;
   }
 
+  /** The scale the camera shows at, or is gliding to. */
+  destinedZoom(): number {
+    const box = this.goal;
+    if (!box) return this.zoom();
+    return Math.min(this.clientWidth() / box.width, this.clientHeight() / box.height);
+  }
+
   pan(dx: number, dy: number): void {
-    this.box = { ...this.box, x: this.box.x - dx, y: this.box.y - dy };
-    this.applyViewbox();
+    this.moveTo({ ...this.box, x: this.box.x - dx, y: this.box.y - dy });
   }
 
   /** A fit asked for while the container had no size yet, re-applied once it does. */
@@ -125,21 +172,24 @@ export class Viewport {
     };
   }
 
-  /** Fit `bounds` with `padding` in the part of the view the host's UI leaves free, never magnifying past the UI scale. */
-  fitBounds(bounds: Bounds, padding = 40): void {
+  /**
+   * Fit `bounds` with `padding` in the part of the view the host's UI leaves free, never magnifying past the UI scale;
+   * the scale it lands on.
+   */
+  fitBounds(bounds: Bounds, padding = 40, glide = false): number {
     this.pendingFit = this.container.clientWidth > 0 && this.container.clientHeight > 0 ? undefined : { bounds, padding };
     const width = Math.max(1, bounds.width);
     const height = Math.max(1, bounds.height);
     const free = this.free();
     const scale = Math.min(free.width / (width + padding * 2), free.height / (height + padding * 2), uiScale());
     // The whole view at that scale, placed so the bounds sit centred in the free part.
-    this.box = {
+    this.moveTo({
       x: bounds.x + width / 2 - (free.left + free.width / 2) / scale,
       y: bounds.y + height / 2 - (free.top + free.height / 2) / scale,
       width: this.clientWidth() / scale,
       height: this.clientHeight() / scale,
-    };
-    this.applyViewbox();
+    }, glide);
+    return scale;
   }
 
   /** How the browser maps the viewBox (`xMidYMid meet`): one scale, centred. */
@@ -174,7 +224,7 @@ export class Viewport {
   }
 
   /** Pan the least that shows `bounds` whole, with `margin` screen pixels round it, in the part of the view left free. */
-  bringIntoView(bounds: Bounds, margin = 20): void {
+  bringIntoView(bounds: Bounds, margin = 20, glide = false): void {
     const { scale, ox, oy } = this.rendering();
     const free = this.free();
     // The free part, in diagram units.
@@ -188,22 +238,20 @@ export class Viewport {
     const dx = shift(bounds.x, bounds.x + bounds.width, left, right);
     const dy = shift(bounds.y, bounds.y + bounds.height, top, bottom);
     if (dx === 0 && dy === 0) return;
-    this.box = { ...this.box, x: this.box.x + dx, y: this.box.y + dy };
-    this.applyViewbox();
+    this.moveTo({ ...this.box, x: this.box.x + dx, y: this.box.y + dy }, glide);
   }
 
   /** Centre `element` in the part of the view the host's UI leaves free, at the scale the view has. */
-  scrollToElement(element: SceneElement): void {
+  scrollToElement(element: SceneElement, glide = false): void {
     const center = elementCenter(element);
     if (!center) return;
     const { scale, ox, oy } = this.rendering();
     const free = this.free();
-    this.box = {
+    this.moveTo({
       ...this.box,
       x: center.x - (free.left + free.width / 2 - ox) / scale,
       y: center.y - (free.top + free.height / 2 - oy) / scale,
-    };
-    this.applyViewbox();
+    }, glide);
   }
 }
 

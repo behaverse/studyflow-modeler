@@ -24,10 +24,11 @@ import { shapeOf } from '@canvas/study/templates.ts';
 import { boundsOf, isCollapsed, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf, isExpandable } from '@core/document/outline.ts';
 import { edgeDashArray, ensureArrowMarkers, markerEndFor, previewEdge, Renderer, type RendererOptions } from '@canvas/render/renderer.ts';
-import { append, create, remove, setDocument } from '@canvas/render/svg.ts';
+import { append, create, remove, setDocument, translation } from '@canvas/render/svg.ts';
 import { routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { CONNECTION, type RuleElement, type Rules } from '@canvas/study/rules.ts';
 import { Layers } from '@canvas/view/layers.ts';
+import { enter, follow, leave, moves, slide } from '@canvas/view/motion.ts';
 import { injectCanvasStyles } from '@canvas/view/theme.ts';
 import { Viewport, type Insets, type Viewbox } from '@canvas/view/viewport.ts';
 
@@ -57,6 +58,9 @@ export interface CanvasViewbox extends Viewbox {
 const ANCHOR_GAP = 8;
 const ANCHOR_MARGIN = 4;
 
+/** How far, in diagram units, an edit must carry a shape before the view shows it travelling: a nudge just lands. */
+const MOVE_TO_SHOW = 16;
+
 /** Shapes created unnamed and useless: their label editor opens on drop. */
 const EDIT_ON_CREATE_TYPES = new Set<string>([
   BPMN.Task, BPMN.UserTask, BPMN.ServiceTask, BPMN.ScriptTask, BPMN.ManualTask, BPMN.SendTask,
@@ -76,6 +80,12 @@ export interface CanvasEvents {
   appendMenu: readonly string[];
   /** The camera moved, or the view changed its size: what the view shows now. */
   camera: CanvasViewbox;
+}
+
+/** Let go of an erased element's group: no longer the element's, it fades where it was. */
+function fadeOut(g: SVGGElement): void {
+  g.removeAttribute('data-element-id');
+  leave(g);
 }
 
 /** What the canvas's own specs read behind a view's public face. The package index does not export it. */
@@ -287,7 +297,7 @@ export class Canvas {
     this.appendPreview = undefined;
     this.layers.clear();
     this.renderer.renderScene(this.scene, this.layers.getLayer('elements'));
-    this.zoom('fit');
+    this.fit();
     this.emit('scope', this.scope);
   }
 
@@ -385,7 +395,7 @@ export class Canvas {
     this.scopeNode = node;
     this.renderer.scope = node;
     this.redrawElements(this.all());
-    this.zoom('fit');
+    this.fit();
     this.emit('scope', this.scope);
     return true;
   }
@@ -426,22 +436,27 @@ export class Canvas {
     this.viewport.setViewbox(box);
   }
 
-  /** Zoom to a scale, a step in or out about the view's centre, or to fit what the view draws; the scale it lands on. */
+  /**
+   * Zoom to a scale, a step in or out about the view's centre, or to fit what the view draws, gliding there; the scale
+   * it lands on.
+   */
   zoom(to: number | 'in' | 'out' | 'fit'): number {
-    if (to === 'fit') {
-      const drawn = this.all().filter((element) => !isHidden(element, this.scopeNode));
-      this.viewport.fitBounds(boundsOf(drawn) ?? { x: 0, y: 0, width: 1000, height: 1000 }, 40);
-      return this.viewport.zoom();
-    }
-    const scale = this.viewport.zoom();
-    return this.viewport.zoom(to === 'in' ? scale * ZOOM_STEP : to === 'out' ? scale / ZOOM_STEP : to);
+    if (to === 'fit') return this.fit(true);
+    const scale = this.viewport.destinedZoom();
+    return this.viewport.zoom(to === 'in' ? scale * ZOOM_STEP : to === 'out' ? scale / ZOOM_STEP : to, undefined, true);
   }
 
-  /** Centre the view on the element `id`; false when the view draws nothing for it. */
+  /** Fit what the view draws: at once, as a view that has just drawn its study does, or gliding there. */
+  private fit(glide = false): number {
+    const drawn = this.all().filter((element) => !isHidden(element, this.scopeNode));
+    return this.viewport.fitBounds(boundsOf(drawn) ?? { x: 0, y: 0, width: 1000, height: 1000 }, 40, glide);
+  }
+
+  /** Centre the view on the element `id`, gliding there; false when the view draws nothing for it. */
   reveal(id: string): boolean {
     const element = this.scene.elementsById.get(id);
     if (!element || !this.draws(id)) return false;
-    this.viewport.scrollToElement(element);
+    this.viewport.scrollToElement(element, true);
     return true;
   }
 
@@ -542,14 +557,51 @@ export class Canvas {
 
   // --- drawing ----------------------------------------------------------------------
 
-  /** Draw what a commit did: erase what it removed, mount what it added, redraw what it changed, keep the paint order. */
+  /**
+   * Draw what a commit did: erase what it removed, mount what it added, redraw what it changed, keep the paint order.
+   * Where the page animates, what went fades, what came settles in, and what moved far travels.
+   */
   private drawCommit({ added, changed, removed }: ChangedIds): void {
     const drawn = (ids: readonly string[]): SceneElement[] => ids.flatMap((id) => this.scene.elementsById.get(id) ?? []);
+    const before = moves(this.root) ? this.placesOf(changed) : undefined;
     if (removed.length > 0) this.eraseRemoved(removed);
-    for (const element of drawn(added)) this.mount(element);
+    for (const element of drawn(added)) enter(this.mount(element));
     this.redrawElements(drawn(changed));
+    if (before) this.showMoves(before, drawn(changed));
     this.restack();
     this.placeAnchor();
+  }
+
+  /** Where the view draws the shapes and captions `ids` names now, by id. */
+  private placesOf(ids: readonly string[]): Map<string, Point> {
+    const places = new Map<string, Point>();
+    for (const id of ids) {
+      const g = this.renderer.graphicsById.get(id);
+      if (g && !g.classList.contains('sf-connection')) places.set(id, translation(g));
+    }
+    return places;
+  }
+
+  /**
+   * Show the shapes and captions an edit carried far (a tidy, a spread) travelling from where they were drawn `before`,
+   * and the connections they pull redrawn once they arrive.
+   */
+  private showMoves(before: ReadonlyMap<string, Point>, changed: readonly SceneElement[]): void {
+    const travelled = new Set<string>();
+    for (const [id, from] of before) {
+      const g = this.renderer.graphicsById.get(id);
+      if (!g) continue;
+      const to = translation(g);
+      if (Math.hypot(to.x - from.x, to.y - from.y) < MOVE_TO_SHOW) continue;
+      slide(g, from, to);
+      travelled.add(id);
+    }
+    if (travelled.size === 0) return;
+    for (const element of changed) {
+      if (element.kind !== 'edge' || !(travelled.has(element.source?.id ?? '') || travelled.has(element.target?.id ?? ''))) continue;
+      const g = this.renderer.graphicsById.get(element.id);
+      if (g) follow(g);
+    }
   }
 
   /** Erase what a commit removed, and let go of it: the label editor, the hover, the markers, the selection. */
@@ -560,8 +612,8 @@ export class Canvas {
     const hovered = this.selectionSet.getHovered();
     if (hovered && gone.has(hovered.id)) this.selectionSet.setHovered(undefined);
     for (const id of removed) {
-      this.renderer.erase(id);
-      this.renderer.erase(labelIdOf({ id }));
+      this.renderer.erase(id, fadeOut);
+      this.renderer.erase(labelIdOf({ id }), fadeOut);
       this.selectionSet.forget(id);
     }
     const selected = this.selectionSet.get();
@@ -699,7 +751,7 @@ export class Canvas {
     const result = this.study.append({ ...what, from });
     const made = this.made(result);
     if (made?.kind === 'node') {
-      this.viewport.bringIntoView(made);
+      this.viewport.bringIntoView(made, undefined, true);
       this.placed(made);
     }
     return result;
