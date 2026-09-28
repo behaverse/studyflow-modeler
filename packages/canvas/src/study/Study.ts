@@ -24,6 +24,7 @@ import { layoutScene } from '@canvas/study/layout.ts';
 import { rerouteEdge, rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
 import { Rules } from '@canvas/study/rules.ts';
+import { spreadEdges } from '@canvas/study/spread.ts';
 import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
@@ -448,12 +449,7 @@ export class Study {
    */
   layout(_args: Record<string, never> = {}): StudyResult {
     const { scene, mutator } = studyInternals(this);
-    return this.commit(() => {
-      const moved = layoutScene(scene);
-      const flows = [...scene.elementsById.values()].filter((element): element is SceneEdge => element.kind === 'edge');
-      for (const flow of flows) rerouteEdge(flow, { obstacles: obstaclesIn(scene, planeOf(flow)) });
-      mutator.commit([...moved, ...flows]);
-    });
+    return this.commit(() => mutator.commit(layOut(scene)));
   }
 
   /**
@@ -854,6 +850,22 @@ async function parse(text: string, moddle: Moddle, onWarning?: (message: string)
 /** The moddle that built `definitions`: it reads and writes their files. */
 function moddleOf(definitions: ModdleObject): Moddle {
   return definitions.$model as Moddle;
+}
+
+/**
+ * Lay `scene` out afresh (`study/layout.ts`) and route every flow anew, those on one line slid apart
+ * (`study/spread.ts`); what that moved, captions among it.
+ */
+function layOut(scene: Scene): SceneElement[] {
+  const moved = layoutScene(scene);
+  const flows = [...scene.elementsById.values()].filter((element): element is SceneEdge => element.kind === 'edge');
+  for (const flow of flows) rerouteEdge(flow, { obstacles: obstaclesIn(scene, planeOf(flow)) });
+  for (const plane of new Set(flows.map(planeOf))) {
+    const here = flows.filter((flow) => planeOf(flow) === plane);
+    const spread = spreadEdges(here.map((flow) => ({ waypoints: flow.waypoints, source: flow.source, target: flow.target })));
+    here.forEach((flow, i) => { flow.waypoints = spread[i]; });
+  }
+  return [...moved, ...flows];
 }
 
 /** One scene in place of another, by id: the nodes and edges only `before` held, those only `after` holds, and the rest. */

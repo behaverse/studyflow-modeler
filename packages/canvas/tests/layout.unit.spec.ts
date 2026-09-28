@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
-import { Study, type Bounds, type Point } from '@canvas/index.ts';
+import { Study, type Bounds, type ElementRecord, type Point } from '@canvas/index.ts';
 
 import { freshModdle } from '@tests/schemas';
+import { exampleXml } from '@tests/utils';
 
 /** Tidy: the study's `layout` verb lays the whole diagram out afresh, as one edit. */
 
@@ -348,4 +349,22 @@ Phase:
   for (const [i, a] of piled.entries()) for (const b of piled.slice(i + 1)) expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
   const around = box(study, 'Around');
   expect([holds(around, box(study, 'One')), holds(around, box(study, 'Two')), holds(around, box(study, 'Three'))]).toEqual([true, true, false]);
+});
+
+test('flows the router would lay on one line are slid apart', async () => {
+  // CONSORT fans out at gateways and sends a boundary event's flow from each step to one shared end.
+  const study = await Study.open(await exampleXml('consort2025'), { moddle: freshModdle() });
+  study.layout();
+  const runs = study.list({ kind: 'edge' }).flatMap((flow: ElementRecord) => flow.waypoints!.slice(1).map((b, i) => ({ flow, a: flow.waypoints![i], b })));
+  for (const [i, p] of runs.entries()) {
+    for (const q of runs.slice(i + 1)) {
+      if (p.flow === q.flow || p.flow.plane !== q.flow.plane) continue;
+      for (const [axis, along] of [['y', 'x'], ['x', 'y']] as const) {
+        if (p.a[axis] !== p.b[axis] || q.a[axis] !== q.b[axis] || p.a[axis] !== q.a[axis]) continue;
+        const shared = Math.min(Math.max(p.a[along], p.b[along]), Math.max(q.a[along], q.b[along]))
+          - Math.max(Math.min(p.a[along], p.b[along]), Math.min(q.a[along], q.b[along]));
+        expect(shared, `${p.flow.id} lies on ${q.flow.id} along ${axis}=${p.a[axis]}`).toBeLessThanOrEqual(0);
+      }
+    }
+  }
 });
