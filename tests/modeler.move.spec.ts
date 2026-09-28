@@ -51,11 +51,11 @@ test.describe('Moving a shape', () => {
     const task = page.locator('g[data-element-id^="Task_"]').first();
     const from = await centreOf(task);
 
-    // A deliberately un-round delta, dropped where nothing can align to it: with the
-    // snap off, the offset survives into the DI instead of being quantized away.
+    // A deliberately un-round delta, dropped up and right, where nothing can align to it:
+    // with the snap off, the offset survives into the DI instead of being quantized away.
     await page.mouse.move(from.x, from.y);
     await page.mouse.down();
-    await page.mouse.move(from.x + 137, from.y + 93, { steps: 8 });
+    await page.mouse.move(from.x + 137, from.y - 93, { steps: 8 });
     await expect(snapLines(page)).toHaveCount(0);
     await page.mouse.up();
 

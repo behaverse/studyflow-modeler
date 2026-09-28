@@ -14,19 +14,29 @@ async function viewCentre(page: Page): Promise<{ x: number; y: number }> {
   return { x: box[0] + box[2] / 2, y: box[1] + box[3] / 2 };
 }
 
-test('the minimap draws the study, a press on it moves the canvas there, and the palette hides and shows it', async ({ page }) => {
+test('the minimap draws the study, which opens fitted clear of it; a press on it moves the canvas there, and the palette hides and shows it', async ({ page }) => {
   await gotoModeler(page);
   await runPaletteCommand(page, /^New/);
-  await page.getByTestId('example-consort2025').click();
+  // bot_ollama's model pool reaches the lower left corner, where the map stands.
+  await page.getByTestId('example-bot_ollama').click();
   await expect(page.getByTestId('gallery-dialog')).toBeHidden();
 
   // It draws in a closed shadow root, out of the page's reach: what it draws is the canvas's own drawing.
   const minimap = page.getByTestId('minimap');
   await expect(minimap).toBeVisible();
+  const map = (await minimap.boundingBox())!;
+
+  // The canvas fits the study above the map: nothing it draws lies under it.
+  const underMap = () => page.locator('svg.sf-canvas g[data-element-id]').evaluateAll((elements, m) => elements
+    .filter((element) => {
+      const b = element.getBoundingClientRect();
+      return b.width > 0 && b.x < m.x + m.width && m.x < b.x + b.width && b.y < m.y + m.height && m.y < b.y + b.height;
+    })
+    .map((element) => element.getAttribute('data-element-id')), map);
+  await expect.poll(underMap).toEqual([]);
 
   // The map fits the whole study, so its top edge is the study's top: a press there brings the canvas up.
   const before = await viewCentre(page);
-  const map = (await minimap.boundingBox())!;
   await page.mouse.click(map.x + map.width / 2, map.y + 6);
   expect((await viewCentre(page)).y).toBeLessThan(before.y);
 

@@ -87,5 +87,6 @@ export function Minimap() {
   }, [modeler, isShown]);
 
   if (!isShown) return null;
-  return <div ref={host} className={s.root} data-testid="minimap" aria-hidden="true" />;
+  // It covers the view's lower edge, so a fit keeps the diagram above it (`mount.ts coveredEdges`).
+  return <div ref={host} className={s.root} data-testid="minimap" data-covers="bottom" aria-hidden="true" />;
 }
