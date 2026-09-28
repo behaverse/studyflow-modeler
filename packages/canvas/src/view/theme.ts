@@ -44,6 +44,12 @@ const CANVAS_CSS = `
 .sf-canvas .selected > .sf-outline { visibility: visible; stroke: var(--sf-accent); }
 .sf-canvas .sf-resizing > .sf-outline, .sf-canvas .sf-editing > .sf-outline { visibility: hidden; }
 
+/* Under the pointer, a shape's own lines press a little harder: what a press would take, in whatever ink it has. */
+.sf-canvas:not(.sf-panning):not(.sf-drag-active) .sf-shape:hover > [stroke-width="1.5"]:not(.sf-outline) { stroke-width: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .sf-canvas .sf-shape > [stroke-width="1.5"] { transition: stroke-width 0.12s ease-out; }
+}
+
 /* The marks a host puts on elements (canvas.mark): faded, or glowing red. */
 .sf-canvas .sf-shape, .sf-canvas .sf-connection { transition: opacity 0.25s ease; }
 .sf-canvas .sf-mark-dimmed { opacity: 0.22; }
