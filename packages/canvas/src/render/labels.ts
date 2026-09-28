@@ -13,6 +13,14 @@ import { append, create } from '@canvas/render/svg.ts';
 
 
 export const LABEL_FONT = '"IBM Plex Sans", Helvetica, sans-serif';
+/** The face for text that reads as prose beside the diagram: a note, and the name a pool runs up its band. */
+export const NOTE_FONT = '"IBM Plex Serif", ui-serif, Georgia, serif';
+
+/** The face the text an element of `type` holds is set in. */
+export function familyOf(type: string): string {
+  const category = categoryOf(type);
+  return category === 'annotation' || category === 'participant' ? NOTE_FONT : LABEL_FONT;
+}
 export const WEIGHT = { internal: '500', external: '400' } as const;
 
 /** Height of the strip an expanded container's caption sits in. */
@@ -27,6 +35,8 @@ export interface TextStyle {
   color: string;
   weight?: string;
   italic?: boolean;
+  /** `LABEL_FONT` when not said. */
+  family?: string;
   anchor?: 'start' | 'middle' | 'end';
 }
 
@@ -57,7 +67,7 @@ export function textLine(content: string, x: number, y: number, style: TextStyle
     'font-size': style.fontSize,
     'font-weight': style.weight ?? WEIGHT.external,
     'font-style': style.italic ? 'italic' : null,
-    'font-family': LABEL_FONT,
+    'font-family': style.family ?? LABEL_FONT,
     'text-anchor': style.anchor ?? 'middle',
     'dominant-baseline': 'middle',
     'stroke-width': 0,

@@ -25,6 +25,7 @@ import {
   drawBandText,
   drawInternalLabel,
   drawLabel,
+  NOTE_FONT,
   styled,
   textLine,
   WEIGHT,
@@ -532,7 +533,7 @@ export class Renderer {
     const width = Math.max(1, node.width - 2 * ANNOTATION_PADDING);
     const lines = wrap(content, width + 8, FONT.annotation, 20);
     const at = alignedX(ANNOTATION_PADDING, width, node.font?.align ?? 'left');
-    const style = styled({ fontSize: FONT.annotation, color, anchor: at.anchor }, node.font);
+    const style = styled({ fontSize: FONT.annotation, color, anchor: at.anchor, family: NOTE_FONT }, node.font);
     lines.forEach((line, i) => append(g, textLine(line, at.x, ANNOTATION_PADDING + (i + 0.5) * LINE_HEIGHT, style)));
   }
 
@@ -543,7 +544,7 @@ export class Renderer {
     const room = node.height - markerRoom;
     const y = room / 2;
     const text = textLine(markerRoom > 0 ? fit(name, room, FONT.internal) : name, x, y,
-      styled({ fontSize: FONT.internal, color, weight: WEIGHT.internal }, node.font));
+      styled({ fontSize: FONT.internal, color, weight: WEIGHT.internal, family: NOTE_FONT }, node.font));
     attr(text, { transform: `rotate(-90, ${x}, ${y})`, 'dominant-baseline': 'central' });
     append(g, text);
   }

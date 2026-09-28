@@ -10,7 +10,7 @@ import { nameOf } from '@canvas/study/moddle.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { edgeLabelBox, FONT, LINE_HEIGHT, nodeLabelBox, textWidth } from '@canvas/study/text.ts';
-import { internalLabelRegion, LABEL_FONT, WEIGHT } from '@canvas/render/labels.ts';
+import { familyOf, internalLabelRegion, LABEL_FONT, WEIGHT } from '@canvas/render/labels.ts';
 import { choreographyBandHeight } from '@core/document/outline.ts';
 import { ownerDocument } from '@canvas/render/svg.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
@@ -196,7 +196,7 @@ export class LabelEditing {
     if (container.style.position === '') container.style.position = 'relative';
     const font = session.band === 'name' ? session.element.font : undefined;
     Object.assign(input.style, {
-      fontFamily: LABEL_FONT,
+      fontFamily: session.band === 'name' ? familyOf(session.element.type) : LABEL_FONT,
       fontSize: `${fontSizeFor(session.element, session.band) * this.scale()}px`,
       fontWeight: font?.bold ? '700' : placement === 'internal' ? WEIGHT.internal : WEIGHT.external,
       fontStyle: font?.italic ? 'italic' : '',
