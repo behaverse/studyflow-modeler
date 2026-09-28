@@ -677,7 +677,7 @@ function marker(id: string, refX: number, refY: number): SVGMarkerElement {
 function makeArrow(id: string, filled: boolean): SVGMarkerElement {
   const m = marker(id, 8, 5);
   append(m, create('path', {
-    d: 'M1,1 L9,5 L1,9 Z', fill: filled ? 'context-stroke' : 'none', stroke: 'context-stroke', 'stroke-width': 1, 'stroke-linejoin': 'round',
+    d: 'M1,2 L9,5 L1,8 Z', fill: filled ? 'context-stroke' : 'none', stroke: 'context-stroke', 'stroke-width': 1, 'stroke-linejoin': 'round',
   }));
   return m;
 }
