@@ -4,12 +4,15 @@ import { saveLinkedFile } from '@modeler/diagram/save';
 import { MOD_LABEL, URLS } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
 import { getPaletteIconForBpmnType } from '@modeler/palette/groups';
+import { setSettings } from '@modeler/settings/store';
 import type { PaletteCommand, PaletteDialogId } from '@modeler/commandPalette/types';
 import type { Editor } from '@modeler/editor/port';
 
 export type PaletteCommandDeps = {
   modeler: Editor;
   isSimulating: boolean;
+  /** Whether the minimap shows: it decides what its entry says. */
+  isMinimapShown: boolean;
   openSettings: () => void;
   openDialog: (id: PaletteDialogId) => void;
   openReplay: () => void;
@@ -36,7 +39,7 @@ export function buildElementEntries(modeler: Editor): PaletteCommand[] {
 }
 
 export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[] {
-  const { modeler, isSimulating, openSettings, openDialog, openReplay, linkedFileName } = deps;
+  const { modeler, isSimulating, isMinimapShown, openSettings, openDialog, openReplay, linkedFileName } = deps;
 
   return [
     {
@@ -134,6 +137,14 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       keywords: 'auto layout arrange clean up',
       action: () => executeCommand(modeler, { type: 'TidyLayout' })
         .catch((err) => console.warn('Tidy layout failed', err)),
+    },
+    {
+      id: 'minimap',
+      group: 'View',
+      label: isMinimapShown ? 'Hide Minimap' : 'Show Minimap',
+      icon: ICONS.map,
+      keywords: 'overview navigator map corner',
+      action: () => { setSettings({ minimap: !isMinimapShown }); },
     },
     {
       id: 'view-checklist',
