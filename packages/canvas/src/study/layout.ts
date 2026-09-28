@@ -21,9 +21,9 @@ import { centerOf, isDataShape, PARTICIPANT_BAND } from '@core/document/outline.
 import { getProperty } from '@core/element/moddle.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
-import type { Bounds, ModdleObject, Point, RootElement, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Bounds, Point, RootElement, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { isRootElement } from '@canvas/study/scene.ts';
-import { isCollapsed, isExpanded } from '@canvas/study/tree.ts';
+import { hostOf, isCollapsed, isExpanded } from '@canvas/study/tree.ts';
 
 /** Room between layers and between rows, round what a container holds, between pools and round a group's shapes. */
 const GAP_X = 60;
@@ -514,12 +514,6 @@ function holdings(container: Container): SceneNode[] {
 function linkedShapes(node: SceneNode, among: readonly SceneNode[]): SceneNode[] {
   const ends = [...node.incoming.map((edge) => edge.source), ...node.outgoing.map((edge) => edge.target)];
   return among.filter((shape) => ends.includes(shape));
-}
-
-/** The activity a boundary event sits on. */
-function hostOf(scene: Scene, node: SceneNode): SceneNode | undefined {
-  const host = scene.byBusinessObject.get(getProperty(node.businessObject, 'attachedToRef') as ModdleObject);
-  return host?.kind === 'node' ? host : undefined;
 }
 
 /** How far each shape's boundary events and captions reach past its box, as the shapes stand now. */
