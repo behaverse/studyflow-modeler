@@ -226,6 +226,70 @@ P2:
   expect(middle(study, 'Wait').x).toBe(middle(study, 'Prepare').x);
 });
 
+test('a shape much wider than most spans the layers it covers: what another pool does meanwhile stands under it', () => {
+  const study = open(`id: Defs_Wide
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab:
+  type: Collaboration
+  participants:
+    Screen:
+      processRef: P1
+      bounds: 0 0 1400 150
+    Robot:
+      processRef: P2
+      bounds: 0 200 1400 150
+  messageFlows:
+    M:
+      sourceRef: Game
+      targetRef: One
+      waypoint: 400,115 300,235
+P1:
+  type: Process
+  flowElements:
+    Load:
+      type: StartEvent
+      bounds: 40 57 36 36
+    Game:
+      type: Task
+      bounds: 100 35 600 80
+    F1:
+      sourceRef: Load
+      targetRef: Game
+      waypoint: 76,75 100,75
+P2:
+  type: Process
+  flowElements:
+    Seated:
+      type: StartEvent
+      bounds: 40 257 36 36
+    One:
+      type: Task
+      bounds: 100 235 100 80
+    Two:
+      type: Task
+      bounds: 250 235 100 80
+    Three:
+      type: Task
+      bounds: 400 235 100 80
+    F2:
+      sourceRef: Seated
+      targetRef: One
+      waypoint: 76,275 100,275
+    F3:
+      sourceRef: One
+      targetRef: Two
+      waypoint: 200,275 250,275
+    F4:
+      sourceRef: Two
+      targetRef: Three
+      waypoint: 350,275 400,275
+`);
+  study.layout();
+  const game = box(study, 'Game');
+  for (const id of ['One', 'Two', 'Three']) expect(middle(study, id).x, id).toBeLessThan(game.x + game.width);
+});
+
 test('what goes with a shape comes along: a boundary event keeps its place, and its caption keeps its room', () => {
   const study = open(`id: Defs_Boundary
 definitions:

@@ -6,7 +6,8 @@
  * down the page, with no pools or lanes, is laid out down the page.
  *
  * The shapes of a layer stand in rows, each taking its predecessors' row where it is free, so a chain keeps to one
- * line and a branch drops below. A shape takes room for what goes with it: what sits on it, its caption and theirs.
+ * line and a branch drops below. A shape much wider than most takes as many layers as it covers, so what other rows
+ * and bands do meanwhile stands under it. A shape takes room for what goes with it: what sits on it, its caption and theirs.
  * A lane is a band of such rows, a pool a stack of lanes, and pools stack down the page, all as wide as the widest.
  * An open sub-process is laid out inside first and then placed like any shape; a closed one's plane is laid out apart.
  * A data shape stands in a row under the steps it feeds or takes from; the shapes no flow reaches (and the notes
@@ -136,24 +137,52 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
     return inside ? { width: inside.width, height: inside.height + HEADER } : { width: node.width, height: node.height };
   };
 
-  // Each layer's middle line, from the left of the contents, the layer as wide as its widest shape and what goes with it.
-  const layer = layersOf(placed, flow, (node) => band.get(node)!);
-  const row = rowsOf(placed, layer, flow, (node) => band.get(node)!);
-  const layers = Math.max(0, ...placed.map((shape) => layer.get(shape)! + 1));
+  // A shape much wider than most spans the layers its room covers at their usual width (none past its own).
+  const roomWidth = (shape: SceneNode): number => sizeOf(shape).width + reach(shape).left + reach(shape).right;
+  const usual = median(placed.map(roomWidth));
+  const span = new Map(placed.map((shape) => [shape, Math.max(0, Math.floor((roomWidth(shape) + GAP_X) / (usual + GAP_X)) - 1)] as const));
+  const spanOf = (shape: SceneNode): number => span.get(shape) ?? 0;
+
+  // Each layer's middle line, from the left of the contents, the layer as wide as its widest one-layer shape and what
+  // goes with it; the last layer a wider shape spans is widened, when they fall short of it.
+  const layer = layersOf(placed, flow, (node) => band.get(node)!, spanOf);
+  const row = rowsOf(placed, layer, flow, (node) => band.get(node)!, spanOf);
+  const layers = Math.max(0, ...placed.map((shape) => layer.get(shape)! + spanOf(shape) + 1));
   const west = Array.from({ length: layers }, () => 0);
   const east = Array.from({ length: layers }, () => 0);
-  for (const shape of placed) {
+  for (const shape of placed.filter((one) => spanOf(one) === 0)) {
     const l = layer.get(shape)!;
     west[l] = Math.max(west[l], sizeOf(shape).width / 2 + reach(shape).left);
     east[l] = Math.max(east[l], sizeOf(shape).width / 2 + reach(shape).right);
   }
   const middle: number[] = [];
   let across = 0;
-  for (let l = 0; l < layers; l += 1) {
-    middle[l] = across + west[l];
-    across = middle[l] + east[l] + GAP_X;
+  const lineUp = (): void => {
+    across = 0;
+    for (let l = 0; l < layers; l += 1) {
+      middle[l] = across + west[l];
+      across = middle[l] + east[l] + GAP_X;
+    }
+  };
+  lineUp();
+  const reachOver = (shape: SceneNode): { from: number; to: number } => {
+    const first = layer.get(shape)!;
+    const end = first + spanOf(shape);
+    return { from: middle[first] - west[first], to: middle[end] + east[end] };
+  };
+  for (const shape of placed.filter((wide) => spanOf(wide) > 0).sort((p, q) => layer.get(p)! + spanOf(p) - layer.get(q)! - spanOf(q))) {
+    const { from, to } = reachOver(shape);
+    if (to - from >= roomWidth(shape)) continue;
+    east[layer.get(shape)! + spanOf(shape)] += roomWidth(shape) - (to - from);
+    lineUp();
   }
   const flowWidth = layers > 0 ? across - GAP_X : 0;
+  /** A shape's middle, from the left of the contents: its layer's middle line, or the middle of the layers it spans. */
+  const centreX = (shape: SceneNode): number => {
+    if (spanOf(shape) === 0) return middle[layer.get(shape)!];
+    const { from, to } = reachOver(shape);
+    return (from + to) / 2 + (reach(shape).left - reach(shape).right) / 2;
+  };
 
   // A data shape stands with the steps it links to, a lane's in its lane; what no flow joins, with its holder.
   const data = holders.flatMap(dataShapes);
@@ -167,7 +196,7 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
   };
   const wantedX = (node: SceneNode): number => {
     const linked = linkedShapes(node, placed);
-    return linked.reduce((sum, shape) => sum + middle[layer.get(shape)!], 0) / linked.length;
+    return linked.reduce((sum, shape) => sum + centreX(shape), 0) / linked.length;
   };
 
   // Per band: its rows, each as tall as its shapes and what goes with them, then its data row, then what it keeps.
@@ -236,7 +265,7 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
         const rowsTop = top + m.pad;
         for (const shape of m.members) {
           const size = sizeOf(shape);
-          const box = { x: left + middle[layer.get(shape)!] - size.width / 2, y: rowsTop + m.line[row.get(shape)!] - size.height / 2, ...size };
+          const box = { x: left + centreX(shape) - size.width / 2, y: rowsTop + m.line[row.get(shape)!] - size.height / 2, ...size };
           setBox(shape, box);
           insides.get(shape)?.place(box.x, box.y + HEADER);
         }
@@ -351,12 +380,12 @@ function flowGraph(shapes: readonly SceneNode[], events: readonly SceneNode[]): 
 }
 
 /**
- * Each shape's layer: one past the last shape of its own band that leads to it, and no earlier than any shape that
- * does, so a flow into another band may run straight down or up while a band's own flow always moves right. The flows
- * that loop back are set aside (the ones drawn going back, where the drawing tells). A start then moves up to just
+ * Each shape's first layer: one past the last layer of its own band that leads to it, and no earlier than any shape
+ * that does, so a flow into another band may run straight down or up while a band's own flow always moves right. The
+ * flows that loop back are set aside (the ones drawn going back, where the drawing tells). A start then moves up to just
  * before what it leads to.
  */
-function layersOf(shapes: readonly SceneNode[], flow: Flow, bandOf: (node: SceneNode) => number): Map<SceneNode, number> {
+function layersOf(shapes: readonly SceneNode[], flow: Flow, bandOf: (node: SceneNode) => number, spanOf: (node: SceneNode) => number): Map<SceneNode, number> {
   const back = new Set<string>();
   const state = new Map<SceneNode, 'open' | 'done'>();
   const finished: SceneNode[] = [];
@@ -386,11 +415,11 @@ function layersOf(shapes: readonly SceneNode[], flow: Flow, bandOf: (node: Scene
     layer.set(node, at);
     const seen = new Map<number, number>();
     for (const source of into) for (const [b, l] of last.get(source)!) seen.set(b, Math.max(seen.get(b) ?? 0, l));
-    last.set(node, seen.set(band, at));
+    last.set(node, seen.set(band, at + spanOf(node)));
   }
   for (const node of order.filter((shape) => flow.before.get(shape)!.length === 0)) {
     const out = flow.after.get(node)!.filter((target) => !back.has(`${node.id}>${target.id}`));
-    if (out.length > 0) layer.set(node, Math.max(layer.get(node)!, Math.min(...out.map((target) => layer.get(target)!)) - 1));
+    if (out.length > 0) layer.set(node, Math.max(layer.get(node)!, Math.min(...out.map((target) => layer.get(target)!)) - 1 - spanOf(node)));
   }
   return layer;
 }
@@ -402,9 +431,13 @@ function isExit(node: SceneNode, flow: Flow): boolean {
     && flow.next.get(into[0])!.length > 1;
 }
 
-/** Each shape's row in its band: its predecessors' middle row when free, else the nearest free one below, then above. */
+/**
+ * Each shape's row in its band: its predecessors' middle row when free (in every layer the shape spans), else the
+ * nearest free one below, then above.
+ */
 function rowsOf(
   shapes: readonly SceneNode[], layer: ReadonlyMap<SceneNode, number>, flow: Flow, bandOf: (node: SceneNode) => number,
+  spanOf: (node: SceneNode) => number,
 ): Map<SceneNode, number> {
   const row = new Map<SceneNode, number>();
   const taken = new Set<string>();
@@ -420,9 +453,11 @@ function rowsOf(
     for (const node of here) {
       // An exit wants its split's row, which it shares a layer with: it takes the free one under it.
       const want = exit(node) ? row.get(flow.prev.get(node)![0]) ?? 0 : wanted(node);
+      const spanned = Array.from({ length: spanOf(node) + 1 }, (_, i) => l + i);
+      const isFree = (r: number): boolean => spanned.every((m) => !taken.has(`${bandOf(node)}:${m}:${r}`));
       let at = want;
-      for (let step = 0; taken.has(`${bandOf(node)}:${l}:${at}`); step += 1) at = step % 2 === 0 ? want + step / 2 + 1 : Math.max(0, want - (step + 1) / 2);
-      taken.add(`${bandOf(node)}:${l}:${at}`);
+      for (let step = 0; !isFree(at); step += 1) at = step % 2 === 0 ? want + step / 2 + 1 : Math.max(0, want - (step + 1) / 2);
+      for (const m of spanned) taken.add(`${bandOf(node)}:${m}:${at}`);
       row.set(node, at);
     }
   }
@@ -499,7 +534,7 @@ function drawnDown(scene: Scene): boolean {
   const shapes = flowShapes(scene.rootElement);
   const flow = flowGraph(shapes, boundaryEvents(scene.rootElement));
   const joined = shapes.filter((shape) => flow.after.get(shape)!.length > 0 || flow.before.get(shape)!.length > 0);
-  const layer = layersOf(joined, flow, () => 0);
+  const layer = layersOf(joined, flow, () => 0, () => 0);
   const middleOf = (l: number): Point => {
     const points = joined.filter((shape) => layer.get(shape) === l).map(centerOf);
     return { x: points.reduce((sum, p) => sum + p.x, 0) / points.length, y: points.reduce((sum, p) => sum + p.y, 0) / points.length };
@@ -636,6 +671,11 @@ function hull(boxes: readonly Bounds[]): Bounds {
   const right = Math.max(...boxes.map((box) => box.x + box.width));
   const bottom = Math.max(...boxes.map((box) => box.y + box.height));
   return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+function median(values: readonly number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
 }
 
 function overlaps(a: Bounds, b: Bounds): boolean {
