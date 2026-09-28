@@ -28,7 +28,6 @@ import { GanttDialog } from '@modeler/gantt/Gantt';
 import { ManuscriptDialog } from '@modeler/manuscript/Manuscript';
 import { ProvenanceDialog } from '@modeler/provenance/Provenance';
 import { buildElementEntries, buildPaletteCommands } from '@modeler/commandPalette/menu';
-import { getSettings, subscribeSettings } from '@modeler/settings/store';
 import {
   groupCommands,
   searchCommands,

@@ -4,7 +4,6 @@ import { saveLinkedFile } from '@modeler/diagram/save';
 import { MOD_LABEL, URLS } from '@modeler/constants';
 import { ICONS } from '@modeler/icons';
 import { getPaletteIconForBpmnType } from '@modeler/palette/groups';
-import { setSettings } from '@modeler/settings/store';
 import type { PaletteCommand, PaletteDialogId } from '@modeler/commandPalette/types';
 import type { Editor } from '@modeler/editor/port';
 
