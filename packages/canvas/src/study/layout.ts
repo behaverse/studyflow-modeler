@@ -9,8 +9,8 @@
  * line and a branch drops below. A shape takes room for what goes with it: what sits on it, its caption and theirs.
  * A lane is a band of such rows, a pool a stack of lanes, and pools stack down the page, all as wide as the widest.
  * An open sub-process is laid out inside first and then placed like any shape; a closed one's plane is laid out apart.
- * A data shape stands in a row under the steps it feeds or takes from; the shapes no flow reaches keep their own
- * arrangement under that. A boundary event keeps its place on its activity, a note its place beside what it
+ * A data shape stands in a row under the steps it feeds or takes from; the shapes no flow reaches (and the notes
+ * nothing links) keep their own arrangement under that, or stand in rows when they have none (they overlap). A boundary event keeps its place on its activity, a note its place beside what it
  * annotates, and a group is drawn round the shapes it held.
  *
  * Shapes keep their sizes; containers are sized round what they hold. Pure geometry on the scene: it writes the boxes
@@ -21,7 +21,8 @@ import { centerOf, isDataShape, PARTICIPANT_BAND } from '@core/document/outline.
 import { getProperty } from '@core/element/moddle.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
-import type { Bounds, Point, RootElement, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import { asList } from '@canvas/study/moddle.ts';
+import type { Bounds, ModdleObject, Point, RootElement, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { isRootElement } from '@canvas/study/scene.ts';
 import { hostOf, isCollapsed, isExpanded } from '@canvas/study/tree.ts';
 
@@ -34,6 +35,8 @@ const GROUP_PAD = 20;
 /** Room above an open sub-process's contents, for its name; how low a lane or pool with nothing in it is. */
 const HEADER = 20;
 const EMPTY_BAND = 120;
+/** How wide the rows are that what no flow joins stands in, when it had no arrangement of its own. */
+const KEPT_ROW = 800;
 
 type Container = SceneNode | RootElement;
 
@@ -155,7 +158,8 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
   // A data shape stands with the steps it links to, a lane's in its lane; what no flow joins, with its holder.
   const data = holders.flatMap(dataShapes);
   const linkedData = data.filter((node) => linkedShapes(node, placed).length > 0);
-  const kept = [...loose, ...data.filter((node) => !linkedData.includes(node))];
+  const notes = holders.flatMap(holdings).filter((node) => node.type === 'bpmn:TextAnnotation' && node.incoming.length + node.outgoing.length === 0);
+  const kept = [...loose, ...data.filter((node) => !linkedData.includes(node)), ...notes];
   const dataBand = (node: SceneNode): number => {
     const lane = laneBand(node);
     const linked = linkedShapes(node, placed).find((shape) => holderBand(shape) === holderBand(node));
@@ -192,7 +196,7 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
     const dataAt = spread(dataRooms.map((room, i) => ({ want: wantedX(dataRow[i]), size: room.width })));
     const dataHeight = Math.max(0, ...dataRooms.map((room) => room.height));
     const keep = kept.filter((node) => dataBand(node) === index);
-    const keptBox = keep.length > 0 ? hull(keep.map((node) => roomOf(node, reach(node)))) : undefined;
+    const keptBox = keep.length > 0 ? arrangement(keep, reach, Math.max(flowWidth, KEPT_ROW)) : undefined;
     const parts = [rowsHeight, dataHeight, keptBox?.height ?? 0].filter((height) => height > 0);
     const content = parts.reduce((sum, height) => sum + height + GAP_Y, -GAP_Y);
     const pad = framed(b) ? PAD : 0;
@@ -244,9 +248,9 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
         }
         if (m.dataRow.length > 0) below += m.dataHeight + GAP_Y;
         // What no flow joins keeps its own arrangement, under the rest.
-        const keptBox = m.keptBox;
-        for (const node of keptBox ? m.keep : []) {
-          const box = { x: left + node.x - keptBox!.x, y: below + node.y - keptBox!.y, ...sizeOf(node) };
+        for (const node of m.keep) {
+          const at = m.keptBox!.at.get(node)!;
+          const box = { x: left + at.x, y: below + at.y, ...sizeOf(node) };
           setBox(node, box);
           insides.get(node)?.place(box.x, box.y + HEADER);
         }
@@ -290,6 +294,37 @@ function spread(items: readonly { want: number; size: number }[]): number[] {
     }
   }
   return at;
+}
+
+/**
+ * Where each of `nodes` stands in a block of them, from the block's top left, and the block's size: as they stand
+ * now, or in rows no wider than `across` when their rooms overlap (as a drawing drafted at one point has them).
+ */
+function arrangement(nodes: readonly SceneNode[], reach: (node: SceneNode) => Reach, across: number): { at: Map<SceneNode, Point>; width: number; height: number } {
+  const rooms = nodes.map((node) => roomOf(node, reach(node)));
+  const at = new Map<SceneNode, Point>();
+  if (!rooms.some((room, i) => rooms.slice(i + 1).some((other) => overlaps(room, other)))) {
+    const box = hull(rooms);
+    nodes.forEach((node) => at.set(node, { x: node.x - box.x, y: node.y - box.y }));
+    return { at, width: box.width, height: box.height };
+  }
+  let x = 0;
+  let y = 0;
+  let rowHeight = 0;
+  let width = 0;
+  nodes.forEach((node, i) => {
+    const room = rooms[i];
+    if (x > 0 && x + room.width > across) {
+      x = 0;
+      y += rowHeight + GAP_Y;
+      rowHeight = 0;
+    }
+    at.set(node, { x: x + node.x - room.x, y: y + node.y - room.y });
+    width = Math.max(width, x + room.width);
+    rowHeight = Math.max(rowHeight, room.height);
+    x += room.width + GAP_X;
+  });
+  return { at, width, height: y + rowHeight };
 }
 
 /** The flow between `shapes`: a boundary event's flows leave from its activity, and a message ends at a shape it reaches. */
@@ -420,7 +455,10 @@ function follow(scene: Scene, nodes: readonly SceneNode[], before: ReadonlyMap<S
   }
   for (const group of nodes.filter((node) => node.type === 'bpmn:Group')) {
     const was = before.get(group)!;
-    const members = nodes.filter((node) => node.type !== 'bpmn:Group' && !isLane(node) && !isPool(node) && inside(was, centerOf(before.get(node)!)));
+    // What it held: what stood inside it, and what its category names.
+    const value = getProperty(group.businessObject, 'categoryValueRef');
+    const named = (node: SceneNode): boolean => !!value && asList(getProperty(node.businessObject, 'categoryValueRef')).includes(value as ModdleObject);
+    const members = nodes.filter((node) => node.type !== 'bpmn:Group' && !isLane(node) && !isPool(node) && (inside(was, centerOf(before.get(node)!)) || named(node)));
     if (members.length === 0) continue;
     // Shapes that kept their arrangement keep their group as it was drawn; else it is drawn round them afresh.
     const by = members.map((node) => delta(node, before));
@@ -597,6 +635,10 @@ function hull(boxes: readonly Bounds[]): Bounds {
   const right = Math.max(...boxes.map((box) => box.x + box.width));
   const bottom = Math.max(...boxes.map((box) => box.y + box.height));
   return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+function overlaps(a: Bounds, b: Bounds): boolean {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 }
 
 function inside(box: Bounds, point: Point): boolean {

@@ -307,3 +307,45 @@ P:
   expect(middle(study, 'Data').x).toBe(middle(study, 'Read').x);
   expect(box(study, 'Data').y).toBeGreaterThan(bottom(box(study, 'Read')));
 });
+
+test('what no flow joins keeps its arrangement, or stands in rows when it has none; a group takes the shapes its category names', () => {
+  const study = open(`id: Defs_Kept
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    One:
+      type: Task
+      categoryValueRef:
+        - Phase_1
+      bounds: 100 100 100 80
+    Two:
+      type: Task
+      categoryValueRef:
+        - Phase_1
+      bounds: 100 100 100 80
+    Three:
+      type: Task
+      bounds: 100 100 100 80
+  artifacts:
+    Note:
+      type: TextAnnotation
+      text: piled on the rest
+      bounds: 100 100 100 30
+    Around:
+      type: Group
+      categoryValueRef: Phase_1
+      bounds: 0 0 0 0
+Phase:
+  type: Category
+  categoryValue:
+    Phase_1:
+      value: Phase one
+`);
+  study.layout();
+  const piled = ['One', 'Two', 'Three', 'Note'].map((id) => box(study, id));
+  for (const [i, a] of piled.entries()) for (const b of piled.slice(i + 1)) expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
+  const around = box(study, 'Around');
+  expect([holds(around, box(study, 'One')), holds(around, box(study, 'Two')), holds(around, box(study, 'Three'))]).toEqual([true, true, false]);
+});
