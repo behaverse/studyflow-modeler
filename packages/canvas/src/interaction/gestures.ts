@@ -1,8 +1,8 @@
 /**
  * The pointer loop: one `pointerdown` decides an intent (pan, marquee, move,
  * resize, waypoint, reconnect, create, connect), `pointermove` feeds it, and
- * `pointerup` commits. Also the wheel, touch pinch, double click, hover and the
- * canvas-scoped keyboard shortcuts.
+ * `pointerup` commits. Also the wheel, touch pinch, double click, hover, the
+ * canvas-scoped keyboard shortcuts, and copy, cut and paste.
  */
 
 import type { Canvas } from '@canvas/Canvas.ts';
@@ -17,6 +17,7 @@ import type { Create } from '@canvas/interaction/create.ts';
 import type { CreatePrototype, NewElement } from '@canvas/study/prototype.ts';
 import type { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { StudyResult } from '@canvas/study/Study.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
 import { isExpandable } from '@core/document/outline.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
@@ -29,6 +30,7 @@ const LARGE_NUDGE = 10;
 const ZOOM_STEP = 1.25;
 const WHEEL_ZOOM = 0.002;
 const EDGE_BODY_TOLERANCE = 5;
+const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const;
 
 type Intent = 'pan' | 'marquee' | 'move' | 'resize' | 'waypoint' | 'reconnect' | 'create' | 'connect' | 'none';
 
@@ -137,6 +139,10 @@ export class Gestures {
   private readonly onShortcut = (ev: Event) => this.handleShortcut(ev as KeyboardEvent);
   private readonly onDblClick = (ev: Event) => this.handleDoubleClick(ev as MouseEvent);
   private readonly onHover = (ev: Event) => this.handleHover(ev as MouseEvent);
+  private readonly onLeave = () => { this.pointer = undefined; };
+  private readonly onClipboard = (ev: Event) => this.handleClipboard(ev as ClipboardEvent);
+  /** Where the pointer last was over the view, on screen: where a paste lands. */
+  private pointer?: Point;
   private readonly onWheel = (ev: Event) => this.handleWheel(ev as WheelEvent);
 
   constructor(canvas: Canvas, tools: GestureTools) {
@@ -146,8 +152,10 @@ export class Gestures {
     root.addEventListener('pointerdown', this.onDown);
     root.addEventListener('dblclick', this.onDblClick);
     root.addEventListener('pointermove', this.onHover);
+    root.addEventListener('pointerleave', this.onLeave);
     root.addEventListener('wheel', this.onWheel, { passive: false });
     canvas.getContainer().addEventListener('keydown', this.onShortcut);
+    for (const type of CLIPBOARD_EVENTS) canvas.getContainer().addEventListener(type, this.onClipboard);
   }
 
   destroy(): void {
@@ -156,8 +164,10 @@ export class Gestures {
     root.removeEventListener('pointerdown', this.onDown);
     root.removeEventListener('dblclick', this.onDblClick);
     root.removeEventListener('pointermove', this.onHover);
+    root.removeEventListener('pointerleave', this.onLeave);
     root.removeEventListener('wheel', this.onWheel);
     this.canvas.getContainer().removeEventListener('keydown', this.onShortcut);
+    for (const type of CLIPBOARD_EVENTS) this.canvas.getContainer().removeEventListener(type, this.onClipboard);
   }
 
   isActive(): boolean {
@@ -657,6 +667,7 @@ export class Gestures {
   }
 
   private handleHover(ev: MouseEvent): void {
+    this.pointer = { x: ev.clientX, y: ev.clientY };
     if (!this.tools.scene() || this.gesture || this.pinch) return;
     const hit = this.tools.hitTest(this.eventPoint(ev));
     this.tools.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined);
@@ -693,6 +704,7 @@ export class Gestures {
         case '=': case '+': canvas.zoom('in'); handled = true; break;
         case '-': case '_': canvas.zoom('out'); handled = true; break;
         case '0': canvas.zoom(1); handled = true; break;
+        case 'd': case 'D': handled = editable && this.duplicate(); break;
         default: break;
       }
     } else if (editable) {
@@ -719,6 +731,50 @@ export class Gestures {
       }
     }
     if (handled) ev.preventDefault();
+  }
+
+  /**
+   * Copy and cut put the selection on the clipboard as `.studyflow.yaml` text (`study.copy`); paste draws what the
+   * clipboard holds under the pointer, or in the middle of the view, and selects it.
+   */
+  private handleClipboard(ev: ClipboardEvent): void {
+    const data = ev.clipboardData;
+    if (!data || ev.defaultPrevented || this.tools.labelEditing.isActive() || isTextEntry(ev.target)) return;
+    const study = this.canvas.study;
+    if (ev.type === 'paste') {
+      if (!this.tools.editable()) return;
+      const at = this.pointer ? this.tools.viewport.toDiagram(this.pointer) : this.tools.viewportCentre();
+      if (!this.selectPasted(study.paste({ yaml: data.getData('text/plain'), at }))) return;
+    } else {
+      const copied = study.copy({ ids: this.tools.selection.get().map((element) => element.id) });
+      if (!copied.ok) return;
+      data.setData('text/plain', copied.yaml);
+      if (ev.type === 'cut' && this.tools.editable()) this.canvas.deleteSelection();
+    }
+    ev.preventDefault();
+  }
+
+  /** `Ctrl`/`Cmd`+D: a copy of the selection a step right of and below it, in what holds it, selected. */
+  private duplicate(): boolean {
+    const elements = this.tools.selection.get();
+    const study = this.canvas.study;
+    const copied = study.copy({ ids: elements.map((element) => element.id) });
+    if (!copied.ok) return false;
+    const holders = new Set(elements.map((element) => element.parent?.id));
+    const into = holders.size === 1 ? [...holders][0] : undefined;
+    return this.selectPasted(study.paste({ yaml: copied.yaml, ...(into ? { into } : {}) }));
+  }
+
+  /** Select the shapes a paste added at its top (what holds the rest); whether it added anything. */
+  private selectPasted(result: StudyResult): boolean {
+    if (!result.ok) return false;
+    const study = this.canvas.study;
+    const added = new Set(result.added);
+    this.canvas.select(result.added.filter((id) => {
+      const record = study.get(id);
+      return record?.kind === 'node' && !(record.parent && added.has(record.parent));
+    }));
+    return true;
   }
 }
 
