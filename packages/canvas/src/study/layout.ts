@@ -382,17 +382,34 @@ function flowGraph(shapes: readonly SceneNode[], events: readonly SceneNode[]): 
 /**
  * Each shape's first layer: one past the last layer of its own band that leads to it, and no earlier than any shape
  * that does, so a flow into another band may run straight down or up while a band's own flow always moves right. The
- * flows that loop back are set aside (the ones drawn going back, where the drawing tells). A start then moves up to just
- * before what it leads to.
+ * flows that loop back are set aside: first those the drawing shows going back within a band (their target wholly
+ * before their source, and leading back to it), then any a search still finds. A start then moves up to just before
+ * what it leads to.
  */
 function layersOf(shapes: readonly SceneNode[], flow: Flow, bandOf: (node: SceneNode) => number, spanOf: (node: SceneNode) => number): Map<SceneNode, number> {
   const back = new Set<string>();
+  const leadsTo = (from: SceneNode, to: SceneNode): boolean => {
+    const seen = new Set([from]);
+    for (const queue = [from]; queue.length > 0;) {
+      for (const next of flow.after.get(queue.pop()!)!) {
+        if (next === to) return true;
+        if (!seen.has(next)) queue.push(seen.add(next) && next);
+      }
+    }
+    return false;
+  };
+  for (const node of shapes) {
+    for (const target of flow.after.get(node)!) {
+      if (bandOf(target) === bandOf(node) && target.x + target.width < node.x && leadsTo(target, node)) back.add(`${node.id}>${target.id}`);
+    }
+  }
   const state = new Map<SceneNode, 'open' | 'done'>();
   const finished: SceneNode[] = [];
   const byPlace = (a: SceneNode, b: SceneNode): number => a.x - b.x || a.y - b.y;
   const visit = (node: SceneNode): void => {
     state.set(node, 'open');
     for (const target of [...flow.after.get(node)!].sort(byPlace)) {
+      if (back.has(`${node.id}>${target.id}`)) continue;
       if (state.get(target) === 'open') back.add(`${node.id}>${target.id}`);
       else if (!state.has(target)) visit(target);
     }

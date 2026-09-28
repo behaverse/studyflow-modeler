@@ -290,6 +290,81 @@ P2:
   for (const id of ['One', 'Two', 'Three']) expect(middle(study, id).x, id).toBeLessThan(game.x + game.width);
 });
 
+test('a loop the drawing shows keeps its head in front, whatever reaches its body first', () => {
+  // A message reaches the loop's body before its head is searched from: the drawing tells which flow goes back.
+  const study = open(`id: Defs_Loop
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab:
+  type: Collaboration
+  participants:
+    Screen:
+      processRef: P1
+      bounds: 0 0 700 150
+    Robot:
+      processRef: P2
+      bounds: 0 200 700 200
+  messageFlows:
+    M:
+      sourceRef: Serve
+      targetRef: Take
+      waypoint: 150,115 300,235
+P1:
+  type: Process
+  flowElements:
+    Begin:
+      type: StartEvent
+      bounds: 40 57 36 36
+    Serve:
+      type: Task
+      bounds: 100 35 100 80
+    F0:
+      sourceRef: Begin
+      targetRef: Serve
+      waypoint: 76,75 100,75
+P2:
+  type: Process
+  flowElements:
+    Go:
+      type: StartEvent
+      bounds: 40 257 36 36
+    Again:
+      type: ExclusiveGateway
+      bounds: 130 250 50 50
+    Take:
+      type: Task
+      bounds: 250 235 100 80
+    Answer:
+      type: Task
+      bounds: 400 235 100 80
+    Stop:
+      type: EndEvent
+      bounds: 600 257 36 36
+    F1:
+      sourceRef: Go
+      targetRef: Again
+      waypoint: 76,275 130,275
+    F2:
+      sourceRef: Again
+      targetRef: Take
+      waypoint: 180,275 250,275
+    F3:
+      sourceRef: Take
+      targetRef: Answer
+      waypoint: 350,275 400,275
+    F4:
+      sourceRef: Answer
+      targetRef: Again
+      waypoint: 450,315 450,360 155,360 155,300
+    F5:
+      sourceRef: Again
+      targetRef: Stop
+      waypoint: 155,250 155,220 618,220 618,257
+`);
+  study.layout();
+  expect(middle(study, 'Again').x).toBeLessThan(middle(study, 'Take').x);
+});
+
 test('what goes with a shape comes along: a boundary event keeps its place, and its caption keeps its room', () => {
   const study = open(`id: Defs_Boundary
 definitions:
