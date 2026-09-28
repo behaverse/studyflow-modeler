@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { Canvas, Study, type Insets } from '@canvas/index.ts';
+import { Canvas, Study, type Bounds, type Insets } from '@canvas/index.ts';
 
 import { hitAt, installDocument, jsdomWindow, loadYaml, pointerDown, pointerMove, pointerUp, svgOf } from './canvasHarness';
 
@@ -160,6 +160,18 @@ test('a fit and a reveal keep the diagram inside what the host\'s own UI leaves 
   beside.reveal('Task_1');
   const task = beside.screenBox('Task_1')!;
   expect(task.x + task.width / 2).toBeCloseTo(275, 6);
+});
+
+test('a view announces each move of its camera with what it shows: the viewBox, widened to the view\'s own shape', async () => {
+  const canvas = covered({});
+  const heard: Bounds[] = [];
+  canvas.on('camera', (camera) => heard.push(camera.shown));
+  // A square viewBox in a view half as tall again as it is wide: it shows a hundred more above and below.
+  canvas.setViewbox({ x: 0, y: 0, width: 400, height: 400 });
+  expect(heard).toEqual([{ x: 0, y: -100, width: 400, height: 600 }]);
+  canvas.zoom(2);
+  expect(heard.at(-1)).toEqual({ x: 100, y: 50, width: 200, height: 300 });
+  expect(canvas.viewbox.shown).toEqual(heard.at(-1));
 });
 
 test('an appended shape the view does not show is panned into it, the least that shows it whole', async () => {

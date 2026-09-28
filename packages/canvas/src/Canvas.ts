@@ -49,6 +49,8 @@ export interface CanvasViewbox extends Viewbox {
   inner: Bounds;
   /** The container, in screen pixels. */
   outer: { width: number; height: number };
+  /** The region of the diagram the view shows: the viewBox, widened to the view's own shape. */
+  shown: Bounds;
 }
 
 /** How far an anchored host element sits right of the outline it follows, in screen pixels; and from the view's edge. */
@@ -72,6 +74,8 @@ export interface CanvasEvents {
   scope: string | undefined;
   /** The `a` key asked for the append menu, on the selection by id. */
   appendMenu: readonly string[];
+  /** The camera moved, or the view changed its size: what the view shows now. */
+  camera: CanvasViewbox;
 }
 
 /** What the canvas's own specs read behind a view's public face. The package index does not export it. */
@@ -136,11 +140,11 @@ export class Canvas {
     injectCanvasStyles(container.ownerDocument);
     this.layers = new Layers(this.root);
     ensureArrowMarkers(this.layers.defs);
-    this.viewport = new Viewport(this.root, this.container, () => this.placeAnchor(), options.insets);
+    this.viewport = new Viewport(this.root, this.container, () => this.cameraMoved(), options.insets);
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => {
         this.viewport.refitIfPending();
-        this.placeAnchor();
+        this.cameraMoved();
       });
       this.resizeObserver.observe(this.container);
     }
@@ -407,7 +411,14 @@ export class Canvas {
       ...box,
       inner: boundsOf(drawable) ?? { x: 0, y: 0, width: 0, height: 0 },
       outer: { width: this.container.clientWidth || box.width, height: this.container.clientHeight || box.height },
+      shown: this.viewport.shown(),
     };
+  }
+
+  /** What follows the camera: the anchored host element, and whoever hears `camera`. */
+  private cameraMoved(): void {
+    this.placeAnchor();
+    if (this.listeners.get('camera')?.size) this.emit('camera', this.viewbox);
   }
 
   /** Show `box`, a region of the diagram. */

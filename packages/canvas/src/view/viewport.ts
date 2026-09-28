@@ -151,6 +151,12 @@ export class Viewport {
     return { rect, scale, ox: (width - this.box.width * scale) / 2, oy: (height - this.box.height * scale) / 2 };
   }
 
+  /** The region of the diagram the view shows: the viewBox, widened to the view's own shape. */
+  shown(): Bounds {
+    const { rect, scale, ox, oy } = this.rendering();
+    return { x: this.box.x - ox / scale, y: this.box.y - oy / scale, width: (rect.width || this.box.width) / scale, height: (rect.height || this.box.height) / scale };
+  }
+
   toDiagram(screen: Point): Point {
     const { rect, scale, ox, oy } = this.rendering();
     return { x: this.box.x + (screen.x - rect.left - ox) / scale, y: this.box.y + (screen.y - rect.top - oy) / scale };
