@@ -166,6 +166,74 @@ P:
   expect(box(study, 'C').x).toBeGreaterThan(box(study, 'A').x + box(study, 'A').width);
 });
 
+test('lanes that are the phases of one flow, each handing on only to later ones, each start at the left edge', () => {
+  const study = open(`id: Defs_Phases
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab:
+  type: Collaboration
+  participants:
+    Pool:
+      processRef: P
+      bounds: 0 0 900 450
+P:
+  type: Process
+  laneSets:
+    Set:
+      lanes:
+        Enrol:
+          flowNodeRef:
+            - S
+            - A
+          bounds: 30 0 870 150
+        Allocate:
+          flowNodeRef:
+            - B
+          bounds: 30 150 870 150
+        Follow:
+          flowNodeRef:
+            - C
+            - E
+          bounds: 30 300 870 150
+  flowElements:
+    S:
+      type: StartEvent
+      bounds: 100 57 36 36
+    A:
+      type: Task
+      bounds: 200 35 100 80
+    B:
+      type: Task
+      bounds: 400 185 100 80
+    C:
+      type: Task
+      bounds: 600 335 100 80
+    E:
+      type: EndEvent
+      bounds: 800 357 36 36
+    F1:
+      sourceRef: S
+      targetRef: A
+      waypoint: 136,75 200,75
+    F2:
+      sourceRef: A
+      targetRef: B
+      waypoint: 300,75 450,185
+    F3:
+      sourceRef: B
+      targetRef: C
+      waypoint: 500,225 650,335
+    F4:
+      sourceRef: C
+      targetRef: E
+      waypoint: 700,375 800,375
+`);
+  study.layout();
+  expect(middle(study, 'C').x).toBe(middle(study, 'B').x);
+  expect(box(study, 'B').x).toBeLessThan(box(study, 'A').x);
+  expect(box(study, 'E').x).toBeGreaterThan(box(study, 'C').x + box(study, 'C').width);
+});
+
 test('pools stack, as wide as the widest, and share their layers: what a message reaches stands under what sends it, a start just before its step', () => {
   const study = open(`id: Defs_Pools
 definitions:

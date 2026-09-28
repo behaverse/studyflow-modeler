@@ -7,12 +7,16 @@
  *
  * The shapes of a layer stand in rows, each taking its predecessors' row where it is free, so a chain keeps to one
  * line and a branch drops below. A shape much wider than most takes as many layers as it covers, so what other rows
- * and bands do meanwhile stands under it. A shape takes room for what goes with it: what sits on it, its caption and theirs.
- * A lane is a band of such rows, a pool a stack of lanes, and pools stack down the page, all as wide as the widest.
+ * and bands do meanwhile stands under it. A shape takes room for what goes with it: what sits on it, its caption and
+ * theirs. A lane is a band of such rows, a pool a stack of lanes, and pools stack down the page, all as wide as the
+ * widest. Lanes that hand work back and forth share their layers; lanes that are the phases of one flow, each handing
+ * on only to later ones, each start again at the left edge.
+ *
  * An open sub-process is laid out inside first and then placed like any shape; a closed one's plane is laid out apart.
  * A data shape stands in a row under the steps it feeds or takes from; the shapes no flow reaches (and the notes
- * nothing links) keep their own arrangement under that, or stand in rows when they have none (they overlap). A boundary event keeps its place on its activity, a note its place beside what it
- * annotates, and a group is drawn round the shapes it held.
+ * nothing links) keep their own arrangement under that, or stand in rows when they have none (they overlap). A
+ * boundary event keeps its place on its activity, a note its place beside what it annotates, and a group is drawn
+ * round the shapes it held.
  *
  * Shapes keep their sizes; containers are sized round what they hold. Pure geometry on the scene: it writes the boxes
  * and returns what it moved, for the caller to route the flows afresh and commit.
@@ -99,7 +103,7 @@ export function layoutScene(scene: Scene): SceneElement[] {
   return [...nodes.filter((node) => !sameBox(node, before.get(node)!)), ...pinnedCaptions(scene, before)];
 }
 
-/** Lay out what `holders` hold as one flow in shared layers, in bands: one to each lane, or to a holder without lanes. */
+/** Lay out what `holders` hold as one flow, in bands: one to each lane, or to a holder without lanes. */
 function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => Reach): Laid {
   const bands: Band[] = holders.flatMap((holder) => {
     const lanes = lanesOf(holder);
@@ -143,46 +147,19 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
   const span = new Map(placed.map((shape) => [shape, Math.max(0, Math.floor((roomWidth(shape) + GAP_X) / (usual + GAP_X)) - 1)] as const));
   const spanOf = (shape: SceneNode): number => span.get(shape) ?? 0;
 
-  // Each layer's middle line, from the left of the contents, the layer as wide as its widest one-layer shape and what
-  // goes with it; the last layer a wider shape spans is widened, when they fall short of it.
-  const layer = layersOf(placed, flow, (node) => band.get(node)!, spanOf);
-  const row = rowsOf(placed, layer, flow, (node) => band.get(node)!, spanOf);
-  const layers = Math.max(0, ...placed.map((shape) => layer.get(shape)! + spanOf(shape) + 1));
-  const west = Array.from({ length: layers }, () => 0);
-  const east = Array.from({ length: layers }, () => 0);
-  for (const shape of placed.filter((one) => spanOf(one) === 0)) {
-    const l = layer.get(shape)!;
-    west[l] = Math.max(west[l], sizeOf(shape).width / 2 + reach(shape).left);
-    east[l] = Math.max(east[l], sizeOf(shape).width / 2 + reach(shape).right);
+  // Phases are laid out as flows of their own: the flows from one into the next set no layer.
+  const phased = isPhased(bands, placed, flow, (node) => band.get(node)!);
+  const layered = phased ? withinBands(flow, (node) => band.get(node)!) : flow;
+  const layer = layersOf(placed, layered, (node) => band.get(node)!, spanOf);
+  const row = rowsOf(placed, layer, layered, (node) => band.get(node)!, spanOf);
+  const groups = phased ? bands.map((_, index) => placed.filter((shape) => band.get(shape) === index)) : [placed];
+  const columns = new Map<SceneNode, Columns>();
+  for (const members of groups) {
+    const set = columnsOf(members, layer, spanOf, roomWidth, reach);
+    for (const shape of members) columns.set(shape, set);
   }
-  const middle: number[] = [];
-  let across = 0;
-  const lineUp = (): void => {
-    across = 0;
-    for (let l = 0; l < layers; l += 1) {
-      middle[l] = across + west[l];
-      across = middle[l] + east[l] + GAP_X;
-    }
-  };
-  lineUp();
-  const reachOver = (shape: SceneNode): { from: number; to: number } => {
-    const first = layer.get(shape)!;
-    const end = first + spanOf(shape);
-    return { from: middle[first] - west[first], to: middle[end] + east[end] };
-  };
-  for (const shape of placed.filter((wide) => spanOf(wide) > 0).sort((p, q) => layer.get(p)! + spanOf(p) - layer.get(q)! - spanOf(q))) {
-    const { from, to } = reachOver(shape);
-    if (to - from >= roomWidth(shape)) continue;
-    east[layer.get(shape)! + spanOf(shape)] += roomWidth(shape) - (to - from);
-    lineUp();
-  }
-  const flowWidth = layers > 0 ? across - GAP_X : 0;
-  /** A shape's middle, from the left of the contents: its layer's middle line, or the middle of the layers it spans. */
-  const centreX = (shape: SceneNode): number => {
-    if (spanOf(shape) === 0) return middle[layer.get(shape)!];
-    const { from, to } = reachOver(shape);
-    return (from + to) / 2 + (reach(shape).left - reach(shape).right) / 2;
-  };
+  const flowWidth = Math.max(0, ...[...new Set(columns.values())].map((set) => set.width));
+  const centreX = (shape: SceneNode): number => columns.get(shape)!.centreX(shape);
 
   // A data shape stands with the steps it links to, a lane's in its lane; what no flow joins, with its holder.
   const data = holders.flatMap(dataShapes);
@@ -388,19 +365,9 @@ function flowGraph(shapes: readonly SceneNode[], events: readonly SceneNode[]): 
  */
 function layersOf(shapes: readonly SceneNode[], flow: Flow, bandOf: (node: SceneNode) => number, spanOf: (node: SceneNode) => number): Map<SceneNode, number> {
   const back = new Set<string>();
-  const leadsTo = (from: SceneNode, to: SceneNode): boolean => {
-    const seen = new Set([from]);
-    for (const queue = [from]; queue.length > 0;) {
-      for (const next of flow.after.get(queue.pop()!)!) {
-        if (next === to) return true;
-        if (!seen.has(next)) queue.push(seen.add(next) && next);
-      }
-    }
-    return false;
-  };
   for (const node of shapes) {
     for (const target of flow.after.get(node)!) {
-      if (bandOf(target) === bandOf(node) && target.x + target.width < node.x && leadsTo(target, node)) back.add(`${node.id}>${target.id}`);
+      if (bandOf(target) === bandOf(node) && target.x + target.width < node.x && leadsTo(flow, target, node)) back.add(`${node.id}>${target.id}`);
     }
   }
   const state = new Map<SceneNode, 'open' | 'done'>();
@@ -439,6 +406,100 @@ function layersOf(shapes: readonly SceneNode[], flow: Flow, bandOf: (node: Scene
     if (out.length > 0) layer.set(node, Math.max(layer.get(node)!, Math.min(...out.map((target) => layer.get(target)!)) - 1 - spanOf(node)));
   }
   return layer;
+}
+
+/** Whether `from` leads to `to`, by any run of flows or messages. */
+function leadsTo(flow: Flow, from: SceneNode, to: SceneNode): boolean {
+  const seen = new Set([from]);
+  for (const queue = [from]; queue.length > 0;) {
+    for (const next of flow.after.get(queue.pop()!)!) {
+      if (next === to) return true;
+      if (!seen.has(next)) queue.push(seen.add(next) && next);
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether the bands are the phases of one flow: lanes of one holder, which alone hold shapes, with flows from one
+ * lane into another that all (a loop's return aside) lead into a later lane.
+ */
+function isPhased(bands: readonly Band[], shapes: readonly SceneNode[], flow: Flow, bandOf: (node: SceneNode) => number): boolean {
+  const holder = bands.find((b) => b.lane)?.holder;
+  if (!holder || shapes.some((shape) => bands[bandOf(shape)].holder !== holder || !bands[bandOf(shape)].lane)) return false;
+  let handsOn = false;
+  for (const source of shapes) {
+    for (const target of flow.next.get(source)!) {
+      if (bandOf(target) === bandOf(source) || leadsTo(flow, target, source)) continue;
+      if (bandOf(target) < bandOf(source)) return false;
+      handsOn = true;
+    }
+  }
+  return handsOn;
+}
+
+/** `flow` without what runs from one band into another. */
+function withinBands(flow: Flow, bandOf: (node: SceneNode) => number): Flow {
+  const within = (links: Map<SceneNode, SceneNode[]>): Map<SceneNode, SceneNode[]> =>
+    new Map([...links].map(([node, others]) => [node, others.filter((other) => bandOf(other) === bandOf(node))] as const));
+  return { next: within(flow.next), prev: within(flow.prev), after: within(flow.after), before: within(flow.before) };
+}
+
+/** Where the layers of some shapes stand across, and how wide they are together. */
+interface Columns {
+  width: number;
+  /** A shape's middle, from the left of the contents: its layer's middle line, or the middle of the layers it spans. */
+  centreX(shape: SceneNode): number;
+}
+
+/**
+ * The layers of `members`: each one's middle line from the left of the contents, the layer as wide as its widest
+ * one-layer shape and what goes with it; the last layer a wider shape spans is widened, when they fall short of it.
+ */
+function columnsOf(
+  members: readonly SceneNode[], layer: ReadonlyMap<SceneNode, number>, spanOf: (node: SceneNode) => number,
+  roomWidth: (node: SceneNode) => number, reach: (node: SceneNode) => Reach,
+): Columns {
+  const layers = Math.max(0, ...members.map((shape) => layer.get(shape)! + spanOf(shape) + 1));
+  const west = Array.from({ length: layers }, () => 0);
+  const east = Array.from({ length: layers }, () => 0);
+  for (const shape of members.filter((one) => spanOf(one) === 0)) {
+    const l = layer.get(shape)!;
+    const { left, right } = reach(shape);
+    // Half the shape's own width, and what goes with it on each side.
+    const half = (roomWidth(shape) - left - right) / 2;
+    west[l] = Math.max(west[l], half + left);
+    east[l] = Math.max(east[l], half + right);
+  }
+  const middle: number[] = [];
+  let across = 0;
+  const lineUp = (): void => {
+    across = 0;
+    for (let l = 0; l < layers; l += 1) {
+      middle[l] = across + west[l];
+      across = middle[l] + east[l] + GAP_X;
+    }
+  };
+  lineUp();
+  const reachOver = (shape: SceneNode): { from: number; to: number } => {
+    const first = layer.get(shape)!;
+    const end = first + spanOf(shape);
+    return { from: middle[first] - west[first], to: middle[end] + east[end] };
+  };
+  for (const shape of members.filter((wide) => spanOf(wide) > 0).sort((p, q) => layer.get(p)! + spanOf(p) - layer.get(q)! - spanOf(q))) {
+    const { from, to } = reachOver(shape);
+    if (to - from >= roomWidth(shape)) continue;
+    east[layer.get(shape)! + spanOf(shape)] += roomWidth(shape) - (to - from);
+    lineUp();
+  }
+  return {
+    width: layers > 0 ? across - GAP_X : 0,
+    centreX(shape) {
+      if (spanOf(shape) === 0) return middle[layer.get(shape)!];
+      const { from, to } = reachOver(shape);
+      return (from + to) / 2 + (reach(shape).left - reach(shape).right) / 2;
+    },
+  };
 }
 
 /** An end that one branch of a split runs into, and nothing else: it sits under the split, in the split's layer. */
