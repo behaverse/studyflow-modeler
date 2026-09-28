@@ -1,6 +1,5 @@
 import new_diagram from '#assets/new_diagram.bpmn?raw';
 import { fromWireXml, looksLikeXml, studyflowToXml } from '@core/document';
-import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { filenameStem } from '@modeler/diagram/file';
 import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
 import { importableFormatFor, openerFor } from '@modeler/diagram/formats';
@@ -53,7 +52,7 @@ async function importXml(modeler: Editor, command: ImportXmlPayload): Promise<an
   unlinkFile();
 
   const moddle = modeler.model.moddle();
-  const xml = await ensureDiagramLayout(await fromWireXml(command.xml, moddle, command.onWarning), moddle);
+  const xml = await fromWireXml(command.xml, moddle, command.onWarning);
   const result = await modeler.importXML(xml);
   // `importXML` starts the undo history over, so the trail bookkeeping restarts with it.
   resetTrailStamping(modeler);

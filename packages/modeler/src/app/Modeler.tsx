@@ -5,7 +5,6 @@ import new_diagram from '#assets/new_diagram.bpmn?raw';
 import { Study } from '@canvas/index.ts';
 import { fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
-import { ensureDiagramLayout } from '@modeler/diagram/autoLayout';
 import { mountEditor } from '@modeler/editor/mount';
 import { connectCommandBus } from '@modeler/commandBus';
 import { clearAutosavedDiagram, getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
@@ -54,7 +53,7 @@ async function openStudy(autosaved: string | undefined, moddle: Moddle): Promise
   const onWarning = (warning: string) => console.warn('Canvas import warning:', warning);
   if (autosaved) {
     try {
-      return await Study.open(await ensureDiagramLayout(await fromWireXml(autosaved, moddle), moddle), { moddle, onWarning });
+      return await Study.open(await fromWireXml(autosaved, moddle), { moddle, onWarning });
     } catch (err) {
       console.warn('Could not open the autosaved diagram; starting a new one, and the autosave is cleared.', err);
       clearAutosavedDiagram();

@@ -15,9 +15,11 @@ import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts'
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { writeDi } from '@canvas/study/di.ts';
+import { draftDrawing, drawDataFlow } from '@canvas/study/draft.ts';
 import { Drag, type Movable } from '@canvas/study/drag.ts';
 import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
+import { syncLabel } from '@canvas/study/labels.ts';
 import { findById } from '@canvas/study/moddle.ts';
 import { Mutator, type AddShapeSpec, type Commit } from '@canvas/study/mutator.ts';
 import { layoutScene } from '@canvas/study/layout.ts';
@@ -570,7 +572,14 @@ export class Study {
   /** Edit `definitions` from here on, in the form the canvas edits (as a file opens), and return their scene. */
   private read(definitions: ModdleObject, revision: number): Scene {
     fromWireDefinitions(definitions, this.options.onWarning);
+    // A document with no drawing is drawn as it is read, and laid out; a drawn one gets the data flow it leaves out.
+    const drafted = draftDrawing(definitions);
+    if (!drafted) drawDataFlow(definitions);
     const scene = importDefinitions(definitions, this.options);
+    if (drafted) {
+      for (const element of layOut(scene)) if (element.kind !== 'label') syncLabel(scene, element);
+      writeDi(scene);
+    }
     scene.revision = revision;
     internals.set(this, {
       scene,

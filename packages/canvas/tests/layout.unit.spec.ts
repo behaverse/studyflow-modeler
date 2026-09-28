@@ -1,12 +1,18 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
 import { Study, type Bounds, type ElementRecord, type Point } from '@canvas/index.ts';
 
 import { freshModdle } from '@tests/schemas';
-import { exampleXml } from '@tests/utils';
+import { exampleXml, withoutDiagramInterchange } from '@tests/utils';
 
-/** Tidy: the study's `layout` verb lays the whole diagram out afresh, as one edit. */
+/**
+ * Tidy: the study's `layout` verb lays the whole diagram out afresh, as one edit; and a document read with no
+ * drawing is drawn and laid out the same way as it opens.
+ */
 
 const open = (yaml: string): Study => Study.fromDefinitions(studyflowToDefinitions(yaml, freshModdle()));
 const box = (study: Study, id: string): Bounds => study.get(id)!.bounds!;
@@ -367,4 +373,35 @@ test('flows the router would lay on one line are slid apart', async () => {
       }
     }
   }
+});
+
+test('a document with no drawing is drawn as it opens: laid out, what it holds kept, and it reopens as it was drawn', async () => {
+  const text = readFileSync(path.join(process.cwd(), 'tests/fixtures/layoutless.studyflow'), 'utf8');
+  const study = await Study.open(text, { moddle: freshModdle() });
+
+  expect(study.get('DidNotStart')).toMatchObject({ kind: 'node', attachedTo: 'Allocate' });
+  expect(study.get('Flow_Eligible')).toMatchObject({ kind: 'edge', source: 'Eligibility_Gateway', target: 'Allocate' });
+  const [enroll, screening, gateway, allocate] = ['Enroll', 'Screening', 'Eligibility_Gateway', 'Allocate'].map((id) => middle(study, id));
+  expect([enroll.x < screening.x, screening.x < gateway.x, gateway.x < allocate.x]).toEqual([true, true, true]);
+  expect(box(study, 'Aborted').y, 'what the boundary event leads to stands below its activity').toBeGreaterThan(bottom(box(study, 'Allocate')));
+
+  const xml = await study.toXml();
+  for (const kept of ['studyflow:study', 'cognitive:questionnaire', 'instrument="screening"', 'attachedToRef="Allocate"']) expect(xml).toContain(kept);
+  expect(boxes(await Study.open(xml, { moddle: freshModdle() }))).toBe(boxes(study));
+});
+
+test('a data association whose ends are drawn is drawn as the document opens, and one into a property never is', async () => {
+  // A file that places its shapes and leaves its data associations out: what it drew stays as drawn.
+  const complete = await exampleXml('cognitive_battery');
+  const stripped = complete.replace(/[ \t]*<bpmndi:BPMNEdge id="DataOutput_[\s\S]*?<\/bpmndi:BPMNEdge>\n/g, '');
+  expect(stripped).not.toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_Survey_Data"/);
+  const study = await Study.open(stripped, { moddle: freshModdle() });
+  expect(study.get('DataOutput_Survey_Data')).toMatchObject({ kind: 'edge', source: 'Survey', target: 'Dataset_Battery' });
+  expect(boxes(study)).toBe(boxes(await Study.open(complete, { moddle: freshModdle() })));
+
+  // sklearn's pipeline writes its features into a property, which no shape draws.
+  const drafted = await Study.open(withoutDiagramInterchange(await exampleXml('sklearn_pipeline')), { moddle: freshModdle() });
+  const drawn = drafted.list({ kind: 'edge' }).map((flow) => flow.id);
+  expect(drawn).toContain('DataInput_Input_Features');
+  expect(drawn).not.toContain('DataOutput_Features');
 });
