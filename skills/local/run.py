@@ -1065,7 +1065,6 @@ class Runner:
         self.serving: dict[str, threading.Lock] = {}  # one request at a time to each pool a runner plays
         self.sent = itertools.count(1)
         self.failed: BaseException | None = None
-        self._deferred: list[tuple[str, str, int, str, dict | None]] | None = None
         self.prior_records = {} if fresh else PROV.element_records(studyflow)
         if branched:
             # The checkout took out of the worktree what was made after the branch point, files or not: the
@@ -1105,22 +1104,23 @@ class Runner:
         return "  " * (self.depth + 1)
 
     def event(self, event: str, message: str, *, level: int = logging.INFO, data: dict | None = None) -> None:
-        if self._deferred is not None:
-            self._deferred.append((event, message, level, self.indent, data))
+        deferred = getattr(self._thread, "deferred", None)
+        if deferred is not None:
+            deferred.append((event, message, level, self.indent, data))
             return
         log_event(event, message, level=level, indent=self.indent, data=data)
 
     @contextmanager
     def deferred_events(self):
         buffered: list[tuple[str, str, int, str, dict | None]] = []
-        self._deferred = buffered
+        self._thread.deferred = buffered
         try:
             yield lambda: [
                 log_event(event, message, level=level, indent=indent, data=data)
                 for event, message, level, indent, data in buffered
             ]
         finally:
-            self._deferred = None
+            self._thread.deferred = None
 
     def moment(self) -> str:
         return timeline_timestamp(datetime.now(timezone.utc))
