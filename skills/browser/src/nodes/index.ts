@@ -1,6 +1,7 @@
 import { getCatalog, hasCatalog } from '@core/notation';
 import { parseSkillManifest } from '@core/notation/skill';
 import { validateAllocation } from '@runner/allocation';
+import { validateUnwalked } from '@runner/unwalked';
 import type { Studyflow } from '@runner/studyflow';
 import type { AnyNodeDefinition, LogFn, ValidationIssue } from '@runner/nodes/types';
 import { findByFlowNode, getRegisteredNodes } from '@runner/nodes/registry';
@@ -43,7 +44,7 @@ function branchingMode(extensionType: string): string | undefined {
 
 export async function validate(studyflow: Studyflow, log: LogFn): Promise<ValidationIssue[]> {
   await skillModulesLoaded;
-  const issues: ValidationIssue[] = [];
+  const issues: ValidationIssue[] = [...validateUnwalked(studyflow)];
 
   // What a definition prepares (a build manifest, say) goes to its own validators and nowhere else.
   const contexts = new Map<AnyNodeDefinition, unknown>();
