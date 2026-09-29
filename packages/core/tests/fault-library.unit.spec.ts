@@ -219,7 +219,7 @@ const FAULTS: Fault[] = [
     check: 'runner paths',
     into: 'plan',
     edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: InclusiveGateway\n      name: Accurate enough?'),
-    says: ['warning: "Accurate enough?" is an inclusive gateway with 2 outgoing flows; the reference runners take the first whose condition holds, not every one'],
+    says: ['error: "Accurate enough?" is an inclusive gateway with 2 outgoing flows; a pool walks one path, so the reference runners stop here rather than take only the first whose condition holds'],
   },
   {
     fault: 'Two elements share an id',

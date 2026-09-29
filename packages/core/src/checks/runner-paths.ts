@@ -6,7 +6,8 @@ import { containers, graphOf, isA, quoted } from '@core/checks/graph';
 /**
  * Splits the reference runners do not take: each walks one path per pool (skills/local/run.py and
  * skills/browser/src/session.ts). A parallel split stops a run; an activity or event goes on along its first
- * outgoing flow only; an inclusive gateway, like an exclusive one, takes the first flow whose condition holds.
+ * outgoing flow only. An inclusive gateway would take every flow whose condition holds, which no pool's one path can,
+ * so it stops a run too rather than being walked as an exclusive one.
  */
 export function checkRunnerPaths(definitions: ModdleElement): Issue[] {
   const issues: Issue[] = [];
@@ -22,9 +23,9 @@ export function checkRunnerPaths(definitions: ModdleElement): Issue[] {
         });
       } else if (isA(node, BPMN.InclusiveGateway)) {
         issues.push({
-          severity: 'warning',
+          severity: 'error',
           elementId: node.id,
-          message: `${quoted(node)} is an inclusive gateway with ${n} outgoing flows; the reference runners take the first whose condition holds, not every one`,
+          message: `${quoted(node)} is an inclusive gateway with ${n} outgoing flows; a pool walks one path, so the reference runners stop here rather than take only the first whose condition holds`,
         });
       } else if (!isA(node, BPMN.Gateway)) {
         issues.push({
