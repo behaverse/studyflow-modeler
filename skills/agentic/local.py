@@ -36,11 +36,14 @@ def extension(element: dict[str, Any], namespace: str, kind: str) -> dict[str, A
 
 
 def model_pools(elements: dict[str, dict[str, Any]]) -> list[str]:
-    """The participants that are models and have no process of their own."""
+    """The participants with no process of their own whose `implementation` names a model this runner asks
+    (`ollama://…`, `claude://…`): the scheme says who plays the pool, so swapping the model, or the actor, is that
+    one line."""
     return [
         element_id for element_id, element in elements.items()
         if element.get("type") == "participant" and not (element.get("attributes") or {}).get("processRef")
-        and ((extension(element, STUDYFLOW, "actor") or {}).get("attributes") or {}).get("actorType") == "llm"
+        and str(((extension(element, STUDYFLOW, "actor") or {}).get("attributes") or {}).get("implementation") or "")
+        .split("://", 1)[0] in CLIENTS
     ]
 
 
