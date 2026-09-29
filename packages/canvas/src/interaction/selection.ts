@@ -3,7 +3,7 @@
  * `<g>`, corner handles and bendpoints in the selection layer, marker classes.
  */
 
-import type { ElementRef, Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
+import type { Point, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { append, clear, create } from '@canvas/render/svg.ts';
 import type { ResizeHandle } from '@canvas/study/drag.ts';
 
@@ -17,7 +17,8 @@ export interface SelectionOptions {
   onChange: (ids: string[]) => void;
   canResize?: (target: Resizable) => boolean;
   /** Turns whatever a caller names an element by (an id, a stale copy) into the scene element. */
-  resolve?: (value: ElementRef) => SceneElement | undefined;
+  /** The element as the scene now holds it, by id; none when it holds none. */
+  resolve?: (value: SceneElement | string) => SceneElement | undefined;
 }
 
 const HANDLE_SIZE = 7;
@@ -46,7 +47,7 @@ export class Selection {
   private readonly getGraphics: (id: string) => SVGGElement | undefined;
   private readonly onChange: (ids: string[]) => void;
   private readonly canResize: (target: Resizable) => boolean;
-  private readonly resolve: (value: ElementRef) => SceneElement | undefined;
+  private readonly resolve: (value: SceneElement | string) => SceneElement | undefined;
   private selected: SceneElement[] = [];
   private hovered?: SceneEdge;
   private previewed: SceneElement[] = [];
@@ -70,7 +71,7 @@ export class Selection {
   }
 
   /** Replace the selection (or union it in with `add`); unresolvable names are dropped. */
-  select(elements: ElementRef | readonly ElementRef[] | null, add = false): void {
+  select(elements: SceneElement | string | readonly (SceneElement | string)[] | null, add = false): void {
     const named = elements == null ? [] : Array.isArray(elements) ? elements : [elements];
     const next: SceneElement[] = add ? this.selected.slice() : [];
     for (const value of named) {

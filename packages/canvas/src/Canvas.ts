@@ -18,7 +18,7 @@ import { EDITING_MARKER, OUTLINE_OFFSET, Selection } from '@canvas/interaction/s
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import { modelOf } from '@canvas/study/moddle.ts';
 import { studyInternals, type ChangedIds, type Study, type StudyResult } from '@canvas/study/Study.ts';
-import { isRootElement, type Bounds, type ElementRef, type ModdleObject, type Point, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
+import { type Bounds, type ModdleObject, type Point, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { shapeOf } from '@canvas/study/templates.ts';
 import { boundsOf, isCollapsed, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf, isExpandable } from '@core/document/outline.ts';
@@ -345,15 +345,9 @@ export class Canvas {
   }
 
   /** The live element behind an id, an element or a stale copy; `undefined` when nothing answers (the root included). */
-  private resolveElement(value: ElementRef | undefined): SceneElement | undefined {
-    const scene = this.scene;
-    if (!value) return undefined;
-    if (typeof value === 'string') return scene.elementsById.get(value);
-    if (isRootElement(value)) return undefined;
-    const candidate = value as { id?: string; kind?: string };
-    const found = candidate.id ? scene.elementsById.get(candidate.id) : undefined;
-    if (found) return found;
-    return candidate.kind === 'node' || candidate.kind === 'edge' || candidate.kind === 'label' ? (value as SceneElement) : undefined;
+  /** The element the scene holds under `value`'s id: what a selection names is always read from the scene as it stands. */
+  private resolveElement(value: SceneElement | string): SceneElement | undefined {
+    return this.scene.elementsById.get(typeof value === 'string' ? value : value.id);
   }
 
   // --- drill-down scope -------------------------------------------------------------
