@@ -38,13 +38,9 @@ Agent_Eval_Pool:
     Start:
       type: StartEvent
       name: Load N-Back protocol
-      bounds: 160 372 36 36
-      label: 140 415 78 30
     Fork:
       type: ParallelGateway
       name: Dispatch to agent pool
-      bounds: 250 365 50 50
-      label: 236 422 80 30
     Agent_Random:
       type: ChoreographyTask
       extensionElements:
@@ -58,8 +54,6 @@ Agent_Eval_Pool:
         In_Agent_Random_Parameters:
           sourceRef:
             - Agent_Random_Parameters
-          waypoint: 440,250 440,200
-      bounds: 380 80 120 120
     Agent_Random_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -112,7 +106,6 @@ Agent_Eval_Pool:
               InterStimulusInterval: 0.3
               TrialForeperiod: 0.1
       name: Parameters
-      bounds: 422 250 36 50
     Agent_Claude:
       type: ChoreographyTask
       extensionElements:
@@ -126,12 +119,9 @@ Agent_Eval_Pool:
         In_Agent_Claude:
           sourceRef:
             - Instructions_Agent_Claude
-          waypoint: 410,500 410,450
         In_Agent_Claude_Parameters:
           sourceRef:
             - Agent_Claude_Parameters
-          waypoint: 478,500 478,450
-      bounds: 380 330 120 120
     Agent_Claude_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -188,7 +178,6 @@ Agent_Eval_Pool:
               useNonMatchButton: true
               maxResponseTime: 120
       name: Parameters
-      bounds: 460 500 36 50
     Instructions_Agent_Claude:
       type: DataObjectReference
       extensionElements:
@@ -199,8 +188,6 @@ Agent_Eval_Pool:
             exactly two trials ago, otherwise NonMatch. Aim for near-perfect
             accuracy. Reply with exactly Match or NonMatch; no explanation.
       name: Instructions
-      bounds: 392 500 36 50
-      label: 370 555 80 15
     Agent_Ollama:
       type: ChoreographyTask
       extensionElements:
@@ -214,12 +201,9 @@ Agent_Eval_Pool:
         In_Agent_Ollama:
           sourceRef:
             - Instructions_Agent_Ollama
-          waypoint: 410,750 410,700
         In_Agent_Ollama_Parameters:
           sourceRef:
             - Agent_Ollama_Parameters
-          waypoint: 478,750 478,700
-      bounds: 380 580 120 120
     Agent_Ollama_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -276,7 +260,6 @@ Agent_Eval_Pool:
               useNonMatchButton: true
               maxResponseTime: 15
       name: Parameters
-      bounds: 460 750 36 50
     Instructions_Agent_Ollama:
       type: DataObjectReference
       extensionElements:
@@ -287,13 +270,9 @@ Agent_Eval_Pool:
             exactly two trials ago, otherwise NonMatch. Aim for near-perfect
             accuracy. Reply with exactly Match or NonMatch; no explanation.
       name: Instructions
-      bounds: 392 750 36 50
-      label: 370 805 80 15
     Join:
       type: ParallelGateway
       name: Collect responses
-      bounds: 560 365 50 50
-      label: 548 422 76 30
     Score:
       type: Task
       checklist: |-
@@ -305,58 +284,91 @@ Agent_Eval_Pool:
       dataOutputAssociations:
         DataOutput_Score_Responses:
           targetRef: Dataset_Responses
-          waypoint: 730,430 730,522
-      bounds: 660 350 140 80
     Dataset_Responses:
       type: DataStoreReference
       extensionElements:
         - type: behaverse:BDMDataset
           dataLevel: trials
       name: Agent response set
-      bounds: 705 522 50 50
-      label: 688 577 84 30
     End:
       type: EndEvent
       name: Evaluation report
-      bounds: 860 372 36 36
-      label: 838 415 82 30
-    Flow_Start_Fork:
-      sourceRef: Start
-      targetRef: Fork
-      waypoint: 196,390 250,390
-    Flow_Fork_Random:
-      sourceRef: Fork
-      targetRef: Agent_Random
-      waypoint: 300,390 340,390 340,140 380,140
-    Flow_Fork_Claude:
-      sourceRef: Fork
-      targetRef: Agent_Claude
-      waypoint: 300,390 380,390
-    Flow_Fork_Ollama:
-      sourceRef: Fork
-      targetRef: Agent_Ollama
-      waypoint: 300,390 340,390 340,640 380,640
-    Flow_Random_Join:
-      sourceRef: Agent_Random
-      targetRef: Join
-      waypoint: 500,140 540,140 540,390 560,390
-    Flow_Claude_Join:
-      sourceRef: Agent_Claude
-      targetRef: Join
-      waypoint: 500,390 560,390
-    Flow_Ollama_Join:
-      sourceRef: Agent_Ollama
-      targetRef: Join
-      waypoint: 500,640 540,640 540,390 560,390
-    Flow_Join_Score:
-      sourceRef: Join
-      targetRef: Score
-      waypoint: 610,390 660,390
-    Flow_Score_End:
-      sourceRef: Score
-      targetRef: End
-      waypoint: 800,390 860,390
+    Flow_Start_Fork: Start -> Fork
+    Flow_Fork_Random: Fork -> Agent_Random
+    Flow_Fork_Claude: Fork -> Agent_Claude
+    Flow_Fork_Ollama: Fork -> Agent_Ollama
+    Flow_Random_Join: Agent_Random -> Join
+    Flow_Claude_Join: Agent_Claude -> Join
+    Flow_Ollama_Join: Agent_Ollama -> Join
+    Flow_Join_Score: Join -> Score
+    Flow_Score_End: Score -> End
   isExecutable: false
+layout:
+  Start:
+    bounds: 160 372 36 36
+    label: 140 415 78 30
+  Fork:
+    bounds: 250 365 50 50
+    label: 236 422 80 30
+  Agent_Random:
+    bounds: 380 80 120 120
+  In_Agent_Random_Parameters:
+    waypoint: 440,250 440,200
+  Agent_Random_Parameters:
+    bounds: 422 250 36 50
+  Agent_Claude:
+    bounds: 380 330 120 120
+  In_Agent_Claude:
+    waypoint: 410,500 410,450
+  In_Agent_Claude_Parameters:
+    waypoint: 478,500 478,450
+  Agent_Claude_Parameters:
+    bounds: 460 500 36 50
+  Instructions_Agent_Claude:
+    bounds: 392 500 36 50
+    label: 370 555 80 15
+  Agent_Ollama:
+    bounds: 380 580 120 120
+  In_Agent_Ollama:
+    waypoint: 410,750 410,700
+  In_Agent_Ollama_Parameters:
+    waypoint: 478,750 478,700
+  Agent_Ollama_Parameters:
+    bounds: 460 750 36 50
+  Instructions_Agent_Ollama:
+    bounds: 392 750 36 50
+    label: 370 805 80 15
+  Join:
+    bounds: 560 365 50 50
+    label: 548 422 76 30
+  Score:
+    bounds: 660 350 140 80
+  DataOutput_Score_Responses:
+    waypoint: 730,430 730,522
+  Dataset_Responses:
+    bounds: 705 522 50 50
+    label: 688 577 84 30
+  End:
+    bounds: 860 372 36 36
+    label: 838 415 82 30
+  Flow_Start_Fork:
+    waypoint: 196,390 250,390
+  Flow_Fork_Random:
+    waypoint: 300,390 340,390 340,140 380,140
+  Flow_Fork_Claude:
+    waypoint: 300,390 380,390
+  Flow_Fork_Ollama:
+    waypoint: 300,390 340,390 340,640 380,640
+  Flow_Random_Join:
+    waypoint: 500,140 540,140 540,390 560,390
+  Flow_Claude_Join:
+    waypoint: 500,390 560,390
+  Flow_Ollama_Join:
+    waypoint: 500,640 540,640 540,390 560,390
+  Flow_Join_Score:
+    waypoint: 610,390 660,390
+  Flow_Score_End:
+    waypoint: 800,390 860,390
 state:
   _meta:
     prov:

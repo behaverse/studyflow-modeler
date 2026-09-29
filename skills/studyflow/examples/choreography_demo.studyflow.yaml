@@ -25,8 +25,6 @@ Dyadic_Study:
     Start:
       type: StartEvent
       name: Both arrive
-      bounds: 160 202 36 36
-      label: 150 245 56 30
     Consent:
       type: ChoreographyTask
       name: Give consent
@@ -36,7 +34,6 @@ Dyadic_Study:
       initiatingParticipantRef: Participant_Subject
       messageFlowRef:
         - MessageFlow_Consent
-      bounds: 260 175 150 90
     Round:
       type: ChoreographyTask
       name: First decision round
@@ -46,7 +43,6 @@ Dyadic_Study:
       initiatingParticipantRef: Participant_Experimenter
       messageFlowRef:
         - MessageFlow_Round
-      bounds: 480 175 150 90
     Round2:
       type: ChoreographyTask
       name: Second decision round
@@ -56,25 +52,31 @@ Dyadic_Study:
       initiatingParticipantRef: Participant_Subject
       messageFlowRef:
         - MessageFlow_Round2
-      bounds: 700 175 150 90
     End:
       type: EndEvent
       name: Debrief
-      bounds: 920 202 36 36
-      label: 922 245 34 15
-    Flow_Start_Consent:
-      sourceRef: Start
-      targetRef: Consent
-      waypoint: 196,220 260,220
-    Flow_Consent_Round:
-      sourceRef: Consent
-      targetRef: Round
-      waypoint: 410,220 480,220
-    Flow_Round_Round2:
-      sourceRef: Round
-      targetRef: Round2
-      waypoint: 630,220 700,220
-    Flow_Round2_End:
-      sourceRef: Round2
-      targetRef: End
-      waypoint: 850,220 920,220
+    Flow_Start_Consent: Start -> Consent
+    Flow_Consent_Round: Consent -> Round
+    Flow_Round_Round2: Round -> Round2
+    Flow_Round2_End: Round2 -> End
+layout:
+  Start:
+    bounds: 160 202 36 36
+    label: 150 245 56 30
+  Consent:
+    bounds: 260 175 150 90
+  Round:
+    bounds: 480 175 150 90
+  Round2:
+    bounds: 700 175 150 90
+  End:
+    bounds: 920 202 36 36
+    label: 922 245 34 15
+  Flow_Start_Consent:
+    waypoint: 196,220 260,220
+  Flow_Consent_Round:
+    waypoint: 410,220 480,220
+  Flow_Round_Round2:
+    waypoint: 630,220 700,220
+  Flow_Round2_End:
+    waypoint: 850,220 920,220

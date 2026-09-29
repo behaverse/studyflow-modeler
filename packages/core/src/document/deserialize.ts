@@ -129,6 +129,20 @@ class ModdleBuilder {
     return el;
   }
 
+  /** The document's `layout:` map, each element's drawing by its id, read as the drawing written on the element is. */
+  adoptLayout(layout: unknown): void {
+    if (!layout || typeof layout !== 'object' || Array.isArray(layout)) return;
+    for (const [id, drawing] of Object.entries(layout as Record<string, Record<string, unknown>>)) {
+      const element = this.byId.get(id);
+      const type = drawing && 'bounds' in drawing ? 'bpmndi:BPMNShape' : drawing && 'waypoint' in drawing ? 'bpmndi:BPMNEdge' : undefined;
+      if (!element || !type) {
+        this.onWarning?.(`layout draws '${id}', which ${element ? 'it gives no bounds or waypoint' : 'no element is'}; left out`);
+        continue;
+      }
+      this.inlineDi.push({ element, type, props: { ...drawing } });
+    }
+  }
+
   buildDiagrams(docDiagrams: unknown[]): any[] {
     const diagrams = docDiagrams.map((node) => this.build(node as Record<string, any>, 'bpmndi:BPMNDiagram'));
     if (this.inlineDi.length === 0) return diagrams;
@@ -274,6 +288,7 @@ export function studyflowToDefinitions(
       onWarning(`unrecognized element <${root.$type}>${root.id ? ` '${root.id}'` : ''} at the top level, which holds only root elements such as a process or a collaboration`);
     }
   }
+  builder.adoptLayout(doc.layout);
   const diagrams = builder.buildDiagrams((doc.diagram as unknown[]) ?? []);
   for (const diagram of diagrams) diagram.$parent = definitions;
   if (diagrams.length > 0) definitions.set('diagrams', diagrams);

@@ -52,8 +52,9 @@ test.describe('Studyflow modeler palette flows', () => {
     const [first, second] = Object.values(process.flowElements).filter((el: any) => el.type === 'SubProcess') as any[];
 
     // A subprocess template arrives collapsed, with its flow inside where the template drew it.
-    expect(first.isExpanded).toBe(false);
-    const inner = Object.values(first.flowElements) as any[];
+    const firstId = Object.keys(process.flowElements).find((id) => process.flowElements[id] === first)!;
+    expect(doc.layout[firstId].isExpanded).toBe(false);
+    const inner = Object.entries(first.flowElements).map(([id, el]: [string, any]) => ({ ...el, ...doc.layout[id] }));
     expect(inner.map((el) => el.name)).toEqual(expect.arrayContaining(['Listen', 'Heard', 'Ask the model', 'Reply', 'Say the reply']));
     // Where the template drew it: the bounds its schema spells for that step.
     const template = loadSchemaModels().flatMap((model) => model.templates ?? []).find((t) => t.elements?.Conversation)!;

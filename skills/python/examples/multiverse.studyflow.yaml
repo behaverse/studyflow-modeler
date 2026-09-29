@@ -41,7 +41,6 @@ multiverse:
     start:
       type: StartEvent
       name: start
-      bounds: 80 252 36 36
     load_digits:
       type: ServiceTask
       documentation: >-
@@ -58,7 +57,6 @@ multiverse:
       additionalArguments:
         return_X_y: true
       implementation: python://sklearn.datasets.load_digits
-      bounds: 156 230 120 80
     each_c:
       type: SubProcess
       documentation: >-
@@ -81,7 +79,6 @@ multiverse:
       flowElements:
         universe_start:
           type: StartEvent
-          bounds: 346 252 36 36
         score_svc:
           type: ServiceTask
           documentation: >-
@@ -108,33 +105,39 @@ multiverse:
                 C: "{C}"
             cv: 5
           implementation: python://sklearn.model_selection.cross_val_score
-          bounds: 422 230 120 80
         universe_end:
           type: EndEvent
-          bounds: 582 252 36 36
-        flow_universe_score:
-          sourceRef: universe_start
-          targetRef: score_svc
-          waypoint: 382,270 422,270
-        flow_universe_end:
-          sourceRef: score_svc
-          targetRef: universe_end
-          waypoint: 542,270 582,270
-      bounds: 316 190 320 160
-      isExpanded: true
+        flow_universe_score: universe_start -> score_svc
+        flow_universe_end: score_svc -> universe_end
     done:
       type: EndEvent
       name: done
-      bounds: 676 252 36 36
-    flow_load:
-      sourceRef: start
-      targetRef: load_digits
-      waypoint: 116,270 156,270
-    flow_each:
-      sourceRef: load_digits
-      targetRef: each_c
-      waypoint: 276,270 316,270
-    flow_done:
-      sourceRef: each_c
-      targetRef: done
-      waypoint: 636,270 676,270
+    flow_load: start -> load_digits
+    flow_each: load_digits -> each_c
+    flow_done: each_c -> done
+layout:
+  start:
+    bounds: 80 252 36 36
+  load_digits:
+    bounds: 156 230 120 80
+  each_c:
+    bounds: 316 190 320 160
+    isExpanded: true
+  universe_start:
+    bounds: 346 252 36 36
+  score_svc:
+    bounds: 422 230 120 80
+  universe_end:
+    bounds: 582 252 36 36
+  flow_universe_score:
+    waypoint: 382,270 422,270
+  flow_universe_end:
+    waypoint: 542,270 582,270
+  done:
+    bounds: 676 252 36 36
+  flow_load:
+    waypoint: 116,270 156,270
+  flow_each:
+    waypoint: 276,270 316,270
+  flow_done:
+    waypoint: 636,270 676,270

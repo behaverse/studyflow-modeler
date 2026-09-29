@@ -27,8 +27,6 @@ LabLink_Demo:
       type: StartEvent
       name: Welcome
       consentFormUri: https://example.org/protocols/lablink/consent.md
-      bounds: 180 310 36 36
-      label: 186 353 24 15
     Welcome_Instruction:
       type: Task
       extensionElements:
@@ -43,21 +41,18 @@ LabLink_Demo:
 
             Press **Continue** when you are ready.
       name: Welcome
-      bounds: 270 288 120 80
     PHQ_9_baseline:
       type: Task
       extensionElements:
         - type: cognitive:Questionnaire
           instrument: phq-9
       name: PHQ-9
-      bounds: 420 288 120 80
     GAD_7_baseline:
       type: Task
       extensionElements:
         - type: cognitive:Questionnaire
           instrument: gad-7
       name: GAD-7
-      bounds: 570 288 120 80
     Warmup_1Back:
       type: ChoreographyTask
       extensionElements:
@@ -73,8 +68,6 @@ LabLink_Demo:
         In_Warmup_1Back_Parameters:
           sourceRef:
             - Warmup_1Back_Parameters
-          waypoint: 780,438 780,388
-      bounds: 720 268 120 120
     Warmup_1Back_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -114,15 +107,11 @@ LabLink_Demo:
                 blocks:
                   - name: LabLink_InlineBlock
       name: Parameters
-      bounds: 762 438 36 50
     Allocate:
       type: ExclusiveGateway
       extensionElements:
         - type: cognitive:RandomGateway
       name: Random allocation
-      bounds: 905 303 50 50
-      isMarkerVisible: true
-      label: 865 286 49 30
     Arm_Dual2Back:
       type: ChoreographyTask
       extensionElements:
@@ -137,8 +126,6 @@ LabLink_Demo:
         In_Arm_Dual2Back_Parameters:
           sourceRef:
             - Arm_Dual2Back_Parameters
-          waypoint: 1110,210 1110,160
-      bounds: 1050 40 120 120
     Arm_Dual2Back_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -146,7 +133,6 @@ LabLink_Demo:
           values:
             timeline: XCIT_NB_05
       name: Parameters
-      bounds: 1092 210 36 50
     Arm_XCIT_NB_03:
       type: Task
       extensionElements:
@@ -159,8 +145,6 @@ LabLink_Demo:
         In_Arm_XCIT_NB_03_Parameters:
           sourceRef:
             - Arm_XCIT_NB_03_Parameters
-          waypoint: 1110,418 1110,368
-      bounds: 1050 288 120 80
     Arm_XCIT_NB_03_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -168,7 +152,6 @@ LabLink_Demo:
           values:
             timeline: XCIT_NB_02
       name: Parameters
-      bounds: 1092 418 36 50
     Arm_Demo:
       type: ChoreographyTask
       extensionElements:
@@ -182,8 +165,6 @@ LabLink_Demo:
         In_Arm_Demo_Parameters:
           sourceRef:
             - Arm_Demo_Parameters
-          waypoint: 1110,665 1110,615
-      bounds: 1050 495 120 120
     Arm_Demo_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -223,14 +204,12 @@ LabLink_Demo:
                 blocks:
                   - name: LabLink_InlineBlock
       name: Parameters
-      bounds: 1092 665 36 50
     BDI_II:
       type: Task
       extensionElements:
         - type: cognitive:Questionnaire
           instrument: bdi-ii
       name: BDI-II
-      bounds: 1200 515 120 80
     PHQ_9_followup:
       type: Task
       extensionElements:
@@ -240,77 +219,114 @@ LabLink_Demo:
       dataOutputAssociations:
         DataOutput_Session:
           targetRef: SessionData
-          waypoint: 1450,368 1450,540
-      bounds: 1390 288 120 80
     End:
       type: EndEvent
       name: End
       redirectTo: https://behaverse.org/studyflow-modeler/docs/
       completionCodeType: dynamic
-      bounds: 1572 310 36 36
-      label: 1580 353 20 15
     SessionData:
       type: DataStoreReference
       extensionElements:
         - type: behaverse:BDMDataset
       name: Session data
-      bounds: 1425 540 50 50
-      label: 1413 595 74 30
-    Flow_Start_Welcome:
-      sourceRef: Start
-      targetRef: Welcome_Instruction
-      waypoint: 216,328 270,328
-    Flow_Welcome_PHQ9:
-      sourceRef: Welcome_Instruction
-      targetRef: PHQ_9_baseline
-      waypoint: 390,328 420,328
-    Flow_PHQ9_GAD7:
-      sourceRef: PHQ_9_baseline
-      targetRef: GAD_7_baseline
-      waypoint: 540,328 570,328
-    Flow_GAD7_Warmup:
-      sourceRef: GAD_7_baseline
-      targetRef: Warmup_1Back
-      waypoint: 690,328 720,328
-    Flow_Warmup_Allocate:
-      sourceRef: Warmup_1Back
-      targetRef: Allocate
-      waypoint: 840,328 905,328
+    Flow_Start_Welcome: Start -> Welcome_Instruction
+    Flow_Welcome_PHQ9: Welcome_Instruction -> PHQ_9_baseline
+    Flow_PHQ9_GAD7: PHQ_9_baseline -> GAD_7_baseline
+    Flow_GAD7_Warmup: GAD_7_baseline -> Warmup_1Back
+    Flow_Warmup_Allocate: Warmup_1Back -> Allocate
     Flow_To_Dual:
       name: Difficult
       sourceRef: Allocate
       targetRef: Arm_Dual2Back
-      waypoint: 930,303 930,100 1050,100
-      label: 961 83 39 15
     Flow_To_XCIT:
       name: Easy
       sourceRef: Allocate
       targetRef: Arm_XCIT_NB_03
-      waypoint: 955,328 1050,328
-      label: 969 310 23 15
     Flow_To_Demo:
       name: Control
       sourceRef: Allocate
       targetRef: Arm_Demo
-      waypoint: 930,353 930,555 1050,555
-      label: 962 539 37 15
-    Flow_Dual_PostPHQ9:
-      sourceRef: Arm_Dual2Back
-      targetRef: PHQ_9_followup
-      waypoint: 1170,100 1350,100 1350,328 1390,328
-    Flow_XCIT_PostPHQ9:
-      sourceRef: Arm_XCIT_NB_03
-      targetRef: PHQ_9_followup
-      waypoint: 1170,328 1390,328
-    Flow_Demo_BDI2:
-      sourceRef: Arm_Demo
-      targetRef: BDI_II
-      waypoint: 1170,555 1200,555
-    Flow_BDI2_PostPHQ9:
-      sourceRef: BDI_II
-      targetRef: PHQ_9_followup
-      waypoint: 1320,555 1350,555 1350,328 1390,328
-    Flow_PostPHQ9_End:
-      sourceRef: PHQ_9_followup
-      targetRef: End
-      waypoint: 1510,328 1572,328
+    Flow_Dual_PostPHQ9: Arm_Dual2Back -> PHQ_9_followup
+    Flow_XCIT_PostPHQ9: Arm_XCIT_NB_03 -> PHQ_9_followup
+    Flow_Demo_BDI2: Arm_Demo -> BDI_II
+    Flow_BDI2_PostPHQ9: BDI_II -> PHQ_9_followup
+    Flow_PostPHQ9_End: PHQ_9_followup -> End
+layout:
+  Start:
+    bounds: 180 310 36 36
+    label: 186 353 24 15
+  Welcome_Instruction:
+    bounds: 270 288 120 80
+  PHQ_9_baseline:
+    bounds: 420 288 120 80
+  GAD_7_baseline:
+    bounds: 570 288 120 80
+  Warmup_1Back:
+    bounds: 720 268 120 120
+  In_Warmup_1Back_Parameters:
+    waypoint: 780,438 780,388
+  Warmup_1Back_Parameters:
+    bounds: 762 438 36 50
+  Allocate:
+    bounds: 905 303 50 50
+    isMarkerVisible: true
+    label: 865 286 49 30
+  Arm_Dual2Back:
+    bounds: 1050 40 120 120
+  In_Arm_Dual2Back_Parameters:
+    waypoint: 1110,210 1110,160
+  Arm_Dual2Back_Parameters:
+    bounds: 1092 210 36 50
+  Arm_XCIT_NB_03:
+    bounds: 1050 288 120 80
+  In_Arm_XCIT_NB_03_Parameters:
+    waypoint: 1110,418 1110,368
+  Arm_XCIT_NB_03_Parameters:
+    bounds: 1092 418 36 50
+  Arm_Demo:
+    bounds: 1050 495 120 120
+  In_Arm_Demo_Parameters:
+    waypoint: 1110,665 1110,615
+  Arm_Demo_Parameters:
+    bounds: 1092 665 36 50
+  BDI_II:
+    bounds: 1200 515 120 80
+  PHQ_9_followup:
+    bounds: 1390 288 120 80
+  DataOutput_Session:
+    waypoint: 1450,368 1450,540
+  End:
+    bounds: 1572 310 36 36
+    label: 1580 353 20 15
+  SessionData:
+    bounds: 1425 540 50 50
+    label: 1413 595 74 30
+  Flow_Start_Welcome:
+    waypoint: 216,328 270,328
+  Flow_Welcome_PHQ9:
+    waypoint: 390,328 420,328
+  Flow_PHQ9_GAD7:
+    waypoint: 540,328 570,328
+  Flow_GAD7_Warmup:
+    waypoint: 690,328 720,328
+  Flow_Warmup_Allocate:
+    waypoint: 840,328 905,328
+  Flow_To_Dual:
+    waypoint: 930,303 930,100 1050,100
+    label: 961 83 39 15
+  Flow_To_XCIT:
+    waypoint: 955,328 1050,328
+    label: 969 310 23 15
+  Flow_To_Demo:
+    waypoint: 930,353 930,555 1050,555
+    label: 962 539 37 15
+  Flow_Dual_PostPHQ9:
+    waypoint: 1170,100 1350,100 1350,328 1390,328
+  Flow_XCIT_PostPHQ9:
+    waypoint: 1170,328 1390,328
+  Flow_Demo_BDI2:
+    waypoint: 1170,555 1200,555
+  Flow_BDI2_PostPHQ9:
+    waypoint: 1320,555 1350,555 1350,328 1390,328
+  Flow_PostPHQ9_End:
+    waypoint: 1510,328 1572,328

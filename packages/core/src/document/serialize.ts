@@ -22,6 +22,8 @@ import {
 type SerializeContext = {
   di: Map<string, Record<string, unknown>>;
   foldedIds: Set<string>;
+  /** The drawing of each element by id, written as the document's one `layout:` map rather than on the elements. */
+  layout: Record<string, Record<string, unknown>>;
   /** What the document contains; a reference to anything else could not be read back. */
   held: Set<unknown>;
   /** Each container's sequence flows by their ends, built once per run: what `incoming` and `outgoing` are checked against. */
@@ -71,6 +73,12 @@ function serializeValue(value: any, declaredType: string | undefined, ctx?: Seri
 
 function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext): Record<string, unknown> {
   const out: Record<string, unknown> = {};
+  // Its drawing, keyed before its children's so the layout reads in document order.
+  const di = ctx && typeof el.id === 'string' ? ctx.di.get(el.id) : undefined;
+  if (di && ctx) {
+    ctx.layout[el.id] = di;
+    ctx.foldedIds.add(el.id);
+  }
   if (el.$type !== declaredType) out.type = shortTypeName(el.$type);
 
   for (const p of el.$descriptor?.properties ?? []) {
@@ -114,12 +122,6 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
   }
   if (DI_NODE_TYPES.has(el.$type)) compactDiNode(out);
   if (out.type !== undefined && impliedTypeName(out, declaredType) === el.$type) delete out.type;
-
-  const di = ctx && typeof el.id === 'string' ? ctx.di.get(el.id) : undefined;
-  if (di && ctx && Object.keys(di).every((key) => !(key in out))) {
-    Object.assign(out, di);
-    ctx.foldedIds.add(el.id);
-  }
 
   return out;
 }
@@ -165,6 +167,7 @@ export function definitionsToYamlDoc(definitions: any, onWarning?: (message: str
   const ctx: SerializeContext = {
     di: planInlineDi(definitions, (el, declaredType) => serializeElement(el, declaredType)),
     foldedIds: new Set(),
+    layout: {},
     held: heldElements(definitions),
     flowEnds: new Map(),
     onWarning,
@@ -188,6 +191,8 @@ export function definitionsToYamlDoc(definitions: any, onWarning?: (message: str
   }
   if (unkeyable.length > 0) doc.elements = unkeyable;
 
+  // The drawing apart from the protocol: a layout edit is a diff of this map alone.
+  if (Object.keys(ctx.layout).length > 0) doc.layout = ctx.layout;
   if (diagram.length > 0) doc.diagram = diagram;
   const state = readState(definitions);
   if (Object.keys(state).length > 0) doc.state = state;

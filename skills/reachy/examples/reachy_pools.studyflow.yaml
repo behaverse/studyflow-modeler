@@ -22,76 +22,57 @@ Collab_Pools:
           actorType: software
       name: Behaverse (WhichOne on the screen)
       processRef: WhichOne_Task
-      bounds: 156 40 2724 210
     Pool_Reachy:
       extensionElements:
         - type: reachy:Robot
           volume: 10
       name: Reachy Mini
       processRef: Reachy_Participant
-      bounds: 156 290 2724 360
     Pool_Model:
       extensionElements:
         - type: studyflow:Actor
           actorType: llm
           implementation: ollama://gemma4:12b-it-qat
       name: Model, gemma4 on Ollama
-      bounds: 156 690 2724 170
   messageFlows:
     Msg_Ready:
       name: ready
       sourceRef: Ready_Sent
       targetRef: Participant_Ready
-      waypoint: 998,452 998,138
-      label: 1006 262 40 15
     Msg_Trial:
       name: one trial
       sourceRef: Play
       targetRef: Receive
       messageRef: Trial
-      waypoint: 1201,160 1201,430
-      label: 1136 262 60 15
     Msg_Answer:
       name: the response
       sourceRef: Answer
       targetRef: Play
       messageRef: Response
-      waypoint: 1681,430 1681,160
-      label: 1688 262 70 15
     Msg_Over:
       name: task over
       sourceRef: Task_Done
       targetRef: Over
-      waypoint: 2010,138 2010,297
-      label: 2018 262 60 15
     Msg_Look_Frame:
       name: a view
       sourceRef: Look
       targetRef: Pool_Model
       messageRef: Request
-      waypoint: 350,510 350,690
-      label: 300 662 44 15
     Msg_Look_Where:
       name: where the screen is
       sourceRef: Pool_Model
       targetRef: Look
       messageRef: Reply
-      waypoint: 390,690 390,510
-      label: 398 662 110 15
     Msg_Ask:
       name: frame and instructions
       sourceRef: Ask
       targetRef: Pool_Model
       messageRef: Request
-      waypoint: 1500,510 1500,690
-      label: 1360 662 134 15
     Msg_Reply:
       name: seen, rule, answer
       sourceRef: Pool_Model
       targetRef: Ask
       messageRef: Reply
-      waypoint: 1540,690 1540,510
-      label: 1548 662 110 15
 Trial:
   type: Message
   itemRef: Trial_Item
@@ -123,15 +104,12 @@ Reachy_Participant:
     Seated:
       type: StartEvent
       name: Seated at the screen
-      bounds: 222 452 36 36
-      label: 204 495 72 30
     Look:
       type: ServiceTask
       extensionElements:
         - type: reachy:LookAt
           target: screen
       name: Find the screen
-      bounds: 310 430 120 80
     Greet:
       type: ServiceTask
       extensionElements:
@@ -141,14 +119,12 @@ Reachy_Participant:
         args:
           - Hello! I am Reachy. I will be your participant today.
       implementation: shell://say
-      bounds: 480 430 120 80
     Wave:
       type: ServiceTask
       extensionElements:
         - type: reachy:Interact
           move: welcoming1
       name: Welcome
-      bounds: 650 430 120 80
     Announce:
       type: ServiceTask
       extensionElements:
@@ -158,27 +134,21 @@ Reachy_Participant:
         args:
           - Ready when you are — I'll play this one.
       implementation: shell://say
-      bounds: 820 430 120 80
     Ready_Sent:
       type: IntermediateThrowEvent
       name: Ready
       eventDefinitions:
         Ready_Message:
           type: MessageEventDefinition
-      bounds: 980 452 36 36
-      label: 980 495 36 15
     Next_Trial:
       type: EventBasedGateway
       documentation: >-
         Waits for whichever message comes first: the task's next trial goes on to Receive the trial, its "task over" to
         the finale. A trial answered, the robot is back here.
       name: Next trial, or task over?
-      bounds: 1070 445 50 50
-      label: 1008 404 84 30
     Receive:
       type: ReceiveTask
       name: Receive the trial
-      bounds: 1146 430 110 80
     Take:
       type: ServiceTask
       extensionElements:
@@ -187,14 +157,10 @@ Reachy_Participant:
       dataOutputAssociations:
         Out_Frame:
           targetRef: Frame
-          waypoint: 1396,430 1426,394
-      bounds: 1306 430 110 80
     Frame:
       type: DataObjectReference
       uri: reachy/frames/
       name: Frame
-      bounds: 1415 344 36 50
-      label: 1405 327 56 15
     Ask:
       type: ServiceTask
       name: Ask the model
@@ -202,17 +168,13 @@ Reachy_Participant:
         In_Frame:
           sourceRef:
             - Frame
-          waypoint: 1442,394 1480,430
         In_Instructions:
           sourceRef:
             - Instructions
-          waypoint: 1521,394 1521,430
       dataOutputAssociations:
         Out_Choice:
           targetRef: Choice
           transformation: substring after(result, "Answer:")
-          waypoint: 1562,430 1602,394
-      bounds: 1466 430 110 80
     Instructions:
       type: DataObjectReference
       extensionElements:
@@ -232,13 +194,9 @@ Reachy_Participant:
             Rule: <what the instructions say that stimulus calls for>
             Answer: <Left or Right>
       name: Instructions
-      bounds: 1503 344 36 50
-      label: 1481 327 80 15
     Choice:
       type: DataObjectReference
       name: Choice
-      bounds: 1595 344 36 50
-      label: 1588 327 50 15
     Answer:
       type: SendTask
       name: Answer the task
@@ -246,58 +204,31 @@ Reachy_Participant:
         In_Choice:
           sourceRef:
             - Choice
-          waypoint: 1618,394 1652,430
-      bounds: 1626 430 110 80
     Show:
       type: ServiceTask
       extensionElements:
         - type: reachy:Interact
           side: "{Choice}"
       name: Show it with the antennas
-      bounds: 1786 430 110 80
     Over:
       type: IntermediateCatchEvent
       name: Task over
       eventDefinitions:
         Over_Message:
           type: MessageEventDefinition
-      bounds: 1992 297 36 36
-      label: 2032 307 60 15
-    Flow_Next_Receive:
-      sourceRef: Next_Trial
-      targetRef: Receive
-      waypoint: 1120,470 1146,470
-    Flow_Receive_Take:
-      sourceRef: Receive
-      targetRef: Take
-      waypoint: 1256,470 1306,470
-    Flow_Take_Ask:
-      sourceRef: Take
-      targetRef: Ask
-      waypoint: 1416,470 1466,470
-    Flow_Ask_Answer:
-      sourceRef: Ask
-      targetRef: Answer
-      waypoint: 1576,470 1626,470
-    Flow_Answer_Show:
-      sourceRef: Answer
-      targetRef: Show
-      waypoint: 1736,470 1786,470
-    Flow_Show_Next:
-      sourceRef: Show
-      targetRef: Next_Trial
-      waypoint: 1841,510 1841,570 1095,570 1095,495
-    Flow_Next_Over:
-      sourceRef: Next_Trial
-      targetRef: Over
-      waypoint: 1095,445 1095,315 1992,315
+    Flow_Next_Receive: Next_Trial -> Receive
+    Flow_Receive_Take: Receive -> Take
+    Flow_Take_Ask: Take -> Ask
+    Flow_Ask_Answer: Ask -> Answer
+    Flow_Answer_Show: Answer -> Show
+    Flow_Show_Next: Show -> Next_Trial
+    Flow_Next_Over: Next_Trial -> Over
     Proud:
       type: ServiceTask
       extensionElements:
         - type: reachy:Interact
           move: proud1
       name: Proud of it
-      bounds: 2110 430 120 80
     Thanks:
       type: ServiceTask
       extensionElements:
@@ -307,70 +238,32 @@ Reachy_Participant:
         args:
           - That was fun. How did I do?
       implementation: shell://say
-      bounds: 2280 430 120 80
     Celebrate:
       type: ServiceTask
       extensionElements:
         - type: reachy:Interact
           move: cheerful1
       name: Celebrate
-      bounds: 2450 430 120 80
     LookBack:
       type: ServiceTask
       extensionElements:
         - type: reachy:LookAt
           target: screen
       name: Back to the screen
-      bounds: 2620 430 120 80
     Done:
       type: EndEvent
       name: Done
-      bounds: 2792 452 36 36
-      label: 2796 495 28 15
-    Flow_Seated_Look:
-      sourceRef: Seated
-      targetRef: Look
-      waypoint: 258,470 310,470
-    Flow_Look_Greet:
-      sourceRef: Look
-      targetRef: Greet
-      waypoint: 430,470 480,470
-    Flow_Greet_Wave:
-      sourceRef: Greet
-      targetRef: Wave
-      waypoint: 600,470 650,470
-    Flow_Wave_Announce:
-      sourceRef: Wave
-      targetRef: Announce
-      waypoint: 770,470 820,470
-    Flow_Announce_Sent:
-      sourceRef: Announce
-      targetRef: Ready_Sent
-      waypoint: 940,470 980,470
-    Flow_Sent_Trials:
-      sourceRef: Ready_Sent
-      targetRef: Next_Trial
-      waypoint: 1016,470 1070,470
-    Flow_Over_Proud:
-      sourceRef: Over
-      targetRef: Proud
-      waypoint: 2010,333 2010,470 2110,470
-    Flow_Proud_Thanks:
-      sourceRef: Proud
-      targetRef: Thanks
-      waypoint: 2230,470 2280,470
-    Flow_Thanks_Celebrate:
-      sourceRef: Thanks
-      targetRef: Celebrate
-      waypoint: 2400,470 2450,470
-    Flow_Celebrate_LookBack:
-      sourceRef: Celebrate
-      targetRef: LookBack
-      waypoint: 2570,470 2620,470
-    Flow_LookBack_Done:
-      sourceRef: LookBack
-      targetRef: Done
-      waypoint: 2740,470 2792,470
+    Flow_Seated_Look: Seated -> Look
+    Flow_Look_Greet: Look -> Greet
+    Flow_Greet_Wave: Greet -> Wave
+    Flow_Wave_Announce: Wave -> Announce
+    Flow_Announce_Sent: Announce -> Ready_Sent
+    Flow_Sent_Trials: Ready_Sent -> Next_Trial
+    Flow_Over_Proud: Over -> Proud
+    Flow_Proud_Thanks: Proud -> Thanks
+    Flow_Thanks_Celebrate: Thanks -> Celebrate
+    Flow_Celebrate_LookBack: Celebrate -> LookBack
+    Flow_LookBack_Done: LookBack -> Done
 WhichOne_Task:
   type: Process
   name: WhichOne on the screen
@@ -378,16 +271,12 @@ WhichOne_Task:
     Task_Start:
       type: StartEvent
       name: Task loaded
-      bounds: 900 102 36 36
-      label: 878 145 80 15
     Participant_Ready:
       type: IntermediateCatchEvent
       name: Participant ready
       eventDefinitions:
         Participant_Ready_Message:
           type: MessageEventDefinition
-      bounds: 980 102 36 36
-      label: 958 60 80 30
     Play:
       type: ChoreographyTask
       extensionElements:
@@ -399,12 +288,9 @@ WhichOne_Task:
         In_Play_Parameters:
           sourceRef:
             - Play_Parameters
-          waypoint: 1410,176 1410,160
       dataOutputAssociations:
         Out_Trials:
           targetRef: Trials
-          waypoint: 1470,160 1470,180
-      bounds: 1060 80 700 80
     Play_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -422,7 +308,6 @@ WhichOne_Task:
                   StimulusDisplayDuration: 5
                   MaxResponseTime: 8
       name: Parameters
-      bounds: 1392 176 36 50
     Trials:
       type: DataStoreReference
       extensionElements:
@@ -430,25 +315,165 @@ WhichOne_Task:
           dataLevel: trials
       uri: Play.events.jsonl
       name: Trial records
-      bounds: 1445 180 50 50
-      label: 1505 198 80 15
     Task_Done:
       type: EndEvent
       name: Task over
       eventDefinitions:
         Done_Message:
           type: MessageEventDefinition
-      bounds: 1992 102 36 36
-      label: 2036 112 56 15
-    Flow_Start_Ready:
-      sourceRef: Task_Start
-      targetRef: Participant_Ready
-      waypoint: 936,120 980,120
-    Flow_Ready_Play:
-      sourceRef: Participant_Ready
-      targetRef: Play
-      waypoint: 1016,120 1060,120
-    Flow_Play_Done:
-      sourceRef: Play
-      targetRef: Task_Done
-      waypoint: 1760,120 1992,120
+    Flow_Start_Ready: Task_Start -> Participant_Ready
+    Flow_Ready_Play: Participant_Ready -> Play
+    Flow_Play_Done: Play -> Task_Done
+layout:
+  Pool_Behaverse:
+    bounds: 156 40 2724 210
+  Pool_Reachy:
+    bounds: 156 290 2724 360
+  Pool_Model:
+    bounds: 156 690 2724 170
+  Msg_Ready:
+    waypoint: 998,452 998,138
+    label: 1006 262 40 15
+  Msg_Trial:
+    waypoint: 1201,160 1201,430
+    label: 1136 262 60 15
+  Msg_Answer:
+    waypoint: 1681,430 1681,160
+    label: 1688 262 70 15
+  Msg_Over:
+    waypoint: 2010,138 2010,297
+    label: 2018 262 60 15
+  Msg_Look_Frame:
+    waypoint: 350,510 350,690
+    label: 300 662 44 15
+  Msg_Look_Where:
+    waypoint: 390,690 390,510
+    label: 398 662 110 15
+  Msg_Ask:
+    waypoint: 1500,510 1500,690
+    label: 1360 662 134 15
+  Msg_Reply:
+    waypoint: 1540,690 1540,510
+    label: 1548 662 110 15
+  Seated:
+    bounds: 222 452 36 36
+    label: 204 495 72 30
+  Look:
+    bounds: 310 430 120 80
+  Greet:
+    bounds: 480 430 120 80
+  Wave:
+    bounds: 650 430 120 80
+  Announce:
+    bounds: 820 430 120 80
+  Ready_Sent:
+    bounds: 980 452 36 36
+    label: 980 495 36 15
+  Next_Trial:
+    bounds: 1070 445 50 50
+    label: 1008 404 84 30
+  Receive:
+    bounds: 1146 430 110 80
+  Take:
+    bounds: 1306 430 110 80
+  Out_Frame:
+    waypoint: 1396,430 1426,394
+  Frame:
+    bounds: 1415 344 36 50
+    label: 1405 327 56 15
+  Ask:
+    bounds: 1466 430 110 80
+  In_Frame:
+    waypoint: 1442,394 1480,430
+  In_Instructions:
+    waypoint: 1521,394 1521,430
+  Out_Choice:
+    waypoint: 1562,430 1602,394
+  Instructions:
+    bounds: 1503 344 36 50
+    label: 1481 327 80 15
+  Choice:
+    bounds: 1595 344 36 50
+    label: 1588 327 50 15
+  Answer:
+    bounds: 1626 430 110 80
+  In_Choice:
+    waypoint: 1618,394 1652,430
+  Show:
+    bounds: 1786 430 110 80
+  Over:
+    bounds: 1992 297 36 36
+    label: 2032 307 60 15
+  Flow_Next_Receive:
+    waypoint: 1120,470 1146,470
+  Flow_Receive_Take:
+    waypoint: 1256,470 1306,470
+  Flow_Take_Ask:
+    waypoint: 1416,470 1466,470
+  Flow_Ask_Answer:
+    waypoint: 1576,470 1626,470
+  Flow_Answer_Show:
+    waypoint: 1736,470 1786,470
+  Flow_Show_Next:
+    waypoint: 1841,510 1841,570 1095,570 1095,495
+  Flow_Next_Over:
+    waypoint: 1095,445 1095,315 1992,315
+  Proud:
+    bounds: 2110 430 120 80
+  Thanks:
+    bounds: 2280 430 120 80
+  Celebrate:
+    bounds: 2450 430 120 80
+  LookBack:
+    bounds: 2620 430 120 80
+  Done:
+    bounds: 2792 452 36 36
+    label: 2796 495 28 15
+  Flow_Seated_Look:
+    waypoint: 258,470 310,470
+  Flow_Look_Greet:
+    waypoint: 430,470 480,470
+  Flow_Greet_Wave:
+    waypoint: 600,470 650,470
+  Flow_Wave_Announce:
+    waypoint: 770,470 820,470
+  Flow_Announce_Sent:
+    waypoint: 940,470 980,470
+  Flow_Sent_Trials:
+    waypoint: 1016,470 1070,470
+  Flow_Over_Proud:
+    waypoint: 2010,333 2010,470 2110,470
+  Flow_Proud_Thanks:
+    waypoint: 2230,470 2280,470
+  Flow_Thanks_Celebrate:
+    waypoint: 2400,470 2450,470
+  Flow_Celebrate_LookBack:
+    waypoint: 2570,470 2620,470
+  Flow_LookBack_Done:
+    waypoint: 2740,470 2792,470
+  Task_Start:
+    bounds: 900 102 36 36
+    label: 878 145 80 15
+  Participant_Ready:
+    bounds: 980 102 36 36
+    label: 958 60 80 30
+  Play:
+    bounds: 1060 80 700 80
+  In_Play_Parameters:
+    waypoint: 1410,176 1410,160
+  Out_Trials:
+    waypoint: 1470,160 1470,180
+  Play_Parameters:
+    bounds: 1392 176 36 50
+  Trials:
+    bounds: 1445 180 50 50
+    label: 1505 198 80 15
+  Task_Done:
+    bounds: 1992 102 36 36
+    label: 2036 112 56 15
+  Flow_Start_Ready:
+    waypoint: 936,120 980,120
+  Flow_Ready_Play:
+    waypoint: 1016,120 1060,120
+  Flow_Play_Done:
+    waypoint: 1760,120 1992,120

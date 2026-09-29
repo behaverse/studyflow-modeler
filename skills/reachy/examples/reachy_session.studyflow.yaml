@@ -22,29 +22,24 @@ Reachy_Session:
       type: StartEvent
       name: Enrolled and consented
       consentFormUri: https://example.org/protocols/reachy-session/consent.md
-      bounds: 57 52 36 36
     Wake:
       type: IntermediateCatchEvent
       extensionElements:
         - type: reachy:SenseEvent
           wakeWord: Hey Reachy
       name: Wake word
-      bounds: 207 52 36 36
     Seated:
       type: ExclusiveGateway
       extensionElements:
         - type: reachy:PerceptionGateway
       name: Anyone there?
       default: Flow_Seated_Greet
-      bounds: 350 45 50 50
-      isMarkerVisible: true
     Ask_To_Sit:
       type: ServiceTask
       extensionElements:
         - type: reachy:Interact
           text: Please take a seat in front of me and say my wake word again.
       name: Ask them to sit down
-      bounds: 475 30 100 80
     Greet:
       type: ServiceTask
       extensionElements:
@@ -53,13 +48,11 @@ Reachy_Session:
             Hello! I'm Reachy. You'll now see a short memory task on the screen; press the key whenever the current
             letter matches the one before it.
       name: Greet & instruct
-      bounds: 475 170 100 80
     Watch:
       type: ServiceTask
       extensionElements:
         - type: reachy:LookAt
       name: Face the participant
-      bounds: 625 170 100 80
     NBack:
       type: Task
       extensionElements:
@@ -70,8 +63,6 @@ Reachy_Session:
         In_NBack_Parameters:
           sourceRef:
             - NBack_Parameters
-          waypoint: 825,300 825,250
-      bounds: 775 170 100 80
     NBack_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -79,14 +70,12 @@ Reachy_Session:
           values:
             timeline: XCIT_NB_01
       name: Parameters
-      bounds: 807 300 36 50
     Celebrate:
       type: ServiceTask
       extensionElements:
         - type: reachy:Interact
           move: cheerful1
       name: Celebrate completion
-      bounds: 925 170 100 80
     Feedback:
       type: ReceiveTask
       extensionElements:
@@ -96,8 +85,6 @@ Reachy_Session:
       dataOutputAssociations:
         Feedback_To_Recording:
           targetRef: Recording
-          waypoint: 1125,250 1125,300
-      bounds: 1075 170 100 80
     Recording:
       type: DataStoreReference
       extensionElements:
@@ -106,53 +93,73 @@ Reachy_Session:
             - audio
             - transcript
       name: Interaction recording
-      bounds: 1100 300 50 50
     Done:
       type: EndEvent
       name: Done
-      bounds: 1257 192 36 36
-    Flow_Enrolled_Wake:
-      sourceRef: Enrolled
-      targetRef: Wake
-      waypoint: 93,70 207,70
-    Flow_Wake_Seated:
-      sourceRef: Wake
-      targetRef: Seated
-      waypoint: 243,70 350,70
+    Flow_Enrolled_Wake: Enrolled -> Wake
+    Flow_Wake_Seated: Wake -> Seated
     Flow_Seated_Ask:
       name: no one seated
       conditionExpression: face_count = 0
       sourceRef: Seated
       targetRef: Ask_To_Sit
-      waypoint: 400,70 475,70
-    Flow_Ask_Wake:
-      sourceRef: Ask_To_Sit
-      targetRef: Wake
-      waypoint: 525,110 525,140 225,140 225,88
-    Flow_Seated_Greet:
-      sourceRef: Seated
-      targetRef: Greet
-      waypoint: 375,95 375,210 475,210
-    Flow_Greet_Watch:
-      sourceRef: Greet
-      targetRef: Watch
-      waypoint: 575,210 625,210
-    Flow_Watch_NBack:
-      sourceRef: Watch
-      targetRef: NBack
-      waypoint: 725,210 775,210
-    Flow_NBack_Celebrate:
-      sourceRef: NBack
-      targetRef: Celebrate
-      waypoint: 875,210 925,210
-    Flow_Celebrate_Feedback:
-      sourceRef: Celebrate
-      targetRef: Feedback
-      waypoint: 1025,210 1075,210
-    Flow_Feedback_Done:
-      sourceRef: Feedback
-      targetRef: Done
-      waypoint: 1175,210 1257,210
+    Flow_Ask_Wake: Ask_To_Sit -> Wake
+    Flow_Seated_Greet: Seated -> Greet
+    Flow_Greet_Watch: Greet -> Watch
+    Flow_Watch_NBack: Watch -> NBack
+    Flow_NBack_Celebrate: NBack -> Celebrate
+    Flow_Celebrate_Feedback: Celebrate -> Feedback
+    Flow_Feedback_Done: Feedback -> Done
+layout:
+  Enrolled:
+    bounds: 57 52 36 36
+  Wake:
+    bounds: 207 52 36 36
+  Seated:
+    bounds: 350 45 50 50
+    isMarkerVisible: true
+  Ask_To_Sit:
+    bounds: 475 30 100 80
+  Greet:
+    bounds: 475 170 100 80
+  Watch:
+    bounds: 625 170 100 80
+  NBack:
+    bounds: 775 170 100 80
+  In_NBack_Parameters:
+    waypoint: 825,300 825,250
+  NBack_Parameters:
+    bounds: 807 300 36 50
+  Celebrate:
+    bounds: 925 170 100 80
+  Feedback:
+    bounds: 1075 170 100 80
+  Feedback_To_Recording:
+    waypoint: 1125,250 1125,300
+  Recording:
+    bounds: 1100 300 50 50
+  Done:
+    bounds: 1257 192 36 36
+  Flow_Enrolled_Wake:
+    waypoint: 93,70 207,70
+  Flow_Wake_Seated:
+    waypoint: 243,70 350,70
+  Flow_Seated_Ask:
+    waypoint: 400,70 475,70
+  Flow_Ask_Wake:
+    waypoint: 525,110 525,140 225,140 225,88
+  Flow_Seated_Greet:
+    waypoint: 375,95 375,210 475,210
+  Flow_Greet_Watch:
+    waypoint: 575,210 625,210
+  Flow_Watch_NBack:
+    waypoint: 725,210 775,210
+  Flow_NBack_Celebrate:
+    waypoint: 875,210 925,210
+  Flow_Celebrate_Feedback:
+    waypoint: 1025,210 1075,210
+  Flow_Feedback_Done:
+    waypoint: 1175,210 1257,210
 state:
   _meta:
     prov:

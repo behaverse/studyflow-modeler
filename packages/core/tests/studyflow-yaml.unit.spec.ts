@@ -13,7 +13,7 @@ import { freshModdle } from '@tests/schemas';
 const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'packages/core/tests/fixtures/state-properties.studyflow.yaml');
 
 test.describe('studyflow YAML format', () => {
-  test('the long spellings still load: value wrappers, YAML as text, an element list, a diagram section, geometry as mappings', async () => {
+  test('the long spellings still load: value wrappers, YAML as text, an element list, a diagram section, geometry as mappings and on elements', async () => {
     const legacy = `
 definitions:
   id: legacy_demo
@@ -80,9 +80,11 @@ diagram:
     const process = doc.P;
     expect(Array.isArray(process.extensionElements)).toBe(true);
     expect(process.flowElements.C1.extensionElements[0].values).toEqual({ Timelines: { XCIT_NB_01: null } });
-    expect(process.flowElements.Start.bounds).toBe('160 180 36 36');
-    expect(process.flowElements.T1.bounds).toBe('100 0 100 80');
-    expect(process.flowElements.F1.waypoint).toBe('36,18 100,18');
+    // Wherever the drawing was written, on an element or in a diagram section, it is written back as the one layout map.
+    expect(process.flowElements.T1.bounds).toBeUndefined();
+    expect(doc.layout.Start.bounds).toBe('160 180 36 36');
+    expect(doc.layout.T1.bounds).toBe('100 0 100 80');
+    expect(doc.layout.F1.waypoint).toBe('36,18 100,18');
   });
 
   test('the short spellings: bare types, implied flow types, one-line geometry, arrows, one key per colour', async () => {
@@ -139,7 +141,7 @@ P:
     expect(xml).toContain('studyflow:font="bold right #4a6f9c"');
 
     const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
-    expect(back.P.flowElements.T1).toMatchObject({ fill: '#dbe8f5', stroke: '#4a6f9c', font: 'bold right #4a6f9c' });
+    expect(back.layout.T1).toEqual({ bounds: '100 0 100 80', fill: '#dbe8f5', stroke: '#4a6f9c', font: 'bold right #4a6f9c' });
     expect(back.P.flowElements.F1).toBe('Start -> T1');
     expect(back.P.artifacts.Assoc_1).toBe('Note_1 -> T1');
   });
@@ -286,7 +288,6 @@ C:
         minimum: 4
         maximum: 4
       processRef: P
-      bounds: 40 40 800 400
 P:
   type: Process
   flowElements:
@@ -299,15 +300,22 @@ P:
               name: Screen
               flowNodeRef:
                 - S0
-              bounds: 130 100 570 130
             Lane_Model:
               name: Model
-              bounds: 130 230 570 130
       flowElements:
         S0:
           type: StartEvent
-          bounds: 200 140 36 36
-      bounds: 100 100 600 260
+layout:
+  Pool_Subjects:
+    bounds: 40 40 800 400
+  Session:
+    bounds: 100 100 600 260
+  Lane_Screen:
+    bounds: 130 100 570 130
+  Lane_Model:
+    bounds: 130 230 570 130
+  S0:
+    bounds: 200 140 36 36
 `;
     const xml = await studyflowToXml(text, freshModdle());
     expect(xml).toContain('<bpmn:participantMultiplicity minimum="4" maximum="4" />');

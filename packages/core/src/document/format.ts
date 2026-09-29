@@ -4,7 +4,7 @@ import { getProperty, type ModdleElement } from '@core/element/moddle';
 
 export type YamlDoc = Record<string, unknown>;
 
-export const RESERVED_DOC_KEYS = new Set(['id', 'definitions', 'elements', 'diagram', 'state']);
+export const RESERVED_DOC_KEYS = new Set(['id', 'definitions', 'elements', 'layout', 'diagram', 'state']);
 
 export const STUDY_EXTENSION_TYPE = 'studyflow:Study';
 

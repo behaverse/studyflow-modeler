@@ -24,133 +24,101 @@ Kitchen_Sink:
       type: StartEvent
       name: Start
       consentFormUri: consent.md
-      bounds: 167 121 36 36
     Ev_End:
       type: EndEvent
       name: End
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
       completionCodeType: dynamic
-      bounds: 347 121 36 36
     Ev_Throw:
       type: IntermediateThrowEvent
       name: Intermediate throw
-      bounds: 527 121 36 36
     Ev_Catch:
       type: IntermediateCatchEvent
       name: Intermediate catch
-      bounds: 707 121 36 36
     Ev_Boundary:
       type: BoundaryEvent
       name: Boundary
       attachedToRef: Act_Task
-      bounds: 887 121 36 36
     Gw_Exclusive:
       type: ExclusiveGateway
       name: Exclusive
-      bounds: 160 294 50 50
-      isMarkerVisible: true
     Gw_Parallel:
       type: ParallelGateway
       name: Parallel
-      bounds: 340 294 50 50
     Gw_Inclusive:
       type: InclusiveGateway
       name: Inclusive
-      bounds: 520 294 50 50
     Gw_EventBased:
       type: EventBasedGateway
       name: Event-based
-      bounds: 700 294 50 50
     Gw_Complex:
       type: ComplexGateway
       name: Complex
-      bounds: 880 294 50 50
     Act_Task:
       type: Task
       name: Task
-      bounds: 125 459 120 80
     Act_UserTask:
       type: UserTask
       name: User task
-      bounds: 305 459 120 80
     Act_ServiceTask:
       type: ServiceTask
       name: Service task
-      bounds: 485 459 120 80
     Act_ScriptTask:
       type: ScriptTask
       name: Script task
-      bounds: 665 459 120 80
     Act_ManualTask:
       type: ManualTask
       name: Manual task
-      bounds: 845 459 120 80
     Act_SendTask:
       type: SendTask
       name: Send task
-      bounds: 1025 459 120 80
     Act_ReceiveTask:
       type: ReceiveTask
       name: Receive task
-      bounds: 1205 459 120 80
     Act_BusinessRuleTask:
       type: BusinessRuleTask
       name: Business rule task
-      bounds: 125 569 120 80
     Act_CallActivity:
       type: CallActivity
       name: Call activity
-      bounds: 305 569 120 80
     Act_SubProcess:
       type: SubProcess
       name: Sub-process
-      bounds: 485 569 120 80
-      isExpanded: false
     Act_Transaction:
       type: Transaction
       name: Transaction
-      bounds: 665 569 120 80
-      isExpanded: false
     Act_AdHoc:
       type: AdHocSubProcess
       name: Ad-hoc sub-process
-      bounds: 845 569 120 80
-      isExpanded: false
     Bd_DataObject:
       type: DataObjectReference
       name: Data object
-      bounds: 160 764 50 50
     Bd_DataStore:
       type: DataStoreReference
       name: Data store
-      bounds: 340 764 50 50
     Sf_Dataset:
       type: DataStoreReference
       extensionElements:
         - type: behaverse:BDMDataset
           dataLevel: trials
       name: Dataset
-      bounds: 160 944 50 50
     Sf_Schema:
       type: DataObjectReference
       extensionElements:
         - type: studyflow:Schema
       name: Schema
-      bounds: 340 944 50 50
     Sf_Table:
       type: DataObjectReference
       extensionElements:
         - type: studyflow:Table
           format: parquet
       name: Table
-      bounds: 520 944 50 50
     Sf_Timeseries:
       type: DataObjectReference
       extensionElements:
         - type: studyflow:Timeseries
           format: edf
       name: Timeseries
-      bounds: 700 944 50 50
     Sf_EventMarker:
       type: DataObjectReference
       extensionElements:
@@ -158,20 +126,16 @@ Kitchen_Sink:
           eventTypes:
             - stimulus
       name: Event marker
-      bounds: 880 944 50 50
     Ex_Parameters:
       type: DataObjectReference
       extensionElements:
         - type: studyflow:Parameters
       name: Parameters
-      bounds: 160 1124 50 50
     Fn_ForEach:
       type: SubProcess
       name: For-each (fan-out)
       loopCharacteristics:
         type: MultiInstanceLoopCharacteristics
-      bounds: 125 1939 120 80
-      isExpanded: false
     Fn_Retry:
       type: Task
       name: Retry-until-good (loop)
@@ -179,7 +143,6 @@ Kitchen_Sink:
         type: StandardLoopCharacteristics
         loopCondition: score < 0.9
         loopMaximum: 5
-      bounds: 305 1939 120 80
     Cg_CognitiveTask:
       type: Task
       extensionElements:
@@ -187,26 +150,22 @@ Kitchen_Sink:
           platform: jspsych
           implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
       name: Cognitive task
-      bounds: 125 1289 120 80
     Cg_Rest:
       type: Task
       extensionElements:
         - type: cognitive:Rest
       name: Rest
-      bounds: 305 1289 120 80
     Cg_Questionnaire:
       type: Task
       extensionElements:
         - type: cognitive:Questionnaire
           instrument: phq-9
       name: Questionnaire
-      bounds: 485 1289 120 80
     Cg_Instruction:
       type: Task
       extensionElements:
         - type: cognitive:Instruction
       name: Instruction
-      bounds: 665 1289 120 80
     Cg_Behaverse:
       type: Task
       extensionElements:
@@ -214,22 +173,17 @@ Kitchen_Sink:
           instrument: NB
           timeline: XCIT_NB_01
       name: Behaverse task
-      bounds: 845 1289 120 80
     Cg_Random:
       type: ExclusiveGateway
       extensionElements:
         - type: cognitive:RandomGateway
       name: Random gateway
-      bounds: 160 1414 50 50
-      isMarkerVisible: true
     Cg_Stratified:
       type: ExclusiveGateway
       extensionElements:
         - type: cognitive:RandomGateway
           stratifyBy: age_band
       name: Stratified allocation
-      bounds: 340 1414 50 50
-      isMarkerVisible: true
     Cg_Eligibility:
       type: ExclusiveGateway
       extensionElements:
@@ -241,83 +195,65 @@ Kitchen_Sink:
             - Prior exposure to the battery
             - Failed comprehension check
       name: Eligibility gateway
-      bounds: 520 1414 50 50
-      isMarkerVisible: true
     Ob_Recording:
       type: DataStoreReference
       extensionElements:
         - type: eeg:Recording
           format: bdm
       name: EEG recording
-      bounds: 160 1594 50 50
     Ag_Prompt:
       type: DataObjectReference
       extensionElements:
         - type: agentic:Prompt
       name: Prompt
-      bounds: 160 1774 50 50
     Dt_Reader:
       type: ServiceTask
       name: Read data
       additionalArguments:
         data_folder: data/raw/
       implementation: python://datatrove.pipeline.readers.CsvReader
-      bounds: 1045 1939 120 80
     Dt_Writer:
       type: ServiceTask
       name: Write data
       additionalArguments:
         output_folder: data/out/
       implementation: python://datatrove.pipeline.writers.ParquetWriter
-      bounds: 1205 1939 120 80
   artifacts:
     Bd_Annotation:
       text: A free-form note. Groups (these labelled bands) are artifacts too.
-      bounds: 485 764 120 50
     Group_BpmnEvents:
       type: Group
       categoryValueRef: CategoryValue_BpmnEvents
-      bounds: 60 60 1300 154
     Group_BpmnGateways:
       type: Group
       categoryValueRef: CategoryValue_BpmnGateways
-      bounds: 60 240 1300 154
     Group_BpmnActivities:
       type: Group
       categoryValueRef: CategoryValue_BpmnActivities
-      bounds: 60 420 1300 264
     Group_BpmnData:
       type: Group
       categoryValueRef: CategoryValue_BpmnData
-      bounds: 60 710 1300 154
     Group_Studyflow:
       type: Group
       categoryValueRef: CategoryValue_Studyflow
-      bounds: 60 890 1300 154
     Group_Exec:
       type: Group
       categoryValueRef: CategoryValue_Exec
-      bounds: 60 1070 1300 154
     Group_Cognitive:
       type: Group
       categoryValueRef: CategoryValue_Cognitive
-      bounds: 60 1250 1300 264
     Group_OpenBCI:
       type: Group
       categoryValueRef: CategoryValue_OpenBCI
-      bounds: 60 1540 250 154
     Group_Agentic:
       type: Group
       categoryValueRef: CategoryValue_Agentic
-      bounds: 60 1720 250 154
     Group_Functional:
       type: Group
       categoryValueRef: CategoryValue_Functional
-      bounds: 60 1900 940 154
     Group_Datatrove:
       type: Group
       categoryValueRef: CategoryValue_Datatrove
-      bounds: 1020 1900 340 154
   isExecutable: false
 Category_BpmnEvents:
   type: Category
@@ -374,3 +310,124 @@ Category_Datatrove:
   categoryValue:
     CategoryValue_Datatrove:
       value: bpmn · data IO
+layout:
+  Ev_Start:
+    bounds: 167 121 36 36
+  Ev_End:
+    bounds: 347 121 36 36
+  Ev_Throw:
+    bounds: 527 121 36 36
+  Ev_Catch:
+    bounds: 707 121 36 36
+  Ev_Boundary:
+    bounds: 887 121 36 36
+  Gw_Exclusive:
+    bounds: 160 294 50 50
+    isMarkerVisible: true
+  Gw_Parallel:
+    bounds: 340 294 50 50
+  Gw_Inclusive:
+    bounds: 520 294 50 50
+  Gw_EventBased:
+    bounds: 700 294 50 50
+  Gw_Complex:
+    bounds: 880 294 50 50
+  Act_Task:
+    bounds: 125 459 120 80
+  Act_UserTask:
+    bounds: 305 459 120 80
+  Act_ServiceTask:
+    bounds: 485 459 120 80
+  Act_ScriptTask:
+    bounds: 665 459 120 80
+  Act_ManualTask:
+    bounds: 845 459 120 80
+  Act_SendTask:
+    bounds: 1025 459 120 80
+  Act_ReceiveTask:
+    bounds: 1205 459 120 80
+  Act_BusinessRuleTask:
+    bounds: 125 569 120 80
+  Act_CallActivity:
+    bounds: 305 569 120 80
+  Act_SubProcess:
+    bounds: 485 569 120 80
+    isExpanded: false
+  Act_Transaction:
+    bounds: 665 569 120 80
+    isExpanded: false
+  Act_AdHoc:
+    bounds: 845 569 120 80
+    isExpanded: false
+  Bd_DataObject:
+    bounds: 160 764 50 50
+  Bd_DataStore:
+    bounds: 340 764 50 50
+  Sf_Dataset:
+    bounds: 160 944 50 50
+  Sf_Schema:
+    bounds: 340 944 50 50
+  Sf_Table:
+    bounds: 520 944 50 50
+  Sf_Timeseries:
+    bounds: 700 944 50 50
+  Sf_EventMarker:
+    bounds: 880 944 50 50
+  Ex_Parameters:
+    bounds: 160 1124 50 50
+  Fn_ForEach:
+    bounds: 125 1939 120 80
+    isExpanded: false
+  Fn_Retry:
+    bounds: 305 1939 120 80
+  Cg_CognitiveTask:
+    bounds: 125 1289 120 80
+  Cg_Rest:
+    bounds: 305 1289 120 80
+  Cg_Questionnaire:
+    bounds: 485 1289 120 80
+  Cg_Instruction:
+    bounds: 665 1289 120 80
+  Cg_Behaverse:
+    bounds: 845 1289 120 80
+  Cg_Random:
+    bounds: 160 1414 50 50
+    isMarkerVisible: true
+  Cg_Stratified:
+    bounds: 340 1414 50 50
+    isMarkerVisible: true
+  Cg_Eligibility:
+    bounds: 520 1414 50 50
+    isMarkerVisible: true
+  Ob_Recording:
+    bounds: 160 1594 50 50
+  Ag_Prompt:
+    bounds: 160 1774 50 50
+  Dt_Reader:
+    bounds: 1045 1939 120 80
+  Dt_Writer:
+    bounds: 1205 1939 120 80
+  Bd_Annotation:
+    bounds: 485 764 120 50
+  Group_BpmnEvents:
+    bounds: 60 60 1300 154
+  Group_BpmnGateways:
+    bounds: 60 240 1300 154
+  Group_BpmnActivities:
+    bounds: 60 420 1300 264
+  Group_BpmnData:
+    bounds: 60 710 1300 154
+  Group_Studyflow:
+    bounds: 60 890 1300 154
+  Group_Exec:
+    bounds: 60 1070 1300 154
+  Group_Cognitive:
+    bounds: 60 1250 1300 264
+  Group_OpenBCI:
+    bounds: 60 1540 250 154
+  Group_Agentic:
+    bounds: 60 1720 250 154
+  Group_Functional:
+    bounds: 60 1900 940 154
+  Group_Datatrove:
+    bounds: 1020 1900 340 154

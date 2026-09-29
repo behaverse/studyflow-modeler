@@ -16,14 +16,16 @@ Demo0_FromScratch:
     Start:
       type: StartEvent
       name: Participant arrives
-      bounds: 200 200 36 36
-      label: 178 243 82 30
     End:
       type: EndEvent
       name: Done
-      bounds: 600 200 36 36
-      label: 608 243 22 15
-    Flow_Start_End:
-      sourceRef: Start
-      targetRef: End
-      waypoint: 236,218 600,218
+    Flow_Start_End: Start -> End
+layout:
+  Start:
+    bounds: 200 200 36 36
+    label: 178 243 82 30
+  End:
+    bounds: 600 200 36 36
+    label: 608 243 22 15
+  Flow_Start_End:
+    waypoint: 236,218 600,218

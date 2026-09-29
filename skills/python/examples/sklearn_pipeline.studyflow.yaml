@@ -135,8 +135,6 @@ sklearn_pipeline:
           when: "2026-08-20T12:28:56.906+02:00"
           run: sklearn-demo
       name: start_analysis
-      bounds: 80 252 36 36
-      label: 64 295 67 15
     is_good_enough:
       type: ExclusiveGateway
       documentation: |
@@ -163,9 +161,6 @@ sklearn_pipeline:
           run: sklearn-demo
       name: is_good_enough
       default: needs_work
-      bounds: 1700 245 50 50
-      isMarkerVisible: true
-      label: 1680 221 89 15
     done:
       type: EndEvent
       extensionElements:
@@ -182,8 +177,6 @@ sklearn_pipeline:
           when: "2026-08-20T12:28:59.170+02:00"
           run: sklearn-demo
       name: done
-      bounds: 2832 252 36 36
-      label: 2835 303 29 15
     failed_to_fit:
       type: EndEvent
       documentation: |
@@ -191,8 +184,6 @@ sklearn_pipeline:
         has been spent: fix the estimator and run again against the same
         held-out data.
       name: failed_to_fit
-      bounds: 1707 480 36 36
-      label: 1697 530 57 15
     prepare_data:
       type: SubProcess
       documentation: >-
@@ -227,7 +218,6 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:56.906+02:00"
               run: sklearn-demo
-          bounds: 186 252 36 36
         select_features:
           type: ServiceTask
           documentation: |
@@ -252,7 +242,6 @@ sklearn_pipeline:
               sourceRef:
                 - input_dataset
               transformation: self
-              waypoint: 322,365 322,310
           dataOutputAssociations:
             DataOutput_Features:
               targetRef: features
@@ -260,7 +249,6 @@ sklearn_pipeline:
             columns:
               - target
           implementation: python://pandas.DataFrame.drop
-          bounds: 262 230 120 80
         select_target:
           type: ServiceTask
           documentation: |
@@ -282,14 +270,12 @@ sklearn_pipeline:
               sourceRef:
                 - input_dataset
               transformation: self
-              waypoint: 340,390 482,390 482,310
           dataOutputAssociations:
             DataOutput_Target:
               targetRef: target
           additionalArguments:
             key: target
           implementation: python://pandas.DataFrame.get
-          bounds: 422 230 120 80
         split_train_test:
           type: ServiceTask
           documentation: |
@@ -348,7 +334,6 @@ sklearn_pipeline:
             test_size: 0.25
             random_state: 42
           implementation: python://sklearn.model_selection.train_test_split
-          bounds: 582 230 120 80
         prepare_end:
           type: EndEvent
           extensionElements:
@@ -364,23 +349,10 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:57.314+02:00"
               run: sklearn-demo
-          bounds: 742 252 36 36
-        Flow_Prepare_Start_Select_Features:
-          sourceRef: prepare_start
-          targetRef: select_features
-          waypoint: 222,270 262,270
-        Flow_Select_Features_Select_Target:
-          sourceRef: select_features
-          targetRef: select_target
-          waypoint: 382,270 422,270
-        Flow_Select_Target_Split:
-          sourceRef: select_target
-          targetRef: split_train_test
-          waypoint: 542,270 582,270
-        Flow_Split_Prepare_End:
-          sourceRef: split_train_test
-          targetRef: prepare_end
-          waypoint: 702,270 742,270
+        Flow_Prepare_Start_Select_Features: prepare_start -> select_features
+        Flow_Select_Features_Select_Target: select_features -> select_target
+        Flow_Select_Target_Split: select_target -> split_train_test
+        Flow_Split_Prepare_End: split_train_test -> prepare_end
         input_dataset:
           type: DataObjectReference
           documentation: |
@@ -396,12 +368,6 @@ sklearn_pipeline:
               run: sklearn-demo
           uri: digits.csv
           name: input_dataset
-          bounds: 304 365 36 50
-          label: 300 421 46 15
-      bounds: 160 170 650 290
-      isExpanded: true
-      fill: "#dbe8f5"
-      stroke: "#4a6f9c"
     select_model:
       type: SubProcess
       documentation: >-
@@ -433,7 +399,6 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:57.391+02:00"
               run: sklearn-demo
-          bounds: 180 182 36 36
         build_pipeline:
           type: ServiceTask
           documentation: |
@@ -470,7 +435,6 @@ sklearn_pipeline:
                   kernel: rbf
                   C: 1
           implementation: python://sklearn.pipeline.make_pipeline
-          bounds: 256 160 120 80
         cross_validate:
           type: ServiceTask
           documentation: |
@@ -512,7 +476,6 @@ sklearn_pipeline:
               - f1_macro
             return_train_score: false
           implementation: python://sklearn.model_selection.cross_validate
-          bounds: 416 160 120 80
         build_fold_report:
           type: ServiceTask
           documentation: |
@@ -538,9 +501,7 @@ sklearn_pipeline:
           dataOutputAssociations:
             DataOutput_Fold_Report:
               targetRef: cv_fold_report
-              waypoint: 636,240 636,327 704,327
           implementation: python://pandas.DataFrame
-          bounds: 576 160 120 80
         summarize_cv:
           type: ServiceTask
           documentation: |
@@ -571,16 +532,13 @@ sklearn_pipeline:
               sourceRef:
                 - cv_fold_report
               transformation: self
-              waypoint: 740,327 796,327 796,240
           dataOutputAssociations:
             DataOutput_CV_Summary:
               targetRef: cv_summary
-              waypoint: 822,240 822,327 896,327
             DataOutput_Mean_CV_Accuracy:
               targetRef: mean_cv_accuracy
               transformation: result.test_accuracy.mean
           implementation: python://pandas.DataFrame.describe
-          bounds: 736 160 120 80
         select_end:
           type: EndEvent
           extensionElements:
@@ -596,7 +554,6 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:57.695+02:00"
               run: sklearn-demo
-          bounds: 896 182 36 36
         cv_fold_report:
           type: DataObjectReference
           documentation: Per-fold metrics from the training-set cross-validation, persisted as CSV.
@@ -608,8 +565,6 @@ sklearn_pipeline:
               run: sklearn-demo
           uri: cv_fold_metrics.csv
           name: cv_fold_report
-          bounds: 704 302 36 50
-          label: 685 359 75 15
         cv_summary:
           type: DataObjectReference
           documentation: Descriptive summary of the cross-validation metrics, persisted for review.
@@ -621,32 +576,11 @@ sklearn_pipeline:
               run: sklearn-demo
           uri: cv_metric_summary.csv
           name: cv_summary
-          bounds: 896 302 36 50
-          label: 883 356 63 15
-        Flow_Select_Start_Build_Pipeline:
-          sourceRef: select_start
-          targetRef: build_pipeline
-          waypoint: 216,200 256,200
-        Flow_Build_Pipeline_Cross_Validate:
-          sourceRef: build_pipeline
-          targetRef: cross_validate
-          waypoint: 376,200 416,200
-        Flow_Cross_Validate_Build_Fold_Report:
-          sourceRef: cross_validate
-          targetRef: build_fold_report
-          waypoint: 536,200 576,200
-        Flow_Build_Fold_Report_Summarize_CV:
-          sourceRef: build_fold_report
-          targetRef: summarize_cv
-          waypoint: 696,200 736,200
-        Flow_Summarize_CV_Select_End:
-          sourceRef: summarize_cv
-          targetRef: select_end
-          waypoint: 856,200 896,200
-      bounds: 1204 230 100 80
-      isExpanded: false
-      fill: "#f6e7c8"
-      stroke: "#a8791f"
+        Flow_Select_Start_Build_Pipeline: select_start -> build_pipeline
+        Flow_Build_Pipeline_Cross_Validate: build_pipeline -> cross_validate
+        Flow_Cross_Validate_Build_Fold_Report: cross_validate -> build_fold_report
+        Flow_Build_Fold_Report_Summarize_CV: build_fold_report -> summarize_cv
+        Flow_Summarize_CV_Select_End: summarize_cv -> select_end
     evaluate_and_report:
       type: SubProcess
       documentation: >-
@@ -682,7 +616,6 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:57.847+02:00"
               run: sklearn-demo
-          bounds: 180 182 36 36
         fit_model:
           type: ServiceTask
           documentation: |
@@ -717,9 +650,7 @@ sklearn_pipeline:
           dataOutputAssociations:
             DataOutput_Fitted_Model:
               targetRef: fitted_model
-              waypoint: 316,240 316,327 382,327
           implementation: python://sklearn.pipeline.Pipeline.fit
-          bounds: 256 160 120 80
         predict_test:
           type: ServiceTask
           documentation: |
@@ -743,7 +674,6 @@ sklearn_pipeline:
               sourceRef:
                 - fitted_model
               transformation: self
-              waypoint: 418,327 476,327 476,240
             DataInput_X_Test_Predict:
               sourceRef:
                 - x_test
@@ -752,7 +682,6 @@ sklearn_pipeline:
             DataOutput_Predictions:
               targetRef: predictions
           implementation: python://sklearn.pipeline.Pipeline.predict
-          bounds: 416 160 120 80
         score_test:
           type: ServiceTask
           documentation: |
@@ -791,7 +720,6 @@ sklearn_pipeline:
             output_dict: true
             zero_division: 0
           implementation: python://sklearn.metrics.classification_report
-          bounds: 576 160 120 80
         write_test_report:
           type: ServiceTask
           documentation: |
@@ -829,9 +757,7 @@ sklearn_pipeline:
           dataOutputAssociations:
             DataOutput_Test_Report:
               targetRef: test_report
-              waypoint: 796,240 796,282 796,302
           implementation: python://pandas.DataFrame
-          bounds: 736 160 120 80
         plot_confusion:
           type: ServiceTask
           documentation: |
@@ -875,12 +801,10 @@ sklearn_pipeline:
             DataOutput_Confusion_Matrix:
               targetRef: confusion_matrix
               transformation: result.figure_
-              waypoint: 956,240 956,302
           additionalArguments:
             cmap: Blues
             colorbar: false
           implementation: python://sklearn.metrics.ConfusionMatrixDisplay.from_predictions
-          bounds: 896 160 120 80
         report_end:
           type: EndEvent
           extensionElements:
@@ -896,7 +820,6 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:59.091+02:00"
               run: sklearn-demo
-          bounds: 1056 182 36 36
         fitted_model:
           type: DataObjectReference
           documentation: |
@@ -909,8 +832,6 @@ sklearn_pipeline:
               run: sklearn-demo
           uri: digits_pca_svc.joblib
           name: fitted_model
-          bounds: 382 302 36 50
-          label: 364 352 72 15
         test_report:
           type: DataObjectReference
           documentation: |
@@ -929,8 +850,6 @@ sklearn_pipeline:
               run: sklearn-demo
           uri: holdout_metrics.csv
           name: test_report
-          bounds: 778 302 36 50
-          label: 754 352 84 15
         confusion_matrix:
           type: DataObjectReference
           documentation: |
@@ -951,62 +870,167 @@ sklearn_pipeline:
               run: sklearn-demo
           uri: confusion_matrix.png
           name: confusion_matrix
-          bounds: 938 302 36 50
-          label: 914 356 84 15
-        Flow_Report_Start_Fit_Model:
-          sourceRef: report_start
-          targetRef: fit_model
-          waypoint: 216,200 256,200
-        Flow_Fit_Model_Predict_Test:
-          sourceRef: fit_model
-          targetRef: predict_test
-          waypoint: 376,200 416,200
-        Flow_Predict_Test_Score_Test:
-          sourceRef: predict_test
-          targetRef: score_test
-          waypoint: 536,200 576,200
-        Flow_Score_Test_Write_Test_Report:
-          sourceRef: score_test
-          targetRef: write_test_report
-          waypoint: 696,200 736,200
-        Flow_Write_Test_Report_Plot_Confusion:
-          sourceRef: write_test_report
-          targetRef: plot_confusion
-          waypoint: 856,200 896,200
-        Flow_Plot_Confusion_Report_End:
-          sourceRef: plot_confusion
-          targetRef: report_end
-          waypoint: 1016,200 1056,200
-      bounds: 2246 230 100 80
-      isExpanded: false
-      fill: "#d9ecdc"
-      stroke: "#3f7a4a"
-    flow_start:
-      sourceRef: start_analysis
-      targetRef: prepare_data
-      waypoint: 116,270 160,270
-    flow_prepare_done:
-      sourceRef: prepare_data
-      targetRef: select_model
-      waypoint: 810,270 1204,270
-    flow_select_done:
-      sourceRef: select_model
-      targetRef: is_good_enough
-      waypoint: 1304,270 1700,270
+        Flow_Report_Start_Fit_Model: report_start -> fit_model
+        Flow_Fit_Model_Predict_Test: fit_model -> predict_test
+        Flow_Predict_Test_Score_Test: predict_test -> score_test
+        Flow_Score_Test_Write_Test_Report: score_test -> write_test_report
+        Flow_Write_Test_Report_Plot_Confusion: write_test_report -> plot_confusion
+        Flow_Plot_Confusion_Report_End: plot_confusion -> report_end
+    flow_start: start_analysis -> prepare_data
+    flow_prepare_done: prepare_data -> select_model
+    flow_select_done: select_model -> is_good_enough
     report:
       name: report
       conditionExpression: mean_cv_accuracy >= 0.90
       sourceRef: is_good_enough
       targetRef: evaluate_and_report
-      waypoint: 1750,270 2246,270
-      label: 1932 273 31 15
     needs_work:
       name: needs_work
       sourceRef: is_good_enough
       targetRef: failed_to_fit
-      waypoint: 1725,295 1725,480
-      label: 1731 443 58 15
-    flow_report_done:
-      sourceRef: evaluate_and_report
-      targetRef: done
-      waypoint: 2346,270 2832,270
+    flow_report_done: evaluate_and_report -> done
+layout:
+  start_analysis:
+    bounds: 80 252 36 36
+    label: 64 295 67 15
+  is_good_enough:
+    bounds: 1700 245 50 50
+    isMarkerVisible: true
+    label: 1680 221 89 15
+  done:
+    bounds: 2832 252 36 36
+    label: 2835 303 29 15
+  failed_to_fit:
+    bounds: 1707 480 36 36
+    label: 1697 530 57 15
+  prepare_data:
+    bounds: 160 170 650 290
+    isExpanded: true
+    fill: "#dbe8f5"
+    stroke: "#4a6f9c"
+  prepare_start:
+    bounds: 186 252 36 36
+  select_features:
+    bounds: 262 230 120 80
+  DataInput_Input_Features:
+    waypoint: 322,365 322,310
+  select_target:
+    bounds: 422 230 120 80
+  DataInput_Input_Target:
+    waypoint: 340,390 482,390 482,310
+  split_train_test:
+    bounds: 582 230 120 80
+  prepare_end:
+    bounds: 742 252 36 36
+  Flow_Prepare_Start_Select_Features:
+    waypoint: 222,270 262,270
+  Flow_Select_Features_Select_Target:
+    waypoint: 382,270 422,270
+  Flow_Select_Target_Split:
+    waypoint: 542,270 582,270
+  Flow_Split_Prepare_End:
+    waypoint: 702,270 742,270
+  input_dataset:
+    bounds: 304 365 36 50
+    label: 300 421 46 15
+  select_model:
+    bounds: 1204 230 100 80
+    isExpanded: false
+    fill: "#f6e7c8"
+    stroke: "#a8791f"
+  select_start:
+    bounds: 180 182 36 36
+  build_pipeline:
+    bounds: 256 160 120 80
+  cross_validate:
+    bounds: 416 160 120 80
+  build_fold_report:
+    bounds: 576 160 120 80
+  DataOutput_Fold_Report:
+    waypoint: 636,240 636,327 704,327
+  summarize_cv:
+    bounds: 736 160 120 80
+  DataInput_Fold_Report_Summary:
+    waypoint: 740,327 796,327 796,240
+  DataOutput_CV_Summary:
+    waypoint: 822,240 822,327 896,327
+  select_end:
+    bounds: 896 182 36 36
+  cv_fold_report:
+    bounds: 704 302 36 50
+    label: 685 359 75 15
+  cv_summary:
+    bounds: 896 302 36 50
+    label: 883 356 63 15
+  Flow_Select_Start_Build_Pipeline:
+    waypoint: 216,200 256,200
+  Flow_Build_Pipeline_Cross_Validate:
+    waypoint: 376,200 416,200
+  Flow_Cross_Validate_Build_Fold_Report:
+    waypoint: 536,200 576,200
+  Flow_Build_Fold_Report_Summarize_CV:
+    waypoint: 696,200 736,200
+  Flow_Summarize_CV_Select_End:
+    waypoint: 856,200 896,200
+  evaluate_and_report:
+    bounds: 2246 230 100 80
+    isExpanded: false
+    fill: "#d9ecdc"
+    stroke: "#3f7a4a"
+  report_start:
+    bounds: 180 182 36 36
+  fit_model:
+    bounds: 256 160 120 80
+  DataOutput_Fitted_Model:
+    waypoint: 316,240 316,327 382,327
+  predict_test:
+    bounds: 416 160 120 80
+  DataInput_Model_Predict:
+    waypoint: 418,327 476,327 476,240
+  score_test:
+    bounds: 576 160 120 80
+  write_test_report:
+    bounds: 736 160 120 80
+  DataOutput_Test_Report:
+    waypoint: 796,240 796,282 796,302
+  plot_confusion:
+    bounds: 896 160 120 80
+  DataOutput_Confusion_Matrix:
+    waypoint: 956,240 956,302
+  report_end:
+    bounds: 1056 182 36 36
+  fitted_model:
+    bounds: 382 302 36 50
+    label: 364 352 72 15
+  test_report:
+    bounds: 778 302 36 50
+    label: 754 352 84 15
+  confusion_matrix:
+    bounds: 938 302 36 50
+    label: 914 356 84 15
+  Flow_Report_Start_Fit_Model:
+    waypoint: 216,200 256,200
+  Flow_Fit_Model_Predict_Test:
+    waypoint: 376,200 416,200
+  Flow_Predict_Test_Score_Test:
+    waypoint: 536,200 576,200
+  Flow_Score_Test_Write_Test_Report:
+    waypoint: 696,200 736,200
+  Flow_Write_Test_Report_Plot_Confusion:
+    waypoint: 856,200 896,200
+  Flow_Plot_Confusion_Report_End:
+    waypoint: 1016,200 1056,200
+  flow_start:
+    waypoint: 116,270 160,270
+  flow_prepare_done:
+    waypoint: 810,270 1204,270
+  flow_select_done:
+    waypoint: 1304,270 1700,270
+  report:
+    waypoint: 1750,270 2246,270
+    label: 1932 273 31 15
+  needs_work:
+    waypoint: 1725,295 1725,480
+    label: 1731 443 58 15
+  flow_report_done:
+    waypoint: 2346,270 2832,270

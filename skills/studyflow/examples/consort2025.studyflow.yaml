@@ -18,8 +18,6 @@ CONSORT_2025:
       type: StartEvent
       name: Enrollment
       consentFormUri: https://example.org/protocols/consort2025/consent.pdf
-      bounds: 412 92 36 36
-      label: 402 73 56 15
     Activity_Screening:
       type: Task
       checklist: |-
@@ -31,34 +29,23 @@ CONSORT_2025:
         - type: cognitive:Questionnaire
           instrument: screening
       name: Screening assessment
-      bounds: 380 160 100 80
     Eligibility_Gateway:
       type: ExclusiveGateway
       extensionElements:
         - type: cognitive:EligibilityGateway
       name: Assessed for eligibility
       default: Flow_Eligible
-      bounds: 405 280 50 50
-      isMarkerVisible: true
-      label: 370 337 120 30
     Excluded_Pre:
       type: EndEvent
       name: Excluded (n=...)
       eventDefinitions:
         ErrorDef_ExcludedPre:
           type: ErrorEventDefinition
-      bounds: 612 287 36 36
-      label: 602 330 56 30
-      fill: "#f1d0cd"
-      stroke: "#ac5a54"
     Randomize_Gateway:
       type: ExclusiveGateway
       extensionElements:
         - type: cognitive:RandomGateway
       name: Randomization
-      bounds: 405 425 50 50
-      isMarkerVisible: true
-      label: 389 482 82 15
     Activity_Allocation_A:
       type: Task
       checklist: |-
@@ -66,7 +53,6 @@ CONSORT_2025:
         - [ ] Intervention delivered as protocol
         - [ ] Adverse events recorded
       name: Allocated to intervention (n=...)
-      bounds: 200 490 160 80
     DidNotReceive_A:
       type: BoundaryEvent
       name: Did not receive (n=...)
@@ -74,8 +60,6 @@ CONSORT_2025:
         ErrorDef_DidNotReceive_A:
           type: ErrorEventDefinition
       attachedToRef: Activity_Allocation_A
-      bounds: 222 552 36 36
-      label: 172 595 106 30
     Activity_Followup_A:
       type: Task
       checklist: |-
@@ -87,7 +71,6 @@ CONSORT_2025:
         - type: cognitive:CognitiveTask
           platform: jspsych
       name: Follow-up
-      bounds: 200 630 160 80
     LostFollowup_A:
       type: BoundaryEvent
       name: Lost to follow-up (n=...)
@@ -95,8 +78,6 @@ CONSORT_2025:
         ErrorDef_Lost_A:
           type: ErrorEventDefinition
       attachedToRef: Activity_Followup_A
-      bounds: 212 692 36 36
-      label: 168 735 84 45
     Discontinued_A:
       type: BoundaryEvent
       name: Discontinued (n=...)
@@ -104,8 +85,6 @@ CONSORT_2025:
         ErrorDef_Discont_A:
           type: ErrorEventDefinition
       attachedToRef: Activity_Followup_A
-      bounds: 292 692 36 36
-      label: 308 735 65 30
     Activity_Analysis_A:
       type: Task
       checklist: |-
@@ -114,7 +93,6 @@ CONSORT_2025:
         - [ ] Sensitivity analyses
         - [ ] Pre-registered statistical plan applied
       name: Analyzed (n=...)
-      bounds: 200 800 160 80
     ExcludedFromAnalysis_A:
       type: BoundaryEvent
       name: Excluded from analysis (n=...)
@@ -122,8 +100,6 @@ CONSORT_2025:
         ErrorDef_AnalysisExcluded_A:
           type: ErrorEventDefinition
       attachedToRef: Activity_Analysis_A
-      bounds: 212 862 36 36
-      label: 204 905 72 60
     Activity_Allocation_B:
       type: Task
       checklist: |-
@@ -131,7 +107,6 @@ CONSORT_2025:
         - [ ] Sham/usual-care delivered as protocol
         - [ ] Adverse events recorded
       name: Allocated to control (n=...)
-      bounds: 500 490 160 80
     DidNotReceive_B:
       type: BoundaryEvent
       name: Did not receive (n=...)
@@ -139,8 +114,6 @@ CONSORT_2025:
         ErrorDef_DidNotReceive_B:
           type: ErrorEventDefinition
       attachedToRef: Activity_Allocation_B
-      bounds: 602 552 36 36
-      label: 556 595 106 30
     Activity_Followup_B:
       type: Task
       checklist: |-
@@ -151,7 +124,6 @@ CONSORT_2025:
       extensionElements:
         - type: cognitive:Rest
       name: Follow-up
-      bounds: 500 630 160 80
     LostFollowup_B:
       type: BoundaryEvent
       name: Lost to follow-up (n=...)
@@ -159,8 +131,6 @@ CONSORT_2025:
         ErrorDef_Lost_B:
           type: ErrorEventDefinition
       attachedToRef: Activity_Followup_B
-      bounds: 512 692 36 36
-      label: 468 735 84 45
     Discontinued_B:
       type: BoundaryEvent
       name: Discontinued (n=...)
@@ -168,8 +138,6 @@ CONSORT_2025:
         ErrorDef_Discont_B:
           type: ErrorEventDefinition
       attachedToRef: Activity_Followup_B
-      bounds: 602 692 36 36
-      label: 618 735 65 30
     Activity_Analysis_B:
       type: Task
       checklist: |-
@@ -178,7 +146,6 @@ CONSORT_2025:
         - [ ] Sensitivity analyses
         - [ ] Pre-registered statistical plan applied
       name: Analyzed (n=...)
-      bounds: 500 800 160 80
     ExcludedFromAnalysis_B:
       type: BoundaryEvent
       name: Excluded from analysis (n=...)
@@ -186,153 +153,83 @@ CONSORT_2025:
         ErrorDef_AnalysisExcluded_B:
           type: ErrorEventDefinition
       attachedToRef: Activity_Analysis_B
-      bounds: 512 862 36 36
-      label: 504 905 72 60
     Trial_Complete:
       type: EndEvent
       name: Completed
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
       completionCodeType: dynamic
-      bounds: 412 952 36 36
-      label: 403 995 55 15
     Excluded_Post:
       type: EndEvent
       name: Excluded (n=...)
       eventDefinitions:
         ErrorDef_ExcludedPost:
           type: ErrorEventDefinition
-      bounds: 2 732 36 36
-      label: "-86 743 78 30"
-      fill: "#f1d0cd"
-      stroke: "#ac5a54"
-    Flow_Start_Screening:
-      sourceRef: Enrollment_Start
-      targetRef: Activity_Screening
-      waypoint: 430,128 430,160
-    Flow_Screening_Eligibility:
-      sourceRef: Activity_Screening
-      targetRef: Eligibility_Gateway
-      waypoint: 430,240 430,280
+    Flow_Start_Screening: Enrollment_Start -> Activity_Screening
+    Flow_Screening_Eligibility: Activity_Screening -> Eligibility_Gateway
     Flow_Eligible:
       name: eligible
       sourceRef: Eligibility_Gateway
       targetRef: Randomize_Gateway
-      waypoint: 430,330 430,425
-      label: 436 370 38 15
     Flow_Excluded_Pre:
       name: not eligible
       sourceRef: Eligibility_Gateway
       targetRef: Excluded_Pre
-      waypoint: 455,305 612,305
-      label: 500 287 60 30
-      stroke: "#ac5a54"
     Flow_Allocate_A:
       name: intervention
       sourceRef: Randomize_Gateway
       targetRef: Activity_Allocation_A
-      waypoint: 405,450 280,450 280,490
-      label: 300 432 62 15
     Flow_Allocate_B:
       name: control
       sourceRef: Randomize_Gateway
       targetRef: Activity_Allocation_B
-      waypoint: 455,450 580,450 580,490
-      label: 500 432 40 15
-    Flow_A_Followup:
-      sourceRef: Activity_Allocation_A
-      targetRef: Activity_Followup_A
-      waypoint: 280,570 280,630
-    Flow_A_Analysis:
-      sourceRef: Activity_Followup_A
-      targetRef: Activity_Analysis_A
-      waypoint: 280,710 280,800
-    Flow_A_Done:
-      sourceRef: Activity_Analysis_A
-      targetRef: Trial_Complete
-      waypoint: 280,880 280,970 412,970
-    Flow_B_Followup:
-      sourceRef: Activity_Allocation_B
-      targetRef: Activity_Followup_B
-      waypoint: 580,570 580,630
-    Flow_B_Analysis:
-      sourceRef: Activity_Followup_B
-      targetRef: Activity_Analysis_B
-      waypoint: 580,710 580,800
-    Flow_B_Done:
-      sourceRef: Activity_Analysis_B
-      targetRef: Trial_Complete
-      waypoint: 580,880 580,970 448,970
+    Flow_A_Followup: Activity_Allocation_A -> Activity_Followup_A
+    Flow_A_Analysis: Activity_Followup_A -> Activity_Analysis_A
+    Flow_A_Done: Activity_Analysis_A -> Trial_Complete
+    Flow_B_Followup: Activity_Allocation_B -> Activity_Followup_B
+    Flow_B_Analysis: Activity_Followup_B -> Activity_Analysis_B
+    Flow_B_Done: Activity_Analysis_B -> Trial_Complete
     Flow_DidNotReceive_A:
       name: reason
       sourceRef: DidNotReceive_A
       targetRef: Excluded_Post
-      waypoint: 240,588 240,610 20,610 20,732
-      label: 113 585 34 15
-      stroke: "#ac5a54"
     Flow_LostFollowup_A:
       name: reason
       sourceRef: LostFollowup_A
       targetRef: Excluded_Post
-      waypoint: 230,728 230,750 38,750
-      label: 108 732 34 15
-      stroke: "#ac5a54"
-    Flow_Discontinued_A:
-      sourceRef: Discontinued_A
-      targetRef: Excluded_Post
-      waypoint: 310,728 310,750 38,750
-      stroke: "#ac5a54"
+    Flow_Discontinued_A: Discontinued_A -> Excluded_Post
     Flow_ExcludedAnalysis_A:
       name: reason
       sourceRef: ExcludedFromAnalysis_A
       targetRef: Excluded_Post
-      waypoint: 230,898 230,920 20,920 20,768
-      label: 393 895 34 15
-      stroke: "#ac5a54"
     Flow_DidNotReceive_B:
       name: reason
       sourceRef: DidNotReceive_B
       targetRef: Excluded_Post
-      waypoint: 620,588 620,610 20,610 20,732
-      label: 303 585 34 15
-      stroke: "#ac5a54"
     Flow_LostFollowup_B:
       name: reason
       sourceRef: LostFollowup_B
       targetRef: Excluded_Post
-      waypoint: 530,728 530,750 38,750
-      label: 531 732 34 15
-      stroke: "#ac5a54"
     Flow_Discontinued_B:
       name: reason
       sourceRef: Discontinued_B
       targetRef: Excluded_Post
-      waypoint: 620,728 620,750 38,750
-      label: 621 732 34 15
-      stroke: "#ac5a54"
     Flow_ExcludedAnalysis_B:
       name: reason
       sourceRef: ExcludedFromAnalysis_B
       targetRef: Excluded_Post
-      waypoint: 530,898 530,920 20,920 20,768
-      label: 113 895 34 15
-      stroke: "#ac5a54"
   artifacts:
     Group_Enrollment:
       type: Group
       categoryValueRef: CategoryValue_Enrollment
-      bounds: 80 50 700 320
     Group_Allocation:
       type: Group
       categoryValueRef: CategoryValue_Allocation
-      bounds: 80 380 700 200
     Group_Followup:
       type: Group
       categoryValueRef: CategoryValue_Followup
-      bounds: 80 590 700 160
     Group_Analysis:
       type: Group
       categoryValueRef: CategoryValue_Analysis
-      bounds: 80 760 700 160
   isExecutable: false
 Category_Enrollment:
   type: Category
@@ -354,3 +251,134 @@ Category_Analysis:
   categoryValue:
     CategoryValue_Analysis:
       value: Analysis
+layout:
+  Enrollment_Start:
+    bounds: 412 92 36 36
+    label: 402 73 56 15
+  Activity_Screening:
+    bounds: 380 160 100 80
+  Eligibility_Gateway:
+    bounds: 405 280 50 50
+    isMarkerVisible: true
+    label: 370 337 120 30
+  Excluded_Pre:
+    bounds: 612 287 36 36
+    label: 602 330 56 30
+    fill: "#f1d0cd"
+    stroke: "#ac5a54"
+  Randomize_Gateway:
+    bounds: 405 425 50 50
+    isMarkerVisible: true
+    label: 389 482 82 15
+  Activity_Allocation_A:
+    bounds: 200 490 160 80
+  DidNotReceive_A:
+    bounds: 222 552 36 36
+    label: 172 595 106 30
+  Activity_Followup_A:
+    bounds: 200 630 160 80
+  LostFollowup_A:
+    bounds: 212 692 36 36
+    label: 168 735 84 45
+  Discontinued_A:
+    bounds: 292 692 36 36
+    label: 308 735 65 30
+  Activity_Analysis_A:
+    bounds: 200 800 160 80
+  ExcludedFromAnalysis_A:
+    bounds: 212 862 36 36
+    label: 204 905 72 60
+  Activity_Allocation_B:
+    bounds: 500 490 160 80
+  DidNotReceive_B:
+    bounds: 602 552 36 36
+    label: 556 595 106 30
+  Activity_Followup_B:
+    bounds: 500 630 160 80
+  LostFollowup_B:
+    bounds: 512 692 36 36
+    label: 468 735 84 45
+  Discontinued_B:
+    bounds: 602 692 36 36
+    label: 618 735 65 30
+  Activity_Analysis_B:
+    bounds: 500 800 160 80
+  ExcludedFromAnalysis_B:
+    bounds: 512 862 36 36
+    label: 504 905 72 60
+  Trial_Complete:
+    bounds: 412 952 36 36
+    label: 403 995 55 15
+  Excluded_Post:
+    bounds: 2 732 36 36
+    label: "-86 743 78 30"
+    fill: "#f1d0cd"
+    stroke: "#ac5a54"
+  Flow_Start_Screening:
+    waypoint: 430,128 430,160
+  Flow_Screening_Eligibility:
+    waypoint: 430,240 430,280
+  Flow_Eligible:
+    waypoint: 430,330 430,425
+    label: 436 370 38 15
+  Flow_Excluded_Pre:
+    waypoint: 455,305 612,305
+    label: 500 287 60 30
+    stroke: "#ac5a54"
+  Flow_Allocate_A:
+    waypoint: 405,450 280,450 280,490
+    label: 300 432 62 15
+  Flow_Allocate_B:
+    waypoint: 455,450 580,450 580,490
+    label: 500 432 40 15
+  Flow_A_Followup:
+    waypoint: 280,570 280,630
+  Flow_A_Analysis:
+    waypoint: 280,710 280,800
+  Flow_A_Done:
+    waypoint: 280,880 280,970 412,970
+  Flow_B_Followup:
+    waypoint: 580,570 580,630
+  Flow_B_Analysis:
+    waypoint: 580,710 580,800
+  Flow_B_Done:
+    waypoint: 580,880 580,970 448,970
+  Flow_DidNotReceive_A:
+    waypoint: 240,588 240,610 20,610 20,732
+    label: 113 585 34 15
+    stroke: "#ac5a54"
+  Flow_LostFollowup_A:
+    waypoint: 230,728 230,750 38,750
+    label: 108 732 34 15
+    stroke: "#ac5a54"
+  Flow_Discontinued_A:
+    waypoint: 310,728 310,750 38,750
+    stroke: "#ac5a54"
+  Flow_ExcludedAnalysis_A:
+    waypoint: 230,898 230,920 20,920 20,768
+    label: 393 895 34 15
+    stroke: "#ac5a54"
+  Flow_DidNotReceive_B:
+    waypoint: 620,588 620,610 20,610 20,732
+    label: 303 585 34 15
+    stroke: "#ac5a54"
+  Flow_LostFollowup_B:
+    waypoint: 530,728 530,750 38,750
+    label: 531 732 34 15
+    stroke: "#ac5a54"
+  Flow_Discontinued_B:
+    waypoint: 620,728 620,750 38,750
+    label: 621 732 34 15
+    stroke: "#ac5a54"
+  Flow_ExcludedAnalysis_B:
+    waypoint: 530,898 530,920 20,920 20,768
+    label: 113 895 34 15
+    stroke: "#ac5a54"
+  Group_Enrollment:
+    bounds: 80 50 700 320
+  Group_Allocation:
+    bounds: 80 380 700 200
+  Group_Followup:
+    bounds: 80 590 700 160
+  Group_Analysis:
+    bounds: 80 760 700 160

@@ -26,8 +26,6 @@ Demo3_ExternalBot:
     Start:
       type: StartEvent
       name: Start
-      bounds: 160 180 36 36
-      label: 166 223 24 15
     Warmup_1Back:
       type: ChoreographyTask
       extensionElements:
@@ -41,8 +39,6 @@ Demo3_ExternalBot:
         In_Warmup_1Back_Parameters:
           sourceRef:
             - Warmup_1Back_Parameters
-          waypoint: 320,308 320,258
-      bounds: 260 138 120 120
     Warmup_1Back_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -91,7 +87,6 @@ Demo3_ExternalBot:
               InterStimulusInterval: 0.3
               TrialForeperiod: 0.1
       name: Parameters
-      bounds: 302 308 36 50
     Main_2Back:
       type: ChoreographyTask
       extensionElements:
@@ -105,8 +100,6 @@ Demo3_ExternalBot:
         In_Main_2Back_Parameters:
           sourceRef:
             - Main_2Back_Parameters
-          waypoint: 510,308 510,258
-      bounds: 450 138 120 120
     Main_2Back_Parameters:
       type: DataObjectReference
       extensionElements:
@@ -159,24 +152,37 @@ Demo3_ExternalBot:
               InterStimulusInterval: 0.3
               TrialForeperiod: 0.1
       name: Parameters
-      bounds: 492 308 36 50
     End:
       type: EndEvent
       name: Done
-      bounds: 640 180 36 36
-      label: 647 223 22 15
-    Flow_Start_Warmup:
-      sourceRef: Start
-      targetRef: Warmup_1Back
-      waypoint: 196,198 260,198
-    Flow_Warmup_Main:
-      sourceRef: Warmup_1Back
-      targetRef: Main_2Back
-      waypoint: 380,198 450,198
-    Flow_Main_End:
-      sourceRef: Main_2Back
-      targetRef: End
-      waypoint: 570,198 640,198
+    Flow_Start_Warmup: Start -> Warmup_1Back
+    Flow_Warmup_Main: Warmup_1Back -> Main_2Back
+    Flow_Main_End: Main_2Back -> End
+layout:
+  Start:
+    bounds: 160 180 36 36
+    label: 166 223 24 15
+  Warmup_1Back:
+    bounds: 260 138 120 120
+  In_Warmup_1Back_Parameters:
+    waypoint: 320,308 320,258
+  Warmup_1Back_Parameters:
+    bounds: 302 308 36 50
+  Main_2Back:
+    bounds: 450 138 120 120
+  In_Main_2Back_Parameters:
+    waypoint: 510,308 510,258
+  Main_2Back_Parameters:
+    bounds: 492 308 36 50
+  End:
+    bounds: 640 180 36 36
+    label: 647 223 22 15
+  Flow_Start_Warmup:
+    waypoint: 196,198 260,198
+  Flow_Warmup_Main:
+    waypoint: 380,198 450,198
+  Flow_Main_End:
+    waypoint: 570,198 640,198
 state:
   _meta:
     prov:

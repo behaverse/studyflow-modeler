@@ -20,7 +20,6 @@ Drawn_Loop:
     Start:
       type: StartEvent
       name: go
-      bounds: 57 52 36 36
     Say:
       type: ServiceTask
       name: Say it again
@@ -28,7 +27,6 @@ Drawn_Loop:
         args:
           - around we go
       implementation: python://builtins.print
-      bounds: 175 30 100 80
     Gate:
       type: ExclusiveGateway
       documentation: >-
@@ -36,29 +34,36 @@ Drawn_Loop:
         under eight, and the exit is the gateway's native default.
       name: eight times yet?
       default: Exit
-      bounds: 350 45 50 50
-      isMarkerVisible: true
     End:
       type: EndEvent
       name: done
-      bounds: 507 52 36 36
-    F1:
-      sourceRef: Start
-      targetRef: Say
-      waypoint: 93,70 175,70
-    F2:
-      sourceRef: Say
-      targetRef: Gate
-      waypoint: 275,70 350,70
+    F1: Start -> Say
+    F2: Say -> Gate
     Again:
       name: again
       conditionExpression: state._meta.reached.Gate < 8
       sourceRef: Gate
       targetRef: Say
-      waypoint: 375,95 375,140 225,140 225,110
     Exit:
       name: enough
       sourceRef: Gate
       targetRef: End
-      waypoint: 400,70 507,70
   isExecutable: true
+layout:
+  Start:
+    bounds: 57 52 36 36
+  Say:
+    bounds: 175 30 100 80
+  Gate:
+    bounds: 350 45 50 50
+    isMarkerVisible: true
+  End:
+    bounds: 507 52 36 36
+  F1:
+    waypoint: 93,70 175,70
+  F2:
+    waypoint: 275,70 350,70
+  Again:
+    waypoint: 375,95 375,140 225,140 225,110
+  Exit:
+    waypoint: 400,70 507,70
