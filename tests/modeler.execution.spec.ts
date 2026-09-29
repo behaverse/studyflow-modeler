@@ -90,7 +90,6 @@ test('a step repeats: its kind sets the canvas marker, its condition takes a lan
   const section = page.getByTestId('loop-section');
   const condition = section.locator('textarea[name="loopCondition"]');
   await condition.fill('score < 0.9');
-  await section.getByLabel(/language/i).selectOption('python');
   await section.locator('input[name="loopMaximum"]').fill('5');
   // The only checkbox in loop mode is testBefore.
   await section.getByRole('checkbox').click();
@@ -115,10 +114,10 @@ test('a step repeats: its kind sets the canvas marker, its condition takes a lan
 
   const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
   expect(studyflowText).toContain('type: StandardLoopCharacteristics');
-  expect(studyflowText).toContain('language: python');
+  expect(studyflowText).toContain('loopCondition: score < 0.9');
 });
 
-test('an expression field carries a language select that persists, and emptying it removes the expression', async ({ page }) => {
+test('an expression field says it is FEEL and flags one that is not, and emptying it removes the expression', async ({ page }) => {
   await gotoModeler(page);
   await page.getByTestId('open-file-input').setInputFiles(examplePath('drawn_loop'));
   await expect(page.locator('g[data-element-id="Say"]')).toBeVisible();
@@ -127,11 +126,13 @@ test('an expression field carries a language select that persists, and emptying 
   const condition = page.locator('textarea[name="bpmn:conditionExpression"]');
   await expect(condition).toHaveValue('state._meta.reached.Gate < 8');
 
-  // Unprefixed by default, the engine's own language.
-  const language = page.getByLabel(/language/i);
-  await expect(language).toHaveValue('');
-  await language.selectOption('python');
-  expect(await readDownloadText(await exportDiagram(page, 'studyflow'))).toContain('language: python');
+  // One language everywhere: the field names it, and marks an expression written in another.
+  const badge = page.getByText('FEEL', { exact: true });
+  await expect(badge).toBeVisible();
+  await condition.fill("state.trace.count('Gate') < 8");
+  await expect(condition).toHaveAttribute('aria-invalid', 'true');
+  await condition.fill('state._meta.reached.Gate < 8');
+  await expect(condition).not.toHaveAttribute('aria-invalid', 'true');
 
   // No text, no element: clearing the field removes the expression, so the conditional-flow marker follows.
   await condition.fill('');

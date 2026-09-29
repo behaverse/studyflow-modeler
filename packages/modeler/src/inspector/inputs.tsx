@@ -49,7 +49,7 @@ export function ExpressionRow({ name, placeholder, value, onCommit }: {
         FEEL
       </span>
       <Textarea
-        aria-invalid={error ? true : undefined}
+        invalid={Boolean(error)}
         name={name}
         rows={1}
         placeholder={placeholder}

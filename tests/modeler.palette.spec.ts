@@ -64,10 +64,10 @@ test.describe('Studyflow modeler palette flows', () => {
 
     // Its loop condition names its own data object, and follows it when a second drop renames it.
     expect(heardOf(first)).toBe('Heard');
-    expect(loopOf(first)).toContain('(Heard or');
+    expect(loopOf(first)).toBe('Heard = null or not(contains(lower case(Heard), "goodbye"))');
     const heard = heardOf(second);
     expect(heard).toMatch(/^Heard_/);
-    expect(loopOf(second)).toContain(`(${heard} or`);
+    expect(loopOf(second)).toBe(`${heard} = null or not(contains(lower case(${heard}), "goodbye"))`);
 
     // Once the copy holding them is deleted, the template's own ids are free again.
     await page.locator('g[data-element-id="Conversation"]').click();
