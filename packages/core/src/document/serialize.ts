@@ -11,6 +11,7 @@ import {
   inlineExpressionBody,
   inlineYamlValue,
   impliedTypeName,
+  foldTypedElement,
   isImpliedFlowList,
   isRedundantNamespaceDeclaration,
   keyItemsById,
@@ -122,6 +123,7 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
   }
   if (DI_NODE_TYPES.has(el.$type)) compactDiNode(out);
   if (out.type !== undefined && impliedTypeName(out, declaredType) === el.$type) delete out.type;
+  if (ctx) return foldTypedElement(el, out);
 
   return out;
 }

@@ -3,10 +3,9 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
   xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 OmniProcessLabLinkDemo:
-  type: Process
+  type: studyflow:Study
   documentation: Reads BIDS data, preprocesses fMRI and EEG in parallel, fits a model, and renders manuscript outputs.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:38Z"
@@ -106,15 +105,11 @@ OmniProcessLabLinkDemo:
     Flow_Figures_Manuscript: GenerateFigures -> RenderManuscript
     Flow_Manuscript_End: RenderManuscript -> EndMaterialized
     RawBIDSDataset:
-      type: DataStoreReference
-      extensionElements:
-        - type: studyflow:Dataset
-          format: bids
+      type: studyflow:Dataset
+      format: bids
       name: Raw BIDS data
     ManuscriptArtifacts:
-      type: DataStoreReference
-      extensionElements:
-        - type: behaverse:BDMDataset
+      type: behaverse:BDMDataset
       name: Manuscript artifacts (figures, tables)
   isExecutable: true
 layout:

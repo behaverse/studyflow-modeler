@@ -19,6 +19,7 @@ import {
   expandInlineFlow,
   extractInlineDi,
   impliedTypeName,
+  unfoldTypedElement,
   isDocumentationProperty,
   isDocumentationType,
   isExpressionType,
@@ -58,6 +59,12 @@ class ModdleBuilder {
   }
 
   build(node: Record<string, any>, declaredType: string | undefined): any {
+    // A schema's typed element, written as its own type: read as the BPMN element it attaches to, with its wrapper.
+    // Only where a BPMN element is expected: an extension entry (`declaredType` Element) is the wrapper itself.
+    if (typeof node.type === 'string' && node.type.includes(':') && declaredType?.startsWith('bpmn:')) {
+      const unfolded = unfoldTypedElement(this.moddle, node, longTypeName(node.type));
+      if (unfolded) return this.build(unfolded, declaredType);
+    }
     const { type, ...props } = node;
     const spelled = (type as string | undefined) ?? impliedTypeName(props, declaredType) ?? declaredType;
     if (!spelled) throw new Error(`Element is missing a 'type': ${JSON.stringify(node).slice(0, 120)}`);

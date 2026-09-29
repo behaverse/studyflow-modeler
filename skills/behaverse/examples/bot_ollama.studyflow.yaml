@@ -16,10 +16,9 @@ Demo5_OllamaBot_Actors:
       name: N-Back session
       processRef: Demo5_OllamaBot
     Actor_Ollama__gemma4_e2b_mlx:
-      extensionElements:
-        - type: studyflow:Actor
-          actorType: llm
-          implementation: ollama://gemma4:e2b-mlx
+      type: studyflow:Actor
+      actorType: llm
+      implementation: ollama://gemma4:e2b-mlx
       name: Ollama (gemma4:e2b-mlx)
   messageFlows:
     Msg_Warmup_Trial:
@@ -63,11 +62,9 @@ Demo5_OllamaBot:
       type: StartEvent
       name: Start
     Warmup_1Back:
-      type: ChoreographyTask
-      extensionElements:
-        - type: behaverse:Task
-          instrument: NB
-          timeline: Demo5_Warmup
+      type: behaverse:Task
+      instrument: NB
+      timeline: Demo5_Warmup
       name: 1-Back warm-up (tired)
       dataInputAssociations:
         In_Warmup_1Back:
@@ -77,71 +74,65 @@ Demo5_OllamaBot:
           sourceRef:
             - Warmup_1Back_Parameters
     Warmup_1Back_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values:
-            Blocks:
-              Demo5_Warmup:
-                Name: Demo5_Warmup
-                Inherits: Default
-                Parameters:
-                  NValue: 1
-                  Feature: Letters
-                  Streams:
-                    - Feature:
-                        Reference: Feature
-                      StimulusValue:
-                        Generate: OncePerBlock
-                        Sequence:
-                          Type: Ordered
-                          Values:
-                            - 3
-                            - 1
-                            - 2
-                            - 1
-                            - 3
-                            - 2
-                            - 3
-                            - 2
-                  StreamSize: 8
-                  FeatureValuesCount: 3
-                  StimulusDisplayDuration: 0.5
-                  InterStimulusInterval: 1.5
-            Timelines:
-              Demo5_Warmup:
-                Name: Demo5_Warmup
-                blocks:
-                  - name: Demo5_Warmup
-            Bot:
-              Speed: 20
-              SkipInstructions: true
-              AutoClickInstructions: true
-              SkipFocusArea: true
-              OverrideTemporalParameters: true
-              StimulusDisplayDuration: 0.3
-              InterStimulusInterval: 0.3
-              TrialForeperiod: 0.1
-              overrideUserInputParameters: true
-              playerPaced: true
-              useNonMatchButton: true
-              maxResponseTime: 15
+      type: studyflow:Parameters
+      values:
+        Blocks:
+          Demo5_Warmup:
+            Name: Demo5_Warmup
+            Inherits: Default
+            Parameters:
+              NValue: 1
+              Feature: Letters
+              Streams:
+                - Feature:
+                    Reference: Feature
+                  StimulusValue:
+                    Generate: OncePerBlock
+                    Sequence:
+                      Type: Ordered
+                      Values:
+                        - 3
+                        - 1
+                        - 2
+                        - 1
+                        - 3
+                        - 2
+                        - 3
+                        - 2
+              StreamSize: 8
+              FeatureValuesCount: 3
+              StimulusDisplayDuration: 0.5
+              InterStimulusInterval: 1.5
+        Timelines:
+          Demo5_Warmup:
+            Name: Demo5_Warmup
+            blocks:
+              - name: Demo5_Warmup
+        Bot:
+          Speed: 20
+          SkipInstructions: true
+          AutoClickInstructions: true
+          SkipFocusArea: true
+          OverrideTemporalParameters: true
+          StimulusDisplayDuration: 0.3
+          InterStimulusInterval: 0.3
+          TrialForeperiod: 0.1
+          overrideUserInputParameters: true
+          playerPaced: true
+          useNonMatchButton: true
+          maxResponseTime: 15
       name: Parameters
     Instructions_Warmup_1Back:
-      type: DataObjectReference
-      extensionElements:
-        - type: agentic:Prompt
-          template: |
-            You are a tired participant near the end of a long 1-back session.
-            Aim for about 80% accuracy. Occasionally miss matches when your
-            attention drifts. Never explain; reply with exactly Match or NonMatch.
+      type: agentic:Prompt
+      template: |
+        You are a tired participant near the end of a long 1-back session.
+        Aim for about 80% accuracy. Occasionally miss matches when your
+        attention drifts. Never explain; reply with exactly Match or NonMatch.
       name: Instructions
     Main_2Back:
-      type: ChoreographyTask
-      extensionElements:
-        - type: behaverse:Task
-          instrument: NB
-          timeline: Demo5_Main
+      type: behaverse:Task
+      instrument: NB
+      timeline: Demo5_Main
       name: 2-Back main (expert)
       dataInputAssociations:
         In_Main_2Back:
@@ -151,69 +142,65 @@ Demo5_OllamaBot:
           sourceRef:
             - Main_2Back_Parameters
     Main_2Back_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values:
-            Blocks:
-              Demo5_Main:
-                Name: Demo5_Main
-                Inherits: Default
-                Parameters:
-                  NValue: 2
-                  Feature: Letters
-                  Streams:
-                    - Feature:
-                        Reference: Feature
-                      StimulusValue:
-                        Generate: OncePerBlock
-                        Sequence:
-                          Type: Ordered
-                          Values:
-                            - 3
-                            - 1
-                            - 2
-                            - 1
-                            - 3
-                            - 2
-                            - 3
-                            - 2
-                            - 1
-                            - 2
-                            - 3
-                            - 1
-                  StreamSize: 12
-                  FeatureValuesCount: 3
-                  StimulusDisplayDuration: 0.5
-                  InterStimulusInterval: 1.5
-            Timelines:
-              Demo5_Main:
-                Name: Demo5_Main
-                blocks:
-                  - name: Demo5_Main
-            Bot:
-              Speed: 20
-              SkipInstructions: true
-              AutoClickInstructions: true
-              SkipFocusArea: true
-              OverrideTemporalParameters: true
-              StimulusDisplayDuration: 0.3
-              InterStimulusInterval: 0.3
-              TrialForeperiod: 0.1
-              overrideUserInputParameters: true
-              playerPaced: true
-              useNonMatchButton: true
-              maxResponseTime: 15
+      type: studyflow:Parameters
+      values:
+        Blocks:
+          Demo5_Main:
+            Name: Demo5_Main
+            Inherits: Default
+            Parameters:
+              NValue: 2
+              Feature: Letters
+              Streams:
+                - Feature:
+                    Reference: Feature
+                  StimulusValue:
+                    Generate: OncePerBlock
+                    Sequence:
+                      Type: Ordered
+                      Values:
+                        - 3
+                        - 1
+                        - 2
+                        - 1
+                        - 3
+                        - 2
+                        - 3
+                        - 2
+                        - 1
+                        - 2
+                        - 3
+                        - 1
+              StreamSize: 12
+              FeatureValuesCount: 3
+              StimulusDisplayDuration: 0.5
+              InterStimulusInterval: 1.5
+        Timelines:
+          Demo5_Main:
+            Name: Demo5_Main
+            blocks:
+              - name: Demo5_Main
+        Bot:
+          Speed: 20
+          SkipInstructions: true
+          AutoClickInstructions: true
+          SkipFocusArea: true
+          OverrideTemporalParameters: true
+          StimulusDisplayDuration: 0.3
+          InterStimulusInterval: 0.3
+          TrialForeperiod: 0.1
+          overrideUserInputParameters: true
+          playerPaced: true
+          useNonMatchButton: true
+          maxResponseTime: 15
       name: Parameters
     Instructions_Main_2Back:
-      type: DataObjectReference
-      extensionElements:
-        - type: agentic:Prompt
-          template: |
-            You are an attentive, expert participant in a 2-back task.
-            Respond Match if the current letter is identical to the letter shown
-            exactly two trials ago, otherwise NonMatch. Aim for near-perfect
-            accuracy. Reply with exactly Match or NonMatch; no explanation.
+      type: agentic:Prompt
+      template: |
+        You are an attentive, expert participant in a 2-back task.
+        Respond Match if the current letter is identical to the letter shown
+        exactly two trials ago, otherwise NonMatch. Aim for near-perfect
+        accuracy. Reply with exactly Match or NonMatch; no explanation.
       name: Instructions
     End:
       type: EndEvent

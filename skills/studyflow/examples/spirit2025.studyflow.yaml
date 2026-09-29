@@ -16,10 +16,8 @@ SPIRIT_2025_Collaboration:
       name: SPIRIT 2025 trial protocol
       processRef: SPIRIT_2025
 SPIRIT_2025:
-  type: Process
+  type: studyflow:Study
   documentation: A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
-  extensionElements:
-    - type: studyflow:Study
   name: SPIRIT 2025 trial protocol
   laneSets:
     LaneSet_SPIRIT:
@@ -68,17 +66,15 @@ SPIRIT_2025:
       duration: 1 week
       progress: done
     Eligibility_Gate:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: cognitive:EligibilityGateway
-          inclusionCriteria:
-            - Adults aged 18 to 65 years
-            - DSM-5 diagnosis of attentional disorder
-            - Stable medication regimen for 3 months
-          exclusionCriteria:
-            - Comorbid neurological condition
-            - Pregnancy or lactation
-            - Participation in another interventional trial within 30 days
+      type: cognitive:EligibilityGateway
+      inclusionCriteria:
+        - Adults aged 18 to 65 years
+        - DSM-5 diagnosis of attentional disorder
+        - Stable medication regimen for 3 months
+      exclusionCriteria:
+        - Comorbid neurological condition
+        - Pregnancy or lactation
+        - Participation in another interventional trial within 30 days
       name: Eligible?
       default: Flow_Eligible_Yes
     ScreenFail:
@@ -100,14 +96,12 @@ SPIRIT_2025:
       duration: 1 week
       progress: done
     Allocate_Gate:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: cognitive:RandomGateway
-          stratifyBy: age_band
-          strata:
-            - "age_band: 18-29"
-            - "age_band: 30-44"
-            - "age_band: 45-65"
+      type: cognitive:RandomGateway
+      stratifyBy: age_band
+      strata:
+        - "age_band: 18-29"
+        - "age_band: 30-44"
+        - "age_band: 45-65"
       name: Stratified allocation
     Activity_Intervention:
       type: Task
@@ -123,13 +117,11 @@ SPIRIT_2025:
       duration: 4 weeks
       progress: 60%
     Activity_Control:
-      type: Task
+      type: cognitive:Rest
       checklist: |-
         - [ ] SPIRIT 17a: control dose matched to intervention
         - [ ] SPIRIT 17b: criteria for modification
         - [ ] SPIRIT 19: adherence monitoring
-      extensionElements:
-        - type: cognitive:Rest
       name: "Control: active sham"
       onset: T0+3 weeks
       duration: 4 weeks
@@ -199,24 +191,18 @@ SPIRIT_2025:
       duration: 1 week
       progress: todo
     Schema_Outcomes:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Schema
+      type: studyflow:Schema
       name: Outcome data dictionary
       dataObjectRef: DataObject_Outcomes
     DataObject_Outcomes:
       type: DataObject
     Dataset_Primary:
-      type: DataStoreReference
-      extensionElements:
-        - type: behaverse:BDMDataset
-          dataLevel: trials
+      type: behaverse:BDMDataset
+      dataLevel: trials
       name: Primary & secondary outcomes
     Dataset_AE:
-      type: DataStoreReference
-      extensionElements:
-        - type: studyflow:Dataset
-          format: psych-ds
+      type: studyflow:Dataset
+      format: psych-ds
       name: Adverse events register
     Protocol_End:
       type: EndEvent

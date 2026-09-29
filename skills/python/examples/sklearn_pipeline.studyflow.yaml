@@ -20,7 +20,7 @@ Item_Labels:
   type: ItemDefinition
   structureRef: numpy.ndarray
 sklearn_pipeline:
-  type: Process
+  type: studyflow:Study
   documentation: |
     A runnable scikit-learn classification workflow, drawn the way the
     method is actually done: split first, report last.
@@ -67,14 +67,13 @@ sklearn_pipeline:
     value to the wired outputs - narrowed by a `transformation` over `result`
     where one is declared, which is how one call fills four properties - and
     persists any output that declares a `uri` through its `codec`.
+  seed: 42
+  dependencies:
+    - scikit-learn>=1.4
+    - pandas>=2.0
+    - joblib>=1.3
+    - matplotlib>=3.8
   extensionElements:
-    - type: studyflow:Study
-      seed: 42
-      dependencies:
-        - scikit-learn>=1.4
-        - pandas>=2.0
-        - joblib>=1.3
-        - matplotlib>=3.8
     - type: prov:Activity
       action: executed
       when: "2026-08-20T12:28:24.591+02:00"
@@ -354,14 +353,13 @@ sklearn_pipeline:
         Flow_Select_Target_Split: select_target -> split_train_test
         Flow_Split_Prepare_End: split_train_test -> prepare_end
         input_dataset:
-          type: DataObjectReference
+          type: studyflow:Table
           documentation: |
             Required input. A CSV table with one numeric feature column per
             predictor and one label column named `target`. The engine loads it from
             `uri`; this is a boundary artifact, not an output created by the
             workflow.
           extensionElements:
-            - type: studyflow:Table
             - type: prov:Activity
               action: imported
               when: "2026-08-20T12:28:27.077+02:00"
@@ -555,10 +553,9 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:57.695+02:00"
               run: sklearn-demo
         cv_fold_report:
-          type: DataObjectReference
+          type: studyflow:Table
           documentation: Per-fold metrics from the training-set cross-validation, persisted as CSV.
           extensionElements:
-            - type: studyflow:Table
             - type: prov:Activity
               action: created
               when: "2026-08-20T12:28:28.264+02:00"
@@ -566,10 +563,9 @@ sklearn_pipeline:
           uri: cv_fold_metrics.csv
           name: cv_fold_report
         cv_summary:
-          type: DataObjectReference
+          type: studyflow:Table
           documentation: Descriptive summary of the cross-validation metrics, persisted for review.
           extensionElements:
-            - type: studyflow:Table
             - type: prov:Activity
               action: created
               when: "2026-08-20T12:28:28.346+02:00"
@@ -833,13 +829,12 @@ sklearn_pipeline:
           uri: digits_pca_svc.joblib
           name: fitted_model
         test_report:
-          type: DataObjectReference
+          type: studyflow:Table
           documentation: |
             Precision, recall, and F1 per class on the held-out test set, with the
             macro and weighted averages. Persisted as CSV; the metric names are the
             rows.
           extensionElements:
-            - type: studyflow:Table
             - type: prov:Activity
               action: created
               when: "2026-08-20T12:28:29.096+02:00"

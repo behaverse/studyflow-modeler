@@ -2,7 +2,7 @@ id: drawn_loop
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Drawn_Loop:
-  type: Process
+  type: studyflow:Study
   documentation: >-
     The smallest cycle the notation can draw — one step, one gateway, a conditioned back-edge, and nothing that is not a
     visible edge. The loop is bounded by the engine's own run state: `state._meta.reached.Gate` counts how often the
@@ -10,7 +10,6 @@ Drawn_Loop:
     eight, and the default edge exits. Runs as it stands: `studyflow run drawn_loop.studyflow.png` prints eight times
     and `state._meta.reached` in the run's copy shows the count.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:24:02Z"

@@ -3,10 +3,9 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
   xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 Cognitive_Battery:
-  type: Process
+  type: studyflow:Study
   documentation: Chains N-Back, Digit Span, SART, and Which One tasks with a timed break and a NASA-TLX survey.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:29Z"
@@ -62,19 +61,15 @@ Cognitive_Battery:
         DataOutput_WhichOne_Data:
           targetRef: Dataset_Battery
     Survey:
-      type: Task
-      extensionElements:
-        - type: cognitive:Questionnaire
-          instrument: nasa-tlx
+      type: cognitive:Questionnaire
+      instrument: nasa-tlx
       name: Post-battery survey
       dataOutputAssociations:
         DataOutput_Survey_Data:
           targetRef: Dataset_Battery
     Dataset_Battery:
-      type: DataStoreReference
-      extensionElements:
-        - type: behaverse:BDMDataset
-          dataLevel: trials
+      type: behaverse:BDMDataset
+      dataLevel: trials
       name: Battery trial data
     End:
       type: EndEvent

@@ -17,22 +17,19 @@ Collab_Pools:
   name: Reachy plays WhichOne, a model deciding
   participants:
     Pool_Behaverse:
-      extensionElements:
-        - type: studyflow:Actor
-          actorType: software
+      type: studyflow:Actor
+      actorType: software
       name: Behaverse (WhichOne on the screen)
       processRef: WhichOne_Task
     Pool_Reachy:
-      extensionElements:
-        - type: reachy:Robot
-          volume: 10
+      type: reachy:Robot
+      volume: 10
       name: Reachy Mini
       processRef: Reachy_Participant
     Pool_Model:
-      extensionElements:
-        - type: studyflow:Actor
-          actorType: llm
-          implementation: ollama://gemma4:12b-it-qat
+      type: studyflow:Actor
+      actorType: llm
+      implementation: ollama://gemma4:12b-it-qat
       name: Model, gemma4 on Ollama
   messageFlows:
     Msg_Ready:
@@ -105,30 +102,22 @@ Reachy_Participant:
       type: StartEvent
       name: Seated at the screen
     Look:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:LookAt
-          target: screen
+      type: reachy:LookAt
+      target: screen
       name: Find the screen
     Greet:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
+      type: reachy:Interact
       name: Greet
       additionalArguments:
         args:
           - Hello! I am Reachy. I will be your participant today.
       implementation: shell://say
     Wave:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
-          move: welcoming1
+      type: reachy:Interact
+      move: welcoming1
       name: Welcome
     Announce:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
+      type: reachy:Interact
       name: Announce readiness
       additionalArguments:
         args:
@@ -150,9 +139,7 @@ Reachy_Participant:
       type: ReceiveTask
       name: Receive the trial
     Take:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Snapshot
+      type: reachy:Snapshot
       name: Take a camera frame
       dataOutputAssociations:
         Out_Frame:
@@ -176,23 +163,21 @@ Reachy_Participant:
           targetRef: Choice
           transformation: substring after(result, "Answer:")
     Instructions:
-      type: DataObjectReference
-      extensionElements:
-        - type: agentic:Prompt
-          template: |
-            You are a Reachy Mini robot seated in front of the WhichOne task
-            screen, playing a Simon task. The attached image is your view of
-            the screen. On each trial one coloured disk appears on the left or
-            the right inside the dark panel at the top of the game; the two
-            large circles below it are the response buttons (yellow on the
-            left, blue on the right), not the stimulus. Answer by the disk's
-            colour, not its position: Left when the disk is yellow, Right
-            when it is blue.
+      type: agentic:Prompt
+      template: |
+        You are a Reachy Mini robot seated in front of the WhichOne task
+        screen, playing a Simon task. The attached image is your view of
+        the screen. On each trial one coloured disk appears on the left or
+        the right inside the dark panel at the top of the game; the two
+        large circles below it are the response buttons (yellow on the
+        left, blue on the right), not the stimulus. Answer by the disk's
+        colour, not its position: Left when the disk is yellow, Right
+        when it is blue.
 
-            Reply with exactly three lines:
-            Seen: <the stimulus you see on the screen>
-            Rule: <what the instructions say that stimulus calls for>
-            Answer: <Left or Right>
+        Reply with exactly three lines:
+        Seen: <the stimulus you see on the screen>
+        Rule: <what the instructions say that stimulus calls for>
+        Answer: <Left or Right>
       name: Instructions
     Choice:
       type: DataObjectReference
@@ -205,10 +190,8 @@ Reachy_Participant:
           sourceRef:
             - Choice
     Show:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
-          side: "{Choice}"
+      type: reachy:Interact
+      side: "{Choice}"
       name: Show it with the antennas
     Over:
       type: IntermediateCatchEvent
@@ -224,31 +207,23 @@ Reachy_Participant:
     Flow_Show_Next: Show -> Next_Trial
     Flow_Next_Over: Next_Trial -> Over
     Proud:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
-          move: proud1
+      type: reachy:Interact
+      move: proud1
       name: Proud of it
     Thanks:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
+      type: reachy:Interact
       name: Ask for feedback
       additionalArguments:
         args:
           - That was fun. How did I do?
       implementation: shell://say
     Celebrate:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
-          move: cheerful1
+      type: reachy:Interact
+      move: cheerful1
       name: Celebrate
     LookBack:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:LookAt
-          target: screen
+      type: reachy:LookAt
+      target: screen
       name: Back to the screen
     Done:
       type: EndEvent
@@ -278,11 +253,9 @@ WhichOne_Task:
         Participant_Ready_Message:
           type: MessageEventDefinition
     Play:
-      type: ChoreographyTask
-      extensionElements:
-        - type: behaverse:Task
-          instrument: WO
-          timeline: SimonTask
+      type: behaverse:Task
+      instrument: WO
+      timeline: SimonTask
       name: WhichOne, 5 Simon trials
       dataInputAssociations:
         In_Play_Parameters:
@@ -292,27 +265,23 @@ WhichOne_Task:
         Out_Trials:
           targetRef: Trials
     Play_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values:
-            Timelines:
-              SimonTask:
-                Blocks:
-                  - Name: Simon
-                    ExitRules:
-                      - Trials: 5
+      type: studyflow:Parameters
+      values:
+        Timelines:
+          SimonTask:
             Blocks:
-              Simon:
-                Parameters:
-                  StimulusDisplayDuration: 5
-                  MaxResponseTime: 8
+              - Name: Simon
+                ExitRules:
+                  - Trials: 5
+        Blocks:
+          Simon:
+            Parameters:
+              StimulusDisplayDuration: 5
+              MaxResponseTime: 8
       name: Parameters
     Trials:
-      type: DataStoreReference
-      extensionElements:
-        - type: behaverse:BDMDataset
-          dataLevel: trials
+      type: behaverse:BDMDataset
+      dataLevel: trials
       uri: Play.events.jsonl
       name: Trial records
     Task_Done:

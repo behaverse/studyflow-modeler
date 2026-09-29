@@ -7,28 +7,24 @@ Agent_Eval_Pool_Actors:
   name: LLM evaluation — agent actor pool
   participants:
     Actor_Random_bot:
-      extensionElements:
-        - type: studyflow:Actor
-          actorType: software
-          implementation: behaverse://bot
+      type: studyflow:Actor
+      actorType: software
+      implementation: behaverse://bot
       name: Random bot
     Actor_Claude__claude_haiku_4_5:
-      extensionElements:
-        - type: studyflow:Actor
-          actorType: llm
-          implementation: claude://claude-haiku-4-5
+      type: studyflow:Actor
+      actorType: llm
+      implementation: claude://claude-haiku-4-5
       name: Claude (claude-haiku-4-5)
     Actor_Ollama__gemma4_e2b_mlx:
-      extensionElements:
-        - type: studyflow:Actor
-          actorType: llm
-          implementation: ollama://gemma4:e2b-mlx
+      type: studyflow:Actor
+      actorType: llm
+      implementation: ollama://gemma4:e2b-mlx
       name: Ollama (gemma4:e2b-mlx)
 Agent_Eval_Pool:
-  type: Process
+  type: studyflow:Study
   documentation: Runs one 2-back protocol on random, Claude, and Ollama agents in parallel and compares their accuracy.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:23Z"
@@ -42,11 +38,9 @@ Agent_Eval_Pool:
       type: ParallelGateway
       name: Dispatch to agent pool
     Agent_Random:
-      type: ChoreographyTask
-      extensionElements:
-        - type: behaverse:Task
-          instrument: NB
-          timeline: Eval_2Back
+      type: behaverse:Task
+      instrument: NB
+      timeline: Eval_2Back
       name: Random baseline agent
       participantRef:
         - Actor_Random_bot
@@ -55,63 +49,59 @@ Agent_Eval_Pool:
           sourceRef:
             - Agent_Random_Parameters
     Agent_Random_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values:
-            Blocks:
-              Eval_2Back:
-                Name: Eval_2Back
-                Inherits: Default
-                Parameters:
-                  NValue: 2
-                  Feature: Letters
-                  Streams:
-                    - Feature:
-                        Reference: Feature
-                      StimulusValue:
-                        Generate: OncePerBlock
-                        Sequence:
-                          Type: Ordered
-                          Values:
-                            - 3
-                            - 1
-                            - 2
-                            - 1
-                            - 3
-                            - 2
-                            - 3
-                            - 2
-                            - 1
-                            - 2
-                            - 3
-                            - 1
-                  StreamSize: 12
-                  FeatureValuesCount: 3
-                  MaxResponseTime: 2
-                  StimulusDisplayDuration: 0.5
-                  InterStimulusInterval: 1.5
-            Timelines:
-              Eval_2Back:
-                Name: Eval_2Back
-                blocks:
-                  - name: Eval_2Back
-            Bot:
-              Speed: 20
-              SkipInstructions: true
-              AutoClickInstructions: true
-              SkipFocusArea: true
-              OverrideTemporalParameters: true
-              StimulusDisplayDuration: 0.3
-              InterStimulusInterval: 0.3
-              TrialForeperiod: 0.1
+      type: studyflow:Parameters
+      values:
+        Blocks:
+          Eval_2Back:
+            Name: Eval_2Back
+            Inherits: Default
+            Parameters:
+              NValue: 2
+              Feature: Letters
+              Streams:
+                - Feature:
+                    Reference: Feature
+                  StimulusValue:
+                    Generate: OncePerBlock
+                    Sequence:
+                      Type: Ordered
+                      Values:
+                        - 3
+                        - 1
+                        - 2
+                        - 1
+                        - 3
+                        - 2
+                        - 3
+                        - 2
+                        - 1
+                        - 2
+                        - 3
+                        - 1
+              StreamSize: 12
+              FeatureValuesCount: 3
+              MaxResponseTime: 2
+              StimulusDisplayDuration: 0.5
+              InterStimulusInterval: 1.5
+        Timelines:
+          Eval_2Back:
+            Name: Eval_2Back
+            blocks:
+              - name: Eval_2Back
+        Bot:
+          Speed: 20
+          SkipInstructions: true
+          AutoClickInstructions: true
+          SkipFocusArea: true
+          OverrideTemporalParameters: true
+          StimulusDisplayDuration: 0.3
+          InterStimulusInterval: 0.3
+          TrialForeperiod: 0.1
       name: Parameters
     Agent_Claude:
-      type: ChoreographyTask
-      extensionElements:
-        - type: behaverse:Task
-          instrument: NB
-          timeline: Eval_2Back
+      type: behaverse:Task
+      instrument: NB
+      timeline: Eval_2Back
       name: Claude LLM agent
       participantRef:
         - Actor_Claude__claude_haiku_4_5
@@ -123,77 +113,71 @@ Agent_Eval_Pool:
           sourceRef:
             - Agent_Claude_Parameters
     Agent_Claude_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values:
-            Blocks:
-              Eval_2Back:
-                Name: Eval_2Back
-                Inherits: Default
-                Parameters:
-                  NValue: 2
-                  Feature: Letters
-                  Streams:
-                    - Feature:
-                        Reference: Feature
-                      StimulusValue:
-                        Generate: OncePerBlock
-                        Sequence:
-                          Type: Ordered
-                          Values:
-                            - 3
-                            - 1
-                            - 2
-                            - 1
-                            - 3
-                            - 2
-                            - 3
-                            - 2
-                            - 1
-                            - 2
-                            - 3
-                            - 1
-                  StreamSize: 12
-                  FeatureValuesCount: 3
-                  MaxResponseTime: 30
-                  StimulusDisplayDuration: 0.5
-                  InterStimulusInterval: 1.5
-            Timelines:
-              Eval_2Back:
-                Name: Eval_2Back
-                blocks:
-                  - name: Eval_2Back
-            Bot:
-              Speed: 20
-              SkipInstructions: true
-              AutoClickInstructions: true
-              SkipFocusArea: true
-              OverrideTemporalParameters: true
-              StimulusDisplayDuration: 0.3
-              InterStimulusInterval: 0.3
-              TrialForeperiod: 0.1
-              overrideUserInputParameters: true
-              playerPaced: true
-              useNonMatchButton: true
-              maxResponseTime: 120
+      type: studyflow:Parameters
+      values:
+        Blocks:
+          Eval_2Back:
+            Name: Eval_2Back
+            Inherits: Default
+            Parameters:
+              NValue: 2
+              Feature: Letters
+              Streams:
+                - Feature:
+                    Reference: Feature
+                  StimulusValue:
+                    Generate: OncePerBlock
+                    Sequence:
+                      Type: Ordered
+                      Values:
+                        - 3
+                        - 1
+                        - 2
+                        - 1
+                        - 3
+                        - 2
+                        - 3
+                        - 2
+                        - 1
+                        - 2
+                        - 3
+                        - 1
+              StreamSize: 12
+              FeatureValuesCount: 3
+              MaxResponseTime: 30
+              StimulusDisplayDuration: 0.5
+              InterStimulusInterval: 1.5
+        Timelines:
+          Eval_2Back:
+            Name: Eval_2Back
+            blocks:
+              - name: Eval_2Back
+        Bot:
+          Speed: 20
+          SkipInstructions: true
+          AutoClickInstructions: true
+          SkipFocusArea: true
+          OverrideTemporalParameters: true
+          StimulusDisplayDuration: 0.3
+          InterStimulusInterval: 0.3
+          TrialForeperiod: 0.1
+          overrideUserInputParameters: true
+          playerPaced: true
+          useNonMatchButton: true
+          maxResponseTime: 120
       name: Parameters
     Instructions_Agent_Claude:
-      type: DataObjectReference
-      extensionElements:
-        - type: agentic:Prompt
-          template: |
-            You are an attentive, expert participant in a 2-back task.
-            Respond Match if the current letter is identical to the letter shown
-            exactly two trials ago, otherwise NonMatch. Aim for near-perfect
-            accuracy. Reply with exactly Match or NonMatch; no explanation.
+      type: agentic:Prompt
+      template: |
+        You are an attentive, expert participant in a 2-back task.
+        Respond Match if the current letter is identical to the letter shown
+        exactly two trials ago, otherwise NonMatch. Aim for near-perfect
+        accuracy. Reply with exactly Match or NonMatch; no explanation.
       name: Instructions
     Agent_Ollama:
-      type: ChoreographyTask
-      extensionElements:
-        - type: behaverse:Task
-          instrument: NB
-          timeline: Eval_2Back
+      type: behaverse:Task
+      instrument: NB
+      timeline: Eval_2Back
       name: Ollama LLM agent (local)
       participantRef:
         - Actor_Ollama__gemma4_e2b_mlx
@@ -205,70 +189,66 @@ Agent_Eval_Pool:
           sourceRef:
             - Agent_Ollama_Parameters
     Agent_Ollama_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values:
-            Blocks:
-              Eval_2Back:
-                Name: Eval_2Back
-                Inherits: Default
-                Parameters:
-                  NValue: 2
-                  Feature: Letters
-                  Streams:
-                    - Feature:
-                        Reference: Feature
-                      StimulusValue:
-                        Generate: OncePerBlock
-                        Sequence:
-                          Type: Ordered
-                          Values:
-                            - 3
-                            - 1
-                            - 2
-                            - 1
-                            - 3
-                            - 2
-                            - 3
-                            - 2
-                            - 1
-                            - 2
-                            - 3
-                            - 1
-                  StreamSize: 12
-                  FeatureValuesCount: 3
-                  MaxResponseTime: 15
-                  StimulusDisplayDuration: 0.5
-                  InterStimulusInterval: 1.5
-            Timelines:
-              Eval_2Back:
-                Name: Eval_2Back
-                blocks:
-                  - name: Eval_2Back
-            Bot:
-              Speed: 20
-              SkipInstructions: true
-              AutoClickInstructions: true
-              SkipFocusArea: true
-              OverrideTemporalParameters: true
-              StimulusDisplayDuration: 0.3
-              InterStimulusInterval: 0.3
-              TrialForeperiod: 0.1
-              overrideUserInputParameters: true
-              playerPaced: true
-              useNonMatchButton: true
-              maxResponseTime: 15
+      type: studyflow:Parameters
+      values:
+        Blocks:
+          Eval_2Back:
+            Name: Eval_2Back
+            Inherits: Default
+            Parameters:
+              NValue: 2
+              Feature: Letters
+              Streams:
+                - Feature:
+                    Reference: Feature
+                  StimulusValue:
+                    Generate: OncePerBlock
+                    Sequence:
+                      Type: Ordered
+                      Values:
+                        - 3
+                        - 1
+                        - 2
+                        - 1
+                        - 3
+                        - 2
+                        - 3
+                        - 2
+                        - 1
+                        - 2
+                        - 3
+                        - 1
+              StreamSize: 12
+              FeatureValuesCount: 3
+              MaxResponseTime: 15
+              StimulusDisplayDuration: 0.5
+              InterStimulusInterval: 1.5
+        Timelines:
+          Eval_2Back:
+            Name: Eval_2Back
+            blocks:
+              - name: Eval_2Back
+        Bot:
+          Speed: 20
+          SkipInstructions: true
+          AutoClickInstructions: true
+          SkipFocusArea: true
+          OverrideTemporalParameters: true
+          StimulusDisplayDuration: 0.3
+          InterStimulusInterval: 0.3
+          TrialForeperiod: 0.1
+          overrideUserInputParameters: true
+          playerPaced: true
+          useNonMatchButton: true
+          maxResponseTime: 15
       name: Parameters
     Instructions_Agent_Ollama:
-      type: DataObjectReference
-      extensionElements:
-        - type: agentic:Prompt
-          template: |
-            You are an attentive, expert participant in a 2-back task.
-            Respond Match if the current letter is identical to the letter shown
-            exactly two trials ago, otherwise NonMatch. Aim for near-perfect
-            accuracy. Reply with exactly Match or NonMatch; no explanation.
+      type: agentic:Prompt
+      template: |
+        You are an attentive, expert participant in a 2-back task.
+        Respond Match if the current letter is identical to the letter shown
+        exactly two trials ago, otherwise NonMatch. Aim for near-perfect
+        accuracy. Reply with exactly Match or NonMatch; no explanation.
       name: Instructions
     Join:
       type: ParallelGateway
@@ -285,10 +265,8 @@ Agent_Eval_Pool:
         DataOutput_Score_Responses:
           targetRef: Dataset_Responses
     Dataset_Responses:
-      type: DataStoreReference
-      extensionElements:
-        - type: behaverse:BDMDataset
-          dataLevel: trials
+      type: behaverse:BDMDataset
+      dataLevel: trials
       name: Agent response set
     End:
       type: EndEvent

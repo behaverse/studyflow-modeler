@@ -4,10 +4,9 @@ definitions:
   xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
   xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
 CONSORT_2025:
-  type: Process
+  type: studyflow:Study
   documentation: A CONSORT 2025 participant flow from enrollment to analysis, with attrition as boundary error events.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:30Z"
@@ -19,20 +18,16 @@ CONSORT_2025:
       name: Enrollment
       consentFormUri: https://example.org/protocols/consort2025/consent.pdf
     Activity_Screening:
-      type: Task
+      type: cognitive:Questionnaire
       checklist: |-
         - [ ] Demographic intake
         - [ ] Medical history
         - [ ] Vital signs
         - [ ] Baseline cognitive screen
-      extensionElements:
-        - type: cognitive:Questionnaire
-          instrument: screening
+      instrument: screening
       name: Screening assessment
     Eligibility_Gateway:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: cognitive:EligibilityGateway
+      type: cognitive:EligibilityGateway
       name: Assessed for eligibility
       default: Flow_Eligible
     Excluded_Pre:
@@ -42,9 +37,7 @@ CONSORT_2025:
         ErrorDef_ExcludedPre:
           type: ErrorEventDefinition
     Randomize_Gateway:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: cognitive:RandomGateway
+      type: cognitive:RandomGateway
       name: Randomization
     Activity_Allocation_A:
       type: Task
@@ -115,14 +108,12 @@ CONSORT_2025:
           type: ErrorEventDefinition
       attachedToRef: Activity_Allocation_B
     Activity_Followup_B:
-      type: Task
+      type: cognitive:Rest
       checklist: |-
         - [ ] Adherence visit
         - [ ] Outcome assessment 1
         - [ ] Outcome assessment 2
         - [ ] Adverse events review
-      extensionElements:
-        - type: cognitive:Rest
       name: Follow-up
     LostFollowup_B:
       type: BoundaryEvent

@@ -2,7 +2,7 @@ id: multiverse_doc
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 multiverse:
-  type: Process
+  type: studyflow:Study
   documentation: |
     A specification curve in its smallest form: one estimator, one data set,
     one analytic choice left open, and every value of that choice scored.
@@ -19,11 +19,9 @@ multiverse:
     Nothing is computed by code of the study's own: loading the data,
     building the estimator and scoring it are library calls, named by their
     `python://` paths.
-  extensionElements:
-    - type: studyflow:Study
-      seed: 42
-      dependencies:
-        - scikit-learn>=1.4
+  seed: 42
+  dependencies:
+    - scikit-learn>=1.4
   name: multiverse
   properties:
     cs:

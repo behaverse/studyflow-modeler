@@ -137,6 +137,8 @@ export function toModdlePackages(model: SchemaModel, allModels: SchemaModel[] = 
     // it is an element of its own, so it carries none of X's properties (a `studyflow:Study` is no `bpmn:Process`),
     // and a trait that extends X does not reach it. A redefinition of X's property is the catalog's to resolve.
     if (Array.isArray(type.superClass) && type.superClass.some((name: string) => name.startsWith('bpmn:'))) {
+      // Where it attaches stays on the type, for the file's short form (`type: cognitive:Questionnaire`).
+      type.meta = { ...type.meta, attachesTo: type.superClass.find((name: string) => name.startsWith('bpmn:')) };
       type.superClass = type.superClass.filter((name: string) => !name.startsWith('bpmn:'));
       for (const property of type.properties ?? []) {
         const target = property.redefines ?? property.replaces;

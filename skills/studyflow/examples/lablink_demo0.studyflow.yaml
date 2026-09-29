@@ -3,10 +3,9 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
   xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 Demo0_FromScratch:
-  type: Process
+  type: studyflow:Study
   documentation: A minimal start-to-end skeleton for building a LabLink study from scratch.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:35Z"

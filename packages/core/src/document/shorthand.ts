@@ -445,3 +445,85 @@ export function impliedTypeName(node: Record<string, unknown>, declaredType: str
   }
   return undefined;
 }
+
+/* typed element */
+
+/**
+ * The BPMN element a schema's wrapper type attaches to (`cognitive:Questionnaire` → `bpmn:Task`), its own or a wrapper
+ * it inherits from; none for any other type. moddle keeps it as the type's `meta.attachesTo` (`toModdlePackages`).
+ */
+export function attachOf(moddle: any, type: string, seen = new Set<string>()): string | undefined {
+  const entry = moddle?.registry?.typeMap?.[type];
+  if (!entry || seen.has(type)) return undefined;
+  seen.add(type);
+  if (typeof entry.meta?.attachesTo === 'string') return entry.meta.attachesTo;
+  for (const parent of entry.superClass ?? []) {
+    const name = String(parent).includes(':') ? String(parent) : `${type.split(':')[0]}:${parent}`;
+    const found = attachOf(moddle, name, seen);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function declaredKeys(moddle: any, type: string): Set<string> {
+  let descriptor: any;
+  try {
+    descriptor = moddle.getElementDescriptor(moddle.create(type));
+  } catch {
+    return new Set();
+  }
+  return new Set((descriptor.properties ?? []).map((p: any) => p.ns?.localName ?? p.name));
+}
+
+/**
+ * The short form of a typed element: its schema type as its own `type`, its wrapper's attributes beside its own
+ * (`Survey: {type: cognitive:Questionnaire, instrument: phq-9}`), when the file then still says which is which: the
+ * wrapper attaches to the element's type, and no key of it is one the element's type declares or the element holds.
+ */
+export function foldTypedElement(el: any, out: Record<string, unknown>): Record<string, unknown> {
+  const entries = out.extensionElements;
+  if (!Array.isArray(entries) || !el?.$model) return out;
+  const moddle = el.$model;
+  const typed = entries.filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)
+    && typeof (entry as any).type === 'string' && attachOf(moddle, (entry as any).type) === el.$type);
+  if (typed.length !== 1) return out;
+  const entry = typed[0] as Record<string, unknown>;
+  const own = declaredKeys(moddle, el.$type);
+  const keys = Object.keys(entry).filter((key) => key !== 'type');
+  if (keys.some((key) => own.has(key) || key in out || key.includes(':'))) return out;
+  const rest = entries.filter((other) => other !== entry);
+  const folded: Record<string, unknown> = { type: entry.type };
+  for (const [key, value] of Object.entries(out)) {
+    if (key === 'type') continue;
+    if (key === 'extensionElements') {
+      for (const own of keys) folded[own] = entry[own];
+      if (rest.length > 0) folded.extensionElements = rest;
+      continue;
+    }
+    folded[key] = value;
+  }
+  return folded;
+}
+
+/**
+ * A typed element read back: `type: <wrapper>` becomes the BPMN element it attaches to, with a wrapper entry holding
+ * the keys the wrapper declares and the element's type does not. `undefined` when `type` names no wrapper.
+ */
+export function unfoldTypedElement(moddle: any, node: Record<string, any>, type: string): Record<string, any> | undefined {
+  const host = attachOf(moddle, type);
+  if (!host) return undefined;
+  const own = declaredKeys(moddle, host);
+  const wrapper = declaredKeys(moddle, type);
+  const entry: Record<string, unknown> = { type };
+  const element: Record<string, any> = { type: host };
+  for (const [key, value] of Object.entries(node)) {
+    if (key === 'type') continue;
+    if (wrapper.has(key) && !own.has(key)) entry[key] = value;
+    else element[key] = value;
+  }
+  const list = element.extensionElements;
+  element.extensionElements = Array.isArray(list) ? [entry, ...list]
+    : list && typeof list === 'object' && Array.isArray(list.values) ? { ...list, values: [entry, ...list.values] }
+    : [entry];
+  return element;
+}

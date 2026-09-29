@@ -2,12 +2,11 @@ id: reachy_session
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Reachy_Session:
-  type: Process
+  type: studyflow:Study
   documentation: >-
     A Reachy Mini collects data from a human participant. The participant's verbal feedback stores as the interaction
     recording.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-08-21T15:27:59+02:00"
@@ -23,35 +22,25 @@ Reachy_Session:
       name: Enrolled and consented
       consentFormUri: https://example.org/protocols/reachy-session/consent.md
     Wake:
-      type: IntermediateCatchEvent
-      extensionElements:
-        - type: reachy:SenseEvent
-          wakeWord: Hey Reachy
+      type: reachy:SenseEvent
+      wakeWord: Hey Reachy
       name: Wake word
     Seated:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: reachy:PerceptionGateway
+      type: reachy:PerceptionGateway
       name: Anyone there?
       default: Flow_Seated_Greet
     Ask_To_Sit:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
-          text: Please take a seat in front of me and say my wake word again.
+      type: reachy:Interact
+      text: Please take a seat in front of me and say my wake word again.
       name: Ask them to sit down
     Greet:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
-          text: >-
-            Hello! I'm Reachy. You'll now see a short memory task on the screen; press the key whenever the current
-            letter matches the one before it.
+      type: reachy:Interact
+      text: >-
+        Hello! I'm Reachy. You'll now see a short memory task on the screen; press the key whenever the current letter
+        matches the one before it.
       name: Greet & instruct
     Watch:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:LookAt
+      type: reachy:LookAt
       name: Face the participant
     NBack:
       type: Task
@@ -64,34 +53,26 @@ Reachy_Session:
           sourceRef:
             - NBack_Parameters
     NBack_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values:
-            timeline: XCIT_NB_01
+      type: studyflow:Parameters
+      values:
+        timeline: XCIT_NB_01
       name: Parameters
     Celebrate:
-      type: ServiceTask
-      extensionElements:
-        - type: reachy:Interact
-          move: cheerful1
+      type: reachy:Interact
+      move: cheerful1
       name: Celebrate completion
     Feedback:
-      type: ReceiveTask
-      extensionElements:
-        - type: reachy:Listen
-          timeout: 20
+      type: reachy:Listen
+      timeout: 20
       name: Verbal feedback
       dataOutputAssociations:
         Feedback_To_Recording:
           targetRef: Recording
     Recording:
-      type: DataStoreReference
-      extensionElements:
-        - type: reachy:InteractionRecording
-          streams:
-            - audio
-            - transcript
+      type: reachy:InteractionRecording
+      streams:
+        - audio
+        - transcript
       name: Interaction recording
     Done:
       type: EndEvent

@@ -34,7 +34,7 @@ test.describe('Studyflow modeler palette flows', () => {
     expect(svgDownload.suggestedFilename()).toBe('diagram.studyflow.svg');
     const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
     expect(studyflowText).toContain('name: Review Task');
-    expect(studyflowText).toMatch(/type: Task\n\s+extensionElements:\n\s+- type: cognitive:Rest\n/);
+    expect(studyflowText).toMatch(/\n\s+type: cognitive:Rest\n/);
     // The picture carries the diagram as BPMN XML, nested in its metadata.
     const bpmn = extractStudyflowFromSvg(await readDownloadText(svgDownload));
     expect(bpmn).toMatch(/^<(\w+:)?definitions /);
@@ -48,7 +48,7 @@ test.describe('Studyflow modeler palette flows', () => {
     await addSchemaPaletteElement(page, 'Reachy Mini', 'Conversation', { x: 300, y: 420 });
 
     const doc = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
-    const process = Object.values(doc).find((value) => value?.type === 'Process');
+    const process = Object.values(doc).find((value) => value?.type === 'Process' || value?.type === 'studyflow:Study');
     const [first, second] = Object.values(process.flowElements).filter((el: any) => el.type === 'SubProcess') as any[];
 
     // A subprocess template arrives collapsed, with its flow inside where the template drew it.
@@ -75,7 +75,7 @@ test.describe('Studyflow modeler palette flows', () => {
     await pressOnCanvas(page, 'Delete');
     await addSchemaPaletteElement(page, 'Reachy Mini', 'Conversation', { x: 300, y: 200 });
     const after = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as Record<string, any>;
-    const subs = Object.values(Object.values(after).find((value: any) => value?.type === 'Process').flowElements)
+    const subs = Object.values(Object.values(after).find((value: any) => value?.type === 'Process' || value?.type === 'studyflow:Study').flowElements)
       .filter((el: any) => el.type === 'SubProcess') as any[];
     expect(subs.map(heardOf).sort()).toEqual(['Heard', heard]);
   });

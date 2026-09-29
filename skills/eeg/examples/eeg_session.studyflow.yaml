@@ -2,10 +2,8 @@ id: eeg_session
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 EEG_Session:
-  type: Process
+  type: studyflow:Study
   documentation: An EEG session covering cap fitting through data export.
-  extensionElements:
-    - type: studyflow:Study
   name: EEG session
   flowElements:
     Start:
@@ -18,11 +16,9 @@ EEG_Session:
         makes good contact before recording starts.
       name: Mount cap & check impedance
     Baseline:
-      type: Task
-      extensionElements:
-        - type: cognitive:Rest
-          restDuration: 120
-          eyes: closed
+      type: cognitive:Rest
+      restDuration: 120
+      eyes: closed
       name: Resting baseline
     Cognitive_Task:
       type: Task
@@ -35,11 +31,9 @@ EEG_Session:
           sourceRef:
             - Cognitive_Task_Parameters
     Cognitive_Task_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values: |
-            triggerChannel: markers  # stimulus marker stream sent with biosignals
+      type: studyflow:Parameters
+      values: |
+        triggerChannel: markers  # stimulus marker stream sent with biosignals
       name: Parameters
     Export_Recording:
       type: ServiceTask

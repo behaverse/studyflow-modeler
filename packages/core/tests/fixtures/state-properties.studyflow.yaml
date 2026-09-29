@@ -8,9 +8,7 @@ Item_Count:
   type: ItemDefinition
   structureRef: integer
 Probe:
-  type: Process
-  extensionElements:
-    - type: studyflow:Study
+  type: studyflow:Study
   properties:
     Arm:
       itemSubjectRef: Item_Arm

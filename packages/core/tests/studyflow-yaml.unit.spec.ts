@@ -78,8 +78,11 @@ diagram:
     expect(doc.definitions['xmlns:studyflow']).toBeUndefined();
     expect(doc.diagram).toBeUndefined();
     const process = doc.P;
-    expect(Array.isArray(process.extensionElements)).toBe(true);
-    expect(process.flowElements.C1.extensionElements[0].values).toEqual({ Timelines: { XCIT_NB_01: null } });
+    // A typed element names its schema type as its own: the study its process, the Parameters its object.
+    expect(process.type).toBe('studyflow:Study');
+    // On a host other than the one its schema attaches it to, a typed element keeps its wrapper spelled out.
+    expect(process.flowElements.T1).toMatchObject({ type: 'Task', extensionElements: [{ type: 'cognitive:CognitiveTask', platform: 'jspsych' }] });
+    expect(process.flowElements.C1.values).toEqual({ Timelines: { XCIT_NB_01: null } });
     // Wherever the drawing was written, on an element or in a diagram section, it is written back as the one layout map.
     expect(process.flowElements.T1.bounds).toBeUndefined();
     expect(doc.layout.Start.bounds).toBe('160 180 36 36');
@@ -166,7 +169,7 @@ P:
     expect(xml).not.toContain('<<<');
 
     const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
-    expect(back.P.flowElements.C1.extensionElements[0].values.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
+    expect(back.P.flowElements.C1.values.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
   });
 
   test('YAML with a comment stays text, so the comment survives a round trip', async () => {
@@ -188,7 +191,7 @@ P:
     const xml = await studyflowToXml(doc, freshModdle());
     expect(xml).toContain(values);
     const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
-    expect(back.P.flowElements.C1.extensionElements[0].values).toBe(values);
+    expect(back.P.flowElements.C1.values).toBe(values);
   });
 
   test('a message flow names its message, and the message its item definition, through a round trip', async () => {

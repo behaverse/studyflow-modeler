@@ -2,7 +2,7 @@ id: kitchensink
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Kitchen_Sink:
-  type: Process
+  type: studyflow:Study
   documentation: >-
     Element catalog: one live instance of every palette-visible element type, one labelled band per schema. Read top to
     bottom: the BPMN 2.0 base that Studyflow inherits (events, gateways, activities, data), then the studyflow core and
@@ -13,7 +13,6 @@ Kitchen_Sink:
     studyflow:ChoreographyTask) and the template presets (cognitive/eeg) are covered in kitchensink.md; the
     sklearn_pipeline example shows an analysis pipeline live.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:34Z"
@@ -97,39 +96,27 @@ Kitchen_Sink:
       type: DataStoreReference
       name: Data store
     Sf_Dataset:
-      type: DataStoreReference
-      extensionElements:
-        - type: behaverse:BDMDataset
-          dataLevel: trials
+      type: behaverse:BDMDataset
+      dataLevel: trials
       name: Dataset
     Sf_Schema:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Schema
+      type: studyflow:Schema
       name: Schema
     Sf_Table:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Table
-          format: parquet
+      type: studyflow:Table
+      format: parquet
       name: Table
     Sf_Timeseries:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Timeseries
-          format: edf
+      type: studyflow:Timeseries
+      format: edf
       name: Timeseries
     Sf_EventMarker:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:EventMarker
-          eventTypes:
-            - stimulus
+      type: studyflow:EventMarker
+      eventTypes:
+        - stimulus
       name: Event marker
     Ex_Parameters:
-      type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
+      type: studyflow:Parameters
       name: Parameters
     Fn_ForEach:
       type: SubProcess
@@ -151,20 +138,14 @@ Kitchen_Sink:
           implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
       name: Cognitive task
     Cg_Rest:
-      type: Task
-      extensionElements:
-        - type: cognitive:Rest
+      type: cognitive:Rest
       name: Rest
     Cg_Questionnaire:
-      type: Task
-      extensionElements:
-        - type: cognitive:Questionnaire
-          instrument: phq-9
+      type: cognitive:Questionnaire
+      instrument: phq-9
       name: Questionnaire
     Cg_Instruction:
-      type: Task
-      extensionElements:
-        - type: cognitive:Instruction
+      type: cognitive:Instruction
       name: Instruction
     Cg_Behaverse:
       type: Task
@@ -174,26 +155,20 @@ Kitchen_Sink:
           timeline: XCIT_NB_01
       name: Behaverse task
     Cg_Random:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: cognitive:RandomGateway
+      type: cognitive:RandomGateway
       name: Random gateway
     Cg_Stratified:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: cognitive:RandomGateway
-          stratifyBy: age_band
+      type: cognitive:RandomGateway
+      stratifyBy: age_band
       name: Stratified allocation
     Cg_Eligibility:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: cognitive:EligibilityGateway
-          inclusionCriteria:
-            - Aged 18 to 65 years
-            - Normal or corrected-to-normal vision
-          exclusionCriteria:
-            - Prior exposure to the battery
-            - Failed comprehension check
+      type: cognitive:EligibilityGateway
+      inclusionCriteria:
+        - Aged 18 to 65 years
+        - Normal or corrected-to-normal vision
+      exclusionCriteria:
+        - Prior exposure to the battery
+        - Failed comprehension check
       name: Eligibility gateway
     Ob_Recording:
       type: DataStoreReference
@@ -202,9 +177,7 @@ Kitchen_Sink:
           format: bdm
       name: EEG recording
     Ag_Prompt:
-      type: DataObjectReference
-      extensionElements:
-        - type: agentic:Prompt
+      type: agentic:Prompt
       name: Prompt
     Dt_Reader:
       type: ServiceTask
