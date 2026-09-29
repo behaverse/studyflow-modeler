@@ -135,6 +135,8 @@ export class Study {
   static readonly tools: readonly StudyTool[] = STUDY_TOOLS;
 
   private readonly listeners = new Set<ChangeListener>();
+  /** Changes held back while a batch runs (`atomic`). */
+  private holding: StudyChange[] | undefined;
   private readonly options: ImportOptions;
   private readonly rules = new Rules();
   /** The document after each edit, as its `.studyflow.yaml` tree in JSON ({@link snapshotOf}), oldest first: what undo and redo go back and forth through. */
@@ -727,10 +729,22 @@ export class Study {
   private atomic(run: () => StudyResult): StudyResult {
     const before = this.snapshots[this.current];
     let outcome = refused('nothing ran');
-    const result = this.commit(() => {
-      outcome = run();
-    });
-    if (outcome.ok) return { ...result, ...(outcome.id ? { id: outcome.id } : {}) };
+    // Held while the steps run: listeners hear the edit once it stands, or, when a step is refused, only that the
+    // study went back to where it was, so a refused batch draws once.
+    const held: StudyChange[] = [];
+    this.holding = held;
+    let result: StudyResult;
+    try {
+      result = this.commit(() => {
+        outcome = run();
+      });
+    } finally {
+      this.holding = undefined;
+    }
+    if (outcome.ok) {
+      for (const change of held) this.announce(change);
+      return { ...result, ...(outcome.id ? { id: outcome.id } : {}) };
+    }
     if (this.snapshots[this.current] !== before) {
       this.travel(-1);
       // What the refused edit wrote is no state to go forward to.
@@ -867,6 +881,10 @@ export class Study {
   }
 
   private announce(change: StudyChange): void {
+    if (this.holding) {
+      this.holding.push(change);
+      return;
+    }
     for (const listener of [...this.listeners]) listener(change);
   }
 }

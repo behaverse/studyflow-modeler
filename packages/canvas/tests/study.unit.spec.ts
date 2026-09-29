@@ -252,11 +252,15 @@ test('a batch is one edit and one undo step, its steps plain data; a refused ste
   expect(study.revision).toBe(1);
 
   const file = await study.toXml();
+  const heard: string[] = [];
+  const stop = study.on('change', ({ cause }) => heard.push(cause));
   expect(study.batch({ steps: [
     { tool: 'add', args: { type: 'bpmn:Task', id: 'Lost' } },
     { tool: 'connect', args: { from: 'Lost', to: 'Nope' } },
   ] })).toEqual({ ok: false, reason: "step 2 (connect): no shape 'Nope'", added: [], changed: [], removed: [] });
   expect(await study.toXml(), 'as if it never ran').toBe(file);
+  expect(heard, 'a refused batch is heard once, going back: no edit drawn, then undrawn').toEqual(['undo']);
+  stop();
   expect(study.canRedo).toBe(false);
 
   expect(study.undo().ok).toBe(true);
