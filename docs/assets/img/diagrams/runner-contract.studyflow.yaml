@@ -1,0 +1,243 @@
+id: runner_contract
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Runner_Contract:
+  type: Collaboration
+  documentation: >-
+    A local run, from a partial runner's side. The walk asks every runner for its claims before the first step, and a
+    runner that fails to answer stops the run. It then hands each claimed element to its runner with the plan and the
+    state file, adopts the state that comes back, and commits the run directory. The runner speaks the walk's contract
+    on one side and its tool's own protocol on the other. Drawn for docs/developers.qmd.
+  extensionElements:
+    - type: studyflow:Study
+  name: A run, from the runner's side
+  participants:
+    Pool_Walk:
+      name: Local runtime, the walk
+      processRef: Walk
+      bounds: 40 20 1320 250
+    Pool_Runner:
+      name: Partial runner, in its skill
+      processRef: Runner
+      bounds: 40 310 1320 250
+    Pool_Tool:
+      name: The tool
+      bounds: 40 600 1320 100
+  messageFlows:
+    Msg_Claims:
+      name: "--claims"
+      sourceRef: Ask_Claims
+      targetRef: Claims_Start
+      waypoint: 215,205 215,417
+      label: 222 278 60 15
+    Msg_Claimed:
+      name: claimed ids
+      sourceRef: Claims_End
+      targetRef: Ask_Claims
+      waypoint: 465,417 465,290 320,290 320,205
+      label: 472 330 80 15
+    Msg_Element:
+      name: "--element <id>"
+      sourceRef: Hand_Over
+      targetRef: Element_Start
+      waypoint: 545,205 545,417
+      label: 552 330 105 15
+    Msg_State:
+      name: updated state
+      sourceRef: Element_End
+      targetRef: Hand_Over
+      waypoint: 1218,417 1218,290 620,290 620,205
+      label: 1225 330 95 15
+    Msg_Protocol:
+      name: its own protocol
+      sourceRef: Run_Tool
+      targetRef: Pool_Tool
+      waypoint: 850,475 850,600
+      label: 735 530 110 15
+    Msg_Report:
+      name: what it reports
+      sourceRef: Pool_Tool
+      targetRef: Run_Tool
+      waypoint: 900,600 900,475
+      label: 907 530 110 15
+Walk:
+  type: Process
+  name: Local runtime, the walk
+  flowElements:
+    Walk_Start:
+      type: StartEvent
+      name: studyflow run
+      bounds: 102 147 36 36
+    Ask_Claims:
+      type: Task
+      name: Ask every runner for its claims
+      bounds: 190 125 150 80
+    Claims_Gate:
+      type: ExclusiveGateway
+      name: Every runner answered?
+      bounds: 395 140 50 50
+      label: 375 196 90 30
+    Stop:
+      type: EndEvent
+      name: The run stops before any step
+      eventDefinitions:
+        Stop_Error:
+          type: ErrorEventDefinition
+      bounds: 402 50 36 36
+      label: 444 60 210 15
+    Hand_Over:
+      type: Task
+      name: Hand over the next claimed element
+      bounds: 500 125 150 80
+    Adopt:
+      type: Task
+      name: Adopt its state, commit the run directory
+      dataOutputAssociations:
+        Out_Commit:
+          targetRef: Run_Dir
+          waypoint: 795,205 795,212
+      bounds: 710 125 170 80
+    Run_Dir:
+      type: DataStoreReference
+      name: Run directory (git)
+      bounds: 770 212 50 50
+      label: 828 229 140 15
+    More_Gate:
+      type: ExclusiveGateway
+      name: Another element?
+      bounds: 940 140 50 50
+      label: 915 196 100 30
+    Sweep:
+      type: Task
+      name: Remove .cache/
+      bounds: 1050 125 150 80
+    Walk_End:
+      type: EndEvent
+      name: Run finished
+      bounds: 1262 147 36 36
+    Flow_Start:
+      sourceRef: Walk_Start
+      targetRef: Ask_Claims
+      waypoint: 138,165 190,165
+    Flow_Claims:
+      sourceRef: Ask_Claims
+      targetRef: Claims_Gate
+      waypoint: 340,165 395,165
+    Flow_Refused:
+      name: "no"
+      sourceRef: Claims_Gate
+      targetRef: Stop
+      waypoint: 420,140 420,86
+      label: 426 105 20 15
+    Flow_Answered:
+      name: "yes"
+      sourceRef: Claims_Gate
+      targetRef: Hand_Over
+      waypoint: 445,165 500,165
+      label: 458 148 25 15
+    Flow_Handed:
+      sourceRef: Hand_Over
+      targetRef: Adopt
+      waypoint: 650,165 710,165
+    Flow_Adopted:
+      sourceRef: Adopt
+      targetRef: More_Gate
+      waypoint: 880,165 940,165
+    Flow_Again:
+      name: "yes"
+      sourceRef: More_Gate
+      targetRef: Hand_Over
+      waypoint: 965,140 965,95 575,95 575,125
+      label: 972 105 25 15
+    Flow_Done:
+      name: "no"
+      sourceRef: More_Gate
+      targetRef: Sweep
+      waypoint: 990,165 1050,165
+      label: 1010 148 20 15
+    Flow_Swept:
+      sourceRef: Sweep
+      targetRef: Walk_End
+      waypoint: 1200,165 1262,165
+Runner:
+  type: Process
+  name: Partial runner, in its skill
+  flowElements:
+    Claims_Start:
+      type: StartEvent
+      name: Asked for claims
+      eventDefinitions:
+        Claims_Start_Message:
+          type: MessageEventDefinition
+      bounds: 197 417 36 36
+      label: 170 457 90 30
+    Print_Ids:
+      type: Task
+      name: Print the ids it takes
+      bounds: 270 395 140 80
+    Claims_End:
+      type: EndEvent
+      name: Answered
+      eventDefinitions:
+        Claims_End_Message:
+          type: MessageEventDefinition
+      bounds: 447 417 36 36
+      label: 425 457 80 15
+    Element_Start:
+      type: StartEvent
+      name: Handed an element
+      eventDefinitions:
+        Element_Start_Message:
+          type: MessageEventDefinition
+      bounds: 527 417 36 36
+      label: 500 457 90 30
+    Read_Plan:
+      type: Task
+      name: Read plan.json and the state file
+      bounds: 600 395 150 80
+    Run_Tool:
+      type: Task
+      name: Run the element with the tool
+      bounds: 800 395 150 80
+    Write_Back:
+      type: Task
+      name: Write back result, record, files
+      bounds: 1000 395 150 80
+    Element_End:
+      type: EndEvent
+      name: Done
+      eventDefinitions:
+        Element_End_Message:
+          type: MessageEventDefinition
+      bounds: 1200 417 36 36
+      label: 1196 457 44 15
+    Flow_Asked:
+      sourceRef: Claims_Start
+      targetRef: Print_Ids
+      waypoint: 233,435 270,435
+    Flow_Printed:
+      sourceRef: Print_Ids
+      targetRef: Claims_End
+      waypoint: 410,435 447,435
+    Flow_Handed_In:
+      sourceRef: Element_Start
+      targetRef: Read_Plan
+      waypoint: 563,435 600,435
+    Flow_Read:
+      sourceRef: Read_Plan
+      targetRef: Run_Tool
+      waypoint: 750,435 800,435
+    Flow_Ran:
+      sourceRef: Run_Tool
+      targetRef: Write_Back
+      waypoint: 950,435 1000,435
+    Flow_Written:
+      sourceRef: Write_Back
+      targetRef: Element_End
+      waypoint: 1150,435 1200,435
+state:
+  _meta:
+    prov:
+      - action: created
+        when: "2026-09-29T21:11:06+02:00"
+        with: studyflow-modeler/26.9.29

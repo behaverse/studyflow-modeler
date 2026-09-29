@@ -1,6 +1,6 @@
 ---
 title: "Developers"
-description: "The programs that read studyflow files, how to build and run them, what a run produces, and how to extend the vocabulary."
+description: "The programs that read studyflow files, how to build and run them, what a run produces, how to extend the vocabulary, and how a tool joins through a partial runner."
 ---
 
 | Program | Does | Lives in |
@@ -132,7 +132,80 @@ Declaring a type buys a limited amount:
 
 To make a new type do something during a run, you have to teach a runner about it, either to render it on screen or to execute it. @tbl-support is the current list of what the two runners handle. A set's namespace carries its format version.
 
-For a `local` run, executing new elements needs no changes to the runner itself. A skill pairs its extension (schema) with a *partial runner* per environment: `skills/<name>/local.py` (or any executable named `studyflow-<name>` on PATH) claims a subset of the diagram's elements and executes them one hand-off at a time: a JSON digest of the plan and the state in, updated state out, and the diagram itself never opened. The full contract is the local runtime's [`SKILL.md`](https://github.com/behaverse/studyflow-modeler/blob/main/skills/local/SKILL.md), and `skills/python` and `skills/reachy` are working examples.
+For a `local` run, executing new elements needs no change to the local runtime: a skill pairs its schema with a *partial runner*, which claims the elements it executes and takes them one hand-off at a time, a JSON digest of the plan and the state in, updated state out, the diagram itself never opened. The next section walks through it.
+
+## Writing a partial runner
+
+A tool joins Studyflow through a skill, never through Studyflow itself. The skill is the boundary between the two, what domain-driven design calls an anti-corruption layer: its vocabulary gives study authors the domain's elements in the domain's own words, and its runners translate between Studyflow's runner contract and each tool's own protocol. Studyflow names no tool, and a tool never reads a plan. In the `behaverse` skill, for example, authors draw `behaverse:Task`s, and the skill's local runner speaks the Unity build's protocol; another build of the same tasks gets a runner in the same skill ([#105](https://github.com/behaverse/studyflow-modeler/issues/105)), so a study moves between builds without being redrawn.
+
+The contract is the local runtime's [`SKILL.md`](https://github.com/behaverse/studyflow-modeler/blob/main/skills/local/SKILL.md), and [`skills/python`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/python) and [`skills/reachy`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/reachy) are working runners. This section explains it from the runner's side.
+
+### Placing a tool's step
+
+A study places a step that a tool performs in one of two ways:
+
+| Placed as | What says what runs | Who runs it |
+|:--|:--|:--|
+| a typed task, such as `behaverse:Task` | its own attributes (`instrument`, `timeline`) | the runner of the skill that declares the type |
+| a service task | its `implementation`, `<scheme>://<ref>[@<version>]`, with its arguments and the Parameters wired into it | the runner of the skill the scheme names: `python://` is the python skill's |
+
+A typed task gives authors a palette entry and fields in the inspector; a service task needs no vocabulary at all. The `behaverse` skill takes typed tasks only, for now ([#115](https://github.com/behaverse/studyflow-modeler/issues/115)).
+
+### Where a runner lives
+
+The local runtime finds runners in these places, and asks each which elements it takes:
+
+| Found as | Meant for |
+|:--|:--|
+| `runtimes.local` in a skill's `SKILL.md`, run in that skill's folder (the checkout's `skills/`, or a directory on `STUDYFLOW_SKILLS`) | a domain's runner, which ships and is tested with the vocabulary it reads |
+| an executable named `studyflow-<name>` on `PATH` | a runner that belongs to no skill here, installed for every run on that machine |
+| `--runner NAME=COMMAND` on `studyflow run` | trying a runner, or replacing one, for a single run |
+
+A domain with a skill keeps its runners in that skill. Its claims are settled in one place, since two runners claiming one element stop the run; one contract covers every tool the domain uses; and a runner changes with the schema it reads. Its name also ends up in the record: a claimed element with no `implementation` is recorded as run by `runner://<name>`.
+
+### A run, from the runner's side
+
+![A local run from a partial runner's side, drawn in Studyflow. The walk asks every runner for its claims, then hands each claimed element over and commits what comes back; the runner speaks the walk's contract on one side and its tool's own protocol on the other. The picture carries its diagram, so it opens in the modeler, and `runner-contract.studyflow.yaml` beside it is the same diagram as text.](assets/img/diagrams/runner-contract.studyflow.svg){#fig-runner-contract .column-page fig-alt="A Studyflow collaboration diagram in three pools. The top pool, the local runtime, starts a run and asks every runner for its claims; if a runner does not answer, the run stops before any step. Otherwise it hands over the next claimed element, adopts its state and commits the run directory, repeats while elements remain, removes .cache/ and finishes. The middle pool, the partial runner in its skill, answers --claims by printing the ids it takes, and on --element reads plan.json and the state file, runs the element with its tool, and writes back its result, record and files. Dashed message flows join the two pools. The bottom pool is the tool, reached only through its own protocol."}
+
+@fig-runner-contract draws the steps below.
+
+1. **Claims.** Before the first step, each runner is called with `<plan.json> --claims` and prints, as JSON, the ids of the elements it takes. A plain array marks them *live*: they run every time. `{"elements": [...], "live": false}` makes them *replayable*: a re-run skips one whose record still stands. A runner that exits non-zero here stops the run before anything happens, and the last line it wrote to stderr is shown; that is how a runner refuses a machine that cannot run its elements, such as one missing a build or a device. An element no runner claims is passed over with a warning, unless it carries an `implementation`, which stops the run.
+2. **Hand-offs.** Each claimed element is handed over on every visit: `<plan.json> --element <id> --cache <dir>`, and a skill's runner runs in the skill's folder. A discovered runner also gets the run's `--sim` and `--auto`, so it must accept both. `STUDYFLOW_RUN_PID` is the walk's pid: a runner may keep a process across hand-offs if that process follows the pid, and it may claim its pool's end event to close it, as the Reachy runner does with the robot's connection.
+3. **State in, state out.** `<dir>/<id>.state.json` holds the run's values. The runner writes back its `result` and `durationMs`, a `record` of what it ran with (a version, a digest, a build), and on failure an `error` and a non-zero exit. A value it writes under its element id binds for later steps (`{Play.trials}`), and a changed scope under `state` is merged. The walk deletes the file once it has read it.
+4. **Files.** The run directory is the parent of `--cache`, and it is a git repository: whatever a runner leaves there is committed at the next checkpoint. `.cache/` is never committed and is removed when the run ends, so a report, a log or a resume point goes in the run directory, or at the `uri` of an output the step writes, never beside the state file.
+5. **Messages.** A step with message flows sends by appending to `<dir>/<id>.outbox.jsonl` and receives through `<dir>/<id>.inbox.jsonl`; the walk carries each line along its flow.
+
+What a runner returns is what the rest of the study reads. A runner that claims a gateway returns, as its `result`, the bindings the gateway's conditions read (`{"canRun": false}`). A conditional boundary event reads a step's result, so `{Play.failedTrialRate} > 0.2` leaves a task when too many of its trials failed; a condition that cites a name the result does not carry fails the run, rather than reading as false.
+
+### What a runner gets, and what it does not yet
+
+| A runner reads | In |
+|:--|:--|
+| the study's `id`, `name`, `seed` and `dependencies` | `plan.json`, under `study` |
+| each element's type, attributes, extensions, wired `parameters`, inputs, outputs and message flows | `plan.json`, under `elements` |
+| the run's values, how often each element was reached (`_meta.reached`), and which pass a repeating activity is on (`_meta.instance`) | the state file |
+
+The root seed drives the random gateways, and the python runner seeds each of its steps with it; a runner that needs randomness of its own mints a seed and reports it in `record`. These are not there yet, each with its issue:
+
+- the participant, the session, and a step's position in the participant's walk ([#108](https://github.com/behaverse/studyflow-modeler/issues/108));
+- a `version` on `plan.json`, and a JSON Schema for it ([#107](https://github.com/behaverse/studyflow-modeler/issues/107));
+- an interrupted element's state, handed back on its next attempt so a runner can resume inside it ([#110](https://github.com/behaverse/studyflow-modeler/issues/110));
+- questionnaires, instructions, breaks and consent in local runs ([#109](https://github.com/behaverse/studyflow-modeler/issues/109)).
+
+### Trying a runner
+
+```bash
+studyflow run study.studyflow.yaml --runner mytool="uv run --script ./local.py" --debug
+```
+
+Try a runner with `--runner`, not by putting a `studyflow-<name>` executable on `PATH`:
+
+- **It is scoped to one run.** Every local run asks every runner it discovers for its claims before its first step, whatever the study. A `studyflow-<name>` left on `PATH` is asked by every run on that machine: if its `--claims` fails, every run stops, and if it claims an element another runner claims, that run stops too.
+- **It is explicit.** The command names the runner and the program behind it. What `PATH` supplies depends on the machine: which executables are installed, in which order, and at which version.
+- **It shadows nothing by accident.** A `PATH` executable named after a skill replaces that skill's runner without a word; `--runner` replaces one only when you name it, and only for that run.
+- **It needs no install,** and leaves nothing behind.
+
+A runner given this way gets exactly its command, so add `--sim` or `--auto` to it when the run needs them. `--debug` keeps `.cache/` and every hand-off's state file, so you can read exactly what went in and what came back.
 
 ## Contributing
 

@@ -51,13 +51,13 @@ state
 : The values declared (as `bpmn:Property`) on the diagram, at one moment of a run. Where a value is declared decides its scope. The *state history* is the sequence of states across a run. In the file, `state` is a tree keyed by element id; the runner's own entries live under `state._meta` (`_meta.prov`, the run records; `_meta.reached.<element_id>`, how often a token reached each element or followed each sequence flow), and the property values a data edge wrote under `state.<scope_id>`. A label may cite a value as `{count}`, `{reached}`, or `{state._meta.reached.Excluded_Pre}`; the canvas draws the resolved text, the file keeps the placeholder.
 
 partial runner
-: Any runner that claims only a subset of a diagram's elements and executes them. A collection of partial runners can run a studyflow together, each one executing the elements it claims.
+: Any runner that claims only a subset of a diagram's elements and executes them. A collection of partial runners can run a studyflow together, each one executing the elements it claims. A domain's runners live in its skill, which translates between Studyflow's runner contract and each tool's own protocol ([Writing a partial runner](developers.qmd#writing-a-partial-runner)).
 
 implementation
 : The software an element requires to run, written as `<scheme>://<ref>[@<version>]`
 
 seed
-: The main random seed on the study. Set it and every random choice replays exactly.
+: The main random seed on the study. Set it and every random gateway draws the same branches in both runtimes; a browser link's `seed`, or else one derived from its subject id, replaces it.
 
 ## Provenance
 
@@ -68,4 +68,4 @@ provenance record
 : What actually happened. The retrospective side of the diagram. A deviation in an execution is a diff of the file against an earlier version of itself.
 
 run repository
-: The git repository a run leaves behind, one commit per provenance record, with the records restated in the commits.
+: The git repository a run leaves behind, one commit per provenance record, with the records restated in the commits. It is the run directory a partial runner writes its files to, the parent of its `--cache`; the cache itself is never committed.

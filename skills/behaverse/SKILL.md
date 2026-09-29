@@ -40,8 +40,8 @@ When the task answers along message flows, its `failedTrialRate` is kept with it
 valid response for — the build is the authority, so an answer injected too late for the trial's window counts as a
 miss however well it named an option, and a build that reports no trial reports no failure. It is data, not policy:
 a study that wants a bad run to leave the task draws a conditional boundary event on it
-(`{Play.failedTrialRate} > 0.2`), and the walk goes on from there. A task a person or the build's own bot plays
-carries no `failedTrialRate`, so a boundary event on it has nothing to read.
+(`{Play.failedTrialRate} > 0.2`), and the walk goes on from there. A task played any other way (by a person, by the
+build's own bot, or in the browser runner) carries no `failedTrialRate`, and a condition that cites it there fails the run.
 
 This skill is the boundary between Studyflow and the builds that play Behaverse tasks, the Unity build today. To
 Studyflow it offers `behaverse:*` elements and runners that keep its contract; to a build its runners speak that

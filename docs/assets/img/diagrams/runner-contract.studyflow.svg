@@ -1,0 +1,334 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="36 16 1328 688" width="1328" height="688"><metadata><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner_contract" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="Runner_Contract" name="A run, from the runner's side">
+    <bpmn:documentation>A local run, from a partial runner's side. The walk asks every runner for its claims before the first step, and a runner that fails to answer stops the run. It then hands each claimed element to its runner with the plan and the state file, adopts the state that comes back, and commits the run directory. The runner speaks the walk's contract on one side and its tool's own protocol on the other. Drawn for docs/developers.qmd.</bpmn:documentation>
+    <bpmn:extensionElements>
+      <studyflow:study>
+        <studyflow:state>{"_meta":{"prov":[{"action":"created","when":"2026-09-29T21:11:06+02:00","with":"studyflow-modeler/26.9.29"}]}}</studyflow:state>
+      </studyflow:study>
+    </bpmn:extensionElements>
+    <bpmn:participant id="Pool_Walk" name="Local runtime, the walk" processRef="Walk"/>
+    <bpmn:participant id="Pool_Runner" name="Partial runner, in its skill" processRef="Runner"/>
+    <bpmn:participant id="Pool_Tool" name="The tool"/>
+    <bpmn:messageFlow id="Msg_Claims" name="--claims" sourceRef="Ask_Claims" targetRef="Claims_Start"/>
+    <bpmn:messageFlow id="Msg_Claimed" name="claimed ids" sourceRef="Claims_End" targetRef="Ask_Claims"/>
+    <bpmn:messageFlow id="Msg_Element" name="--element &lt;id&gt;" sourceRef="Hand_Over" targetRef="Element_Start"/>
+    <bpmn:messageFlow id="Msg_State" name="updated state" sourceRef="Element_End" targetRef="Hand_Over"/>
+    <bpmn:messageFlow id="Msg_Protocol" name="its own protocol" sourceRef="Run_Tool" targetRef="Pool_Tool"/>
+    <bpmn:messageFlow id="Msg_Report" name="what it reports" sourceRef="Pool_Tool" targetRef="Run_Tool"/>
+  </bpmn:collaboration>
+  <bpmn:process id="Walk" name="Local runtime, the walk">
+    <bpmn:startEvent id="Walk_Start" name="studyflow run">
+      <bpmn:outgoing>Flow_Start</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Ask_Claims" name="Ask every runner for its claims">
+      <bpmn:incoming>Flow_Start</bpmn:incoming>
+      <bpmn:outgoing>Flow_Claims</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Claims_Gate" name="Every runner answered?">
+      <bpmn:incoming>Flow_Claims</bpmn:incoming>
+      <bpmn:outgoing>Flow_Refused</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Answered</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Stop" name="The run stops before any step">
+      <bpmn:incoming>Flow_Refused</bpmn:incoming>
+      <bpmn:errorEventDefinition id="Stop_Error"/>
+    </bpmn:endEvent>
+    <bpmn:task id="Hand_Over" name="Hand over the next claimed element">
+      <bpmn:incoming>Flow_Answered</bpmn:incoming>
+      <bpmn:incoming>Flow_Again</bpmn:incoming>
+      <bpmn:outgoing>Flow_Handed</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Adopt" name="Adopt its state, commit the run directory">
+      <bpmn:incoming>Flow_Handed</bpmn:incoming>
+      <bpmn:outgoing>Flow_Adopted</bpmn:outgoing>
+      <bpmn:ioSpecification id="Adopt_io">
+        <bpmn:dataOutput id="Adopt_result" name="result"/>
+        <bpmn:inputSet id="Adopt_inputSet"/>
+        <bpmn:outputSet id="Adopt_outputSet">
+          <bpmn:dataOutputRefs>Adopt_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="Out_Commit">
+        <bpmn:sourceRef>Adopt_result</bpmn:sourceRef>
+        <bpmn:targetRef>Run_Dir</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:dataStoreReference id="Run_Dir" name="Run directory (git)"/>
+    <bpmn:exclusiveGateway id="More_Gate" name="Another element?">
+      <bpmn:incoming>Flow_Adopted</bpmn:incoming>
+      <bpmn:outgoing>Flow_Again</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Done</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Sweep" name="Remove .cache/">
+      <bpmn:incoming>Flow_Done</bpmn:incoming>
+      <bpmn:outgoing>Flow_Swept</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Walk_End" name="Run finished">
+      <bpmn:incoming>Flow_Swept</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Walk_Start" targetRef="Ask_Claims"/>
+    <bpmn:sequenceFlow id="Flow_Claims" sourceRef="Ask_Claims" targetRef="Claims_Gate"/>
+    <bpmn:sequenceFlow id="Flow_Refused" name="no" sourceRef="Claims_Gate" targetRef="Stop"/>
+    <bpmn:sequenceFlow id="Flow_Answered" name="yes" sourceRef="Claims_Gate" targetRef="Hand_Over"/>
+    <bpmn:sequenceFlow id="Flow_Handed" sourceRef="Hand_Over" targetRef="Adopt"/>
+    <bpmn:sequenceFlow id="Flow_Adopted" sourceRef="Adopt" targetRef="More_Gate"/>
+    <bpmn:sequenceFlow id="Flow_Again" name="yes" sourceRef="More_Gate" targetRef="Hand_Over"/>
+    <bpmn:sequenceFlow id="Flow_Done" name="no" sourceRef="More_Gate" targetRef="Sweep"/>
+    <bpmn:sequenceFlow id="Flow_Swept" sourceRef="Sweep" targetRef="Walk_End"/>
+  </bpmn:process>
+  <bpmn:process id="Runner" name="Partial runner, in its skill">
+    <bpmn:startEvent id="Claims_Start" name="Asked for claims">
+      <bpmn:outgoing>Flow_Asked</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Claims_Start_Message"/>
+    </bpmn:startEvent>
+    <bpmn:task id="Print_Ids" name="Print the ids it takes">
+      <bpmn:incoming>Flow_Asked</bpmn:incoming>
+      <bpmn:outgoing>Flow_Printed</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Claims_End" name="Answered">
+      <bpmn:incoming>Flow_Printed</bpmn:incoming>
+      <bpmn:messageEventDefinition id="Claims_End_Message"/>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="Element_Start" name="Handed an element">
+      <bpmn:outgoing>Flow_Handed_In</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Element_Start_Message"/>
+    </bpmn:startEvent>
+    <bpmn:task id="Read_Plan" name="Read plan.json and the state file">
+      <bpmn:incoming>Flow_Handed_In</bpmn:incoming>
+      <bpmn:outgoing>Flow_Read</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Run_Tool" name="Run the element with the tool">
+      <bpmn:incoming>Flow_Read</bpmn:incoming>
+      <bpmn:outgoing>Flow_Ran</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Write_Back" name="Write back result, record, files">
+      <bpmn:incoming>Flow_Ran</bpmn:incoming>
+      <bpmn:outgoing>Flow_Written</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:endEvent id="Element_End" name="Done">
+      <bpmn:incoming>Flow_Written</bpmn:incoming>
+      <bpmn:messageEventDefinition id="Element_End_Message"/>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_Asked" sourceRef="Claims_Start" targetRef="Print_Ids"/>
+    <bpmn:sequenceFlow id="Flow_Printed" sourceRef="Print_Ids" targetRef="Claims_End"/>
+    <bpmn:sequenceFlow id="Flow_Handed_In" sourceRef="Element_Start" targetRef="Read_Plan"/>
+    <bpmn:sequenceFlow id="Flow_Read" sourceRef="Read_Plan" targetRef="Run_Tool"/>
+    <bpmn:sequenceFlow id="Flow_Ran" sourceRef="Run_Tool" targetRef="Write_Back"/>
+    <bpmn:sequenceFlow id="Flow_Written" sourceRef="Write_Back" targetRef="Element_End"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Runner_Contract">
+      <bpmndi:BPMNShape id="Pool_Walk_di" bpmnElement="Pool_Walk">
+        <dc:Bounds x="40" y="20" width="1320" height="250"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Pool_Runner_di" bpmnElement="Pool_Runner">
+        <dc:Bounds x="40" y="310" width="1320" height="250"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Pool_Tool_di" bpmnElement="Pool_Tool">
+        <dc:Bounds x="40" y="600" width="1320" height="100"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Walk_Start_di" bpmnElement="Walk_Start">
+        <dc:Bounds x="102" y="147" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Ask_Claims_di" bpmnElement="Ask_Claims">
+        <dc:Bounds x="190" y="125" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Claims_Gate_di" bpmnElement="Claims_Gate">
+        <dc:Bounds x="395" y="140" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="375" y="196" width="90" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stop_di" bpmnElement="Stop">
+        <dc:Bounds x="402" y="50" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="444" y="60" width="210" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Hand_Over_di" bpmnElement="Hand_Over">
+        <dc:Bounds x="500" y="125" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Adopt_di" bpmnElement="Adopt">
+        <dc:Bounds x="710" y="125" width="170" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Run_Dir_di" bpmnElement="Run_Dir">
+        <dc:Bounds x="770" y="212" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="828" y="229" width="140" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="More_Gate_di" bpmnElement="More_Gate">
+        <dc:Bounds x="940" y="140" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="915" y="196" width="100" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sweep_di" bpmnElement="Sweep">
+        <dc:Bounds x="1050" y="125" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Walk_End_di" bpmnElement="Walk_End">
+        <dc:Bounds x="1262" y="147" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Claims_Start_di" bpmnElement="Claims_Start">
+        <dc:Bounds x="197" y="417" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="170" y="457" width="90" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Print_Ids_di" bpmnElement="Print_Ids">
+        <dc:Bounds x="270" y="395" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Claims_End_di" bpmnElement="Claims_End">
+        <dc:Bounds x="447" y="417" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="425" y="457" width="80" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Element_Start_di" bpmnElement="Element_Start">
+        <dc:Bounds x="527" y="417" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="500" y="457" width="90" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Read_Plan_di" bpmnElement="Read_Plan">
+        <dc:Bounds x="600" y="395" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Run_Tool_di" bpmnElement="Run_Tool">
+        <dc:Bounds x="800" y="395" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Write_Back_di" bpmnElement="Write_Back">
+        <dc:Bounds x="1000" y="395" width="150" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Element_End_di" bpmnElement="Element_End">
+        <dc:Bounds x="1200" y="417" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1196" y="457" width="44" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Msg_Claims_di" bpmnElement="Msg_Claims">
+        <di:waypoint x="215" y="205"/>
+        <di:waypoint x="215" y="417"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="222" y="278" width="60" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_Claimed_di" bpmnElement="Msg_Claimed">
+        <di:waypoint x="465" y="417"/>
+        <di:waypoint x="465" y="290"/>
+        <di:waypoint x="320" y="290"/>
+        <di:waypoint x="320" y="205"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="472" y="330" width="80" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_Element_di" bpmnElement="Msg_Element">
+        <di:waypoint x="545" y="205"/>
+        <di:waypoint x="545" y="417"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="552" y="330" width="105" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_State_di" bpmnElement="Msg_State">
+        <di:waypoint x="1218" y="417"/>
+        <di:waypoint x="1218" y="290"/>
+        <di:waypoint x="620" y="290"/>
+        <di:waypoint x="620" y="205"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1225" y="330" width="95" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_Protocol_di" bpmnElement="Msg_Protocol">
+        <di:waypoint x="850" y="475"/>
+        <di:waypoint x="850" y="600"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="735" y="530" width="110" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_Report_di" bpmnElement="Msg_Report">
+        <di:waypoint x="900" y="600"/>
+        <di:waypoint x="900" y="475"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="907" y="530" width="110" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Commit_di" bpmnElement="Out_Commit">
+        <di:waypoint x="795" y="205"/>
+        <di:waypoint x="795" y="212"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Start_di" bpmnElement="Flow_Start">
+        <di:waypoint x="138" y="165"/>
+        <di:waypoint x="190" y="165"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Claims_di" bpmnElement="Flow_Claims">
+        <di:waypoint x="340" y="165"/>
+        <di:waypoint x="395" y="165"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Refused_di" bpmnElement="Flow_Refused">
+        <di:waypoint x="420" y="140"/>
+        <di:waypoint x="420" y="86"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="426" y="105" width="20" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Answered_di" bpmnElement="Flow_Answered">
+        <di:waypoint x="445" y="165"/>
+        <di:waypoint x="500" y="165"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="458" y="148" width="25" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Handed_di" bpmnElement="Flow_Handed">
+        <di:waypoint x="650" y="165"/>
+        <di:waypoint x="710" y="165"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Adopted_di" bpmnElement="Flow_Adopted">
+        <di:waypoint x="880" y="165"/>
+        <di:waypoint x="940" y="165"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Again_di" bpmnElement="Flow_Again">
+        <di:waypoint x="965" y="140"/>
+        <di:waypoint x="965" y="95"/>
+        <di:waypoint x="575" y="95"/>
+        <di:waypoint x="575" y="125"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="972" y="105" width="25" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Done_di" bpmnElement="Flow_Done">
+        <di:waypoint x="990" y="165"/>
+        <di:waypoint x="1050" y="165"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1010" y="148" width="20" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Swept_di" bpmnElement="Flow_Swept">
+        <di:waypoint x="1200" y="165"/>
+        <di:waypoint x="1262" y="165"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Asked_di" bpmnElement="Flow_Asked">
+        <di:waypoint x="233" y="435"/>
+        <di:waypoint x="270" y="435"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Printed_di" bpmnElement="Flow_Printed">
+        <di:waypoint x="410" y="435"/>
+        <di:waypoint x="447" y="435"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Handed_In_di" bpmnElement="Flow_Handed_In">
+        <di:waypoint x="563" y="435"/>
+        <di:waypoint x="600" y="435"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Read_di" bpmnElement="Flow_Read">
+        <di:waypoint x="750" y="435"/>
+        <di:waypoint x="800" y="435"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Ran_di" bpmnElement="Flow_Ran">
+        <di:waypoint x="950" y="435"/>
+        <di:waypoint x="1000" y="435"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Written_di" bpmnElement="Flow_Written">
+        <di:waypoint x="1150" y="435"/>
+        <di:waypoint x="1200" y="435"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions></metadata><defs><marker id="sf-arrow-sequence" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="context-stroke" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-message" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-open" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-marker-default" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M3,2 L7,8" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker><marker id="sf-marker-message-start" markerWidth="10" markerHeight="10" refX="1.5" refY="5" orient="auto" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#ffffff" stroke="context-stroke" stroke-width="1"/></marker></defs><g data-layer="elements"><g class="sf-shape" data-element-id="Pool_Walk" data-element-type="bpmn:Participant" transform="translate(40, 20)"><rect x="0" y="0" width="1320" height="250" rx="4" ry="4" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><line x1="30" y1="0" x2="30" y2="250" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="15" y="125" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="middle" dominant-baseline="central" stroke-width="0" transform="rotate(-90, 15, 125)">Local runtime, the walk</text></g><g class="sf-shape" data-element-id="Pool_Runner" data-element-type="bpmn:Participant" transform="translate(40, 310)"><rect x="0" y="0" width="1320" height="250" rx="4" ry="4" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><line x1="30" y1="0" x2="30" y2="250" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="15" y="125" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="middle" dominant-baseline="central" stroke-width="0" transform="rotate(-90, 15, 125)">Partial runner, in its skill</text></g><g class="sf-shape" data-element-id="Pool_Tool" data-element-type="bpmn:Participant" transform="translate(40, 600)"><rect x="0" y="0" width="1320" height="100" rx="4" ry="4" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><line x1="30" y1="0" x2="30" y2="100" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="15" y="50" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="middle" dominant-baseline="central" stroke-width="0" transform="rotate(-90, 15, 50)">The tool</text></g><g class="sf-connection" data-element-id="Msg_Claims" data-element-type="bpmn:MessageFlow"><path class="sf-connection-line" d="M 215 205 L 215 417" data-waypoints="215,205 215,417" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="8,6" marker-end="url(#sf-arrow-message)" marker-start="url(#sf-marker-message-start)"/></g><g class="sf-connection" data-element-id="Msg_Claimed" data-element-type="bpmn:MessageFlow"><path class="sf-connection-line" d="M 465 417 L 465 296 A 6 6 0 0 0 459 290 L 326 290 A 6 6 0 0 1 320 284 L 320 205" data-waypoints="465,417 465,290 320,290 320,205" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="8,6" marker-end="url(#sf-arrow-message)" marker-start="url(#sf-marker-message-start)"/></g><g class="sf-connection" data-element-id="Msg_Element" data-element-type="bpmn:MessageFlow"><path class="sf-connection-line" d="M 545 205 L 545 417" data-waypoints="545,205 545,417" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="8,6" marker-end="url(#sf-arrow-message)" marker-start="url(#sf-marker-message-start)"/></g><g class="sf-connection" data-element-id="Msg_State" data-element-type="bpmn:MessageFlow"><path class="sf-connection-line" d="M 1218 417 L 1218 296 A 6 6 0 0 0 1212 290 L 626 290 A 6 6 0 0 1 620 284 L 620 205" data-waypoints="1218,417 1218,290 620,290 620,205" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="8,6" marker-end="url(#sf-arrow-message)" marker-start="url(#sf-marker-message-start)"/></g><g class="sf-connection" data-element-id="Msg_Protocol" data-element-type="bpmn:MessageFlow"><path class="sf-connection-line" d="M 850 475 L 850 600" data-waypoints="850,475 850,600" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="8,6" marker-end="url(#sf-arrow-message)" marker-start="url(#sf-marker-message-start)"/></g><g class="sf-connection" data-element-id="Msg_Report" data-element-type="bpmn:MessageFlow"><path class="sf-connection-line" d="M 900 600 L 900 475" data-waypoints="900,600 900,475" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="8,6" marker-end="url(#sf-arrow-message)" marker-start="url(#sf-marker-message-start)"/></g><g class="sf-connection" data-element-id="Out_Commit" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 795 205 L 795 212" data-waypoints="795,205 795,212" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Flow_Start" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 138 165 L 190 165" data-waypoints="138,165 190,165" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Claims" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 340 165 L 395 165" data-waypoints="340,165 395,165" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Refused" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 420 140 L 420 86" data-waypoints="420,140 420,86" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Answered" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 445 165 L 500 165" data-waypoints="445,165 500,165" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Handed" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 650 165 L 710 165" data-waypoints="650,165 710,165" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Adopted" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 880 165 L 940 165" data-waypoints="880,165 940,165" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Again" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 965 140 L 965 101 A 6 6 0 0 0 959 95 L 581 95 A 6 6 0 0 0 575 101 L 575 125" data-waypoints="965,140 965,95 575,95 575,125" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Done" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 990 165 L 1050 165" data-waypoints="990,165 1050,165" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Swept" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 1200 165 L 1262 165" data-waypoints="1200,165 1262,165" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Asked" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 233 435 L 270 435" data-waypoints="233,435 270,435" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Printed" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 410 435 L 447 435" data-waypoints="410,435 447,435" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Handed_In" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 563 435 L 600 435" data-waypoints="563,435 600,435" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Read" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 750 435 L 800 435" data-waypoints="750,435 800,435" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Ran" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 950 435 L 1000 435" data-waypoints="950,435 1000,435" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Written" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 1150 435 L 1200 435" data-waypoints="1150,435 1200,435" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-external-label" data-element-id="Msg_Claims_label" data-element-type="bpmn:MessageFlow" data-label-owner="Msg_Claims" transform="translate(222, 278)"><text class="sf-label" x="30" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">--claims</text></g><g class="sf-external-label" data-element-id="Msg_Claimed_label" data-element-type="bpmn:MessageFlow" data-label-owner="Msg_Claimed" transform="translate(472, 330)"><text class="sf-label" x="40" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">claimed ids</text></g><g class="sf-external-label" data-element-id="Msg_Element_label" data-element-type="bpmn:MessageFlow" data-label-owner="Msg_Element" transform="translate(552, 330)"><text class="sf-label" x="52.5" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">--element &lt;id&gt;</text></g><g class="sf-external-label" data-element-id="Msg_State_label" data-element-type="bpmn:MessageFlow" data-label-owner="Msg_State" transform="translate(1225, 330)"><text class="sf-label" x="47.5" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">updated state</text></g><g class="sf-external-label" data-element-id="Msg_Protocol_label" data-element-type="bpmn:MessageFlow" data-label-owner="Msg_Protocol" transform="translate(735, 530)"><text class="sf-label" x="55" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">its own protocol</text></g><g class="sf-external-label" data-element-id="Msg_Report_label" data-element-type="bpmn:MessageFlow" data-label-owner="Msg_Report" transform="translate(907, 530)"><text class="sf-label" x="55" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">what it reports</text></g><g class="sf-external-label" data-element-id="Flow_Refused_label" data-element-type="bpmn:SequenceFlow" data-label-owner="Flow_Refused" transform="translate(426, 105)"><text class="sf-label" x="10" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">no</text></g><g class="sf-external-label" data-element-id="Flow_Answered_label" data-element-type="bpmn:SequenceFlow" data-label-owner="Flow_Answered" transform="translate(458, 148)"><text class="sf-label" x="12.5" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">yes</text></g><g class="sf-external-label" data-element-id="Flow_Again_label" data-element-type="bpmn:SequenceFlow" data-label-owner="Flow_Again" transform="translate(972, 105)"><text class="sf-label" x="12.5" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">yes</text></g><g class="sf-external-label" data-element-id="Flow_Done_label" data-element-type="bpmn:SequenceFlow" data-label-owner="Flow_Done" transform="translate(1010, 148)"><text class="sf-label" x="10" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">no</text></g><g class="sf-shape" data-element-id="Walk_Start" data-element-type="bpmn:StartEvent" transform="translate(102, 147)"><circle cx="18" cy="18" r="18" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/></g><g class="sf-shape" data-element-id="Ask_Claims" data-element-type="bpmn:Task" transform="translate(190, 125)"><rect x="0" y="0" width="150" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="75" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Ask every runner for</text><text class="sf-label" x="75" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">its claims</text></g><g class="sf-shape" data-element-id="Claims_Gate" data-element-type="bpmn:ExclusiveGateway" transform="translate(395, 140)"><polygon points="25,0 50,25 25,50 0,25" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><svg x="15" y="15" width="20" height="20" class="sf-icon" viewBox="0 0 24 24" stroke="none" color="#44403c" data-icon-key="ExclusiveGateway"><path fill="#44403c" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg></g><g class="sf-shape" data-element-id="Stop" data-element-type="bpmn:EndEvent" transform="translate(402, 50)"><circle cx="18" cy="18" r="16.875" fill="#ffffff" stroke="#44403c" stroke-width="3.75"/><svg x="8" y="8" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#44403c" data-icon-key="ErrorEventDefinition:end"><path fill="#44403c" d="m213.85 125.46l-112 120a8 8 0 0 1-13.69-7l14.66-73.33l-57.63-21.64a8 8 0 0 1-3-13l112-120a8 8 0 0 1 13.69 7l-14.7 73.41l57.63 21.61a8 8 0 0 1 3 12.95Z"/></svg></g><g class="sf-shape" data-element-id="Hand_Over" data-element-type="bpmn:Task" transform="translate(500, 125)"><rect x="0" y="0" width="150" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="75" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Hand over the next</text><text class="sf-label" x="75" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">claimed element</text></g><g class="sf-shape" data-element-id="Adopt" data-element-type="bpmn:Task" transform="translate(710, 125)"><rect x="0" y="0" width="170" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="85" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Adopt its state, commit</text><text class="sf-label" x="85" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">the run directory</text></g><g class="sf-shape" data-element-id="Run_Dir" data-element-type="bpmn:DataStoreReference" transform="translate(770, 212)"><path d="M0,6 A25,6 0 0 0 50,6 L50,44 A25,6 0 0 1 0,44 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M0,6 A25,6 0 0 0 50,6 A25,6 0 0 0 0,6 Z" fill="none" stroke="#44403c" stroke-width="1.5"/></g><g class="sf-shape" data-element-id="More_Gate" data-element-type="bpmn:ExclusiveGateway" transform="translate(940, 140)"><polygon points="25,0 50,25 25,50 0,25" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><svg x="15" y="15" width="20" height="20" class="sf-icon" viewBox="0 0 24 24" stroke="none" color="#44403c" data-icon-key="ExclusiveGateway"><path fill="#44403c" d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12z"/></svg></g><g class="sf-shape" data-element-id="Sweep" data-element-type="bpmn:Task" transform="translate(1050, 125)"><rect x="0" y="0" width="150" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="75" y="43.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Remove .cache/</text></g><g class="sf-shape" data-element-id="Walk_End" data-element-type="bpmn:EndEvent" transform="translate(1262, 147)"><circle cx="18" cy="18" r="16.875" fill="#ffffff" stroke="#44403c" stroke-width="3.75"/></g><g class="sf-shape" data-element-id="Claims_Start" data-element-type="bpmn:StartEvent" transform="translate(197, 417)"><circle cx="18" cy="18" r="18" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><svg x="8" y="8" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#44403c" data-icon-key="MessageEventDefinition"><path fill="#44403c" d="M224 48H32a8 8 0 0 0-8 8v136a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V56a8 8 0 0 0-8-8m-20.57 16L128 133.15L52.57 64ZM216 192H40V74.19l82.59 75.71a8 8 0 0 0 10.82 0L216 74.19z"/></svg></g><g class="sf-shape" data-element-id="Print_Ids" data-element-type="bpmn:Task" transform="translate(270, 395)"><rect x="0" y="0" width="140" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="70" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Print the ids it</text><text class="sf-label" x="70" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">takes</text></g><g class="sf-shape" data-element-id="Claims_End" data-element-type="bpmn:EndEvent" transform="translate(447, 417)"><circle cx="18" cy="18" r="16.875" fill="#ffffff" stroke="#44403c" stroke-width="3.75"/><svg x="8" y="8" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#44403c" data-icon-key="MessageEventDefinition"><path fill="#44403c" d="M224 48H32a8 8 0 0 0-8 8v136a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V56a8 8 0 0 0-8-8m-20.57 16L128 133.15L52.57 64ZM216 192H40V74.19l82.59 75.71a8 8 0 0 0 10.82 0L216 74.19z"/></svg></g><g class="sf-shape" data-element-id="Element_Start" data-element-type="bpmn:StartEvent" transform="translate(527, 417)"><circle cx="18" cy="18" r="18" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><svg x="8" y="8" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#44403c" data-icon-key="MessageEventDefinition"><path fill="#44403c" d="M224 48H32a8 8 0 0 0-8 8v136a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V56a8 8 0 0 0-8-8m-20.57 16L128 133.15L52.57 64ZM216 192H40V74.19l82.59 75.71a8 8 0 0 0 10.82 0L216 74.19z"/></svg></g><g class="sf-shape" data-element-id="Read_Plan" data-element-type="bpmn:Task" transform="translate(600, 395)"><rect x="0" y="0" width="150" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="75" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Read plan.json and</text><text class="sf-label" x="75" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">the state file</text></g><g class="sf-shape" data-element-id="Run_Tool" data-element-type="bpmn:Task" transform="translate(800, 395)"><rect x="0" y="0" width="150" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="75" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Run the element with</text><text class="sf-label" x="75" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">the tool</text></g><g class="sf-shape" data-element-id="Write_Back" data-element-type="bpmn:Task" transform="translate(1000, 395)"><rect x="0" y="0" width="150" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="75" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Write back result,</text><text class="sf-label" x="75" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">record, files</text></g><g class="sf-shape" data-element-id="Element_End" data-element-type="bpmn:EndEvent" transform="translate(1200, 417)"><circle cx="18" cy="18" r="16.875" fill="#ffffff" stroke="#44403c" stroke-width="3.75"/><svg x="8" y="8" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#44403c" data-icon-key="MessageEventDefinition"><path fill="#44403c" d="M224 48H32a8 8 0 0 0-8 8v136a16 16 0 0 0 16 16h176a16 16 0 0 0 16-16V56a8 8 0 0 0-8-8m-20.57 16L128 133.15L52.57 64ZM216 192H40V74.19l82.59 75.71a8 8 0 0 0 10.82 0L216 74.19z"/></svg></g><g class="sf-external-label" data-element-id="Walk_Start_label" data-element-type="bpmn:StartEvent" data-label-owner="Walk_Start" transform="translate(77.53, 189)"><text class="sf-label" x="42.47" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">studyflow run</text></g><g class="sf-external-label" data-element-id="Claims_Gate_label" data-element-type="bpmn:ExclusiveGateway" data-label-owner="Claims_Gate" transform="translate(375, 196)"><text class="sf-label" x="45" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Every runner</text><text class="sf-label" x="45" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">answered?</text></g><g class="sf-external-label" data-element-id="Stop_label" data-element-type="bpmn:EndEvent" data-label-owner="Stop" transform="translate(444, 60)"><text class="sf-label" x="105" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">The run stops before any step</text></g><g class="sf-external-label" data-element-id="Run_Dir_label" data-element-type="bpmn:DataStoreReference" data-label-owner="Run_Dir" transform="translate(828, 229)"><text class="sf-label" x="70" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Run directory (git)</text></g><g class="sf-external-label" data-element-id="More_Gate_label" data-element-type="bpmn:ExclusiveGateway" data-label-owner="More_Gate" transform="translate(915, 196)"><text class="sf-label" x="50" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Another</text><text class="sf-label" x="50" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">element?</text></g><g class="sf-external-label" data-element-id="Walk_End_label" data-element-type="bpmn:EndEvent" data-label-owner="Walk_End" transform="translate(1240.72, 189)"><text class="sf-label" x="39.279999999999994" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Run finished</text></g><g class="sf-external-label" data-element-id="Claims_Start_label" data-element-type="bpmn:StartEvent" data-label-owner="Claims_Start" transform="translate(170, 457)"><text class="sf-label" x="45" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Asked for</text><text class="sf-label" x="45" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">claims</text></g><g class="sf-external-label" data-element-id="Claims_End_label" data-element-type="bpmn:EndEvent" data-label-owner="Claims_End" transform="translate(425, 457)"><text class="sf-label" x="40" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Answered</text></g><g class="sf-external-label" data-element-id="Element_Start_label" data-element-type="bpmn:StartEvent" data-label-owner="Element_Start" transform="translate(500, 457)"><text class="sf-label" x="45" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Handed an</text><text class="sf-label" x="45" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">element</text></g><g class="sf-external-label" data-element-id="Element_End_label" data-element-type="bpmn:EndEvent" data-label-owner="Element_End" transform="translate(1196, 457)"><text class="sf-label" x="22" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Done</text></g></g></svg>

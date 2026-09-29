@@ -18,13 +18,13 @@ A partial runner is a program in any language that claims certain elements and e
 
 This contract is Studyflow's published language for the local runtime, and the whole interface to it: the walk coordinates, a runner executes, and nothing here depends on how a runner or the tool behind it works. A runner is its skill's side of the boundary: it speaks these terms to the walk and its tool's own protocol to the tool.
 
-**Discovery.** `studyflow run --runtime local` runs every skill's `runtimes.local` command in that skill's folder (the checkout's `skills/`, or `libexec/skills` as installed, plus any `STUDYFLOW_SKILLS` directory), and any executable named `studyflow-<name>` on PATH.
+**Discovery.** `studyflow run --runtime local` runs every skill's `runtimes.local` command in that skill's folder (the checkout's `skills/`, or `libexec/skills` as installed, plus any `STUDYFLOW_SKILLS` directory), and any executable named `studyflow-<name>` on PATH. `--runner NAME=COMMAND` adds or replaces one for a single run.
 
 **Protocol.**
 
 1. `<plan.json> --claims`: print the ids of the elements you will run, as JSON on stdout. A plain array marks them live: they run every time and never replay. `{"elements": [...], "live": false}` marks them replayable, so a re-run skips or reuses them as it does the walk's own records (the python skill answers this way). End events can be claimed too, and are handed over as the walk reaches them, so a runner can fold what it started.
 2. `<plan.json> --element <id> --cache <dir>`, once per claimed element. `STUDYFLOW_RUN_PID` in the environment is the walk's pid, for anything a runner leaves running to follow.
-3. The cache holds one file per call, `<element_id>.state.json`. It starts as `{state}`; the runner updates it with the result, so it becomes the same state plus `result`, `durationMs`, and on failure `error` with a non-zero exit. Stdout goes to the run log; stdin and stderr stay on the terminal.
+3. The cache holds one file per call, `<element_id>.state.json`. It starts as `{state}`; the runner updates it with the result, so it becomes the same state plus `result`, `durationMs`, and on failure `error` with a non-zero exit. Stdout goes to the run log; stdin and stderr stay on the terminal. The cache's parent is the run directory: what a runner leaves there is committed at the next checkpoint, while `.cache/` is never committed and is removed when the run ends (`--debug` keeps it).
 
 Every call also carries the run's `--sim` and `--auto` flags when it has them, so a runner must accept both, even to ignore them.
 
