@@ -1247,6 +1247,12 @@ A:
     expect(reached).toMatchObject({ Screen: 1, F_In: 1, Debrief: 1, S9: 1, A0: 1, A9: 1 });
     expect(reached.Out).toBeUndefined();
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8').match(/\[M_Done\.\d+\]/g)).toHaveLength(1);
+    // The journal holds the same run as data: each message sent with its content, each answer with what it said.
+    const journal = fs.readFileSync(path.join(dir, 'run', 'run.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    const sent = journal.filter((line) => line.event === 'message.sent');
+    expect(sent.length).toBeGreaterThan(0);
+    expect(sent[0].message).toMatchObject({ id: expect.any(String), flow: expect.any(String) });
+    expect(journal.some((line) => line.event === 'activity.started' && line.element === 'Screen')).toBe(true);
   });
 
   test('a pool of many instances sends its outgoing message once, after the last instance', async () => {

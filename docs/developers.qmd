@@ -103,6 +103,8 @@ Before it runs, a studyflow is a plan. As it runs, the record of what actually h
 
 The retrospective part lives under `state`, a tree keyed by element id (`state:` in the YAML file, a JSON string in `<studyflow:state>` in the XML). Everything the runner owns sits under `state._meta` (`META_KEY` in `@core/document`): `_meta.prov`, the run records, oldest first, and `_meta.reached.<element_id>`, incremented every time a token reaches an element or follows a sequence flow, and never reset. Per-element records stay on the elements. Everything else in the tree is a `bpmn:Property` value under `state.<scope_id>`, written only by data output associations. Keys starting with `_` cannot be declared.
 
+A local run also keeps `run.jsonl` in its run directory, committed with it: the run's journal, one JSON object per event, appended and never rewritten. Each step started, each flow a decision took and why, and each message sent and answered with its content are lines of it, so what reached the file as counts and records can be replayed from the journal line by line.
+
 | Attribute | Holds | | Action | Records |
 |:--|:--|:-:|:--|:--|
 | `action` | what happened, in one word | | `created`, `modified` | the file was authored, or edited and exported again |

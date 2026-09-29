@@ -152,6 +152,7 @@ def start_logging(directory: Path, quiet: bool) -> Path:
     to_file = logging.FileHandler(path, mode="w", encoding="utf-8")
     to_file.setFormatter(RunLogFormatter())
     LOG.addHandler(to_file)
+    LOG.addHandler(JournalHandler(directory / "run.jsonl"))
 
     if not quiet:
         to_console = logging.StreamHandler(sys.stdout)
@@ -169,8 +170,32 @@ def log_event(
     level: int = logging.INFO,
     indent: str = "",
     exc_info: BaseException | None = None,
+    data: dict | None = None,
 ) -> None:
-    LOG.log(level, message, exc_info=exc_info, extra={"event": event, "indent": indent})
+    LOG.log(level, message, exc_info=exc_info, extra={"event": event, "indent": indent, "data": data})
+
+
+class JournalHandler(logging.Handler):
+    """`run.jsonl`, the run's journal: one JSON object per event, appended, never rewritten, and committed with the
+    run. Where the log is text for a person, the journal is data: what each step started, which flow a decision
+    took, and every message sent and answered, content included, so a run can be replayed from it."""
+
+    def __init__(self, path: Path) -> None:
+        super().__init__(logging.DEBUG)
+        self.file = path.open("a", encoding="utf-8")
+
+    def emit(self, record: logging.LogRecord) -> None:
+        event = getattr(record, "event", None)
+        if not event:
+            return
+        line = {"at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"), "event": event,
+                "text": record.getMessage().strip(), **(getattr(record, "data", None) or {})}
+        self.file.write(json.dumps(line, default=str, separators=(",", ":")) + "\n")
+        self.file.flush()
+
+    def close(self) -> None:
+        self.file.close()
+        super().close()
 
 
 class TeeStream:
@@ -1040,7 +1065,7 @@ class Runner:
         self.serving: dict[str, threading.Lock] = {}  # one request at a time to each pool a runner plays
         self.sent = itertools.count(1)
         self.failed: BaseException | None = None
-        self._deferred: list[tuple[str, str, int, str]] | None = None
+        self._deferred: list[tuple[str, str, int, str, dict | None]] | None = None
         self.prior_records = {} if fresh else PROV.element_records(studyflow)
         if branched:
             # The checkout took out of the worktree what was made after the branch point, files or not: the
@@ -1079,20 +1104,20 @@ class Runner:
     def indent(self) -> str:
         return "  " * (self.depth + 1)
 
-    def event(self, event: str, message: str, *, level: int = logging.INFO) -> None:
+    def event(self, event: str, message: str, *, level: int = logging.INFO, data: dict | None = None) -> None:
         if self._deferred is not None:
-            self._deferred.append((event, message, level, self.indent))
+            self._deferred.append((event, message, level, self.indent, data))
             return
-        log_event(event, message, level=level, indent=self.indent)
+        log_event(event, message, level=level, indent=self.indent, data=data)
 
     @contextmanager
     def deferred_events(self):
-        buffered: list[tuple[str, str, int, str]] = []
+        buffered: list[tuple[str, str, int, str, dict | None]] = []
         self._deferred = buffered
         try:
             yield lambda: [
-                log_event(event, message, level=level, indent=indent)
-                for event, message, level, indent in buffered
+                log_event(event, message, level=level, indent=indent, data=data)
+                for event, message, level, indent, data in buffered
             ]
         finally:
             self._deferred = None
@@ -1413,7 +1438,7 @@ class Runner:
                 self.note_reuse(element_id, prior, f"skipped {element_id} (run {prior_run})")
                 return
         name = self.studyflow.name_of(element_id)
-        self.event("activity.started", f"□ {element_id}")
+        self.event("activity.started", f"□ {element_id}", data={"element": element_id})
         if replay:
             replay()
         if stale and prior:
@@ -1598,7 +1623,8 @@ class Runner:
                 self.end_entry(entry)
                 when = self.moment()
                 self.decisions[element_id] = (flow.get("id"), when)
-                self.event("sequenceFlow.taken", f"    {how} → {flow.get('id')}")
+                self.event("sequenceFlow.taken", f"    {how} → {flow.get('id')}",
+                           data={"element": element_id, "flow": flow.get("id"), "how": how})
                 self.checkpoint(
                     f"executed {element_id}: {flow.get('id')}", when,
                     {"Prov-Action": "executed", "Prov-Node": element_id, "Prov-What": flow.get("id")},
@@ -1791,7 +1817,8 @@ class Runner:
         message = {"id": message_id or f"{flow.get('id')}.{next(self.sent)}", "flow": flow.get("id"), "content": content}
         if in_reply_to:
             message["inReplyTo"] = in_reply_to
-        self.event("message.sent", f"    ✉ {flow.get('sourceRef')} → {target}  [{message['id']}]", level=logging.DEBUG)
+        self.event("message.sent", f"    ✉ {flow.get('sourceRef')} → {target}  [{message['id']}]", level=logging.DEBUG,
+                   data={"message": message})
         runner = self.claimed.get(target)
         if target in self.studyflow.participants and runner is not None:
             self.serve(target, runner, flow, message)
@@ -1817,7 +1844,8 @@ class Runner:
                 reply = answered.get("result")
                 if isinstance(reply, str):
                     entry["reply"] = reply[:2000]  # what the pool said, kept with the run's records
-                self.event("message.answered", f"    ✉ {name} answered {message['id']}")
+                self.event("message.answered", f"    ✉ {name} answered {message['id']}",
+                           data={"pool": pool, "inReplyTo": message["id"], "reply": reply})
             except Exception as error:  # noqa: BLE001 - recorded, and the sender hears null
                 reply = None
                 entry["status"] = "error"
