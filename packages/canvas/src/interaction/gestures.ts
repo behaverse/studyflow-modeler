@@ -17,16 +17,14 @@ import type { Create } from '@canvas/interaction/create.ts';
 import type { CreatePrototype, NewElement } from '@canvas/study/prototype.ts';
 import type { Rules } from '@canvas/study/rules.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
-import type { StudyResult } from '@canvas/study/Study.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
+import { Keys } from '@canvas/interaction/keys.ts';
 import { isExpandable } from '@core/document/outline.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
 import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
 import { distanceToSegment } from '@canvas/study/edit.ts';
 
 const DRAG_THRESHOLD_PX = 3;
-const NUDGE = 1;
-const LARGE_NUDGE = 10;
 const ZOOM_STEP = 1.25;
 const WHEEL_ZOOM = 0.002;
 const EDGE_BODY_TOLERANCE = 5;
@@ -53,14 +51,6 @@ interface SnapContext {
   targets: SnapTargets;
   bounds?: Bounds;
   point?: Point;
-}
-
-function isTextEntry(target: EventTarget | null): boolean {
-  const el = target as { tagName?: string; isContentEditable?: boolean } | null;
-  if (!el) return false;
-  if (el.isContentEditable) return true;
-  const tag = typeof el.tagName === 'string' ? el.tagName.toUpperCase() : '';
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
 function endpointOf(edge: SceneEdge, index: number): ConnectionEnd | undefined {
@@ -136,18 +126,21 @@ export class Gestures {
   private readonly onUp = (ev: Event) => this.handlePointerUp(ev as PointerEvent);
   private readonly onCancel = () => this.handlePointerCancel();
   private readonly onKeyDown = (ev: Event) => this.handleKeyDown(ev as KeyboardEvent);
-  private readonly onShortcut = (ev: Event) => this.handleShortcut(ev as KeyboardEvent);
+  private readonly onShortcut = (ev: Event) => this.keys.shortcut(ev as KeyboardEvent);
   private readonly onDblClick = (ev: Event) => this.handleDoubleClick(ev as MouseEvent);
   private readonly onHover = (ev: Event) => this.handleHover(ev as MouseEvent);
   private readonly onLeave = () => { this.pointer = undefined; };
-  private readonly onClipboard = (ev: Event) => this.handleClipboard(ev as ClipboardEvent);
+  private readonly onClipboard = (ev: Event) => this.keys.clipboard(ev as ClipboardEvent, this.pointer);
   /** Where the pointer last was over the view, on screen: where a paste lands. */
   private pointer?: Point;
   private readonly onWheel = (ev: Event) => this.handleWheel(ev as WheelEvent);
 
+  private readonly keys: Keys;
+
   constructor(canvas: Canvas, tools: GestureTools) {
     this.canvas = canvas;
     this.tools = tools;
+    this.keys = new Keys(canvas, tools);
     const root = this.tools.svg;
     root.addEventListener('pointerdown', this.onDown);
     root.addEventListener('dblclick', this.onDblClick);
@@ -689,93 +682,6 @@ export class Gestures {
     else this.panBy(-deltaX, -deltaY);
   }
 
-  // --- keyboard ----------------------------------------------------------------------
-
-  private handleShortcut(ev: KeyboardEvent): void {
-    const canvas = this.canvas;
-    if (ev.defaultPrevented || this.tools.labelEditing.isActive() || isTextEntry(ev.target) || ev.altKey) return;
-    const mod = ev.ctrlKey || ev.metaKey;
-    const editable = this.tools.editable();
-    let handled = false;
-    if (mod) {
-      switch (ev.key) {
-        case 'a': case 'A': handled = canvas.selectAll(); break;
-        case 'z': case 'Z': handled = editable && (ev.shiftKey ? canvas.study.redo() : canvas.study.undo()).ok; break;
-        case '=': case '+': canvas.zoom('in'); handled = true; break;
-        case '-': case '_': canvas.zoom('out'); handled = true; break;
-        case '0': canvas.zoom(1); handled = true; break;
-        case 'd': case 'D': handled = editable && this.duplicate(); break;
-        default: break;
-      }
-    } else if (editable) {
-      const step = ev.shiftKey ? LARGE_NUDGE : NUDGE;
-      switch (ev.key) {
-        case 'Delete': case 'Backspace': {
-          const { changed, removed } = canvas.deleteSelection();
-          handled = changed.length + removed.length > 0;
-          break;
-        }
-        case 'ArrowLeft': handled = this.tools.nudgeSelection(-step, 0); break;
-        case 'ArrowRight': handled = this.tools.nudgeSelection(step, 0); break;
-        case 'ArrowUp': handled = this.tools.nudgeSelection(0, -step); break;
-        case 'ArrowDown': handled = this.tools.nudgeSelection(0, step); break;
-        case 'e': handled = canvas.editLabel(); break;
-        case 'a': {
-          const elements = this.tools.selection.get();
-          if (elements.length === 0) break;
-          this.tools.appendMenu(elements.map((element) => element.id));
-          handled = true;
-          break;
-        }
-        default: break;
-      }
-    }
-    if (handled) ev.preventDefault();
-  }
-
-  /**
-   * Copy and cut put the selection on the clipboard as `.studyflow.yaml` text (`study.copy`); paste draws what the
-   * clipboard holds under the pointer, or in the middle of the view, and selects it.
-   */
-  private handleClipboard(ev: ClipboardEvent): void {
-    const data = ev.clipboardData;
-    if (!data || ev.defaultPrevented || this.tools.labelEditing.isActive() || isTextEntry(ev.target)) return;
-    const study = this.canvas.study;
-    if (ev.type === 'paste') {
-      if (!this.tools.editable()) return;
-      const at = this.pointer ? this.tools.viewport.toDiagram(this.pointer) : this.tools.viewportCentre();
-      if (!this.selectPasted(study.paste({ yaml: data.getData('text/plain'), at }))) return;
-    } else {
-      const copied = study.copy({ ids: this.tools.selection.get().map((element) => element.id) });
-      if (!copied.ok) return;
-      data.setData('text/plain', copied.yaml);
-      if (ev.type === 'cut' && this.tools.editable()) this.canvas.deleteSelection();
-    }
-    ev.preventDefault();
-  }
-
-  /** `Ctrl`/`Cmd`+D: a copy of the selection a step right of and below it, in what holds it, selected. */
-  private duplicate(): boolean {
-    const elements = this.tools.selection.get();
-    const study = this.canvas.study;
-    const copied = study.copy({ ids: elements.map((element) => element.id) });
-    if (!copied.ok) return false;
-    const holders = new Set(elements.map((element) => element.parent?.id));
-    const into = holders.size === 1 ? [...holders][0] : undefined;
-    return this.selectPasted(study.paste({ yaml: copied.yaml, ...(into ? { into } : {}) }));
-  }
-
-  /** Select the shapes a paste added at its top (what holds the rest); whether it added anything. */
-  private selectPasted(result: StudyResult): boolean {
-    if (!result.ok) return false;
-    const study = this.canvas.study;
-    const added = new Set(result.added);
-    this.canvas.select(result.added.filter((id) => {
-      const record = study.get(id);
-      return record?.kind === 'node' && !(record.parent && added.has(record.parent));
-    }));
-    return true;
-  }
 }
 
 export { ZOOM_STEP };
