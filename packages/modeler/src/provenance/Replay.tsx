@@ -354,24 +354,29 @@ function ReplayTimeline({ onClose }: Props) {
     if (rect) jump(Math.round(((clientX - rect.left) / rect.width) * total));
   };
 
-  // The animation-tool staples: space plays, arrows step, Home/End jump to the ends.
+  // The animation-tool staples: space plays, arrows step, Home/End jump to the ends. Heard once, from mount to unmount,
+  // with this render's handlers read from a ref.
+  const keys = useRef<Record<string, () => void>>({});
+  useEffect(() => {
+    keys.current = {
+      ' ': togglePlay,
+      ArrowLeft: () => step(-1),
+      ArrowRight: () => step(1),
+      Home: () => jump(0),
+      End: () => jump(total),
+    };
+  });
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest?.('input, textarea, select, [contenteditable]')) return;
-      const acts: Record<string, () => void> = {
-        ' ': togglePlay,
-        ArrowLeft: () => step(-1),
-        ArrowRight: () => step(1),
-        Home: () => jump(0),
-        End: () => jump(total),
-      };
-      if (!acts[e.key]) return;
+      const act = keys.current[e.key];
+      if (!act) return;
       e.preventDefault();
-      acts[e.key]();
+      act();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  });
+  }, []);
 
   // Each document-level `executed` stamp is one run of the study, matching the Provenance dialog.
   const runs = shown.filter((r) => r.isDocument && r.action === 'executed').length;
