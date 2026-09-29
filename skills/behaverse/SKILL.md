@@ -36,11 +36,17 @@ when that sub-process is collapsed — sends each awaiting trial, and with it th
 wired into it, above all), along the one out of it, and injects the answer that comes back naming one of the trial's options; any other answer, or none in time, is a miss, and nothing stands in for it.
 The browser runner plays a person, a model on the task's band (its `implementation` names it), or the build's random
 bot (a `software` taker whose `implementation` is `random`); any other taker answers along message flows, locally.
-The task's `failedTrialRate`, kept with its result, is the share of the trials the build showed that it recorded no
+When the task answers along message flows, its `failedTrialRate` is kept with its result: the share of the trials the build showed that it recorded no
 valid response for — the build is the authority, so an answer injected too late for the trial's window counts as a
 miss however well it named an option, and a build that reports no trial reports no failure. It is data, not policy:
 a study that wants a bad run to leave the task draws a conditional boundary event on it
-(`{Play.failedTrialRate} > 0.2`), and the walk goes on from there.
+(`{Play.failedTrialRate} > 0.2`), and the walk goes on from there. A task a person or the build's own bot plays
+carries no `failedTrialRate`, so a boundary event on it has nothing to read.
+
+This skill is the boundary between Studyflow and the builds that play Behaverse tasks, the Unity build today. To
+Studyflow it offers `behaverse:*` elements and runners that keep its contract; to a build its runners speak that
+build's own protocol (the Unity build's is assessment-unity's `docs/studyflow-protocol.md`). Behaverse's words
+(instrument, timeline, the BDM's names) live here, and a build's workings stay behind its protocol.
 
 - `browser/` is the browser runtime's node module: the Unity build in a frame, the model bot, and its dev-server
   plugins (`vite.ts`).

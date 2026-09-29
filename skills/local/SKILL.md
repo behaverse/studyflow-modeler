@@ -16,6 +16,8 @@ The [prov](../prov/SKILL.md) skill's module is loaded in-process for the run rep
 
 A partial runner is a program in any language that claims certain elements and executes them. [`../reachy/local.py`](../reachy/local.py) is a working example; [`../prov/prov.py`](../prov/prov.py) is the records module the walk loads in-process.
 
+This contract is Studyflow's published language for the local runtime, and the whole interface to it: the walk coordinates, a runner executes, and nothing here depends on how a runner or the tool behind it works. A runner is its skill's side of the boundary: it speaks these terms to the walk and its tool's own protocol to the tool.
+
 **Discovery.** `studyflow run --runtime local` runs every skill's `runtimes.local` command in that skill's folder (the checkout's `skills/`, or `libexec/skills` as installed, plus any `STUDYFLOW_SKILLS` directory), and any executable named `studyflow-<name>` on PATH.
 
 **Protocol.**

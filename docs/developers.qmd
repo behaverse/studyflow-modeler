@@ -81,7 +81,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 |:--|:--|:--|:--|
 | `bpmn:StartEvent`, `bpmn:EndEvent` | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
 | `cognitive:Instruction`, `cognitive:Questionnaire` | empty content or instrument blocks the run | renders; writes the answer into scope | - |
-| `behaverse:Task` | checked against the assessment build's manifest | runs the assessment in the page | - |
+| `behaverse:Task` | checked against the assessment build's manifest | runs the assessment in the page | claimed by the `behaverse` skill's partial runner, which plays it in the Unity build |
 | `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | - | generic screen, and a way forward | - |
 | Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
 | `bpmn:SubProcess` | - | descends; opens its own scope | walks one level in; no separate scope |

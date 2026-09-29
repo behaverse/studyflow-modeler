@@ -1,0 +1,23 @@
+name: Question or request
+description: Ask how to do something with Studyflow, or for something it cannot do yet. No code knowledge needed.
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Plain words are best, one topic per issue. [The documentation](https://behaverse.org/studyflow-modeler/docs/) explains how Studyflow works.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What do you want your study to do?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What did you try, and where did you get stuck?
+  - type: textarea
+    id: study
+    attributes:
+      label: Your study
+      description: Attach your `.studyflow.yaml` file, or link to it, if you have one.

@@ -1,6 +1,6 @@
 # Working in this repo
 
-Studyflow is a BPMN-based notation for experiments. The canonical file is `.studyflow.yaml`, a lossless spelling of BPMN XML. An example ships as that file, never as a picture; the gallery draws its card itself.
+Studyflow is a BPMN-based notation for experiments. It coordinates the tools a study uses (task engines, models, robots, scripts) and is built for none of them: each joins through a skill. The canonical file is `.studyflow.yaml`, a lossless spelling of BPMN XML. An example ships as that file, never as a picture; the gallery draws its card itself.
 
 ## Commands
 
@@ -30,6 +30,8 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 
 - ESLint holds four boundaries: core imports no React and names no bpmn-js service; the modeler and the browser runtime never import each other; the modeler reaches the canvas through its index; the canvas's `src/study/` needs no DOM (it imports only itself and core).
 - `packages/` names no skill but the required ones, whose schemas say `required: true` (`studyflow`, `prov`, `cognitive`, `local`). A skill declares what the apps need, in its schema ([skills/SCHEMAS.md](skills/SCHEMAS.md)), `modeler.ts` or `browser/vite.ts`, and the apps find it.
+- Boundaries follow domain-driven design. Studyflow is one bounded context, and its runtime contracts are the published language a skill speaks to it: a partial runner for the local runtime ([skills/local/SKILL.md](skills/local/SKILL.md)), a node module for the browser runtime (`skills/browser/src/nodes/README.md`). A skill is the anti-corruption layer between Studyflow and a domain's tools: its vocabulary gives authors the domain's elements, and its runners translate between the contract and each tool's own protocol. So nothing in `packages/`, the plan or the contracts names a tool's internals.
+- Each context keeps its own language. Studyflow's terms (study, run, step, runtime, runner, skill, plan) mean the same in every skill; a domain's live in its skill's vocabulary and `SKILL.md` (Behaverse's instrument and timeline in `skills/behaverse`); a tool's stay behind its protocol.
 - No backward-compatibility code: an old diagram is updated in place, never aliased.
 - A new short form in `.studyflow.yaml` must be reversible, and the long form must still load. `packages/core/tests/studyflow-yaml.unit.spec.ts` pins the spelling.
 - The canvas is its own design, not a bpmn-js copy: remove rather than add, no bpmn-js class names, colours from `INK` (`view/theme.ts`).
