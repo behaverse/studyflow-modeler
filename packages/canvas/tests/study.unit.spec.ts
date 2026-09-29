@@ -563,6 +563,23 @@ test('an MCP client drives a study through its tools: listed as JSON, called wit
   expect(heard).toEqual([`edit +Done,${flow} -`, 'edit + -', 'undo + -']);
 });
 
+test('typing into one field is one undo step: a set per keystroke, an edit naming its run', () => {
+  const study = open();
+  const before = study.get('Task_1')?.name;
+  for (const name of ['S', 'Sc', 'Scr', 'Screen']) study.set({ id: 'Task_1', attribute: 'name', value: name });
+  study.set({ id: 'Task_1', attribute: 'documentation', value: 'first' });
+  expect(study.undo().ok).toBe(true);
+  expect(study.get('Task_1')?.name, 'another field is a step of its own').toBe('Screen');
+  expect(study.undo().ok).toBe(true);
+  expect(study.get('Task_1')?.name, 'the typing undoes as one').toBe(before);
+
+  const task = study.businessObject('Task_1')!;
+  for (const text of ['a', 'ab']) study.edit('Task_1', (writer) => writer.set(task, { name: text }), 'name');
+  study.edit('Task_1', (writer) => writer.set(study.businessObject('Task_1')!, { name: 'c' }));
+  study.undo();
+  expect(study.get('Task_1')?.name, 'an edit naming no run is a step of its own').toBe('ab');
+});
+
 test('rename is the verb a label edit writes through: one edit, undone as one', () => {
   const study = open();
   expect(call(study, 'rename', { id: 'Task_1', name: '  Screen  ' })).toMatchObject({ ok: true, changed: ['Task_1'] });

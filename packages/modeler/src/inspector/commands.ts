@@ -95,7 +95,7 @@ export function runUpdateTransformation(modeler: Editor, command: UpdateTransfor
   modeler.study.edit(command.element.id, (writer) => {
     // Committed on blur, so the stored expression can be the trimmed one.
     writeTransformation(writer, association, command.value.trim());
-  });
+  }, 'transformation');
 }
 
 /** A data association's transformation set to `body` as given, its expression reused; an empty one removes it. */
@@ -141,7 +141,8 @@ export function runUpdateLoopCharacteristics(modeler: Editor, command: UpdateLoo
     const coerced = coerceExpressions(writer, properties, loopCharacteristics);
     for (const [name, value] of Object.entries(coerced)) loopCharacteristics.set(name, value);
     writer.set(businessObject, { loopCharacteristics });
-  });
+  // Typing into a field of the loop it has is one step; a change of kind is a step of its own.
+  }, loopType && existing?.$type === loopType && Object.keys(properties).length > 0 ? `loop:${Object.keys(properties).sort().join(',')}` : undefined);
 }
 
 /** Wrap a string `loopCondition` into BPMN's concrete `xsi:type` expression form (empty clears it). */
@@ -222,7 +223,7 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
     }
     const itemDefinition = ensureItemDefinition(writer, findDefinitions(modeler, businessObject), command.itemType);
     writer.set(target.moddleElement, { itemSubjectRef: itemDefinition });
-  });
+  }, command.action === 'rename' ? `property:${command.propertyId}` : undefined);
 }
 
 
@@ -328,5 +329,5 @@ export function runUpdateDataBinding(modeler: Editor, command: UpdateDataBinding
 
     // Written on every keystroke of a controlled field: stored as typed, or a space would vanish as it is typed.
     writeTransformation(writer, target, command.value);
-  });
+  }, command.action === 'set-binding' ? `binding:${command.associationId}` : undefined);
 }

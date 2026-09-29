@@ -293,7 +293,8 @@ export class Study {
     const found = this.find(id);
     if (!found) return refused(`no element '${id}'`);
     if (!declares(found.moddle, attribute)) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
-    return this.write(found.drawn, (writer) => setAttribute(found.moddle, attribute, value, writer));
+    // Typing into one attribute is one undo step, however many keystrokes wrote it.
+    return this.within(`set:${id}:${attribute}`, () => this.write(found.drawn, (writer) => setAttribute(found.moddle, attribute, value, writer)));
   }
 
   /**
@@ -311,11 +312,15 @@ export class Study {
     });
   }
 
-  /** Write the moddle behind `id` in place, as one commit: for what `set` cannot spell. In-process only, not a tool. */
-  edit(id: string, write: (writer: StudyWriter) => void): StudyResult {
+  /**
+   * Write the moddle behind `id` in place, as one commit: for what `set` cannot spell. Edits naming the same `run`
+   * (a field being typed into) one after another are one undo step. In-process only, not a tool.
+   */
+  edit(id: string, write: (writer: StudyWriter) => void, run?: string): StudyResult {
     const found = this.find(id);
     if (!found) return refused(`no element '${id}'`);
-    return this.write(found.drawn, write);
+    const commit = () => this.write(found.drawn, write);
+    return run === undefined ? commit() : this.within(`edit:${id}:${run}`, commit);
   }
 
   /**
@@ -793,6 +798,15 @@ export class Study {
     const commit = this.committed;
     this.committed = undefined;
     return commit;
+  }
+
+  /** `edit` as part of the run `key`, answering what it did. */
+  private within(key: string, edit: () => StudyResult): StudyResult {
+    let result: StudyResult | undefined;
+    this.runAs(key, () => {
+      result = edit();
+    });
+    return result!;
   }
 
   private runAs(key: string, edit: () => void): void {
