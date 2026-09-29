@@ -1,7 +1,6 @@
 id: demo0
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 Demo0_FromScratch:
   type: studyflow:Study
   documentation: A minimal start-to-end skeleton for building a LabLink study from scratch.

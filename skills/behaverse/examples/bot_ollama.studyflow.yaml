@@ -1,7 +1,6 @@
 id: demo5_ollama_bot
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 Demo5_OllamaBot_Actors:
   type: Collaboration
   extensionElements:

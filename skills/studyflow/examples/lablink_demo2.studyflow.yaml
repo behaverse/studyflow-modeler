@@ -1,7 +1,6 @@
 id: omniprocess_lablink_demo
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 OmniProcessLabLinkDemo:
   type: studyflow:Study
   documentation: Reads BIDS data, preprocesses fMRI and EEG in parallel, fits a model, and renders manuscript outputs.

@@ -1,7 +1,6 @@
 id: agent_eval_pool
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 Agent_Eval_Pool_Actors:
   type: Collaboration
   name: LLM evaluation — agent actor pool

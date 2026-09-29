@@ -428,7 +428,10 @@ export function isRedundantNamespaceDeclaration(el: any, name: string): boolean 
   const prefix = name.slice('xmlns:'.length);
   if (prefix === 'xsi') return true;
   const packages: any[] = el.$model?.getPackages?.() ?? [];
-  return packages.some((pkg) => pkg?.prefix === prefix);
+  // A loaded package's prefix, or another prefix for a loaded package's namespace (bpmn-js's old `bpmn2`): moddle
+  // declares what it writes itself.
+  const uri = el.$attrs?.[name];
+  return packages.some((pkg) => pkg?.prefix === prefix || (typeof uri === 'string' && pkg?.uri === uri));
 }
 
 /* 12. types the container and the keys already imply */

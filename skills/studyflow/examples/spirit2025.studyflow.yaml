@@ -1,7 +1,6 @@
 id: spirit2025-example
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
   xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
 SPIRIT_2025_Collaboration:
   type: Collaboration

@@ -1,7 +1,6 @@
 id: lablink_demo
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 LabLink_Demo_Actors:
   type: Collaboration
   name: EPSYLON LabLink - Study orchestration

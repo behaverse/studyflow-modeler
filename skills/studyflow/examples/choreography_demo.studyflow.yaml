@@ -1,7 +1,6 @@
 id: choreography_demo
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 Dyadic_Study:
   type: Choreography
   documentation: A two-participant choreography where subject and experimenter exchange consent and two decision rounds.

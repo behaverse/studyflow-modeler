@@ -1,7 +1,6 @@
 id: demo4_llm_bot
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-  xmlns:bpmn2: http://www.omg.org/spec/BPMN/20100524/MODEL
 Demo4_LLMBot_Actors:
   type: Collaboration
   name: LLM bot (Claude Code)
