@@ -205,8 +205,6 @@ def main() -> int:
     parser.add_argument("--claims", action="store_true", help="print the claimed element ids and exit")
     parser.add_argument("--element", metavar="ID", default=None, help="run this one element")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state: <id>.state.json")
-    parser.add_argument("--sim", action="store_true", help=argparse.SUPPRESS)  # flags every partial runner takes
-    parser.add_argument("--auto", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     plan: dict[str, Any] = json.loads(args.plan.read_text())

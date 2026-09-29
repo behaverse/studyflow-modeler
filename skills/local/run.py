@@ -735,12 +735,11 @@ def load_prov():
 PROV = load_prov()
 
 
-def discover_runners(runner_flags: list[str], dependencies: list[str] = ()) -> dict[str, tuple[str, Path | None]]:
+def discover_runners(dependencies: list[str] = ()) -> dict[str, tuple[str, Path | None]]:
     """Partial runners in reach, each named <name> and claiming its own elements, as (command, folder to run it in):
     every skill whose `SKILL.md` declares a `runtimes.local` command (run in the skill's folder), a `studyflow-<name>`
     on PATH, then `STUDYFLOW_<NAME>_PY` overrides. The study's `dependencies` join every uv script's environment
     (`uv run --with`); anything else brings its own."""
-    flags = "".join(f" {flag}" for flag in runner_flags)
     withs = "".join(f" --with {shlex.quote(dependency)}" for dependency in dependencies)
     found: dict[str, tuple[str, Path | None]] = {}
     for folder in skill_dirs():
@@ -751,7 +750,7 @@ def discover_runners(runner_flags: list[str], dependencies: list[str] = ()) -> d
             continue  # a vocabulary alone, or nothing for this runtime
         if withs and command.startswith("uv run"):  # ponytail: only uv scripts get the study's dependencies
             command = f"uv run{withs}{command[len('uv run'):]}"
-        found[folder.name.lower()] = (f"{command}{flags}", folder)
+        found[folder.name.lower()] = (command, folder)
     for directory in os.environ.get("PATH", "").split(os.pathsep):
         try:
             entries = os.listdir(directory or ".")
@@ -762,13 +761,13 @@ def discover_runners(runner_flags: list[str], dependencies: list[str] = ()) -> d
                 continue
             name = entry.removeprefix("studyflow-").lower()
             if name not in ("run", "run-local", "prov") and os.access(os.path.join(directory, entry), os.X_OK):
-                found[name] = (shlex.quote(os.path.join(directory, entry)) + flags, None)
+                found[name] = (shlex.quote(os.path.join(directory, entry)), None)
     for key, value in os.environ.items():
         matched = re.fullmatch(r"STUDYFLOW_([A-Z0-9_]+)_PY", key)
         if matched:
             name = matched.group(1).lower().replace("_", "-")
             if name not in ("run", "run-local", "prov"):
-                found[name] = (f"uv run{withs} --script {shlex.quote(value)}{flags}", None)
+                found[name] = (f"uv run{withs} --script {shlex.quote(value)}", None)
     return found
 
 
@@ -875,7 +874,10 @@ def study_dependencies(studyflow: Studyflow) -> list[str]:
     ]
 
 
-def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
+PROTOCOL = 1  # the version of the hand-off contract (SKILL.md) this walk speaks, in every plan.json
+
+
+def plan_digest(studyflow: Studyflow, sources: list[Path], options: dict[str, Any] | None = None) -> dict[str, Any]:
     """The plan as one JSON document for partial runners: the study, every element by id (pool participants and
     message flows included), and the directories a boundary input may be staged from. A runner reads this, never the diagram."""
     elements = {element_id: element_digest(element) for element_id, element in studyflow.elements.items()}
@@ -904,6 +906,9 @@ def plan_digest(studyflow: Studyflow, sources: list[Path]) -> dict[str, Any]:
             if not title and local(child) == "participant" and child.get("processRef") == process.get("id"):
                 title = child.get("name")
     return {
+        "protocol": PROTOCOL,
+        # What the person running the study asked the runners for (`--option sim`): each runner reads what it knows.
+        "options": options or {},
         "study": {
             "id": studyflow.root.get("id"), "name": title or studyflow.root.get("id"), "seed": studyflow.seed,
             "dependencies": study_dependencies(studyflow),
@@ -924,8 +929,10 @@ class PartialRunner:
     side touches it at a time. The runner's stdout is captured into the run log; stdin and
     stderr stay on the terminal for the person."""
 
-    def __init__(self, name: str, command: str, plan: Path, repo_dir: Path, debug: bool = False, cwd: Path | None = None) -> None:
+    def __init__(self, name: str, command: str, plan: Path, repo_dir: Path, debug: bool = False, cwd: Path | None = None,
+                 timeout: float | None = None) -> None:
         self.name = name
+        self.timeout = timeout  # seconds a hand-off may take before it is stopped (`--step-timeout`); None waits
         self.command = command
         self.plan = plan
         self.repo_dir = repo_dir
@@ -939,7 +946,12 @@ class PartialRunner:
         if done.returncode != 0 or not lines:
             detail = (done.stderr or "").strip().splitlines()
             raise SystemExit(f"{self.name} --claims failed: {detail[-1] if detail else f'exit {done.returncode}'}")
-        return json.loads(lines[-1])
+        answer = json.loads(lines[-1])
+        # A runner may say which version of the contract it speaks: `{"protocol": 1, "elements": [...]}`.
+        spoken = answer.get("protocol", PROTOCOL) if isinstance(answer, dict) else PROTOCOL
+        if spoken != PROTOCOL:
+            raise SystemExit(f"{self.name} speaks hand-off protocol {spoken}; this walk speaks {PROTOCOL}")
+        return answer
 
     def element(self, element_id: str, values: dict, pump: Any = None) -> dict:
         """`pump(cache, stop)`, when given, runs beside the runner and carries its messages until `stop` is set."""
@@ -957,10 +969,16 @@ class PartialRunner:
             pumping.start()
         process = subprocess.Popen(argv, stdout=subprocess.PIPE, text=True, env=env, cwd=self.cwd)  # noqa: S603 - an authored runner command
         assert process.stdout is not None
+        timer = threading.Timer(self.timeout, process.kill) if self.timeout else None
+        if timer:
+            timer.start()
         for line in process.stdout:  # an element can take minutes (a robot seating itself): relay as it comes
             if line.strip():
                 log_event("runner.stdout", f"    {line.rstrip()}")
         returncode = process.wait()
+        timed_out = bool(timer) and not timer.is_alive() and returncode != 0
+        if timer:
+            timer.cancel()
         if pumping:
             stop.set()
             pumping.join()
@@ -969,6 +987,8 @@ class PartialRunner:
         # and finish() sweeps it at the end.
         if not self.debug:
             handoff.unlink(missing_ok=True)
+        if timed_out:
+            raise TimeoutError(f"{self.name}: {element_id} took longer than {self.timeout:g}s, and was stopped")
         if returncode != 0 or state.get("error"):
             raise RuntimeError(f"{self.name}: {state.get('error') or f'exited with code {returncode}'}")
         return state
@@ -997,6 +1017,8 @@ class Runner:
         runners: dict[str, tuple[str, Path | None]] | None = None,
         debug: bool = False,
         protocol: str | None = None,  # the protocol's digest, as `studyflow run` computed it (`--plan-digest`)
+        options: dict[str, Any] | None = None,  # `--option`s, for the runners (plan.json `options`)
+        step_timeout: float | None = None,  # `--step-timeout`, for every hand-off
         tool: str = "studyflow-run-local.py",
     ) -> None:
         self.studyflow = studyflow
@@ -1016,9 +1038,9 @@ class Runner:
         handoff_plan = repo_dir / ".cache" / "plan.json"
         if runners:
             handoff_plan.parent.mkdir(parents=True, exist_ok=True)
-            handoff_plan.write_text(json.dumps(plan_digest(studyflow, input_sources or [Path.cwd()]), indent=1))
+            handoff_plan.write_text(json.dumps(plan_digest(studyflow, input_sources or [Path.cwd()], options), indent=1))
         self.runners = {
-            name: PartialRunner(name, command, handoff_plan, repo_dir, debug=debug, cwd=cwd)
+            name: PartialRunner(name, command, handoff_plan, repo_dir, debug=debug, cwd=cwd, timeout=step_timeout)
             for name, (command, cwd) in (runners or {}).items()
         }
         self.claimed: dict[str, PartialRunner] = {}
@@ -2405,8 +2427,13 @@ def main() -> int:
         "--tool", default="studyflow-run-local.py", metavar="NAME/VERSION",
         help="what the run record names as the tool that ran it (`studyflow run` passes `studyflow-cli/<version>`)",
     )
-    parser.add_argument("--sim", action="store_true", help="partial runners drive a simulated robot")
-    parser.add_argument("--auto", action="store_true", help="partial runners answer their prompts with canned values")
+    parser.add_argument(
+        "--option", action="append", default=[], metavar="NAME[=VALUE]",
+        help="an option for the runners, in plan.json `options` (`--option sim` drives a simulated robot, "
+             "`--option auto` answers prompts with canned values); a runner reads the ones it knows",
+    )
+    parser.add_argument("--step-timeout", type=float, default=None, metavar="SECONDS",
+                        help="stop a hand-off that takes longer, and fail its step")
     args = parser.parse_args()
 
     started = datetime.now(timezone.utc).astimezone()
@@ -2437,8 +2464,8 @@ def main() -> int:
         pass  # no seed, or a non-numeric one, seeds nothing
 
     # The runners, once the study is read: its `dependencies` go into every script runner's environment.
-    runner_flags = [flag for flag, wanted in (("--sim", args.sim), ("--auto", args.auto)) if wanted]
-    runners = discover_runners(runner_flags, study_dependencies(probe))
+    options = {name: (value if sep else True) for name, sep, value in (option.partition("=") for option in args.option)}
+    runners = discover_runners(study_dependencies(probe))
     for spec in args.runner:
         name, separator, command = spec.partition("=")
         if not separator or not name or not command:
@@ -2498,7 +2525,7 @@ def main() -> int:
         seed=seed, fresh=args.fresh, plan_name=ran.name,
         repo=repo, branched=branched,
         runners=runners, debug=args.debug,
-        protocol=args.plan_digest, tool=args.tool,
+        protocol=args.plan_digest, tool=args.tool, options=options, step_timeout=args.step_timeout,
     )
     # The trailers of a commit that stamps no element are the document stamp's own attributes.
     document_stamp = {

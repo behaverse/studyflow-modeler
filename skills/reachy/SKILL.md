@@ -2,7 +2,7 @@
 name: reachy
 description: "Motion, media, and sensing elements of the Reachy Mini robot, and the runner that performs them on the robot or its simulator. Use when a study involves a Reachy Mini, whoever decides for it."
 license: MIT
-compatibility: "Local runtime with uv; a Reachy Mini daemon on the network, or --sim."
+compatibility: "Local runtime with uv; a Reachy Mini daemon on the network, or --option sim."
 metadata:
   schema: "reachy.moddle.yaml"
   runtimes:
@@ -10,7 +10,7 @@ metadata:
 ---
 
 `reachy.moddle.yaml` maps one-to-one onto the robot daemon's REST API, and `local.py` is the partial runner
-performing it (`--sim` for the simulator). The robot is a pool of its own steps: it speaks, moves, looks, and takes
+performing it (`studyflow run … --option sim` for the simulator). The robot is a pool of its own steps: it speaks, moves, looks, and takes
 pictures. Whatever decides for it is another pool, a model the steps ask along message flows (`../agentic/SKILL.md`),
 so no attribute here names a model. `examples/reachy_pools` draws the three: Behaverse sends each trial to the robot's
 loop, the robot takes a picture, asks the model with the instructions wired in, answers the task, and shows the answer

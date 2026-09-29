@@ -6,7 +6,7 @@
 """Run the Behaverse (Unity WebGL) tasks of a studyflow in this machine's browser.
 
 Usage:
-    studyflow run <diagram> --runtime local [--auto]      # studyflow-run-local walks, this runner performs
+    studyflow run <diagram> --runtime local [--option auto]   # studyflow-run-local walks, this runner performs
     UNITY_BUILD_PATH=<dir> skills/behaverse/local.py plan.json --element <id> --cache <dir>
 
 A partial runner: it claims every `behaverse:Task`, and per hand-off serves the
@@ -682,10 +682,12 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=0, help="give up after this many seconds (default: wait)")
     parser.add_argument("--no-browser", action="store_true", help="print the stage URL instead of opening it")
     parser.add_argument("--auto", action="store_true", help="every task is played by its bot, so nobody needs to be at the screen")
-    parser.add_argument("--sim", action="store_true", help=argparse.SUPPRESS)  # a flag other partial runners take
     args = parser.parse_args()
 
-    elements: dict[str, dict[str, Any]] = json.loads(args.plan.read_text()).get("elements") or {}
+    plan_file: dict[str, Any] = json.loads(args.plan.read_text())
+    # `studyflow run … --option auto` reaches every runner as the plan's `options`.
+    args.auto = args.auto or bool((plan_file.get("options") or {}).get("auto"))
+    elements: dict[str, dict[str, Any]] = plan_file.get("elements") or {}
     if args.claims:
         claimed = [eid for eid, element in elements.items() if behaverse_extension(element) is not None]
         if claimed:  # fail before the walk starts, not after another pool's robot has greeted

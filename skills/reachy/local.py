@@ -6,7 +6,7 @@
 """Run the Reachy Mini elements of a studyflow.
 
 Usage:
-    studyflow run --runtime local <diagram> [--sim] [--auto]     # studyflow-run-local walks, this runner performs
+    studyflow run --runtime local <diagram> [--option sim] [--option auto]   # the walk, this runner performs
     skills/reachy/local.py --participant [--sim] [--port N]      # the seat, started by the walk when a step needs the camera
 
 The robot is its body: it speaks, moves, looks, and takes pictures. Whatever decides for it is another pool the
@@ -1167,7 +1167,11 @@ def main() -> int:
 
     if args.plan is None and not args.participant:
         parser.error("a plan.json is needed: `studyflow run --runtime local <diagram>` walks the diagram and hands elements here")
-    studyflow = Plan(json.loads(args.plan.read_text()) if args.plan else {})
+    plan_file = json.loads(args.plan.read_text()) if args.plan else {}
+    # Handed an element, the run's `--option sim` and `--option auto` arrive as the plan's `options`.
+    args.sim = args.sim or bool((plan_file.get("options") or {}).get("sim"))
+    args.auto = args.auto or bool((plan_file.get("options") or {}).get("auto"))
+    studyflow = Plan(plan_file)
 
     if args.claims:
         print(json.dumps(claimed(studyflow)))

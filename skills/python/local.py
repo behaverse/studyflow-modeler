@@ -406,9 +406,6 @@ def main() -> int:
     parser.add_argument("--element", metavar="ID", default=None, help="hand-off mode: execute this one element")
     parser.add_argument("--claims", action="store_true", help="print the claimed element ids and exit")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state dir")
-    # Accepted so studyflow-run-local can pass its shared runner flags; this runner has no use for them.
-    parser.add_argument("--sim", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--auto", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     studyflow = Plan(json.loads(args.plan.read_text()))

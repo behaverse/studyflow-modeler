@@ -198,8 +198,6 @@ def main() -> int:
     parser.add_argument("--claims", action="store_true", help="print the model pools this runner plays, and exit")
     parser.add_argument("--element", metavar="ID", default=None, help="answer the message handed to this pool")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state: <pool>.state.json")
-    parser.add_argument("--sim", action="store_true", help=argparse.SUPPRESS)  # flags every partial runner takes
-    parser.add_argument("--auto", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
 
     plan: dict[str, Any] = json.loads(args.plan.read_text())

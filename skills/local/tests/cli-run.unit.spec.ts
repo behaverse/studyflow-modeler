@@ -738,6 +738,33 @@ function hasPython(): boolean {
 test.describe('partial runner hand-off', () => {
   test.skip(!hasPython(), 'python3 is not on PATH');
 
+  test('stops a hand-off that outlasts --step-timeout, and fails its step', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-timeout-'));
+    fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="P">
+    <bpmn:startEvent id="Start"/>
+    <bpmn:task id="Slow"/>
+    <bpmn:endEvent id="Done"/>
+    <bpmn:sequenceFlow id="F1" sourceRef="Start" targetRef="Slow"/>
+    <bpmn:sequenceFlow id="F2" sourceRef="Slow" targetRef="Done"/>
+  </bpmn:process>
+</bpmn:definitions>`);
+    fs.writeFileSync(path.join(dir, 'slow.py'), [
+      'import json, sys, time',
+      "if sys.argv[2] == '--claims': print(json.dumps({'protocol': 1, 'elements': ['Slow']}))",
+      'else: time.sleep(30)',
+    ].join('\n'));
+    const started = Date.now();
+    expect(() => execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet',
+      '--runner', `slow=python3 ${path.join(dir, 'slow.py')}`, '--step-timeout', '1'],
+    { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } })).toThrow();
+    expect(Date.now() - started).toBeLessThan(20_000);
+    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/took longer than 1s/);
+  });
+
   test('hands partial runners a JSON digest of the plan', async () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/cognitive/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -785,9 +812,13 @@ test.describe('partial runner hand-off', () => {
       "    json.dump({**state, 'result': 1, 'durationMs': 0, 'record': {'version': 'm 1.0'}}, open(handoff, 'w'))",
     ].join('\n'));
     execFileSync('uv', ['run', '--script', path.join(dir, 'studyflow-run-local.py'), 'plan.bpmn', '--repo', 'run', '--quiet', '--debug',
-      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
+      '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`, '--option', 'sim', '--option', 'speed=2'],
+    { cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV } });
 
     const digest = JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'plan.json.seen'), 'utf8'));
+    // The contract's version, and the run's options for the runners that know them: no flag every runner must take.
+    expect(digest.protocol).toBe(1);
+    expect(digest.options).toEqual({ sim: true, speed: '2' });
     expect(digest.study).toEqual({ id: 'C', name: 'Lab', seed: '7', dependencies: ['pandas>=2.0', 'joblib'] });
     expect(digest.sources.length).toBeGreaterThan(0);
     const task = digest.elements.T;

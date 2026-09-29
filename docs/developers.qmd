@@ -207,7 +207,7 @@ Try a runner with `--runner`, not by putting a `studyflow-<name>` executable on 
 - **It shadows nothing by accident.** A `PATH` executable named after a skill replaces that skill's runner without a word; `--runner` replaces one only when you name it, and only for that run.
 - **It needs no install,** and leaves nothing behind.
 
-A runner given this way gets exactly its command, so add `--sim` or `--auto` to it when the run needs them. `--debug` keeps `.cache/` and every hand-off's state file, so you can read exactly what went in and what came back.
+A runner given this way gets exactly its command, and reads the run's `options` (`--option sim`, `--option auto`) from `plan.json`. `--debug` keeps `.cache/` and every hand-off's state file, so you can read exactly what went in and what came back.
 
 ## Contributing
 

@@ -55,7 +55,7 @@ program
   .description('Execute a studyflow in the runtime it declares (or --runtime). `local` runs the local runtime (skills/local/run.py, needs uv), once the plan passes the checks `validate` applies to it.')
   .passThroughOptions()
   .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
-  .argument('[runnerArgs...]', 'forwarded to the local runtime (e.g. --repo, --fresh, --sim, --auto)')
+  .argument('[runnerArgs...]', 'forwarded to the local runtime (e.g. --repo, --fresh, --option sim, --step-timeout 600)')
   .option('--runtime <runtime>', 'override the document: browser | cloud | local | hpc')
   .action(async (input: string, runnerArgs: string[], options: { runtime?: string }) => {
     const { run } = await import('@cli/run');
