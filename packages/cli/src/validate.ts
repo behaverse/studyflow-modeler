@@ -1,4 +1,5 @@
-import { SCHEMA_LOAD_FAILURES } from '@core/notation/loader';
+import { SCHEMA_LOAD_FAILURES, SKILLS } from '@core/notation/loader';
+import { checkImplementations } from '@core/checks/implementations';
 import { planChecks, recordChecks } from '@core/checks';
 import { parseSource, readSource } from '@cli/studyfile';
 
@@ -31,7 +32,7 @@ export async function validate(input: string): Promise<ValidateReport> {
     warnings.push(...readerWarnings);
     // The plan checks, then what a run left in the file (nothing to check in a file no run has stamped).
     const record = await recordChecks(definitions);
-    for (const { severity, message } of [...planChecks(definitions), ...record.issues]) {
+    for (const { severity, message } of [...planChecks(definitions), ...checkImplementations(definitions, new Set(SKILLS.flatMap((skill) => skill.schemes ?? []))), ...record.issues]) {
       (severity === 'error' ? errors : warnings).push(message);
     }
     note = record.note;

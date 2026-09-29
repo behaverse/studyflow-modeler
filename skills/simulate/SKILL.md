@@ -4,6 +4,7 @@ description: "Simulated tasks and participants with a planted truth: Simon and N
 license: MIT
 compatibility: "Local runtime with uv; standard library only."
 metadata:
+  schemes: "simulate"                  # the <scheme>:// references its runners execute
   runtimes:
     local: "uv run --script local.py"
 ---

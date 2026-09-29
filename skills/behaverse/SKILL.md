@@ -4,6 +4,7 @@ description: "The Behaverse assessment battery: its tasks and BDM datasets, and 
 license: MIT
 compatibility: "Browser runtime, or the local runtime with uv; both need a Behaverse WebGL build (UNITY_BUILD_PATH)."
 metadata:
+  schemes: "behaverse"                  # the <scheme>:// references its runners execute
   schema: "behaverse.moddle.yaml"
   runtimes:
     browser: "browser/index.tsx"
@@ -35,7 +36,7 @@ run a task with message flows — its own, or the nearest enclosing sub-process'
 when that sub-process is collapsed — sends each awaiting trial, and with it the task's data inputs (the `agentic:Prompt`
 wired into it, above all), along the one out of it, and injects the answer that comes back naming one of the trial's options; any other answer, or none in time, is a miss, and nothing stands in for it.
 The browser runner plays a person, a model on the task's band (its `implementation` names it), or the build's random
-bot (a `software` taker whose `implementation` is `random`); any other taker answers along message flows, locally.
+bot (a `software` taker whose `implementation` is `behaverse://bot`); any other taker answers along message flows, locally.
 When the task answers along message flows, its `failedTrialRate` is kept with its result: the share of the trials the build showed that it recorded no
 valid response for — the build is the authority, so an answer injected too late for the trial's window counts as a
 miss however well it named an option, and a build that reports no trial reports no failure. It is data, not policy:

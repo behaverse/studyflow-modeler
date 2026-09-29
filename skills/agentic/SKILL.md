@@ -4,6 +4,7 @@ description: "Models as actors: a language model as a participant the study's st
 license: MIT
 compatibility: "Local runtime with uv; Ollama on this machine for ollama:// models, ANTHROPIC_API_KEY for claude:// ones."
 metadata:
+  schemes: "ollama, claude"                  # the <scheme>:// references its runners execute
   schema: "agentic.moddle.yaml"
   runtimes:
     local: "uv run --script local.py"

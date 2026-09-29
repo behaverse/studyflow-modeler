@@ -4,6 +4,7 @@ description: "Executes elements whose implementation is a shell://<command> entr
 license: MIT
 compatibility: "Local runtime with uv."
 metadata:
+  schemes: "shell"                  # the <scheme>:// references its runners execute
   runtimes:
     local: "uv run --script local.py"
 ---

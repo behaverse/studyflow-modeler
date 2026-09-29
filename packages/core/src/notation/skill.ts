@@ -19,6 +19,9 @@ export type SkillManifest = {
   runtimes?: Record<string, string>;
   /** `modeler`: a module the modeler imports (`modeler.ts`), exporting the projections it writes and the foreign formats it opens. */
   modelerModule?: string;
+  /** `schemes`: the `<scheme>://` references its runners execute (`python`; `ollama, claude`), so a reference no
+   * loaded skill runs is reported before a run rather than found at the step. */
+  schemes?: string[];
 };
 
 const FRONT_MATTER = /^---\r?\n([\s\S]*?)\r?\n---/;
@@ -49,5 +52,6 @@ export function parseSkillManifest(markdown: string, folder?: string): SkillMani
     schema: meta.schema === undefined ? undefined : String(meta.schema),
     runtimes: byRuntime('runtimes'),
     modelerModule: meta['modeler'] === undefined ? undefined : String(meta['modeler']),
+    schemes: meta.schemes === undefined ? undefined : String(meta.schemes).split(',').map((scheme) => scheme.trim()).filter(Boolean),
   };
 }
