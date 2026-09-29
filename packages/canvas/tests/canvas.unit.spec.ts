@@ -640,7 +640,7 @@ test('drilling into a container shows only its contents until the trail leads ba
   expect(isHiddenGraphics(canvas, 'Task_1')).toBe(false);
 });
 
-test('an undo draws the study again and keeps the view on it, by id: the scope, the camera and the selection', async () => {
+test('an undo draws the study again over what is drawn and keeps the view on it, by id: the scope, the camera and the selection', async () => {
   const { canvas } = load();
   canvas.setScope('Sub_1');
   canvas.setViewbox({ x: 380, y: 380, width: 300, height: 200 });
@@ -653,8 +653,8 @@ test('an undo draws the study again and keeps the view on it, by id: the scope, 
 
   expect(canvas.study.undo().ok).toBe(true);
 
-  // A host that shows the scope when it hears it ends on the selection, which is said last.
-  expect(heard).toEqual(['select ', 'scope Sub_1', 'select Task_In']);
+  // Nothing is cleared on the way: a host that shows the scope when it hears it ends on the selection, said last.
+  expect(heard).toEqual(['scope Sub_1', 'select Task_In']);
 
   const drawn = graphicsOf(canvas, 'Task_In')!.textContent;
   expect(drawn, 'drawn from the document as it was').toContain('Deep');

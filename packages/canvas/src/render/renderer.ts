@@ -192,6 +192,13 @@ export class Renderer {
     this.refreshJumps();
   }
 
+  /** Draw from `scene` from now on, the groups already drawn kept by id: another scene after an undo or a redo. */
+  adopt(scene: Scene): void {
+    this.scene = scene;
+    this.jumpBoxes.clear();
+    this.vacated.length = 0;
+  }
+
   draw(element: SceneElement): SVGGElement {
     if (element.kind === 'node') return this.drawShape(element);
     if (element.kind === 'edge') return this.drawEdge(element);

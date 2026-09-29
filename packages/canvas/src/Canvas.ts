@@ -17,7 +17,7 @@ import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, OUTLINE_OFFSET, Selection } from '@canvas/interaction/selection.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import { modelOf } from '@canvas/study/moddle.ts';
-import { studyInternals, type ChangedIds, type Study, type StudyResult } from '@canvas/study/Study.ts';
+import { studyInternals, type Study, type StudyResult } from '@canvas/study/Study.ts';
 import { type Bounds, type ModdleObject, type Point, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { shapeOf } from '@canvas/study/templates.ts';
 import { boundsOf, isCollapsed, isHidden, zRankOf } from '@canvas/study/tree.ts';
@@ -242,13 +242,8 @@ export class Canvas {
       hitTest: (point, options) => this.hitTest(point, options),
     });
     this.stopListening = study.on('change', (change) => {
-      if (change.cause === 'edit') {
-        this.drawCommit(change);
-      } else if (change.cause === 'load') {
-        this.drawStudy();
-      } else {
-        this.drawKeepingView();
-      }
+      if (change.cause === 'load') this.drawStudy();
+      else this.reconcile(change.cause === 'edit' ? change.changed : 'all');
     });
     this.drawStudy();
   }
@@ -298,16 +293,6 @@ export class Canvas {
     this.emit('scope', this.scope);
   }
 
-  /** Draw the study afresh after an undo or a redo, keeping what the view showed, by id: the scope, the camera, the selection. */
-  private drawKeepingView(): void {
-    const selected = this.selectionSet.get().map((element) => element.id);
-    const scope = this.scopeNode && this.scene.elementsById.get(this.scopeNode.id);
-    const viewbox = this.viewport.getViewbox();
-    this.drawStudy(scope?.kind === 'node' && isExpandable(scope.type) ? scope : undefined);
-    this.viewport.setViewbox(viewbox);
-    const kept = selected.map((id) => this.scene.elementsById.get(id)).filter((element): element is SceneElement => !!element);
-    if (kept.length > 0) this.selectionSet.select(kept);
-  }
 
   getContainer(): HTMLElement {
     return this.container;
@@ -549,16 +534,45 @@ export class Canvas {
   // --- drawing ----------------------------------------------------------------------
 
   /**
-   * Draw what a commit did: erase what it removed, mount what it added, redraw what it changed, keep the paint order.
-   * Where the page animates, what went fades, what came settles in, and what moved far travels.
+   * Draw the scene as it now stands over what is drawn, keyed by id: the one path an edit, an undo and a redo take.
+   * A group whose id the scene no longer holds goes, one for an element it newly holds comes, and those `changed`
+   * names are drawn again: an edit's, or every one after an undo or a redo, whose scene is another. Where the page
+   * animates, what went fades, what came settles in, and what moved far travels; the camera, the selection and the
+   * container drilled into stay, by id.
    */
-  private drawCommit({ added, changed, removed }: ChangedIds): void {
-    const drawn = (ids: readonly string[]): SceneElement[] => ids.flatMap((id) => this.scene.elementsById.get(id) ?? []);
-    const before = moves(this.root) ? this.placesOf(changed) : undefined;
-    if (removed.length > 0) this.eraseRemoved(removed);
-    for (const element of drawn(added)) enter(this.mount(element));
-    this.redrawElements(drawn(changed));
-    if (before) this.showMoves(before, drawn(changed));
+  private reconcile(changed: readonly string[] | 'all'): void {
+    const scene = this.scene;
+    const replaced = changed === 'all';
+    if (replaced) {
+      // Another scene: what points into the old one lets go, and is found again by id.
+      this.gestures.cancel();
+      this.labelEditing.reset();
+      this.selectionSet.setHovered(undefined);
+      this.renderer.adopt(scene);
+      const scope = this.scopeNode && scene.elementsById.get(this.scopeNode.id);
+      if (this.scopeNode && !(scope?.kind === 'node' && isExpandable(scope.type))) return this.drawStudy();
+      this.scopeNode = scope?.kind === 'node' ? scope : undefined;
+      this.renderer.scope = this.scopeNode;
+    }
+    const ids = replaced ? [...this.renderer.graphicsById.keys()] : changed;
+    const before = moves(this.root) ? this.placesOf(ids) : undefined;
+    const gone = [...this.renderer.graphicsById.keys()].filter((id) => !scene.elementsById.has(id));
+    if (gone.length > 0) this.eraseRemoved(gone);
+    const redrawn = ids.flatMap((id) => (this.renderer.graphicsById.has(id) ? scene.elementsById.get(id) ?? [] : []));
+    const fresh = [...scene.elementsById.values()]
+      .filter((element) => !this.renderer.graphicsById.has(element.id) && !(element.kind === 'label' && this.renderer.graphicsById.has(element.owner.id)))
+      .sort((a, b) => zRankOf(a) - zRankOf(b));
+    for (const element of fresh) if (!this.renderer.graphicsById.has(element.id)) enter(this.mount(element));
+    this.redrawElements(redrawn);
+    if (replaced) {
+      this.renderer.refreshJumps();
+      // What the view shows is another object now: a host re-reads it, the scope first, then the selection, which
+      // re-selecting by id says.
+      this.emit('scope', this.scope);
+      const selected = this.selectionSet.get().map((element) => element.id);
+      if (selected.length > 0) this.selectionSet.select(selected);
+    }
+    if (before) this.showMoves(before, redrawn);
     this.restack();
     this.placeAnchor();
   }
