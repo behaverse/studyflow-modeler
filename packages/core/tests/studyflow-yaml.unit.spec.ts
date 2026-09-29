@@ -149,6 +149,22 @@ P:
     expect(back.P.artifacts.Assoc_1).toBe('Note_1 -> T1');
   });
 
+  test('a reference to an id the file does not hold is left out with a warning, and the rest reads', () => {
+    const warnings: string[] = [];
+    const definitions = studyflowToDefinitions(`id: dangling
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    A:
+      type: Task
+    F1: A -> Gone
+`, freshModdle(), (message) => warnings.push(message));
+    expect(warnings).toEqual([expect.stringMatching(/targetRef names 'Gone', which no element is/)]);
+    expect(definitions.rootElements[0].flowElements.map((el: any) => el.id)).toEqual(['A', 'F1']);
+  });
+
   test('YAML carrying XML-unsafe markup round-trips XML <-> YAML', async () => {
     // Raw `<`/`&` in the text would break the export.
     const doc = `

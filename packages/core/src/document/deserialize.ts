@@ -231,13 +231,16 @@ class ModdleBuilder {
   }
 
   resolveReferences(): void {
+    // A reference to an id the file does not hold is left out with a warning, as the writer leaves one out: the rest
+    // of the file still reads.
     for (const { element, property, ids, isMany, context } of this.pending) {
-      const targets = ids.map((id) => {
+      const targets = ids.flatMap((id) => {
         const target = this.byId.get(id);
-        if (!target) throw new Error(`Unresolved reference '${id}' on ${context}#${property}`);
-        return target;
+        if (!target) this.onWarning?.(`${context}#${property} names '${id}', which no element is; left out`);
+        return target ? [target] : [];
       });
-      element.set(property, isMany ? targets : targets[0]);
+      if (isMany) element.set(property, targets);
+      else if (targets.length > 0) element.set(property, targets[0]);
     }
   }
 
