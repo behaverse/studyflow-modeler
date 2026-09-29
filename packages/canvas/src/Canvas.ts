@@ -17,7 +17,6 @@ import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, OUTLINE_OFFSET, Selection } from '@canvas/interaction/selection.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
 import { modelOf } from '@canvas/study/moddle.ts';
-import type { Mutator } from '@canvas/study/mutator.ts';
 import { studyInternals, type ChangedIds, type Study, type StudyResult } from '@canvas/study/Study.ts';
 import { isRootElement, type Bounds, type ElementRef, type ModdleObject, type Point, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { shapeOf } from '@canvas/study/templates.ts';
@@ -170,7 +169,7 @@ export class Canvas {
     this.labelEditing = new LabelEditing({
       container: this.container,
       viewport: this.viewport,
-      getMutator: () => this.mutator,
+      rename: (element, band, text) => this.study.rename({ id: element.id, name: text, ...(band === 'name' ? {} : { band }) }).ok,
       restoreFocus: () => this.focus(),
       // While its text is edited in place, an element drops its outline and its drawn text: the caption, else its own.
       onEditing: (element, editing) => {
@@ -196,7 +195,9 @@ export class Canvas {
     });
     this.connect = new Connect({
       getScene: () => this.scene,
-      getMutator: () => this.mutator,
+      reconnect: (edge, end, node, waypoints) => this.study.reconnect({
+        id: edge.id, ...(end === 'source' ? { from: node.id } : { to: node.id }), ...(waypoints ? { waypoints } : {}),
+      }).ok,
       rules: this.rules,
       hitTest: (point) => this.hitTest(point),
       layer: this.layers.getLayer('overlays'),
@@ -274,10 +275,6 @@ export class Canvas {
     return studyInternals(this.study).scene;
   }
 
-  private get mutator(): Mutator {
-    return studyInternals(this.study).mutator;
-  }
-
   /** Draw the study afresh, as a view that has just opened it: nothing selected, drilled into `scope` or nothing, fitted; `RootSet` says what it shows. */
   private drawStudy(scope?: SceneNode): void {
     this.resetInteraction();
@@ -285,7 +282,7 @@ export class Canvas {
     this.scopeNode = scope;
     this.renderer.scope = scope;
     this.drag = new Drag({
-      mutator: this.mutator,
+      settle: (changed, rehome) => studyInternals(this.study).settle(changed, rehome),
       redraw: (elements) => this.redrawElements(elements),
       snapToGrid: this.snapToGrid,
       rules: this.rules,
@@ -795,7 +792,7 @@ export class Canvas {
 
   /** An end dropped clear of every shape, committed as the reconnect ghost drew it. */
   private moveEnd(edge: SceneEdge, end: 'source' | 'target', point: Point): void {
-    this.mutator.setEdgeWaypoints(edge, freeMoveEnd(edge.waypoints, end, this.snapPoint(point)));
+    this.study.reroute({ id: edge.id, waypoints: freeMoveEnd(edge.waypoints, end, this.snapPoint(point)) });
   }
 
   // --- edits --------------------------------------------------------------------------------

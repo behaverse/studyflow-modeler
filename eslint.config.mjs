@@ -82,6 +82,19 @@ export default [
     },
   },
 
+  // A view writes only through the study: its verbs, and `settle` for what a gesture moved in place. The mutator is
+  // study/'s own.
+  {
+    files: ['packages/canvas/src/**/*.ts'],
+    ignores: ['packages/canvas/src/study/**'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [{ group: ['@canvas/study/mutator.ts'], message: 'A view writes through the study (its verbs, settle), never the mutator.' }],
+        paths: [{ name: '@canvas/study/Study.ts', importNames: ['studyMutator'], message: 'A view writes through the study (its verbs, settle), never the mutator.' }],
+      }],
+    },
+  },
+
   // The <studyflow-canvas> element is built on the canvas's index alone: what it needs, any host has.
   {
     files: ['packages/canvas/src/element.ts'],

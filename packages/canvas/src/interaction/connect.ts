@@ -5,7 +5,6 @@
  */
 
 import { freeMoveEnd, redockEnd } from '@canvas/study/edit.ts';
-import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { markerEndFor, markerStartFor, previewEdge } from '@canvas/render/renderer.ts';
 import { append, create as svgCreate, remove } from '@canvas/render/svg.ts';
@@ -17,7 +16,8 @@ export type ConnectionEnd = 'source' | 'target';
 
 export interface ConnectOptions {
   getScene: () => Scene | undefined;
-  getMutator: () => Mutator | undefined;
+  /** Move `end` of `edge` onto `node` through the study, routed through `waypoints`; whether it did. */
+  reconnect: (edge: SceneEdge, end: ConnectionEnd, node: SceneNode, waypoints?: Point[]) => boolean;
   rules: Rules;
   hitTest: (point: Point) => SceneElement | undefined;
   layer: SVGGElement;
@@ -117,16 +117,14 @@ export class Connect {
    * route dropped back on the shape it already named keeps its bends.
    */
   private reconnect(edge: SceneEdge, end: ConnectionEnd, node: SceneNode, at: Point): boolean {
-    const mutator = this.options.getMutator();
-    if (!mutator || !this.reconnectVerdict(edge, end, node)) return false;
+    if (!this.reconnectVerdict(edge, end, node)) return false;
     const source = end === 'source' ? node : edge.source;
     const target = end === 'target' ? node : edge.target;
     let waypoints = isRedock(edge, end, node)
       ? edge.waypoints.map((p) => ({ x: p.x, y: p.y }))
       : source && target ? routeFor(edge.type, source, target) : undefined;
     if (waypoints) waypoints = redockEnd(waypoints, end, node, at, { source, target });
-    mutator.reconnect(edge, end === 'source' ? { source: node } : { target: node }, waypoints);
-    return true;
+    return this.options.reconnect(edge, end, node, waypoints);
   }
 
   reconnectVerdict(edge: SceneEdge, end: ConnectionEnd, node: SceneNode): ConnectionSpec | false {

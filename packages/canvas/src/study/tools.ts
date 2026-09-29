@@ -37,7 +37,7 @@ export interface StudyTool {
 }
 
 /** The write tools a batch runs as its steps. */
-export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'resize', 'reroute', 'paste', 'layout', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
+export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'rename', 'resize', 'reroute', 'paste', 'layout', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
 export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'catalog' | 'can' | 'copy' | 'batch' | 'undo' | 'redo';
@@ -141,7 +141,13 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     id: ID,
     from: ID,
     to: ID,
+    waypoints: { type: 'array', items: POINT, description: 'Its route, from its source to its target; without it, routed afresh.' },
   }, ['id'], write(false, true)),
+  tool('rename', "Rename a shape or a flow, as its caption reads; with `band`, the participant a choreography task's top or bottom band shows. An empty name clears it.", {
+    id: ID,
+    name: { type: 'string' },
+    band: { type: 'string', enum: ['top', 'bottom'] },
+  }, ['id', 'name'], write(false, true)),
   tool('resize', 'Give a shape new bounds.', { id: ID, bounds: BOUNDS }, ['id', 'bounds'], write(false, true)),
   tool('reroute', 'Route a flow through `waypoints`, or squarely between its ends without them.', {
     id: ID,

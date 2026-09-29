@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
-import { Study, studyInternals, type StudyChange } from '@canvas/study/Study.ts';
+import { Study, studyInternals, studyMutator, type StudyChange } from '@canvas/study/Study.ts';
 import type { StudyTool } from '@canvas/study/tools.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
@@ -67,7 +67,7 @@ Dyad:
 const open = (): Study => Study.fromDefinitions(studyflowToDefinitions(YAML, freshModdle()));
 
 /** The study's one writer. An undo swaps in another scene and another mutator, so a spec asks for both each time. */
-const mutatorOf = (study: Study): Mutator => studyInternals(study).mutator;
+const mutatorOf = (study: Study): Mutator => studyMutator(study);
 const nodeOf = (study: Study, id: string): SceneNode => studyInternals(study).scene.elementsById.get(id) as SceneNode;
 const rename = (study: Study, name: string): unknown => mutatorOf(study).setName(nodeOf(study, 'Task_1'), name);
 
@@ -563,12 +563,22 @@ test('an MCP client drives a study through its tools: listed as JSON, called wit
   expect(heard).toEqual([`edit +Done,${flow} -`, 'edit + -', 'undo + -']);
 });
 
+test('rename is the verb a label edit writes through: one edit, undone as one', () => {
+  const study = open();
+  expect(call(study, 'rename', { id: 'Task_1', name: '  Screen  ' })).toMatchObject({ ok: true, changed: ['Task_1'] });
+  expect(study.get('Task_1')?.name).toBe('Screen');
+  expect(call(study, 'rename', { id: 'Nope', name: 'x' })).toMatchObject({ ok: false, reason: "no shape or flow 'Nope'" });
+  expect(study.undo().ok).toBe(true);
+  expect(study.get('Task_1')?.name).not.toBe('Screen');
+});
+
 test('a tool call the study cannot run is refused with a reason, as data: nothing written, nothing heard', () => {
   const study = open();
   let heard = 0;
   study.on('change', () => (heard += 1));
   const REFUSALS: [tool: string, args: unknown, reason: string][] = [
-    ['rename', {}, "no tool 'rename'"],
+    ['fly', {}, "no tool 'fly'"],
+    ['rename', {}, "'id' is required"],
     ['add', [], 'the argument should be an object'],
     ['add', { type: 'bpmn:Lane' }, "'type' should be one of \"bpmn:StartEvent\", "],
     ['connect', { from: 'Task_1' }, "'to' is required"],

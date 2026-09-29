@@ -1,12 +1,11 @@
 /**
  * Move, resize and waypoint drags. A gesture snapshots the original geometry,
  * re-derives every frame from that snapshot plus the total pointer delta, and
- * commits through the mutator on release. Cancel restores the snapshot. A move
+ * commits through the study's `settle` on release. Cancel restores the snapshot. A move
  * dropped on a container re-homes the moved shapes there, in the same commit.
  */
 
 import { isContainerNode, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
-import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { nameOf } from '@canvas/study/moddle.ts';
 import { planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
@@ -43,7 +42,8 @@ export interface GridAxes {
 const BOTH_AXES: GridAxes = { x: true, y: true };
 
 export interface DragOptions {
-  mutator: Mutator;
+  /** Commit what the drag moved in place, and the change of container its drop makes: the study's `settle`. */
+  settle: (changed: readonly SceneElement[], rehome?: { nodes: readonly SceneNode[]; into?: SceneNode }) => unknown;
   /** Draws a frame; the commit on release draws itself. */
   redraw: (elements: SceneElement[]) => void;
   snapToGrid?: boolean;
@@ -108,7 +108,7 @@ export function snapTo(value: number, step: number): number {
 }
 
 export class Drag {
-  private readonly mutator: Mutator;
+  private readonly settle: DragOptions['settle'];
   private readonly redraw: (elements: SceneElement[]) => void;
   private readonly rules: Rules;
   private readonly getScene: () => Scene | undefined;
@@ -120,7 +120,7 @@ export class Drag {
   private axes: GridAxes = BOTH_AXES;
 
   constructor(options: DragOptions) {
-    this.mutator = options.mutator;
+    this.settle = options.settle;
     this.redraw = options.redraw;
     this.rules = options.rules;
     this.getScene = options.getScene;
@@ -258,15 +258,20 @@ export class Drag {
 
   /** Apply once more at `point`, then commit what actually moved. */
   end(point: Point, grid: GridAxes = BOTH_AXES): SceneElement[] {
+    const changed = this.finish(point, grid);
+    if (changed) this.settle(changed);
+    return changed ?? [];
+  }
+
+  /** Apply once more at `point` and close the drag: what actually moved, uncommitted; nothing when no drag was on. */
+  private finish(point: Point, grid: GridAxes): SceneElement[] | undefined {
     const state = this.state;
-    if (!state) return [];
+    if (!state) return undefined;
     const touched = this.update(point, grid);
     this.state = undefined;
     if (state.kind === 'move') for (const label of state.loose) label.pinned = true;
     if (state.kind === 'resize' && state.target.kind === 'label') state.target.pinned = true;
-    const changed = touched.filter((element) => movedFrom(state, element));
-    this.mutator.commit(changed);
-    return changed;
+    return touched.filter((element) => movedFrom(state, element));
   }
 
   /** Where the move in progress would drop at `point`; `undefined` for any other drag. */
@@ -297,10 +302,11 @@ export class Drag {
       this.cancel();
       return false;
     }
-    this.mutator.batch(() => {
-      this.end(point, grid);
-      if (target && target.rehomed.length > 0) this.mutator.reparent(target.rehomed, target.parent ?? this.getScope());
-    });
+    const changed = this.finish(point, grid);
+    if (changed) {
+      const rehome = target && target.rehomed.length > 0 ? { nodes: target.rehomed, into: target.parent ?? this.getScope() } : undefined;
+      this.settle(changed, rehome);
+    }
     return true;
   }
 

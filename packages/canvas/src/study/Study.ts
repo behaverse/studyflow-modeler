@@ -78,12 +78,17 @@ type ChangeListener = (change: StudyChange) => void;
 /** How many edits an undo can go back through. */
 const UNDO_DEPTH = 50;
 
-/** What the canvas package reads and writes behind a study's public surface. */
+/** What the canvas's views read behind a study's public surface. They write only through the study: its verbs, and
+ * `settle` for what a gesture moved in place. */
 export interface StudyInternals {
   readonly scene: Scene;
-  readonly mutator: Mutator;
   /** What may connect, contain or resize what: the study's verbs and every view's gestures ask the same rules. */
   readonly rules: Rules;
+  /**
+   * Commit, as one edit, the geometry a gesture has already moved in the scene (`changed`), and the change of
+   * container its drop makes (`rehome`): how a drag, a resize or a bend lands in the history.
+   */
+  settle(changed: readonly SceneElement[], rehome?: { nodes: readonly SceneNode[]; into?: SceneNode }): StudyResult;
   /**
    * Make the edits `edit` commits part of the run `key`: edits under one key, each within `RUN_WINDOW_MS` of the last,
    * are one undo step (a run of arrow-key nudges of one selection).
@@ -96,10 +101,24 @@ const RUN_WINDOW_MS = 1000;
 /** How far right and down a paste with no place lands from where its document draws it: beside what it copied. */
 const PASTE_STEP = 20;
 
-const internals = new WeakMap<Study, StudyInternals>();
+/** The study's own: its internals, and the mutator behind every write. */
+interface Own extends StudyInternals {
+  readonly mutator: Mutator;
+}
 
-/** The scene and mutator behind `study`, for the canvas's views and gestures. The package index does not export it. */
+const internals = new WeakMap<Study, Own>();
+
+/** The scene, rules and `settle` behind `study`, for the canvas's views and gestures. The package index does not export it. */
 export function studyInternals(study: Study): StudyInternals {
+  return internals.get(study)!;
+}
+
+/** The mutator behind `study`: for `study/` and its specs, never a view (ESLint holds the views to the verbs). */
+export function studyMutator(study: Study): Mutator {
+  return internals.get(study)!.mutator;
+}
+
+function own(study: Study): Own {
   return internals.get(study)!;
 }
 
@@ -153,7 +172,7 @@ export class Study {
 
   /** The document as a `.studyflow.yaml` file holds it: the drawing written into its DI, and a pure choreography on its own root. */
   toYaml(): string {
-    const { scene } = studyInternals(this);
+    const { scene } = own(this);
     writeDi(scene);
     const text = definitionsToStudyflow(scene.definitions);
     // A pure choreography is edited on a process; its file holds it on a choreography root, written from a copy.
@@ -163,7 +182,7 @@ export class Study {
 
   /** The document as a BPMN XML file holds it: the drawing written into its DI, and a pure choreography on its own root. */
   async toXml(): Promise<string> {
-    const { scene } = studyInternals(this);
+    const { scene } = own(this);
     writeDi(scene);
     const moddle = moddleOf(scene.definitions);
     const { xml } = await moddle.toXML(scene.definitions, { format: true });
@@ -172,17 +191,17 @@ export class Study {
 
   /** The `bpmn:Definitions` the study edits: another object after a load, an undo or a redo. */
   get definitions(): ModdleObject {
-    return studyInternals(this).scene.definitions;
+    return own(this).scene.definitions;
   }
 
   /** The document's root, a process or a collaboration, as data: always the document's, whatever a view shows. */
   get root(): ElementRecord {
-    return recordOf(studyInternals(this).scene.rootElement);
+    return recordOf(own(this).scene.rootElement);
   }
 
   /** The element `id` names, as data: a shape, a flow, a caption, or the root. */
   get(id: string): ElementRecord | undefined {
-    const { scene } = studyInternals(this);
+    const { scene } = own(this);
     if (id === scene.rootElement.id) return this.root;
     const element = scene.elementsById.get(id);
     return element && recordOf(element);
@@ -193,7 +212,7 @@ export class Study {
    * 'label'), of `type` (a BPMN type or the schema type extending it), `within` a container however deep.
    */
   list(filter: { kind?: 'node' | 'edge' | 'label'; type?: string; within?: string } = {}): ElementRecord[] {
-    const { scene } = studyInternals(this);
+    const { scene } = own(this);
     const within = filter.within === undefined ? undefined : scene.elementsById.get(filter.within);
     if (filter.within !== undefined && within?.kind !== 'node') return [];
     return [...scene.elementsById.values()]
@@ -263,7 +282,7 @@ export class Study {
 
   /** Goes up by one on every change. */
   get revision(): number {
-    return studyInternals(this).scene.revision;
+    return own(this).scene.revision;
   }
 
   /**
@@ -275,6 +294,21 @@ export class Study {
     if (!found) return refused(`no element '${id}'`);
     if (!declares(found.moddle, attribute)) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
     return this.write(found.drawn, (writer) => setAttribute(found.moddle, attribute, value, writer));
+  }
+
+  /**
+   * Rename the element `id` names, as its caption reads; `band` renames instead the participant a choreography task's
+   * `top` or `bottom` band shows. One edit; an empty name clears it.
+   */
+  rename(args: { id: string; name: string; band?: 'top' | 'bottom' }): StudyResult {
+    const { scene, mutator } = own(this);
+    const element = scene.elementsById.get(args.id);
+    if (!element || element.kind === 'label') return refused(`no shape or flow '${args.id}'`);
+    if (args.band && element.kind !== 'node') return refused(`'${args.id}' is a flow: it has no bands`);
+    return this.commit(() => {
+      if (args.band && element.kind === 'node') mutator.setBandName(element, args.band, args.name.trim());
+      else mutator.setName(element, args.name.trim());
+    });
   }
 
   /** Write the moddle behind `id` in place, as one commit: for what `set` cannot spell. In-process only, not a tool. */
@@ -289,7 +323,7 @@ export class Study {
    * id for the top level; without one, whatever is under `at`). `id` names it, when free; a template keeps its own.
    */
   add(args: NewElement & { id?: string; at?: Point; into?: string }): StudyResult {
-    const { scene, rules } = studyInternals(this);
+    const { scene, rules } = own(this);
     const shape = shapeFor(args);
     if (typeof shape === 'string') return refused(shape);
     if (this.taken(args.id)) return refused(`the id '${args.id}' is taken`);
@@ -309,7 +343,7 @@ export class Study {
 
   /** Add `what` beside `from` and connect the two, as one edit: one gap to its right, clear of what shares its plane. */
   append(args: NewElement & { from: string; id?: string }): StudyResult {
-    const { scene } = studyInternals(this);
+    const { scene } = own(this);
     const checked = this.appending(args);
     if (typeof checked === 'string') return refused(checked);
     const { source, shape } = checked;
@@ -336,7 +370,7 @@ export class Study {
 
   /** Retype `id` in place as `what`: a new shape in its stead, keeping its name, its centre and its flows, as one edit. */
   replace(args: NewShape & { id: string }): StudyResult {
-    const { scene, mutator } = studyInternals(this);
+    const { scene, mutator } = own(this);
     const checked = this.replacing(args);
     if (typeof checked === 'string') return refused(checked);
     const { node, prototype } = checked;
@@ -371,7 +405,7 @@ export class Study {
    * One edit.
    */
   move(args: { ids: string[]; by: Point; into?: string }): StudyResult {
-    const { scene, mutator, rules } = studyInternals(this);
+    const { scene, mutator, rules } = own(this);
     const found = this.elements(args.ids);
     if (typeof found === 'string') return refused(`no element '${found}'`);
     const flow = found.find((element) => element.kind === 'edge');
@@ -389,7 +423,10 @@ export class Study {
       return refused(`${roots.map((node) => `'${node.id}'`).join(', ')} cannot go ${into ? `into '${into.id}'` : 'to the top level'}`);
     }
     const drag = new Drag({
-      mutator,
+      settle: (changed) => {
+        mutator.commit([...changed]);
+        return { ok: true, added: [], changed: [], removed: [] };
+      },
       rules,
       redraw: () => {},
       getScene: () => scene,
@@ -406,8 +443,8 @@ export class Study {
   }
 
   /** Move the ends of the flow `id` onto other shapes, `from` and `to`, as the rules allow its kind of flow; routed afresh, one edit. */
-  reconnect(args: { id: string; from?: string; to?: string }): StudyResult {
-    const { scene, mutator, rules } = studyInternals(this);
+  reconnect(args: { id: string; from?: string; to?: string; waypoints?: Point[] }): StudyResult {
+    const { scene, mutator, rules } = own(this);
     const edge = scene.elementsById.get(args.id);
     if (edge?.kind !== 'edge') return refused(`no flow '${args.id}'`);
     if (args.from === undefined && args.to === undefined) return refused('give the new end: from, to, or both');
@@ -417,13 +454,13 @@ export class Study {
     if (target?.kind !== 'node') return refused(`no shape '${args.to ?? edge.target?.id}'`);
     if (!rules.canReconnect(edge, source, target)) return refused(`a ${edge.type} cannot run from '${source.id}' to '${target.id}'`);
     return this.commit(() => {
-      mutator.reconnect(edge, { source, target }, routeFor(edge.type, source, target));
+      mutator.reconnect(edge, { source, target }, args.waypoints ?? routeFor(edge.type, source, target));
     });
   }
 
   /** Give the shape `id` new bounds, as one edit. */
   resize(args: { id: string; bounds: Bounds }): StudyResult {
-    const { scene, mutator, rules } = studyInternals(this);
+    const { scene, mutator, rules } = own(this);
     const node = scene.elementsById.get(args.id);
     if (node?.kind !== 'node') return refused(`no shape '${args.id}'`);
     if (!rules.canResize(node)) return refused(`'${args.id}' keeps its size`);
@@ -434,7 +471,7 @@ export class Study {
 
   /** Route the flow `id` through `waypoints`, or squarely between its ends without them, as one edit. */
   reroute(args: { id: string; waypoints?: Point[] }): StudyResult {
-    const { scene, mutator } = studyInternals(this);
+    const { scene, mutator } = own(this);
     const edge = scene.elementsById.get(args.id);
     if (edge?.kind !== 'edge') return refused(`no flow '${args.id}'`);
     const { waypoints } = args;
@@ -450,7 +487,7 @@ export class Study {
    * under its steps, groups round what they hold. Shapes keep their sizes, and every flow is routed anew. One edit.
    */
   layout(_args: Record<string, never> = {}): StudyResult {
-    const { scene, mutator } = studyInternals(this);
+    const { scene, mutator } = own(this);
     return this.commit(() => mutator.commit(layOut(scene)));
   }
 
@@ -461,7 +498,7 @@ export class Study {
   copy(args: { ids: string[] }): { ok: true; yaml: string } | { ok: false; reason: string } {
     const found = this.elements(args.ids);
     if (typeof found === 'string') return { ok: false, reason: `no element '${found}'` };
-    const yaml = copyOf(studyInternals(this).scene, args.ids);
+    const yaml = copyOf(own(this).scene, args.ids);
     return yaml === undefined ? { ok: false, reason: 'nothing to copy: pools, lanes and a flow without its ends stay behind' } : { ok: true, yaml };
   }
 
@@ -472,7 +509,7 @@ export class Study {
    * swapped for a fresh one, and code naming it follows.
    */
   paste(args: { yaml: string; at?: Point; into?: string }): StudyResult {
-    const { scene, rules, mutator } = studyInternals(this);
+    const { scene, rules, mutator } = own(this);
     const top = args.into === undefined || args.into === scene.rootElement.id;
     const named = top ? undefined : scene.elementsById.get(args.into!);
     if (!top && named?.kind !== 'node') return refused(`no container '${args.into}'`);
@@ -492,7 +529,7 @@ export class Study {
 
   /** Remove `ids` and all that goes with them (contents, flows), as one edit; a caption's id clears the name it shows. */
   remove(args: { ids: string[] }): StudyResult {
-    const { mutator } = studyInternals(this);
+    const { mutator } = own(this);
     const found = this.elements(args.ids);
     if (typeof found === 'string') return refused(`no element '${found}'`);
     const drawables = found.filter((element): element is Drawable => element.kind !== 'label');
@@ -509,7 +546,7 @@ export class Study {
    * caption's look (`bold`, `italic`, `align`, `color`). What is left out stays as it is; a caption styles what it captions.
    */
   style(args: { ids: string[]; fill?: string | null; stroke?: string | null; font?: FontPatch }): StudyResult {
-    const { mutator } = studyInternals(this);
+    const { mutator } = own(this);
     const found = this.elements(args.ids);
     if (typeof found === 'string') return refused(`no element '${found}'`);
     const colors: ElementColors = {};
@@ -581,11 +618,16 @@ export class Study {
       writeDi(scene);
     }
     scene.revision = revision;
+    const mutator = new Mutator(scene, (commit) => this.edited(commit));
     internals.set(this, {
       scene,
-      mutator: new Mutator(scene, (commit) => this.edited(commit)),
+      mutator,
       rules: this.rules,
       runAs: (key, edit) => this.runAs(key, edit),
+      settle: (changed, rehome) => this.commit(() => {
+        mutator.commit([...changed]);
+        if (rehome && rehome.nodes.length > 0) mutator.reparent([...rehome.nodes], rehome.into);
+      }),
     });
     return scene;
   }
@@ -595,7 +637,7 @@ export class Study {
    * or anything else the document holds, which is not drawn.
    */
   private find(id: string): { drawn?: Drawable; moddle: ModdleObject } | undefined {
-    const { scene } = studyInternals(this);
+    const { scene } = own(this);
     if (id === scene.rootElement.id) return { moddle: scene.rootElement.businessObject };
     const element = scene.elementsById.get(id);
     if (element) {
@@ -608,13 +650,13 @@ export class Study {
 
   /** Run `write` as one commit about `drawn` (the root, without it), and say what it did by id. */
   private write(drawn: Drawable | undefined, write: (writer: StudyWriter) => void): StudyResult {
-    const { scene, mutator } = studyInternals(this);
+    const { scene, mutator } = own(this);
     return this.commit(() => write(writerFor(scene, mutator, drawn)));
   }
 
   /** Run `edit` as one commit, and say what it did by id: `id` is the element it made, when it returns one. */
   private commit(edit: () => Drawable | undefined | void): StudyResult {
-    const { mutator } = studyInternals(this);
+    const { mutator } = own(this);
     this.takeCommitted();
     const made = mutator.batch(edit);
     const commit = this.takeCommitted();
@@ -623,7 +665,7 @@ export class Study {
 
   /** The elements `ids` name, or the first id that names none. */
   private elements(ids: readonly string[]): SceneElement[] | string {
-    const { scene } = studyInternals(this);
+    const { scene } = own(this);
     const found: SceneElement[] = [];
     for (const id of ids) {
       const element = scene.elementsById.get(id);
@@ -634,7 +676,7 @@ export class Study {
   }
 
   private open(id: string, expanded: boolean): StudyResult {
-    const { scene, mutator } = studyInternals(this);
+    const { scene, mutator } = own(this);
     const node = scene.elementsById.get(id);
     if (node?.kind !== 'node' || !isExpandable(node.type)) return refused(`'${id}' holds no contents to ${expanded ? 'show' : 'hide'}`);
     return this.commit(() => {
@@ -644,7 +686,7 @@ export class Study {
 
   /** What `append` would join, or why it would refuse; without a shape or a template, whether anything may follow `from`. */
   private appending(args: { from: string } & Partial<NewShape> & { template?: string }): { source: Drawable; shape?: NewShape } | string {
-    const { scene, rules } = studyInternals(this);
+    const { scene, rules } = own(this);
     const source = scene.elementsById.get(args.from);
     if (!source || source.kind === 'label') return `no element '${args.from}'`;
     const shape = 'type' in args || 'template' in args ? shapeFor(args as NewElement) : undefined;
@@ -655,7 +697,7 @@ export class Study {
 
   /** What `connect` would join, or why it would refuse; without `to`, whether any flow may leave `from`. */
   private connecting(args: { from: string; to?: string }): { source: Drawable; target?: SceneNode } | string {
-    const { scene, rules } = studyInternals(this);
+    const { scene, rules } = own(this);
     const source = scene.elementsById.get(args.from);
     if (!source || source.kind === 'label') return `no element '${args.from}'`;
     if (args.to === undefined) return rules.canStartConnection(source) ? { source } : `nothing leaves '${args.from}'`;
@@ -666,7 +708,7 @@ export class Study {
 
   /** What `replace` would retype, and into what, or why it would refuse; without `type`, whether `id` may be retyped at all. */
   private replacing(args: { id: string } & Partial<NewShape>): { node: SceneNode; prototype?: CreatePrototype } | string {
-    const { scene, rules } = studyInternals(this);
+    const { scene, rules } = own(this);
     const node = scene.elementsById.get(args.id);
     if (node?.kind !== 'node') return `no shape '${args.id}'`;
     if (args.type === undefined) return rules.canReplace(node) ? { node } : `'${args.id}' cannot be retyped`;
@@ -704,6 +746,7 @@ export class Study {
       replace: (a) => this.replace(a),
       move: (a) => this.move(a),
       reconnect: (a) => this.reconnect(a),
+      rename: (a) => this.rename(a),
       resize: (a) => this.resize(a),
       reroute: (a) => this.reroute(a),
       paste: (a) => this.paste(a),
@@ -723,12 +766,12 @@ export class Study {
 
   /** Whether `id` names an element the document already holds. */
   private taken(id: string | undefined): boolean {
-    return id !== undefined && studyInternals(this).mutator.ids.assigned(id);
+    return id !== undefined && own(this).mutator.ids.assigned(id);
   }
 
   /** Mint `what`, whose prototype is `prototype`, centred on `at` in `place`: a template lays its elements out inside. */
   private drop(what: NewElement & { id?: string }, prototype: CreatePrototype, at: Point, place: Pick<AddShapeSpec, 'parent' | 'attachTo'>): SceneNode {
-    const { scene, mutator, rules } = studyInternals(this);
+    const { scene, mutator, rules } = own(this);
     const template = 'template' in what ? findTemplate(what.template) : undefined;
     if (!template) return mutator.addShape({ ...shapeSpec(prototype, at, what.id), ...place });
     const build = buildTemplate(template, scene.definitions, mutator.ids);
@@ -739,7 +782,7 @@ export class Study {
 
   /** Connect `source` to `target`, routed, as the rules allow; nothing when they refuse. */
   private link(source: SceneNode | SceneEdge, target: SceneNode, id?: string): SceneEdge | undefined {
-    const { mutator, rules } = studyInternals(this);
+    const { mutator, rules } = own(this);
     const spec = rules.canConnect(source, target);
     if (!spec) return undefined;
     return mutator.addConnection({ type: spec.type, source, target, waypoints: routeFor(spec.type, routableEnd(source), target), ...(id ? { id } : {}) });
@@ -767,7 +810,7 @@ export class Study {
    */
   private edited(commit: Commit): void {
     this.committed = commit;
-    const { scene } = studyInternals(this);
+    const { scene } = own(this);
     writeDi(scene);
     const snapshot = snapshotOf(scene.definitions);
     const now = Date.now();
@@ -797,7 +840,7 @@ export class Study {
 
   /** Put `definitions` in place of the document, as one change; a load starts the history over. */
   private swap(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): ChangedIds {
-    const before = studyInternals(this).scene;
+    const before = own(this).scene;
     const after = this.read(definitions, before.revision + 1);
     if (cause === 'load') {
       this.snapshots = [snapshotOf(definitions)];

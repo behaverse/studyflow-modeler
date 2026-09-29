@@ -7,7 +7,6 @@
 import { isChoreographyTask, isTypedChoreography, participantRefs, readChoreographyBands } from '@canvas/study/choreography.ts';
 import { hasExternalLabel } from '@canvas/study/labels.ts';
 import { nameOf } from '@canvas/study/moddle.ts';
-import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { edgeLabelBox, FONT, LINE_HEIGHT, nodeLabelBox, textWidth } from '@canvas/study/text.ts';
 import { familyOf, internalLabelRegion, LABEL_FONT, WEIGHT } from '@canvas/render/labels.ts';
@@ -22,7 +21,8 @@ export interface LabelEditingOptions {
   container: HTMLElement;
   viewport: Viewport;
   /** Writes the text; its commit redraws what the text changes. */
-  getMutator: () => Mutator | undefined;
+  /** Write the edited text through the study: the element's name, or the participant its `top` or `bottom` band shows. */
+  rename: (element: SceneNode | SceneEdge, band: LabelBand, text: string) => boolean;
   restoreFocus?: () => void;
   /** An edit opened or closed on `element`: the host hides its drawn text while the transparent editor stands in for it. */
   onEditing?: (element: SceneNode | SceneEdge, editing: boolean) => void;
@@ -173,13 +173,9 @@ export class LabelEditing {
   }
 
   private write(session: LabelEditingSession, value: string): SceneElement[] {
-    const mutator = this.options.getMutator();
-    if (!mutator) return [];
-    const text = value.trim();
     const element = session.element;
-    if (session.band === 'name') return mutator.setName(element, text) ? [element] : [];
-    if (element.kind !== 'node') return [];
-    return mutator.setBandName(element, session.band, text);
+    if (session.band !== 'name' && element.kind !== 'node') return [];
+    return this.options.rename(element, session.band, value.trim()) ? [element] : [];
   }
 
   private createInput(session: LabelEditingSession): HTMLTextAreaElement {
