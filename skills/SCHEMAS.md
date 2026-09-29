@@ -144,7 +144,7 @@ types:
 | `readonly` | Run-record field: shown, never edited. |
 | `condition` | Visibility predicate over sibling attributes: `{attr: value}`, with `$set` for a non-empty value, a list for any of several, `{$not: value}`. |
 | `editor` | Named editor override. Known names (checked at compile): `csvw-table`, `code`, `markdown`, `checklist`; the list lives in `packages/core/src/notation/types.ts` (`EDITOR_NAMES`) and the inspector registry is typed off it. |
-| `expression` | With `type: bpmn:Expression`: the inspector edits it as a string, with a per-expression language picker. |
+| `expression` | With `type: bpmn:Expression`: the inspector edits it as a string of FEEL, and flags one that does not parse ([Expressions](../docs/reference.qmd#expressions)). |
 | `languageAttr` | Sibling attribute holding the code editor's language (e.g. `bpmn:scriptFormat`). |
 | `icon` | Event overlay glyph drawn when the attribute has a value (a *different* meaning than a type's `icon`). |
 | `unit` | Unit of a numeric attribute (`Hz`, `s`, `rad`); shown after the field label. Never part of the name. |

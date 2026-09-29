@@ -44,15 +44,10 @@ test('the binding field keeps what is typed, spaces included, and an empty one r
   expect(association.get('transformation')).toBeUndefined();
 });
 
-test('the expression field, committed on blur, trims, and its language select sets the expression\'s language', () => {
+test('the expression field, committed on blur, trims', () => {
   const { association, editor } = build();
-  const language = () => association.get('transformation')?.get('language');
   runUpdateTransformation(editor, { type: 'UpdateTransformation', element: association, field: 'body', value: '  a + b \n' });
   expect(body(association)).toBe('a + b');
-  runUpdateTransformation(editor, { type: 'UpdateTransformation', element: association, field: 'language', value: 'python' });
-  expect(language()).toBe('python');
-  runUpdateTransformation(editor, { type: 'UpdateTransformation', element: association, field: 'language', value: '' });
-  expect(language(), 'the engine\'s own language is no attribute at all').toBeUndefined();
   runUpdateTransformation(editor, { type: 'UpdateTransformation', element: association, field: 'body', value: '   ' });
   expect(association.get('transformation')).toBeUndefined();
 });

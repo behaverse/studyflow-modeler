@@ -50,6 +50,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "local"))
+import feel  # noqa: E402 - the local runtime's FEEL, skills/local/feel.py
+
 REACHY = "https://w3id.org/studyflow/reachy"
 
 # The schema's defaults; moddle omits an attribute whose value equals its default.
@@ -580,7 +583,7 @@ class Run:
             target = binding.get("target")
             if not target:
                 continue
-            # An output edge's `transformation` narrows the result (`result['trials']`), as the python runner's does.
+            # An output edge's `transformation` narrows the result (`result.trials`), as the python runner's does.
             expression = binding.get("transformation") or ""
             bound = self.narrow(expression, value, binding.get("language")) if expression else value
             declared = self.studyflow.property_of(target)
@@ -594,10 +597,10 @@ class Run:
                 print(f"    → {self.studyflow.names.get(target) or target}  (captured)")
 
     def narrow(self, expression: str, result: Any, language: str | None) -> Any:
-        """A data edge's selection over the step's result, in Python; BPMN's per-expression `language` may say otherwise."""
-        if language and language.lower() not in ("py", "python"):
-            raise ValueError(f"a {language} expression on a data edge — this runner evaluates Python")
-        return eval(expression, {"__builtins__": {}}, {**self.namespace(), "result": result})  # noqa: S307 - an authored diagram's expression
+        """A data edge's selection over the step's result, in FEEL, as every Studyflow expression is."""
+        if language and "feel" not in language.lower():
+            raise ValueError(f"a {language} expression on a data edge — every Studyflow expression is FEEL")
+        return feel.evaluate(expression, {**self.namespace(), "result": result})
 
 
 class Messages:

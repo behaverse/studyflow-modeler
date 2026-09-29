@@ -121,7 +121,7 @@ Reachy_Session:
       waypoint: 243,70 350,70
     Flow_Seated_Ask:
       name: no one seated
-      conditionExpression: face_count == 0
+      conditionExpression: face_count = 0
       sourceRef: Seated
       targetRef: Ask_To_Sit
       waypoint: 400,70 475,70

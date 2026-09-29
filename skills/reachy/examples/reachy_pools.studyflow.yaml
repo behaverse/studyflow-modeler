@@ -210,7 +210,7 @@ Reachy_Participant:
       dataOutputAssociations:
         Out_Choice:
           targetRef: Choice
-          transformation: result.split('Answer:')[-1].strip()
+          transformation: substring after(result, "Answer:")
           waypoint: 1562,430 1602,394
       bounds: 1466 430 110 80
     Instructions:

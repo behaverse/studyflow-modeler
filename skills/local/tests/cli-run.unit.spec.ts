@@ -14,6 +14,7 @@ const moddle = freshModdle();
 /** The Python runner keeps `state` (docs/developers.qmd, "What a run leaves behind"): `_meta.prov` run records, `_meta.reached` visit counts. */
 
 const RUN = path.resolve(__dirname, '../run.py');
+const FEEL = path.resolve(__dirname, '../feel.py');
 const PROV = path.resolve(__dirname, '../../prov/prov.py');
 const SHELL = path.resolve(__dirname, '../../shell/local.py');
 const PYTHON = path.resolve(__dirname, '../../python/local.py');
@@ -90,6 +91,7 @@ S:
     // A copy of the runtime outside the skills tree finds no other skill, so no partial runner (reachy, python) is
     // asked for its claims or needs its dependencies; the prov module is named explicitly.
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     const plan = path.join(dir, 'reach.bpmn');
     fs.writeFileSync(plan, xml);
     const run = (file: string) =>
@@ -136,6 +138,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'split.bpmn'), xml);
     let log = '';
     try {
@@ -150,6 +153,7 @@ S:
   test('a seeded random gateway takes the arms the browser runner takes', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     // The cognitive skill beside the copy, so the walk reads its schema's `meta.branching`; it runs nothing itself.
     fs.mkdirSync(path.join(dir, 'skills', 'cognitive'), { recursive: true });
     for (const file of ['SKILL.md', 'cognitive.moddle.yaml']) {
@@ -172,6 +176,7 @@ S:
     test(`a random gateway allocating in blocks of four splits four subjects two and two${study ? '' : ', unseeded'}`, async () => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-blocks-'));
       fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+      fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
       fs.mkdirSync(path.join(dir, 'skills', 'cognitive'), { recursive: true });
       for (const file of ['SKILL.md', 'cognitive.moddle.yaml']) {
         fs.copyFileSync(path.resolve(__dirname, '../../cognitive', file), path.join(dir, 'skills', 'cognitive', file));
@@ -252,6 +257,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-conserve-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'conserve.bpmn'), xml);
     const archived = path.join(dir, 'run', 'conserve.bpmn');
     const run = (plan: string) => execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), plan, '--repo', path.join(dir, 'run'), '--quiet'], {
@@ -320,6 +326,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-dropout-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'dropout.bpmn'), xml);
     // `shell://false` is the shell skill's, and exits 1: a step that fails for a reason of its own.
     execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'dropout.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
@@ -380,6 +387,7 @@ S:
 `, moddle);
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-quality-'));
       fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+      fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
       fs.writeFileSync(path.join(dir, 'quality.bpmn'), xml);
       // Exit 0 either way: a boundary event is a path, not a failure.
       execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'quality.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
@@ -400,6 +408,7 @@ S:
   test(`a sub-process repeats under ${label}, resets its scope each pass, and its random gateway draws again each pass and each run`, async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-subjects-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     // The cognitive skill beside the copy, so the walk reads its schema's `meta.branching`; it runs nothing itself.
     fs.mkdirSync(path.join(dir, 'skills', 'cognitive'), { recursive: true });
     for (const file of ['SKILL.md', 'cognitive.moddle.yaml']) {
@@ -544,7 +553,7 @@ S:
           type: SequenceFlow
           sourceRef: Quiet
           targetRef: E9
-          conditionExpression: word == 'b'
+          conditionExpression: word = "b"
         EF_Shout: Quiet -> Shout
         EF1: Shout -> E9
     Done:
@@ -554,6 +563,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-each-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'each.bpmn'), xml);
     execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'each.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
       cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV, STUDYFLOW_PYTHON_PY: PYTHON },
@@ -589,6 +599,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'otherwise.bpmn'), xml);
     execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'otherwise.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
       cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
@@ -617,6 +628,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'listed.bpmn'), xml);
     execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), path.join(dir, 'listed.bpmn'), '--repo', path.join(dir, 'run'), '--quiet'], {
       cwd: dir, stdio: 'pipe', env: { ...process.env, STUDYFLOW_PROV_PY: PROV },
@@ -649,6 +661,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'again.bpmn'), xml);
     const repo = path.join(dir, 'run');
     const run = (plan: string, ...args: string[]) => execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), plan, '--quiet', ...args], {
@@ -687,6 +700,7 @@ S:
     const repo = path.join(dir, 'run');
     const stamped = path.join(repo, 'p.bpmn');
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'p.bpmn'), xml);
     const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
     const run = (plan: string, ...args: string[]) => execFileSync('uv', ['run', '--script', path.join(dir, 'run.py'), plan, '--quiet', ...args], {
@@ -756,6 +770,7 @@ test.describe('partial runner hand-off', () => {
 </bpmn:definitions>`;
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-handoff-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     // A runner that claims T and completes it, keeping a copy of what it was handed and saying what it ran with.
     fs.writeFileSync(path.join(dir, 'fake.py'), [
@@ -818,7 +833,7 @@ test.describe('partial runner hand-off', () => {
         Ask:
           type: ServiceTask
           dataInputAssociations: { In_Seen: { sourceRef: [Seen] } }
-          dataOutputAssociations: { Out_Choice: { targetRef: Choice, transformation: result.upper() } }
+          dataOutputAssociations: { Out_Choice: { targetRef: Choice, transformation: upper case(result) } }
         Choice: { type: DataObjectReference }
         Answer:
           type: SendTask
@@ -849,7 +864,7 @@ test.describe('partial runner hand-off', () => {
     Ask:
       type: ServiceTask
       dataInputAssociations: { In_Seen: { sourceRef: [Seen] } }
-      dataOutputAssociations: { Out_Choice: { targetRef: Choice, transformation: result.upper() } }
+      dataOutputAssociations: { Out_Choice: { targetRef: Choice, transformation: upper case(result) } }
     Choice: { type: DataObjectReference }
     Answer:
       type: SendTask
@@ -904,6 +919,7 @@ S:
 ${robot}`, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-talk-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     const heard = path.join(dir, 'heard.json');
     // The task: each trial goes out through its outbox, and it waits in its inbox for the answer to that trial.
@@ -981,6 +997,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-cohort-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     const asked = path.join(dir, 'asked.json');
     // The model: one hand-off per message, answering with the instance it is serving; it also records the
@@ -1051,6 +1068,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-nested-talk-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     const heard = path.join(dir, 'heard.json');
     fs.writeFileSync(path.join(dir, 'task.py'), [
@@ -1121,6 +1139,7 @@ S:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-pool-talk-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     const heard = path.join(dir, 'heard.json');
     fs.writeFileSync(path.join(dir, 'task.py'), [
@@ -1192,7 +1211,7 @@ S:
     F_In:
       sourceRef: Gate
       targetRef: Debrief
-      conditionExpression: Screen == 'READY'
+      conditionExpression: Screen = "READY"
     F_Out: Gate -> Out
     SF3: Debrief -> S9
 A:
@@ -1204,6 +1223,7 @@ A:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-screening-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     const asked = path.join(dir, 'asked.json');
     fs.writeFileSync(path.join(dir, 'model.py'), [
@@ -1265,6 +1285,7 @@ A:
 `, moddle);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-all-done-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     const analysed = path.join(dir, 'analysed.json');
     // The analysis step records what it found when it ran: which instance the cohort reached, and the visit counts.
@@ -1315,6 +1336,7 @@ A:
 </bpmn:definitions>`;
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-staged-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     fs.writeFileSync(path.join(dir, 'x.json'), '[]');
     // A runner that stages x.json from the plan's first source while running Load, and only waits while running Wait.
@@ -1354,6 +1376,7 @@ A:
 </bpmn:definitions>`;
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-restore-'));
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'p.bpmn'), xml);
     // A replayable runner (`live: false`), so the second run may skip what the first one made.
     fs.writeFileSync(path.join(dir, 'fake.py'), [
@@ -1403,6 +1426,7 @@ A:
 </bpmn:definitions>`;
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-readonly-'));
     fs.copyFileSync(RUN, path.join(dir, 'studyflow-run-local.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     // A runner for T that finds `speed` in its sub-process's scope, then writes it.
     fs.writeFileSync(path.join(dir, 'fake.py'), [
@@ -1434,6 +1458,7 @@ test.describe('studyflow run on a converted study', () => {
     // The CLI reads its schemas through Vite (`import.meta.glob`), so it is built here rather than imported.
     execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.join(dir, 'bin'), '--logLevel', 'error']);
     fs.copyFileSync(RUN, path.join(dir, 'run.py'));
+    fs.copyFileSync(FEEL, path.join(dir, 'feel.py'));
     fs.mkdirSync(path.join(dir, 'study'));
     fs.mkdirSync(path.join(dir, 'elsewhere'));
     fs.writeFileSync(path.join(dir, 'study', 'counts.json'), '[1, 2, 3]');

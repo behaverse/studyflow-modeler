@@ -193,36 +193,6 @@ export class StudyflowElement {
     return unwrapBodyValue(value, attrDef);
   }
 
-  private expressionElement(attributeName: string): ModdleElement | undefined {
-    const bo = this.businessObject;
-    const ext = findExtension(bo);
-    const r = resolveAttribute(bo, ext, attributeName);
-    if (r.target && r.attributeName) {
-      const value = getProperty(r.target, r.attributeName);
-      if (value && typeof value === 'object' && value.$type) return value;
-    }
-    // The standard-loop condition lives one hop down on `loopCharacteristics`, the one expression generic resolution does not reach.
-    const loop = bo?.loopCharacteristics;
-    const localName = toLocalName(attributeName);
-    if (loop && localName
-      && (getAttributeSpec(loop, attributeName) ?? getAttributeSpec(loop, localName))) {
-      const nested = getProperty(loop, localName);
-      if (nested && typeof nested === 'object' && nested.$type) return nested;
-    }
-    return undefined;
-  }
-
-  getExpressionLanguage(attributeName: string): string | undefined {
-    const language = this.expressionElement(attributeName)?.get?.('language');
-    return typeof language === 'string' && language ? language : undefined;
-  }
-
-  setExpressionLanguage(attributeName: string, language: string | undefined): void {
-    const expression = this.expressionElement(attributeName);
-    if (!expression) return;
-    this.writer.set(expression, { language: language || undefined });
-  }
-
   setAttribute(attributeName: string, value: any): void {
     if (toLocalName(attributeName) === CHECKLIST_MARKER) return this.setChecklist(value);
     const bo = this.businessObject;

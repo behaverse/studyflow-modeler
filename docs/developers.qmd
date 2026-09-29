@@ -85,7 +85,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | - | generic screen, and a way forward | - |
 | Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
 | `bpmn:SubProcess` | - | descends; opens its own scope | walks one level in; no separate scope |
-| `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions, then `default`, then the one edge without a condition | the same rule, in Python |
+| `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions (FEEL), then `default`, then the one edge without a condition | the same rule |
 | `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | seeded uniform draw | the same draw, weighted by the ratio; permuted blocks |
 | `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | - | - | loaded and saved wherever they carry a `uri` |
 | `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | - |

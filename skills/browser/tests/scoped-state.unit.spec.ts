@@ -152,7 +152,7 @@ test.describe('scoped state', () => {
 
 test.describe('conditions over declared state', () => {
   test('a declared-but-unwritten name evaluates; an undeclared one is a defect, even one a global holds', () => {
-    expect(evaluateCondition('arm == "treatment"', { arm: undefined }))
+    expect(evaluateCondition('arm = "treatment"', { arm: undefined }))
       .toEqual({ value: false });
 
     // `globalThis.Array` exists; the scope must not fall through to it.

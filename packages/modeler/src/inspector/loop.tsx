@@ -113,17 +113,7 @@ export function LoopSection() {
               name="loopCondition"
               placeholder="score < 0.9"
               value={expressionText(loopCharacteristics.get('loopCondition'))}
-              language={loopCharacteristics.get('loopCondition')?.get?.('language') ?? ''}
               onCommit={(next) => setField('loopCondition', next)}
-              onCommitLanguage={(next) => {
-                const expression = loopCharacteristics.get('loopCondition');
-                if (expression) {
-                  executeCommand(modeler, {
-                    type: 'UpdateExpressionLanguage', element,
-                    attributeName: 'bpmn:loopCondition', language: next,
-                  });
-                }
-              }}
             />
           </Field>
           <Field className={s.field}>

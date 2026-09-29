@@ -19,7 +19,9 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEv
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
 import { getCatalog } from '@core/notation';
-import { getAttribute, getExpressionLanguage } from '@core/element';
+import { getAttribute } from '@core/element';
+import { PLACEHOLDER } from '@core/document/state';
+import { feelSyntaxError } from '@core/expression/feel';
 import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from '@core/document';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
@@ -29,34 +31,25 @@ import { field as s } from '@modeler/inspector/styles';
 
 type Props = { attrDef: AttributeSpec };
 
-export function ExpressionRow({ name, placeholder, value, language, onCommit, onCommitLanguage }: {
+/** An expression field: every Studyflow expression is FEEL, and one that is not says why beside it. */
+export function ExpressionRow({ name, placeholder, value, onCommit }: {
   name: string;
   placeholder?: string;
   value: string;
-  language: string;
   onCommit: (next: string) => void;
-  onCommitLanguage: (next: string | undefined) => void;
 }) {
+  const error = value.trim() ? feelSyntaxError(value.replace(PLACEHOLDER, (_match, path: string) => path)) : undefined;
   return (
     <div className="flex items-stretch gap-1">
-      <select
-        aria-label="Expression language"
-        value={language}
-        disabled={!value}
-        title={value
-          ? 'Expression language leaves it to the runner that executes it'
-          : 'Type an expression first'}
-        onChange={(e) => onCommitLanguage(e.target.value || undefined)}
-        className="shrink-0 w-11 rounded-md border border-black/[0.08] bg-cream-200
-          text-[0.6875rem] text-stone-500 px-1 cursor-pointer focus:outline-2
-          focus:-outline-offset-2 focus:outline-[hsl(205,100%,45%)] disabled:opacity-40
-          disabled:cursor-default"
+      <span
+        title={error ?? 'FEEL, the expression language of DMN, in every runtime'}
+        className={`shrink-0 w-11 grid place-items-center rounded-md border border-black/[0.08] bg-cream-200
+          text-[0.6875rem] ${error ? 'text-red-600' : 'text-stone-500'}`}
       >
-        <option value="">-</option>
-        <option value="python">PY</option>
-        <option value="javascript">JS</option>
-      </select>
+        FEEL
+      </span>
       <Textarea
+        aria-invalid={error ? true : undefined}
         name={name}
         rows={1}
         placeholder={placeholder}
@@ -76,7 +69,6 @@ export function ExpressionInput({ attrDef }: { attrDef: AttributeSpec }) {
 
   const raw = getAttribute(element, attributeName);
   const value = typeof raw === 'string' ? raw : '';
-  const language = getExpressionLanguage(element, attributeName) ?? '';
 
   return (
     <Field className={s.field}>
@@ -87,14 +79,8 @@ export function ExpressionInput({ attrDef }: { attrDef: AttributeSpec }) {
       <ExpressionRow
         name={attributeName}
         value={value}
-        language={language}
         onCommit={(next) => {
           executeCommand(modeler, { type: 'UpdateAttribute', element, attributeName, value: next });
-        }}
-        onCommitLanguage={(next) => {
-          executeCommand(modeler, {
-            type: 'UpdateExpressionLanguage', element, attributeName, language: next,
-          });
         }}
       />
     </Field>

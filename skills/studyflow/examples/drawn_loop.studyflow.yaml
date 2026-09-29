@@ -5,8 +5,8 @@ Drawn_Loop:
   type: Process
   documentation: >-
     The smallest cycle the notation can draw — one step, one gateway, a conditioned back-edge, and nothing that is not a
-    visible edge. The loop is bounded by the engine's own run state: `state.trace.count('Gate')` counts how often the
-    walk has reached the gateway, so `state.trace.count('Gate') < 8` takes the back-edge seven times, the step runs
+    visible edge. The loop is bounded by the engine's own run state: `state._meta.reached.Gate` counts how often the
+    walk has reached the gateway, so `state._meta.reached.Gate < 8` takes the back-edge seven times, the step runs
     eight, and the default edge exits. Runs as it stands: `studyflow run drawn_loop.studyflow.png` prints eight times
     and `state._meta.reached` in the run's copy shows the count.
   extensionElements:
@@ -52,7 +52,7 @@ Drawn_Loop:
       waypoint: 275,70 350,70
     Again:
       name: again
-      conditionExpression: state.trace.count('Gate') < 8
+      conditionExpression: state._meta.reached.Gate < 8
       sourceRef: Gate
       targetRef: Say
       waypoint: 375,95 375,140 225,140 225,110

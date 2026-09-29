@@ -35,6 +35,9 @@ from typing import Any, Callable, Iterator
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "local"))
+import feel  # noqa: E402 - the local runtime's FEEL, skills/local/feel.py
+
 def split_binding(text: str | None) -> tuple[str | None, str | None]:
     """Grammar: `slot = selection`, either half optional; `==` belongs to the selection, not the split."""
     value = (text or "").strip()
@@ -241,11 +244,11 @@ class Run:
         return space
 
     def evaluate(self, expression: str, extra: dict[str, Any] | None = None, language: str | None = None) -> Any:
-        if language and language.lower() not in ("py", "python"):
-            raise ValueError(f"a {language} expression — this runner evaluates Python")
+        if language and "feel" not in language.lower():
+            raise ValueError(f"a {language} expression — every Studyflow expression is FEEL")
         space = self.namespace()
         space.update(extra or {})
-        return eval(expression, {"__builtins__": {}}, space)  # noqa: S307 - an authored diagram
+        return feel.evaluate(expression, space)
 
     def value_of(self, element_id: str) -> Any:
         if element_id in self.values:

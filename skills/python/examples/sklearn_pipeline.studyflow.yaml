@@ -578,7 +578,7 @@ sklearn_pipeline:
               waypoint: 822,240 822,327 896,327
             DataOutput_Mean_CV_Accuracy:
               targetRef: mean_cv_accuracy
-              transformation: result.test_accuracy['mean']
+              transformation: result.test_accuracy.mean
           implementation: python://pandas.DataFrame.describe
           bounds: 736 160 120 80
         select_end:

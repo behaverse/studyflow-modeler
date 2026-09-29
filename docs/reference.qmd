@@ -66,6 +66,10 @@ A placeholder that finds nothing stays as written, for whoever reads it later: t
 
 When an argument of a `python://` call is one placeholder and nothing else, the call gets the value itself, a table or a model, rather than its text. Quote it or not: `model: "{pipeline}"` and `model: {pipeline}` pass the same value.
 
+## Expressions
+
+Every expression a study writes is FEEL, the Friendly Enough Expression Language of the OMG's DMN standard, BPMN's sibling: a flow's condition, a loop's condition or count, a conditional event's condition, and a data edge's selection. Both runtimes and the modeler evaluate it the same way, so a study means one thing wherever it runs. An expression reads the names the placeholder rule finds, as FEEL names and paths (`accuracy >= 0.8`, `congruency_test.pvalue < alpha`, `state._meta.reached.Gate < 8`), and a condition holds only when it evaluates to `true`; `null` never takes a branch. Strings are double-quoted, equality is `=`, and text has functions of its own (`contains(upper case(answer), "READY")`, `substring after(reply, "Answer:")`). `studyflow validate` refuses an expression that is not FEEL, and a BPMN `language` other than FEEL, before any run. The local runtime evaluates the subset `skills/local/feel.py` lists; `tests/fixtures/feel.json` holds the two evaluators to the same answers.
+
 ## Well-formed diagrams
 
 A studyflow has to satisfy the usual rules of a BPMN diagram before anything can run it: every `sourceRef` and `targetRef` names an element that exists in the file, every path leaves a start event and reaches an end event, an exclusive gateway covers every case in its conditions, marks one outgoing edge `default`, or leaves exactly one outgoing edge without a condition, and every value a condition or a step reads is declared on the study or on a sub-process containing it.

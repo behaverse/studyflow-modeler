@@ -33,5 +33,5 @@ Study:
       type: SequenceFlow
       sourceRef: Again
       targetRef: Draw
-      conditionExpression: state.trace.count('Draw') < 4
+      conditionExpression: state._meta.reached.Draw < 4
     F_Out: Again -> Done

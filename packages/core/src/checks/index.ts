@@ -1,5 +1,6 @@
 import type { ModdleElement } from '@core/element/moddle';
 import { checkDataContract } from '@core/checks/data-contract';
+import { checkExpressions } from '@core/checks/expressions';
 import { checkFlowConsistency } from '@core/checks/flow-consistency';
 import { checkRunnerPaths } from '@core/checks/runner-paths';
 import { checkSeal } from '@core/checks/seal';
@@ -15,9 +16,11 @@ export type Issue = {
   message: string;
 };
 
-/** The plan: sound, walkable by the reference runners, and reading only the columns its schemas define. */
+/** The plan: sound, walkable by the reference runners, its expressions FEEL, and reading only the columns its schemas define. */
 export function planChecks(definitions: ModdleElement): Issue[] {
-  return [...checkSoundness(definitions), ...checkRunnerPaths(definitions), ...checkDataContract(definitions)];
+  return [
+    ...checkSoundness(definitions), ...checkRunnerPaths(definitions), ...checkExpressions(definitions), ...checkDataContract(definitions),
+  ];
 }
 
 /** What a run left in the file: counts that balance, and a protocol that is still the one it ran; `note` says it is. */

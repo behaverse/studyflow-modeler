@@ -73,7 +73,6 @@ function WireTransformationSection({ element }: { element: any }) {
 
   const expression = businessObject.get?.('transformation') ?? businessObject.transformation;
   const body: string = expression?.get?.('body') ?? expression?.body ?? '';
-  const language: string = expression?.get?.('language') ?? expression?.language ?? '';
   const isOutput = businessObject.$type === 'bpmn:DataOutputAssociation';
   const source = businessObject.get?.('sourceRef')?.[0] ?? businessObject.sourceRef?.[0];
   const placeholder = isOutput ? 'result' : source?.name || source?.id || 'input';
@@ -88,12 +87,8 @@ function WireTransformationSection({ element }: { element: any }) {
         name="bpmn:transformation"
         placeholder={placeholder}
         value={body}
-        language={language}
         onCommit={(next) => executeCommand(modeler, {
           type: 'UpdateTransformation', element, field: 'body', value: next,
-        })}
-        onCommitLanguage={(next) => executeCommand(modeler, {
-          type: 'UpdateTransformation', element, field: 'language', value: next,
         })}
       />
     </Field>

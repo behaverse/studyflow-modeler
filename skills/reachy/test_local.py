@@ -79,7 +79,7 @@ assert reachy.Plan({"elements": {"t": {"type": "task", "name": "Play"}}, "names"
 # An output edge's transformation narrows the step's result, into a captured value or a declared property.
 narrowing = reachy.Plan({"elements": {
     "Study": {"type": "process"},
-    "Answer": {"type": "receiveTask", "parent": "Study", "outputs": [{"target": "Seen", "transformation": "result['trials']"}, {"target": "N"}]},
+    "Answer": {"type": "receiveTask", "parent": "Study", "outputs": [{"target": "Seen", "transformation": "result.trials"}, {"target": "N"}]},
     "Seen": {"type": "dataObjectReference"}, "N": {"type": "property", "parent": "Study", "name": "n"}}})
 run = reachy.Run(narrowing, auto=True)
 run.store(narrowing.elements["Answer"], {"trials": 5, "log": []})

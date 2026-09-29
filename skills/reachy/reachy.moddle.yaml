@@ -490,7 +490,7 @@ templates:
           with the robot's persona into Ask the model: the model hears what is wired in, nothing else.
         loopCharacteristics:
           type: StandardLoopCharacteristics
-          loopCondition: "'goodbye' not in (Heard or '').lower()"
+          loopCondition: Heard = null or not(contains(lower case(Heard), "goodbye"))
           loopMaximum: 10
         flowElements:
           conversation_start:
@@ -587,7 +587,7 @@ templates:
             dataOutputAssociations:
               Out_Choice:
                 targetRef: Choice
-                transformation: result.split('Answer:')[-1].strip()
+                transformation: substring after(result, "Answer:")
             bounds: 530 140 100 80
           Choice:
             type: DataObjectReference

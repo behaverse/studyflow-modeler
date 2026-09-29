@@ -830,7 +830,7 @@ types:
   # standard-loop marker (`loopCondition`, `loopMaximum`, `testBefore`): one
   # activity retried in place, the canvas ↻. The drawn form is a gateway whose
   # conditioned back-edge returns upstream, bounded with the engine's run
-  # state (`state.trace.count('<gateway-id>')`). The traits below keep the
+  # state (`state._meta.reached.<gateway-id>`). The traits below keep the
   # marker's condition and the ad-hoc sub-process's exit test authorable as
   # flat strings.
   - name: CompletionCondition

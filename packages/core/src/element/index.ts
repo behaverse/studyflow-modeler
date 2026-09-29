@@ -72,19 +72,6 @@ export function getAttribute(elementOrBO: any, attributeName: string): any {
   return StudyflowElement.fromBusinessObject(elementOrBO).getAttribute(attributeName);
 }
 
-export function getExpressionLanguage(element: any, attributeName: string): string | undefined {
-  return StudyflowElement.fromBusinessObject(element).getExpressionLanguage(attributeName);
-}
-
-export function setExpressionLanguage(
-  element: any,
-  attributeName: string,
-  language: string | undefined,
-  writer?: ModdleWriter,
-): void {
-  StudyflowElement.fromBusinessObject(element, writer).setExpressionLanguage(attributeName, language);
-}
-
 export function setAttribute(element: any, attributeName: string, value: any, writer?: ModdleWriter): void {
   StudyflowElement.fromBusinessObject(element, writer).setAttribute(attributeName, value);
 }

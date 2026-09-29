@@ -46,13 +46,13 @@ test('the study declares typed properties, and a step binds one from the picker'
   await page.getByTestId('bind-input').click();
   await page.getByRole('option', { name: 'arm', exact: true }).click();
   await expect(inspector.getByRole('button', { name: /unbind.*\barm\b/i })).toBeVisible();
-  await page.getByLabel(/transformation.*\barm\b/i).fill('arm.lower()');
+  await page.getByLabel(/transformation.*\barm\b/i).fill('lower case(arm)');
 
   const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
   expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_string');
   expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_torch.Tensor');
   expect(studyflowText).toMatch(/DataInput_Property_1:\n\s+sourceRef:\n\s+- Property_1\n/);
-  expect(studyflowText).toContain('transformation: arm.lower()');
+  expect(studyflowText).toContain('transformation: lower case(arm)');
 });
 
 // On a diagram of its own: a container's first property takes `Property_1` even when the study
@@ -125,7 +125,7 @@ test('an expression field carries a language select that persists, and emptying 
 
   await page.locator('g[data-element-id="Again_label"]').click();
   const condition = page.locator('textarea[name="bpmn:conditionExpression"]');
-  await expect(condition).toHaveValue("state.trace.count('Gate') < 8");
+  await expect(condition).toHaveValue('state._meta.reached.Gate < 8');
 
   // Unprefixed by default, the engine's own language.
   const language = page.getByLabel(/language/i);

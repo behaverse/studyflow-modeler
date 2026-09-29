@@ -22,9 +22,9 @@ a run refuses to start without it.
 A run writes a run directory, `--repo DIR` or else `~/.studyflow/runs/<id>/` (YYMMDD plus a codename, e.g. `260821heron/`), or the one the diagram handed
 to it already lives in: the artifacts the `uri`s name, a copy of the studyflow
 stamped `executed` (the copy carries its own run record), and `studyflow.log`;
-the detailed step records live in the run repository's commit bodies. Expressions run in the evaluating engine's own
-language (Python here, JavaScript in the browser runner) unless BPMN's per-expression
-`language` attribute says otherwise. Each pool is walked on its own thread, one
+the detailed step records live in the run repository's commit bodies. Every expression (a condition, a data
+edge's selection) is FEEL, as in the browser runner and the modeler (feel.py beside this file); BPMN's
+per-expression `language` may say FEEL and nothing else. Each pool is walked on its own thread, one
 path per pool: no parallel split inside a pool, no multi-instance fan-out. The
 pools talk only along message flows, and the walk carries every message
 (SKILL.md, "Messages").
@@ -55,6 +55,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import feel  # noqa: E402 - beside this file, whichever way it was started
 
 BPMN = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
@@ -515,7 +518,7 @@ class Studyflow:
 
 
 class State:
-    """Readable by expressions as `state`, so a drawn cycle can bound itself: `state.trace.count('Gate') < 8`.
+    """Readable by expressions as `state`, so a drawn cycle can bound itself: `state._meta.reached.Gate < 8`.
     `tree` is the document's `state` (docs/reference.qmd, "Run state"), reachable as `state.<element id>.<name>`;
     the runner counts every visit to an element, and every sequence flow it takes, in `state._meta.reached.<id>`,
     study-lifetime."""
@@ -523,21 +526,6 @@ class State:
     def __init__(self, tree: dict | None = None) -> None:
         self.trace: list[str] = []
         self.tree: dict = tree if tree is not None else {}
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(_Node(self.__dict__["tree"]), name)
-
-
-class _Node:
-    def __init__(self, entries: dict) -> None:
-        self._entries = entries
-
-    def __getattr__(self, name: str) -> Any:
-        try:
-            value = self._entries[name]
-        except KeyError:
-            raise AttributeError(name) from None
-        return _Node(value) if isinstance(value, dict) else value
 
 
 def plain(value: Any) -> Any:
@@ -1151,7 +1139,7 @@ class Runner:
         return (scope, name) if name in self.studyflow.properties.get(scope, {}) else None
 
     def namespace(self) -> dict[str, Any]:
-        space: dict[str, Any] = {"state": self.state}
+        space: dict[str, Any] = {"state": {**self.state.tree, "trace": list(self.state.trace)}}
         for element_id, value in list(self.values.items()):
             space[element_id] = value
             name = self.studyflow.bound_names.get(element_id)
@@ -1166,18 +1154,15 @@ class Runner:
         language: str | None = None,
         scope: str | None = None,
     ) -> Any:
-        """`language` is BPMN's per-expression attribute; unset means Python here, anything else is refused.
+        """A FEEL expression's value. `language` is BPMN's per-expression attribute: unset or FEEL, else refused.
         `scope` is the evaluating element: the properties declared on it and its containers are bound by name."""
-        if language and language.lower() not in ("py", "python"):
-            raise ValueError(
-                f"a {language} expression — this runner evaluates Python "
-                "(the browser runner evaluates JavaScript)",
-            )
+        if language and "feel" not in language.lower():
+            raise ValueError(f"a {language} expression — every Studyflow expression is FEEL")
         space = self.namespace()
         if scope:
             space.update(self.scope_values(scope))
         space.update(extra or {})
-        return eval(expression, {"__builtins__": {}}, space)  # noqa: S307 - see module docstring
+        return feel.evaluate(expression, {name: plain(value) for name, value in space.items()})
 
     def scope_chain(self, element_id: str) -> list[str]:
         """The element, then its containers outward to the process."""
@@ -1672,14 +1657,14 @@ class Runner:
                     entry.setdefault("conditionExpressions", []).append({
                         "sequenceFlow": flow.get("id"),
                         "conditionExpression": expression,
-                        "held": bool(verdict),
+                        "held": verdict is True,
                     })
                     self.event(
                         "conditionExpression.evaluated",
-                        f"    {expression} → {bool(verdict)}  [{flow.get('id')}]",
+                        f"    {expression} → {verdict is True}  [{flow.get('id')}]",
                         level=logging.DEBUG,
                     )
-                    if verdict:
+                    if verdict is True:
                         return take(flow, expression)
             except BaseException as error:
                 self.record.fail(entry, error)
@@ -1931,7 +1916,7 @@ class Runner:
 
     def bind_result(self, element: ET.Element, value: Any) -> None:
         """A result the walk took itself (a message's content): under the element's id, and into each data output,
-        narrowed by that edge's `transformation` (`result.upper()`); a null result stays null."""
+        narrowed by that edge's `transformation` (`upper case(result)`); a null result stays null."""
         self.store(element.get("id"), value)
         for association in element:
             if local(association) != "dataOutputAssociation":
@@ -2044,12 +2029,10 @@ class Runner:
             if condition is None or not (condition.text or "").strip():
                 continue
             body = condition.text.strip()
-            # A dict reads as `{Play.failedTrialRate}` too, which Python's `.` does not do on its own.
-            dotted = {name: _Node(value) for name, value in self.namespace().items() if isinstance(value, dict)}
-            verdict = self.evaluate(PLACEHOLDER.sub(r"\1", body), dotted,
-                                    language=condition.get("language"), scope=element_id)
+            # `{Play.failedTrialRate}` reads as the FEEL path `Play.failedTrialRate`.
+            verdict = self.evaluate(PLACEHOLDER.sub(r"\1", body), language=condition.get("language"), scope=element_id) is True
             self.event(
-                "conditionExpression.evaluated", f"    {body} → {bool(verdict)}  [{boundary.get('id')}]",
+                "conditionExpression.evaluated", f"    {body} → {verdict}  [{boundary.get('id')}]",
                 level=logging.DEBUG,
             )
             if verdict:
@@ -2102,7 +2085,7 @@ class Runner:
         condition = next((c for c in marker if local(c) == "loopCondition"), None)
         if condition is None or not (condition.text or "").strip():
             return True
-        return bool(self.evaluate(condition.text.strip(), language=condition.get("language"), scope=element.get("id")))
+        return self.evaluate(condition.text.strip(), language=condition.get("language"), scope=element.get("id")) is True
 
     def walk_container(self, element: ET.Element, depth: int, max_steps: int) -> None:
         element_id = element.get("id") or ""

@@ -171,7 +171,7 @@ function buildElements(elements: Record<string, unknown>, document: ModdleObject
 /**
  * An id of `definitions` that `document` already holds is suffixed (a second drop gets `eo_gate_…`): references
  * follow the element they point at, and so does code that names it by text, an expression
- * (`state.trace.count('eo_gate')`) or a `{placeholder}`. Names and documentation keep the word.
+ * (`state._meta.reached.eo_gate`) or a `{placeholder}`. Names and documentation keep the word.
  */
 export function renameClashes(definitions: ModdleObject, document: ModdleObject, ids: Pick<IdGenerator, 'nextPrefixed'>): void {
   const held = new Set([...elementsIn(document)].map((element) => element.id));

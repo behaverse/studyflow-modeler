@@ -39,7 +39,7 @@ templates:
           F2:
             sourceRef: Gate
             targetRef: Work
-            conditionExpression: state.trace.count('Gate') < 3
+            conditionExpression: state._meta.reached.Gate < 3
             waypoint: 285,165 285,220 150,220 150,180
 `;
 
@@ -89,7 +89,7 @@ test('a held id is suffixed, and only code that names it follows: expressions an
   const work = node(study, 'Work').businessObject as any;
   const back = node(study, 'F2').businessObject as any;
   expect(gate.id).toMatch(/^Gate_\w+$/);
-  expect(back.conditionExpression.body).toBe(`state.trace.count('${gate.id}') < 3`);
+  expect(back.conditionExpression.body).toBe(`state._meta.reached.${gate.id} < 3`);
   expect(work.name).toBe(`Work, then ask {${gate.id}}`);
   expect(gate.name).toBe('Gate');
   expect((loop.businessObject as any).documentation[0].text).toBe('Gate decides when Work stops.');

@@ -1,5 +1,5 @@
 import { isReservedStateKey } from '@core/document';
-import { associationPropertyFor, definitionsOf, setExpressionLanguage, toBusinessObject, typeForDirection } from '@core/element';
+import { associationPropertyFor, definitionsOf, toBusinessObject, typeForDirection } from '@core/element';
 import { isPool, nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { ensureChoreographyParticipants, isTypedChoreography } from '@core/document';
 import { getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
@@ -25,22 +25,6 @@ export type SelectElementCommand = {
 /** Selects the element with `id`, when the canvas holds it. */
 export function runSelectElement(modeler: Editor, command: SelectElementCommand): void {
   modeler.canvas.select(command.id);
-}
-
-
-export type UpdateExpressionLanguageCommand = {
-  type: 'UpdateExpressionLanguage';
-  element: any;
-  attributeName: string;
-  language: string | undefined;
-};
-
-export function runUpdateExpressionLanguage(
-  modeler: Editor,
-  command: UpdateExpressionLanguageCommand,
-): void {
-  const { element, attributeName, language } = command;
-  modeler.study.edit(element.id, (writer) => setExpressionLanguage(element, attributeName, language, writer));
 }
 
 
@@ -102,19 +86,13 @@ export function runUpdateParticipantKind(modeler: Editor, command: UpdatePartici
 export type UpdateTransformationCommand = {
   type: 'UpdateTransformation';
   element: any;
-} & (
-  | { field: 'body'; value: string }
-  | { field: 'language'; value: string | undefined }
-);
+  field: 'body';
+  value: string;
+};
 
 export function runUpdateTransformation(modeler: Editor, command: UpdateTransformationCommand): void {
   const association = toBusinessObject(command.element);
   modeler.study.edit(command.element.id, (writer) => {
-    if (command.field === 'language') {
-      const expression = association.get?.('transformation') ?? association.transformation;
-      if (expression) writer.set(expression, { language: command.value || undefined });
-      return;
-    }
     // Committed on blur, so the stored expression can be the trimmed one.
     writeTransformation(writer, association, command.value.trim());
   });

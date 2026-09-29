@@ -228,11 +228,7 @@ export class Session {
   }
 
   private conditionBindings(): Record<string, unknown> {
-    const entries = [...this.trace];
-    const trace = Object.assign(entries, {
-      count: (value: unknown): number => entries.filter((entry) => entry === value).length,
-    });
-    return { ...this.scopes.bindings(), state: { ...this.state, trace } };
+    return { ...this.scopes.bindings(), state: { ...this.state, trace: [...this.trace] } };
   }
 
   private evalCondition(expression: string, flowId: string, language?: string): boolean {
