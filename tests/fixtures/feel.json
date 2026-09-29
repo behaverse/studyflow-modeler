@@ -46,5 +46,6 @@
   ["substring after(s, \"Answer:\")", {"s": "left"}, ""],
   ["undeclared > 1", {}, {"error": true}],
   ["word == \"b\"", {"word": "b"}, {"error": true}],
-  ["'READY' in Screening", {"Screening": "x"}, {"error": true}]
+  ["'READY' in Screening", {"Screening": "x"}, {"error": true}],
+  ["result.count()", {"result": [1]}, {"error": true}]
 ]

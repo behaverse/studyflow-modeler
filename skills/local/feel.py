@@ -213,6 +213,14 @@ class _Parser:
         raise FeelError(f"not FEEL: unexpected {value!r} in {self.text!r}")
 
 
+def _host(value: Any) -> Any:
+    """A host value as FEEL sees it: a series or an array as a list, a numpy scalar as a number."""
+    if isinstance(value, (dict, list, str, int, float, bool)) or value is None:
+        return value
+    tolist = getattr(value, "tolist", None)
+    return tolist() if callable(tolist) else value
+
+
 def _number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -294,21 +302,24 @@ def _eval(node: tuple, scope: dict[str, Any]) -> Any:
     if kind == "name":
         if node[1] not in scope:
             raise FeelError(f"{node[1]!r} is not declared by any scope in this run")
-        return scope[node[1]]
+        return _host(scope[node[1]])
     if kind == "path":
         base = _eval(node[1], scope)
         if isinstance(base, dict):
             return base.get(node[2])
         if isinstance(base, list):  # FEEL projects a path over a list
             return [item.get(node[2]) if isinstance(item, dict) else None for item in base]
-        if base is not None and hasattr(base, "__getitem__") and not isinstance(base, str):
-            try:  # a host table's column (a pandas DataFrame's `result.trials`); beyond FEEL's own values
-                return base[node[2]]
-            except (KeyError, IndexError, TypeError):
-                return None
+        if base is not None and not isinstance(base, (str, int, float, bool)):
+            # A host value's field: a table's column (`result.trials`), else an object's attribute
+            # (`result.pvalue` of a test result). Beyond FEEL's own values, for what a python:// step returns.
+            try:
+                return _host(base[node[2]])
+            except (KeyError, IndexError, TypeError, ValueError):
+                return _host(getattr(base, node[2], None))
         return None
     if kind == "index":
         base, index = _eval(node[1], scope), _eval(node[2], scope)
+        base = list(base) if isinstance(base, tuple) else base
         if isinstance(base, list) and isinstance(index, int) and not isinstance(index, bool):
             at = index - 1 if index > 0 else len(base) + index
             return base[at] if 0 <= at < len(base) else None

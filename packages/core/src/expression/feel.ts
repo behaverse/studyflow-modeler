@@ -15,6 +15,8 @@ export function feelSyntaxError(expression: string): string | undefined {
   const code = expression.replace(/"(?:[^"\\]|\\.)*"/g, '""');
   const idiom = code.match(/==|&&|\|\||'|!(?!=)/);
   if (idiom) return `not FEEL: ${JSON.stringify(idiom[0])} (FEEL writes = , and, or, not(x), "text")`;
+  const method = code.match(/\.\s*[A-Za-z_]\w*\s*\(/);
+  if (method) return `not FEEL: ${JSON.stringify(method[0])} calls a method; FEEL calls functions by name (count(x), upper case(s))`;
   let error: string | undefined;
   parseExpression(expression, {}, undefined).iterate({
     enter(node) {
