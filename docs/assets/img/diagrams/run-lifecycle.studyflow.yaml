@@ -1,0 +1,146 @@
+id: run_lifecycle
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Run_Lifecycle:
+  type: Process
+  documentation: >-
+    What happens in one run. The study is validated first, and its runtime attribute decides who runs it: the browser
+    runner, which can post sessions and events to a data server, or the local runtime, which archives the plan into a
+    run repository and commits every checkpoint. A later run skips each step whose record still stands, and an
+    invalidated record branches the repository at that step's parent. Drawn for docs/developers.qmd.
+  extensionElements:
+    - type: studyflow:Study
+  name: One run
+  flowElements:
+    Save:
+      type: StartEvent
+      name: The author saves the study
+      bounds: 110 142 36 36
+      label: 78 184 100 30
+    Validate:
+      type: Task
+      name: Validate it
+      bounds: 190 120 150 80
+    Runtime:
+      type: ExclusiveGateway
+      name: Which runtime?
+      bounds: 400 135 50 50
+      label: 355 110 80 30
+    Browser_Run:
+      type: Task
+      name: Run the participant's steps in the page
+      dataOutputAssociations:
+        Out_Events:
+          targetRef: Data_Server
+          waypoint: 595,120 595,80
+      bounds: 510 120 170 80
+    Data_Server:
+      type: DataStoreReference
+      name: Data server, sessions and events (opt-in)
+      bounds: 570 30 50 50
+      label: 628 47 240 30
+    Session_Over:
+      type: EndEvent
+      name: Session over
+      bounds: 740 142 36 36
+    Archive:
+      type: Task
+      name: Archive the plan into runs/STAMP/
+      bounds: 510 280 170 80
+    Walk:
+      type: Task
+      name: Walk the steps, committing each checkpoint
+      dataOutputAssociations:
+        Out_Commits:
+          targetRef: Repository
+          waypoint: 835,360 835,400
+      bounds: 740 280 190 80
+    Repository:
+      type: DataStoreReference
+      name: Run repository (git)
+      bounds: 810 400 50 50
+      label: 868 418 130 15
+    Run_Finished:
+      type: EndEvent
+      name: Run finished
+      bounds: 990 302 36 36
+    Run_Again:
+      type: StartEvent
+      name: Run again after an edit
+      bounds: 330 462 36 36
+      label: 298 504 100 30
+    Invalidated:
+      type: ExclusiveGateway
+      name: A record invalidated?
+      bounds: 410 455 50 50
+      label: 385 430 120 30
+    Branch:
+      type: Task
+      name: Branch at that step's parent
+      bounds: 510 440 170 80
+    Flow_Saved:
+      sourceRef: Save
+      targetRef: Validate
+      waypoint: 146,160 190,160
+    Flow_Valid:
+      sourceRef: Validate
+      targetRef: Runtime
+      waypoint: 340,160 400,160
+    Flow_Browser:
+      name: browser
+      sourceRef: Runtime
+      targetRef: Browser_Run
+      waypoint: 450,160 510,160
+      label: 456 142 52 15
+    Flow_Local:
+      name: local
+      sourceRef: Runtime
+      targetRef: Archive
+      waypoint: 425,185 425,320 510,320
+      label: 432 250 35 15
+    Flow_Session:
+      sourceRef: Browser_Run
+      targetRef: Session_Over
+      waypoint: 680,160 740,160
+    Flow_Archived:
+      sourceRef: Archive
+      targetRef: Walk
+      waypoint: 680,320 740,320
+    Flow_Walked:
+      sourceRef: Walk
+      targetRef: Run_Finished
+      waypoint: 930,320 990,320
+    Flow_Again:
+      sourceRef: Run_Again
+      targetRef: Invalidated
+      waypoint: 366,480 410,480
+    Flow_Branch:
+      name: "yes"
+      sourceRef: Invalidated
+      targetRef: Branch
+      waypoint: 460,480 510,480
+      label: 470 462 25 15
+    Flow_Branched:
+      sourceRef: Branch
+      targetRef: Walk
+      waypoint: 680,480 760,480 760,360
+    Flow_In_Place:
+      name: "no"
+      sourceRef: Invalidated
+      targetRef: Walk
+      waypoint: 435,505 435,560 790,560 790,360
+      label: 442 530 20 15
+  artifacts:
+    Skip_Note:
+      text: A later run skips each step whose record still stands.
+      bounds: 960 205 180 45
+    Skip_Link:
+      sourceRef: Skip_Note
+      targetRef: Walk
+      waypoint: 960,240 915,280
+state:
+  _meta:
+    prov:
+      - action: created
+        when: "2026-09-29T21:35:53+02:00"
+        with: studyflow-modeler/26.9.29

@@ -1,0 +1,161 @@
+id: provenance_model
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Provenance_Model:
+  type: Process
+  documentation: >-
+    Where the record of a run is kept. The studyflow document holds the plan and its record: a trail of entries on its
+    root and one record per element. The modeler appends to the trail and voids records; the local runtime appends to
+    the trail, stamps each element's record, and commits every checkpoint into the run repository, whose commits restate
+    the same attributes. There is no sidecar record file. Drawn for docs/developers.qmd.
+  extensionElements:
+    - type: studyflow:Study
+  name: Where the record is kept
+  laneSets:
+    Lanes:
+      lanes:
+        Lane_Modeler:
+          name: Modeler
+          flowNodeRef:
+            - Edit_Start
+            - Export
+            - Saved
+            - Stale_Start
+            - Void
+            - Voided
+          bounds: 40 20 1110 175
+        Lane_Local:
+          name: Local runtime
+          flowNodeRef:
+            - Run_Start
+            - Execute
+            - Commit
+            - Run_Finished
+          bounds: 40 195 1110 345
+  flowElements:
+    Edit_Start:
+      type: StartEvent
+      name: The author edits
+      bounds: 110 62 36 36
+    Export:
+      type: Task
+      name: "Export: stamp created, modified"
+      dataOutputAssociations:
+        Out_Export:
+          targetRef: Trail
+          waypoint: 318,120 318,232
+      bounds: 190 40 170 80
+    Saved:
+      type: EndEvent
+      name: Saved
+      bounds: 410 62 36 36
+    Stale_Start:
+      type: StartEvent
+      name: A step marked stale
+      bounds: 520 62 36 36
+    Void:
+      type: Task
+      name: Void its record (invalidated)
+      dataOutputAssociations:
+        Out_Void:
+          targetRef: Records
+          waypoint: 620,120 620,170 590,170 590,232
+      bounds: 600 40 170 80
+    Voided:
+      type: EndEvent
+      name: Voided
+      bounds: 820 62 36 36
+    Trail:
+      type: DataObjectReference
+      name: "Trail, on the study's root: action, when, who, with, what, run, seed, note"
+      bounds: 300 232 36 50
+      label: 342 232 170 60
+    Records:
+      type: DataObjectReference
+      name: Records, one per element
+      bounds: 560 232 36 50
+      label: 602 242 100 30
+    Run_Start:
+      type: StartEvent
+      name: studyflow run
+      bounds: 110 382 36 36
+    Execute:
+      type: Task
+      name: "Execute a step: stamp executed or reused"
+      dataOutputAssociations:
+        Out_Trail:
+          targetRef: Trail
+          waypoint: 318,360 318,282
+        Out_Records:
+          targetRef: Records
+          waypoint: 350,360 350,328 578,328 578,282
+      bounds: 190 360 170 80
+    Commit:
+      type: Task
+      name: Commit each checkpoint
+      dataOutputAssociations:
+        Out_Commit:
+          targetRef: Repository
+          waypoint: 500,440 500,460
+      bounds: 420 360 160 80
+    Run_Finished:
+      type: EndEvent
+      name: Run finished
+      bounds: 650 382 36 36
+    Repository:
+      type: DataStoreReference
+      name: Run repository, runs/STAMP/.git
+      bounds: 475 460 50 50
+      label: 430 513 140 30
+    Flow_Edited:
+      sourceRef: Edit_Start
+      targetRef: Export
+      waypoint: 146,80 190,80
+    Flow_Exported:
+      sourceRef: Export
+      targetRef: Saved
+      waypoint: 360,80 410,80
+    Flow_Stale:
+      sourceRef: Stale_Start
+      targetRef: Void
+      waypoint: 556,80 600,80
+    Flow_Void:
+      sourceRef: Void
+      targetRef: Voided
+      waypoint: 770,80 820,80
+    Flow_Run:
+      sourceRef: Run_Start
+      targetRef: Execute
+      waypoint: 146,400 190,400
+    Flow_Executed:
+      sourceRef: Execute
+      targetRef: Commit
+      waypoint: 360,400 420,400
+    Flow_Committed:
+      sourceRef: Commit
+      targetRef: Run_Finished
+      waypoint: 580,400 650,400
+  artifacts:
+    Document:
+      type: Group
+      categoryValueRef: Document_Value
+      bounds: 190 200 520 112
+    Commit_Note:
+      text: >-
+        One commit per checkpoint: its trailers restate the entry (Prov-Action, Prov-When, Prov-Run, Prov-Node), and its
+        body keeps that checkpoint's step records.
+      bounds: 545 455 330 60
+    Sidecar_Note:
+      text: "No sidecar record file: the study and its repository hold the whole record."
+      bounds: 900 45 230 45
+Document_Category:
+  type: Category
+  categoryValue:
+    Document_Value:
+      value: "The studyflow document: the plan and its record"
+state:
+  _meta:
+    prov:
+      - action: created
+        when: "2026-09-29T21:38:03+02:00"
+        with: studyflow-modeler/26.9.29

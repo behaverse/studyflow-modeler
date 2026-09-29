@@ -1,0 +1,198 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="56 -4 984 369" width="984" height="369"><metadata><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="two_graphs" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Two_Graphs" name="Two graphs in one file">
+    <bpmn:documentation>A studyflow is a graph with two kinds of edges: solid sequence flows carry the session a participant goes through, and dotted data associations carry the data. Drawn for docs/reference.qmd.</bpmn:documentation>
+    <bpmn:extensionElements>
+      <studyflow:study>
+        <studyflow:state>{"_meta":{"prov":[{"action":"created","when":"2026-09-29T21:33:47+02:00","with":"studyflow-modeler/26.9.29"}]}}</studyflow:state>
+      </studyflow:study>
+    </bpmn:extensionElements>
+    <bpmn:startEvent id="Start" name="Start">
+      <bpmn:outgoing>Flow_Start</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Pre" name="2-Back, pre-test">
+      <bpmn:extensionElements>
+        <cognitive:cognitiveTask/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Start</bpmn:incoming>
+      <bpmn:outgoing>Flow_Pre</bpmn:outgoing>
+      <bpmn:ioSpecification id="Pre_io">
+        <bpmn:dataOutput id="Pre_result" name="result"/>
+        <bpmn:inputSet id="Pre_inputSet"/>
+        <bpmn:outputSet id="Pre_outputSet">
+          <bpmn:dataOutputRefs>Pre_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="Out_Pre">
+        <bpmn:sourceRef>Pre_result</bpmn:sourceRef>
+        <bpmn:targetRef>Responses</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:exclusiveGateway id="Allocation" name="Allocation">
+      <bpmn:extensionElements>
+        <cognitive:randomGateway/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Pre</bpmn:incoming>
+      <bpmn:outgoing>Flow_Arm_1</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Arm_2</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:task id="Training" name="Training">
+      <bpmn:incoming>Flow_Arm_1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Train</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="No_Training" name="No training">
+      <bpmn:incoming>Flow_Arm_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_No_Train</bpmn:outgoing>
+    </bpmn:task>
+    <bpmn:task id="Post" name="2-Back, post-test">
+      <bpmn:extensionElements>
+        <cognitive:cognitiveTask/>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_Train</bpmn:incoming>
+      <bpmn:incoming>Flow_No_Train</bpmn:incoming>
+      <bpmn:outgoing>Flow_Post</bpmn:outgoing>
+      <bpmn:ioSpecification id="Post_io">
+        <bpmn:dataOutput id="Post_result" name="result"/>
+        <bpmn:inputSet id="Post_inputSet"/>
+        <bpmn:outputSet id="Post_outputSet">
+          <bpmn:dataOutputRefs>Post_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="Out_Post">
+        <bpmn:sourceRef>Post_result</bpmn:sourceRef>
+        <bpmn:targetRef>Responses</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:serviceTask id="Fit" name="Fit the model">
+      <bpmn:incoming>Flow_Post</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fit</bpmn:outgoing>
+      <bpmn:ioSpecification id="Fit_io">
+        <bpmn:dataInput id="Fit_in_Responses" name="Responses"/>
+        <bpmn:dataOutput id="Fit_result" name="result"/>
+        <bpmn:inputSet id="Fit_inputSet">
+          <bpmn:dataInputRefs>Fit_in_Responses</bpmn:dataInputRefs>
+        </bpmn:inputSet>
+        <bpmn:outputSet id="Fit_outputSet">
+          <bpmn:dataOutputRefs>Fit_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataInputAssociation id="In_Fit">
+        <bpmn:sourceRef>Responses</bpmn:sourceRef>
+        <bpmn:targetRef>Fit_in_Responses</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Fit">
+        <bpmn:sourceRef>Fit_result</bpmn:sourceRef>
+        <bpmn:targetRef>Fitted_Model</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End" name="End">
+      <bpmn:incoming>Flow_Fit</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataStoreReference id="Responses" name="Responses"/>
+    <bpmn:dataObjectReference id="Fitted_Model" name="Fitted model"/>
+    <bpmn:sequenceFlow id="Flow_Start" sourceRef="Start" targetRef="Pre"/>
+    <bpmn:sequenceFlow id="Flow_Pre" sourceRef="Pre" targetRef="Allocation"/>
+    <bpmn:sequenceFlow id="Flow_Arm_1" sourceRef="Allocation" targetRef="Training"/>
+    <bpmn:sequenceFlow id="Flow_Arm_2" sourceRef="Allocation" targetRef="No_Training"/>
+    <bpmn:sequenceFlow id="Flow_Train" sourceRef="Training" targetRef="Post"/>
+    <bpmn:sequenceFlow id="Flow_No_Train" sourceRef="No_Training" targetRef="Post"/>
+    <bpmn:sequenceFlow id="Flow_Post" sourceRef="Post" targetRef="Fit"/>
+    <bpmn:sequenceFlow id="Flow_Fit" sourceRef="Fit" targetRef="End"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Two_Graphs">
+      <bpmndi:BPMNShape id="Start_di" bpmnElement="Start">
+        <dc:Bounds x="60" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Pre_di" bpmnElement="Pre">
+        <dc:Bounds x="140" y="80" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Allocation_di" bpmnElement="Allocation">
+        <dc:Bounds x="330" y="95" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="385" y="128" width="80" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Training_di" bpmnElement="Training">
+        <dc:Bounds x="430" y="0" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="No_Training_di" bpmnElement="No_Training">
+        <dc:Bounds x="430" y="160" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Post_di" bpmnElement="Post">
+        <dc:Bounds x="620" y="80" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Fit_di" bpmnElement="Fit">
+        <dc:Bounds x="810" y="80" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_di" bpmnElement="End">
+        <dc:Bounds x="1000" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Responses_di" bpmnElement="Responses">
+        <dc:Bounds x="520" y="290" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Fitted_Model_di" bpmnElement="Fitted_Model">
+        <dc:Bounds x="902" y="250" width="36" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="944" y="268" width="80" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Out_Pre_di" bpmnElement="Out_Pre">
+        <di:waypoint x="210" y="160"/>
+        <di:waypoint x="210" y="265"/>
+        <di:waypoint x="530" y="265"/>
+        <di:waypoint x="530" y="290"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Post_di" bpmnElement="Out_Post">
+        <di:waypoint x="720" y="160"/>
+        <di:waypoint x="720" y="265"/>
+        <di:waypoint x="560" y="265"/>
+        <di:waypoint x="560" y="290"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="In_Fit_di" bpmnElement="In_Fit">
+        <di:waypoint x="570" y="315"/>
+        <di:waypoint x="860" y="315"/>
+        <di:waypoint x="860" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Fit_di" bpmnElement="Out_Fit">
+        <di:waypoint x="920" y="160"/>
+        <di:waypoint x="920" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Start_di" bpmnElement="Flow_Start">
+        <di:waypoint x="96" y="120"/>
+        <di:waypoint x="140" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Pre_di" bpmnElement="Flow_Pre">
+        <di:waypoint x="280" y="120"/>
+        <di:waypoint x="330" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Arm_1_di" bpmnElement="Flow_Arm_1">
+        <di:waypoint x="355" y="95"/>
+        <di:waypoint x="355" y="40"/>
+        <di:waypoint x="430" y="40"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Arm_2_di" bpmnElement="Flow_Arm_2">
+        <di:waypoint x="355" y="145"/>
+        <di:waypoint x="355" y="200"/>
+        <di:waypoint x="430" y="200"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Train_di" bpmnElement="Flow_Train">
+        <di:waypoint x="570" y="40"/>
+        <di:waypoint x="670" y="40"/>
+        <di:waypoint x="670" y="80"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_No_Train_di" bpmnElement="Flow_No_Train">
+        <di:waypoint x="570" y="200"/>
+        <di:waypoint x="670" y="200"/>
+        <di:waypoint x="670" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Post_di" bpmnElement="Flow_Post">
+        <di:waypoint x="760" y="120"/>
+        <di:waypoint x="810" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Fit_di" bpmnElement="Flow_Fit">
+        <di:waypoint x="950" y="120"/>
+        <di:waypoint x="1000" y="120"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions></metadata><defs><marker id="sf-arrow-sequence" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="context-stroke" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-message" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-open" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-marker-default" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M3,2 L7,8" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker><marker id="sf-marker-message-start" markerWidth="10" markerHeight="10" refX="1.5" refY="5" orient="auto" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#ffffff" stroke="context-stroke" stroke-width="1"/></marker></defs><g data-layer="elements"><g class="sf-connection" data-element-id="Out_Pre" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 210 160 L 210 259 A 6 6 0 0 0 216 265 L 524 265 A 6 6 0 0 1 530 271 L 530 290" data-waypoints="210,160 210,265 530,265 530,290" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Post" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 720 160 L 720 259 A 6 6 0 0 1 714 265 L 566 265 A 6 6 0 0 0 560 271 L 560 290" data-waypoints="720,160 720,265 560,265 560,290" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="In_Fit" data-element-type="bpmn:DataInputAssociation"><path class="sf-connection-line" d="M 570 315 L 854 315 A 6 6 0 0 0 860 309 L 860 160" data-waypoints="570,315 860,315 860,160" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Fit" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 920 160 L 920 250" data-waypoints="920,160 920,250" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Flow_Start" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 96 120 L 140 120" data-waypoints="96,120 140,120" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Pre" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 280 120 L 330 120" data-waypoints="280,120 330,120" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Arm_1" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 355 95 L 355 46 A 6 6 0 0 1 361 40 L 430 40" data-waypoints="355,95 355,40 430,40" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Arm_2" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 355 145 L 355 194 A 6 6 0 0 0 361 200 L 430 200" data-waypoints="355,145 355,200 430,200" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Train" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 570 40 L 664 40 A 6 6 0 0 1 670 46 L 670 80" data-waypoints="570,40 670,40 670,80" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_No_Train" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 570 200 L 664 200 A 6 6 0 0 0 670 194 L 670 160" data-waypoints="570,200 670,200 670,160" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Post" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 760 120 L 810 120" data-waypoints="760,120 810,120" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Fit" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 950 120 L 1000 120" data-waypoints="950,120 1000,120" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-shape" data-element-id="Start" data-element-type="bpmn:StartEvent" transform="translate(60, 102)"><circle cx="18" cy="18" r="18" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/></g><g class="sf-shape" data-element-id="Pre" data-element-type="bpmn:Task" transform="translate(140, 80)"><rect x="0" y="0" width="140" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><svg x="3" y="3" width="24" height="24" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#78716c" data-icon-key="Task"><path fill="#78716c" d="M220.27 158.54a8 8 0 0 0-7.7-.46a20 20 0 1 1 0-36.16a8 8 0 0 0 11.43-7.23V72a16 16 0 0 0-16-16h-36.22a35 35 0 0 0 .22-4a36.1 36.1 0 0 0-11.36-26.24a36 36 0 0 0-60.55 23.62a36.6 36.6 0 0 0 .14 6.62H64a16 16 0 0 0-16 16v32.22a35 35 0 0 0-4-.22a36.12 36.12 0 0 0-26.24 11.36a35.7 35.7 0 0 0-9.69 27a36.08 36.08 0 0 0 33.31 33.6a35.7 35.7 0 0 0 6.62-.14V208a16 16 0 0 0 16 16h144a16 16 0 0 0 16-16v-42.69a8 8 0 0 0-3.73-6.77M208 208H64v-42.69a8 8 0 0 0-11.43-7.23a20 20 0 1 1 0-36.16A8 8 0 0 0 64 114.69V72h46.69a8 8 0 0 0 7.23-11.43a20 20 0 1 1 36.16 0A8 8 0 0 0 161.31 72H208v32.23a35.7 35.7 0 0 0-6.62-.14A36 36 0 0 0 204 176a35 35 0 0 0 4-.22Z"/></svg><text class="sf-label" x="70" y="43.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">2-Back, pre-test</text></g><g class="sf-shape" data-element-id="Allocation" data-element-type="bpmn:ExclusiveGateway" transform="translate(330, 95)"><polygon points="25,0 50,25 25,50 0,25" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><svg x="15" y="15" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#44403c" data-icon-key="ExclusiveGateway"><path fill="#44403c" d="M192 32H64a32 32 0 0 0-32 32v128a32 32 0 0 0 32 32h128a32 32 0 0 0 32-32V64a32 32 0 0 0-32-32m16 160a16 16 0 0 1-16 16H64a16 16 0 0 1-16-16V64a16 16 0 0 1 16-16h128a16 16 0 0 1 16 16ZM104 92a12 12 0 1 1-12-12a12 12 0 0 1 12 12m72 0a12 12 0 1 1-12-12a12 12 0 0 1 12 12m-72 72a12 12 0 1 1-12-12a12 12 0 0 1 12 12m36-36a12 12 0 1 1-12-12a12 12 0 0 1 12 12m36 36a12 12 0 1 1-12-12a12 12 0 0 1 12 12"/></svg></g><g class="sf-shape" data-element-id="Training" data-element-type="bpmn:Task" transform="translate(430, 0)"><rect x="0" y="0" width="140" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="70" y="43.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Training</text></g><g class="sf-shape" data-element-id="No_Training" data-element-type="bpmn:Task" transform="translate(430, 160)"><rect x="0" y="0" width="140" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="70" y="43.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">No training</text></g><g class="sf-shape" data-element-id="Post" data-element-type="bpmn:Task" transform="translate(620, 80)"><rect x="0" y="0" width="140" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><svg x="3" y="3" width="24" height="24" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#78716c" data-icon-key="Task"><path fill="#78716c" d="M220.27 158.54a8 8 0 0 0-7.7-.46a20 20 0 1 1 0-36.16a8 8 0 0 0 11.43-7.23V72a16 16 0 0 0-16-16h-36.22a35 35 0 0 0 .22-4a36.1 36.1 0 0 0-11.36-26.24a36 36 0 0 0-60.55 23.62a36.6 36.6 0 0 0 .14 6.62H64a16 16 0 0 0-16 16v32.22a35 35 0 0 0-4-.22a36.12 36.12 0 0 0-26.24 11.36a35.7 35.7 0 0 0-9.69 27a36.08 36.08 0 0 0 33.31 33.6a35.7 35.7 0 0 0 6.62-.14V208a16 16 0 0 0 16 16h144a16 16 0 0 0 16-16v-42.69a8 8 0 0 0-3.73-6.77M208 208H64v-42.69a8 8 0 0 0-11.43-7.23a20 20 0 1 1 0-36.16A8 8 0 0 0 64 114.69V72h46.69a8 8 0 0 0 7.23-11.43a20 20 0 1 1 36.16 0A8 8 0 0 0 161.31 72H208v32.23a35.7 35.7 0 0 0-6.62-.14A36 36 0 0 0 204 176a35 35 0 0 0 4-.22Z"/></svg><text class="sf-label" x="70" y="43.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">2-Back, post-test</text></g><g class="sf-shape" data-element-id="Fit" data-element-type="bpmn:ServiceTask" transform="translate(810, 80)"><rect x="0" y="0" width="140" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><svg x="3" y="3" width="24" height="24" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#78716c" data-icon-key="ServiceTask"><path fill="#78716c" d="M128 80a48 48 0 1 0 48 48a48.05 48.05 0 0 0-48-48m0 80a32 32 0 1 1 32-32a32 32 0 0 1-32 32m88-29.84q.06-2.16 0-4.32l14.92-18.64a8 8 0 0 0 1.48-7.06a107.2 107.2 0 0 0-10.88-26.25a8 8 0 0 0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186 40.54a8 8 0 0 0-3.94-6a107.7 107.7 0 0 0-26.25-10.87a8 8 0 0 0-7.06 1.49L130.16 40h-4.32L107.2 25.11a8 8 0 0 0-7.06-1.48a107.6 107.6 0 0 0-26.25 10.88a8 8 0 0 0-3.93 6l-2.64 23.76q-1.56 1.49-3 3L40.54 70a8 8 0 0 0-6 3.94a107.7 107.7 0 0 0-10.87 26.25a8 8 0 0 0 1.49 7.06L40 125.84v4.32L25.11 148.8a8 8 0 0 0-1.48 7.06a107.2 107.2 0 0 0 10.88 26.25a8 8 0 0 0 6 3.93l23.72 2.64q1.49 1.56 3 3L70 215.46a8 8 0 0 0 3.94 6a107.7 107.7 0 0 0 26.25 10.87a8 8 0 0 0 7.06-1.49L125.84 216q2.16.06 4.32 0l18.64 14.92a8 8 0 0 0 7.06 1.48a107.2 107.2 0 0 0 26.25-10.88a8 8 0 0 0 3.93-6l2.64-23.72q1.56-1.48 3-3l23.78-2.8a8 8 0 0 0 6-3.94a107.7 107.7 0 0 0 10.87-26.25a8 8 0 0 0-1.49-7.06Zm-16.1-6.5a74 74 0 0 1 0 8.68a8 8 0 0 0 1.74 5.48l14.19 17.73a91.6 91.6 0 0 1-6.23 15l-22.6 2.56a8 8 0 0 0-5.1 2.64a74 74 0 0 1-6.14 6.14a8 8 0 0 0-2.64 5.1l-2.51 22.58a91.3 91.3 0 0 1-15 6.23l-17.74-14.19a8 8 0 0 0-5-1.75h-.48a74 74 0 0 1-8.68 0a8 8 0 0 0-5.48 1.74l-17.78 14.2a91.6 91.6 0 0 1-15-6.23L82.89 187a8 8 0 0 0-2.64-5.1a74 74 0 0 1-6.14-6.14a8 8 0 0 0-5.1-2.64l-22.58-2.52a91.3 91.3 0 0 1-6.23-15l14.19-17.74a8 8 0 0 0 1.74-5.48a74 74 0 0 1 0-8.68a8 8 0 0 0-1.74-5.48L40.2 100.45a91.6 91.6 0 0 1 6.23-15L69 82.89a8 8 0 0 0 5.1-2.64a74 74 0 0 1 6.14-6.14A8 8 0 0 0 82.89 69l2.51-22.57a91.3 91.3 0 0 1 15-6.23l17.74 14.19a8 8 0 0 0 5.48 1.74a74 74 0 0 1 8.68 0a8 8 0 0 0 5.48-1.74l17.77-14.19a91.6 91.6 0 0 1 15 6.23L173.11 69a8 8 0 0 0 2.64 5.1a74 74 0 0 1 6.14 6.14a8 8 0 0 0 5.1 2.64l22.58 2.51a91.3 91.3 0 0 1 6.23 15l-14.19 17.74a8 8 0 0 0-1.74 5.53Z"/></svg><text class="sf-label" x="70" y="43.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Fit the model</text></g><g class="sf-shape" data-element-id="End" data-element-type="bpmn:EndEvent" transform="translate(1000, 102)"><circle cx="18" cy="18" r="16.875" fill="#ffffff" stroke="#44403c" stroke-width="3.75"/></g><g class="sf-shape" data-element-id="Responses" data-element-type="bpmn:DataStoreReference" transform="translate(520, 290)"><path d="M0,6 A25,6 0 0 0 50,6 L50,44 A25,6 0 0 1 0,44 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M0,6 A25,6 0 0 0 50,6 A25,6 0 0 0 0,6 Z" fill="none" stroke="#44403c" stroke-width="1.5"/></g><g class="sf-shape" data-element-id="Fitted_Model" data-element-type="bpmn:DataObjectReference" transform="translate(902, 250)"><path d="M0,0 L24.48,0 L36,11.52 L36,50 L0,50 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M24.48,0 L24.48,11.52 L36,11.52" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/></g><g class="sf-external-label" data-element-id="Start_label" data-element-type="bpmn:StartEvent" data-label-owner="Start" transform="translate(61.05, 144)"><text class="sf-label" x="16.95" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Start</text></g><g class="sf-external-label" data-element-id="Allocation_label" data-element-type="bpmn:ExclusiveGateway" data-label-owner="Allocation" transform="translate(385, 128)"><text class="sf-label" x="40" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Allocation</text></g><g class="sf-external-label" data-element-id="End_label" data-element-type="bpmn:EndEvent" data-label-owner="End" transform="translate(1007.43, 144)"><text class="sf-label" x="10.569999999999999" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">End</text></g><g class="sf-external-label" data-element-id="Responses_label" data-element-type="bpmn:DataStoreReference" data-label-owner="Responses" transform="translate(515.29, 346)"><text class="sf-label" x="29.709999999999997" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Responses</text></g><g class="sf-external-label" data-element-id="Fitted_Model_label" data-element-type="bpmn:DataObjectReference" data-label-owner="Fitted_Model" transform="translate(944, 268)"><text class="sf-label" x="40" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Fitted model</text></g></g></svg>

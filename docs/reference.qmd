@@ -20,7 +20,7 @@ A studyflow is a graph. The nodes are events, tasks, gateways, and data, and the
 - **Sequence flows** (solid arrows) are for control flow, showing what happens after what.
 - **Data associations** (dotted arrows) are for data flow, showing what a step reads and what it writes.
 
-![Solid edges carry the session a participant goes through, and dotted edges carry the data. Both live in the same file.](assets/img/diagrams/two-graphs.svg){#fig-two-graphs fig-alt="A left-to-right flowchart. Solid arrows walk from start through a pre-test, an allocation diamond splitting into training and no training, a post-test, and a model-fitting step to end. Dotted arrows carry data beside that walk: the pre-test and post-test write into a responses store, which feeds the model-fitting step, which writes a fitted model."}
+![Solid edges carry the session a participant goes through, and dotted edges carry the data. Both live in the same file.](assets/img/diagrams/two-graphs.studyflow.svg){#fig-two-graphs fig-alt="A left-to-right Studyflow diagram. Solid arrows walk from start through a 2-Back pre-test, a random allocation gateway splitting into training and no training, a 2-Back post-test, and a model-fitting step to end. Dotted arrows carry data beside that walk: the pre-test and post-test write into a responses store, which feeds the model-fitting step, which writes a fitted model."}
 
 | Edge | Joins | Meaning |
 |:--|:--|:--|
@@ -249,7 +249,7 @@ A model takes part as an actor, never as a setting on a step. It is a pool of it
 
 # The file
 
-![The files that carry a study, and what converts into what. The thick arrows are the conversions that lose nothing.](assets/img/diagrams/file-format.svg){#fig-round-trip fig-alt="A flowchart. The modeler's diagram saves as .studyflow.yaml and lowers to .bpmn BPMN 2.0 XML, and those two convert into each other losslessly in both directions. The modeler also renders to .studyflow.png, which carries that same .studyflow.yaml beside the pixels, and .studyflow.svg, which carries the BPMN XML in its metadata. An image reopens in the modeler from its embedded source, never from its pixels. A dotted arrow leaves the round trip: skills export one way to .drawio, LinkML, NIDM-Results, and ARTEM-IS."}
+![The files that carry a study, and what converts into what. Everything inside the dashed group converts back without loss; a derived view is exported one way.](assets/img/diagrams/file-format.studyflow.svg){#fig-round-trip fig-alt="A Studyflow diagram of files and conversions. Inside a dashed group labelled converts both ways, losing nothing: .studyflow.yaml, the canonical file, expands to .bpmn BPMN 2.0 XML, which projects back to YAML; rendering the picture writes .studyflow.png, carrying the YAML, and .studyflow.svg, carrying the BPMN XML; and reopening from the source inside, never the pixels, gives the YAML back. Outside the group, exporting a derived view writes .drawio, LinkML, NIDM-Results and ARTEM-IS, one way."}
 
 | File | Carries | Reopens as a studyflow |
 |:--|:--|:--|

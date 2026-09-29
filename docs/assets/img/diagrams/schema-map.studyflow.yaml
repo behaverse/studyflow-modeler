@@ -1,0 +1,93 @@
+id: schema_map
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Schema_Map:
+  type: Process
+  documentation: >-
+    The element sets that ship with Studyflow. The four required sets always load; the rest, one per skill, load when
+    switched on in Settings, Extensions. The catalog compiles every loaded set into the palette, the inspector tabs, and
+    the namespaces the XML may use. Drawn for docs/developers.qmd.
+  extensionElements:
+    - type: studyflow:Study
+  name: Loading the vocabulary
+  flowElements:
+    Opens:
+      type: StartEvent
+      name: The modeler opens
+      bounds: 60 132 36 36
+    Load_Required:
+      type: Task
+      name: Load the required sets
+      dataInputAssociations:
+        In_Required:
+          sourceRef:
+            - Required_Sets
+          waypoint: 215,230 215,190
+      bounds: 140 110 150 80
+    Load_Skills:
+      type: Task
+      name: Load the skill sets switched on
+      dataInputAssociations:
+        In_Settings:
+          sourceRef:
+            - Settings
+          waypoint: 425,60 425,110
+        In_Skills:
+          sourceRef:
+            - Skill_Sets
+          waypoint: 425,230 425,190
+      bounds: 340 110 170 80
+    Compile:
+      type: Task
+      name: Compile the catalog
+      dataOutputAssociations:
+        Out_Catalog:
+          targetRef: Catalog
+          waypoint: 635,190 635,230
+      bounds: 560 110 150 80
+    Ready:
+      type: EndEvent
+      name: Ready
+      bounds: 770 132 36 36
+    Required_Sets:
+      type: DataObjectReference
+      name: "Required, always loaded: studyflow, prov, cognitive, local"
+      bounds: 197 230 36 50
+      label: 125 285 180 45
+    Skill_Sets:
+      type: DataObjectReference
+      name: "One per skill: behaverse, eeg, agentic, reachy, browser"
+      bounds: 407 230 36 50
+      label: 335 285 180 45
+    Settings:
+      type: DataStoreReference
+      name: Settings › Extensions
+      bounds: 400 10 50 50
+      label: 458 27 150 15
+    Catalog:
+      type: DataObjectReference
+      name: "The catalog: palette, inspector tabs, XML namespaces"
+      bounds: 617 230 36 50
+      label: 555 285 160 45
+    Flow_Opened:
+      sourceRef: Opens
+      targetRef: Load_Required
+      waypoint: 96,150 140,150
+    Flow_Required:
+      sourceRef: Load_Required
+      targetRef: Load_Skills
+      waypoint: 290,150 340,150
+    Flow_Skills:
+      sourceRef: Load_Skills
+      targetRef: Compile
+      waypoint: 510,150 560,150
+    Flow_Compiled:
+      sourceRef: Compile
+      targetRef: Ready
+      waypoint: 710,150 770,150
+state:
+  _meta:
+    prov:
+      - action: created
+        when: "2026-09-29T21:38:32+02:00"
+        with: studyflow-modeler/26.9.29

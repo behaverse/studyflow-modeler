@@ -1,0 +1,248 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="26 16 978 448" width="978" height="448"><metadata><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="file_format" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="File_Format" name="What converts into what">
+    <bpmn:documentation>The files that carry a study, and what converts into what. Inside the group, every conversion can be undone without loss: YAML and BPMN XML expand and project into each other, and a picture carries its source and reopens from it. A derived view is exported one way. Drawn for docs/reference.qmd.</bpmn:documentation>
+    <bpmn:extensionElements>
+      <studyflow:study>
+        <studyflow:state>{"_meta":{"prov":[{"action":"created","when":"2026-09-29T21:42:54+02:00","with":"studyflow-modeler/26.9.29"}]}}</studyflow:state>
+      </studyflow:study>
+    </bpmn:extensionElements>
+    <bpmn:dataObjectReference id="Yaml" name=".studyflow.yaml, the canonical file"/>
+    <bpmn:task id="Expand" name="Expand to BPMN XML">
+      <bpmn:ioSpecification id="Expand_io">
+        <bpmn:dataInput id="Expand_in__studyflow_yaml_the_canonical_file" name=".studyflow.yaml, the canonical file"/>
+        <bpmn:dataOutput id="Expand_result" name="result"/>
+        <bpmn:inputSet id="Expand_inputSet">
+          <bpmn:dataInputRefs>Expand_in__studyflow_yaml_the_canonical_file</bpmn:dataInputRefs>
+        </bpmn:inputSet>
+        <bpmn:outputSet id="Expand_outputSet">
+          <bpmn:dataOutputRefs>Expand_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataInputAssociation id="In_Expand">
+        <bpmn:sourceRef>Yaml</bpmn:sourceRef>
+        <bpmn:targetRef>Expand_in__studyflow_yaml_the_canonical_file</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Expand">
+        <bpmn:sourceRef>Expand_result</bpmn:sourceRef>
+        <bpmn:targetRef>Xml</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:task id="Project" name="Project back to YAML">
+      <bpmn:ioSpecification id="Project_io">
+        <bpmn:dataInput id="Project_in__bpmn_BPMN_2_0_XML" name=".bpmn, BPMN 2.0 XML"/>
+        <bpmn:dataOutput id="Project_result" name="result"/>
+        <bpmn:inputSet id="Project_inputSet">
+          <bpmn:dataInputRefs>Project_in__bpmn_BPMN_2_0_XML</bpmn:dataInputRefs>
+        </bpmn:inputSet>
+        <bpmn:outputSet id="Project_outputSet">
+          <bpmn:dataOutputRefs>Project_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataInputAssociation id="In_Project">
+        <bpmn:sourceRef>Xml</bpmn:sourceRef>
+        <bpmn:targetRef>Project_in__bpmn_BPMN_2_0_XML</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Project">
+        <bpmn:sourceRef>Project_result</bpmn:sourceRef>
+        <bpmn:targetRef>Yaml</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:dataObjectReference id="Xml" name=".bpmn, BPMN 2.0 XML"/>
+    <bpmn:task id="Render" name="Render the picture, its source inside">
+      <bpmn:ioSpecification id="Render_io">
+        <bpmn:dataInput id="Render_in__studyflow_yaml_the_canonical_file" name=".studyflow.yaml, the canonical file"/>
+        <bpmn:dataOutput id="Render_result" name="result"/>
+        <bpmn:inputSet id="Render_inputSet">
+          <bpmn:dataInputRefs>Render_in__studyflow_yaml_the_canonical_file</bpmn:dataInputRefs>
+        </bpmn:inputSet>
+        <bpmn:outputSet id="Render_outputSet">
+          <bpmn:dataOutputRefs>Render_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataInputAssociation id="In_Render">
+        <bpmn:sourceRef>Yaml</bpmn:sourceRef>
+        <bpmn:targetRef>Render_in__studyflow_yaml_the_canonical_file</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Png">
+        <bpmn:sourceRef>Render_result</bpmn:sourceRef>
+        <bpmn:targetRef>Png</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Svg">
+        <bpmn:sourceRef>Render_result</bpmn:sourceRef>
+        <bpmn:targetRef>Svg</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:dataObjectReference id="Png" name=".studyflow.png, carrying the YAML"/>
+    <bpmn:dataObjectReference id="Svg" name=".studyflow.svg, carrying the BPMN XML"/>
+    <bpmn:task id="Reopen" name="Reopen from the source inside, never the pixels">
+      <bpmn:ioSpecification id="Reopen_io">
+        <bpmn:dataInput id="Reopen_in__studyflow_png_carrying_the_YAML" name=".studyflow.png, carrying the YAML"/>
+        <bpmn:dataInput id="Reopen_in__studyflow_svg_carrying_the_BPMN_XML" name=".studyflow.svg, carrying the BPMN XML"/>
+        <bpmn:dataOutput id="Reopen_result" name="result"/>
+        <bpmn:inputSet id="Reopen_inputSet">
+          <bpmn:dataInputRefs>Reopen_in__studyflow_png_carrying_the_YAML</bpmn:dataInputRefs>
+          <bpmn:dataInputRefs>Reopen_in__studyflow_svg_carrying_the_BPMN_XML</bpmn:dataInputRefs>
+        </bpmn:inputSet>
+        <bpmn:outputSet id="Reopen_outputSet">
+          <bpmn:dataOutputRefs>Reopen_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataInputAssociation id="In_Reopen_Png">
+        <bpmn:sourceRef>Png</bpmn:sourceRef>
+        <bpmn:targetRef>Reopen_in__studyflow_png_carrying_the_YAML</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataInputAssociation id="In_Reopen_Svg">
+        <bpmn:sourceRef>Svg</bpmn:sourceRef>
+        <bpmn:targetRef>Reopen_in__studyflow_svg_carrying_the_BPMN_XML</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Reopen">
+        <bpmn:sourceRef>Reopen_result</bpmn:sourceRef>
+        <bpmn:targetRef>Yaml</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:task id="Export" name="Export a derived view, one way">
+      <bpmn:ioSpecification id="Export_io">
+        <bpmn:dataInput id="Export_in__bpmn_BPMN_2_0_XML" name=".bpmn, BPMN 2.0 XML"/>
+        <bpmn:dataOutput id="Export_result" name="result"/>
+        <bpmn:inputSet id="Export_inputSet">
+          <bpmn:dataInputRefs>Export_in__bpmn_BPMN_2_0_XML</bpmn:dataInputRefs>
+        </bpmn:inputSet>
+        <bpmn:outputSet id="Export_outputSet">
+          <bpmn:dataOutputRefs>Export_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataInputAssociation id="In_Export">
+        <bpmn:sourceRef>Xml</bpmn:sourceRef>
+        <bpmn:targetRef>Export_in__bpmn_BPMN_2_0_XML</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Export">
+        <bpmn:sourceRef>Export_result</bpmn:sourceRef>
+        <bpmn:targetRef>Derived</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:dataObjectReference id="Derived" name=".drawio, LinkML, NIDM-Results, ARTEM-IS"/>
+    <bpmn:group id="Lossless" categoryValueRef="Lossless_Value"/>
+  </bpmn:process>
+  <bpmn:category id="Lossless_Category">
+    <bpmn:categoryValue id="Lossless_Value" value="Converts both ways, losing nothing"/>
+  </bpmn:category>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="File_Format">
+      <bpmndi:BPMNShape id="Yaml_di" bpmnElement="Yaml">
+        <dc:Bounds x="110" y="110" width="36" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="36" y="76" width="128" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Expand_di" bpmnElement="Expand">
+        <dc:Bounds x="190" y="40" width="140" height="70"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Project_di" bpmnElement="Project">
+        <dc:Bounds x="190" y="150" width="140" height="70"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Xml_di" bpmnElement="Xml">
+        <dc:Bounds x="400" y="110" width="36" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="444" y="84" width="120" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Render_di" bpmnElement="Render">
+        <dc:Bounds x="190" y="290" width="140" height="70"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Png_di" bpmnElement="Png">
+        <dc:Bounds x="400" y="270" width="36" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="444" y="280" width="120" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Svg_di" bpmnElement="Svg">
+        <dc:Bounds x="400" y="350" width="36" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="444" y="360" width="120" height="45"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Reopen_di" bpmnElement="Reopen">
+        <dc:Bounds x="590" y="290" width="170" height="70"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Export_di" bpmnElement="Export">
+        <dc:Bounds x="850" y="100" width="150" height="70"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Derived_di" bpmnElement="Derived">
+        <dc:Bounds x="907" y="220" width="36" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="865" y="275" width="120" height="45"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lossless_di" bpmnElement="Lossless">
+        <dc:Bounds x="30" y="20" width="780" height="440"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="In_Expand_di" bpmnElement="In_Expand">
+        <di:waypoint x="146" y="125"/>
+        <di:waypoint x="165" y="125"/>
+        <di:waypoint x="165" y="75"/>
+        <di:waypoint x="190" y="75"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Expand_di" bpmnElement="Out_Expand">
+        <di:waypoint x="330" y="75"/>
+        <di:waypoint x="418" y="75"/>
+        <di:waypoint x="418" y="110"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="In_Project_di" bpmnElement="In_Project">
+        <di:waypoint x="418" y="160"/>
+        <di:waypoint x="418" y="185"/>
+        <di:waypoint x="330" y="185"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Project_di" bpmnElement="Out_Project">
+        <di:waypoint x="190" y="185"/>
+        <di:waypoint x="165" y="185"/>
+        <di:waypoint x="165" y="145"/>
+        <di:waypoint x="146" y="145"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="In_Render_di" bpmnElement="In_Render">
+        <di:waypoint x="128" y="160"/>
+        <di:waypoint x="128" y="325"/>
+        <di:waypoint x="190" y="325"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Png_di" bpmnElement="Out_Png">
+        <di:waypoint x="330" y="310"/>
+        <di:waypoint x="370" y="310"/>
+        <di:waypoint x="370" y="295"/>
+        <di:waypoint x="400" y="295"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Svg_di" bpmnElement="Out_Svg">
+        <di:waypoint x="330" y="340"/>
+        <di:waypoint x="370" y="340"/>
+        <di:waypoint x="370" y="375"/>
+        <di:waypoint x="400" y="375"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="In_Reopen_Png_di" bpmnElement="In_Reopen_Png">
+        <di:waypoint x="418" y="270"/>
+        <di:waypoint x="418" y="255"/>
+        <di:waypoint x="630" y="255"/>
+        <di:waypoint x="630" y="290"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="In_Reopen_Svg_di" bpmnElement="In_Reopen_Svg">
+        <di:waypoint x="418" y="400"/>
+        <di:waypoint x="418" y="415"/>
+        <di:waypoint x="700" y="415"/>
+        <di:waypoint x="700" y="360"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Reopen_di" bpmnElement="Out_Reopen">
+        <di:waypoint x="760" y="325"/>
+        <di:waypoint x="780" y="325"/>
+        <di:waypoint x="780" y="440"/>
+        <di:waypoint x="70" y="440"/>
+        <di:waypoint x="70" y="135"/>
+        <di:waypoint x="110" y="135"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="In_Export_di" bpmnElement="In_Export">
+        <di:waypoint x="436" y="125"/>
+        <di:waypoint x="850" y="125"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Export_di" bpmnElement="Out_Export">
+        <di:waypoint x="925" y="170"/>
+        <di:waypoint x="925" y="220"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions></metadata><defs><marker id="sf-arrow-sequence" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="context-stroke" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-message" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-open" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-marker-default" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M3,2 L7,8" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker><marker id="sf-marker-message-start" markerWidth="10" markerHeight="10" refX="1.5" refY="5" orient="auto" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#ffffff" stroke="context-stroke" stroke-width="1"/></marker></defs><g data-layer="elements"><g class="sf-connection" data-element-id="In_Expand" data-element-type="bpmn:DataInputAssociation"><path class="sf-connection-line" d="M 146 125 L 159 125 A 6 6 0 0 0 165 119 L 165 81 A 6 6 0 0 1 171 75 L 190 75" data-waypoints="146,125 165,125 165,75 190,75" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Expand" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 330 75 L 412 75 A 6 6 0 0 1 418 81 L 418 110" data-waypoints="330,75 418,75 418,110" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="In_Project" data-element-type="bpmn:DataInputAssociation"><path class="sf-connection-line" d="M 418 160 L 418 179 A 6 6 0 0 1 412 185 L 330 185" data-waypoints="418,160 418,185 330,185" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Project" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 190 185 L 171 185 A 6 6 0 0 1 165 179 L 165 151 A 6 6 0 0 0 159 145 L 146 145" data-waypoints="190,185 165,185 165,145 146,145" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="In_Render" data-element-type="bpmn:DataInputAssociation"><path class="sf-connection-line" d="M 128 160 L 128 319 A 6 6 0 0 0 134 325 L 190 325" data-waypoints="128,160 128,325 190,325" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Png" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 330 310 L 364 310 A 6 6 0 0 0 370 304 L 370 301 A 6 6 0 0 1 376 295 L 400 295" data-waypoints="330,310 370,310 370,295 400,295" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Svg" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 330 340 L 364 340 A 6 6 0 0 1 370 346 L 370 369 A 6 6 0 0 0 376 375 L 400 375" data-waypoints="330,340 370,340 370,375 400,375" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="In_Reopen_Png" data-element-type="bpmn:DataInputAssociation"><path class="sf-connection-line" d="M 418 270 L 418 261 A 6 6 0 0 1 424 255 L 624 255 A 6 6 0 0 1 630 261 L 630 290" data-waypoints="418,270 418,255 630,255 630,290" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="In_Reopen_Svg" data-element-type="bpmn:DataInputAssociation"><path class="sf-connection-line" d="M 418 400 L 418 409 A 6 6 0 0 0 424 415 L 694 415 A 6 6 0 0 0 700 409 L 700 360" data-waypoints="418,400 418,415 700,415 700,360" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Reopen" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 760 325 L 774 325 A 6 6 0 0 1 780 331 L 780 434 A 6 6 0 0 1 774 440 L 76 440 A 6 6 0 0 1 70 434 L 70 141 A 6 6 0 0 1 76 135 L 110 135" data-waypoints="760,325 780,325 780,440 70,440 70,135 110,135" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="In_Export" data-element-type="bpmn:DataInputAssociation"><path class="sf-connection-line" d="M 436 125 L 850 125" data-waypoints="436,125 850,125" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Export" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 925 170 L 925 220" data-waypoints="925,170 925,220" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-shape" data-element-id="Yaml" data-element-type="bpmn:DataObjectReference" transform="translate(110, 110)"><path d="M0,0 L24.48,0 L36,11.52 L36,50 L0,50 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M24.48,0 L24.48,11.52 L36,11.52" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/></g><g class="sf-shape" data-element-id="Expand" data-element-type="bpmn:Task" transform="translate(190, 40)"><rect x="0" y="0" width="140" height="70" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="70" y="38.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Expand to BPMN XML</text></g><g class="sf-shape" data-element-id="Project" data-element-type="bpmn:Task" transform="translate(190, 150)"><rect x="0" y="0" width="140" height="70" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="70" y="41" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Project back to</text><text class="sf-label" x="70" y="56" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">YAML</text></g><g class="sf-shape" data-element-id="Xml" data-element-type="bpmn:DataObjectReference" transform="translate(400, 110)"><path d="M0,0 L24.48,0 L36,11.52 L36,50 L0,50 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M24.48,0 L24.48,11.52 L36,11.52" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/></g><g class="sf-shape" data-element-id="Render" data-element-type="bpmn:Task" transform="translate(190, 290)"><rect x="0" y="0" width="140" height="70" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="70" y="41" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Render the picture,</text><text class="sf-label" x="70" y="56" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">its source inside</text></g><g class="sf-shape" data-element-id="Png" data-element-type="bpmn:DataObjectReference" transform="translate(400, 270)"><path d="M0,0 L24.48,0 L36,11.52 L36,50 L0,50 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M24.48,0 L24.48,11.52 L36,11.52" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/></g><g class="sf-shape" data-element-id="Svg" data-element-type="bpmn:DataObjectReference" transform="translate(400, 350)"><path d="M0,0 L24.48,0 L36,11.52 L36,50 L0,50 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M24.48,0 L24.48,11.52 L36,11.52" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/></g><g class="sf-shape" data-element-id="Reopen" data-element-type="bpmn:Task" transform="translate(590, 290)"><rect x="0" y="0" width="170" height="70" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="85" y="20" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Reopen from the source</text><text class="sf-label" x="85" y="35" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">inside, never the</text><text class="sf-label" x="85" y="50" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">pixels</text></g><g class="sf-shape" data-element-id="Export" data-element-type="bpmn:Task" transform="translate(850, 100)"><rect x="0" y="0" width="150" height="70" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="75" y="41" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Export a derived</text><text class="sf-label" x="75" y="56" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">view, one way</text></g><g class="sf-shape" data-element-id="Derived" data-element-type="bpmn:DataObjectReference" transform="translate(907, 220)"><path d="M0,0 L24.48,0 L36,11.52 L36,50 L0,50 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M24.48,0 L24.48,11.52 L36,11.52" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/></g><g class="sf-shape" data-element-id="Lossless" data-element-type="bpmn:Group" transform="translate(30, 20)"><rect x="0" y="0" width="780" height="440" rx="12" ry="12" fill="none" stroke="#44403c" stroke-width="1.5" stroke-dasharray="6,4"/><text class="sf-label" x="390" y="10" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Converts both ways, losing nothing</text></g><g class="sf-external-label" data-element-id="Yaml_label" data-element-type="bpmn:DataObjectReference" data-label-owner="Yaml" transform="translate(36, 76)"><text class="sf-label" x="64" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">.studyflow.yaml,</text><text class="sf-label" x="64" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">the canonical file</text></g><g class="sf-external-label" data-element-id="Xml_label" data-element-type="bpmn:DataObjectReference" data-label-owner="Xml" transform="translate(444, 84)"><text class="sf-label" x="60" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">.bpmn, BPMN 2.0</text><text class="sf-label" x="60" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">XML</text></g><g class="sf-external-label" data-element-id="Png_label" data-element-type="bpmn:DataObjectReference" data-label-owner="Png" transform="translate(444, 280)"><text class="sf-label" x="60" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">.studyflow.png,</text><text class="sf-label" x="60" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">carrying the YAML</text></g><g class="sf-external-label" data-element-id="Svg_label" data-element-type="bpmn:DataObjectReference" data-label-owner="Svg" transform="translate(444, 360)"><text class="sf-label" x="60" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">.studyflow.svg,</text><text class="sf-label" x="60" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">carrying the BPMN</text><text class="sf-label" x="60" y="37.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">XML</text></g><g class="sf-external-label" data-element-id="Derived_label" data-element-type="bpmn:DataObjectReference" data-label-owner="Derived" transform="translate(865, 275)"><text class="sf-label" x="60" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">.drawio, LinkML,</text><text class="sf-label" x="60" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">NIDM-Results,</text><text class="sf-label" x="60" y="37.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">ARTEM-IS</text></g></g></svg>

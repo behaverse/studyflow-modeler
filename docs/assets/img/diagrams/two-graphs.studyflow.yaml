@@ -1,0 +1,115 @@
+id: two_graphs
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Two_Graphs:
+  type: Process
+  documentation: >-
+    A studyflow is a graph with two kinds of edges: solid sequence flows carry the session a participant goes through,
+    and dotted data associations carry the data. Drawn for docs/reference.qmd.
+  extensionElements:
+    - type: studyflow:Study
+  name: Two graphs in one file
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Start
+      bounds: 60 102 36 36
+    Pre:
+      type: Task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+      name: 2-Back, pre-test
+      dataOutputAssociations:
+        Out_Pre:
+          targetRef: Responses
+          waypoint: 210,160 210,265 530,265 530,290
+      bounds: 140 80 140 80
+    Allocation:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+      name: Allocation
+      bounds: 330 95 50 50
+      label: 385 128 80 15
+    Training:
+      type: Task
+      name: Training
+      bounds: 430 0 140 80
+    No_Training:
+      type: Task
+      name: No training
+      bounds: 430 160 140 80
+    Post:
+      type: Task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+      name: 2-Back, post-test
+      dataOutputAssociations:
+        Out_Post:
+          targetRef: Responses
+          waypoint: 720,160 720,265 560,265 560,290
+      bounds: 620 80 140 80
+    Fit:
+      type: ServiceTask
+      name: Fit the model
+      dataInputAssociations:
+        In_Fit:
+          sourceRef:
+            - Responses
+          waypoint: 570,315 860,315 860,160
+      dataOutputAssociations:
+        Out_Fit:
+          targetRef: Fitted_Model
+          waypoint: 920,160 920,250
+      bounds: 810 80 140 80
+    End:
+      type: EndEvent
+      name: End
+      bounds: 1000 102 36 36
+    Responses:
+      type: DataStoreReference
+      name: Responses
+      bounds: 520 290 50 50
+    Fitted_Model:
+      type: DataObjectReference
+      name: Fitted model
+      bounds: 902 250 36 50
+      label: 944 268 80 15
+    Flow_Start:
+      sourceRef: Start
+      targetRef: Pre
+      waypoint: 96,120 140,120
+    Flow_Pre:
+      sourceRef: Pre
+      targetRef: Allocation
+      waypoint: 280,120 330,120
+    Flow_Arm_1:
+      sourceRef: Allocation
+      targetRef: Training
+      waypoint: 355,95 355,40 430,40
+    Flow_Arm_2:
+      sourceRef: Allocation
+      targetRef: No_Training
+      waypoint: 355,145 355,200 430,200
+    Flow_Train:
+      sourceRef: Training
+      targetRef: Post
+      waypoint: 570,40 670,40 670,80
+    Flow_No_Train:
+      sourceRef: No_Training
+      targetRef: Post
+      waypoint: 570,200 670,200 670,160
+    Flow_Post:
+      sourceRef: Post
+      targetRef: Fit
+      waypoint: 760,120 810,120
+    Flow_Fit:
+      sourceRef: Fit
+      targetRef: End
+      waypoint: 950,120 1000,120
+state:
+  _meta:
+    prov:
+      - action: created
+        when: "2026-09-29T21:33:47+02:00"
+        with: studyflow-modeler/26.9.29

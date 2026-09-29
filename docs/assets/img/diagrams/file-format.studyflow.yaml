@@ -1,0 +1,126 @@
+id: file_format
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+File_Format:
+  type: Process
+  documentation: >-
+    The files that carry a study, and what converts into what. Inside the group, every conversion can be undone without
+    loss: YAML and BPMN XML expand and project into each other, and a picture carries its source and reopens from it. A
+    derived view is exported one way. Drawn for docs/reference.qmd.
+  extensionElements:
+    - type: studyflow:Study
+  name: What converts into what
+  flowElements:
+    Yaml:
+      type: DataObjectReference
+      name: .studyflow.yaml, the canonical file
+      bounds: 110 110 36 50
+      label: 36 76 128 30
+    Expand:
+      type: Task
+      name: Expand to BPMN XML
+      dataInputAssociations:
+        In_Expand:
+          sourceRef:
+            - Yaml
+          waypoint: 146,125 165,125 165,75 190,75
+      dataOutputAssociations:
+        Out_Expand:
+          targetRef: Xml
+          waypoint: 330,75 418,75 418,110
+      bounds: 190 40 140 70
+    Project:
+      type: Task
+      name: Project back to YAML
+      dataInputAssociations:
+        In_Project:
+          sourceRef:
+            - Xml
+          waypoint: 418,160 418,185 330,185
+      dataOutputAssociations:
+        Out_Project:
+          targetRef: Yaml
+          waypoint: 190,185 165,185 165,145 146,145
+      bounds: 190 150 140 70
+    Xml:
+      type: DataObjectReference
+      name: .bpmn, BPMN 2.0 XML
+      bounds: 400 110 36 50
+      label: 444 84 120 30
+    Render:
+      type: Task
+      name: Render the picture, its source inside
+      dataInputAssociations:
+        In_Render:
+          sourceRef:
+            - Yaml
+          waypoint: 128,160 128,325 190,325
+      dataOutputAssociations:
+        Out_Png:
+          targetRef: Png
+          waypoint: 330,310 370,310 370,295 400,295
+        Out_Svg:
+          targetRef: Svg
+          waypoint: 330,340 370,340 370,375 400,375
+      bounds: 190 290 140 70
+    Png:
+      type: DataObjectReference
+      name: .studyflow.png, carrying the YAML
+      bounds: 400 270 36 50
+      label: 444 280 120 30
+    Svg:
+      type: DataObjectReference
+      name: .studyflow.svg, carrying the BPMN XML
+      bounds: 400 350 36 50
+      label: 444 360 120 45
+    Reopen:
+      type: Task
+      name: Reopen from the source inside, never the pixels
+      dataInputAssociations:
+        In_Reopen_Png:
+          sourceRef:
+            - Png
+          waypoint: 418,270 418,255 630,255 630,290
+        In_Reopen_Svg:
+          sourceRef:
+            - Svg
+          waypoint: 418,400 418,415 700,415 700,360
+      dataOutputAssociations:
+        Out_Reopen:
+          targetRef: Yaml
+          waypoint: 760,325 780,325 780,440 70,440 70,135 110,135
+      bounds: 590 290 170 70
+    Export:
+      type: Task
+      name: Export a derived view, one way
+      dataInputAssociations:
+        In_Export:
+          sourceRef:
+            - Xml
+          waypoint: 436,125 850,125
+      dataOutputAssociations:
+        Out_Export:
+          targetRef: Derived
+          waypoint: 925,170 925,220
+      bounds: 850 100 150 70
+    Derived:
+      type: DataObjectReference
+      name: .drawio, LinkML, NIDM-Results, ARTEM-IS
+      bounds: 907 220 36 50
+      label: 865 275 120 45
+  artifacts:
+    Lossless:
+      type: Group
+      categoryValueRef: Lossless_Value
+      bounds: 30 20 780 440
+Lossless_Category:
+  type: Category
+  categoryValue:
+    Lossless_Value:
+      value: Converts both ways, losing nothing
+state:
+  _meta:
+    prov:
+      - action: created
+        when: "2026-09-29T21:42:54+02:00"
+        with: studyflow-modeler/26.9.29

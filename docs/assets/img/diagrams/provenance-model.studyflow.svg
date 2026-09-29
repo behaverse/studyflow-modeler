@@ -1,0 +1,247 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="36 16 1118 531" width="1118" height="531"><metadata><bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="provenance_model" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Provenance_Model" name="Where the record is kept">
+    <bpmn:documentation>Where the record of a run is kept. The studyflow document holds the plan and its record: a trail of entries on its root and one record per element. The modeler appends to the trail and voids records; the local runtime appends to the trail, stamps each element's record, and commits every checkpoint into the run repository, whose commits restate the same attributes. There is no sidecar record file. Drawn for docs/developers.qmd.</bpmn:documentation>
+    <bpmn:extensionElements>
+      <studyflow:study>
+        <studyflow:state>{"_meta":{"prov":[{"action":"created","when":"2026-09-29T21:38:03+02:00","with":"studyflow-modeler/26.9.29"}]}}</studyflow:state>
+      </studyflow:study>
+    </bpmn:extensionElements>
+    <bpmn:laneSet id="Lanes">
+      <bpmn:lane id="Lane_Modeler" name="Modeler">
+        <bpmn:flowNodeRef>Edit_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Export</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Saved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Stale_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Void</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Voided</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_Local" name="Local runtime">
+        <bpmn:flowNodeRef>Run_Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Execute</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Commit</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Run_Finished</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Edit_Start" name="The author edits">
+      <bpmn:outgoing>Flow_Edited</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Export" name="Export: stamp created, modified">
+      <bpmn:incoming>Flow_Edited</bpmn:incoming>
+      <bpmn:outgoing>Flow_Exported</bpmn:outgoing>
+      <bpmn:ioSpecification id="Export_io">
+        <bpmn:dataOutput id="Export_result" name="result"/>
+        <bpmn:inputSet id="Export_inputSet"/>
+        <bpmn:outputSet id="Export_outputSet">
+          <bpmn:dataOutputRefs>Export_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="Out_Export">
+        <bpmn:sourceRef>Export_result</bpmn:sourceRef>
+        <bpmn:targetRef>Trail</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:endEvent id="Saved" name="Saved">
+      <bpmn:incoming>Flow_Exported</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:startEvent id="Stale_Start" name="A step marked stale">
+      <bpmn:outgoing>Flow_Stale</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Void" name="Void its record (invalidated)">
+      <bpmn:incoming>Flow_Stale</bpmn:incoming>
+      <bpmn:outgoing>Flow_Void</bpmn:outgoing>
+      <bpmn:ioSpecification id="Void_io">
+        <bpmn:dataOutput id="Void_result" name="result"/>
+        <bpmn:inputSet id="Void_inputSet"/>
+        <bpmn:outputSet id="Void_outputSet">
+          <bpmn:dataOutputRefs>Void_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="Out_Void">
+        <bpmn:sourceRef>Void_result</bpmn:sourceRef>
+        <bpmn:targetRef>Records</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:endEvent id="Voided" name="Voided">
+      <bpmn:incoming>Flow_Void</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataObjectReference id="Trail" name="Trail, on the study's root: action, when, who, with, what, run, seed, note"/>
+    <bpmn:dataObjectReference id="Records" name="Records, one per element"/>
+    <bpmn:startEvent id="Run_Start" name="studyflow run">
+      <bpmn:outgoing>Flow_Run</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Execute" name="Execute a step: stamp executed or reused">
+      <bpmn:incoming>Flow_Run</bpmn:incoming>
+      <bpmn:outgoing>Flow_Executed</bpmn:outgoing>
+      <bpmn:ioSpecification id="Execute_io">
+        <bpmn:dataOutput id="Execute_result" name="result"/>
+        <bpmn:inputSet id="Execute_inputSet"/>
+        <bpmn:outputSet id="Execute_outputSet">
+          <bpmn:dataOutputRefs>Execute_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="Out_Trail">
+        <bpmn:sourceRef>Execute_result</bpmn:sourceRef>
+        <bpmn:targetRef>Trail</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Records">
+        <bpmn:sourceRef>Execute_result</bpmn:sourceRef>
+        <bpmn:targetRef>Records</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:task id="Commit" name="Commit each checkpoint">
+      <bpmn:incoming>Flow_Executed</bpmn:incoming>
+      <bpmn:outgoing>Flow_Committed</bpmn:outgoing>
+      <bpmn:ioSpecification id="Commit_io">
+        <bpmn:dataOutput id="Commit_result" name="result"/>
+        <bpmn:inputSet id="Commit_inputSet"/>
+        <bpmn:outputSet id="Commit_outputSet">
+          <bpmn:dataOutputRefs>Commit_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataOutputAssociation id="Out_Commit">
+        <bpmn:sourceRef>Commit_result</bpmn:sourceRef>
+        <bpmn:targetRef>Repository</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:endEvent id="Run_Finished" name="Run finished">
+      <bpmn:incoming>Flow_Committed</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataStoreReference id="Repository" name="Run repository, runs/STAMP/.git"/>
+    <bpmn:sequenceFlow id="Flow_Edited" sourceRef="Edit_Start" targetRef="Export"/>
+    <bpmn:sequenceFlow id="Flow_Exported" sourceRef="Export" targetRef="Saved"/>
+    <bpmn:sequenceFlow id="Flow_Stale" sourceRef="Stale_Start" targetRef="Void"/>
+    <bpmn:sequenceFlow id="Flow_Void" sourceRef="Void" targetRef="Voided"/>
+    <bpmn:sequenceFlow id="Flow_Run" sourceRef="Run_Start" targetRef="Execute"/>
+    <bpmn:sequenceFlow id="Flow_Executed" sourceRef="Execute" targetRef="Commit"/>
+    <bpmn:sequenceFlow id="Flow_Committed" sourceRef="Commit" targetRef="Run_Finished"/>
+    <bpmn:group id="Document" categoryValueRef="Document_Value"/>
+    <bpmn:textAnnotation id="Commit_Note">
+      <bpmn:text>One commit per checkpoint: its trailers restate the entry (Prov-Action, Prov-When, Prov-Run, Prov-Node), and its body keeps that checkpoint's step records.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:textAnnotation id="Sidecar_Note">
+      <bpmn:text>No sidecar record file: the study and its repository hold the whole record.</bpmn:text>
+    </bpmn:textAnnotation>
+  </bpmn:process>
+  <bpmn:category id="Document_Category">
+    <bpmn:categoryValue id="Document_Value" value="The studyflow document: the plan and its record"/>
+  </bpmn:category>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Provenance_Model">
+      <bpmndi:BPMNShape id="Lane_Modeler_di" bpmnElement="Lane_Modeler">
+        <dc:Bounds x="40" y="20" width="1110" height="175"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Local_di" bpmnElement="Lane_Local">
+        <dc:Bounds x="40" y="195" width="1110" height="345"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Edit_Start_di" bpmnElement="Edit_Start">
+        <dc:Bounds x="110" y="62" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Export_di" bpmnElement="Export">
+        <dc:Bounds x="190" y="40" width="170" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Saved_di" bpmnElement="Saved">
+        <dc:Bounds x="410" y="62" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stale_Start_di" bpmnElement="Stale_Start">
+        <dc:Bounds x="520" y="62" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Void_di" bpmnElement="Void">
+        <dc:Bounds x="600" y="40" width="170" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Voided_di" bpmnElement="Voided">
+        <dc:Bounds x="820" y="62" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Trail_di" bpmnElement="Trail">
+        <dc:Bounds x="300" y="232" width="36" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="342" y="232" width="170" height="60"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Records_di" bpmnElement="Records">
+        <dc:Bounds x="560" y="232" width="36" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="602" y="242" width="100" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Run_Start_di" bpmnElement="Run_Start">
+        <dc:Bounds x="110" y="382" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Execute_di" bpmnElement="Execute">
+        <dc:Bounds x="190" y="360" width="170" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Commit_di" bpmnElement="Commit">
+        <dc:Bounds x="420" y="360" width="160" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Run_Finished_di" bpmnElement="Run_Finished">
+        <dc:Bounds x="650" y="382" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Repository_di" bpmnElement="Repository">
+        <dc:Bounds x="475" y="460" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="430" y="513" width="140" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Document_di" bpmnElement="Document">
+        <dc:Bounds x="190" y="200" width="520" height="112"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Commit_Note_di" bpmnElement="Commit_Note">
+        <dc:Bounds x="545" y="455" width="330" height="60"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Sidecar_Note_di" bpmnElement="Sidecar_Note">
+        <dc:Bounds x="900" y="45" width="230" height="45"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Out_Export_di" bpmnElement="Out_Export">
+        <di:waypoint x="318" y="120"/>
+        <di:waypoint x="318" y="232"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Void_di" bpmnElement="Out_Void">
+        <di:waypoint x="620" y="120"/>
+        <di:waypoint x="620" y="170"/>
+        <di:waypoint x="590" y="170"/>
+        <di:waypoint x="590" y="232"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Trail_di" bpmnElement="Out_Trail">
+        <di:waypoint x="318" y="360"/>
+        <di:waypoint x="318" y="282"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Records_di" bpmnElement="Out_Records">
+        <di:waypoint x="350" y="360"/>
+        <di:waypoint x="350" y="328"/>
+        <di:waypoint x="578" y="328"/>
+        <di:waypoint x="578" y="282"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Commit_di" bpmnElement="Out_Commit">
+        <di:waypoint x="500" y="440"/>
+        <di:waypoint x="500" y="460"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Edited_di" bpmnElement="Flow_Edited">
+        <di:waypoint x="146" y="80"/>
+        <di:waypoint x="190" y="80"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Exported_di" bpmnElement="Flow_Exported">
+        <di:waypoint x="360" y="80"/>
+        <di:waypoint x="410" y="80"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Stale_di" bpmnElement="Flow_Stale">
+        <di:waypoint x="556" y="80"/>
+        <di:waypoint x="600" y="80"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Void_di" bpmnElement="Flow_Void">
+        <di:waypoint x="770" y="80"/>
+        <di:waypoint x="820" y="80"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Run_di" bpmnElement="Flow_Run">
+        <di:waypoint x="146" y="400"/>
+        <di:waypoint x="190" y="400"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Executed_di" bpmnElement="Flow_Executed">
+        <di:waypoint x="360" y="400"/>
+        <di:waypoint x="420" y="400"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Committed_di" bpmnElement="Flow_Committed">
+        <di:waypoint x="580" y="400"/>
+        <di:waypoint x="650" y="400"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions></metadata><defs><marker id="sf-arrow-sequence" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="context-stroke" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-message" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-open" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-marker-default" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M3,2 L7,8" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker><marker id="sf-marker-message-start" markerWidth="10" markerHeight="10" refX="1.5" refY="5" orient="auto" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#ffffff" stroke="context-stroke" stroke-width="1"/></marker></defs><g data-layer="elements"><g class="sf-shape" data-element-id="Lane_Modeler" data-element-type="bpmn:Lane" transform="translate(40, 20)"><rect x="0" y="0" width="1110" height="175" rx="4" ry="4" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><line x1="30" y1="0" x2="30" y2="175" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="15" y="87.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="middle" dominant-baseline="central" stroke-width="0" transform="rotate(-90, 15, 87.5)">Modeler</text></g><g class="sf-shape" data-element-id="Lane_Local" data-element-type="bpmn:Lane" transform="translate(40, 195)"><rect x="0" y="0" width="1110" height="345" rx="4" ry="4" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><line x1="30" y1="0" x2="30" y2="345" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="15" y="172.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="middle" dominant-baseline="central" stroke-width="0" transform="rotate(-90, 15, 172.5)">Local runtime</text></g><g class="sf-shape" data-element-id="Trail" data-element-type="bpmn:DataObjectReference" transform="translate(300, 232)"><path d="M0,0 L24.48,0 L36,11.52 L36,50 L0,50 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M24.48,0 L24.48,11.52 L36,11.52" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/></g><g class="sf-shape" data-element-id="Records" data-element-type="bpmn:DataObjectReference" transform="translate(560, 232)"><path d="M0,0 L24.48,0 L36,11.52 L36,50 L0,50 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M24.48,0 L24.48,11.52 L36,11.52" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/></g><g class="sf-shape" data-element-id="Repository" data-element-type="bpmn:DataStoreReference" transform="translate(475, 460)"><path d="M0,6 A25,6 0 0 0 50,6 L50,44 A25,6 0 0 1 0,44 Z" fill="#ffffff" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><path d="M0,6 A25,6 0 0 0 50,6 A25,6 0 0 0 0,6 Z" fill="none" stroke="#44403c" stroke-width="1.5"/></g><g class="sf-shape" data-element-id="Document" data-element-type="bpmn:Group" transform="translate(190, 200)"><rect x="0" y="0" width="520" height="112" rx="12" ry="12" fill="none" stroke="#44403c" stroke-width="1.5" stroke-dasharray="6,4"/><text class="sf-label" x="260" y="10" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">The studyflow document: the plan and its record</text></g><g class="sf-shape" data-element-id="Commit_Note" data-element-type="bpmn:TextAnnotation" transform="translate(545, 455)"><path d="M10,0 L0,0 L0,60 L10,60" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><text class="sf-label" x="7" y="14.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">One commit per checkpoint: its trailers</text><text class="sf-label" x="7" y="29.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">restate the entry (Prov-Action, Prov-When,</text><text class="sf-label" x="7" y="44.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">Prov-Run, Prov-Node), and its body keeps that</text><text class="sf-label" x="7" y="59.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">checkpoint's step records.</text></g><g class="sf-shape" data-element-id="Sidecar_Note" data-element-type="bpmn:TextAnnotation" transform="translate(900, 45)"><path d="M10,0 L0,0 L0,45 L10,45" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round"/><text class="sf-label" x="7" y="14.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">No sidecar record file: the</text><text class="sf-label" x="7" y="29.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">study and its repository hold</text><text class="sf-label" x="7" y="44.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">the whole record.</text></g><g class="sf-external-label" data-element-id="Trail_label" data-element-type="bpmn:DataObjectReference" data-label-owner="Trail" transform="translate(342, 232)"><text class="sf-label" x="85" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Trail, on the study's</text><text class="sf-label" x="85" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">root: action, when, who,</text><text class="sf-label" x="85" y="37.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">with, what, run, seed,</text><text class="sf-label" x="85" y="52.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">note</text></g><g class="sf-external-label" data-element-id="Records_label" data-element-type="bpmn:DataObjectReference" data-label-owner="Records" transform="translate(602, 242)"><text class="sf-label" x="50" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Records, one</text><text class="sf-label" x="50" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">per element</text></g><g class="sf-external-label" data-element-id="Repository_label" data-element-type="bpmn:DataStoreReference" data-label-owner="Repository" transform="translate(430, 513)"><text class="sf-label" x="70" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Run repository,</text><text class="sf-label" x="70" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">runs/STAMP/.git</text></g><g class="sf-connection" data-element-id="Out_Export" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 318 120 L 318 232" data-waypoints="318,120 318,232" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Void" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 620 120 L 620 164 A 6 6 0 0 1 614 170 L 596 170 A 6 6 0 0 0 590 176 L 590 232" data-waypoints="620,120 620,170 590,170 590,232" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Trail" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 318 360 L 318 282" data-waypoints="318,360 318,282" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Records" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 350 360 L 350 334 A 6 6 0 0 1 356 328 L 572 328 A 6 6 0 0 0 578 322 L 578 282" data-waypoints="350,360 350,328 578,328 578,282" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Out_Commit" data-element-type="bpmn:DataOutputAssociation"><path class="sf-connection-line" d="M 500 440 L 500 460" data-waypoints="500,440 500,460" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5" marker-end="url(#sf-arrow-open)"/></g><g class="sf-connection" data-element-id="Flow_Edited" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 146 80 L 190 80" data-waypoints="146,80 190,80" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Exported" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 360 80 L 410 80" data-waypoints="360,80 410,80" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Stale" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 556 80 L 600 80" data-waypoints="556,80 600,80" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Void" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 770 80 L 820 80" data-waypoints="770,80 820,80" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Run" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 146 400 L 190 400" data-waypoints="146,400 190,400" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Executed" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 360 400 L 420 400" data-waypoints="360,400 420,400" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Flow_Committed" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 580 400 L 650 400" data-waypoints="580,400 650,400" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-shape" data-element-id="Edit_Start" data-element-type="bpmn:StartEvent" transform="translate(110, 62)"><circle cx="18" cy="18" r="18" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/></g><g class="sf-shape" data-element-id="Export" data-element-type="bpmn:Task" transform="translate(190, 40)"><rect x="0" y="0" width="170" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="85" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Export: stamp created,</text><text class="sf-label" x="85" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">modified</text></g><g class="sf-shape" data-element-id="Saved" data-element-type="bpmn:EndEvent" transform="translate(410, 62)"><circle cx="18" cy="18" r="16.875" fill="#ffffff" stroke="#44403c" stroke-width="3.75"/></g><g class="sf-shape" data-element-id="Stale_Start" data-element-type="bpmn:StartEvent" transform="translate(520, 62)"><circle cx="18" cy="18" r="18" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/></g><g class="sf-shape" data-element-id="Void" data-element-type="bpmn:Task" transform="translate(600, 40)"><rect x="0" y="0" width="170" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="85" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Void its record</text><text class="sf-label" x="85" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">(invalidated)</text></g><g class="sf-shape" data-element-id="Voided" data-element-type="bpmn:EndEvent" transform="translate(820, 62)"><circle cx="18" cy="18" r="16.875" fill="#ffffff" stroke="#44403c" stroke-width="3.75"/></g><g class="sf-shape" data-element-id="Run_Start" data-element-type="bpmn:StartEvent" transform="translate(110, 382)"><circle cx="18" cy="18" r="18" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/></g><g class="sf-shape" data-element-id="Execute" data-element-type="bpmn:Task" transform="translate(190, 360)"><rect x="0" y="0" width="170" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="85" y="36" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Execute a step: stamp</text><text class="sf-label" x="85" y="51" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">executed or reused</text></g><g class="sf-shape" data-element-id="Commit" data-element-type="bpmn:Task" transform="translate(420, 360)"><rect x="0" y="0" width="160" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="80" y="43.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Commit each checkpoint</text></g><g class="sf-shape" data-element-id="Run_Finished" data-element-type="bpmn:EndEvent" transform="translate(650, 382)"><circle cx="18" cy="18" r="16.875" fill="#ffffff" stroke="#44403c" stroke-width="3.75"/></g><g class="sf-external-label" data-element-id="Edit_Start_label" data-element-type="bpmn:StartEvent" data-label-owner="Edit_Start" transform="translate(75.96000000000001, 104)"><text class="sf-label" x="52.04" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">The author edits</text></g><g class="sf-external-label" data-element-id="Saved_label" data-element-type="bpmn:EndEvent" data-label-owner="Saved" transform="translate(411.05, 104)"><text class="sf-label" x="16.95" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Saved</text></g><g class="sf-external-label" data-element-id="Stale_Start_label" data-element-type="bpmn:StartEvent" data-label-owner="Stale_Start" transform="translate(495.53, 104)"><text class="sf-label" x="42.47" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">A step marked</text><text class="sf-label" x="42.47" y="22.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">stale</text></g><g class="sf-external-label" data-element-id="Voided_label" data-element-type="bpmn:EndEvent" data-label-owner="Voided" transform="translate(817.86, 104)"><text class="sf-label" x="20.139999999999997" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Voided</text></g><g class="sf-external-label" data-element-id="Run_Start_label" data-element-type="bpmn:StartEvent" data-label-owner="Run_Start" transform="translate(85.53, 424)"><text class="sf-label" x="42.47" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">studyflow run</text></g><g class="sf-external-label" data-element-id="Run_Finished_label" data-element-type="bpmn:EndEvent" data-label-owner="Run_Finished" transform="translate(628.72, 424)"><text class="sf-label" x="39.279999999999994" y="7.5" fill="#78716c" font-size="11" font-weight="400" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">Run finished</text></g></g></svg>
