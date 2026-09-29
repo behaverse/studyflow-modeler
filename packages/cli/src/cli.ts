@@ -21,7 +21,7 @@ program
   .argument('<input>', 'source file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
   .argument('<output>', 'target file; its extension picks the format')
   .option('--into <image>', 'for a PNG or SVG target: the image to embed into')
-  .option('--modeler', 'for a PNG target: draw the image by driving the modeler (repo workspace only)')
+  .option('--modeler', 'for a PNG or SVG target: draw the image by driving the modeler (repo workspace only)')
   .option('--origin <origin>', 'modeler dev server for --modeler (started if not up)', 'http://127.0.0.1:4175')
   .option('--strict', 'write nothing and exit non-zero on reader warnings')
   .action(async (input: string, output: string, options: { into?: string; modeler?: boolean; origin?: string; strict?: boolean }) => {

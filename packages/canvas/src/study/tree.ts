@@ -1,5 +1,6 @@
 /** Containment-tree helpers: depth, z-order, visibility, expansion. */
 
+import { BPMN } from '@core/constants.ts';
 import { isExpandable } from '@core/document/outline.ts';
 import { getProperty } from '@core/element/moddle.ts';
 import type { Bounds, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
@@ -39,9 +40,14 @@ export function depthOf(element: { parent?: SceneNode }): number {
   return depth;
 }
 
+/** Pools and lanes: their fill is the ground the rest of their depth is drawn on. */
+const FRAMES = new Set<string>([BPMN.Participant, BPMN.Lane]);
+
 /**
  * Paint order inside the one element layer: shallower first (a container behind
- * its contents), edges before nodes within a depth, a label right after its owner.
+ * its contents), a pool or lane before the rest of its depth, edges before nodes
+ * within a depth, a label right after its owner. A note or a data object in a
+ * process's own lanes, and a link between them, share those lanes' depth.
  */
 export function zRankOf(element: SceneElement): number {
   if (element.kind === 'label') return zRankOf(element.owner);
@@ -53,7 +59,8 @@ export function zRankOf(element: SceneElement): number {
     );
     return depth * 2;
   }
-  return depthOf(element) * 2 + 1;
+  const depth = depthOf(element);
+  return FRAMES.has(element.type) ? depth * 2 - 0.5 : depth * 2 + 1;
 }
 
 /** Whether `element` sits inside `node`, however deep. */

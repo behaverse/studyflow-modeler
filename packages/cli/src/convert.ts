@@ -22,7 +22,7 @@ function targetFormat(path: string): TargetFormat {
 export type ConvertOptions = {
   /** For an image target: the image to embed into (defaults to the output file itself, or the input if it is one of that kind). */
   into?: string;
-  /** For a PNG target: draw the image by driving the modeler instead of reusing one. */
+  /** For a PNG or SVG target: draw the image by driving the modeler instead of reusing one. */
   modeler?: boolean;
   origin?: string;
   /** Write nothing when reading the input raised a warning. */
@@ -73,19 +73,19 @@ async function openStudyflow(page: any, origin: string, name: string, studyflow:
   await page.waitForTimeout(500); // let icon <foreignObject>s settle before the export
 }
 
-/** Export the open diagram as PNG (its studyflow always embedded) and return the bytes. */
-async function exportPng(page: any): Promise<Buffer> {
+/** Export the open diagram as `format` (its studyflow always embedded) and return the bytes. */
+async function exportImage(page: any, format: 'png' | 'svg'): Promise<Buffer> {
   await page.getByRole('button', { name: 'Open command palette' }).click();
   await page.getByRole('dialog').getByText('Save As...', { exact: true }).click();
   await page.getByTestId('save-dialog').waitFor();
-  await page.getByTestId('export-format').selectOption('png');
+  await page.getByTestId('export-format').selectOption(format);
 
   const download = page.waitForEvent('download');
   await page.getByTestId('save-submit').click();
   return readFileSync(await (await download).path());
 }
 
-async function renderPng(input: string, studyflow: string, origin: string): Promise<Buffer> {
+async function renderImage(input: string, studyflow: string, origin: string, format: 'png' | 'svg'): Promise<Buffer> {
   let chromium: any;
   try {
     ({ chromium } = await import('@playwright/test'));
@@ -112,7 +112,7 @@ async function renderPng(input: string, studyflow: string, origin: string): Prom
       }
     });
     await openStudyflow(page, origin, `${basename(input).replace(/\..*$/, '')}.studyflow.yaml`, studyflow);
-    return await exportPng(page);
+    return await exportImage(page, format);
   } finally {
     await browser.close();
     stopServer();
@@ -126,8 +126,9 @@ export async function convert(input: string, output: string, options: ConvertOpt
   // Reading drops what no loaded schema declares, so say what the reader met, as `validate` does.
   const warnings: string[] = [];
   const onWarning = (warning: string) => { warnings.push(warning); };
-  // A PNG carries the YAML, and the modeler draws one from it too; an SVG carries the XML.
-  const text = format === 'xml' || format === 'svg' ? await asXml(source, onWarning) : await asYaml(source, onWarning);
+  const drawnAs = options.modeler && (format === 'png' || format === 'svg') ? format : undefined;
+  // The modeler draws from the YAML, which a PNG carries too; an SVG carries the XML.
+  const text = !drawnAs && (format === 'xml' || format === 'svg') ? await asXml(source, onWarning) : await asYaml(source, onWarning);
   for (const warning of warnings) console.warn(`warning: ${warning}`);
   if (options.strict && warnings.length > 0) throw new Error(`Nothing written to ${output}: reading ${input} raised warnings (--strict).`);
 
@@ -141,9 +142,9 @@ export async function convert(input: string, output: string, options: ConvertOpt
     return `Wrote ${output} (BPMN XML).`;
   }
 
-  if (format === 'png' && options.modeler) {
-    const png = await renderPng(input, text, options.origin ?? 'http://127.0.0.1:4175');
-    await writeFile(output, png);
+  if (drawnAs) {
+    const image = await renderImage(input, text, options.origin ?? 'http://127.0.0.1:4175', drawnAs);
+    await writeFile(output, image);
     return `Wrote ${output} (rendered by the modeler).`;
   }
 
@@ -152,8 +153,7 @@ export async function convert(input: string, output: string, options: ConvertOpt
     ?? (existsSync(output) ? output : source.container === format ? input : undefined);
   if (!basePath) {
     throw new Error(
-      `A .studyflow.${format} target needs an image: ${format === 'png' ? 'pass --modeler to draw one, or ' : ''}`
-      + `--into <${format}> to embed into an existing image.`,
+      `A .studyflow.${format} target needs an image: pass --modeler to draw one, or --into <${format}> to embed into an existing image.`,
     );
   }
   await writeFile(output, format === 'png'

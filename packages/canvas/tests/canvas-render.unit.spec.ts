@@ -586,6 +586,45 @@ test('an expanded sub-process draws the flows between its children over its fram
   expect(order.indexOf('Into_Expanded')).toBeLessThan(order.indexOf('Expanded'));
 });
 
+/** A process divided into its own lanes, with no pool: a note and a data object inside the lane stay at the lane's depth. */
+const LANES_YAML = `id: Defs_Lanes
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_Lanes:
+  type: Process
+  laneSets:
+    Lanes:
+      lanes:
+        Lane_A:
+          name: A
+          flowNodeRef:
+            - Step
+          bounds: 0 0 600 200
+  flowElements:
+    Step:
+      type: Task
+      bounds: 60 60 100 80
+    Record:
+      type: DataObjectReference
+      bounds: 300 75 36 50
+  artifacts:
+    Note:
+      text: A note on the record
+      bounds: 420 70 120 40
+    Note_Link:
+      sourceRef: Note
+      targetRef: Record
+      waypoint: 420,90 336,100
+`;
+
+test('a lane paints under what its depth draws on it: a note\'s link in a process\'s own lanes shows', async () => {
+  // A lane's fill is opaque. The link once ranked with the edges at the lane's depth, under the lane.
+  const { canvas } = loadYaml(LANES_YAML);
+  const order = Array.from(svgOf(canvas).querySelectorAll('[data-layer="elements"] > g'))
+    .map((g) => g.getAttribute('data-element-id'));
+  for (const id of ['Note_Link', 'Note', 'Record']) expect(order.indexOf(id), id).toBeGreaterThan(order.indexOf('Lane_A'));
+});
+
 test('a collapsed sub-process hides its contents but draws its own data associations', async () => {
   // A data association's moddle parent is its activity, but it sits beside it: it once
   // counted as the collapsed container's content and went hidden with it.

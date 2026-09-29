@@ -34,6 +34,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 - Each context keeps its own language. Studyflow's terms (study, run, step, runtime, runner, skill, plan) mean the same in every skill; a domain's live in its skill's vocabulary and `SKILL.md` (Behaverse's instrument and timeline in `skills/behaverse`); a tool's stay behind its protocol.
 - No backward-compatibility code: an old diagram is updated in place, never aliased.
 - A new short form in `.studyflow.yaml` must be reversible, and the long form must still load. `packages/core/tests/studyflow-yaml.unit.spec.ts` pins the spelling.
+- A docs figure is a Studyflow diagram, never Mermaid: a `.studyflow.yaml` in `docs/assets/img/diagrams/`, and the `.studyflow.svg` beside it that `node packages/cli/dist/studyflow.mjs convert <figure>.studyflow.yaml <figure>.studyflow.svg --modeler` draws after `npm run build`.
 - The canvas is its own design, not a bpmn-js copy: remove rather than add, no bpmn-js class names, colours from `INK` (`view/theme.ts`).
 - Icons are Tailwind iconify classes read from the stylesheet; element glyphs are Phosphor (`iconify ph--<name>`), or another prefix `assets/css/app.css` loads when Phosphor has none that fits. Nothing fetches an icon.
 - The one version is in the root `package.json`, and only `npm run release` writes it (with `Formula/studyflow.rb`).

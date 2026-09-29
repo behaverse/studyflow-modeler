@@ -33,7 +33,7 @@ npx playwright install chromium   # once, before the browser tests
 npm test             # all tests, e2e included
 ```
 
-A local run (`studyflow run --runtime local`) needs [`uv`](https://docs.astral.sh/uv/); the site is built with [Quarto](https://quarto.org) (`npm run docs`).
+A local run (`studyflow run --runtime local`) needs [`uv`](https://docs.astral.sh/uv/); the site is built with [Quarto](https://quarto.org) (`npm run docs`). Its figures are Studyflow diagrams in `docs/assets/img/diagrams/`: edit a figure's `.studyflow.yaml`, then, after `npm run build`, redraw the picture beside it with `node packages/cli/dist/studyflow.mjs convert <figure>.studyflow.yaml <figure>.studyflow.svg --modeler`.
 
 
 ## The same study in three formats
