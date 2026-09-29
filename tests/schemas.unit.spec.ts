@@ -72,7 +72,7 @@ test('every attribute files under a declared tab, names a type that resolves, an
   }
 });
 
-test('every concrete type and every trait target instantiates in moddle as its BPMN type, holding each attribute with the catalog\'s default', () => {
+test('every concrete type and every trait target instantiates in moddle, a wrapper as no BPMN element, holding each attribute with the catalog\'s default', () => {
   const traits = catalog.allTypes().filter((type) => type.style === 'trait');
   // The catalog lends a trait's attributes to the subtypes BPMN_ANCESTORS lists, where moddle lends them to every subtype.
   for (const trait of traits) {
@@ -84,9 +84,13 @@ test('every concrete type and every trait target instantiates in moddle as its B
   for (const name of [...concrete, ...new Set(traits.flatMap((trait) => trait.extends))]) {
     const element = moddle.create(name);
     const bpmnType = catalog.bpmnTypeOf(name);
-    if (bpmnType) expect(element.$instanceOf(bpmnType), `${name} is a ${bpmnType}`).toBe(true);
+    // A wrapper attaches to its BPMN type and is not one: the catalog knows where it goes, moddle holds it apart.
+    const wrapper = concrete.includes(name);
+    if (bpmnType) expect(element.$instanceOf(bpmnType), `${name} ${wrapper ? 'is no' : 'is a'} ${bpmnType}`).toBe(!wrapper);
     const { propertiesByName } = moddle.getElementDescriptor(element);
-    for (const spec of catalog.instanceAttributesOf(name)) {
+    // A wrapper holds what its schemas declare; what its BPMN type (and a trait on it) gives lives on the element.
+    const hosted = new Set(wrapper && bpmnType ? catalog.instanceAttributesOf(bpmnType).map((spec) => spec.ns.name) : []);
+    for (const spec of catalog.instanceAttributesOf(name).filter((spec) => !hosted.has(spec.ns.name))) {
       expect(propertiesByName[spec.ns.name], `${name} holds ${spec.ns.name}`).toBeDefined();
       expect(propertiesByName[spec.ns.name].default, `${name} ${spec.ns.name} default`).toEqual(spec.default);
     }

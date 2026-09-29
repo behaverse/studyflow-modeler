@@ -61,7 +61,7 @@ and enumeration names that no other schema declares.
 | --- | --- |
 | `name` | The type's name; the schema's prefix qualifies it (`eeg:Session`). |
 | `description` | Palette and inspector tooltip. |
-| `superClass: [bpmn:X]` | A **wrapper**: created as that BPMN element, with its own element inside `extensionElements`. |
+| `superClass: [bpmn:X]` | A **wrapper**: created as that BPMN element, with its own element inside `extensionElements`. The wrapper is no X itself: it carries none of X's attributes, and no trait on X reaches it, so an attribute lives in one place (an own `icon` goes on the element). |
 | `superClass: [Type]` | Inherits another type, which decides the BPMN element (`eeg:Recording` is a `studyflow:Timeseries`). |
 | `extends: [bpmn:X, …]` with `isAbstract: true` | A **trait**: its attributes mix onto those BPMN types and their subtypes. It has no `superClass` and is never created itself. |
 | `isAbstract: true` | Not creatable. |

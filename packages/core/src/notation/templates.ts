@@ -23,8 +23,8 @@ export function compileTemplates(prefix: string, model: SchemaModel, catalog: Ty
     const extension = (Array.isArray(root.extensionElements) ? root.extensionElements : [])
       .find((entry): entry is Mapping => isMapping(entry) && !!catalog.getType(String(entry.type)));
     const extensionType = extension ? String(extension.type) : undefined;
-    // The element's own `studyflow:icon`, read where the canvas reads it, on the extension entry of a typed element.
-    const ownIcon = (extension ?? root).icon;
+    // The element's own `studyflow:icon`, on the element itself, where the canvas reads it.
+    const ownIcon = root.icon;
 
     templates.push({
       id: `${prefix}::template:${index + 1}`,

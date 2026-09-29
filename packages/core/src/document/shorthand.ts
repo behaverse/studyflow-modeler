@@ -69,6 +69,8 @@ export function expandInline(mapping: Mapping): string {
 /* 2. element-list */
 
 export function elementListProperty(descriptor: any): any | undefined {
+  // BPMN's own list holders only (`extensionElements`): a schema's element with one list is an entry, not a list.
+  if (descriptor?.ns?.prefix !== 'bpmn') return undefined;
   const props: any[] = descriptor?.properties ?? [];
   const content = props.filter((p) => !p.isAttr && !p.isReference && !p.isBody);
   return content.length === 1 && content[0].isMany ? content[0] : undefined;

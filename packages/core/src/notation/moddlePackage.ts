@@ -133,8 +133,20 @@ export function toModdlePackages(model: SchemaModel, allModels: SchemaModel[] = 
   for (const type of pkg.types ?? []) {
     const isValueType = valueTypes.has(`${pkg.prefix}:${type.name}`);
 
-    if (!isValueType && Array.isArray(type.superClass) && type.superClass.length > 0
-        && !type.superClass.includes('Element')) {
+    // A wrapper's `superClass: [bpmn:X]` is where it attaches (the catalog's `bpmnType`), not what it is: to moddle
+    // it is an element of its own, so it carries none of X's properties (a `studyflow:Study` is no `bpmn:Process`),
+    // and a trait that extends X does not reach it. A redefinition of X's property is the catalog's to resolve.
+    if (Array.isArray(type.superClass) && type.superClass.some((name: string) => name.startsWith('bpmn:'))) {
+      type.superClass = type.superClass.filter((name: string) => !name.startsWith('bpmn:'));
+      for (const property of type.properties ?? []) {
+        const target = property.redefines ?? property.replaces;
+        if (typeof target === 'string' && target.startsWith('bpmn:')) {
+          delete property.redefines;
+          delete property.replaces;
+        }
+      }
+    }
+    if (!isValueType && Array.isArray(type.superClass) && !type.superClass.includes('Element')) {
       type.superClass.push('Element');
     }
 

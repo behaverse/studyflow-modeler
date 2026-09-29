@@ -93,7 +93,7 @@ function iconGlyph(bo: ModdleObject | undefined): string | undefined {
   const element = StudyflowElement.fromBusinessObject(bo);
   const name = getCatalog().getType(element.extensionType)?.meta?.glyph;
   if (typeof name !== 'string') return undefined;
-  if ((element.extension ?? element.businessObject)?.get?.('studyflow:icon')) return undefined;
+  if (element.businessObject?.get?.('studyflow:icon')) return undefined;
   // What a run reads: the value the Parameters wired into the task set, else its own.
   const value = effectiveAttribute(bo, name);
   if (typeof value !== 'string' || !value) return undefined;

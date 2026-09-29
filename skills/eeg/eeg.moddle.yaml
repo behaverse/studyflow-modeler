@@ -209,9 +209,9 @@ templates:
         name: EEG session
         documentation: An EEG session covering cap fitting through data export.
         processRef: EEG_session_flow
+        icon: iconify ph--head-circuit
         extensionElements:
           - type: eeg:Session
-            icon: iconify ph--head-circuit
             device: brainproducts_actichamp
             modalities:
               - eeg
@@ -235,18 +235,18 @@ templates:
           eeg_baseline:
             type: Task
             name: Resting baseline
+            icon: iconify ph--brain
             extensionElements:
               - type: cognitive:Rest
-                icon: iconify ph--brain
                 restDuration: 120
                 eyes: closed
             bounds: 360 178 100 80
           eeg_task:
             type: ChoreographyTask
             name: Cognitive task
+            icon: iconify ph--puzzle-piece
             extensionElements:
               - type: cognitive:CognitiveTask
-                icon: iconify ph--puzzle-piece
                 platform: psychopy
             dataInputAssociations:
               In_eeg_task_parameters:

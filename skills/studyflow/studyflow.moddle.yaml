@@ -222,8 +222,8 @@ types:
     isAbstract: true
     properties:
       - name: icon
-        # An Iconify class or a `data:` image. A typed element carries it on its extension entry, which inherits
-        # this trait from its BPMN type. Templates and files set it, and `pinned` keeps it out of the inspector.
+        # An Iconify class or a `data:` image, on the element itself, a typed one included (its extension entry is
+        # no BPMN element, so no trait reaches it). Templates and files set it, and `pinned` keeps it out of the inspector.
         description: The element's own icon, drawn in place of its type's.
         isAttr: true
         type: String

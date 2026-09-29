@@ -39,7 +39,7 @@ function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | un
   if (iconKey.startsWith('iconify ') || iconKey.startsWith('i-')) return iconFor(iconKey);
   if (businessObject) {
     const element = StudyflowElement.fromBusinessObject(businessObject);
-    const templateIcon = (element.extension ?? element.businessObject).get?.('studyflow:icon');
+    const templateIcon = element.businessObject.get?.('studyflow:icon');
     const extEntry = element.extensionType ? getCatalog().getType(element.extensionType) : undefined;
     const bpmnFallback = iconKey === 'DataObjectReference' ? undefined : BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
     const icon = templateIcon || extEntry?.iconClass || bpmnFallback;

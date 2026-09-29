@@ -295,9 +295,9 @@ templates:
         documentation: |
           Randomizes within each stratum of `stratifyBy`, in permuted blocks,
           so arms stay balanced on the covariate. List the strata one per entry.
+        icon: iconify ph--stack
         extensionElements:
           - type: cognitive:RandomGateway
-            icon: iconify ph--stack
             algorithm: block
             stratifyBy: age_band
             strata:
@@ -313,7 +313,7 @@ templates:
         documentation: |
           Set the game engine in `platform`, and its levels, difficulty, and
           scoring in a Parameters object wired into the task.
+        icon: iconify ph--game-controller
         extensionElements:
           - type: cognitive:CognitiveTask
-            icon: iconify ph--game-controller
             platform: unity

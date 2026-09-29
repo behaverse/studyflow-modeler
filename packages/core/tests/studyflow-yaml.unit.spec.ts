@@ -446,9 +446,9 @@ Study:
   flowElements:
     Game:
       type: ChoreographyTask
+      icon: iconify ph--game-controller
       extensionElements:
         - type: cognitive:CognitiveTask
-          icon: iconify ph--game-controller
     Chain:
       type: SubProcess
       studyflow:icon: iconify ph--link
@@ -464,7 +464,8 @@ Study:
 
     expect(read).toEqual([expect.stringMatching(/unknown attribute <studyflow:colour>.*SubProcess/)]);
     expect(opened).toEqual([expect.stringMatching(/^Chain: .*<studyflow:colour>/)]);
-    expect(xml).toContain('<cognitive:cognitiveTask studyflow:icon="iconify ph--game-controller"');
+    // A typed element's own icon is the element's: its extension entry is no BPMN element, and no trait reaches it.
+    expect(xml).toMatch(/<bpmn:choreographyTask [^>]*studyflow:icon="iconify ph--game-controller"/);
     expect(xml).toContain('studyflow:icon="iconify ph--link"');
   });
 
