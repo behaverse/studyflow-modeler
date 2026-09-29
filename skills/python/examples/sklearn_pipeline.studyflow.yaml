@@ -21,6 +21,7 @@ Item_Labels:
   structureRef: numpy.ndarray
 sklearn_pipeline:
   type: studyflow:Study
+  name: sklearn_pipeline
   documentation: |
     A runnable scikit-learn classification workflow, drawn the way the
     method is actually done: split first, report last.
@@ -95,31 +96,31 @@ sklearn_pipeline:
       with: studyflow_run.py
       run: sklearn-demo
       seed: 42
-  name: sklearn_pipeline
   properties:
     x_train:
-      itemSubjectRef: Item_Table
       name: x_train
+      itemSubjectRef: Item_Table
     x_test:
+      name: x_test
       itemSubjectRef: Item_Table
       uri: x_test.joblib
-      name: x_test
     y_train:
-      itemSubjectRef: Item_Series
       name: y_train
+      itemSubjectRef: Item_Series
     y_test:
+      name: y_test
       itemSubjectRef: Item_Series
       uri: y_test.joblib
-      name: y_test
     estimator:
-      itemSubjectRef: Item_Estimator
       name: estimator
+      itemSubjectRef: Item_Estimator
     mean_cv_accuracy:
-      itemSubjectRef: Item_Number
       name: mean_cv_accuracy
+      itemSubjectRef: Item_Number
   flowElements:
     start_analysis:
       type: StartEvent
+      name: start_analysis
       extensionElements:
         - type: prov:Activity
           action: executed
@@ -133,9 +134,9 @@ sklearn_pipeline:
           action: executed
           when: "2026-08-20T12:28:56.906+02:00"
           run: sklearn-demo
-      name: start_analysis
     is_good_enough:
       type: ExclusiveGateway
+      name: is_good_enough
       documentation: |
         The promotion criterion, as BPMN's own branch rule: the pass flow
         carries the `conditionExpression` and the reject flow is the gateway's
@@ -158,10 +159,10 @@ sklearn_pipeline:
           when: "2026-08-20T12:28:57.771+02:00"
           what: "2026-08-20T12:28:28.520+02:00"
           run: sklearn-demo
-      name: is_good_enough
       default: needs_work
     done:
       type: EndEvent
+      name: done
       extensionElements:
         - type: prov:Activity
           action: executed
@@ -175,16 +176,16 @@ sklearn_pipeline:
           action: executed
           when: "2026-08-20T12:28:59.170+02:00"
           run: sklearn-demo
-      name: done
     failed_to_fit:
       type: EndEvent
+      name: failed_to_fit
       documentation: |
         The run stops before the split's test half is read at all, so nothing
         has been spent: fix the estimator and run again against the same
         held-out data.
-      name: failed_to_fit
     prepare_data:
       type: SubProcess
+      name: prepare_data
       documentation: >-
         Everything that happens before a model sees anything: pull the feature matrix and the label vector out of the
         input table, then split off a quarter of the rows and set them aside.
@@ -193,14 +194,13 @@ sklearn_pipeline:
           action: executed
           when: "2026-08-20T12:28:57.314+02:00"
           run: sklearn-demo
-      name: prepare_data
       properties:
         features:
-          itemSubjectRef: Item_Table
           name: features
+          itemSubjectRef: Item_Table
         target:
-          itemSubjectRef: Item_Series
           name: target
+          itemSubjectRef: Item_Series
       flowElements:
         prepare_start:
           type: StartEvent
@@ -219,6 +219,7 @@ sklearn_pipeline:
               run: sklearn-demo
         select_features:
           type: ServiceTask
+          name: select_features
           documentation: |
             `DataFrame.drop(input_dataset, columns=["target"])` - the input
             association names the unbound method's receiver with `parameter: self`,
@@ -235,7 +236,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:56.906+02:00"
               what: "2026-08-20T12:28:27.082+02:00"
               run: sklearn-demo
-          name: select_features
           dataInputAssociations:
             DataInput_Input_Features:
               sourceRef:
@@ -250,6 +250,7 @@ sklearn_pipeline:
           implementation: python://pandas.DataFrame.drop
         select_target:
           type: ServiceTask
+          name: select_target
           documentation: |
             `DataFrame.get(input_dataset, key="target")` - the one-dimensional
             label vector the estimator is trained against.
@@ -263,7 +264,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:57.060+02:00"
               what: "2026-08-20T12:28:27.183+02:00"
               run: sklearn-demo
-          name: select_target
           dataInputAssociations:
             DataInput_Input_Target:
               sourceRef:
@@ -277,6 +277,7 @@ sklearn_pipeline:
           implementation: python://pandas.DataFrame.get
         split_train_test:
           type: ServiceTask
+          name: split_train_test
           documentation: |
             `train_test_split(features, target, test_size=0.25, stratify=target,
             random_state=42)`. This is the first thing that touches the data, and
@@ -302,7 +303,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:57.235+02:00"
               what: "2026-08-20T12:28:27.430+02:00"
               run: sklearn-demo
-          name: split_train_test
           dataInputAssociations:
             DataInput_Features_Split:
               sourceRef:
@@ -354,6 +354,7 @@ sklearn_pipeline:
         Flow_Split_Prepare_End: split_train_test -> prepare_end
         input_dataset:
           type: studyflow:Table
+          name: input_dataset
           documentation: |
             Required input. A CSV table with one numeric feature column per
             predictor and one label column named `target`. The engine loads it from
@@ -365,9 +366,9 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:27.077+02:00"
               run: sklearn-demo
           uri: digits.csv
-          name: input_dataset
     select_model:
       type: SubProcess
+      name: select_model
       documentation: >-
         Model selection, on the training half only. The cross-validated mean is what the gate reads; it is not the
         result of the workflow, and nothing here touches the held-out quarter.
@@ -376,11 +377,10 @@ sklearn_pipeline:
           action: executed
           when: "2026-08-20T12:28:57.696+02:00"
           run: sklearn-demo
-      name: select_model
       properties:
         cv_scores:
-          itemSubjectRef: Item_Scores
           name: cv_scores
+          itemSubjectRef: Item_Scores
       flowElements:
         select_start:
           type: StartEvent
@@ -399,6 +399,7 @@ sklearn_pipeline:
               run: sklearn-demo
         build_pipeline:
           type: ServiceTask
+          name: build_pipeline
           documentation: |
             `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1))`. The two
             estimators are nested calls inside `arguments`: a mapping carrying its
@@ -419,7 +420,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:57.391+02:00"
               what: "2026-08-20T12:28:27.923+02:00"
               run: sklearn-demo
-          name: build_pipeline
           dataOutputAssociations:
             DataOutput_Estimator:
               targetRef: estimator
@@ -435,6 +435,7 @@ sklearn_pipeline:
           implementation: python://sklearn.pipeline.make_pipeline
         cross_validate:
           type: ServiceTask
+          name: cross_validate
           documentation: |
             `cross_validate(estimator, X=x_train, y=y_train, cv=5, scoring=[...])`
             - five folds over the training half only. This is model selection, so
@@ -449,7 +450,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:57.468+02:00"
               what: "2026-08-20T12:28:28.180+02:00"
               run: sklearn-demo
-          name: cross_validate
           dataInputAssociations:
             DataInput_Estimator_CV:
               sourceRef:
@@ -476,6 +476,7 @@ sklearn_pipeline:
           implementation: python://sklearn.model_selection.cross_validate
         build_fold_report:
           type: ServiceTask
+          name: build_fold_report
           documentation: |
             `DataFrame(data=cv_scores)` - one row per fold, one column per
             requested metric. The CSV output is a durable record of the selection
@@ -490,7 +491,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:57.546+02:00"
               what: "2026-08-20T12:28:28.264+02:00"
               run: sklearn-demo
-          name: build_fold_report
           dataInputAssociations:
             DataInput_CV_Result_Report:
               sourceRef:
@@ -502,6 +502,7 @@ sklearn_pipeline:
           implementation: python://pandas.DataFrame
         summarize_cv:
           type: ServiceTask
+          name: summarize_cv
           documentation: |
             `DataFrame.describe(cv_fold_report)`: count, mean, standard deviation,
             quantiles, and extrema per metric. It writes twice from one return
@@ -524,7 +525,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:57.620+02:00"
               what: "2026-08-20T12:28:28.346+02:00"
               run: sklearn-demo
-          name: summarize_cv
           dataInputAssociations:
             DataInput_Fold_Report_Summary:
               sourceRef:
@@ -554,6 +554,7 @@ sklearn_pipeline:
               run: sklearn-demo
         cv_fold_report:
           type: studyflow:Table
+          name: cv_fold_report
           documentation: Per-fold metrics from the training-set cross-validation, persisted as CSV.
           extensionElements:
             - type: prov:Activity
@@ -561,9 +562,9 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:28.264+02:00"
               run: sklearn-demo
           uri: cv_fold_metrics.csv
-          name: cv_fold_report
         cv_summary:
           type: studyflow:Table
+          name: cv_summary
           documentation: Descriptive summary of the cross-validation metrics, persisted for review.
           extensionElements:
             - type: prov:Activity
@@ -571,7 +572,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:28.346+02:00"
               run: sklearn-demo
           uri: cv_metric_summary.csv
-          name: cv_summary
         Flow_Select_Start_Build_Pipeline: select_start -> build_pipeline
         Flow_Build_Pipeline_Cross_Validate: build_pipeline -> cross_validate
         Flow_Cross_Validate_Build_Fold_Report: cross_validate -> build_fold_report
@@ -579,6 +579,7 @@ sklearn_pipeline:
         Flow_Summarize_CV_Select_End: summarize_cv -> select_end
     evaluate_and_report:
       type: SubProcess
+      name: evaluate_and_report
       documentation: >-
         The single pass over the held-out quarter: fit on the training half, predict the test half once, and report what
         came out — as numbers and as a figure. Every number a reader quotes comes from here.
@@ -587,15 +588,14 @@ sklearn_pipeline:
           action: executed
           when: "2026-08-20T12:28:59.091+02:00"
           run: sklearn-demo
-      name: evaluate_and_report
       properties:
         predictions:
+          name: predictions
           itemSubjectRef: Item_Labels
           uri: predictions.joblib
-          name: predictions
         test_metrics:
-          itemSubjectRef: Item_Scores
           name: test_metrics
+          itemSubjectRef: Item_Scores
       flowElements:
         report_start:
           type: StartEvent
@@ -614,6 +614,7 @@ sklearn_pipeline:
               run: sklearn-demo
         fit_model:
           type: ServiceTask
+          name: fit_model
           documentation: |
             `Pipeline.fit(estimator, X=x_train, y=y_train)` - the selected
             estimator fitted on the training half, and only that half. The fitted
@@ -629,7 +630,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:58.295+02:00"
               what: "2026-08-20T12:28:28.610+02:00"
               run: sklearn-demo
-          name: fit_model
           dataInputAssociations:
             DataInput_Estimator_Fit:
               sourceRef:
@@ -649,6 +649,7 @@ sklearn_pipeline:
           implementation: python://sklearn.pipeline.Pipeline.fit
         predict_test:
           type: ServiceTask
+          name: predict_test
           documentation: |
             `Pipeline.predict(fitted_model, X=x_test)` - the single pass over the
             test quarter. Its predictions feed both of the reports below, so the
@@ -664,7 +665,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:58.377+02:00"
               what: "2026-08-20T12:28:28.777+02:00"
               run: sklearn-demo
-          name: predict_test
           dataInputAssociations:
             DataInput_Model_Predict:
               sourceRef:
@@ -680,6 +680,7 @@ sklearn_pipeline:
           implementation: python://sklearn.pipeline.Pipeline.predict
         score_test:
           type: ServiceTask
+          name: score_test
           documentation: |
             `classification_report(y_true=y_test, y_pred=predictions,
             output_dict=True)` - per-class precision, recall, and F1 on data the
@@ -699,7 +700,6 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:58.462+02:00"
               run: sklearn-demo
-          name: score_test
           dataInputAssociations:
             DataInput_Y_Test_Score:
               sourceRef:
@@ -718,6 +718,7 @@ sklearn_pipeline:
           implementation: python://sklearn.metrics.classification_report
         write_test_report:
           type: ServiceTask
+          name: write_test_report
           documentation: |
             `DataFrame(data=test_metrics)` - the held-out report as a table, one
             column per class and per average, one row per metric. This is the
@@ -744,7 +745,6 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:58.542+02:00"
               run: sklearn-demo
-          name: write_test_report
           dataInputAssociations:
             DataInput_Test_Metrics_Report:
               sourceRef:
@@ -756,6 +756,7 @@ sklearn_pipeline:
           implementation: python://pandas.DataFrame
         plot_confusion:
           type: ServiceTask
+          name: plot_confusion
           documentation: |
             `ConfusionMatrixDisplay.from_predictions(y_true=y_test,
             y_pred=predictions)` - the held-out errors as a figure, from the same
@@ -783,7 +784,6 @@ sklearn_pipeline:
               action: executed
               when: "2026-08-20T12:28:58.931+02:00"
               run: sklearn-demo
-          name: plot_confusion
           dataInputAssociations:
             DataInput_Y_Test_Plot:
               sourceRef:
@@ -818,6 +818,7 @@ sklearn_pipeline:
               run: sklearn-demo
         fitted_model:
           type: DataObjectReference
+          name: fitted_model
           documentation: |
             The fitted estimator, persisted with joblib. Fitted on the training
             half, so the held-out report describes this exact artifact.
@@ -827,9 +828,9 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:28.609+02:00"
               run: sklearn-demo
           uri: digits_pca_svc.joblib
-          name: fitted_model
         test_report:
           type: studyflow:Table
+          name: test_report
           documentation: |
             Precision, recall, and F1 per class on the held-out test set, with the
             macro and weighted averages. Persisted as CSV; the metric names are the
@@ -844,9 +845,9 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:58.542+02:00"
               run: sklearn-demo
           uri: holdout_metrics.csv
-          name: test_report
         confusion_matrix:
           type: DataObjectReference
+          name: confusion_matrix
           documentation: |
             The held-out confusion matrix as a PNG, written by the `png` codec from
             the figure the plotting step returned.
@@ -864,7 +865,6 @@ sklearn_pipeline:
               when: "2026-08-20T12:28:58.931+02:00"
               run: sklearn-demo
           uri: confusion_matrix.png
-          name: confusion_matrix
         Flow_Report_Start_Fit_Model: report_start -> fit_model
         Flow_Fit_Model_Predict_Test: fit_model -> predict_test
         Flow_Predict_Test_Score_Test: predict_test -> score_test

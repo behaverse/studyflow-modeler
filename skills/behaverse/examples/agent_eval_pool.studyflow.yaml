@@ -7,28 +7,28 @@ Agent_Eval_Pool_Actors:
   participants:
     Actor_Random_bot:
       type: studyflow:Actor
+      name: Random bot
       actorType: software
       implementation: behaverse://bot
-      name: Random bot
     Actor_Claude__claude_haiku_4_5:
       type: studyflow:Actor
+      name: Claude (claude-haiku-4-5)
       actorType: llm
       implementation: claude://claude-haiku-4-5
-      name: Claude (claude-haiku-4-5)
     Actor_Ollama__gemma4_e2b_mlx:
       type: studyflow:Actor
+      name: Ollama (gemma4:e2b-mlx)
       actorType: llm
       implementation: ollama://gemma4:e2b-mlx
-      name: Ollama (gemma4:e2b-mlx)
 Agent_Eval_Pool:
   type: studyflow:Study
+  name: LLM evaluation — agent actor pool
   documentation: Runs one 2-back protocol on random, Claude, and Ollama agents in parallel and compares their accuracy.
   extensionElements:
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:23Z"
       with: studyflow-modeler/26.0615
-  name: LLM evaluation — agent actor pool
   flowElements:
     Start:
       type: StartEvent
@@ -38,9 +38,9 @@ Agent_Eval_Pool:
       name: Dispatch to agent pool
     Agent_Random:
       type: behaverse:Task
+      name: Random baseline agent
       instrument: NB
       timeline: Eval_2Back
-      name: Random baseline agent
       participantRef:
         - Actor_Random_bot
       dataInputAssociations:
@@ -49,6 +49,7 @@ Agent_Eval_Pool:
             - Agent_Random_Parameters
     Agent_Random_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values:
         Blocks:
           Eval_2Back:
@@ -96,12 +97,11 @@ Agent_Eval_Pool:
           StimulusDisplayDuration: 0.3
           InterStimulusInterval: 0.3
           TrialForeperiod: 0.1
-      name: Parameters
     Agent_Claude:
       type: behaverse:Task
+      name: Claude LLM agent
       instrument: NB
       timeline: Eval_2Back
-      name: Claude LLM agent
       participantRef:
         - Actor_Claude__claude_haiku_4_5
       dataInputAssociations:
@@ -113,6 +113,7 @@ Agent_Eval_Pool:
             - Agent_Claude_Parameters
     Agent_Claude_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values:
         Blocks:
           Eval_2Back:
@@ -164,20 +165,19 @@ Agent_Eval_Pool:
           playerPaced: true
           useNonMatchButton: true
           maxResponseTime: 120
-      name: Parameters
     Instructions_Agent_Claude:
       type: agentic:Prompt
+      name: Instructions
       template: |
         You are an attentive, expert participant in a 2-back task.
         Respond Match if the current letter is identical to the letter shown
         exactly two trials ago, otherwise NonMatch. Aim for near-perfect
         accuracy. Reply with exactly Match or NonMatch; no explanation.
-      name: Instructions
     Agent_Ollama:
       type: behaverse:Task
+      name: Ollama LLM agent (local)
       instrument: NB
       timeline: Eval_2Back
-      name: Ollama LLM agent (local)
       participantRef:
         - Actor_Ollama__gemma4_e2b_mlx
       dataInputAssociations:
@@ -189,6 +189,7 @@ Agent_Eval_Pool:
             - Agent_Ollama_Parameters
     Agent_Ollama_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values:
         Blocks:
           Eval_2Back:
@@ -240,33 +241,32 @@ Agent_Eval_Pool:
           playerPaced: true
           useNonMatchButton: true
           maxResponseTime: 15
-      name: Parameters
     Instructions_Agent_Ollama:
       type: agentic:Prompt
+      name: Instructions
       template: |
         You are an attentive, expert participant in a 2-back task.
         Respond Match if the current letter is identical to the letter shown
         exactly two trials ago, otherwise NonMatch. Aim for near-perfect
         accuracy. Reply with exactly Match or NonMatch; no explanation.
-      name: Instructions
     Join:
       type: ParallelGateway
       name: Collect responses
     Score:
       type: Task
+      name: Aggregate & compare accuracy
       checklist: |-
         - [ ] Compute hit rate / false-alarm rate per agent
         - [ ] Compute d-prime per agent
         - [ ] Compare each model to the random baseline
         - [ ] Compare models to human norms
-      name: Aggregate & compare accuracy
       dataOutputAssociations:
         DataOutput_Score_Responses:
           targetRef: Dataset_Responses
     Dataset_Responses:
       type: behaverse:BDMDataset
-      dataLevel: trials
       name: Agent response set
+      dataLevel: trials
     End:
       type: EndEvent
       name: Evaluation report

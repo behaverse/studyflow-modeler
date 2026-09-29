@@ -7,27 +7,27 @@ Demo3_ExternalBot_Actors:
   participants:
     Actor_Random_bot:
       type: studyflow:Actor
+      name: Random bot
       actorType: software
       implementation: behaverse://bot
-      name: Random bot
 Demo3_ExternalBot:
   type: studyflow:Study
+  name: Random bot
   documentation: A 1-back warm-up and a 2-back block played by the Behaverse build's own random bot.
   extensionElements:
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:26Z"
       with: studyflow-modeler/26.0615
-  name: Random bot
   flowElements:
     Start:
       type: StartEvent
       name: Start
     Warmup_1Back:
       type: behaverse:Task
+      name: 1-Back warm-up
       instrument: NB
       timeline: Demo3_Warmup
-      name: 1-Back warm-up
       participantRef:
         - Actor_Random_bot
       dataInputAssociations:
@@ -36,6 +36,7 @@ Demo3_ExternalBot:
             - Warmup_1Back_Parameters
     Warmup_1Back_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values:
         Blocks:
           Demo3_Warmup:
@@ -79,12 +80,11 @@ Demo3_ExternalBot:
           StimulusDisplayDuration: 0.3
           InterStimulusInterval: 0.3
           TrialForeperiod: 0.1
-      name: Parameters
     Main_2Back:
       type: behaverse:Task
+      name: 2-Back main
       instrument: NB
       timeline: Demo3_Main
-      name: 2-Back main
       participantRef:
         - Actor_Random_bot
       dataInputAssociations:
@@ -93,6 +93,7 @@ Demo3_ExternalBot:
             - Main_2Back_Parameters
     Main_2Back_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values:
         Blocks:
           Demo3_Main:
@@ -140,7 +141,6 @@ Demo3_ExternalBot:
           StimulusDisplayDuration: 0.3
           InterStimulusInterval: 0.3
           TrialForeperiod: 0.1
-      name: Parameters
     End:
       type: EndEvent
       name: Done

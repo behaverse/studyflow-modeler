@@ -3,42 +3,42 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 EEG_Session:
   type: studyflow:Study
-  documentation: An EEG session covering cap fitting through data export.
   name: EEG session
+  documentation: An EEG session covering cap fitting through data export.
   flowElements:
     Start:
       type: StartEvent
       name: Start
     Mount_Cap:
       type: ManualTask
+      name: Mount cap & check impedance
       documentation: |
         Fit the cap, place the electrodes, and check that every one of them
         makes good contact before recording starts.
-      name: Mount cap & check impedance
     Baseline:
       type: cognitive:Rest
+      name: Resting baseline
       restDuration: 120
       eyes: closed
-      name: Resting baseline
     Cognitive_Task:
       type: Task
+      name: Cognitive task
       extensionElements:
         - type: cognitive:CognitiveTask
           platform: psychopy
-      name: Cognitive task
       dataInputAssociations:
         In_Cognitive_Task_Parameters:
           sourceRef:
             - Cognitive_Task_Parameters
     Cognitive_Task_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values: |
         triggerChannel: markers  # stimulus marker stream sent with biosignals
-      name: Parameters
     Export_Recording:
       type: ServiceTask
-      documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
       name: Export recording
+      documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
       additionalArguments:
         output_folder: bids/
       implementation: python://datatrove.pipeline.writers.ParquetWriter

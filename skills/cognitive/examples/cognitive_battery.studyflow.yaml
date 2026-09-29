@@ -3,13 +3,13 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Cognitive_Battery:
   type: studyflow:Study
+  name: Within-subject cognitive battery
   documentation: Chains N-Back, Digit Span, SART, and Which One tasks with a timed break and a NASA-TLX survey.
   extensionElements:
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:29Z"
       with: studyflow-modeler/26.0615
-  name: Within-subject cognitive battery
   flowElements:
     Start:
       type: StartEvent
@@ -17,25 +17,25 @@ Cognitive_Battery:
       consentFormUri: https://example.org/protocols/cognitive-battery/consent.pdf
     Instructions:
       type: Task
+      name: Instructions & practice
       checklist: |-
         - [ ] Informed consent signed
         - [ ] Task instructions shown
         - [ ] Practice trials passed
-      name: Instructions & practice
     Task_NBack:
       type: Task
+      name: Working memory (N-Back)
       extensionElements:
         - type: behaverse:Task
           instrument: NB
           timeline: XCIT_NB_01
-      name: Working memory (N-Back)
     Task_DigitSpan:
       type: Task
+      name: Verbal span (Digit Span)
       extensionElements:
         - type: behaverse:Task
           instrument: DS
           timeline: XCIT_DS_01
-      name: Verbal span (Digit Span)
     Break:
       type: IntermediateCatchEvent
       name: Self-paced break
@@ -44,32 +44,32 @@ Cognitive_Battery:
           type: TimerEventDefinition
     Task_SART:
       type: Task
+      name: Sustained attention (SART)
       extensionElements:
         - type: behaverse:Task
           instrument: SART
           timeline: XCIT_SART_01
-      name: Sustained attention (SART)
     Task_WhichOne:
       type: Task
+      name: Visual WM (Which One)
       extensionElements:
         - type: behaverse:Task
           instrument: WO
           timeline: XCIT_WO_01
-      name: Visual WM (Which One)
       dataOutputAssociations:
         DataOutput_WhichOne_Data:
           targetRef: Dataset_Battery
     Survey:
       type: cognitive:Questionnaire
-      instrument: nasa-tlx
       name: Post-battery survey
+      instrument: nasa-tlx
       dataOutputAssociations:
         DataOutput_Survey_Data:
           targetRef: Dataset_Battery
     Dataset_Battery:
       type: behaverse:BDMDataset
-      dataLevel: trials
       name: Battery trial data
+      dataLevel: trials
     End:
       type: EndEvent
       name: Session complete

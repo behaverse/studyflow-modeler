@@ -11,10 +11,10 @@ Probe:
   type: studyflow:Study
   properties:
     Arm:
+      name: arm
       itemSubjectRef: Item_Arm
       dataState:
         name: allocated
-      name: arm
   flowElements:
     Start:
       type: StartEvent
@@ -23,8 +23,8 @@ Probe:
       name: Cognitive battery
       properties:
         Failed_Trials:
-          itemSubjectRef: Item_Count
           name: failed_trials
+          itemSubjectRef: Item_Count
       flowElements:
         Trial_Start:
           type: StartEvent

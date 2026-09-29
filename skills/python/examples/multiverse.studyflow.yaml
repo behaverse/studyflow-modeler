@@ -3,6 +3,7 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 multiverse:
   type: studyflow:Study
+  name: multiverse
   documentation: |
     A specification curve in its smallest form: one estimator, one data set,
     one analytic choice left open, and every value of that choice scored.
@@ -22,17 +23,16 @@ multiverse:
   seed: 42
   dependencies:
     - scikit-learn>=1.4
-  name: multiverse
   properties:
     cs:
       name: cs
       value: "[0.1, 1, 10]"
     features:
-      uri: features.joblib
       name: features
+      uri: features.joblib
     labels:
-      uri: labels.joblib
       name: labels
+      uri: labels.joblib
     scores:
       name: scores
   flowElements:
@@ -41,10 +41,10 @@ multiverse:
       name: start
     load_digits:
       type: ServiceTask
+      name: load_digits
       documentation: >-
         `load_digits(return_X_y=True)`: the 8x8 images as 64 features, and the digit each shows. One call fills both
         properties, each output taking its half of the pair.
-      name: load_digits
       dataOutputAssociations:
         Out_Features:
           targetRef: features
@@ -57,10 +57,10 @@ multiverse:
       implementation: python://sklearn.datasets.load_digits
     each_c:
       type: SubProcess
+      name: each_c
       documentation: >-
         One universe per value of `cs`: the value is this sub-process's `C` while a pass runs, and the pass's `score`
         joins `scores` when it ends.
-      name: each_c
       properties:
         score:
           name: score
@@ -69,20 +69,20 @@ multiverse:
         loopDataInputRef: cs
         loopDataOutputRef: scores
         inputDataItem:
-          id: each_c_C
           name: C
+          id: each_c_C
         outputDataItem:
-          id: each_c_score
           name: score
+          id: each_c_score
       flowElements:
         universe_start:
           type: StartEvent
         score_svc:
           type: ServiceTask
+          name: score_svc
           documentation: >-
             `cross_val_score(SVC(C=C), features, labels, cv=5)`: the mean of its five fold accuracies is the universe's
             `score`.
-          name: score_svc
           dataInputAssociations:
             In_Features:
               sourceRef:

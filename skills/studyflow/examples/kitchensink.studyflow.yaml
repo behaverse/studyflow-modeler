@@ -3,6 +3,7 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Kitchen_Sink:
   type: studyflow:Study
+  name: Studyflow element catalog (kitchen sink)
   documentation: >-
     Element catalog: one live instance of every palette-visible element type, one labelled band per schema. Read top to
     bottom: the BPMN 2.0 base that Studyflow inherits (events, gateways, activities, data), then the studyflow core and
@@ -17,7 +18,6 @@ Kitchen_Sink:
       action: created
       when: "2026-07-30T22:51:34Z"
       with: studyflow-modeler/26.0615
-  name: Studyflow element catalog (kitchen sink)
   flowElements:
     Ev_Start:
       type: StartEvent
@@ -97,24 +97,24 @@ Kitchen_Sink:
       name: Data store
     Sf_Dataset:
       type: behaverse:BDMDataset
-      dataLevel: trials
       name: Dataset
+      dataLevel: trials
     Sf_Schema:
       type: studyflow:Schema
       name: Schema
     Sf_Table:
       type: studyflow:Table
-      format: parquet
       name: Table
+      format: parquet
     Sf_Timeseries:
       type: studyflow:Timeseries
-      format: edf
       name: Timeseries
+      format: edf
     Sf_EventMarker:
       type: studyflow:EventMarker
+      name: Event marker
       eventTypes:
         - stimulus
-      name: Event marker
     Ex_Parameters:
       type: studyflow:Parameters
       name: Parameters
@@ -132,50 +132,50 @@ Kitchen_Sink:
         loopMaximum: 5
     Cg_CognitiveTask:
       type: Task
+      name: Cognitive task
       extensionElements:
         - type: cognitive:CognitiveTask
           platform: jspsych
           implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
-      name: Cognitive task
     Cg_Rest:
       type: cognitive:Rest
       name: Rest
     Cg_Questionnaire:
       type: cognitive:Questionnaire
-      instrument: phq-9
       name: Questionnaire
+      instrument: phq-9
     Cg_Instruction:
       type: cognitive:Instruction
       name: Instruction
     Cg_Behaverse:
       type: Task
+      name: Behaverse task
       extensionElements:
         - type: behaverse:Task
           instrument: NB
           timeline: XCIT_NB_01
-      name: Behaverse task
     Cg_Random:
       type: cognitive:RandomGateway
       name: Random gateway
     Cg_Stratified:
       type: cognitive:RandomGateway
-      stratifyBy: age_band
       name: Stratified allocation
+      stratifyBy: age_band
     Cg_Eligibility:
       type: cognitive:EligibilityGateway
+      name: Eligibility gateway
       inclusionCriteria:
         - Aged 18 to 65 years
         - Normal or corrected-to-normal vision
       exclusionCriteria:
         - Prior exposure to the battery
         - Failed comprehension check
-      name: Eligibility gateway
     Ob_Recording:
       type: DataStoreReference
+      name: EEG recording
       extensionElements:
         - type: eeg:Recording
           format: bdm
-      name: EEG recording
     Ag_Prompt:
       type: agentic:Prompt
       name: Prompt

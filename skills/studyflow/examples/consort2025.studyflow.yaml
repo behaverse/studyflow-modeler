@@ -4,13 +4,13 @@ definitions:
   xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
 CONSORT_2025:
   type: studyflow:Study
+  name: CONSORT 2025
   documentation: A CONSORT 2025 participant flow from enrollment to analysis, with attrition as boundary error events.
   extensionElements:
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:30Z"
       with: studyflow-modeler/26.0615
-  name: CONSORT 2025
   flowElements:
     Enrollment_Start:
       type: StartEvent
@@ -18,13 +18,13 @@ CONSORT_2025:
       consentFormUri: https://example.org/protocols/consort2025/consent.pdf
     Activity_Screening:
       type: cognitive:Questionnaire
+      name: Screening assessment
       checklist: |-
         - [ ] Demographic intake
         - [ ] Medical history
         - [ ] Vital signs
         - [ ] Baseline cognitive screen
       instrument: screening
-      name: Screening assessment
     Eligibility_Gateway:
       type: cognitive:EligibilityGateway
       name: Assessed for eligibility
@@ -40,11 +40,11 @@ CONSORT_2025:
       name: Randomization
     Activity_Allocation_A:
       type: Task
+      name: Allocated to intervention (n=...)
       checklist: |-
         - [ ] Allocation concealed until enrollment
         - [ ] Intervention delivered as protocol
         - [ ] Adverse events recorded
-      name: Allocated to intervention (n=...)
     DidNotReceive_A:
       type: BoundaryEvent
       name: Did not receive (n=...)
@@ -54,6 +54,7 @@ CONSORT_2025:
       attachedToRef: Activity_Allocation_A
     Activity_Followup_A:
       type: Task
+      name: Follow-up
       checklist: |-
         - [ ] Adherence visit
         - [ ] Outcome assessment 1
@@ -62,7 +63,6 @@ CONSORT_2025:
       extensionElements:
         - type: cognitive:CognitiveTask
           platform: jspsych
-      name: Follow-up
     LostFollowup_A:
       type: BoundaryEvent
       name: Lost to follow-up (n=...)
@@ -79,12 +79,12 @@ CONSORT_2025:
       attachedToRef: Activity_Followup_A
     Activity_Analysis_A:
       type: Task
+      name: Analyzed (n=...)
       checklist: |-
         - [ ] Intention-to-treat dataset
         - [ ] Per-protocol dataset
         - [ ] Sensitivity analyses
         - [ ] Pre-registered statistical plan applied
-      name: Analyzed (n=...)
     ExcludedFromAnalysis_A:
       type: BoundaryEvent
       name: Excluded from analysis (n=...)
@@ -94,11 +94,11 @@ CONSORT_2025:
       attachedToRef: Activity_Analysis_A
     Activity_Allocation_B:
       type: Task
+      name: Allocated to control (n=...)
       checklist: |-
         - [ ] Allocation concealed until enrollment
         - [ ] Sham/usual-care delivered as protocol
         - [ ] Adverse events recorded
-      name: Allocated to control (n=...)
     DidNotReceive_B:
       type: BoundaryEvent
       name: Did not receive (n=...)
@@ -108,12 +108,12 @@ CONSORT_2025:
       attachedToRef: Activity_Allocation_B
     Activity_Followup_B:
       type: cognitive:Rest
+      name: Follow-up
       checklist: |-
         - [ ] Adherence visit
         - [ ] Outcome assessment 1
         - [ ] Outcome assessment 2
         - [ ] Adverse events review
-      name: Follow-up
     LostFollowup_B:
       type: BoundaryEvent
       name: Lost to follow-up (n=...)
@@ -130,12 +130,12 @@ CONSORT_2025:
       attachedToRef: Activity_Followup_B
     Activity_Analysis_B:
       type: Task
+      name: Analyzed (n=...)
       checklist: |-
         - [ ] Intention-to-treat dataset
         - [ ] Per-protocol dataset
         - [ ] Sensitivity analyses
         - [ ] Pre-registered statistical plan applied
-      name: Analyzed (n=...)
     ExcludedFromAnalysis_B:
       type: BoundaryEvent
       name: Excluded from analysis (n=...)

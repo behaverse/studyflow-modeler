@@ -3,6 +3,7 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Drawn_Loop:
   type: studyflow:Study
+  name: drawn loop (eight turns, edges only)
   documentation: >-
     The smallest cycle the notation can draw — one step, one gateway, a conditioned back-edge, and nothing that is not a
     visible edge. The loop is bounded by the engine's own run state: `state._meta.reached.Gate` counts how often the
@@ -14,7 +15,6 @@ Drawn_Loop:
       action: created
       when: "2026-07-30T22:24:02Z"
       with: studyflow-modeler/26.0615
-  name: drawn loop (eight turns, edges only)
   flowElements:
     Start:
       type: StartEvent
@@ -28,10 +28,10 @@ Drawn_Loop:
       implementation: python://builtins.print
     Gate:
       type: ExclusiveGateway
+      name: eight times yet?
       documentation: >-
         The exit rule is on the edges, where a reader can see it: the back-edge holds while the engine's visit count is
         under eight, and the exit is the gateway's native default.
-      name: eight times yet?
       default: Exit
     End:
       type: EndEvent

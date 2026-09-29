@@ -3,22 +3,22 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Demo5_OllamaBot_Actors:
   type: Collaboration
+  name: LLM bot (Ollama)
   extensionElements:
     - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:27Z"
       with: studyflow-modeler/26.0615
-  name: LLM bot (Ollama)
   participants:
     Pool_Session:
       name: N-Back session
       processRef: Demo5_OllamaBot
     Actor_Ollama__gemma4_e2b_mlx:
       type: studyflow:Actor
+      name: Ollama (gemma4:e2b-mlx)
       actorType: llm
       implementation: ollama://gemma4:e2b-mlx
-      name: Ollama (gemma4:e2b-mlx)
   messageFlows:
     Msg_Warmup_Trial:
       name: one trial
@@ -54,17 +54,17 @@ Response_Item:
   structureRef: behaverse:Response
 Demo5_OllamaBot:
   type: Process
-  documentation: A tired 1-back warm-up and an expert 2-back block played by a local Ollama LLM bot.
   name: LLM bot (Ollama)
+  documentation: A tired 1-back warm-up and an expert 2-back block played by a local Ollama LLM bot.
   flowElements:
     Start:
       type: StartEvent
       name: Start
     Warmup_1Back:
       type: behaverse:Task
+      name: 1-Back warm-up (tired)
       instrument: NB
       timeline: Demo5_Warmup
-      name: 1-Back warm-up (tired)
       dataInputAssociations:
         In_Warmup_1Back:
           sourceRef:
@@ -74,6 +74,7 @@ Demo5_OllamaBot:
             - Warmup_1Back_Parameters
     Warmup_1Back_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values:
         Blocks:
           Demo5_Warmup:
@@ -120,19 +121,18 @@ Demo5_OllamaBot:
           playerPaced: true
           useNonMatchButton: true
           maxResponseTime: 15
-      name: Parameters
     Instructions_Warmup_1Back:
       type: agentic:Prompt
+      name: Instructions
       template: |
         You are a tired participant near the end of a long 1-back session.
         Aim for about 80% accuracy. Occasionally miss matches when your
         attention drifts. Never explain; reply with exactly Match or NonMatch.
-      name: Instructions
     Main_2Back:
       type: behaverse:Task
+      name: 2-Back main (expert)
       instrument: NB
       timeline: Demo5_Main
-      name: 2-Back main (expert)
       dataInputAssociations:
         In_Main_2Back:
           sourceRef:
@@ -142,6 +142,7 @@ Demo5_OllamaBot:
             - Main_2Back_Parameters
     Main_2Back_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values:
         Blocks:
           Demo5_Main:
@@ -192,15 +193,14 @@ Demo5_OllamaBot:
           playerPaced: true
           useNonMatchButton: true
           maxResponseTime: 15
-      name: Parameters
     Instructions_Main_2Back:
       type: agentic:Prompt
+      name: Instructions
       template: |
         You are an attentive, expert participant in a 2-back task.
         Respond Match if the current letter is identical to the letter shown
         exactly two trials ago, otherwise NonMatch. Aim for near-perfect
         accuracy. Reply with exactly Match or NonMatch; no explanation.
-      name: Instructions
     End:
       type: EndEvent
       name: Done

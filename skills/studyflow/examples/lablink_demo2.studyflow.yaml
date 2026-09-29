@@ -3,13 +3,13 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 OmniProcessLabLinkDemo:
   type: studyflow:Study
+  name: EPSYLON LabLink - Modeling pipeline
   documentation: Reads BIDS data, preprocesses fMRI and EEG in parallel, fits a model, and renders manuscript outputs.
   extensionElements:
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:38Z"
       with: studyflow-modeler/26.0615
-  name: EPSYLON LabLink - Modeling pipeline
   flowElements:
     Start:
       type: StartEvent
@@ -105,8 +105,8 @@ OmniProcessLabLinkDemo:
     Flow_Manuscript_End: RenderManuscript -> EndMaterialized
     RawBIDSDataset:
       type: studyflow:Dataset
-      format: bids
       name: Raw BIDS data
+      format: bids
     ManuscriptArtifacts:
       type: behaverse:BDMDataset
       name: Manuscript artifacts (figures, tables)

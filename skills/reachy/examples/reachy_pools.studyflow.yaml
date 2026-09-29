@@ -3,6 +3,7 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Collab_Pools:
   type: Collaboration
+  name: Reachy plays WhichOne, a model deciding
   documentation: >-
     Three actors. Behaverse presents the WhichOne task and records the trials, the Reachy Mini looks, speaks, and moves,
     and a vision-language model decides. Run `studyflow run --runtime local` on this diagram: the robot finds the
@@ -14,23 +15,22 @@ Collab_Pools:
     on the unit.
   extensionElements:
     - type: studyflow:Study
-  name: Reachy plays WhichOne, a model deciding
   participants:
     Pool_Behaverse:
       type: studyflow:Actor
-      actorType: software
       name: Behaverse (WhichOne on the screen)
+      actorType: software
       processRef: WhichOne_Task
     Pool_Reachy:
       type: reachy:Robot
-      volume: 10
       name: Reachy Mini
+      volume: 10
       processRef: Reachy_Participant
     Pool_Model:
       type: studyflow:Actor
+      name: Model, gemma4 on Ollama
       actorType: llm
       implementation: ollama://gemma4:12b-it-qat
-      name: Model, gemma4 on Ollama
   messageFlows:
     Msg_Ready:
       name: ready
@@ -103,8 +103,8 @@ Reachy_Participant:
       name: Seated at the screen
     Look:
       type: reachy:LookAt
-      target: screen
       name: Find the screen
+      target: screen
     Greet:
       type: reachy:Interact
       name: Greet
@@ -114,8 +114,8 @@ Reachy_Participant:
       implementation: shell://say
     Wave:
       type: reachy:Interact
-      move: welcoming1
       name: Welcome
+      move: welcoming1
     Announce:
       type: reachy:Interact
       name: Announce readiness
@@ -131,10 +131,10 @@ Reachy_Participant:
           type: MessageEventDefinition
     Next_Trial:
       type: EventBasedGateway
+      name: Next trial, or task over?
       documentation: >-
         Waits for whichever message comes first: the task's next trial goes on to Receive the trial, its "task over" to
         the finale. A trial answered, the robot is back here.
-      name: Next trial, or task over?
     Receive:
       type: ReceiveTask
       name: Receive the trial
@@ -146,8 +146,8 @@ Reachy_Participant:
           targetRef: Frame
     Frame:
       type: DataObjectReference
-      uri: reachy/frames/
       name: Frame
+      uri: reachy/frames/
     Ask:
       type: ServiceTask
       name: Ask the model
@@ -164,6 +164,7 @@ Reachy_Participant:
           transformation: substring after(result, "Answer:")
     Instructions:
       type: agentic:Prompt
+      name: Instructions
       template: |
         You are a Reachy Mini robot seated in front of the WhichOne task
         screen, playing a Simon task. The attached image is your view of
@@ -178,7 +179,6 @@ Reachy_Participant:
         Seen: <the stimulus you see on the screen>
         Rule: <what the instructions say that stimulus calls for>
         Answer: <Left or Right>
-      name: Instructions
     Choice:
       type: DataObjectReference
       name: Choice
@@ -191,8 +191,8 @@ Reachy_Participant:
             - Choice
     Show:
       type: reachy:Interact
-      side: "{Choice}"
       name: Show it with the antennas
+      side: "{Choice}"
     Over:
       type: IntermediateCatchEvent
       name: Task over
@@ -208,8 +208,8 @@ Reachy_Participant:
     Flow_Next_Over: Next_Trial -> Over
     Proud:
       type: reachy:Interact
-      move: proud1
       name: Proud of it
+      move: proud1
     Thanks:
       type: reachy:Interact
       name: Ask for feedback
@@ -219,12 +219,12 @@ Reachy_Participant:
       implementation: shell://say
     Celebrate:
       type: reachy:Interact
-      move: cheerful1
       name: Celebrate
+      move: cheerful1
     LookBack:
       type: reachy:LookAt
-      target: screen
       name: Back to the screen
+      target: screen
     Done:
       type: EndEvent
       name: Done
@@ -254,9 +254,9 @@ WhichOne_Task:
           type: MessageEventDefinition
     Play:
       type: behaverse:Task
+      name: WhichOne, 5 Simon trials
       instrument: WO
       timeline: SimonTask
-      name: WhichOne, 5 Simon trials
       dataInputAssociations:
         In_Play_Parameters:
           sourceRef:
@@ -266,6 +266,7 @@ WhichOne_Task:
           targetRef: Trials
     Play_Parameters:
       type: studyflow:Parameters
+      name: Parameters
       values:
         Timelines:
           SimonTask:
@@ -278,12 +279,11 @@ WhichOne_Task:
             Parameters:
               StimulusDisplayDuration: 5
               MaxResponseTime: 8
-      name: Parameters
     Trials:
       type: behaverse:BDMDataset
+      name: Trial records
       dataLevel: trials
       uri: Play.events.jsonl
-      name: Trial records
     Task_Done:
       type: EndEvent
       name: Task over

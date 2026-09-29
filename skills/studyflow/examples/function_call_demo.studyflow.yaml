@@ -3,13 +3,13 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 FunctionCallDemo:
   type: studyflow:Study
+  name: Function calls demo
   documentation: Demonstrates function references by binding a Map to a python callable and fetching a script by URL.
   extensionElements:
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:33Z"
       with: studyflow-modeler/26.0615
-  name: Function calls demo
   flowElements:
     Start:
       type: StartEvent

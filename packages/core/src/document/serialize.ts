@@ -72,6 +72,13 @@ function serializeValue(value: any, declaredType: string | undefined, ctx?: Seri
   );
 }
 
+/** What an element is and what it is called come first, whatever order moddle's descriptor lists them in. */
+function nameFirst(out: Record<string, unknown>): Record<string, unknown> {
+  if (!('name' in out)) return out;
+  const { type, name, ...rest } = out;
+  return { ...(type === undefined ? {} : { type }), name, ...rest };
+}
+
 function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   // Its drawing, keyed before its children's so the layout reads in document order.
@@ -123,9 +130,7 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
   }
   if (DI_NODE_TYPES.has(el.$type)) compactDiNode(out);
   if (out.type !== undefined && impliedTypeName(out, declaredType) === el.$type) delete out.type;
-  if (ctx) return foldTypedElement(el, out);
-
-  return out;
+  return nameFirst(ctx ? foldTypedElement(el, out) : out);
 }
 
 function serializeLeftoverDiagrams(definitions: any, ctx: SerializeContext): unknown[] {

@@ -3,6 +3,7 @@ definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Dyadic_Study:
   type: Choreography
+  name: Dyadic decision study
   documentation: A two-participant choreography where subject and experimenter exchange consent and two decision rounds.
   extensionElements:
     - type: studyflow:Study
@@ -10,7 +11,6 @@ Dyadic_Study:
       action: created
       when: "2026-07-30T22:51:28Z"
       with: studyflow-modeler/26.0615
-  name: Dyadic decision study
   participants:
     Participant_Subject:
       name: Subject

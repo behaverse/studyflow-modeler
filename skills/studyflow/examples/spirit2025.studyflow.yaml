@@ -4,20 +4,20 @@ definitions:
   xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
 SPIRIT_2025_Collaboration:
   type: Collaboration
+  name: SPIRIT 2025 trial protocol
   extensionElements:
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:40Z"
       with: studyflow-modeler/26.0615
-  name: SPIRIT 2025 trial protocol
   participants:
     Participant_SPIRIT:
       name: SPIRIT 2025 trial protocol
       processRef: SPIRIT_2025
 SPIRIT_2025:
   type: studyflow:Study
-  documentation: A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
   name: SPIRIT 2025 trial protocol
+  documentation: A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
   laneSets:
     LaneSet_SPIRIT:
       lanes:
@@ -54,18 +54,19 @@ SPIRIT_2025:
       consentFormUri: https://example.org/protocols/spirit2025/consent.pdf
     Visit_Screening:
       type: SubProcess
+      name: Screening visit (t = -t1)
       checklist: |-
         - [ ] SPIRIT 11a: eligibility screen
         - [ ] SPIRIT 11b: who recruits
         - [ ] SPIRIT 14: settings and locations
         - [ ] SPIRIT 26a: informed consent obtained
         - [ ] SPIRIT 27: confidentiality & data handling
-      name: Screening visit (t = -t1)
       onset: T0
       duration: 1 week
       progress: done
     Eligibility_Gate:
       type: cognitive:EligibilityGateway
+      name: Eligible?
       inclusionCriteria:
         - Adults aged 18 to 65 years
         - DSM-5 diagnosis of attentional disorder
@@ -74,7 +75,6 @@ SPIRIT_2025:
         - Comorbid neurological condition
         - Pregnancy or lactation
         - Participation in another interventional trial within 30 days
-      name: Eligible?
       default: Flow_Eligible_Yes
     ScreenFail:
       type: EndEvent
@@ -84,26 +84,27 @@ SPIRIT_2025:
           type: ErrorEventDefinition
     Visit_Baseline:
       type: SubProcess
+      name: Baseline visit (t = 0)
       checklist: |-
         - [ ] SPIRIT 12: baseline demographics
         - [ ] SPIRIT 12: medical history
         - [ ] SPIRIT 12: vitals & physical exam
         - [ ] SPIRIT 18a: primary outcome at baseline
         - [ ] SPIRIT 18b: secondary outcomes at baseline
-      name: Baseline visit (t = 0)
       onset: T0+2 weeks
       duration: 1 week
       progress: done
     Allocate_Gate:
       type: cognitive:RandomGateway
+      name: Stratified allocation
       stratifyBy: age_band
       strata:
         - "age_band: 18-29"
         - "age_band: 30-44"
         - "age_band: 45-65"
-      name: Stratified allocation
     Activity_Intervention:
       type: Task
+      name: "Intervention: cognitive training"
       checklist: |-
         - [ ] SPIRIT 17a: intervention dose & schedule
         - [ ] SPIRIT 17b: criteria for modification
@@ -111,17 +112,16 @@ SPIRIT_2025:
       extensionElements:
         - type: cognitive:CognitiveTask
           platform: jspsych
-      name: "Intervention: cognitive training"
       onset: T0+3 weeks
       duration: 4 weeks
       progress: 60%
     Activity_Control:
       type: cognitive:Rest
+      name: "Control: active sham"
       checklist: |-
         - [ ] SPIRIT 17a: control dose matched to intervention
         - [ ] SPIRIT 17b: criteria for modification
         - [ ] SPIRIT 19: adherence monitoring
-      name: "Control: active sham"
       onset: T0+3 weeks
       duration: 4 weeks
       progress: 60%
@@ -134,36 +134,36 @@ SPIRIT_2025:
       flowElements:
         T1_Outcomes:
           type: Task
+          name: Outcome assessment
           checklist: |-
             - [x] SPIRIT 18a: primary outcome reassessed
             - [x] SPIRIT 18b: secondary outcomes reassessed
-          name: Outcome assessment
           onset: T0+6 weeks
           duration: 3 days
         T1_AE_Review:
           type: Task
+          name: Adverse-event review
           checklist: |-
             - [x] SPIRIT 22: adverse-event review
             - [ ] SPIRIT 22: serious AE reporting
-          name: Adverse-event review
           onset: T0+6 weeks+3 days
           duration: 2 days
         T1_Adherence:
           type: Task
-          checklist: "- [ ] SPIRIT 19: adherence check"
           name: Adherence check
+          checklist: "- [ ] SPIRIT 19: adherence check"
           onset: T0+6 weeks+4 days
           duration: 3 days
         Flow_T1_Outcomes_AE: T1_Outcomes -> T1_AE_Review
         Flow_T1_AE_Adherence: T1_AE_Review -> T1_Adherence
     Visit_T2:
       type: SubProcess
+      name: Primary endpoint visit (t = t2, week 12)
       checklist: |-
         - [ ] SPIRIT 18a: primary outcome - endpoint analysis
         - [ ] SPIRIT 18b: secondary outcomes
         - [ ] SPIRIT 22: adverse events
         - [ ] SPIRIT 27: data lock for primary analysis
-      name: Primary endpoint visit (t = t2, week 12)
       dataOutputAssociations:
         DataOutput_T2_Primary:
           targetRef: Dataset_Primary
@@ -174,13 +174,13 @@ SPIRIT_2025:
       progress: todo
     Visit_Closeout:
       type: SubProcess
+      name: Close-out (t = tx, week 24)
       checklist: |-
         - [ ] SPIRIT 13: participant retention plan executed
         - [ ] SPIRIT 18a: durability of primary outcome
         - [ ] SPIRIT 22: adverse events final review
         - [ ] SPIRIT 31: results dissemination plan
         - [ ] SPIRIT 32: data sharing per plan
-      name: Close-out (t = tx, week 24)
       dataOutputAssociations:
         DataOutput_Closeout_Primary:
           targetRef: Dataset_Primary
@@ -197,12 +197,12 @@ SPIRIT_2025:
       type: DataObject
     Dataset_Primary:
       type: behaverse:BDMDataset
-      dataLevel: trials
       name: Primary & secondary outcomes
+      dataLevel: trials
     Dataset_AE:
       type: studyflow:Dataset
-      format: psych-ds
       name: Adverse events register
+      format: psych-ds
     Protocol_End:
       type: EndEvent
       name: Trial complete
