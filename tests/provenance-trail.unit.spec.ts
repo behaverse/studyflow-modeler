@@ -5,6 +5,7 @@ import { readTrail, resetTrailStamping, stampTrailForExport, trailTimestamp } fr
 import { freshModdle } from './schemas';
 import { exampleXml } from './utils';
 import type { Editor } from '@modeler/editor/port';
+import { Study } from '@canvas/index.ts';
 
 /** Run records in `state._meta.prov`, stamped once per *fact* so re-rendering stays byte-stable. */
 
@@ -27,6 +28,20 @@ function stripTrail(definitions: any): any {
 }
 
 test.describe('provenance trail', () => {
+  test('a stamp is a commit of the study, so undo and redo keep it with the history', async () => {
+    const definitions = stripTrail(await definitionsOf(await exampleXml('drawn_loop')));
+    const study = Study.fromDefinitions(definitions);
+    const modeler = {
+      study, getDefinitions: () => study.definitions, revision: () => study.revision, model: { moddle: () => moddle },
+    } as unknown as Editor;
+    expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('created');
+    expect(readTrail(study.definitions)).toHaveLength(1);
+    study.undo();
+    expect(readTrail(study.definitions)).toHaveLength(0);
+    study.redo();
+    expect(readTrail(study.definitions)).toHaveLength(1);
+  });
+
   test('stamps once per fact, not once per download', async () => {
     const definitions = stripTrail(await definitionsOf(await exampleXml('drawn_loop')));
     // A partial mock: stamping reads the document and `moddle`, and decides off the
@@ -36,6 +51,7 @@ test.describe('provenance trail', () => {
       getDefinitions: () => definitions,
       revision: () => revision,
       model: { moddle: () => moddle },
+      study: { root: { id: 'Root' }, edit: (_id: string, write: (writer: unknown) => void) => { write({ set: () => {} }); revision += 1; } },
     } as unknown as Editor;
     const edit = () => { revision += 1; };
 

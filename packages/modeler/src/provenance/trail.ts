@@ -1,4 +1,4 @@
-import { META_KEY, primaryRoot, readState, writeState } from '@core/document';
+import { META_KEY, primaryRoot, readState, studyExtensionOf, writeState } from '@core/document';
 import type { Editor } from '@modeler/editor/port';
 
 export type TrailStamp = {
@@ -86,12 +86,21 @@ export function stampTrailForExport(
   const edited = revision !== (lastStampedAt.get(modeler) ?? 0);
   if (trail.length > 0 && !edited) return undefined;
 
-  const entry = appendTrailEntry(definitions, modeler.model.moddle(), {
-    action: trail.length === 0 ? 'created' : 'modified',
-    when: trailTimestamp(),
-    who: identity.who,
-    with: identity.tool,
+  // One commit of the study, so the stamp is in its history: an undo after a save takes it back with the edit it
+  // follows, and a redo brings it back, rather than the history forgetting a write made beside it.
+  let entry: TrailRecord | undefined;
+  modeler.study.edit(modeler.study.root.id, (writer) => {
+    entry = appendTrailEntry(definitions, modeler.model.moddle(), {
+      action: trail.length === 0 ? 'created' : 'modified',
+      when: trailTimestamp(),
+      who: identity.who,
+      with: identity.tool,
+    });
+    // Through the writer, so the commit records the write.
+    const holder = studyExtensionOf(definitions);
+    if (entry && holder) writer.set(holder, { state: holder.get?.('state') ?? holder.state });
   });
-  if (entry) lastStampedAt.set(modeler, revision);
+  // The stamp is itself a commit: the baseline is the revision after it, so it never counts as an edit.
+  if (entry) lastStampedAt.set(modeler, modeler.revision());
   return entry;
 }
