@@ -570,10 +570,18 @@ def shown(path: Path) -> Path:
 
 def skill_dirs() -> list[Path]:
     """Every skill folder (one with a `SKILL.md`) under the nearest `skills/` above this script (the repo
-    checkout, or `libexec/skills` as installed), then under each `STUDYFLOW_SKILLS` directory."""
+    checkout, or `libexec/skills` as installed), then the skills installed with `studyflow skill add`
+    (`$STUDYFLOW_HOME/skills`, `~/.studyflow/skills`), then under each `STUDYFLOW_SKILLS` directory. A name found
+    twice is the first one's."""
     nearest = next((p / "skills" for p in Path(__file__).resolve().parents if (p / "skills").is_dir()), None)
-    roots = [*([nearest] if nearest else []), *(Path(d) for d in os.environ.get("STUDYFLOW_SKILLS", "").split(os.pathsep) if d)]
-    return sorted(manifest.parent for root in roots for manifest in root.glob("*/SKILL.md"))
+    installed = Path(os.environ.get("STUDYFLOW_HOME") or Path.home() / ".studyflow") / "skills"
+    roots = [*([nearest] if nearest else []), installed,
+             *(Path(d) for d in os.environ.get("STUDYFLOW_SKILLS", "").split(os.pathsep) if d)]
+    found: dict[str, Path] = {}
+    for root in roots:
+        for manifest in sorted(root.glob("*/SKILL.md")) if root.is_dir() else []:
+            found.setdefault(manifest.parent.name, manifest.parent)
+    return sorted(found.values())
 
 
 def branching_modes() -> dict[str, str]:

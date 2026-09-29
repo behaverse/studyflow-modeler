@@ -23,3 +23,5 @@ A skill can be vocabulary only (`eeg`), a runner only (`python`), both (`behaver
 A skill is the boundary between Studyflow and a domain (in domain-driven design, an anti-corruption layer): its vocabulary gives authors the domain's elements in the domain's words, and its runners translate between Studyflow's contract and each tool's own protocol. The apps find what it declares and learn nothing else, so how a tool behind a skill works changes that skill at most.
 
 [SCHEMAS.md](SCHEMAS.md) is the schema authoring reference.
+
+A skill need not live in this repository. `studyflow skill add <git-url | folder>` installs one in `~/.studyflow/skills/<name>` (`$STUDYFLOW_HOME/skills`), where the CLI reads its schema beside the shipped ones (`validate`, `convert`, `mcp`) and the local runtime finds its runner; `studyflow skill list` and `studyflow skill remove <name>` manage them. The modeler web app still bundles the shipped skills only.

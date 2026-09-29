@@ -4,6 +4,7 @@ import { convert } from '@cli/convert';
 import { validate } from '@cli/validate';
 import { info } from '@cli/info';
 import { mcp } from '@cli/mcp';
+import { addSkill, installedSkills, removeSkill, skillsHome } from '@cli/skills';
 import { edit } from '@desktop/edit';
 
 const program = new Command();
@@ -27,6 +28,39 @@ program
   .option('--strict', 'write nothing and exit non-zero on reader warnings')
   .action(async (input: string, output: string, options: { into?: string; modeler?: boolean; origin?: string; strict?: boolean }) => {
     console.log(await convert(input, output, options));
+  });
+
+const skill = program
+  .command('skill')
+  .description(`Skills installed beside the CLI, in ${'$'}STUDYFLOW_HOME/skills (~/.studyflow/skills): a vocabulary and runners a domain brings, found by validate, convert, mcp and run.`);
+skill
+  .command('add')
+  .argument('<source>', 'a git URL or a folder holding the skill\'s SKILL.md')
+  .description('Install a skill (a skill of the same name is replaced).')
+  .action((source: string) => {
+    const added = addSkill(source);
+    console.log(`Installed ${added.manifest.name} in ${added.folder}${added.schema ? ` (schema ${added.schema.prefix}:)` : ''}`);
+  });
+skill
+  .command('list')
+  .description('The installed skills.')
+  .action(() => {
+    const skills = installedSkills();
+    if (skills.length === 0) console.log(`No skill installed in ${skillsHome()}.`);
+    for (const { manifest, schema } of skills) {
+      const runs = Object.keys(manifest.runtimes ?? {}).join(', ');
+      console.log(`${manifest.name}${schema ? `  ${schema.prefix}:` : ''}${runs ? `  runs in ${runs}` : ''}  ${manifest.description.split('. ')[0]}`);
+    }
+  });
+skill
+  .command('remove')
+  .argument('<name>', 'the installed skill\'s name')
+  .description('Uninstall a skill.')
+  .action((name: string) => {
+    if (!removeSkill(name)) {
+      console.error(`No skill ${name} in ${skillsHome()}.`);
+      process.exitCode = 1;
+    }
   });
 
 program

@@ -76,11 +76,17 @@ export function skillOfSchema(prefix: string): SkillManifest | undefined {
   return skillOfPrefix.get(prefix);
 }
 
-export async function loadSchemas(prefixes: string[]): Promise<Record<string, any>> {
+/** The shipped schemas `prefixes` names (the required ones always), with `installed`, the schemas of skills installed
+ * beside the app (`studyflow skill add`), which load whenever given. */
+export async function loadSchemas(prefixes: string[], installed: SchemaModel[] = []): Promise<Record<string, any>> {
   const enabled = new Set(prefixes);
   for (const schema of SCHEMAS) if (schema.required) enabled.add(schema.prefix);
 
-  const models = SCHEMA_MODELS.filter((model) => enabled.has(model.prefix));
+  const shipped = new Set(SCHEMA_MODELS.map((model) => model.prefix));
+  const models = sortSchemas([
+    ...SCHEMA_MODELS.filter((model) => enabled.has(model.prefix)),
+    ...installed.filter((model) => !shipped.has(model.prefix)),
+  ]);
 
   const catalog = buildCatalog(models);
 
@@ -92,6 +98,6 @@ export async function loadSchemas(prefixes: string[]): Promise<Record<string, an
   return Object.fromEntries(models.map((model) => [model.prefix, toModdlePackages(model, models)]));
 }
 
-export function loadAllSchemas(): Promise<Record<string, any>> {
-  return loadSchemas(SCHEMA_NAMES);
+export function loadAllSchemas(installed: SchemaModel[] = []): Promise<Record<string, any>> {
+  return loadSchemas(SCHEMA_NAMES, installed);
 }

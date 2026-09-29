@@ -3,6 +3,8 @@ import { extname } from 'node:path';
 
 import { BpmnModdle } from 'bpmn-moddle';
 
+import { installedSkills } from '@cli/skills';
+
 import { looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, inlineIoSpecification, readerWarning, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
 import { loadAllSchemas } from '@core/notation/loader';
 import type { Moddle } from '@core/element/moddle';
@@ -21,7 +23,8 @@ let moddlePromise: Promise<Moddle> | undefined;
 
 /** One schema-aware moddle per process; building it parses every shipped schema. */
 export function schemaModdle(): Promise<Moddle> {
-  moddlePromise ??= loadAllSchemas().then((schemas) => new BpmnModdle(schemas) as unknown as Moddle);
+  moddlePromise ??= loadAllSchemas(installedSkills().flatMap((skill) => (skill.schema ? [skill.schema] : [])))
+    .then((schemas) => new BpmnModdle(schemas) as unknown as Moddle);
   return moddlePromise;
 }
 
