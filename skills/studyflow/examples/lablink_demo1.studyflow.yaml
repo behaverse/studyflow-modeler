@@ -10,7 +10,7 @@ LabLink_Demo_Actors:
       extensionElements:
         - type: studyflow:Actor
           actorType: software
-          implementation: random
+          implementation: behaverse://bot
       name: Random bot
 LabLink_Demo:
   type: Process

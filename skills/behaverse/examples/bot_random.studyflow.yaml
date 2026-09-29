@@ -10,7 +10,7 @@ Demo3_ExternalBot_Actors:
       extensionElements:
         - type: studyflow:Actor
           actorType: software
-          implementation: random
+          implementation: behaverse://bot
       name: Random bot
 Demo3_ExternalBot:
   type: Process

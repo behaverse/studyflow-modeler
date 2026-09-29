@@ -1,6 +1,7 @@
 import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
 import { PLACEHOLDER } from '@core/document/state';
+import { splitBinding } from '@core/document/io-specification';
 import { feelSyntaxError } from '@core/expression/feel';
 
 /** A timer's properties: ISO 8601 text (`P21D`), not FEEL. */
@@ -21,7 +22,10 @@ export function checkExpressions(definitions: ModdleElement): Issue[] {
     const id = typeof element.id === 'string' ? element.id : owner;
     if (element.$instanceOf?.('bpmn:Expression') && typeof element.body === 'string' && element.body.trim()) {
       const language: unknown = element.language;
-      const body = element.body.trim().replace(PLACEHOLDER, (_match: string, path: string) => path);
+      // A data input's transformation is `slot = selection`: the slot (`self`, `*`, a name) is no expression.
+      const text = element.$parent?.$type === 'bpmn:DataInputAssociation' ? splitBinding(element.body).selection ?? '' : element.body;
+      const body = text.trim().replace(PLACEHOLDER, (_match: string, path: string) => path);
+      if (!body) return;
       const error = typeof language === 'string' && language && !language.toLowerCase().includes('feel')
         ? `names ${language}, and every Studyflow expression is FEEL`
         : feelSyntaxError(body);

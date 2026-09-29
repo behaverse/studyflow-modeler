@@ -1,7 +1,7 @@
 import { applyXmlPasses } from '@core/document/format';
 import type { Moddle } from '@core/element/moddle';
 
-function splitBinding(value: string | undefined): { slot?: string; selection?: string } {
+export function splitBinding(value: string | undefined): { slot?: string; selection?: string } {
   const text = (value ?? '').trim();
   if (!text) return {};
   const slotOnly = /^(self|\*|[A-Za-z_]\w*)$/.exec(text);

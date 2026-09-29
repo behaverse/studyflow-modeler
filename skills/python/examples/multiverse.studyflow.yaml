@@ -100,7 +100,7 @@ multiverse:
           dataOutputAssociations:
             Out_Score:
               targetRef: score
-              transformation: result.mean()
+              transformation: mean(result)
           additionalArguments:
             estimator:
               implementation: python://sklearn.svm.SVC

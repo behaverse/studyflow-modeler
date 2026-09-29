@@ -107,11 +107,11 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
       bot.LLM = { Provider: provider, Model: model };
       const prompt = promptOf(node.businessObject);
       if (prompt) bot.Prompt = prompt;
-    } else if (!(actor.kind === 'software' && actor.model === 'random')) {
+    } else if (!(actor.kind === 'software' && actor.model === 'behaverse://bot')) {
       // Anyone else answers along the task's message flows, which only the local runtime carries.
       throw new Error(
         `'${node.id}' is taken by a ${actor.kind} participant, which answers over message flows in the local runtime. `
-        + 'The browser runner plays a person, a model on the task\'s band, or the build\'s random bot (software, `implementation: random`).',
+        + 'The browser runner plays a person, a model on the task\'s band, or the build\'s random bot (software, `implementation: behaverse://bot`).',
       );
     }
     if (Object.keys(bot).length > 0) payload.bot = bot;

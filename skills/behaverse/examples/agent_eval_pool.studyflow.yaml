@@ -10,7 +10,7 @@ Agent_Eval_Pool_Actors:
       extensionElements:
         - type: studyflow:Actor
           actorType: software
-          implementation: random
+          implementation: behaverse://bot
       name: Random bot
     Actor_Claude__claude_haiku_4_5:
       extensionElements:

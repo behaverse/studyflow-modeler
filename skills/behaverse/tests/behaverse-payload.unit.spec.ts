@@ -161,8 +161,8 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       error: /implementation/,
     },
     {
-      label: 'the build\'s random bot takes the task when the band says so, a software actor whose implementation is random',
-      xml: bandsXml('<studyflow:actor actorType="software" implementation="random" />'),
+      label: 'the build\'s random bot takes the task when the band says so, a software actor whose implementation is behaverse://bot',
+      xml: bandsXml('<studyflow:actor actorType="software" implementation="behaverse://bot" />'),
       payload: { agentType: 'bot', configMode: 'builtin', bot: { Speed: 20 } },
     },
     {

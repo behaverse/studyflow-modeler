@@ -19,7 +19,7 @@ diagram draws. A task with message flows sends each awaiting trial along the one
 takes the answer back from the one into it (skills/local/SKILL.md, "Messages"); an answer that
 names no option in time is no answer, and the trial's own window makes it a miss. Without flows,
 a person plays the task, or the build's own random bot does for a `software` taker whose
-`implementation` is `random`. `--auto` gives every person's task to that bot, so a run needs
+`implementation` is `behaverse://bot`. `--option auto` gives every person's task to that bot, so a run needs
 nobody at the screen.
 
 The build is looked for at `$UNITY_BUILD_PATH`, then `<repo>/run/assessment-unity/Build/WebGL`,
@@ -111,7 +111,7 @@ def answered_by(element: dict[str, Any], plan: dict[str, dict[str, Any]], auto: 
     actor = actor_of(element, plan)
     if actor["kind"] in ("", "human"):
         return "internal" if auto else "human"
-    if actor["kind"] == "software" and actor["model"] == "random":
+    if actor["kind"] == "software" and actor["model"] == "behaverse://bot":
         return "internal"
     raise ValueError(f"{element.get('id')} is taken by a {actor['kind']} participant, which answers along message flows "
                      "in a local run: draw one carrying each trial out of the task and one bringing the answer back")
