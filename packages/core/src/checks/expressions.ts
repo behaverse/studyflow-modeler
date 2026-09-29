@@ -3,6 +3,9 @@ import type { Issue } from '@core/checks';
 import { PLACEHOLDER } from '@core/document/state';
 import { feelSyntaxError } from '@core/expression/feel';
 
+/** A timer's properties: ISO 8601 text (`P21D`), not FEEL. */
+const TIMER = new Set(['timeDuration', 'timeDate', 'timeCycle']);
+
 /**
  * Every expression a study writes is FEEL, in both runtimes (packages/core/src/expression/feel.ts): a flow's
  * condition, a loop's condition or cardinality, a conditional event's condition, a data edge's selection. One that
@@ -25,7 +28,8 @@ export function checkExpressions(definitions: ModdleElement): Issue[] {
       if (error) issues.push({ severity: 'error', elementId: id, message: `the expression ${JSON.stringify(element.body.trim())} on ${JSON.stringify(id)} ${error.startsWith('not FEEL') ? `is ${error}` : error}` });
     }
     for (const property of element.$descriptor?.properties ?? []) {
-      if (property.isReference) continue;
+      // A timer's time is an ISO 8601 date, duration or cycle (`P21D`), not FEEL.
+      if (property.isReference || TIMER.has(property.name)) continue;
       const value = element[property.name];
       if (Array.isArray(value)) value.forEach((item) => visit(item, id));
       else if (value && typeof value === 'object' && '$type' in value) visit(value, id);
