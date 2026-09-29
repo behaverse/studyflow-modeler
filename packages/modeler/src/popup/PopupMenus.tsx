@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import type { FontPatch, TextAlign } from '@canvas/index.ts';
 import { eventDefinitionTypeOf } from '@core/element';
-import { isBpmnSubtypeOf } from '@core/notation/bpmn';
+import { bpmnFamilyOf } from '@core/notation/bpmn';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { APPEND_MENU, COLOR_MENU, CREATE_MENU, REPLACE_MENU, registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
@@ -189,17 +189,10 @@ export function PopupMenus() {
       // The same catalog the create/append menus offer, trimmed to what the editor
       // would actually accept in this element's place — and with the element's own
       // type dropped, because "change it to what it already is" is not a choice.
-      // Offered within the element's own family only (a task becomes another task,
-      // a gateway another gateway): a cross-family retype rewires semantics the
-      // in-place swap cannot carry, so the menu keeps it to siblings.
+      // Offered within the element's own family only (`bpmnFamilyOf`).
       const currentBpmn = source?.type;
       const currentExtension = source?.extension;
       const currentDefinition = eventDefinitionTypeOf(source && study.businessObject(source.id));
-      const families = ['bpmn:Activity', 'bpmn:ChoreographyActivity', 'bpmn:Event', 'bpmn:Gateway', 'bpmn:Artifact'];
-      const familyOf = (type?: string): string | undefined => (
-        type ? families.find((family) => isBpmnSubtypeOf(type, family)) : undefined
-      );
-      const currentFamily = familyOf(currentBpmn);
       const sections = buildElementEntries()
         .map((group) => ({
           id: group.id,
@@ -208,7 +201,7 @@ export function PopupMenus() {
             .filter((entry) => (
               !(entry.bpmnType === currentBpmn && entry.extensionType === currentExtension
                 && eventDefinitionTypeOf(entry.attributes as never) === currentDefinition)
-              && familyOf(entry.bpmnType) === currentFamily
+              && bpmnFamilyOf(entry.bpmnType) === bpmnFamilyOf(currentBpmn)
               && !!source && study.can('replace', { id: source.id, type: entry.bpmnType }).ok
             ))
             .map((entry): PopupMenuItem => ({

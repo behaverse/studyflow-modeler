@@ -83,3 +83,10 @@ export function bpmnSelfAndAncestors(type: string): string[] {
 export function isBpmnSubtypeOf(type: string, ancestor: string): boolean {
   return type === ancestor || (BPMN_ANCESTORS[type] ?? []).includes(ancestor);
 }
+
+/** The family a BPMN type belongs to (an activity, a choreography activity, an event, a gateway, an artifact): what a
+ * retype offered in place stays within, since one across families rewires what an in-place swap cannot carry. */
+export function bpmnFamilyOf(type: string | undefined): string | undefined {
+  return type ? ['bpmn:Activity', 'bpmn:ChoreographyActivity', 'bpmn:Event', 'bpmn:Gateway', 'bpmn:Artifact']
+    .find((family) => isBpmnSubtypeOf(type, family)) : undefined;
+}

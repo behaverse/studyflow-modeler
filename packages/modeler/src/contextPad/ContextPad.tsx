@@ -26,7 +26,6 @@ import { ICONS } from '@modeler/icons';
 import { newShape } from '@modeler/palette/newShape';
 import { contextPad as s } from '@modeler/contextPad/styles';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
-import { isBpmnSubtypeOf } from '@core/notation/bpmn';
 import { t } from '@modeler/i18n';
 import { isExpandable } from '@core/document/outline';
 import type { ElementRecord } from '@canvas/index.ts';
@@ -135,14 +134,12 @@ export function ContextPad() {
     // A container that can be expanded: both container entries are gated on the one
     // answer, so no subclass can get the toggle without the drill-down or the other way round.
     const expandable = single?.kind === 'node' && isExpandable(single.type) ? single : undefined;
-    // A sequence flow leaving a source that takes a `default` (the exclusive
-    // gateway family, or an activity) gets the toggle-default entry.
+    // A sequence flow leaving a source BPMN gives a `default` (an exclusive, inclusive or complex gateway, an
+    // activity) gets the toggle-default entry: the metamodel says which, not a list here.
     const flow = single?.kind === 'edge' && single.type === 'bpmn:SequenceFlow' ? single : undefined;
     const flowSource = flow?.source === undefined ? undefined : study.get(flow.source);
-    const canToggleDefault = !!flowSource && (
-      ['bpmn:ExclusiveGateway', 'bpmn:InclusiveGateway', 'bpmn:ComplexGateway'].includes(flowSource.type)
-      || isBpmnSubtypeOf(flowSource.type, 'bpmn:Activity')
-    );
+    const sourceObject = flowSource && (study.businessObject(flowSource.id) as { $descriptor?: { propertiesByName?: Record<string, unknown> } } | undefined);
+    const canToggleDefault = !!sourceObject?.$descriptor?.propertiesByName?.['default'];
     const isDefault = canToggleDefault && !!flow && !!flowSource
       && (study.businessObject(flowSource.id) as { default?: unknown } | undefined)?.default === study.businessObject(flow.id);
     // What the rules let the one selected element take part in.
