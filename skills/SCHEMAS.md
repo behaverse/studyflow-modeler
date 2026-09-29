@@ -138,7 +138,7 @@ types:
 | --- | --- |
 | `order` | Sort within the inspector tab. |
 | `categories: [Tab]` | The inspector tab. Omitted, an attribute files under its schema's own tab (`Cognitive`, `EEG & Biosignals`), and a studyflow one under `General`, so General stays identity plus core fields. |
-| `pinned` | Fixed value, never rendered; also wins read precedence on double-stored values. |
+| `pinned` | Fixed value, never rendered. |
 | `optional` | Renders the opt-in checkbox editor (`String` attributes; declarative intent elsewhere). |
 | `editable` | Enum that also accepts free text. |
 | `readonly` | Run-record field: shown, never edited. |
@@ -151,31 +151,17 @@ types:
 
 ## Attribute precedence
 
-One attribute can be declared twice — on the element's own type (or a trait
-that mixes onto it) and on the wrapper under `extensionElements`. `resolveAttribute`
-in `packages/core/src/element/handle.ts` picks one, first match wins.
+An attribute lives in one place. A wrapper is no BPMN element, so it carries none of its host's attributes and no
+trait on the host reaches it; `resolveAttribute` in `packages/core/src/element/handle.ts` reads and writes it there:
 
-| # | The attribute is | Resolved on | Under which name |
-| --- | --- | --- | --- |
-| 1 | declared by the wrapper with `redefines`/`replaces` | the element | the local name after the `#` |
-| 2 | declared by the element's own type, traits included | the element | the declared name (`bpmn:id`/`bpmn:name` collapse to `id`/`name`) |
-| 3 | declared by the wrapper | the wrapper | the declared name |
-| 4 | declared by neither | the element | the local name |
+1. declared by the element's own type, traits included: on the element (`bpmn:id` and `bpmn:name` read as `id` and `name`);
+2. else declared by the wrapper: on the wrapper, and under the name it redefines when it `redefines` an attribute of a
+   wrapper it extends (`behaverse:Task` redefines `cognitive:CognitiveTask#platform`);
+3. else: on the element, under its local name.
 
-A write that resolves to no target is dropped with a console warning.
-
-A *read* landing on the element while a wrapper exists still returns the wrapper's
-value when the wrapper's attribute is `meta.pinned`, or stores the value explicitly,
-or when the element does not store it explicitly either. So a stored element value
-beats a wrapper *default*, loses to a wrapper value actually written, and loses to a
-pinned wrapper attribute carrying only its default. `packages/core/tests/element.unit.spec.ts` pins
-each case by name.
-
-Adding `redefines` to a wrapper attribute does not merely rename it. It moves where
-the value lands. Pair it with `meta.pinned` and the write goes somewhere the read
-never looks, so an edit appears to do nothing. Redefine only where the BPMN side
-genuinely declares the attribute, as `studyflow:Implementation` redefines
-`bpmn:ServiceTask#implementation`.
+A write that resolves to no target is dropped with a console warning. `redefines` of a BPMN property belongs on a
+trait (`studyflow:Implementation` redefines `bpmn:ServiceTask#implementation`), never on a wrapper, where the element
+already holds it. `packages/core/tests/element.unit.spec.ts` pins each case.
 
 ## Enumerations
 

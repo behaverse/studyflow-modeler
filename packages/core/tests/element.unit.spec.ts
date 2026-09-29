@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 
 import { StudyflowElement } from '@core/element';
-import { extensionValueWins } from '@core/element/handle';
 import { freshModdle } from '@tests/schemas';
 
 /** Where an attribute lives (skills/SCHEMAS.md, "Attribute precedence"): the element, its extension wrapper, or a body inside. */
@@ -44,13 +43,18 @@ test('an attribute is read and written where it lives, and a read takes the valu
       reads: { documentation: 'Prose.', checklist: undefined },
     },
     {
-      // The wrapper sees the element's trait attributes too, with moddle's own `[]` for a list.
-      label: 'a value the element stores, over its wrapper declaring the attribute too', type: 'bpmn:Process',
-      stored: { tags: ['pilot'] }, wrapper: 'studyflow:Study', reads: { tags: ['pilot'] },
+      // A wrapper is no BPMN element: a trait on the element's type is the element's alone.
+      label: 'a trait attribute, on the element, its wrapper beside it', type: 'bpmn:Process', wrapper: 'studyflow:Study',
+      writes: [['tags', ['pilot']]], reads: { tags: ['pilot'] }, holder: (bo) => bo.tags,
     },
     {
-      label: 'a pinned wrapper default, over a stale value on the element', type: 'bpmn:Process',
-      stored: { isExecutable: false }, wrapper: 'studyflow:Study', reads: { isExecutable: true },
+      label: 'a redefinition among wrappers, on the wrapper under the name it redefines', type: 'bpmn:ChoreographyTask',
+      wrapper: 'behaverse:Task', writes: [['instrument', 'NB']], reads: { instrument: 'NB', platform: 'behaverse' },
+      holder: (bo) => wrapperOf(bo).instrument,
+    },
+    {
+      label: 'the file\'s isExecutable, the process\'s own', type: 'bpmn:Process', stored: { isExecutable: false },
+      wrapper: 'studyflow:Study', reads: { isExecutable: false },
     },
   ];
   for (const { label, type, stored, wrapper, writes = [], reads, holder } of CASES) {
@@ -60,28 +64,5 @@ test('an attribute is read and written where it lives, and a read takes the valu
     for (const [name, value] of writes) element.setAttribute(name, value);
     for (const [name, value] of Object.entries(reads)) expect(element.getAttribute(name), `${label}: ${name}`).toEqual(value);
     if (holder) expect(holder(bo), `${label}: where it lands`).toEqual(writes.at(-1)?.[1]);
-  }
-});
-
-test('extensionValueWins: when the wrapper, not the element, holds the value a read returns', () => {
-  const spec = (over: Record<string, any> = {}) => ({
-    name: 'thing',
-    ns: { name: 'studyflow:thing', prefix: 'studyflow', localName: 'thing' },
-    type: 'String',
-    ...over,
-  }) as any;
-  /** moddle materializes a default on the prototype: there, but not stored. */
-  const defaulted = (value: string) => Object.create({ thing: value });
-
-  const CASES: { label: string; extDef?: any; ext: any; bo: any; name?: string; wins: boolean }[] = [
-    { label: 'a pinned redefinition wins, its default even over a value the element stores', extDef: spec({ meta: { pinned: true } }), ext: defaulted('pinned default'), bo: { thing: 'from bo' }, wins: true },
-    { label: 'a value the wrapper stores wins over one the element stores', extDef: spec(), ext: { thing: 'from wrapper' }, bo: { thing: 'from bo' }, wins: true },
-    { label: 'a value the element stores beats a wrapper default', extDef: spec(), ext: defaulted('materialized default'), bo: { thing: 'from bo' }, wins: false },
-    { label: 'a wrapper default wins when the element stores nothing either', extDef: spec(), ext: defaulted('redefined default'), bo: {}, wins: true },
-    { label: 'the [] moddle initializes an isMany property to is not a stored value', extDef: spec({ isMany: true }), ext: { things: [] }, bo: { things: ['from bo'] }, name: 'things', wins: false },
-    { label: 'no wrapper definition means the element, always', ext: { thing: 'x' }, bo: {}, wins: false },
-  ];
-  for (const { label, extDef, ext, bo, name = 'thing', wins } of CASES) {
-    expect(extensionValueWins(extDef, ext, name, bo, name), label).toBe(wins);
   }
 });

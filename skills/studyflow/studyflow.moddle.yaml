@@ -306,14 +306,6 @@ types:
           optional: true
           categories:
             - Documentation
-      - name: isExecutable
-        description: Always true; a studyflow is meant to run.
-        redefines: bpmn:Process#isExecutable
-        isAttr: true
-        type: Boolean
-        default: true
-        meta:
-          pinned: true
       - name: state
         # A JSON string (not YAML) so a runner without a YAML library can read it; the
         # `.studyflow` file lifts it to the top-level `state:` mapping. `pinned` keeps it

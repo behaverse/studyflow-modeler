@@ -42,47 +42,16 @@ function resolveName(name: string | undefined, attrDef: AttributeSpec | undefine
 }
 
 /**
- * Where an attribute lives (skills/SCHEMAS.md, "Attribute precedence"): a wrapper attribute that
- * redefines one of the element's lands on the element; else the element's own type, then the wrapper, then
- * the element. Reads layer one more rule on top: an explicitly stored wrapper value beats a BO default
- * (`extensionValueWins`, pinned by `packages/core/tests/element.unit.spec.ts`).
+ * Where an attribute lives (skills/SCHEMAS.md, "Attribute precedence"): on the element when its type (a trait
+ * included) declares it; else on the wrapper, under the name it redefines when it redefines one of a wrapper it
+ * extends; else on the element. A wrapper is no BPMN element and no trait reaches it, so the two never both hold one.
  */
 function resolveAttribute(bo: ModdleElement, ext: ModdleElement | null, attributeName: string): AttributeTarget {
   const boDef = getAttributeSpec(bo, attributeName);
-  const extDef = getAttributeSpec(ext, attributeName);
-
-  if (ext && extDef?.redefinedName) return { bo, ext, attributeName: extDef.redefinedName, target: bo };
   if (boDef) return { bo, ext, attributeName: resolveName(attributeName, boDef), target: bo };
-  if (ext && extDef) return { bo, ext, attributeName: resolveName(attributeName, extDef), target: ext };
+  const extDef = getAttributeSpec(ext, attributeName);
+  if (ext && extDef) return { bo, ext, attributeName: extDef.redefinedName ?? resolveName(attributeName, extDef), target: ext };
   return { bo, ext, attributeName: resolveName(attributeName, undefined), target: bo };
-}
-
-/** Whether the `bpmn:extensionElements` wrapper, not the business object, holds the value a read should return. */
-export function extensionValueWins(
-  extDef: AttributeSpec | undefined,
-  ext: ModdleElement | null,
-  extName: string,
-  bo: ModdleElement,
-  boName: string,
-): boolean {
-  if (!extDef) return false;
-
-  const extValue = getProperty(ext, extName);
-  const extHasValue = extValue !== undefined && !(Array.isArray(extValue) && extValue.length === 0);
-  if (!extHasValue) return false;
-
-  return extDef.meta?.pinned === true
-    || hasStoredValue(ext, extName)
-    || !hasStoredValue(bo, boName);
-}
-
-/** Explicitly stored, vs a default moddle materialized on the prototype; `hasOwnProperty` is the only way to tell them apart. */
-function hasStoredValue(target: ModdleElement | null | undefined, name: string): boolean {
-  if (!target || typeof target !== 'object') return false;
-  const property = target.$model?.getPropertyDescriptor?.(target, name);
-  if (property) return Object.prototype.hasOwnProperty.call(target, property.name);
-  if (target.$attrs && name in target.$attrs) return true;
-  return Object.prototype.hasOwnProperty.call(target, name);
 }
 
 function documentationEntries(list: unknown): { checklist: ModdleElement[]; prose: any[] } {
@@ -179,14 +148,6 @@ export class StudyflowElement {
     const ext = findExtension(bo);
     const r = resolveAttribute(bo, ext, attributeName);
     if (!r.target || !r.attributeName) return undefined;
-
-    if (r.ext && r.target === r.bo) {
-      const extDef = getAttributeSpec(r.ext, attributeName);
-      const extName = resolveName(attributeName, extDef) ?? r.attributeName;
-      if (extensionValueWins(extDef, r.ext, extName, r.bo, r.attributeName)) {
-        return unwrapBodyValue(getProperty(r.ext, extName), extDef);
-      }
-    }
 
     const value = getProperty(r.target, r.attributeName);
     const attrDef = getAttributeSpec(r.target, r.attributeName);

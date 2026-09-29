@@ -15,7 +15,7 @@ export interface AttributeMeta {
   condition?: Record<string, unknown>;
   categories?: string[];
   order?: number;
-  /** Fixed value: never rendered, and preferred over a business-object default on read (`extensionValueWins`). */
+  /** Fixed value: never rendered. */
   pinned?: boolean;
   optional?: boolean;
   editable?: boolean;
