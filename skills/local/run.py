@@ -1912,7 +1912,16 @@ class Runner:
         sources = [text_of(c) for association in element if local(association) == "dataInputAssociation"
                    for c in association if local(c) == "sourceRef" and text_of(c)]
         with self.lock:
-            return {source: self.values.get(source, self.studyflow.artifact(source)[0]) for source in sources} or None
+            return {source: self.input_value(source) for source in sources} or None
+
+    def input_value(self, source: str) -> Any:
+        """A data input's value: a declared property's from its scope (a list pass's item, `{trial}`), else what the
+        element holds this run, else its `uri`."""
+        declared = self.property_scope(source)
+        if declared and source not in self.values:
+            scope, name = declared
+            return (self.state.tree.get(scope) or {}).get(name)
+        return self.values.get(source, self.studyflow.artifact(source)[0])
 
     def bind_result(self, element: ET.Element, value: Any) -> None:
         """A result the walk took itself (a message's content): under the element's id, and into each data output,
