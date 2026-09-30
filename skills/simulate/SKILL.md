@@ -30,7 +30,10 @@ A runner-only skill. It claims three kinds of element by their `implementation`:
   collected for it (a multi-instance pass's `loopDataOutputRef`): it scores each answer by the key and appends one row per
   trial to the data store its data output names (`.jsonl`), keyed by `subject` and `arm` from its
   `additionalArguments` (placeholders resolve by the [rule](../../docs/reference.qmd#placeholders)). Its result is
-  `{trials, answered, failedTrialRate}`, which a conditional boundary event can read.
+  `{trials, answered, failedTrialRate}`, which a conditional boundary event can read. An answer counts when it is one
+  of the trial's `ResponseOptions`: which option a free reply names is the study's call, written in FEEL on the asking
+  step's data output (`if contains(lower case(result), "non-match") then "non-match" else if contains(lower
+  case(result), "match") then "match" else null`), so the scoring is in the file the protocol digest covers.
 
 Swap the pool's `implementation` for `ollama://<model>` and the same file asks a language model instead: the
 trials, the records and the analysis stay as they are. `test_local.py` is its self-check.

@@ -48,10 +48,9 @@ assert accuracy("planted", calm, "Congruent") - accuracy("planted", calm, "Incon
 assert accuracy("planted", calm, "Incongruent") - accuracy("planted", hasty, "Incongruent") > 0.1
 assert abs(accuracy("null", calm, "Congruent") - accuracy("null", hasty, "Incongruent")) < 0.08
 assert simulate.answer("planted", 7, {"id": "M.1", "content": {"Check": None}}) == "READY"
-assert simulate.option_named("Non-match.", ["match", "non-match"]) == "non-match"
-assert simulate.option_named("match", ["match", "non-match"]) == "match"
 
-# A record scores each answer and appends to the store its output names; a second subject adds to it.
+# A record scores each answer and appends to the store its output names; a second subject adds to it. An answer that
+# is not one of the options, as the study's selection left it, is no answer.
 with tempfile.TemporaryDirectory() as tmp:
     run = Path(tmp)
     elements = {"Rec": {"id": "Rec", "type": "serviceTask", "parent": "P", "attributes": {"implementation": "simulate://record"},
@@ -59,7 +58,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 "Store": {"type": "dataStoreReference", "attributes": {"uri": "data/trials.jsonl"}}}
     plan = {"elements": elements}
     two = trials[:2]
-    state = {"Trials": two, "Key": key[:2], "Answers": [key[0]["Correct"], "maybe"], "state": {"P": {"arm": "calm"}, "_meta": {"instance": {"Pool": 3}}}}
+    state = {"Trials": two, "Key": key[:2], "Answers": [key[0]["Correct"], "Left."], "state": {"P": {"arm": "calm"}, "_meta": {"instance": {"Pool": 3}}}}
     args = {"subject": "{state._meta.instance.Pool}", "arm": "{arm}"}
     assert simulate.record(elements["Rec"], args, plan, state, run) == {"trials": 2, "answered": 1, "failedTrialRate": 0.5}
     simulate.record(elements["Rec"], args, plan, state, run)

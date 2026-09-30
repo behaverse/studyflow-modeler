@@ -132,14 +132,6 @@ def key_of(trial: dict[str, Any]) -> dict[str, Any]:
     return {"Correct": "match" if len(before) >= n and before[-n] == trial.get("Digit") else "non-match"}
 
 
-def option_named(reply: Any, options: list[str]) -> str | None:
-    """The option a reply names: the whole reply, else the longest option it contains (`non-match` over `match`)."""
-    text = str(reply or "").strip().strip(".!\"'").lower()
-    by_length = sorted(options, key=len, reverse=True)
-    exact = next((option for option in options if option.lower() == text), None)
-    return exact or next((option for option in by_length if re.search(rf"(?<![\w-]){re.escape(option.lower())}(?![\w-])", text)), None)
-
-
 def answer(profile: str, seed: Any, message: dict[str, Any]) -> str:
     """One simulated reply: a trial answered with the planted probability of being right, or an instruction confirmed."""
     content = message.get("content")
@@ -162,7 +154,9 @@ def answer(profile: str, seed: Any, message: dict[str, Any]) -> str:
 
 def record(element: dict[str, Any], arguments: dict[str, Any], plan: dict[str, Any],
            state: dict[str, Any], run_dir: Path) -> dict[str, Any]:
-    """Score the answers by the timeline's key and append one row per trial to the data store the step writes."""
+    """Score the answers by the timeline's key and append one row per trial to the data store the step writes. An
+    answer is one of the trial's options or none: what a free reply names is the study's to say, in FEEL on the
+    asking step's output, where the protocol's digest covers it."""
     sources = [binding.get("source") for binding in element.get("inputs") or []]
     lists = [state.get(source) for source in sources if isinstance(state.get(source), list)]
     listing = lambda field: next((value for value in lists if value and isinstance(value[0], dict) and field in value[0]), None)  # noqa: E731
@@ -175,7 +169,7 @@ def record(element: dict[str, Any], arguments: dict[str, Any], plan: dict[str, A
     arm = read(arguments.get("arm"), element["id"], state, plan)
     rows = []
     for trial, truth, reply in zip(trials, key, answers):
-        chosen = option_named(reply, [str(o) for o in trial.get("ResponseOptions") or []])
+        chosen = reply if reply in [str(o) for o in trial.get("ResponseOptions") or []] else None
         rows.append({
             "context": {"subject": subject, "state": {"arm": arm}},
             "trialContext": {"task": {"id": trial.get("Task")}, "block": {"name": trial.get("Block")},
