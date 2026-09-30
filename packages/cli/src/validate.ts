@@ -1,5 +1,9 @@
 import { SCHEMA_LOAD_FAILURES, SKILLS } from '@core/notation/loader';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { checkImplementations } from '@core/checks/implementations';
+import { checkRecorded } from '@core/checks/recorded';
 import { installedSkills } from '@cli/skills';
 import { planChecks, recordChecks } from '@core/checks';
 import { parseSource, readSource } from '@cli/studyfile';
@@ -33,10 +37,14 @@ export async function validate(input: string): Promise<ValidateReport> {
     warnings.push(...readerWarnings);
     // The plan checks, then what a run left in the file (nothing to check in a file no run has stamped).
     const record = await recordChecks(definitions);
-    for (const { severity, message } of [...planChecks(definitions), ...checkImplementations(definitions, new Set([...SKILLS, ...installedSkills().map((skill) => skill.manifest)].flatMap((skill) => skill.schemes ?? []))), ...record.issues]) {
+    // An executed copy in its run repository has the run's record beside it: what the file keeps is read off it.
+    const journal = path.join(path.dirname(input), 'run.jsonl');
+    const events = existsSync(journal) ? readFileSync(journal, 'utf8').split('\n').filter((line) => line.trim()).map((line) => JSON.parse(line)) : [];
+    const recorded = events.length > 0 ? checkRecorded(definitions, events) : [];
+    for (const { severity, message } of [...planChecks(definitions), ...checkImplementations(definitions, new Set([...SKILLS, ...installedSkills().map((skill) => skill.manifest)].flatMap((skill) => skill.schemes ?? []))), ...record.issues, ...recorded]) {
       (severity === 'error' ? errors : warnings).push(message);
     }
-    note = record.note;
+    note = record.note && events.length > 0 && recorded.length === 0 ? `${record.note}; its state is its record's` : record.note;
   } catch (err) {
     errors.push(err instanceof Error ? err.message : String(err));
   }
