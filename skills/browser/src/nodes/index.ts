@@ -1,6 +1,5 @@
 import { getCatalog, hasCatalog } from '@core/notation';
 import { parseSkillManifest } from '@core/notation/skill';
-import { validateAllocation } from '@runner/allocation';
 import { validateUnwalked } from '@runner/unwalked';
 import type { Studyflow } from '@runner/studyflow';
 import type { AnyNodeDefinition, LogFn, ValidationIssue } from '@runner/nodes/types';
@@ -57,9 +56,6 @@ export async function validate(studyflow: Studyflow, log: LogFn): Promise<Valida
   for (const node of studyflow.flowNodes.values()) {
     const def = findByFlowNode(node);
     if (def?.validateNode) issues.push(...def.validateNode(node, studyflow, contexts.get(def)));
-
-    // Gateways have no node module of their own, so their allocation is checked here.
-    issues.push(...validateAllocation(node));
 
     if (!def && node.extensionType) {
       issues.push({

@@ -154,7 +154,7 @@ P:
     };
     const first = arms('arms.studyflow.yaml');
     expect(first).toHaveLength(4);
-    // The visit counts a draw reads are the state's, restored to where the first run started: the same four draws.
+    // Each participant draws for itself, so a re-run draws the same four arms.
     expect(arms(path.join(dir, 'run', 'arms.studyflow.yaml'))).toEqual(first);
   });
 });

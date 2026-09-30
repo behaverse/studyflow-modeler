@@ -263,7 +263,7 @@ types:
     properties:
       - name: seed
         # Pinned in the plan, read by both runners, echoed on the archived copy.
-        description: Root seed for the study's random gateways, handed to partial runners in the plan (the python runner seeds each step with it). A browser link's seed, or else one derived from its subject id, replaces it; unset, a local run is unseeded.
+        description: Root seed for the study's random gateways, handed to partial runners in the plan (the python runner seeds each step with it). A browser link's seed replaces it; unset, a local run is unseeded.
         isAttr: true
         type: Integer
         meta:

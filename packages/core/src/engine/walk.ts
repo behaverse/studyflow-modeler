@@ -34,6 +34,7 @@ export class Walk {
   private readonly seed: number | undefined;
   private readonly maxSteps: number;
   private readonly oneInstance: boolean;
+  private readonly participant: number;
   private readonly blocks = new Map<string, number[]>();
   private readonly memory: Values;
   private readonly post: Post;
@@ -49,6 +50,7 @@ export class Walk {
     this.post = new Post(this.graph, host, this.steps, this.memory, record);
     this.maxSteps = options.maxSteps ?? 1000;
     this.oneInstance = options.oneInstance ?? false;
+    this.participant = options.participant ?? 1;
     const seed = Number((options.seed === undefined ? plan.study.seed : options.seed) ?? NaN);
     this.seed = Number.isInteger(seed) ? seed : undefined; // unseeded: `Math.random()`, and a re-run replays the recorded decision instead
 
@@ -78,7 +80,7 @@ export class Walk {
     // Study-scoped properties persist across runs, so only ones the tree lacks take their `value`; a plain element's
     // properties live with the study (`Excluded (n={count})` counts across runs).
     for (const scope of graph.properties.keys()) {
-      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.memory.startScope(scope, false, this.note({ pool: '', depth: 0, watching: [], heard: new Map() }));
+      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.memory.startScope(scope, false, this.note({ pool: '', depth: 0, watching: [], heard: new Map(), participant: 1, visits: new Map() }));
     }
   }
 
@@ -113,11 +115,13 @@ export class Walk {
    * instances run one after another, as a multi-instance activity's passes do. */
   private async runPool(pool: string): Promise<void> {
     const { graph } = this;
-    const thread: Thread = { pool, depth: 0, watching: [], heard: new Map() };
+    const thread: Thread = { pool, depth: 0, watching: [], heard: new Map(), participant: this.participant, visits: new Map() };
     const { participant, instances: drawn } = graph.instancesOf(pool);
     const instances = this.oneInstance ? 1 : drawn;
     const start = graph.entryOf(pool);
     for (let instance = 1; instance <= instances; instance += 1) {
+      if (!this.oneInstance) thread.participant = instance;
+      thread.visits = new Map();
       if (instances > 1) {
         // Which instance this is, for whatever runs inside: `state._meta.instance.<pool id>`, 1-based.
         this.memory.instance(participant, instance);
@@ -560,18 +564,22 @@ export class Walk {
 
     const allocation = this.allocations.get(id);
     if (allocation) {
-      // Seeded, each visit draws from the seed, the gateway and the visit number. The count is `_meta.reached`, which
-      // the state keeps: each turn of a loop draws again, and a walk from the same state draws the same.
-      const visit = this.memory.meta('reached')[id] ?? 1;
+      // A participant's draws are its own: the seed, the gateway, which instance of the pool this is, and which of
+      // its visits. So a participant draws the same in any runtime and on any re-run, whatever the others drew.
+      const visit = (thread.visits.get(id) ?? 0) + 1;
+      thread.visits.set(id, visit);
       let arm: number;
       if (allocation.algorithm === 'block') {
-        // Visit v sits at (v - 1) % size in block (v - 1) // size; a block is shuffled once, so it stays balanced.
-        const block = Math.floor((visit - 1) / allocation.size);
-        const key = `${id}:${block}`;
-        if (!this.blocks.has(key)) this.blocks.set(key, permutedBlock(this.seed, id, block, allocation.weights, allocation.size));
-        arm = this.blocks.get(key)![(visit - 1) % allocation.size];
+        // Blocks over the participants, by number; a gateway a participant passes again (in a loop, or along a cycle)
+        // allocates its visits in blocks of their own. Position n sits at (n - 1) % size in block (n - 1) // size.
+        const within = this.graph.scopeChain(id).some((scope) => this.graph.elements[scope]?.loop);
+        const [sequence, n] = within ? [`${id}#${thread.participant}`, visit] : [`${id}@${visit}`, thread.participant];
+        const block = Math.floor((n - 1) / allocation.size);
+        const key = `${sequence}:${block}`;
+        if (!this.blocks.has(key)) this.blocks.set(key, permutedBlock(this.seed, sequence, block, allocation.weights, allocation.size));
+        arm = this.blocks.get(key)![(n - 1) % allocation.size];
       } else {
-        arm = pick(this.seed === undefined ? Math.random() : draw(this.seed, id, visit), allocation.weights);
+        arm = pick(this.seed === undefined ? Math.random() : draw(this.seed, id, thread.participant, visit), allocation.weights);
       }
       return take(flows[arm], 'drawn', { random: true });
     }

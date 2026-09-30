@@ -101,6 +101,8 @@ export type WalkOptions = {
   maxSteps?: number;
   /** Walk each pool once, whatever its `participantMultiplicity`: a participant's session is one instance of its pool. */
   oneInstance?: boolean;
+  /** Which instance of its pool that one is, 1-based (the browser's `?participant=`): a random gateway draws for it. */
+  participant?: number;
 };
 
 /** A message reached a boundary event of a running activity, or a failure its error boundary event: the walk leaves
@@ -129,6 +131,9 @@ export type Thread = {
   handoff?: AbortController;
   /** The message this pool last took from each other pool: what it sends back answers it. */
   heard: Map<string, string>;
+  /** Which instance of the pool it walks, 1-based, and how often that instance has reached each random gateway. */
+  participant: number;
+  visits: Map<string, number>;
 };
 
 /** A line for the log, indented to the depth a pool's walk is at. */

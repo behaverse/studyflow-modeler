@@ -57,7 +57,7 @@ implementation
 : The software an element requires to run, written as `<scheme>://<ref>[@<version>]`
 
 seed
-: The main random seed on the study. Set it and every random gateway draws the same branches in both runtimes; a browser link's `seed`, or else one derived from its subject id, replaces it.
+: The main random seed on the study. Set it and every random gateway draws the same branches for the same participant in both runtimes; a browser link's `seed` replaces it.
 
 ## Provenance
 

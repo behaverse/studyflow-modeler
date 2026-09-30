@@ -5,7 +5,7 @@ import { clearDiagramHandoff, readDiagramHandoff } from '@core/storage';
 import { readParameters, resolveRunSource } from '@runner/source';
 import { describeForDebug, isDebug } from '@runner/debug';
 import { DebugPanel } from '@runner/nodes/DebugPanel';
-import { readSubjectId, withSubjectSeed } from '@runner/subject';
+import { readParticipant, readSubjectId } from '@runner/subject';
 import { Studyflow } from '@runner/studyflow';
 import { Aborted, Session } from '@runner/session';
 import type { Job } from '@runner/jobs';
@@ -120,10 +120,7 @@ export function Runner() {
   const { source, handoffId, parameters } = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     const found = resolveRunSource(params.get('diagram') ?? '', DEMOS);
-    // A subject id fixes the seed, so the same participant always draws the
-    // same arm at every gateway. An explicit `seed=` still wins.
-    const given = withSubjectSeed(readParameters(params));
-    return { source: found, handoffId: found?.kind === 'handoff' ? found.id : '', parameters: given };
+    return { source: found, handoffId: found?.kind === 'handoff' ? found.id : '', parameters: readParameters(params) };
   }, []);
   const dataServerConfig = loadDataServerConfig();
 
@@ -216,16 +213,21 @@ export function Runner() {
         const schemas = await loadAllSchemas();
         const studyflow = await Studyflow.parse(xml, schemas, parameters);
         const { values, overridden, undeclared, unbound } = studyflow.parameters;
-        // A subject id names the run in the record too, not only its allocation.
+        // A subject id names the run in the record.
         const agentId = readSubjectId(parameters) ?? `anon-${crypto.randomUUID().slice(0, 8)}`;
+        const participant = readParticipant(parameters);
         const session = new Session(studyflow, {
           seed: studyflow.seed,
+          participant,
           agentId,
           variables: values,
           onDiagnostic: (message: string) => addLog('error', message),
           // A step whose timer ran out leaves its screen: the loop below goes on to the next job.
           onExpired: () => handleResolve({ kind: 'complete' }),
         });
+        if (participant === undefined && session.draws) {
+          addLog('info', 'The link gives no ?participant=, so this session draws at each random gateway as participant 1.');
+        }
         sessionRef.current = session;
         setSession(session);
         setSeed(studyflow.seed);

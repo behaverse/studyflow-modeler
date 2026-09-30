@@ -52,8 +52,8 @@ test('a parallel, inclusive or complex split is refused instead of walked along 
 });
 
 test('a seeded draw is the same number in every runtime', () => {
-  const rows: [number, string, number, number][] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/draws.json'), 'utf8'));
-  for (const [seed, gateway, visit, u] of rows) expect(draw(seed, gateway, visit)).toBe(u);
+  const rows: [number, string, number, number, number][] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/draws.json'), 'utf8'));
+  for (const [seed, gateway, participant, visit, u] of rows) expect(draw(seed, gateway, participant, visit)).toBe(u);
 });
 
 test('a random gateway allocates as it says, and what it cannot apply stops the run before the walk', () => {
@@ -102,7 +102,7 @@ test('a seeded random gateway draws again at each visit', async () => {
     now: () => '',
   });
   await walk.run();
-  expect(taken).toEqual(['A', 'A', 'B', 'A']);
+  expect(taken).toEqual(['A', 'A', 'A', 'B']);
 });
 
 // The cohort is walked whole, so a gateway can allocate in permuted blocks: four subjects (a pool of four participant
@@ -137,6 +137,52 @@ S:
     SF2: B -> S9
 `);
     expect(reached).toMatchObject({ Allocate: 4, F_A: 2, A: 2, F_B: 2, B: 2 });
+  });
+}
+
+// A participant draws for itself: the k-th instance of a pool of six takes the arm that a session walked as
+// participant k takes (the browser's `?participant=k`), and a re-run takes the same arms again, in blocks or not.
+for (const algorithm of ['simple', 'block']) {
+  test(`participant k draws the same arm in its cohort, alone, and on a re-run (${algorithm})`, async () => {
+    const cohort = `C:
+  type: Collaboration
+  extensionElements:
+    - type: studyflow:Study
+      seed: 3
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 6
+      processRef: S
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Allocate:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+          algorithm: ${algorithm}
+          blockSize: 2
+    A: { type: Task }
+    B: { type: Task }
+    S9: { type: EndEvent }
+    SF0: S0 -> Allocate
+    F_A: Allocate -> A
+    F_B: Allocate -> B
+    SF1: A -> S9
+    SF2: B -> S9
+`;
+    const arms = (log: string[]): string[] => log.flatMap((line) => line.match(/drawn → F_([AB])/)?.[1] ?? []);
+    const first = await walked(cohort);
+    expect(new Set(arms(first.log))).toEqual(new Set(['A', 'B']));
+    expect(arms((await walked(cohort, {}, { state: first.state })).log)).toEqual(arms(first.log));
+    const alone: string[] = [];
+    for (let participant = 1; participant <= 6; participant += 1) {
+      alone.push(...arms((await walked(cohort, {}, { oneInstance: true, participant })).log));
+    }
+    expect(alone).toEqual(arms(first.log));
   });
 }
 
@@ -261,12 +307,12 @@ const COHORT_MARKERS: [label: string, marker: string][] = [
   ['a multi-instance marker, loopCardinality times', 'type: MultiInstanceLoopCharacteristics\n        loopCardinality: "3"'],
 ];
 for (const [label, marker] of COHORT_MARKERS) {
-  test(`a sub-process repeats under ${label}, resets its scope each pass, and its random gateway draws again each pass and each run`, async () => {
+  test(`a sub-process repeats under ${label}, resets its scope each pass, and its random gateway draws again each pass, the same each run`, async () => {
     const study = `S:
   type: Process
   extensionElements:
     - type: studyflow:Study
-      seed: 15
+      seed: 1
   flowElements:
     Start: { type: StartEvent }
     Subject:
@@ -316,12 +362,13 @@ for (const [label, marker] of COHORT_MARKERS) {
     // A pass re-enters the scope, so a property with a `value` starts each pass at it, whatever the pass before wrote;
     // and `_meta.instance` says which pass it is.
     expect(seen).toEqual([['none', 1], ['none', 2], ['none', 3]]);
-    // Seeded on the visit count, so the arms differ from pass to pass instead of repeating the first draw.
-    expect(drawn(first.log)).toEqual(['A', 'B', 'A']);
+    // Seeded on the visit, so the arms differ from pass to pass instead of repeating the first draw.
+    expect(drawn(first.log)).toEqual(['B', 'A', 'A']);
 
-    // The visit count is study-lifetime: the same study run again, from the state the first run left, draws on.
+    // A participant's visits are counted in its run: the same study run again, from the state the first run left,
+    // draws the same.
     const second = await walked(study, runners, { state: first.state });
-    expect(drawn(second.log)).toEqual(['B', 'A', 'B']);
+    expect(drawn(second.log)).toEqual(['B', 'A', 'A']);
     expect(second.reached).toMatchObject({ Draw: 6, Check: 6 });
   });
 }

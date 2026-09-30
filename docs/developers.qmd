@@ -69,7 +69,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | Gateway | Rule |
 |:--|:--|
 | An exclusive gateway, and `cognitive:EligibilityGateway` | the first outgoing edge whose condition holds, otherwise the edge marked `default`, otherwise the one edge without a condition; with none of these the run stops |
-| `cognitive:RandomGateway` | a draw seeded from the study's `seed`, the gateway and the visit, weighted by `allocationRatio`; `algorithm: block` deals permuted blocks in the order participants reach the gateway (a browser session sees one participant, so it warns that it cannot balance a cohort) |
+| `cognitive:RandomGateway` | a draw seeded from the study's `seed`, the gateway, the participant and its visit, weighted by `allocationRatio`; `algorithm: block` deals permuted blocks over the participants by number (a browser session is the participant its link's `participant` names) |
 | A parallel gateway | none: a pool walks one path, so `studyflow validate` reports a split as an error and `studyflow run` refuses the study |
 | An inclusive gateway | none, for the same reason: it would take every edge whose condition holds, so a split is an error too |
 

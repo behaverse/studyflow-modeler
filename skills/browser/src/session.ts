@@ -5,6 +5,8 @@ import type { Studyflow } from '@runner/studyflow';
 
 export type SessionContext = {
   seed?: number;
+  /** Which instance of its pool this session is (`?participant=`), 1 when not given. */
+  participant?: number;
   variables?: Record<string, unknown>;
   agentId?: string;
   sessionId?: string;
@@ -98,7 +100,7 @@ export class Session {
       now: () => new Date().toISOString(),
     };
     // A session is one participant: one instance of its pool, whatever the pool's multiplicity.
-    this.walk = new Walk(studyflow.plan, host, { seed: context.seed, state: structuredClone(studyflow.state), oneInstance: true });
+    this.walk = new Walk(studyflow.plan, host, { seed: context.seed, participant: context.participant, state: structuredClone(studyflow.state), oneInstance: true });
     for (const [name, value] of Object.entries(context.variables ?? {})) this.setVariable(name, value);
   }
 
@@ -110,6 +112,11 @@ export class Session {
     this.undeclared.add(name);
     this.walk.store(name, value);
     this.walk.set(root, name, value);
+  }
+
+  /** Whether the study has a random gateway, which draws for the participant this session is. */
+  get draws(): boolean {
+    return this.walk.allocations.size > 0;
   }
 
   /** The `state` tree as the run has left it (never written back to the file by this runtime). */

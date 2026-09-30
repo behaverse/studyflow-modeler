@@ -12,16 +12,22 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/**
- * A random gateway's draw on one visit, in [0, 1): mulberry32 seeded with the FNV-1a hash of `seed:gateway:visit`.
- * Each draw depends on nothing else, so a seed picks the same branches in any order of the walk.
- */
-export function draw(seed: number, gatewayId: string, visit: number): number {
+/** A number in [0, 1) that `key` alone decides: mulberry32 seeded with the FNV-1a hash of the key. */
+function uniform(key: string): number {
   let hash = 0x811c9dc5;
-  for (const byte of new TextEncoder().encode(`${seed}:${gatewayId}:${visit}`)) {
+  for (const byte of new TextEncoder().encode(key)) {
     hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
   }
   return mulberry32(hash)();
+}
+
+/**
+ * A random gateway's draw, in [0, 1), for one participant's visit: `uniform("seed:gateway:participant:visit")`.
+ * Each draw depends on nothing else, so a participant draws the same whatever the others do, in any runtime and on
+ * any re-run.
+ */
+export function draw(seed: number, gatewayId: string, participant: number, visit: number): number {
+  return uniform(`${seed}:${gatewayId}:${participant}:${visit}`);
 }
 
 /** The arm a draw `u` in [0, 1) takes: over arms of equal weight `floor(u * n)`, else the first arm whose cumulative
@@ -37,13 +43,13 @@ export function pick(u: number, weights: number[]): number {
   return weights.length - 1;
 }
 
-/** Block `block` (0-based) of a block-randomized gateway: `size` arms, each as often as its share of the ratio,
- * shuffled by Fisher-Yates on `draw(seed, "<gateway>:block<b>", i)`, or on `Math.random()` unseeded. */
-export function permutedBlock(seed: number | undefined, gatewayId: string, block: number, weights: number[], size: number): number[] {
+/** Block `block` (0-based) of a block-randomized sequence: `size` arms, each as often as its share of the ratio,
+ * shuffled by Fisher-Yates on `uniform("seed:sequence:block<b>:i")`, or on `Math.random()` unseeded. */
+export function permutedBlock(seed: number | undefined, sequence: string, block: number, weights: number[], size: number): number[] {
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   const arms = weights.flatMap((weight, arm) => Array.from({ length: Math.floor(size / total) * weight }, () => arm));
   for (let i = arms.length - 1; i > 0; i -= 1) {
-    const u = seed === undefined ? Math.random() : draw(seed, `${gatewayId}:block${block}`, i);
+    const u = seed === undefined ? Math.random() : uniform(`${seed}:${sequence}:block${block}:${i}`);
     const j = Math.floor(u * (i + 1));
     [arms[i], arms[j]] = [arms[j], arms[i]];
   }
@@ -87,7 +93,7 @@ export function allocationOf(gateway: PlanElement, arms: number): Allocation {
   if (read('stratifyBy')) asked.push(`stratification by '${read('stratifyBy')}'`);
   const equal = new Set(weights).size === 1;
   const does = algorithm === 'block'
-    ? `allocates the whole cohort, in the order participants reach it, in permuted blocks of ${size} that hold the ${arms} `
+    ? `allocates participants, by their number, in permuted blocks of ${size} that hold the ${arms} `
       + `outgoing branches ${equal ? 'equally' : `in the ratio ${ratio}`}`
     : `draws one of the ${arms} outgoing branches for each participant, independently and `
       + `${equal ? 'with equal probability' : `in the ratio ${ratio}`}`;
