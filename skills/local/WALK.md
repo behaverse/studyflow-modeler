@@ -51,3 +51,32 @@ Pools talk only along message flows, and the walk carries every message: `{"id",
 ## State
 
 The run's values carry the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`). `state._meta.reached.<id>` counts, over the study's runs, the tokens that reached each element and that took each sequence flow, so a flow's label may cite `{reached}` as a node's does. A data edge into a declared property writes it (`state.<scope>.<name>`), and so does a value a runner binds under the property's own id; re-entering a scope re-initialises both.
+
+## Where the walk departs from BPMN 2.0
+
+The walk is a profile of BPMN 2.0's execution semantics, one token per pool. Where it reads a construct otherwise
+than the specification does, it says so here, and `studyflow validate` refuses or warns about the construct:
+
+- **One path per pool.** A parallel split, an inclusive or complex gateway with several outgoing flows, and an
+  activity or event with several outgoing flows are refused. A parallel, inclusive or complex join, which BPMN waits
+  at for each path it joins, is passed as the one token arrives (a warning). A scope with several start events starts
+  at the first only (a warning).
+- **A gateway's fallback.** When no condition holds, an exclusive gateway takes its default flow, else its one flow
+  without a condition; BPMN would take every unconditioned flow.
+- **Repeats run in order.** A multi-instance marker's instances, parallel or not, run one after another, and so do
+  the instances of a pool with a `participantMultiplicity`, which share the study's counts and meet the pools they
+  talk to in turn. A random gateway draws for each instance on its own (its participant number and its visit), so the
+  order does not change what it draws.
+- **A pool's messages.** A step with no message flow of its own exchanges along its enclosing sub-process's or its
+  pool's (see [Messages](#messages)). A flow out of a pool of several instances to a step in another pool is sent once,
+  after the last instance, where BPMN would send one per instance, each starting an instance of the receiver.
+- **A conditional boundary event** is read once, when its activity's step has finished and its result is adopted; BPMN
+  fires it whenever its condition becomes true while the activity runs. A step that is last in its sub-process reads
+  the same either way.
+- **A timer cycle** waits for its first firing only (a warning).
+- **Choreography tasks in a process.** A skill's task drawn as a choreography task with bands (a cognitive task)
+  sits in a process's flow, where BPMN defines choreography tasks only in a choreography. The BPMN XML the study is
+  written as is checked against the OMG's schema by `validate`, which says where it departs.
+- **Data elements are the study's.** A step in one pool may read or write a data object or data store reference drawn
+  in another; BPMN scopes a data object to its process, and shares a store through a `dataStore` root element that
+  each process references.
