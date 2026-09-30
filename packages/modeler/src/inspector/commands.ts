@@ -1,7 +1,7 @@
 import { isReservedStateKey } from '@core/document';
 import { associationPropertyFor, definitionsOf, toBusinessObject, typeForDirection } from '@core/element';
 import { isPool, nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
-import { ensureChoreographyParticipants, isTypedChoreography } from '@core/document';
+import { ensureChoreographyParticipants, isTypedChoreography, setItemSubject, setMessageItem } from '@core/document';
 import { getStateProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { StudyWriter } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
@@ -170,21 +170,6 @@ function findDefinitions(editor: Editor, businessObject: any): any {
   return definitionsOf(businessObject) ?? editor.study.definitions;
 }
 
-function ensureItemDefinition(writer: StudyWriter, definitions: any, structureRef: string): any {
-  const rootElements: any[] = definitions.rootElements ?? [];
-  const existing = rootElements.find(
-    (re) => re?.$type === 'bpmn:ItemDefinition' && re.structureRef === structureRef,
-  );
-  if (existing) return existing;
-
-  // A structureRef is free text but an id is an NCName, so non-NCName chars become underscores.
-  const id = writer.freeId(`ItemDefinition_${structureRef.replace(/[^\w.-]/g, '_')}`);
-  const itemDefinition = writer.create('bpmn:ItemDefinition', { id, structureRef });
-  itemDefinition.$parent = definitions;
-  writer.set(definitions, { rootElements: [...rootElements, itemDefinition] });
-  return itemDefinition;
-}
-
 export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePropertiesCommand): void {
   const { element } = command;
   const businessObject = scopeOf(element);
@@ -217,12 +202,7 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
       return;
     }
 
-    if (!command.itemType) {
-      writer.set(target.moddleElement, { itemSubjectRef: undefined });
-      return;
-    }
-    const itemDefinition = ensureItemDefinition(writer, findDefinitions(modeler, businessObject), command.itemType);
-    writer.set(target.moddleElement, { itemSubjectRef: itemDefinition });
+    setItemSubject(writer, findDefinitions(modeler, businessObject), target.moddleElement, command.itemType);
   }, command.action === 'rename' ? `property:${command.propertyId}` : undefined);
 }
 
@@ -235,38 +215,11 @@ export type UpdateMessageCommand = {
   structureRef: string;
 };
 
-/** A message flow's `messageRef`: a `bpmn:Message` root per item definition, made on first use and dropped with its last flow. */
+/** What a message flow carries (core's `setMessageItem`). */
 export function runUpdateMessage(modeler: Editor, command: UpdateMessageCommand): void {
-  const { element } = command;
-  const flow = toBusinessObject(element);
+  const flow = toBusinessObject(command.element);
   if (!flow) return;
-  const definitions = findDefinitions(modeler, flow);
-  const rootElements: any[] = definitions.rootElements ?? [];
-  const previous = flow.get?.('messageRef') ?? flow.messageRef;
-  const structureRef = command.structureRef.trim();
-
-  modeler.study.edit(element.id, (writer) => {
-    const itemDefinition = structureRef ? ensureItemDefinition(writer, definitions, structureRef) : null;
-    let message = itemDefinition
-      ? (definitions.rootElements ?? []).find((re: any) => re?.$type === 'bpmn:Message' && re.itemRef === itemDefinition)
-      : undefined;
-    if (itemDefinition && !message) {
-      const id = writer.freeId(`Message_${structureRef.replace(/[^\w.-]/g, '_')}`);
-      message = writer.create('bpmn:Message', { id, itemRef: itemDefinition });
-      message.$parent = definitions;
-      writer.set(definitions, { rootElements: [...definitions.rootElements, message] });
-    }
-    if (message === previous) return;
-    writer.set(flow, { messageRef: message });
-
-    // The message the flow left behind goes when no other flow carries it; its item definition may still type a property.
-    const stillCarried = previous && rootElements.some((root: any) => (root?.messageFlows ?? []).some(
-      (other: any) => other !== flow && (other.get?.('messageRef') ?? other.messageRef) === previous,
-    ));
-    if (previous && !stillCarried) {
-      writer.set(definitions, { rootElements: (definitions.rootElements ?? []).filter((re: any) => re !== previous) });
-    }
-  });
+  modeler.study.edit(command.element.id, (writer) => setMessageItem(writer, findDefinitions(modeler, flow), flow, command.structureRef.trim()));
 }
 
 

@@ -4,7 +4,7 @@
  */
 
 import { isDataShape } from '@core/document/outline.ts';
-import type { ModdleWriter } from '@core/element/index.ts';
+import type { DocumentWriter } from '@core/document/items.ts';
 import { getProperty, setProperty } from '@core/element/moddle.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
 import { idPrefixFor, needsId, type IdGenerator } from '@canvas/study/ids.ts';
@@ -13,11 +13,9 @@ import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Drawable, ModdleObject, Scene, SceneNode } from '@canvas/study/scene.ts';
 
 /** What an `edit` hands its callback: writes the study records, and new moddle with ids of its own. */
-export interface StudyWriter extends ModdleWriter {
+export interface StudyWriter extends DocumentWriter {
   /** A new moddle element, holding an id no other element holds when its type carries one. */
   create(type: string, properties?: Record<string, unknown>): ModdleObject;
-  /** `base`, else `base_2`, `base_3`…: the first id the document does not hold, taken from now on. */
-  freeId(base: string): string;
   /** The document's ids, for helpers that mint their own (core's choreography participants). */
   readonly ids: Pick<IdGenerator, 'assigned' | 'nextPrefixed'>;
 }

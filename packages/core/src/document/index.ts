@@ -69,6 +69,8 @@ export {
   toStandardBpmnXml,
 } from '@core/document/io-specification';
 export { protocolDigest } from '@core/document/digest';
+export { patchDoc } from '@core/document/patch';
+export { ensureItemDefinition, setItemSubject, setMessageItem, type DocumentWriter } from '@core/document/items';
 export {
   parseSchemaBody,
   type ParsedSchemaBody,
