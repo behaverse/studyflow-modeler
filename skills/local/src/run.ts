@@ -341,5 +341,6 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   repo.commit(`finished ${studyId} (${status})`, trailers, timelineTimestamp(), JSON.stringify({
     status, finishedAt: new Date().toISOString(), steps: walk.steps.entries.length, tail: walk.steps.entries.slice(recorded),
   }));
+  repo.tidy();
   return status === 'ok' ? 0 : 1;
 }

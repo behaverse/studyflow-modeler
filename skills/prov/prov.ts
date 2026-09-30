@@ -101,6 +101,9 @@ export class RunRepo {
   /** An inherited GIT_DIR would aim every command at the caller's repository instead of this one. */
   private static readonly SCRUBBED = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
   private static readonly LFS_PATTERNS = ['*.joblib', '*.parquet', '*.png', '*.svg', '*.pdf'];
+  /** How a checkpoint commits. No housekeeping: git starts it in the background after a commit, and a repack beside
+   * checkpoints that come tens of milliseconds apart loses commits (`tidy` does it once, at the end). */
+  private static readonly CHECKPOINT = ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false'];
 
   readonly dir: string;
   created = false;
@@ -185,7 +188,13 @@ export class RunRepo {
     // Trailers must be the message's last block, so the body sits between subject and trailers.
     const message = [subject, body, lines.join('\n')].filter(Boolean).join('\n\n');
     if (!this.git(['add', '-A'])) return;
-    this.git(['commit', '-q', '--allow-empty', '-m', message], { when });
+    this.git([...RunRepo.CHECKPOINT, 'commit', '-q', '--allow-empty', '-m', message], { when });
+  }
+
+  /** Packs what the run left loose, now that nothing else writes: the housekeeping its checkpoints put off. A run of
+   * a few steps leaves too little to be worth it. */
+  tidy(): void {
+    this.git(['-c', 'gc.auto=256', '-c', 'gc.autoDetach=false', 'gc', '--auto', '--quiet'], { tolerate: true });
   }
 
   /** The newest commit that executed this element; skips near the tip are not where its work entered. */
