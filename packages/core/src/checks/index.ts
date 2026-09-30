@@ -1,7 +1,7 @@
 import type { ModdleElement } from '@core/element/moddle';
 import { checkDataContract } from '@core/checks/data-contract';
 import { checkDecisions } from '@core/checks/decisions';
-import { checkEnumerations } from '@core/checks/enumerations';
+import { checkValues } from '@core/checks/values';
 import { checkExpressions } from '@core/checks/expressions';
 import { checkFlowConsistency } from '@core/checks/flow-consistency';
 import { checkIds } from '@core/checks/ids';
@@ -23,7 +23,7 @@ export type Issue = {
 export function planChecks(definitions: ModdleElement): Issue[] {
   return [
     ...checkIds(definitions), ...checkSoundness(definitions), ...checkRunnerPaths(definitions), ...checkExpressions(definitions), ...checkDecisions(definitions),
-    ...checkEnumerations(definitions), ...checkDataContract(definitions),
+    ...checkValues(definitions), ...checkDataContract(definitions),
   ];
 }
 

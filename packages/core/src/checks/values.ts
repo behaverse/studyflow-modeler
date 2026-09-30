@@ -2,12 +2,20 @@ import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
 import { getCatalog, hasCatalog } from '@core/notation';
 
+/** The schema's scalar types a value is checked against, by what reads as one. */
+const SCALARS: Record<string, { test: RegExp; is: string }> = {
+  Integer: { test: /^[-+]?\d+$/, is: 'a whole number' },
+  Real: { test: /^[-+]?(\d+\.?\d*|\.\d+)([eE][-+]?\d+)?$/, is: 'a number' },
+  Boolean: { test: /^(true|false)$/, is: 'true or false' },
+};
+
 /**
- * An attribute a schema types by an enumeration holds one of its values (`algorithm: block`, never `blocks`): a
- * runner reads the value, and one it does not know is a setting it quietly does not apply. An enumeration whose
- * attribute is marked `editable` offers values, and takes others too; a `{placeholder}` is read at run time.
+ * An attribute holds a value of the type its schema gives it: one of an enumeration's values (`algorithm: block`,
+ * never `blocks`), a whole number, a number, or true or false. A runner reads the value, and one it cannot read is a
+ * setting it quietly does not apply. An enumeration whose attribute is marked `editable` offers values, and takes
+ * others too; a `{placeholder}` is read at run time.
  */
-export function checkEnumerations(definitions: ModdleElement): Issue[] {
+export function checkValues(definitions: ModdleElement): Issue[] {
   if (!hasCatalog()) return [];
   const catalog = getCatalog();
   const issues: Issue[] = [];
@@ -22,6 +30,15 @@ export function checkEnumerations(definitions: ModdleElement): Issue[] {
       if (property.isReference || value === undefined || value === null) continue;
       if (Array.isArray(value)) value.forEach((item) => visit(item, id));
       else if (typeof value === 'object' && '$type' in value) visit(value, id);
+      const scalar = SCALARS[property.type];
+      for (const held of scalar ? [value].flat() : []) {
+        if (typeof held !== 'string' || held.includes('{') || scalar.test.test(held.trim())) continue;
+        issues.push({
+          severity: 'error',
+          elementId: id,
+          message: `${JSON.stringify(id)} has ${property.ns?.localName ?? property.name}: ${JSON.stringify(held)}, which is not ${scalar.is}`,
+        });
+      }
       const choices = catalog.enumOf(property.type, element.$type?.split(':')[0]);
       const spec = specs.get(property.name) ?? specs.get(property.ns?.name);
       if (!choices || (spec?.meta as { editable?: boolean } | undefined)?.editable) continue;
