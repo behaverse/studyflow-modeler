@@ -20,20 +20,26 @@ elements = {
 assert simulate.claims({"elements": elements}) == ["Pool", "Timeline"], simulate.claims({"elements": elements})
 
 # A timeline is the seed's alone: every subject meets the same one, and a Simon block is half congruent.
-trials = simulate.simon(42, "Timeline", trials=30)
-assert trials == simulate.simon(42, "Timeline", trials=30) and len(trials) == 30
-assert sum(t["Congruency"] == "Congruent" for t in trials) == 15
-blocks = simulate.nback(42, "NB", trials=28)
+simon = simulate.simon(42, "Timeline", trials=30)
+trials, key = simon["trials"], simon["key"]
+assert simon == simulate.simon(42, "Timeline", trials=30) and len(trials) == len(key) == 30
+assert sum(k["Congruency"] == "Congruent" for k in key) == 15
+nback = simulate.nback(42, "NB", trials=28)
+blocks = nback["trials"]
 assert len(blocks) == 56 and all(len(t["Before"]) == (0 if t["Trial"] == 1 else 1) for t in blocks)
-assert all((t["Correct"] == "match") == (t["Before"] == [t["Digit"]]) for t in blocks)
+assert all((k["Correct"] == "match") == (t["Before"] == [t["Digit"]]) for t, k in zip(blocks, nback["key"]))
+# What a subject is sent carries no answer and no condition; the rule and the stimulus give the answer, the key agrees.
+assert not any({"Correct", "Congruency"} & set(t) for t in trials + blocks)
+assert [simulate.key_of(t) for t in trials] == key and [simulate.key_of(t) for t in blocks] == nback["key"]
 
 
 def accuracy(profile: str, instruction: str, kind: str) -> float:
     hits = 0
-    pool = [t for t in simulate.simon(7, "S", trials=400) if t["Congruency"] == kind]
-    for index, trial in enumerate(pool):
+    drawn = simulate.simon(7, "S", trials=400)
+    pool = [(t, k) for t, k in zip(drawn["trials"], drawn["key"]) if k["Congruency"] == kind]
+    for index, (trial, truth) in enumerate(pool):
         reply = simulate.answer(profile, 7, {"id": f"M.{kind}.{index}", "content": {"T": trial, "I": instruction}})
-        hits += reply == trial["Correct"]
+        hits += reply == truth["Correct"]
     return hits / len(pool)
 
 
@@ -49,11 +55,11 @@ assert simulate.option_named("match", ["match", "non-match"]) == "match"
 with tempfile.TemporaryDirectory() as tmp:
     run = Path(tmp)
     elements = {"Rec": {"id": "Rec", "type": "serviceTask", "parent": "P", "attributes": {"implementation": "simulate://record"},
-                    "inputs": [{"source": "Trials"}, {"source": "Answers"}], "outputs": [{"target": "Store"}]},
+                    "inputs": [{"source": "Trials"}, {"source": "Key"}, {"source": "Answers"}], "outputs": [{"target": "Store"}]},
                 "Store": {"type": "dataStoreReference", "attributes": {"uri": "data/trials.jsonl"}}}
     plan = {"elements": elements}
     two = trials[:2]
-    state = {"Trials": two, "Answers": [two[0]["Correct"], "maybe"], "state": {"P": {"arm": "calm"}, "_meta": {"instance": {"Pool": 3}}}}
+    state = {"Trials": two, "Key": key[:2], "Answers": [key[0]["Correct"], "maybe"], "state": {"P": {"arm": "calm"}, "_meta": {"instance": {"Pool": 3}}}}
     args = {"subject": "{state._meta.instance.Pool}", "arm": "{arm}"}
     assert simulate.record(elements["Rec"], args, plan, state, run) == {"trials": 2, "answered": 1, "failedTrialRate": 0.5}
     simulate.record(elements["Rec"], args, plan, state, run)

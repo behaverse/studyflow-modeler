@@ -74,30 +74,34 @@ def rng(*key: Any) -> random.Random:
     return random.Random(":".join(str(part) for part in key))
 
 
-def simon(seed: Any, step: str, trials: int = 30) -> list[dict[str, Any]]:
-    """Half congruent, half incongruent, in a seeded order: a coloured square on one side, answered by its colour."""
+def simon(seed: Any, step: str, trials: int = 30) -> dict[str, list[dict[str, Any]]]:
+    """Half congruent, half incongruent, in a seeded order: a coloured square on one side, answered by its colour.
+    `trials` is what a subject is shown; `key`, trial by trial, the right answer and the condition, which a subject is
+    never sent and the record step scores by."""
     draw = rng(seed, step)
     kinds = ["Congruent", "Incongruent"] * (trials // 2) + ["Congruent"] * (trials % 2)
     draw.shuffle(kinds)
-    out = []
+    shown, key = [], []
     for index, kind in enumerate(kinds, 1):
         colour = draw.choice(["red", "blue"])
         answer = "left" if colour == "red" else "right"
         side = answer if kind == "Congruent" else ("right" if answer == "left" else "left")
-        out.append({
-            "Task": "Simon", "Block": "Simon", "Trial": index, "Congruency": kind,
+        shown.append({
+            "Task": "Simon", "Block": "Simon", "Trial": index,
             "Stimulus": f"a {colour} square on the {side} of the screen",
             "Rule": "Answer left for a red square and right for a blue one, wherever it appears.",
-            "ResponseOptions": ["left", "right"], "Correct": answer,
+            "ResponseOptions": ["left", "right"],
         })
-    return out
+        key.append({"Correct": answer, "Congruency": kind})
+    return {"trials": shown, "key": key}
 
 
 def nback(seed: Any, step: str, n: int = 1, trials: int = 28, blocks: list[str] | None = None,
-          matchRate: float = 0.33) -> list[dict[str, Any]]:  # noqa: N803 - the attribute's name
-    """Digits in blocks; about `matchRate` of them repeat the digit `n` back. Each trial carries the digits before it."""
+          matchRate: float = 0.33) -> dict[str, list[dict[str, Any]]]:  # noqa: N803 - the attribute's name
+    """Digits in blocks; about `matchRate` of them repeat the digit `n` back. Each trial carries the digits before it.
+    `trials` is what a subject is shown; `key`, trial by trial, the right answer, which a subject is never sent."""
     draw = rng(seed, step)
-    out = []
+    shown, key = [], []
     for block in blocks or ["Test_A", "Test_B"]:
         digits: list[int] = []
         for index in range(1, trials + 1):
@@ -106,13 +110,26 @@ def nback(seed: Any, step: str, n: int = 1, trials: int = 28, blocks: list[str] 
             else:
                 digit = draw.choice([d for d in range(10) if len(digits) < n or d != digits[-n]])
             match = len(digits) >= n and digit == digits[-n]
-            out.append({
+            shown.append({
                 "Task": "NBack", "Block": block, "Trial": index, "Digit": digit, "Before": list(digits[-n:]),
                 "Rule": f"Answer match when this digit is the one shown {n} before it, else non-match.",
-                "ResponseOptions": ["match", "non-match"], "Correct": "match" if match else "non-match",
+                "ResponseOptions": ["match", "non-match"],
             })
+            key.append({"Correct": "match" if match else "non-match"})
             digits.append(digit)
-    return out
+    return {"trials": shown, "key": key}
+
+
+def key_of(trial: dict[str, Any]) -> dict[str, Any]:
+    """What a subject can tell from a trial as shown, by its rule: the right answer, and for a Simon trial whether
+    the square sits on the side of its answer. The simulated subject answers by this, never by the timeline's key."""
+    if trial.get("Task") == "Simon":
+        colour, side = re.search(r"a (\w+) square on the (\w+)", str(trial.get("Stimulus"))).groups()
+        correct = "left" if colour == "red" else "right"
+        return {"Correct": correct, "Congruency": "Congruent" if side == correct else "Incongruent"}
+    n = int(re.search(r"shown (\d+) before", str(trial.get("Rule"))).group(1))
+    before = trial.get("Before") or []
+    return {"Correct": "match" if len(before) >= n and before[-n] == trial.get("Digit") else "non-match"}
 
 
 def option_named(reply: Any, options: list[str]) -> str | None:
@@ -136,32 +153,34 @@ def answer(profile: str, seed: Any, message: dict[str, Any]) -> str:
     if draw.random() < MISS_RATE:
         return "I am not sure."
     table = PLANTED[profile]
-    p = table.get((trial.get("Task"), trial.get("Congruency"), disposition), NULL_ACCURACY) if table else NULL_ACCURACY
+    truth = key_of(trial)
+    p = table.get((trial.get("Task"), truth.get("Congruency"), disposition), NULL_ACCURACY) if table else NULL_ACCURACY
     options = [str(option) for option in trial["ResponseOptions"]]
-    wrong = [option for option in options if option != trial.get("Correct")]
-    return str(trial.get("Correct")) if draw.random() < p or not wrong else draw.choice(wrong)
+    wrong = [option for option in options if option != truth["Correct"]]
+    return truth["Correct"] if draw.random() < p or not wrong else draw.choice(wrong)
 
 
 def record(element: dict[str, Any], arguments: dict[str, Any], plan: dict[str, Any],
            state: dict[str, Any], run_dir: Path) -> dict[str, Any]:
-    """Score the answers against their trials and append one row per trial to the data store the step writes."""
+    """Score the answers by the timeline's key and append one row per trial to the data store the step writes."""
     sources = [binding.get("source") for binding in element.get("inputs") or []]
     lists = [state.get(source) for source in sources if isinstance(state.get(source), list)]
-    trials = next((value for value in lists if value and isinstance(value[0], dict)), None)
-    answers = next((value for value in lists if value is not trials), None)
-    if trials is None or answers is None or len(trials) != len(answers):
-        raise ValueError(f"{element['id']} reads a timeline and the answers collected for it, one per trial; "
-                         f"got {len(trials or [])} trials and {len(answers or [])} answers")
+    listing = lambda field: next((value for value in lists if value and isinstance(value[0], dict) and field in value[0]), None)  # noqa: E731
+    trials, key = listing("ResponseOptions"), listing("Correct")
+    answers = next((value for value in lists if value is not trials and value is not key), None)
+    if trials is None or key is None or answers is None or not len(trials) == len(key) == len(answers):
+        raise ValueError(f"{element['id']} reads a timeline's trials and key, and the answers collected for it, one per trial; "
+                         f"got {len(trials or [])} trials, {len(key or [])} keys and {len(answers or [])} answers")
     subject = read(arguments.get("subject"), element["id"], state, plan)
     arm = read(arguments.get("arm"), element["id"], state, plan)
     rows = []
-    for trial, reply in zip(trials, answers):
+    for trial, truth, reply in zip(trials, key, answers):
         chosen = option_named(reply, [str(o) for o in trial.get("ResponseOptions") or []])
         rows.append({
             "context": {"subject": subject, "state": {"arm": arm}},
             "trialContext": {"task": {"id": trial.get("Task")}, "block": {"name": trial.get("Block")},
-                             "trial": {"id": str(trial.get("Trial"))}, "congruency": trial.get("Congruency")},
-            "result": {"response": chosen, "isCorrect": None if chosen is None else chosen == trial.get("Correct")},
+                             "trial": {"id": str(trial.get("Trial"))}, "congruency": truth.get("Congruency")},
+            "result": {"response": chosen, "isCorrect": None if chosen is None else chosen == truth.get("Correct")},
         })
     target = next((binding.get("target") for binding in element.get("outputs") or [] if binding.get("target")), None)
     uri = (((plan.get("elements") or {}).get(str(target)) or {}).get("attributes") or {}).get("uri") if target else None
@@ -184,11 +203,10 @@ def execute(step: Step) -> Any:
         return answer(kind, step.seed, step.message or {})
     if kind == "record":
         return record(element, arguments, step.plan, step.values, step.run_dir)
+    # `{"trials", "key"}`, into the data outputs each edge's transformation selects (`result.trials`, `result.key`).
     result = (simon if kind == "simon" else nback)(step.seed, step.id, **arguments)
-    for binding in element.get("outputs") or []:
-        if binding.get("target"):
-            step.bind(binding["target"], result)
-    return result  # the step's own result too, which `{Record.failedTrialRate}` reads
+    step.outputs(result)
+    return result
 
 
 if __name__ == "__main__":
