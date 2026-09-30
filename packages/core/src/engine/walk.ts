@@ -3,6 +3,7 @@ import { allocationOf, draw, permutedBlock, pick, type Allocation } from '@core/
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
 import { HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
 import type { Plan, PlanElement } from '@core/engine/plan';
+import type { Happening, RunEvent } from '@core/engine/record';
 import { Post } from '@core/engine/post';
 import { Steps, type Entry } from '@core/engine/steps';
 import { timerDelay } from '@core/engine/timer';
@@ -25,11 +26,6 @@ const has = (element: PlanElement, definition: string): boolean => (element.even
 export class Walk {
   readonly graph: Graph;
   readonly steps = new Steps();
-  /** The `state` tree: `state.<scope>.<property>`, and `state._meta`, the walk's own. */
-  /** When each activity finished, each event was reached, and which flow each gateway took. */
-  readonly completed = new Map<string, string>();
-  readonly reached = new Map<string, string>();
-  readonly decisions = new Map<string, { flow: string; when: string }>();
   /** Every element that never skips or replays: a live runner's, one that exchanges messages, one that repeats. */
   readonly live = new Set<string>();
   readonly allocations = new Map<string, Allocation>();
@@ -41,12 +37,16 @@ export class Walk {
   private readonly blocks = new Map<string, number[]>();
   private readonly memory: Values;
   private readonly post: Post;
+  /** Tells the host what happened: the run's record. */
+  private readonly record: (happened: Happening) => void;
 
   constructor(plan: Plan, host: Host, options: WalkOptions = {}) {
     this.host = host;
     this.graph = new Graph(plan);
-    this.memory = new Values(this.graph, options.state ?? {});
-    this.post = new Post(this.graph, host, this.steps, this.memory);
+    // What happens goes to the host as it happens: the run's record (packages/core/src/engine/record.ts).
+    const record = this.record = (happened: Happening): void => host.record?.({ ...happened, at: host.now() } as RunEvent);
+    this.memory = new Values(this.graph, options.state ?? {}, record);
+    this.post = new Post(this.graph, host, this.steps, this.memory, record);
     this.maxSteps = options.maxSteps ?? 1000;
     this.oneInstance = options.oneInstance ?? false;
     const seed = Number((options.seed === undefined ? plan.study.seed : options.seed) ?? NaN);
@@ -120,7 +120,7 @@ export class Walk {
     for (let instance = 1; instance <= instances; instance += 1) {
       if (instances > 1) {
         // Which instance this is, for whatever runs inside: `state._meta.instance.<pool id>`, 1-based.
-        this.memory.meta('instance')[participant] = instance;
+        this.memory.instance(participant, instance);
         this.memory.startScope(pool, true, this.note(thread));
       }
       await this.host.moved?.(start.id, undefined, pool);
@@ -157,7 +157,7 @@ export class Walk {
           if (host.claim(id)) await this.executeViaRunner(element, entry, thread);
           await this.post.throwFrom(element, thread);
           this.steps.end(entry);
-          this.reached.set(id, host.now());
+          this.record({ event: 'executed', id, entry });
           this.log(thread, 'event.reached', `● ${id}`);
           host.passed?.(id);
           const container = graph.get(element.parent);
@@ -203,7 +203,7 @@ export class Walk {
           }
           await this.post.throwFrom(element, thread);
           this.steps.end(entry);
-          this.reached.set(id, host.now());
+          this.record({ event: 'executed', id, entry });
           this.log(thread, 'event.reached', `○ ${id}`);
         } else {
           const boundary = await this.perform(element, depth, thread);
@@ -211,7 +211,7 @@ export class Walk {
             // The activity ended at one of its boundary events: the walk goes on from there.
             this.memory.trace.push(boundary.id);
             this.memory.count(boundary.id);
-            this.reached.set(boundary.id, host.now());
+            this.record({ event: 'executed', id: boundary.id });
             await host.moved?.(boundary.id, undefined, thread.pool);
             this.log(thread, 'event.reached', `○ ${boundary.id}  (ended ${id})`);
             element = await this.next(boundary, thread);
@@ -259,12 +259,11 @@ export class Walk {
         passes += 1;
         if (passes > this.maxSteps) throw new Error(`${id}: loop budget exhausted — does its loop ever end?`);
         // Which pass this is, for whatever runs inside: `state._meta.instance.<id>`, 1-based.
-        if (element.loop) this.memory.meta('instance')[id] = passes;
+        if (element.loop) this.memory.instance(id, passes);
         if (listed) {
           // The pass's item in the activity's own scope, `{C}` to the steps inside, and no output yet.
-          const held = (this.memory.state[id] ??= {});
-          if (listed.item) held[listed.item] = listed.items[passes - 1];
-          if (listed.output) delete held[listed.output];
+          if (listed.item) this.memory.set(id, listed.item, listed.items[passes - 1]);
+          if (listed.output && listed.output in (this.memory.state[id] ?? {})) this.memory.set(id, listed.output);
         }
         if (CONTAINER_TYPES.has(element.type)) await this.walkContainer(element, depth, thread);
         else await this.runActivity(element, thread);
@@ -362,10 +361,8 @@ export class Walk {
     }
     this.noteOutputs(element, entry, thread);
     this.steps.end(entry);
-    const when = host.now();
-    this.completed.set(id, when);
     this.log(thread, 'activity.finished', `  ${id} done in ${entry.durationMs}ms`, { level: 'debug' });
-    host.settled?.({ action: 'executed', id, when });
+    this.record({ event: 'executed', id, entry });
   }
 
   private async runActivity(element: PlanElement, thread: Thread): Promise<void> {
@@ -378,11 +375,10 @@ export class Walk {
     if (verdict?.skipped) {
       this.log(thread, 'activity.skipped', `↻ ${id}  (outputs from run ${verdict.run})`);
       replay();
-      const when = host.now();
-      host.settled?.({ action: 'reused', id, when, run: verdict.run });
+      this.record({ event: 'reused', id, run: verdict.run ?? '' });
       return;
     }
-    this.log(thread, 'activity.started', `□ ${id}`, { data: { element: id } });
+    this.log(thread, 'activity.started', `□ ${id}`);
     replay();
     if (verdict?.superseded) this.log(thread, 'activity.invalidated', `    ${verdict.superseded}`);
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
@@ -398,7 +394,7 @@ export class Walk {
       const { status } = this.steps;
       this.steps.fail(entry, error);
       this.log(thread, 'activity.failed', `    ${id}: ${(error as Error)?.name ?? 'Error'}: ${(error as Error)?.message ?? error}`, { level: 'error' });
-      host.settled?.({ action: 'failed', id, when: host.now() });
+      this.record({ event: 'failed', id, entry });
       if (!boundary) throw error;
       // An error boundary event catches the failure: the record keeps the error, the run is not failed, and the walk
       // goes on from the event, as a message at a boundary event ends an activity.
@@ -407,11 +403,9 @@ export class Walk {
       throw new Interrupted(id, boundary);
     }
     this.steps.end(entry);
-    const when = host.now();
-    this.completed.set(id, when);
     host.reuse?.ran(id);
     this.log(thread, 'activity.finished', `    ${id} done in ${entry.durationMs}ms`, { level: 'debug' });
-    host.settled?.({ action: 'executed', id, when });
+    this.record({ event: 'executed', id, entry });
   }
 
   /** The error boundary event an activity carries, if any: where a failure inside it goes on from. */
@@ -477,7 +471,7 @@ export class Walk {
       if (fixed.length > 0) {
         throw new Error(`${id} writes ${fixed.join(', ')}, which the Parameters wired into ${scope} set, so nothing inside it writes them`);
       }
-      Object.assign(held, written);
+      for (const [name, value] of Object.entries(written)) this.memory.set(scope, name, value);
     }
     for (const [key, value] of Object.entries(handed.values ?? {})) this.memory.store(key, value);
     if (handed.result !== undefined) this.memory.store(id, handed.result);
@@ -539,19 +533,17 @@ export class Walk {
     const replayed = prior && flows.find((flow) => flow.id === prior.flow);
     if (prior && replayed) {
       this.log(thread, 'gateway.replayed', `↻ ${id} → ${prior.flow}  (decision from run ${prior.run})`);
-      host.settled?.({ action: 'reused', id, flow: prior.flow, when: host.now(), run: prior.run });
+      this.record({ event: 'reused', id, run: prior.run, flow: prior.flow });
       return this.follow(replayed, thread);
     }
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
 
     /** Record the decision and how it was made, then follow `flow`. */
     const take = (flow: PlanElement, how: string, marks: Record<string, boolean> = {}): Promise<PlanElement | undefined> => {
-      entry.taken = { sequenceFlow: flow.id, name: flow.name, ...marks };
+      entry.taken = { sequenceFlow: flow.id, name: flow.name, how, ...marks };
       this.steps.end(entry);
-      const when = host.now();
-      this.decisions.set(id, { flow: flow.id, when });
-      this.log(thread, 'sequenceFlow.taken', `    ${how} → ${flow.id}`, { data: { element: id, flow: flow.id, how } });
-      host.settled?.({ action: 'executed', id, flow: flow.id, when });
+      this.log(thread, 'sequenceFlow.taken', `    ${how} → ${flow.id}`);
+      this.record({ event: 'executed', id, flow: flow.id, entry });
       return this.follow(flow, thread);
     };
 

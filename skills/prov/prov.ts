@@ -101,6 +101,8 @@ export class RunRepo {
   /** An inherited GIT_DIR would aim every command at the caller's repository instead of this one. */
   private static readonly SCRUBBED = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
   private static readonly LFS_PATTERNS = ['*.joblib', '*.parquet', '*.png', '*.svg', '*.pdf'];
+  /** What every run writes about itself: its record (`run.jsonl`) and its log. */
+  private static readonly ACCOUNTS = ['run.jsonl', 'studyflow.log'];
   /**
    * How a checkpoint commits. No housekeeping: git starts it in the background after a commit, and a repack beside
    * checkpoints that come tens of milliseconds apart loses commits (`tidy` does it once, at the end). No hooks: LFS
@@ -186,12 +188,22 @@ export class RunRepo {
     if (!marks.includes('.cache/')) writeFileSync(exclude, `${marks}.cache/\n`);
   }
 
-  /** One checkpoint: whatever the step wrote, plus the log lines, with its record entries as the body. */
-  commit(subject: string, trailers: Record<string, string | number | null | undefined> = {}, when?: string, body?: string): void {
+  /** A commit of everything in the run directory: a run's `started` and `finished`, an edit made outside a run. */
+  commit(subject: string, trailers: Record<string, string | number | null | undefined> = {}, when?: string): void {
+    this.commitWith(['.'], subject, trailers, when);
+  }
+
+  /** One step's checkpoint: whatever the step wrote, without the run's record and log, which grow with every step and
+   * are committed with the run's `started` and `finished` commits. */
+  checkpoint(subject: string, trailers: Record<string, string | number | null | undefined> = {}, when?: string): void {
+    this.commitWith(['.', ...RunRepo.ACCOUNTS.map((file) => `:(exclude)${file}`)], subject, trailers, when);
+  }
+
+  private commitWith(paths: string[], subject: string, trailers: Record<string, string | number | null | undefined>, when?: string): void {
     const lines = Object.entries(trailers).filter(([, value]) => value !== undefined && value !== null && value !== '').map(([key, value]) => `${key}: ${value}`);
-    // Trailers must be the message's last block, so the body sits between subject and trailers.
-    const message = [subject, body, lines.join('\n')].filter(Boolean).join('\n\n');
-    if (!this.git(['add', '-A'])) return;
+    // Trailers must be the message's last block.
+    const message = [subject, lines.join('\n')].filter(Boolean).join('\n\n');
+    if (!this.git(['add', '-A', '--', ...paths])) return;
     this.git([...RunRepo.CHECKPOINT, 'commit', '-q', '--allow-empty', '-m', message], { when });
   }
 
@@ -281,7 +293,7 @@ export class RunRepo {
 
   /** `studyflow.log` and the journal are left out: every run writes them, which is not an edit from outside. */
   dirty(): boolean {
-    const done = this.git(['status', '--porcelain', '--', '.', ':(exclude)studyflow.log', ':(exclude)run.jsonl']);
+    const done = this.git(['status', '--porcelain', '--', '.', ...RunRepo.ACCOUNTS.map((file) => `:(exclude)${file}`)]);
     return !!done?.out.trim();
   }
 }

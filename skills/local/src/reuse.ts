@@ -43,7 +43,6 @@ export type ReuseOptions = {
 export class Records implements Reuse {
   /** What this run re-made: whatever reads it runs again. */
   readonly tainted = new Set<string>();
-  readonly staged = new Map<string, string>();
   private demanded: Set<string> | undefined;
   private readonly pending = new Map<string, { stale: boolean; verdict?: string }>();
   private readonly names = new Map<string, string>();

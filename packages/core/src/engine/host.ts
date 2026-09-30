@@ -1,4 +1,5 @@
 import type { PlanElement } from '@core/engine/plan';
+import type { RunEvent } from '@core/engine/record';
 import type { Entry } from '@core/engine/steps';
 
 /* What a host of the walk provides, and what the walk's parts share: a pool's thread, the interrupt that leaves an
@@ -49,7 +50,7 @@ export class HandoffError extends Error {
 export type Level = 'debug' | 'info' | 'warning' | 'error';
 
 /** A line for the run's log, written at the depth of the step it is about. */
-export type Note = (event: string, message: string, detail?: { level?: Level; data?: Record<string, unknown> }) => void;
+export type Note = (event: string, message: string, detail?: { level?: Level }) => void;
 
 /** What a re-run may reuse of an earlier run's records; a host without one runs every step. */
 export type Reuse = {
@@ -78,8 +79,8 @@ export type Host = {
   /** A timestamp for a record, as the host writes them. */
   now(): string;
   reuse?: Reuse;
-  /** A step settled: the host checkpoints its records. */
-  settled?(what: { action: 'executed' | 'failed' | 'reused'; id: string; flow?: string; when: string; run?: string }): void;
+  /** What happened, as it happens: the run's record, which the host keeps (packages/core/src/engine/record.ts). */
+  record?(event: RunEvent): void;
   /** An activity's data outputs, once it is done: the host notes what it made. */
   outputs?(id: string, targets: string[], entry: Entry, note: Note): void;
   /** The walk is about to leave an element. */

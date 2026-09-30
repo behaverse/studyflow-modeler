@@ -1,6 +1,7 @@
 import type { Graph } from '@core/engine/graph';
 import { Interrupted, keepRecord, logAt, type Conversation, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
 import type { PlanElement } from '@core/engine/plan';
+import type { Happening } from '@core/engine/record';
 import type { Steps } from '@core/engine/steps';
 import type { Values } from '@core/engine/values';
 
@@ -23,12 +24,14 @@ export class Post {
   private readonly host: Host;
   private readonly steps: Steps;
   private readonly values: Values;
+  private readonly record: (happened: Happening) => void;
 
-  constructor(graph: Graph, host: Host, steps: Steps, values: Values) {
+  constructor(graph: Graph, host: Host, steps: Steps, values: Values, record: (happened: Happening) => void = () => undefined) {
     this.graph = graph;
     this.host = host;
     this.steps = steps;
     this.values = values;
+    this.record = record;
   }
 
   /** A pool's walk has ended: it sends nothing more. */
@@ -56,7 +59,8 @@ export class Post {
     const target = flow.attributes.targetRef ?? '';
     const message: Message = { id: options.id ?? `${flow.id}.${this.sent += 1}`, flow: flow.id, content };
     if (options.inReplyTo) message.inReplyTo = options.inReplyTo;
-    logAt(this.host, thread, 'message.sent', `    ✉ ${flow.attributes.sourceRef} → ${target}  [${message.id}]`, { level: 'debug', data: { message } });
+    logAt(this.host, thread, 'message.sent', `    ✉ ${flow.attributes.sourceRef} → ${target}  [${message.id}]`, { level: 'debug' });
+    this.record({ event: 'sent', message });
     const pool = graph.participants.get(target);
     if (pool && host.claim(target)) return this.serve(pool, flow, message, thread);
     if (pool && !pool.attributes.processRef) {
@@ -83,7 +87,7 @@ export class Post {
         keepRecord(entry, answered);
         const reply = answered.result ?? null;
         if (typeof reply === 'string') entry.reply = reply.slice(0, 2000); // what the pool said, kept with the run's records
-        logAt(this.host, thread, 'message.answered', `    ✉ ${name} answered ${message.id}`, { data: { pool: pool.id, inReplyTo: message.id, reply } });
+        logAt(this.host, thread, 'message.answered', `    ✉ ${name} answered ${message.id}`);
         return reply;
       } catch (error) {
         entry.status = 'error';
@@ -95,6 +99,7 @@ export class Post {
     this.serving.set(pool.id, turn);
     const reply = await turn;
     this.steps.end(entry);
+    this.record({ event: 'answered', id: pool.id, entry });
     const flows = graph.flowsOut.get(pool.id) ?? [];
     const sender = flow.attributes.sourceRef ?? '';
     const back = flows.find((candidate) => candidate.attributes.targetRef === sender)

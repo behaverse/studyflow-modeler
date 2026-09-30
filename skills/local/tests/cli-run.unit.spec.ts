@@ -7,6 +7,7 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { studyflowToXml } from '@core/document';
+import { stateOf } from '@core/engine';
 import { freshModdle } from '@tests/schemas';
 
 const moddle = freshModdle();
@@ -112,6 +113,10 @@ S:
     const second = archivedState(archived);
     expect(second._meta.prov).toHaveLength(2);
     expect(second._meta.reached).toEqual({ Start: 1, F1: 1, Done: 1 });
+    // `run.jsonl`, the record, holds both runs' events, and the state the study keeps is read off them.
+    const events = fs.readFileSync(path.join(dir, 'run', 'run.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    expect(events.filter((event) => event.event === 'started')).toHaveLength(2);
+    expect(stateOf(events)).toEqual(second);
   });
 
   test('a re-run of several subjects draws the arms the run it redoes drew', () => {
@@ -449,12 +454,12 @@ P:
     // `names` binds a name to one element: `model` names two, and `Done` is another element's id, so neither is offered.
     expect(digest.names).toEqual({ T: 'fit', Dat: 'digits' });
     // What the runner ran with joins its step's record, and is no value a later step reads.
-    expect(execFileSync('git', ['-C', path.join(dir, 'run'), 'log', '--format=%B', '--grep=^executed T$'], { encoding: 'utf8' }))
-      .toContain('"version":"m 1.0"');
+    const record = fs.readFileSync(path.join(dir, 'run', 'run.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    expect(record.find((event) => event.event === 'executed' && event.id === 'T').entry).toMatchObject({ version: 'm 1.0' });
     expect(JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'Done.state.json'), 'utf8'))).not.toHaveProperty('record');
   });
 
-  test('carries a runner\'s messages while it runs, and journals them', async () => {
+  test('carries a runner\'s messages while it runs, and records them', async () => {
     // A collapsed sub-process is the only place BPMN can draw a message flow to a step inside it, so the study draws
     // the exchange on the cohort and the task inside it is what talks: out along the sub-process's flow, back in.
     // The sub-process is divided into a lane too (BPMN allows a lane set on any FlowElementsContainer): the walk
@@ -514,10 +519,10 @@ S:
     expect(archivedState(path.join(dir, 'run', 'plan.bpmn'))._meta.reached).toMatchObject({ Play: 1, Done: 1 });
     // The dataset the steps inside filled is the sub-process's own data edge, so the sub-process generated it.
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/save trials\.jsonl/);
-    // The journal holds the same run as data: each message sent with its content, each step as it started.
-    const journal = fs.readFileSync(path.join(dir, 'run', 'run.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-    expect(journal.find((line) => line.event === 'message.sent').message).toMatchObject({ id: 't1', flow: 'M_Trial', content: { n: 1 } });
-    expect(journal.some((line) => line.event === 'activity.started' && line.element === 'Play')).toBe(true);
+    // The record holds the run as its events: each message sent with its content, each step as it ran.
+    const record = fs.readFileSync(path.join(dir, 'run', 'run.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    expect(record.find((event) => event.event === 'sent').message).toMatchObject({ id: 't1', flow: 'M_Trial', content: { n: 1 } });
+    expect(record.some((event) => event.event === 'executed' && event.id === 'Play')).toBe(true);
   });
 
   test('hands a pool that remembers the conversation each message belongs to', async () => {

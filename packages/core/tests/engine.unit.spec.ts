@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
-import { HandoffError, Walk, allocationOf, draw, dryHost, durationMs, permutedBlock, pick, planOf, type Handback, type Host, type PlanElement, type Talk, type WalkOptions } from '@core/engine';
+import { HandoffError, Walk, allocationOf, draw, dryHost, durationMs, permutedBlock, pick, planOf, stateOf, type Handback, type Host, type PlanElement, type RunEvent, type Talk, type WalkOptions } from '@core/engine';
 import { freshModdle } from '@tests/schemas';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
@@ -17,7 +17,10 @@ const HEAD = 'definitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n';
 async function walked(study: string, runners: Record<string, Runner> = {}, options: WalkOptions = {}) {
   const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}${study}`, freshModdle()));
   const log: string[] = [];
+  const events: RunEvent[] = [];
+  const start = structuredClone(options.state ?? {});
   const host: Host = {
+    record: (event) => events.push(event),
     claim: (id) => (runners[id] ? { name: 'test', live: true } : undefined),
     perform: async (id, values, { talk, message, conversation }) => runners[id]({ ...values, message, conversation }, talk),
     log: (event, message) => log.push(`${event} ${message.trim()}`),
@@ -26,7 +29,9 @@ async function walked(study: string, runners: Record<string, Runner> = {}, optio
   const walk = new Walk(plan, host, options);
   let error: Error | undefined;
   await walk.run().catch((caught) => { error = caught; });
-  return { walk, plan, log, error, reached: walk.state._meta?.reached ?? {}, state: walk.state };
+  // The run's record is enough to recover the state it left, whatever the study.
+  expect(stateOf(events, start)).toEqual(walk.state);
+  return { walk, plan, log, error, events, reached: walk.state._meta?.reached ?? {}, state: walk.state };
 }
 
 test('a parallel, inclusive or complex split is refused instead of walked along one branch', async () => {

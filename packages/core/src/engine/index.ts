@@ -8,5 +8,7 @@ export { Walk } from '@core/engine/walk';
 export { HandoffError } from '@core/engine/host';
 export type { Conversation, Handback, Host, Level, Message, Note, Reuse, StateTree, Talk, WalkOptions } from '@core/engine/host';
 export { dryHost } from '@core/engine/dry';
+export { recordOf, stateOf } from '@core/engine/record';
+export type { RunEvent, Stamping } from '@core/engine/record';
 export { durationMs, timerDelay } from '@core/engine/timer';
 export type { Timer } from '@core/engine/timer';

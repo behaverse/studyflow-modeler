@@ -2,6 +2,7 @@ import { evaluateFeel } from '@core/expression/feel';
 import type { Graph } from '@core/engine/graph';
 import type { Note, StateTree } from '@core/engine/host';
 import type { Expression, PlanElement } from '@core/engine/plan';
+import type { Happening } from '@core/engine/record';
 
 /**
  * What a run holds: the `state` tree (`state.<scope>.<property>`, and `state._meta`, the walk's own), what each
@@ -13,16 +14,34 @@ export class Values {
   /** What each element produced this run, by id. */
   readonly held = new Map<string, unknown>();
   private readonly graph: Graph;
+  /** Every change to the state is an event of the run's record, which the state can be recovered from. */
+  private readonly record: (happened: Happening) => void;
 
-  constructor(graph: Graph, state: StateTree) {
+  constructor(graph: Graph, state: StateTree, record: (happened: Happening) => void = () => undefined) {
     this.graph = graph;
     this.state = state;
+    this.record = record;
   }
 
   /** One more token at an element, or along a sequence flow: `state._meta.reached.<id>`, kept in the study's state. */
   count(id: string): void {
     const reached = this.meta('reached');
     reached[id] = (reached[id] ?? 0) + 1;
+    this.record({ event: 'reached', id });
+  }
+
+  /** The pass a pool's instance or a repeating activity is on: `state._meta.instance.<id>`, 1-based. */
+  instance(id: string, pass: number): void {
+    this.meta('instance')[id] = pass;
+    this.record({ event: 'instance', id, instance: pass });
+  }
+
+  /** A property of `scope` written, or cleared with no `value`. */
+  set(scope: string, name: string, ...value: [unknown?]): void {
+    const held = (this.state[scope] ??= {});
+    if (value.length > 0) held[name] = value[0];
+    else delete held[name];
+    this.record(value.length > 0 ? { event: 'wrote', scope, name, value: value[0] } : { event: 'wrote', scope, name });
   }
 
   meta(quantity: string): Record<string, any> {
@@ -34,7 +53,7 @@ export class Values {
   store(id: string, value: unknown): void {
     this.held.set(id, value);
     const declared = this.graph.propertyScope(id);
-    if (declared) (this.state[declared.scope] ??= {})[declared.name] = value;
+    if (declared) this.set(declared.scope, declared.name, value);
   }
 
   /**
@@ -49,7 +68,7 @@ export class Values {
       throw new Error(`'${name}' is set by the Parameters wired into ${scope}, so nothing inside it writes it.`);
     }
     const declared = this.graph.properties.get(scope)!.get(name)!;
-    (this.state[scope] ??= {})[name] = value;
+    this.set(scope, name, value);
     if (declared.id) this.held.set(declared.id, value);
     return scope;
   }
@@ -101,11 +120,10 @@ export class Values {
         note('state.reserved', `    ${id}.${name}: names starting with _ are reserved`, { level: 'warning' });
         continue;
       }
-      const held = (this.state[id] ??= {});
-      if (reset || !(name in held)) {
-        held[name] = structuredClone(declared.value);
+      if (reset || !(name in (this.state[id] ?? {}))) {
+        this.set(id, name, structuredClone(declared.value));
         // The value space reads the same, so a hand-off cannot echo the pass before back into a reset scope.
-        if (declared.id) this.held.set(declared.id, held[name]);
+        if (declared.id) this.held.set(declared.id, this.state[id][name]);
       }
     }
   }

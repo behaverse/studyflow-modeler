@@ -12,7 +12,7 @@ import path from 'node:path';
 
 import { readState, writeState } from '@core/document';
 import type { Moddle, ModdleElement } from '@core/element/moddle';
-import { CONTAINER_TYPES, Walk, indexOf, planElement, planOf, type Entry, type Host, type Note } from '@core/engine';
+import { CONTAINER_TYPES, Walk, indexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
 import { RunLog, timelineTimestamp } from '@skills/local/src/log';
 import { Records, humanBytes } from '@skills/local/src/reuse';
 import { PartialRunner, discoverRunners, type RunnerCommand } from '@skills/local/src/runners';
@@ -178,7 +178,8 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   }
   const numeric = seed !== null && seed.trim() !== '' && Number.isFinite(Number(seed));
   const document: Stamp = { action: 'executed', when: startedAt, who, with: run.tool, run: runId, seed: numeric ? Number(seed) : seed ?? undefined, plan: run.digest };
-  ((state._meta ??= {}).prov ??= []).push(Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (document[name] ? [[name, document[name]]] : []))));
+  const timeline = Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (document[name] ? [[name, document[name]]] : [])));
+  ((state._meta ??= {}).prov ??= []).push(timeline);
   writeState(definitions, moddle, state);
 
   // Archived before the first step, so a killed run still leaves a readable study behind.
@@ -229,16 +230,24 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     if (then) studies.set(commit, new Map([...indexOf(then).walked].map(([id, { element }]) => [id, drawn(element)])));
   }
 
-  const produced = new Map<string, string>();
-  const reused = new Map<string, { when: string; trusted: string }>();
-  let recorded = 0;
   // The walk and what it may reuse are made below, from the host that serves them.
   const made = {} as { walk: Walk; records: Records };
-  /** Record entries since the last checkpoint ride in the commit body; git is their only home. */
-  const checkpoint = (subject: string, when: string, trailers: Record<string, string> = {}): void => {
-    const steps = made.walk.steps.entries.slice(recorded);
-    repo.commit(subject, { 'Prov-Run': runId, 'Prov-When': when, ...trailers }, when, steps.length > 0 ? JSON.stringify(steps) : undefined);
-    recorded = made.walk.steps.entries.length;
+  /** The run's record (packages/core/src/engine/record.ts): each event appended to `run.jsonl` as it happens. A step
+   * that settles is a checkpoint: what it wrote in the run directory, committed under trailers that restate it; the
+   * record is committed with the run's `started` and `finished` commits. */
+  const events: RunEvent[] = [];
+  const keep = (event: RunEvent): void => {
+    if (event.event === 'reused') event.trusted = prior.get(event.id)?.when ?? '';
+    events.push(event);
+    log.record(event);
+    const settles = event.event === 'executed' || event.event === 'failed' || event.event === 'reused';
+    if (!settles || (plan.elements[event.id]?.type ?? '').endsWith('Event')) return;
+    const { id, at } = event;
+    const flow = 'flow' in event ? event.flow : undefined;
+    const node = { 'Prov-Run': runId, 'Prov-When': at, 'Prov-Node': id };
+    if (event.event === 'failed') repo.checkpoint(`failed ${id}`, node, at);
+    else if (event.event === 'reused') repo.checkpoint(`skipped ${id} (${flow ? `${flow}, ` : ''}run ${event.run})`, node, at);
+    else repo.checkpoint(flow ? `executed ${id}: ${flow}` : `executed ${id}`, { ...node, 'Prov-Action': 'executed', ...(flow ? { 'Prov-What': flow } : {}) }, at);
   };
 
   const host: Host = {
@@ -250,7 +259,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
       const handed = await claimed.get(id)!.runner.element(id, values, { message, conversation, talk, signal });
       for (const [data, uri] of absent) {
         if (!existsSync(path.join(dir, uri))) continue;
-        made.records.staged.set(data, timelineTimestamp());
+        keep({ event: 'imported', id: data, uri, at: timelineTimestamp() });
         note('artifact.staged', `    ▤ stage ${uri}  ${humanBytes(statSync(path.join(dir, uri)).size)}`);
       }
       return handed;
@@ -258,19 +267,12 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     log: log.event,
     now: () => timelineTimestamp(),
     get reuse() { return made.records; },
-    settled: ({ action, id, flow, when, run: trusted }) => {
-      if (action === 'failed') return checkpoint(`failed ${id}`, when, { 'Prov-Node': id });
-      if (action === 'reused') {
-        reused.set(id, { when, trusted: prior.get(id)?.when ?? '' });
-        return checkpoint(`skipped ${id} (${flow ? `${flow}, ` : ''}run ${trusted})`, when, { 'Prov-Node': id });
-      }
-      return checkpoint(flow ? `executed ${id}: ${flow}` : `executed ${id}`, when, { 'Prov-Action': 'executed', 'Prov-Node': id, ...(flow ? { 'Prov-What': flow } : {}) });
-    },
+    record: keep,
     outputs: (_id, targets, _entry, note: Note) => {
       for (const target of targets) {
         const uri = made.walk.graph.uriOf(target);
         if (!uri || !existsSync(path.join(dir, uri))) continue;
-        produced.set(target, timelineTimestamp());
+        keep({ event: 'created', id: target, uri, at: timelineTimestamp() });
         note('artifact.saved', `    ▤ save ${uri}  ${humanBytes(statSync(path.join(dir, uri)).size)}`);
       }
     },
@@ -299,7 +301,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     if (!repo.restore(uri, redone)) rmSync(path.join(dir, uri), { force: true });
     log.event('artifact.restored', `  ▤ ${uri}, as it was when the run this one redoes started`, { level: 'debug' });
   }
-  const records = made.records = new Records({
+  made.records = new Records({
     graph: walk.graph, prior, repo, dir, sources, drawnAt,
     drawn: (id) => drawn(index.walked.get(id)!.element),
   });
@@ -307,9 +309,8 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // The trailers of a commit that stamps no element are the document stamp's own attributes.
   const trailers = { 'Prov-Action': 'executed', 'Prov-When': startedAt, 'Prov-Who': who, 'Prov-With': run.tool, 'Prov-Run': runId, 'Prov-Seed': seed };
   const studyId = index.root.id ?? '';
-  repo.commit(`started ${studyId} (${stamp})`, trailers, startedAt, JSON.stringify({
-    plan: run.digest, run: runId, seed, who, with: run.tool, startedAt: started.toISOString(),
-  }));
+  keep({ event: 'started', at: startedAt, run: runId, state: structuredClone(state), stamp: timeline });
+  repo.commit(`started ${studyId} (${stamp})`, trailers, startedAt);
   const begun = repo.head();
   log.event('run.started', plan.study.name ?? studyId);
   log.event('run.started', `  [${studyId}]  plan ${run.digest}  rootSeed ${seed}  repo ${dir}`, { level: 'debug' });
@@ -336,20 +337,22 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   const head = repo.head();
   // The commit a step's record points at: what it ran with, and what it made, as git holds them.
   const commits = repo.executedSince(begun);
+  // What the study keeps of the run is read off its record: the state it leaves, and each element's record.
+  const { executed, decided, created, imported, reused } = recordOf(events);
   const stamps: [id: string, action: string, extra: Stamp][] = [
     // An event leaves no commit of its own: its record points at where the run had reached by the end.
-    ...[...new Set([...walk.completed.keys(), ...walk.reached.keys()])].sort().map((id): [string, string, Stamp] => [id, 'executed', { commit: commits.get(id) || head }]),
-    ...[...walk.decisions].sort().map(([id, { flow }]): [string, string, Stamp] => [id, 'executed', { what: flow, commit: commits.get(id) }]),
-    ...[...produced.keys()].sort().map((id): [string, string, Stamp] => [id, 'created', {}]),
-    ...[...records.staged.keys()].sort().map((id): [string, string, Stamp] => [id, 'imported', {}]),
+    ...[...executed.keys()].sort().map((id): [string, string, Stamp] => [id, 'executed', { commit: commits.get(id) || head }]),
+    ...[...decided].sort().map(([id, { flow }]): [string, string, Stamp] => [id, 'executed', { what: flow, commit: commits.get(id) }]),
+    ...[...created.keys()].sort().map((id): [string, string, Stamp] => [id, 'created', {}]),
+    ...[...imported.keys()].sort().map((id): [string, string, Stamp] => [id, 'imported', {}]),
     ...[...reused].sort().map(([id, { trusted }]): [string, string, Stamp] => [id, 'reused', { what: trusted }]),
   ];
   const moments = new Map<string, string>([
-    ...records.staged, ...walk.completed, ...walk.reached, ...produced,
-    ...[...walk.decisions].map(([id, { when }]): [string, string] => [id, when]),
+    ...imported, ...executed, ...created,
+    ...[...decided].map(([id, { when }]): [string, string] => [id, when]),
     ...[...reused].map(([id, { when }]): [string, string] => [id, when]),
   ]);
-  writeState(definitions, moddle, walk.state);
+  writeState(definitions, moddle, stateOf(events));
   for (const [id, action, extra] of stamps) {
     const element = index.walked.get(id)?.element;
     if (element) stampElement(moddle, element, { action, when: moments.get(id), run: runId, ...extra }, replaces(action, id));
@@ -360,10 +363,8 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   if (!run.debug) rmSync(cache, { recursive: true, force: true });
   const { status } = walk.steps;
   log.event('run.finished', `  → ${dir}/ (${status}) in ${(Date.now() - started.getTime()).toFixed(1)}ms`, { level: status === 'ok' ? 'info' : 'error' });
-  // Entries no element commit claimed (end events, a failed parse) close out in the summary body.
-  repo.commit(`finished ${studyId} (${status})`, trailers, timelineTimestamp(), JSON.stringify({
-    status, finishedAt: new Date().toISOString(), steps: walk.steps.entries.length, tail: walk.steps.entries.slice(recorded),
-  }));
+  keep({ event: 'finished', at: timelineTimestamp(), status });
+  repo.commit(`finished ${studyId} (${status})`, trailers, timelineTimestamp());
   repo.tidy();
   return status === 'ok' ? 0 : 1;
 }
