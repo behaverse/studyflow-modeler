@@ -18,13 +18,12 @@ folder (`reachy/frames/` when it names none), and its path is the step's result.
 state as the modeler does, `{name}` from the element outward, `{state.scope.name}`, or `{Play.trials}` for an
 earlier element's result.
 
-A partial runner: the local runtime walks the diagram and hands this script one
-`reachy:*` element at a time (`<plan.json> --element <id> --cache <dir>`), with the
-run's values in `<id>.state.json`; the updated state goes back into the same file
-(`result`, `durationMs`, and on failure `error` merged in). It never opens the
-diagram itself: `plan.json` is the digest the local runtime writes. By default it
+A partial runner (skills/local/SKILL.md): the local runtime walks the diagram and hands this script one
+`reachy:*` element at a time, with the run's values; its result, and what its data edges bind, go back. It never
+opens the diagram itself: `plan.json` is the digest the local runtime writes. It holds the robot from the first
+robot step to the end of the run. By default it
 is a terminal dry run only when no robot answers: the robot's speech is printed, and its senses and the
-participant's lines come from stdin (`--auto` answers them with canned values
+participant's lines are asked at the walk's terminal (`--auto` answers them with canned values
 instead, for CI). With `--sim`, or when the diagram's Robot pool says
 `variant: simulation`, it drives a MuJoCo-simulated Reachy Mini through the
 `reachy_mini` Python SDK, starting a headless sim daemon if none is listening.
@@ -50,8 +49,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "local"))
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
 import feel  # noqa: E402 - the local runtime's FEEL, skills/local/feel.py
+import runner  # noqa: E402 - and its runner SDK
 
 REACHY = "https://w3id.org/studyflow/reachy"
 
@@ -497,17 +497,6 @@ class SimRobot:
             self._daemon = None
 
 
-PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")  # the modeler's PLACEHOLDER (packages/core/src/document/state.ts)
-
-
-def lookup(tree: Any, keys: list[str]) -> Any:
-    for key in keys:
-        if not isinstance(tree, dict) or key not in tree:
-            return None
-        tree = tree[key]
-    return tree
-
-
 def output_targets(element: dict[str, Any]) -> list[str]:
     return [binding["target"] for binding in element.get("outputs") or [] if binding.get("target")]
 
@@ -521,16 +510,12 @@ class Run:
     trace: list[str] = field(default_factory=list)
     auto_lines: list[str] = field(default_factory=lambda: list(AUTO_LINES))
     scope: str = ""  # the element being performed: where `{name}` lookups start
-    cache: Path = Path(".")  # the hand-off directory: the state file, and a step's outbox and inbox
-
-    @property
-    def run_dir(self) -> Path:
-        """The run directory, not its `.cache`, which the walk sweeps when the run ends."""
-        return self.cache.parent if self.cache.name == ".cache" else self.cache
+    run_dir: Path = Path(".")
+    step: runner.Step | None = None  # the hand-off: what is bound goes back through it
 
     @property
     def tree(self) -> dict[str, Any]:
-        """The study's state tree, `state.<scope>.<property>` and `state._meta`, shared with the hand-off file."""
+        """The study's state tree, `state.<scope>.<property>` and `state._meta`, as the hand-off gave it."""
         return self.values.setdefault("state", {})
 
     def say_line(self, text: str, renderer: list[str] | None = None) -> None:
@@ -538,35 +523,18 @@ class Run:
         self.robot.speak(text, renderer)
 
     def ask(self, prompt: str, default: str) -> str:
-        if self.auto:
+        if self.auto or self.step is None:
             print(f"    {prompt} [auto: {default}]")
             return default
-        answer = input(f"    {prompt} [{default}]: ").strip()
-        return answer or default
+        return self.step.prompt(f"    {prompt} [{default}]:", default).strip() or default
 
-    # The placeholder rule (docs/reference.qmd, "Placeholders"): `{state.a.b}` from the root; then a dotted lookup
-    # from the element outward through its containers (`{count}`, `{screenGaze}`); then an element's result by id or
-    # name (`{Play.trials}`); last a lone `{reached}`, the element's own counter, 0 when no run reached it.
-    # Unresolved, a placeholder stays as written.
+    # The placeholder rule (docs/reference.qmd, "Placeholders"), from the element being performed. Unresolved, a
+    # placeholder stays as written.
     def resolve(self, path: str) -> Any:
-        keys = [key.strip() for key in path.split(".") if key.strip()]
-        if not keys:
-            return None
-        if keys[0] == "state":
-            return lookup(self.tree, keys[1:])
-        for scope in self.studyflow.scope_chain(self.scope):
-            value = lookup(self.tree, [scope, *keys])
-            if value is not None:
-                return value
-        result = self.namespace().get(keys[0])
-        found = lookup(result, keys[1:]) if len(keys) > 1 else result
-        if found is None and keys == ["reached"]:
-            # The element's own counter, never a container's: one no run reached counts 0.
-            return lookup(self.tree, ["_meta", "reached", self.scope]) or 0
-        return found
+        return runner.resolve(path, self.scope, self.values, {"elements": self.studyflow.elements, "names": self.studyflow.names})
 
     def fill(self, text: str) -> str:
-        return PLACEHOLDER.sub(lambda m: str(v) if (v := self.resolve(m.group(1))) is not None else m.group(0), text)
+        return runner.fill(text, self.scope, self.values, {"elements": self.studyflow.elements, "names": self.studyflow.names})
 
     def namespace(self) -> dict[str, Any]:
         space: dict[str, Any] = {"state": SimpleNamespace(trace=self.trace)}
@@ -591,9 +559,13 @@ class Run:
                 # A data edge into a declared property writes the study state: `state.<scope>.<name>`.
                 scope, name = declared
                 self.tree.setdefault(scope, {})[name] = bound
+                if self.step:
+                    self.step.write(scope, name, bound)
                 print(f"    → {name}  (state of {self.studyflow.names.get(scope) or scope})")
             else:
                 self.values[target] = bound
+                if self.step:
+                    self.step.bind(target, bound)
                 print(f"    → {self.studyflow.names.get(target) or target}  (captured)")
 
     def narrow(self, expression: str, result: Any, language: str | None) -> Any:
@@ -604,29 +576,19 @@ class Run:
 
 
 class Messages:
-    """A step's end of its message flows while it runs (skills/local/SKILL.md, "Messages"): what it sends goes into
-    `<id>.outbox.jsonl`, and the answer that names it comes back into `<id>.inbox.jsonl`."""
+    """A step's end of its message flows while it runs (skills/local/SKILL.md, "Messages"): what it sends goes along
+    the flow, and the answer that names it comes back."""
 
-    def __init__(self, cache: Path, element_id: str, flow: str) -> None:
-        self.outbox, self.inbox = cache / f"{element_id}.outbox.jsonl", cache / f"{element_id}.inbox.jsonl"
-        self.element_id, self.flow, self.sent = element_id, flow, 0
+    def __init__(self, step: runner.Step, flow: str) -> None:
+        self.step, self.flow, self.sent = step, flow, 0
 
     def ask(self, content: Any, timeout: float = 90.0) -> Any:
         self.sent += 1
-        request = f"{self.element_id}.{self.sent}"
-        with self.outbox.open("a") as file:
-            file.write(json.dumps({"flow": self.flow, "id": request, "content": content}) + "\n")
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            for line in self.inbox.read_text().splitlines() if self.inbox.exists() else []:
-                try:
-                    message = json.loads(line)
-                except ValueError:
-                    continue  # the walk may be writing it
-                if message.get("inReplyTo") == request:
-                    return message.get("content")
-            time.sleep(0.05)
-        raise TimeoutError(f"no answer to {request} within {timeout:g}s")
+        request = f"{self.step.id}.{self.sent}"
+        answer = self.step.ask(self.flow, content, id=request, timeout=timeout)
+        if answer is None:
+            raise TimeoutError(f"no answer to {request} within {timeout:g}s")
+        return answer.get("content")
 
 
 # --- handlers: one per reachy element, keyed by the extension's local name ---
@@ -686,7 +648,7 @@ def run_look_at(run: Run, element: dict[str, Any], spec: dict[str, Any]) -> Any:
             print("    (no message flow from this step reaches a model: turning to where the screen was, or straight ahead)")
         run.robot.look_at(target)
         return None
-    found = find_screen(run.robot, Messages(run.cache, str(element.get("id")), flow).ask, run.run_dir, "reachy/look")
+    found = find_screen(run.robot, Messages(run.step, flow).ask, run.run_dir, "reachy/look")
     print("    " + ("found the screen" if found else "saw no screen"))
     return None
 
@@ -982,13 +944,11 @@ class SeatedRobot:
         pass
 
 
-def seat_robot(args: argparse.Namespace, config: dict[str, Any]) -> bool:
+def seat_robot(args: argparse.Namespace, config: dict[str, Any], run_dir: Path) -> bool:
     """Start the seat in the background for this run, and wait until it answers on the port. It logs to the run
     directory, follows the run (it leaves when the walk's process is gone), and the study's end event dismisses it."""
     import subprocess
 
-    cache = args.cache or Path(".")
-    run_dir = cache.parent if cache.name == ".cache" else cache  # the run directory, not its swept `.cache`
     run_dir.mkdir(parents=True, exist_ok=True)
     argv = [sys.executable, str(Path(__file__).resolve()), "--participant", "--port", str(args.port)]
     if os.environ.get("STUDYFLOW_RUN_PID"):  # the walk's pid (this process's parent is only its launcher)
@@ -1124,82 +1084,32 @@ def participant_loop(robot: Any, port: int, watch_pid: int | None = None) -> int
     return 0
 
 
-# --- the walk: the local runtime's control flow, minus records, repos, and reuse ---
+# --- one hand-off ---
 
-def perform(run: Run, element: dict[str, Any], ext: dict[str, Any]) -> dict[str, Any]:
-    """One reachy element, as the keys a hand-off merges into the state: its result and timing."""
+def perform(run: Run, element: dict[str, Any], ext: dict[str, Any]) -> Any:
+    """One reachy element; its result."""
     kind, spec = ext["type"], settings_of(ext)
     if kind not in HANDLERS:
         raise KeyError(f"no handler for reachy:{kind}")
     run.scope = element.get("id") or ""
     glyph = {"perceptionGateway": "◇", "senseEvent": "◐"}.get(kind, "□")
     print(f"{glyph} {element.get('name') or element.get('id')}")
-    clock = time.perf_counter()
     value = HANDLERS[kind](run, element, spec)
-    if kind == "senseEvent":
-        run.values[element.get("id")] = value
-    elif kind != "perceptionGateway" and value is not None:
+    if kind not in ("senseEvent", "perceptionGateway") and value is not None:
         run.store(element, value)
-    return {"result": value, "durationMs": round((time.perf_counter() - clock) * 1000, 1)}
+    return value
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, nargs="?", help="the plan digest the local runtime hands over (plan.json); --participant needs none")
-    parser.add_argument("--sim", action="store_true", help="drive a simulated robot through the reachy_mini SDK")
-    parser.add_argument("--auto", action="store_true", help="answer every prompt with a canned value")
-    parser.add_argument("--participant", action="store_true", help="be the seat: hold the robot and its camera, and act for the walk's hand-offs")
-    parser.add_argument("--port", type=int, default=SEAT_PORT, help=f"the seat's port (default {SEAT_PORT})")
-    parser.add_argument("--watch-pid", type=int, default=None, metavar="PID", help="seat: leave when this process (the walk) is gone")
-    parser.add_argument(
-        "--element", metavar="ID", default=None,
-        help="hand-off mode: execute this one element, then exit (driven by the local runtime)",
-    )
-    parser.add_argument(
-        "--claims", action="store_true",
-        help="print the element ids this runner would execute, as a JSON array, and exit",
-    )
-    parser.add_argument(
-        "--cache", type=Path, default=None, metavar="DIR",
-        help="hand-off state: the run's values arrive in <element>.state.json, the result goes back into it",
-    )
-    args = parser.parse_args()
-
-    if args.plan is None and not args.participant:
-        parser.error("a plan.json is needed: `studyflow run --runtime local <diagram>` walks the diagram and hands elements here")
-    plan_file = json.loads(args.plan.read_text()) if args.plan else {}
-    # Handed an element, the run's `--option sim` and `--option auto` arrive as the plan's `options`.
-    args.sim = args.sim or bool((plan_file.get("options") or {}).get("sim"))
-    args.auto = args.auto or bool((plan_file.get("options") or {}).get("auto"))
-    studyflow = Plan(plan_file)
-
-    if args.claims:
-        print(json.dumps(claimed(studyflow)))
-        return 0
-
+def connect(studyflow: Plan, args: argparse.Namespace, sim: bool, run_dir: Path | None) -> Any:
+    """The robot a run's hand-offs act through: the seat when there is one, or when a step needs the camera; else the
+    robot itself; else, when none answers, the terminal. With no run directory this is the seat, which holds the robot
+    and its camera itself: None when no robot answers."""
     config = studyflow.robot_config()
-    robot: Any = TerminalRobot()
-
-    def handle_stop(signum: int, frame: Any) -> None:
-        # A hard stop skips every `finally`, so fold the spawned sim daemon here before leaving. The SDK's
-        # teardown can retry a lost link for a long while; the port must be free for the next run sooner.
-        import threading
-
-        deadline = threading.Timer(5.0, os._exit, args=(128 + signum,))
-        deadline.daemon = True
-        deadline.start()
-        robot.close()
-        os._exit(128 + signum)
-
-    # Registered before any daemon can exist, so even a stop mid-startup folds it.
-    signal.signal(signal.SIGTERM, handle_stop)
-    signal.signal(signal.SIGINT, handle_stop)
-
-    if args.element and not args.sim and (
-        seated_participant(args.port) or (studyflow.needs_camera() and seat_robot(args, config))
+    if run_dir is not None and not sim and (
+        seated_participant(args.port) or (studyflow.needs_camera() and seat_robot(args, config, run_dir))
     ):
-        robot = SeatedRobot(args.port, voice=str(config["voice"]), host=str(config["host"]))
-    sim = args.sim or config["variant"] == "simulation"
+        return SeatedRobot(args.port, voice=str(config["voice"]), host=str(config["host"]))
+    sim = sim or config["variant"] == "simulation"
     # The sim daemon is local; only an explicitly set host points elsewhere.
     host = str(config["host"])
     if sim and host == DEFAULTS["robot"]["host"]:
@@ -1207,59 +1117,84 @@ def main() -> int:
     local_host = host in ("localhost", "127.0.0.1")
     # The sim has no camera; a Lite's camera hangs off this machine, a wireless unit streams its own. In the
     # walk a real unit only moves and speaks: the seat owns the camera.
-    media = "no_media" if sim or not args.participant else ("default" if local_host else "webrtc")
-    if not isinstance(robot, SeatedRobot):
-        robot = SimRobot(host=host, media_backend=media, sim=sim, voice=str(config["voice"]),
-                         volume=int(config["volume"]) if str(config["volume"]).isdigit() else None)
-        try:
-            robot.connect()
-        except Exception as error:
+    media = "no_media" if sim or run_dir is not None else ("default" if local_host else "webrtc")
+    robot = SimRobot(host=host, media_backend=media, sim=sim, voice=str(config["voice"]),
+                     volume=int(config["volume"]) if str(config["volume"]).isdigit() else None)
+    try:
+        robot.connect()
+    except Exception as error:
+        robot.close()
+        if run_dir is None:
+            # A seat with no robot in it would act for nothing; the walk must know.
+            print(f"robot unavailable ({error}) — not taking the seat")
+            return None
+        print(f"robot unavailable ({error}) — carrying on as a dry run")
+        return TerminalRobot()
+    return robot
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--sim", action="store_true", help="drive a simulated robot through the reachy_mini SDK")
+    parser.add_argument("--auto", action="store_true", help="answer every prompt with a canned value")
+    parser.add_argument("--participant", action="store_true", help="be the seat: hold the robot and its camera, and act for the walk's hand-offs")
+    parser.add_argument("--port", type=int, default=SEAT_PORT, help=f"the seat's port (default {SEAT_PORT})")
+    parser.add_argument("--watch-pid", type=int, default=None, metavar="PID", help="seat: leave when this process (the walk) is gone")
+    args = parser.parse_args()
+
+    import threading
+
+    held: dict[str, Any] = {"robot": None}
+    one = threading.Lock()  # one robot: its steps go one at a time, whichever pool they are in
+
+    def release() -> None:
+        robot, held["robot"] = held["robot"], None
+        if robot is not None:
             robot.close()
-            if args.participant:
-                # A seat with no robot in it would act for nothing; the walk must know.
-                print(f"robot unavailable ({error}) — not taking the seat")
-                return 1
-            robot = TerminalRobot()
-            print(f"robot unavailable ({error}) — carrying on as a dry run")
+
+    def handle_stop(signum: int, frame: Any) -> None:
+        # A hard stop skips every `finally`, so fold the spawned sim daemon here before leaving. The SDK's
+        # teardown can retry a lost link for a long while; the port must be free for the next run sooner.
+        deadline = threading.Timer(5.0, os._exit, args=(128 + signum,))
+        deadline.daemon = True
+        deadline.start()
+        release()
+        os._exit(128 + signum)
+
+    # Registered before any daemon can exist, so even a stop mid-startup folds it.
+    signal.signal(signal.SIGTERM, handle_stop)
+    signal.signal(signal.SIGINT, handle_stop)
 
     if args.participant:
+        held["robot"] = connect(Plan({}), args, args.sim, None)
+        if held["robot"] is None:
+            return 1
         try:
-            return participant_loop(robot, args.port, args.watch_pid)
+            return participant_loop(held["robot"], args.port, args.watch_pid)
         finally:
-            robot.close()
+            release()
 
-    # In hand-off mode stdin is never a channel: without a terminal the runner answers itself.
-    run = Run(studyflow, auto=args.auto or bool(args.element and not sys.stdin.isatty()), robot=robot,
-              cache=args.cache or Path("."))
+    def execute(step: runner.Step) -> Any:
+        studyflow = Plan(step.plan)
+        element = step.element
+        with one:
+            if element.get("type") == "endEvent":
+                # The robot pool's end: the seat is dismissed, and the robot let go.
+                ended = end_study(args.port)
+                release()
+                return ended
+            ext = reachy_extension(element)
+            if ext is None:
+                raise KeyError(f"no reachy element {step.id!r} in the diagram")
+            # `--option sim` and `--option auto` arrive as the plan's `options`.
+            if held["robot"] is None:
+                held["robot"] = connect(studyflow, args, args.sim or bool(step.options.get("sim")), step.run_dir)
+            run = Run(studyflow, auto=args.auto or bool(step.options.get("auto")), robot=held["robot"],
+                      values=step.values, run_dir=step.run_dir, step=step)
+            return perform(run, element, ext)
 
-    if args.element:
-        # The person is on stderr and the tty; stdout is captured into the run log.
-        sys.stdout = sys.stderr
-        cache = args.cache or Path(".")
-        handoff = cache / f"{args.element}.state.json"
-        state = json.loads(handoff.read_text()) if handoff.exists() else {}
-        run.values.update(json.loads(json.dumps(state)))  # a copy: what changed is what goes back
-        try:
-            element = studyflow.elements.get(args.element)
-            ext = reachy_extension(element) if element is not None else None
-            if element is not None and element.get("type") == "endEvent":
-                result = {"result": end_study(args.port)}
-            elif element is None or ext is None:
-                raise KeyError(f"no reachy element {args.element!r} in the diagram")
-            else:
-                result = perform(run, element, ext)
-        except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
-            result = {"error": f"{type(error).__name__}: {error}"}
-        finally:
-            robot.close()
-        cache.mkdir(parents=True, exist_ok=True)
-        # What this element captured into the study's values goes back too (its own result under its id,
-        # and any data object it points at): the leading runner adopts every key that changed.
-        captured = {key: value for key, value in run.values.items() if state.get(key, ...) != value}
-        handoff.write_text(json.dumps({**state, **captured, **result}, default=str))
-        return 1 if "error" in result else 0
-
-    parser.error("this runner performs one element at a time: pass --element, --claims, or --participant")
+    # The person is at the robot and the terminal: what this prints is for them, not the run log.
+    return runner.serve(lambda plan: claimed(Plan(plan)), execute, close=release, terminal=True)
 
 
 if __name__ == "__main__":
@@ -1267,5 +1202,4 @@ if __name__ == "__main__":
     # The SDK's websocket thread is not a daemon thread; flush and leave without joining it.
     sys.stdout.flush()
     sys.stderr.flush()
-    import os
     os._exit(code)
