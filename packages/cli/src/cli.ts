@@ -4,6 +4,7 @@ import { convert } from '@cli/convert';
 import { validate } from '@cli/validate';
 import { info } from '@cli/info';
 import { mcp } from '@cli/mcp';
+import { prov } from '@cli/prov';
 import { addSkill, installedSkills, removeSkill, skillsHome } from '@cli/skills';
 import { edit } from '@desktop/edit';
 import type { RunOptions } from '@cli/run';
@@ -80,6 +81,15 @@ program
     for (const error of report.errors) console.error(`error: ${error}`);
     if (!report.ok || (options.strict && report.warnings.length > 0)) process.exitCode = 1;
     else console.log(`${input}: OK${report.warnings.length ? ` (${report.warnings.length} warning${report.warnings.length === 1 ? '' : 's'})` : ''}${report.note ? `, ${report.note}` : ''}`);
+  });
+
+program
+  .command('prov')
+  .description('Write a run\'s record as W3C PROV-O (Turtle): the run and each step as a prov:Activity under the study as its prov:Plan, and what they wrote, sent and made as prov:Entity. The `prov:` records in a study are Studyflow\'s own; this is their W3C form.')
+  .argument('<record>', 'the run\'s events.jsonl, or the run repository holding it')
+  .argument('[output]', 'the Turtle file to write (default: standard output)')
+  .action((record: string, output?: string) => {
+    console.log(prov(record, output));
   });
 
 const collect = (value: string, all: string[] = []): string[] => [...all, value];

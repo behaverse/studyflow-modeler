@@ -3,7 +3,8 @@
 name: Provenance
 prefix: prov
 description: >-
-  The provenance timeline: who acted on this studyflow, with what tool, and when.
+  The provenance timeline: who acted on this studyflow, with what tool, and when. Studyflow's own vocabulary,
+  not W3C PROV; `studyflow prov` writes a run's record as W3C PROV-O.
   The document-level timeline lives in `state._meta.prov` as plain records with these
   fields; `prov:Activity` elements remain the per-element records.
 uri: https://w3id.org/studyflow/prov

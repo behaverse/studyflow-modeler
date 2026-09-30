@@ -9,4 +9,6 @@ metadata:
 
 `prov.moddle.yaml` is the vocabulary a run writes back into the diagram (records, the state tree's
 `_meta`). `prov.ts` is the module the [local runtime](../local/SKILL.md) imports to keep the
-run repository and its records. The modeler's provenance panel reads the same records.
+run repository and its records. The modeler's provenance panel reads the same records. The `prov:` prefix is
+this skill's own vocabulary, not W3C PROV: `w3c.ts` writes a run's record, its `events.jsonl`, as W3C PROV-O
+(`studyflow prov <run>`).
