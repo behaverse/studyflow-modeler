@@ -3,7 +3,7 @@ import type { Entry } from '@core/engine/steps';
 
 /**
  * What happened in a run, in order: its one record. The walk tells its host each event as it happens, and the host
- * keeps them (the local runtime's `run.jsonl`, a browser session's record); every other account of the run is read
+ * keeps them (the local runtime's `events.jsonl`, a browser session's record); every other account of the run is read
  * off them: the counts and the properties in the state the study keeps ({@link stateOf}), the records stamped on its
  * elements ({@link recordOf}), a run repository's commits.
  */

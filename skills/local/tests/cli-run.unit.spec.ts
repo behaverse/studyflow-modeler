@@ -113,8 +113,8 @@ S:
     const second = archivedState(archived);
     expect(second._meta.prov).toHaveLength(2);
     expect(second._meta.reached).toEqual({ Start: 1, F1: 1, Done: 1 });
-    // `run.jsonl`, the record, holds both runs' events, and the state the study keeps is read off them.
-    const events = fs.readFileSync(path.join(dir, 'run', 'run.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    // `events.jsonl`, the record, holds both runs' events, and the state the study keeps is read off them.
+    const events = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     expect(events.filter((event) => event.event === 'started')).toHaveLength(2);
     expect(stateOf(events)).toEqual(second);
   });
@@ -454,7 +454,7 @@ P:
     // `names` binds a name to one element: `model` names two, and `Done` is another element's id, so neither is offered.
     expect(digest.names).toEqual({ T: 'fit', Dat: 'digits' });
     // What the runner ran with joins its step's record, and is no value a later step reads.
-    const record = fs.readFileSync(path.join(dir, 'run', 'run.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    const record = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     expect(record.find((event) => event.event === 'executed' && event.id === 'T').entry).toMatchObject({ version: 'm 1.0' });
     expect(JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'Done.state.json'), 'utf8'))).not.toHaveProperty('record');
   });
@@ -520,7 +520,7 @@ S:
     // The dataset the steps inside filled is the sub-process's own data edge, so the sub-process generated it.
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/save trials\.jsonl/);
     // The record holds the run as its events: each message sent with its content, each step as it ran.
-    const record = fs.readFileSync(path.join(dir, 'run', 'run.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    const record = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     expect(record.find((event) => event.event === 'sent').message).toMatchObject({ id: 't1', flow: 'M_Trial', content: { n: 1 } });
     expect(record.some((event) => event.event === 'executed' && event.id === 'Play')).toBe(true);
   });

@@ -18,31 +18,36 @@ export type LogDetail = { level?: Level };
 const RANK: Record<Level, number> = { debug: 0, info: 1, warning: 2, error: 3 };
 
 /**
- * Where a run's account goes. `run.jsonl` is the record: the run's events (packages/core/src/engine/record.ts), one
+ * Where a run's account goes. `events.jsonl` is the record: the run's events (packages/core/src/engine/record.ts), one
  * JSON object a line, appended and never rewritten, run after run; the counts and records the study keeps are read
- * off it. `studyflow.log` is text for a person, covering this run only (earlier ones are recovered from the
- * repository's history), and the console shows the same unless `quiet`.
+ * off it. `studyflow.log` is text for a person, this run only (earlier ones are recovered from the repository's
+ * history): the walk's progress and what the record does not hold (what runners print, warnings, a failure's stack),
+ * and with `debug` the detail a debugger wants (each message sent, each condition's value). The console shows the
+ * progress and the warnings unless `quiet`.
  */
 export class RunLog {
   private file = '';
-  private journal = '';
+  private events = '';
   private readonly quiet: boolean;
+  private readonly debug: boolean;
 
-  constructor(quiet: boolean) {
+  constructor(quiet: boolean, debug = false) {
     this.quiet = quiet;
+    this.debug = debug;
   }
 
   /** Starts `studyflow.log` over in `directory`; a run that branches calls it again, since the checkout replaced the file. */
   start(directory: string): void {
     mkdirSync(directory, { recursive: true });
     this.file = path.join(directory, 'studyflow.log');
-    this.journal = path.join(directory, 'run.jsonl');
+    this.events = path.join(directory, 'events.jsonl');
     writeFileSync(this.file, '');
-    appendFileSync(this.journal, '');
+    appendFileSync(this.events, '');
   }
 
   /** `trace`, a failure's stack, goes to the log file alone. */
   event = (event: string, message: string, { level = 'info' }: LogDetail = {}, trace?: string): void => {
+    if (level === 'debug' && !this.debug) return;
     const now = new Date();
     // 29 = 'conditionExpression.evaluated'.length, so every message starts in the same column.
     appendFileSync(this.file, `${now.toISOString().slice(11, 23)} ${level.toUpperCase().padEnd(5)} ${event.padEnd(29)} ${message}\n${trace ? `${trace}\n` : ''}`);
@@ -51,6 +56,6 @@ export class RunLog {
 
   /** One event of the run's record. */
   record(event: RunEvent): void {
-    appendFileSync(this.journal, `${JSON.stringify(event)}\n`);
+    appendFileSync(this.events, `${JSON.stringify(event)}\n`);
   }
 }

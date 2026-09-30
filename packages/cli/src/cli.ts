@@ -95,7 +95,7 @@ program
   .option('--fresh', 'ignore the study\'s per-element run records and re-run every step')
   .option('--quiet', 'no console output; the log file is written either way')
   .option('--runner <name=command>', 'override a discovered partial runner, or add one: COMMAND is started once, and speaks the hand-off protocol on its stdin and stdout; repeatable', collect)
-  .option('--debug', 'keep the .cache folder and its hand-off state files instead of cleaning them')
+  .option('--debug', 'keep the .cache folder, with the values after each element, and write the debug lines to studyflow.log')
   .option('--option <name[=value]>', 'an option for the runners, in plan.json `options` (`--option sim` drives a simulated robot, `--option auto` answers prompts with canned values); repeatable', collect)
   .option('--step-timeout <seconds>', 'stop a hand-off that takes longer, and fail its step', Number)
   .action(async (input: string, options: RunOptions) => {

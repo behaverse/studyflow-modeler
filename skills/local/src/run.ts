@@ -44,7 +44,7 @@ export type LocalRun = {
   quiet?: boolean;
   /** `NAME=COMMAND`: override a discovered partial runner, or add one. */
   runners?: string[];
-  /** Keep the `.cache` folder and its hand-off state files. */
+  /** Keep the `.cache` folder with the run's values after each element, and write the debug lines to the log. */
   debug?: boolean;
   /** `NAME[=VALUE]` options for the runners, in plan.json `options`. */
   options?: string[];
@@ -98,7 +98,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   const stamp = runStamp(started);
   const dir = resolveRepoDir(run.repo, run.input, started);
   const runId = path.basename(dir);
-  const log = new RunLog(run.quiet ?? false);
+  const log = new RunLog(run.quiet ?? false, run.debug ?? false);
   log.start(dir);
   const who = currentUser();
   const repo = new RunRepo(dir, log.event);
@@ -232,7 +232,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
 
   // The walk and what it may reuse are made below, from the host that serves them.
   const made = {} as { walk: Walk; records: Records };
-  /** The run's record (packages/core/src/engine/record.ts): each event appended to `run.jsonl` as it happens. A step
+  /** The run's record (packages/core/src/engine/record.ts): each event appended to `events.jsonl` as it happens. A step
    * that settles is a checkpoint: what it wrote in the run directory, committed under trailers that restate it; the
    * record is committed with the run's `started` and `finished` commits. */
   const events: RunEvent[] = [];

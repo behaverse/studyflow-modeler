@@ -19,5 +19,5 @@ Pools talk as they do in a local run. A pool with no process whose actor is huma
 showing what it carries, the options it offers as buttons, and what the person answers is the reply. A step with no
 screen of its own that exchanges messages is left to the walk, which sends and receives for it and fills its data
 edges. A flow to a pool no one in the page plays (a model, a device) is refused before the first screen: the local
-runtime carries it. The session keeps the run's record, the events a local run keeps in `run.jsonl`, and the page
+runtime carries it. The session keeps the run's record, the events a local run keeps in `events.jsonl`, and the page
 offers it for download when the run ends.

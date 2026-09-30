@@ -405,7 +405,7 @@ export function Runner() {
           </label>
           {session && ['done', 'aborted', 'error'].includes(phase) && (
             <button type="button" className={layout.recordLink} onClick={() => downloadRecord(session)}>
-              Download the run's record (run.jsonl)
+              Download the run's record (events.jsonl)
             </button>
           )}
           <ol ref={logListRef} onScroll={onLogScroll} className={layout.sidebarList}>
@@ -419,12 +419,12 @@ export function Runner() {
   );
 }
 
-/** The run's record, as a local run keeps it in `run.jsonl`: one event a line. */
+/** The run's record, as a local run keeps it in `events.jsonl`: one event a line. */
 function downloadRecord(session: Session): void {
   const text = session.getRecord().map((event) => JSON.stringify(event)).join('\n');
   const link = document.createElement('a');
   link.href = URL.createObjectURL(new Blob([`${text}\n`], { type: 'application/x-ndjson' }));
-  link.download = 'run.jsonl';
+  link.download = 'events.jsonl';
   link.click();
   URL.revokeObjectURL(link.href);
 }

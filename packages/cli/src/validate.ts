@@ -38,7 +38,7 @@ export async function validate(input: string): Promise<ValidateReport> {
     // The plan checks, then what a run left in the file (nothing to check in a file no run has stamped).
     const record = await recordChecks(definitions);
     // An executed copy in its run repository has the run's record beside it: what the file keeps is read off it.
-    const journal = path.join(path.dirname(input), 'run.jsonl');
+    const journal = path.join(path.dirname(input), 'events.jsonl');
     const events = existsSync(journal) ? readFileSync(journal, 'utf8').split('\n').filter((line) => line.trim()).map((line) => JSON.parse(line)) : [];
     const recorded = events.length > 0 ? checkRecorded(definitions, events) : [];
     for (const { severity, message } of [...planChecks(definitions), ...checkImplementations(definitions, new Set([...SKILLS, ...installedSkills().map((skill) => skill.manifest)].flatMap((skill) => skill.schemes ?? []))), ...record.issues, ...recorded]) {

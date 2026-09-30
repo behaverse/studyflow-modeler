@@ -343,7 +343,7 @@ S:
   }
   expect(shown).toEqual(['Start', 'Person: {"P_Trial":{"Stimulus":"a red square","ResponseOptions":["left","right"]}}', 'End']);
   expect(session.getState().S.answer).toBe('left');
-  // The record a local run keeps in run.jsonl, and the state read off it.
+  // The record a local run keeps in events.jsonl, and the state read off it.
   expect(session.getRecord().map((event) => event.event)).toContain('answered');
   expect(stateOf(session.getRecord())).toEqual(session.getState());
 });

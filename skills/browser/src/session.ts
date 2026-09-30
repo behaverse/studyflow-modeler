@@ -40,7 +40,7 @@ export function peopleOf(elements: Record<string, PlanElement>): Set<string> {
  * screen: `traverse` yields its job, and asking for the next job says the screen is done. A pool the person plays
  * is claimed too: each message the study sends it is a screen, and what the person answers is the reply. A step
  * that exchanges messages has no screen of its own, so the walk sends and receives for it. Every event of the run is
- * kept, the record a local run keeps in `run.jsonl` (`getRecord`).
+ * kept, the record a local run keeps in `events.jsonl` (`getRecord`).
  */
 export class Session {
   studyflow: Studyflow;

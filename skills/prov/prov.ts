@@ -101,8 +101,8 @@ export class RunRepo {
   /** An inherited GIT_DIR would aim every command at the caller's repository instead of this one. */
   private static readonly SCRUBBED = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
   private static readonly LFS_PATTERNS = ['*.joblib', '*.parquet', '*.png', '*.svg', '*.pdf'];
-  /** What every run writes about itself: its record (`run.jsonl`) and its log. */
-  private static readonly ACCOUNTS = ['run.jsonl', 'studyflow.log'];
+  /** What every run writes about itself: its record (`events.jsonl`) and its log. */
+  private static readonly ACCOUNTS = ['events.jsonl', 'studyflow.log'];
   /**
    * How a checkpoint commits. No housekeeping: git starts it in the background after a commit, and a repack beside
    * checkpoints that come tens of milliseconds apart loses commits (`tidy` does it once, at the end). No hooks: LFS

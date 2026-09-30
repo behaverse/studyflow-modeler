@@ -6,7 +6,7 @@ Provenance_Model:
   documentation: >-
     Where the record of a run is kept. The studyflow document holds the plan and what its runs left: a trail of entries
     on its root, one record per element, and the state. The modeler appends to the trail and voids records. The local
-    runtime appends each event of the run to its record, run.jsonl, commits every checkpoint into the run repository,
+    runtime appends each event of the run to its record, events.jsonl, commits every checkpoint into the run repository,
     whose commits restate the step, and reads the trail entry, the element records and the state off the record when
     the run ends. Drawn for docs/developers.qmd.
   extensionElements:
@@ -91,7 +91,7 @@ Provenance_Model:
       bounds: 190 360 170 80
     Run_Record:
       type: DataStoreReference
-      name: "run.jsonl, the run's record: one event a line"
+      name: "events.jsonl, the run's record: one event a line"
       bounds: 258 460 50 50
       label: 312 470 130 45
     Read_Off:
@@ -165,7 +165,7 @@ Provenance_Model:
         committed with the run's started and finished commits.
       bounds: 560 460 330 60
     Sidecar_Note:
-      text: "One record, run.jsonl: what the study keeps of a run is read off it."
+      text: "One record, events.jsonl: what the study keeps of a run is read off it."
       bounds: 900 45 230 45
 Document_Category:
   type: Category

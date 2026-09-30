@@ -17,7 +17,7 @@ function differs(a: unknown, b: unknown, at: string): string | undefined {
 }
 
 /**
- * An executed copy against its run's record (`run.jsonl`, packages/core/src/engine/record.ts): the counts, passes and
+ * An executed copy against its run's record (`events.jsonl`, packages/core/src/engine/record.ts): the counts, passes and
  * properties the file keeps are the ones its events say. The timeline (`_meta.prov`) is left out, since the modeler
  * adds to it when the file is edited and saved.
  */
