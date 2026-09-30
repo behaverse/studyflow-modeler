@@ -563,8 +563,8 @@ export class Walk {
 
     const allocation = this.allocations.get(id);
     if (allocation) {
-      // Seeded, each visit draws from the seed, the gateway and the visit number. The count is `_meta.reached`,
-      // study-lifetime: each turn of a loop and each re-run draws again.
+      // Seeded, each visit draws from the seed, the gateway and the visit number. The count is `_meta.reached`, which
+      // the state keeps: each turn of a loop draws again, and a walk from the same state draws the same.
       const visit = this.memory.meta('reached')[id] ?? 1;
       let arm: number;
       if (allocation.algorithm === 'block') {

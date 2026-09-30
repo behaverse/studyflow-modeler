@@ -294,7 +294,7 @@ def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], stat
     """What this run knows about the task's trials beside what the build records: which subject, and the properties in
     scope at the hand-off, innermost last. The subject is the instance the nearest enclosing repeating activity is on
     (`state._meta.instance`, 1-based), so both tasks of one subject stamp the same number and a task played twice per
-    subject stamps it twice; with no repeating activity around it, the task's own visit count, study-lifetime."""
+    subject stamps it twice; with no repeating activity around it, the task's own visit count, which the study's state keeps."""
     tree = state.get("state") or {}
     meta = tree.get("_meta") or {}
     scopes: list[str] = []

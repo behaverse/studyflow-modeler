@@ -147,7 +147,7 @@ A cognitive task's `platform` names the experiment package that delivers it (Psy
 
 Screening and allocation are separate types because they answer to different standards: a reviewer has to be able to read the eligibility criteria, and nobody should be able to predict an allocation draw.
 
-A `RandomGateway` draws from the study's `seed`, the gateway's id and its visit count (`_meta.reached`, which is study-lifetime), so each turn of a loop and each re-run of the same study draws again, and both runtimes draw the same arm on the same visit. A run honours `allocationRatio` as weights, and `algorithm: block` as permuted blocks of `blockSize` dealt in the order participants reach the gateway, each shuffled from the seed, the gateway and the block; it warns at its start about what it does not apply (`minimization`, `stratifyBy`). A browser session sees one participant at a time, so it cannot balance a cohort: it draws for that participant, in the ratio, and warns about `block`.
+A `RandomGateway` draws from the study's `seed`, the gateway's id and its visit count (`_meta.reached`, which the study's state keeps), so each turn of a loop draws again, a re-run draws what the run it redoes drew (it starts from the state that run started from), and both runtimes draw the same arm on the same visit. A run honours `allocationRatio` as weights, and `algorithm: block` as permuted blocks of `blockSize` dealt in the order participants reach the gateway, each shuffled from the seed, the gateway and the block; it warns at its start about what it does not apply (`minimization`, `stratifyBy`). A browser session sees one participant at a time, so it cannot balance a cohort: it draws for that participant, in the ratio, and warns about `block`.
 
 ## Who takes part
 

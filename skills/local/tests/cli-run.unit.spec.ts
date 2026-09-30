@@ -68,7 +68,7 @@ async function unconserved(xml: string, reached: Record<string, number>): Promis
 }
 
 test.describe('the state a run keeps', () => {
-  test('appends _meta.prov and counts reaches, persisting across runs', async () => {
+  test('appends _meta.prov and counts reaches; a re-run counts again from where the run it redoes started', async () => {
     const xml = await studyflowToXml(`id: reach
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -111,7 +111,46 @@ S:
     run(archived);
     const second = archivedState(archived);
     expect(second._meta.prov).toHaveLength(2);
-    expect(second._meta.reached.Done).toBe(2);
+    expect(second._meta.reached).toEqual({ Start: 1, F1: 1, Done: 1 });
+  });
+
+  test('a re-run of several subjects draws the arms the run it redoes drew', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-arms-'));
+    fs.writeFileSync(path.join(dir, 'arms.studyflow.yaml'), `id: arms
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  extensionElements:
+    - type: studyflow:Study
+      seed: "7"
+  participants:
+    Subject: { name: Each subject, participantMultiplicity: { maximum: 4 }, processRef: P }
+P:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Arm:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+          algorithm: block
+          allocationRatio: "1:1"
+      default: To_B
+    A: { type: EndEvent }
+    B: { type: EndEvent }
+    F0: Start -> Arm
+    To_A: Arm -> A
+    To_B: Arm -> B
+`);
+    const arms = (file: string): string[] => {
+      execFileSync(process.execPath, [BIN, 'run', file, '--repo', path.join(dir, 'run'), '--quiet'], { cwd: dir, stdio: 'pipe', env: ENV });
+      return [...fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8').matchAll(/→ (To_[AB])/g)].map((match) => match[1]);
+    };
+    const first = arms('arms.studyflow.yaml');
+    expect(first).toHaveLength(4);
+    // The visit counts a draw reads are the state's, restored to where the first run started: the same four draws.
+    expect(arms(path.join(dir, 'run', 'arms.studyflow.yaml'))).toEqual(first);
   });
 });
 
@@ -551,6 +590,37 @@ S:
     const pids = [...log.matchAll(/runner\.stdout\s+pid (\d+)/g)].map((line) => line[1]);
     expect(pids).toHaveLength(2);
     expect(pids[0]).toBe(pids[1]);
+  });
+
+  test('a re-run appends to a data store what the run it redoes appended, once', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-store-'));
+    fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), `id: store
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Subject: { name: Each subject, participantMultiplicity: { maximum: 2 }, processRef: P }
+P:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Record:
+      type: Task
+      dataOutputAssociations: { Out_Log: { targetRef: Log } }
+    Log: { type: DataStoreReference, uri: log.jsonl }
+    Done: { type: EndEvent }
+    F1: Start -> Record
+    F2: Record -> Done
+`);
+    writeRunner(path.join(dir, 'fake.py'), "['Record']", ["open(step.run_dir / 'log.jsonl', 'a').write(json.dumps(step.values['state']['_meta']['instance']) + '\\n')"]);
+    const run = (file: string) => execFileSync(process.execPath, [BIN, 'run', file, '--repo', path.join(dir, 'run'), '--quiet', '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`],
+      { cwd: dir, stdio: 'pipe', env: ENV });
+    run('plan.studyflow.yaml');
+    const first = fs.readFileSync(path.join(dir, 'run', 'log.jsonl'), 'utf8');
+    expect(first.trim().split('\n')).toHaveLength(2);
+    run(path.join(dir, 'run', 'plan.studyflow.yaml'));
+    expect(fs.readFileSync(path.join(dir, 'run', 'log.jsonl'), 'utf8')).toBe(first);
   });
 
   test('keeps what a runner had written before its step failed', async () => {

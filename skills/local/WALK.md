@@ -15,6 +15,12 @@ what it re-makes, and nothing else. An output the worktree has lost comes
 back from the commit that made it. A record naming no commit cannot be checked, so its step runs once more and leaves
 one.
 
+A run in a repository whose history holds an earlier run redoes that run: it walks the study from its start again,
+reusing what still stands. So it starts from the state that run started from, as the study archived at that run's
+`started` commit holds it (after `--from`, the run the branch point is in), and what it walks again counts, and
+draws, as it did then: a random gateway deals its subjects the arms it dealt them. The timeline of runs,
+`_meta.prov`, is history, and keeps growing.
+
 ## Messages
 
 Pools talk only along message flows, and the walk carries every message: `{"id", "flow", "content", "inReplyTo"?}`.
@@ -44,4 +50,4 @@ Pools talk only along message flows, and the walk carries every message: `{"id",
 
 ## State
 
-The run's values carry the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`). `state._meta.reached.<id>` counts, study-lifetime, the tokens that reached each element and that took each sequence flow, so a flow's label may cite `{reached}` as a node's does. A data edge into a declared property writes it (`state.<scope>.<name>`), and so does a value a runner binds under the property's own id; re-entering a scope re-initialises both.
+The run's values carry the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`). `state._meta.reached.<id>` counts, over the study's runs, the tokens that reached each element and that took each sequence flow, so a flow's label may cite `{reached}` as a node's does. A data edge into a declared property writes it (`state.<scope>.<name>`), and so does a value a runner binds under the property's own id; re-entering a scope re-initialises both.

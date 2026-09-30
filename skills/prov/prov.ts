@@ -208,6 +208,12 @@ export class RunRepo {
     return done?.ok ? done.out.trim().split('\n')[0] || undefined : undefined;
   }
 
+  /** The newest run's `started` commit in the checked-out history, if a run has started in it. */
+  lastStarted(): string | undefined {
+    const done = this.git(['log', '-1', '--format=%H', '--grep=^started '], { tolerate: true });
+    return done?.ok ? done.out.trim() || undefined : undefined;
+  }
+
   /** The commit the history is at. */
   head(): string {
     const done = this.git(['rev-parse', 'HEAD'], { tolerate: true });

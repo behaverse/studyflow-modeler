@@ -133,11 +133,6 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // lands on the archived copy.
   let prior = run.fresh ? new Map() : elementRecords(elements);
   const invalidated = invalidatedElements(elements);
-  const state = readState(definitions);
-  const numeric = seed !== null && seed.trim() !== '' && Number.isFinite(Number(seed));
-  const document: Stamp = { action: 'executed', when: startedAt, who, with: run.tool, run: runId, seed: numeric ? Number(seed) : seed ?? undefined, plan: run.digest };
-  ((state._meta ??= {}).prov ??= []).push(Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (document[name] ? [[name, document[name]]] : []))));
-  writeState(definitions, moddle, state);
 
   // Branching has first claim on the run's branch name; a detached HEAD only attaches without one.
   let branched = false;
@@ -165,8 +160,28 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     prior = new Map([...prior].filter(([id, record]) => history.has(`${id} ${record.when}`)));
   }
 
-  // Archived before the first step, so a killed run still leaves a readable study behind.
+  // A run in a history redoes the run before it: it walks the study from its start again, reusing what still
+  // stands. So it starts from the state that run started from, as the study archived at that run's start holds it,
+  // and what it walks again counts, and draws, as it did then. The timeline of runs (`_meta.prov`) is history, and
+  // keeps growing.
   const archive = path.join(dir, path.basename(run.input));
+  let state = readState(definitions);
+  const redone = repo.lastStarted();
+  const then = redone ? repo.fileAt(redone, path.basename(archive)) : undefined;
+  const earlier = then && await run.read(then).catch(() => undefined);
+  if (earlier) {
+    const { prov } = state._meta ?? {};
+    state = readState(earlier);
+    if (prov) (state._meta ??= {}).prov = prov;
+    else delete state._meta?.prov;
+    log.event('state.restored', `  from ${redone!.slice(0, 8)}, where the run this one redoes started`, { level: 'debug' });
+  }
+  const numeric = seed !== null && seed.trim() !== '' && Number.isFinite(Number(seed));
+  const document: Stamp = { action: 'executed', when: startedAt, who, with: run.tool, run: runId, seed: numeric ? Number(seed) : seed ?? undefined, plan: run.digest };
+  ((state._meta ??= {}).prov ??= []).push(Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (document[name] ? [[name, document[name]]] : []))));
+  writeState(definitions, moddle, state);
+
+  // Archived before the first step, so a killed run still leaves a readable study behind.
   mkdirSync(dir, { recursive: true });
   await run.write(definitions, archive);
   log.event('diagram.archived', `  → ${archive}`, { level: 'debug' });
@@ -276,6 +291,14 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     },
   };
   const walk = made.walk = new Walk(plan, host, { seed, state });
+  // A data store a step that never skips writes (a trial log each subject appends to) starts as it was when the run
+  // this one redoes started, or goes when it did not exist then: what the redone steps appended, they append again.
+  const appended = new Set([...(redone ? walk.live : [])].flatMap((id) => (plan.elements[id]?.outputs ?? [])
+    .flatMap(({ target }) => (target && plan.elements[target]?.type === 'dataStoreReference' ? walk.graph.uriOf(target) ?? [] : []))));
+  for (const uri of appended) {
+    if (!repo.restore(uri, redone)) rmSync(path.join(dir, uri), { force: true });
+    log.event('artifact.restored', `  ▤ ${uri}, as it was when the run this one redoes started`, { level: 'debug' });
+  }
   const records = made.records = new Records({
     graph: walk.graph, prior, repo, dir, sources, drawnAt,
     drawn: (id) => drawn(index.walked.get(id)!.element),

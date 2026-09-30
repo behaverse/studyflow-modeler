@@ -19,7 +19,7 @@ export class Values {
     this.state = state;
   }
 
-  /** One more token at an element, or along a sequence flow: `state._meta.reached.<id>`, study-lifetime. */
+  /** One more token at an element, or along a sequence flow: `state._meta.reached.<id>`, kept in the study's state. */
   count(id: string): void {
     const reached = this.meta('reached');
     reached[id] = (reached[id] ?? 0) + 1;

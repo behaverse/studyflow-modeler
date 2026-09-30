@@ -45,7 +45,7 @@ assert behaverse.failed_trial_rate(nback.shown, nback.answered) == 0.5
 assert behaverse.failed_trial_rate(set(), set()) == 0.0
 assert record({"trialContext": {"types": ["AppStarted"]}}).shown == set()
 
-# Every trial line says whose it is: the task's visit count (study-lifetime, so a loop's iterations number the
+# Every trial line says whose it is: the task's visit count (kept in the study's state, so a loop's iterations number the
 # subjects) and the properties in scope at the hand-off, an inner scope shadowing an outer one.
 plan = {"Play": task(), "Subject": {"type": "subProcess", "parent": "Study"}}
 state = {"state": {"Study": {"arm": "none", "site": "lux"}, "Subject": {"arm": "cautious"},

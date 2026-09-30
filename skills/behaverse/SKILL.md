@@ -27,7 +27,7 @@ per pass: the first write of a run starts that file, the rest append, and the ne
 Each line carries the runner's own `context` beside what the build recorded:
 `subject`, the instance the nearest repeating activity around the task is on (`state._meta.instance`, 1-based), so
 every task of one subject stamps the same number and a cohort of four sub-process instances numbers them 1 to 4
-(with no repeating activity around it, the task's own visit count, study-lifetime),
+(with no repeating activity around it, the task's own visit count, which the study's state keeps),
 and `state`, the properties in scope at the hand-off (an enclosing sub-process's `arm`, say), so the trials group
 by subject and by condition without joining anything in.
 
