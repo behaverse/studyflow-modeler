@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
 
+import { extractStudyflowFromPng } from '@core/document/png';
+
 import { gotoModeler, readDownload, readDownloadText, runPaletteCommand } from './utils';
 
-test('the Manuscript view writes the figure: an editable SVG draw.io reopens, and a plain PNG', async ({ page }) => {
+test('the Manuscript view writes the figure: an editable SVG draw.io reopens, and a PNG, each carrying the study', async ({ page }) => {
   await gotoModeler(page);
   await runPaletteCommand(page, /^View as Manuscript/);
   const dialog = page.getByTestId('manuscript-dialog');
@@ -26,6 +28,6 @@ test('the Manuscript view writes the figure: an editable SVG draw.io reopens, an
   expect(png.suggestedFilename()).toBe('diagram.png');
   const bytes = await readDownload(png);
   expect(bytes.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  // A figure is a figure: no studyflow rides along, so nothing reopens it.
-  expect(bytes.includes(Buffer.from('studyflow'))).toBe(false);
+  // The study rides along, in the chunk a `.studyflow.png` keeps it in, so the figure reopens.
+  expect(extractStudyflowFromPng(new Uint8Array(bytes))).toContain('definitions:');
 });

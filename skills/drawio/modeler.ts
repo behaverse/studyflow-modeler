@@ -337,11 +337,11 @@ export const format: ExportFormat = {
 
 /**
  * The figure a manuscript takes: the picture as drawn, carrying the draw.io file that redraws it and the
- * BPMN it came from, so the figure can be edited in draw.io and still says what it is a picture of.
+ * BPMN it came from, so the figure can be edited in draw.io and still opens as the study it is a picture of.
  */
 export const editableSvg: ExportFormat = {
   id: 'editable-svg', group: 'Manuscript', label: 'Editable SVG', extension: '.svg',
-  mimeType: 'image/svg+xml;charset=utf-8',
+  mimeType: 'image/svg+xml;charset=utf-8', embeddable: true,
   encode: async ({ modeler, renderSvg, bpmn }) => {
     const { svg } = await renderSvg();
     return embedDrawioIntoSvg(embedBpmnIntoSvg(svg, await bpmn()), exportToDrawio(modeler));

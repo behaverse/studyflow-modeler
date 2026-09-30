@@ -1,6 +1,6 @@
 import type { Editor } from '@modeler/editor/port';
 import type { ExportModel } from '@modeler/export/model';
-import { dataUrlToBytes } from '@core/document/png';
+import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
 import { exportToPng } from '@modeler/export/svgEmbedding';
 import { SKILL_EXPORT_FORMATS, SKILL_OPENERS, type Opener } from '@modeler/skillModules';
 
@@ -83,8 +83,12 @@ const EXPORT_FORMATS: ExportFormat[] = [
     label: 'PNG',
     extension: '.png',
     mimeType: 'image/png',
-    // The picture alone: a figure goes in a manuscript, and the `.studyflow.png` in Save is the one that reopens.
-    encode: async ({ renderSvg }) => dataUrlToBytes(await exportToPng((await renderSvg()).svg)) as BlobPart,
+    embeddable: true,
+    // The figure carries its study, as the `.studyflow.png` in Save does: a reader holding the figure can reopen it.
+    encode: async ({ renderSvg }) => {
+      const { svg, studyflow } = await renderSvg();
+      return embedStudyflowIntoPng(dataUrlToBytes(await exportToPng(svg)), studyflow) as BlobPart;
+    },
   },
   // A projection, a document derived for another tool, comes from a skill's `modeler.ts`, which carries its descriptor and its encoder.
   ...SKILL_EXPORT_FORMATS,
@@ -166,7 +170,7 @@ export const EXPORT_FORMAT_GROUPS: Array<[ExportFormatGroup, ExportFormat[]]> = 
   ['Diagram', 'Image', 'Interchange'] as ExportFormatGroup[]
 ).map((group) => [group, EXPORT_FORMATS.filter((format) => format.group === group)]);
 
-/** The figures the Manuscript view writes: the picture as a paper wants it, carrying no studyflow. */
+/** The figures the Manuscript view writes: the picture as a paper wants it, carrying the study it shows. */
 export const MANUSCRIPT_FORMATS: ExportFormat[] = EXPORT_FORMATS.filter((format) => format.group === 'Manuscript');
 
 export function getExportFormat(id: ExportFormatId): ExportFormat {

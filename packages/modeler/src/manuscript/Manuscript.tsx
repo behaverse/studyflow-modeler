@@ -11,9 +11,9 @@ import { ICONS } from '@modeler/icons';
 type Props = { isOpen: boolean; onClose: () => void };
 
 /**
- * The figure the canvas makes, as a paper prints it: the drawing alone, on its own page, with a
- * margin round it. Unlike the images in Save, nothing here carries the studyflow: a figure is a
- * figure, and the `.studyflow.yaml` stays the file you reopen.
+ * The figure the canvas makes, as a paper prints it: the drawing, on its own page, with a margin
+ * round it. Like the images in Save, each figure carries the study it shows, so a reader holding
+ * only the figure can open it in the modeler, validate it and run it.
  */
 export function ManuscriptDialog({ isOpen, onClose }: Props) {
   const modeler = useModeler();
@@ -47,8 +47,9 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
       size="lg"
       testId="manuscript-dialog"
       help={<DialogHelp>
-              The diagram as a manuscript figure. The editable SVG carries the draw.io file that redraws
-              it, so a figure can be finished in draw.io; none of these carry the studyflow, which Save writes.
+              The diagram as a manuscript figure. Each image carries the study it shows, so the modeler
+              reopens it; the editable SVG also carries the draw.io file that redraws it, so a figure can
+              be finished in draw.io.
             </DialogHelp>}
     >
       {/* The figure is scaled to fit, not scrolled: the point of the view is seeing the whole page at once. */}

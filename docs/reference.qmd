@@ -261,7 +261,7 @@ A model takes part as an actor, never as a setting on a step. It is a pool of it
 | `.bpmn` | the same study, as standard BPMN 2.0 XML | yes, also `.xml` |
 | `.studyflow.png` | a picture, and the study's `.studyflow.yaml` inside it | yes |
 | `.studyflow.svg` | a picture, and the study's BPMN XML nested in its metadata | yes |
-| `.svg`, `.png` (Manuscript view) | the figure alone, the `.svg` carrying the draw.io file that redraws it and the BPMN it came from | no |
+| `.svg`, `.png` (Manuscript view) | the figure, carrying the study it shows (the `.png` its YAML, the `.svg` its BPMN), and the `.svg` also the draw.io file that redraws it | yes |
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
 | `.json` (jsPsych timeline) | an existing timeline, on import only | read only |
 
