@@ -158,6 +158,8 @@ class _Parser:
                 self.take()
                 index = self.expression()
                 self.take("]")
+                if index == ("lit", 0):
+                    raise FeelError(f"not FEEL: [0] in {self.text!r} (a FEEL list starts at 1)")
                 node = ("index", node, index)
             else:
                 return node

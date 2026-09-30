@@ -47,5 +47,6 @@
   ["undeclared > 1", {}, {"error": true}],
   ["word == \"b\"", {"word": "b"}, {"error": true}],
   ["'READY' in Screening", {"Screening": "x"}, {"error": true}],
-  ["result.count()", {"result": [1]}, {"error": true}]
+  ["result.count()", {"result": [1]}, {"error": true}],
+  ["result[0]", {"result": [1]}, {"error": true}]
 ]

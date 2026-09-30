@@ -48,10 +48,10 @@ multiverse:
       dataOutputAssociations:
         Out_Features:
           targetRef: features
-          transformation: result[0]
+          transformation: result[1]
         Out_Labels:
           targetRef: labels
-          transformation: result[1]
+          transformation: result[2]
       additionalArguments:
         return_X_y: true
       implementation: python://sklearn.datasets.load_digits
