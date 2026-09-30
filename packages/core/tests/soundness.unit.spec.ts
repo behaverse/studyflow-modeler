@@ -57,6 +57,7 @@ test('each flow node lies on a path from a start event, or a boundary event, to 
   // Each issue as `<element id>: <message>`.
   const CASES: [label: string, elements: string, issues: string[]][] = [
     ['a boundary event starts a path', SOUND, []],
+    ['an activity with no flow out of it leaves through its boundary event', SOUND.replace('    F2: Play -> Gate\n', '    F2: Failed -> Gate\n').replace('    F3: Failed -> Stopped\n', '    F3: Start -> Stopped\n'), []],
     ['a node no start event leads to', `${SOUND}    Pilot:\n      type: Task\n      name: Pilot session\n    F4: Pilot -> Done\n`, [
       'Pilot: "Pilot session" lies on no path from a start event to an end event: no start event leads to it',
     ]],

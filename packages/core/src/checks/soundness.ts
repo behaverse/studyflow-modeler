@@ -3,14 +3,15 @@ import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
 import { containers, graphOf, isA, quoted, type GraphNode } from '@core/checks/graph';
 
-/** The nodes `from` reaches along its `side` flows, `from` included. */
+/** The nodes `from` reaches along its `side` flows, `from` included. Backwards, a boundary event reaches the activity
+ * it sits on, which leaves through it: a loop with no flow out of it ends at the event a message ends it by. */
 function reach(nodes: Map<ModdleElement, GraphNode>, from: GraphNode[], side: 'incoming' | 'outgoing'): Set<GraphNode> {
   const end = side === 'outgoing' ? 'targetRef' : 'sourceRef';
   const seen = new Set(from);
   const queue = [...from];
   for (let current = queue.pop(); current; current = queue.pop()) {
-    for (const flow of current[side]) {
-      const next = nodes.get(flow[end]);
+    const host = side === 'incoming' ? [current.node.attachedToRef] : [];
+    for (const next of [...current[side].map((flow) => flow[end]), ...host].map((node) => nodes.get(node))) {
       if (next && !seen.has(next)) {
         seen.add(next);
         queue.push(next);
