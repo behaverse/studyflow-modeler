@@ -37,7 +37,7 @@ Study:
     F_End: Join -> End
 `;
 
-test('a pool walks one path: a parallel split stops a run, an activity or event follows only its first flow, an inclusive gateway stops it too', () => {
+test('a pool walks one path: a parallel split stops a run, an activity or event follows only its first flow, an inclusive or a complex gateway stops it too', () => {
   // Each issue as `<severity> <element id>: <message>`.
   const CASES: [type: string, issues: string[]][] = [
     // Only the split: the parallel join, two flows in and one out, is walked.
@@ -45,6 +45,7 @@ test('a pool walks one path: a parallel split stops a run, an activity or event 
     ['Task', ['error Split: "Split here" has 2 outgoing sequence flows; a pool walks one path, so the walk follows only the first, "first"']],
     ['IntermediateThrowEvent', ['error Split: "Split here" has 2 outgoing sequence flows; a pool walks one path, so the walk follows only the first, "first"']],
     ['InclusiveGateway', ['error Split: "Split here" is an inclusive gateway with 2 outgoing flows; a pool walks one path, so the walk stops here rather than take only the first whose condition holds']],
+    ['ComplexGateway', ['error Split: "Split here" is a complex gateway with 2 outgoing flows; the walk reads no activation rule, so it stops here rather than take it as an exclusive gateway']],
     ['ExclusiveGateway', []],
     ['EventBasedGateway', []],
   ];

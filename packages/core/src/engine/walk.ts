@@ -171,6 +171,11 @@ export class Walk {
           throw new Error(`${id}: a parallel split, and a pool walks one path. `
             + 'Put the steps in sequence, or give each branch a pool of its own.');
         }
+        if ((type === 'inclusiveGateway' || type === 'complexGateway') && (graph.outgoing.get(id) ?? []).length > 1) {
+          // Taking one flow would walk it as an exclusive gateway, which it is not.
+          throw new Error(`${id}: ${type === 'inclusiveGateway' ? 'an inclusive gateway takes every flow whose condition holds' : 'a complex gateway goes by an activation rule the walk does not read'}, `
+            + 'and a pool walks one path. Make it an exclusive gateway, or give each branch a pool of its own.');
+        }
         if (GATEWAY_TYPES.has(type) || type === 'parallelGateway') {
           this.log(thread, 'gateway.reached', `◇ ${id}`);
         } else if (PASSTHROUGH_TYPES.has(type)) {

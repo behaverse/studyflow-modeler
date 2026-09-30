@@ -29,19 +29,21 @@ async function walked(study: string, runners: Record<string, Runner> = {}, optio
   return { walk, plan, log, error, reached: walk.state._meta?.reached ?? {}, state: walk.state };
 }
 
-test('a parallel split is refused instead of walked along its first branch', async () => {
-  const { error } = await walked(`S:
+test('a parallel, inclusive or complex split is refused instead of walked along one branch', async () => {
+  for (const [type, said] of [['ParallelGateway', /parallel split/], ['InclusiveGateway', /inclusive gateway/], ['ComplexGateway', /complex gateway/]] as const) {
+    const { error } = await walked(`S:
   type: Process
   flowElements:
     Start: { type: StartEvent }
-    Split: { type: ParallelGateway }
+    Split: { type: ${type} }
     A: { type: EndEvent }
     B: { type: EndEvent }
     F1: Start -> Split
     F2: Split -> A
     F3: Split -> B
 `);
-  expect(error?.message).toMatch(/Split.*parallel/);
+    expect(error?.message, type).toMatch(said);
+  }
 });
 
 test('a seeded draw is the same number in every runtime', () => {
