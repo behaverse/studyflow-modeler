@@ -30,7 +30,7 @@ export class Walk {
   readonly completed = new Map<string, string>();
   readonly reached = new Map<string, string>();
   readonly decisions = new Map<string, { flow: string; when: string }>();
-  /** Every element that never skips or replays: a live runner's, one that exchanges messages, a pass over a list. */
+  /** Every element that never skips or replays: a live runner's, one that exchanges messages, one that repeats. */
   readonly live = new Set<string>();
   readonly allocations = new Map<string, Allocation>();
 
@@ -60,17 +60,17 @@ export class Walk {
       }
     }
     // Messages are interaction: an element that sends or takes them never skips or replays, nor does a gateway the
-    // first message decides, nor an unclaimed step that asks along its pool's flows. Nor does a pass over a list: a
-    // record keeps an element's last pass only, and each pass binds another item.
-    const overLists = new Set(Object.values(graph.elements)
-      .filter((element) => element.loop?.kind === 'multiInstance' && element.loop.input)
-      .map((element) => element.id));
+    // first message decides, nor an unclaimed step that asks along its pool's flows. Nor does what repeats, in an
+    // activity with a loop or a multi-instance marker or in a pool of several instances: a record keeps an element's
+    // last pass only, so replaying it would give every pass the last one's outcome.
+    const repeats = (id: string): boolean => graph.scopeChain(id).some((scope) => graph.elements[scope]?.loop)
+      || (!this.oneInstance && graph.instancesOf(graph.poolOf(id)).instances > 1);
     for (const id of graph.walked) {
       const element = graph.elements[id];
       const claim = host.claim(id);
       const talks = (): boolean => { const { outgoing, incoming } = graph.exchange(element); return outgoing.length + incoming.length > 0; };
       if (claim?.live || graph.flowsIn.has(id) || graph.flowsOut.has(id) || element.type === 'eventBasedGateway'
-        || (!claim && talks()) || graph.scopeChain(id).some((scope) => overLists.has(scope))) {
+        || (!claim && talks()) || repeats(id)) {
         this.live.add(id);
       }
     }

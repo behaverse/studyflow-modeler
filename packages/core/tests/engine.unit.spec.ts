@@ -796,6 +796,62 @@ test('a gateway where no condition holds, with no default and two flows without 
   expect(walk.steps.entries.at(-1)).toMatchObject({ node: 'Gate', status: 'stuck' });
 });
 
+test('what repeats never skips or replays: a record keeps its last pass only', async () => {
+  const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}C:
+  type: Collaboration
+  participants:
+    Subjects: { name: Subjects, participantMultiplicity: { maximum: 2 }, processRef: S }
+    Lab: { name: Lab, processRef: L }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Step: { type: Task }
+    Arm: { type: ExclusiveGateway, default: SF2 }
+    S9: { type: EndEvent }
+    SF0: S0 -> Step
+    SF1: Step -> Arm
+    SF2: Arm -> S9
+L:
+  type: Process
+  flowElements:
+    L0: { type: StartEvent }
+    Once: { type: Task }
+    Pick: { type: ExclusiveGateway, default: LF2 }
+    Rounds:
+      type: SubProcess
+      loopCharacteristics: { type: StandardLoopCharacteristics, loopMaximum: 2 }
+      flowElements:
+        R0: { type: StartEvent }
+        Inner: { type: Task }
+        R9: { type: EndEvent }
+        RF0: R0 -> Inner
+        RF1: Inner -> R9
+    L9: { type: EndEvent }
+    LF0: L0 -> Once
+    LF1: Once -> Pick
+    LF2: Pick -> Rounds
+    LF3: Rounds -> L9
+`, freshModdle()));
+  // A host with records of an earlier run: what it is asked to reuse is what runs once a run.
+  const asked = new Set<string>();
+  const walk = new Walk(plan, {
+    claim: () => undefined,
+    perform: async () => ({}),
+    log: () => undefined,
+    now: () => '',
+    reuse: {
+      activity: (id, live) => { if (!live) asked.add(id); return { skipped: false }; },
+      decision: (id) => { asked.add(id); return undefined; },
+      ran: () => undefined,
+      remade: () => undefined,
+    },
+  });
+  await walk.run();
+  expect([...asked].sort()).toEqual(['Once', 'Pick']);
+  expect(walk.state._meta.reached).toMatchObject({ Step: 2, Arm: 2, Inner: 2 });
+});
+
 test('a participant\'s session walks one instance of its pool, and writes a value under the name a scope declares', async () => {
   const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}C:
   type: Collaboration
