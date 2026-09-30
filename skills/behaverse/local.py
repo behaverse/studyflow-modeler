@@ -7,13 +7,12 @@
 
 Usage:
     studyflow run <diagram> --runtime local [--option auto]   # the local runtime walks, this runner performs
-    UNITY_BUILD_PATH=<dir> skills/behaverse/local.py plan.json --element <id> --cache <dir>
 
-A partial runner: it claims every `behaverse:Task`, and per hand-off serves the
+A partial runner (skills/local/SKILL.md): it claims every `behaverse:Task`, and per hand-off serves the
 Unity WebGL build and a small stage page from a local port, opens the page in the default
 browser, starts the task through the build's `RunCognitiveTask` entry point, and waits for
 `studyflow:TaskCompleted`. The page relays what the build reports back to this process:
-every `studyflow:Event` to `<cache>/<element>.events.jsonl`, each answered trial to the
+every `studyflow:Event` to the task's events file in the run directory, each answered trial to the
 terminal, and the completion, which becomes the element's `result`. Who answers is what the
 diagram draws. A task with message flows sends each awaiting trial along the one out of it and
 takes the answer back from the one into it (skills/local/SKILL.md, "Messages"); an answer that
@@ -44,6 +43,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
+
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
+from runner import Cancelled, Step, serve  # noqa: E402 - the runner SDK, beside the local runtime
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 BEHAVERSE = "http://behaverse.org/schemas/studyflow/behaverse"
@@ -327,33 +329,25 @@ def data_inputs(element: dict[str, Any], state: dict[str, Any]) -> dict[str, Any
 
 class Exchange:
     """The task's end of its message flows (skills/local/SKILL.md, "Messages"): each awaiting trial goes out along
-    the trial flow through the outbox, and the answer that names it (`inReplyTo`) comes back into the inbox."""
+    the trial flow, and the answer that names it (`inReplyTo`) comes back."""
 
-    def __init__(self, cache: Path, element_id: str, flow: str, agent: str, inputs: dict[str, Any] | None = None) -> None:
-        self.outbox, self.inbox = cache / f"{element_id}.outbox.jsonl", cache / f"{element_id}.inbox.jsonl"
-        self.flow, self.agent, self.lock = flow, agent, threading.Lock()
+    def __init__(self, step: Step, flow: str, agent: str, inputs: dict[str, Any] | None = None) -> None:
+        self.step, self.flow, self.agent, self.lock = step, flow, agent, threading.Lock()
         self.inputs = inputs or {}
 
     def ask(self, trial: dict[str, Any]) -> dict[str, Any]:
         """The trial's answer as the page injects it, or {} when none names an option within the response window."""
         request = str(trial.get("RequestId") or "")
         options = [str(option) for option in trial.get("ResponseOptions") or []]
-        with self.lock, self.outbox.open("a") as file:
-            content = {**self.inputs, **{key: value for key, value in trial.items() if key != "RequestId" and value is not None}}
-            file.write(json.dumps({"flow": self.flow, "id": request, "content": content}) + "\n")
+        content = {**self.inputs, **{key: value for key, value in trial.items() if key != "RequestId" and value is not None}}
         window = float(trial.get("MaxResponseTime") or 0)
-        deadline = time.monotonic() + (max(1.0, window - 0.25) if window > 0 else 30.0)
-        while time.monotonic() < deadline:
-            for line in self.inbox.read_text().splitlines() if self.inbox.exists() else []:
-                try:
-                    message = json.loads(line)
-                except ValueError:
-                    continue  # the walk may be writing it
-                if message.get("inReplyTo") == request:
-                    choice = option_named(message.get("content"), options)
-                    return {"Response": choice, "Agent": self.agent} if choice else {}
-            time.sleep(0.05)
-        return {}
+        with self.lock:  # one trial awaits its answer at a time
+            try:
+                message = self.step.ask(self.flow, content, id=request, timeout=max(1.0, window - 0.25) if window > 0 else 30.0)
+            except Cancelled:
+                return {}
+        choice = option_named(message.get("content"), options) if message else None
+        return {"Response": choice, "Agent": self.agent} if choice else {}
 
 
 # The stage: the build in a frame, exactly as the browser runner embeds it, and the template's
@@ -620,35 +614,36 @@ def checked_build(explicit: Path | None) -> Path:
     return build
 
 
-def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
-    """One task: serve, open, wait for the completion; the keys a hand-off merges into the state."""
-    payload = task_payload(element, auto=args.auto, plan=plan)
+def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
+    """One task: serve, open, wait for the completion, which is its result."""
+    element, plan, state = step.element, step.elements, step.values
+    payload = task_payload(element, auto=args.auto or bool(step.options.get("auto")), plan=plan)
     build = checked_build(args.build)
-    cache = args.cache or Path(".")
     # The run directory, not its `.cache`: the local runtime sweeps the cache when the run ends.
-    run_dir = cache.parent if cache.name == ".cache" else cache
-    run_dir.mkdir(parents=True, exist_ok=True)
-    events = run_dir / events_uri(element, plan)
+    step.run_dir.mkdir(parents=True, exist_ok=True)
+    events = step.run_dir / events_uri(element, plan)
     events.parent.mkdir(parents=True, exist_ok=True)
-    if not opened_this_run(cache, events):
+    if not opened_this_run(step.cache, events):
         events.unlink(missing_ok=True)
     exchange = None
     if along_messages(payload):
         trials, _ = trial_flows(element, plan) or ("", "")
         partner = ", ".join((plan.get(p) or {}).get("name") or p for p in message_partners(element, plan))
-        exchange = Exchange(cache, str(element["id"]), trials, partner, data_inputs(element, state))
+        exchange = Exchange(step, trials, partner, data_inputs(element, state))
     stage = Stage(args.port, build, stage_page(payload), events, exchange, trial_context(element, plan, state))
     threading.Thread(target=stage.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{stage.server_port}/"
-    print(f"□ {element.get('name') or element['id']}: {payload['scene']} / {payload['timeline']} "
-          f"({payload['agentType']}) — {url}", flush=True)
+    print(f"□ {element.get('name') or element['id']}: {payload['scene']} / {payload['timeline']} ({payload['agentType']}) — {url}", flush=True)
     if exchange:
         print(f"    each trial goes along {exchange.flow} to {exchange.agent}, and its answer comes back", flush=True)
     browser = None if args.no_browser else open_stage(url)
-    clock = time.perf_counter()
+    deadline = time.monotonic() + args.timeout if args.timeout else None
     try:
-        if not stage.done.wait(args.timeout or None):
-            raise TimeoutError(f"no completion from the task within {args.timeout}s")
+        while not stage.done.wait(0.5):
+            if step.cancelled:
+                raise Cancelled(f"{step.id} was stopped")
+            if deadline and time.monotonic() > deadline:
+                raise TimeoutError(f"no completion from the task within {args.timeout}s")
     finally:
         stage.shutdown()
         if browser is not None:
@@ -668,55 +663,26 @@ def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, d
         result["failedTrialRate"] = failed_trial_rate(stage.shown, stage.answered)
     if events.exists():
         result["events"] = str(events)
-    return {"result": result, "durationMs": round((time.perf_counter() - clock) * 1000, 1)}
+    return result  # under the task's id, so a later step can cite it (`{Play.trials}`)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, help="the plan digest the local runtime hands over (plan.json)")
-    parser.add_argument("--element", metavar="ID", default=None, help="hand-off mode: execute this one element, then exit")
-    parser.add_argument("--claims", action="store_true", help="print the element ids this runner would execute, as a JSON array, and exit")
-    parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state: <element>.state.json in, result merged back")
     parser.add_argument("--build", type=Path, default=None, metavar="DIR", help="the Unity WebGL build (default: $UNITY_BUILD_PATH)")
     parser.add_argument("--port", type=int, default=0, help="serve the stage on this port (default: a free one)")
-    parser.add_argument("--timeout", type=float, default=0, help="give up after this many seconds (default: wait)")
+    parser.add_argument("--timeout", type=float, default=0, help="give up on a task after this many seconds (default: wait)")
     parser.add_argument("--no-browser", action="store_true", help="print the stage URL instead of opening it")
     parser.add_argument("--auto", action="store_true", help="every task is played by its bot, so nobody needs to be at the screen")
     args = parser.parse_args()
 
-    plan_file: dict[str, Any] = json.loads(args.plan.read_text())
-    # `studyflow run … --option auto` reaches every runner as the plan's `options`.
-    args.auto = args.auto or bool((plan_file.get("options") or {}).get("auto"))
-    elements: dict[str, dict[str, Any]] = plan_file.get("elements") or {}
-    if args.claims:
-        claimed = [eid for eid, element in elements.items() if behaverse_extension(element) is not None]
+    def claims(plan: dict[str, Any]) -> list[str]:
+        claimed = [eid for eid, element in (plan.get("elements") or {}).items() if behaverse_extension(element) is not None]
         if claimed:  # fail before the walk starts, not after another pool's robot has greeted
-            try:
-                checked_build(args.build)
-            except FileNotFoundError as error:
-                sys.exit(str(error))
-        print(json.dumps(claimed))
-        return 0
-    if not args.element:
-        parser.error("this runner performs one element at a time: pass --element or --claims")
+            checked_build(args.build)
+        return claimed
 
-    # The person is on stderr and the tty; stdout is captured into the run log.
-    sys.stdout = sys.stderr
-    cache = args.cache or Path(".")
-    handoff = cache / f"{args.element}.state.json"
-    state = json.loads(handoff.read_text()) if handoff.exists() else {}
-    try:
-        element = elements.get(args.element)
-        if element is None or behaverse_extension(element) is None:
-            raise KeyError(f"no behaverse:Task {args.element!r} in the diagram")
-        result = perform(element, args, elements, state)
-    except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
-        result = {"error": f"{type(error).__name__}: {error}"}
-    cache.mkdir(parents=True, exist_ok=True)
-    # Its own result under its id too, so a later step can cite it (`{Play.trials}`).
-    captured = {args.element: result["result"]} if "result" in result else {}
-    handoff.write_text(json.dumps({**state, **captured, **result}, default=str))
-    return 1 if "error" in result else 0
+    # The person is at the screen and the terminal: what this prints is for them, not the run log.
+    return serve(claims, lambda step: perform(step, args), terminal=True)
 
 
 if __name__ == "__main__":

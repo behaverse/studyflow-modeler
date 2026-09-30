@@ -1,12 +1,13 @@
-import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
 
 import { expect, test } from '@playwright/test';
 
-/** `skills/behaverse/local.py`: the behaverse skill's local runner (Unity WebGL), without Unity — the stage page's
- * protocol is exercised by hand, as the page itself would. */
+/** `skills/behaverse/local.py`: the behaverse skill's local runner (Unity WebGL), without Unity or the walk — the
+ * stage page's protocol is exercised by hand, as the page itself would, and so is the walk's (skills/local/SKILL.md). */
 
 test.skip(spawnSync('uv', ['--version']).error !== undefined, 'uv is not on PATH');
 
@@ -31,6 +32,27 @@ const PLAN = {
   },
 };
 
+/** The walk's end of the contract: requests answered by id, and what the runner sends of its own. */
+function walkOf(child: ChildProcessWithoutNullStreams) {
+  const answers = new Map<string, (answer: any) => void>();
+  const sent: any[] = [];
+  createInterface({ input: child.stdout }).on('line', (line) => {
+    const message = JSON.parse(line);
+    if (message.method) sent.push(message);
+    else answers.get(message.id)?.(message);
+  });
+  const write = (message: object) => child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`);
+  return {
+    sent,
+    notify: (method: string, params: object) => write({ method, params }),
+    request: (method: string, params: object) => new Promise<any>((resolve) => {
+      const id = `w${answers.size + 1}`;
+      answers.set(id, resolve);
+      write({ id, method, params });
+    }),
+  };
+}
+
 test('claims its tasks, serves the build and the stage, relays what the page reports, and records the completion', async () => {
   test.setTimeout(180_000);
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-behaverse-'));
@@ -41,23 +63,24 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   fs.writeFileSync(path.join(build, 'index.html'), '<canvas id="unity-canvas"></canvas>');
   fs.writeFileSync(path.join(build, 'Build', 'WebGL.wasm.unityweb'), 'wasm');
 
-  // Every BehaverseTask, and only those; without a build the claim fails, before any other pool's runner starts its work.
-  const claims = execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', build], { stdio: 'pipe' }).toString();
-  expect(JSON.parse(claims)).toEqual(['T']);
-  expect(() => execFileSync('uv', ['run', '--script', RUNNER, plan, '--claims', '--build', path.join(dir, 'none')],
-    { stdio: 'pipe', env: { ...process.env, UNITY_BUILD_PATH: '' } })).toThrow(/build/);
+  const run = { dir, cache: path.join(dir, '.cache') };
+  const start = (...args: string[]) => spawn('uv', ['run', '--script', RUNNER, ...args], { stdio: 'pipe', env: { ...process.env, UNITY_BUILD_PATH: '' } });
+
+  // Without a build it says so when asked what it takes, before any other pool's runner starts its work.
+  const lacking = start('--build', path.join(dir, 'none'));
+  expect((await walkOf(lacking).request('initialize', { protocol: 2, plan, run })).error.message).toMatch(/build/);
+  lacking.kill();
 
   const context = { subject: 1, state: {} };
-  const cache = path.join(dir, 'cache');
-  fs.mkdirSync(cache);
-  fs.writeFileSync(path.join(cache, 'T.state.json'), JSON.stringify({ S: { seed: 1 } }));
-
   const port = 20000 + Math.floor(Math.random() * 20000);
-  const child = spawn('uv', ['run', '--script', RUNNER, plan, '--element', 'T', '--cache', cache, '--build', build,
-    '--port', String(port), '--no-browser', '--timeout', '90'], { stdio: 'pipe' });
+  const child = start('--build', build, '--port', String(port), '--no-browser', '--timeout', '90');
   let stderr = '';
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   const exited = new Promise<number>((resolve) => child.on('exit', (code) => resolve(code ?? -1)));
+  const walk = walkOf(child);
+  // Every BehaverseTask, and only those.
+  expect((await walk.request('initialize', { protocol: 2, plan, run })).result).toMatchObject({ protocol: 2, elements: ['T'] });
+  const handed = walk.request('execute', { element: 'T', values: { S: { seed: 1 } } });
 
   const base = `http://127.0.0.1:${port}`;
   let page: Response | undefined;
@@ -80,18 +103,19 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
   });
 
-  // Each trial goes out along the trial flow; the answer naming it comes back into the inbox, as the walk delivers it.
-  const outbox = path.join(cache, 'T.outbox.jsonl');
-  const inbox = path.join(cache, 'T.inbox.jsonl');
+  // Each trial goes out along the trial flow; the answer naming it comes back, as the walk delivers it.
   const ask = async (request: string, window: number, answer?: unknown) => {
     const asked = post('/respond', { RequestId: request, TrialIndex: 0, ResponseOptions: ['Left', 'Right'], MaxResponseTime: window, Scene: 'WO' });
-    for (const deadline = Date.now() + 10_000; Date.now() < deadline && !fs.existsSync(outbox);) await new Promise((r) => setTimeout(r, 50));
-    if (answer !== undefined) fs.appendFileSync(inbox, `${JSON.stringify({ id: `a-${request}`, flow: 'M_Answer', content: answer, inReplyTo: request })}\n`);
+    const sent = (): boolean => walk.sent.some((message) => message.method === 'message' && message.params.id === request);
+    for (const deadline = Date.now() + 10_000; Date.now() < deadline && !sent();) await new Promise((r) => setTimeout(r, 50));
+    if (answer !== undefined) {
+      walk.notify('message', { element: 'T', message: { id: `a-${request}`, flow: 'M_Answer', content: answer, inReplyTo: request } });
+    }
     return (await asked).json();
   };
   expect(await ask('r1', 5, { Choice: ' right.' })).toEqual({ Response: 'Right', Agent: 'Reachy Mini' });
-  expect(JSON.parse(fs.readFileSync(outbox, 'utf8').split('\n')[0])).toEqual({
-    flow: 'M_Trial', id: 'r1', content: { TrialIndex: 0, ResponseOptions: ['Left', 'Right'], MaxResponseTime: 5, Scene: 'WO' },
+  expect(walk.sent.find((message) => message.method === 'message').params).toEqual({
+    element: 'T', flow: 'M_Trial', id: 'r1', content: { TrialIndex: 0, ResponseOptions: ['Left', 'Right'], MaxResponseTime: 5, Scene: 'WO' },
   });
   // An answer that names no option, or none within the trial's window, is no answer: a miss, never a stand-in.
   expect(await ask('r2', 5, 'Up')).toEqual({});
@@ -108,14 +132,14 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   await post('/trial', { TrialIndex: 0, Response: 'Right', Agent: 'Reachy Mini' });
   await post('/completed', { TaskId: 'WO', TimelineId: 'SimonTask', IsCompleted: true });
 
-  expect(await exited, stderr).toBe(0);
-  const state = JSON.parse(fs.readFileSync(path.join(cache, 'T.state.json'), 'utf8'));
-  expect(state.S).toEqual({ seed: 1 });
-  expect(state.result).toMatchObject({ TaskId: 'WO', TimelineId: 'SimonTask', IsCompleted: true, trials: 1 });
+  const { result, durationMs } = (await handed).result;
+  expect(result).toMatchObject({ TaskId: 'WO', TimelineId: 'SimonTask', IsCompleted: true, trials: 1 });
   // One of the three trials the build showed ended with no response, and the share rides with the result.
-  expect(state.result.failedTrialRate).toBeCloseTo(1 / 3);
-  expect(state.durationMs).toBeGreaterThan(0);
-  expect(fs.readFileSync(state.result.events, 'utf8').trim().split('\n').map((line) => JSON.parse(line)))
+  expect(result.failedTrialRate).toBeCloseTo(1 / 3);
+  expect(durationMs).toBeGreaterThan(0);
+  await walk.request('shutdown', {});
+  expect(await exited, stderr).toBe(0);
+  expect(fs.readFileSync(result.events, 'utf8').trim().split('\n').map((line) => JSON.parse(line)))
     // Every event line says whose trial it is: the task's visit count, and the properties in scope at the hand-off.
     .toEqual([shown(1), shown(2), shown(3),
       { trialContext: { block: { id: 1 }, trial: { id: 1 }, types: ['Click'] } },
