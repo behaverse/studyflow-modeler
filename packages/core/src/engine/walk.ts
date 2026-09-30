@@ -29,11 +29,14 @@ export type Talk = {
 
 export type Level = 'debug' | 'info' | 'warning' | 'error';
 
+/** A line for the run's log, written at the depth of the step it is about. */
+export type Note = (event: string, message: string, detail?: { level?: Level; data?: Record<string, unknown> }) => void;
+
 /** What a re-run may reuse of an earlier run's records; a host without one runs every step. */
 export type Reuse = {
   /** Before an activity runs: `skipped` when its record stands, else what to say about the record it supersedes. A
-   * `live` activity never skips. */
-  activity(id: string, live: boolean): { skipped: boolean; run?: string; replay?: () => void; superseded?: string };
+   * `live` activity never skips. What it notes is logged under the step's own line. */
+  activity(id: string, live: boolean, note: Note): { skipped: boolean; run?: string; superseded?: string };
   /** A gateway's recorded decision, when it may be replayed: the flow it took, and the run that took it. */
   decision(id: string): { flow: string; run: string } | undefined;
   /** An activity ran: what it made is re-made, so what reads it runs again. */
@@ -47,15 +50,15 @@ export type Host = {
   claim(id: string): { name: string; live: boolean } | undefined;
   /** Hands a claimed element, or one message to a pool a runner plays, to its runner: the run's values in, what the
    * runner hands back out (`result`, `durationMs`, `record`, the values and scopes it changed). A failure rejects. */
-  perform(id: string, values: Record<string, unknown>, talk?: Talk): Promise<Record<string, unknown>>;
-  log(event: string, message: string, detail?: { level?: Level; data?: Record<string, unknown> }): void;
+  perform(id: string, values: Record<string, unknown>, step: { talk?: Talk; note: Note }): Promise<Record<string, unknown>>;
+  log: Note;
   /** A timestamp for a record, as the host writes them. */
   now(): string;
   reuse?: Reuse;
   /** A step settled: the host checkpoints its records. */
   settled?(what: { action: 'executed' | 'failed' | 'reused'; id: string; flow?: string; when: string; run?: string }): void;
   /** An activity's data outputs, once it is done: the host notes what it made. */
-  outputs?(id: string, targets: string[], entry: Entry): void;
+  outputs?(id: string, targets: string[], entry: Entry, note: Note): void;
   /** The walk is about to leave an element. */
   passed?(id: string): void;
 };
@@ -269,7 +272,7 @@ export class Walk {
             if (runner) {
               // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
               this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
-              const sensed = await host.perform(id, this.jsonValues());
+              const sensed = await host.perform(id, this.jsonValues(), { note: this.note(thread) });
               entry._runnerMs = sensed.durationMs;
               keepRecord(entry, sensed);
               this.store(id, sensed.result);
@@ -433,7 +436,7 @@ export class Walk {
     } finally {
       thread.depth = depth;
     }
-    this.noteOutputs(element, entry);
+    this.noteOutputs(element, entry, thread);
     this.steps.end(entry);
     const when = host.now();
     this.completed.set(id, when);
@@ -445,16 +448,18 @@ export class Walk {
     const { graph, host } = this;
     const { id } = element;
     // A live element (an interactive runner's) never skips from a prior record.
-    const verdict = host.reuse?.activity(id, this.live.has(id));
+    const noted: Parameters<Note>[] = [];
+    const verdict = host.reuse?.activity(id, this.live.has(id), (...line) => noted.push(line));
+    const replay = (): void => noted.forEach(([event, message, detail]) => this.log(thread, event, message, detail));
     if (verdict?.skipped) {
       this.log(thread, 'activity.skipped', `↻ ${id}  (outputs from run ${verdict.run})`);
-      verdict.replay?.();
+      replay();
       const when = host.now();
       host.settled?.({ action: 'reused', id, when, run: verdict.run });
       return;
     }
     this.log(thread, 'activity.started', `□ ${id}`, { data: { element: id } });
-    verdict?.replay?.();
+    replay();
     if (verdict?.superseded) this.log(thread, 'activity.invalidated', `    ${verdict.superseded}`);
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
     try {
@@ -525,7 +530,7 @@ export class Walk {
     const talking = graph.messageScope(id);
     const talks = graph.flowsIn.has(talking) || graph.flowsOut.has(talking);
     const talk = talks ? this.talk(id, talking, thread) : undefined;
-    const reported = await host.perform(id, sent, talk);
+    const reported = await host.perform(id, sent, { talk, note: this.note(thread) });
     await talk?.delivered(); // what it sent last is answered before the walk goes on
     entry._runnerMs = reported.durationMs;
     keepRecord(entry, reported);
@@ -545,15 +550,15 @@ export class Walk {
         this.store(key, value);
       }
     }
-    this.noteOutputs(element, entry);
+    this.noteOutputs(element, entry, thread);
   }
 
   /** What the activity's data output edges targeted. A sub-process carries its own edges, so a dataset the steps
    * inside it fill is generated by the sub-process. */
-  private noteOutputs(element: PlanElement, entry: Entry): void {
+  private noteOutputs(element: PlanElement, entry: Entry, thread: Thread): void {
     const targets = element.outputs.map((output) => output.target).filter((target): target is string => !!target);
     if (targets.length > 0) entry.generated = targets;
-    this.host.outputs?.(element.id, targets, entry);
+    this.host.outputs?.(element.id, targets, entry, this.note(thread));
   }
 
   // --- flows and gateways ---
@@ -638,7 +643,7 @@ export class Walk {
       if (runner) {
         // The runner samples what the conditions read (`face_count`).
         this.log(thread, 'runner.called', `    ${runner.name} samples for ${id}`);
-        const sampled = await host.perform(id, this.jsonValues());
+        const sampled = await host.perform(id, this.jsonValues(), { note: this.note(thread) });
         entry._runnerMs = sampled.durationMs;
         keepRecord(entry, sampled);
         bindings = (sampled.result as Record<string, unknown>) || {};
@@ -810,7 +815,7 @@ export class Walk {
     entry.message = message.id;
     const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
       try {
-        const answered = await host.perform(pool.id, { ...this.jsonValues(), message });
+        const answered = await host.perform(pool.id, { ...this.jsonValues(), message }, { note: this.note(thread) });
         entry._runnerMs = answered.durationMs;
         keepRecord(entry, answered);
         const reply = answered.result ?? null;
@@ -932,8 +937,19 @@ export class Walk {
     };
   }
 
-  private log(thread: Thread, event: string, message: string, detail: { level?: Level; data?: Record<string, unknown> } = {}): void {
+  private log(thread: Thread, event: string, message: string, detail?: Parameters<Note>[2]): void {
     this.host.log(event, `${'  '.repeat(thread.depth + 1)}${message}`, detail);
+  }
+
+  /** The log, at the depth a pool's walk is at. */
+  private note(thread: Thread): Note {
+    return (event, message, detail) => this.log(thread, event, message, detail);
+  }
+
+  /** Ends the run from outside (the person stopped it): every wait fails, and each pool stops at its next step. */
+  abort(reason: Error): void {
+    this.failed ??= reason;
+    this.notify();
   }
 }
 

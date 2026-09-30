@@ -100,9 +100,11 @@ function attributesOf(element: ModdleElement, skip: ReadonlySet<string> = new Se
     const value = element[property.name];
     if (value !== undefined && value !== null) out[local] = text(value);
   }
-  for (const [key, value] of Object.entries(element.$attrs ?? {})) {
+  // An element no loaded schema declares keeps its attributes as plain fields.
+  const undeclared = element.$descriptor?.isGeneric ? Object.entries(element).filter(([key]) => !key.startsWith('$')) : [];
+  for (const [key, value] of [...Object.entries(element.$attrs ?? {}), ...undeclared]) {
     const local = key.split(':').pop()!;
-    if (!key.startsWith('xmlns') && !skip.has(local)) out[local] = String(value);
+    if (!key.startsWith('xmlns') && !skip.has(local) && typeof value !== 'object' && typeof value !== 'function') out[local] = String(value);
   }
   return out;
 }
@@ -120,8 +122,19 @@ function extensionOf(ext: ModdleElement): Extension {
     for (const value of values ?? []) if (typeof value === 'string') add(property.ns?.localName ?? property.name, value.trim());
   }
   for (const child of ext.$children ?? []) add(String(child.$type).split(':').pop()!, String(child.$body ?? '').trim());
-  const prefix = ext.$descriptor?.ns?.prefix;
-  return { namespace: ext.$model?.getPackage?.(prefix)?.uri ?? '', type: tagOf(ext), attributes };
+  return { namespace: namespaceOf(ext), type: tagOf(ext), attributes };
+}
+
+/** The namespace an element's prefix is bound to: a loaded schema's, else the one the document declares for it. */
+function namespaceOf(element: ModdleElement): string {
+  const prefix = element.$descriptor?.ns?.prefix;
+  const schema = element.$model?.getPackage?.(prefix)?.uri;
+  if (schema) return schema;
+  for (let at: ModdleElement | undefined = element; at; at = at.$parent) {
+    const declared = at.$attrs?.[`xmlns:${prefix}`];
+    if (typeof declared === 'string') return declared;
+  }
+  return '';
 }
 
 function expressionOf(expression: ModdleElement | undefined): Expression | undefined {
@@ -217,62 +230,84 @@ export function boundNames(elements: Record<string, PlanElement>): Record<string
 
 export type PlanOptions = { options?: Record<string, unknown>; sources?: string[] };
 
-/** The plan of a study: every element by id (pool participants, message flows, messages and item definitions
- * included), the study, and the processes to walk. */
-export function planOf(definitions: ModdleElement, { options = {}, sources = [] }: PlanOptions = {}): Plan {
+/** A study's elements as a run reads them. */
+export type StudyIndex = {
+  /** The processes to walk: every one with a sequence flow, the study's own first. */
+  processes: ModdleElement[];
+  /** The root carrying the study (a pool diagram's collaboration, else the process): its id and name are the run's. */
+  root: ModdleElement;
+  study: ModdleElement | undefined;
+  /** Every element of the walked processes, by id, with its container. */
+  walked: Map<string, { element: ModdleElement; parent: ModdleElement }>;
+  /** What the collaborations and the definitions hold beside them: participants, message flows, messages, item definitions. */
+  others: ModdleElement[];
+};
+
+export function indexOf(definitions: ModdleElement): StudyIndex {
   const roots: ModdleElement[] = definitions.rootElements ?? [];
-  const processes = roots.filter((root) => root.$type === 'bpmn:Process'
+  const walkable = roots.filter((root) => root.$type === 'bpmn:Process'
     && (root.flowElements ?? []).some((element: ModdleElement) => element.$type === 'bpmn:SequenceFlow'));
-  if (processes.length === 0) throw new Error('no process with a sequence flow to walk');
+  if (walkable.length === 0) throw new Error('no process with a sequence flow to walk');
   const studyOf = (root: ModdleElement): ModdleElement | undefined =>
     root?.extensionElements?.values?.find((ext: ModdleElement) => ext.$type === STUDY_EXTENSION_TYPE);
-  const process = processes.find((candidate) => studyOf(candidate)) ?? processes[0];
+  const process = walkable.find((candidate) => studyOf(candidate)) ?? walkable[0];
   const root = roots.find((candidate) => studyOf(candidate)) ?? primaryRoot(definitions) ?? process;
-  const study = studyOf(root) ?? studyOf(process);
 
-  const elements: Record<string, PlanElement> = {};
+  const walked: StudyIndex['walked'] = new Map();
   const index = (container: ModdleElement): void => {
     for (const element of [...(container.properties ?? []), ...(container.flowElements ?? []), ...(container.artifacts ?? [])]) {
       if (!element?.id) continue;
-      const digest = planElement(element);
-      digest.parent = container.id;
-      const read = wired(element);
-      if (read) {
-        digest.parameters = read.rest;
-        const ext = digest.extensions[0];
-        if (ext) for (const [key, value] of Object.entries(read.attributes)) ext.attributes[key] = text(value);
-      }
-      elements[element.id] = digest;
+      walked.set(element.id, { element, parent: container });
       if (CONTAINERS.has(element.$type)) index(element);
+      // A plain element's properties are its own scope's (`Excluded (n={count})`).
+      else for (const property of element.properties ?? []) if (property?.id) walked.set(property.id, { element: property, parent: element });
     }
   };
-  for (const walked of processes) index(walked);
+  const processes = [process, ...walkable.filter((other) => other !== process)];
+  for (const each of processes) index(each);
 
-  let title: string | null = root.name ?? process.name ?? null;
-  for (const definition of roots) {
-    if (definition.$type === 'bpmn:Message' || definition.$type === 'bpmn:ItemDefinition') {
-      elements[definition.id] = planElement(definition);
+  const others = roots.flatMap((definition) => {
+    if (definition.$type === 'bpmn:Message' || definition.$type === 'bpmn:ItemDefinition') return definition.id ? [definition] : [];
+    if (definition.$type !== 'bpmn:Collaboration') return [];
+    return [...(definition.participants ?? []), ...(definition.messageFlows ?? [])].filter((child) => child?.id);
+  });
+  return { processes, root, study: studyOf(root) ?? studyOf(process), walked, others };
+}
+
+/** The plan of a study: every element by id (pool participants, message flows, messages and item definitions
+ * included), the study, and the processes to walk. */
+export function planOf(definitions: ModdleElement, { options = {}, sources = [] }: PlanOptions = {}): Plan {
+  const { processes, root, study, walked, others } = indexOf(definitions);
+  const elements: Record<string, PlanElement> = {};
+  for (const [id, { element, parent }] of walked) {
+    const digest = planElement(element);
+    digest.parent = parent.id;
+    const read = wired(element);
+    if (read) {
+      // A key naming one of the element's attributes sets it (`instrument: WO`); the rest is its `parameters`.
+      digest.parameters = read.rest;
+      const ext = digest.extensions[0];
+      if (ext) for (const [key, value] of Object.entries(read.attributes)) ext.attributes[key] = text(value);
     }
-    if (definition.$type !== 'bpmn:Collaboration') continue;
-    for (const child of [...(definition.participants ?? []), ...(definition.messageFlows ?? [])]) {
-      if (!child?.id) continue;
-      elements[child.id] = planElement(child);
-      if (!title && child.$type === 'bpmn:Participant' && child.processRef === process) title = child.name ?? null;
-    }
+    elements[id] = digest;
   }
+  const names = boundNames(elements);
+  for (const other of others) elements[other.id] = planElement(other);
+
+  const pool = others.find((other) => other.$type === 'bpmn:Participant' && other.processRef === processes[0]);
   const seed = study?.seed;
   return {
     protocol: PROTOCOL,
     options,
     study: {
       id: root.id ?? null,
-      name: title ?? root.id ?? null,
+      name: root.name || processes[0].name || pool?.name || root.id || null,
       seed: seed === undefined || seed === null ? null : String(seed),
       dependencies: (study?.dependencies ?? []).map((spec: unknown) => String(spec).trim()).filter(Boolean),
     },
     sources,
     elements,
-    names: boundNames(Object.fromEntries(Object.entries(elements).filter(([, element]) => element.parent !== undefined))),
-    processes: [process, ...processes.filter((other) => other !== process)].map((walked) => walked.id),
+    names,
+    processes: processes.map((walkedProcess) => walkedProcess.id),
   };
 }
