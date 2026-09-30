@@ -4,13 +4,13 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
-import { Walk, allocationOf, draw, dryHost, durationMs, permutedBlock, pick, planOf, type Host, type PlanElement, type Talk, type WalkOptions } from '@core/engine';
+import { HandoffError, Walk, allocationOf, draw, dryHost, durationMs, permutedBlock, pick, planOf, type Handback, type Host, type PlanElement, type Talk, type WalkOptions } from '@core/engine';
 import { freshModdle } from '@tests/schemas';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
  * scripted here, and reads what the walk leaves: the visit counts, the state tree, its log. */
 
-type Runner = (values: Record<string, any>, talk?: Talk) => Record<string, unknown> | Promise<Record<string, unknown>>;
+type Runner = (values: Record<string, any>, talk?: Talk) => Handback | Promise<Handback>;
 
 const HEAD = 'definitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n';
 
@@ -19,7 +19,7 @@ async function walked(study: string, runners: Record<string, Runner> = {}, optio
   const log: string[] = [];
   const host: Host = {
     claim: (id) => (runners[id] ? { name: 'test', live: true } : undefined),
-    perform: async (id, values, { talk }) => ({ ...values, ...(await runners[id](values, talk)) }),
+    perform: async (id, values, { talk, message }) => runners[id]({ ...values, message }, talk),
     log: (event, message) => log.push(`${event} ${message.trim()}`),
     now: () => new Date().toISOString(),
   };
@@ -242,7 +242,7 @@ for (const [label, rate, expected] of RATES) {
     F1: Start -> Measure
     F2: Measure -> Completed
     F3: Noisy -> Excluded
-`, { Measure: () => ({ Quality: { failedTrialRate: rate } }) });
+`, { Measure: () => ({ values: { Quality: { failedTrialRate: rate } } }) });
     expect(reached).toEqual(expected);
   });
 }
@@ -296,7 +296,7 @@ for (const [label, marker] of COHORT_MARKERS) {
     const runners = {
       Check: (values: Record<string, any>) => {
         seen.push([values.state.Subject.arm, values.state._meta.instance.Subject]);
-        return { P_Arm: 'cautious', result: 1 };
+        return { values: { P_Arm: 'cautious' }, result: 1 };
       },
     };
     const drawn = (log: string[]) => log.flatMap((line) => line.match(/drawn → EF_([AB])/)?.[1] ?? []);
@@ -370,7 +370,7 @@ test('a multi-instance marker over a list runs once per item, binds each in its 
     Done: { type: EndEvent }
     F1: Start -> Each
     F2: Each -> Done
-`, { Shout: (values) => ({ P_Shout: String(values.state.Each.word).toUpperCase() }) });
+`, { Shout: (values) => ({ values: { P_Shout: String(values.state.Each.word).toUpperCase() } }) });
   expect(state.S.loud).toEqual(['A', null, 'C']);
   expect(reached).toMatchObject({ Each: 1, E0: 3, EF_Quiet: 1, Shout: 2 });
 });
@@ -768,7 +768,7 @@ test('a step finds the read-only properties its sub-process takes from wired Par
     E: { type: EndEvent }
     F1: S -> Block
     F2: Block -> E
-`, { T: (values) => { found = structuredClone(values.state.Block); return { state: { ...values.state, Block: { speed: 5 } } }; } });
+`, { T: (values) => { found = structuredClone(values.state.Block); return { state: { Block: { speed: 5 } } }; } });
   expect(found).toEqual({ speed: 20 });
   expect(error?.message).toMatch(/T writes speed.*Block/);
 });
@@ -824,10 +824,10 @@ S:
   const seen: unknown[] = [];
   const walk: Walk = new Walk(plan, {
     claim: (id) => (id === 'Trial' ? { name: 'screen', live: true } : undefined),
-    perform: async (id, values) => {
+    perform: async (id) => {
       // Inside the block, `failed` is its own and `arm` the study's; a name no scope declares is written nowhere.
       seen.push([walk.write('failed', 3, id), walk.write('arm', 'treatment', id), walk.write('stray', 1, id), walk.inScope(id)]);
-      return values;
+      return {};
     },
     log: () => undefined,
     now: () => '',
@@ -918,8 +918,8 @@ for (const [label, slow, ends] of [['runs out, the walk leaves by it and the han
     const walk = new Walk(plan, {
       claim: (id) => (id === 'Play' ? { name: 'test', live: true } : undefined),
       // A slow step: it ends only when it is stopped.
-      perform: (_id, values, { signal }) => new Promise((resolve, reject) => {
-        if (!slow) return resolve(values);
+      perform: (_id, _values, { signal }) => new Promise((resolve, reject) => {
+        if (!slow) return resolve({});
         signal!.addEventListener('abort', () => { stopped = true; reject(new Error('stopped')); });
       }),
       // The rest's five minutes pass at once; the boundary's thirty seconds pass only for the slow step.
@@ -937,3 +937,22 @@ for (const [label, slow, ends] of [['runs out, the walk leaves by it and the han
     expect(walk.steps.entries.find((entry) => entry.node === 'Play')).toMatchObject(slow ? { interruptedBy: 'TooSlow' } : { status: 'ok' });
   });
 }
+
+test('a hand-off that fails after binding something keeps what it had bound, and the step still fails', async () => {
+  const { walk, error } = await walked(`S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Collect:
+      type: Task
+      dataOutputAssociations:
+        Out_Trials: { targetRef: Trials }
+    Trials: { type: DataObjectReference }
+    Done: { type: EndEvent }
+    F1: Start -> Collect
+    F2: Collect -> Done
+`, { Collect: () => { throw new HandoffError('the screen closed', { values: { Trials: [1, 2] }, record: { build: '26.08' } }); } });
+  expect(error?.message).toBe('the screen closed');
+  expect(walk.values.get('Trials')).toEqual([1, 2]);
+  expect(walk.steps.entries.find((entry) => entry.node === 'Collect')).toMatchObject({ status: 'error', build: '26.08' });
+});

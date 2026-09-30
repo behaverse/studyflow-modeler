@@ -1,7 +1,7 @@
 import { PLACEHOLDER } from '@core/document/state';
 import { allocationOf, draw, permutedBlock, pick, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
-import { Interrupted, keepRecord, logAt, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
+import { HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
 import type { Plan, PlanElement } from '@core/engine/plan';
 import { Post } from '@core/engine/post';
 import { Steps, type Entry } from '@core/engine/steps';
@@ -21,17 +21,6 @@ import { Values } from '@core/engine/values';
 const bpmnType = (element: PlanElement): string => `bpmn:${element.type.charAt(0).toUpperCase()}${element.type.slice(1)}`;
 
 const has = (element: PlanElement, definition: string): boolean => (element.events ?? []).includes(definition);
-
-/** Whether two JSON values are the same, whatever the order of their keys. */
-function same(a: unknown, b: unknown): boolean {
-  if (a === b) return true;
-  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || Array.isArray(a) !== Array.isArray(b)) return false;
-  const left = Object.keys(a as object);
-  if (left.length !== Object.keys(b as object).length) return false;
-  return left.every((key) => Object.hasOwn(b as object, key) && same((a as any)[key], (b as any)[key]));
-}
-
-const HANDED_BACK = new Set(['result', 'durationMs', 'error', 'record']);
 
 export class Walk {
   readonly graph: Graph;
@@ -191,10 +180,7 @@ export class Walk {
             if (runner) {
               // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
               this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
-              const sensed = await this.handOff(id, this.memory.json(), thread);
-              entry._runnerMs = sensed.durationMs;
-              keepRecord(entry, sensed);
-              this.memory.store(id, sensed.result);
+              this.adopt(id, await this.handOff(id, this.memory.json(), thread), entry);
             } else if (graph.flowsIn.has(id)) {
               // A catch event a message flow reaches waits for that message; its content is the result.
               this.log(thread, 'event.waiting', `◐ ${id}  (waiting for a message)`);
@@ -459,36 +445,42 @@ export class Walk {
     const runner = host.claim(id)!;
     entry.implementation = element.attributes.implementation || `runner://${runner.name}`;
     this.log(thread, 'runner.called', `    → the ${runner.name} runner takes this element`);
-    const sent = this.memory.json();
     const talking = graph.messageScope(id);
     const talks = graph.flowsIn.has(talking) || graph.flowsOut.has(talking);
     const talk = talks ? this.post.talk(id, talking, thread) : undefined;
-    const reported = await this.handOff(id, sent, thread, talk);
-    await talk?.delivered(); // what it sent last is answered before the walk goes on
-    entry._runnerMs = reported.durationMs;
-    keepRecord(entry, reported);
-    for (const [key, value] of Object.entries(reported)) {
-      if (key === 'state' && value && typeof value === 'object') {
-        // Properties the runner wrote (a data edge into a property): scope by scope, `_meta` stays the walk's.
-        for (const [scope, held] of Object.entries(value as StateTree)) {
-          const before = (sent.state as StateTree)?.[scope] ?? {};
-          if (scope === '_meta' || !held || typeof held !== 'object' || same(held, before)) continue;
-          const written = [...(graph.readonly.get(scope) ?? [])].filter((name) => name in held && !same(held[name], before[name])).sort();
-          if (written.length > 0) {
-            throw new Error(`${id} writes ${written.join(', ')}, which the Parameters wired into ${scope} set, so nothing inside it writes them`);
-          }
-          Object.assign((this.memory.state[scope] ??= {}), held);
-        }
-      } else if (!HANDED_BACK.has(key) && key !== 'state' && !(key in sent && same(sent[key], value))) {
-        this.memory.store(key, value);
-      }
+    try {
+      const handed = await this.handOff(id, this.memory.json(), thread, talk);
+      await talk?.delivered(); // what it sent last is answered before the walk goes on
+      this.adopt(id, handed, entry);
+    } catch (error) {
+      // What a failed hand-off had bound before it failed is kept: the step fails, its work is not lost.
+      if (error instanceof HandoffError && error.partial) this.adopt(id, error.partial, entry);
+      throw error;
     }
     this.noteOutputs(element, entry, thread);
   }
 
+  /** Take what a runner handed back: its record into the step's entry, the properties it wrote into their scopes
+   * (`_meta` stays the walk's, and what the Parameters wired into a sub-process set stays as set), the values it
+   * bound under their ids, and its result under the element's own. */
+  private adopt(id: string, handed: Handback, entry: Entry): void {
+    keepRecord(entry, handed);
+    for (const [scope, written] of Object.entries(handed.state ?? {})) {
+      if (scope === '_meta' || !written || typeof written !== 'object') continue;
+      const held = (this.memory.state[scope] ??= {});
+      const fixed = [...(this.graph.readonly.get(scope) ?? [])].filter((name) => name in written && JSON.stringify(written[name]) !== JSON.stringify(held[name])).sort();
+      if (fixed.length > 0) {
+        throw new Error(`${id} writes ${fixed.join(', ')}, which the Parameters wired into ${scope} set, so nothing inside it writes them`);
+      }
+      Object.assign(held, written);
+    }
+    for (const [key, value] of Object.entries(handed.values ?? {})) this.memory.store(key, value);
+    if (handed.result !== undefined) this.memory.store(id, handed.result);
+  }
+
   /** One hand-off to the host, which a timer at a boundary event of an activity around it may stop: the walk then
    * leaves for that event, whatever the hand-off had done. */
-  private async handOff(id: string, values: Record<string, unknown>, thread: Thread, talk?: Talk): Promise<Record<string, unknown>> {
+  private async handOff(id: string, values: Record<string, unknown>, thread: Thread, talk?: Talk): Promise<Handback> {
     const handoff = thread.handoff = new AbortController();
     try {
       return await this.host.perform(id, values, { talk, note: this.note(thread), signal: handoff.signal });
@@ -594,7 +586,6 @@ export class Walk {
         // The runner samples what the conditions read (`face_count`).
         this.log(thread, 'runner.called', `    ${runner.name} samples for ${id}`);
         const sampled = await this.handOff(id, this.memory.json(), thread);
-        entry._runnerMs = sampled.durationMs;
         keepRecord(entry, sampled);
         bindings = (sampled.result as Record<string, unknown>) || {};
         if (Object.keys(bindings).length > 0) entry.bindings = bindings;

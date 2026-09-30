@@ -73,8 +73,7 @@ export class Post {
     entry.message = message.id;
     const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
       try {
-        const answered = await host.perform(pool.id, { ...this.values.json(), message }, { note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
-        entry._runnerMs = answered.durationMs;
+        const answered = await host.perform(pool.id, this.values.json(), { message, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
         keepRecord(entry, answered);
         const reply = answered.result ?? null;
         if (typeof reply === 'string') entry.reply = reply.slice(0, 2000); // what the pool said, kept with the run's records
@@ -229,6 +228,7 @@ export class Post {
         sending.push(delivery);
       },
       take: () => into.flatMap((flow) => this.mail.get(flow)?.splice(0) ?? []),
+      arrived: () => this.changed(),
       delivered: () => Promise.all(sending),
     };
   }

@@ -21,7 +21,7 @@ export function dryHost(plan: Plan, shown: Pick<Host, 'moved' | 'passed'> = {}):
   for (const [id, participant] of graph.participants) if (!participant.attributes.processRef) performed.add(id);
   return {
     claim: (id) => (performed.has(id) ? { name: 'dry run', live: true } : undefined),
-    perform: async (_id, values) => values,
+    perform: async () => ({}),
     log: () => undefined,
     now: () => new Date().toISOString(),
     decide: (_gateway, flows) => flows[Math.floor(Math.random() * flows.length)],

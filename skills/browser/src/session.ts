@@ -60,9 +60,9 @@ export class Session {
     }
     const host: Host = {
       claim: (id) => (this.jobs.has(id) ? { name: this.jobs.get(id)!.type, live: true } : undefined),
-      perform: (id, values, { signal }) => {
+      perform: (id, _values, { signal }) => {
         signal?.addEventListener('abort', () => { this.refuse('its time ran out'); this.onExpired?.(id); });
-        return this.show(id).then(() => values);
+        return this.show(id).then(() => ({}));
       },
       log: (_event, message, detail) => {
         if (detail?.level === 'warning' || detail?.level === 'error') this.diagnose(message.trim());

@@ -14,7 +14,33 @@ export type Talk = {
   send(line: { flow?: unknown; content?: unknown; id?: string; inReplyTo?: string }): void;
   /** The messages that have arrived along the flows into it since the last take. */
   take(): Message[];
+  /** Resolves when a message may have arrived: the time to take again. */
+  arrived(): Promise<void>;
 };
+
+/** What a runner hands back from one hand-off: what it binds, said outright. */
+export type Handback = {
+  /** The step's result, bound under its element's id; a pool's answer; at a gateway, what its conditions read. */
+  result?: unknown;
+  /** Values later steps read, by the id they are bound under: a data edge's target. */
+  values?: Record<string, unknown>;
+  /** Properties it wrote, scope by scope. */
+  state?: Record<string, Record<string, unknown>>;
+  /** What it ran with (a package version, a model digest, the request as sent): for the record, never read as a value. */
+  record?: Record<string, unknown>;
+  durationMs?: number;
+};
+
+/** A hand-off that failed after binding something: what it had bound is kept, and the step still fails. */
+export class HandoffError extends Error {
+  readonly partial: Handback | undefined;
+
+  constructor(message: string, partial?: Handback) {
+    super(message);
+    this.name = 'HandoffError';
+    this.partial = partial;
+  }
+}
 
 export type Level = 'debug' | 'info' | 'warning' | 'error';
 
@@ -37,10 +63,10 @@ export type Reuse = {
 export type Host = {
   /** The runner that claims an element, by name, and whether its claim is live: a live element never skips or replays. */
   claim(id: string): { name: string; live: boolean } | undefined;
-  /** Hands a claimed element, or one message to a pool a runner plays, to its runner: the run's values in, what the
-   * runner hands back out (`result`, `durationMs`, `record`, the values and scopes it changed). A failure rejects.
+  /** Hands a claimed element, or one `message` to a pool a runner plays, to its runner: the run's values in, what the
+   * runner hands back out. A failure rejects, with a {@link HandoffError} when something had been bound first.
    * `signal` aborts when a timer at a boundary event ends the activity the hand-off is in: the host stops it. */
-  perform(id: string, values: Record<string, unknown>, step: { talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Record<string, unknown>>;
+  perform(id: string, values: Record<string, unknown>, step: { message?: Message; talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Handback>;
   /** Resolves `ms` from now, for the timer event `at`, unless `signal` aborts first; without it, the machine's clock. */
   wait?(ms: number, signal: AbortSignal, at: string): Promise<void>;
   log: Note;
@@ -106,7 +132,8 @@ export function logAt(host: Host, thread: Thread, event: string, message: string
 
 /** A hand-off's `record`, what the runner ran with (a package version, a model digest, the request as sent), merged
  * into its step's record entry and never read as a value; the walk's own keys stand. */
-export function keepRecord(entry: Entry, handed: Record<string, unknown>): void {
+export function keepRecord(entry: Entry, handed: Handback): void {
+  entry._runnerMs = handed.durationMs;
   const { record } = handed;
   if (!record || typeof record !== 'object' || Array.isArray(record)) return;
   for (const [key, value] of Object.entries(record)) if (!(key in entry)) entry[key] = value;

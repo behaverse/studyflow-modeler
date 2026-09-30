@@ -5,7 +5,8 @@ export { allocationOf, draw, permutedBlock, pick } from '@core/engine/allocation
 export { Steps } from '@core/engine/steps';
 export type { Entry } from '@core/engine/steps';
 export { Walk } from '@core/engine/walk';
-export type { Host, Level, Message, Note, Reuse, StateTree, Talk, WalkOptions } from '@core/engine/host';
+export { HandoffError } from '@core/engine/host';
+export type { Handback, Host, Level, Message, Note, Reuse, StateTree, Talk, WalkOptions } from '@core/engine/host';
 export { dryHost } from '@core/engine/dry';
 export { durationMs, timerDelay } from '@core/engine/timer';
 export type { Timer } from '@core/engine/timer';
