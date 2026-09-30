@@ -11,32 +11,33 @@ The partial runner for plain computation: it claims every element whose
 `implementation` is a `python://` path, and executes one per hand-off:
 binding the element's inputs from the state and the run repository's
 artifacts, calling the implementation, and binding its outputs back
-(artifacts saved into the repository, JSON-able values merged into the
-state). Claims answer `{"elements": [...], "live": false}`: these elements
-are replayable, so the local runtime's reuse and branching apply to them.
+(artifacts saved into the repository, JSON-able values handed to the walk).
+Its claims are not live: these elements are replayable, so the local
+runtime's reuse and branching apply to them.
 """
 
 from __future__ import annotations
 
-import argparse
 import difflib
 import functools
 import importlib
 import importlib.metadata
 import json
+import os
 import platform
 import random
 import re
 import shutil
 import sys
-import time
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "local"))
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
 import feel  # noqa: E402 - the local runtime's FEEL, skills/local/feel.py
+from runner import PLACEHOLDER, Step, dig, serve  # noqa: E402 - and its runner SDK
+
 
 def split_binding(text: str | None) -> tuple[str | None, str | None]:
     """Grammar: `slot = selection`, either half optional; `==` belongs to the selection, not the split."""
@@ -49,17 +50,6 @@ def split_binding(text: str | None) -> tuple[str | None, str | None]:
     if both:
         return both.group(1), both.group(2).strip()
     return None, value
-
-
-PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")  # the modeler's PLACEHOLDER (packages/core/src/document/state.ts)
-
-
-def dig(value: Any, fields: list[str]) -> Any:
-    for field in fields:
-        value = value.get(field) if isinstance(value, dict) else getattr(value, field, None)
-        if value is None:
-            break
-    return value
 
 
 def placeholder_of(value: Any) -> str | None:
@@ -226,13 +216,15 @@ def jsonable(value: Any) -> bool:
 
 
 class Run:
-    def __init__(self, studyflow: Plan, repo: Path, cache: Path, sources: list[Path]) -> None:
+    def __init__(self, studyflow: Plan, repo: Path, cache: Path, sources: list[Path], bound: dict[str, Any] | None = None) -> None:
         self.studyflow = studyflow
         self.repo = repo
         # Values that fit neither JSON nor a declared artifact spill here, for the next hand-off.
         self.spill = cache / "values"
         self.sources = sources
         self.values: dict[str, Any] = {}
+        # The JSON-able values this hand-off binds: what the walk is handed back.
+        self.bound: dict[str, Any] = {} if bound is None else bound
 
     def namespace(self) -> dict[str, Any]:
         space: dict[str, Any] = {}
@@ -388,6 +380,8 @@ class Run:
             expression = binding.get("transformation") or ""
             bound = self.evaluate(expression, {"result": result}, language=binding.get("language")) if expression else result
             self.values[target_id] = bound
+            if jsonable(bound):
+                self.bound[target_id] = bound
             uri, declared_format = self.studyflow.artifact(target_id)
             if uri:
                 path = self.repo / uri
@@ -400,36 +394,17 @@ class Run:
         return result
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, help="the plan digest the local runtime hands over (plan.json)")
-    parser.add_argument("--element", metavar="ID", default=None, help="hand-off mode: execute this one element")
-    parser.add_argument("--claims", action="store_true", help="print the claimed element ids and exit")
-    parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state dir")
-    args = parser.parse_args()
+def claims(plan: dict[str, Any]) -> dict[str, Any]:
+    """Replayable, not live: the local runtime's skip/reuse and branching apply to these elements."""
+    return {"live": False, "elements": [
+        element_id for element_id, element in (plan.get("elements") or {}).items()
+        if (element["attributes"].get("implementation") or "").startswith("python://")
+    ]}
 
-    studyflow = Plan(json.loads(args.plan.read_text()))
 
-    if args.claims:
-        # Replayable, not live: the local runtime's skip/reuse and branching apply to these elements.
-        print(json.dumps({
-            "live": False,
-            "elements": [
-                element_id for element_id, element in studyflow.elements.items()
-                if (element["attributes"].get("implementation") or "").startswith("python://")
-            ],
-        }))
-        return 0
-
-    if not args.element:
-        parser.error("standalone walking is not implemented here — use the local runtime, or pass --element")
-
-    cache = args.cache or Path(".")
-    repo = cache.resolve().parent if args.cache else Path.cwd()
-    handoff = cache / f"{args.element}.state.json"
-    state = json.loads(handoff.read_text()) if handoff.exists() else {}
-
-    # The root seed comes from the diagram itself, the same file every process reads.
+def execute(step: Step) -> Any:
+    studyflow = Plan(step.plan)
+    # The root seed comes from the study itself, and every hand-off starts from it.
     seed = studyflow.seed()
     if seed:
         try:
@@ -438,29 +413,15 @@ def main() -> int:
             numpy.random.seed(int(seed) % 2**32)
         except Exception:  # noqa: BLE001, S110 - a non-numeric seed seeds nothing
             pass
-
-    run = Run(studyflow, repo, cache, sources=[*studyflow.sources, Path.cwd()])
-    run.values.update(state)
-    clock = time.perf_counter()
-    try:
-        element = studyflow.elements.get(args.element)
-        if element is None:
-            raise KeyError(f"no element {args.element!r} in the diagram")
-        result = run.execute(element)
-        version = distribution(element["attributes"]["implementation"][len("python://"):].split(".")[0])
-    except BaseException as error:  # noqa: BLE001 - reported to the leading runner, which records it
-        state["error"] = f"{type(error).__name__}: {error}"
-    else:
-        # The updated state: every JSON-able value this element bound, the result, and the timing; and, for the
-        # record only, what provided the implementation.
-        state.update({k: v for k, v in run.values.items() if jsonable(v)})
-        state["result"] = result if jsonable(result) else str(type(result).__name__)
-        state["durationMs"] = round((time.perf_counter() - clock) * 1000, 1)
-        state["record"] = {"version": version}
-    cache.mkdir(parents=True, exist_ok=True)
-    handoff.write_text(json.dumps(state, default=str))
-    return 1 if "error" in state else 0
+    if not step.element:
+        raise KeyError(f"no element {step.id!r} in the diagram")
+    run = Run(studyflow, step.run_dir, step.cache, sources=[*studyflow.sources, Path.cwd()], bound=step.bound)
+    run.values.update(step.values)
+    result = run.execute(step.element)
+    # For the record only: what provided the implementation.
+    step.note(version=distribution(step.element["attributes"]["implementation"][len("python://"):].split(".")[0]))
+    return result if jsonable(result) else None  # a result the walk cannot hold stays with its data outputs
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(serve(claims, execute))

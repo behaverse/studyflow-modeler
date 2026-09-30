@@ -21,7 +21,8 @@ const BIN = (() => {
   execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', out, '--logLevel', 'error']);
   return path.join(out, 'studyflow.mjs');
 })();
-const ENV = { ...process.env, STUDYFLOW_HOME: path.dirname(BIN) };
+// No skill is beside the built copy either, so a runner is told where the SDK is.
+const ENV = { ...process.env, STUDYFLOW_HOME: path.dirname(BIN), STUDYFLOW_LOCAL: path.resolve(__dirname, '..') };
 const PYTHON = path.resolve(__dirname, '../../python/local.py');
 
 function hasUv(): boolean {
@@ -255,7 +256,19 @@ S:
   });
 });
 
-/** What a partial runner is handed: `plan.json`, the plan as one JSON digest, never the diagram. */
+/** The contract with partial runners (skills/local/SKILL.md), spoken here by runners written with its SDK. */
+
+/** A runner at `file`: what it claims (Python, of `plan`), and the body of its `execute(step)`. */
+function writeRunner(file: string, claims: string, body: string[]): void {
+  fs.writeFileSync(file, [
+    'import json, os, shutil, sys, time',
+    "sys.path.insert(0, os.environ['STUDYFLOW_LOCAL'])",
+    'from runner import serve',
+    'def execute(step):',
+    ...body.map((line) => `    ${line}`),
+    `serve(lambda plan: ${claims}, execute)`,
+  ].join('\n'));
+}
 
 function hasPython(): boolean {
   try {
@@ -281,11 +294,8 @@ test.describe('partial runner hand-off', () => {
     <bpmn:sequenceFlow id="F2" sourceRef="Slow" targetRef="Done"/>
   </bpmn:process>
 </bpmn:definitions>`);
-    fs.writeFileSync(path.join(dir, 'slow.py'), [
-      'import json, sys, time',
-      "if sys.argv[2] == '--claims': print(json.dumps({'protocol': 1, 'elements': ['Slow']}))",
-      'else: time.sleep(30)',
-    ].join('\n'));
+    // A runner that does not heed `cancel`: its process is ended.
+    writeRunner(path.join(dir, 'slow.py'), "['Slow']", ['time.sleep(30)']);
     const started = Date.now();
     expect(() => execFileSync(process.execPath, [BIN, 'run', 'plan.bpmn', '--repo', 'run', '--quiet',
       '--runner', `slow=python3 ${path.join(dir, 'slow.py')}`, '--step-timeout', '1'],
@@ -315,11 +325,8 @@ P:
     F2: Slow -> Done
     F3: TooSlow -> TimedOut
 `);
-    fs.writeFileSync(path.join(dir, 'slow.py'), [
-      'import json, sys, time',
-      "if sys.argv[2] == '--claims': print(json.dumps(['Slow']))",
-      'else: time.sleep(30)',
-    ].join('\n'));
+    // A runner that waits for a message hears `cancel` instead, and ends the step itself.
+    writeRunner(path.join(dir, 'slow.py'), "['Slow']", ['step.receive(timeout=30)']);
     const started = Date.now();
     execFileSync(process.execPath, [BIN, 'run', 'plan.studyflow.yaml', '--repo', 'run', '--quiet', '--runner', `slow=python3 ${path.join(dir, 'slow.py')}`],
       { cwd: dir, stdio: 'pipe', env: ENV });
@@ -370,24 +377,18 @@ P:
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-handoff-'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     // A runner that claims T and completes it, keeping a copy of what it was handed and saying what it ran with.
-    fs.writeFileSync(path.join(dir, 'fake.py'), [
-      'import json, shutil, sys',
-      'plan, mode = sys.argv[1], sys.argv[2]',
-      "assert plan.endswith('plan.json'), plan",
-      "shutil.copyfile(plan, plan + '.seen')",
-      "if mode == '--claims': print(json.dumps({'elements': ['T'], 'live': False}))",
-      'else:',
-      "    handoff = sys.argv[5] + '/' + sys.argv[3] + '.state.json'",
-      '    state = json.load(open(handoff))',
-      "    json.dump({**state, 'result': 1, 'durationMs': 0, 'record': {'version': 'm 1.0'}}, open(handoff, 'w'))",
-    ].join('\n'));
+    writeRunner(path.join(dir, 'fake.py'), "{'elements': ['T'], 'live': False}", [
+      "json.dump(step.plan, open(step.cache / 'plan.json.seen', 'w'))",
+      "step.note(version='m 1.0')",
+      'return 1',
+    ]);
     execFileSync(process.execPath, [BIN, 'run', 'plan.bpmn', '--repo', 'run', '--quiet', '--debug',
       '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`, '--option', 'sim', '--option', 'speed=2'],
     { cwd: dir, stdio: 'pipe', env: ENV });
 
     const digest = JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'plan.json.seen'), 'utf8'));
     // The contract's version, and the run's options for the runners that know them: no flag every runner must take.
-    expect(digest.protocol).toBe(1);
+    expect(digest.protocol).toBe(2);
     expect(digest.options).toEqual({ sim: true, speed: '2' });
     expect(digest.study).toEqual({ id: 'C', name: 'Lab', seed: '7', dependencies: ['pandas>=2.0', 'joblib'] });
     expect(digest.sources.length).toBeGreaterThan(0);
@@ -414,7 +415,7 @@ P:
     expect(JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'Done.state.json'), 'utf8'))).not.toHaveProperty('record');
   });
 
-  test('carries a runner\'s messages through its outbox and inbox files, and journals them', async () => {
+  test('carries a runner\'s messages while it runs, and journals them', async () => {
     // A collapsed sub-process is the only place BPMN can draw a message flow to a step inside it, so the study draws
     // the exchange on the cohort and the task inside it is what talks: out along the sub-process's flow, back in.
     // The sub-process is divided into a lane too (BPMN allows a lane set on any FlowElementsContainer): the walk
@@ -458,31 +459,13 @@ S:
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-nested-talk-'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     const heard = path.join(dir, 'heard.json');
-    fs.writeFileSync(path.join(dir, 'task.py'), [
-      'import json, os, sys, time',
-      'plan, mode = sys.argv[1], sys.argv[2]',
-      "if mode == '--claims': print(json.dumps(['Play'])); sys.exit()",
-      'eid, cache = sys.argv[3], sys.argv[5]',
-      "open(os.path.join(cache, eid + '.outbox.jsonl'), 'a').write(json.dumps({'flow': 'M_Trial', 'id': 't1', 'content': {'n': 1}}) + '\\n')",
-      'answers, deadline = [], time.monotonic() + 30',
-      "while not answers:",
-      '    assert time.monotonic() < deadline',
-      "    inbox = os.path.join(cache, eid + '.inbox.jsonl')",
-      '    answers = [json.loads(line) for line in open(inbox)] if os.path.exists(inbox) else []',
-      '    time.sleep(0.05)',
-      `open(${JSON.stringify(heard)}, 'w').write(json.dumps(answers))`,
-      "open(os.path.join(cache, '..', 'trials.jsonl'), 'w').write('{}')",
-      "handoff = os.path.join(cache, eid + '.state.json')",
-      "json.dump({**json.load(open(handoff)), 'result': 1, 'durationMs': 0}, open(handoff, 'w'))",
-    ].join('\n'));
-    fs.writeFileSync(path.join(dir, 'model.py'), [
-      'import json, os, sys',
-      'plan, mode = sys.argv[1], sys.argv[2]',
-      "if mode == '--claims': print(json.dumps(['Model'])); sys.exit()",
-      "handoff = os.path.join(sys.argv[5], sys.argv[3] + '.state.json')",
-      'state = json.load(open(handoff))',
-      `json.dump({**state, 'result': f"saw {state['message']['content']['n']}", 'durationMs': 0}, open(handoff, 'w'))`,
-    ].join('\n'));
+    writeRunner(path.join(dir, 'task.py'), "['Play']", [
+      "answer = step.ask('M_Trial', {'n': 1}, id='t1', timeout=30)",
+      `open(${JSON.stringify(heard)}, 'w').write(json.dumps([answer]))`,
+      "open(step.run_dir / 'trials.jsonl', 'w').write('{}')",
+      'return 1',
+    ]);
+    writeRunner(path.join(dir, 'model.py'), "['Model']", [`return f"saw {step.message['content']['n']}"`]);
     execFileSync(process.execPath, [BIN, 'run', 'plan.bpmn', '--repo', 'run', '--quiet',
       '--runner', `task=python3 ${path.join(dir, 'task.py')}`, '--runner', `model=python3 ${path.join(dir, 'model.py')}`],
     { cwd: dir, stdio: 'pipe', env: ENV });
@@ -524,24 +507,31 @@ S:
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     fs.writeFileSync(path.join(dir, 'x.json'), '[]');
     // A runner that stages x.json from the plan's first source while running Load, and only waits while running Wait.
-    fs.writeFileSync(path.join(dir, 'fake.py'), [
-      'import json, os, shutil, sys, time',
-      'plan, mode = sys.argv[1], sys.argv[2]',
-      "if mode == '--claims': print(json.dumps(['Wait', 'Load']))",
-      'else:',
-      '    eid, cache = sys.argv[3], sys.argv[5]',
-      "    time.sleep(0.2 if eid == 'Load' else 0.8)",
-      "    if eid == 'Load':",
-      "        shutil.copyfile(os.path.join(json.load(open(plan))['sources'][0], 'x.json'), os.path.join(os.path.dirname(cache), 'x.json'))",
-      "    handoff = os.path.join(cache, eid + '.state.json')",
-      '    state = json.load(open(handoff))',
-      "    json.dump({**state, 'result': eid, 'durationMs': 0}, open(handoff, 'w'))",
-    ].join('\n'));
+    writeRunner(path.join(dir, 'fake.py'), "['Wait', 'Load']", [
+      "print('pid', os.getpid())",
+      "time.sleep(0.2 if step.id == 'Load' else 0.8)",
+      "if step.id == 'Load': shutil.copyfile(os.path.join(step.plan['sources'][0], 'x.json'), step.run_dir / 'x.json')",
+      'return step.id',
+    ]);
     execFileSync(process.execPath, [BIN, 'run', 'plan.bpmn', '--repo', 'run', '--quiet',
       '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], { cwd: dir, stdio: 'pipe', env: ENV });
 
     const log = fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8');
     expect(log.match(/stage x\.json/g)).toHaveLength(1);
+    // One process ran both, each hand-off on its own; what it printed is in the run log.
+    const pids = [...log.matchAll(/runner\.stdout\s+pid (\d+)/g)].map((line) => line[1]);
+    expect(pids).toHaveLength(2);
+    expect(pids[0]).toBe(pids[1]);
+  });
+
+  test('keeps what a runner had written before its step failed', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-partial-'));
+    fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), 'id: partial\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nP:\n  type: Process\n  flowElements:\n    Start: { type: StartEvent }\n    Work: { type: Task }\n    Done: { type: EndEvent }\n    F1: Start -> Work\n    F2: Work -> Done\n');
+    writeRunner(path.join(dir, 'fake.py'), "['Work']", ["step.write('P', 'kept', 3)", "raise RuntimeError('boom')"]);
+    expect(() => execFileSync(process.execPath, [BIN, 'run', 'plan.studyflow.yaml', '--repo', 'run', '--quiet', '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`],
+      { cwd: dir, stdio: 'pipe', env: ENV })).toThrow();
+    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/RuntimeError: boom/);
+    expect((yaml.load(fs.readFileSync(path.join(dir, 'run', 'plan.studyflow.yaml'), 'utf8')) as any).state.P.kept).toBe(3);
   });
 
   test('restores an output the worktree lost from the commit that made it, rather than redoing the step', () => {
@@ -561,17 +551,10 @@ S:
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-restore-'));
     fs.writeFileSync(path.join(dir, 'p.bpmn'), xml);
     // A replayable runner (`live: false`), so the second run may skip what the first one made.
-    fs.writeFileSync(path.join(dir, 'fake.py'), [
-      'import json, os, sys',
-      'mode = sys.argv[2]',
-      "if mode == '--claims': print(json.dumps({'elements': ['Make'], 'live': False}))",
-      'else:',
-      '    eid, cache = sys.argv[3], sys.argv[5]',
-      "    open(os.path.join(os.path.dirname(cache), 'out.json'), 'w').write('{\"made\": 1}')",
-      "    handoff = os.path.join(cache, eid + '.state.json')",
-      '    state = json.load(open(handoff))',
-      "    json.dump({**state, 'result': eid, 'durationMs': 0}, open(handoff, 'w'))",
-    ].join('\n'));
+    writeRunner(path.join(dir, 'fake.py'), "{'elements': ['Make'], 'live': False}", [
+      "open(step.run_dir / 'out.json', 'w').write('{\"made\": 1}')",
+      'return step.id',
+    ]);
     const run = (plan: string, ...args: string[]) => execFileSync(process.execPath, [BIN, 'run', plan, '--quiet',
       '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`, ...args], {
       cwd: dir, stdio: 'pipe', env: ENV,

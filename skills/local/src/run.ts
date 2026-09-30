@@ -1,7 +1,7 @@
 /**
  * The local runtime: it hosts the walk (packages/core/src/engine) on this machine. It never executes an element
- * itself: each skill's `runtimes.local` command is asked for its claims and then handed one element at a time
- * (SKILL.md, beside this folder, is that contract). What a run leaves is a run directory, `--repo DIR` or else
+ * itself: each skill's `runtimes.local` command is started once, asked for its claims and then handed one element at
+ * a time (SKILL.md, beside this folder, is that contract). What a run leaves is a run directory, `--repo DIR` or else
  * `~/.studyflow/runs/<id>/` (YYMMDD plus a codename, `260821heron/`), or the one the study handed to it already
  * lives in: the artifacts the `uri`s name, a copy of the study stamped `executed`, `studyflow.log` and the journal,
  * all in a git repository whose commit bodies hold the step records (skills/prov).
@@ -83,6 +83,16 @@ function resolveRepoDir(explicit: string | undefined, input: string, started: Da
 }
 
 export async function runLocal(run: LocalRun): Promise<number> {
+  // Every runner it starts is told when the run is over, however it ends.
+  const started: PartialRunner[] = [];
+  try {
+    return await hostRun(run, started);
+  } finally {
+    await Promise.all(started.map((runner) => runner.shutdown()));
+  }
+}
+
+async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number> {
   const { definitions, moddle } = run;
   const started = new Date();
   const stamp = runStamp(started);
@@ -161,17 +171,18 @@ export async function runLocal(run: LocalRun): Promise<number> {
   await run.write(definitions, archive);
   log.event('diagram.archived', `  → ${archive}`, { level: 'debug' });
 
-  // Partial runners never open the study: they read `.cache/plan.json`. Each is asked once which ids it will run.
+  // Partial runners never open the study: they read `.cache/plan.json`. Each is started once, and asked which ids it
+  // will run.
   const cache = path.join(dir, '.cache');
-  const runners = new Map<string, PartialRunner>();
   const claimed = new Map<string, { runner: PartialRunner; live: boolean }>();
+  const local = run.skillRoots.map((root) => path.join(root, 'local')).find((folder) => existsSync(path.join(folder, 'runner.py')));
   if (commands.size > 0) {
     mkdirSync(cache, { recursive: true });
     writeFileSync(path.join(cache, 'plan.json'), JSON.stringify(plan, null, 1));
   }
-  for (const [name, command] of commands) runners.set(name, new PartialRunner(name, command as RunnerCommand, dir, log, { debug: run.debug ?? false, timeout: run.stepTimeout }));
+  for (const [name, command] of commands) runners.push(new PartialRunner(name, command as RunnerCommand, dir, log, { timeout: run.stepTimeout, local }));
   // Every runner is asked at once; a claim is settled in the order the runners were found.
-  const answers = await Promise.all([...runners.values()].map(async (runner) => ({ runner, answer: await runner.claims() })));
+  const answers = await Promise.all(runners.map(async (runner) => ({ runner, answer: await runner.claims() })));
   for (const { runner, answer } of answers) {
     if (!answer) {
       log.event('runner.unavailable', `  the ${runner.name} runner needs ${runner.argv[0]}, which is not on this machine: it claims nothing`, { level: 'warning' });
@@ -186,6 +197,9 @@ export async function runLocal(run: LocalRun): Promise<number> {
       claimed.set(id, { runner, live });
     }
   }
+  // A runner with nothing to run in this study is not kept waiting for it.
+  const taking = new Set([...claimed.values()].map(({ runner }) => runner));
+  await Promise.all(runners.filter((runner) => !taking.has(runner)).map((runner) => runner.shutdown()));
 
   // What the study at a commit drew, by element, read once per commit.
   const studies = new Map<string, Map<string, string> | undefined>();
@@ -217,11 +231,11 @@ export async function runLocal(run: LocalRun): Promise<number> {
 
   const host: Host = {
     claim: (id) => { const claim = claimed.get(id); return claim && { name: claim.runner.name, live: claim.live }; },
-    perform: async (id, values, { talk, note, signal }) => {
+    perform: async (id, values, { message, talk, note, signal }) => {
       // A runner stages the boundary inputs it reads: one the repository lacks before the hand-off and holds after it
       // was imported by this run.
       const absent = made.walk.graph.walked.has(id) ? made.records.absentInputs(id) : new Map<string, string>();
-      const handed = await claimed.get(id)!.runner.element(id, values, talk, signal);
+      const handed = await claimed.get(id)!.runner.element(id, values, { message, talk, signal });
       for (const [data, uri] of absent) {
         if (!existsSync(path.join(dir, uri))) continue;
         made.records.staged.set(data, timelineTimestamp());
@@ -248,8 +262,8 @@ export async function runLocal(run: LocalRun): Promise<number> {
         note('artifact.saved', `    ▤ save ${uri}  ${humanBytes(statSync(path.join(dir, uri)).size)}`);
       }
     },
-    // --debug: every element leaves `<id>.state.json` in `.cache/`, the updated values with its `result` and
-    // `durationMs` merged in, the same shape a partial runner's hand-off file has.
+    // --debug: every element leaves `<id>.state.json` in `.cache/`: the run's values once it is done, with its
+    // `result` and `durationMs` beside them.
     passed: !run.debug ? undefined : (id) => {
       const values = made.walk.jsonValues();
       const entry: Entry | undefined = made.walk.steps.entries.findLast((candidate) => candidate.node === id);
@@ -289,6 +303,8 @@ export async function runLocal(run: LocalRun): Promise<number> {
   } finally {
     process.off('SIGINT', stop);
   }
+  // The runners end before the cache they were given goes.
+  await Promise.all(runners.map((runner) => runner.shutdown()));
 
   // Skipped steps keep the record of the run that did the work. A branching run supersedes work records instead of
   // replacing them (the first branch's stay, so the trail shows both branches), and start and end events supersede

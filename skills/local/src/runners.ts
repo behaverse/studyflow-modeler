@@ -1,9 +1,12 @@
-import { execFile, spawn } from 'node:child_process';
-import { accessSync, appendFileSync, constants, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import { accessSync, constants, existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
+import { createInterface } from 'node:readline';
+import { createInterface as createPrompt } from 'node:readline/promises';
+import type { Readable, Writable } from 'node:stream';
 
-import { PROTOCOL, type Talk } from '@core/engine';
+import { HandoffError, PROTOCOL, type Handback, type Message, type Talk } from '@core/engine';
 import { parseSkillManifest } from '@core/notation/skill';
 import type { RunLog } from '@skills/local/src/log';
 
@@ -106,117 +109,216 @@ export function discoverRunners(roots: string[], dependencies: string[]): Map<st
 
 export type Claims = { elements: string[]; live: boolean };
 
+/** How long a runner asked to stop a hand-off, or to shut down, has before its process is ended. */
+const GRACE_MS = 2000;
+
+type Process = ChildProcessByStdio<Writable, Readable, null>;
+
+/** A JSON-RPC 2.0 message, one a line. */
+type Rpc = { id?: string | number; method?: string; params?: Record<string, any>; result?: any; error?: { code?: number; message?: string; data?: unknown } };
+
+/** What a runner answered a request with, when it answered with an error. */
+class Refused extends Error {
+  readonly data: unknown;
+
+  constructor(message: string, data?: unknown) {
+    super(message);
+    this.data = data;
+  }
+}
+
 /**
- * A partial runner as a subprocess per element: `COMMAND <plan.json> --element <id> --cache <dir>`. It runs the
- * elements it claims (`COMMAND <plan.json> --claims` answers with their ids), whatever they are. One file per
- * hand-off, `<id>.state.json` in the cache: the run's values go in, and come back with `result`, `durationMs`, and on
- * failure `error` merged in. The runner's stdout goes to the run log; stdin and stderr stay on the terminal.
+ * A partial runner: one process for the whole run, spoken to in JSON-RPC 2.0 on its stdin and stdout, one message a
+ * line (SKILL.md, beside this folder, is the contract). `initialize` names the plan and the run and is answered with
+ * the elements it takes; `execute` hands it one, and is answered with what it hands back; `message` and `cancel` reach
+ * a hand-off while it runs; `shutdown` ends it. The runner sends `message` along a flow of the element it runs, `log`
+ * for the run log, and asks `prompt` of the person at the walk's terminal. Its stderr stays on the terminal.
  */
 export class PartialRunner {
   readonly name: string;
   readonly argv: string[];
   private readonly cwd: string | undefined;
-  private readonly plan: string;
-  private readonly cache: string;
+  private readonly dir: string;
   private readonly log: RunLog;
-  private readonly debug: boolean;
   /** Seconds a hand-off may take before it is stopped (`--step-timeout`). */
   private readonly timeout: number | undefined;
+  /** The local skill's folder, where a runner finds the SDK (`STUDYFLOW_LOCAL`). */
+  private readonly local: string | undefined;
+  private child: Process | undefined;
+  private asked = 0;
+  private readonly waiting = new Map<string, { resolve(result: any): void; reject(error: Error): void }>();
+  /** The hand-offs that exchange messages while they run, by element. */
+  private readonly talks = new Map<string, Talk>();
+  private prompting: Promise<unknown> = Promise.resolve();
 
-  constructor(name: string, { command, cwd }: RunnerCommand, repo: string, log: RunLog, options: { debug: boolean; timeout?: number }) {
+  constructor(name: string, { command, cwd }: RunnerCommand, repo: string, log: RunLog, options: { timeout?: number; local?: string }) {
     this.name = name;
     this.argv = shellWords(command);
     this.cwd = cwd;
-    this.cache = path.join(repo, '.cache');
-    this.plan = path.join(this.cache, 'plan.json');
+    this.dir = repo;
     this.log = log;
-    this.debug = options.debug;
     this.timeout = options.timeout;
+    this.local = options.local;
   }
 
-  /** The elements it will run; undefined when its command is not on this machine, so it claims none. */
+  /** Starts it, and asks which elements it will run; undefined when its command is not on this machine, so it
+   * claims none. */
   async claims(): Promise<Claims | undefined> {
-    const done = await new Promise<{ error: (Error & { code?: unknown }) | null; stdout: string; stderr: string }>((resolve) => {
-      execFile(this.argv[0], [...this.argv.slice(1), this.plan, '--claims'], { cwd: this.cwd, encoding: 'utf8' },
-        (error, stdout, stderr) => resolve({ error, stdout, stderr }));
-    });
-    if (done.error?.code === 'ENOENT') return undefined;
-    const lines = done.stdout.split('\n').filter((line) => line.trim());
-    if (done.error || lines.length === 0) {
-      const detail = done.stderr.trim().split('\n');
-      throw new Error(`${this.name} --claims failed: ${detail.at(-1) || done.error?.message || 'it answered nothing'}`);
+    let answer: Record<string, any>;
+    try {
+      answer = await this.open();
+    } catch (error) {
+      if ((error as { code?: unknown }).code === 'ENOENT') return undefined;
+      void this.shutdown();
+      // What it lacks to run this study, in its own words; else it never spoke.
+      if (error instanceof Refused) throw new Error(`the ${this.name} runner cannot run this study: ${error.message}`);
+      throw new Error(`the ${this.name} runner did not answer initialize (${(error as Error).message}): this walk speaks hand-off protocol ${PROTOCOL}`);
     }
-    const answer = JSON.parse(lines.at(-1)!);
-    // A plain array marks its elements live; a runner may say which version of the contract it speaks.
-    if (Array.isArray(answer)) return { elements: answer, live: true };
-    if ((answer.protocol ?? PROTOCOL) !== PROTOCOL) {
-      throw new Error(`${this.name} speaks hand-off protocol ${answer.protocol}; this walk speaks ${PROTOCOL}`);
+    if (answer?.protocol !== PROTOCOL) {
+      void this.shutdown();
+      throw new Error(`${this.name} speaks hand-off protocol ${answer?.protocol}; this walk speaks ${PROTOCOL}`);
     }
     return { elements: answer.elements ?? [], live: answer.live ?? true };
   }
 
-  /** One hand-off. While the runner runs, each line it appends to `<id>.outbox.jsonl` goes along the flow it names,
-   * and each message along a flow into the element is appended to `<id>.inbox.jsonl`. */
-  async element(id: string, values: Record<string, unknown>, talk?: Talk, signal?: AbortSignal): Promise<Record<string, unknown>> {
-    mkdirSync(this.cache, { recursive: true });
-    const handoff = path.join(this.cache, `${id}.state.json`);
-    writeFileSync(handoff, JSON.stringify(values));
-    const outbox = path.join(this.cache, `${id}.outbox.jsonl`);
-    const inbox = path.join(this.cache, `${id}.inbox.jsonl`);
-    if (talk) for (const box of [outbox, inbox]) rmSync(box, { force: true });
-
-    let done = 0;
-    const carry = (): void => {
-      const data = existsSync(outbox) ? readFileSync(outbox) : Buffer.alloc(0);
-      const end = data.lastIndexOf('\n') + 1; // whole lines only: the runner may be writing the next one
-      for (const line of data.subarray(done, end).toString('utf8').split('\n').filter((text) => text.trim())) {
-        let message: unknown;
-        try {
-          message = JSON.parse(line);
-        } catch {
-          message = { flow: line.slice(0, 80) };
-        }
-        talk!.send(message as Parameters<Talk['send']>[0]);
-      }
-      done = end;
-      const due = talk!.take();
-      if (due.length > 0) appendFileSync(inbox, due.map((message) => `${JSON.stringify(message)}\n`).join(''));
-    };
-
+  /** The process, started and told the plan and the run. */
+  private open(): Promise<Record<string, any>> {
+    const cache = path.join(this.dir, '.cache');
     // The walk's own pid, so whatever a runner leaves running for the study can follow the walk; unbuffered, so a
-    // Python runner's progress shows while it works, not when it is done.
-    const child = spawn(this.argv[0], [...this.argv.slice(1), this.plan, '--element', id, '--cache', this.cache], {
+    // Python runner's lines come as it writes them.
+    const child = this.child = spawn(this.argv[0], this.argv.slice(1), {
       cwd: this.cwd,
-      env: { ...process.env, STUDYFLOW_RUN_PID: String(process.pid), PYTHONUNBUFFERED: '1' },
-      stdio: ['inherit', 'pipe', 'inherit'],
+      env: { ...process.env, STUDYFLOW_RUN_PID: String(process.pid), PYTHONUNBUFFERED: '1', ...(this.local ? { STUDYFLOW_LOCAL: this.local } : {}) },
+      stdio: ['pipe', 'pipe', 'inherit'],
     });
-    let timedOut = false;
-    const timer = this.timeout ? setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, this.timeout * 1000) : undefined;
-    // A timer at a boundary event ends the step: its runner is asked to stop.
-    signal?.addEventListener('abort', () => child.kill('SIGTERM'));
-    const pump = talk ? setInterval(carry, 50) : undefined;
-    let pending = '';
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => { // an element can take minutes (a robot seating itself): relay as it comes
-      const lines = (pending + chunk).split('\n');
-      pending = lines.pop() ?? '';
-      for (const line of lines) if (line.trim()) this.log.event('runner.stdout', `    ${line.trimEnd()}`);
-    });
-    const code = await new Promise<number | null>((resolve, reject) => {
-      child.on('error', reject);
-      child.on('close', resolve);
-    }).finally(() => {
-      clearTimeout(timer);
-      clearInterval(pump);
-    });
-    if (pending.trim()) this.log.event('runner.stdout', `    ${pending.trimEnd()}`);
-    if (talk) carry(); // one more pass after the runner exits, for what it wrote last
-
-    const state = existsSync(handoff) ? JSON.parse(readFileSync(handoff, 'utf8')) : {};
-    // Only the read state file goes; the cache survives the run (spilled values live there) and is swept at its end.
-    if (!this.debug) rmSync(handoff, { force: true });
-    if (timedOut) throw new Error(`${this.name}: ${id} took longer than ${this.timeout}s, and was stopped`);
-    if (code !== 0 || state.error) throw new Error(`${this.name}: ${state.error || `exited with code ${code}`}`);
-    return state;
+    const ended = (error: Error): void => {
+      if (this.child === child) this.child = undefined;
+      for (const [id, asked] of [...this.waiting]) {
+        this.waiting.delete(id);
+        asked.reject(error);
+      }
+    };
+    child.on('error', ended);
+    child.on('close', (code) => ended(new Error(`its process ended${code ? ` with code ${code}` : ''}`)));
+    child.stdin.on('error', () => undefined); // a runner that is gone: its `close` says so
+    createInterface({ input: child.stdout }).on('line', (line) => this.heard(line));
+    return this.request('initialize', { protocol: PROTOCOL, plan: path.join(cache, 'plan.json'), run: { dir: this.dir, cache } });
   }
+
+  private write(message: Rpc): void {
+    this.child?.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`);
+  }
+
+  private request(method: string, params: Record<string, unknown>): Promise<any> {
+    const id = `w${this.asked += 1}`;
+    return new Promise((resolve, reject) => {
+      this.waiting.set(id, { resolve, reject });
+      this.write({ id, method, params });
+    });
+  }
+
+  /** One line from the runner: an answer, a message along a flow, a line for the log, a question for the person. */
+  private heard(line: string): void {
+    let message: Rpc | undefined;
+    try {
+      message = JSON.parse(line);
+    } catch { /* not the protocol: a line something under the runner printed */ }
+    if (!message || typeof message !== 'object' || (message.method === undefined && message.id === undefined)) {
+      if (line.trim()) this.log.event('runner.stdout', `    ${line.trimEnd()}`);
+      return;
+    }
+    const { id, method, params = {} } = message;
+    if (method === undefined) {
+      const asked = this.waiting.get(String(id));
+      this.waiting.delete(String(id));
+      if (message.error) asked?.reject(new Refused(message.error.message ?? 'it failed', message.error.data));
+      else asked?.resolve(message.result);
+    } else if (method === 'log') {
+      this.log.event('runner.stdout', `    ${String(params.text ?? '').trimEnd()}`);
+    } else if (method === 'message') {
+      const talk = this.talks.get(params.element);
+      if (talk) talk.send({ flow: params.flow, content: params.content, id: params.id, inReplyTo: params.inReplyTo });
+      else this.log.event('message.misrouted', `    ✉ the ${this.name} runner sent a message for ${params.element}, which exchanges none now`, { level: 'warning' });
+    } else if (method === 'prompt') {
+      const answer = this.prompting = this.prompting.then(() => this.prompt(String(params.text ?? ''), String(params.default ?? '')));
+      void answer.then((result) => this.write({ id, result }));
+    } else if (id !== undefined) {
+      this.write({ id, error: { code: -32601, message: `the walk has no method ${method}` } });
+    }
+  }
+
+  /** A question for the person running the study, one at a time; the default when there is no terminal to ask at. */
+  private async prompt(text: string, fallback: string): Promise<string> {
+    if (!process.stdin.isTTY) return fallback;
+    const terminal = createPrompt({ input: process.stdin, output: process.stderr });
+    try {
+      return (await terminal.question(`${text} `)) || fallback;
+    } finally {
+      terminal.close();
+    }
+  }
+
+  /** One hand-off. While it runs, each message the runner sends goes along the flow it names, and each message along
+   * a flow into the element is passed on as it arrives. A hand-off that is stopped (a timer at a boundary event, or
+   * `--step-timeout`) is told `cancel`; a runner that does not answer in time is ended, and started again for the
+   * next hand-off. */
+  async element(id: string, values: Record<string, unknown>, { message, talk, signal }: { message?: Message; talk?: Talk; signal?: AbortSignal } = {}): Promise<Handback> {
+    if (!this.child) await this.open();
+    const child = this.child!;
+    let over = false;
+    let finish = (): void => undefined;
+    const finished = new Promise<void>((resolve) => { finish = resolve; });
+    if (talk) {
+      this.talks.set(id, talk);
+      void (async () => {
+        while (!over) {
+          for (const due of talk.take()) this.write({ method: 'message', params: { element: id, message: due } });
+          await Promise.race([talk.arrived(), finished]);
+        }
+      })();
+    }
+    let stopped: string | undefined;
+    let grace: NodeJS.Timeout | undefined;
+    const cancel = (why: string): void => {
+      if (stopped) return;
+      stopped = why;
+      this.write({ method: 'cancel', params: { element: id } });
+      grace = setTimeout(() => end(child), GRACE_MS);
+    };
+    const timer = this.timeout ? setTimeout(() => cancel(`took longer than ${this.timeout}s, and was stopped`), this.timeout * 1000) : undefined;
+    const aborted = (): void => cancel('was stopped');
+    signal?.addEventListener('abort', aborted);
+    try {
+      return await this.request('execute', { element: id, values, ...(message ? { message } : {}) });
+    } catch (error) {
+      // What it had bound before it failed comes back with the failure.
+      const partial = error instanceof Refused && error.data && typeof error.data === 'object' ? error.data as Handback : undefined;
+      throw new HandoffError(`${this.name}: ${stopped ? `${id} ${stopped}` : (error as Error).message}`, partial);
+    } finally {
+      clearTimeout(timer);
+      clearTimeout(grace);
+      signal?.removeEventListener('abort', aborted);
+      over = true;
+      finish();
+      this.talks.delete(id);
+    }
+  }
+
+  /** The run is over: the runner is told, and ended if it stays. */
+  async shutdown(): Promise<void> {
+    const { child } = this;
+    if (!child) return;
+    const closed = new Promise<void>((resolve) => { child.once('close', () => resolve()); });
+    this.request('shutdown', {}).catch(() => undefined);
+    const grace = setTimeout(() => end(child), GRACE_MS);
+    await closed;
+    clearTimeout(grace);
+  }
+}
+
+/** Ends a runner's process: asked first, so a command that wraps it (`uv run`) passes the signal on. */
+function end(child: Process): void {
+  child.kill('SIGTERM');
+  const last = setTimeout(() => child.kill('SIGKILL'), GRACE_MS);
+  child.once('close', () => clearTimeout(last));
 }

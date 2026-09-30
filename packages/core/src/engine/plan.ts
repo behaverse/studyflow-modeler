@@ -13,7 +13,7 @@ import type { Timer } from '@core/engine/timer';
  */
 
 /** The version of the hand-off contract (skills/local/SKILL.md) a plan is written for. */
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 
 export type Expression = { body: string; language: string | null };
 

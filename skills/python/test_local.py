@@ -66,16 +66,12 @@ for found, error in (("fake 1.2.3", None), ("fake 1.2", None), ("fake 1.20", "pi
 python.distribution = installed
 
 # A hand-off hands back what provided the step's implementation, as `record`, beside its result.
-with tempfile.TemporaryDirectory() as folder:
-    cache = Path(folder) / ".cache"
-    cache.mkdir()
-    (cache / "plan.json").write_text(json.dumps({"elements": {"Dump": {
-        "id": "Dump", "type": "serviceTask", "attributes": {"implementation": "python://json.dumps"}, "additionalArguments": "obj: [1]"}}}))
-    (cache / "Dump.state.json").write_text("{}")
-    sys.argv = ["local.py", str(cache / "plan.json"), "--element", "Dump", "--cache", str(cache)]
-    assert python.main() == 0
-    handed = json.loads((cache / "Dump.state.json").read_text())
-    assert handed["result"] == "[1]" and handed["record"] == {"version": f"python {platform.python_version()}"}, handed
+from runner import Step  # noqa: E402 - the SDK, on the path since `local` was imported
+
+dump = {"id": "Dump", "type": "serviceTask", "attributes": {"implementation": "python://json.dumps"}, "additionalArguments": "obj: [1]"}
+step = Step("Dump", {"elements": {"Dump": dump}}, {})
+assert python.claims(step.plan) == {"live": False, "elements": ["Dump"]}
+assert python.execute(step) == "[1]" and step.record == {"version": f"python {platform.python_version()}"}, step.record
 
 # A `.jsonl` artifact (the behaverse runner's trial events) round-trips as a table, its nested keys as `a.b` columns.
 if importlib.util.find_spec("pandas") is None:
