@@ -61,10 +61,16 @@ export type Host = {
   outputs?(id: string, targets: string[], entry: Entry, note: Note): void;
   /** The walk is about to leave an element. */
   passed?(id: string): void;
+  /** A pool's token moves into `to`: along a sequence flow when it took one, else it starts there, or leaves an
+   * activity for its boundary event. The walk waits for it, so a host may show the move. `pool` names whose token. */
+  moved?(to: string, along: string | undefined, pool: string): void | Promise<void>;
+  /** A gateway the walk could not decide, because a condition could not be evaluated: a dry run, where no step ran to
+   * bind what the condition reads, names the flow to take. */
+  decide?(gateway: string, flows: string[], error: Error): string | undefined;
 };
 
 export type WalkOptions = {
-  /** The run's seed: the study's, unless the run was given another. */
+  /** The run's seed: the study's, unless the run was given another; `null` runs unseeded whatever the study says. */
   seed?: string | number | null;
   /** The `state` tree the study carries from earlier runs. */
   state?: StateTree;
@@ -89,6 +95,8 @@ class Interrupted extends Error {
 
 /** One pool's walk: where it is, what it watches, what it last heard. */
 type Thread = {
+  /** The process it walks. */
+  pool: string;
   depth: number;
   /** The activities it is inside, outermost first, each with the message flows that end it and their boundary events. */
   watching: { activity: string; flows: Map<string, PlanElement> }[];
@@ -145,7 +153,7 @@ export class Walk {
     this.state = options.state ?? {};
     this.maxSteps = options.maxSteps ?? 1000;
     this.oneInstance = options.oneInstance ?? false;
-    const seed = Number(options.seed ?? plan.study.seed ?? NaN);
+    const seed = Number((options.seed === undefined ? plan.study.seed : options.seed) ?? NaN);
     this.seed = Number.isInteger(seed) ? seed : undefined; // unseeded: `Math.random()`, and a re-run replays the recorded decision instead
 
     const { graph } = this;
@@ -174,7 +182,7 @@ export class Walk {
     // Study-scoped properties persist across runs, so only ones the tree lacks take their `value`; a plain element's
     // properties live with the study (`Excluded (n={count})` counts across runs).
     for (const scope of graph.properties.keys()) {
-      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.startScope(scope, false, { depth: 0, watching: [], heard: new Map() });
+      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.startScope(scope, false, { pool: '', depth: 0, watching: [], heard: new Map() });
     }
   }
 
@@ -210,7 +218,7 @@ export class Walk {
    * instances run one after another, as a multi-instance activity's passes do. */
   private async runPool(pool: string): Promise<void> {
     const { graph } = this;
-    const thread: Thread = { depth: 0, watching: [], heard: new Map() };
+    const thread: Thread = { pool, depth: 0, watching: [], heard: new Map() };
     const { participant, instances: drawn } = graph.instancesOf(pool);
     const instances = this.oneInstance ? 1 : drawn;
     const start = graph.entryOf(pool);
@@ -220,6 +228,7 @@ export class Walk {
         this.meta('instance')[participant] = instance;
         this.startScope(pool, true, thread);
       }
+      await this.host.moved?.(start.id, undefined, pool);
       await this.walk(start, 0, thread);
     }
     // The pool is one sender: a flow out of its participant to a step in another pool ("All subjects complete")
@@ -301,6 +310,7 @@ export class Walk {
             this.trace.push(boundary.id);
             this.count(boundary.id);
             this.reached.set(boundary.id, host.now());
+            await host.moved?.(boundary.id, undefined, thread.pool);
             this.log(thread, 'event.reached', `○ ${boundary.id}  (ended ${id})`);
             element = await this.next(boundary, thread);
             continue;
@@ -427,6 +437,7 @@ export class Walk {
         // for one only where sequence flows run inside).
         this.log(thread, 'subProcess.unwalked', `    ${id} has no start event, so nothing inside it runs; stepping past it`, { level: 'warning' });
       } else {
+        await host.moved?.(start.id, undefined, thread.pool);
         await this.walk(start, depth + 1, thread);
       }
     } catch (error) {
@@ -578,9 +589,11 @@ export class Walk {
   }
 
   /** Take a sequence flow: counted like a visit, so a node is reached as often as its incoming flows are taken. */
-  private follow(flow: PlanElement): PlanElement | undefined {
+  private async follow(flow: PlanElement, thread: Thread): Promise<PlanElement | undefined> {
     this.count(flow.id);
-    return this.graph.get(flow.attributes.targetRef);
+    const target = this.graph.get(flow.attributes.targetRef);
+    if (target) await this.host.moved?.(target.id, flow.id, thread.pool);
+    return target;
   }
 
   private async next(element: PlanElement, thread: Thread): Promise<PlanElement | undefined> {
@@ -588,7 +601,7 @@ export class Walk {
     const { id } = element;
     const flows = graph.outgoing.get(id) ?? [];
     if (flows.length === 0) return undefined;
-    if (!GATEWAY_TYPES.has(element.type)) return this.follow(flows[0]);
+    if (!GATEWAY_TYPES.has(element.type)) return this.follow(flows[0], thread);
 
     // A clean gateway replays its recorded decision: same inputs, same seed, same verdict. A gateway a live runner
     // samples decides live, so its decision never replays.
@@ -597,19 +610,19 @@ export class Walk {
     if (prior && replayed) {
       this.log(thread, 'gateway.replayed', `↻ ${id} → ${prior.flow}  (decision from run ${prior.run})`);
       host.settled?.({ action: 'reused', id, flow: prior.flow, when: host.now(), run: prior.run });
-      return this.follow(replayed);
+      return this.follow(replayed, thread);
     }
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
 
     /** Record the decision and how it was made, then follow `flow`. */
-    const take = (flow: PlanElement, how: string, marks: Record<string, boolean> = {}): PlanElement | undefined => {
+    const take = (flow: PlanElement, how: string, marks: Record<string, boolean> = {}): Promise<PlanElement | undefined> => {
       entry.taken = { sequenceFlow: flow.id, name: flow.name, ...marks };
       this.steps.end(entry);
       const when = host.now();
       this.decisions.set(id, { flow: flow.id, when });
       this.log(thread, 'sequenceFlow.taken', `    ${how} → ${flow.id}`, { data: { element: id, flow: flow.id, how } });
       host.settled?.({ action: 'executed', id, flow: flow.id, when });
-      return this.follow(flow);
+      return this.follow(flow, thread);
     };
 
     if (element.type === 'eventBasedGateway') {
@@ -663,6 +676,8 @@ export class Walk {
         if (verdict === true) return take(flow, flow.condition.body);
       }
     } catch (error) {
+      const decided = flows.find((flow) => flow.id === host.decide?.(id, flows.map((flow) => flow.id), error as Error));
+      if (decided) return take(decided, 'decided by the host');
       this.steps.fail(entry, error);
       throw error;
     }

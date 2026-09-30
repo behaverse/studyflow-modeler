@@ -6,7 +6,7 @@ export const CONTAINER_TYPES = new Set(['subProcess', 'adHocSubProcess', 'transa
 export const PASSTHROUGH_TYPES = new Set(['startEvent', 'intermediateCatchEvent', 'intermediateThrowEvent']);
 
 /** What a container holds that no sequence flow leads to. */
-const NOT_FLOW_NODES = new Set([...DATA_TYPES, 'sequenceFlow', 'boundaryEvent', 'textAnnotation', 'association', 'group']);
+export const NOT_FLOW_NODES = new Set([...DATA_TYPES, 'sequenceFlow', 'boundaryEvent', 'textAnnotation', 'association', 'group']);
 
 /** A `value` or `seed` attribute: JSON when it parses, else the text as written. */
 export function literal(text: unknown): unknown {

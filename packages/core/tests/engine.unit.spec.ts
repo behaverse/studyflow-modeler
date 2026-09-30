@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
-import { Walk, allocationOf, draw, permutedBlock, pick, planOf, type Host, type PlanElement, type Talk, type WalkOptions } from '@core/engine';
+import { Walk, allocationOf, draw, dryHost, permutedBlock, pick, planOf, type Host, type PlanElement, type Talk, type WalkOptions } from '@core/engine';
 import { freshModdle } from '@tests/schemas';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
@@ -836,4 +836,43 @@ S:
   expect(seen).toEqual([['Block', 'S', undefined, { arm: 'treatment', failed: 3 }]]);
   expect(walk.state._meta.reached.Trial).toBe(1);
   expect(walk.inScope('S9')).toEqual({ arm: 'treatment' });
+});
+
+test('a dry run walks the study and executes nothing: steps are done at once, a pool nobody plays answers, a gateway nothing can decide takes a flow', async () => {
+  const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: S }
+    Model: { name: Model }
+  messageFlows:
+    M_Ask: { sourceRef: Ask, targetRef: Model }
+    M_Reply: { sourceRef: Model, targetRef: Ask }
+S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Fit: { type: ServiceTask, implementation: "python://m.fit" }
+    Ask: { type: Task }
+    Good: { type: ExclusiveGateway }
+    Report: { type: EndEvent }
+    Retry: { type: EndEvent }
+    F1: Start -> Fit
+    F2: Fit -> Ask
+    F3: Ask -> Good
+    F_Yes:
+      sourceRef: Good
+      targetRef: Report
+      conditionExpression: Fit.accuracy > 0.9
+    F_No:
+      sourceRef: Good
+      targetRef: Retry
+      conditionExpression: Fit.accuracy <= 0.9
+`, freshModdle()));
+  const moves: string[] = [];
+  const walk = new Walk(plan, dryHost(plan, { moved: (to, along, pool) => { moves.push(`${pool}: ${along ?? 'at'} ${to}`); } }), { seed: null });
+  await walk.run();
+  // One token, the lab's: it starts at the start event and takes each flow in turn; the gateway's flow is the host's pick.
+  expect(moves.slice(0, 4)).toEqual(['S: at Start', 'S: F1 Fit', 'S: F2 Ask', 'S: F3 Good']);
+  expect(['S: F_Yes Report', 'S: F_No Retry']).toContain(moves[4]);
+  expect(walk.steps.status).toBe('ok');
 });
