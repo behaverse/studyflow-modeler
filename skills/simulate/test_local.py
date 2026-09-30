@@ -17,7 +17,7 @@ elements = {
     "Timeline": {"type": "serviceTask", "attributes": {"implementation": "simulate://simon"}},
     "Other": {"type": "serviceTask", "attributes": {"implementation": "python://math.sqrt"}},
 }
-assert simulate.claims(elements) == ["Pool", "Timeline"], simulate.claims(elements)
+assert simulate.claims({"elements": elements}) == ["Pool", "Timeline"], simulate.claims({"elements": elements})
 
 # A timeline is the seed's alone: every subject meets the same one, and a Simon block is half congruent.
 trials = simulate.simon(42, "Timeline", trials=30)
@@ -48,14 +48,15 @@ assert simulate.option_named("match", ["match", "non-match"]) == "match"
 # A record scores each answer and appends to the store its output names; a second subject adds to it.
 with tempfile.TemporaryDirectory() as tmp:
     run = Path(tmp)
-    plan = {"Rec": {"id": "Rec", "type": "serviceTask", "parent": "P", "attributes": {"implementation": "simulate://record"},
+    elements = {"Rec": {"id": "Rec", "type": "serviceTask", "parent": "P", "attributes": {"implementation": "simulate://record"},
                     "inputs": [{"source": "Trials"}, {"source": "Answers"}], "outputs": [{"target": "Store"}]},
-            "Store": {"type": "dataStoreReference", "attributes": {"uri": "data/trials.jsonl"}}}
+                "Store": {"type": "dataStoreReference", "attributes": {"uri": "data/trials.jsonl"}}}
+    plan = {"elements": elements}
     two = trials[:2]
     state = {"Trials": two, "Answers": [two[0]["Correct"], "maybe"], "state": {"P": {"arm": "calm"}, "_meta": {"instance": {"Pool": 3}}}}
     args = {"subject": "{state._meta.instance.Pool}", "arm": "{arm}"}
-    assert simulate.record(plan["Rec"], args, plan, state, run) == {"trials": 2, "answered": 1, "failedTrialRate": 0.5}
-    simulate.record(plan["Rec"], args, plan, state, run)
+    assert simulate.record(elements["Rec"], args, plan, state, run) == {"trials": 2, "answered": 1, "failedTrialRate": 0.5}
+    simulate.record(elements["Rec"], args, plan, state, run)
     rows = [json.loads(line) for line in (run / "data/trials.jsonl").read_text().splitlines()]
     assert len(rows) == 4 and rows[0]["context"] == {"subject": 3, "state": {"arm": "calm"}}
     assert [row["result"]["isCorrect"] for row in rows[:2]] == [True, None]

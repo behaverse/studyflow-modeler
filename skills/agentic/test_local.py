@@ -2,9 +2,7 @@
 `python3 skills/agentic/test_local.py`."""
 
 import importlib.util
-import json
 import os
-import sys
 import tempfile
 import urllib.error
 from pathlib import Path
@@ -33,7 +31,7 @@ elements = {
     "Subject": {"type": "subProcess", "parent": "Study"},
 }
 plan = {"elements": elements, "names": {"Play_1": "Play"}}
-assert agentic.model_pools(elements) == ["Model"]
+assert agentic.model_pools(plan) == ["Model"]
 assert agentic.model_of("Model", elements["Model"]) == ("ollama", "gemma4:12b-it-qat")
 try:
     agentic.model_of("Person", actor(actorType="llm"))
@@ -60,8 +58,7 @@ with tempfile.TemporaryDirectory() as run:
         {"text": "Be cautious. Trial 3 of 8, in B12. {nothing}"}]
     # Asked from the study's own scope instead, the study's own `arm` is the one in reach, and a step no run
     # reached counts 0 rather than borrowing its container's count.
-    assert agentic.parts_of({"Arm": None}, plan, Path(run), values, "Study")[0]["text"].startswith("Be impulsive.")
-    assert agentic.resolve("reached", "Subject", values, plan) == 0
+    assert agentic.parts_of({"Arm": None}, plan, Path(run), values, "Study")[0]["text"].startswith("Be impulsive. Trial 0 ")
 
 # A hand-off hands back, beside the reply, a record of what answered and what it was asked: the model's digest and
 # quantization, its default sampling parameters, Ollama's version, the options sent, and the request's text and images.
@@ -82,30 +79,23 @@ def get(url, timeout):
 
 
 agentic.post, agentic.get = post, get
-with tempfile.TemporaryDirectory() as run:
-    cache = Path(run) / ".cache"
-    cache.mkdir()
-    (cache / "plan.json").write_text(json.dumps({"elements": {
-        "Model": elements["Model"], "M_Ask": {"type": "messageFlow", "attributes": {"sourceRef": "Task", "targetRef": "Model"}}}}))
-    content = {"Note": "left is yellow", "Frame": "data:image/png;base64,AAAA", "Trial": {"n": 1}}
-    (cache / "Model.state.json").write_text(json.dumps({"message": {"id": "m1", "flow": "M_Ask", "content": content}}))
-    sys.argv = ["local.py", str(cache / "plan.json"), "--element", "Model", "--cache", str(cache)]
-    assert agentic.main() == 0
-    handed = json.loads((cache / "Model.state.json").read_text())
-    assert handed["result"] == "Left" and handed["record"] == {
-        "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False}, "digest": "ab12", "quantization": "Q4_0",
-        "parameters": "temperature 1\ntop_k 64", "version": "ollama 0.12.3",
-        "sent": {"text": 'left is yellow\n\n{"n": 1}', "images": 1},
-    }, handed
+asked = {"elements": {"Model": elements["Model"], "M_Ask": {"type": "messageFlow", "attributes": {"sourceRef": "Task", "targetRef": "Model"}}}}
+content = {"Note": "left is yellow", "Frame": "data:image/png;base64,AAAA", "Trial": {"n": 1}}
+step = agentic.Step("Model", asked, {}, {"id": "m1", "flow": "M_Ask", "content": content})
+assert agentic.execute(step) == "Left" and step.record == {
+    "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False}, "digest": "ab12", "quantization": "Q4_0",
+    "parameters": "temperature 1\ntop_k 64", "version": "ollama 0.12.3",
+    "sent": {"text": 'left is yellow\n\n{"n": 1}', "images": 1},
+}, step.record
 
 
-# A lookup that fails is noted, and the answer stands.
+# A lookup that fails is noted, and the answer stands; a model is described once a run, so this is another one.
 def unreachable(url, timeout):
     raise urllib.error.URLError("connection refused")
 
 
 agentic.get = unreachable
-reply, record = agentic.ask_ollama("gemma4:12b-it-qat", [{"text": "Left or Right?"}])
+reply, record = agentic.ask_ollama("gemma4:1b", [{"text": "Left or Right?"}])
 assert reply == "Left" and "digest" not in record and set(record["unrecorded"]) == {"/api/tags", "/api/version"}, record
 assert record["parameters"] == "temperature 1\ntop_k 64", record
 

@@ -5,22 +5,25 @@
 # ///
 """Simulated tasks and participants with a planted truth (SKILL.md beside this file).
 
-A partial runner (skills/local/SKILL.md): `--claims` names every step whose `implementation` is
-`simulate://simon`, `simulate://nback` or `simulate://record`, and every pool without a process whose actor's
-`implementation` is `simulate://planted` or `simulate://null`; `--element ID` runs one of them.
+A partial runner (skills/local/SKILL.md): it claims every step whose `implementation` is `simulate://simon`,
+`simulate://nback` or `simulate://record`, and every pool without a process whose actor's `implementation` is
+`simulate://planted` or `simulate://null`.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
+import os
 import random
 import re
-import time
+import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
+from runner import Step, read, serve  # noqa: E402 - the runner SDK, beside the local runtime
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 SCHEME = "simulate://"
@@ -41,7 +44,6 @@ PLANTED = {
 NULL_ACCURACY = 0.85
 MISS_RATE = 1 / 30
 SPEED = re.compile(r"\b(fast|first impression)", re.IGNORECASE)
-PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")
 
 
 def implementation_of(element: dict[str, Any]) -> str:
@@ -53,9 +55,9 @@ def implementation_of(element: dict[str, Any]) -> str:
     return str((element.get("attributes") or {}).get("implementation") or "")
 
 
-def claims(elements: dict[str, dict[str, Any]]) -> list[str]:
+def claims(plan: dict[str, Any]) -> list[str]:
     claimed = []
-    for element_id, element in elements.items():
+    for element_id, element in (plan.get("elements") or {}).items():
         ref = implementation_of(element)
         if not ref.startswith(SCHEME):
             continue
@@ -140,33 +142,7 @@ def answer(profile: str, seed: Any, message: dict[str, Any]) -> str:
     return str(trial.get("Correct")) if draw.random() < p or not wrong else draw.choice(wrong)
 
 
-def resolve(text: Any, element_id: str, elements: dict[str, dict[str, Any]], state: dict[str, Any]) -> Any:
-    """`{name}` by the placeholder rule's first two steps: `state` from its root, then the scopes outward."""
-    if not isinstance(text, str):
-        return text
-    tree = state.get("state") or {}
-
-    def lookup(path: str) -> Any:
-        head, *fields = path.split(".")
-        if head == "state":
-            value: Any = tree
-            fields = list(fields)
-        else:
-            scope, value = element_id, None
-            while scope and value is None:
-                value = (tree.get(scope) or {}).get(head)
-                scope = str((elements.get(scope) or {}).get("parent") or "")
-        for field in fields:
-            value = value.get(field) if isinstance(value, dict) else None
-        return value
-
-    whole = PLACEHOLDER.fullmatch(text.strip())
-    if whole:
-        return lookup(whole.group(1))
-    return PLACEHOLDER.sub(lambda m: str(lookup(m.group(1))), text)
-
-
-def record(element: dict[str, Any], arguments: dict[str, Any], elements: dict[str, dict[str, Any]],
+def record(element: dict[str, Any], arguments: dict[str, Any], plan: dict[str, Any],
            state: dict[str, Any], run_dir: Path) -> dict[str, Any]:
     """Score the answers against their trials and append one row per trial to the data store the step writes."""
     sources = [binding.get("source") for binding in element.get("inputs") or []]
@@ -176,8 +152,8 @@ def record(element: dict[str, Any], arguments: dict[str, Any], elements: dict[st
     if trials is None or answers is None or len(trials) != len(answers):
         raise ValueError(f"{element['id']} reads a timeline and the answers collected for it, one per trial; "
                          f"got {len(trials or [])} trials and {len(answers or [])} answers")
-    subject = resolve(arguments.get("subject"), element["id"], elements, state)
-    arm = resolve(arguments.get("arm"), element["id"], elements, state)
+    subject = read(arguments.get("subject"), element["id"], state, plan)
+    arm = read(arguments.get("arm"), element["id"], state, plan)
     rows = []
     for trial, reply in zip(trials, answers):
         chosen = option_named(reply, [str(o) for o in trial.get("ResponseOptions") or []])
@@ -188,7 +164,7 @@ def record(element: dict[str, Any], arguments: dict[str, Any], elements: dict[st
             "result": {"response": chosen, "isCorrect": None if chosen is None else chosen == trial.get("Correct")},
         })
     target = next((binding.get("target") for binding in element.get("outputs") or [] if binding.get("target")), None)
-    uri = ((elements.get(str(target)) or {}).get("attributes") or {}).get("uri") if target else None
+    uri = (((plan.get("elements") or {}).get(str(target)) or {}).get("attributes") or {}).get("uri") if target else None
     if uri:
         path = run_dir / uri
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -199,48 +175,21 @@ def record(element: dict[str, Any], arguments: dict[str, Any], elements: dict[st
     return {"trials": len(rows), "answered": answered, "failedTrialRate": (len(rows) - answered) / len(rows) if rows else 0.0}
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, help="the plan digest the walk hands over (plan.json)")
-    parser.add_argument("--claims", action="store_true", help="print the claimed element ids and exit")
-    parser.add_argument("--element", metavar="ID", default=None, help="run this one element")
-    parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state: <id>.state.json")
-    args = parser.parse_args()
-
-    plan: dict[str, Any] = json.loads(args.plan.read_text())
-    elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
-    if args.claims:
-        print(json.dumps(claims(elements)))
-        return 0
-    if not args.element:
-        parser.error("pass --element or --claims")
-    cache = args.cache or Path(".")
-    run_dir = cache.parent if cache.name == ".cache" else cache
-    handoff = cache / f"{args.element}.state.json"
-    state = json.loads(handoff.read_text()) if handoff.exists() else {}
-    seed = (plan.get("study") or {}).get("seed")
-    clock = time.perf_counter()
-    element = elements.get(args.element) or {}
+def execute(step: Step) -> Any:
+    element = step.element
     kind = implementation_of(element)[len(SCHEME):]
-    try:
-        arguments = yaml.safe_load(element.get("additionalArguments") or "") or {}
-        if element.get("type") == "participant":
-            result: Any = answer(kind, seed, state.get("message") or {})
-            out: dict[str, Any] = {"result": result, "record": {"actor": f"{SCHEME}{kind}"}}
-        elif kind in ("simon", "nback"):
-            result = (simon if kind == "simon" else nback)(seed, args.element, **arguments)
-            out = {"result": result, **{b["target"]: result for b in element.get("outputs") or [] if b.get("target")}}
-        else:
-            out = {"result": record(element, arguments, elements, state, run_dir)}
-        if element.get("type") != "participant":
-            out[args.element] = out["result"]  # the step's own result, which `{Record.failedTrialRate}` reads
-        out["durationMs"] = round((time.perf_counter() - clock) * 1000, 1)
-    except Exception as error:  # noqa: BLE001 - reported to the walk, which records it
-        out = {"error": f"{type(error).__name__}: {error}"}
-    cache.mkdir(parents=True, exist_ok=True)
-    handoff.write_text(json.dumps({**state, **out}, default=str))
-    return 1 if "error" in out else 0
+    arguments = yaml.safe_load(element.get("additionalArguments") or "") or {}
+    if element.get("type") == "participant":
+        step.note(actor=f"{SCHEME}{kind}")
+        return answer(kind, step.seed, step.message or {})
+    if kind == "record":
+        return record(element, arguments, step.plan, step.values, step.run_dir)
+    result = (simon if kind == "simon" else nback)(step.seed, step.id, **arguments)
+    for binding in element.get("outputs") or []:
+        if binding.get("target"):
+            step.bind(binding["target"], result)
+    return result  # the step's own result too, which `{Record.failedTrialRate}` reads
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(serve(claims, execute))
