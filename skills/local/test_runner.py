@@ -30,4 +30,8 @@ back = step.handback("done", 0.0)
 assert {k: back[k] for k in ("result", "values", "state", "record")} == \
     {"result": "done", "values": {"Out": [1]}, "state": {"Round": {"count": 3}}, "record": {"version": "1.0"}}
 assert set(runner.Step("Step", inner, nested).handback(None, 0.0)) == {"durationMs"}
+# A result goes into each data output, narrowed by that edge's transformation.
+made = runner.Step("Make", {"elements": {"Make": {"outputs": [{"target": "Shown", "transformation": "result.trials"}, {"target": "All"}]}}}, {})
+made.outputs({"trials": [1, 2], "key": [3, 4]})
+assert made.bound == {"Shown": [1, 2], "All": {"trials": [1, 2], "key": [3, 4]}}
 print("ok")

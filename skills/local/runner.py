@@ -34,7 +34,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from feel import PLACEHOLDER  # noqa: E402 - a `{name}` citation, as the local runtime's FEEL reads it
+from feel import PLACEHOLDER, evaluate  # noqa: E402 - the local runtime's FEEL, and a `{name}` citation as it reads one
 
 PROTOCOL = 2
 
@@ -127,6 +127,14 @@ class Step:
         """A value later steps read, under the id it is bound to (a data edge's target). The step's own result is what
         `execute` returns."""
         self.bound[key] = value
+
+    def outputs(self, result: Any) -> None:
+        """Bind `result` into each of the element's data outputs, narrowed by that edge's `transformation` (FEEL over
+        `result`: `result.trials`), as the walk binds what a step it runs itself makes."""
+        for binding in self.element.get("outputs") or []:
+            if binding.get("target"):
+                narrowed = evaluate(binding["transformation"], {"result": result}) if binding.get("transformation") else result
+                self.bind(binding["target"], narrowed)
 
     def write(self, scope: str, name: str, value: Any) -> None:
         """A property of a scope: `state.<scope>.<name>`."""
