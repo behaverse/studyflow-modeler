@@ -157,7 +157,7 @@ export class PartialRunner {
 
   /** One hand-off. While the runner runs, each line it appends to `<id>.outbox.jsonl` goes along the flow it names,
    * and each message along a flow into the element is appended to `<id>.inbox.jsonl`. */
-  async element(id: string, values: Record<string, unknown>, talk?: Talk): Promise<Record<string, unknown>> {
+  async element(id: string, values: Record<string, unknown>, talk?: Talk, signal?: AbortSignal): Promise<Record<string, unknown>> {
     mkdirSync(this.cache, { recursive: true });
     const handoff = path.join(this.cache, `${id}.state.json`);
     writeFileSync(handoff, JSON.stringify(values));
@@ -192,6 +192,8 @@ export class PartialRunner {
     });
     let timedOut = false;
     const timer = this.timeout ? setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, this.timeout * 1000) : undefined;
+    // A timer at a boundary event ends the step: its runner is asked to stop.
+    signal?.addEventListener('abort', () => child.kill('SIGTERM'));
     const pump = talk ? setInterval(carry, 50) : undefined;
     let pending = '';
     child.stdout.setEncoding('utf8');

@@ -2,6 +2,7 @@ import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
 import { PLACEHOLDER } from '@core/document/state';
 import { splitBinding } from '@core/document/io-specification';
+import { timerDelay } from '@core/engine/timer';
 import { feelSyntaxError } from '@core/expression/feel';
 
 /** A timer's properties: ISO 8601 text (`P21D`), not FEEL. */
@@ -31,8 +32,25 @@ export function checkExpressions(definitions: ModdleElement): Issue[] {
         : feelSyntaxError(body);
       if (error) issues.push({ severity: 'error', elementId: id, message: `the expression ${JSON.stringify(element.body.trim())} on ${JSON.stringify(id)} ${error.startsWith('not FEEL') ? `is ${error}` : error}` });
     }
+    if (element.$type === 'bpmn:TimerEventDefinition') {
+      // A timer's time is an ISO 8601 date, duration or cycle (`P21D`), not FEEL; one citing a `{placeholder}` is
+      // read when the walk reaches it.
+      const event = owner ?? id;
+      const time = (name: string): string | undefined => (typeof element[name]?.body === 'string' && element[name].body.trim()) || undefined;
+      const timer = { duration: time('timeDuration'), date: time('timeDate'), cycle: time('timeCycle') };
+      const texts = Object.values(timer).filter((text): text is string => text !== undefined);
+      try {
+        if (texts.length === 0) throw new Error('a timer says when: a duration (PT5M), a date, or a cycle');
+        if (!texts.some((text) => text.includes('{'))) timerDelay(timer);
+      } catch (error) {
+        issues.push({ severity: 'error', elementId: event, message: `the timer on ${JSON.stringify(event)} cannot be kept: ${(error as Error).message}` });
+      }
+      if (timer.cycle !== undefined && timer.duration === undefined && timer.date === undefined) {
+        const kept = timerDelay(timer) > 0 ? 'waits for its first firing only' : 'passes a schedule at once';
+        issues.push({ severity: 'warning', elementId: event, message: `the timer on ${JSON.stringify(event)} is a cycle: a pool walks one path, so the walk ${kept}` });
+      }
+    }
     for (const property of element.$descriptor?.properties ?? []) {
-      // A timer's time is an ISO 8601 date, duration or cycle (`P21D`), not FEEL.
       if (property.isReference || TIMER.has(property.name)) continue;
       const value = element[property.name];
       if (Array.isArray(value)) value.forEach((item) => visit(item, id));

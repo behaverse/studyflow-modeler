@@ -200,8 +200,8 @@ Trial_Item:
 | `onset` | any activity or event | a timestamp, an offset such as `T0+30min`, or a label |
 | `duration` | any activity or event | `30min`, or an ISO 8601 duration |
 | `progress` | any activity or event | a percentage, or `done`, `blocked`, `in progress` |
-| `timeCycle` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval |
-| `timeDuration`, `timeDate` | a timer catch event | a delay, or a fixed moment |
+| `timeCycle` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval (`R3/PT10M`); a run waits for an interval's first firing, and passes a cron schedule at once |
+| `timeDuration`, `timeDate` | a timer start, catch or boundary event | an ISO 8601 delay (`PT5M`, `P21D`), or a fixed moment; a run waits for it, and at a boundary event it ends the step it sits on when it runs out |
 | `condition` | a conditional catch or boundary event | wait until this becomes true; on a boundary event, leave the step when it does |
 | `loopCondition` | the repeat marker on a step | repeat while this holds |
 | `loopCardinality` | the multi-instance marker on a step | run this many instances of the step |

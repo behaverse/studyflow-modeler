@@ -38,8 +38,11 @@ export type Host = {
   /** The runner that claims an element, by name, and whether its claim is live: a live element never skips or replays. */
   claim(id: string): { name: string; live: boolean } | undefined;
   /** Hands a claimed element, or one message to a pool a runner plays, to its runner: the run's values in, what the
-   * runner hands back out (`result`, `durationMs`, `record`, the values and scopes it changed). A failure rejects. */
-  perform(id: string, values: Record<string, unknown>, step: { talk?: Talk; note: Note }): Promise<Record<string, unknown>>;
+   * runner hands back out (`result`, `durationMs`, `record`, the values and scopes it changed). A failure rejects.
+   * `signal` aborts when a timer at a boundary event ends the activity the hand-off is in: the host stops it. */
+  perform(id: string, values: Record<string, unknown>, step: { talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Record<string, unknown>>;
+  /** Resolves `ms` from now, for the timer event `at`, unless `signal` aborts first; without it, the machine's clock. */
+  wait?(ms: number, signal: AbortSignal, at: string): Promise<void>;
   log: Note;
   /** A timestamp for a record, as the host writes them. */
   now(): string;
@@ -87,8 +90,11 @@ export type Thread = {
   /** The process it walks. */
   pool: string;
   depth: number;
-  /** The activities it is inside, outermost first, each with the message flows that end it and their boundary events. */
-  watching: { activity: string; flows: Map<string, PlanElement> }[];
+  /** The activities it is inside, outermost first, each with the message flows that end it and their boundary events,
+   * and the timer boundary events whose time has come. */
+  watching: { activity: string; flows: Map<string, PlanElement>; due: PlanElement[] }[];
+  /** Stops the hand-off it is waiting on, when it is waiting on one. */
+  handoff?: AbortController;
   /** The message this pool last took from each other pool: what it sends back answers it. */
   heard: Map<string, string>;
 };

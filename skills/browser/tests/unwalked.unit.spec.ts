@@ -7,7 +7,7 @@ import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 const packages: Record<string, any> = schemaPackages(loadSchemaModels());
 
 /** What a page cannot carry is refused before the first screen, not walked as another study. */
-test('a message flow between pools blocks a browser run; drawn data edges and timers warn; a loop is walked', async () => {
+test('a message flow between pools blocks a browser run; a drawn data edge warns; a loop and a timer are walked', async () => {
   const study = await Studyflow.parse(`id: unwalked
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -49,5 +49,5 @@ Study:
     F3: Timeout -> End
 `, structuredClone(packages));
   const found = validateUnwalked(study).map((issue) => `${issue.severity ?? 'error'} ${issue.nodeId}`).sort();
-  expect(found).toEqual(['error M_Ask', 'warning Practice', 'warning Timeout']);
+  expect(found).toEqual(['error M_Ask', 'warning Practice']);
 });

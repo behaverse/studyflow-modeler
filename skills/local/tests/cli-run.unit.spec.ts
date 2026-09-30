@@ -294,6 +294,41 @@ test.describe('partial runner hand-off', () => {
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/took longer than 1s/);
   });
 
+  test('a timer at a boundary event stops the runner of the step it sits on, and the run goes on from the event', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-timer-'));
+    fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), `id: timed
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Slow: { type: Task }
+    TooSlow:
+      type: BoundaryEvent
+      attachedToRef: Slow
+      eventDefinitions:
+        Timer: { type: TimerEventDefinition, timeDuration: PT1S }
+    Done: { type: EndEvent }
+    TimedOut: { type: EndEvent }
+    F1: Start -> Slow
+    F2: Slow -> Done
+    F3: TooSlow -> TimedOut
+`);
+    fs.writeFileSync(path.join(dir, 'slow.py'), [
+      'import json, sys, time',
+      "if sys.argv[2] == '--claims': print(json.dumps(['Slow']))",
+      'else: time.sleep(30)',
+    ].join('\n'));
+    const started = Date.now();
+    execFileSync(process.execPath, [BIN, 'run', 'plan.studyflow.yaml', '--repo', 'run', '--quiet', '--runner', `slow=python3 ${path.join(dir, 'slow.py')}`],
+      { cwd: dir, stdio: 'pipe', env: ENV });
+    expect(Date.now() - started).toBeLessThan(20_000);
+    const kept = yaml.load(fs.readFileSync(path.join(dir, 'run', 'plan.studyflow.yaml'), 'utf8')) as any;
+    expect(kept.state._meta.reached).toMatchObject({ Slow: 1, TooSlow: 1, TimedOut: 1 });
+    expect(kept.state._meta.reached.Done).toBeUndefined();
+  });
+
   test('a runner whose command is not on this machine claims nothing, and the run goes on without it', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-absent-'));
     fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), 'id: plain\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nS:\n  type: Process\n  flowElements:\n    Start: { type: StartEvent }\n    Done: { type: EndEvent }\n    F1: Start -> Done\n');

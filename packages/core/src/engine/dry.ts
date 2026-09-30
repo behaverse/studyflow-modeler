@@ -25,6 +25,9 @@ export function dryHost(plan: Plan, shown: Pick<Host, 'moved' | 'passed'> = {}):
     log: () => undefined,
     now: () => new Date().toISOString(),
     decide: (_gateway, flows) => flows[Math.floor(Math.random() * flows.length)],
+    // No time passes in a dry run: a timer event passes at once, and a timer at a boundary event runs out or not,
+    // at random, so both ways off its activity are shown.
+    wait: (_ms, _signal, at) => (graph.elements[at]?.type === 'boundaryEvent' && Math.random() < 0.5 ? new Promise(() => undefined) : Promise.resolve()),
     ...shown,
   };
 }

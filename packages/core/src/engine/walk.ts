@@ -1,10 +1,11 @@
 import { PLACEHOLDER } from '@core/document/state';
 import { allocationOf, draw, permutedBlock, pick, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
-import { Interrupted, keepRecord, logAt, type Host, type Note, type StateTree, type Thread, type WalkOptions } from '@core/engine/host';
+import { Interrupted, keepRecord, logAt, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
 import type { Plan, PlanElement } from '@core/engine/plan';
 import { Post } from '@core/engine/post';
 import { Steps, type Entry } from '@core/engine/steps';
+import { timerDelay } from '@core/engine/timer';
 import { Values } from '@core/engine/values';
 
 /**
@@ -190,7 +191,7 @@ export class Walk {
             if (runner) {
               // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
               this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
-              const sensed = await host.perform(id, this.memory.json(), { note: this.note(thread) });
+              const sensed = await this.handOff(id, this.memory.json(), thread);
               entry._runnerMs = sensed.durationMs;
               keepRecord(entry, sensed);
               this.memory.store(id, sensed.result);
@@ -198,6 +199,11 @@ export class Walk {
               // A catch event a message flow reaches waits for that message; its content is the result.
               this.log(thread, 'event.waiting', `◐ ${id}  (waiting for a message)`);
               this.memory.store(id, (await this.post.receive(id, graph.flowsIn.get(id)!, thread)).content);
+            } else if (element.timer) {
+              // A timer event waits for its time: a duration from now, or a date.
+              const ms = this.timerMs(element);
+              this.log(thread, 'event.waiting', `◐ ${id}  (waiting ${ms}ms for its timer)`);
+              await this.post.sleep(ms, id, thread);
             }
           } catch (error) {
             if (error instanceof Interrupted) this.steps.end(entry);
@@ -243,11 +249,17 @@ export class Walk {
   private async perform(element: PlanElement, depth: number, thread: Thread): Promise<PlanElement | undefined> {
     const { graph } = this;
     const { id } = element;
+    const due: PlanElement[] = [];
     thread.watching.push({
       activity: id,
       flows: new Map((graph.boundaries.get(id) ?? [])
         .flatMap((boundary) => (graph.flowsIn.get(boundary.id) ?? []).map((flow): [string, PlanElement] => [flow.id, boundary]))),
+      due,
     });
+    // A timer at a boundary event runs from the moment the activity is entered; when its time comes it ends the
+    // activity, stopping the hand-off the pool is waiting on.
+    const timers = (graph.boundaries.get(id) ?? []).filter((boundary) => boundary.timer)
+      .map((boundary) => this.post.timer(this.timerMs(boundary), boundary.id, () => { due.push(boundary); thread.handoff?.abort(); }));
     try {
       let passes = 0;
       const listed = this.loopList(element);
@@ -275,6 +287,7 @@ export class Walk {
       if (error instanceof Interrupted && error.activity === id) return error.boundary;
       throw error;
     } finally {
+      timers.forEach((timer) => timer.abort());
       thread.watching.pop();
     }
     return this.conditionalBoundary(element, thread);
@@ -450,7 +463,7 @@ export class Walk {
     const talking = graph.messageScope(id);
     const talks = graph.flowsIn.has(talking) || graph.flowsOut.has(talking);
     const talk = talks ? this.post.talk(id, talking, thread) : undefined;
-    const reported = await host.perform(id, sent, { talk, note: this.note(thread) });
+    const reported = await this.handOff(id, sent, thread, talk);
     await talk?.delivered(); // what it sent last is answered before the walk goes on
     entry._runnerMs = reported.durationMs;
     keepRecord(entry, reported);
@@ -471,6 +484,30 @@ export class Walk {
       }
     }
     this.noteOutputs(element, entry, thread);
+  }
+
+  /** One hand-off to the host, which a timer at a boundary event of an activity around it may stop: the walk then
+   * leaves for that event, whatever the hand-off had done. */
+  private async handOff(id: string, values: Record<string, unknown>, thread: Thread, talk?: Talk): Promise<Record<string, unknown>> {
+    const handoff = thread.handoff = new AbortController();
+    try {
+      return await this.host.perform(id, values, { talk, note: this.note(thread), signal: handoff.signal });
+    } finally {
+      thread.handoff = undefined;
+      this.post.checkInterrupt(thread, true);
+    }
+  }
+
+  /** How long a timer event waits, its `{placeholders}` read from the run's values. */
+  private timerMs(element: PlanElement): number {
+    const read = (text: string | undefined): string | undefined =>
+      text?.replace(PLACEHOLDER, (_cited, path: string) => String(this.memory.evaluate({ body: path, language: null }, element.id)));
+    const { duration, date, cycle } = element.timer!;
+    try {
+      return timerDelay({ duration: read(duration), date: read(date), cycle: read(cycle) });
+    } catch (error) {
+      throw new Error(`${element.id}: ${(error as Error).message}`);
+    }
   }
 
   /** What the activity's data output edges targeted. A sub-process carries its own edges, so a dataset the steps
@@ -556,7 +593,7 @@ export class Walk {
       if (runner) {
         // The runner samples what the conditions read (`face_count`).
         this.log(thread, 'runner.called', `    ${runner.name} samples for ${id}`);
-        const sampled = await host.perform(id, this.memory.json(), { note: this.note(thread) });
+        const sampled = await this.handOff(id, this.memory.json(), thread);
         entry._runnerMs = sampled.durationMs;
         keepRecord(entry, sampled);
         bindings = (sampled.result as Record<string, unknown>) || {};

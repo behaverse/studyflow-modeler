@@ -89,7 +89,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | the seeded draw, weighted by the ratio | the same draw; permuted blocks over the cohort |
 | `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | - | - | loaded and saved wherever they carry a `uri` |
 | `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | - |
-| Timers | - | not executed | not executed |
+| Timers | the time is ISO 8601 | a timer event waits for its time; one at a boundary event ends the step when it runs out, and its screen is dropped | the same, and the step's runner is stopped |
 | Loop and multi-instance markers | - | one pass after another: while `loopCondition` holds, `loopCardinality` times, or once per item of `loopDataInputRef` | the same |
 | Boundary events | - | an error boundary event takes a step the participant refuses; a conditional one reads the finished step | those, and a message boundary event |
 | Message flows between pools | a browser run refuses them | - | carried by the walk, pool to pool |

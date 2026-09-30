@@ -222,6 +222,8 @@ export function Runner() {
           agentId,
           variables: values,
           onDiagnostic: (message: string) => addLog('error', message),
+          // A step whose timer ran out leaves its screen: the loop below goes on to the next job.
+          onExpired: () => handleResolve({ kind: 'complete' }),
         });
         sessionRef.current = session;
         setSession(session);
@@ -320,7 +322,7 @@ export function Runner() {
         if (handoffId) clearDiagramHandoff(handoffId);
       }
     })();
-  }, [xml, addLog, handoffId, parameters]);
+  }, [xml, addLog, handleResolve, handoffId, parameters]);
 
   if (!xml) return <Help onFileLoaded={setXml} />;
 

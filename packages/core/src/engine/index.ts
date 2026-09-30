@@ -7,3 +7,5 @@ export type { Entry } from '@core/engine/steps';
 export { Walk } from '@core/engine/walk';
 export type { Host, Level, Message, Note, Reuse, StateTree, Talk, WalkOptions } from '@core/engine/host';
 export { dryHost } from '@core/engine/dry';
+export { durationMs, timerDelay } from '@core/engine/timer';
+export type { Timer } from '@core/engine/timer';

@@ -9,6 +9,8 @@ export type SessionContext = {
   agentId?: string;
   sessionId?: string;
   onDiagnostic?: (message: string) => void;
+  /** A timer at a boundary event ended the step on screen: the page drops the screen and asks for the next job. */
+  onExpired?: (id: string) => void;
 };
 
 /** A step the page refused to finish (the participant declined consent): the run stops there, unless the step
@@ -34,6 +36,7 @@ export class Session {
   private readonly jobs = new Map<string, Job>();
   private readonly undeclared = new Set<string>();
   private readonly onDiagnostic?: (message: string) => void;
+  private readonly onExpired?: (id: string) => void;
   /** The element whose screen is up: where a value it publishes is written from. */
   private serving: string | undefined;
   private show: (id: string) => Promise<void> = () => Promise.reject(new Error('the session is not running'));
@@ -44,6 +47,7 @@ export class Session {
     this.agentId = context.agentId;
     this.sessionId = context.sessionId;
     this.onDiagnostic = context.onDiagnostic;
+    this.onExpired = context.onExpired;
 
     const { elements, processes } = studyflow.plan;
     for (const node of studyflow.flowNodes.values()) {
@@ -56,7 +60,10 @@ export class Session {
     }
     const host: Host = {
       claim: (id) => (this.jobs.has(id) ? { name: this.jobs.get(id)!.type, live: true } : undefined),
-      perform: (id, values) => this.show(id).then(() => values),
+      perform: (id, values, { signal }) => {
+        signal?.addEventListener('abort', () => { this.refuse('its time ran out'); this.onExpired?.(id); });
+        return this.show(id).then(() => values);
+      },
       log: (_event, message, detail) => {
         if (detail?.level === 'warning' || detail?.level === 'error') this.diagnose(message.trim());
       },

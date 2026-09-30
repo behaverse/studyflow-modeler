@@ -164,6 +164,33 @@ ${boundary}    Play: { type: Task }
   await expect(refusing(consent(''))).rejects.toThrow(Aborted);
 });
 
+test('a screen whose step a timer ends is dropped: the page is told, and the next job is the timer\'s way on', async () => {
+  let expire!: () => void;
+  const expired = new Promise<void>((resolve) => { expire = resolve; });
+  const session = new Session(await load(`${HEAD}Study:
+  type: bpmn:Process
+  flowElements:
+    Start: { type: StartEvent }
+    Slow: { type: Task }
+    TooSlow:
+      type: BoundaryEvent
+      attachedToRef: Slow
+      eventDefinitions:
+        Timer: { type: TimerEventDefinition, timeDuration: PT0.05S }
+    Done: { type: EndEvent }
+    TimedOut: { type: EndEvent }
+    F1: Start -> Slow
+    F2: Slow -> Done
+    F3: TooSlow -> TimedOut
+`), { onExpired: () => expire() });
+  const shown: string[] = [];
+  for await (const job of session.traverse()) {
+    shown.push(job.node.id);
+    if (job.node.id === 'Slow') await expired; // the participant never finishes it
+  }
+  expect(shown).toEqual(['Start', 'Slow', 'TimedOut']);
+});
+
 test.describe('the state a session keeps', () => {
   /** Study declares `total` (initial 0); the battery declares `failed`; the gateway loops while it has been reached under 3 times. */
   const REACH = `${HEAD}Study:

@@ -217,11 +217,11 @@ export async function runLocal(run: LocalRun): Promise<number> {
 
   const host: Host = {
     claim: (id) => { const claim = claimed.get(id); return claim && { name: claim.runner.name, live: claim.live }; },
-    perform: async (id, values, { talk, note }) => {
+    perform: async (id, values, { talk, note, signal }) => {
       // A runner stages the boundary inputs it reads: one the repository lacks before the hand-off and holds after it
       // was imported by this run.
       const absent = made.walk.graph.walked.has(id) ? made.records.absentInputs(id) : new Map<string, string>();
-      const handed = await claimed.get(id)!.runner.element(id, values, talk);
+      const handed = await claimed.get(id)!.runner.element(id, values, talk, signal);
       for (const [data, uri] of absent) {
         if (!existsSync(path.join(dir, uri))) continue;
         made.records.staged.set(data, timelineTimestamp());

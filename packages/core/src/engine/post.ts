@@ -154,9 +154,47 @@ export class Post {
     return thread.heard.get(this.graph.poolOf(flow.attributes.targetRef ?? ''));
   }
 
-  /** Throws when a message waits at a boundary event of an activity this pool is inside, innermost first. */
-  checkInterrupt(thread: Thread): void {
-    for (const { activity, flows } of [...thread.watching].reverse()) {
+  /** Resolves `ms` from now, by the host's clock or the machine's. */
+  private wait(ms: number, signal: AbortSignal, at: string): Promise<void> {
+    if (this.host.wait) return this.host.wait(ms, signal, at);
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, ms);
+      signal.addEventListener('abort', () => clearTimeout(timer));
+    });
+  }
+
+  /** A timer: `then` once `ms` have passed, unless the returned controller aborts first. */
+  timer(ms: number, at: string, then: () => void): AbortController {
+    const stop = new AbortController();
+    void this.wait(ms, stop.signal, at).then(() => {
+      if (stop.signal.aborted) return;
+      then();
+      this.notify();
+    });
+    return stop;
+  }
+
+  /** A timer event's wait. A boundary event of an activity around it ends the wait, and so does a failed pool. */
+  async sleep(ms: number, at: string, thread: Thread): Promise<void> {
+    let due = false;
+    const stop = this.timer(ms, at, () => { due = true; });
+    try {
+      while (!due) {
+        this.checkInterrupt(thread);
+        if (this.failed !== undefined) throw new Error(`${at}: the run ended while its timer ran`);
+        await this.changed();
+      }
+    } finally {
+      stop.abort();
+    }
+  }
+
+  /** Throws when a boundary event of an activity this pool is inside has happened, innermost first: its timer has
+   * run out, or (unless `timersOnly`) a message waits at it. */
+  checkInterrupt(thread: Thread, timersOnly = false): void {
+    for (const { activity, flows, due } of [...thread.watching].reverse()) {
+      if (due.length > 0) throw new Interrupted(activity, due[0]);
+      if (timersOnly) continue;
       for (const [flow, boundary] of flows) {
         if (this.mail.get(flow)?.length) {
           this.mail.get(flow)!.shift();

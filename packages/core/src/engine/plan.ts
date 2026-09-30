@@ -3,6 +3,7 @@ import { getExtensionType } from '@core/element';
 import type { ModdleElement } from '@core/element/moddle';
 import { STUDY_EXTENSION_TYPE, primaryRoot } from '@core/document/format';
 import { mergeParameters, parametersOf, splitAttributes } from '@core/document/parameters';
+import type { Timer } from '@core/engine/timer';
 
 /**
  * The plan: a study as one JSON document, what a partial runner reads instead of the diagram (skills/local/SKILL.md,
@@ -54,6 +55,8 @@ export type PlanElement = {
   loop?: Loop;
   /** An event's definitions, by local name (`errorEventDefinition`). */
   events?: string[];
+  /** A timer event's time, as written. */
+  timer?: Timer;
   /** A participant's `participantMultiplicity/@maximum`. */
   multiplicity?: number;
   /** How a gateway of its extension type picks its branch (the schema's `meta.branching`): `random`. */
@@ -197,6 +200,11 @@ export function planElement(element: ModdleElement): PlanElement {
   const loop = loopOf(element.loopCharacteristics);
   if (loop) digest.loop = loop;
   if (element.eventDefinitions?.length) digest.events = element.eventDefinitions.map(tagOf);
+  const timed = element.eventDefinitions?.find((d: ModdleElement) => d.$type === 'bpmn:TimerEventDefinition');
+  if (timed) {
+    const time = (expression: ModdleElement | undefined): string | undefined => expressionOf(expression)?.body;
+    digest.timer = { duration: time(timed.timeDuration), date: time(timed.timeDate), cycle: time(timed.timeCycle) };
+  }
   if (typeof element.participantMultiplicity?.maximum === 'number') digest.multiplicity = element.participantMultiplicity.maximum;
   const extensionType = getExtensionType(element);
   const branching = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.branching : undefined;

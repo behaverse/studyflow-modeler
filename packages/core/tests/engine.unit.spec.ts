@@ -4,7 +4,7 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { studyflowToDefinitions } from '@core/document';
-import { Walk, allocationOf, draw, dryHost, permutedBlock, pick, planOf, type Host, type PlanElement, type Talk, type WalkOptions } from '@core/engine';
+import { Walk, allocationOf, draw, dryHost, durationMs, permutedBlock, pick, planOf, type Host, type PlanElement, type Talk, type WalkOptions } from '@core/engine';
 import { freshModdle } from '@tests/schemas';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
@@ -876,3 +876,64 @@ S:
   expect(['S: F_Yes Report', 'S: F_No Retry']).toContain(moves[4]);
   expect(walk.steps.status).toBe('ok');
 });
+
+// --- timers ---
+
+test('an ISO 8601 duration is read in milliseconds; anything else is not one', () => {
+  const ROWS: [string, number | undefined][] = [
+    ['PT5M', 300_000], ['PT1.5S', 1500], ['P1DT2H', 93_600_000], ['P2W', 1_209_600_000], ['P1M', 2_592_000_000],
+    ['5 minutes', undefined], ['P', undefined], ['PT', undefined], ['', undefined],
+  ];
+  for (const [text, ms] of ROWS) expect(durationMs(text), text).toBe(ms);
+});
+
+/** A study with a rest its timer keeps, and a task with a timer at its boundary. */
+const TIMED = `S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Rest:
+      type: IntermediateCatchEvent
+      eventDefinitions:
+        Rest_Timer: { type: TimerEventDefinition, timeDuration: PT5M }
+    Play: { type: Task }
+    TooSlow:
+      type: BoundaryEvent
+      attachedToRef: Play
+      eventDefinitions:
+        Slow_Timer: { type: TimerEventDefinition, timeDuration: PT30S }
+    Done: { type: EndEvent }
+    TimedOut: { type: EndEvent }
+    F1: Start -> Rest
+    F2: Rest -> Play
+    F3: Play -> Done
+    F4: TooSlow -> TimedOut
+`;
+
+for (const [label, slow, ends] of [['runs out, the walk leaves by it and the hand-off is stopped', true, 'TimedOut'], ['does not, the step ends its own way', false, 'Done']] as const) {
+  test(`a timer event waits for its time, by the host's clock; when a timer at a boundary event ${label}`, async () => {
+    const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}${TIMED}`, freshModdle()));
+    const waited: [number, string][] = [];
+    let stopped = false;
+    const walk = new Walk(plan, {
+      claim: (id) => (id === 'Play' ? { name: 'test', live: true } : undefined),
+      // A slow step: it ends only when it is stopped.
+      perform: (_id, values, { signal }) => new Promise((resolve, reject) => {
+        if (!slow) return resolve(values);
+        signal!.addEventListener('abort', () => { stopped = true; reject(new Error('stopped')); });
+      }),
+      // The rest's five minutes pass at once; the boundary's thirty seconds pass only for the slow step.
+      wait: (ms, _signal, at) => {
+        waited.push([ms, at]);
+        return at === 'TooSlow' && !slow ? new Promise(() => undefined) : Promise.resolve();
+      },
+      log: () => undefined,
+      now: () => '',
+    });
+    await walk.run();
+    expect(waited).toEqual([[300_000, 'Rest'], [30_000, 'TooSlow']]);
+    expect(stopped).toBe(slow);
+    expect(Object.keys(walk.state._meta.reached)).toContain(ends);
+    expect(walk.steps.entries.find((entry) => entry.node === 'Play')).toMatchObject(slow ? { interruptedBy: 'TooSlow' } : { status: 'ok' });
+  });
+}
