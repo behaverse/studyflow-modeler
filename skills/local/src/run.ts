@@ -170,8 +170,14 @@ export async function runLocal(run: LocalRun): Promise<number> {
     writeFileSync(path.join(cache, 'plan.json'), JSON.stringify(plan, null, 1));
   }
   for (const [name, command] of commands) runners.set(name, new PartialRunner(name, command as RunnerCommand, dir, log, { debug: run.debug ?? false, timeout: run.stepTimeout }));
-  for (const runner of runners.values()) {
-    const { elements: ids, live } = runner.claims();
+  // Every runner is asked at once; a claim is settled in the order the runners were found.
+  const answers = await Promise.all([...runners.values()].map(async (runner) => ({ runner, answer: await runner.claims() })));
+  for (const { runner, answer } of answers) {
+    if (!answer) {
+      log.event('runner.unavailable', `  the ${runner.name} runner needs ${runner.argv[0]}, which is not on this machine: it claims nothing`, { level: 'warning' });
+      continue;
+    }
+    const { elements: ids, live } = answer;
     for (const id of ids) {
       const other = claimed.get(id)?.runner;
       if (other && other !== runner) {

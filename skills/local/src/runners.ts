@@ -1,4 +1,4 @@
-import { spawn, spawnSync } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { accessSync, appendFileSync, constants, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -114,7 +114,7 @@ export type Claims = { elements: string[]; live: boolean };
  */
 export class PartialRunner {
   readonly name: string;
-  private readonly argv: string[];
+  readonly argv: string[];
   private readonly cwd: string | undefined;
   private readonly plan: string;
   private readonly cache: string;
@@ -134,12 +134,17 @@ export class PartialRunner {
     this.timeout = options.timeout;
   }
 
-  claims(): Claims {
-    const done = spawnSync(this.argv[0], [...this.argv.slice(1), this.plan, '--claims'], { cwd: this.cwd, encoding: 'utf8' });
-    const lines = (done.stdout ?? '').split('\n').filter((line) => line.trim());
-    if (done.status !== 0 || lines.length === 0) {
-      const detail = (done.stderr ?? '').trim().split('\n');
-      throw new Error(`${this.name} --claims failed: ${done.error?.message ?? (detail.at(-1) || `exit ${done.status}`)}`);
+  /** The elements it will run; undefined when its command is not on this machine, so it claims none. */
+  async claims(): Promise<Claims | undefined> {
+    const done = await new Promise<{ error: (Error & { code?: unknown }) | null; stdout: string; stderr: string }>((resolve) => {
+      execFile(this.argv[0], [...this.argv.slice(1), this.plan, '--claims'], { cwd: this.cwd, encoding: 'utf8' },
+        (error, stdout, stderr) => resolve({ error, stdout, stderr }));
+    });
+    if (done.error?.code === 'ENOENT') return undefined;
+    const lines = done.stdout.split('\n').filter((line) => line.trim());
+    if (done.error || lines.length === 0) {
+      const detail = done.stderr.trim().split('\n');
+      throw new Error(`${this.name} --claims failed: ${detail.at(-1) || done.error?.message || 'it answered nothing'}`);
     }
     const answer = JSON.parse(lines.at(-1)!);
     // A plain array marks its elements live; a runner may say which version of the contract it speaks.

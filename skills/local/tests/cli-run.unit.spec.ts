@@ -294,6 +294,14 @@ test.describe('partial runner hand-off', () => {
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/took longer than 1s/);
   });
 
+  test('a runner whose command is not on this machine claims nothing, and the run goes on without it', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-absent-'));
+    fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), 'id: plain\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nS:\n  type: Process\n  flowElements:\n    Start: { type: StartEvent }\n    Done: { type: EndEvent }\n    F1: Start -> Done\n');
+    execFileSync(process.execPath, [BIN, 'run', 'plan.studyflow.yaml', '--repo', 'run', '--quiet', '--runner', 'ghost=no-such-runner-here --serve'],
+      { cwd: dir, stdio: 'pipe', env: ENV });
+    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/WARNING runner\.unavailable\s+the ghost runner needs no-such-runner-here/);
+  });
+
   test('hands partial runners a JSON digest of the plan', async () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:lab="http://example.org/lab" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
