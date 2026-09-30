@@ -28,6 +28,7 @@ traits), which a domain pack must not copy; its `Scheduling` is the plainest tra
 - A plain YAML scalar cannot contain a colon followed by a space; quote a description that does.
 - Attribute names are camelCase nouns. Put a unit in the attribute's meta (`samplingRate` → `meta.unit: Hz`). Do not put units in the attribute name (`samplingRateHz` is wrong).
 - An enum attribute that allows values outside its list is `meta.editable: true`.
+- A property a type adds to a BPMN element (a type that `extends` one) is an attribute, `isAttr: true`: BPMN's XML schema takes another namespace's attributes on any element, and no child element but `extensionElements`, so the file stays valid BPMN. A wrapper type, one that sits in `extensionElements`, may hold child elements.
 - A placeholder in a value is `{name}` (dotted paths allowed: `{Play.trials}`). Every reader resolves it by one rule, [Placeholders](../docs/reference.qmd#placeholders), and nothing reads `$name`, `${name}` or `{{name}}`.
 - A reference to software, a model, or a device is `<scheme>://<ref>` (`python://`, `claude://claude-haiku-4-5`, `ollama://gemma4`), whatever attribute holds it.
 - Element icons are iconify's Phosphor set (`iconify ph--<name>`): its 1.5px line matches the element outline, where `mdi`/`tabler` read twice as bold. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
