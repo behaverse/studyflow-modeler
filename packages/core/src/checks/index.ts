@@ -16,7 +16,7 @@ export type Issue = {
   message: string;
 };
 
-/** The plan: sound, walkable by the reference runners, its expressions FEEL, and reading only the columns its schemas define. */
+/** The plan: sound, walkable, its expressions FEEL, and reading only the columns its schemas define. */
 export function planChecks(definitions: ModdleElement): Issue[] {
   return [
     ...checkSoundness(definitions), ...checkRunnerPaths(definitions), ...checkExpressions(definitions), ...checkDataContract(definitions),

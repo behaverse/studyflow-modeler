@@ -23,7 +23,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 | `packages/cli` | The `studyflow` CLI. `run` checks the plan, then hosts a local study itself (`skills/local/src`) with the protocol's digest. |
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
 | `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (a moddle package in `*.moddle.yaml`, its palette templates included), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
-| `skills/browser` | The browser runtime, served at `/run/`. |
+| `skills/browser` | The browser runtime, served at `/run/`: it hosts the walk for one participant, a screen per step. |
 | `skills/local` | The local runtime (`src/run.ts` hosts the walk: runner subprocesses, the run repository, what a re-run reuses); its `SKILL.md` is the contract every partial runner follows. |
 
 ## Rules

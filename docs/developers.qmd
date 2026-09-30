@@ -6,10 +6,10 @@ description: "The programs that read studyflow files, how to build and run them,
 | Program | Does | Lives in |
 |:--|:--|:--|
 | the modeler | authoring: edit, validate, import and export a studyflow | [`packages/modeler`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/modeler) |
-| the browser runtime | the `browser` skill: runs the participant-facing steps, served at `./run/` | [`skills/browser`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/browser) |
-| the local runtime | the `local` skill: walks the diagram, records, and hands each element to the skill that claims it | [`skills/local`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/local) |
+| the browser runtime | the `browser` skill: hosts the walk for one participant and shows each step as a screen, served at `./run/` | [`skills/browser`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/browser) |
+| the local runtime | the `local` skill: hosts the walk on your machine, records, and hands each element to the skill that claims it | [`skills/local`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/local) |
 | the command line | `studyflow` with `convert`, `validate`, `info`, and `run` | [`packages/cli`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli) |
-| the core | the object model they all share: YAML to BPMN and back, element access | [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core) |
+| the core | the object model they all share: YAML to BPMN and back, element access, and the walk, the one engine both runtimes and the modeler's simulation host | [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core) |
 | the skills | one folder each, declared by its `SKILL.md`: a BPMN extension (vocabulary), runners that execute it per runtime, a modeler module (exports, imports), examples, tests; any part may be missing | [`skills`](https://github.com/behaverse/studyflow-modeler/tree/main/skills) |
 
 
@@ -69,30 +69,32 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | Gateway | Rule |
 |:--|:--|
 | An exclusive gateway, and `cognitive:EligibilityGateway` | the first outgoing edge whose condition holds, otherwise the edge marked `default`, otherwise the one edge without a condition; with none of these the run stops |
-| `cognitive:RandomGateway` | a draw seeded from the study's `seed`, the gateway and the visit, weighted by `allocationRatio`; `algorithm: block` deals permuted blocks (the local runtime; the browser runner, which sees one participant at a time, draws uniformly and warns) |
+| `cognitive:RandomGateway` | a draw seeded from the study's `seed`, the gateway and the visit, weighted by `allocationRatio`; `algorithm: block` deals permuted blocks in the order participants reach the gateway (a browser session sees one participant, so it warns that it cannot balance a cohort) |
 | A parallel gateway | none: a pool walks one path, so `studyflow validate` reports a split as an error and `studyflow run` refuses the study |
-| An inclusive gateway | the first outgoing edge whose condition holds, as an exclusive gateway does; `studyflow validate` warns |
+| An inclusive gateway | none, for the same reason: it would take every edge whose condition holds, so a split is an error too |
 
 - A runner that cannot evaluate a condition stops the run, rather than quietly taking the other branch.
 - A condition that names a value which is not in scope reports an exception, rather than evaluating to `false`.
-- Setting a `seed` on the study makes every gateway draw replay exactly, and both runners draw the same branches from it.
+- Setting a `seed` on the study makes every gateway draw replay exactly, and both runtimes draw the same branches from it: they host one walk.
 
-| Element | Checked before the run | Browser runner | Python runner |
+| Element | Checked before the run | Browser runtime | Local runtime |
 |:--|:--|:--|:--|
 | `bpmn:StartEvent`, `bpmn:EndEvent` | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
 | `cognitive:Instruction`, `cognitive:Questionnaire` | empty content or instrument blocks the run | renders; writes the answer into scope | - |
 | `behaverse:Task` | checked against the assessment build's manifest | runs the assessment in the page | claimed by the `behaverse` skill's partial runner, which plays it in the Unity build |
 | `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | - | generic screen, and a way forward | - |
 | Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
-| `bpmn:SubProcess` | - | descends; opens its own scope | walks one level in; no separate scope |
+| `bpmn:SubProcess` | - | walked one level in, its properties a scope of its own, re-entered on each pass | the same |
 | `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions (FEEL), then `default`, then the one edge without a condition | the same rule |
-| `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | seeded uniform draw | the same draw, weighted by the ratio; permuted blocks |
+| `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | the seeded draw, weighted by the ratio | the same draw; permuted blocks over the cohort |
 | `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | - | - | loaded and saved wherever they carry a `uri` |
 | `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | - |
 | Timers | - | not executed | not executed |
-| Multi-instance markers | - | not executed | one pass after another, `loopCardinality` times or once per item of `loopDataInputRef` |
+| Loop and multi-instance markers | - | one pass after another: while `loopCondition` holds, `loopCardinality` times, or once per item of `loopDataInputRef` | the same |
+| Boundary events | - | an error boundary event takes a step the participant refuses; a conditional one reads the finished step | those, and a message boundary event |
+| Message flows between pools | a browser run refuses them | - | carried by the walk, pool to pool |
 
-: What each runner does with each family of elements, and what is checked before the run starts. A dash means the runner passes that step over. {#tbl-support}
+: What each runtime does with each family of elements, and what is checked before the run starts. Both host the same walk, so they differ only in what executes a step: a screen in the page, a partial runner on your machine. A dash means the runtime passes that step over. {#tbl-support}
 
 
 ## What a run leaves behind

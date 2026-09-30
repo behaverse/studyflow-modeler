@@ -54,7 +54,7 @@ Study:
 test('run refuses a study that fails a plan check, and records a passing one\'s protocol digest and the tool', () => {
   const refused = studyflow(['run', write('split.studyflow.yaml', study('ParallelGateway'))]);
   expect(refused.status).toBe(1);
-  expect(refused.stderr).toContain('error: "Split here" splits into 2 parallel paths; a pool walks one path, so the reference runners stop here');
+  expect(refused.stderr).toContain('error: "Split here" splits into 2 parallel paths; a pool walks one path, so the walk stops here');
   expect(refused.stdout).toBe('');
 
   const file = write('decided.studyflow.yaml', study('ExclusiveGateway').replace('name: Split here', 'name: Split here\n      default: F1'));

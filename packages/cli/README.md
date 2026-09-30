@@ -26,10 +26,10 @@ studyflow info study.studyflow.yaml --json
 studyflow edit study.studyflow.png              # the desktop app on that file; `studyflow ui` for a blank canvas
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.yaml   # the run folder keeps the study as YAML, stamped
 studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.yaml --from <ref>   # re-run from an earlier step; --fresh for all
-studyflow run skills/reachy/examples/reachy_session.studyflow.yaml --auto        # every task answered by a bot
+studyflow run skills/reachy/examples/reachy_session.studyflow.yaml --option auto   # every task answered by a bot
 ```
 
-`validate` checks the plan: it is sound (each step on a path from a start event to an end event), it splits only where the reference runners can follow (one path per pool), and a step reading data bound to a schema names only that schema's columns. In a file a run has stamped, it also checks that the counts balance at every node and that the protocol is still the one the run recorded: the digest `studyflow info` shows. `run` does not start a study that fails a plan check, and hands the local runtime the digest (`--plan-digest`) and itself (`--tool studyflow-cli/<version>`) for the run record.
+`validate` checks the plan: it is sound (each step on a path from a start event to an end event), it splits only where the walk can follow (one path per pool), and a step reading data bound to a schema names only that schema's columns. In a file a run has stamped, it also checks that the counts balance at every node and that the protocol is still the one the run recorded: the digest `studyflow info` shows. `run` does not start a study that fails a plan check; a local study it walks itself (the local runtime is part of this CLI), recording the digest and `studyflow-cli/<version>` with the run.
 
 `studyflow <command> --help` lists the options. Behaverse (Unity) tasks need the WebGL build at `UNITY_BUILD_PATH`; in a checkout, the `assessment-unity` repo beside this one is found by itself. How a skill executes elements is in [skills/local/SKILL.md](../../skills/local/SKILL.md).
 

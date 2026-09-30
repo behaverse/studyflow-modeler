@@ -4,7 +4,7 @@ import { studyflowToDefinitions } from '@core/document';
 import { checkRunnerPaths } from '@core/checks/runner-paths';
 import { freshModdle } from '@tests/schemas';
 
-/** The splits the reference runners do not take: each walks one path per pool. */
+/** The splits the walk does not take: it walks one path per pool. */
 
 /** Start, then `node` (of `type`) splitting to A and B, which meet again at an end. */
 const split = (type: string): string => `id: paths
@@ -41,10 +41,10 @@ test('a pool walks one path: a parallel split stops a run, an activity or event 
   // Each issue as `<severity> <element id>: <message>`.
   const CASES: [type: string, issues: string[]][] = [
     // Only the split: the parallel join, two flows in and one out, is walked.
-    ['ParallelGateway', ['error Split: "Split here" splits into 2 parallel paths; a pool walks one path, so the reference runners stop here']],
-    ['Task', ['error Split: "Split here" has 2 outgoing sequence flows; a pool walks one path, so the reference runners follow only the first, "first"']],
-    ['IntermediateThrowEvent', ['error Split: "Split here" has 2 outgoing sequence flows; a pool walks one path, so the reference runners follow only the first, "first"']],
-    ['InclusiveGateway', ['error Split: "Split here" is an inclusive gateway with 2 outgoing flows; a pool walks one path, so the reference runners stop here rather than take only the first whose condition holds']],
+    ['ParallelGateway', ['error Split: "Split here" splits into 2 parallel paths; a pool walks one path, so the walk stops here']],
+    ['Task', ['error Split: "Split here" has 2 outgoing sequence flows; a pool walks one path, so the walk follows only the first, "first"']],
+    ['IntermediateThrowEvent', ['error Split: "Split here" has 2 outgoing sequence flows; a pool walks one path, so the walk follows only the first, "first"']],
+    ['InclusiveGateway', ['error Split: "Split here" is an inclusive gateway with 2 outgoing flows; a pool walks one path, so the walk stops here rather than take only the first whose condition holds']],
     ['ExclusiveGateway', []],
     ['EventBasedGateway', []],
   ];

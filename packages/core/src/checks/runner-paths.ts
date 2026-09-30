@@ -18,19 +18,19 @@ export function checkRunnerPaths(definitions: ModdleElement): Issue[] {
         issues.push({
           severity: 'error',
           elementId: node.id,
-          message: `${quoted(node)} splits into ${n} parallel paths; a pool walks one path, so the reference runners stop here`,
+          message: `${quoted(node)} splits into ${n} parallel paths; a pool walks one path, so the walk stops here`,
         });
       } else if (isA(node, BPMN.InclusiveGateway)) {
         issues.push({
           severity: 'error',
           elementId: node.id,
-          message: `${quoted(node)} is an inclusive gateway with ${n} outgoing flows; a pool walks one path, so the reference runners stop here rather than take only the first whose condition holds`,
+          message: `${quoted(node)} is an inclusive gateway with ${n} outgoing flows; a pool walks one path, so the walk stops here rather than take only the first whose condition holds`,
         });
       } else if (!isA(node, BPMN.Gateway)) {
         issues.push({
           severity: 'error',
           elementId: node.id,
-          message: `${quoted(node)} has ${n} outgoing sequence flows; a pool walks one path, so the reference runners follow only the first, ${quoted(outgoing[0])}`,
+          message: `${quoted(node)} has ${n} outgoing sequence flows; a pool walks one path, so the walk follows only the first, ${quoted(outgoing[0])}`,
         });
       }
     }

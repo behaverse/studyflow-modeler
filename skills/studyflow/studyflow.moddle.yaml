@@ -271,7 +271,7 @@ types:
             - Execution
       - name: dependencies
         # One entry per package, in the ecosystem's own spelling (`pandas>=2.0`, PEP 508 for Python). The
-        # reference runner installs them into every partial runner's environment (`uv run --with`).
+        # local runtime installs them into every partial runner's environment (`uv run --with`).
         description: Software the study needs, one package per entry (`pandas>=2.0`).
         isAttr: false
         isMany: true
