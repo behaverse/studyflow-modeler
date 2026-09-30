@@ -68,4 +68,4 @@ provenance record
 : What actually happened. The retrospective side of the diagram. A deviation in an execution is a diff of the file against an earlier version of itself.
 
 run repository
-: The git repository a run leaves behind, one commit per provenance record, with the records restated in the commits. It is the run directory a partial runner writes its files to, the parent of its `--cache`; the cache itself is never committed.
+: The git repository a run leaves behind, one commit per provenance record, with the records restated in the commits. It is the run directory a partial runner writes its files to; the `.cache/` in it is never committed.

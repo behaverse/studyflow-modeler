@@ -1,0 +1,45 @@
+# The walk, as the local runtime hosts it
+
+What the walk (`packages/core/src/engine`) does with a study on this machine: what a re-run skips, how messages
+travel between pools, how an activity repeats or is ended, and where the state lives. What a partial runner is told
+and hands back is the contract in [SKILL.md](SKILL.md).
+
+## Re-runs
+
+A step is skipped when its record still stands: nothing it reads was re-made earlier in this run, its
+outputs are where it left them, and the commit its record names still holds what it ran with — every artifact it reads
+or makes, compared by git itself, and its own drawing (at a gateway, the flows it weighs too), read back out of the
+study that commit carries. Each run leaves the study it walks in its repository before its first step, named and
+spelled as the original is. So editing a step, a condition or a file it reads re-runs that step and whatever reads
+what it re-makes, and nothing else. An output the worktree has lost comes
+back from the commit that made it. A record naming no commit cannot be checked, so its step runs once more and leaves
+one.
+
+## Messages
+
+Pools talk only along message flows, and the walk carries every message: `{"id", "flow", "content", "inReplyTo"?}`.
+
+- An element no runner claims does its own. An activity sends its data inputs along each flow out of it, as a mapping of source id to value; a data element with no value this run gives its `uri`, else null, and the receiver reads it from the plan. Then, if a flow comes into it, it waits for the next message along one and takes its content as its result, into its data outputs through their `transformation`s. So a send task sends, a receive task receives, and a task with flows both ways to one pool asks it. A catch or start event with a flow into it waits for a message. A throw or end event sends one carrying null.
+- A step with no message flow of its own exchanges along the nearest enclosing sub-process's, else along its pool's, so a collapsed sub-process or a pool carries the exchange its steps make, lanes and all; a step with flows of its own inherits none. An unclaimed step inherits only when it has data inputs to send, and then only the flows to and from other pools, never a pool's once-only message to a step in another pool; like any step that talks, it never skips or replays.
+- A claimed element's runner does its own while it runs, and a participant with no process is a pool a runner may claim: each message sent to it is one hand-off, and the runner's result is the answer ([SKILL.md](SKILL.md), "Messages").
+- What an element sends answers the message its pool last took from the target's pool, by `inReplyTo`.
+- An event-based gateway takes the branch whose message comes first: each branch starts at a catch event or a receive task a message flow reaches, and that step takes the message. Its decision is never replayed.
+- An element with message flows never replays. A wait with nothing left to send it, because every sender's pool has ended, fails the run.
+
+## Repeats
+
+- A standard loop marker repeats its activity while `loopCondition` holds, up to `loopMaximum`, and with no condition until a boundary event ends it.
+- A multi-instance marker runs its activity `loopCardinality` times, whichever way `isSequential` reads: the instances run one after another, re-entering the activity's scope each time, so the parallel marker is honoured in order of completion only. When its `loopDataInputRef` names a list this run holds (a property, its declared `value` until a data edge writes one, or a data object's value), it runs once per item instead, and `loopCardinality` is ignored: each pass binds its item under the `inputDataItem`'s name in the activity's own scope (`state.<activity id>.<name>`, `{name}` to the steps inside, a name to its expressions), takes what that scope holds under the `outputDataItem`'s name once the pass is done, and after the last pass the list of them is stored into the `loopDataOutputRef` element. What runs in such a pass never skips or replays, since a record keeps an element's last pass only. While a repeating activity runs, `state._meta.instance.<id>` is the pass it is on, 1-based, so a step inside knows which instance it is serving.
+- A pool whose participant carries a `participantMultiplicity` runs its process `maximum` times the same way: the instances run one after another, the pool's scope is re-entered for each, `state._meta.instance.<pool id>` is the instance it is on, and a pool it talks to along message flows answers each instance in turn; a flow from that participant to a step in another pool is the whole pool's message, sent once, carrying null, after the last instance has ended, and a wait on it holds while the instances run.
+- A lane set on a process or a sub-process is a partition of the drawing: the walk reads through it.
+
+## Boundary events and timers
+
+- A message at a boundary event ends the activity it sits on at that pool's next step, and the walk goes on from the event.
+- A timer event (`timeDuration`, `timeDate`, ISO 8601) waits for its time. At a boundary event the timer runs from the moment its activity is entered; when it runs out the activity ends there, the walk goes on from the event, and a hand-off in progress is stopped (its runner is told `cancel`), whatever it had done.
+- A step that fails ends the same way when it carries an error boundary event (one with an `errorEventDefinition`): the record keeps the error, the run is not failed, and the walk goes on from the event; without one the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event.
+- A step that finishes takes that path too when it carries a conditional boundary event (one with a `conditionalEventDefinition`) whose `condition` holds. It is read once the step's result and bindings are adopted, by the evaluator and `language` rule a sequence flow's `conditionExpression` gets, with `{placeholders}` resolved as everywhere else, so `{Play.failedTrialRate} > 0.2` reads the step's own result.
+
+## State
+
+The run's values carry the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`). `state._meta.reached.<id>` counts, study-lifetime, the tokens that reached each element and that took each sequence flow, so a flow's label may cite `{reached}` as a node's does. A data edge into a declared property writes it (`state.<scope>.<name>`), and so does a value a runner binds under the property's own id; re-entering a scope re-initialises both.

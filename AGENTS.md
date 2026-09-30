@@ -24,7 +24,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
 | `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (a moddle package in `*.moddle.yaml`, its palette templates included), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
 | `skills/browser` | The browser runtime, served at `/run/`: it hosts the walk for one participant, a screen per step. |
-| `skills/local` | The local runtime (`src/run.ts` hosts the walk: runner subprocesses, the run repository, what a re-run reuses); its `SKILL.md` is the contract every partial runner follows. |
+| `skills/local` | The local runtime (`src/run.ts` hosts the walk: the runners' processes, the run repository, what a re-run reuses). Its `SKILL.md` is the contract every partial runner follows, `runner.py` speaks it for a runner in Python, and `WALK.md` says how the walk goes. |
 
 ## Rules
 

@@ -8,27 +8,76 @@ metadata:
 ---
 
 `src/run.ts` hosts the walk (`packages/core/src/engine`, the one engine every runtime hosts) inside the `studyflow`
-CLI. It never executes an element itself: each skill's `runtimes.local` command is asked for its claims and then
-handed one element at a time (`<plan.json> --element <id> --cache <dir>`), run in that skill's folder; the contract
-is below. The [prov](../prov/SKILL.md) skill's module keeps the run repository and records.
+CLI. It never executes an element itself: each skill's `runtimes.local` command is started once for the run, in that
+skill's folder, asked which elements it takes, and then handed one at a time; the contract is below. How the walk
+goes (messages, repeats, timers, what a re-run skips) is in [WALK.md](WALK.md). The [prov](../prov/SKILL.md) skill's
+module keeps the run repository and records.
 
 ## Partial runners
 
-A partial runner is a program in any language that claims certain elements and executes them. [`../reachy/local.py`](../reachy/local.py) is a working example; [`../prov/prov.ts`](../prov/prov.ts) is the records module the local runtime imports.
+A partial runner is a program in any language that claims certain elements and executes them. [`../shell/local.py`](../shell/local.py) is a short working example, written with the Python SDK beside this file ([`runner.py`](runner.py)).
 
 This contract is Studyflow's published language for the local runtime, and the whole interface to it: the walk coordinates, a runner executes, and nothing here depends on how a runner or the tool behind it works. A runner is its skill's side of the boundary: it speaks these terms to the walk and its tool's own protocol to the tool.
 
-**Discovery.** `studyflow run --runtime local` runs every skill's `runtimes.local` command in that skill's folder (the checkout's `skills/`, or `libexec/skills` as installed, plus any `STUDYFLOW_SKILLS` directory), and any executable named `studyflow-<name>` on PATH. `--runner NAME=COMMAND` adds or replaces one for a single run.
+**Discovery.** `studyflow run --runtime local` starts every skill's `runtimes.local` command in that skill's folder (the checkout's `skills/`, or `libexec/skills` as installed, the skills `studyflow skill add` installed, plus any `STUDYFLOW_SKILLS` directory), and any executable named `studyflow-<name>` on PATH. `--runner NAME=COMMAND` adds or replaces one for a single run. A command that is not on this machine claims nothing, and the run goes on without it.
 
-**Protocol.**
+**Protocol.** A runner is one process for the whole run. The walk speaks to it in [JSON-RPC 2.0](https://www.jsonrpc.org/specification) on its stdin and stdout, one message a line; this is version 2 of the contract. A line on stdout that is no such message goes to the run log as it is; stderr stays on the terminal. `STUDYFLOW_RUN_PID` in the environment is the walk's pid, for anything a runner leaves running to follow, and `STUDYFLOW_LOCAL` is this folder, where the SDK is.
 
-1. `<plan.json> --claims`: print the ids of the elements you will run, as JSON on stdout. A plain array marks them live: they run every time and never replay. `{"elements": [...], "live": false}` marks them replayable, so a re-run skips or reuses them as it does the walk's own records (the python skill answers this way). End events can be claimed too, and are handed over as the walk reaches them, so a runner can fold what it started.
-2. `<plan.json> --element <id> --cache <dir>`, once per claimed element. `STUDYFLOW_RUN_PID` in the environment is the walk's pid, for anything a runner leaves running to follow.
-3. The cache holds one file per call, `<element_id>.state.json`. It starts as `{state}`; the runner updates it with the result, so it becomes the same state plus `result`, `durationMs`, and on failure `error` with a non-zero exit. Stdout goes to the run log; stdin and stderr stay on the terminal. The cache's parent is the run directory: what a runner leaves there is committed at the next checkpoint, while `.cache/` is never committed and is removed when the run ends (`--debug` keeps it).
+What the walk sends:
 
-`plan.json` says which version of this contract the walk speaks (`protocol`, now 1) and carries the run's `options` (`studyflow run … --option sim` gives `{"sim": true}`), which a runner reads when it knows them and otherwise ignores; no flag is passed that a runner must accept. A `--claims` answer may name the protocol it speaks (`{"protocol": 1, "elements": [...]}`), and a walk refuses a runner that speaks another. With `--step-timeout SECONDS`, a hand-off that takes longer is stopped and its step fails.
+| Method | Params | Answer |
+| --- | --- | --- |
+| `initialize` | `protocol` (2), `plan` (the path of `plan.json`), `run`: `dir` (the run directory) and `cache` (its `.cache/`) | `protocol`, `elements` (the ids it will run), `live` (default true). An error stops the run before its first step: what the runner lacks (a build, a device), in its own words. |
+| `execute` | `element`, `values` (the run's values: each element's by its id, the state tree under `state`), and `message` when the element is a pool the runner plays | What it hands back (below). An error (`code` 1, or 2 when it was cancelled; `message`) fails the step; its `data` is what it had handed back by then, which is kept. |
+| `message` | `element`, `message` | None (a notification): a message along a flow into an element it is running. |
+| `cancel` | `element` | None: stop this hand-off, and answer its `execute` with an error. |
+| `shutdown` | | `{}`, then it exits. |
 
-What comes back: `result`, `durationMs` and `error` are recorded. So is `record`, a mapping a runner may hand back to say what it ran with (a package version, a model digest, the request as sent): it is merged into its step's record entry, the walk's own keys standing, and is never a value later steps read. Any other top-level key whose value changed becomes a value the next steps read, so a runner binds its own result by writing it under its element id (`{Play.trials}` then reads it). Scopes under `state` that changed are merged, `_meta` excepted. At a gateway the runner samples for, `result` is the bindings its conditions read; for a catch event, `result` is bound under the event's id.
+What a runner sends:
+
+| Method | Params | Answer |
+| --- | --- | --- |
+| `message` | `element`, `flow`, `content`, `id`?, `inReplyTo`? | None: a message along a flow of the element it is running. |
+| `log` | `text`, `element`? | None: a line for the run log. |
+| `prompt` | `element`, `text`, `default` | What the person at the walk's terminal typed, or `default` when there is no terminal. |
+
+Live elements run every time and never replay. `live: false` marks them replayable, so a re-run skips or reuses them as it does the walk's own records (the python skill answers this way). End events can be claimed too, and are handed over as the walk reaches them, so a runner can fold what it started. A runner that claims nothing is shut down at once; a walk refuses a runner that speaks another `protocol`.
+
+Hand-offs may overlap: two pools walked at once may each be in the same runner. A hand-off is cancelled when a timer at a boundary event ends its activity, or when it outlasts `--step-timeout SECONDS` (its step then fails). A runner that has not answered two seconds after `cancel` or `shutdown` has its process ended, and is started again for its next hand-off.
+
+What a runner leaves in the run directory is committed at the next checkpoint, while `.cache/` is never committed and is removed when the run ends (`--debug` keeps it, and leaves in it the run's values after each element, `<id>.state.json`).
+
+**What comes back.** A runner says what it binds; nothing is read off a changed copy of the values.
+
+- `result`: the step's result, bound under its element's id, so `{Play.trials}` reads it. For a pool, it is the answer to the message. At a gateway the runner samples for, it is the bindings its conditions read.
+- `values`: values later steps read, by the id each is bound under, usually a data edge's target. One bound under a declared property's id lands in that property (`state.<scope>.<name>`).
+- `state`: properties it wrote, scope by scope (`{"Session": {"count": 3}}`); `_meta` is the walk's.
+- `record`: what it ran with (a package version, a model digest, the request as sent). It is merged into the step's record entry, the walk's own keys standing, and is never a value later steps read.
+- `durationMs`.
+
+A runner resolves placeholders by the rule in [docs/reference.qmd](../../docs/reference.qmd#placeholders): `state` from its root, then the nearest scope outward, then an element's result by id or name.
+
+**Messages.** A claimed element's runner does its own exchange while it runs: what it sends (`message`) goes along the flow it names, and each message along a flow into the element is passed on to it, including any that were waiting when it started. A step with no message flow of its own exchanges along the nearest enclosing sub-process's, else along its pool's. A participant with no process is a pool a runner may claim: each message sent to it is one `execute` of that participant, with the message as `message`; the `result` is the answer, and it goes back along the pool's flow to the sender, or to the sender's pool. A hand-off that fails answers null, and the record keeps the error. The rest of how messages travel is in [WALK.md](WALK.md#messages).
+
+**The SDK.** [`runner.py`](runner.py) speaks all of this for a runner written in Python, which is then two functions:
+
+```python
+import os, sys
+from pathlib import Path
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
+from runner import serve
+
+def claims(plan):   # the ids it takes; or {"elements": [...], "live": False}
+    return [eid for eid, e in plan["elements"].items() if e["attributes"].get("implementation", "").startswith("echo://")]
+
+def execute(step):  # one hand-off: what it returns is the result, and raising fails the step
+    return step.fill(step.element.get("additionalArguments") or "")
+
+if __name__ == "__main__":
+    sys.exit(serve(claims, execute))
+```
+
+`step` carries the hand-off: `id`, `element`, `plan`, `values`, `message`, `options`, `seed`, `run_dir` and `cache`; `bind(id, value)`, `write(scope, name, value)` and `note(**record)` for what goes back; `resolve(path)`, `fill(text)` and `read(text)` for placeholders; `send`, `receive` and `ask` for messages; `prompt(text, default)` for the person; `cancelled`, which a long step checks (a `receive` raises `Cancelled`). What the runner prints goes to the run log, unless it serves with `terminal=True`, for a runner a person sits at. One hand-off at a time runs on the process's main thread, and one that overlaps it on a thread of its own.
 
 **The plan.** `plan.json` is a digest of the study, written once per run. A runner never opens the diagram.
 
@@ -37,28 +86,3 @@ What comes back: `result`, `durationMs` and `error` are recorded. So is `record`
 - `elements`, by id: the BPMN `type`, `name`, `attributes` (local names, as written), `extensions` (namespace, type, attributes, child text), `additionalArguments`, `ioSlots`, `inputs` and `outputs` (data associations with their `transformation`), `participants` (a choreography task's bands, in order; `initiatingParticipantRef` is among its attributes), `parent`, the container, and `parameters`, the `studyflow:Parameters` wired into the element, merged (present only when one is). Mappings merge key by key, and a value two of them set stops the run before it starts, since nothing drawn orders the wires. A key naming an XML attribute the element's extension type declares (its schema, inherited ones included) is not in `parameters`: it is written into that extension's `attributes`, as the text of one value, so a runner reads an `instrument` the wires set where it reads any other. Wired into a sub-process, the rest are read-only properties of it: they are in `state.<sub-process>` for the steps inside, and a runner that hands one back changed fails the step. Pool participants and message flows (`sourceRef`, `targetRef`, `messageRef`) are elements too, with the messages (`itemRef`) and item definitions (`structureRef`) they lead to. Every pool with a process is walked at once, each on its own thread.
 - `names`: element ids to the names a placeholder may cite (`{Play.trials}`), one element each. A name two elements share, or one that is also an id, binds nothing.
 - Nothing is inferred: an attribute the diagram omits is absent, and its default is the runner's to know.
-
-**Re-runs.** A step is skipped when its record still stands: nothing it reads was re-made earlier in this run, its
-outputs are where it left them, and the commit its record names still holds what it ran with — every artifact it reads
-or makes, compared by git itself, and its own drawing (at a gateway, the flows it weighs too), read back out of the
-study that commit carries. Each run leaves the study it walks in its repository before its first step, named and
-spelled as the original is. So editing a step, a condition or a file it reads re-runs that step and whatever reads
-what it re-makes, and nothing else. An output the worktree has lost comes
-back from the commit that made it. A record naming no commit cannot be checked, so its step runs once more and leaves
-one.
-
-**Messages.** Pools talk only along message flows, and the walk carries every message: `{"id", "flow", "content", "inReplyTo"?}`.
-
-- An element no runner claims does its own. An activity sends its data inputs along each flow out of it, as a mapping of source id to value; a data element with no value this run gives its `uri`, else null, and the receiver reads it from the plan. Then, if a flow comes into it, it waits for the next message along one and takes its content as its result, into its data outputs through their `transformation`s. So a send task sends, a receive task receives, and a task with flows both ways to one pool asks it. A catch or start event with a flow into it waits for a message. A throw or end event sends one carrying null.
-- A step with no message flow of its own exchanges along the nearest enclosing sub-process's, else along its pool's, so a collapsed sub-process or a pool carries the exchange its steps make, lanes and all; a step with flows of its own inherits none. An unclaimed step inherits only when it has data inputs to send, and then only the flows to and from other pools, never a pool's once-only message to a step in another pool; like any step that talks, it never skips or replays.
-- A claimed element's runner does its own while it runs. Each line it appends to `<cache>/<id>.outbox.jsonl`, `{"flow": <message flow id>, "content": ..., "id"?, "inReplyTo"?}`, goes along that flow. Each message along a flow into it is appended to `<cache>/<id>.inbox.jsonl`, including any that were waiting when it started.
-- A participant with no process is a pool a runner may claim. Each message sent to it is one hand-off of that participant, with the message under `message` in the state file. The runner's `result` is the answer, and it goes back along the pool's flow to the sender, or to the sender's pool. A hand-off that fails answers null, and the record keeps the error.
-- What an element sends answers the message its pool last took from the target's pool, by `inReplyTo`.
-- An event-based gateway takes the branch whose message comes first: each branch starts at a catch event or a receive task a message flow reaches, and that step takes the message. Its decision is never replayed.
-- A message at a boundary event ends the activity it sits on at that pool's next step, and the walk goes on from the event. A standard loop marker repeats its activity while `loopCondition` holds, up to `loopMaximum`, and with no condition until a boundary event ends it. A multi-instance marker runs its activity `loopCardinality` times, whichever way `isSequential` reads: the instances run one after another, re-entering the activity's scope each time, so the parallel marker is honoured in order of completion only. When its `loopDataInputRef` names a list this run holds (a property, its declared `value` until a data edge writes one, or a data object's value), it runs once per item instead, and `loopCardinality` is ignored: each pass binds its item under the `inputDataItem`'s name in the activity's own scope (`state.<activity id>.<name>`, `{name}` to the steps inside, a name to its expressions), takes what that scope holds under the `outputDataItem`'s name once the pass is done, and after the last pass the list of them is stored into the `loopDataOutputRef` element. What runs in such a pass never skips or replays, since a record keeps an element's last pass only. While a repeating activity runs, `state._meta.instance.<id>` is the pass it is on, 1-based, so a step inside knows which instance it is serving. A pool whose participant carries a `participantMultiplicity` runs its process `maximum` times the same way: the instances run one after another, the pool's scope is re-entered for each, `state._meta.instance.<pool id>` is the instance it is on, and a pool it talks to along message flows answers each instance in turn; a flow from that participant to a step in another pool is the whole pool's message, sent once, carrying null, after the last instance has ended, and a wait on it holds while the instances run. A lane set on a process or a sub-process is a partition of the drawing: the walk reads through it.
-- A timer event (`timeDuration`, `timeDate`, ISO 8601) waits for its time. At a boundary event the timer runs from the moment its activity is entered; when it runs out the activity ends there, the walk goes on from the event, and a hand-off in progress is stopped (its runner gets SIGTERM), whatever it had done.
-- A step that fails ends the same way when it carries an error boundary event (one with an `errorEventDefinition`): the record keeps the error, the run is not failed, and the walk goes on from the event; without one the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event.
-- A step that finishes takes that path too when it carries a conditional boundary event (one with a `conditionalEventDefinition`) whose `condition` holds. It is read once the step's result and bindings are adopted, by the evaluator and `language` rule a sequence flow's `conditionExpression` gets, with `{placeholders}` resolved as everywhere else, so `{Play.failedTrialRate} > 0.2` reads the step's own result.
-- An element with message flows never replays. A wait with nothing left to send it, because every sender's pool has ended, fails the run.
-
-**State.** The state file carries the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`). `state._meta.reached.<id>` counts, study-lifetime, the tokens that reached each element and that took each sequence flow, so a flow's label may cite `{reached}` as a node's does. A runner resolves placeholders by the rule in [docs/reference.qmd](../../docs/reference.qmd#placeholders) (`state` from its root, then the nearest scope outward, then an element's result by id or name), writes a data edge's value into its target property under `state`, and the walk adopts the scopes that changed. A value handed back under a declared property's own id lands in that property too (`state.<scope>.<name>`), so a runner that binds its outputs by target id needs nothing else; re-entering a scope re-initialises both.

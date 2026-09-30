@@ -4,9 +4,9 @@ definitions:
 Runner_Contract:
   type: Collaboration
   documentation: >-
-    A local run, from a partial runner's side. The walk asks every runner for its claims before the first step, and a
-    runner that fails to answer stops the run. It then hands each claimed element to its runner with the plan and the
-    state file, adopts the state that comes back, and commits the run directory. The runner speaks the walk's contract
+    A local run, from a partial runner's side. The walk starts every runner and asks for its claims before the first
+    step, and a runner that refuses stops the run. It then hands each claimed element to its runner with the run's
+    values, adopts what the runner hands back, and commits the run directory. The runner speaks the walk's contract
     on one side and its tool's own protocol on the other. Drawn for docs/developers.qmd.
   extensionElements:
     - type: studyflow:Study
@@ -25,11 +25,11 @@ Runner_Contract:
       bounds: 40 540 1040 80
   messageFlows:
     Msg_Claims:
-      name: "--claims"
+      name: initialize
       sourceRef: Ask_Claims
       targetRef: Claims_Start
       waypoint: 190,190 190,392
-      label: 197 262 55 15
+      label: 197 262 70 15
     Msg_Claimed:
       name: claimed ids
       sourceRef: Claims_End
@@ -37,13 +37,13 @@ Runner_Contract:
       waypoint: 416,392 416,270 280,270 280,190
       label: 423 300 75 15
     Msg_Element:
-      name: "--element <id>"
+      name: execute
       sourceRef: Hand_Over
       targetRef: Element_Start
       waypoint: 490,190 490,392
       label: 497 330 100 15
     Msg_State:
-      name: updated state
+      name: what it binds
       sourceRef: Element_End
       targetRef: Hand_Over
       waypoint: 1008,392 1008,270 545,270 545,190
@@ -91,7 +91,7 @@ Walk:
       bounds: 436 110 130 80
     Adopt:
       type: Task
-      name: Adopt its state, commit the run directory
+      name: Adopt what it binds, commit the run directory
       dataOutputAssociations:
         Out_Commit:
           targetRef: Run_Dir
@@ -166,7 +166,7 @@ Runner:
       label: 145 432 90 30
     Print_Ids:
       type: Task
-      name: Print the ids it takes
+      name: Answer with the ids it takes
       bounds: 238 370 120 80
     Claims_End:
       type: EndEvent
@@ -186,7 +186,7 @@ Runner:
       label: 450 432 80 30
     Read_Plan:
       type: Task
-      name: Read plan.json and the state file
+      name: Read the plan and the values
       bounds: 540 370 120 80
     Run_Tool:
       type: Task
@@ -194,7 +194,7 @@ Runner:
       bounds: 690 370 120 80
     Write_Back:
       type: Task
-      name: Write back result, record, files
+      name: Hand back result, record, files
       bounds: 840 370 120 80
     Element_End:
       type: EndEvent
