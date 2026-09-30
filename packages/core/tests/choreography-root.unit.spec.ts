@@ -15,9 +15,7 @@ const CANVAS_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn2:collaboration>
   <bpmn2:process id="Process_1" name="Dyadic decision study" isExecutable="false" studyflow:signature="abc123">
     <bpmn2:documentation>A two-participant choreography.</bpmn2:documentation>
-    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
-    <studyflow:tags>Reference</studyflow:tags>
-    <studyflow:tags>Study designs</studyflow:tags>
+    <bpmn2:extensionElements><studyflow:study><studyflow:tags>Reference</studyflow:tags><studyflow:tags>Study designs</studyflow:tags></studyflow:study></bpmn2:extensionElements>
     <bpmn2:startEvent id="Start_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
@@ -65,9 +63,9 @@ test('save emits the BPMN 2.0 choreography shape, load folds it back, and the ro
   // The rewrite moves a fixed property list, and attributes no schema declares (`$attrs`) apart: what it misses is dropped.
   for (const [label, root] of [['saved', choreography], ['reloaded', process]]) {
     expect(root.name, label).toBe('Dyadic decision study');
-    expect(root.get('tags'), label).toEqual(['Reference', 'Study designs']);
     expect(root.documentation?.[0]?.text, label).toContain('two-participant');
     expect(root.extensionElements?.values?.[0]?.$type, label).toBe('studyflow:Study');
+    expect(root.extensionElements?.values?.[0]?.tags, label).toEqual(['Reference', 'Study designs']);
     expect(root.$attrs['studyflow:signature'], label).toBe('abc123');
   }
 });

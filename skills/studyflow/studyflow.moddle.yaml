@@ -298,6 +298,16 @@ types:
         isAttr: false
         isMany: true
         type: String
+      - name: tags
+        # On the study's entry, whose children BPMN's schema takes in `extensionElements`, as it takes no child of a
+        # process but its own.
+        description: Short labels for the kind of study (`pilot`, `fMRI`, `longitudinal`).
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          categories:
+            - Documentation
       - name: version
         description: Version label of the study (`1.2`, a git tag).
         isAttr: true
@@ -359,22 +369,6 @@ types:
         description: Initial value, as a literal; read when the declaring scope starts.
         isAttr: true
         type: String
-  - name: Classification
-    description: What kind of study a diagram is, declared by the diagram itself.
-    extends:
-      - bpmn:Process
-      - bpmn:Collaboration
-      - bpmn:Choreography
-    isAbstract: true
-    properties:
-      - name: tags
-        description: Short labels for the kind of study (`pilot`, `fMRI`, `longitudinal`).
-        isMany: true
-        type: String
-        meta:
-          categories:
-            - Documentation
-
   - name: StartEvent
     description: Lets a start event show a consent form before entry.
     extends:

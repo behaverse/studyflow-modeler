@@ -40,7 +40,7 @@ test('an attribute is read and written where it lives, and a read takes the valu
     {
       // A wrapper is no BPMN element: a trait on the element's type is the element's alone.
       label: 'a trait attribute, on the element, its wrapper beside it', type: 'bpmn:Process', wrapper: 'studyflow:Study',
-      writes: [['tags', ['pilot']]], reads: { tags: ['pilot'] }, holder: (bo) => bo.tags,
+      writes: [['checklist', '- [ ] pilot']], reads: { checklist: '- [ ] pilot' }, holder: (bo) => bo.checklist,
     },
     {
       label: 'a redefinition among wrappers, on the wrapper under the name it redefines', type: 'bpmn:ChoreographyTask',
