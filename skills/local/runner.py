@@ -27,17 +27,17 @@ from __future__ import annotations
 import json
 import os
 import queue
-import re
 import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any, Callable
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from feel import PLACEHOLDER  # noqa: E402 - a `{name}` citation, as the local runtime's FEEL reads it
+
 PROTOCOL = 2
 
-# A `{name}` or `{name.field}` citation (docs/reference.qmd, "Placeholders"; core's PLACEHOLDER).
-PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")
 
 
 class Cancelled(Exception):

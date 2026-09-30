@@ -8,6 +8,7 @@
   ["congruency_test.pvalue < alpha", {"congruency_test": {"pvalue": 0.01}, "alpha": 0.05}, true],
   ["state._meta.reached.Gate < 3", {"state": {"_meta": {"reached": {"Gate": 2}}}}, true],
   ["Task.failedTrialRate > 0.2", {"Task": {"failedTrialRate": 0.25}}, true],
+  ["{Task.failedTrialRate} > 0.2 and {alpha} < 1", {"Task": {"failedTrialRate": 0.25}, "alpha": 0.05}, true],
   ["Task.missing > 0.2", {"Task": {}}, null],
   ["word = \"b\"", {"word": "b"}, true],
   ["word != \"b\"", {"word": "b"}, false],

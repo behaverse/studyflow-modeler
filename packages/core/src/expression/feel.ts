@@ -3,14 +3,21 @@
  * `conditionExpression`, a loop's `loopCondition`, a conditional event's `condition`, a data edge's
  * `transformation`). FEEL is the expression language of the OMG's DMN standard, BPMN's sibling; `feelin` evaluates
  * it here, for the modeler and the browser runtime, and skills/local/feel.py evaluates the subset the local runtime
- * runs. tests/fixtures/feel.json pins the two row by row.
+ * runs. tests/fixtures/feel.json pins the two row by row. Either reads a `{name}` citation as the name.
  */
 import { evaluate, parseExpression } from 'feelin';
 
+import { PLACEHOLDER } from '@core/document/state';
+
 export type FeelResult = { value: unknown; error?: string };
 
+/** The expression with each `{name}` citation as the name it cites: a study may write `{Play.trials} > 3` as its
+ * labels do, and it reads as `Play.trials > 3`. */
+const cited = (expression: string): string => expression.replace(PLACEHOLDER, '$1');
+
 /** Why the expression is not FEEL, or undefined when it parses. */
-export function feelSyntaxError(expression: string): string | undefined {
+export function feelSyntaxError(written: string): string | undefined {
+  const expression = cited(written);
   // feelin's parser recovers from Python and JavaScript idioms without an error node; name them outright.
   const code = expression.replace(/"(?:[^"\\]|\\.)*"/g, '""');
   const idiom = code.match(/==|&&|\|\||'|!(?!=)/);
@@ -30,7 +37,8 @@ export function feelSyntaxError(expression: string): string | undefined {
 }
 
 /** The expression's value over `context`; an expression that is not FEEL, or names something no scope declares, is an error. */
-export function evaluateFeel(expression: string, context: Record<string, unknown>): FeelResult {
+export function evaluateFeel(written: string, context: Record<string, unknown>): FeelResult {
+  const expression = cited(written);
   const syntax = feelSyntaxError(expression);
   if (syntax) return { value: null, error: syntax };
   try {

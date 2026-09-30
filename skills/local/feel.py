@@ -388,9 +388,13 @@ def parse(expression: str) -> tuple:
     return _PARSED[expression]
 
 
+# A `{name}` or `{name.field}` citation (docs/reference.qmd, "Placeholders"; core's PLACEHOLDER).
+PLACEHOLDER = re.compile(r"\{\s*([^\W\d][\w.-]*)\s*\}")
+
+
 def evaluate(expression: str, scope: dict[str, Any]) -> Any:
-    """The value of a FEEL expression over the names in `scope`."""
-    return _eval(parse(expression.strip()), scope)
+    """The value of a FEEL expression over the names in `scope`. A `{name}` citation reads as the name it cites."""
+    return _eval(parse(PLACEHOLDER.sub(r"\1", expression).strip()), scope)
 
 
 def holds(expression: str, scope: dict[str, Any]) -> bool:

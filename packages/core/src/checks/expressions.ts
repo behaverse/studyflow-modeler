@@ -1,6 +1,5 @@
 import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
-import { PLACEHOLDER } from '@core/document/state';
 import { splitBinding } from '@core/document/io-specification';
 import { timerDelay } from '@core/engine/timer';
 import { feelSyntaxError } from '@core/expression/feel';
@@ -25,7 +24,7 @@ export function checkExpressions(definitions: ModdleElement): Issue[] {
       const language: unknown = element.language;
       // A data input's transformation is `slot = selection`: the slot (`self`, `*`, a name) is no expression.
       const text = element.$parent?.$type === 'bpmn:DataInputAssociation' ? splitBinding(element.body).selection ?? '' : element.body;
-      const body = text.trim().replace(PLACEHOLDER, (_match: string, path: string) => path);
+      const body = text.trim();
       if (!body) return;
       const error = typeof language === 'string' && language && !language.toLowerCase().includes('feel')
         ? `names ${language}, and every Studyflow expression is FEEL`

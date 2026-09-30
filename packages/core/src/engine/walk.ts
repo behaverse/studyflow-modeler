@@ -286,7 +286,7 @@ export class Walk {
     for (const boundary of this.graph.boundaries.get(element.id) ?? []) {
       if (!has(boundary, 'conditionalEventDefinition') || !boundary.condition) continue;
       const { body, language } = boundary.condition;
-      const verdict = this.memory.evaluate({ body: body.replace(PLACEHOLDER, '$1'), language }, element.id) === true;
+      const verdict = this.memory.evaluate({ body, language }, element.id) === true;
       this.log(thread, 'conditionExpression.evaluated', `    ${body} → ${verdict}  [${boundary.id}]`, { level: 'debug' });
       if (verdict) return boundary;
     }
