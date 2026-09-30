@@ -82,7 +82,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | `bpmn:StartEvent`, `bpmn:EndEvent` | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
 | `cognitive:Instruction`, `cognitive:Questionnaire` | empty content or instrument blocks the run | renders; writes the answer into scope | - |
 | `behaverse:Task` | checked against the assessment build's manifest | runs the assessment in the page | claimed by the `behaverse` skill's partial runner, which plays it in the Unity build |
-| `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | - | generic screen, and a way forward | - |
+| `cognitive:CognitiveTask`, `cognitive:Rest`, plain `bpmn:Task` | - | generic screen, and a way forward; one that exchanges messages has none, and the walk sends and receives for it | - |
 | Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
 | `bpmn:SubProcess` | - | walked one level in, its properties a scope of its own, re-entered on each pass | the same |
 | `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions (FEEL), then `default`, then the one edge without a condition | the same rule |
@@ -92,7 +92,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | Timers | the time is ISO 8601 | a timer event waits for its time; one at a boundary event ends the step when it runs out, and its screen is dropped | the same, and the step's runner is stopped |
 | Loop and multi-instance markers | - | one pass after another: while `loopCondition` holds, `loopCardinality` times, or once per item of `loopDataInputRef` | the same |
 | Boundary events | - | an error boundary event takes a step the participant refuses; a conditional one reads the finished step | those, and a message boundary event |
-| Message flows between pools | a browser run refuses them | - | carried by the walk, pool to pool |
+| Message flows between pools | a browser run refuses a flow to a pool no one in the page plays (a model, a device), and one from a screen | carried by the walk between the pools it walks; a pool with no process and a human actor is the person at the page, who answers each message on a screen | carried by the walk, pool to pool; a pool with no process is played by the runner that claims it |
 
 : What each runtime does with each family of elements, and what is checked before the run starts. Both host the same walk, so they differ only in what executes a step: a screen in the page, a partial runner on your machine. A dash means the runtime passes that step over. {#tbl-support}
 
