@@ -2,6 +2,7 @@
 import { expect, test } from '@playwright/test';
 
 import { registerNode } from '@runner/nodes/registry';
+import { stateOf } from '@core/engine';
 import { Aborted, Session } from '@runner/session';
 import { Studyflow } from '@runner/studyflow';
 import type { FlowNode } from '@runner/flow';
@@ -30,6 +31,12 @@ registerNode({
   type: 'task',
   match: { fallback: 'task' },
   toJob: (node: FlowNode) => ({ type: 'task', node }),
+  Component: nothing,
+});
+registerNode({
+  type: 'message',
+  match: { bpmnType: 'bpmn:Participant' },
+  toJob: (node: FlowNode) => ({ type: 'message', node, message: null }),
   Component: nothing,
 });
 
@@ -296,4 +303,47 @@ test.describe('the state a session keeps', () => {
     expect(session.getState()._meta.prov).toEqual([{ action: 'executed' }]);
     expect(session.getState()._meta.reached.Gate).toBe(3);
   });
+});
+
+test('a person at the page answers what the study sends their pool, and the session keeps the run\'s record', async () => {
+  const session = new Session(await load(`${HEAD}C:
+  type: Collaboration
+  participants:
+    Subject: { name: Subject, processRef: S }
+    Person: { name: You }
+  messageFlows:
+    M_Trial: { sourceRef: Ask, targetRef: Person }
+    M_Answer: { sourceRef: Person, targetRef: Ask }
+S:
+  type: Process
+  properties:
+    P_Trial:
+      name: trial
+      value: '{"Stimulus": "a red square", "ResponseOptions": ["left", "right"]}'
+    P_Answer:
+      name: answer
+  flowElements:
+    Start: { type: StartEvent }
+    Ask:
+      type: Task
+      dataInputAssociations:
+        In_Trial: { sourceRef: [P_Trial] }
+      dataOutputAssociations:
+        Out_Answer: { targetRef: P_Answer }
+    End: { type: EndEvent }
+    F1: Start -> Ask
+    F2: Ask -> End
+`));
+  const shown: string[] = [];
+  for await (const job of session.traverse()) {
+    const { message } = job as { message?: { content: unknown } };
+    shown.push(message ? `${job.node.id}: ${JSON.stringify(message.content)}` : job.node.id);
+    // The task that asks has no screen of its own: the walk sends its trial, and the person's answer comes back.
+    if (message) session.answer('left');
+  }
+  expect(shown).toEqual(['Start', 'Person: {"P_Trial":{"Stimulus":"a red square","ResponseOptions":["left","right"]}}', 'End']);
+  expect(session.getState().S.answer).toBe('left');
+  // The record a local run keeps in run.jsonl, and the state read off it.
+  expect(session.getRecord().map((event) => event.event)).toContain('answered');
+  expect(stateOf(session.getRecord())).toEqual(session.getState());
 });

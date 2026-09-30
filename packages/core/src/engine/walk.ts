@@ -652,6 +652,11 @@ export class Walk {
     this.memory.store(id, value);
   }
 
+  /** A value under `name` in `scope`, declared there or not: what a host keeps that no scope declares. */
+  set(scope: string, name: string, value: unknown): void {
+    this.memory.set(scope, name, value);
+  }
+
   /** A value under a property's name, into the innermost scope around `from` that declares it; that scope, if any. */
   write(name: string, value: unknown, from: string): string | undefined {
     return this.memory.write(name, value, from);

@@ -1,21 +1,27 @@
 import { expect, test } from '@playwright/test';
 
+import { getRegisteredNodes, registerNode } from '@runner/nodes/registry';
 import { Studyflow } from '@runner/studyflow';
 import { validateUnwalked } from '@runner/unwalked';
+import type { FlowNode } from '@runner/flow';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 const packages: Record<string, any> = schemaPackages(loadSchemaModels());
 
-/** What a page cannot carry is refused before the first screen, not walked as another study. */
-test('a message flow between pools blocks a browser run; a drawn data edge warns; a loop and a timer are walked', async () => {
-  const study = await Studyflow.parse(`id: unwalked
+// A screen of its own for an instruction, and the generic step every other task falls back to (a spec sharing this
+// worker may have registered it already).
+const registered = new Set(getRegisteredNodes().map((node) => node.type));
+if (!registered.has('instruction')) registerNode({ type: 'instruction', match: { extensionType: 'cognitive:Instruction' }, toJob: (node: FlowNode) => ({ type: 'instruction', node, content: '' }), Component: () => null });
+if (!registered.has('task')) registerNode({ type: 'task', match: { fallback: 'task' }, toJob: (node: FlowNode) => ({ type: 'task', node }), Component: () => null });
+
+const study = (model: string, sender: string) => Studyflow.parse(`id: unwalked
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 C:
   type: Collaboration
   participants:
     Subject: { name: Subject, processRef: Study }
-    Model: { name: Model }
+    Model: ${model}
   messageFlows:
     M_Ask: { sourceRef: Practice, targetRef: Model }
 Study:
@@ -24,7 +30,7 @@ Study:
     Start:
       type: StartEvent
     Practice:
-      type: Task
+      ${sender}
       name: Practice
       loopCharacteristics:
         type: StandardLoopCharacteristics
@@ -48,6 +54,19 @@ Study:
     F2: Practice -> End
     F3: Timeout -> End
 `, structuredClone(packages));
-  const found = validateUnwalked(study).map((issue) => `${issue.severity ?? 'error'} ${issue.nodeId}`).sort();
-  expect(found).toEqual(['error M_Ask', 'warning Practice']);
+
+/** What a page cannot carry is refused before the first screen, not walked as another study. */
+test('a message flow the page carries runs; one to a pool no one in the page plays, or from a screen, is refused; a screen fills no data edge', async () => {
+  const CASES: [string, string, string, string[]][] = [
+    // A pool with no process and a human actor (none said is human) is the person at the page.
+    // The asking task has no screen: the walk sends for it and fills its data edges.
+    ['to the person at the page', '{ name: Model }', 'type: Task', []],
+    ['to a model', '{ type: studyflow:Actor, name: Model, actorType: llm, implementation: "ollama://gemma4" }', 'type: Task', ['error M_Ask']],
+    // A screen neither talks nor fills a data edge.
+    ['from a screen', '{ name: Model }', 'type: cognitive:Instruction', ['error M_Ask', 'warning Practice']],
+  ];
+  for (const [label, model, sender, says] of CASES) {
+    const found = validateUnwalked(await study(model, sender)).map((issue) => `${issue.severity ?? 'error'} ${issue.nodeId}`).sort();
+    expect(found, label).toEqual(says);
+  }
 });
