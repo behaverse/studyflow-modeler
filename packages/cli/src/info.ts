@@ -28,7 +28,9 @@ export async function info(input: string): Promise<StudyInfo> {
       if (el.flowElements) count(el);
     }
   };
-  count(root);
+  // Every pool's process, or the one process a study of one pool is.
+  const processes = (definitions.rootElements ?? []).filter((element: any) => element.$type === 'bpmn:Process');
+  for (const process of processes.length > 0 ? processes : [root]) count(process);
 
   return {
     file: { container: source.container, kind: source.kind },
