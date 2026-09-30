@@ -5,5 +5,5 @@ export { allocationOf, draw, permutedBlock, pick } from '@core/engine/allocation
 export { Steps } from '@core/engine/steps';
 export type { Entry } from '@core/engine/steps';
 export { Walk } from '@core/engine/walk';
-export type { Host, Level, Message, Note, Reuse, StateTree, Talk, WalkOptions } from '@core/engine/walk';
+export type { Host, Level, Message, Note, Reuse, StateTree, Talk, WalkOptions } from '@core/engine/host';
 export { dryHost } from '@core/engine/dry';

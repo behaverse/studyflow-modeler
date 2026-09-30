@@ -1,6 +1,6 @@
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, NOT_FLOW_NODES } from '@core/engine/graph';
 import type { Plan } from '@core/engine/plan';
-import type { Host } from '@core/engine/walk';
+import type { Host } from '@core/engine/host';
 
 /**
  * The host of a dry run: the study is walked and nothing is executed. Every step a runner would take is done at once,

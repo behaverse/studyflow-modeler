@@ -1,9 +1,11 @@
 import { PLACEHOLDER } from '@core/document/state';
-import { evaluateFeel } from '@core/expression/feel';
 import { allocationOf, draw, permutedBlock, pick, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
-import type { Expression, Plan, PlanElement } from '@core/engine/plan';
+import { Interrupted, keepRecord, logAt, type Host, type Note, type StateTree, type Thread, type WalkOptions } from '@core/engine/host';
+import type { Plan, PlanElement } from '@core/engine/plan';
+import { Post } from '@core/engine/post';
 import { Steps, type Entry } from '@core/engine/steps';
+import { Values } from '@core/engine/values';
 
 /**
  * The walk: one study, walked as the notation says. It is the one engine behind every runtime: the local runtime
@@ -14,95 +16,6 @@ import { Steps, type Entry } from '@core/engine/steps';
  * Every pool with a process is walked at once, each as its own task, one path per pool. The pools talk only along
  * message flows, and the walk carries every message.
  */
-
-export type StateTree = Record<string, any>;
-
-/** A message along a message flow. */
-export type Message = { id: string; flow: string; content: unknown; inReplyTo?: string };
-
-/** What a claimed element's runner exchanges while it runs: a message out along one of its flows, the messages in. */
-export type Talk = {
-  send(line: { flow?: unknown; content?: unknown; id?: string; inReplyTo?: string }): void;
-  /** The messages that have arrived along the flows into it since the last take. */
-  take(): Message[];
-};
-
-export type Level = 'debug' | 'info' | 'warning' | 'error';
-
-/** A line for the run's log, written at the depth of the step it is about. */
-export type Note = (event: string, message: string, detail?: { level?: Level; data?: Record<string, unknown> }) => void;
-
-/** What a re-run may reuse of an earlier run's records; a host without one runs every step. */
-export type Reuse = {
-  /** Before an activity runs: `skipped` when its record stands, else what to say about the record it supersedes. A
-   * `live` activity never skips. What it notes is logged under the step's own line. */
-  activity(id: string, live: boolean, note: Note): { skipped: boolean; run?: string; superseded?: string };
-  /** A gateway's recorded decision, when it may be replayed: the flow it took, and the run that took it. */
-  decision(id: string): { flow: string; run: string } | undefined;
-  /** An activity ran: what it made is re-made, so what reads it runs again. */
-  ran(id: string): void;
-  /** A value the walk itself re-made (a list pass's collected outputs). */
-  remade(id: string): void;
-};
-
-export type Host = {
-  /** The runner that claims an element, by name, and whether its claim is live: a live element never skips or replays. */
-  claim(id: string): { name: string; live: boolean } | undefined;
-  /** Hands a claimed element, or one message to a pool a runner plays, to its runner: the run's values in, what the
-   * runner hands back out (`result`, `durationMs`, `record`, the values and scopes it changed). A failure rejects. */
-  perform(id: string, values: Record<string, unknown>, step: { talk?: Talk; note: Note }): Promise<Record<string, unknown>>;
-  log: Note;
-  /** A timestamp for a record, as the host writes them. */
-  now(): string;
-  reuse?: Reuse;
-  /** A step settled: the host checkpoints its records. */
-  settled?(what: { action: 'executed' | 'failed' | 'reused'; id: string; flow?: string; when: string; run?: string }): void;
-  /** An activity's data outputs, once it is done: the host notes what it made. */
-  outputs?(id: string, targets: string[], entry: Entry, note: Note): void;
-  /** The walk is about to leave an element. */
-  passed?(id: string): void;
-  /** A pool's token moves into `to`: along a sequence flow when it took one, else it starts there, or leaves an
-   * activity for its boundary event. The walk waits for it, so a host may show the move. `pool` names whose token. */
-  moved?(to: string, along: string | undefined, pool: string): void | Promise<void>;
-  /** A gateway the walk could not decide, because a condition could not be evaluated: a dry run, where no step ran to
-   * bind what the condition reads, names the flow to take. */
-  decide?(gateway: string, flows: string[], error: Error): string | undefined;
-};
-
-export type WalkOptions = {
-  /** The run's seed: the study's, unless the run was given another; `null` runs unseeded whatever the study says. */
-  seed?: string | number | null;
-  /** The `state` tree the study carries from earlier runs. */
-  state?: StateTree;
-  maxSteps?: number;
-  /** Walk each pool once, whatever its `participantMultiplicity`: a participant's session is one instance of its pool. */
-  oneInstance?: boolean;
-};
-
-/** A message reached a boundary event of a running activity, or a failure its error boundary event: the walk leaves
- * the activity for the event. */
-class Interrupted extends Error {
-  readonly activity: string;
-  readonly boundary: PlanElement;
-
-  constructor(activity: string, boundary: PlanElement) {
-    super(`${activity} ended by ${boundary.id}`);
-    this.name = 'Interrupted';
-    this.activity = activity;
-    this.boundary = boundary;
-  }
-}
-
-/** One pool's walk: where it is, what it watches, what it last heard. */
-type Thread = {
-  /** The process it walks. */
-  pool: string;
-  depth: number;
-  /** The activities it is inside, outermost first, each with the message flows that end it and their boundary events. */
-  watching: { activity: string; flows: Map<string, PlanElement> }[];
-  /** The message this pool last took from each other pool: what it sends back answers it. */
-  heard: Map<string, string>;
-};
 
 const bpmnType = (element: PlanElement): string => `bpmn:${element.type.charAt(0).toUpperCase()}${element.type.slice(1)}`;
 
@@ -123,10 +36,6 @@ export class Walk {
   readonly graph: Graph;
   readonly steps = new Steps();
   /** The `state` tree: `state.<scope>.<property>`, and `state._meta`, the walk's own. */
-  readonly state: StateTree;
-  readonly trace: string[] = [];
-  /** What each element produced this run, by id. */
-  readonly values = new Map<string, unknown>();
   /** When each activity finished, each event was reached, and which flow each gateway took. */
   readonly completed = new Map<string, string>();
   readonly reached = new Map<string, string>();
@@ -140,17 +49,14 @@ export class Walk {
   private readonly maxSteps: number;
   private readonly oneInstance: boolean;
   private readonly blocks = new Map<string, number[]>();
-  private readonly mail = new Map<string, Message[]>();
-  private readonly waiting = new Set<() => void>();
-  private readonly poolsDone = new Set<string>();
-  private readonly serving = new Map<string, Promise<unknown>>();
-  private sent = 0;
-  private failed: unknown;
+  private readonly memory: Values;
+  private readonly post: Post;
 
   constructor(plan: Plan, host: Host, options: WalkOptions = {}) {
     this.host = host;
     this.graph = new Graph(plan);
-    this.state = options.state ?? {};
+    this.memory = new Values(this.graph, options.state ?? {});
+    this.post = new Post(this.graph, host, this.steps, this.memory);
     this.maxSteps = options.maxSteps ?? 1000;
     this.oneInstance = options.oneInstance ?? false;
     const seed = Number((options.seed === undefined ? plan.study.seed : options.seed) ?? NaN);
@@ -182,7 +88,7 @@ export class Walk {
     // Study-scoped properties persist across runs, so only ones the tree lacks take their `value`; a plain element's
     // properties live with the study (`Excluded (n={count})` counts across runs).
     for (const scope of graph.properties.keys()) {
-      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.startScope(scope, false, { pool: '', depth: 0, watching: [], heard: new Map() });
+      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.memory.startScope(scope, false, this.note({ pool: '', depth: 0, watching: [], heard: new Map() }));
     }
   }
 
@@ -205,13 +111,12 @@ export class Walk {
       try {
         await this.runPool(pool);
       } catch (error) {
-        this.failed ??= error; // the first pool to fail ends the run; the others notice while waiting
+        this.post.failed ??= error; // the first pool to fail ends the run; the others notice while waiting
       } finally {
-        this.poolsDone.add(pool);
-        this.notify();
+        this.post.ended(pool);
       }
     }));
-    if (this.failed !== undefined) throw this.failed;
+    if (this.post.failed !== undefined) throw this.post.failed;
   }
 
   /** A pool's process, once, or `participantMultiplicity/@maximum` times when its participant carries one: the
@@ -225,8 +130,8 @@ export class Walk {
     for (let instance = 1; instance <= instances; instance += 1) {
       if (instances > 1) {
         // Which instance this is, for whatever runs inside: `state._meta.instance.<pool id>`, 1-based.
-        this.meta('instance')[participant] = instance;
-        this.startScope(pool, true, thread);
+        this.memory.meta('instance')[participant] = instance;
+        this.memory.startScope(pool, true, this.note(thread));
       }
       await this.host.moved?.(start.id, undefined, pool);
       await this.walk(start, 0, thread);
@@ -235,7 +140,7 @@ export class Walk {
     // carries null once, when every instance has ended. A flow to another participant is the pool's talk instead,
     // which the steps inside exchange along, instance by instance.
     for (const flow of graph.flowsOut.get(participant) ?? []) {
-      if (!graph.participants.has(flow.attributes.targetRef)) await this.send(flow, null, thread);
+      if (!graph.participants.has(flow.attributes.targetRef)) await this.post.send(flow, null, thread);
     }
   }
 
@@ -251,16 +156,16 @@ export class Walk {
         if (steps > this.maxSteps) throw new Error('step budget exhausted — is the flow cycling without an exit?');
         thread.depth = depth;
         const { id, type } = element;
-        this.trace.push(id);
-        this.count(id);
-        this.checkInterrupt(thread);
+        this.memory.trace.push(id);
+        this.memory.count(id);
+        this.post.checkInterrupt(thread);
         const name = graph.nameOf(id);
 
         if (type === 'endEvent') {
           const entry = this.steps.begin(id, name, bpmnType(element));
           // A runner may claim the end too: its chance to fold what it started for the study.
           if (host.claim(id)) await this.executeViaRunner(element, entry, thread);
-          await this.throwMessages(element, thread);
+          await this.post.throwFrom(element, thread);
           this.steps.end(entry);
           this.reached.set(id, host.now());
           this.log(thread, 'event.reached', `● ${id}`);
@@ -285,21 +190,21 @@ export class Walk {
             if (runner) {
               // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
               this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
-              const sensed = await host.perform(id, this.jsonValues(), { note: this.note(thread) });
+              const sensed = await host.perform(id, this.memory.json(), { note: this.note(thread) });
               entry._runnerMs = sensed.durationMs;
               keepRecord(entry, sensed);
-              this.store(id, sensed.result);
+              this.memory.store(id, sensed.result);
             } else if (graph.flowsIn.has(id)) {
               // A catch event a message flow reaches waits for that message; its content is the result.
               this.log(thread, 'event.waiting', `◐ ${id}  (waiting for a message)`);
-              this.store(id, (await this.receive(id, graph.flowsIn.get(id)!, thread)).content);
+              this.memory.store(id, (await this.post.receive(id, graph.flowsIn.get(id)!, thread)).content);
             }
           } catch (error) {
             if (error instanceof Interrupted) this.steps.end(entry);
             else this.steps.fail(entry, error);
             throw error;
           }
-          await this.throwMessages(element, thread);
+          await this.post.throwFrom(element, thread);
           this.steps.end(entry);
           this.reached.set(id, host.now());
           this.log(thread, 'event.reached', `○ ${id}`);
@@ -307,8 +212,8 @@ export class Walk {
           const boundary = await this.perform(element, depth, thread);
           if (boundary) {
             // The activity ended at one of its boundary events: the walk goes on from there.
-            this.trace.push(boundary.id);
-            this.count(boundary.id);
+            this.memory.trace.push(boundary.id);
+            this.memory.count(boundary.id);
             this.reached.set(boundary.id, host.now());
             await host.moved?.(boundary.id, undefined, thread.pool);
             this.log(thread, 'event.reached', `○ ${boundary.id}  (ended ${id})`);
@@ -351,19 +256,19 @@ export class Walk {
         passes += 1;
         if (passes > this.maxSteps) throw new Error(`${id}: loop budget exhausted — does its loop ever end?`);
         // Which pass this is, for whatever runs inside: `state._meta.instance.<id>`, 1-based.
-        if (element.loop) this.meta('instance')[id] = passes;
+        if (element.loop) this.memory.meta('instance')[id] = passes;
         if (listed) {
           // The pass's item in the activity's own scope, `{C}` to the steps inside, and no output yet.
-          const held = (this.state[id] ??= {});
+          const held = (this.memory.state[id] ??= {});
           if (listed.item) held[listed.item] = listed.items[passes - 1];
           if (listed.output) delete held[listed.output];
         }
         if (CONTAINER_TYPES.has(element.type)) await this.walkContainer(element, depth, thread);
         else await this.runActivity(element, thread);
-        if (listed) outputs.push(listed.output ? this.state[id]?.[listed.output] ?? null : null);
+        if (listed) outputs.push(listed.output ? this.memory.state[id]?.[listed.output] ?? null : null);
       }
       if (listed?.into) {
-        this.store(listed.into, outputs);
+        this.memory.store(listed.into, outputs);
         this.host.reuse?.remade(listed.into); // re-made each run, so a recorded step that reads it runs again
       }
     } catch (error) {
@@ -382,7 +287,7 @@ export class Walk {
     for (const boundary of this.graph.boundaries.get(element.id) ?? []) {
       if (!has(boundary, 'conditionalEventDefinition') || !boundary.condition) continue;
       const { body, language } = boundary.condition;
-      const verdict = this.evaluate({ body: body.replace(PLACEHOLDER, '$1'), language }, element.id) === true;
+      const verdict = this.memory.evaluate({ body: body.replace(PLACEHOLDER, '$1'), language }, element.id) === true;
       this.log(thread, 'conditionExpression.evaluated', `    ${body} → ${verdict}  [${boundary.id}]`, { level: 'debug' });
       if (verdict) return boundary;
     }
@@ -396,10 +301,10 @@ export class Walk {
     const declared = this.graph.propertyScope(loop.input);
     let items: unknown;
     if (declared) {
-      const held = this.state[declared.scope] ?? {};
+      const held = this.memory.state[declared.scope] ?? {};
       items = declared.name in held ? held[declared.name] : this.graph.properties.get(declared.scope)!.get(declared.name)!.value;
     } else {
-      items = this.values.get(loop.input);
+      items = this.memory.held.get(loop.input);
     }
     if (!Array.isArray(items)) throw new Error(`${element.id} runs once per item of ${loop.input}, which holds no list this run`);
     return { items, item: loop.inputItem, output: loop.outputItem, into: loop.output };
@@ -416,12 +321,12 @@ export class Walk {
     if (!loop) return passes === 0;
     if (loop.kind === 'multiInstance') {
       if (!loop.cardinality) return passes === 0;
-      return passes < Math.trunc(Number(this.evaluate(loop.cardinality, element.id)));
+      return passes < Math.trunc(Number(this.memory.evaluate(loop.cardinality, element.id)));
     }
     if (passes === 0 && !loop.testBefore) return true;
     if (loop.maximum && passes >= loop.maximum) return false;
     if (!loop.condition) return true;
-    return this.evaluate(loop.condition, element.id) === true;
+    return this.memory.evaluate(loop.condition, element.id) === true;
   }
 
   private async walkContainer(element: PlanElement, depth: number, thread: Thread): Promise<void> {
@@ -429,7 +334,7 @@ export class Walk {
     const { id } = element;
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
     this.log(thread, 'activity.started', `⊞ ${id}`);
-    this.startScope(id, true, thread);
+    this.memory.startScope(id, true, this.note(thread));
     const start = graph.startEvent(id);
     try {
       if (!start) {
@@ -521,8 +426,8 @@ export class Walk {
     if (outgoing.length + incoming.length > 0) {
       // Unclaimed, an activity exchanges messages itself: it sends its data inputs along each flow out of it, then
       // takes the next message along a flow into it as its result. A send, a receive, or both: a request.
-      for (const flow of outgoing) await this.send(flow, this.inputsOf(element), thread, { inReplyTo: this.answering(flow, thread) });
-      if (incoming.length > 0) this.bindResult(element, (await this.receive(scope, incoming, thread)).content);
+      for (const flow of outgoing) await this.post.send(flow, this.memory.inputsOf(element), thread, { inReplyTo: this.post.answering(flow, thread) });
+      if (incoming.length > 0) this.memory.bind(element, (await this.post.receive(scope, incoming, thread)).content);
       return;
     }
     if (implementation) {
@@ -541,10 +446,10 @@ export class Walk {
     const runner = host.claim(id)!;
     entry.implementation = element.attributes.implementation || `runner://${runner.name}`;
     this.log(thread, 'runner.called', `    → the ${runner.name} runner takes this element`);
-    const sent = this.jsonValues();
+    const sent = this.memory.json();
     const talking = graph.messageScope(id);
     const talks = graph.flowsIn.has(talking) || graph.flowsOut.has(talking);
-    const talk = talks ? this.talk(id, talking, thread) : undefined;
+    const talk = talks ? this.post.talk(id, talking, thread) : undefined;
     const reported = await host.perform(id, sent, { talk, note: this.note(thread) });
     await talk?.delivered(); // what it sent last is answered before the walk goes on
     entry._runnerMs = reported.durationMs;
@@ -559,10 +464,10 @@ export class Walk {
           if (written.length > 0) {
             throw new Error(`${id} writes ${written.join(', ')}, which the Parameters wired into ${scope} set, so nothing inside it writes them`);
           }
-          Object.assign((this.state[scope] ??= {}), held);
+          Object.assign((this.memory.state[scope] ??= {}), held);
         }
       } else if (!HANDED_BACK.has(key) && key !== 'state' && !(key in sent && same(sent[key], value))) {
-        this.store(key, value);
+        this.memory.store(key, value);
       }
     }
     this.noteOutputs(element, entry, thread);
@@ -578,19 +483,10 @@ export class Walk {
 
   // --- flows and gateways ---
 
-  /** One more token at an element, or along a sequence flow: `state._meta.reached.<id>`, study-lifetime. */
-  private count(id: string): void {
-    const reached = this.meta('reached');
-    reached[id] = (reached[id] ?? 0) + 1;
-  }
-
-  private meta(quantity: string): Record<string, any> {
-    return ((this.state._meta ??= {})[quantity] ??= {});
-  }
 
   /** Take a sequence flow: counted like a visit, so a node is reached as often as its incoming flows are taken. */
   private async follow(flow: PlanElement, thread: Thread): Promise<PlanElement | undefined> {
-    this.count(flow.id);
+    this.memory.count(flow.id);
     const target = this.graph.get(flow.attributes.targetRef);
     if (target) await this.host.moved?.(target.id, flow.id, thread.pool);
     return target;
@@ -628,7 +524,7 @@ export class Walk {
     if (element.type === 'eventBasedGateway') {
       this.log(thread, 'event.waiting', `    (waiting for the first message along ${flows.length} branches)`);
       try {
-        return take(await this.race(id, flows, thread), 'first message', { message: true });
+        return take(await this.post.race(id, flows, thread), 'first message', { message: true });
       } catch (error) {
         if (error instanceof Interrupted) this.steps.end(entry);
         else this.steps.fail(entry, error);
@@ -640,7 +536,7 @@ export class Walk {
     if (allocation) {
       // Seeded, each visit draws from the seed, the gateway and the visit number. The count is `_meta.reached`,
       // study-lifetime: each turn of a loop and each re-run draws again.
-      const visit = this.meta('reached')[id] ?? 1;
+      const visit = this.memory.meta('reached')[id] ?? 1;
       let arm: number;
       if (allocation.algorithm === 'block') {
         // Visit v sits at (v - 1) % size in block (v - 1) // size; a block is shuffled once, so it stays balanced.
@@ -660,7 +556,7 @@ export class Walk {
       if (runner) {
         // The runner samples what the conditions read (`face_count`).
         this.log(thread, 'runner.called', `    ${runner.name} samples for ${id}`);
-        const sampled = await host.perform(id, this.jsonValues(), { note: this.note(thread) });
+        const sampled = await host.perform(id, this.memory.json(), { note: this.note(thread) });
         entry._runnerMs = sampled.durationMs;
         keepRecord(entry, sampled);
         bindings = (sampled.result as Record<string, unknown>) || {};
@@ -668,7 +564,7 @@ export class Walk {
       }
       for (const flow of flows) {
         if (!flow.condition) continue;
-        const verdict = this.evaluate(flow.condition, id, bindings);
+        const verdict = this.memory.evaluate(flow.condition, id, bindings);
         ((entry.conditionExpressions ??= []) as unknown[]).push({
           sequenceFlow: flow.id, conditionExpression: flow.condition.body, held: verdict === true,
         });
@@ -676,7 +572,8 @@ export class Walk {
         if (verdict === true) return take(flow, flow.condition.body);
       }
     } catch (error) {
-      const decided = flows.find((flow) => flow.id === host.decide?.(id, flows.map((flow) => flow.id), error as Error));
+      const chosen = host.decide?.(id, flows.map((flow) => flow.id), error as Error);
+      const decided = flows.find((flow) => flow.id === chosen);
       if (decided) return take(decided, 'decided by the host');
       this.steps.fail(entry, error);
       throw error;
@@ -693,294 +590,8 @@ export class Walk {
     throw new Error(`${id}: no condition held, and there is no default flow or single flow without a condition`);
   }
 
-  // --- values and scopes ---
-
-  /** A value under an element's id. A data edge into a declared property writes the study state too:
-   * `state.<scope>.<name>`, wherever the value came from. */
-  store(id: string, value: unknown): void {
-    this.values.set(id, value);
-    const declared = this.graph.propertyScope(id);
-    if (declared) (this.state[declared.scope] ??= {})[declared.name] = value;
-  }
-
-  /**
-   * A value written under a property's name by whatever runs `from` (a runner in the walk's own process has no state
-   * file to hand back): into the innermost scope around `from` that declares the name, which is returned, or
-   * nowhere when none does. A property the Parameters wired into a sub-process set is not written.
-   */
-  write(name: string, value: unknown, from: string): string | undefined {
-    const scope = this.graph.scopeChain(from).find((candidate) => this.graph.properties.get(candidate)?.has(name));
-    if (!scope) return undefined;
-    if (this.graph.readonly.get(scope)?.has(name)) {
-      throw new Error(`'${name}' is set by the Parameters wired into ${scope}, so nothing inside it writes it.`);
-    }
-    const declared = this.graph.properties.get(scope)!.get(name)!;
-    (this.state[scope] ??= {})[name] = value;
-    if (declared.id) this.values.set(declared.id, value);
-    return scope;
-  }
-
-  /** The properties in scope of an element, by name: what `{name}` and a condition read there. */
-  inScope(id: string): Record<string, unknown> {
-    const declared = Object.fromEntries(this.graph.scopeChain(id).reverse()
-      .flatMap((scope) => [...(this.graph.properties.get(scope)?.keys() ?? [])].map((name) => [name, undefined])));
-    return { ...declared, ...this.scopeValues(id) };
-  }
-
-  /** What an expression reads: `state`, then every element's value by its id and by its name. */
-  private namespace(): Record<string, unknown> {
-    const space: Record<string, unknown> = { state: { ...this.state, trace: [...this.trace] } };
-    for (const [id, value] of this.values) {
-      space[id] = value;
-      const name = this.graph.plan.names[id];
-      if (name) space[name] = value;
-    }
-    return space;
-  }
-
-  /** The properties in scope of an element, the innermost winning. */
-  private scopeValues(id: string): Record<string, unknown> {
-    const space: Record<string, unknown> = {};
-    for (const scope of this.graph.scopeChain(id).reverse()) {
-      const held = this.state[scope] ?? {};
-      for (const name of this.graph.properties.get(scope)?.keys() ?? []) if (name in held) space[name] = held[name];
-    }
-    return space;
-  }
-
-  /** A FEEL expression's value. `language` is BPMN's per-expression attribute: unset or FEEL, else refused. `scope` is
-   * the evaluating element: the properties declared on it and its containers are bound by name. */
-  evaluate(expression: Expression, scope?: string, extra: Record<string, unknown> = {}): unknown {
-    if (expression.language && !expression.language.toLowerCase().includes('feel')) {
-      throw new Error(`a ${expression.language} expression — every Studyflow expression is FEEL`);
-    }
-    const { value, error } = evaluateFeel(expression.body, { ...this.namespace(), ...(scope ? this.scopeValues(scope) : {}), ...extra });
-    if (error) throw new Error(error);
-    return value;
-  }
-
-  /** Initialise the scope's properties from `value`; `reset` re-initialises ones the tree already holds. */
-  private startScope(id: string, reset: boolean, thread: Thread): void {
-    for (const [name, declared] of this.graph.properties.get(id) ?? []) {
-      if (declared.value === undefined) continue;
-      if (name.startsWith('_')) {
-        this.log(thread, 'state.reserved', `    ${id}.${name}: names starting with _ are reserved`, { level: 'warning' });
-        continue;
-      }
-      const held = (this.state[id] ??= {});
-      if (reset || !(name in held)) {
-        held[name] = structuredClone(declared.value);
-        // The value space reads the same, so a hand-off cannot echo the pass before back into a reset scope.
-        if (declared.id) this.values.set(declared.id, held[name]);
-      }
-    }
-  }
-
-  /** The JSON-able shadow of the run's values, for a runner's placeholders and intents, with the state tree under the
-   * one key no element may take. */
-  jsonValues(): Record<string, unknown> {
-    const shadow: Record<string, unknown> = {};
-    for (const [id, value] of this.values) {
-      try {
-        const json = JSON.stringify(value);
-        if (json !== undefined) shadow[id] = JSON.parse(json);
-      } catch { /* not JSON-able: it stays with the walk */ }
-    }
-    shadow.state = JSON.parse(JSON.stringify(this.state));
-    return shadow;
-  }
-
-  /** What an activity sends: its data inputs by source id; one without a value this run gives its `uri`, else null. */
-  private inputsOf(element: PlanElement): Record<string, unknown> | null {
-    const sources = element.inputs.map((input) => input.source);
-    return sources.length === 0 ? null : Object.fromEntries(sources.map((source) => [source, this.inputValue(source)]));
-  }
-
-  /** A data input's value: a declared property's from its scope (a list pass's item), else what the element holds
-   * this run, else its `uri`. */
-  private inputValue(source: string): unknown {
-    const declared = this.graph.propertyScope(source);
-    if (declared && !this.values.has(source)) return this.state[declared.scope]?.[declared.name] ?? null;
-    return this.values.has(source) ? this.values.get(source) : this.graph.uriOf(source) ?? null;
-  }
-
-  /** A result the walk took itself (a message's content): under the element's id, and into each data output,
-   * narrowed by that edge's `transformation` (`upper case(result)`); a null result stays null. */
-  private bindResult(element: PlanElement, value: unknown): void {
-    this.store(element.id, value);
-    for (const { target, transformation, language } of element.outputs) {
-      if (!target) continue;
-      const narrowed = value !== null && value !== undefined && transformation
-        ? this.evaluate({ body: transformation, language }, element.id, { result: value })
-        : value;
-      this.store(target, narrowed);
-    }
-  }
-
-  // --- messages: the walk carries every one, along the flow it names ---
-
-  private notify(): void {
-    for (const wake of [...this.waiting]) wake();
-  }
-
-  /** Resolves when something a wait may depend on has changed: a message arrived, a pool ended or failed. */
-  private changed(): Promise<void> {
-    return new Promise((resolve) => {
-      const wake = (): void => { this.waiting.delete(wake); resolve(); };
-      this.waiting.add(wake);
-    });
-  }
-
-  /** A message along a flow: into the flow's mailbox, or, when a runner plays the pool it ends at, to that runner,
-   * whose answer goes back along the pool's flow to the sender. */
-  private async send(flow: PlanElement, content: unknown, thread: Thread, options: { id?: string; inReplyTo?: string } = {}): Promise<void> {
-    const { graph, host } = this;
-    const target = flow.attributes.targetRef ?? '';
-    const message: Message = { id: options.id ?? `${flow.id}.${this.sent += 1}`, flow: flow.id, content };
-    if (options.inReplyTo) message.inReplyTo = options.inReplyTo;
-    this.log(thread, 'message.sent', `    ✉ ${flow.attributes.sourceRef} → ${target}  [${message.id}]`, { level: 'debug', data: { message } });
-    const pool = graph.participants.get(target);
-    if (pool && host.claim(target)) return this.serve(pool, flow, message, thread);
-    if (pool && !pool.attributes.processRef) {
-      this.log(thread, 'message.unplayed', `    ✉ no runner plays ${pool.name || target}, so ${message.id} goes unanswered`, { level: 'warning' });
-    }
-    this.mail.set(flow.id, [...(this.mail.get(flow.id) ?? []), message]);
-    this.notify();
-  }
-
-  /** One message to a pool a runner plays, recorded as a step of its own, one at a time to each pool. A pool that
-   * fails answers null, so the sender goes on and the record keeps the error. */
-  private async serve(pool: PlanElement, flow: PlanElement, message: Message, thread: Thread): Promise<void> {
-    const { graph, host } = this;
-    const name = pool.name || pool.id;
-    const entry = this.steps.begin(pool.id, name, 'bpmn:Participant');
-    entry.message = message.id;
-    const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
-      try {
-        const answered = await host.perform(pool.id, { ...this.jsonValues(), message }, { note: this.note(thread) });
-        entry._runnerMs = answered.durationMs;
-        keepRecord(entry, answered);
-        const reply = answered.result ?? null;
-        if (typeof reply === 'string') entry.reply = reply.slice(0, 2000); // what the pool said, kept with the run's records
-        this.log(thread, 'message.answered', `    ✉ ${name} answered ${message.id}`, { data: { pool: pool.id, inReplyTo: message.id, reply } });
-        return reply;
-      } catch (error) {
-        entry.status = 'error';
-        entry.error = { type: (error as Error)?.name ?? 'Error', message: String((error as Error)?.message ?? error).slice(0, 400) };
-        this.log(thread, 'message.unanswered', `    ✉ ${name} could not answer ${message.id}: ${(error as Error)?.message ?? error}`, { level: 'error' });
-        return null;
-      }
-    });
-    this.serving.set(pool.id, turn);
-    const reply = await turn;
-    this.steps.end(entry);
-    const flows = graph.flowsOut.get(pool.id) ?? [];
-    const sender = flow.attributes.sourceRef ?? '';
-    const back = flows.find((candidate) => candidate.attributes.targetRef === sender)
-      ?? flows.find((candidate) => graph.poolOf(candidate.attributes.targetRef ?? '') === graph.poolOf(sender));
-    if (back) await this.send(back, reply, thread, { inReplyTo: message.id });
-  }
-
-  /** The next message along one of `flows`, waited for. A message at a boundary event of an activity around it ends
-   * the wait, and so does a failed pool, or senders that have nothing left to send. */
-  private async receive(id: string, flows: PlanElement[], thread: Thread): Promise<Message> {
-    for (;;) {
-      this.checkInterrupt(thread);
-      for (const flow of flows) {
-        const message = this.mail.get(flow.id)?.shift();
-        if (message) {
-          // What this pool sends back to the sender's pool answers this message.
-          thread.heard.set(this.graph.poolOf(flow.attributes.sourceRef ?? ''), message.id);
-          return message;
-        }
-      }
-      this.expectMore(id, flows);
-      await this.changed();
-    }
-  }
-
-  /** An event-based gateway's branch: the one whose event happens first. Each branch starts at a catch event or a
-   * receive task a message flow reaches; the first message along one picks that branch, and stays in its mailbox for
-   * the step to take. Messages already waiting go by the branches' order. */
-  private async race(gateway: string, flows: PlanElement[], thread: Thread): Promise<PlanElement> {
-    const branches = flows.map((flow) => {
-      const target = flow.attributes.targetRef ?? '';
-      const into = this.graph.flowsIn.get(target) ?? [];
-      if (into.length === 0) {
-        throw new Error(`${gateway}: an event-based gateway waits for messages, and ${target} takes none. `
-          + 'Start each branch with a catch event or a receive task a message flow reaches.');
-      }
-      return { flow, into };
-    });
-    for (;;) {
-      this.checkInterrupt(thread);
-      const first = branches.find(({ into }) => into.some((flow) => this.mail.get(flow.id)?.length));
-      if (first) return first.flow;
-      this.expectMore(gateway, branches.flatMap(({ into }) => into));
-      await this.changed();
-    }
-  }
-
-  /** Throws when no message will come along `flows`: a pool failed, or every sender has nothing left to send. */
-  private expectMore(id: string, flows: PlanElement[]): void {
-    if (this.failed !== undefined) throw new Error(`${id}: no message will come, another pool failed`);
-    // A pool no process depicts only answers what is sent to it, and that answer is already here. A pool with a
-    // process still has its own message to send until its walk ends, so a wait on it holds while it runs.
-    const spent = (flow: PlanElement): boolean => {
-      const source = flow.attributes.sourceRef ?? '';
-      const pool = this.graph.poolOf(source);
-      return this.poolsDone.has(pool) || (pool === source && this.graph.participants.has(source));
-    };
-    if (flows.every(spent)) throw new Error(`${id} waits along ${flows.map((flow) => flow.id).join(', ')}, and nothing is left to send`);
-  }
-
-  private answering(flow: PlanElement, thread: Thread): string | undefined {
-    return thread.heard.get(this.graph.poolOf(flow.attributes.targetRef ?? ''));
-  }
-
-  /** Throws when a message waits at a boundary event of an activity this pool is inside, innermost first. */
-  private checkInterrupt(thread: Thread): void {
-    for (const { activity, flows } of [...thread.watching].reverse()) {
-      for (const [flow, boundary] of flows) {
-        if (this.mail.get(flow)?.length) {
-          this.mail.get(flow)!.shift();
-          throw new Interrupted(activity, boundary);
-        }
-      }
-    }
-  }
-
-  /** A throw or end event sends a message along each flow out of it, carrying nothing but its arrival. */
-  private async throwMessages(element: PlanElement, thread: Thread): Promise<void> {
-    for (const flow of this.graph.flowsOut.get(element.id) ?? []) {
-      await this.send(flow, null, thread, { inReplyTo: this.answering(flow, thread) });
-    }
-  }
-
-  /** What a claimed element exchanges while its runner runs, along `talking`'s flows: the element's own, or an
-   * enclosing sub-process's or pool's. */
-  private talk(id: string, talking: string, thread: Thread): Talk & { delivered(): Promise<unknown> } {
-    const sending: Promise<void>[] = [];
-    const out = new Map((this.graph.flowsOut.get(talking) ?? []).map((flow) => [flow.id, flow]));
-    const into = (this.graph.flowsIn.get(talking) ?? []).map((flow) => flow.id);
-    return {
-      send: (line) => {
-        const flow = typeof line?.flow === 'string' ? out.get(line.flow) : undefined;
-        if (!flow) {
-          this.log(thread, 'message.misrouted', `    ✉ ${id} sent ${JSON.stringify(line).slice(0, 80)} along none of its flows`, { level: 'warning' });
-          return;
-        }
-        const delivery = this.send(flow, line.content ?? null, thread, { id: line.id, inReplyTo: line.inReplyTo });
-        delivery.catch(() => undefined); // heard in `delivered`, when the runner's own failure does not come first
-        sending.push(delivery);
-      },
-      take: () => into.flatMap((flow) => this.mail.get(flow)?.splice(0) ?? []),
-      delivered: () => Promise.all(sending),
-    };
-  }
-
   private log(thread: Thread, event: string, message: string, detail?: Parameters<Note>[2]): void {
-    this.host.log(event, `${'  '.repeat(thread.depth + 1)}${message}`, detail);
+    logAt(this.host, thread, event, message, detail);
   }
 
   /** The log, at the depth a pool's walk is at. */
@@ -990,15 +601,39 @@ export class Walk {
 
   /** Ends the run from outside (the person stopped it): every wait fails, and each pool stops at its next step. */
   abort(reason: Error): void {
-    this.failed ??= reason;
-    this.notify();
+    this.post.failed ??= reason;
+    this.post.notify();
   }
-}
 
-/** A hand-off's `record`, what the runner ran with (a package version, a model digest, the request as sent), merged
- * into its step's record entry and never read as a value; the walk's own keys stand. */
-function keepRecord(entry: Entry, handed: Record<string, unknown>): void {
-  const { record } = handed;
-  if (!record || typeof record !== 'object' || Array.isArray(record)) return;
-  for (const [key, value] of Object.entries(record)) if (!(key in entry)) entry[key] = value;
+  // --- what a host reads and writes of the run's values ---
+
+  /** The `state` tree: `state.<scope>.<property>`, and `state._meta`, the walk's own. */
+  get state(): StateTree {
+    return this.memory.state;
+  }
+
+  /** What each element produced this run, by id. */
+  get values(): ReadonlyMap<string, unknown> {
+    return this.memory.held;
+  }
+
+  /** The JSON-able shadow of the run's values, with the state tree under `state`: what a runner is handed. */
+  jsonValues(): Record<string, unknown> {
+    return this.memory.json();
+  }
+
+  /** A value under an element's id, or under a name no scope declares. */
+  store(id: string, value: unknown): void {
+    this.memory.store(id, value);
+  }
+
+  /** A value under a property's name, into the innermost scope around `from` that declares it; that scope, if any. */
+  write(name: string, value: unknown, from: string): string | undefined {
+    return this.memory.write(name, value, from);
+  }
+
+  /** The properties in scope of an element, by name. */
+  inScope(id: string): Record<string, unknown> {
+    return this.memory.inScope(id);
+  }
 }
