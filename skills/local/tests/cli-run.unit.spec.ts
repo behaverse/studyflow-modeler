@@ -116,6 +116,8 @@ S:
     // `events.jsonl`, the record, holds both runs' events, and the state the study keeps is read off them.
     const events = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     expect(events.filter((event) => event.event === 'started')).toHaveLength(2);
+    // Each run's events lie between its `started` and its `finished`, the property a study keeps included.
+    expect(events.filter((_, at) => at === 0 || events[at - 1].event === 'finished').map((event) => event.event)).toEqual(['started', 'started']);
     expect(stateOf(events)).toEqual(second);
   });
 

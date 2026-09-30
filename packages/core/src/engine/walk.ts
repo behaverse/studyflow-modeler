@@ -40,12 +40,18 @@ export class Walk {
   private readonly post: Post;
   /** Tells the host what happened: the run's record. */
   private readonly record: (happened: Happening) => void;
+  private early: RunEvent[] | undefined = [];
 
   constructor(plan: Plan, host: Host, options: WalkOptions = {}) {
     this.host = host;
     this.graph = new Graph(plan);
-    // What happens goes to the host as it happens: the run's record (packages/core/src/engine/record.ts).
-    const record = this.record = (happened: Happening): void => host.record?.({ ...happened, at: host.now() } as RunEvent);
+    // What happens goes to the host as it happens: the run's record (packages/core/src/engine/record.ts). What happens
+    // before the run begins waits for it, so the record starts where the host says the run started.
+    const record = this.record = (happened: Happening): void => {
+      const event = { ...happened, at: host.now() } as RunEvent;
+      if (this.early) this.early.push(event);
+      else host.record?.(event);
+    };
     this.memory = new Values(this.graph, options.state ?? {}, record);
     this.post = new Post(this.graph, host, this.steps, this.memory, record);
     this.maxSteps = options.maxSteps ?? 1000;
@@ -88,6 +94,10 @@ export class Walk {
 
   async run(): Promise<void> {
     const { graph, host } = this;
+    // What happened before the run began goes to the record now, after the host's `started`.
+    const early = this.early ?? [];
+    this.early = undefined;
+    for (const happened of early) host.record?.(happened);
     const ambiguous = new Set(Object.values(graph.elements)
       .filter((element) => graph.walked.has(element.id) && element.name && /^[A-Za-z_]\w*$/.test(element.name) && !graph.plan.names[element.id])
       .map((element) => element.name!));
