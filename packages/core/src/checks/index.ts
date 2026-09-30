@@ -1,6 +1,7 @@
 import type { ModdleElement } from '@core/element/moddle';
 import { checkDataContract } from '@core/checks/data-contract';
 import { checkDecisions } from '@core/checks/decisions';
+import { checkEnumerations } from '@core/checks/enumerations';
 import { checkExpressions } from '@core/checks/expressions';
 import { checkFlowConsistency } from '@core/checks/flow-consistency';
 import { checkRunnerPaths } from '@core/checks/runner-paths';
@@ -17,11 +18,11 @@ export type Issue = {
   message: string;
 };
 
-/** The plan: sound, walkable, its expressions FEEL, its decisions exclusive, and reading only the columns its schemas define. */
+/** The plan: sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, and reading only the columns its schemas define. */
 export function planChecks(definitions: ModdleElement): Issue[] {
   return [
     ...checkSoundness(definitions), ...checkRunnerPaths(definitions), ...checkExpressions(definitions), ...checkDecisions(definitions),
-    ...checkDataContract(definitions),
+    ...checkEnumerations(definitions), ...checkDataContract(definitions),
   ];
 }
 

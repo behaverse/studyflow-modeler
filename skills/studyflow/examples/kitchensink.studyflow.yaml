@@ -175,7 +175,7 @@ Kitchen_Sink:
       name: EEG recording
       extensionElements:
         - type: eeg:Recording
-          format: bdm
+          format: edf
     Ag_Prompt:
       type: agentic:Prompt
       name: Prompt
