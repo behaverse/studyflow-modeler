@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+
 import { expect, test, type Page } from '@playwright/test';
 
 import { diagramHandoffKey, type DiagramHandoffEnvelope } from '@core/storage';
@@ -84,6 +86,50 @@ const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn2:sequenceFlow id="F2" sourceRef="Untyped_1" targetRef="EndEvent_1" />
   </bpmn2:process>
 </bpmn2:definitions>`;
+
+const PERSON_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-person" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:collaboration id="C">
+    <bpmn:participant id="Subject" name="Subject" processRef="S" />
+    <bpmn:participant id="Person" name="Your turn" />
+    <bpmn:messageFlow id="M_Trial" sourceRef="Ask" targetRef="Person" />
+    <bpmn:messageFlow id="M_Answer" sourceRef="Person" targetRef="Ask" />
+  </bpmn:collaboration>
+  <bpmn:process id="S">
+    <bpmn:property id="P_Trial" name="trial" studyflow:value="{&#34;Stimulus&#34;: &#34;a red square&#34;, &#34;ResponseOptions&#34;: [&#34;left&#34;, &#34;right&#34;]}" />
+    <bpmn:property id="P_Answer" name="answer" />
+    <bpmn:startEvent id="Start" name="Welcome">
+      <bpmn:outgoing>F1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:task id="Ask" name="Answer the trial">
+      <bpmn:incoming>F1</bpmn:incoming>
+      <bpmn:outgoing>F2</bpmn:outgoing>
+      <bpmn:ioSpecification id="Ask_io">
+        <bpmn:dataInput id="Ask_in_trial" name="trial" />
+        <bpmn:dataOutput id="Ask_result" name="result" />
+        <bpmn:inputSet id="Ask_inputSet">
+          <bpmn:dataInputRefs>Ask_in_trial</bpmn:dataInputRefs>
+        </bpmn:inputSet>
+        <bpmn:outputSet id="Ask_outputSet">
+          <bpmn:dataOutputRefs>Ask_result</bpmn:dataOutputRefs>
+        </bpmn:outputSet>
+      </bpmn:ioSpecification>
+      <bpmn:dataInputAssociation id="In_Trial">
+        <bpmn:sourceRef>P_Trial</bpmn:sourceRef>
+        <bpmn:targetRef>Ask_in_trial</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataOutputAssociation id="Out_Answer">
+        <bpmn:sourceRef>Ask_result</bpmn:sourceRef>
+        <bpmn:targetRef>P_Answer</bpmn:targetRef>
+      </bpmn:dataOutputAssociation>
+    </bpmn:task>
+    <bpmn:endEvent id="End">
+      <bpmn:incoming>F2</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="F1" sourceRef="Start" targetRef="Ask" />
+    <bpmn:sequenceFlow id="F2" sourceRef="Ask" targetRef="End" />
+  </bpmn:process>
+</bpmn:definitions>`;
 
 const BOUND_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-bound" targetNamespace="http://bpmn.io/schema/bpmn">
@@ -227,6 +273,22 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
     await page.getByRole('button', { name: /begin/i }).click();
     await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
+  });
+
+  test('the person at the page answers what the study sends their pool, and the record of the run can be taken away', async ({ page }) => {
+    await runStudyflow(page, 'runner-person', PERSON_XML);
+    await page.getByRole('button', { name: /begin/i }).click();
+    // The task that asks has no screen: the trial it sends is the person's screen, its options the answers.
+    await expect(page.getByRole('heading', { name: 'Your turn' })).toBeVisible();
+    await expect(page.getByText('a red square')).toBeVisible();
+    await page.getByRole('button', { name: 'right', exact: true }).click();
+    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
+    await page.getByRole('button', { name: /logs/i }).click();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: /download the run's record/i }).click();
+    const events: { event: string; name?: string; value?: unknown }[] = fs.readFileSync(await (await download).path(), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    expect(events.find((event) => event.event === 'wrote' && event.name === 'answer')?.value).toBe('right');
+    expect(events.at(-1)?.event).toBe('finished');
   });
 
   test('an untyped task is the generic continue step, and the hand-off is released once the run ends', async ({ page }) => {

@@ -42,6 +42,7 @@ export const layout = {
   sidebarInfoMetaRow: 'flex items-center gap-2 flex-wrap',
   sidebarClose: 'text-stone-500 hover:text-stone-800 text-lg leading-none shrink-0',
   recordToggle: 'flex items-center gap-2 mb-3 text-xs text-stone-600 select-none cursor-pointer',
+  recordLink: 'mb-3 text-xs text-fuchsia-800 underline self-start',
   sidebarList: 'space-y-1 flex-1 min-h-0 overflow-y-auto',
   helpPage: 'p-6 max-w-xl mx-auto',
   helpTitle: 'text-2xl font-semibold mb-3',
@@ -402,6 +403,11 @@ export function Runner() {
             />
             <span>Record events</span>
           </label>
+          {session && ['done', 'aborted', 'error'].includes(phase) && (
+            <button type="button" className={layout.recordLink} onClick={() => downloadRecord(session)}>
+              Download the run's record (run.jsonl)
+            </button>
+          )}
           <ol ref={logListRef} onScroll={onLogScroll} className={layout.sidebarList}>
             {log.map((entry, i) => (
               <li key={i} className={logColor[entry.kind]}>{entry.message}</li>
@@ -411,6 +417,16 @@ export function Runner() {
       </main>
     </div>
   );
+}
+
+/** The run's record, as a local run keeps it in `run.jsonl`: one event a line. */
+function downloadRecord(session: Session): void {
+  const text = session.getRecord().map((event) => JSON.stringify(event)).join('\n');
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([`${text}\n`], { type: 'application/x-ndjson' }));
+  link.download = 'run.jsonl';
+  link.click();
+  URL.revokeObjectURL(link.href);
 }
 
 function Help({ onFileLoaded }: { onFileLoaded: (xml: string) => void }) {
