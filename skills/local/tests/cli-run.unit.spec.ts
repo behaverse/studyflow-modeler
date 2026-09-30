@@ -267,8 +267,7 @@ S:
       <bpmn:dataInputAssociation id="In_X"><bpmn:sourceRef>X</bpmn:sourceRef></bpmn:dataInputAssociation>
     </bpmn:task>
     <bpmn:dataObjectReference id="X" name="inputs" studyflow:uri="x.json"/>
-    <bpmn:task id="Tune"><bpmn:incoming>F2</bpmn:incoming><bpmn:outgoing>F3</bpmn:outgoing>
-      <studyflow:additionalArguments>speed: 20</studyflow:additionalArguments>
+    <bpmn:task id="Tune" studyflow:additionalArguments="speed: 20"><bpmn:incoming>F2</bpmn:incoming><bpmn:outgoing>F3</bpmn:outgoing>
     </bpmn:task>
     <bpmn:endEvent id="E"><bpmn:incoming>F3</bpmn:incoming></bpmn:endEvent>
     <bpmn:sequenceFlow id="F1" sourceRef="S" targetRef="Read"/>
@@ -403,13 +402,12 @@ P:
   <bpmn:itemDefinition id="Trial_Item" structureRef="behaverse:Trial"/>
   <bpmn:process id="P">
     <bpmn:startEvent id="Start"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="T" name="fit" implementation="python://m.f">
+    <bpmn:task id="T" name="fit" implementation="python://m.f" studyflow:additionalArguments="k: 1">
       <bpmn:extensionElements><lab:rig platform="x"><lab:note>a</lab:note><lab:note>b</lab:note></lab:rig></bpmn:extensionElements>
       <bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing>
       <bpmn:ioSpecification><bpmn:dataInput id="In1" name="table"/></bpmn:ioSpecification>
       <bpmn:dataInputAssociation id="DIA"><bpmn:sourceRef>Dat</bpmn:sourceRef><bpmn:targetRef>In1</bpmn:targetRef><bpmn:transformation language="feel">y</bpmn:transformation></bpmn:dataInputAssociation>
       <bpmn:dataOutputAssociation id="DOA"><bpmn:targetRef>Out</bpmn:targetRef></bpmn:dataOutputAssociation>
-      <studyflow:additionalArguments>k: 1</studyflow:additionalArguments>
     </bpmn:task>
     <bpmn:dataObjectReference id="Dat" name="digits" studyflow:uri="digits.csv"/>
     <bpmn:dataObjectReference id="Out" name="model"/>
@@ -569,8 +567,7 @@ S:
   </bpmn:process>
   <bpmn:process id="B">
     <bpmn:startEvent id="B0"><bpmn:outgoing>BF1</bpmn:outgoing></bpmn:startEvent>
-    <bpmn:task id="Load"><bpmn:incoming>BF1</bpmn:incoming><bpmn:outgoing>BF2</bpmn:outgoing>
-      <studyflow:additionalArguments>data: "{inputs}"</studyflow:additionalArguments>
+    <bpmn:task id="Load" studyflow:additionalArguments="data: &quot;{inputs}&quot;"><bpmn:incoming>BF1</bpmn:incoming><bpmn:outgoing>BF2</bpmn:outgoing>
     </bpmn:task>
     <bpmn:dataObjectReference id="X" name="inputs" studyflow:uri="x.json"/>
     <bpmn:endEvent id="B9"><bpmn:incoming>BF2</bpmn:incoming></bpmn:endEvent>

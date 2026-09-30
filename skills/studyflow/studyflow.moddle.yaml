@@ -755,8 +755,10 @@ types:
     isAbstract: true
     properties:
       - name: additionalArguments
+        # An attribute: BPMN's schema takes another namespace's attributes on any element, and no child element but
+        # `extensionElements`, so the XML stays valid BPMN.
         description: Arguments for the software, as a YAML mapping; `args` lists positional ones.
-        isAttr: false
+        isAttr: true
         type: YAMLString
         meta:
           order: 3
