@@ -24,11 +24,10 @@ function randomGateway(attributes: Record<string, string>, name?: string): FlowN
     parameters: {},
     outgoing: ['Flow_1', 'Flow_2'],
     incoming: [],
-    scopeId: 'Process_1',
   };
 }
 
-test('an allocation the runner does not draw is one warning naming all of it; an equal-chance draw raises nothing', () => {
+test('an allocation the runner does not draw is one warning naming all of it; an independent draw raises nothing', () => {
   // The palette's Stratified allocation template writes `stratifyBy`, the attribute the runner reads.
   const template = models
     .find((model) => model.prefix === 'cognitive')
@@ -45,12 +44,12 @@ test('an allocation the runner does not draw is one warning naming all of it; an
       attributes: { algorithm: 'block' },
       reported: ['block'],
     },
-    { label: 'an unequal allocation ratio', attributes: { allocationRatio: '2:1' }, reported: ['2:1'] },
+    { label: 'an unequal allocation ratio, which each draw honours', attributes: { allocationRatio: '2:1' } },
     { label: 'stratification, by the variable named', attributes: { stratifyBy: 'age_band' }, reported: ['age_band'] },
     {
-      label: 'everything unhonored, in one message',
+      label: 'everything unhonored, in one message that says what is drawn instead',
       attributes: { algorithm: 'minimization', allocationRatio: '2:1', stratifyBy: 'site' },
-      reported: ['minimization', '2:1', 'site'],
+      reported: ['minimization', 'site', 'in the ratio 2:1'],
     },
     { label: 'the gateway named as the canvas shows it', attributes: { stratifyBy: 'age_band' }, name: 'Randomized', reported: ['Randomized'] },
     { label: 'the Stratified allocation template', attributes: { stratifyBy }, reported: [stratifyBy] },

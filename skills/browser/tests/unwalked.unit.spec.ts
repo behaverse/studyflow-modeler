@@ -6,11 +6,18 @@ import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 const packages: Record<string, any> = schemaPackages(loadSchemaModels());
 
-/** What the browser runtime does not walk is refused before the first screen, not walked as another study. */
-test('a loop marker and a boundary event block a browser run; drawn data edges and timers warn', async () => {
+/** What a page cannot carry is refused before the first screen, not walked as another study. */
+test('a message flow between pools blocks a browser run; drawn data edges and timers warn; a loop is walked', async () => {
   const study = await Studyflow.parse(`id: unwalked
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Subject: { name: Subject, processRef: Study }
+    Model: { name: Model }
+  messageFlows:
+    M_Ask: { sourceRef: Practice, targetRef: Model }
 Study:
   type: Process
   flowElements:
@@ -42,5 +49,5 @@ Study:
     F3: Timeout -> End
 `, structuredClone(packages));
   const found = validateUnwalked(study).map((issue) => `${issue.severity ?? 'error'} ${issue.nodeId}`).sort();
-  expect(found).toEqual(['error Practice', 'error Timeout', 'warning Practice', 'warning Timeout']);
+  expect(found).toEqual(['error M_Ask', 'warning Practice', 'warning Timeout']);
 });

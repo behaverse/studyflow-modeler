@@ -7,7 +7,7 @@ import { describeForDebug, isDebug } from '@runner/debug';
 import { DebugPanel } from '@runner/nodes/DebugPanel';
 import { readSubjectId, withSubjectSeed } from '@runner/subject';
 import { Studyflow } from '@runner/studyflow';
-import { Session } from '@runner/session';
+import { Aborted, Session } from '@runner/session';
 import type { Job } from '@runner/jobs';
 import { findByType, validate } from '@runner/nodes';
 import type { LogKind, NodeProps, ValidationIssue } from '@runner/nodes/types';
@@ -292,16 +292,21 @@ export function Runner() {
             resolverRef.current = resolve;
           });
           resolverRef.current = null;
+          // A step refused leaves by its error boundary event when it carries one; else the run stops there.
           if (outcome.kind === 'abort') {
-            addLog('error', `The run stopped at '${job.node.id}': ${outcome.reason}.`);
-            setPhase('aborted');
-            await finishSession(dataServer, serverSessionRef.current, session, 'canceled', addLog);
-            return;
+            addLog('error', `'${job.node.id}' was not finished: ${outcome.reason}.`);
+            session.abort(outcome.reason);
           }
         }
         setPhase('done');
         await finishSession(dataServer, serverSessionRef.current, session, 'completed', addLog);
       } catch (err) {
+        if (err instanceof Aborted) {
+          addLog('error', `The run stopped: ${err.message}.`);
+          setPhase('aborted');
+          await finishSession(dataServer, serverSessionRef.current, sessionRef.current!, 'canceled', addLog);
+          return;
+        }
         addLog('error', err instanceof Error ? err.message : String(err));
         setRunError(err instanceof Error ? err.message : String(err));
         setPhase('error');

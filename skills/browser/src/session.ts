@@ -1,240 +1,128 @@
-import type { FlowNode, SequenceFlow } from '@runner/flow';
-import { getCatalog, type TypeCatalog } from '@core/notation';
+import { Walk, type Host, type StateTree } from '@core/engine';
 import { findByFlowNode } from '@runner/nodes/registry';
-import { draw, evaluateCondition } from '@runner/branching';
-import { ScopeChain, type Scope } from '@runner/scope';
 import type { Job } from '@runner/jobs';
 import type { Studyflow } from '@runner/studyflow';
-import { BPMN } from '@core/constants';
-import { META_KEY, type StateTree } from '@core/document';
-
-/** Nodes that route without a step of their own; the parse never keeps a ComplexGateway or a flow as a node. */
-const ROUTING_TYPES: ReadonlySet<string> = new Set<string>([
-  BPMN.ExclusiveGateway,
-  BPMN.InclusiveGateway,
-  BPMN.ParallelGateway,
-  BPMN.EventBasedGateway,
-]);
 
 export type SessionContext = {
   seed?: number;
   variables?: Record<string, unknown>;
   agentId?: string;
   sessionId?: string;
-  catalog?: TypeCatalog;
   onDiagnostic?: (message: string) => void;
 };
 
+/** A step the page refused to finish (the participant declined consent): the run stops there, unless the step
+ * carries an error boundary event to leave by. */
+export class Aborted extends Error {
+  constructor(reason: string) {
+    super(reason);
+    this.name = 'Aborted';
+  }
+}
+
+/**
+ * One participant's run in the page: this runtime's host of the walk (packages/core/src/engine), the engine the
+ * local runtime hosts too. A step a node module has a screen for is a claimed element, and its hand-off is that
+ * screen: `traverse` yields its job, and asking for the next job says the screen is done.
+ */
 export class Session {
   studyflow: Studyflow;
   agentId?: string;
   sessionId?: string;
 
-  private seed?: number;
-  private scopes: ScopeChain;
-  private catalog: TypeCatalog;
-  private onDiagnostic?: (message: string) => void;
-  private trace: string[] = [];
-  /** The run's copy of the file's `state` tree: scope writes mirror to `state.<declaring id>.<name>`; each visit of a
-   * node, and each sequence flow followed, counts into `state._meta.reached.<id>`, as skills/local/run.py counts them. */
-  private state: StateTree;
+  private readonly walk: Walk;
+  private readonly jobs = new Map<string, Job>();
+  private readonly undeclared = new Set<string>();
+  private readonly onDiagnostic?: (message: string) => void;
+  /** The element whose screen is up: where a value it publishes is written from. */
+  private serving: string | undefined;
+  private show: (id: string) => Promise<void> = () => Promise.reject(new Error('the session is not running'));
+  private refuse: (reason: string) => void = () => undefined;
 
   constructor(studyflow: Studyflow, context: SessionContext = {}) {
     this.studyflow = studyflow;
     this.agentId = context.agentId;
     this.sessionId = context.sessionId;
-    this.seed = context.seed;
-    this.catalog = context.catalog ?? getCatalog();
     this.onDiagnostic = context.onDiagnostic;
 
-    const root = studyflow.scopes.get(studyflow.rootScopeId);
-    if (!root) throw new Error(`This studyflow has no study to run (no scope '${studyflow.rootScopeId}').`);
-    this.state = structuredClone(studyflow.state);
-    this.scopes = new ScopeChain(root);
-    this.load(root);
-    for (const [name, value] of Object.entries(context.variables ?? {})) this.write(name, value);
+    const { elements, processes } = studyflow.plan;
+    for (const node of studyflow.flowNodes.values()) {
+      // A sub-process ends where its end event is: the screen that closes a session is the study's own end.
+      if (node.type === 'bpmn:EndEvent' && !processes.includes(elements[node.id]?.parent ?? '')) continue;
+      const definition = findByFlowNode(node);
+      const job = (definition?.toJob(node) as Job | null | undefined) ?? undefined;
+      if (job) this.jobs.set(node.id, job);
+      else if (definition) this.diagnose(`'${node.id}' (${definition.type}) has nothing to run; step skipped`);
+    }
+    const host: Host = {
+      claim: (id) => (this.jobs.has(id) ? { name: this.jobs.get(id)!.type, live: true } : undefined),
+      perform: (id, values) => this.show(id).then(() => values),
+      log: (_event, message, detail) => {
+        if (detail?.level === 'warning' || detail?.level === 'error') this.diagnose(message.trim());
+      },
+      now: () => new Date().toISOString(),
+    };
+    // A session is one participant: one instance of its pool, whatever the pool's multiplicity.
+    this.walk = new Walk(studyflow.plan, host, { seed: context.seed, state: structuredClone(studyflow.state), oneInstance: true });
+    for (const [name, value] of Object.entries(context.variables ?? {})) this.setVariable(name, value);
   }
 
+  /** How a node publishes what it collected: into the nearest scope around its step that declares `name`, else with
+   * the study, where it is kept and reported as undeclared. */
   setVariable(name: string, value: unknown): void {
-    this.write(name, value);
+    const [root] = this.studyflow.plan.processes;
+    if (this.walk.write(name, value, this.serving ?? root)) return;
+    this.undeclared.add(name);
+    this.walk.store(name, value);
+    (this.walk.state[root] ??= {})[name] = value;
   }
 
-  /** The `state` tree as the run has left it (never written back to the file by this runner). */
+  /** The `state` tree as the run has left it (never written back to the file by this runtime). */
   getState(): StateTree {
-    return this.state;
+    return this.walk.state;
   }
 
+  /** The values in scope of the step on screen, by name; between steps, the study's own. */
   getVariables(): Record<string, unknown> {
-    return this.scopes.bindings();
+    const [root] = this.studyflow.plan.processes;
+    const kept = Object.fromEntries([...this.undeclared].map((name) => [name, this.walk.state[root]?.[name]]));
+    return { ...kept, ...this.walk.inScope(this.serving ?? root) };
   }
 
   getUndeclaredVariables(): string[] {
-    return this.scopes.undeclared();
+    return [...this.undeclared];
   }
 
+  /** The run, one job at a time: the walk goes on when the next job is asked for. Leaving the loop ends the run. */
   async *traverse(): AsyncGenerator<Job, void, void> {
-    if (!this.studyflow.startId) {
-      throw new Error('This studyflow has no start event, so there is no first step. Add one in the modeler.');
-    }
-
-    let currentId: string | undefined = this.studyflow.startId;
-    const returns: string[] = [];
-
-    while (currentId) {
-      const node = this.studyflow.flowNodes.get(currentId);
-      if (!node) {
-        throw new Error(`A sequence flow leads to '${currentId}', which is not in this studyflow. Reconnect it in the modeler.`);
+    let shown: (() => void) | undefined;
+    const offered: (Job | Error | null)[] = [];
+    let wake: (() => void) | undefined;
+    const offer = (next: Job | Error | null): void => { offered.push(next); wake?.(); };
+    this.show = (id) => new Promise((resolve, reject) => {
+      this.serving = id;
+      shown = () => { this.serving = undefined; resolve(); };
+      this.refuse = (reason) => { this.serving = undefined; reject(new Aborted(reason)); };
+      offer(this.jobs.get(id)!);
+    });
+    this.walk.run().then(() => offer(null), (error) => offer(error instanceof Error ? error : new Error(String(error))));
+    try {
+      for (;;) {
+        while (offered.length === 0) await new Promise<void>((resolve) => { wake = resolve; });
+        const next = offered.shift()!;
+        if (next === null) return;
+        if (next instanceof Error) throw next;
+        yield next;
+        shown?.();
       }
-
-      this.trace.push(node.id);
-      this.count(node.id);
-
-      if (node.type === 'bpmn:SubProcess') {
-        const scope = this.studyflow.scopes.get(node.id);
-        if (scope?.startId) {
-          this.scopes.push(scope);
-          delete this.state[scope.id]; // a sub-process instance starts from its declared values
-          this.load(scope);
-          returns.push(node.id);
-          currentId = scope.startId;
-          continue;
-        }
-        this.diagnose(`sub-process '${node.id}' has no start event, so nothing inside it runs; stepping past it`);
-        currentId = this.advance(node);
-        continue;
-      }
-
-      if (node.type === 'bpmn:EndEvent' && returns.length > 0) {
-        this.scopes.pop();
-        const resumeAt = this.studyflow.flowNodes.get(returns.pop()!);
-        currentId = resumeAt ? this.advance(resumeAt) : undefined;
-        continue;
-      }
-
-      const job = this.toJob(node);
-      if (job) yield job;
-      if (job?.type === 'end') return;
-
-      currentId = this.advance(node);
+    } finally {
+      this.walk.abort(new Error('the session ended'));
     }
   }
 
-  /** Seeds a just-pushed frame: the tree's values win over declared initial `value`s, which are mirrored in; a
-   * read-only property always holds its declared one. */
-  private load(scope: Scope): void {
-    const entry = this.state[scope.id] ?? {};
-    for (const decl of scope.properties) {
-      if (decl.name in entry && !decl.readOnly) this.scopes.write(decl.name, entry[decl.name], true);
-      else if (decl.value !== undefined) this.write(decl.name, decl.value, true);
-    }
-  }
-
-  private write(name: string, value: unknown, seeding = false): void {
-    const scopeId = this.scopes.write(name, value, seeding);
-    (this.state[scopeId] ??= {})[name] = value;
-  }
-
-  private toJob(node: FlowNode): Job | null {
-    if (node.type === 'bpmn:ParallelGateway') {
-      throw new Error(
-        `The browser runner shows one step at a time, so it cannot run the parallel branches at '${node.id}'. `
-        + 'Put the steps in sequence, or split them with an ExclusiveGateway.',
-      );
-    }
-
-    const definition = findByFlowNode(node);
-    if (!definition) {
-      if (!ROUTING_TYPES.has(node.type)) {
-        this.diagnose(
-          `'${node.id}' (${node.extensionType ?? node.type}) is not executable in the browser runner; step skipped`,
-        );
-      }
-      return null;
-    }
-
-    const job = (definition.toJob(node) as Job | null | undefined) ?? null;
-    if (!job) {
-      this.diagnose(`'${node.id}' (${definition.type}) has nothing to run; step skipped`);
-    }
-    return job;
-  }
-
-  private count(id: string): void {
-    const reached = ((this.state[META_KEY] ??= {}).reached ??= {});
-    reached[id] = (reached[id] ?? 0) + 1;
-  }
-
-  /** Follows the flow `node` leaves by, counting it; the node it leads to, or `undefined` at the end of the path. */
-  private advance(node: FlowNode): string | undefined {
-    const flow = this.pick(node);
-    if (!flow) return undefined;
-    this.count(flow.id);
-    return flow.targetId;
-  }
-
-  private pick(node: FlowNode): SequenceFlow | undefined {
-    if (node.outgoing.length === 0) return undefined;
-
-    if (this.branchingMode(node) === 'random') return this.pickRandomBranch(node);
-    if (this.isExclusiveGateway(node)) return this.pickConditionBranch(node) ?? this.pickDefaultBranch(node);
-    return this.studyflow.sequenceFlows.get(node.outgoing[0]);
-  }
-
-  private branchingMode(node: FlowNode): string | undefined {
-    if (!node.extensionType) return undefined;
-    const mode = this.catalog.getType(node.extensionType)?.meta?.branching;
-    return typeof mode === 'string' ? mode : undefined;
-  }
-
-  private isExclusiveGateway(node: FlowNode): boolean {
-    return node.type === 'bpmn:ExclusiveGateway' || node.type === 'bpmn:InclusiveGateway';
-  }
-
-  /** Seeded, each visit draws from the seed, the gateway and the visit number (this one included), as run.py does. */
-  private pickRandomBranch(node: FlowNode): SequenceFlow | undefined {
-    const flows = node.outgoing
-      .map((id) => this.studyflow.sequenceFlows.get(id))
-      .filter((flow): flow is SequenceFlow => !!flow?.targetId);
-    if (flows.length === 0) return undefined;
-    const visit = this.trace.filter((id) => id === node.id).length;
-    const u = this.seed != null ? draw(this.seed, node.id, visit) : Math.random();
-    return flows[Math.floor(u * flows.length)];
-  }
-
-  private pickConditionBranch(node: FlowNode): SequenceFlow | undefined {
-    for (const flowId of node.outgoing) {
-      const flow = this.studyflow.sequenceFlows.get(flowId);
-      if (flow?.conditionExpression
-        && this.evalCondition(flow.conditionExpression, flowId, flow.conditionLanguage)) {
-        return flow;
-      }
-    }
-    return undefined;
-  }
-
-  /** No condition held: the default flow, else the one flow without a condition; else the run stops, as run.py's does. */
-  private pickDefaultBranch(node: FlowNode): SequenceFlow {
-    const byDefault = this.studyflow.sequenceFlows.get(node.businessObject?.default?.id);
-    if (byDefault) return byDefault;
-    const otherwise = node.outgoing
-      .map((id) => this.studyflow.sequenceFlows.get(id))
-      .filter((flow) => flow && !flow.conditionExpression);
-    if (otherwise.length === 1) return otherwise[0]!;
-    throw new Error(
-      `No condition held at '${node.id}', and it has no default flow `
-      + `${otherwise.length > 1 ? `but ${otherwise.length} flows without a condition` : 'and no flow without a condition'}. `
-      + 'Mark one outgoing flow as the default in the modeler.',
-    );
-  }
-
-  private conditionBindings(): Record<string, unknown> {
-    return { ...this.scopes.bindings(), state: { ...this.state, trace: [...this.trace] } };
-  }
-
-  private evalCondition(expression: string, flowId: string, language?: string): boolean {
-    const { value, error } = evaluateCondition(expression, this.conditionBindings(), language);
-    if (error) this.diagnose(`the condition on '${flowId}' could not be evaluated (${error}), so that branch was not taken`);
-    return value;
+  /** Refuses the step on screen: its failure takes its error boundary event when it carries one, else it stops the run. */
+  abort(reason: string): void {
+    this.refuse(reason);
   }
 
   private diagnose(message: string): void {

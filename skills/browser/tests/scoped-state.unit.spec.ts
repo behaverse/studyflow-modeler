@@ -1,23 +1,16 @@
 
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-
 import { expect, test } from '@playwright/test';
 
-import { buildCatalog } from '@core/notation';
 import { registerNode } from '@runner/nodes/registry';
-import { Session } from '@runner/session';
+import { Aborted, Session } from '@runner/session';
 import { Studyflow } from '@runner/studyflow';
-import { draw, evaluateCondition } from '@runner/branching';
 import type { FlowNode } from '@runner/flow';
 import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
-/** Scoped state at run time. */
+/** A session, this runtime's host of the walk: the jobs it yields, where a node's values land, the state it keeps.
+ * How the study is walked is pinned by packages/core/tests/engine.unit.spec.ts. */
 
-
-const models = loadSchemaModels();
-const packages: Record<string, any> = schemaPackages(models);
-const catalog = buildCatalog(models);
+const packages: Record<string, any> = schemaPackages(loadSchemaModels());
 
 // Real node modules are `.tsx` views discovered by a Vite glob; register stand-ins, the walk is under test.
 const nothing = () => null;
@@ -108,22 +101,9 @@ const NESTED = `${HEAD}Study:
 `;
 
 test.describe('scoped state', () => {
-  test('declarations are read per scope, and a sub-process is its own scope', async () => {
-    const studyflow = await load(NESTED);
-
-    expect(studyflow.rootScopeId).toBe('Study');
-    expect(studyflow.scopes.get('Study')?.properties.map((p) => p.name)).toEqual(['arm']);
-    expect(studyflow.scopes.get('Battery')?.properties.map((p) => p.name)).toEqual(['failed_trials']);
-    expect(studyflow.scopes.get('Battery')?.parentId).toBe('Study');
-    expect(studyflow.scopes.get('Battery')?.startId).toBe('Trial_Start');
-
-    expect(studyflow.flowNodes.get('Trial')?.scopeId).toBe('Battery');
-    expect(studyflow.flowNodes.get('Start')?.scopeId).toBe('Study');
-  });
-
   test('a read resolves outward, a write lands on the declaring scope, and an undeclared write is kept but reported', async () => {
     const studyflow = await load(NESTED);
-    const session = new Session(studyflow, { catalog });
+    const session = new Session(studyflow);
 
     session.setVariable('arm', 'treatment');
 
@@ -150,83 +130,41 @@ test.describe('scoped state', () => {
   });
 });
 
-test.describe('conditions over declared state', () => {
-  test('a declared-but-unwritten name evaluates; an undeclared one is a defect, even one a global holds', () => {
-    expect(evaluateCondition('arm = "treatment"', { arm: undefined }))
-      .toEqual({ value: false });
-
-    // `globalThis.Array` exists; the scope must not fall through to it.
-    for (const expression of ['missing > 1', 'Array != null']) {
-      const undeclared = evaluateCondition(expression, {});
-      expect(undeclared.value, expression).toBe(false);
-      expect(undeclared.error, expression).toMatch(/declared/);
-    }
-  });
-
-  test('a study with no start event starts at the node nothing flows into; two such nodes are an error, not a guess', async () => {
-    const ONE_STEP = `${HEAD}Study:
+test('a step refused leaves by its error boundary event when it carries one; else the run stops there', async () => {
+  const consent = (boundary: string) => `${HEAD}Study:
   type: bpmn:Process
   flowElements:
-    Only:
-      type: bpmn:Task
+    Start: { type: StartEvent }
+    Consent: { type: Task }
+${boundary}    Play: { type: Task }
+    Done: { type: EndEvent }
+    F1: Start -> Consent
+    F2: Consent -> Play
+    F3: Play -> Done
 `;
-    expect(await visits(new Session(await load(ONE_STEP), { catalog }))).toEqual(['Only']);
-
-    const TWO_ENTRIES = `${ONE_STEP}    Second:
-      type: bpmn:Task
-`;
-    await expect(visits(new Session(await load(TWO_ENTRIES), { catalog }))).rejects.toThrow(/start/);
-  });
-});
-
-/** A gateway with no default flow whose one condition is false, and a flow without a condition to each of `bare`. */
-const NO_DEFAULT = (bare: string[]) => `${HEAD}Study:
-  type: bpmn:Process
-  flowElements:
-    Start:
-      type: bpmn:StartEvent
-      outgoing: [F1]
-    Gate:
-      type: bpmn:ExclusiveGateway
-      incoming: [F1]
-      outgoing: [F_No, ${bare.map((id) => `F_${id}`).join(', ')}]
-    No:
-      type: bpmn:EndEvent
-      incoming: [F_No]
-${bare.map((id) => `    ${id}:\n      type: bpmn:EndEvent\n      incoming: [F_${id}]\n`).join('')}    F1: Start -> Gate
-    F_No:
-      type: bpmn:SequenceFlow
-      sourceRef: Gate
-      targetRef: No
-      conditionExpression: 1 > 2
-${bare.map((id) => `    F_${id}: Gate -> ${id}\n`).join('')}`;
-
-test.describe('which branch a gateway takes', () => {
-  test('a seeded random gateway draws from the seed, the gateway and the visit', async () => {
-    const studyflow = await load(readFileSync(path.join(process.cwd(), 'tests/fixtures/random-loop.studyflow.yaml'), 'utf8'));
-    const visited = await visits(new Session(studyflow, { catalog, seed: studyflow.seed }));
-
-    const arms = [1, 2, 3, 4].map((visit) => ['A', 'B'][Math.floor(draw(6, 'Draw', visit) * 2)]);
-    expect(arms).toEqual(['A', 'A', 'B', 'A']);
-    expect(visited).toEqual(['Start', ...arms, 'Done']);
-  });
-
-  test('a draw is the one skills/local/run.py makes, to the bit', () => {
-    // [seed, gateway id, visit, draw]; skills/local/test_run.py asserts the same rows against run.py's `draw`.
-    const rows: [number, string, number, number][] = JSON.parse(readFileSync(path.join(process.cwd(), 'tests/fixtures/draws.json'), 'utf8'));
-    for (const [seed, gateway, visit, value] of rows) {
-      expect(draw(seed, gateway, visit), `draw(${seed}, '${gateway}', ${visit})`).toBe(value);
+  /** The steps shown, refusing `Consent`. */
+  const refusing = async (study: string): Promise<string[]> => {
+    const session = new Session(await load(study));
+    const shown: string[] = [];
+    for await (const job of session.traverse()) {
+      shown.push(job.node.id);
+      if (job.node.id === 'Consent') session.abort('consent-declined');
     }
-  });
-
-  test('no condition held and no default: the one flow without a condition is taken; with two, the run stops', async () => {
-    expect(await visits(new Session(await load(NO_DEFAULT(['Otherwise'])), { catalog }))).toEqual(['Start', 'Otherwise']);
-    await expect(visits(new Session(await load(NO_DEFAULT(['First', 'Second'])), { catalog })))
-      .rejects.toThrow(/Gate/);
-  });
+    return shown;
+  };
+  const declined = `    Declined:
+      type: BoundaryEvent
+      attachedToRef: Consent
+      eventDefinitions:
+        Err: { type: ErrorEventDefinition }
+    Excluded: { type: EndEvent }
+    F4: Declined -> Excluded
+`;
+  expect(await refusing(consent(declined))).toEqual(['Start', 'Consent', 'Excluded']);
+  await expect(refusing(consent(''))).rejects.toThrow(Aborted);
 });
 
-test.describe('reach counts and initial values', () => {
+test.describe('the state a session keeps', () => {
   /** Study declares `total` (initial 0); the battery declares `failed`; the gateway loops while it has been reached under 3 times. */
   const REACH = `${HEAD}Study:
   type: bpmn:Process
@@ -293,11 +231,9 @@ test.describe('reach counts and initial values', () => {
       targetRef: Excluded
 `;
 
-  test('the runner counts every visit, and every sequence flow it follows, into state._meta.reached; initial values seed the scopes', async () => {
+  test('a session yields each step a node has a screen for, and keeps the state the walk leaves; initial values seed the scopes', async () => {
     const studyflow = await load(REACH);
-    expect(studyflow.scopes.get('Study')?.properties[0].value).toBe(0);
-
-    const session = new Session(studyflow, { catalog });
+    const session = new Session(studyflow);
     expect(session.getVariables().total).toBe(0);
 
     const visited = await visits(session);
@@ -323,7 +259,7 @@ test.describe('reach counts and initial values', () => {
     const studyflow = await load(`${REACH}state:\n  _meta: { prov: [{ action: executed }], reached: { Gate: 2 } }\n  Study: { total: 10 }\n`);
     expect(studyflow.state._meta.reached).toEqual({ Gate: 2 });
 
-    const session = new Session(studyflow, { catalog });
+    const session = new Session(studyflow);
     expect(session.getVariables().total).toBe(10);
     const visited = await visits(session);
 

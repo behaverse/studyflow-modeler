@@ -2,43 +2,27 @@ import type { Studyflow } from '@runner/studyflow';
 import type { ValidationIssue } from '@runner/nodes/types';
 
 /**
- * What the notation says that this runtime does not walk, refused before the first screen rather than walked as a
- * different study: a loop or a multi-instance marker, a boundary event, a message flow between pools, a data
- * association (whose value this runtime would not carry), a timer. The local runtime walks each of them
- * (`studyflow run --runtime local`); a study using them runs there.
+ * What the notation says that a page cannot carry, refused before the first screen rather than walked as a different
+ * study: a message flow between pools, which needs the other pool's runner on this machine. The walk is the local
+ * runtime's too (packages/core/src/engine), so loops, boundary events and gateways mean here what they mean there;
+ * what a screen does not do is said as a warning: keep a timer, or fill a data edge.
  */
 export function validateUnwalked(studyflow: Studyflow): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const locally = 'The local runtime walks it (`studyflow run --runtime local`).';
-  // Every flow element, boundary events included, which never become flow nodes of this runtime's walk.
-  const elements: any[] = [];
-  const gather = (container: any) => {
-    for (const element of container?.flowElements ?? []) {
-      elements.push(element);
-      gather(element);
+  const locally = 'The local runtime carries it (`studyflow run --runtime local`).';
+  for (const element of Object.values(studyflow.plan.elements)) {
+    const label = element.name || element.id;
+    if ((element.events ?? []).includes('timerEventDefinition')) {
+      const effect = element.type === 'boundaryEvent' ? 'the step it sits on never leaves by it' : 'it passes at once';
+      issues.push({ nodeId: element.id, severity: 'warning', message: `'${label}' waits for a timer, which this runtime does not keep: ${effect}.` });
     }
-  };
-  gather(studyflow.businessObject);
-  for (const bo of elements) {
-    const node = { id: bo.id as string };
-    const label = bo.name || node.id;
-    if (bo.loopCharacteristics) {
-      issues.push({ nodeId: node.id, message: `'${label}' repeats under a loop marker, which this runtime does not walk: it would run once. ${locally}` });
-    }
-    if (bo.$type === 'bpmn:BoundaryEvent') {
-      issues.push({ nodeId: node.id, message: `'${label}' is a boundary event, which this runtime does not watch: the step it sits on would never leave through it. ${locally}` });
-    }
-    if ((bo.eventDefinitions ?? []).some((definition: any) => definition?.$type === 'bpmn:TimerEventDefinition')) {
-      issues.push({ nodeId: node.id, severity: 'warning', message: `'${label}' waits for a timer, which this runtime does not keep: it passes at once.` });
-    }
-    if ((bo.dataInputAssociations?.length ?? 0) + (bo.dataOutputAssociations?.length ?? 0) > 0) {
-      issues.push({ nodeId: node.id, severity: 'warning', message: `'${label}' reads or writes data along drawn edges, which this runtime does not carry. ${locally}` });
+    if (element.inputs.length + element.outputs.length > 0) {
+      issues.push({ nodeId: element.id, severity: 'warning', message: `'${label}' reads or writes data along drawn edges, which this runtime's screens do not fill. ${locally}` });
     }
   }
-  const definitions = studyflow.businessObject?.$parent;
-  const flows = (definitions?.rootElements ?? []).flatMap((root: any) => (root.$type === 'bpmn:Collaboration' ? root.messageFlows ?? [] : []));
+  const flows = Object.values(studyflow.plan.elements).filter((element) => element.type === 'messageFlow');
   if (flows.length > 0) {
-    issues.push({ nodeId: flows[0].id, message: `This study exchanges messages between pools (${flows.length} message flow${flows.length === 1 ? '' : 's'}), which this runtime does not carry: it walks one process. ${locally}` });
+    issues.push({ nodeId: flows[0].id, message: `This study exchanges messages between pools (${flows.length} message flow${flows.length === 1 ? '' : 's'}), which a page cannot carry: no runner plays the other pool here. ${locally}` });
   }
   return issues;
 }

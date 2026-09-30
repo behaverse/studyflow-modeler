@@ -9,16 +9,12 @@ export type FlowNode = {
   parameters: Record<string, unknown>;
   outgoing: string[];
   incoming: string[];
-  scopeId: string;
 };
 
 export type SequenceFlow = {
   id: string;
   sourceId: string;
   targetId: string;
-  conditionExpression?: string;
-  /** BPMN's per-expression `language`; unset means JavaScript in this runner. */
-  conditionLanguage?: string;
   businessObject: any;
 };
 

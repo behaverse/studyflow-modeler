@@ -68,7 +68,7 @@ function ImplementationPanel({ node }: { node: FlowNode }) {
         </div>
       )}
       <p className={nodeStyles.subtitle}>
-        The browser runner does not execute function calls; the Python runner does.
+        The browser runner does not execute function calls; the local runtime does.
       </p>
     </div>
   );

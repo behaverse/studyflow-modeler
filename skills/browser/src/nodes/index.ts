@@ -65,7 +65,7 @@ export async function validate(studyflow: Studyflow, log: LogFn): Promise<Valida
       issues.push({
         nodeId: node.id,
         severity: 'warning',
-        // A model-decided branch is refused mid-run (see session.ts), so don't promise the run continues.
+        // No screen decides for a model: no condition holds at that gateway, so don't promise the run continues.
         message: branchingMode(node.extensionType) === 'model'
           ? `'${node.extensionType}' picks its branch with a model, which the runner does not implement. The run stops here.`
           : `'${node.extensionType}' is not executable in this runner. This step is skipped and the run continues.`,

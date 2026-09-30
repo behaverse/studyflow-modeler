@@ -4,7 +4,6 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 
 import { readParameters, resolveRunSource } from '@runner/source';
-import { ScopeChain } from '@runner/scope';
 import { parseStudyflow, Studyflow } from '@runner/studyflow';
 import { getAttribute } from '@core/element';
 import { Graph, planOf, type Plan } from '@core/engine';
@@ -240,17 +239,8 @@ test('the Parameters wired into a sub-process are its read-only properties, in b
   const study = await parseStudyflow(WIRED_BLOCK(), freshPackages());
   // `{label}` inside the sub-process reads its own, hiding the study's; outside, the study's.
   expect(['Block', 'Inside', 'After'].map((id) => study.flowNodes.get(id)?.businessObject?.name)).toEqual(['inner', 'inner at 20', 'outer']);
-  const block = study.scopes.get('Block')!;
-  expect(block.properties.filter((p) => p.readOnly).map((p) => [p.name, p.value])).toEqual([['label', 'inner'], ['speed', 20]]);
-  const chain = new ScopeChain(study.scopes.get('P')!);
-  chain.push(block);
-  chain.write('speed', 20, true);
-  expect(() => chain.write('speed', 5)).toThrow(/speed.*Block/);
-
   // The refusal names the sub-process and the property declared twice.
   const clash = /Block.*label/;
-  await expect(parseStudyflow(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'), freshPackages())).rejects.toThrow(clash);
-
   const graph = new Graph((await planned(WIRED_BLOCK())).plan!);
   expect([[...graph.properties.get('Block')!].map(([name, { value }]) => [name, value]), [...graph.readonly.get('Block')!].sort()])
     .toEqual([[['label', 'inner'], ['speed', 20]], ['label', 'speed']]);

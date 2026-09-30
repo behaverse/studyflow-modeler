@@ -15,8 +15,8 @@ import {
 } from '@core/document';
 import { getAttribute, getExtensionType, getRawAttribute, setAttribute } from '@core/element';
 import { BPMN, isDeclaredProperty } from '@core/constants';
+import { planOf, type Plan } from '@core/engine';
 import type { FlowNode, SequenceFlow } from '@runner/flow';
-import type { PropertyDecl, Scope } from '@runner/scope';
 
 /** What a run can reach besides tasks (every `bpmn:Task` subtype is one); anything else in the process is ignored. */
 const FLOW_NODE_TYPES: ReadonlySet<string> = new Set<string>([
@@ -37,25 +37,23 @@ export type ParsedStudy = {
   businessObject: any;
   /** The root's `studyflow:Study`: its `seed` is the run's. */
   study: any;
+  /** The steps a node module may have a screen for, and the flows between them. */
   flowNodes: Map<string, FlowNode>;
   sequenceFlows: Map<string, SequenceFlow>;
-  startId?: string;
-  scopes: Map<string, Scope>;
-  rootScopeId: string;
+  /** What the walk walks (packages/core/src/engine), read once the link's values are bound. */
+  plan: Plan;
   parameters: BoundParameters;
-  /** The file's `state` tree as deposited; a session copies it and mirrors its own writes into the copy. */
+  /** The file's `state` tree as deposited; a session walks a copy of it. */
   state: StateTree;
 };
 
-/** The studyflow a run traverses: its flow nodes, sequence flows, and scopes. */
+/** The studyflow a session runs: its plan, and its steps as the node modules read them. */
 export class Studyflow {
   businessObject: any;
   study: any;
   flowNodes: Map<string, FlowNode>;
   sequenceFlows: Map<string, SequenceFlow>;
-  startId?: string;
-  scopes: Map<string, Scope>;
-  rootScopeId: string;
+  plan: Plan;
   parameters: BoundParameters;
   state: StateTree;
   /** Identifies the exact source the run was delivered from; reported to Unity and the data-server. */
@@ -74,9 +72,7 @@ export class Studyflow {
     this.study = data.study;
     this.flowNodes = data.flowNodes;
     this.sequenceFlows = data.sequenceFlows;
-    this.startId = data.startId;
-    this.scopes = data.scopes;
-    this.rootScopeId = data.rootScopeId;
+    this.plan = data.plan;
     this.parameters = data.parameters;
     this.state = data.state;
     this.studyflowHash = studyflowHash;
@@ -111,6 +107,9 @@ async function sha256Hex(text: string): Promise<string> {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
+
+/** A `bpmn:Property` a container declares. */
+type PropertyDecl = { id: string; name: string; itemType?: string; dataState?: string; value?: unknown };
 
 function readProperties(container: any): PropertyDecl[] {
   const properties = container?.properties ?? container?.get?.('properties') ?? [];
@@ -159,32 +158,12 @@ export async function parseStudyflow(
 
   const flowNodes = new Map<string, FlowNode>();
   const sequenceFlows = new Map<string, SequenceFlow>();
-  const scopes = new Map<string, Scope>();
-  const rootScopeId = businessObject.id ?? 'process';
 
-  const walkContainer = (container: any, scopeId: string, parentId?: string): void => {
-    // The Parameters wired into a sub-process are read-only properties of it, beside the ones it declares.
-    const declared = readProperties(container);
-    const fromParameters = Object.entries(wired.get(scopeId) ?? {}).map(([name, value]): PropertyDecl => {
-      if (declared.some((p) => p.name === name)) {
-        throw new Error(`${scopeId} declares '${name}' as a property and in the Parameters wired into it: keep one.`);
-      }
-      return { id: `${scopeId}.${name}`, name, value, readOnly: true };
-    });
-    const scope: Scope = {
-      id: scopeId,
-      parentId,
-      startId: undefined,
-      properties: [...declared, ...fromParameters],
-    };
-    scopes.set(scopeId, scope);
-
+  const gather = (container: any): void => {
     const children: any[] = container?.flowElements ?? [];
-
     for (const el of children) {
       if (el.$type === 'bpmn:SequenceFlow') continue;
       if (!FLOW_NODE_TYPES.has(el.$type) && !el.$instanceOf?.(BPMN.Task)) continue;
-
       flowNodes.set(el.id, {
         id: el.id,
         type: el.$type,
@@ -193,63 +172,27 @@ export async function parseStudyflow(
         parameters: wired.get(el.id) ?? {},
         outgoing: [],
         incoming: [],
-        scopeId,
       });
-
-      if (el.$type === 'bpmn:StartEvent' && !scope.startId) scope.startId = el.id;
     }
-
     for (const el of children) {
       if (el.$type !== 'bpmn:SequenceFlow') continue;
-
       const sourceId = el.sourceRef?.id;
       const targetId = el.targetRef?.id;
       if (!sourceId || !targetId) continue;
-
-      const rawCondition = el.get?.('conditionExpression') ?? el.conditionExpression;
-      const condition = typeof rawCondition === 'string'
-        ? rawCondition
-        : rawCondition?.body ?? rawCondition?.get?.('body');
-      const conditionLanguage = typeof rawCondition === 'string'
-        ? undefined
-        : rawCondition?.language ?? rawCondition?.get?.('language');
-
-      sequenceFlows.set(el.id, {
-        id: el.id,
-        sourceId,
-        targetId,
-        conditionExpression: typeof condition === 'string' ? condition : undefined,
-        conditionLanguage: typeof conditionLanguage === 'string' ? conditionLanguage : undefined,
-        businessObject: el,
-      });
-
+      sequenceFlows.set(el.id, { id: el.id, sourceId, targetId, businessObject: el });
       flowNodes.get(sourceId)?.outgoing.push(el.id);
       flowNodes.get(targetId)?.incoming.push(el.id);
     }
-
-    for (const el of children) {
-      if (el.$type === 'bpmn:SubProcess') walkContainer(el, el.id, scopeId);
-    }
+    for (const el of children) if (el.$type === 'bpmn:SubProcess') gather(el);
   };
-
-  walkContainer(businessObject, rootScopeId);
-
-  const rootScope = scopes.get(rootScopeId)!;
-  if (!rootScope.startId) {
-    // A process may leave out its start event (BPMN 2.0 §10.2); it then starts wherever nothing flows into.
-    const entries = [...flowNodes.values()]
-      .filter((node) => node.scopeId === rootScopeId && node.incoming.length === 0);
-    if (entries.length === 1) rootScope.startId = entries[0].id;
-  }
+  gather(businessObject);
 
   return {
     businessObject,
     study,
     flowNodes,
     sequenceFlows,
-    startId: scopes.get(rootScopeId)?.startId,
-    scopes,
-    rootScopeId,
+    plan: planOf(definitions),
     parameters: bound,
     state: readState(definitions),
   };
