@@ -5,6 +5,9 @@ export const GATEWAY_TYPES = new Set(['exclusiveGateway', 'inclusiveGateway', 'c
 export const CONTAINER_TYPES = new Set(['subProcess', 'adHocSubProcess', 'transaction']);
 export const PASSTHROUGH_TYPES = new Set(['startEvent', 'intermediateCatchEvent', 'intermediateThrowEvent']);
 
+/** What a container holds that no sequence flow leads to. */
+const NOT_FLOW_NODES = new Set([...DATA_TYPES, 'sequenceFlow', 'boundaryEvent', 'textAnnotation', 'association', 'group']);
+
 /** A `value` or `seed` attribute: JSON when it parses, else the text as written. */
 export function literal(text: unknown): unknown {
   if (typeof text !== 'string') return text;
@@ -115,6 +118,18 @@ export class Graph {
 
   startEvent(container: string): PlanElement | undefined {
     return (this.children.get(container) ?? []).find((element) => element.type === 'startEvent');
+  }
+
+  /** Where a process starts: its start event; one that leaves it out (BPMN 2.0 §10.2) starts at the one node
+   * nothing flows into. */
+  entryOf(process: string): PlanElement {
+    const start = this.startEvent(process);
+    if (start) return start;
+    const targets = new Set([...this.outgoing.values()].flat().map((flow) => flow.attributes.targetRef));
+    const entries = (this.children.get(process) ?? [])
+      .filter((element) => !NOT_FLOW_NODES.has(element.type) && !targets.has(element.id));
+    if (entries.length !== 1) throw new Error(`no start event in ${process}`);
+    return entries[0];
   }
 
   /** A data element's `uri`, if it is one and has one. */

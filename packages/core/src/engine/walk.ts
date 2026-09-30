@@ -69,6 +69,8 @@ export type WalkOptions = {
   /** The `state` tree the study carries from earlier runs. */
   state?: StateTree;
   maxSteps?: number;
+  /** Walk each pool once, whatever its `participantMultiplicity`: a participant's session is one instance of its pool. */
+  oneInstance?: boolean;
 };
 
 /** A message reached a boundary event of a running activity, or a failure its error boundary event: the walk leaves
@@ -128,6 +130,7 @@ export class Walk {
   private readonly host: Host;
   private readonly seed: number | undefined;
   private readonly maxSteps: number;
+  private readonly oneInstance: boolean;
   private readonly blocks = new Map<string, number[]>();
   private readonly mail = new Map<string, Message[]>();
   private readonly waiting = new Set<() => void>();
@@ -141,6 +144,7 @@ export class Walk {
     this.graph = new Graph(plan);
     this.state = options.state ?? {};
     this.maxSteps = options.maxSteps ?? 1000;
+    this.oneInstance = options.oneInstance ?? false;
     const seed = Number(options.seed ?? plan.study.seed ?? NaN);
     this.seed = Number.isInteger(seed) ? seed : undefined; // unseeded: `Math.random()`, and a re-run replays the recorded decision instead
 
@@ -167,6 +171,11 @@ export class Walk {
       }
     }
     for (const id of graph.participants.keys()) if (host.claim(id)?.live) this.live.add(id);
+    // Study-scoped properties persist across runs, so only ones the tree lacks take their `value`; a plain element's
+    // properties live with the study (`Excluded (n={count})` counts across runs).
+    for (const scope of graph.properties.keys()) {
+      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.startScope(scope, false, { depth: 0, watching: [], heard: new Map() });
+    }
   }
 
   // --- the run ---
@@ -181,11 +190,6 @@ export class Walk {
     }
     for (const { unapplied } of this.allocations.values()) {
       if (unapplied) host.log('allocation.unapplied', `  ${unapplied}`, { level: 'warning' });
-    }
-    // Study-scoped properties persist across runs, so only ones the tree lacks take their `value`; a plain element's
-    // properties live with the study (`Excluded (n={count})` counts across runs).
-    for (const scope of graph.properties.keys()) {
-      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.startScope(scope, false, { depth: 0, watching: [], heard: new Map() });
     }
     const pools = graph.plan.processes;
     // Every pool runs at once, each on its own token; the message flows are where they wait for each other.
@@ -207,9 +211,9 @@ export class Walk {
   private async runPool(pool: string): Promise<void> {
     const { graph } = this;
     const thread: Thread = { depth: 0, watching: [], heard: new Map() };
-    const { participant, instances } = graph.instancesOf(pool);
-    const start = graph.startEvent(pool);
-    if (!start) throw new Error(`no start event in ${pool}`);
+    const { participant, instances: drawn } = graph.instancesOf(pool);
+    const instances = this.oneInstance ? 1 : drawn;
+    const start = graph.entryOf(pool);
     for (let instance = 1; instance <= instances; instance += 1) {
       if (instances > 1) {
         // Which instance this is, for whatever runs inside: `state._meta.instance.<pool id>`, 1-based.
@@ -671,8 +675,7 @@ export class Walk {
     entry.status = 'stuck';
     this.steps.end(entry);
     this.steps.status = 'error';
-    this.log(thread, 'gateway.stuck', `    ${id}: no condition held, and there is no default flow or single flow without a condition`, { level: 'error' });
-    return undefined;
+    throw new Error(`${id}: no condition held, and there is no default flow or single flow without a condition`);
   }
 
   // --- values and scopes ---
@@ -683,6 +686,30 @@ export class Walk {
     this.values.set(id, value);
     const declared = this.graph.propertyScope(id);
     if (declared) (this.state[declared.scope] ??= {})[declared.name] = value;
+  }
+
+  /**
+   * A value written under a property's name by whatever runs `from` (a runner in the walk's own process has no state
+   * file to hand back): into the innermost scope around `from` that declares the name, which is returned, or
+   * nowhere when none does. A property the Parameters wired into a sub-process set is not written.
+   */
+  write(name: string, value: unknown, from: string): string | undefined {
+    const scope = this.graph.scopeChain(from).find((candidate) => this.graph.properties.get(candidate)?.has(name));
+    if (!scope) return undefined;
+    if (this.graph.readonly.get(scope)?.has(name)) {
+      throw new Error(`'${name}' is set by the Parameters wired into ${scope}, so nothing inside it writes it.`);
+    }
+    const declared = this.graph.properties.get(scope)!.get(name)!;
+    (this.state[scope] ??= {})[name] = value;
+    if (declared.id) this.values.set(declared.id, value);
+    return scope;
+  }
+
+  /** The properties in scope of an element, by name: what `{name}` and a condition read there. */
+  inScope(id: string): Record<string, unknown> {
+    const declared = Object.fromEntries(this.graph.scopeChain(id).reverse()
+      .flatMap((scope) => [...(this.graph.properties.get(scope)?.keys() ?? [])].map((name) => [name, undefined])));
+    return { ...declared, ...this.scopeValues(id) };
   }
 
   /** What an expression reads: `state`, then every element's value by its id and by its name. */

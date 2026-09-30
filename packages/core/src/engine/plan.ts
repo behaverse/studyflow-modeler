@@ -245,8 +245,10 @@ export type StudyIndex = {
 
 export function indexOf(definitions: ModdleElement): StudyIndex {
   const roots: ModdleElement[] = definitions.rootElements ?? [];
-  const walkable = roots.filter((root) => root.$type === 'bpmn:Process'
-    && (root.flowElements ?? []).some((element: ModdleElement) => element.$type === 'bpmn:SequenceFlow'));
+  const processes_ = roots.filter((root) => root.$type === 'bpmn:Process');
+  let walkable = processes_.filter((root) => (root.flowElements ?? []).some((element: ModdleElement) => element.$type === 'bpmn:SequenceFlow'));
+  // A study of steps and no flow is walked from its one step (the walk refuses more than one).
+  if (walkable.length === 0) walkable = processes_.filter((root) => (root.flowElements ?? []).length > 0).slice(0, 1);
   if (walkable.length === 0) throw new Error('no process with a sequence flow to walk');
   const studyOf = (root: ModdleElement): ModdleElement | undefined =>
     root?.extensionElements?.values?.find((ext: ModdleElement) => ext.$type === STUDY_EXTENSION_TYPE);

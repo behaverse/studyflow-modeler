@@ -772,3 +772,68 @@ test('a step finds the read-only properties its sub-process takes from wired Par
   expect(found).toEqual({ speed: 20 });
   expect(error?.message).toMatch(/T writes speed.*Block/);
 });
+
+test('a study of one step and no flow starts at that step; two steps nothing leads to are refused, not guessed between', async () => {
+  const one = await walked('S:\n  type: Process\n  flowElements:\n    Only: { type: Task }\n');
+  expect([one.error, one.reached]).toEqual([undefined, { Only: 1 }]);
+  const two = await walked('S:\n  type: Process\n  flowElements:\n    Only: { type: Task }\n    Second: { type: Task }\n');
+  expect(two.error?.message).toMatch(/start/);
+});
+
+test('a gateway where no condition holds, with no default and two flows without a condition, stops the run', async () => {
+  const { error, walk } = await walked(`S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Gate: { type: ExclusiveGateway }
+    A: { type: EndEvent }
+    B: { type: EndEvent }
+    F1: Start -> Gate
+    F_A: Gate -> A
+    F_B: Gate -> B
+`);
+  expect(error?.message).toMatch(/Gate: no condition held/);
+  expect(walk.steps.entries.at(-1)).toMatchObject({ node: 'Gate', status: 'stuck' });
+});
+
+test('a participant\'s session walks one instance of its pool, and writes a value under the name a scope declares', async () => {
+  const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}C:
+  type: Collaboration
+  participants:
+    Subjects: { name: Subjects, participantMultiplicity: { maximum: 4 }, processRef: S }
+S:
+  type: Process
+  properties:
+    P_Arm: { name: arm }
+  flowElements:
+    S0: { type: StartEvent }
+    Block:
+      type: SubProcess
+      properties:
+        P_Failed: { name: failed }
+      flowElements:
+        B0: { type: StartEvent }
+        Trial: { type: Task }
+        B9: { type: EndEvent }
+        BF0: B0 -> Trial
+        BF1: Trial -> B9
+    S9: { type: EndEvent }
+    SF0: S0 -> Block
+    SF1: Block -> S9
+`, freshModdle()));
+  const seen: unknown[] = [];
+  const walk: Walk = new Walk(plan, {
+    claim: (id) => (id === 'Trial' ? { name: 'screen', live: true } : undefined),
+    perform: async (id, values) => {
+      // Inside the block, `failed` is its own and `arm` the study's; a name no scope declares is written nowhere.
+      seen.push([walk.write('failed', 3, id), walk.write('arm', 'treatment', id), walk.write('stray', 1, id), walk.inScope(id)]);
+      return values;
+    },
+    log: () => undefined,
+    now: () => '',
+  }, { oneInstance: true });
+  await walk.run();
+  expect(seen).toEqual([['Block', 'S', undefined, { arm: 'treatment', failed: 3 }]]);
+  expect(walk.state._meta.reached.Trial).toBe(1);
+  expect(walk.inScope('S9')).toEqual({ arm: 'treatment' });
+});
