@@ -8,7 +8,7 @@ import { readState } from '@core/document';
 import { Walk, dryHost, planOf, type Plan } from '@core/engine';
 import { isBpmnSubtypeOf } from '@core/notation';
 import type { Canvas, EventBus } from '@modeler/editor/port';
-import type { ElementRecord, Point, Study } from '@canvas/index.ts';
+import type { Point, Study } from '@canvas/index.ts';
 import { computeSegLengths, dedupePoints, samplePolyline, smootherstep, tokenAnchor } from '@modeler/simulation/polyline';
 
 export interface SimulationHost {
