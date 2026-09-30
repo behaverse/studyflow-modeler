@@ -18,7 +18,7 @@ import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 type Resolver = (key: string, bo?: any) => IconDef | null | undefined;
 
-/** One user task (its type icon is the top-left glyph) plus a looping task (a marker glyph). */
+/** One user task (its type icon is the top-left glyph), a looping task and a task with a checklist (marker glyphs). */
 const YAML = `id: Defs_I
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -35,6 +35,11 @@ Process_I:
       loopCharacteristics:
         type: StandardLoopCharacteristics
       bounds: 260 100 100 80
+    Task_3:
+      type: Task
+      name: Report
+      checklist: "- [ ] outcome reported"
+      bounds: 420 100 100 80
 `;
 
 const GLYPH = '<path d="M4 4h16v16H4z" fill="currentColor"/>';
@@ -81,6 +86,7 @@ test('a marker glyph goes through the same resolver, stamped with its key, in th
   // A plain task draws the glyph the resolver names for `Task`, then its loop marker. The key is a
   // marker's identity: two markers can share their paths (parallel and sequential differ by a rotation).
   expect(iconKeys(canvas, 'Task_2')).toEqual(['Task', 'loop']);
+  expect(iconKeys(canvas, 'Task_3')).toEqual(['Task', 'checklist']);
   const path = graphics(canvas, 'Task_2').querySelector('svg.sf-icon[data-icon-key="loop"] path')!;
   // Real geometry in the SVG namespace, with `currentColor` written as the muted ink, so a
   // document opened anywhere paints the glyph.

@@ -18,7 +18,7 @@ export function activityMarkers(node: SceneNode): string[] {
   const bo = node.businessObject;
   const markers: string[] = [];
   const checklist = getAttribute(bo, 'checklist');
-  if (Array.isArray(checklist) && checklist.length > 0) markers.push('checklist');
+  if (typeof checklist === 'string' && checklist.trim()) markers.push('checklist');
   if (isDataOperationActivity(bo)) markers.push('function');
   if (isCollapsed(node)) markers.push('subprocess');
   if (node.type === 'bpmn:AdHocSubProcess') markers.push('adhoc');
