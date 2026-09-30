@@ -15,7 +15,23 @@ export type FeelResult = { value: unknown; error?: string };
  * labels do, and it reads as `Play.trials > 3`. */
 const cited = (expression: string): string => expression.replace(PLACEHOLDER, '$1');
 
-/** Why the expression is not FEEL, or undefined when it parses. */
+/** The FEEL functions a study may call: both evaluators have them (feelin, and skills/local/feel.py's subset). */
+const FUNCTIONS = new Set(['not', 'contains', 'starts with', 'ends with', 'substring after', 'substring before', 'upper case',
+  'lower case', 'string length', 'count', 'sum', 'min', 'max', 'mean', 'abs', 'is defined']);
+
+/** What feelin reads and the subset leaves out, by the node feelin parses it to: a study runs the same in both runtimes. */
+const BEYOND: Record<string, string> = {
+  QuantifiedExpression: 'some/every … satisfies',
+  ForExpression: 'for … return',
+  InstanceOfExpression: 'instance of',
+  FunctionDefinition: 'a function definition',
+  DateTimeLiteral: 'a date or a time',
+  Interval: 'a range ([a..b])',
+  SimplePositiveUnaryTest: 'a unary test',
+  between: 'between',
+};
+
+/** Why the expression is not FEEL, or not the FEEL both runtimes run, or undefined when it is. */
 export function feelSyntaxError(written: string): string | undefined {
   const expression = cited(written);
   // feelin's parser recovers from Python and JavaScript idioms without an error node; name them outright.
@@ -26,11 +42,27 @@ export function feelSyntaxError(written: string): string | undefined {
   const method = code.match(/\.\s*[A-Za-z_]\w*\s*\(/);
   if (method) return `not FEEL: ${JSON.stringify(method[0])} calls a method; FEEL calls functions by name (count(x), upper case(s))`;
   let error: string | undefined;
+  const text = (node: { from: number; to: number }): string => expression.slice(node.from, node.to).trim();
   parseExpression(expression, {}, undefined).iterate({
     enter(node) {
-      if (!error && node.type.isError) {
+      if (error) return false;
+      if (node.type.isError) {
         error = `not FEEL at ${node.from}: ${JSON.stringify(expression.slice(node.from, node.from + 12) || expression)}`;
+      } else if (BEYOND[node.type.name]) {
+        error = `uses ${BEYOND[node.type.name]}, which the FEEL a study runs everywhere leaves out`;
+      } else if (node.type.name === 'ArithOp' && text(node) === '**') {
+        error = 'uses x ** y, which the FEEL a study runs everywhere leaves out';
+      } else if (node.type.name === 'FunctionInvocation') {
+        const name = text(node.node.firstChild ?? node);
+        if (!FUNCTIONS.has(name)) error = `calls the function ${JSON.stringify(name)}, which the FEEL a study runs everywhere leaves out (it has ${[...FUNCTIONS].join(', ')})`;
+      } else if (node.type.name === 'FilterExpression') {
+        // `list[1]` picks an item; `list[item > 2]` filters, which the subset does not.
+        const inside = node.node.getChild('[')?.nextSibling;
+        if (inside && (['Comparison', 'Conjunction', 'Disjunction'].includes(inside.type.name) || /\bitem\b/.test(text(inside)))) {
+          error = 'uses a filter (list[condition]), which the FEEL a study runs everywhere leaves out';
+        }
       }
+      return undefined;
     },
   });
   return error;

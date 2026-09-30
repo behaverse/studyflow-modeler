@@ -29,12 +29,16 @@ Study:
     F_No: Gate -> No
 `;
 
-test('a condition that is not FEEL, and a timer that says no time a run can keep, are reported before any run', () => {
+test('a condition that is not the FEEL both runtimes run, and a timer that says no time a run can keep, are reported before any run', () => {
   // [label, the gateway's condition, the timer's time, what the check says as `<severity> <element>: <fragment>`]
   const CASES: [string, string, string, string[]][] = [
     ['FEEL, and an ISO 8601 duration', 'score >= 0.9', ', timeDuration: PT5M', []],
     ['a placeholder reads as the path it names, in a condition and in a timer', '"{Play.rate} > 0.2"', ', timeDuration: "{rest}"', []],
     ['an idiom of another language', '"score == 1"', ', timeDate: "2026-10-01T09:00:00Z"', ['error F_Yes: is not FEEL']],
+    // FEEL that one runtime's evaluator runs and the other's leaves out: a study runs the same everywhere.
+    ['a range test', '"score between 0.5 and 1"', ', timeDuration: PT5M', ['error F_Yes: uses between']],
+    ['a filter', '"count(scores[item > 0.5]) > 2"', ', timeDuration: PT5M', ['error F_Yes: uses a filter']],
+    ['a function the subset has not', '"string join(names) = \\"a\\""', ', timeDuration: PT5M', ['error F_Yes: calls the function "string join"']],
     ['a duration in words', 'score >= 0.9', ', timeDuration: 5 minutes', ['error Rest: cannot be kept: a timer\'s duration is ISO 8601']],
     ['a timer that says no time', 'score >= 0.9', '', ['error Rest: a timer says when']],
     ['a cycle is kept for its first firing', 'score >= 0.9', ', timeCycle: R3/PT10M', ['warning Rest: waits for its first firing only']],
