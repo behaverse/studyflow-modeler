@@ -1,34 +1,25 @@
-/** Token simulation: tokens spawned at the start events of the current scope, walking the flows. */
+/**
+ * Token simulation: dry runs of the study (core's walk, the engine every runtime hosts, executing nothing), each
+ * shown as tokens gliding along the flows it takes. A token is one pool's walk, so what a simulation shows is what a
+ * run does: it waits where a run waits for a message, and it stops where a run would stop.
+ */
 
+import { readState } from '@core/document';
+import { Walk, dryHost, planOf, type Plan } from '@core/engine';
 import { isBpmnSubtypeOf } from '@core/notation';
 import type { Canvas, EventBus } from '@modeler/editor/port';
 import type { ElementRecord, Point, Study } from '@canvas/index.ts';
-import { containerOf, nextHops, startEventsIn, tokenAnchor } from '@modeler/simulation/flowWalk';
-import { computeSegLengths, dedupePoints, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
+import { computeSegLengths, dedupePoints, samplePolyline, smootherstep, tokenAnchor } from '@modeler/simulation/polyline';
 
 export interface SimulationHost {
   events: Pick<EventBus, 'on' | 'off' | 'fire'>;
   /** What the tokens walk. */
-  study: Pick<Study, 'get' | 'list'>;
+  study: Pick<Study, 'get' | 'definitions'>;
   /** Where they are drawn, and whether the view shows where they are. */
   canvas: Pick<Canvas, 'layer' | 'draws' | 'scope'>;
 }
 
 const TOKEN_RADIUS = 8;
-
-function setAttributes(element: Element, attributes: Record<string, string | number>): void {
-  for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, String(value));
-}
-
-/** The `studyflow-simulation-token` class is the selector e2e tests count tokens by. */
-function createTokenSvg(layer: SVGGElement, color: string, cx = 0, cy = 0): SVGCircleElement {
-  const svg = layer.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'circle');
-  setAttributes(svg, { cx, cy, r: TOKEN_RADIUS, class: 'studyflow-simulation-token' });
-  svg.style.fill = color;
-  layer.appendChild(svg);
-  return svg;
-}
-
 const TOKEN_SPEED = 200;
 const ACTIVITY_PAUSE_MS = 500;
 const SPAWN_INTERVAL_MS = 1000;
@@ -40,317 +31,292 @@ export const TOGGLE_SIMULATION_EVENT = 'TokenSimulationToggle';
 const TOKEN_LAYER = 'token-simulation';
 const TOKEN_LAYER_INDEX = 1000;
 
+/** One pool's token in one dry run. */
 interface Token {
-  svg: any;
-  color: string;
-  pathPoints: Point[];
+  svg: SVGCircleElement;
+  cx: number;
+  cy: number;
+  /** The path it is gliding along, and how far it has come. */
+  path: Point[];
   segLengths: number[];
   totalDist: number;
   travelled: number;
-  /** The id of the node the token is heading for. */
-  target: string | null;
-  /** The id of the node or flow the token is on: decides whether it is on screen in the current drill-down scope. */
-  at: string | null;
-  hidden: boolean;
-  paused: boolean;
   pauseRemaining: number;
-  done: boolean;
+  /** The node or flow it is on: decides whether it is on screen in the current drill-down scope. */
+  at: string;
+  hidden: boolean;
   bouncing: boolean;
-  bounceElementId: string | null;
-  cx: number;
-  cy: number;
+  done: boolean;
+  /** Settles the move the walk is waiting for. */
+  arrive?: () => void;
+  stop?: (reason: Error) => void;
 }
 
-function makeToken(svg: any, color: string, cx: number, cy: number, at: string | null): Token {
-  return {
-    svg, color, cx, cy, at, hidden: false,
-    pathPoints: [], segLengths: [], totalDist: 0, travelled: 0,
-    target: null, paused: false, pauseRemaining: 0, done: false, bouncing: false, bounceElementId: null,
-  };
+/** One dry run: a walk, and a token for each pool it walks. */
+interface Run {
+  color: string;
+  tokens: Map<string, Token>;
+  /** Its walk has ended, or the simulation stopped it. */
+  over: boolean;
 }
+
+const STOPPED = new Error('the simulation stopped');
 
 export default class TokenSimulator {
-  private _host: SimulationHost;
-  private _active = false;
-  private _tokens: Token[] = [];
-  private _animFrameId: number | null = null;
-  private _spawnIntervalId: number | null = null;
-  private _layer: any = null;
-  private _colorIndex = 0;
-  private _lastTimestamp = 0;
-  private _startEvents: ElementRecord[] = [];
-  private _get = (id: string): ElementRecord | undefined => this._host.study.get(id);
+  private host: SimulationHost;
+  private active = false;
+  private runs: Run[] = [];
+  private frame: number | null = null;
+  private spawning: number | null = null;
+  private layer: SVGGElement | null = null;
+  private colorIndex = 0;
+  private lastTimestamp = 0;
+  private plan: Plan | undefined;
 
   constructor(host: SimulationHost) {
-    this._host = host;
-    this._host.events.on('RootSet', this._handleRootSet);
-    this._host.events.on('ImportDone', this._handleImport);
+    this.host = host;
+    this.host.events.on('RootSet', this.handleRootSet);
+    this.host.events.on('ImportDone', this.handleImport);
   }
 
   dispose(): void {
     this.stop();
-    this._host.events.off('RootSet', this._handleRootSet);
-    this._host.events.off('ImportDone', this._handleImport);
+    this.host.events.off('RootSet', this.handleRootSet);
+    this.host.events.off('ImportDone', this.handleImport);
   }
 
   isActive(): boolean {
-    return this._active;
+    return this.active;
   }
 
-  toggle() {
-    if (this._active) this.stop();
+  toggle(): void {
+    if (this.active) this.stop();
     else this.start();
   }
 
-  start() {
-    if (this._active) return;
-    this._active = true;
-    this._ensureBounceKeyframes();
-    this._layer = this._host.canvas.layer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
-    this._startEvents = this._getVisibleStartEvents();
-    for (const startEvent of this._startEvents) this._spawnToken(startEvent);
-    this._spawnIntervalId = window.setInterval(() => {
-      if (!this._active) return;
-      const activeCount = this._tokens.filter((token) => !token.done && !token.hidden).length;
-      if (activeCount >= TOKEN_COLORS.length) return;
-      for (const startEvent of this._startEvents) this._spawnToken(startEvent);
+  start(): void {
+    if (this.active) return;
+    this.active = true;
+    this.ensureKeyframes();
+    this.layer = this.host.canvas.layer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
+    this.readPlan();
+    this.spawnRun();
+    this.spawning = window.setInterval(() => {
+      if (this.tokens().filter((token) => !token.done && !token.hidden && !token.bouncing).length < TOKEN_COLORS.length) this.spawnRun();
     }, SPAWN_INTERVAL_MS);
-    this._lastTimestamp = performance.now();
-    this._animFrameId = requestAnimationFrame(this._tick);
-    this._host.events.fire(TOGGLE_SIMULATION_EVENT, { active: true });
+    this.lastTimestamp = performance.now();
+    this.frame = requestAnimationFrame(this.tick);
+    this.host.events.fire(TOGGLE_SIMULATION_EVENT, { active: true });
   }
 
-  stop() {
-    if (!this._active) return;
-    this._active = false;
-    if (this._spawnIntervalId) {
-      clearInterval(this._spawnIntervalId);
-      this._spawnIntervalId = null;
-    }
-    if (this._animFrameId) {
-      cancelAnimationFrame(this._animFrameId);
-      this._animFrameId = null;
-    }
-    this._clearTokens();
-    this._startEvents = [];
-    this._host.events.fire(TOGGLE_SIMULATION_EVENT, { active: false });
+  stop(): void {
+    if (!this.active) return;
+    this.active = false;
+    if (this.spawning) clearInterval(this.spawning);
+    if (this.frame) cancelAnimationFrame(this.frame);
+    this.spawning = this.frame = null;
+    this.clearRuns();
+    this.host.events.fire(TOGGLE_SIMULATION_EVENT, { active: false });
   }
 
   /** A new document: every token refers to elements that are gone, so start over. */
-  private _handleImport = () => {
-    if (!this._active) return;
-    this._layer = this._host.canvas.layer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
-    this._clearTokens();
-    this._handleRootSet();
+  private handleImport = (): void => {
+    if (!this.active) return;
+    this.layer = this.host.canvas.layer(TOKEN_LAYER, TOKEN_LAYER_INDEX);
+    this.clearRuns();
+    this.readPlan();
+    this.spawnRun();
   };
 
-  /** A drill-down: tokens keep walking (the coordinate space is shared) and only their visibility changes. */
-  private _handleRootSet = () => {
-    if (!this._active) return;
-    this._startEvents = this._getVisibleStartEvents();
-    for (const token of this._tokens) this._syncVisibility(token);
-    for (const startEvent of this._startEvents) {
-      if (!this._tokens.some((token) => !token.done && token.at === startEvent.id)) this._spawnToken(startEvent);
+  /** A drill-down: tokens keep walking (the coordinate space is shared) and only their visibility changes; the next
+   * runs start where the view is. */
+  private handleRootSet = (): void => {
+    if (!this.active) return;
+    for (const token of this.tokens()) this.syncVisibility(token);
+    this.spawnRun();
+  };
+
+  /** The plan of the study as it stands; a study with nothing to walk has no tokens. */
+  private readPlan(): void {
+    try {
+      this.plan = planOf(this.host.study.definitions);
+    } catch {
+      this.plan = undefined;
     }
-  };
-
-  /** Start events at the top of what is on screen: the root, or the drilled-into container. */
-  private _getVisibleStartEvents(): ElementRecord[] {
-    return startEventsIn(this._host.study.list(), this._host.canvas.scope, this._get);
   }
 
-  private _syncVisibility(token: Token) {
-    const hidden = !!token.at && !this._host.canvas.draws(token.at);
+  private tokens(): Token[] {
+    return this.runs.flatMap((run) => [...run.tokens.values()]);
+  }
+
+  private clearRuns(): void {
+    for (const run of this.runs) {
+      run.over = true;
+      for (const token of run.tokens.values()) {
+        token.done = true;
+        token.svg.remove();
+        token.stop?.(STOPPED);
+      }
+    }
+    this.runs = [];
+  }
+
+  /** One more dry run, from the start of what is on screen: the study's pools, or the container drilled into. */
+  private spawnRun(): void {
+    if (!this.plan) return;
+    const { scope } = this.host.canvas;
+    const plan = scope && this.plan.elements[scope] ? { ...this.plan, processes: [scope] } : this.plan;
+    const run: Run = { color: TOKEN_COLORS[this.colorIndex++ % TOKEN_COLORS.length], tokens: new Map(), over: false };
+    let walk: Walk;
+    try {
+      // Unseeded: each run is another participant, so the tokens spread over what a random gateway may draw.
+      walk = new Walk(plan, dryHost(plan, {
+        moved: (to, along, pool) => this.move(run, pool, to, along),
+        passed: (id) => this.passed(run, plan, id),
+      }), { seed: null, state: readState(this.host.study.definitions) });
+    } catch {
+      return; // a study the walk refuses before its first step
+    }
+    this.runs.push(run);
+    // A pool's token that reached no end event stands where its walk stopped: a dead end, or where the run failed.
+    const settle = (): void => {
+      if (run.over) return;
+      run.over = true;
+      for (const token of run.tokens.values()) if (!token.done) this.bounce(token);
+    };
+    walk.run().then(settle, settle);
+  }
+
+  /** A pool's token moves into `to`: gliding along the flow it took, else straight there. The walk waits for it. */
+  private move(run: Run, pool: string, to: string, along: string | undefined): Promise<void> {
+    if (run.over) return Promise.reject(STOPPED);
+    const target = this.host.study.get(to);
+    if (!target?.bounds) return Promise.resolve();
+    const anchor = tokenAnchor(target);
+    let token = run.tokens.get(pool);
+    if (!token) {
+      token = this.createToken(run.color, anchor, to);
+      run.tokens.set(pool, token);
+      return Promise.resolve();
+    }
+    const waypoints = along === undefined ? [] : this.host.study.get(along)?.waypoints ?? [];
+    const path = dedupePoints([{ x: token.cx, y: token.cy }, ...waypoints.map(({ x, y }) => ({ x, y })), anchor]);
+    const { segLengths, totalDist } = computeSegLengths(path);
+    Object.assign(token, { path, segLengths, totalDist, travelled: 0, at: along ?? to });
+    // An activity takes a moment; an expanded container is walked through, so the token does not rest on it.
+    const pause = isBpmnSubtypeOf(target.type, 'bpmn:Activity') && !target.expanded ? ACTIVITY_PAUSE_MS : 0;
+    const current = token;
+    return new Promise((resolve, reject) => {
+      current.stop = reject;
+      current.arrive = () => {
+        current.at = to;
+        current.pauseRemaining = pause;
+        current.arrive = resolve;
+        if (pause === 0) this.settle(current);
+      };
+      if (totalDist === 0) current.arrive();
+    });
+  }
+
+  /** The walk leaves an element: at an end event of what is walked (not a sub-process's own), the pool's token pops. */
+  private passed(run: Run, plan: Plan, id: string): void {
+    const element = plan.elements[id];
+    if (element?.type !== 'endEvent' || !plan.processes.includes(element.parent ?? '')) return;
+    const token = [...run.tokens.values()].find((candidate) => candidate.at === id && !candidate.done);
+    if (token) this.pop(token);
+  }
+
+  private settle(token: Token): void {
+    const arrive = token.arrive;
+    token.arrive = token.stop = undefined;
+    arrive?.();
+  }
+
+  private tick = (timestamp: number): void => {
+    if (!this.active) return;
+    const dt = Math.min((timestamp - this.lastTimestamp) / 1000, 0.1);
+    this.lastTimestamp = timestamp;
+    for (const token of this.tokens()) {
+      this.syncVisibility(token);
+      if (token.bouncing || token.done) continue;
+      if (token.pauseRemaining > 0) {
+        token.pauseRemaining -= dt * 1000;
+        if (token.pauseRemaining <= 0) this.settle(token);
+      } else if (token.totalDist > 0) {
+        token.travelled += TOKEN_SPEED * dt;
+        const progress = smootherstep(Math.min(token.travelled / token.totalDist, 1));
+        const point = samplePolyline(token.path, token.segLengths, progress * token.totalDist);
+        this.place(token, point.x, point.y);
+        if (progress >= 1) {
+          token.totalDist = 0;
+          token.arrive?.();
+        }
+      }
+    }
+    for (const run of this.runs) for (const [pool, token] of run.tokens) if (token.done) run.tokens.delete(pool);
+    this.runs = this.runs.filter((run) => run.tokens.size > 0 || !run.over);
+    this.frame = requestAnimationFrame(this.tick);
+  };
+
+  /** The `studyflow-simulation-token` class is the selector e2e tests count tokens by. */
+  private createToken(color: string, at: Point, element: string): Token {
+    const svg = this.layer!.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    svg.setAttribute('r', String(TOKEN_RADIUS));
+    svg.setAttribute('class', 'studyflow-simulation-token');
+    svg.style.fill = color;
+    this.layer!.appendChild(svg);
+    const token: Token = {
+      svg, cx: at.x, cy: at.y, path: [], segLengths: [], totalDist: 0, travelled: 0, pauseRemaining: 0,
+      at: element, hidden: false, bouncing: false, done: false,
+    };
+    this.place(token, at.x, at.y);
+    this.syncVisibility(token);
+    return token;
+  }
+
+  private place(token: Token, x: number, y: number): void {
+    token.cx = x;
+    token.cy = y;
+    token.svg.setAttribute('cx', String(x));
+    token.svg.setAttribute('cy', String(y));
+  }
+
+  private syncVisibility(token: Token): void {
+    const hidden = !this.host.canvas.draws(token.at);
     if (hidden === token.hidden) return;
     token.hidden = hidden;
     token.svg.style.display = hidden ? 'none' : '';
   }
 
-  private _clearTokens() {
-    for (const token of this._tokens) {
-      token.done = true;
-      token.svg?.remove();
-    }
-    this._tokens = [];
+  private pop(token: Token): void {
+    token.svg.style.transformOrigin = `${token.cx}px ${token.cy}px`;
+    token.svg.style.animation = 'token-pop 0.35s ease-out forwards';
+    token.done = true;
+    setTimeout(() => token.svg.remove(), 380);
   }
 
-  private _tick = (timestamp: number) => {
-    if (!this._active) return;
-    const dt = Math.min((timestamp - this._lastTimestamp) / 1000, 0.1);
-    this._lastTimestamp = timestamp;
-    for (const token of this._tokens) {
-      this._syncVisibility(token);
-      if (token.bouncing) continue;
-      if (token.paused) {
-        token.pauseRemaining -= dt * 1000;
-        if (token.pauseRemaining <= 0) token.paused = false;
-        continue;
-      }
-      if (token.totalDist > 0) this._moveAlongPath(token, dt);
-    }
-    for (let i = this._tokens.length - 1; i >= 0; i--) {
-      if (this._tokens[i].done) {
-        this._tokens[i].svg.remove();
-        this._tokens.splice(i, 1);
-      }
-    }
-    this._animFrameId = requestAnimationFrame(this._tick);
-  };
-
-  private _moveAlongPath(token: Token, dt: number) {
-    token.travelled += TOKEN_SPEED * dt;
-    const progress = smootherstep(Math.min(token.travelled / token.totalDist, 1));
-    const point = samplePolyline(token.pathPoints, token.segLengths, progress * token.totalDist);
-    this._setTokenPos(token, point.x, point.y);
-    if (progress >= 1) this._onTokenArrived(token);
-  }
-
-  private _spawnToken(element: ElementRecord) {
-    const color = TOKEN_COLORS[this._colorIndex++ % TOKEN_COLORS.length];
-    const { x, y } = tokenAnchor(element);
-    const token = makeToken(createTokenSvg(this._layer, color), color, x, y, element.id);
-    this._setTokenPos(token, x, y);
-    this._syncVisibility(token);
-    this._tokens.push(token);
-    this._advanceFromElement(token, element);
-  }
-
-  private _advanceFromElement(token: Token, element: ElementRecord) {
-    const hop = nextHops(element, this._get);
-    if (hop.kind === 'end') {
-      // An end inside a sub-process leaves through the container's own outgoing flows.
-      const container = containerOf(element, this._get);
-      if (container) this._advanceFromElement(token, container);
-      else this._popToken(token);
-      return;
-    }
-    if (hop.kind === 'deadend') {
-      const elId = element.id;
-      const bouncingHere = this._tokens.filter((t) => t.bouncing && t.bounceElementId === elId);
-      if (bouncingHere.length >= MAX_BOUNCING_PER_ELEMENT) this._fadeOutToken(bouncingHere[0]);
-      const spacing = TOKEN_RADIUS * 2.5;
-      const offsetX = (bouncingHere.length - (MAX_BOUNCING_PER_ELEMENT - 1) / 2) * spacing;
-      const anchor = tokenAnchor(element);
-      this._setTokenPos(token, anchor.x + offsetX, anchor.y);
-      this._startBounce(token, elId);
-      return;
-    }
-    if (hop.kind === 'fork') {
-      this._sendTokenAlongFlow(token, hop.flows[0]);
-      for (let i = 1; i < hop.flows.length; i++) this._sendTokenAlongFlow(this._cloneToken(token), hop.flows[i]);
-      return;
-    }
-    this._sendTokenAlongFlow(token, hop.flows[0]);
-  }
-
-  private _sendTokenAlongFlow(token: Token, flow: ElementRecord) {
-    const waypoints = flow.waypoints;
-    const target = flow.target === undefined ? undefined : this._get(flow.target);
-    if (!waypoints || waypoints.length < 2 || !target) {
-      this._fadeOutToken(token);
-      return;
-    }
-    const points: Point[] = [
-      { x: token.cx, y: token.cy },
-      ...waypoints.map((wp) => ({ x: wp.x, y: wp.y })),
-      tokenAnchor(target),
-    ];
-    this._sendTokenAlongPath(token, points, target.id, flow.id);
-  }
-
-  /** Straight in from the container's edge to each of its start events, one token per start. */
-  private _enterContainer(token: Token, starts: ElementRecord[]) {
-    starts.forEach((start, i) => {
-      const walker = i === 0 ? token : this._cloneToken(token);
-      const anchor = tokenAnchor(start);
-      this._sendTokenAlongPath(walker, [{ x: walker.cx, y: walker.cy }, anchor], start.id, start.id);
-    });
-  }
-
-  private _sendTokenAlongPath(token: Token, points: Point[], target: string, at: string) {
-    const cleaned = dedupePoints(points);
-    const { segLengths, totalDist } = computeSegLengths(cleaned);
-    token.pathPoints = cleaned;
-    token.segLengths = segLengths;
-    token.totalDist = totalDist;
-    token.travelled = 0;
-    token.target = target;
-    token.at = at;
-    this._syncVisibility(token);
-  }
-
-  private _onTokenArrived(token: Token) {
-    // Read where it arrives as it now stands: an edit may have moved or removed it on the way.
-    const target = token.target === null ? undefined : this._get(token.target);
-    token.pathPoints = [];
-    token.segLengths = [];
-    token.totalDist = 0;
-    token.travelled = 0;
-    token.target = null;
-    if (!target) {
-      this._fadeOutToken(token);
-      return;
-    }
-    const anchor = tokenAnchor(target);
-    token.cx = anchor.x;
-    token.cy = anchor.y;
-    token.at = target.id;
-    // An expanded sub-process is walked through its own start events; a collapsed one is a plain pause.
-    const starts = target.expanded ? startEventsIn(this._host.study.list(), target.id, this._get) : [];
-    if (starts.length > 0) {
-      this._enterContainer(token, starts);
-      return;
-    }
-    if (isBpmnSubtypeOf(target.type, 'bpmn:Activity')) {
-      token.paused = true;
-      token.pauseRemaining = ACTIVITY_PAUSE_MS;
-      setTimeout(() => {
-        if (this._active && !token.done) this._advanceFromElement(token, target);
-      }, ACTIVITY_PAUSE_MS);
-    } else {
-      this._advanceFromElement(token, target);
-    }
-  }
-
-  private _cloneToken(source: Token) {
-    const svg = createTokenSvg(this._layer, source.color, source.cx, source.cy);
-    svg.style.stroke = '#fff';
-    svg.style.strokeWidth = '2';
-    svg.style.opacity = '0.9';
-    svg.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))';
-    const clone = makeToken(svg, source.color, source.cx, source.cy, source.at);
-    clone.hidden = source.hidden;
-    svg.style.display = source.hidden ? 'none' : '';
-    this._tokens.push(clone);
-    return clone;
-  }
-
-  private _setTokenPos(token: Token, x: number, y: number) {
-    token.cx = x;
-    token.cy = y;
-    setAttributes(token.svg, { cx: x, cy: y });
-  }
-
-  private _fadeOutToken(token: Token) {
+  private fadeOut(token: Token): void {
     token.svg.style.transition = 'opacity 0.4s';
     token.svg.style.opacity = '0';
-    setTimeout(() => { token.done = true; }, 450);
+    token.done = true;
+    setTimeout(() => token.svg.remove(), 450);
   }
 
-  private _popToken(token: Token) {
-    token.svg.style.transformOrigin = token.cx + 'px ' + token.cy + 'px';
-    token.svg.style.animation = 'token-pop 0.35s ease-out forwards';
-    setTimeout(() => { token.done = true; }, 380);
-  }
-
-  private _startBounce(token: Token, elementId?: string) {
+  /** Where a walk stopped short of an end event, its token stays, bouncing; only so many stand on one element. */
+  private bounce(token: Token): void {
+    const here = this.tokens().filter((other) => other.bouncing && other.at === token.at);
+    if (here.length >= MAX_BOUNCING_PER_ELEMENT) this.fadeOut(here[0]);
+    const element = this.host.study.get(token.at);
+    if (element?.bounds) {
+      const anchor = tokenAnchor(element);
+      this.place(token, anchor.x + (here.length - (MAX_BOUNCING_PER_ELEMENT - 1) / 2) * TOKEN_RADIUS * 2.5, anchor.y);
+    }
     token.bouncing = true;
-    token.bounceElementId = elementId || null;
-    token.svg.style.transformOrigin = token.cx + 'px ' + token.cy + 'px';
+    token.svg.style.transformOrigin = `${token.cx}px ${token.cy}px`;
     token.svg.style.animation = 'token-bounce 0.5s ease-in-out infinite alternate';
   }
 
-  private _ensureBounceKeyframes() {
+  private ensureKeyframes(): void {
     if (document.getElementById('token-bounce-keyframes')) return;
     const style = document.createElement('style');
     style.id = 'token-bounce-keyframes';

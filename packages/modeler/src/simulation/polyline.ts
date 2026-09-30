@@ -3,7 +3,13 @@
  * that animates along a routed path (the token simulator, provenance replay).
  */
 
-import type { Point } from '@canvas/index.ts';
+import type { ElementRecord, Point } from '@canvas/index.ts';
+
+/** Where a token rests on the shape `element`: its centre, or the top edge of an expanded container, clear of its contents. */
+export function tokenAnchor(element: ElementRecord): Point {
+  const { x, y, width, height } = element.bounds!;
+  return { x: x + width / 2, y: element.expanded ? y : y + height / 2 };
+}
 
 /** Perlin's smootherstep: zero first and second derivatives at both ends. */
 export function smootherstep(t: number): number {

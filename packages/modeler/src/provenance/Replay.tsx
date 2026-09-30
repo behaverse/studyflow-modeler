@@ -11,9 +11,8 @@ import {
   recordDetails,
   shortWhen,
 } from '@modeler/provenance/records';
-import { computeSegLengths, dedupePoints, samplePolyline, smootherstep } from '@modeler/simulation/polyline';
+import { computeSegLengths, dedupePoints, samplePolyline, smootherstep, tokenAnchor } from '@modeler/simulation/polyline';
 import type { ElementRecord, Point, Study } from '@canvas/index.ts';
-import { tokenAnchor } from '@modeler/simulation/flowWalk';
 import { border, radius, shadow, surface } from '@modeler/ui/styles';
 import type { Canvas, Editor } from '@modeler/editor/port';
 
