@@ -251,7 +251,7 @@ def _compare(op: str, left: Any, right: Any) -> Any:
         return None
     comparable = (_number(left) and _number(right)) or (isinstance(left, str) and isinstance(right, str))
     if not comparable:
-        return False  # as feelin orders two values of different types
+        return None  # as DMN orders two values of different types
     return {"<": left < right, "<=": left <= right, ">": left > right, ">=": left >= right}[op]
 
 

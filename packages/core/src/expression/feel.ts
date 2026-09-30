@@ -2,10 +2,12 @@
  * FEEL, the expression language of every condition and data-edge selection a study writes (a flow's
  * `conditionExpression`, a loop's `loopCondition`, a conditional event's `condition`, a data edge's
  * `transformation`). FEEL is the expression language of the OMG's DMN standard, BPMN's sibling; `feelin` evaluates
- * it here, for the modeler and the browser runtime, and skills/local/feel.py evaluates the subset the local runtime
- * runs. tests/fixtures/feel.json pins the two row by row. Either reads a `{name}` citation as the name.
+ * it here, for the walk in every runtime and the modeler, and skills/local/feel.py evaluates the same subset for
+ * runners written in Python. tests/fixtures/feel.json pins the two row by row. Either reads a `{name}` citation as the name.
  */
 import { evaluate, parseExpression } from 'feelin';
+
+type SyntaxNode = ReturnType<typeof parseExpression>['topNode'];
 
 import { PLACEHOLDER } from '@core/document/state';
 
@@ -68,6 +70,37 @@ export function feelSyntaxError(written: string): string | undefined {
   return error;
 }
 
+const ORDERED = '__ordered';
+const RELATIONS = new Set(['<', '<=', '>', '>=']);
+
+/** `a < b` as DMN orders it: a number with a number, a string with a string, and null for any other pair, where
+ * feelin says false (so `not(1 < "b")` would hold). */
+function ordered(left: unknown, relation: string, right: unknown): boolean | null {
+  const kind = typeof left;
+  if (left === null || right === null || kind !== typeof right || (kind !== 'number' && kind !== 'string')) return null;
+  const [a, b] = [left as number | string, right as number | string];
+  return relation === '<' ? a < b : relation === '<=' ? a <= b : relation === '>' ? a > b : a >= b;
+}
+
+/** The expression with each ordering comparison spelt as a call to `ordered`, which feelin then evaluates. */
+function withOrdering(expression: string): string {
+  const spell = (node: SyntaxNode): string => {
+    const [left, operator, right] = [node.firstChild, node.firstChild?.nextSibling, node.lastChild];
+    const relation = operator && expression.slice(operator.from, operator.to);
+    if (node.type.name === 'Comparison' && operator?.type.name === 'CompareOp' && left && right && RELATIONS.has(relation!)) {
+      return `${ORDERED}(${spell(left)}, "${relation}", ${spell(right)})`;
+    }
+    let text = '';
+    let at = node.from;
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      text += expression.slice(at, child.from) + spell(child);
+      at = child.to;
+    }
+    return text + expression.slice(at, node.to);
+  };
+  return spell(parseExpression(expression, {}, undefined).topNode);
+}
+
 /** The expression's value over `context`; an expression that is not FEEL, or names something no scope declares, is an error. */
 export function evaluateFeel(written: string, context: Record<string, unknown>): FeelResult {
   const expression = cited(written);
@@ -76,7 +109,7 @@ export function evaluateFeel(written: string, context: Record<string, unknown>):
   try {
     // A name a scope declares but has not written is null, not missing.
     const declared = Object.fromEntries(Object.entries(context).map(([name, value]) => [name, value === undefined ? null : value]));
-    const { value, warnings } = evaluate(expression, declared);
+    const { value, warnings } = evaluate(withOrdering(expression), { ...declared, [ORDERED]: ordered });
     const missing = warnings.find((warning) => warning.type === 'NO_VARIABLE_FOUND');
     if (missing) {
       const name = /'([^']+)'/.exec(missing.message)?.[1] ?? missing.message;
