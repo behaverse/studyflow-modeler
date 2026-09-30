@@ -49,7 +49,7 @@ export async function validate(input: string): Promise<ValidateReport> {
     // The BPMN XML the study is written as, against the OMG's schema: what another BPMN tool reads.
     const violations = xsdViolations(await asXml(source));
     if (violations === undefined) warnings.push('the BPMN XML was not checked against the BPMN 2.0 schema: this machine has no xmllint');
-    for (const violation of violations ?? []) warnings.push(`the BPMN XML breaks the BPMN 2.0 schema at ${violation}`);
+    for (const violation of violations ?? []) errors.push(`the BPMN XML breaks the BPMN 2.0 schema at ${violation}`);
   } catch (err) {
     errors.push(err instanceof Error ? err.message : String(err));
   }

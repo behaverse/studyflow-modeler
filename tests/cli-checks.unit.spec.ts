@@ -100,5 +100,5 @@ test('validate says where the BPMN XML a study is written as breaks the BPMN 2.0
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="D">
   <bpmn:process id="P"><bpmn:startEvent id="S"/></bpmn:process>
 </bpmn:definitions>`);
-  expect(studyflow(['validate', untargeted]).stderr).toContain("warning: the BPMN XML breaks the BPMN 2.0 schema at line 2: Element 'bpmn:definitions': The attribute 'targetNamespace' is required but missing.");
+  expect(studyflow(['validate', untargeted]).stderr).toContain("error: the BPMN XML breaks the BPMN 2.0 schema at line 2: Element 'bpmn:definitions': The attribute 'targetNamespace' is required but missing.");
 });
