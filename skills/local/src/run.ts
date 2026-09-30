@@ -214,7 +214,6 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     if (then) studies.set(commit, new Map([...indexOf(then).walked].map(([id, { element }]) => [id, drawn(element)])));
   }
 
-  const commits = new Map<string, string>(); // element → the commit holding the step as it ran, for its record
   const produced = new Map<string, string>();
   const reused = new Map<string, { when: string; trusted: string }>();
   let recorded = 0;
@@ -225,8 +224,6 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     const steps = made.walk.steps.entries.slice(recorded);
     repo.commit(subject, { 'Prov-Run': runId, 'Prov-When': when, ...trailers }, when, steps.length > 0 ? JSON.stringify(steps) : undefined);
     recorded = made.walk.steps.entries.length;
-    // The commit a step's record points at: what it ran with, and what it made, as git holds them.
-    if (trailers['Prov-Action'] === 'executed' && trailers['Prov-Node']) commits.set(trailers['Prov-Node'], repo.head());
   };
 
   const host: Host = {
@@ -290,6 +287,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   repo.commit(`started ${studyId} (${stamp})`, trailers, startedAt, JSON.stringify({
     plan: run.digest, run: runId, seed, who, with: run.tool, startedAt: started.toISOString(),
   }));
+  const begun = repo.head();
   log.event('run.started', plan.study.name ?? studyId);
   log.event('run.started', `  [${studyId}]  plan ${run.digest}  rootSeed ${seed}  repo ${dir}`, { level: 'debug' });
 
@@ -313,6 +311,8 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   const replaces = (action: string, id: string): string | undefined =>
     (!branched || action === 'reused' || CONTAINER_TYPES.has(plan.elements[id]?.type) ? action : undefined);
   const head = repo.head();
+  // The commit a step's record points at: what it ran with, and what it made, as git holds them.
+  const commits = repo.executedSince(begun);
   const stamps: [id: string, action: string, extra: Stamp][] = [
     // An event leaves no commit of its own: its record points at where the run had reached by the end.
     ...[...new Set([...walk.completed.keys(), ...walk.reached.keys()])].sort().map((id): [string, string, Stamp] => [id, 'executed', { commit: commits.get(id) || head }]),

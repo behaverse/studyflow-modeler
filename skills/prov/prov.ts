@@ -5,7 +5,7 @@
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { userInfo } from 'node:os';
+import { devNull, userInfo } from 'node:os';
 import path from 'node:path';
 
 import type { Moddle, ModdleElement } from '@core/element/moddle';
@@ -101,9 +101,13 @@ export class RunRepo {
   /** An inherited GIT_DIR would aim every command at the caller's repository instead of this one. */
   private static readonly SCRUBBED = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
   private static readonly LFS_PATTERNS = ['*.joblib', '*.parquet', '*.png', '*.svg', '*.pdf'];
-  /** How a checkpoint commits. No housekeeping: git starts it in the background after a commit, and a repack beside
-   * checkpoints that come tens of milliseconds apart loses commits (`tidy` does it once, at the end). */
-  private static readonly CHECKPOINT = ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false'];
+  /**
+   * How a checkpoint commits. No housekeeping: git starts it in the background after a commit, and a repack beside
+   * checkpoints that come tens of milliseconds apart loses commits (`tidy` does it once, at the end). No hooks: LFS
+   * stores a file through its filter, at `add`; its post-commit hook only tends file locks, which a run repository
+   * has none of, and costs more than the commit.
+   */
+  private static readonly CHECKPOINT = ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', '-c', `core.hooksPath=${devNull}`];
 
   readonly dir: string;
   created = false;
@@ -204,7 +208,7 @@ export class RunRepo {
     return done?.ok ? done.out.trim().split('\n')[0] || undefined : undefined;
   }
 
-  /** The commit just made: what a step's record points at. */
+  /** The commit the history is at. */
   head(): string {
     const done = this.git(['rev-parse', 'HEAD'], { tolerate: true });
     return done?.ok ? done.out.trim() : '';
@@ -236,6 +240,18 @@ export class RunRepo {
     const done = this.git(['log', '--format=%(trailers:key=Prov-Node,valueonly,separator=)%x09%(trailers:key=Prov-When,valueonly,separator=)', '--grep=^Prov-Action: executed$'], { tolerate: true });
     if (!done?.ok) return new Set();
     return new Set(done.out.split('\n').filter((line) => line.split('\t')[0]).map((line) => line.split('\t').join(' ')));
+  }
+
+  /** The commit that last executed each element since `commit`: what a step's record points at. */
+  executedSince(commit: string): Map<string, string> {
+    const found = new Map<string, string>();
+    if (!commit) return found;
+    const done = this.git(['log', `${commit}..HEAD`, '--format=%H%x09%(trailers:key=Prov-Node,valueonly,separator=)', '--grep=^Prov-Action: executed$'], { tolerate: true });
+    for (const line of done?.ok ? done.out.split('\n') : []) {
+      const [hash, node] = line.split('\t');
+      if (node && !found.has(node)) found.set(node, hash); // newest first
+    }
+    return found;
   }
 
   isAncestor(commit: string, other: string): boolean {

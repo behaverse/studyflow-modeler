@@ -37,6 +37,9 @@ test('a checkpoint starts no housekeeping, which is done once the run has ended'
     repo.commit(`executed ${step}`, { 'Prov-Action': 'executed', 'Prov-Node': step });
   }
   expect(packs()).toEqual([]);
+  // The commit that last executed each element since the run began: what its record points at.
+  const began = execFileSync('git', ['-C', dir, 'rev-list', '--max-parents=0', 'HEAD'], { encoding: 'utf8' }).trim();
+  expect([...repo.executedSince(began).keys()].sort()).toEqual(['b', 'c']);
   repo.tidy();
   expect(packs()).toHaveLength(1);
   expect(execFileSync('git', ['-C', dir, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim()).toBe('3');
