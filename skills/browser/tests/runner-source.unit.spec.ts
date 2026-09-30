@@ -1,4 +1,3 @@
-import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -8,7 +7,8 @@ import { readParameters, resolveRunSource } from '@runner/source';
 import { ScopeChain } from '@runner/scope';
 import { parseStudyflow, Studyflow } from '@runner/studyflow';
 import { getAttribute } from '@core/element';
-import { freshPackages } from '@tests/schemas';
+import { Graph, planOf, type Plan } from '@core/engine';
+import { freshModdle, freshPackages } from '@tests/schemas';
 
 /** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
 
@@ -176,33 +176,22 @@ eyes: closed
   </bpmn:process>
 </bpmn:definitions>`;
 
-/** What `skills/local/run.py` reads of `xml`: `reading`, a Python expression over its `studyflow`, as JSON, or the
- * error that stops the run. */
-function localReading(xml: string, reading: string): any {
-  const script = [
-    'import importlib.util, json, sys',
-    'from xml.etree import ElementTree as ET',
-    'spec = importlib.util.spec_from_file_location("run", sys.argv[1])',
-    'run = importlib.util.module_from_spec(spec)',
-    'spec.loader.exec_module(run)',
-    'try:',
-    '    studyflow = run.Studyflow(ET.fromstring(sys.stdin.read()))',
-    `    print(json.dumps(${reading}))`,
-    'except SystemExit as error:',
-    '    print(json.dumps({"error": str(error)}))',
-  ].join('\n');
-  const run = path.resolve(__dirname, '../../local/run.py');
-  return JSON.parse(execFileSync('uv', ['run', '--no-project', '--with', 'pyyaml', 'python', '-c', script, run], { input: xml, stdio: 'pipe' }).toString());
+/** The plan the walk and its runners read of `xml` (packages/core/src/engine), or the error that stops the run. */
+async function planned(xml: string): Promise<{ plan?: Plan; error?: string }> {
+  try {
+    return { plan: planOf((await freshModdle().fromXML(xml)).rootElement) };
+  } catch (error) {
+    return { error: (error as Error).message };
+  }
 }
 
-/** What `run.py` hands its partial runners: `T`'s `parameters` and rest attributes and the study's seed, from the plan digest. */
-function localDigest(xml: string): { parameters?: unknown; rest?: Record<string, string>; seed?: string; error?: string } {
-  return localReading(xml, '(lambda digest: {"parameters": digest["elements"]["T"].get("parameters"), '
-    + '"rest": digest["elements"]["T"]["extensions"][0]["attributes"], "seed": digest["study"]["seed"]})(run.plan_digest(studyflow, []))');
+/** What the plan hands a runner of `T`: its `parameters`, its rest's attributes, and the study's seed. */
+async function localDigest(xml: string): Promise<{ parameters?: unknown; rest?: Record<string, unknown>; seed?: string | null; error?: string }> {
+  const { plan, error } = await planned(xml);
+  return plan ? { parameters: plan.elements.T.parameters, rest: plan.elements.T.extensions[0].attributes, seed: plan.study.seed } : { error };
 }
 
 test('both runtimes read the Parameters wired into a step the same way: merged, a key naming its attribute setting it, a clash refused', async () => {
-  test.skip(spawnSync('uv', ['--version']).error !== undefined, 'uv is not on PATH');
   const merged = WIRED_TWICE('Bot:\n  SkipInstructions: true\n');
   // `restDuration` names an attribute of the rest, so it sets it rather than joining what the rest's runner reads;
   // the unwired Knobs' `seed` and `eyes` set nothing.
@@ -211,7 +200,7 @@ test('both runtimes read the Parameters wired into a step the same way: merged, 
   const task = browser.flowNodes.get('T')!;
   expect([task.parameters, getAttribute(task.businessObject, 'restDuration'), getAttribute(task.businessObject, 'eyes'), browser.seed])
     .toEqual([expected, 30, 'open', 3]);
-  const local = localDigest(merged);
+  const local = await localDigest(merged);
   expect([local.parameters, local.rest, local.seed]).toEqual([expected, { restDuration: '30' }, '3']);
 
   // Each refusal names the step and what clashes: the key and both objects, or the attribute that takes one value.
@@ -221,7 +210,7 @@ test('both runtimes read the Parameters wired into a step the same way: merged, 
   ];
   for (const [inner, names] of CLASHES) {
     await expect(parseStudyflow(WIRED_TWICE(inner), freshPackages()), String(names)).rejects.toThrow(names);
-    expect(localDigest(WIRED_TWICE(inner)).error, String(names)).toMatch(names);
+    expect((await localDigest(WIRED_TWICE(inner))).error, String(names)).toMatch(names);
   }
 });
 
@@ -262,10 +251,11 @@ test('the Parameters wired into a sub-process are its read-only properties, in b
   const clash = /Block.*label/;
   await expect(parseStudyflow(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'), freshPackages())).rejects.toThrow(clash);
 
-  test.skip(spawnSync('uv', ['--version']).error !== undefined, 'uv is not on PATH');
-  expect(localReading(WIRED_BLOCK(), '[studyflow.properties["Block"], sorted(studyflow.readonly["Block"])]'))
-    .toEqual([{ label: '"inner"', speed: '20' }, ['label', 'speed']]);
-  expect(localReading(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'), 'None').error).toMatch(clash);
+  const graph = new Graph((await planned(WIRED_BLOCK())).plan!);
+  expect([[...graph.properties.get('Block')!].map(([name, { value }]) => [name, value]), [...graph.readonly.get('Block')!].sort()])
+    .toEqual([[['label', 'inner'], ['speed', 20]], ['label', 'speed']]);
+  const twice = (await planned(WIRED_BLOCK('<bpmn:property id="B_Label" name="label" />'))).plan!;
+  expect(() => new Graph(twice)).toThrow(clash);
 });
 
 /** One config object, two steps: the association is the only thing that separates them. */

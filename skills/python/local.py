@@ -4,7 +4,7 @@
 # dependencies = ["pyyaml>=6.0"]
 # ///
 # What the implementations need (pandas, scikit-learn, joblib, matplotlib, pyarrow for parquet) is the
-# study's business: its `dependencies` entries, which studyflow-run-local installs here with `uv run --with`.
+# study's business: its `dependencies` entries, which the local runtime installs here with `uv run --with`.
 """Run the `python://` elements of a studyflow.
 
 The partial runner for plain computation: it claims every element whose
@@ -13,7 +13,7 @@ binding the element's inputs from the state and the run repository's
 artifacts, calling the implementation, and binding its outputs back
 (artifacts saved into the repository, JSON-able values merged into the
 state). Claims answer `{"elements": [...], "live": false}`: these elements
-are replayable, so studyflow-run-local's reuse and branching apply to them.
+are replayable, so the local runtime's reuse and branching apply to them.
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ DATA_ELEMENT_TAGS = {"dataObjectReference", "dataStoreReference", "dataObject", 
 
 
 class Plan:
-    """The digest studyflow-run-local hands over (`plan.json`): the study, and every element by id."""
+    """The digest the local runtime hands over (`plan.json`): the study, and every element by id."""
 
     def __init__(self, digest: dict[str, Any]) -> None:
         self.study: dict[str, Any] = digest.get("study") or {}
@@ -402,7 +402,7 @@ class Run:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, help="the plan digest studyflow-run-local hands over (plan.json)")
+    parser.add_argument("plan", type=Path, help="the plan digest the local runtime hands over (plan.json)")
     parser.add_argument("--element", metavar="ID", default=None, help="hand-off mode: execute this one element")
     parser.add_argument("--claims", action="store_true", help="print the claimed element ids and exit")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state dir")
@@ -411,7 +411,7 @@ def main() -> int:
     studyflow = Plan(json.loads(args.plan.read_text()))
 
     if args.claims:
-        # Replayable, not live: studyflow-run-local's skip/reuse and branching apply to these elements.
+        # Replayable, not live: the local runtime's skip/reuse and branching apply to these elements.
         print(json.dumps({
             "live": False,
             "elements": [
@@ -422,7 +422,7 @@ def main() -> int:
         return 0
 
     if not args.element:
-        parser.error("standalone walking is not implemented here — use studyflow-run-local, or pass --element")
+        parser.error("standalone walking is not implemented here — use the local runtime, or pass --element")
 
     cache = args.cache or Path(".")
     repo = cache.resolve().parent if args.cache else Path.cwd()

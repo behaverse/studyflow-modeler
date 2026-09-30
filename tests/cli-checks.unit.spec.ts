@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-/** `studyflow run` starts only a study that passes the plan checks, and hands the runtime its protocol digest;
+/** `studyflow run` starts only a study that passes the plan checks, and records its protocol digest with the run;
  * `validate` says whether the protocol is still the one a run recorded; `info` shows it. */
 
 const dir = mkdtempSync(path.join(tmpdir(), 'studyflow-checks-'));
@@ -51,33 +51,21 @@ Study:
     F4: B -> End
 `;
 
-function hasUv(): boolean {
-  try {
-    execFileSync('uv', ['--version'], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-test('run refuses a study that fails a plan check, and hands a passing one its protocol digest and the tool', () => {
-  test.skip(!hasUv(), 'uv is not on PATH');
-  // A runtime that prints what it was started with.
-  const runtime = { STUDYFLOW_RUN_PY: write('runtime.py', 'import json, sys\nprint(json.dumps(sys.argv[1:]))\n') };
-
-  const refused = studyflow(['run', write('split.studyflow.yaml', study('ParallelGateway'))], runtime);
+test('run refuses a study that fails a plan check, and records a passing one\'s protocol digest and the tool', () => {
+  const refused = studyflow(['run', write('split.studyflow.yaml', study('ParallelGateway'))]);
   expect(refused.status).toBe(1);
   expect(refused.stderr).toContain('error: "Split here" splits into 2 parallel paths; a pool walks one path, so the reference runners stop here');
   expect(refused.stdout).toBe('');
 
-  const file = write('decided.studyflow.yaml', study('ExclusiveGateway'));
-  const started = studyflow(['run', file, '--tool', 'mine/1'], runtime);
-  expect(started.status).toBe(0);
-  const args: string[] = JSON.parse(started.stdout);
+  const file = write('decided.studyflow.yaml', study('ExclusiveGateway').replace('name: Split here', 'name: Split here\n      default: F1'));
+  // No skill is beside this copy of the CLI, so no runner is asked for its claims.
+  const started = studyflow(['run', file, '--repo', path.join(dir, 'run'), '--quiet'], { STUDYFLOW_HOME: dir });
+  expect(started.status, started.stderr).toBe(0);
   const protocol = JSON.parse(studyflow(['info', '--json', file]).stdout).protocol;
   expect(protocol).toMatch(/^sha256:[0-9a-f]{64}$/);
-  // Ours ahead of the caller's, so the caller's `--tool` wins.
-  expect(args.slice(-6)).toEqual(['--plan-digest', protocol, '--tool', `studyflow-cli/${VERSION}`, '--tool', 'mine/1']);
+  const kept = studyflow(['validate', path.join(dir, 'run', 'decided.studyflow.yaml')]);
+  expect(kept.stdout).toContain(`protocol matches run run (${protocol.slice(0, 19)}…)`);
+  expect(readFileSync(path.join(dir, 'run', 'decided.studyflow.yaml'), 'utf8')).toContain(`with: studyflow-cli/${VERSION}`);
 });
 
 test('validate says the protocol matches the run that recorded it, and warns once it changed; info shows it', () => {

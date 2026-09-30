@@ -18,11 +18,11 @@ folder (`reachy/frames/` when it names none), and its path is the step's result.
 state as the modeler does, `{name}` from the element outward, `{state.scope.name}`, or `{Play.trials}` for an
 earlier element's result.
 
-A partial runner: studyflow-run-local walks the diagram and hands this script one
+A partial runner: the local runtime walks the diagram and hands this script one
 `reachy:*` element at a time (`<plan.json> --element <id> --cache <dir>`), with the
 run's values in `<id>.state.json`; the updated state goes back into the same file
 (`result`, `durationMs`, and on failure `error` merged in). It never opens the
-diagram itself: `plan.json` is the digest studyflow-run-local writes. By default it
+diagram itself: `plan.json` is the digest the local runtime writes. By default it
 is a terminal dry run only when no robot answers: the robot's speech is printed, and its senses and the
 participant's lines come from stdin (`--auto` answers them with canned values
 instead, for CI). With `--sim`, or when the diagram's Robot pool says
@@ -85,7 +85,7 @@ def settings_of(ext: dict[str, Any]) -> dict[str, Any]:
 
 
 class Plan:
-    """The digest studyflow-run-local hands over (`plan.json`): the study, and every element by id, pool participants included."""
+    """The digest the local runtime hands over (`plan.json`): the study, and every element by id, pool participants included."""
 
     def __init__(self, digest: dict[str, Any]) -> None:
         self.study: dict[str, Any] = digest.get("study") or {}
@@ -1124,7 +1124,7 @@ def participant_loop(robot: Any, port: int, watch_pid: int | None = None) -> int
     return 0
 
 
-# --- the walk: studyflow-run-local's control flow, minus records, repos, and reuse ---
+# --- the walk: the local runtime's control flow, minus records, repos, and reuse ---
 
 def perform(run: Run, element: dict[str, Any], ext: dict[str, Any]) -> dict[str, Any]:
     """One reachy element, as the keys a hand-off merges into the state: its result and timing."""
@@ -1145,7 +1145,7 @@ def perform(run: Run, element: dict[str, Any], ext: dict[str, Any]) -> dict[str,
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, nargs="?", help="the plan digest studyflow-run-local hands over (plan.json); --participant needs none")
+    parser.add_argument("plan", type=Path, nargs="?", help="the plan digest the local runtime hands over (plan.json); --participant needs none")
     parser.add_argument("--sim", action="store_true", help="drive a simulated robot through the reachy_mini SDK")
     parser.add_argument("--auto", action="store_true", help="answer every prompt with a canned value")
     parser.add_argument("--participant", action="store_true", help="be the seat: hold the robot and its camera, and act for the walk's hand-offs")
@@ -1153,7 +1153,7 @@ def main() -> int:
     parser.add_argument("--watch-pid", type=int, default=None, metavar="PID", help="seat: leave when this process (the walk) is gone")
     parser.add_argument(
         "--element", metavar="ID", default=None,
-        help="hand-off mode: execute this one element, then exit (driven by studyflow-run-local)",
+        help="hand-off mode: execute this one element, then exit (driven by the local runtime)",
     )
     parser.add_argument(
         "--claims", action="store_true",

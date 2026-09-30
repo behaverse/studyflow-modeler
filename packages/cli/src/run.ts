@@ -1,113 +1,73 @@
-import { spawn } from 'node:child_process';
-import { accessSync, constants, existsSync, realpathSync } from 'node:fs';
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { existsSync, realpathSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { declaredRuntime, protocolDigest } from '@core/document';
+import { declaredRuntime, embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg, xmlToStudyflow } from '@core/document';
 import { planChecks } from '@core/checks';
-import { asXml, parseSource, readSource } from '@cli/studyfile';
+import type { ModdleElement } from '@core/element/moddle';
+import { asXml, parseSource, readSource, schemaModdle, sourceOf } from '@cli/studyfile';
+import { runLocal, type LocalRun } from '@skills/local/src/run';
 
-/* `studyflow run`: hand the study to the runtime it declares; this CLI runs `local` itself (skills/local/run.py). */
+/* `studyflow run`: hand the study to the runtime it declares; this CLI hosts `local` itself (skills/local). */
 
 /** What the run record names as the tool that ran it (`with`). */
 const TOOL = `studyflow-cli/${import.meta.env?.APP_VERSION ?? 'dev'}`;
 
-export type RunOptions = {
+export type RunOptions = Pick<LocalRun, 'repo' | 'inputs' | 'from' | 'fresh' | 'quiet' | 'debug' | 'stepTimeout'> & {
   runtime?: string;
+  runner?: string[];
+  option?: string[];
 };
 
-/** Where the local runtime, `skills/local/run.py` (which finds the other skills beside it), can be, best first:
- * the repo's `skills/` when this is the bundle in a checkout, Homebrew's `libexec/` next to `bin/studyflow`,
- * then beside the binary (the release tarball as unpacked). */
-function runnerScriptCandidates(): string[] {
+/** Where the shipped skills, whose runners the local runtime hands elements to, can be: the repo's `skills/` when
+ * this is the bundle in a checkout, Homebrew's `libexec/` next to `bin/studyflow`, then beside the binary (the
+ * release tarball as unpacked). */
+function skillRoots(): string[] {
   const candidates: string[] = [];
-
-  if (import.meta.url.startsWith('file:')) {
-    candidates.push(fileURLToPath(new URL('../../../skills/local/run.py', import.meta.url)));
-  }
-
+  if (import.meta.url.startsWith('file:')) candidates.push(fileURLToPath(new URL('../../../skills', import.meta.url)));
   try {
     const binDir = path.dirname(realpathSync(process.execPath));
-    candidates.push(path.join(binDir, '..', 'libexec', 'skills', 'local', 'run.py'), path.join(binDir, 'skills', 'local', 'run.py'));
+    candidates.push(path.join(binDir, '..', 'libexec', 'skills'), path.join(binDir, 'skills'));
   } catch { /* execPath is unreadable on some sandboxes; the other candidates still stand */ }
-
-  return candidates;
+  return candidates.filter((candidate) => existsSync(path.join(candidate, 'local', 'SKILL.md'))).slice(0, 1);
 }
 
-/** Where `binary` sits on PATH, if it is there and executable. */
-function onPath(binary: string): string | undefined {
-  for (const dir of (process.env.PATH ?? '').split(path.delimiter).filter(Boolean)) {
-    const candidate = path.join(dir, binary);
-    try {
-      accessSync(candidate, constants.X_OK);
-      return candidate;
-    } catch { /* not here; keep looking */ }
-  }
-  return undefined;
-}
-
-/** The local runtime: `STUDYFLOW_RUN_PY` when set, else the one shipped with this CLI; both need `uv`. */
-function runnerCommand(): { command: string; args: string[] } {
-  const override = process.env.STUDYFLOW_RUN_PY;
-  if (override) return { command: 'uv', args: ['run', '--script', override] };
-
-  if (onPath('uv')) {
-    for (const script of runnerScriptCandidates()) {
-      if (existsSync(script)) return { command: 'uv', args: ['run', '--script', path.normalize(script)] };
-    }
-  }
-
-  throw new Error(
-    'No runner found. Install uv (`brew install uv`, or https://docs.astral.sh/uv/) so the local runtime shipped with this CLI (skills/local/run.py) can run, '
-    + 'or point STUDYFLOW_RUN_PY at one.',
-  );
-}
-
-/** This CLI as a command line: `node studyflow.mjs` names its script, a compiled binary (argv[0] "bun") is its own. */
-function selfCommand(): string[] {
-  return process.argv[0] === process.execPath ? [process.execPath, process.argv[1]] : [process.execPath];
-}
-
-/** A word Python's `shlex.split` reads back as it is, quoted as `shlex.quote` quotes. */
-function shellWord(word: string): string {
-  return /^[\w@%+=:,./-]+$/.test(word) ? word : `'${word.replaceAll("'", `'"'"'`)}'`;
-}
-
-async function runLocal(
-  input: string,
-  source: Awaited<ReturnType<typeof readSource>>,
-  passthrough: string[],
-): Promise<number> {
-  // run.py reads a BPMN XML file, so a YAML file or an image reaches it as a temporary `.bpmn`. `--inputs` names
-  // the original's folder: boundary inputs beside it are found as they would be beside a `.bpmn`. `--archive` has
-  // the run repository keep the study as the original is named and spelled: each stamped copy goes back through
-  // this CLI's `convert`, into the original image when it was one.
-  let target = input;
-  let extra: string[] = [];
-  if (source.container !== 'text' || source.kind !== 'xml') {
-    const dir = await mkdtemp(path.join(tmpdir(), 'studyflow-run-'));
-    target = path.join(dir, `${path.basename(input).replace(/(\.studyflow)?\.[^.]*$/i, '')}.bpmn`);
-    await writeFile(target, await asXml(source), 'utf8');
-    const original = path.resolve(input);
-    const folder = path.dirname(original);
-    const convert = [...selfCommand(), 'convert', ...(source.container === 'text' ? [] : ['--into', original])];
-    extra = ['--inputs', folder, '--archive', `${path.basename(input)}=${convert.map(shellWord).join(' ')}`];
-    // A study kept in a run repository runs on in it, as run.py has a `.bpmn` there do (`studyflow.log` marks one).
-    if (existsSync(path.join(folder, 'studyflow.log'))) extra.push('--repo', folder);
-  }
-
-  const { command, args } = runnerCommand();
-  return new Promise((resolvePromise, reject) => {
-    // After ours, so a `--repo` or `--archive` of the caller's own wins.
-    const child = spawn(command, [...args, target, ...extra, ...passthrough], { stdio: 'inherit' });
-    child.on('error', reject);
-    child.on('exit', (code) => resolvePromise(code ?? 1));
+async function runLocally(input: string, source: Awaited<ReturnType<typeof readSource>>, digest: string, options: RunOptions): Promise<number> {
+  // The walk reads standard BPMN, so a YAML file or an image reaches it through the XML it spells, and the run
+  // repository keeps the study as the original is named and spelled: YAML as YAML, an image with the study inside.
+  const moddle = await schemaModdle();
+  const read = async (from: typeof source): Promise<ModdleElement> => (await moddle.fromXML(await asXml(from))).rootElement;
+  const write = async (definitions: ModdleElement, target: string): Promise<void> => {
+    const { xml } = await moddle.toXML(definitions, { format: true });
+    if (source.container === 'text') return writeFile(target, source.kind === 'xml' ? xml : await xmlToStudyflow(xml, moddle), 'utf8');
+    const base = existsSync(target) ? target : input;
+    await writeFile(target, source.container === 'png'
+      ? embedStudyflowIntoPng(new Uint8Array(await readFile(base)), await xmlToStudyflow(xml, moddle))
+      : replaceStudyflowInSvg(await readFile(base, 'utf8'), xml));
+  };
+  return runLocal({
+    input,
+    moddle,
+    definitions: await read(source),
+    write,
+    read: (bytes) => read(sourceOf(bytes, source.container)),
+    skillRoots: skillRoots(),
+    digest,
+    tool: TOOL,
+    repo: options.repo,
+    inputs: options.inputs,
+    from: options.from,
+    fresh: options.fresh,
+    quiet: options.quiet,
+    debug: options.debug,
+    stepTimeout: options.stepTimeout,
+    runners: options.runner,
+    options: options.option,
   });
 }
 
-export async function run(input: string, passthrough: string[], options: RunOptions): Promise<void> {
+export async function run(input: string, options: RunOptions): Promise<void> {
   const source = await readSource(input);
   const { definitions } = await parseSource(source);
 
@@ -122,9 +82,7 @@ export async function run(input: string, passthrough: string[], options: RunOpti
       process.exitCode = 1;
       return;
     }
-    // Ahead of the caller's arguments, so a `--tool` of their own wins.
-    const provenance = ['--plan-digest', await protocolDigest(definitions), '--tool', TOOL];
-    process.exitCode = await runLocal(input, source, [...provenance, ...passthrough]);
+    process.exitCode = await runLocally(input, source, await protocolDigest(definitions), options);
     return;
   }
 

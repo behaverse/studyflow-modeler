@@ -17,14 +17,14 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 
 | Path | What |
 | --- | --- |
-| `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles the skills' `*.moddle.yaml` (`notation/`), attribute access on one element (`element/`), and the checks `validate` and `run` apply (`checks/`). No React. |
+| `packages/core` | The document model: YAML and XML (`document/`), the schema language that compiles the skills' `*.moddle.yaml` (`notation/`), attribute access on one element (`element/`), the checks `validate` and `run` apply (`checks/`), and the walk every runtime hosts, with the plan it walks (`engine/`). No React, no I/O. |
 | `packages/canvas` | The SVG canvas: a DOM-free `Study` (the document, its verbs and their tools for an AI, undo) and `Canvas` views of it. `src/index.ts` (`Study`, `Canvas`, `renderSvg` and their types) is all the modeler may import; `src/element.ts` is `<studyflow-canvas>`. |
 | `packages/modeler` | The editor (React). Bus command `X` runs the `runX` export of a module `src/commandBus.ts` lists (a feature's `commands.ts`, and `diagram/save.ts`). |
-| `packages/cli` | The `studyflow` CLI. `run` checks the plan, then hands a local study to `skills/local/run.py` with the protocol's digest. |
+| `packages/cli` | The `studyflow` CLI. `run` checks the plan, then hosts a local study itself (`skills/local/src`) with the protocol's digest. |
 | `packages/desktop` | `studyflow edit`: the built modeler in a Chromium app window. |
 | `skills/<name>` | One skill per folder: `SKILL.md`, a vocabulary (a moddle package in `*.moddle.yaml`, its palette templates included), runners (`local.py`, `browser/`), a `modeler.ts`, `examples/`, `tests/`. |
 | `skills/browser` | The browser runtime, served at `/run/`. |
-| `skills/local` | The local runtime (`run.py`); its `SKILL.md` is the contract every partial runner follows. |
+| `skills/local` | The local runtime (`src/run.ts` hosts the walk: runner subprocesses, the run repository, what a re-run reuses); its `SKILL.md` is the contract every partial runner follows. |
 
 ## Rules
 

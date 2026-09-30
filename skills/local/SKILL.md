@@ -1,20 +1,20 @@
 ---
 name: local
-description: "The reference runner behind `studyflow run --runtime local`: walks the diagram, evaluates values, records, and hands each element to the skill that claims it. Use when running the data-facing half of a study on a machine."
+description: "The runtime behind `studyflow run --runtime local`: hosts the walk on this machine, records, and hands each element to the skill that claims it. Use when running the data-facing half of a study on a machine."
 license: MIT
-compatibility: "Python 3.10+ through uv."
+compatibility: "The studyflow CLI, and git for the run repository; a runner brings what it needs (the shipped ones, uv)."
 metadata:
   schema: "local.moddle.yaml"
 ---
 
-`run.py` is the walk. It never executes an element itself: each skill's `runtimes.local`
-command is asked for its claims and then handed one element at a time (`<plan.json> --element <id> --cache <dir>`),
-run in that skill's folder; the contract is below.
-The [prov](../prov/SKILL.md) skill's module is loaded in-process for the run repository and records.
+`src/run.ts` hosts the walk (`packages/core/src/engine`, the one engine every runtime hosts) inside the `studyflow`
+CLI. It never executes an element itself: each skill's `runtimes.local` command is asked for its claims and then
+handed one element at a time (`<plan.json> --element <id> --cache <dir>`), run in that skill's folder; the contract
+is below. The [prov](../prov/SKILL.md) skill's module keeps the run repository and records.
 
 ## Partial runners
 
-A partial runner is a program in any language that claims certain elements and executes them. [`../reachy/local.py`](../reachy/local.py) is a working example; [`../prov/prov.py`](../prov/prov.py) is the records module the walk loads in-process.
+A partial runner is a program in any language that claims certain elements and executes them. [`../reachy/local.py`](../reachy/local.py) is a working example; [`../prov/prov.ts`](../prov/prov.ts) is the records module the local runtime imports.
 
 This contract is Studyflow's published language for the local runtime, and the whole interface to it: the walk coordinates, a runner executes, and nothing here depends on how a runner or the tool behind it works. A runner is its skill's side of the boundary: it speaks these terms to the walk and its tool's own protocol to the tool.
 
@@ -41,9 +41,9 @@ What comes back: `result`, `durationMs` and `error` are recorded. So is `record`
 **Re-runs.** A step is skipped when its record still stands: nothing it reads was re-made earlier in this run, its
 outputs are where it left them, and the commit its record names still holds what it ran with — every artifact it reads
 or makes, compared by git itself, and its own drawing (at a gateway, the flows it weighs too), read back out of the
-plan that commit carries. Each run leaves the BPMN it walked in its repository before its first step, under the
-archive's name or, when that is a converted copy, beside it as `<name>.bpmn`. So editing a step, a condition or a file
-it reads re-runs that step and whatever reads what it re-makes, and nothing else. An output the worktree has lost comes
+study that commit carries. Each run leaves the study it walks in its repository before its first step, named and
+spelled as the original is. So editing a step, a condition or a file it reads re-runs that step and whatever reads
+what it re-makes, and nothing else. An output the worktree has lost comes
 back from the commit that made it. A record naming no commit cannot be checked, so its step runs once more and leaves
 one.
 

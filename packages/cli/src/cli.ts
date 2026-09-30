@@ -6,11 +6,9 @@ import { info } from '@cli/info';
 import { mcp } from '@cli/mcp';
 import { addSkill, installedSkills, removeSkill, skillsHome } from '@cli/skills';
 import { edit } from '@desktop/edit';
+import type { RunOptions } from '@cli/run';
 
 const program = new Command();
-
-// Lets `run` forward everything after the input file to the underlying runner.
-program.enablePositionalOptions();
 
 program
   .name('studyflow')
@@ -84,16 +82,25 @@ program
     else console.log(`${input}: OK${report.warnings.length ? ` (${report.warnings.length} warning${report.warnings.length === 1 ? '' : 's'})` : ''}${report.note ? `, ${report.note}` : ''}`);
   });
 
+const collect = (value: string, all: string[] = []): string[] => [...all, value];
+
 program
   .command('run')
-  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` runs the local runtime (skills/local/run.py, needs uv), once the plan passes the checks `validate` applies to it.')
-  .passThroughOptions()
+  .description('Execute a studyflow in the runtime it declares (or --runtime). `local` walks it on this machine (skills/local), once the plan passes the checks `validate` applies to it, and hands each element to the skill that claims it.')
   .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
-  .argument('[runnerArgs...]', 'forwarded to the local runtime (e.g. --repo, --fresh, --option sim, --step-timeout 600)')
   .option('--runtime <runtime>', 'override the document: browser | cloud | local | hpc')
-  .action(async (input: string, runnerArgs: string[], options: { runtime?: string }) => {
+  .option('--repo <dir>', 'the run repository to write into, its name being the run id (default: the study\'s own directory when it already lives in one, else a fresh ~/.studyflow/runs/<YYMMDD+codename>)')
+  .option('--inputs <dir>', 'also stage boundary inputs from this directory, after the study\'s own and before the working directory; repeatable', collect)
+  .option('--from <ref>', 're-run from this point in the repository\'s history (a commit-ish), branching there')
+  .option('--fresh', 'ignore the study\'s per-element run records and re-run every step')
+  .option('--quiet', 'no console output; the log file is written either way')
+  .option('--runner <name=command>', 'override a discovered partial runner, or add one: COMMAND <plan.json> --element <id> --cache <dir>; repeatable', collect)
+  .option('--debug', 'keep the .cache folder and its hand-off state files instead of cleaning them')
+  .option('--option <name[=value]>', 'an option for the runners, in plan.json `options` (`--option sim` drives a simulated robot, `--option auto` answers prompts with canned values); repeatable', collect)
+  .option('--step-timeout <seconds>', 'stop a hand-off that takes longer, and fail its step', Number)
+  .action(async (input: string, options: RunOptions) => {
     const { run } = await import('@cli/run');
-    await run(input, runnerArgs, options);
+    await run(input, options);
   });
 
 type ServeOptions = { port: string; host: string; open: boolean };

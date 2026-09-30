@@ -4,8 +4,8 @@ import { StudyflowElement, getAttribute, toBusinessObject } from '@core/element'
 import type { ModdleElement } from '@core/element/moddle';
 
 /* What a step reads from the `studyflow:Parameters` wired into it: a key that names one of the step's attributes sets
-   that attribute, the rest is the step's configuration. Only a wire makes a Parameters object take effect. The
-   browser runner applies this at run time, `skills/local/run.py` the same way; the inspector shows it. */
+   that attribute, the rest is the step's configuration. Only a wire makes a Parameters object take effect. The plan
+   a run walks applies this (`packages/core/src/engine/plan.ts`); the inspector shows it. */
 
 export const PARAMETERS_TYPE = 'studyflow:Parameters';
 
@@ -58,7 +58,7 @@ export function hasPath(node: unknown, path: string[]): boolean {
 }
 
 /** What a reader reads from several Parameters, merged. Mappings merge key by key; a value two of them set is an
- * error, since nothing drawn orders the wires. `skills/local/run.py` merges the same way. */
+ * error, since nothing drawn orders the wires. */
 export function mergeParameters(readerId: string, sources: [string, Mapping][]): Mapping {
   const into = (target: Mapping, source: Mapping, id: string, path: string[]): void => {
     for (const [key, value] of Object.entries(source)) {

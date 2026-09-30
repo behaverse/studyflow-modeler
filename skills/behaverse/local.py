@@ -6,7 +6,7 @@
 """Run the Behaverse (Unity WebGL) tasks of a studyflow in this machine's browser.
 
 Usage:
-    studyflow run <diagram> --runtime local [--option auto]   # studyflow-run-local walks, this runner performs
+    studyflow run <diagram> --runtime local [--option auto]   # the local runtime walks, this runner performs
     UNITY_BUILD_PATH=<dir> skills/behaverse/local.py plan.json --element <id> --cache <dir>
 
 A partial runner: it claims every `behaverse:Task`, and per hand-off serves the
@@ -193,8 +193,8 @@ CONTAINERS = {"subprocess", "adhocsubprocess", "transaction"}
 def talking_scope(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
     """Whose message flows the task exchanges along: its own, else the nearest enclosing sub-process that has some,
     else its pool's. A collapsed sub-process is the only place BPMN can draw a message flow to a task inside it, and
-    a pool's flows are the whole pool's, lanes and all (the walk routes them the same way, skills/local/run.py
-    `message_scope`). A task with flows of its own inherits none."""
+    a pool's flows are the whole pool's, lanes and all (the walk routes them the same way, packages/core/src/engine
+    `messageScope`). A task with flows of its own inherits none."""
     ends = {end for flow in plan.values() if flow.get("type") == "messageFlow"
             for end in ((flow.get("attributes") or {}).get("sourceRef"), (flow.get("attributes") or {}).get("targetRef"))}
     scope = str(element.get("id") or "")
@@ -625,7 +625,7 @@ def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, d
     payload = task_payload(element, auto=args.auto, plan=plan)
     build = checked_build(args.build)
     cache = args.cache or Path(".")
-    # The run directory, not its `.cache`: studyflow-run-local sweeps the cache when the run ends.
+    # The run directory, not its `.cache`: the local runtime sweeps the cache when the run ends.
     run_dir = cache.parent if cache.name == ".cache" else cache
     run_dir.mkdir(parents=True, exist_ok=True)
     events = run_dir / events_uri(element, plan)
@@ -673,7 +673,7 @@ def perform(element: dict[str, Any], args: argparse.Namespace, plan: dict[str, d
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, help="the plan digest studyflow-run-local hands over (plan.json)")
+    parser.add_argument("plan", type=Path, help="the plan digest the local runtime hands over (plan.json)")
     parser.add_argument("--element", metavar="ID", default=None, help="hand-off mode: execute this one element, then exit")
     parser.add_argument("--claims", action="store_true", help="print the element ids this runner would execute, as a JSON array, and exit")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state: <element>.state.json in, result merged back")

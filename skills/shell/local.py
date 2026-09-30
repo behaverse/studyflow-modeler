@@ -97,7 +97,7 @@ def argv_of(element: dict[str, Any], values: dict[str, Any], digest: dict[str, A
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("plan", type=Path, help="the plan digest studyflow-run-local hands over (plan.json)")
+    parser.add_argument("plan", type=Path, help="the plan digest the local runtime hands over (plan.json)")
     parser.add_argument("--element", metavar="ID", default=None, help="hand-off mode: execute this one element")
     parser.add_argument("--claims", action="store_true", help="print the claimed element ids and exit")
     parser.add_argument("--cache", type=Path, default=None, metavar="DIR", help="hand-off state dir")

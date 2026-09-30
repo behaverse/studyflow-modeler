@@ -4,8 +4,7 @@ import type { Issue } from '@core/checks';
 import { containers, graphOf, isA, quoted } from '@core/checks/graph';
 
 /**
- * Splits the reference runners do not take: each walks one path per pool (skills/local/run.py and
- * skills/browser/src/session.ts). A parallel split stops a run; an activity or event goes on along its first
+ * Splits the walk does not take: it walks one path per pool (packages/core/src/engine/walk.ts). A parallel split stops a run; an activity or event goes on along its first
  * outgoing flow only. An inclusive gateway would take every flow whose condition holds, which no pool's one path can,
  * so it stops a run too rather than being walked as an exclusive one.
  */

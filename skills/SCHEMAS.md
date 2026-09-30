@@ -84,7 +84,7 @@ types point at (`prov:Activity`), and writes `superClass: [Element]`, moddle's r
 | `presenter` | The upper band of a typed choreography task: a template over the extension's attributes (`"Behaverse · {instrument}"`), read raw. Empty or absent, the band reads "Task software". |
 | `glyph` | The attribute whose value is drawn as text over the type icon (`instrument`). |
 | `participantKind` (on a `bpmn:Participant` type) | What a band-only actor can be: the name of one of the type's enum attributes, one kind per literal (`actorType`), or the label of the one kind the type itself is (`Reachy Mini`). |
-| `branching` | Gateway semantics for both runners (`random`, `condition`, `model`); the allowed set is pinned by `tests/schemas.unit.spec.ts`. `skills/local/run.py` reads it from the schema file itself. |
+| `branching` | Gateway semantics for both runners (`random`, `condition`, `model`); the allowed set is pinned by `tests/schemas.unit.spec.ts`. The plan carries it to the walk (`packages/core/src/engine`). |
 | `categories` | Palette-group override (rarely needed: groups derive from the BPMN ancestor). Distinct from an attribute's `meta.categories`, which is its inspector tab. |
 | `connectsTo` | Connection-rule allow-list; wired but currently exercised only by tests. |
 

@@ -30,12 +30,16 @@ export function schemaModdle(): Promise<Moddle> {
 
 export async function readSource(path: string): Promise<StudyflowSource> {
   const extension = extname(path).toLowerCase();
-  const container = extension === '.png' ? 'png' : extension === '.svg' ? 'svg' : 'text';
+  return sourceOf(await readFile(path), extension === '.png' ? 'png' : extension === '.svg' ? 'svg' : 'text');
+}
+
+/** A file's bytes as a source: the studyflow text, taken out of the image when the file is one. */
+export function sourceOf(bytes: Uint8Array, container: StudyflowSource['container']): StudyflowSource {
   const text = container === 'png'
-    ? extractStudyflowFromPng(new Uint8Array(await readFile(path)))
+    ? extractStudyflowFromPng(bytes)
     : container === 'svg'
-      ? extractStudyflowFromSvg(await readFile(path, 'utf8'))
-      : await readFile(path, 'utf8');
+      ? extractStudyflowFromSvg(new TextDecoder().decode(bytes))
+      : new TextDecoder().decode(bytes);
   return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container };
 }
 
