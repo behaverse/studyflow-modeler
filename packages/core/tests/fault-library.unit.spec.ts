@@ -170,7 +170,7 @@ type Fault = {
   /** The fault, in the words of the manuscript's table. */
   fault: string;
   /** The check that reports it, or `missed`. */
-  check: 'reader' | 'soundness' | 'runner paths' | 'data contract' | 'flow consistency' | 'seal' | 'missed';
+  check: 'reader' | 'soundness' | 'runner paths' | 'decisions' | 'data contract' | 'flow consistency' | 'seal' | 'missed';
   /** Seeded into the deposited plan, or into the copy a run stamped. */
   into: 'plan' | 'executed copy';
   edit: (text: string) => string;
@@ -237,10 +237,27 @@ const FAULTS: Fault[] = [
   },
   {
     fault: 'A decision rule whose inequality is flipped before deposit',
-    check: 'missed',
+    check: 'decisions',
     into: 'plan',
     edit: swap('accuracy >= 0.8', 'accuracy <= 0.8'),
-    says: [],
+    says: [
+      'warning: "Accurate enough?": for accuracy in (-∞, 0.8), both "yes" and "no" hold, and the walk takes the first in the file\'s order',
+      'error: "Accurate enough?": for accuracy in (0.8, ∞), no condition holds and there is no default flow, so the walk stops there',
+    ],
+  },
+  {
+    fault: 'A criterion moved in one branch only',
+    check: 'decisions',
+    into: 'plan',
+    edit: swap('accuracy >= 0.8', 'accuracy >= 0.7'),
+    says: ['warning: "Accurate enough?": for accuracy in [0.7, 0.8), both "yes" and "no" hold, and the walk takes the first in the file\'s order'],
+  },
+  {
+    fault: 'A complex gateway',
+    check: 'runner paths',
+    into: 'plan',
+    edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: ComplexGateway\n      name: Accurate enough?'),
+    says: ['error: "Accurate enough?" is a complex gateway with 2 outgoing flows; the walk reads no activation rule, so it stops here rather than take it as an exclusive gateway'],
   },
   {
     fault: 'A difference test where the question asks for equivalence',

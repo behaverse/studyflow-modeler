@@ -13,7 +13,7 @@ export type FeelResult = { value: unknown; error?: string };
 
 /** The expression with each `{name}` citation as the name it cites: a study may write `{Play.trials} > 3` as its
  * labels do, and it reads as `Play.trials > 3`. */
-const cited = (expression: string): string => expression.replace(PLACEHOLDER, '$1');
+export const cited = (expression: string): string => expression.replace(PLACEHOLDER, '$1');
 
 /** The FEEL functions a study may call: both evaluators have them (feelin, and skills/local/feel.py's subset). */
 const FUNCTIONS = new Set(['not', 'contains', 'starts with', 'ends with', 'substring after', 'substring before', 'upper case',
