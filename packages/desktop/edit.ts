@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { serveUi } from './serve';
+import { serveUi, type Served } from './serve';
 
 /* `studyflow edit [file]` (`studyflow ui`: the same, without a file): the desktop app. Serve the modeler (`npm run build`,
  * the same `dist/` the webapp is) from this machine and open it in a window of its own. The page knows it is in one
@@ -15,7 +15,12 @@ export type UiOptions = {
   host?: string;
   /** commander's `--no-open` sets this false. */
   open?: boolean;
+  /** The skills installed beside the CLI (`studyflow skill add`), whose schemas the modeler loads beside its own. */
+  installed?: InstalledSchema[];
 };
+
+/** A skill's schema as the modeler reads it from `installed-skills.json`: the skill, and its `*.moddle.yaml` text. */
+export type InstalledSchema = { skill: string; description: string; schema: string; source: string };
 
 /** Where the desktop app can be, best first: the repo's `dist/` when this is the bundle in a checkout,
  * Homebrew's `libexec/ui` next to `bin/studyflow`, then beside the binary (the release tarball as unpacked). */
@@ -81,12 +86,13 @@ export function openWindow(url: string): Promise<void> {
 export async function edit(file: string | undefined, options: UiOptions = {}): Promise<void> {
   const root = uiDir();
   if (file && !existsSync(file)) throw new Error(`No such file: ${file}`);
-  const files = file ? { [`/open/${encodeURIComponent(path.basename(file))}`]: path.resolve(file) } : {};
+  const files: Record<string, Served> = file ? { [`/open/${encodeURIComponent(path.basename(file))}`]: path.resolve(file) } : {};
+  files['/installed-skills.json'] = { text: JSON.stringify(options.installed ?? []), type: 'application/json' };
   const host = options.host ?? '127.0.0.1';
   const server = await serveUi(root, host, options.port ?? 4174, files);
   const address = server.address();
   const port = typeof address === 'object' && address ? address.port : options.port;
-  const [openPath] = Object.keys(files);
+  const openPath = Object.keys(files).find((served) => served.startsWith('/open/'));
   const url = `http://${host.includes(':') ? `[${host}]` : host}:${port}/app${openPath ? `?open=${encodeURIComponent(openPath)}` : ''}`;
   console.log(`Desktop app at ${url} (serving ${root}; Ctrl-C to stop)`);
   if (options.open === false) return;  // the listening server keeps the process alive; Ctrl-C ends it

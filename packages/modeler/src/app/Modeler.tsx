@@ -5,6 +5,7 @@ import new_diagram from '#assets/new_diagram.bpmn?raw';
 import { Study } from '@canvas/index.ts';
 import { fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';
+import { fetchInstalledSchemas } from '@modeler/app/installedSchemas';
 import { mountEditor } from '@modeler/editor/mount';
 import { connectCommandBus } from '@modeler/commandBus';
 import { clearAutosavedDiagram, getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
@@ -40,9 +41,10 @@ async function openFromUrl(editor: Editor): Promise<void> {
   }
 }
 
-/** Mount the editor in `container` with the enabled schemas, on the autosaved diagram if it opens, else a new one. */
+/** Mount the editor in `container` with the enabled schemas and the installed ones, on the autosaved diagram if it
+ * opens, else a new one. */
 async function bootEditor(container: HTMLElement, autosaved: string | undefined): Promise<Editor> {
-  const extensionSchemas = await loadSchemas(getSettings().enabledSchemas);
+  const extensionSchemas = await loadSchemas(getSettings().enabledSchemas, await fetchInstalledSchemas());
   // moddle rewrites the property descriptors it registers, so it gets a copy: `packages()` hands out the original.
   const moddle = new BpmnModdle(structuredClone(extensionSchemas));
   return mountEditor({ container, study: await openStudy(autosaved, moddle), moddle, extensionSchemas });

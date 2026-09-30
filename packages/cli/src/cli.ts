@@ -5,7 +5,7 @@ import { validate } from '@cli/validate';
 import { info } from '@cli/info';
 import { mcp } from '@cli/mcp';
 import { prov } from '@cli/prov';
-import { addSkill, installedSkills, removeSkill, skillsHome } from '@cli/skills';
+import { addSkill, installedSchemas, installedSkills, removeSkill, skillsHome } from '@cli/skills';
 import { edit } from '@desktop/edit';
 import type { RunOptions } from '@cli/run';
 
@@ -31,7 +31,7 @@ program
 
 const skill = program
   .command('skill')
-  .description(`Skills installed beside the CLI, in ${'$'}STUDYFLOW_HOME/skills (~/.studyflow/skills): a vocabulary and runners a domain brings, found by validate, convert, mcp and run.`);
+  .description(`Skills installed beside the CLI, in ${'$'}STUDYFLOW_HOME/skills (~/.studyflow/skills): a vocabulary and runners a domain brings, found by validate, convert, mcp, run and the desktop app (edit, ui).`);
 skill
   .command('add')
   .argument('<source>', 'a git URL or a folder holding the skill\'s SKILL.md')
@@ -124,14 +124,14 @@ serveOptions(program
   .description('Open a studyflow in the desktop app: the modeler served from this machine, no network needed, in a window of its own (needs a Chromium: Chrome, Chromium, Brave or Edge; else the default browser).')
   .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg'))
   .action(async (file: string | undefined, options: ServeOptions) => {
-    await edit(file, { port: Number(options.port), host: options.host, open: options.open });
+    await edit(file, { port: Number(options.port), host: options.host, open: options.open, installed: installedSchemas() });
   });
 
 serveOptions(program
   .command('ui')
   .description('Open the desktop app on a blank canvas (`studyflow edit` without a file).'))
   .action(async (options: ServeOptions) => {
-    await edit(undefined, { port: Number(options.port), host: options.host, open: options.open });
+    await edit(undefined, { port: Number(options.port), host: options.host, open: options.open, installed: installedSchemas() });
   });
 
 program

@@ -56,13 +56,21 @@ export function resolveFile(root: string, urlPath: string): { file: string } | {
   return undefined;
 }
 
+/** What a served path holds besides `root`'s files: a file anywhere on disk, read afresh per request, or text. */
+export type Served = string | { text: string; type: string };
+
 /** A static server over `root`, listening on `host:port` (port 0 picks a free one). `files` maps extra URL paths
- * to files anywhere on disk, read afresh per request (the study `studyflow edit <file>` opens). */
-export function serveUi(root: string, host = '127.0.0.1', port = 0, files: Record<string, string> = {}): Promise<Server> {
+ * to files anywhere on disk (the study `studyflow edit <file>` opens), or to text (the skills installed beside it). */
+export function serveUi(root: string, host = '127.0.0.1', port = 0, files: Record<string, Served> = {}): Promise<Server> {
   root = path.resolve(root);
   const server = createServer((request, response) => {
     const urlPath = (request.url ?? '/').split('?')[0];
-    const hit = files[urlPath] ? { file: files[urlPath] } : resolveFile(root, urlPath);
+    const extra = files[urlPath];
+    if (extra !== undefined && typeof extra !== 'string') {
+      response.writeHead(200, { 'content-type': extra.type }).end(extra.text);
+      return;
+    }
+    const hit = extra !== undefined ? { file: extra } : resolveFile(root, urlPath);
     if (!hit) {
       response.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
       return;

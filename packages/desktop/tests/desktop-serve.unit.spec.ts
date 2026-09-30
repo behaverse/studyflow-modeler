@@ -39,10 +39,13 @@ test('resolves like a static host', () => {
   expect(resolveFile(root, '/%CF%80')).toEqual({ redirect: '/%CF%80/' });
 });
 
-test('serves over http, and serves the file `studyflow edit <file>` opens, reading it afresh', async () => {
+test('serves over http, and serves the file `studyflow edit <file>` opens, reading it afresh, and the text it is given', async () => {
   const study = join(root, 'my study.studyflow');
   writeFileSync(study, 'id: one');
-  const server = await serveUi(root, '127.0.0.1', 0, { '/open/my%20study.studyflow': study });
+  const server = await serveUi(root, '127.0.0.1', 0, {
+    '/open/my%20study.studyflow': study,
+    '/installed-skills.json': { text: '[{"skill":"lab"}]', type: 'application/json' },
+  });
   const address = server.address();
   const origin = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
   try {
@@ -66,6 +69,10 @@ test('serves over http, and serves the file `studyflow edit <file>` opens, readi
     renameSync(study, join(root, 'renamed.studyflow'));
     expect((await fetch(`${origin}/open/my%20study.studyflow`)).status).toBe(404);
     expect((await fetch(`${origin}/app`)).status).toBe(200);
+    // The installed skills' schemas, as the modeler reads them.
+    const installed = await fetch(`${origin}/installed-skills.json`);
+    expect(installed.headers.get('content-type')).toBe('application/json');
+    expect(await installed.json()).toEqual([{ skill: 'lab' }]);
   } finally {
     server.close();
   }

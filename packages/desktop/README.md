@@ -1,6 +1,6 @@
 # @behaverse/studyflow-desktop
 
-The desktop app: `studyflow edit <file>` (and `studyflow ui`) serve the webapp's `dist/` from this machine and open it in a Chromium app window (Chrome, Chromium, Brave, or Edge; the default browser without one). The command ends when the window closes.
+The desktop app: `studyflow edit <file>` (and `studyflow ui`) serve the webapp's `dist/` from this machine and open it in a Chromium app window (Chrome, Chromium, Brave, or Edge; the default browser without one). The command ends when the window closes. It also serves the schemas of the skills installed beside the CLI (`studyflow skill add`) as `installed-skills.json`, which the modeler loads with its own, locked on in Settings.
 
 ```bash
 npm run build                                   # dist/, which the desktop app serves

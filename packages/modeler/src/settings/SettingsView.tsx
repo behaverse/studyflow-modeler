@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { SCHEMAS, SCHEMA_LOAD_FAILURES } from '@core/notation/loader';
+import { installedSchemas } from '@modeler/app/installedSchemas';
 import { schemaDiagnostics } from '@core/notation';
 import { setRecordEvents, shouldRecordEvents } from '@core/settings';
 import { ICONS } from '@modeler/icons';
@@ -370,6 +371,15 @@ function ExtensionsSection() {
           />
         );
       })}
+
+      {installedSchemas().map(({ skill, description, model }) => (
+        <Row
+          key={model.prefix}
+          label={<>{model.name}<i className={`${ICONS.lock} ms-1.5 text-xs text-stone-500`} role="img" title="installed" aria-label="installed" /></>}
+          help={`${model.description ?? description} Installed with \`studyflow skill add ${skill}\`, so it loads whenever the desktop app runs.`}
+          control={<ToggleControl label={`Load the ${model.name} elements`} checked onChange={() => {}} disabled />}
+        />
+      ))}
     </>
   );
 }

@@ -55,3 +55,10 @@ export function removeSkill(name: string): boolean {
   rmSync(target, { recursive: true, force: true });
   return true;
 }
+
+/** Each installed skill's schema as its text, for the desktop app, which loads it beside the shipped ones. */
+export function installedSchemas(): { skill: string; description: string; schema: string; source: string }[] {
+  return installedSkills().flatMap(({ folder, manifest }) => (manifest.schema
+    ? [{ skill: manifest.name, description: manifest.description, schema: `${manifest.name}/${manifest.schema}`, source: readFileSync(path.join(folder, manifest.schema), 'utf8') }]
+    : []));
+}
