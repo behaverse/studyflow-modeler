@@ -89,3 +89,16 @@ test('validate says the protocol matches the run that recorded it, and warns onc
   expect(changed.stderr).toMatch(/^warning: protocol changed since run r1: recorded sha256:[0-9a-f]{12}…, now sha256:[0-9a-f]{12}…\n$/);
   expect(changed.stdout).toBe(`${edited}: OK (1 warning)\n`);
 });
+
+test('validate says where the BPMN XML a study is written as breaks the BPMN 2.0 schema', () => {
+  test.skip(spawnSync('xmllint', ['--version']).error !== undefined, 'no xmllint on this machine');
+  // A step's arguments are an attribute, which the schema takes from another namespace; a child element it does not.
+  const argued = study('ExclusiveGateway').replace('name: Split here', 'name: Split here\n      default: F1')
+    .replace('name: Play 30 trials', 'name: Play 30 trials\n      additionalArguments: "speed: 20"');
+  expect(studyflow(['validate', write('argued.studyflow.yaml', argued)]).stderr).not.toContain('BPMN 2.0 schema');
+  const untargeted = write('untargeted.bpmn', `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="D">
+  <bpmn:process id="P"><bpmn:startEvent id="S"/></bpmn:process>
+</bpmn:definitions>`);
+  expect(studyflow(['validate', untargeted]).stderr).toContain("warning: the BPMN XML breaks the BPMN 2.0 schema at line 2: Element 'bpmn:definitions': The attribute 'targetNamespace' is required but missing.");
+});
