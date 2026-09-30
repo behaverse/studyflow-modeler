@@ -76,14 +76,15 @@ function write(destructive: boolean, idempotent: boolean): StudyTool['annotation
   return { readOnlyHint: false, destructiveHint: destructive, idempotentHint: idempotent, openWorldHint: false };
 }
 
-function tool(
-  name: ToolName,
+/** One tool, its schema kept as written (what `ArgsOf` reads): `required` names properties the schema has. */
+function tool<const N extends ToolName, const P extends Record<string, JsonSchema>, const R extends readonly (keyof P & string)[]>(
+  name: N,
   description: string,
-  properties: Record<string, JsonSchema>,
-  required: string[],
+  properties: P,
+  required: R,
   annotations: StudyTool['annotations'] = READ,
-): StudyTool {
-  return { name, description, inputSchema: { type: 'object', properties, required, additionalProperties: false }, annotations };
+) {
+  return { name, description, inputSchema: { type: 'object', properties, required, additionalProperties: false }, annotations } as const;
 }
 
 const STRING = { type: 'string' } as const;
@@ -101,22 +102,22 @@ const BOUNDS = {
 const COLOR = { type: ['string', 'null'], description: "A CSS colour; null for the stock one." } as const;
 
 /** What a new shape is: `add`, `append` and `replace` take it. */
-const SHAPE: Record<string, JsonSchema> = {
+const SHAPE = {
   type: { type: 'string', enum: SHAPE_TYPES, description: 'Its BPMN type.' },
   extension: { type: 'string', description: 'A schema type extending `type`, paired with it as the catalog lists them.' },
   expanded: { type: 'boolean', description: 'A container drawn open, its contents in view; one is born closed.' },
   attributes: { type: 'object', description: "Set at birth. `{ eventDefinitions: [{ type: 'bpmn:TimerEventDefinition' }] }` makes a timer event." },
-};
+} as const;
 
 /** A new element: a shape, or a template's elements. */
-const NEW: Record<string, JsonSchema> = {
+const NEW = {
   ...SHAPE,
   name: STRING,
   template: { type: 'string', description: "A template's id, as the catalog lists it, in place of `type`: its elements, laid out in the shape it drops as." },
   id: { type: 'string', description: 'Its id, when free; one is minted without it. A template keeps its own.' },
-};
+} as const;
 
-export const STUDY_TOOLS: readonly StudyTool[] = [
+const TOOLS = [
   tool('document', 'The whole study as its .studyflow.yaml file holds it: every element with its attributes, every flow, and the drawing.', {}, []),
   tool('get', "One element as a record: its kind, type (and the schema type extending it), name, parent, bounds, and flows in and out; a flow's ends and route. The root's id reads the root.", { id: ID }, ['id']),
   tool('list', 'The shapes and flows as records, in document order: all of them, or those of a kind (captions only this way), of a type (a BPMN or a schema type), within a container however deep, or whose name holds `name`. A record says what an element is and how it connects; with `geometry`, where it is drawn too.', {
@@ -218,7 +219,27 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
   }, ['steps'], write(true, false)),
   tool('undo', 'Go back to the study before the last edit.', {}, [], write(false, false)),
   tool('redo', 'Go forward to the edit the last undo went back from.', {}, [], write(false, false)),
-];
+] as const;
+
+export const STUDY_TOOLS: readonly StudyTool[] = TOOLS;
+
+type Plain = { string: string; number: number; boolean: boolean; null: null; object: Record<string, unknown>; array: unknown[] };
+
+/** The values a schema admits, as a TypeScript type. */
+type Admits<S> =
+  S extends { enum: readonly (infer Option)[] } ? Option
+  : S extends { type: 'array'; items: infer Item } ? Admits<Item>[]
+  : S extends { type: 'object'; properties: infer Properties; required: readonly (infer Required)[] }
+    ? { -readonly [Key in keyof Properties as Key extends Required ? Key : never]: Admits<Properties[Key]> }
+      & { -readonly [Key in keyof Properties as Key extends Required ? never : Key]?: Admits<Properties[Key]> }
+  : S extends { type: 'object'; properties: infer Properties } ? { -readonly [Key in keyof Properties]?: Admits<Properties[Key]> }
+  : S extends { type: readonly (infer Type extends JsonType)[] } ? Plain[Type]
+  : S extends { type: infer Type extends JsonType } ? Plain[Type]
+  : unknown;
+
+/** What a tool's schema admits as its argument. `call` hands a verb what passed its schema, so a verb that takes
+ * anything else no longer compiles: the schema and the verb's signature cannot drift apart. */
+export type ArgsOf<Name extends ToolName> = Admits<Extract<(typeof TOOLS)[number], { name: Name }>['inputSchema']>;
 
 /** Whether `name` names a write tool a batch runs as a step. */
 export function isStepTool(name: string): name is StepTool {

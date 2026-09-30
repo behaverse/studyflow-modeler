@@ -31,7 +31,7 @@ import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, S
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
 import { copyOf, fragmentOf } from '@canvas/study/clipboard.ts';
-import { ASKABLE_TOOLS, isStepTool, misfitOf, STUDY_TOOLS, type StepTool, type StructureRecord, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
+import { ASKABLE_TOOLS, isStepTool, misfitOf, STUDY_TOOLS, type ArgsOf, type StepTool, type StructureRecord, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
 import { boundsOf, edgesAffectedBy, hostOf, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
@@ -249,27 +249,31 @@ export class Study {
     if (isStepTool(name)) return this.atomic(() => this.step(name, args));
     const misfit = misfitOf(name, args);
     if (misfit) return refused(misfit);
-    const argument = args as any;
+    // What passed a tool's schema is what its schema admits.
+    const as = <Tool extends ToolName>(_tool: Tool): ArgsOf<Tool> => args as ArgsOf<Tool>;
     switch (name as Exclude<ToolName, StepTool>) {
       case 'document': return { ok: true, yaml: this.toYaml() };
-      case 'copy': return this.copy(argument);
+      case 'copy': return this.copy(as('copy'));
       case 'get': {
-        const element = this.get(argument.id);
-        return element ? { ok: true, element } : refused(`no element '${argument.id}'`);
+        const { id } = as('get');
+        const element = this.get(id);
+        return element ? { ok: true, element } : refused(`no element '${id}'`);
       }
       case 'list': {
-        const wanted = typeof argument.name === 'string' ? argument.name.toLowerCase() : undefined;
-        const found = this.list(argument).filter((element) => wanted === undefined || element.name?.toLowerCase().includes(wanted));
-        return { ok: true, elements: argument.geometry ? found : found.map(undrawn) };
+        const { name: part, geometry, ...filter } = as('list');
+        const wanted = part?.toLowerCase();
+        const found = this.list(filter).filter((element) => wanted === undefined || element.name?.toLowerCase().includes(wanted));
+        return { ok: true, elements: geometry ? found : found.map(undrawn) };
       }
-      case 'describe': return this.describe(argument);
+      case 'describe': return this.describe(as('describe'));
       case 'catalog': return { ok: true, ...this.catalog() };
-      case 'can': return this.can(argument.tool, argument.args);
+      case 'can': return this.can(as('can').tool, as('can').args);
       case 'attributes': {
-        const attributes = this.attributes(argument.id);
-        return attributes ? { ok: true, attributes } : refused(`no element '${argument.id}'`);
+        const { id } = as('attributes');
+        const attributes = this.attributes(id);
+        return attributes ? { ok: true, attributes } : refused(`no element '${id}'`);
       }
-      case 'batch': return this.batch(argument);
+      case 'batch': return this.batch(as('batch'));
       case 'undo': return this.undo();
       case 'redo': return this.redo();
     }
@@ -844,9 +848,11 @@ export class Study {
     const misfit = misfitOf(tool, args);
     if (misfit) return refused(misfit);
     if (!isStepTool(tool)) return refused(`a batch runs no '${tool}'`);
-    const verbs: Record<StepTool, (args: any) => StudyResult> = {
-      add: (a) => this.add(a),
-      append: (a) => this.append(a),
+    // Each verb takes what its tool's schema admits, or this does not compile. A new element is the one the schema
+    // says less of than the verb asks: one with neither a `type` nor a `template` is refused when it is made.
+    const verbs: { [Tool in StepTool]: (args: ArgsOf<Tool>) => StudyResult } = {
+      add: (a) => this.add(a as ArgsOf<'add'> & NewElement),
+      append: (a) => this.append(a as ArgsOf<'append'> & NewElement),
       connect: (a) => this.connect(a),
       replace: (a) => this.replace(a),
       move: (a) => this.move(a),
@@ -864,7 +870,7 @@ export class Study {
       collapse: (a) => this.collapse(a),
     };
     try {
-      return verbs[tool](args);
+      return (verbs[tool] as (args: unknown) => StudyResult)(args);
     } catch (error) {
       return refused(error instanceof Error ? error.message : String(error));
     }
