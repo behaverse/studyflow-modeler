@@ -89,6 +89,33 @@ assert agentic.execute(step) == "Left" and step.record == {
 }, step.record
 
 
+# A pool that remembers (`memory: conversation`): each message goes with the conversation so far, the walk says which
+# conversation and turn, and a turn this runner holds no record of fails rather than asking without it.
+chats = []
+
+
+def remembering(url, body, headers, timeout):
+    if "messages" in body:
+        chats.append(body["messages"])
+    return post(url, body, headers, timeout)
+
+
+agentic.post = remembering
+for turn in (0, 1):
+    step = agentic.Step("Model", asked, {}, {"id": f"t{turn}", "flow": "M_Ask", "content": {"Note": f"trial {turn}"}},
+                        conversation={"id": "Model with Subjects #1", "turn": turn})
+    assert agentic.execute(step) == "Left"
+assert [(m["role"], m["content"]) for m in chats[-1]] == [("user", "trial 0"), ("assistant", "Left"), ("user", "trial 1")], chats[-1]
+assert step.record["sent"]["turn"] == 1
+lost = agentic.Step("Model", asked, {}, {"id": "t9", "flow": "M_Ask", "content": {"Note": "trial 9"}},
+                    conversation={"id": "Model with Subjects #2", "turn": 3})
+try:
+    agentic.execute(lost)
+    raise AssertionError("a conversation this runner lost is refused")
+except RuntimeError as error:
+    assert "lost them" in str(error), error
+agentic.post = post
+
 # A lookup that fails is noted, and the answer stands; a model is described once a run, so this is another one.
 def unreachable(url, timeout):
     raise urllib.error.URLError("connection refused")

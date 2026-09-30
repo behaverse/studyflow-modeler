@@ -98,19 +98,23 @@ def get(url: str, timeout: float) -> dict[str, Any]:
         return json.load(response)
 
 
-def ask_claude(model: str, parts: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
-    """The reply, and for the record the model asked for, the model the response names, and the options sent."""
+def ask_claude(model: str, parts: list[dict[str, Any]], history: list[dict[str, Any]] = ()) -> tuple[str, dict[str, Any]]:  # type: ignore[assignment]
+    """The reply, and for the record the model asked for, the model the response names, and the options sent. `history`
+    is the conversation so far, turn by turn (`{"role", "parts"}`), when the pool remembers."""
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise RuntimeError("ANTHROPIC_API_KEY is not set")
-    content = [
-        {"type": "image", "source": {"type": "base64", "media_type": part["image"][0], "data": part["image"][1]}}
-        if "image" in part else {"type": "text", "text": part["text"]}
-        for part in parts
-    ]
+
+    def content(turn: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {"type": "image", "source": {"type": "base64", "media_type": part["image"][0], "data": part["image"][1]}}
+            if "image" in part else {"type": "text", "text": part["text"]}
+            for part in turn
+        ]
     options = {"max_tokens": MAX_TOKENS}
+    messages = [{"role": turn["role"], "content": content(turn["parts"])} for turn in [*history, {"role": "user", "parts": parts}]]
     data = post("https://api.anthropic.com/v1/messages",
-                {"model": model, **options, "messages": [{"role": "user", "content": content}]},
+                {"model": model, **options, "messages": messages},
                 {"x-api-key": key, "anthropic-version": "2023-06-01"}, timeout=60)
     reply = "".join(block.get("text", "") for block in data.get("content", []))
     return reply, {"model": model, "responseModel": data.get("model"), "options": options}
@@ -149,20 +153,26 @@ def described(model: str) -> dict[str, Any]:
     return record
 
 
-def ask_ollama(model: str, parts: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
-    """The reply, and for the record the options sent and what answered (`described`)."""
-    message = {
-        "role": "user",
-        "content": "\n\n".join(part["text"] for part in parts if "text" in part),
-        "images": [part["image"][1] for part in parts if "image" in part],
-    }
+def ask_ollama(model: str, parts: list[dict[str, Any]], history: list[dict[str, Any]] = ()) -> tuple[str, dict[str, Any]]:  # type: ignore[assignment]
+    """The reply, and for the record the options sent and what answered (`described`). `history` is the conversation so
+    far, turn by turn (`{"role", "parts"}`), when the pool remembers."""
+    messages = [{
+        "role": turn["role"],
+        "content": "\n\n".join(part["text"] for part in turn["parts"] if "text" in part),
+        "images": [part["image"][1] for part in turn["parts"] if "image" in part],
+    } for turn in [*history, {"role": "user", "parts": parts}]]
     # `think: false` keeps a thinking model to its answer: a trial window is seconds long.
     options = {"stream": False, "think": False}
-    data = post(f"{OLLAMA}/api/chat", {"model": model, **options, "messages": [message]}, {}, timeout=120)
+    data = post(f"{OLLAMA}/api/chat", {"model": model, **options, "messages": messages}, {}, timeout=120)
     return data["message"]["content"], {"model": model, "options": options, **described(model)}
 
 
 CLIENTS = {"claude": ask_claude, "ollama": ask_ollama}
+
+
+# The conversations this run has had with the pools that remember, by the id the walk gives each: turn by turn,
+# what was sent and what the model answered. They last the run.
+CONVERSATIONS: dict[str, list[dict[str, Any]]] = {}
 
 
 def execute(step: Step) -> str:
@@ -175,11 +185,22 @@ def execute(step: Step) -> str:
     parts = parts_of(message.get("content"), step.plan, step.run_dir, step.values, asked_by)
     if not parts:
         raise ValueError(f"the message to {step.id} carries nothing to ask")
-    reply, record = CLIENTS[provider](model, parts)
+    history: list[dict[str, Any]] = []
+    if step.conversation:
+        history = CONVERSATIONS.setdefault(step.conversation["id"], [])
+        if len(history) != 2 * step.conversation["turn"]:
+            raise RuntimeError(f"{step.id}: the conversation '{step.conversation['id']}' is at turn {step.conversation['turn']}, and this "
+                               f"runner holds {len(history) // 2} of its exchanges: it was started again, and lost them")
+    reply, record = CLIENTS[provider](model, parts, history)
     print(f"{provider}://{model}: {reply.strip()[:160]!r}")
-    # The request as sent: its text, as far as a record needs it, and how many images went with it.
+    # The request as sent: its text, as far as a record needs it, how many images went with it, and after how many
+    # exchanges of its conversation.
     texts = "\n\n".join(part["text"] for part in parts if "text" in part)
-    step.note(**record, sent={"text": texts[:4000], "images": sum("image" in part for part in parts)})
+    sent = {"text": texts[:4000], "images": sum("image" in part for part in parts)}
+    if step.conversation:
+        sent["turn"] = step.conversation["turn"]
+        history += [{"role": "user", "parts": parts}, {"role": "assistant", "parts": [{"text": reply}]}]
+    step.note(**record, sent=sent)
     return reply
 
 

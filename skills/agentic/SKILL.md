@@ -20,10 +20,15 @@ The request is the message's content, in its order. A `Prompt` wired into the as
 file in the run or a `data:image/` value goes as an image, other text as text, and anything else as JSON. The runner
 adds no prompt of its own. A call that fails answers null, and the run records the error.
 
+A model answers each message on its own, unless its pool's `memory` is `conversation`. Then the runner keeps each
+conversation the walk names (one per instance of the pool asking, for the run) and sends it along, turn by turn,
+before the new message, so a model answering one subject sees that subject's earlier trials, as sent, and its own
+answers to them. A runner started again mid-run has lost them, and fails the message rather than ask without them.
+
 Each answer comes back with a `record`, which joins the step's record and is never a value a step reads
 (`../local/SKILL.md`, "What comes back"). From Ollama: the model, its digest and quantization level (`/api/tags`),
 its default sampling parameters (`/api/show`), Ollama's version (`/api/version`), and the options this runner sends
 (`think: false`, `stream: false`). From Claude: the model asked for, the model the response names, and
-`max_tokens`. From both, `sent`: the request's text as sent, up to 4,000 characters, and how many images went with
-it. The lookups are best effort: one that fails is noted under `unrecorded`, and the answer stands.
+`max_tokens`. From both, `sent`: the request's text as sent, up to 4,000 characters, how many images went with it, and
+in a conversation its `turn`. The lookups are best effort: one that fails is noted under `unrecorded`, and the answer stands.
 `test_local.py` is its self-check.
