@@ -51,15 +51,6 @@ export function getRawAttribute(target: ModdleElement | null | undefined, localN
   return undefined;
 }
 
-/** A *view* over the marked `bpmn:documentation` entry, not a stored attribute. `StudyflowElement` routes reads and writes; this spec only gives the inspector a field to render. */
-export const CHECKLIST_SPEC: AttributeSpec = {
-  name: 'checklist',
-  ns: { name: 'studyflow:checklist', prefix: 'studyflow', localName: 'checklist' },
-  type: 'String',
-  description: 'Items to check off when completing the element - markdown task items (`- [ ]` / `- [x]`), carried as a marked `bpmn:documentation` entry so every BPMN tool shows the text.',
-  meta: { editor: 'checklist', categories: ['Documentation'] },
-};
-
 const BPMN_NATIVE_SPECS: Record<string, AttributeSpec> = {
   id: {
     name: 'id',
@@ -88,6 +79,5 @@ export function getAttributeSpec(
   const spec = getCatalog().attributeOf(typeNameOf(elementOrBO), name);
   if (spec) return spec;
   const local = toLocalName(name);
-  if (local === 'checklist') return CHECKLIST_SPEC;
   return local ? BPMN_NATIVE_SPECS[local] : undefined;
 }

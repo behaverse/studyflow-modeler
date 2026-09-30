@@ -1,4 +1,4 @@
-import { isChecklistEntry, primaryRoot } from '@core/document';
+import { primaryRoot } from '@core/document';
 import { firstSentence } from '@core/naming';
 
 export type ExampleMetadata = {
@@ -22,7 +22,7 @@ export function exampleMetadata(definitions: any, fallback: string): ExampleMeta
 
   const name = first((root) => root.name?.trim());
   const id = first((root) => root.id);
-  const documentation = first((root) => root.documentation?.find((entry: any) => !isChecklistEntry(entry))?.text?.trim());
+  const documentation = first((root) => root.documentation?.[0]?.text?.trim());
   return {
     title: name || id?.replace(/[_-]+/g, ' ').trim() || fallback,
     summary: firstSentence(documentation ?? ''),

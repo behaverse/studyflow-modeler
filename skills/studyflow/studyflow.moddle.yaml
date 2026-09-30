@@ -212,17 +212,22 @@ types:
           editor: markdown
           categories:
             - Documentation
-  - name: ChecklistDocumentation
-    # A documentation entry whose body is markdown task items (`- [ ]` / `- [x]`).
-    description: Marks a documentation entry as the element's checklist.
+  - name: Checklist
+    # Markdown task items (`- [ ]` / `- [x]`), an attribute of the element: BPMN's schema takes another namespace's
+    # attribute on any element, and no mark on a documentation entry.
+    description: Lets an element carry a checklist reviewers tick off.
     extends:
-      - bpmn:Documentation
+      - bpmn:BaseElement
     isAbstract: true
     properties:
       - name: checklist
-        description: True reads this entry as a checklist reviewers tick off.
+        description: Items to check off when completing the element, as markdown task items.
         isAttr: true
-        type: Boolean
+        type: String
+        meta:
+          editor: checklist
+          categories:
+            - Documentation
   - name: Icon
     description: Lets an element on the canvas carry an icon of its own.
     extends:

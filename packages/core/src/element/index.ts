@@ -1,6 +1,5 @@
 import { getCatalog, hasCatalog } from '@core/notation';
 import {
-  CHECKLIST_SPEC,
   definitionsOf,
   getAttributeSpec,
   getRawAttribute,
@@ -10,7 +9,6 @@ import {
 import { StudyflowElement, type ModdleWriter } from '@core/element/handle';
 
 export {
-  CHECKLIST_SPEC,
   definitionsOf,
   getAttributeSpec,
   getRawAttribute,

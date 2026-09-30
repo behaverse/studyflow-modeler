@@ -4,7 +4,7 @@
  * it holds now. What the inspector shows, less its layout.
  */
 
-import { CHECKLIST_SPEC, isExtensionPrefix, StudyflowElement } from '@core/element/index.ts';
+import { isExtensionPrefix, StudyflowElement } from '@core/element/index.ts';
 import { getCatalog, hasCatalog, type AttributeSpec } from '@core/notation/index.ts';
 import { getProperty } from '@core/element/moddle.ts';
 
@@ -38,7 +38,6 @@ export function attributesOf(moddle: ModdleObject): AttributeRecord[] {
     ...(name && hasProperty(moddle, 'name') ? [name] : []),
     ...element.attributes().filter((spec) => declared(spec) && !redefined.has(localNameOf(spec))),
     ...extension.filter(declared),
-    CHECKLIST_SPEC,
   ].filter((spec, index, all) => !spec.meta?.pinned && all.findIndex((other) => keyOf(other) === keyOf(spec)) === index);
   const shared = new Set(specs.map(localNameOf).filter((local, index, all) => all.indexOf(local) !== index));
   return specs.map((spec): AttributeRecord => {

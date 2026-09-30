@@ -39,7 +39,7 @@ function canonical(value: any): unknown {
     if (p.isVirtual || DRAWING.has(p.name) || RECORDED.has(p.name) || (p.name === 'state' && value.$type === STUDY_EXTENSION_TYPE)) continue;
     let v = value[p.name];
     if (v === undefined || v === null || v === p.default) continue;
-    if (p.name === 'text' && value.checklist === true && typeof v === 'string') v = unticked(v);
+    if (p.name === 'checklist' && typeof v === 'string') v = unticked(v);
     if (p.isReference) v = p.isMany ? v.map((ref: any) => ref?.id ?? ref) : v?.id ?? v;
     else if (p.isMany) v = v.filter((item: any) => item?.$type !== RUN_RECORD).map(canonical).filter((item: any) => item !== undefined);
     else v = canonical(inlineYamlValue(v, p) ?? v);

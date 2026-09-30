@@ -1,4 +1,4 @@
-import { CHECKLIST_SPEC, StudyflowElement, getAttribute, isExtensionPrefix } from '@core/element';
+import { StudyflowElement, getAttribute, isExtensionPrefix } from '@core/element';
 import { getCatalog, UNDECLARED_CATEGORY_ORDER, type AttributeSpec } from '@core/notation';
 import { toLocalName } from '@core/naming';
 import { supportsLoopCharacteristics } from '@modeler/inspector/loopCharacteristics';
@@ -87,9 +87,6 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
   );
 
   collect(extAttrDefs, isDeclared);
-
-  // `checklist` is a view over `bpmn:documentation`, not a stored attribute; synthesize its field.
-  collect([CHECKLIST_SPEC], () => true);
 
   if (supportsLoopCharacteristics(element) || isScopeContainer(element)) {
     byCategory['Execution'] ??= [];

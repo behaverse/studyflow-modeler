@@ -18,7 +18,6 @@ export {
   primaryRoot,
   studyExtensionOf,
 } from '@core/document/format';
-export { isChecklistEntry } from '@core/document/shorthand';
 export {
   PARAMETERS_TYPE,
   attributeOverrides,

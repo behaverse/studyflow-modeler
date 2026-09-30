@@ -1,5 +1,4 @@
 import { getCatalog, type AttributeSpec } from '@core/notation';
-import { CHECKLIST_MARKER, DOCUMENTATION_TYPE, isChecklistEntry } from '@core/document/shorthand';
 import { BPMN } from '@core/constants';
 import { splitQName, toLocalName } from '@core/naming';
 import { getProperty, setProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
@@ -54,14 +53,6 @@ function resolveAttribute(bo: ModdleElement, ext: ModdleElement | null, attribut
   return { bo, ext, attributeName: resolveName(attributeName, undefined), target: bo };
 }
 
-function documentationEntries(list: unknown): { checklist: ModdleElement[]; prose: any[] } {
-  const entries = Array.isArray(list) ? list : [];
-  return {
-    checklist: entries.filter((item) => isChecklistEntry(item)),
-    prose: entries.filter((item) => !isChecklistEntry(item)),
-  };
-}
-
 function warnDroppedWrite(attributeName: string, bo: ModdleElement): void {
   console.warn(`StudyflowElement.setAttribute('${attributeName}') resolved no target on ${bo?.$type ?? 'unknown element'}; the write was dropped.`);
 }
@@ -69,8 +60,7 @@ function warnDroppedWrite(attributeName: string, bo: ModdleElement): void {
 function unwrapBodyValue(rawValue: any, attrDef: AttributeSpec | undefined): any {
   if (!attrDef?.bodyProp) return rawValue;
   if (Array.isArray(rawValue) && attrDef.isMany) {
-    const prose = rawValue.filter((item) => !isChecklistEntry(item));
-    const bodies = prose.map((item) =>
+    const bodies = rawValue.map((item) =>
       item && typeof item === 'object' && item.$type ? getProperty(item, attrDef.bodyProp!) : undefined);
     if (bodies.some((body) => typeof body !== 'string')) return rawValue;
     return bodies.length === 0 ? undefined : bodies.join('\n\n');
@@ -143,7 +133,6 @@ export class StudyflowElement {
   }
 
   getAttribute(attributeName: string): any {
-    if (toLocalName(attributeName) === CHECKLIST_MARKER) return this.getChecklist();
     const bo = this.businessObject;
     const ext = findExtension(bo);
     const r = resolveAttribute(bo, ext, attributeName);
@@ -155,7 +144,6 @@ export class StudyflowElement {
   }
 
   setAttribute(attributeName: string, value: any): void {
-    if (toLocalName(attributeName) === CHECKLIST_MARKER) return this.setChecklist(value);
     const bo = this.businessObject;
     const ext = findExtension(bo);
     const r = resolveAttribute(bo, ext, attributeName);
@@ -166,20 +154,20 @@ export class StudyflowElement {
 
     if (bodyProp && (typeof value === 'string' || value == null)) {
       if (attrDef?.isMany) {
-        const { checklist: kept, prose } = documentationEntries(getProperty(r.target, r.attributeName));
+        const entries = getProperty(r.target, r.attributeName);
         if (value == null || value === '') {
-          this.writer.set(r.target, { [r.attributeName]: kept.length > 0 ? kept : undefined });
+          this.writer.set(r.target, { [r.attributeName]: undefined });
           return;
         }
-        if (prose.length === 1 && typeof prose[0] === 'object' && prose[0].$type) {
-          this.writer.set(prose[0], { [bodyProp]: value });
+        if (Array.isArray(entries) && entries.length === 1 && typeof entries[0] === 'object' && entries[0].$type) {
+          this.writer.set(entries[0], { [bodyProp]: value });
           return;
         }
         const model = r.target?.$model ?? bo?.$model;
         if (model && attrDef?.type) {
           const child = model.create(attrDef.type, { [bodyProp]: value });
           child.$parent = r.target;
-          this.writer.set(r.target, { [r.attributeName]: [child, ...kept] });
+          this.writer.set(r.target, { [r.attributeName]: [child] });
           return;
         }
       }
@@ -203,32 +191,5 @@ export class StudyflowElement {
     }
 
     this.writer.set(r.target, { [r.attributeName]: value });
-  }
-
-  private getChecklist(): any {
-    const { checklist } = documentationEntries(getProperty(this.businessObject, 'documentation'));
-    return checklist.length > 0 ? getProperty(checklist[0], 'text') ?? '' : undefined;
-  }
-
-  private setChecklist(value: any): void {
-    const bo = this.businessObject;
-    const { checklist, prose } = documentationEntries(getProperty(bo, 'documentation'));
-    const entry = checklist[0];
-    const text = typeof value === 'string' ? value : '';
-    if (!text.trim()) {
-      if (entry) {
-        this.writer.set(bo, { ['documentation']: prose.length > 0 ? prose : undefined });
-      }
-      return;
-    }
-    if (entry) {
-      this.writer.set(entry, { text });
-      return;
-    }
-    const model = bo?.$model;
-    if (!model) return;
-    const created = model.create(DOCUMENTATION_TYPE, { [CHECKLIST_MARKER]: true, text });
-    created.$parent = bo;
-    this.writer.set(bo, { ['documentation']: [...prose, created] });
   }
 }

@@ -2,7 +2,7 @@ import * as yaml from 'js-yaml';
 
 import { toLocalName } from '@core/naming';
 import { YAML_DUMP_OPTIONS } from '@core/document/format';
-import { getProperty, isModdleElement, type ModdleElement } from '@core/element/moddle';
+import { isModdleElement, type ModdleElement } from '@core/element/moddle';
 
 /* The short forms, in the order a reader meets them; each one is reversible, and the long form is always accepted.
    Specified for authors in docs/reference.qmd, "The file"; pinned by packages/core/tests/studyflow-yaml.unit.spec.ts. */
@@ -211,14 +211,6 @@ export function expandExpressionBody(text: string): Record<string, unknown> {
 
 export const DOCUMENTATION_TYPE = 'bpmn:Documentation';
 
-
-/** One name in three places: the moddle attribute marking the entry, the YAML key it folds to, and the attribute `StudyflowElement` routes. */
-export const CHECKLIST_MARKER = 'checklist';
-
-export function isChecklistEntry(item: any): boolean {
-  return isModdleElement(item) && getProperty(item, CHECKLIST_MARKER) === true;
-}
-
 export function isDocumentationType(typeName: string | undefined): boolean {
   return typeName === DOCUMENTATION_TYPE;
 }
@@ -227,40 +219,21 @@ export function isDocumentationProperty(prop: any): boolean {
   return isDocumentationType(prop?.type);
 }
 
-function qualifiesAsInlineEntry(item: any, marked: boolean): boolean {
+function qualifiesAsInlineEntry(item: any): boolean {
   if (!isModdleElement(item) || item.$type !== DOCUMENTATION_TYPE) return false;
   if (typeof item.text !== 'string' || item.text === '') return false;
   if (Object.keys(item.$attrs ?? {}).length > 0) return false;
-  return hasOnlyProperties(item, marked ? ['text', CHECKLIST_MARKER] : ['text']);
+  return hasOnlyProperties(item, ['text']);
 }
 
-export function inlineDocumentationEntries(
-  value: any[],
-): { documentation?: string | string[]; checklist?: string } | undefined {
-  const prose: string[] = [];
-  let checklist: string | undefined;
-  for (const item of value) {
-    const marked = isChecklistEntry(item);
-    if (!qualifiesAsInlineEntry(item, marked)) return undefined;
-    if (!marked) {
-      prose.push(item.text);
-      continue;
-    }
-    if (checklist !== undefined) return undefined;
-    checklist = item.text;
-  }
-  return {
-    documentation: prose.length === 0 ? undefined : prose.length === 1 ? prose[0] : prose,
-    checklist,
-  };
+/** Documentation entries of plain text as the YAML writes them: one string, or a list of them. */
+export function inlineDocumentationEntries(value: any[]): string | string[] | undefined {
+  if (!value.every(qualifiesAsInlineEntry)) return undefined;
+  return value.length === 1 ? value[0].text : value.map((item) => item.text);
 }
 
 export function expandDocumentationEntry(text: string): Record<string, unknown> {
   return { type: DOCUMENTATION_TYPE, text };
-}
-
-export function expandChecklistEntry(text: string): Record<string, unknown> {
-  return { type: DOCUMENTATION_TYPE, [CHECKLIST_MARKER]: true, text };
 }
 
 /* 7. type names: BPMN is the default namespace, so `bpmn:StartEvent` is spelled `StartEvent` */

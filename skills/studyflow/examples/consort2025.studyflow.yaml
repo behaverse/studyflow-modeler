@@ -19,12 +19,12 @@ CONSORT_2025:
     Activity_Screening:
       type: cognitive:Questionnaire
       name: Screening assessment
+      instrument: screening
       checklist: |-
         - [ ] Demographic intake
         - [ ] Medical history
         - [ ] Vital signs
         - [ ] Baseline cognitive screen
-      instrument: screening
     Eligibility_Gateway:
       type: cognitive:EligibilityGateway
       name: Assessed for eligibility
@@ -55,14 +55,14 @@ CONSORT_2025:
     Activity_Followup_A:
       type: Task
       name: Follow-up
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          platform: jspsych
       checklist: |-
         - [ ] Adherence visit
         - [ ] Outcome assessment 1
         - [ ] Outcome assessment 2
         - [ ] Adverse events review
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          platform: jspsych
     LostFollowup_A:
       type: BoundaryEvent
       name: Lost to follow-up (n=...)

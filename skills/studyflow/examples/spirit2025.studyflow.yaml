@@ -105,13 +105,13 @@ SPIRIT_2025:
     Activity_Intervention:
       type: Task
       name: "Intervention: cognitive training"
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          platform: jspsych
       checklist: |-
         - [ ] SPIRIT 17a: intervention dose & schedule
         - [ ] SPIRIT 17b: criteria for modification
         - [ ] SPIRIT 19: adherence monitoring
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          platform: jspsych
       onset: T0+3 weeks
       duration: 4 weeks
       progress: 60%

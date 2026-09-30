@@ -8,10 +8,8 @@ import {
 } from '@core/document/format';
 import { MODDLE_BUILTIN_TYPES } from '@core/notation/moddlePackage';
 import {
-  CHECKLIST_MARKER,
   DI_NODE_TYPES,
   elementListProperty,
-  expandChecklistEntry,
   expandDiNode,
   expandDocumentationEntry,
   expandExpressionBody,
@@ -75,15 +73,8 @@ class ModdleBuilder {
     const descriptor = this.moddle.getElementDescriptor(el);
     this.extractInlineDi(el, descriptor, props);
 
-    let checklistText: string | undefined;
     for (const [name, raw] of Object.entries(props)) {
       if (raw === undefined || raw === null) continue;
-      // Applied after the loop, so a `documentation` key in the same node cannot overwrite the checklist entry.
-      if (name === CHECKLIST_MARKER && typeof raw === 'string'
-          && descriptor.propertiesByName?.['documentation']) {
-        checklistText = raw;
-        continue;
-      }
       const p = descriptor.propertiesByName?.[name];
 
       if (!p) {
@@ -121,12 +112,6 @@ class ModdleBuilder {
       const value = this.buildValue(raw, p.type);
       if (isModdleElement(value)) value.$parent = el;
       el.set(p.name, value);
-    }
-
-    if (checklistText !== undefined) {
-      const entry = this.build(expandChecklistEntry(checklistText), undefined);
-      entry.$parent = el;
-      el.get('documentation').push(entry);
     }
 
     if (typeof el.id === 'string' && el.id) {

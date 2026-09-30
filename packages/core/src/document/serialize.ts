@@ -2,7 +2,6 @@ import { isModdleElement } from '@core/element/moddle';
 import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, inferredRoot, isHeadlessCollaboration, type YamlDoc } from '@core/document/format';
 import { readState } from '@core/document/state';
 import {
-  CHECKLIST_MARKER,
   DI_NODE_TYPES,
   compactDiNode,
   flowEndsOf,
@@ -108,8 +107,7 @@ function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext
       }
       const docs = inlineDocumentationEntries(value);
       if (docs) {
-        if (docs.documentation !== undefined) out[key] = docs.documentation;
-        if (docs.checklist !== undefined) out[CHECKLIST_MARKER] = docs.checklist;
+        out[key] = docs;
         continue;
       }
       const items = value.map((item: any) => serializeValue(item, p.type, ctx));

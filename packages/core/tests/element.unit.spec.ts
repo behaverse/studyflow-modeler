@@ -33,14 +33,9 @@ test('an attribute is read and written where it lives, and a read takes the valu
       writes: [['conditionExpression', 'score > 1']], reads: { conditionExpression: 'score > 1' }, holder: (bo) => bo.conditionExpression.body,
     },
     {
-      label: 'the checklist, a documentation entry that rewriting the prose leaves alone', type: 'bpmn:Task',
-      writes: [['documentation', 'Prose.'], ['checklist', '- [x] consent approved'], ['documentation', 'New prose.']],
-      reads: { documentation: 'New prose.', checklist: '- [x] consent approved' },
-    },
-    {
-      label: 'the prose, a documentation entry that writing and clearing the checklist leaves alone', type: 'bpmn:Task',
-      writes: [['documentation', 'Prose.'], ['checklist', '- [ ] only item'], ['checklist', '']],
-      reads: { documentation: 'Prose.', checklist: undefined },
+      label: 'the checklist, an attribute on the element beside the prose', type: 'bpmn:Task',
+      writes: [['documentation', 'Prose.'], ['checklist', '- [x] consent approved']],
+      reads: { documentation: 'Prose.', checklist: '- [x] consent approved' }, holder: (bo) => bo.checklist,
     },
     {
       // A wrapper is no BPMN element: a trait on the element's type is the element's alone.
