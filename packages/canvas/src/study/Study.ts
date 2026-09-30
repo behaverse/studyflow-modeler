@@ -4,7 +4,7 @@
  * study, and several views may share one.
  */
 
-import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, readerWarning, studyflowToDefinitions, toWireDefinitions, toWireXml } from '@core/document';
+import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, patchDoc, readerWarning, setItemSubject, setMessageItem, studyflowToDefinitions, toWireDefinitions, toWireXml } from '@core/document';
 import type { YamlDoc } from '@core/document/format.ts';
 import { definitionsToYamlDoc } from '@core/document/serialize.ts';
 import { categoryOf, isExpandable } from '@core/document/outline.ts';
@@ -31,7 +31,7 @@ import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, S
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
 import { copyOf, fragmentOf } from '@canvas/study/clipboard.ts';
-import { isStepTool, misfitOf, STUDY_TOOLS, type AskableTool, type StepTool, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
+import { ASKABLE_TOOLS, isStepTool, misfitOf, STUDY_TOOLS, type StepTool, type StructureRecord, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
 import { boundsOf, edgesAffectedBy, hostOf, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
 import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
@@ -257,7 +257,12 @@ export class Study {
         const element = this.get(argument.id);
         return element ? { ok: true, element } : refused(`no element '${argument.id}'`);
       }
-      case 'list': return { ok: true, elements: this.list(argument) };
+      case 'list': {
+        const wanted = typeof argument.name === 'string' ? argument.name.toLowerCase() : undefined;
+        const found = this.list(argument).filter((element) => wanted === undefined || element.name?.toLowerCase().includes(wanted));
+        return { ok: true, elements: argument.geometry ? found : found.map(undrawn) };
+      }
+      case 'describe': return this.describe(argument);
       case 'catalog': return { ok: true, ...this.catalog() };
       case 'can': return this.can(argument.tool, argument.args);
       case 'attributes': {
@@ -276,10 +281,49 @@ export class Study {
    * whether anything may follow `from`, `can('connect', { from })` whether a flow may leave it, `can('replace', { id })`
    * whether it may be retyped at all.
    */
-  can(tool: AskableTool, args: Record<string, unknown>): Verdict {
+  can(tool: StepTool, args: Record<string, unknown>): Verdict {
+    if (!(ASKABLE_TOOLS as readonly string[]).includes(tool)) {
+      // Any other write is asked by running it on a copy of the document, which is then let go.
+      const copy = Study.fromDefinitions(studyflowToDefinitions(JSON.parse(this.snapshots[this.current]) as YamlDoc, moddleOf(this.definitions), () => {}), this.options);
+      const outcome = copy.call(tool, args);
+      return outcome.ok ? { ok: true } : { ok: false, reason: (outcome as Verdict).reason };
+    }
     const checked = misfitOf(tool, args, ['to', 'type'])
       ?? (tool === 'append' ? this.appending(args as never) : tool === 'connect' ? this.connecting(args as never) : this.replacing(args as never));
     return typeof checked === 'string' ? { ok: false, reason: checked } : { ok: true };
+  }
+
+  /**
+   * What an element of `type` takes, before one exists: its schema's attributes (with `extension`, that schema
+   * type's too), and the properties BPMN gives it, which `set` takes as the file spells them.
+   */
+  describe(args: { type: string; extension?: string }): ToolResult {
+    const model = moddleOf(this.definitions);
+    const misfit = args.extension === undefined ? undefined : extensionMisfit({ type: args.type, extension: args.extension } as NewShape);
+    if (misfit) return refused(misfit);
+    let made: ModdleObject;
+    try {
+      made = model.create(args.type, {}) as ModdleObject;
+    } catch {
+      return refused(`no type '${args.type}'`);
+    }
+    if (args.extension) StudyflowElement.fromBusinessObject(made).ensureExtension(args.extension, model, {});
+    return { ok: true, attributes: attributesOf(made), structure: structureOf(made, model) };
+  }
+
+  /**
+   * Say what the message flow `id` carries, or what the property or data object `id` holds: the item definition of
+   * `structure`, which the document keeps one of, made on first use. An empty `structure` says nothing of it.
+   */
+  item({ id, structure }: { id: string; structure: string }): StudyResult {
+    const found = this.find(id);
+    if (!found) return refused(`no element '${id}'`);
+    const { moddle } = found;
+    const carries = moddle.$type === 'bpmn:MessageFlow';
+    if (!carries && !(moddle.$descriptor as { propertiesByName?: Record<string, unknown> })?.propertiesByName?.itemSubjectRef) {
+      return refused(`'${id}' is no message flow, property or data object: it holds no item`);
+    }
+    return this.write(found.drawn, (writer) => (carries ? setMessageItem : setItemSubject)(writer, this.definitions, moddle, structure.trim()));
   }
 
   /** Goes up by one on every change. */
@@ -289,14 +333,56 @@ export class Study {
 
   /**
    * Set `attribute` on the element `id` names, where its schema keeps it (core's `setAttribute`); 'name' renames. An
-   * attribute neither a schema nor BPMN gives the element is refused, never written as a stray.
+   * attribute neither a schema nor BPMN gives the element is refused, never written as a stray. A structured value
+   * (a loop marker, an event's definitions, a scope's properties, the data a step reads) or a reference (a gateway's
+   * `default`) is given as the `.studyflow.yaml` file spells it, and read as the file is.
    */
   set({ id, attribute, value }: { id: string; attribute: string; value: unknown }): StudyResult {
     const found = this.find(id);
     if (!found) return refused(`no element '${id}'`);
     if (!declares(found.moddle, attribute)) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
+    const property = (found.moddle.$descriptor as { propertiesByName?: Record<string, { isReference?: boolean }> } | undefined)?.propertiesByName?.[attribute];
+    // What BPMN keeps as an element or a reference is written as the file spells it, and cleared by taking it out;
+    // text kept in an element of its own (an expression, the documentation) is written in place, as it is typed.
+    const held = [found.moddle[attribute]].flat()[0] as ModdleObject | undefined;
+    const text = typeof held?.$instanceOf === 'function' && (held.$instanceOf('bpmn:Expression') || held.$instanceOf('bpmn:Documentation'));
+    const structured = property?.isReference || (typeof held === 'object' && held !== null && !text);
+    if (value === null ? structured : typeof value === 'object' || property?.isReference) return this.spell(found.moddle, attribute, value, found.drawn?.id ?? this.root.id);
     // Typing into one attribute is one undo step, however many keystrokes wrote it.
     return this.within(`set:${id}:${attribute}`, () => this.write(found.drawn, (writer) => setAttribute(found.moddle, attribute, value, writer)));
+  }
+
+  /**
+   * Write `attribute` of `moddle` as the file spells `value`: the document's tree with that one key changed, read
+   * back whole, so what the value names (a flow, a property, a data object) is what the document holds. One undo
+   * step, reported on `about`. Refused, and nothing changed, when the reader cannot place something in it.
+   */
+  private spell(moddle: ModdleObject, attribute: string, value: unknown, about: string): StudyResult {
+    const model = moddleOf(this.definitions);
+    const read = (doc: YamlDoc): { definitions: ModdleObject; warnings: string[] } => {
+      const warnings: string[] = [];
+      return { definitions: studyflowToDefinitions(doc, model, (warning) => warnings.push(warning)), warnings };
+    };
+    const doc = JSON.parse(this.snapshots[this.current]) as YamlDoc;
+    const known = new Set(read(JSON.parse(this.snapshots[this.current]) as YamlDoc).warnings);
+    if (!patchDoc(doc, moddle, attribute, value)) return refused(`'${attribute}' of '${moddle.id}' is not written this way: edit it in the document`);
+    let patched: ReturnType<typeof read>;
+    try {
+      patched = read(doc);
+    } catch (error) {
+      return refused(error instanceof Error ? error.message : String(error));
+    }
+    const misread = patched.warnings.find((warning) => !known.has(warning));
+    if (misread) return refused(misread);
+    this.snapshots.length = this.current + 1;
+    this.snapshots.push(snapshotOf(patched.definitions));
+    if (this.snapshots.length > UNDO_DEPTH + 1) this.snapshots.shift();
+    this.current = this.snapshots.length - 1;
+    this.run = undefined;
+    // Heard as a redo is: another document in place of the one it held, which every view reads afresh. The caller is
+    // told what it wrote.
+    this.swap(patched.definitions, 'redo');
+    return { ok: true, added: [], changed: [about], removed: [] };
   }
 
   /**
@@ -771,6 +857,7 @@ export class Study {
       paste: (a) => this.paste(a),
       layout: () => this.layout(),
       set: (a) => this.set(a),
+      item: (a) => this.item(a),
       remove: (a) => this.remove(a),
       style: (a) => this.style(a),
       expand: (a) => this.expand(a),
@@ -890,6 +977,36 @@ export class Study {
 }
 
 const NOTHING: ChangedIds = { added: [], changed: [], removed: [] };
+
+/** A record without where it is drawn: what an element is, and how it connects. */
+function undrawn({ bounds: _bounds, waypoints: _waypoints, fill: _fill, stroke: _stroke, font: _font, pinned: _pinned, ...what }: ElementRecord): ElementRecord {
+  return what;
+}
+
+/** What BPMN declares and a schema does not re-declare, which no document writes by hand. */
+const UNSET = new Set(['id', 'incoming', 'outgoing', 'extensionElements', 'extensionDefinitions', 'lanes', 'categoryValueRef', 'auditing', 'monitoring']);
+
+/** The properties BPMN gives the element `made`, as `set` takes them: each with the concrete types it may hold. */
+function structureOf(made: ModdleObject, model: Moddle): StructureRecord[] {
+  const schema = new Set(attributesOf(made).map((attribute) => attribute.name));
+  const types: { name: string; isAbstract?: boolean }[] = model.getPackage('bpmn')?.types ?? [];
+  const concrete = (type: string): string[] => (type.startsWith('bpmn:')
+    ? types.filter((candidate) => !candidate.isAbstract && isBpmnSubtypeOf(`bpmn:${candidate.name}`, type)).map((candidate) => candidate.name)
+    : []);
+  const properties = ((made.$descriptor as { properties?: { name: string; type: string; isMany?: boolean; isReference?: boolean; ns?: { prefix?: string; localName?: string } }[] }).properties ?? []);
+  return properties
+    .filter((property) => property.ns?.prefix === 'bpmn' && !UNSET.has(property.name) && !schema.has(property.name))
+    .map((property): StructureRecord => {
+      const of = property.isReference ? [] : concrete(property.type);
+      return {
+        name: property.name,
+        type: property.type,
+        ...(property.isMany ? { many: true } : {}),
+        ...(property.isReference ? { reference: true } : {}),
+        ...(of.length > 1 ? { of } : {}),
+      };
+    });
+}
 
 function refused(reason: string): StudyResult {
   return { ok: false, reason, ...NOTHING };

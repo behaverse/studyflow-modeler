@@ -69,7 +69,7 @@ export async function mcp(path: string): Promise<void> {
           protocolVersion: PROTOCOL,
           capabilities: { tools: {} },
           serverInfo: { name: 'studyflow', version: import.meta.env?.APP_VERSION ?? 'dev' },
-          instructions: `The study in ${path}. Read it with \`document\`, \`list\` or \`get\`; change it with the write tools, each all or nothing and undoable; \`check\` it; \`save\` writes it back.`,
+          instructions: `The study in ${path}. Read it with \`document\`, \`list\` or \`get\`; \`catalog\` and \`describe\` say what can be made and what it takes. Change it with the write tools, each all or nothing and undoable: \`set\` takes any attribute, a structured one (a loop, a timer, a condition, properties, data edges) as the document spells it, and \`can\` tries a write without writing. \`check\` it; \`save\` writes it back.`,
         });
         break;
       case 'ping':

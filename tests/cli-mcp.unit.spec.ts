@@ -20,6 +20,7 @@ test('mcp serves the study tools on stdio, and save writes the edit back', () =>
     { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'set', arguments: { id: 'Gate', attribute: 'name', value: 'Again?' } } },
     { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'set', arguments: { id: 'Nowhere', attribute: 'name', value: 'x' } } },
     { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'check', arguments: {} } },
+    { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'set', arguments: { id: 'Say', attribute: 'loopCharacteristics', value: { type: 'StandardLoopCharacteristics', loopMaximum: 2 } } } },
     { jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'save', arguments: {} } },
   ];
   const run = spawnSync(process.execPath, [path.join(dir, 'bin', 'studyflow.mjs'), 'mcp', file], {
@@ -35,4 +36,7 @@ test('mcp serves the study tools on stdio, and save writes the edit back', () =>
   expect(replies.get(5).structuredContent.ok).toBe(true);
   expect(replies.get(6).structuredContent.ok).toBe(true);
   expect(readFileSync(file, 'utf8')).toContain('name: Again?');
+  // A structured attribute is set as the file spells it, and the file holds it.
+  expect(replies.get(7).isError).toBe(false);
+  expect(readFileSync(file, 'utf8')).toContain('loopMaximum: 2');
 });

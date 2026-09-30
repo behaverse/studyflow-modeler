@@ -209,6 +209,96 @@ test('set writes an attribute where its schema keeps it, by any id the document 
   expect((study.definitions.rootElements as any[])[0].properties[0].name).toBe('total');
 });
 
+test('set takes a structured attribute as the file spells it: a loop, a timer, the data a step reads, a reference; each one undo step', () => {
+  const study = open();
+  const task = (): any => nodeOf(study, 'Task_1').businessObject;
+
+  // A loop marker, polymorphic, so it names its type as the file does.
+  expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: { type: 'StandardLoopCharacteristics', loopMaximum: 3, loopCondition: 'count < 3' } }))
+    .toMatchObject({ ok: true, changed: ['Task_1'] });
+  expect(task().loopCharacteristics).toMatchObject({ $type: 'bpmn:StandardLoopCharacteristics', loopMaximum: 3 });
+  expect(task().loopCharacteristics.loopCondition.body).toBe('count < 3');
+
+  // What a step reads, by the id of what it reads: a reference the document resolves.
+  expect(study.set({ id: 'Task_1', attribute: 'dataInputAssociations', value: { In_Count: { sourceRef: ['Count'] } } }).ok).toBe(true);
+  expect(task().dataInputAssociations[0].sourceRef[0]).toBe((study.definitions.rootElements as any[])[0].properties[0]);
+
+  // A name the document does not hold is refused, and nothing is written.
+  const before = study.toYaml();
+  expect(study.set({ id: 'Task_1', attribute: 'dataInputAssociations', value: { In_Gone: { sourceRef: ['Gone'] } } }))
+    .toMatchObject({ ok: false, reason: expect.stringContaining("names 'Gone', which no element is") });
+  expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: { type: 'NoSuchLoop' } }).ok).toBe(false);
+  expect(study.toYaml()).toBe(before);
+
+  // The file holds what was set, and each set undoes on its own; null clears.
+  expect(before).toContain('loopMaximum: 3');
+  expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: null }).ok).toBe(true);
+  expect(task().loopCharacteristics).toBeUndefined();
+  study.undo();
+  expect(task().loopCharacteristics.loopMaximum).toBe(3);
+  study.undo();
+  expect(task().dataInputAssociations ?? []).toHaveLength(0);
+  expect(task().loopCharacteristics.loopMaximum).toBe(3);
+});
+
+test('an AI finds what it may write before it writes: describe says what a type takes, can tries any write on a copy, list finds by name', () => {
+  const study = open();
+  // What a task takes: its schema's attributes, and BPMN's own, the polymorphic ones with the types they may hold.
+  const described = study.call('describe', { type: 'bpmn:Task' }) as any;
+  expect(described.attributes.map((attribute: any) => attribute.name)).toContain('name');
+  const structure = new Map<string, any>(described.structure.map((entry: any) => [entry.name, entry]));
+  expect(structure.get('loopCharacteristics')).toMatchObject({ type: 'bpmn:LoopCharacteristics', of: ['MultiInstanceLoopCharacteristics', 'StandardLoopCharacteristics'] });
+  expect(structure.get('default')).toMatchObject({ reference: true });
+  expect(structure.get('dataInputAssociations')).toMatchObject({ many: true });
+  expect(study.call('describe', { type: 'bpmn:NoSuchType' })).toMatchObject({ ok: false, reason: "no type 'bpmn:NoSuchType'" });
+
+  // Any write is asked without writing: the document is as it was, and the reason is the write's own.
+  const before = study.toYaml();
+  expect(study.call('can', { tool: 'set', args: { id: 'Task_1', attribute: 'loopCharacteristics', value: { type: 'StandardLoopCharacteristics' } } })).toEqual({ ok: true });
+  expect(study.call('can', { tool: 'set', args: { id: 'Task_1', attribute: 'wingspan', value: 3 } }))
+    .toEqual({ ok: false, reason: "no schema gives 'Task_1' an attribute 'wingspan'" });
+  expect(study.call('can', { tool: 'remove', args: { ids: ['Task_1'] } })).toEqual({ ok: true });
+  expect([study.toYaml(), study.canUndo]).toEqual([before, false]);
+
+  // A list is what elements are, not where they are drawn, unless asked; a name finds one in any case.
+  const found = (study.call('list', { name: 'rea' }) as any).elements;
+  expect(found).toEqual([{ id: 'Task_1', kind: 'node', type: 'bpmn:Task', name: 'Read', incoming: [], outgoing: [] }]);
+  expect((study.call('list', { name: 'rea', geometry: true }) as any).elements[0].bounds).toEqual({ x: 200, y: 80, width: 100, height: 80 });
+});
+
+test('item says what a message flow carries and what a property holds, keeping one definition of each', async () => {
+  const study = Study.fromDefinitions(studyflowToDefinitions(`id: Defs_3
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P }
+    Model: { name: Model }
+  messageFlows:
+    M_Ask: Ask -> Model
+    M_Again: Ask -> Model
+P:
+  type: Process
+  properties:
+    Seen: { name: seen }
+  flowElements:
+    Ask: { type: Task, bounds: 200 80 100 80 }
+`, freshModdle()));
+  const roots = (): string[] => (study.definitions.rootElements as any[]).map((root) => `${root.$type} ${root.id}`);
+  expect(study.call('item', { id: 'M_Ask', structure: 'behaverse:Trial' }).ok).toBe(true);
+  expect(study.call('item', { id: 'M_Again', structure: 'behaverse:Trial' }).ok).toBe(true);
+  expect(study.call('item', { id: 'Seen', structure: 'behaverse:Trial' }).ok).toBe(true);
+  // One item definition, one message, shared by both flows and the property.
+  expect(roots().filter((root) => /ItemDefinition|Message /.test(root))).toEqual(['bpmn:ItemDefinition ItemDefinition_behaverse_Trial', 'bpmn:Message Message_behaverse_Trial']);
+  expect(study.toYaml()).toContain('messageRef: Message_behaverse_Trial');
+  // The message goes with its last flow; what holds no item is refused.
+  study.call('item', { id: 'M_Ask', structure: '' });
+  study.call('item', { id: 'M_Again', structure: '' });
+  expect(roots().some((root) => root.startsWith('bpmn:Message '))).toBe(false);
+  expect(study.call('item', { id: 'Ask', structure: 'x' })).toMatchObject({ ok: false, reason: expect.stringContaining('holds no item') });
+});
+
 test('an edit is one commit and one undo step, however many moddle writes it makes', () => {
   const study = open();
   const task = nodeOf(study, 'Task_1').businessObject;
@@ -548,7 +638,7 @@ test('an MCP client drives a study through its tools: listed as JSON, called wit
 
   const tools = JSON.parse(JSON.stringify(Study.tools)) as StudyTool[];
   expect(tools, 'JSON through and through').toEqual(Study.tools);
-  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'attributes', 'catalog', 'can', 'copy']);
+  expect(tools.filter((tool) => tool.annotations.readOnlyHint).map((tool) => tool.name)).toEqual(['document', 'get', 'list', 'attributes', 'describe', 'catalog', 'can', 'copy']);
   expect(tools.find((tool) => tool.name === 'connect')?.inputSchema).toMatchObject({ type: 'object', required: ['from', 'to'] });
 
   const appended = call(study, 'append', { from: 'Task_1', type: 'bpmn:EndEvent', id: 'Done' });

@@ -37,15 +37,27 @@ export interface StudyTool {
 }
 
 /** The write tools a batch runs as its steps. */
-export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'rename', 'resize', 'reroute', 'paste', 'layout', 'set', 'remove', 'style', 'expand', 'collapse'] as const;
+export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'rename', 'resize', 'reroute', 'paste', 'layout', 'set', 'item', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
-export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'catalog' | 'can' | 'copy' | 'batch' | 'undo' | 'redo';
+export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'describe' | 'catalog' | 'can' | 'copy' | 'batch' | 'undo' | 'redo';
 
-/** The verbs `can` answers for: what makes or retypes something, where the rules decide. */
+/** The verbs `can` answers for by the rules alone, so it may ask with part of the argument left out. */
 export const ASKABLE_TOOLS = ['append', 'connect', 'replace'] as const;
 
 export type AskableTool = (typeof ASKABLE_TOOLS)[number];
+
+/** What an element of a type takes beside its schema's attributes: a property BPMN gives it, set as the file spells it. */
+export interface StructureRecord {
+  readonly name: string;
+  /** What it holds: a BPMN type, or a built-in (`String`, `Boolean`). */
+  readonly type: string;
+  readonly many?: boolean;
+  /** It names another element by id, rather than holding one. */
+  readonly reference?: boolean;
+  /** The concrete types it may hold, when `type` has several: each names itself with `type:`. */
+  readonly of?: readonly string[];
+}
 
 /** What `call` answers: a write's result, or what a read found; `ok` false, and why, when the tool did nothing. */
 export type ToolResult =
@@ -54,6 +66,7 @@ export type ToolResult =
   | { readonly ok: true; readonly element: ElementRecord }
   | { readonly ok: true; readonly elements: readonly ElementRecord[] }
   | { readonly ok: true; readonly attributes: readonly AttributeRecord[] }
+  | { readonly ok: true; readonly attributes: readonly AttributeRecord[]; readonly structure: readonly StructureRecord[] }
   | ({ readonly ok: true } & Catalog)
   | Verdict;
 
@@ -106,15 +119,21 @@ const NEW: Record<string, JsonSchema> = {
 export const STUDY_TOOLS: readonly StudyTool[] = [
   tool('document', 'The whole study as its .studyflow.yaml file holds it: every element with its attributes, every flow, and the drawing.', {}, []),
   tool('get', "One element as a record: its kind, type (and the schema type extending it), name, parent, bounds, and flows in and out; a flow's ends and route. The root's id reads the root.", { id: ID }, ['id']),
-  tool('list', 'The shapes and flows as records, in document order: all of them, or those of a kind (captions only this way), of a type (a BPMN or a schema type), or within a container however deep.', {
+  tool('list', 'The shapes and flows as records, in document order: all of them, or those of a kind (captions only this way), of a type (a BPMN or a schema type), within a container however deep, or whose name holds `name`. A record says what an element is and how it connects; with `geometry`, where it is drawn too.', {
     kind: { type: 'string', enum: ['node', 'edge', 'label'] },
     type: STRING,
     within: ID,
+    name: { type: 'string', description: 'Part of a name, in any case.' },
+    geometry: { type: 'boolean', description: 'With bounds, routes and colours.' },
   }, []),
   tool('attributes', "The attributes an element (or the root) takes, by the names `set` takes: each one's type, description and, for an enumeration, its values; when the inspector shows it; and what it holds now, when that is plain JSON.", { id: ID }, ['id']),
+  tool('describe', "What an element of `type` takes, before one exists: its schema's attributes as `attributes` lists them (with `extension`, that schema type's too), and what BPMN gives it (`structure`): a loop marker, an event's definitions, a condition, the properties a scope declares, the data a step reads. `set` takes each by its name, a structured one as the document spells it.", {
+    type: { type: 'string', description: 'A BPMN type: bpmn:Task.' },
+    extension: { type: 'string', description: 'A schema type extending it, as the catalog lists them.' },
+  }, ['type']),
   tool('catalog', "What add, append and replace make: the BPMN types, the schema types extending them, and the templates, each with a title and a description.", {}, []),
-  tool('can', "Whether append, connect or replace would run on `args`, without writing, and why not. Leave out what is not decided yet to ask about any: append's `type`, whether anything may follow `from`; connect's `to`, whether a flow may leave it; replace's `type`, whether it may be retyped at all.", {
-    tool: { type: 'string', enum: ASKABLE_TOOLS },
+  tool('can', "Whether a write tool would run on `args`, without writing, and why not. Of append, connect and replace, leave out what is not decided yet to ask about any: append's `type`, whether anything may follow `from`; connect's `to`, whether a flow may leave it; replace's `type`, whether it may be retyped at all.", {
+    tool: { type: 'string', enum: STEP_TOOLS },
     args: { type: 'object', description: "The verb's argument, as far as it is decided." },
   }, ['tool', 'args']),
   tool('copy', 'The shapes `ids` name, with what they hold, the boundary events on them and the flows between them, as a .studyflow.yaml document of their own: what paste takes. Pools, lanes and a flow without its ends stay behind, and so does every reference to what does.', {
@@ -159,11 +178,15 @@ export const STUDY_TOOLS: readonly StudyTool[] = [
     into: ID,
   }, ['yaml'], write(false, false)),
   tool('layout', 'Lay the whole diagram out afresh: each flow left to right, lanes as bands, pools stacked, data under its steps, groups round what they hold; shapes keep their sizes, and every flow is routed anew.', {}, [], write(false, true)),
-  tool('set', "Set an attribute of an element, or of the root, where its schema keeps it (`attributes` lists them); 'name' renames, and null clears.", {
+  tool('set', "Set an attribute of an element, or of the root, where its schema keeps it (`attributes` lists them); 'name' renames, and null clears. What BPMN gives an element is set the same way, spelled as the document spells it (`describe` lists it): `loopCharacteristics: { type: StandardLoopCharacteristics, loopMaximum: 3 }`, `eventDefinitions: [{ type: TimerEventDefinition, timeDuration: PT5M }]`, `conditionExpression: \"score > 0.9\"`, `default: Flow_No`, `properties: { P_Count: { name: count, value: \"0\" } }`, `dataInputAssociations: { In_Trials: { sourceRef: [Trials] } }`. Such a value replaces what was there whole, and names other elements by id.", {
     id: ID,
-    attribute: { type: 'string', description: "Its name, as the document spells it: 'name', 'duration', 'cognitive:instrument'." },
+    attribute: { type: 'string', description: "Its name, as the document spells it: 'name', 'duration', 'cognitive:instrument', 'loopCharacteristics'." },
     value: { description: 'Any JSON value the attribute takes.' },
   }, ['id', 'attribute', 'value'], write(false, true)),
+  tool('item', "Say what a message flow carries, or what a property or a data object holds: `structure` names it (a schema type such as `behaverse:Trial`, or any text), and the document keeps one definition of each, made on first use. An empty `structure` says nothing of it.", {
+    id: ID,
+    structure: { type: 'string' },
+  }, ['id', 'structure'], write(false, true)),
   tool('remove', "Remove elements and all that goes with them: their contents and their flows. A caption's id clears the name it shows.", { ids: IDS }, ['ids'], write(true, true)),
   tool('style', "Colour elements and letter their captions; a caption's id styles what it captions. What is left out stays as it is.", {
     ids: IDS,
