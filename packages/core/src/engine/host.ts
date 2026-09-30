@@ -9,6 +9,10 @@ export type StateTree = Record<string, any>;
 /** A message along a message flow. */
 export type Message = { id: string; flow: string; content: unknown; inReplyTo?: string };
 
+/** Which conversation a message to a pool that remembers belongs to: the pool and the instance of the pool asking it,
+ * and how many exchanges of it came before (`turn`, from 0). */
+export type Conversation = { id: string; turn: number };
+
 /** What a claimed element's runner exchanges while it runs: a message out along one of its flows, the messages in. */
 export type Talk = {
   send(line: { flow?: unknown; content?: unknown; id?: string; inReplyTo?: string }): void;
@@ -63,10 +67,11 @@ export type Reuse = {
 export type Host = {
   /** The runner that claims an element, by name, and whether its claim is live: a live element never skips or replays. */
   claim(id: string): { name: string; live: boolean } | undefined;
-  /** Hands a claimed element, or one `message` to a pool a runner plays, to its runner: the run's values in, what the
+  /** Hands a claimed element, or one `message` to a pool a runner plays (with its `conversation`, when the pool
+   * remembers), to its runner: the run's values in, what the
    * runner hands back out. A failure rejects, with a {@link HandoffError} when something had been bound first.
    * `signal` aborts when a timer at a boundary event ends the activity the hand-off is in: the host stops it. */
-  perform(id: string, values: Record<string, unknown>, step: { message?: Message; talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Handback>;
+  perform(id: string, values: Record<string, unknown>, step: { message?: Message; conversation?: Conversation; talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Handback>;
   /** Resolves `ms` from now, for the timer event `at`, unless `signal` aborts first; without it, the machine's clock. */
   wait?(ms: number, signal: AbortSignal, at: string): Promise<void>;
   log: Note;

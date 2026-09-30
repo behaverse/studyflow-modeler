@@ -96,7 +96,8 @@ class Step:
     """One hand-off: an element to run, or one message to a pool this runner plays."""
 
     def __init__(self, element_id: str, plan: dict[str, Any], values: dict[str, Any], message: dict[str, Any] | None = None,
-                 run_dir: Path | None = None, cache: Path | None = None, wire: "_Wire | None" = None) -> None:
+                 run_dir: Path | None = None, cache: Path | None = None, wire: "_Wire | None" = None,
+                 conversation: dict[str, Any] | None = None) -> None:
         self.id = element_id
         self.plan = plan
         self.elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
@@ -105,6 +106,10 @@ class Step:
         self.values = values
         # The message sent to the pool, when the element is a pool this runner plays.
         self.message = message
+        # When that pool remembers (its actor's `memory: conversation`): `{"id", "turn"}`, the conversation the message
+        # belongs to (one per instance of the pool asking) and how many exchanges of it came before. What was said is
+        # the runner's to keep; a `turn` it has no record of means it was started again, and lost the conversation.
+        self.conversation = conversation
         self.options: dict[str, Any] = plan.get("options") or {}
         self.seed = (plan.get("study") or {}).get("seed")
         self.run_dir = run_dir or Path.cwd()
@@ -267,7 +272,7 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
     def perform(request_id: Any, params: dict[str, Any]) -> None:
         element_id = str(params.get("element"))
         step = Step(element_id, plan, params.get("values") or {}, params.get("message"),
-                    Path(run.get("dir") or "."), Path(run.get("cache") or ".cache"), wire)
+                    Path(run.get("dir") or "."), Path(run.get("cache") or ".cache"), wire, params.get("conversation"))
         steps[element_id] = step
         current.element = element_id
         started = time.perf_counter()

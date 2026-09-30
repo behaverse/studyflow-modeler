@@ -481,6 +481,35 @@ S:
     expect(journal.some((line) => line.event === 'activity.started' && line.element === 'Play')).toBe(true);
   });
 
+  test('hands a pool that remembers the conversation each message belongs to', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-memory-'));
+    fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), `id: memory
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Subjects: { name: Subjects, participantMultiplicity: { maximum: 2 }, processRef: S }
+    Model: { type: studyflow:Actor, name: Model, actorType: llm, memory: conversation }
+  messageFlows:
+    M_Ask: { sourceRef: Ask, targetRef: Model }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Ask: { type: SendTask }
+    S9: { type: EndEvent }
+    SF1: S0 -> Ask
+    SF2: Ask -> S9
+`);
+    const heard = path.join(dir, 'heard.jsonl');
+    writeRunner(path.join(dir, 'model.py'), "['Model']", [`open(${JSON.stringify(heard)}, 'a').write(json.dumps(step.conversation) + '\\n')`, "return 'ok'"]);
+    execFileSync(process.execPath, [BIN, 'run', 'plan.studyflow.yaml', '--repo', 'run', '--quiet', '--runner', `model=python3 ${path.join(dir, 'model.py')}`],
+      { cwd: dir, stdio: 'pipe', env: ENV });
+    expect(fs.readFileSync(heard, 'utf8').trim().split('\n').map((line) => JSON.parse(line)))
+      .toEqual([{ id: 'Model with Subjects #1', turn: 0 }, { id: 'Model with Subjects #2', turn: 0 }]);
+  });
+
   test('records a staged input under the hand-off that reads it, not one running beside it', async () => {
     // Two pools at once: Load cites the input by name and its runner stages it; Wait reads nothing and outlasts Load.
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

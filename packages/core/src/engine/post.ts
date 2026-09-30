@@ -1,5 +1,5 @@
 import type { Graph } from '@core/engine/graph';
-import { Interrupted, keepRecord, logAt, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
+import { Interrupted, keepRecord, logAt, type Conversation, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
 import type { PlanElement } from '@core/engine/plan';
 import type { Steps } from '@core/engine/steps';
 import type { Values } from '@core/engine/values';
@@ -14,6 +14,8 @@ export class Post {
   private readonly waiting = new Set<() => void>();
   private readonly poolsDone = new Set<string>();
   private readonly serving = new Map<string, Promise<unknown>>();
+  /** The exchanges each conversation with a pool that remembers has had this run. */
+  private readonly turns = new Map<string, number>();
   private sent = 0;
   /** Why the run is ending, once a pool failed or the run was stopped: every wait fails with it. */
   failed: unknown;
@@ -71,9 +73,13 @@ export class Post {
     const name = pool.name || pool.id;
     const entry = this.steps.begin(pool.id, name, 'bpmn:Participant');
     entry.message = message.id;
+    const conversation = this.conversationOf(pool, thread);
     const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
       try {
-        const answered = await host.perform(pool.id, this.values.json(), { message, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
+        const asked = conversation && { ...conversation, turn: this.turns.get(conversation.id) ?? 0 };
+        const answered = await host.perform(pool.id, this.values.json(), { message, conversation: asked, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
+        // An exchange that failed is no part of the conversation.
+        if (asked) this.turns.set(asked.id, asked.turn + 1);
         keepRecord(entry, answered);
         const reply = answered.result ?? null;
         if (typeof reply === 'string') entry.reply = reply.slice(0, 2000); // what the pool said, kept with the run's records
@@ -94,6 +100,15 @@ export class Post {
     const back = flows.find((candidate) => candidate.attributes.targetRef === sender)
       ?? flows.find((candidate) => graph.poolOf(candidate.attributes.targetRef ?? '') === graph.poolOf(sender));
     if (back) await this.send(back, reply, thread, { inReplyTo: message.id });
+  }
+
+  /** The conversation a message from `thread` to `pool` belongs to, when the pool remembers: one per instance of the
+   * asking pool, so a model answering one subject sees that subject's earlier messages and no other subject's. */
+  private conversationOf(pool: PlanElement, thread: Thread): Omit<Conversation, 'turn'> | undefined {
+    if (pool.memory !== 'conversation') return undefined;
+    const { participant } = this.graph.instancesOf(thread.pool);
+    const instance = (this.values.state._meta?.instance as Record<string, number> | undefined)?.[participant];
+    return { id: `${pool.id} with ${participant}${instance ? ` #${instance}` : ''}` };
   }
 
   /** The next message along one of `flows`, waited for. A message at a boundary event of an activity around it ends

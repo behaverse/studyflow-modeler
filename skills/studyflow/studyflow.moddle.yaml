@@ -155,6 +155,15 @@ enumerations:
       - name: boolean
         value: boolean
 
+  - name: MemoryEnum
+    description: What a pool a runner plays remembers between the messages it is sent.
+    literalValues:
+      - name: None
+        value: none
+        description: Each message on its own.
+      - name: Conversation
+        value: conversation
+        description: The earlier messages from the same instance of the asking pool, and the answers to them.
   # Coarse on purpose: a skill adds the kinds it knows with `extends: studyflow:ActorTypeEnum` (agentic adds `llm`).
   - name: ActorTypeEnum
     description: What a participant pool stands for.
@@ -479,6 +488,15 @@ types:
         description: The program, model, or device, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://gemma4`, `lsl://triggers`).
         isAttr: true
         type: String
+        meta:
+          condition:
+            actorType:
+              $not: human
+      - name: memory
+        description: What a pool with no process remembers between the messages it is sent, when a runner plays it (a model). `none`, each message on its own. `conversation`, the earlier messages from the same instance of the pool that asks, with its answers to them, so a model answering one subject sees that subject's earlier trials and no other subject's.
+        isAttr: true
+        type: MemoryEnum
+        default: none
         meta:
           condition:
             actorType:

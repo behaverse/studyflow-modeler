@@ -59,6 +59,9 @@ export type PlanElement = {
   timer?: Timer;
   /** A participant's `participantMultiplicity/@maximum`. */
   multiplicity?: number;
+  /** A pool with no process that remembers the conversation of each instance of the pool asking it: its actor's
+   * `memory`. */
+  memory?: 'conversation';
   /** How a gateway of its extension type picks its branch (the schema's `meta.branching`): `random`. */
   branching?: string;
 };
@@ -206,6 +209,8 @@ export function planElement(element: ModdleElement): PlanElement {
     digest.timer = { duration: time(timed.timeDuration), date: time(timed.timeDate), cycle: time(timed.timeCycle) };
   }
   if (typeof element.participantMultiplicity?.maximum === 'number') digest.multiplicity = element.participantMultiplicity.maximum;
+  const actor = (element.extensionElements?.values ?? []).find((ext: ModdleElement) => ext.$type === 'studyflow:Actor');
+  if (actor?.memory === 'conversation') digest.memory = 'conversation';
   const extensionType = getExtensionType(element);
   const branching = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.branching : undefined;
   if (typeof branching === 'string') digest.branching = branching;

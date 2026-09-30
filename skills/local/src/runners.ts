@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline';
 import { createInterface as createPrompt } from 'node:readline/promises';
 import type { Readable, Writable } from 'node:stream';
 
-import { HandoffError, PROTOCOL, type Handback, type Message, type Talk } from '@core/engine';
+import { HandoffError, PROTOCOL, type Conversation, type Handback, type Message, type Talk } from '@core/engine';
 import { parseSkillManifest } from '@core/notation/skill';
 import type { RunLog } from '@skills/local/src/log';
 
@@ -262,7 +262,7 @@ export class PartialRunner {
    * a flow into the element is passed on as it arrives. A hand-off that is stopped (a timer at a boundary event, or
    * `--step-timeout`) is told `cancel`; a runner that does not answer in time is ended, and started again for the
    * next hand-off. */
-  async element(id: string, values: Record<string, unknown>, { message, talk, signal }: { message?: Message; talk?: Talk; signal?: AbortSignal } = {}): Promise<Handback> {
+  async element(id: string, values: Record<string, unknown>, { message, conversation, talk, signal }: { message?: Message; conversation?: Conversation; talk?: Talk; signal?: AbortSignal } = {}): Promise<Handback> {
     if (!this.child) await this.open();
     const child = this.child!;
     let over = false;
@@ -289,7 +289,7 @@ export class PartialRunner {
     const aborted = (): void => cancel('was stopped');
     signal?.addEventListener('abort', aborted);
     try {
-      return await this.request('execute', { element: id, values, ...(message ? { message } : {}) });
+      return await this.request('execute', { element: id, values, ...(message ? { message } : {}), ...(conversation ? { conversation } : {}) });
     } catch (error) {
       // What it had bound before it failed comes back with the failure.
       const partial = error instanceof Refused && error.data && typeof error.data === 'object' ? error.data as Handback : undefined;

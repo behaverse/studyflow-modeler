@@ -19,7 +19,7 @@ async function walked(study: string, runners: Record<string, Runner> = {}, optio
   const log: string[] = [];
   const host: Host = {
     claim: (id) => (runners[id] ? { name: 'test', live: true } : undefined),
-    perform: async (id, values, { talk, message }) => runners[id]({ ...values, message }, talk),
+    perform: async (id, values, { talk, message, conversation }) => runners[id]({ ...values, message, conversation }, talk),
     log: (event, message) => log.push(`${event} ${message.trim()}`),
     now: () => new Date().toISOString(),
   };
@@ -555,6 +555,38 @@ ${robot}`, {
     expect(reached).toMatchObject({ Look: 1, Ask: 3, Stop: 1, R9: 1, Over: 1, ...reachedToo });
   });
 }
+
+test('a pool that remembers keeps one conversation with each instance of the pool asking it', async () => {
+  const study = (memory: string) => `C:
+  type: Collaboration
+  participants:
+    Subjects: { name: Subjects, participantMultiplicity: { maximum: 2 }, processRef: S }
+    Model: { type: studyflow:Actor, name: Model, actorType: llm, memory: ${memory} }
+  messageFlows:
+    M_First: { sourceRef: First, targetRef: Model }
+    M_Then: { sourceRef: Then, targetRef: Model }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    First: { type: SendTask }
+    Then: { type: SendTask }
+    S9: { type: EndEvent }
+    SF1: S0 -> First
+    SF2: First -> Then
+    SF3: Then -> S9
+`;
+  const heard = async (memory: string): Promise<unknown[]> => {
+    const conversations: unknown[] = [];
+    await walked(study(memory), { Model: (values) => { conversations.push(values.conversation); return {}; } });
+    return conversations;
+  };
+  expect(await heard('conversation')).toEqual([
+    { id: 'Model with Subjects #1', turn: 0 }, { id: 'Model with Subjects #1', turn: 1 },
+    { id: 'Model with Subjects #2', turn: 0 }, { id: 'Model with Subjects #2', turn: 1 },
+  ]);
+  expect(await heard('none')).toEqual([undefined, undefined, undefined, undefined]);
+});
 
 test('a pool of two participant instances runs its process twice, one instance after another', async () => {
   // BPMN's `participantMultiplicity`: N instances of the pool's process, run one after another, and the model pool
