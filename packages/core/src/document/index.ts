@@ -5,7 +5,7 @@ import type { Moddle } from '@core/element/moddle';
 import { YAML_DUMP_OPTIONS, applyXmlPasses, dropForeignElements } from '@core/document/format';
 import { definitionsToYamlDoc } from '@core/document/serialize';
 import { inlineIoSpecification, expandIoSpecification } from '@core/document/io-specification';
-import { choreographyToProcessRoot, headlessPlaneToProcessRoot } from '@core/document/choreography';
+import { choreographyToProcessRoot, exchangesToTasks, headlessPlaneToProcessRoot, tasksToExchanges } from '@core/document/choreography';
 import { studyflowToDefinitions } from '@core/document/deserialize';
 
 /* The package's surface: outside `core/document`, only this barrel, `png.ts`, `svg.ts` and `outline.ts` are imported. */
@@ -57,6 +57,8 @@ export {
   ensureChoreographyParticipants,
   mintParticipant,
   choreographyToProcessRoot,
+  exchangesToTasks,
+  tasksToExchanges,
   isTypedChoreography,
   readChoreographyBands,
   toWireDefinitions,
@@ -94,6 +96,7 @@ export async function xmlToStudyflow(xml: string, moddle: Moddle, onWarning?: (m
   const { rootElement: definitions, warnings } = await moddle.fromXML(xml);
   if (onWarning) for (const warning of warnings) onWarning(readerWarning(warning));
   dropForeignElements(definitions, onWarning);
+  tasksToExchanges(definitions);
   inlineIoSpecification(definitions);
   return definitionsToStudyflow(definitions, onWarning);
 }
@@ -110,7 +113,7 @@ export function definitionsToStudyflow(definitions: any, onWarning?: (message: s
  * What turns a file's definitions into the form the canvas edits: no element YAML cannot spell, a process root,
  * planes on the process, compact data associations.
  */
-const INBOUND_PASSES = [dropForeignElements, choreographyToProcessRoot, headlessPlaneToProcessRoot, inlineIoSpecification];
+const INBOUND_PASSES = [dropForeignElements, tasksToExchanges, choreographyToProcessRoot, headlessPlaneToProcessRoot, inlineIoSpecification];
 
 /**
  * Any BPMN the app reads (a file, an autosave, an embedded PNG) into the form the canvas edits. The
@@ -129,6 +132,7 @@ export function fromWireDefinitions(definitions: any, onWarning?: (message: stri
 /** `onWarning` as {@link studyflowToDefinitions} takes it: the console when not given. */
 export async function studyflowToXml(yamlText: string, moddle: Moddle, onWarning?: (message: string) => void): Promise<string> {
   const definitions = studyflowToDefinitions(yamlText, moddle, onWarning);
+  exchangesToTasks(definitions);
   expandIoSpecification(definitions);
   const { xml } = await moddle.toXML(definitions, { format: true });
   return xml;

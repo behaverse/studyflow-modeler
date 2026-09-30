@@ -74,9 +74,10 @@ than the specification does, it says so here, and `studyflow validate` refuses o
   fires it whenever its condition becomes true while the activity runs. A step that is last in its sub-process reads
   the same either way.
 - **A timer cycle** waits for its first firing only (a warning).
-- **Choreography tasks in a process.** A skill's task drawn as a choreography task with bands (a cognitive task)
-  sits in a process's flow, where BPMN defines choreography tasks only in a choreography. The BPMN XML the study is
-  written as is checked against the OMG's schema by `validate`, which says where it departs.
+- **Exchanges in a process.** A task drawn as a choreography task with bands (a cognitive task) sits in a process's
+  flow, where BPMN defines choreography tasks only in a choreography. The BPMN XML writes it as the `bpmn:task` it is,
+  marked `studyflow:exchange`, its bands as `studyflow:participants` and `studyflow:initiator`, so the XML stays valid
+  BPMN (`validate` checks it against the OMG's schema); reading the XML draws it back.
 - **Data elements are the study's.** A step in one pool may read or write a data object or data store reference drawn
   in another; BPMN scopes a data object to its process, and shares a store through a `dataStore` root element that
   each process references.

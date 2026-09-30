@@ -492,7 +492,7 @@ Study:
     expect(read).toEqual([expect.stringMatching(/unknown attribute <studyflow:colour>.*SubProcess/)]);
     expect(opened).toEqual([expect.stringMatching(/^Chain: .*<studyflow:colour>/)]);
     // A typed element's own icon is the element's: its extension entry is no BPMN element, and no trait reaches it.
-    expect(xml).toMatch(/<bpmn:choreographyTask [^>]*studyflow:icon="iconify ph--game-controller"/);
+    expect(xml).toMatch(/<bpmn:task [^>]*studyflow:icon="iconify ph--game-controller"/);
     expect(xml).toContain('studyflow:icon="iconify ph--link"');
   });
 

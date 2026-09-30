@@ -474,6 +474,35 @@ types:
     isAbstract: true
     meta:
       icon: iconify ph--users
+  # A choreography task in a process is no BPMN: BPMN defines one only in a choreography, with no data of its own.
+  # The BPMN XML writes one as the task it is, its bands as these two attributes, and reading the XML draws it back.
+  - name: Exchange
+    description: The bands of a task drawn as an exchange, as the BPMN XML writes them.
+    extends:
+      - bpmn:Task
+    isAbstract: true
+    properties:
+      - name: exchange
+        description: True when the task is drawn as an exchange.
+        isAttr: true
+        type: Boolean
+        meta:
+          pinned: true
+      - name: participants
+        description: Who the task's bands name, top first.
+        isAttr: true
+        isMany: true
+        isReference: true
+        type: bpmn:Participant
+        meta:
+          pinned: true
+      - name: initiator
+        description: The band that starts the exchange.
+        isAttr: true
+        isReference: true
+        type: bpmn:Participant
+        meta:
+          pinned: true
 
   - name: Actor
     description: 'A pool of participants: who or what takes part in the study.'

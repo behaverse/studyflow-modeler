@@ -4,6 +4,7 @@ import {
   PARAMETERS_TYPE,
   PLACEHOLDER,
   choreographyToProcessRoot,
+  tasksToExchanges,
   ensureStudyExtension,
   looksLikeXml,
   hasPath,
@@ -145,6 +146,7 @@ export async function parseStudyflow(
     ? (await moddle.fromXML(text)).rootElement
     : studyflowToDefinitions(text, moddle);
 
+  tasksToExchanges(definitions);
   choreographyToProcessRoot(definitions);
 
   const businessObject = (definitions as any)?.rootElements?.find((re: any) => re?.$type === 'bpmn:Process');

@@ -1,7 +1,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { ensureChoreographyParticipants, fromWireXml, readChoreographyBands, toWireDefinitions, toWireXml } from '@core/document';
+import { ensureChoreographyParticipants, fromWireXml, readChoreographyBands, studyflowToXml, toWireDefinitions, toWireXml, xmlToStudyflow } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
 /** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */
@@ -135,4 +135,40 @@ test('a plane naming a collaboration with no pool is pointed at the process on l
 
   expect(await planeRoot(xml('<bpmn2:participant id="Claude" name="Claude" />'))).toBe('Process_1');
   expect(await planeRoot(xml('<bpmn2:participant id="Pool" name="Lab" processRef="Process_1" />'))).toBe('Actors');
+});
+
+test('a choreography task in a process is written as the BPMN task it is, marked, with its bands and data, and reads back', async () => {
+  // BPMN defines choreography tasks only in a choreography, and gives them no data: a typed one in a process, with an
+  // actor on its bands and a data edge in, is a task.
+  const study = `id: exchange
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      processRef: S
+    Robot:
+      name: Robot
+S:
+  type: Process
+  flowElements:
+    Settings:
+      type: DataObjectReference
+    Play:
+      type: cognitive:CognitiveTask
+      name: Play
+      platform: jsPsych
+      participantRef:
+        - Robot
+      dataInputAssociations:
+        In_Play:
+          sourceRef:
+            - Settings
+`;
+  const xml = await studyflowToXml(study, freshModdle());
+  expect(xml).toMatch(/<bpmn:task id="Play" name="Play" studyflow:exchange="true" studyflow:participants="Robot">/);
+  expect(xml).not.toContain('choreographyTask');
+  expect(await xmlToStudyflow(xml, freshModdle())).toBe(study);
 });
