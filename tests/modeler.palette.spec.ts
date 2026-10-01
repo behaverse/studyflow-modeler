@@ -27,7 +27,7 @@ test.describe('Studyflow modeler palette flows', () => {
     await setSelectedElementName(page, 'Review Task');
     await expect(page.getByTestId('modeler-canvas')).toContainText('Review Task');
 
-    // A schema's flyout adds its elements: a Rest is a task that carries `cognitive:Rest`.
+    // A schema's flyout adds its elements: a Rest is the timer event `cognitive:Rest` types.
     await addSchemaPaletteElement(page, 'Cognitive', 'Rest', { x: 540, y: 180 });
 
     const svgDownload = await exportDiagram(page, 'svg');

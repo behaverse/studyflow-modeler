@@ -116,7 +116,7 @@ SPIRIT_2025:
       duration: 4 weeks
       progress: 60%
     Activity_Control:
-      type: cognitive:Rest
+      type: Task
       name: "Control: active sham"
       checklist: |-
         - [ ] SPIRIT 17a: control dose matched to intervention

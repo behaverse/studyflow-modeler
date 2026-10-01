@@ -140,6 +140,10 @@ Kitchen_Sink:
     Cg_Rest:
       type: cognitive:Rest
       name: Rest
+      eventDefinitions:
+        Cg_Rest_Timer:
+          type: TimerEventDefinition
+          timeDuration: PT1M
     Cg_Questionnaire:
       type: cognitive:Questionnaire
       name: Questionnaire
@@ -356,7 +360,8 @@ layout:
   Cg_CognitiveTask:
     bounds: 125 1289 120 80
   Cg_Rest:
-    bounds: 305 1289 120 80
+    bounds: 347 1311 36 36
+    label: 325 1352 80 14
   Cg_Questionnaire:
     bounds: 485 1289 120 80
   Cg_Instruction:

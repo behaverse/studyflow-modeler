@@ -729,8 +729,9 @@ test('what the catalog lists, add makes: every BPMN shape type, every schema typ
     expect(call(open(), 'add', { ...what, ...into }), JSON.stringify(what)).toMatchObject({ ok: true });
   }
 
-  // A schema type comes with its defaults, and is the type the element is, as the file spells it.
+  // A schema type comes with its defaults, and is the type the element is, as the file spells it; an event type
+  // with the event it is (a rest is a timer).
   const study = open();
-  const { id } = call(study, 'add', { type: 'bpmn:Task', extension: 'cognitive:Rest' });
-  expect(study.element(id)).toMatchObject({ type: 'cognitive:Rest', restDuration: 60 });
+  const { id } = call(study, 'add', { type: 'bpmn:IntermediateCatchEvent', extension: 'cognitive:Rest' });
+  expect(study.element(id)).toMatchObject({ type: 'cognitive:Rest', eyes: 'open', eventDefinitions: [{ type: 'bpmn:TimerEventDefinition', timeDuration: 'PT1M' }] });
 });

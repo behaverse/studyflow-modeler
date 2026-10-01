@@ -29,7 +29,7 @@ export function eventDefinitionTypeOf(event: Partial<Element> | undefined): stri
   return first && typeof first === 'object' && !Array.isArray(first) && typeof first.type === 'string' ? first.type : undefined;
 }
 
-/** The defaults a schema type declares, by their qualified names (`cognitive:restDuration`). */
+/** The defaults a schema type declares, by their qualified names (`cognitive:platform`). */
 export function getDefaults(typeName: string): Record<string, any> {
   return { ...getCatalog().defaultsOf(typeName) };
 }

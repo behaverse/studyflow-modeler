@@ -35,6 +35,8 @@ export interface TypeMeta {
   categories?: string[];
   editor?: string;
   icon?: string;
+  /** The event definition an event of this type is minted with: its type and what it holds. */
+  eventDefinition?: { type: string; [key: string]: unknown };
   [key: string]: unknown;
 }
 

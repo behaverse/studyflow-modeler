@@ -157,7 +157,7 @@ const WIRED_TWICE = (inner: string) => `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn:startEvent id="Start" />
     <bpmn:subProcess id="Sub">
       <bpmn:task id="T">
-        <bpmn:extensionElements><cognitive:rest restDuration="60" /></bpmn:extensionElements>
+        <bpmn:extensionElements><cognitive:cognitiveTask construct="attention" /></bpmn:extensionElements>
         <bpmn:dataInputAssociation id="In_A"><bpmn:sourceRef>A</bpmn:sourceRef></bpmn:dataInputAssociation>
         <bpmn:dataInputAssociation id="In_B"><bpmn:sourceRef>B</bpmn:sourceRef></bpmn:dataInputAssociation>
       </bpmn:task>
@@ -167,10 +167,10 @@ const WIRED_TWICE = (inner: string) => `<?xml version="1.0" encoding="UTF-8"?>
   XCIT_NB_01:
 Bot:
   Speed: 20
-restDuration: 30
+construct: inhibition
 </studyflow:values></studyflow:parameters></bpmn:extensionElements></bpmn:dataObjectReference>
     <bpmn:dataObjectReference id="Knobs"><bpmn:extensionElements><studyflow:parameters><studyflow:values>seed: 7
-eyes: closed
+platform: psychopy
 </studyflow:values></studyflow:parameters></bpmn:extensionElements></bpmn:dataObjectReference>
     <bpmn:sequenceFlow id="F" sourceRef="Start" targetRef="Sub" />
   </bpmn:process>
@@ -193,20 +193,20 @@ async function localDigest(xml: string): Promise<{ parameters?: unknown; rest?: 
 
 test('both runtimes read the Parameters wired into a step the same way: merged, a key naming its attribute setting it, a clash refused', async () => {
   const merged = WIRED_TWICE('Bot:\n  SkipInstructions: true\n');
-  // `restDuration` names an attribute of the rest, so it sets it rather than joining what the rest's runner reads;
-  // the unwired Knobs' `seed` and `eyes` set nothing.
+  // `construct` names an attribute of the cognitive task, so it sets it rather than joining what the task's runner
+  // reads; the unwired Knobs' `seed` and `platform` set nothing.
   const expected = { Timelines: { XCIT_NB_01: null }, Bot: { Speed: 20, SkipInstructions: true } };
   const browser = new Studyflow(await parseStudyflow(merged, freshPackages()));
   const task = browser.flowNodes.get('T')!;
-  expect([task.parameters, attributeOf(task, 'restDuration'), attributeOf(task, 'eyes'), browser.seed])
-    .toEqual([expected, 30, 'open', 3]);
+  expect([task.parameters, attributeOf(task, 'construct'), attributeOf(task, 'platform'), browser.seed])
+    .toEqual([expected, 'inhibition', undefined, 3]);
   const local = await localDigest(merged);
-  expect([local.parameters, local.rest, local.seed]).toEqual([expected, { restDuration: '30' }, '3']);
+  expect([local.parameters, local.rest, local.seed]).toEqual([expected, { construct: 'inhibition' }, '3']);
 
   // Each refusal names the step and what clashes: the key and both objects, or the attribute that takes one value.
   const CLASHES: [inner: string, names: RegExp][] = [
     ['Bot:\n  Speed: 5\n', /T.*Bot\.Speed.*A.*B/],
-    ['eyes: [open, closed]\n', /T.*eyes.*list/],
+    ['platform: [jspsych, psychopy]\n', /T.*platform.*list/],
   ];
   for (const [inner, names] of CLASHES) {
     await expect(parseStudyflow(WIRED_TWICE(inner), freshPackages()), String(names)).rejects.toThrow(names);

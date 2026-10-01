@@ -233,14 +233,15 @@ templates:
               makes good contact before recording starts.
             bounds: 200 178 100 80
           eeg_baseline:
-            type: Task
+            type: cognitive:Rest
             name: Resting baseline
             icon: iconify ph--brain
-            extensionElements:
-              - type: cognitive:Rest
-                restDuration: 120
-                eyes: closed
-            bounds: 360 178 100 80
+            eyes: closed
+            eventDefinitions:
+              eeg_baseline_timer:
+                type: TimerEventDefinition
+                timeDuration: PT2M
+            bounds: 392 200 36 36
           eeg_task:
             type: ChoreographyTask
             name: Cognitive task

@@ -107,7 +107,7 @@ CONSORT_2025:
           type: ErrorEventDefinition
       attachedToRef: Activity_Allocation_B
     Activity_Followup_B:
-      type: cognitive:Rest
+      type: Task
       name: Follow-up
       checklist: |-
         - [ ] Adherence visit

@@ -102,9 +102,12 @@ export function draftOf(model: StudyModel, shape: NewShape): Element {
 export function mintTyped(model: StudyModel, type: string, attributes: Record<string, unknown>, extension?: string): Element {
   const element = mint(type, attributes);
   if (!extension) return element;
-  const trait = hasCatalog() && getCatalog().getType(extension)?.style === 'trait';
-  if (!trait) element.extensionElements = [{ type: extension }];
-  // The defaults are named as the schema declares them (`cognitive:restDuration`); the study holds them by local name.
+  const declared = hasCatalog() ? getCatalog().getType(extension) : undefined;
+  if (declared?.style !== 'trait') element.extensionElements = [{ type: extension }];
+  // An event type may say which event it is (a rest is a timer): a new one gets that definition.
+  const definition = declared?.meta?.eventDefinition;
+  if (definition && !('eventDefinitions' in attributes)) element.eventDefinitions = [structuredClone(definition) as Element];
+  // The defaults are named as the schema declares them (`cognitive:eyes`); the study holds them by local name.
   for (const [qualified, value] of Object.entries(getDefaults(extension))) {
     const name = qualified.slice(qualified.indexOf(':') + 1);
     if (!(name in attributes)) model.setAttribute(element, name, value as Value);

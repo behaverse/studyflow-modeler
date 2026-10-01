@@ -165,22 +165,18 @@ types:
           categories:
             - Execution
 
+  # A rest is a wait, so a timer event: its timer is how long it lasts. What records during it (an EEG's resting
+  # state) claims it, and what that records goes out along its data output associations.
   - name: Rest
-    description: A break, or a resting-state period (eyes open or closed).
+    description: A break, or a resting-state period (eyes open or closed), as long as its timer says.
     superClass:
-      - bpmn:Task
+      - bpmn:IntermediateCatchEvent
     meta:
       icon: iconify ph--coffee
+      eventDefinition:
+        type: bpmn:TimerEventDefinition
+        timeDuration: PT1M
     properties:
-      # Not `duration`: the Scheduling trait already puts a Gantt `duration` on every activity.
-      - name: restDuration
-        description: How long the rest lasts.
-        isAttr: true
-        type: Real
-        default: 60
-        meta:
-          order: 1
-          unit: s
       - name: eyes
         description: Eyes open, closed, or alternating.
         isAttr: true

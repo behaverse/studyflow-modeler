@@ -1219,3 +1219,33 @@ test('a hand-off that fails after binding something keeps what it had bound, and
   expect(walk.values.get('Trials')).toEqual([1, 2]);
   expect(walk.steps.entries.find((entry) => entry.node === 'Collect')).toMatchObject({ status: 'error', build: '26.08' });
 });
+
+test('a rest a runner claims waits in its runner, and what it recorded goes out along its data outputs', async () => {
+  const plan = planOf(studyModel(`id: study
+${HEAD}S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Baseline:
+      type: cognitive:Rest
+      eyes: closed
+      eventDefinitions:
+        Baseline_Timer: { type: TimerEventDefinition, timeDuration: PT2M }
+      dataOutputAssociations:
+        Out_Resting: { targetRef: Resting }
+    Resting: { type: DataObjectReference }
+    End: { type: EndEvent }
+    F1: Start -> Baseline
+    F2: Baseline -> End
+`));
+  const made: [string, string[]][] = [];
+  const walk = new Walk(plan, {
+    claim: (id) => (id === 'Baseline' ? { name: 'eeg', live: true } : undefined),
+    perform: async () => ({ values: { Resting: 'resting.fif' } }),
+    outputs: (id, targets) => made.push([id, targets]),
+    log: () => undefined,
+    now: () => new Date().toISOString(),
+  });
+  await walk.run();
+  expect([made, walk.values.get('Resting')]).toEqual([[['Baseline', ['Resting']]], 'resting.fif']);
+});

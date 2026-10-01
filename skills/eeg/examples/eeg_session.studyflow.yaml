@@ -18,8 +18,11 @@ EEG_Session:
     Baseline:
       type: cognitive:Rest
       name: Resting baseline
-      restDuration: 120
       eyes: closed
+      eventDefinitions:
+        Baseline_Timer:
+          type: TimerEventDefinition
+          timeDuration: PT2M
     Cognitive_Task:
       type: Task
       name: Cognitive task
@@ -56,7 +59,8 @@ layout:
   Mount_Cap:
     bounds: 175 30 100 80
   Baseline:
-    bounds: 325 30 100 80
+    bounds: 357 52 36 36
+    label: 330 94 90 28
   Cognitive_Task:
     bounds: 475 30 100 80
   In_Cognitive_Task_Parameters:
@@ -70,9 +74,9 @@ layout:
   Flow_Start_Mount:
     waypoint: 93,70 175,70
   Flow_Mount_Baseline:
-    waypoint: 275,70 325,70
+    waypoint: 275,70 357,70
   Flow_Baseline_Task:
-    waypoint: 425,70 475,70
+    waypoint: 393,70 475,70
   Flow_Task_Export:
     waypoint: 575,70 625,70
   Flow_Export_End:

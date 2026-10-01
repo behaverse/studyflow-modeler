@@ -317,6 +317,8 @@ export class Walk {
             // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
             this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
             this.adopt(id, await this.handOff(id, this.memory.json(), thread), entry);
+            // What it recorded meanwhile (a rest's resting state) goes out along its data outputs.
+            this.noteOutputs(element, entry, thread);
           } else if (graph.flowsIn.has(id)) {
             // A catch event a message flow reaches waits for that message; its content is the result.
             this.log(thread, 'event.waiting', `◐ ${id}  (waiting for a message)`);
