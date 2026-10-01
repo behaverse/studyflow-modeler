@@ -97,11 +97,14 @@ class Step:
 
     def __init__(self, element_id: str, plan: dict[str, Any], values: dict[str, Any], message: dict[str, Any] | None = None,
                  run_dir: Path | None = None, cache: Path | None = None, wire: "_Wire | None" = None,
-                 conversation: dict[str, Any] | None = None) -> None:
+                 conversation: dict[str, Any] | None = None, attributes: dict[str, Any] | None = None) -> None:
         self.id = element_id
         self.plan = plan
         self.elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
         self.element: dict[str, Any] = self.elements.get(element_id) or {}
+        # The element's attributes with the walk's placeholders resolved: one that is a placeholder alone is what it
+        # cites, as held; `element["attributes"]` keeps them as written.
+        self.attributes: dict[str, Any] = attributes or {}
         # The run's values as handed over: each element's by its id, and the state tree under `state`.
         self.values = values
         # The message sent to the pool, when the element is a pool this runner plays.
@@ -280,7 +283,8 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
     def perform(request_id: Any, params: dict[str, Any]) -> None:
         element_id = str(params.get("element"))
         step = Step(element_id, plan, params.get("values") or {}, params.get("message"),
-                    Path(run.get("dir") or "."), Path(run.get("cache") or ".cache"), wire, params.get("conversation"))
+                    Path(run.get("dir") or "."), Path(run.get("cache") or ".cache"), wire, params.get("conversation"),
+                    params.get("attributes"))
         steps[element_id] = step
         current.element = element_id
         started = time.perf_counter()

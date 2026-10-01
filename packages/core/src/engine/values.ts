@@ -1,4 +1,5 @@
 import { evaluateFeel } from '@core/expression/feel';
+import { PLACEHOLDER } from '@core/model/state';
 import type { Graph } from '@core/engine/graph';
 import type { Note, StateTree } from '@core/engine/host';
 import type { Expression, PlanElement } from '@core/engine/plan';
@@ -128,6 +129,40 @@ export class Values {
     }
   }
 
+  /**
+   * What `{path}` cites at `scope` (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
+   * outward, what each scope holds under the name; then an element's value, by id or name; then, for a lone
+   * `{reached}`, the element's own counter, 0 when no run reached it. Undefined when nothing holds it.
+   */
+  cite(path: string, scope: string): unknown {
+    const [head, ...fields] = path.split('.');
+    if (head === 'state') return dig(this.state, fields);
+    for (const id of this.graph.scopeChain(scope)) {
+      const found = dig(this.state[id], [head, ...fields]);
+      if (found !== undefined && found !== null) return found;
+    }
+    const named = Object.entries(this.graph.plan.names).find(([, name]) => name === head)?.[0];
+    const id = this.held.has(head) ? head : named;
+    const found = id === undefined ? undefined : dig(this.held.get(id), fields);
+    if ((found === undefined || found === null) && head === 'reached' && fields.length === 0) return this.meta('reached')[scope] ?? 0;
+    return found ?? undefined;
+  }
+
+  /** An element's attributes with its placeholders resolved, as a runner is handed them beside the plan's: an
+   * attribute that is one placeholder alone is what it cites, as held (a number stays a number), any other has each
+   * placeholder that resolves filled in, and one that resolves to nothing stays as written. */
+  resolved(element: PlanElement): Record<string, unknown> {
+    const cited = (path: string): unknown => this.cite(path, element.id);
+    return Object.fromEntries(Object.entries(element.attributes).map(([name, text]) => {
+      const whole = new RegExp(`^${PLACEHOLDER.source}$`, 'u').exec(text.trim());
+      if (whole) return [name, cited(whole[1]) ?? text];
+      return [name, text.replace(PLACEHOLDER, (written, path: string) => {
+        const value = cited(path);
+        return value === undefined ? written : typeof value === 'string' ? value : JSON.stringify(value);
+      })];
+    }));
+  }
+
   /** The JSON-able shadow of the run's values, for a runner's placeholders and intents, with the state tree under the
    * one key no element may take. */
   json(): Record<string, unknown> {
@@ -168,4 +203,14 @@ export class Values {
       this.store(target, narrowed);
     }
   }
+}
+
+/** What `fields` lead to inside `value`, undefined where one is missing. */
+function dig(value: unknown, fields: string[]): unknown {
+  let at = value;
+  for (const field of fields) {
+    if (at === null || typeof at !== 'object') return undefined;
+    at = (at as Record<string, unknown>)[field];
+  }
+  return at;
 }

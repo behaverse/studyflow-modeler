@@ -261,11 +261,11 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
 
   const host: Host = {
     claim: (id) => { const claim = claimed.get(id); return claim && { name: claim.runner.name, live: claim.live }; },
-    perform: async (id, values, { message, conversation, talk, note, signal }) => {
+    perform: async (id, values, { attributes, message, conversation, talk, note, signal }) => {
       // A runner stages the boundary inputs it reads: one the repository lacks before the hand-off and holds after it
       // was imported by this run.
       const absent = made.walk.graph.walked.has(id) ? made.records.absentInputs(id) : new Map<string, string>();
-      const handed = await claimed.get(id)!.runner.element(id, values, { message, conversation, talk, signal });
+      const handed = await claimed.get(id)!.runner.element(id, values, { attributes, message, conversation, talk, signal });
       for (const [data, uri] of absent) {
         if (!existsSync(path.join(dir, uri))) continue;
         keep({ event: 'imported', id: data, uri, at: timelineTimestamp() });

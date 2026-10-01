@@ -637,7 +637,8 @@ export class Walk {
       else signal.addEventListener('abort', abort, { once: true });
     }
     try {
-      return await this.host.perform(id, values, { talk, note: this.note(thread), signal: handoff.signal });
+      const attributes = this.memory.resolved(this.graph.get(id)!);
+      return await this.host.perform(id, values, { attributes, talk, note: this.note(thread), signal: handoff.signal });
     } finally {
       for (const signal of stops) signal.removeEventListener('abort', abort);
       this.post.checkInterrupt(thread, true);

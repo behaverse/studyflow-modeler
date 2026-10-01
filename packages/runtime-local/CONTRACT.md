@@ -22,7 +22,7 @@ What the walk sends:
 | Method | Params | Answer |
 | --- | --- | --- |
 | `initialize` | `protocol` (2), `plan` (the path of `plan.json`), `run`: `dir` (the run directory) and `cache` (its `.cache/`) | `protocol`, `elements` (the ids it will run), `live` (default true). An error stops the run before its first step: what the runner lacks (a build, a device), in its own words. |
-| `execute` | `element`, `values` (the run's values: each element's by its id, the state tree under `state`), and `message` when the element is a pool the runner plays, with `conversation` when that pool remembers | What it hands back (below). An error (`code` 1, or 2 when it was cancelled; `message`) fails the step; its `data` is what it had handed back by then, which is kept. |
+| `execute` | `element`, `values` (the run's values: each element's by its id, the state tree under `state`), `attributes` (the element's attributes with their placeholders resolved), and `message` when the element is a pool the runner plays, with `conversation` when that pool remembers | What it hands back (below). An error (`code` 1, or 2 when it was cancelled; `message`) fails the step; its `data` is what it had handed back by then, which is kept. |
 | `message` | `element`, `message` | None (a notification): a message along a flow into an element it is running. |
 | `cancel` | `element` | None: stop this hand-off, and answer its `execute` with an error. |
 | `shutdown` | | `{}`, then it exits. |
@@ -49,7 +49,7 @@ What a runner leaves in the run directory is committed at the next checkpoint, w
 - `record`: what it ran with (a package version, a model digest, the request as sent). It is merged into the step's record entry, the walk's own keys standing, and is never a value later steps read.
 - `durationMs`.
 
-A runner resolves placeholders by the rule in [docs/reference.qmd](../../docs/reference.qmd#placeholders): `state` from its root, then the nearest scope outward, then an element's result by id or name.
+Placeholders resolve by the rule in [docs/reference.qmd](../../docs/reference.qmd#placeholders): `state` from its root, then the nearest scope outward, then an element's result by id or name. The walk resolves them in the element's attributes as it hands it over (`attributes`): an attribute that is one placeholder alone is what it cites, as held, any other has each placeholder that resolves filled in, and one that resolves to nothing stays as written. The plan keeps every attribute as written, and a runner that resolves more (the text of a message, a placeholder citing a table it loads) follows the same rule; the SDK's `resolve`, `fill` and `read` do.
 
 **Messages.** A claimed element's runner does its own exchange while it runs: what it sends (`message`) goes along the flow it names, and each message along a flow into the element is passed on to it, including any that were waiting when it started. A step with no message flow of its own exchanges along the nearest enclosing sub-process's, else along its pool's. A participant with no process is a pool a runner may claim: each message sent to it is one `execute` of that participant, with the message as `message`; the `result` is the answer, and it goes back along the pool's flow to the sender, or to the sender's pool. A hand-off that fails answers null, and the record keeps the error. A pool whose actor's `memory` is `conversation` remembers: each message comes with `conversation`, `{"id", "turn"}`, one per instance of the pool asking and the number of its exchanges before this one (a failed one is none). What was said is the runner's to keep and send along; a `turn` it holds no record of means it was started again, and it fails the hand-off rather than answer without it. A conversation lasts the run. The rest of how messages travel is in [WALK.md](WALK.md#messages).
 
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     sys.exit(serve(claims, execute))
 ```
 
-`step` carries the hand-off: `id`, `element`, `plan`, `values`, `message`, `options`, `seed`, `run_dir` and `cache`; `bind(id, value)`, `write(scope, name, value)` and `note(**record)` for what goes back; `resolve(path)`, `fill(text)` and `read(text)` for placeholders; `send`, `receive` and `ask` for messages; `prompt(text, default)` for the person; `cancelled`, which a long step checks (a `receive` raises `Cancelled`). What the runner prints goes to the run log, unless it serves with `terminal=True`, for a runner a person sits at. One hand-off at a time runs on the process's main thread, and one that overlaps it on a thread of its own.
+`step` carries the hand-off: `id`, `element`, `attributes`, `plan`, `values`, `message`, `options`, `seed`, `run_dir` and `cache`; `bind(id, value)`, `write(scope, name, value)` and `note(**record)` for what goes back; `resolve(path)`, `fill(text)` and `read(text)` for placeholders; `send`, `receive` and `ask` for messages; `prompt(text, default)` for the person; `cancelled`, which a long step checks (a `receive` raises `Cancelled`). What the runner prints goes to the run log, unless it serves with `terminal=True`, for a runner a person sits at. One hand-off at a time runs on the process's main thread, and one that overlaps it on a thread of its own.
 
 **The plan.** `plan.json` is a digest of the study, written once per run. A runner never opens the diagram.
 

@@ -70,9 +70,10 @@ export type Host = {
   claim(id: string): { name: string; live: boolean } | undefined;
   /** Hands a claimed element, or one `message` to a pool a runner plays (with its `conversation`, when the pool
    * remembers), to its runner: the run's values in, what the
-   * runner hands back out. A failure rejects, with a {@link HandoffError} when something had been bound first.
-   * `signal` aborts when a timer at a boundary event ends the activity the hand-off is in: the host stops it. */
-  perform(id: string, values: Record<string, unknown>, step: { message?: Message; conversation?: Conversation; talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Handback>;
+   * runner hands back out, and the element's `attributes` with their placeholders resolved. A failure rejects, with a
+   * {@link HandoffError} when something had been bound first. `signal` aborts when a timer at a boundary event ends
+   * the activity the hand-off is in: the host stops it. */
+  perform(id: string, values: Record<string, unknown>, step: { attributes: Record<string, unknown>; message?: Message; conversation?: Conversation; talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Handback>;
   /** Resolves `ms` from now, for the timer event `at`, unless `signal` aborts first; without it, the machine's clock. */
   wait?(ms: number, signal: AbortSignal, at: string): Promise<void>;
   log: Note;

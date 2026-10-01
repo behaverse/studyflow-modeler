@@ -106,7 +106,7 @@ export class Post {
     const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
       try {
         const asked = conversation && { ...conversation, turn: this.turns.get(conversation.id) ?? 0 };
-        const answered = await host.perform(pool.id, this.values.json(), { message, conversation: asked, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
+        const answered = await host.perform(pool.id, this.values.json(), { attributes: this.values.resolved(pool), message, conversation: asked, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
         // An exchange that failed is no part of the conversation.
         if (asked) this.turns.set(asked.id, asked.turn + 1);
         keepRecord(entry, answered);

@@ -488,6 +488,37 @@ P:
     expect(JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'Done.state.json'), 'utf8'))).not.toHaveProperty('record');
   });
 
+  test('hands a runner the element\'s attributes with their placeholders resolved, and the plan keeps them as written', async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="P">
+    <bpmn:extensionElements><studyflow:study runtime="local"/></bpmn:extensionElements>
+    <bpmn:startEvent id="Start"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:task id="A" name="count"><bpmn:incoming>F1</bpmn:incoming><bpmn:outgoing>F2</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="B" implementation="{A}"><bpmn:incoming>F2</bpmn:incoming><bpmn:outgoing>F3</bpmn:outgoing></bpmn:task>
+    <bpmn:task id="C" implementation="echo://{count}/{missing}"><bpmn:incoming>F3</bpmn:incoming><bpmn:outgoing>F4</bpmn:outgoing></bpmn:task>
+    <bpmn:endEvent id="Done"><bpmn:incoming>F4</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="F1" sourceRef="Start" targetRef="A"/>
+    <bpmn:sequenceFlow id="F2" sourceRef="A" targetRef="B"/>
+    <bpmn:sequenceFlow id="F3" sourceRef="B" targetRef="C"/>
+    <bpmn:sequenceFlow id="F4" sourceRef="C" targetRef="Done"/>
+  </bpmn:process>
+</bpmn:definitions>`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-attributes-'));
+    fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
+    writeRunner(path.join(dir, 'fake.py'), "['A', 'B', 'C']", [
+      "if step.id == 'A': return 3",
+      "json.dump({'resolved': step.attributes, 'written': step.element['attributes']}, open(step.run_dir / f'{step.id}.json', 'w'))",
+    ]);
+    execFileSync(process.execPath, [BIN, 'run', 'plan.bpmn', '--repo', 'run', '--quiet', '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`],
+      { cwd: dir, stdio: 'pipe', env: ENV });
+
+    const seen = (id: string) => JSON.parse(fs.readFileSync(path.join(dir, 'run', `${id}.json`), 'utf8'));
+    // A placeholder alone is what it cites, as held; in a longer text it is filled in, and one that cites nothing stays.
+    expect(seen('B')).toEqual({ resolved: { implementation: 3 }, written: { implementation: '{A}' } });
+    expect(seen('C')).toEqual({ resolved: { implementation: 'echo://3/{missing}' }, written: { implementation: 'echo://{count}/{missing}' } });
+  });
+
   test('carries a runner\'s messages while it runs, and records them', async () => {
     // A collapsed sub-process is the only place BPMN can draw a message flow to a step inside it, so the study draws
     // the exchange on the cohort and the task inside it is what talks: out along the sub-process's flow, back in.
