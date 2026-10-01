@@ -38,10 +38,11 @@ Cognitive_Battery:
           timeline: XCIT_DS_01
     Break:
       type: IntermediateCatchEvent
-      name: Self-paced break
+      name: Two-minute break
       eventDefinitions:
         TimerDef_Break:
           type: TimerEventDefinition
+          timeDuration: PT2M
     Task_SART:
       type: Task
       name: Sustained attention (SART)
