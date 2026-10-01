@@ -7,9 +7,9 @@ import { embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg } from '@c
 import { planChecks } from '@core/checks';
 import type { StudyModel } from '@core/model/index';
 import { parseSource, readSource, sourceOf, studySource } from '@cli/studyfile';
-import { runLocal, type LocalRun } from '@skills/local/src/run';
+import { runLocal, type LocalRun } from '@runtime-local/run';
 
-/* `studyflow run`: hand the study to the runtime it declares; this CLI hosts `local` itself (skills/local). */
+/* `studyflow run`: hand the study to the runtime it declares; this CLI hosts `local` itself (packages/runtime-local). */
 
 /** What the run record names as the tool that ran it (`with`). */
 const TOOL = `studyflow-cli/${import.meta.env?.APP_VERSION ?? 'dev'}`;
@@ -20,17 +20,23 @@ export type RunOptions = Pick<LocalRun, 'repo' | 'inputs' | 'from' | 'fresh' | '
   option?: string[];
 };
 
-/** Where the shipped skills, whose runners the local runtime hands elements to, can be: the repo's `skills/` when
- * this is the bundle in a checkout, Homebrew's `libexec/` next to `bin/studyflow`, then beside the binary (the
- * release tarball as unpacked). */
-function skillRoots(): string[] {
+/** Where a folder this CLI ships can be: in the checkout (`checkout`, from the repo's root) when this is the bundle in
+ * one, Homebrew's `libexec/<installed>` next to `bin/studyflow`, then beside the binary (the release tarball as
+ * unpacked). The first that holds `marker`. */
+function shipped(checkout: string, installed: string, marker: string): string | undefined {
   const candidates: string[] = [];
-  if (import.meta.url.startsWith('file:')) candidates.push(fileURLToPath(new URL('../../../skills', import.meta.url)));
+  if (import.meta.url.startsWith('file:')) candidates.push(fileURLToPath(new URL(`../../../${checkout}`, import.meta.url)));
   try {
     const binDir = path.dirname(realpathSync(process.execPath));
-    candidates.push(path.join(binDir, '..', 'libexec', 'skills'), path.join(binDir, 'skills'));
+    candidates.push(path.join(binDir, '..', 'libexec', installed), path.join(binDir, installed));
   } catch { /* execPath is unreadable on some sandboxes; the other candidates still stand */ }
-  return candidates.filter((candidate) => existsSync(path.join(candidate, 'local', 'SKILL.md'))).slice(0, 1);
+  return candidates.find((candidate) => existsSync(path.join(candidate, marker)));
+}
+
+/** The shipped skills, whose runners the local runtime hands elements to. */
+function skillRoots(): string[] {
+  const found = shipped('skills', 'skills', path.join('studyflow', 'SKILL.md'));
+  return found ? [found] : [];
 }
 
 async function runLocally(input: string, source: Awaited<ReturnType<typeof readSource>>, model: StudyModel, digest: string, options: RunOptions): Promise<number> {
@@ -49,6 +55,7 @@ async function runLocally(input: string, source: Awaited<ReturnType<typeof readS
     write,
     read: async (bytes) => (await parseSource(sourceOf(bytes, source.container), { asWritten: true })).model,
     skillRoots: skillRoots(),
+    sdk: shipped('packages/runtime-local/python', 'sdk', 'runner.py'),
     digest,
     tool: TOOL,
     repo: options.repo,

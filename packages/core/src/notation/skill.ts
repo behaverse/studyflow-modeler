@@ -15,8 +15,7 @@ export type SkillManifest = {
   schemas: string[];
   /** `runtimes.<runtime>`: what the skill gives each runtime (the names the study's `runtime` attribute uses) to
    * execute its elements, in any language. For `local` a command run in the skill's folder following the
-   * partial-runner contract; for `browser` a module the browser runtime imports. The `prov` skill's `local`
-   * entry is the module the local runtime loads in-process for its records instead. */
+   * partial-runner contract; for `browser` a module the browser runtime imports. */
   runtimes?: Record<string, string>;
   /** `modeler`: a module the modeler imports (`modeler.ts`), exporting the projections it writes and the foreign formats it opens. */
   modelerModule?: string;

@@ -4,7 +4,7 @@ import { containers, graphOf, quoted } from '@core/checks/graph';
 import type { StudyModel } from '@core/model/index';
 
 /**
- * What the walk reads otherwise than BPMN (packages/core/src/engine/walk.ts, skills/local/WALK.md): a complex
+ * What the walk reads otherwise than BPMN (packages/core/src/engine/walk.ts, packages/runtime-local/WALK.md): a complex
  * gateway, whose activation rule it does not read, stops a run where it splits and passes each token where it joins;
  * a scope's second start event never starts it. Parallel and inclusive splits and joins are walked as BPMN says, and
  * a join one of whose tokens can never come is the soundness check's to find.

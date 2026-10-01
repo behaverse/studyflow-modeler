@@ -7,7 +7,7 @@ import { createInterface } from 'node:readline';
 import { expect, test } from '@playwright/test';
 
 /** `skills/behaverse/local.py`: the behaverse skill's local runner (Unity WebGL), without Unity or the walk — the
- * stage page's protocol is exercised by hand, as the page itself would, and so is the walk's (skills/local/SKILL.md). */
+ * stage page's protocol is exercised by hand, as the page itself would, and so is the walk's (packages/runtime-local/CONTRACT.md). */
 
 test.skip(spawnSync('uv', ['--version']).error !== undefined, 'uv is not on PATH');
 

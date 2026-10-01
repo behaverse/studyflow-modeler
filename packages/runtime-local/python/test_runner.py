@@ -1,4 +1,4 @@
-"""The runner SDK's placeholder rule; run it with `python3 skills/local/test_runner.py`. The protocol it speaks is
+"""The runner SDK's placeholder rule; run it with `python3 packages/runtime-local/python/test_runner.py`. The protocol it speaks is
 pinned by tests/cli-run.unit.spec.ts, whose runners are written with it."""
 
 import sys

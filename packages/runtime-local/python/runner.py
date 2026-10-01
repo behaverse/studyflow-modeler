@@ -1,11 +1,11 @@
-"""The runner SDK: the partial-runner contract (SKILL.md beside this file), for a runner written in Python.
+"""The runner SDK: the partial-runner contract (packages/runtime-local/CONTRACT.md), for a runner written in Python.
 
 A runner is one process for the whole run. The local runtime starts it, asks it once which elements it takes, and
 then hands it one element at a time, as JSON-RPC 2.0 on its stdin and stdout, one message a line:
 
     import os, sys
     from pathlib import Path
-    sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
+    sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
     from runner import serve
 
     def claims(plan):            # the ids of the elements this runner takes

@@ -8,14 +8,14 @@
 Usage:
     studyflow run <diagram> --runtime local [--option auto]   # the local runtime walks, this runner performs
 
-A partial runner (skills/local/SKILL.md): it claims every `behaverse:Task`, and per hand-off serves the
+A partial runner (packages/runtime-local/CONTRACT.md): it claims every `behaverse:Task`, and per hand-off serves the
 Unity WebGL build and a small stage page from a local port, opens the page in the default
 browser, starts the task through the build's `RunCognitiveTask` entry point, and waits for
 `studyflow:TaskCompleted`. The page relays what the build reports back to this process:
 every `studyflow:Event` to the task's events file in the run directory, each answered trial to the
 terminal, and the completion, which becomes the element's `result`. Who answers is what the
 diagram draws. A task with message flows sends each awaiting trial along the one out of it and
-takes the answer back from the one into it (skills/local/SKILL.md, "Messages"); an answer that
+takes the answer back from the one into it (packages/runtime-local/CONTRACT.md, "Messages"); an answer that
 names no option in time is no answer, and the trial's own window makes it a miss. Without flows,
 a person plays the task, or the build's own random bot does for a `software` taker whose
 `implementation` is `behaverse://bot`. `--option auto` gives every person's task to that bot, so a run needs
@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import unquote
 
-sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
 from runner import Cancelled, Step, serve  # noqa: E402 - the runner SDK, beside the local runtime
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
@@ -284,7 +284,7 @@ def events_uri(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
 def opened_this_run(cache: Path, events: Path) -> bool:
     """Whether this run has already written this events file. Several tasks may deposit their trials in one drawn
     dataset, and a task may play once per subject in a loop: the first to write it in a run starts it empty, the
-    rest append. The run is the walk's pid (`STUDYFLOW_RUN_PID`, skills/local/SKILL.md), so a later run truncates
+    rest append. The run is the walk's pid (`STUDYFLOW_RUN_PID`, packages/runtime-local/CONTRACT.md), so a later run truncates
     again. ponytail: two pools writing one dataset at the same instant may both think they are first."""
     marker = cache / "events.written.json"
     run = os.environ.get("STUDYFLOW_RUN_PID", "")
@@ -341,13 +341,13 @@ def option_named(content: Any, options: list[str]) -> str | None:
 
 def data_inputs(element: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
     """What rides with every trial beside the trial itself: the task's data inputs by source id, each with the value
-    this run bound for it, else null — as an unclaimed activity sends its own (skills/local/SKILL.md, "Messages").
+    this run bound for it, else null — as an unclaimed activity sends its own (packages/runtime-local/CONTRACT.md, "Messages").
     That is how the `agentic:Prompt` wired into the task reaches the pool that answers."""
     return {source: state.get(source) for binding in element.get("inputs") or [] if (source := binding.get("source"))}
 
 
 class Exchange:
-    """The task's end of its message flows (skills/local/SKILL.md, "Messages"): each awaiting trial goes out along
+    """The task's end of its message flows (packages/runtime-local/CONTRACT.md, "Messages"): each awaiting trial goes out along
     the trial flow, and the answer that names it (`inReplyTo`) comes back."""
 
     def __init__(self, step: Step, flow: str, agent: str, inputs: dict[str, Any] | None = None) -> None:

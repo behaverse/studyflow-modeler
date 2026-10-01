@@ -11,7 +11,7 @@ import { Values } from '@core/engine/values';
 
 /**
  * The walk: one study, walked as the notation says. It is the one engine behind every runtime: the local runtime
- * hosts it and hands each claimed element to a partial runner (skills/local/SKILL.md), the browser runtime hosts it
+ * hosts it and hands each claimed element to a partial runner (packages/runtime-local/CONTRACT.md), the browser runtime hosts it
  * and shows each step as a screen, and the modeler hosts it as a dry run. It executes nothing itself and does no I/O:
  * a host says who claims an element and performs it, keeps the records, and decides what a re-run may reuse.
  *

@@ -3,7 +3,8 @@ import { globSync } from 'node:fs';
 
 import { expect, test } from '@playwright/test';
 
-/** A skill's Python runner may carry an assert-based self-check (`skills/<name>/test_*.py`); each runs here, so CI runs it too. */
+/** A skill's Python runner may carry an assert-based self-check (`skills/<name>/test_*.py`), and so does the runner SDK
+ * (`packages/runtime-local/python`); each runs here, so CI runs it too. */
 
 function hasPython(): boolean {
   try {
@@ -14,7 +15,7 @@ function hasPython(): boolean {
   }
 }
 
-for (const file of globSync('skills/*/test_*.py')) {
+for (const file of [...globSync('skills/*/test_*.py'), ...globSync('packages/runtime-local/python/test_*.py')]) {
   test(file, () => {
     test.skip(!hasPython(), 'python3 is not on PATH');
     expect(() => execFileSync('python3', [file], { stdio: 'pipe' })).not.toThrow();

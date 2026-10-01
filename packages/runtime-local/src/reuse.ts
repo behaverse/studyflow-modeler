@@ -3,10 +3,10 @@ import path from 'node:path';
 
 import { GATEWAY_TYPES, type Graph } from '@core/engine/graph';
 import type { Note, PlanElement, Reuse } from '@core/engine';
-import type { ElementRecord, RunRepo } from '@skills/prov/prov';
+import type { ElementRecord, RunRepo } from '@runtime-local/prov';
 
 /**
- * What a re-run reuses (skills/local/SKILL.md, "Re-runs"). A step is skipped when its record still stands: nothing it
+ * What a re-run reuses (packages/runtime-local/CONTRACT.md, "Re-runs"). A step is skipped when its record still stands: nothing it
  * reads was re-made earlier in this run, its outputs are where it left them, and the commit its record names still
  * holds what it ran with — every artifact it reads or makes, compared by git itself, and its own drawing (at a
  * gateway, the flows it weighs too), read back out of the study that commit carries.

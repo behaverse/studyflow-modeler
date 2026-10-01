@@ -20,7 +20,7 @@ A version after `@` pins the implementation, `python://sklearn.svm.SVC@1.7`: the
 top-level module (for the standard library, Python itself) must be installed at a version whose components start
 with the pin's, so `1.7` holds for 1.7.2 and not for 1.70. A mismatch, or no metadata to compare, fails the step
 with a message naming both. A step that runs hands back what provided its implementation, for the record only
-([the contract](../local/SKILL.md)): `record: {"version": "scikit-learn 1.7.2"}`, null when no metadata names one. A call that
+([the contract](../../packages/runtime-local/CONTRACT.md)): `record: {"version": "scikit-learn 1.7.2"}`, null when no metadata names one. A call that
 raises `KeyError` for a column the step names and a DataFrame it received lacks fails with
 `reads column 'X', which the table does not have (closest: 'Y')`.
 `test_local.py` is its self-check.

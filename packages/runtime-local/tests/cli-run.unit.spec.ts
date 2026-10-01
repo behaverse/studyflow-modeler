@@ -11,7 +11,7 @@ import { stateOf } from '@core/engine';
 import type { Element } from '@core/model/index';
 import { freshMetamodel, xmlOf } from '@tests/schemas';
 
-/** The local runtime (skills/local/src): what a run leaves in its repository, what a re-run reuses of it, and the
+/** The local runtime (packages/runtime-local): what a run leaves in its repository, what a re-run reuses of it, and the
  * hand-off to partial runners. How the study is walked is pinned by packages/core/tests/engine.unit.spec.ts. */
 
 /** The CLI, built once per worker: `studyflow run` hosts the local runtime. No shipped skill is beside this copy, so
@@ -22,8 +22,8 @@ const BIN = (() => {
   return path.join(out, 'studyflow.mjs');
 })();
 // No skill is beside the built copy either, so a runner is told where the SDK is.
-const ENV = { ...process.env, STUDYFLOW_HOME: path.dirname(BIN), STUDYFLOW_LOCAL: path.resolve(__dirname, '..') };
-const PYTHON = path.resolve(__dirname, '../../python/local.py');
+const ENV = { ...process.env, STUDYFLOW_HOME: path.dirname(BIN), STUDYFLOW_LOCAL: path.resolve(__dirname, '../python') };
+const PYTHON = path.resolve(__dirname, '../../../skills/python/local.py');
 
 function hasUv(): boolean {
   try {
@@ -330,7 +330,7 @@ S:
   });
 });
 
-/** The contract with partial runners (skills/local/SKILL.md), spoken here by runners written with its SDK. */
+/** The contract with partial runners (packages/runtime-local/CONTRACT.md), spoken here by runners written with its SDK. */
 
 /** A runner at `file`: what it claims (Python, of `plan`), and the body of its `execute(step)`. */
 function writeRunner(file: string, claims: string, body: string[]): void {

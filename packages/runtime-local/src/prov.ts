@@ -1,7 +1,7 @@
 /**
- * The prov skill's module: the run repository and the prov timeline. The local runtime (skills/local) keeps every run
- * in a git repository through {@link RunRepo}, and stamps what it did on the study's elements as `prov:Activity`
- * entries (prov.moddle.yaml), which the next run reads back as its records.
+ * The run repository and the prov timeline. The local runtime keeps every run in a git repository through
+ * {@link RunRepo}, and stamps what it did on the study's elements as `prov:Activity` entries
+ * (skills/studyflow/prov.moddle.yaml), which the next run reads back as its records.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';

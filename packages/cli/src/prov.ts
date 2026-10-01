@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import type { RunEvent } from '@core/engine';
-import { provOf } from '@skills/prov/w3c';
+import { provOf } from '@runtime-local/w3c';
 
 /** A run's record, `events.jsonl` or the run repository holding it, as W3C PROV-O in Turtle: into `output`, or returned. */
 export function prov(record: string, output?: string): string {

@@ -5,7 +5,7 @@
 # ///
 """Play the language-model pools of a studyflow: each message a step sends to one is one request to that model.
 
-A partial runner (skills/local/SKILL.md): it claims every participant with no process of its own whose actor's
+A partial runner (packages/runtime-local/CONTRACT.md): it claims every participant with no process of its own whose actor's
 `implementation` names a model (`claude://…`, `ollama://…`), and answers each message the walk hands to one with
 the model's reply, and a record of what answered and what it was asked: the model and its executor's configuration,
 and the request as sent.
@@ -22,7 +22,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
 from runner import Step, fill, serve  # noqa: E402 - the runner SDK, beside the local runtime
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"

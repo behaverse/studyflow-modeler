@@ -2,7 +2,7 @@
  * FEEL, the expression language of every condition and data-edge selection a study writes (a flow's
  * `conditionExpression`, a loop's `loopCondition`, a conditional event's `condition`, a data edge's
  * `transformation`). FEEL is the expression language of the OMG's DMN standard, BPMN's sibling; `feelin` evaluates
- * it here, for the walk in every runtime and the modeler, and skills/local/feel.py evaluates the same subset for
+ * it here, for the walk in every runtime and the modeler, and packages/runtime-local/python/feel.py evaluates the same subset for
  * runners written in Python. tests/fixtures/feel.json pins the two row by row. Either reads a `{name}` citation as the name.
  */
 import { evaluate, parseExpression } from 'feelin';
@@ -17,7 +17,7 @@ export type FeelResult = { value: unknown; error?: string };
  * labels do, and it reads as `Play.trials > 3`. */
 export const cited = (expression: string): string => expression.replace(PLACEHOLDER, '$1');
 
-/** The FEEL functions a study may call: both evaluators have them (feelin, and skills/local/feel.py's subset). */
+/** The FEEL functions a study may call: both evaluators have them (feelin, and packages/runtime-local/python/feel.py's subset). */
 const FUNCTIONS = new Set(['not', 'contains', 'starts with', 'ends with', 'substring after', 'substring before', 'upper case',
   'lower case', 'string length', 'count', 'sum', 'min', 'max', 'mean', 'abs', 'is defined']);
 

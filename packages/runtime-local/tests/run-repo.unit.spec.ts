@@ -6,10 +6,10 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { RunRepo } from '@skills/prov/prov';
+import { RunRepo } from '@runtime-local/prov';
 
-/** The run repository (skills/prov/prov.ts), on its own. What a whole run leaves in it is pinned by
- * skills/local/tests/cli-run.unit.spec.ts. */
+/** The run repository (packages/runtime-local/src/prov.ts), on its own. What a whole run leaves in it is pinned by
+ * packages/runtime-local/tests/cli-run.unit.spec.ts. */
 
 test.skip(spawnSync('git', ['--version']).error !== undefined, 'git is not on PATH');
 

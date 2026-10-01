@@ -34,8 +34,8 @@ from typing import Any, Callable, Iterator
 
 import yaml
 
-sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
-import feel  # noqa: E402 - the local runtime's FEEL, skills/local/feel.py
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
+import feel  # noqa: E402 - the local runtime's FEEL, packages/runtime-local/python/feel.py
 from runner import PLACEHOLDER, Step, dig, serve  # noqa: E402 - and its runner SDK
 
 

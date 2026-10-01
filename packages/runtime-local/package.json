@@ -1,0 +1,20 @@
+{
+  "name": "@behaverse/studyflow-runtime-local",
+  "description": "The local runtime: hosts the walk on the researcher's machine, hands each element to the skill that claims it, and keeps the run repository.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@behaverse/studyflow-core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.8",
+    "typescript": "^5.9.3"
+  }
+}

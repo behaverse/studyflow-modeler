@@ -133,16 +133,16 @@ enumerations:
       - name: Dynamic
         value: dynamic
         description: A code the platform supplies at run time (Prolific, MTurk).
-  # The hosted environments; each runtime skill adds its own by `extends` (`browser`, `local`).
+  # The two runtimes (packages/runtime-local, packages/runtime-browser); another runtime adds itself by `extends`.
   - name: RuntimeEnum
     description: Environment the study runs in.
     literalValues:
-      - name: Cloud
-        value: cloud
-        description: On a hosted engine.
-      - name: HPC
-        value: hpc
-        description: On a cluster, through a job scheduler.
+      - name: Local
+        value: local
+        description: On the researcher's machine.
+      - name: Browser
+        value: browser
+        description: In the participant's browser, one session at a time.
   - name: ItemTypeEnum
     description: Common value types offered for a state item; any other type name is accepted.
     literalValues:

@@ -37,7 +37,7 @@ test('no two schemas share a URI or declare the same name, and the required ones
   }
 
   expect(SCHEMAS.filter((schema) => schema.required).map((schema) => schema.prefix).sort())
-    .toEqual(['cognitive', 'local', 'prov', 'studyflow']);
+    .toEqual(['cognitive', 'prov', 'studyflow']);
 });
 
 test('each schema has a quoted YY.M.N version, an http(s) uri, a lowercase prefix, a lowerCase tagAlias, a one-row blurb and PascalCase names', () => {

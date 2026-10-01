@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import type { RunEvent } from '@core/engine';
-import { provOf } from '@skills/prov/w3c';
+import { provOf } from '@runtime-local/w3c';
 
 /** A run's record as W3C PROV-O: the run, its steps and what it wrote, in PROV's own terms. */
 

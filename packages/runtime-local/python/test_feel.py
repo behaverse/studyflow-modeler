@@ -1,4 +1,4 @@
-"""skills/local/feel.py against tests/fixtures/feel.json, the rows packages/core/tests/feel.unit.spec.ts pins feelin to."""
+"""packages/runtime-local/python/feel.py against tests/fixtures/feel.json, the rows packages/core/tests/feel.unit.spec.ts pins feelin to."""
 
 import importlib.util
 import json
@@ -8,7 +8,7 @@ spec = importlib.util.spec_from_file_location("feel", Path(__file__).with_name("
 feel = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(feel)
 
-rows = json.loads((Path(__file__).parents[2] / "tests" / "fixtures" / "feel.json").read_text(encoding="utf-8"))
+rows = json.loads((Path(__file__).parents[3] / "tests" / "fixtures" / "feel.json").read_text(encoding="utf-8"))
 for expression, context, expected in rows:
     if isinstance(expected, dict) and "error" in expected:
         try:

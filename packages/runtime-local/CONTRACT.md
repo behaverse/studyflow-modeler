@@ -1,28 +1,21 @@
----
-name: local
-description: "The runtime behind `studyflow run --runtime local`: hosts the walk on this machine, records, and hands each element to the skill that claims it. Use when running the data-facing half of a study on a machine."
-license: MIT
-compatibility: "The studyflow CLI, and git for the run repository; a runner brings what it needs (the shipped ones, uv)."
-metadata:
-  schema: "local.moddle.yaml"
----
+# The local runtime
 
-`src/run.ts` hosts the walk (`packages/core/src/engine`, the one engine every runtime hosts) inside the `studyflow`
-CLI. It never executes an element itself: each skill's `runtimes.local` command is started once for the run, in that
+The runtime behind `studyflow run --runtime local`. `src/run.ts` hosts the walk (`packages/core/src/engine`, the one
+engine every runtime hosts) inside the `studyflow` CLI. It never executes an element itself: each skill's `runtimes.local` command is started once for the run, in that
 skill's folder, asked which elements it takes, and then handed each as the walk reaches it (two at once when two pools, or two paths of
 one pool, reach theirs together); the contract is below. How the walk
-goes (messages, repeats, timers, what a re-run skips) is in [WALK.md](WALK.md). The [prov](../prov/SKILL.md) skill's
-module keeps the run repository and records.
+goes (messages, repeats, timers, what a re-run skips) is in [WALK.md](WALK.md). `src/prov.ts` keeps the run repository and records,
+in the vocabulary of the studyflow skill's `prov.moddle.yaml`.
 
 ## Partial runners
 
-A partial runner is a program in any language that claims certain elements and executes them. [`../shell/local.py`](../shell/local.py) is a short working example, written with the Python SDK beside this file ([`runner.py`](runner.py)).
+A partial runner is a program in any language that claims certain elements and executes them. [`skills/shell/local.py`](../../skills/shell/local.py) is a short working example, written with the Python SDK ([`python/runner.py`](python/runner.py)).
 
 This contract is Studyflow's published language for the local runtime, and the whole interface to it: the walk coordinates, a runner executes, and nothing here depends on how a runner or the tool behind it works. A runner is its skill's side of the boundary: it speaks these terms to the walk and its tool's own protocol to the tool.
 
 **Discovery.** `studyflow run --runtime local` starts every skill's `runtimes.local` command in that skill's folder (the checkout's `skills/`, or `libexec/skills` as installed, the skills `studyflow skill add` installed, plus any `STUDYFLOW_SKILLS` directory), and any executable named `studyflow-<name>` on PATH. `--runner NAME=COMMAND` adds or replaces one for a single run. A command that is not on this machine claims nothing, and the run goes on without it.
 
-**Protocol.** A runner is one process for the whole run. The walk speaks to it in [JSON-RPC 2.0](https://www.jsonrpc.org/specification) on its stdin and stdout, one message a line; this is version 2 of the contract. A line on stdout that is no such message goes to the run log as it is; stderr stays on the terminal. `STUDYFLOW_RUN_PID` in the environment is the walk's pid, for anything a runner leaves running to follow, and `STUDYFLOW_LOCAL` is this folder, where the SDK is.
+**Protocol.** A runner is one process for the whole run. The walk speaks to it in [JSON-RPC 2.0](https://www.jsonrpc.org/specification) on its stdin and stdout, one message a line; this is version 2 of the contract. A line on stdout that is no such message goes to the run log as it is; stderr stays on the terminal. `STUDYFLOW_RUN_PID` in the environment is the walk's pid, for anything a runner leaves running to follow, and `STUDYFLOW_LOCAL` is the SDK's folder (`python/` here, `libexec/sdk` as installed).
 
 What the walk sends:
 
@@ -65,7 +58,7 @@ A runner resolves placeholders by the rule in [docs/reference.qmd](../../docs/re
 ```python
 import os, sys
 from pathlib import Path
-sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
 from runner import serve
 
 def claims(plan):   # the ids it takes; or {"elements": [...], "live": False}

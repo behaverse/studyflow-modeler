@@ -10,7 +10,7 @@ Usage:
     skills/reachy/local.py --participant [--sim] [--port N]      # the seat, started by the walk when a step needs the camera
 
 The robot is its body: it speaks, moves, looks, and takes pictures. Whatever decides for it is another pool the
-diagram draws, a model asked along message flows (skills/local/SKILL.md, "Messages"); nothing here calls a model.
+diagram draws, a model asked along message flows (packages/runtime-local/CONTRACT.md, "Messages"); nothing here calls a model.
 A `screen` look sends each view of its search along the step's message flow to the model's pool and turns by what
 comes back; it remembers where it found the screen (`~/.studyflow/reachy/gaze.json`, per robot host), so the next
 look, and the next run, start there. A snapshot saves a picture in the run, where the step's data output names a
@@ -18,7 +18,7 @@ folder (`reachy/frames/` when it names none), and its path is the step's result.
 state as the modeler does, `{name}` from the element outward, `{state.scope.name}`, or `{Play.trials}` for an
 earlier element's result.
 
-A partial runner (skills/local/SKILL.md): the local runtime walks the diagram and hands this script one
+A partial runner (packages/runtime-local/CONTRACT.md): the local runtime walks the diagram and hands this script one
 `reachy:*` element at a time, with the run's values; its result, and what its data edges bind, go back. It never
 opens the diagram itself: `plan.json` is the digest the local runtime writes. It holds the robot from the first
 robot step to the end of the run. By default it
@@ -49,8 +49,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
 
-sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
-import feel  # noqa: E402 - the local runtime's FEEL, skills/local/feel.py
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
+import feel  # noqa: E402 - the local runtime's FEEL, packages/runtime-local/python/feel.py
 import runner  # noqa: E402 - and its runner SDK
 
 REACHY = "https://w3id.org/studyflow/reachy"
@@ -576,7 +576,7 @@ class Run:
 
 
 class Messages:
-    """A step's end of its message flows while it runs (skills/local/SKILL.md, "Messages"): what it sends goes along
+    """A step's end of its message flows while it runs (packages/runtime-local/CONTRACT.md, "Messages"): what it sends goes along
     the flow, and the answer that names it comes back."""
 
     def __init__(self, step: runner.Step, flow: str) -> None:

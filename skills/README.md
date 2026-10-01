@@ -11,14 +11,14 @@ compatibility: "Local runtime with uv; a Reachy Mini daemon on the network, or -
 metadata:
   schema: "reachy.moddle.yaml"        # the vocabulary: a BPMN extension, relative to the folder
   runtimes:                           # what executes its elements, per runtime
-    local: "uv run --script local.py" #   a command run in this folder (the contract: local/SKILL.md)
+    local: "uv run --script local.py" #   a command run in this folder (the contract: packages/runtime-local/CONTRACT.md)
     browser: "browser/index.tsx"      #   a node module the browser runner imports (browser/src/nodes/README.md)
   modeler: "modeler.ts"               # projections it exports, foreign formats it opens, inspector sections
 ---
 What the vocabulary means and how to author with it.
 ```
 
-A skill can be vocabulary only (`eeg`), a runner only (`python`), both (`behaverse`), or only something the modeler exports or opens (`drawio`, `jspsych`). The runtimes are skills too: [`browser`](browser/SKILL.md) and [`local`](local/SKILL.md). `examples/` holds its example diagrams, `tests/` its tests. A skill whose schema says `required: true` always loads and cannot be disabled: `studyflow`, `prov`, `cognitive`, and the `local` runtime, the study's default.
+A skill can be vocabulary only (`eeg`), a runner only (`python`), both (`behaverse`), or only something the modeler exports or opens (`drawio`, `jspsych`). The local runtime is [`packages/runtime-local`](../packages/runtime-local/CONTRACT.md). `examples/` holds its example diagrams, `tests/` its tests. A skill whose schema says `required: true` always loads and cannot be disabled: `studyflow` (with its `prov` schema) and `cognitive`.
 
 A skill is the boundary between Studyflow and a domain (in domain-driven design, an anti-corruption layer): its vocabulary gives authors the domain's elements in the domain's words, and its runners translate between Studyflow's contract and each tool's own protocol. The apps find what it declares and learn nothing else, so how a tool behind a skill works changes that skill at most.
 

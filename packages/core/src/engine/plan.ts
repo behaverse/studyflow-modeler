@@ -7,13 +7,13 @@ import { expandInline, splitBinding } from '@core/model/spelling';
 const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /**
- * The plan: a study as one JSON document, what a partial runner reads instead of the diagram (skills/local/SKILL.md,
+ * The plan: a study as one JSON document, what a partial runner reads instead of the diagram (packages/runtime-local/CONTRACT.md,
  * "The plan") and what the walk walks. Everything is spelled as the XML spells it: an element by its tag's local name
  * (`task`, `sequenceFlow`), its attributes under their local names as text, a reference as the id it names. Nothing
  * is inferred: an attribute the diagram omits is absent.
  */
 
-/** The version of the hand-off contract (skills/local/SKILL.md) a plan is written for. */
+/** The version of the hand-off contract (packages/runtime-local/CONTRACT.md) a plan is written for. */
 export const PROTOCOL = 2;
 
 export type Expression = { body: string; language: string | null };

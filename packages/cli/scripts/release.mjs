@@ -58,9 +58,10 @@ const PLATFORMS = [
 ];
 const platforms = local ? PLATFORMS.filter((p) => p.slug === `${process.platform}-${process.arch}`) : PLATFORMS;
 
-// `studyflow run --runtime local` runs the skills: the local runtime, the prov module, and every skill's
-// `runtimes.local`, each read from its SKILL.md. The browser runtime and browser modules, examples, and tests stay out.
+// `studyflow run --runtime local` runs the skills: every skill's `runtimes.local`, each read from its SKILL.md, and
+// the runner SDK they import (the local runtime itself is in the binary). Browser modules, examples, and tests stay out.
 const skillsDir = resolve(repoDir, 'skills');
+const sdkDir = resolve(repoDir, 'packages', 'runtime-local', 'python');
 const SKIPPED = new Set(['browser', 'examples', 'tests', 'node_modules', '__pycache__']);
 const shipped = (src) => !relative(skillsDir, src).split(sep).some((part) => SKIPPED.has(part) || part.startsWith('.'));
 
@@ -103,8 +104,9 @@ ${blockFor(assets, 'linux-x64', '      ')}
 
   def install
     bin.install "studyflow"
-    # The skills (the local runtime among them), found from bin/studyflow as ../libexec/skills.
+    # The skills, found from bin/studyflow as ../libexec/skills, and the runner SDK they import, as ../libexec/sdk.
     libexec.install "skills"
+    libexec.install "sdk"
     # The desktop app, served by \`studyflow edit\` from ../libexec/ui.
     libexec.install "ui"
   end
@@ -162,11 +164,12 @@ try {
     ], cliDir);
     if (macho && process.platform === 'darwin') sh('codesign', ['--force', '--sign', '-', resolve(stage, 'studyflow')]);
     cpSync(skillsDir, resolve(stage, 'skills'), { recursive: true, filter: (src) => src === skillsDir || shipped(src) });
+    cpSync(sdkDir, resolve(stage, 'sdk'), { recursive: true, filter: (src) => !/(^|\/)(test_[^/]*\.py|__pycache__)$/.test(src) });
     cpSync(resolve(repoDir, 'dist'), resolve(stage, 'ui'), { recursive: true });
     copyFileSync(resolve(repoDir, 'LICENSE'), resolve(stage, 'LICENSE'));
 
     const asset = `studyflow-${version}-${slug}.tar.gz`;
-    sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', 'skills', 'ui', 'LICENSE']);
+    sh('tar', ['-czf', resolve(outDir, asset), '-C', stage, 'studyflow', 'skills', 'sdk', 'ui', 'LICENSE']);
     rmSync(stage, { recursive: true, force: true });
     const sha256 = createHash('sha256').update(readFileSync(resolve(outDir, asset))).digest('hex');
     writeFileSync(resolve(outDir, `${asset}.sha256`), `${sha256}  ${asset}\n`);

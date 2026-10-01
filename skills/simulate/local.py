@@ -5,7 +5,7 @@
 # ///
 """Simulated tasks and participants with a planted truth (SKILL.md beside this file).
 
-A partial runner (skills/local/SKILL.md): it claims every step whose `implementation` is `simulate://simon`,
+A partial runner (packages/runtime-local/CONTRACT.md): it claims every step whose `implementation` is `simulate://simon`,
 `simulate://nback` or `simulate://record`, and every pool without a process whose actor's `implementation` is
 `simulate://planted` or `simulate://null`.
 """
@@ -22,7 +22,7 @@ from typing import Any
 
 import yaml
 
-sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
+sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
 from runner import Step, read, serve  # noqa: E402 - the runner SDK, beside the local runtime
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"

@@ -4,7 +4,7 @@
  * a time (SKILL.md, beside this folder, is that contract). What a run leaves is a run directory, `--repo DIR` or else
  * `~/.studyflow/runs/<id>/` (YYMMDD plus a codename, `260821heron/`), or the one the study handed to it already
  * lives in: the artifacts the `uri`s name, a copy of the study stamped `executed`, `studyflow.log` and the journal,
- * all in a git repository whose commit bodies hold the step records (skills/prov).
+ * all in a git repository whose commit bodies hold the step records (packages/runtime-local/src/prov.ts).
  */
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -12,10 +12,10 @@ import path from 'node:path';
 
 import { CONTAINER_TYPES, Walk, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
 import type { Element, StudyModel } from '@core/model/index';
-import { RunLog, timelineTimestamp } from '@skills/local/src/log';
-import { Records, humanBytes } from '@skills/local/src/reuse';
-import { PartialRunner, discoverRunners, type RunnerCommand } from '@skills/local/src/runners';
-import { RunRepo, TIMELINE_FIELDS, branchPoint, currentUser, elementRecords, invalidatedElements, stampElement, type Stamp } from '@skills/prov/prov';
+import { RunLog, timelineTimestamp } from '@runtime-local/log';
+import { Records, humanBytes } from '@runtime-local/reuse';
+import { PartialRunner, discoverRunners, type RunnerCommand } from '@runtime-local/runners';
+import { RunRepo, TIMELINE_FIELDS, branchPoint, currentUser, elementRecords, invalidatedElements, stampElement, type Stamp } from '@runtime-local/prov';
 
 export type LocalRun = {
   /** The study file as given. */
@@ -27,6 +27,8 @@ export type LocalRun = {
   read(bytes: Uint8Array): Promise<StudyModel | undefined>;
   /** Where the shipped skills are: the checkout's `skills/`, or `libexec/skills` as installed. */
   skillRoots: string[];
+  /** The runner SDK's folder (`runner.py`, `feel.py`), which a runner finds through `STUDYFLOW_LOCAL`. */
+  sdk?: string;
   /** The protocol's digest (core's `protocolDigest`), recorded as the run's `plan`. */
   digest: string;
   /** What the run record names as the tool that ran it. */
@@ -198,12 +200,11 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // will run.
   const cache = path.join(dir, '.cache');
   const claimed = new Map<string, { runner: PartialRunner; live: boolean }>();
-  const local = run.skillRoots.map((root) => path.join(root, 'local')).find((folder) => existsSync(path.join(folder, 'runner.py')));
   if (commands.size > 0) {
     mkdirSync(cache, { recursive: true });
     writeFileSync(path.join(cache, 'plan.json'), JSON.stringify(plan, null, 1));
   }
-  for (const [name, command] of commands) runners.push(new PartialRunner(name, command as RunnerCommand, dir, log, { timeout: run.stepTimeout, local }));
+  for (const [name, command] of commands) runners.push(new PartialRunner(name, command as RunnerCommand, dir, log, { timeout: run.stepTimeout, local: run.sdk }));
   // Every runner is asked at once; a claim is settled in the order the runners were found.
   const answers = await Promise.all(runners.map(async (runner) => ({ runner, answer: await runner.claims() })));
   for (const { runner, answer } of answers) {

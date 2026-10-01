@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 
 import { evaluateFeel } from '@core/expression/feel';
 
-/** [expression, context, value | {error: true}]: the rows skills/local/feel.py must agree with too (test_feel.py). */
+/** [expression, context, value | {error: true}]: the rows packages/runtime-local/python/feel.py must agree with too (test_feel.py). */
 const rows: [string, Record<string, unknown>, unknown][] = JSON.parse(
   readFileSync(path.join(process.cwd(), 'tests/fixtures/feel.json'), 'utf8'),
 );

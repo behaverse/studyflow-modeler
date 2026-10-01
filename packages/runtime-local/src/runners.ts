@@ -8,7 +8,7 @@ import type { Readable, Writable } from 'node:stream';
 
 import { HandoffError, PROTOCOL, type Conversation, type Handback, type Message, type Talk } from '@core/engine';
 import { parseSkillManifest } from '@core/notation/skill';
-import type { RunLog } from '@skills/local/src/log';
+import type { RunLog } from '@runtime-local/log';
 
 /** A command line as a shell would split it: quotes group, a backslash escapes. */
 export function shellWords(command: string): string[] {
@@ -142,7 +142,7 @@ export class PartialRunner {
   private readonly log: RunLog;
   /** Seconds a hand-off may take before it is stopped (`--step-timeout`). */
   private readonly timeout: number | undefined;
-  /** The local skill's folder, where a runner finds the SDK (`STUDYFLOW_LOCAL`). */
+  /** The runner SDK's folder, where a runner finds it (`STUDYFLOW_LOCAL`). */
   private readonly local: string | undefined;
   private child: Process | undefined;
   private asked = 0;

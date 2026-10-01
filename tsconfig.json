@@ -13,6 +13,7 @@
         "@desktop/*": ["./packages/desktop/*"],
         "@modeler/*": ["./packages/modeler/src/*"],
         "@runner/*": ["./skills/browser/src/*"],
+        "@runtime-local/*": ["./packages/runtime-local/src/*"],
         "@tests/*": ["./tests/*"],
         "@skills/*": ["./skills/*"],
         "#assets/*": ["./assets/*"]
