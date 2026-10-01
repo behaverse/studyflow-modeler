@@ -177,6 +177,11 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       error: /ResponseSource/,
     },
     {
+      label: 'a task set to the Godot build is refused: the page plays the Unity one',
+      xml: taskXml('timeline: XCIT_NB_01\nruntime: godot'),
+      error: /Godot build/,
+    },
+    {
       label: 'a person on the lower band plays the task, with no bot',
       xml: bandsXml('<studyflow:actor actorType="human" />'),
       payload: { agentType: 'human', configMode: 'builtin' },

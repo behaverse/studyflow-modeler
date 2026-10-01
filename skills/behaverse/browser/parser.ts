@@ -29,6 +29,10 @@ export function readBehaverseAttribute(model: StudyModel, element: Element, attr
 
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
   if (node.extensionType !== BEHAVERSE_TASK_TYPE) return null;
+  // The page plays the Unity build; the Godot one has no web export here yet.
+  if (readBehaverseAttribute(node.model, node.element, 'runtime') === 'godot') {
+    throw new Error(`behaverse:Task '${node.id}' is set to the Godot build (runtime: godot), which the browser runner cannot play yet. Set runtime to unity.`);
+  }
 
   const instrument = readBehaverseAttribute(node.model, node.element, 'instrument') ?? '';
   if (!instrument || instrument === 'undefined') {

@@ -124,3 +124,15 @@ assert argv[:2] == ["chrome", "--app=http://127.0.0.1:1/"], argv
 assert {"--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
         "--disable-background-timer-throttling"} <= set(argv), argv
 print("ok")
+
+# The Unity runner plays the tasks set to the Unity build, checking the build first; one set to the Godot build stops
+# the run before its first step, since no runner plays that build yet.
+checked = []
+unity_plan = {"elements": {"Play": task(), "Other": {"id": "Other", "type": "task"}}}
+assert behaverse.claimed_tasks(unity_plan, lambda: checked.append(True)) == ["Play"] and checked == [True]
+assert behaverse.claimed_tasks({"elements": {"Play": task(runtime="unity")}}, lambda: None) == ["Play"]
+try:
+    behaverse.claimed_tasks({"elements": {"Play": task(runtime="godot")}}, lambda: None)
+    raise AssertionError("a Godot task was claimed")
+except ValueError as error:
+    assert "Play is set to the Godot build" in str(error), error

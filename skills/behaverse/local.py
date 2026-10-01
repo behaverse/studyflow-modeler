@@ -41,7 +41,7 @@ import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import unquote
 
 sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[1] / "local"))
@@ -59,6 +59,25 @@ MIME ={".wasm": "application/wasm", ".data": "application/octet-stream", ".unity
 def behaverse_extension(element: dict[str, Any]) -> dict[str, Any] | None:
     return next((ext for ext in element.get("extensions") or []
                  if ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "task"), None)
+
+
+def build_of(element: dict[str, Any]) -> str:
+    """Which build plays a task: its `runtime`, the Unity build unless it says otherwise."""
+    return str(((behaverse_extension(element) or {}).get("attributes") or {}).get("runtime") or "unity")
+
+
+def claimed_tasks(plan: dict[str, Any], check_build: Callable[[], Any]) -> list[str]:
+    """The `behaverse:Task`s this runner plays: those set to the Unity build, whose build is checked here, so a run
+    fails before the walk starts rather than after another pool's robot has greeted. A task set to the Godot build
+    stops the run here too: no runner plays that build yet, and a task nothing runs would only be skipped."""
+    tasks = {eid: element for eid, element in (plan.get("elements") or {}).items() if behaverse_extension(element) is not None}
+    godot = sorted(eid for eid, element in tasks.items() if build_of(element) == "godot")
+    if godot:
+        raise ValueError(f"{', '.join(godot)} {'is' if len(godot) == 1 else 'are'} set to the Godot build (runtime: godot), "
+                         "which no runner plays yet; set runtime: unity to play it on the Unity build")
+    if tasks:
+        check_build()
+    return list(tasks)
 
 
 def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -676,10 +695,7 @@ def main() -> int:
     args = parser.parse_args()
 
     def claims(plan: dict[str, Any]) -> list[str]:
-        claimed = [eid for eid, element in (plan.get("elements") or {}).items() if behaverse_extension(element) is not None]
-        if claimed:  # fail before the walk starts, not after another pool's robot has greeted
-            checked_build(args.build)
-        return claimed
+        return claimed_tasks(plan, lambda: checked_build(args.build))
 
     # The person is at the screen and the terminal: what this prints is for them, not the run log.
     return serve(claims, lambda step: perform(step, args), terminal=True)

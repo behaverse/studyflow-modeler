@@ -44,6 +44,11 @@ a study that wants a bad run to leave the task draws a conditional boundary even
 (`{Play.failedTrialRate} > 0.2`), and the walk goes on from there. A task played any other way (by a person, by the
 build's own bot, or in the browser runner) carries no `failedTrialRate`, and a condition that cites it there fails the run.
 
+A task's `runtime` says which build plays it: `unity` (the default), or `godot`, the Godot build task_builder makes.
+Each build's runner claims the tasks set to it. No runner plays the Godot build yet, so a local study with a task set
+to it stops before its first step, saying so, and the browser runner refuses it; the instrument, the timeline and the
+Parameters wired in mean the same whichever build plays the task.
+
 This skill is the boundary between Studyflow and the builds that play Behaverse tasks, the Unity build today. To
 Studyflow it offers `behaverse:*` elements and runners that keep its contract; to a build its runners speak that
 build's own protocol (the Unity build's is assessment-unity's `docs/studyflow-protocol.md`). Behaverse's words

@@ -93,6 +93,15 @@ enumerations:
         value: models
         description: Fitted parameters and scores, derived from events or trials.
 
+  # Which build plays a task: Behaverse's word, so not the study's `runtime` (local, browser), which says where it runs.
+  - name: BehaverseRuntimeEnum
+    description: A build of the Behaverse battery.
+    literalValues:
+      - name: Unity
+        value: unity
+      - name: Godot (task_builder)
+        value: godot
+
 types:
   - name: Task
     description: 'A task from the Behaverse assessment battery. Its `instrument` says which, its `timeline` what runs, and the "Parameters" wired into it configure it.'
@@ -132,6 +141,15 @@ types:
         type: String
         meta:
           order: 2
+          categories:
+            - Execution
+      - name: runtime
+        description: 'Which build plays the task: the Unity build, or the Godot one (task_builder). No runner plays the Godot build yet, so a study with a task set to it stops before its first step.'
+        isAttr: true
+        type: BehaverseRuntimeEnum
+        default: unity
+        meta:
+          order: 3
           categories:
             - Execution
 
