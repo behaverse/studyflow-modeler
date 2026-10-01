@@ -228,11 +228,11 @@ These attributes describe the study's schedule in visits and days, which is what
 
 | Attribute | On | Holds |
 |:--|:--|:--|
-| `implementation` | any activity | the software the step runs, as `<scheme>://<ref>[@<version>]` |
+| `implementation` | any activity | the software the step runs, as `<scheme>://<ref>[@<version>][#<fragment>]` |
 | `script` | a script task | code carried in the study itself |
 | `additionalArguments` | any activity | literal arguments the drawn data edges do not supply; the reserved `args` key holds positional ones |
 
-The scheme says how the software is found: `python://` is an importable callable, `docker://` a container image pinned by tag or digest, and `https://` or `file://` a script at an address. A version after `@` is checked against what is installed before the step runs, component by component (`python://sklearn.svm.SVC@1.7` runs on scikit-learn 1.7.2, not on 1.8), and the step's record names the version it ran. A skill adds its own, such as the shell skill's `shell://`: which runner takes a step is settled when the study runs, by what the runners claim.
+The scheme says how the software is found: `python://` is an importable callable, `docker://` a container image pinned by tag (`docker://nipreps/fmriprep:23.2.0`, Docker's own spelling) or by digest after `@`, and `https://` or `file://` a script at an address. A `#` after the version names a part of what the reference holds, such as one plugin in a repository at a release (`https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker`). A version after `@` is checked against what is installed before the step runs, component by component (`python://sklearn.svm.SVC@1.7` runs on scikit-learn 1.7.2, not on 1.8), and the step's record names the version it ran. A skill adds its own, such as the shell skill's `shell://`: which runner takes a step is settled when the study runs, by what the runners claim.
 
 A data step is a plain service task: `implementation` names what runs, and the drawn data edges say what it reads and writes. A step that drops rows drops *data*, while a gateway changes the *path* a run takes, so the two are not interchangeable.
 
