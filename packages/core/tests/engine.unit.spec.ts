@@ -830,6 +830,42 @@ A:
   expect(reached).toEqual({ S0: 3, SF1: 3, Play: 3, SF2: 3, S9: 3, A0: 1, AF1: 1, Analyze: 1, AF2: 1, A9: 1 });
 });
 
+/** Two pools, each catching the other's message before it sends its own. */
+const WAITING_FOR_EACH_OTHER = `C:
+  type: Collaboration
+  participants:
+    Left: { name: Left, processRef: L }
+    Right: { name: Right, processRef: R }
+  messageFlows:
+    M_LR: { sourceRef: L_Send, targetRef: R_Hear }
+    M_RL: { sourceRef: R_Send, targetRef: L_Hear }
+L:
+  type: Process
+  flowElements:
+    L0: { type: StartEvent }
+    L_Hear: { type: IntermediateCatchEvent }
+    L_Send: { type: IntermediateThrowEvent }
+    L9: { type: EndEvent }
+    LF1: L0 -> L_Hear
+    LF2: L_Hear -> L_Send
+    LF3: L_Send -> L9
+R:
+  type: Process
+  flowElements:
+    R0: { type: StartEvent }
+    R_Hear: { type: IntermediateCatchEvent }
+    R_Send: { type: IntermediateThrowEvent }
+    R9: { type: EndEvent }
+    RF1: R0 -> R_Hear
+    RF2: R_Hear -> R_Send
+    RF3: R_Send -> R9
+`;
+
+test('pools that each wait for the other fail the run, saying what each waits at, rather than wait forever', async () => {
+  const { error } = await walked(WAITING_FOR_EACH_OTHER);
+  expect(error?.message).toBe('the pools wait for each other: L_Hear waits along M_RL; R_Hear waits along M_LR');
+});
+
 test('a step finds the read-only properties its sub-process takes from wired Parameters, and a write to one is refused', async () => {
   let found: unknown;
   const { error } = await walked(`P:

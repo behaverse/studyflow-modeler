@@ -17,6 +17,8 @@ export class Post {
   private readonly serving = new Map<string, Promise<unknown>>();
   /** The exchanges each conversation with a pool that remembers has had this run. */
   private readonly turns = new Map<string, number>();
+  /** The pools waiting for a message, and what each waits at: when every pool still walking waits, none will come. */
+  private readonly blocked = new Map<string, string>();
   private sent = 0;
   /** Why the run is ending, once a pool failed or the run was stopped: every wait fails with it. */
   failed: unknown;
@@ -130,8 +132,29 @@ export class Post {
         }
       }
       this.expectMore(id, flows);
-      await this.changed();
+      await this.waitFor(thread, `${id} waits along ${flows.map((flow) => flow.id).join(', ')}`);
     }
+  }
+
+  /** A pool waits for a message. When every pool still walking waits so, no message will ever come: the run fails,
+   * saying what each waits at. */
+  private async waitFor(thread: Thread, what: string): Promise<void> {
+    this.blocked.set(thread.pool, what);
+    const walking = this.graph.plan.processes.filter((pool) => !this.poolsDone.has(pool));
+    if (this.failed === undefined && walking.every((pool) => this.blocked.has(pool))) {
+      this.failed = new Error(`the pools wait for each other: ${walking.map((pool) => this.blocked.get(pool)).join('; ')}`);
+      this.notify();
+    }
+    try {
+      await this.changed();
+    } finally {
+      this.blocked.delete(thread.pool);
+    }
+  }
+
+  /** The flows whose messages were sent and never taken. */
+  untaken(): string[] {
+    return [...this.mail].filter(([, messages]) => messages.length > 0).map(([flow]) => flow);
   }
 
   /** An event-based gateway's branch: the one whose event happens first. Each branch starts at a catch event or a
@@ -152,7 +175,7 @@ export class Post {
       const first = branches.find(({ into }) => into.some((flow) => this.mail.get(flow.id)?.length));
       if (first) return first.flow;
       this.expectMore(gateway, branches.flatMap(({ into }) => into));
-      await this.changed();
+      await this.waitFor(thread, `${gateway} waits for a message along ${branches.flatMap(({ into }) => into).map((flow) => flow.id).join(', ')}`);
     }
   }
 
