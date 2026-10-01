@@ -235,8 +235,7 @@ Process_D:
     Store_bids:
       type: DataStoreReference
       extensionElements:
-        - type: studyflow:Dataset
-          format: bids
+        - type: eeg:BIDSDataset
       name: BIDS
       bounds: 100 100 50 50
     Store_psychds:
@@ -268,7 +267,7 @@ function dataResolver(key: string, element?: StudyElement): IconDef | null | und
 test('a data store draws its format\'s icon, a typed data object its type\'s, a plain one none', async () => {
   const { canvas } = loadYaml(DATA_YAML, { iconResolver: dataResolver });
   const CASES: [label: string, id: string, keys: unknown[]][] = [
-    ['BIDS: the bundled logotype', 'Store_bids', ['bids-dataset-icon']],
+    ['BIDS: the bundled logotype of the format its type pins', 'Store_bids', ['bids-dataset-icon']],
     ['Psych-DS: the class its format literal names', 'Store_psychds', [expect.stringMatching(/^iconify /)]],
     ['a table: its type glyph', 'Obj_table', ['DataObjectReference']],
     ['a plain data object', 'Obj_plain', []],

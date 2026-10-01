@@ -327,7 +327,7 @@ types:
     properties:
       - name: format
         default: bids
-        type: String
+        type: studyflow:DatasetFormatEnum
         isAttr: true
         redefines: studyflow:Dataset#format
         meta:
