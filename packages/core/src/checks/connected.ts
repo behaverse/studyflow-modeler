@@ -26,7 +26,7 @@ function reach(nodes: Map<ModdleElement, GraphNode>, from: GraphNode[], side: 'i
  * each of its flow nodes lies on a path from a start event, or from a boundary event on one of its activities, to an
  * end event.
  */
-export function checkSoundness(definitions: ModdleElement): Issue[] {
+export function checkConnected(definitions: ModdleElement): Issue[] {
   const issues: Issue[] = [];
   for (const container of containers(definitions)) {
     const { flows, nodes } = graphOf(container);

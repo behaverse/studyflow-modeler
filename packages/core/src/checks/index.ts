@@ -7,7 +7,7 @@ import { checkFlowConsistency } from '@core/checks/flow-consistency';
 import { checkIds } from '@core/checks/ids';
 import { checkRunnerPaths } from '@core/checks/runner-paths';
 import { checkSeal } from '@core/checks/seal';
-import { checkSoundness } from '@core/checks/soundness';
+import { checkConnected } from '@core/checks/connected';
 
 /* What `studyflow validate` checks beyond reading a file, each check in a file of its own; `studyflow run` applies
    the plan checks before it starts a study. */
@@ -22,7 +22,7 @@ export type Issue = {
 /** The plan: one element an id, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, and reading only the columns its schemas define. */
 export function planChecks(definitions: ModdleElement): Issue[] {
   return [
-    ...checkIds(definitions), ...checkSoundness(definitions), ...checkRunnerPaths(definitions), ...checkExpressions(definitions), ...checkDecisions(definitions),
+    ...checkIds(definitions), ...checkConnected(definitions), ...checkRunnerPaths(definitions), ...checkExpressions(definitions), ...checkDecisions(definitions),
     ...checkValues(definitions), ...checkDataContract(definitions),
   ];
 }
