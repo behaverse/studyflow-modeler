@@ -61,7 +61,6 @@ export {
   tasksToExchanges,
   isTypedChoreography,
   readChoreographyBands,
-  toWireDefinitions,
   toWireXml,
   type ParticipantIds,
 } from '@core/document/choreography';
@@ -97,6 +96,7 @@ export async function xmlToStudyflow(xml: string, moddle: Moddle, onWarning?: (m
   if (onWarning) for (const warning of warnings) onWarning(readerWarning(warning));
   dropForeignElements(definitions, onWarning);
   tasksToExchanges(definitions);
+  choreographyToProcessRoot(definitions);
   inlineIoSpecification(definitions);
   return definitionsToStudyflow(definitions, onWarning);
 }

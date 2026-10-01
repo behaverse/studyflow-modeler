@@ -4,7 +4,7 @@
  * study, and several views may share one.
  */
 
-import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, patchDoc, readerWarning, setItemSubject, setMessageItem, studyflowToDefinitions, toWireDefinitions, toWireXml } from '@core/document';
+import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, patchDoc, readerWarning, setItemSubject, setMessageItem, studyflowToDefinitions, toWireXml } from '@core/document';
 import type { YamlDoc } from '@core/document/format.ts';
 import { definitionsToYamlDoc } from '@core/document/serialize.ts';
 import { categoryOf, isExpandable } from '@core/document/outline.ts';
@@ -172,17 +172,14 @@ export class Study {
     this.swap(definitions, 'load');
   }
 
-  /** The document as a `.studyflow.yaml` file holds it: the drawing written into its DI, and a pure choreography on its own root. */
+  /** The document as a `.studyflow.yaml` file holds it: the drawing written into its DI. */
   toYaml(): string {
     const { scene } = own(this);
     writeDi(scene);
-    const text = definitionsToStudyflow(scene.definitions);
-    // A pure choreography is edited on a process; its file holds it on a choreography root, written from a copy.
-    const copy = studyflowToDefinitions(text, moddleOf(scene.definitions), () => {});
-    return toWireDefinitions(copy) ? definitionsToStudyflow(copy) : text;
+    return definitionsToStudyflow(scene.definitions);
   }
 
-  /** The document as a BPMN XML file holds it: the drawing written into its DI, and a pure choreography on its own root. */
+  /** The document as a BPMN XML file holds it: the drawing written into its DI, an exchange as the BPMN task it is. */
   async toXml(): Promise<string> {
     const { scene } = own(this);
     writeDi(scene);

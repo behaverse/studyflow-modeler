@@ -5,7 +5,7 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { installedSkills } from '@cli/skills';
 
-import { looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, inlineIoSpecification, readerWarning, tasksToExchanges, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
+import { choreographyToProcessRoot, looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, inlineIoSpecification, readerWarning, tasksToExchanges, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
 import { loadAllSchemas } from '@core/notation/loader';
 import type { Moddle } from '@core/element/moddle';
 
@@ -73,6 +73,7 @@ export async function parseSource(source: StudyflowSource): Promise<ParseResult>
   const { rootElement, warnings: xmlWarnings } = await moddle.fromXML(source.text);
   warnings.push(...xmlWarnings.map(readerWarning));
   tasksToExchanges(rootElement);
+  choreographyToProcessRoot(rootElement);
   inlineIoSpecification(rootElement);
   return { definitions: rootElement, warnings };
 }

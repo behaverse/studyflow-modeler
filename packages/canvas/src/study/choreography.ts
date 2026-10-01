@@ -6,8 +6,7 @@
  * renames a `bpmn:Participant` the task references (its siblings may reference it
  * too), minting the pair, and in a process-rooted document the `bpmn:Collaboration`
  * holding it, on the first edit (core's `ensureChoreographyParticipants`). Band geometry
- * is derived from the task's bounds (core's `choreographyBandHeight`) and `messageFlowRef`
- * is rebuilt on save (core's `processToChoreographyRoot`), so neither is written here.
+ * is derived from the task's bounds (core's `choreographyBandHeight`), so it is not written here.
  *
  * Pure with respect to the scene: it mutates the moddle tree and reports what changed;
  * the revision bump and the events are the Mutator's.

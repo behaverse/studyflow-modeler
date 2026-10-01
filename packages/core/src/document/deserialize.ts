@@ -1,5 +1,6 @@
 import * as yaml from 'js-yaml';
 
+import { choreographyToProcessRoot } from '@core/document/choreography';
 import { isModdleElement, type Moddle } from '@core/element/moddle';
 import {
   RESERVED_DOC_KEYS,
@@ -296,5 +297,7 @@ export function studyflowToDefinitions(
   if (doc.state && typeof doc.state === 'object' && !Array.isArray(doc.state)) {
     writeState(definitions, moddle, doc.state as StateTree);
   }
+  // A study is a process: a choreography root is read as one.
+  choreographyToProcessRoot(definitions);
   return definitions;
 }

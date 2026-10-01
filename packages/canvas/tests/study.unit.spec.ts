@@ -38,7 +38,7 @@ Process_1:
       isExpanded: false
 `;
 
-/** A pure choreography: its file holds a choreography root, which the canvas edits as a process. */
+/** Another tool's choreography: a choreography root, which a study reads as a process. */
 const CHOREOGRAPHY = `id: Defs_2
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -98,7 +98,7 @@ test('a load replaces the document, read as a file opens, in one change, and the
 
   expect(heard.map(({ cause, added, removed }) => [cause, added, removed]))
     .toEqual([['load', ['Consent'], ['Task_1', 'Sub_1', 'Task_In']]]);
-  expect(rootTypes(study), 'the choreography is edited on a process').toContain('bpmn:Process');
+  expect(rootTypes(study), 'the choreography is read as a process').toContain('bpmn:Process');
   expect([study.canUndo, study.canRedo]).toEqual([false, false]);
   expect(study.revision, 'the revision carries on').toBe(2);
 });
@@ -109,9 +109,11 @@ test('a study writes its file as a file holds it, XML or YAML, without touching 
   const xml = await study.toXml();
   const yaml = study.toYaml();
 
-  expect(xml).toContain('<bpmn:choreography id="Dyad"');
-  expect(yaml).toContain('Dyad:\n  type: Choreography');
-  expect(rootTypes(study), 'still a process to edit').toContain('bpmn:Process');
+  // A choreography is read as the process a study is, and written as one: its exchange is a task in the XML.
+  expect(xml).toContain('<bpmn:process id="Dyad"');
+  expect(xml).toContain('<bpmn:task id="Consent" name="Give consent" studyflow:exchange="true"');
+  expect(yaml).toContain('Dyad:\n  type: Process');
+  expect(rootTypes(study)).toContain('bpmn:Process');
   expect(await (await Study.open(xml, { moddle: freshModdle() })).toXml()).toBe(xml);
   expect((await Study.open(yaml, { moddle: freshModdle() })).toYaml()).toBe(yaml);
   expect(open().toYaml(), 'a process is written as it is edited').toContain('Process_1:\n  type: Process');

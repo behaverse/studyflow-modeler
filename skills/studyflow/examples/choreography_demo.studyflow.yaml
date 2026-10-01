@@ -2,24 +2,14 @@ id: choreography_demo
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Dyadic_Study:
-  type: Choreography
+  type: studyflow:Study
   name: Dyadic decision study
   documentation: A two-participant choreography where subject and experimenter exchange consent and two decision rounds.
   extensionElements:
-    - type: studyflow:Study
     - type: prov:Activity
       action: created
       when: "2026-07-30T22:51:28Z"
       with: studyflow-modeler/26.0615
-  participants:
-    Participant_Subject:
-      name: Subject
-    Participant_Experimenter:
-      name: Experimenter
-  messageFlows:
-    MessageFlow_Consent: Participant_Subject -> Participant_Experimenter
-    MessageFlow_Round: Participant_Experimenter -> Participant_Subject
-    MessageFlow_Round2: Participant_Subject -> Participant_Experimenter
   flowElements:
     Start:
       type: StartEvent
@@ -31,8 +21,6 @@ Dyadic_Study:
         - Participant_Subject
         - Participant_Experimenter
       initiatingParticipantRef: Participant_Subject
-      messageFlowRef:
-        - MessageFlow_Consent
     Round:
       type: ChoreographyTask
       name: First decision round
@@ -40,8 +28,6 @@ Dyadic_Study:
         - Participant_Subject
         - Participant_Experimenter
       initiatingParticipantRef: Participant_Experimenter
-      messageFlowRef:
-        - MessageFlow_Round
     Round2:
       type: ChoreographyTask
       name: Second decision round
@@ -49,8 +35,6 @@ Dyadic_Study:
         - Participant_Subject
         - Participant_Experimenter
       initiatingParticipantRef: Participant_Subject
-      messageFlowRef:
-        - MessageFlow_Round2
     End:
       type: EndEvent
       name: Debrief
@@ -58,6 +42,14 @@ Dyadic_Study:
     Flow_Consent_Round: Consent -> Round
     Flow_Round_Round2: Round -> Round2
     Flow_Round2_End: Round2 -> End
+  isExecutable: false
+Dyadic_Study_participants:
+  type: Collaboration
+  participants:
+    Participant_Subject:
+      name: Subject
+    Participant_Experimenter:
+      name: Experimenter
 layout:
   Start:
     bounds: 160 202 36 36

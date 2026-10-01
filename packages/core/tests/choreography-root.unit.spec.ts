@@ -1,73 +1,56 @@
 
 import { expect, test } from '@playwright/test';
 
-import { ensureChoreographyParticipants, fromWireXml, readChoreographyBands, studyflowToXml, toWireDefinitions, toWireXml, xmlToStudyflow } from '@core/document';
+import { ensureChoreographyParticipants, fromWireXml, readChoreographyBands, studyflowToXml, toWireXml, xmlToStudyflow } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
-/** Choreography wire format: save emits the spec `bpmn:Choreography` shape, load folds back to process form. */
+/** A study is a process: a `bpmn:Choreography` from another tool is read as a process of exchanges, and a process of
+ * exchanges is saved as one, each exchange in its BPMN XML the task it is. */
 
-/** Canvas form: a Process of choreography tasks + a headless participant collaboration, and a root that carries more than its flow. */
-const CANVAS_XML = `<?xml version="1.0" encoding="UTF-8"?>
+/** Another tool's choreography: the spec `bpmn:Choreography` shape, a root that carries more than its flow. */
+const CHOREOGRAPHY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="chor_wire" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:collaboration id="Collab">
+  <bpmn2:choreography id="Process_1" name="Dyadic decision study" studyflow:signature="abc123">
+    <bpmn2:documentation>A two-participant choreography.</bpmn2:documentation>
+    <bpmn2:extensionElements><studyflow:study><studyflow:tags>Reference</studyflow:tags></studyflow:study></bpmn2:extensionElements>
     <bpmn2:participant id="P_Sub" name="Subject" />
     <bpmn2:participant id="P_Exp" name="Experimenter" />
-  </bpmn2:collaboration>
-  <bpmn2:process id="Process_1" name="Dyadic decision study" isExecutable="false" studyflow:signature="abc123">
-    <bpmn2:documentation>A two-participant choreography.</bpmn2:documentation>
-    <bpmn2:extensionElements><studyflow:study><studyflow:tags>Reference</studyflow:tags><studyflow:tags>Study designs</studyflow:tags></studyflow:study></bpmn2:extensionElements>
-    <bpmn2:startEvent id="Start_1">
-      <bpmn2:outgoing>F1</bpmn2:outgoing>
-    </bpmn2:startEvent>
+    <bpmn2:messageFlow id="M1" sourceRef="P_Exp" targetRef="P_Sub" />
+    <bpmn2:startEvent id="Start_1"><bpmn2:outgoing>F1</bpmn2:outgoing></bpmn2:startEvent>
     <bpmn2:choreographyTask id="Consent" name="Give consent" initiatingParticipantRef="P_Exp">
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
       <bpmn2:participantRef>P_Sub</bpmn2:participantRef>
       <bpmn2:participantRef>P_Exp</bpmn2:participantRef>
+      <bpmn2:messageFlowRef>M1</bpmn2:messageFlowRef>
     </bpmn2:choreographyTask>
-    <bpmn2:endEvent id="End_1">
-      <bpmn2:incoming>F2</bpmn2:incoming>
-    </bpmn2:endEvent>
+    <bpmn2:endEvent id="End_1"><bpmn2:incoming>F2</bpmn2:incoming></bpmn2:endEvent>
     <bpmn2:sequenceFlow id="F1" sourceRef="Start_1" targetRef="Consent" />
     <bpmn2:sequenceFlow id="F2" sourceRef="Consent" targetRef="End_1" />
-  </bpmn2:process>
+  </bpmn2:choreography>
 </bpmn2:definitions>`;
 
-test('save emits the BPMN 2.0 choreography shape, load folds it back, and the root keeps what it carries besides its flow', async () => {
-  const wire = await toWireXml(CANVAS_XML, freshModdle());
-  expect(wire).not.toContain('isExecutable');
-  const { rootElement: saved } = await freshModdle().fromXML(wire);
-  expect(saved.rootElements.some((re: any) => re.$type === 'bpmn:Collaboration')).toBe(false);
-  const choreography = saved.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
-  const task = choreography.flowElements.find((el: any) => el.$type === 'bpmn:ChoreographyTask');
-  expect(choreography.participants.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
+test('a choreography is read as a process of exchanges, keeps what its root carries, and is saved as a process', async () => {
+  const opened = await fromWireXml(CHOREOGRAPHY_XML, freshModdle());
+  const { rootElement: definitions } = await freshModdle().fromXML(opened);
+  const process = definitions.rootElements.find((re: any) => re.$type === 'bpmn:Process');
+  const collaboration = definitions.rootElements.find((re: any) => re.$type === 'bpmn:Collaboration');
+  expect(definitions.rootElements.some((re: any) => re.$type === 'bpmn:Choreography')).toBe(false);
+  const task = process.flowElements.find((el: any) => el.id === 'Consent');
+  expect(task.$type).toBe('bpmn:ChoreographyTask');
+  expect(collaboration.participants.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
   expect(task.participantRef.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
   expect(task.initiatingParticipantRef.name).toBe('Experimenter');
-  expect(choreography.messageFlows).toHaveLength(1);
-  const [flow] = choreography.messageFlows;
-  expect(task.messageFlowRef?.[0]).toBe(flow);
-  expect(flow.sourceRef.name).toBe('Experimenter');
-  expect(flow.targetRef.name).toBe('Subject');
+  expect(task.messageFlowRef ?? []).toEqual([]);
+  expect(process.name).toBe('Dyadic decision study');
+  expect(process.documentation?.[0]?.text).toContain('two-participant');
+  expect(process.extensionElements?.values?.[0]?.tags).toEqual(['Reference']);
+  expect(process.$attrs['studyflow:signature']).toBe('abc123');
 
-  const canvas = await fromWireXml(wire, freshModdle());
-  expect(canvas).not.toContain('topParticipant');
-  expect(canvas).not.toContain('messageFlowRef');
-  const { rootElement: reloaded } = await freshModdle().fromXML(canvas);
-  const process = reloaded.rootElements.find((re: any) => re.$type === 'bpmn:Process');
-  const collaboration = reloaded.rootElements.find((re: any) => re.$type === 'bpmn:Collaboration');
-  const reloadedTask = process.flowElements.find((el: any) => el.$type === 'bpmn:ChoreographyTask');
-  expect(collaboration.participants.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
-  expect(reloadedTask.participantRef.map((p: any) => p.name)).toEqual(['Subject', 'Experimenter']);
-  expect(reloadedTask.initiatingParticipantRef.name).toBe('Experimenter');
-
-  // The rewrite moves a fixed property list, and attributes no schema declares (`$attrs`) apart: what it misses is dropped.
-  for (const [label, root] of [['saved', choreography], ['reloaded', process]]) {
-    expect(root.name, label).toBe('Dyadic decision study');
-    expect(root.documentation?.[0]?.text, label).toContain('two-participant');
-    expect(root.extensionElements?.values?.[0]?.$type, label).toBe('studyflow:Study');
-    expect(root.extensionElements?.values?.[0]?.tags, label).toEqual(['Reference', 'Study designs']);
-    expect(root.$attrs['studyflow:signature'], label).toBe('abc123');
-  }
+  // Saved, it stays a process, and its exchange is the BPMN task it is.
+  const saved = await toWireXml(opened, freshModdle());
+  expect(saved).not.toMatch(/<bpmn2?:choreography/);
+  expect(saved).toMatch(/<bpmn2?:task id="Consent" name="Give consent" studyflow:exchange="true" studyflow:participants="P_Sub P_Exp" studyflow:initiator="P_Exp">/);
 });
 
 test('a choreography task\'s participant pair is minted, into a headless collaboration, on first need only', () => {
@@ -94,30 +77,6 @@ test('a choreography task\'s participant pair is minted, into a headless collabo
 
   ensureChoreographyParticipants(task, ids);
   expect(collaboration.get('participants')).toHaveLength(2);
-});
-
-test('the save rewrite gives the same file from definitions in place as from XML', async () => {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(CANVAS_XML);
-  toWireDefinitions(definitions);
-  expect((await moddle.toXML(definitions, { format: true })).xml).toBe(await toWireXml(CANVAS_XML, freshModdle()));
-});
-
-/** A runner stamps `prov:activity` into every element it ran; a stamp is not a type, so the task stays a plain exchange. */
-test('a runner stamp on an untyped choreography task keeps its bands and its choreography root', async () => {
-  const stamped = CANVAS_XML.replace(
-    '<bpmn2:incoming>F1</bpmn2:incoming>',
-    '<bpmn2:extensionElements><prov:activity action="executed" /></bpmn2:extensionElements><bpmn2:incoming>F1</bpmn2:incoming>',
-  ).replace(
-    'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"',
-    'xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:prov="https://w3id.org/studyflow/prov"',
-  );
-  const { rootElement } = await freshModdle().fromXML(await toWireXml(stamped, freshModdle()));
-  const choreography = rootElement.rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
-  expect(choreography).toBeTruthy();
-  const task = choreography.flowElements.find((el: any) => el.$type === 'bpmn:ChoreographyTask');
-  expect(task.extensionElements.values[0].$type).toBe('prov:Activity');
-  expect(readChoreographyBands(task)).toEqual({ top: 'Subject', bottom: 'Experimenter', initiator: 'bottom' });
 });
 
 /** A collaboration with no pool only holds actors for the process; a plane naming it is pointed at the process on load. */

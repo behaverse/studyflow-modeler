@@ -129,46 +129,11 @@ export function readChoreographyBands(
   };
 }
 
-const CHOREOGRAPHY_FLOW_TYPES = new Set([
-  CHOREOGRAPHY_TASK,
-  'bpmn:StartEvent',
-  'bpmn:EndEvent',
-  'bpmn:IntermediateThrowEvent',
-  'bpmn:IntermediateCatchEvent',
-  'bpmn:ExclusiveGateway',
-  'bpmn:ParallelGateway',
-  'bpmn:InclusiveGateway',
-  'bpmn:ComplexGateway',
-  'bpmn:EventBasedGateway',
-  'bpmn:SequenceFlow',
-]);
-
 function isChoreographyTaskBo(el: ModdleElement | null | undefined): boolean {
   return el?.$type === CHOREOGRAPHY_TASK;
 }
 
-function isParticipantHolder(collaboration: any): boolean {
-  const participants = collaboration.get('participants') ?? [];
-  if (participants.length === 0) return false;
-  if ((collaboration.get('messageFlows') ?? []).length > 0) return false;
-  return participants.every((p: any) => p.$type === 'bpmn:Participant' && !p.get('processRef'));
-}
-
-function isPureChoreography(process: any): boolean {
-  const flowElements = process?.flowElements ?? [];
-  if (flowElements.length === 0) return false;
-  if ((process.laneSets ?? []).length > 0 || (process.artifacts ?? []).length > 0) return false;
-  let hasChoreographyTask = false;
-  for (const el of flowElements) {
-    if (!CHOREOGRAPHY_FLOW_TYPES.has(el.$type)) return false;
-    // A typed one (a cognitive task, say) is a step of a process that happens to be an exchange, not a choreography.
-    if (isChoreographyTaskBo(el) && isTypedChoreography(el)) return false;
-    if (isChoreographyTaskBo(el)) hasChoreographyTask = true;
-  }
-  return hasChoreographyTask;
-}
-
-/** Specific to a root's own type: these must not travel when rewriting process <-> choreography. */
+/** Specific to a root's own type: these must not travel when a choreography is read as a process. */
 const OWN_STRUCTURE = new Set([
   'flowElements', 'id', 'name', 'participants', 'messageFlows', 'isExecutable',
 ]);
@@ -202,79 +167,8 @@ function uniqueId(base: string, taken: Set<string>): string {
   return id;
 }
 
-function participantIdFor(name: string, taken: Set<string>): string {
-  const slug = name.replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'unnamed';
-  return uniqueId(`Participant_${slug}`, taken);
-}
-
-function processToChoreographyRoot(definitions: any): boolean {
-  const rootElements = definitions?.rootElements ?? [];
-  const processes = rootElements.filter((re: any) => re.$type === 'bpmn:Process');
-  const collaborations = rootElements.filter((re: any) => re.$type === 'bpmn:Collaboration');
-  if (processes.length !== 1) return false;
-  if (rootElements.length !== processes.length + collaborations.length) return false;
-  if (!collaborations.every(isParticipantHolder)) return false;
-
-  const process = processes[0];
-  if (!isPureChoreography(process)) return false;
-
-  const model = definitions.$model;
-  const choreography = model.create('bpmn:Choreography', { id: process.id });
-  if (process.name !== undefined) choreography.set('name', process.name);
-  choreography.$parent = definitions;
-  moveRootProperties(choreography, process);
-
-  const takenIds = new Set<string>(
-    [
-      ...(process.flowElements ?? []),
-      ...collaborations.flatMap((c: any) => c.get('participants') ?? []),
-    ].map((el: any) => el.id).filter((id: any) => typeof id === 'string'),
-  );
-  const makeParticipant = (name: string): any =>
-    model.create('bpmn:Participant', { id: participantIdFor(name, takenIds), name });
-
-  const used: any[] = [];
-  const messageFlows: any[] = [];
-  for (const el of process.flowElements ?? []) {
-    if (!isChoreographyTaskBo(el)) continue;
-
-    const refs: any[] = (el.get('participantRef') ?? []).slice(0, 2);
-    const top = refs[0] ?? makeParticipant(DEFAULT_TOP);
-    const bottom = refs[1] ?? makeParticipant(DEFAULT_BOTTOM);
-    el.set('participantRef', [top, bottom]);
-
-    let initiating = el.get('initiatingParticipantRef');
-    if (initiating !== top && initiating !== bottom) initiating = top;
-    el.set('initiatingParticipantRef', initiating);
-    const receiving = initiating === top ? bottom : top;
-
-    for (const p of [top, bottom]) {
-      if (!used.includes(p)) used.push(p);
-      p.$parent = choreography;
-    }
-
-    const messageFlow = model.create('bpmn:MessageFlow', {
-      id: uniqueId(`MessageFlow_${el.id}`, takenIds),
-      sourceRef: initiating,
-      targetRef: receiving,
-    });
-    messageFlow.$parent = choreography;
-    el.set('messageFlowRef', [messageFlow]);
-    messageFlows.push(messageFlow);
-  }
-
-  choreography.set('participants', used);
-  choreography.set('messageFlows', messageFlows);
-  moveProperties(choreography, process, ['flowElements']);
-
-  definitions.rootElements = [
-    choreography,
-    ...rootElements.filter((re: any) => re !== process && !collaborations.includes(re)),
-  ];
-  retargetPlanes(definitions, process, choreography);
-  return true;
-}
-
+/** A `bpmn:Choreography` root, from another tool's file, read as the process a study is: its choreography tasks are
+ * exchanges in a process, their participants held by a collaboration with no pool. */
 export function choreographyToProcessRoot(definitions: any): boolean {
   const rootElements = definitions?.rootElements ?? [];
   const choreography = rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
@@ -288,7 +182,7 @@ export function choreographyToProcessRoot(definitions: any): boolean {
 
   for (const el of choreography.flowElements ?? []) {
     if (!isChoreographyTaskBo(el)) continue;
-    // Message flows die with the choreography root; `processToChoreographyRoot` rebuilds them on save.
+    // A study is a process: the choreography's message flows go with its root, and each task keeps its bands.
     el.set('messageFlowRef', undefined);
   }
 
@@ -404,16 +298,7 @@ export function tasksToExchanges(definitions: any): boolean {
   return tasks.length > 0;
 }
 
-/**
- * What saving applies to the definitions the canvas edits, in place: a pure choreography goes back to a choreography
- * root. The inverse of `fromWireDefinitions`; a Study writes its file from a copy this way, without XML. Whether it
- * changed anything.
- */
-export function toWireDefinitions(definitions: any): boolean {
-  return processToChoreographyRoot(definitions);
-}
-
-/** {@link toWireDefinitions} on XML text, and a choreography task in a process as the BPMN task it is. */
+/** The BPMN XML of a study: a choreography task in a process as the BPMN task it is ({@link exchangesToTasks}). */
 export async function toWireXml(xml: string, moddle: Moddle): Promise<string> {
-  return applyXmlPasses(xml, moddle, [processToChoreographyRoot, exchangesToTasks]);
+  return applyXmlPasses(xml, moddle, [exchangesToTasks]);
 }
