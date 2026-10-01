@@ -18,6 +18,7 @@ import { writeDi } from '@canvas/study/di.ts';
 import { draftDrawing, drawDataFlow } from '@canvas/study/draft.ts';
 import { Drag, type Movable } from '@canvas/study/drag.ts';
 import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
+import { History } from '@canvas/study/history.ts';
 import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
 import { syncLabel } from '@canvas/study/labels.ts';
 import { findById } from '@canvas/study/moddle.ts';
@@ -75,9 +76,6 @@ export interface Verdict {
 
 type ChangeListener = (change: StudyChange) => void;
 
-/** How many edits an undo can go back through. */
-const UNDO_DEPTH = 50;
-
 /** What the canvas's views read behind a study's public surface. They write only through the study: its verbs, and
  * `settle` for what a gesture moved in place. */
 export interface StudyInternals {
@@ -96,8 +94,6 @@ export interface StudyInternals {
   runAs(key: string, edit: () => void): void;
 }
 
-/** Edits of one run this close together are one undo step. */
-const RUN_WINDOW_MS = 1000;
 /** How far right and down a paste with no place lands from where its document draws it: beside what it copied. */
 const PASTE_STEP = 20;
 
@@ -139,21 +135,16 @@ export class Study {
   private holding: StudyChange[] | undefined;
   private readonly options: ImportOptions;
   private readonly rules = new Rules();
-  /** The document after each edit, as its `.studyflow.yaml` tree in JSON ({@link snapshotOf}), oldest first: what undo and redo go back and forth through. */
-  private snapshots: string[];
-  /** The snapshot of the document the study holds. */
-  private current = 0;
+  /** The document after each edit, as its `.studyflow.yaml` tree in JSON ({@link snapshotOf}): what undo and redo go back and forth through. */
+  private readonly history: History<string>;
   /** The last commit, for the verb that made it to report. */
   private committed?: Commit;
-  /** The run the edit under way belongs to, and the run the last edit did, with when it was made. */
-  private runKey?: string;
-  private run?: { key: string; at: number };
 
   private constructor(definitions: ModdleObject, options: ImportOptions) {
     this.options = options;
     this.read(definitions, 0);
     // As read, before any edit: the DI is the file's, so nothing is written back yet.
-    this.snapshots = [snapshotOf(definitions)];
+    this.history = new History(snapshotOf(definitions));
   }
 
   /** A study of `text`, a `.studyflow.yaml` or BPMN XML file. */
@@ -285,7 +276,7 @@ export class Study {
   can(tool: StepTool, args: Record<string, unknown>): Verdict {
     if (!(ASKABLE_TOOLS as readonly string[]).includes(tool)) {
       // Any other write is asked by running it on a copy of the document, which is then let go.
-      const copy = Study.fromDefinitions(studyflowToDefinitions(JSON.parse(this.snapshots[this.current]) as YamlDoc, moddleOf(this.definitions), () => {}), this.options);
+      const copy = Study.fromDefinitions(studyflowToDefinitions(JSON.parse(this.history.now) as YamlDoc, moddleOf(this.definitions), () => {}), this.options);
       const outcome = copy.call(tool, args);
       return outcome.ok ? { ok: true } : { ok: false, reason: (outcome as Verdict).reason };
     }
@@ -364,8 +355,8 @@ export class Study {
       const warnings: string[] = [];
       return { definitions: studyflowToDefinitions(doc, model, (warning) => warnings.push(warning)), warnings };
     };
-    const doc = JSON.parse(this.snapshots[this.current]) as YamlDoc;
-    const known = new Set(read(JSON.parse(this.snapshots[this.current]) as YamlDoc).warnings);
+    const doc = JSON.parse(this.history.now) as YamlDoc;
+    const known = new Set(read(JSON.parse(this.history.now) as YamlDoc).warnings);
     if (!patchDoc(doc, moddle, attribute, value)) return refused(`'${attribute}' of '${moddle.id}' is not written this way: edit it in the document`);
     let patched: ReturnType<typeof read>;
     try {
@@ -375,11 +366,7 @@ export class Study {
     }
     const misread = patched.warnings.find((warning) => !known.has(warning));
     if (misread) return refused(misread);
-    this.snapshots.length = this.current + 1;
-    this.snapshots.push(snapshotOf(patched.definitions));
-    if (this.snapshots.length > UNDO_DEPTH + 1) this.snapshots.shift();
-    this.current = this.snapshots.length - 1;
-    this.run = undefined;
+    this.history.push(snapshotOf(patched.definitions));
     // Heard as a redo is: another document in place of the one it held, which every view reads afresh. The caller is
     // told what it wrote.
     this.swap(patched.definitions, 'redo');
@@ -687,11 +674,11 @@ export class Study {
   }
 
   get canUndo(): boolean {
-    return this.current > 0;
+    return this.history.canUndo;
   }
 
   get canRedo(): boolean {
-    return this.current < this.snapshots.length - 1;
+    return this.history.canRedo;
   }
 
   /** Hear each change, once, in the order listeners subscribed; the returned function unsubscribes. */
@@ -717,7 +704,7 @@ export class Study {
       scene,
       mutator,
       rules: this.rules,
-      runAs: (key, edit) => this.runAs(key, edit),
+      runAs: (key, edit) => this.history.runAs(key, edit),
       settle: (changed, rehome) => this.commit(() => {
         mutator.commit([...changed]);
         if (rehome && rehome.nodes.length > 0) mutator.reparent([...rehome.nodes], rehome.into);
@@ -814,7 +801,7 @@ export class Study {
 
   /** Run `run` as one commit, all or nothing: when it is refused, what it wrote first is taken back. */
   private atomic(run: () => StudyResult): StudyResult {
-    const before = this.snapshots[this.current];
+    const before = this.history.now;
     let outcome = refused('nothing ran');
     // Held while the steps run: listeners hear the edit once it stands, or, when a step is refused, only that the
     // study went back to where it was, so a refused batch draws once.
@@ -832,10 +819,9 @@ export class Study {
       for (const change of held) this.announce(change);
       return { ...result, ...(outcome.id ? { id: outcome.id } : {}) };
     }
-    if (this.snapshots[this.current] !== before) {
+    if (this.history.now !== before) {
       this.travel(-1);
-      // What the refused edit wrote is no state to go forward to.
-      this.snapshots.length = this.current + 1;
+      this.history.truncate();
     }
     return outcome;
   }
@@ -907,51 +893,25 @@ export class Study {
   /** `edit` as part of the run `key`, answering what it did. */
   private within(key: string, edit: () => StudyResult): StudyResult {
     let result: StudyResult | undefined;
-    this.runAs(key, () => {
+    this.history.runAs(key, () => {
       result = edit();
     });
     return result!;
   }
 
-  private runAs(key: string, edit: () => void): void {
-    this.runKey = key;
-    try {
-      edit();
-    } finally {
-      this.runKey = undefined;
-    }
-  }
-
-  /**
-   * A commit: the document as it now stands is the newest snapshot, unless it is the one the study holds. An edit
-   * that carries on the last one's run takes the place of its snapshot, so the run undoes as one step.
-   */
+  /** A commit: the document as it now stands goes into the history. */
   private edited(commit: Commit): void {
     this.committed = commit;
     const { scene } = own(this);
     writeDi(scene);
-    const snapshot = snapshotOf(scene.definitions);
-    const now = Date.now();
-    const carriesOn = this.runKey !== undefined && this.run?.key === this.runKey && now - this.run.at <= RUN_WINDOW_MS;
-    if (snapshot !== this.snapshots[this.current]) {
-      if (carriesOn && this.current > 0) this.snapshots[this.current] = snapshot;
-      else {
-        this.snapshots.length = this.current + 1;
-        this.snapshots.push(snapshot);
-        if (this.snapshots.length > UNDO_DEPTH + 1) this.snapshots.shift();
-        this.current = this.snapshots.length - 1;
-      }
-    }
-    this.run = this.runKey === undefined ? undefined : { key: this.runKey, at: now };
+    this.history.record(snapshotOf(scene.definitions));
     this.announce({ cause: 'edit', ...idsOf(commit) });
   }
 
   /** Step through the history: what the step changed, or nothing past either end. */
   private travel(step: -1 | 1): StudyResult | undefined {
-    const snapshot = this.snapshots[this.current + step];
+    const snapshot = this.history.travel(step);
     if (snapshot === undefined) return undefined;
-    this.current += step;
-    this.run = undefined;
     const definitions = studyflowToDefinitions(JSON.parse(snapshot) as YamlDoc, moddleOf(this.definitions), this.options.onWarning);
     return { ok: true, ...this.swap(definitions, step < 0 ? 'undo' : 'redo') };
   }
@@ -960,11 +920,7 @@ export class Study {
   private swap(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): ChangedIds {
     const before = own(this).scene;
     const after = this.read(definitions, before.revision + 1);
-    if (cause === 'load') {
-      this.snapshots = [snapshotOf(definitions)];
-      this.current = 0;
-      this.run = undefined;
-    }
+    if (cause === 'load') this.history.reset(snapshotOf(definitions));
     const change = idsOf(byId(before, after));
     this.announce({ cause, ...change });
     return change;
