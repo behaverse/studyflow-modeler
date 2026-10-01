@@ -133,10 +133,12 @@ class ModdleBuilder {
     for (const [id, drawing] of Object.entries(layout as Record<string, Record<string, unknown>>)) {
       const element = this.byId.get(id);
       const type = drawing && 'bounds' in drawing ? 'bpmndi:BPMNShape' : drawing && 'waypoint' in drawing ? 'bpmndi:BPMNEdge' : undefined;
-      if (!element || !type) {
-        this.onWarning?.(`layout draws '${id}', which ${element ? 'it gives no bounds or waypoint' : 'no element is'}; left out`);
+      if (!element) {
+        this.onWarning?.(`layout draws '${id}', which no element is; left out`);
         continue;
       }
+      // The look of an element not drawn yet: BPMN's diagram interchange has no shape or edge without its geometry.
+      if (!type) continue;
       this.inlineDi.push({ element, type, props: { ...drawing } });
     }
   }

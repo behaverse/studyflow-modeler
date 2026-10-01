@@ -135,7 +135,7 @@ class Reader {
     if (DI_NODE_TYPES.has(type)) expandDiNode(node);
 
     const element: Element = { type };
-    this.inlineDrawing(node, own);
+    this.inlineDrawing(node, own, host);
     for (const [key, raw] of Object.entries(node)) {
       if (raw === undefined || raw === null) continue;
       const p = own.propertiesByName[key] ?? (wrapper && !own.propertiesByName[key] ? wrapper.propertiesByName[key] : undefined);
@@ -200,12 +200,12 @@ class Reader {
   }
 
 
-  /** The drawing written on an element (`bounds`, `waypoint`, colours), moved to the layout. */
-  private inlineDrawing(node: Record<string, unknown>, own: Descriptor): void {
+  /** The drawing written on an element (`bounds`, `waypoint`, colours), moved to the layout: its colours too when
+   * its geometry is the layout's, or when it has none yet. */
+  private inlineDrawing(node: Record<string, unknown>, own: Descriptor, host: string): void {
     const id = typeof node.id === 'string' ? node.id : undefined;
     const diType = 'bounds' in node && !own.propertiesByName.bounds ? 'bpmndi:BPMNShape'
-      : 'waypoint' in node && !own.propertiesByName.waypoint ? 'bpmndi:BPMNEdge' : undefined;
-    if (!diType) return;
+      : 'waypoint' in node && !own.propertiesByName.waypoint ? 'bpmndi:BPMNEdge' : diTypeOf(this.metamodel, host);
     const di = this.metamodel.descriptor(diType).propertiesByName;
     const drawing: Record<string, unknown> = {};
     for (const key of Object.keys(node)) {
@@ -213,12 +213,17 @@ class Reader {
       drawing[key] = node[key];
       delete node[key];
     }
-    if (id) this.drawn(id, diType, drawing);
+    if (id && Object.keys(drawing).length > 0) this.drawn(id, diType, drawing);
   }
 
-  /** `drawing`, as the file writes it, kept as `id`'s. */
+  /** `drawing`, as the file writes it, kept as `id`'s, over what the element itself wrote of it. */
   drawn(id: string, diType: string, drawing: Record<string, unknown>): void {
-    this.layout[id] = canonicalDrawing(this.metamodel, diType, drawing);
+    this.layout[id] = canonicalDrawing(this.metamodel, diType, { ...this.layout[id], ...drawing });
+  }
+
+  /** The type of the element `id` names, when the file holds one. */
+  typeOf(id: string): string | undefined {
+    return this.ids.get(id)?.type;
   }
 
   has(id: string): boolean {
@@ -278,6 +283,12 @@ export function canonicalDrawing(metamodel: Metamodel, diType: string, drawing: 
   return ordered as Drawing;
 }
 
+/** How an element of `host` is drawn: a route for a flow, a box for the rest. */
+function diTypeOf(metamodel: Metamodel, host: string): string {
+  const routed = ['bpmn:SequenceFlow', 'bpmn:MessageFlow', 'bpmn:Association', 'bpmn:DataAssociation'];
+  return routed.some((type) => metamodel.isA(host, type)) ? 'bpmndi:BPMNEdge' : 'bpmndi:BPMNShape';
+}
+
 /** A study from its file: the text, or a document already parsed (a schema template's elements). */
 export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: Warn = (message) => console.warn(`[studyflow read] ${message}`)): Study {
   const doc = (typeof source === 'string' ? yaml.load(source) : source) as YamlDoc;
@@ -306,11 +317,13 @@ export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: 
   }
   if (isMapping(doc.layout)) {
     for (const [elementId, drawing] of Object.entries(doc.layout)) {
-      const diType = isMapping(drawing) && 'bounds' in drawing ? 'bpmndi:BPMNShape' : isMapping(drawing) && 'waypoint' in drawing ? 'bpmndi:BPMNEdge' : undefined;
-      if (!reader.has(elementId) || !diType) {
-        warn(`layout draws '${elementId}', which ${reader.has(elementId) ? 'it gives no bounds or waypoint' : 'no element is'}; left out`);
+      const type = reader.typeOf(elementId);
+      if (!type || !isMapping(drawing)) {
+        warn(`layout draws '${elementId}', which no element is; left out`);
         continue;
       }
+      // A drawing with no geometry yet holds the look a route or a box will take when it is drawn.
+      const diType = 'bounds' in drawing ? 'bpmndi:BPMNShape' : 'waypoint' in drawing ? 'bpmndi:BPMNEdge' : diTypeOf(metamodel, hostOf(metamodel, type));
       reader.drawn(elementId, diType, drawing as Record<string, unknown>);
     }
   }

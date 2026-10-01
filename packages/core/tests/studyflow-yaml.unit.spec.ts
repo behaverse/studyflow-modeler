@@ -155,6 +155,36 @@ P:
     expect(back.P.artifacts.Assoc_1).toBe('Note_1 -> T1');
   });
 
+  test('a look written on an element whose geometry is the layout\'s, or not drawn yet, is its drawing\'s', () => {
+    const warnings: string[] = [];
+    const model = studyModel(`id: looks
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    A:
+      type: Task
+      fill: "#dcebd6"
+    B:
+      type: Task
+    F1:
+      sourceRef: A
+      targetRef: B
+      stroke: "#5c8a55"
+layout:
+  A:
+    bounds: 0 0 100 80
+`, (message) => warnings.push(message));
+    expect(warnings).toEqual([]);
+    expect(model.study.layout).toEqual({ A: { bounds: '0 0 100 80', fill: '#dcebd6' }, F1: { stroke: '#5c8a55' } });
+    expect(model.get('F1')).not.toHaveProperty('stroke');
+    // Read back as written: a look awaiting its route stays the flow's.
+    const text = studyText(model.study, model.metamodel);
+    expect(studyModel(text, (message) => warnings.push(message)).study.layout).toEqual(model.study.layout);
+    expect(warnings).toEqual([]);
+  });
+
   test('a reference to an id the file does not hold is left out with a warning, and the rest reads', () => {
     const warnings: string[] = [];
     const definitions = studyflowToDefinitions(`id: dangling
