@@ -1,5 +1,6 @@
 import { SKILLS } from '@core/notation/loader';
 import type { ExportFormat } from '@modeler/diagram/formats';
+import type { InspectorSection } from '@modeler/inspector/sections';
 
 /** What "Open" hands a skill converting a foreign file. */
 export type OpenContext = {
@@ -19,10 +20,12 @@ export type Opener = {
   toXml(text: string, context: OpenContext): Promise<string>;
 };
 
-/** What a skill's `modeler.ts` exports by default: the projections the modeler writes, the foreign formats it opens. */
+/** What a skill's `modeler.ts` exports by default: the projections the modeler writes, the foreign formats it opens,
+ * the inspector sections it adds. */
 export type ModelerModule = {
   exports?: ExportFormat[];
   opens?: Opener[];
+  sections?: InspectorSection[];
 };
 
 // Every skill's `modeler.ts`, eagerly: the format lists are built once, at load, from what is here. The module is
@@ -47,3 +50,4 @@ const LOADED = loadSkillModules();
 
 export const SKILL_EXPORT_FORMATS: ExportFormat[] = LOADED.flatMap((module) => module.exports ?? []);
 export const SKILL_OPENERS: Opener[] = LOADED.flatMap((module) => module.opens ?? []);
+export const SKILL_INSPECTOR_SECTIONS: InspectorSection[] = LOADED.flatMap((module) => module.sections ?? []);

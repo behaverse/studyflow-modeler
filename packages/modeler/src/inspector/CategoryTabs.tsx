@@ -1,22 +1,13 @@
 import { useState } from 'react';
-import type { ComponentType } from 'react';
-import { Field, Label, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
+import { Field, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { attributeOverrides, type AttributeOverride } from '@core/document';
 import type { AttributeSpec } from '@core/notation';
 import { t } from '@modeler/i18n';
-import { executeCommand } from '@modeler/commandBus';
-import { useModeler } from '@modeler/app/useModeler';
 import { useInspectedElement } from '@modeler/inspector/hooks';
 import { isAttributeVisible } from '@modeler/inspector/categories';
 import { elementKey } from '@modeler/inspector/element';
 import { AttributeInput, OverriddenInput } from '@modeler/inspector/registry';
-import { ExpressionRow } from '@modeler/inspector/inputs';
-import { HelpTooltip } from '@modeler/inspector/widgets';
-import { ChoreographyParticipantsSection } from '@modeler/inspector/participants';
-import { DataFlowSection } from '@modeler/inspector/dataFlow';
-import { LoopSection } from '@modeler/inspector/loop';
-import { MessageSection } from '@modeler/inspector/message';
-import { StateSection } from '@modeler/inspector/state';
+import { INSPECTOR_SECTIONS } from '@modeler/inspector/sections';
 import { inspector as s, field as fld } from '@modeler/inspector/styles';
 
 function AttributeFields({ attrDefs }: { attrDefs: any[] }) {
@@ -47,64 +38,6 @@ function AttributeField({ attrDef, override }: { attrDef: AttributeSpec; overrid
     </Field>
   );
 }
-
-function ExecutionSection({ attrDefs }: { attrDefs: any[] }) {
-  return (
-    <>
-      <AttributeFields attrDefs={attrDefs} />
-      <StateSection />
-      <DataFlowSection direction="input" />
-      <DataFlowSection direction="output" />
-      <LoopSection />
-    </>
-  );
-}
-
-const TRANSFORMATION_DESCRIPTION = '`slot = selection` with '
-  + 'each half optional: the slot names the parameter to fill, the selection narrows the '
-  + 'value that arrives.';
-
-const ASSOCIATION_TYPES = new Set(['bpmn:DataInputAssociation', 'bpmn:DataOutputAssociation']);
-
-function WireTransformationSection({ element }: { element: any }) {
-  const modeler = useModeler();
-  const businessObject = element?.businessObject ?? element;
-  if (!ASSOCIATION_TYPES.has(businessObject?.$type)) return null;
-
-  const expression = businessObject.get?.('transformation') ?? businessObject.transformation;
-  const body: string = expression?.get?.('body') ?? expression?.body ?? '';
-  const isOutput = businessObject.$type === 'bpmn:DataOutputAssociation';
-  const source = businessObject.get?.('sourceRef')?.[0] ?? businessObject.sourceRef?.[0];
-  const placeholder = isOutput ? 'result' : source?.name || source?.id || 'input';
-
-  return (
-    <Field className={fld.field}>
-      <Label className={fld.label}>
-        Transformation
-        <HelpTooltip name="transformation" description={TRANSFORMATION_DESCRIPTION} />
-      </Label>
-      <ExpressionRow
-        name="bpmn:transformation"
-        placeholder={placeholder}
-        value={body}
-        onCommit={(next) => executeCommand(modeler, {
-          type: 'UpdateTransformation', element, field: 'body', value: next,
-        })}
-      />
-    </Field>
-  );
-}
-
-type SectionProps = { attrDefs: any[] };
-type ExtraSectionProps = { element: any };
-
-const TAB_SECTIONS: Record<string, {
-  replace?: ComponentType<SectionProps>;
-  extras?: ComponentType<ExtraSectionProps>[];
-}> = {
-  Execution: { replace: ExecutionSection },
-  General: { extras: [ChoreographyParticipantsSection, WireTransformationSection, MessageSection] },
-};
 
 type Props = {
   element: any;
@@ -137,14 +70,11 @@ export function CategoryTabs({ element, categories }: Props) {
       </TabList>
       <TabPanels className={s.tabPanels}>
         {categories.map(([name, attrDefs]) => {
-          const sections = TAB_SECTIONS[name];
           return (
             <TabPanel key={name} className={s.tabPanel}>
-              {sections?.replace
-                ? <sections.replace key={elementKey(element)} attrDefs={attrDefs} />
-                : <AttributeFields attrDefs={attrDefs} />}
-              {sections?.extras?.map((Extra) => (
-                <Extra key={Extra.name} element={element} />
+              <AttributeFields attrDefs={attrDefs} />
+              {INSPECTOR_SECTIONS.filter((section) => section.tab === name).map(({ name: section, Section }) => (
+                <Section key={`${section}:${elementKey(element)}`} element={element} />
               ))}
             </TabPanel>
           );

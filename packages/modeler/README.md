@@ -25,7 +25,7 @@ A view changes the document by sending a command: `executeCommand(editor, { type
 | `provenance/`, `simulation/`, `minimap/` | The run trail and its replay; the token simulator, which shows dry runs of core's walk; the minimap, the whole diagram small with the elements a host names ringed (the replay's current step). |
 | `settings/`, `gallery/`, `examples/`, `checklist/`, `gantt/`, `shape/`, `draw/`, `ui/` | Settings, the examples gallery, the read-only views, element commands, icon maps, shared styles. A template drops through the canvas (`study/templates.ts`). |
 
-Skills add to the modeler through `skills/<name>/modeler.ts` (`skillModules.ts`): exports it writes and foreign formats it opens.
+Skills add to the modeler through `skills/<name>/modeler.ts` (`skillModules.ts`): exports it writes, foreign formats it opens, and inspector sections (`inspector/sections.tsx`), each under a schema category's tab.
 
 ## Where state lives
 
