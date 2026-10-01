@@ -1,10 +1,9 @@
 import * as yaml from 'js-yaml';
 
-import { StudyflowElement, getAttribute } from '@core/element';
-import type { ModdleElement } from '@core/element/moddle';
 import { parseSchemaBody } from '@core/document/schema-body';
 import type { Issue } from '@core/checks';
 import { containers, quoted } from '@core/checks/graph';
+import { idOf, isElement, yamlText, type Element, type StudyModel } from '@core/model/index';
 
 /** The top-level `additionalArguments` keys whose values name columns of the table a step reads, as pandas spells them. */
 const COLUMN_ARGUMENTS = ['index', 'columns', 'values', 'subset', 'by', 'key', 'column', 'on', 'usecols'];
@@ -32,21 +31,19 @@ function closest(name: string, columns: string[]): string | undefined {
 }
 
 /** A source's schema: its `schema` names a `studyflow:Schema` whose body declares columns. */
-function schemaOf(source: ModdleElement, byId: Map<string, ModdleElement>): { name: string; columns: string[] } | undefined {
-  const id = getAttribute(source, 'schema');
-  const schema = typeof id === 'string' ? byId.get(id) : undefined;
-  if (!schema || !StudyflowElement.fromBusinessObject(schema).extension?.$instanceOf?.('studyflow:Schema')) return undefined;
-  const body = getAttribute(schema, 'body');
-  const columns = parseSchemaBody(typeof body === 'string' ? body : '').columns.map((column) => column.name);
-  return columns.length > 0 ? { name: schema.name || schema.id, columns } : undefined;
+function schemaOf(model: StudyModel, source: Element): { name: string; columns: string[] } | undefined {
+  const schema = model.get(idOf(model.attribute(source, 'schema')) ?? undefined);
+  if (!schema || model.extensionType(schema) !== 'studyflow:Schema') return undefined;
+  const columns = parseSchemaBody(yamlText(model.attribute(schema, 'body')) ?? '').columns.map((column) => column.name);
+  return columns.length > 0 ? { name: String(schema.name || schema.id), columns } : undefined;
 }
 
 /** The column names a step's arguments pass under {@link COLUMN_ARGUMENTS}: a string, or a list of strings. */
-function columnArguments(step: ModdleElement): string[] {
-  const text = getAttribute(step, 'additionalArguments');
+function columnArguments(step: Element): string[] {
+  const text = yamlText(step.additionalArguments);
   let args: any;
   try {
-    args = typeof text === 'string' ? yaml.load(text) : undefined;
+    args = text === undefined ? undefined : yaml.load(text);
   } catch {
     return [];
   }
@@ -59,15 +56,14 @@ function columnArguments(step: ModdleElement): string[] {
  * defines. A name with a `{placeholder}` is filled in at run time, so it is not checked; nor is data no schema is
  * bound to, or a column a step derives.
  */
-export function checkDataContract(definitions: ModdleElement): Issue[] {
-  const byId = new Map<string, ModdleElement>();
-  const all = containers(definitions).flatMap((container) => container.flowElements ?? []);
-  for (const element of all) if (typeof element.id === 'string') byId.set(element.id, element);
-
+export function checkDataContract(model: StudyModel): Issue[] {
+  const all = containers(model).flatMap((container) => (Array.isArray(container.flowElements) ? container.flowElements : []).filter(isElement));
   const issues: Issue[] = [];
   for (const step of all) {
-    const sources = new Set<ModdleElement>((step.dataInputAssociations ?? []).flatMap((association: any) => association.sourceRef ?? []));
-    const schemas = [...sources].map((source) => schemaOf(source, byId)).filter((schema) => schema !== undefined);
+    const associations = (Array.isArray(step.dataInputAssociations) ? step.dataInputAssociations : []).filter(isElement);
+    const sources = new Set(associations.flatMap((association) => (Array.isArray(association.sourceRef) ? association.sourceRef : []))
+      .map((ref) => model.get(idOf(ref) ?? undefined)).filter((source): source is Element => !!source));
+    const schemas = [...sources].map((source) => schemaOf(model, source)).filter((schema) => schema !== undefined);
     const names = schemas.length > 0 ? columnArguments(step) : [];
     for (const schema of schemas) {
       for (const name of names) {

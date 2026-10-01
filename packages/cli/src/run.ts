@@ -76,7 +76,7 @@ export async function run(input: string, options: RunOptions): Promise<void> {
 
   if (runtime === 'local') {
     // The checks `studyflow validate` applies to the plan; an error among them keeps the study from starting.
-    const issues = planChecks(definitions);
+    const issues = planChecks(studyModelOf(definitions));
     for (const { severity, message } of issues) (severity === 'error' ? console.error : console.warn)(`${severity}: ${message}`);
     if (issues.some((issue) => issue.severity === 'error')) {
       process.exitCode = 1;

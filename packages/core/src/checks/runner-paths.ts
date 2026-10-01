@@ -1,7 +1,7 @@
 import { BPMN } from '@core/constants';
-import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
-import { containers, graphOf, isA, quoted } from '@core/checks/graph';
+import { containers, graphOf, quoted } from '@core/checks/graph';
+import type { StudyModel } from '@core/model/index';
 
 /**
  * Splits the walk does not take: it walks one path per pool (packages/core/src/engine/walk.ts). A parallel split stops a run; an activity or event goes on along its first
@@ -10,12 +10,12 @@ import { containers, graphOf, isA, quoted } from '@core/checks/graph';
  * walked as an exclusive one. A join that waits in BPMN, and a scope's second start event, are warned about: the walk
  * passes the one and never starts at the other.
  */
-export function checkRunnerPaths(definitions: ModdleElement): Issue[] {
+export function checkRunnerPaths(model: StudyModel): Issue[] {
   const issues: Issue[] = [];
-  for (const container of containers(definitions)) {
-    const { nodes } = graphOf(container);
+  for (const container of containers(model)) {
+    const { nodes } = graphOf(model, container);
     // BPMN starts a scope at each of its start events; the walk, one path, at the first.
-    const starts = [...nodes.keys()].filter((node) => isA(node, BPMN.StartEvent));
+    const starts = [...nodes.keys()].filter((node) => model.isA(node, BPMN.StartEvent));
     if (starts.length > 1) {
       issues.push({
         severity: 'warning',
@@ -26,7 +26,7 @@ export function checkRunnerPaths(definitions: ModdleElement): Issue[] {
     for (const { node, incoming, outgoing } of nodes.values()) {
       // A parallel, inclusive or complex join waits in BPMN for the paths it joins; the walk has one token, which
       // passes it at once.
-      if (incoming.length > 1 && [BPMN.ParallelGateway, BPMN.InclusiveGateway, BPMN.ComplexGateway].some((type) => isA(node, type))) {
+      if (incoming.length > 1 && [BPMN.ParallelGateway, BPMN.InclusiveGateway, BPMN.ComplexGateway].some((type) => model.isA(node, type))) {
         issues.push({
           severity: 'warning',
           elementId: node.id,
@@ -35,25 +35,25 @@ export function checkRunnerPaths(definitions: ModdleElement): Issue[] {
       }
       if (outgoing.length < 2) continue;
       const n = outgoing.length;
-      if (isA(node, BPMN.ParallelGateway)) {
+      if (model.isA(node, BPMN.ParallelGateway)) {
         issues.push({
           severity: 'error',
           elementId: node.id,
           message: `${quoted(node)} splits into ${n} parallel paths; a pool walks one path, so the walk stops here`,
         });
-      } else if (isA(node, BPMN.InclusiveGateway)) {
+      } else if (model.isA(node, BPMN.InclusiveGateway)) {
         issues.push({
           severity: 'error',
           elementId: node.id,
           message: `${quoted(node)} is an inclusive gateway with ${n} outgoing flows; a pool walks one path, so the walk stops here rather than take only the first whose condition holds`,
         });
-      } else if (isA(node, BPMN.ComplexGateway)) {
+      } else if (model.isA(node, BPMN.ComplexGateway)) {
         issues.push({
           severity: 'error',
           elementId: node.id,
           message: `${quoted(node)} is a complex gateway with ${n} outgoing flows; the walk reads no activation rule, so it stops here rather than take it as an exclusive gateway`,
         });
-      } else if (!isA(node, BPMN.Gateway)) {
+      } else if (!model.isA(node, BPMN.Gateway)) {
         issues.push({
           severity: 'error',
           elementId: node.id,

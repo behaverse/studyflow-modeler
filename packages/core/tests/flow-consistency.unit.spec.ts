@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { YAML_DUMP_OPTIONS, studyflowToDefinitions } from '@core/document';
+import { YAML_DUMP_OPTIONS } from '@core/document';
 import { checkFlowConsistency } from '@core/checks/flow-consistency';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 /** Flow consistency: at every node, the tokens that came in are the tokens that went on plus those that left by its exits. */
 
@@ -66,9 +66,9 @@ test('the counts balance at every node, or the check says where they do not', ()
     ['a run from before flows were counted', { Start: 10, Gate: 10, Excluded: 9, Play: 8, Done: 7 }, []],
   ];
   for (const [label, reached, issues] of CASES) {
-    const found = checkFlowConsistency(studyflowToDefinitions(run(reached), freshModdle()));
+    const found = checkFlowConsistency(studyModel(run(reached)));
     expect(found.map((issue) => `${issue.elementId}: ${issue.message}`), label).toEqual(issues);
     expect(found.every((issue) => issue.severity === 'error'), label).toBe(true);
   }
-  expect(checkFlowConsistency(studyflowToDefinitions(PLAN, freshModdle())), 'a file no run has stamped').toEqual([]);
+  expect(checkFlowConsistency(studyModel(PLAN)), 'a file no run has stamped').toEqual([]);
 });

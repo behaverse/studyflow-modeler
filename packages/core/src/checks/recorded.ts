@@ -1,5 +1,5 @@
-import type { ModdleElement } from '@core/element/moddle';
-import { META_KEY, readState } from '@core/document/state';
+import { META_KEY } from '@core/document/state';
+import type { StudyModel } from '@core/model/index';
 import type { Issue } from '@core/checks';
 import { stateOf, type RunEvent } from '@core/engine/record';
 
@@ -21,8 +21,8 @@ function differs(a: unknown, b: unknown, at: string): string | undefined {
  * properties the file keeps are the ones its events say. The timeline (`_meta.prov`) is left out, since the modeler
  * adds to it when the file is edited and saved.
  */
-export function checkRecorded(definitions: ModdleElement, events: readonly RunEvent[]): Issue[] {
-  const kept = readState(definitions);
+export function checkRecorded(model: StudyModel, events: readonly RunEvent[]): Issue[] {
+  const kept = structuredClone(model.study.state ?? {}) as Record<string, any>;
   const recorded = stateOf(events);
   for (const state of [kept, recorded]) delete state[META_KEY]?.prov;
   const at = differs(kept, recorded, '');

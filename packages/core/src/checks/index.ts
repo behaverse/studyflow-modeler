@@ -1,4 +1,4 @@
-import type { ModdleElement } from '@core/element/moddle';
+import type { StudyModel } from '@core/model/index';
 import { checkDataContract } from '@core/checks/data-contract';
 import { checkDecisions } from '@core/checks/decisions';
 import { checkValues } from '@core/checks/values';
@@ -20,15 +20,15 @@ export type Issue = {
 };
 
 /** The plan: one element an id, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, and reading only the columns its schemas define. */
-export function planChecks(definitions: ModdleElement): Issue[] {
+export function planChecks(model: StudyModel): Issue[] {
   return [
-    ...checkIds(definitions), ...checkConnected(definitions), ...checkRunnerPaths(definitions), ...checkExpressions(definitions), ...checkDecisions(definitions),
-    ...checkValues(definitions), ...checkDataContract(definitions),
+    ...checkIds(model), ...checkConnected(model), ...checkRunnerPaths(model), ...checkExpressions(model), ...checkDecisions(model),
+    ...checkValues(model), ...checkDataContract(model),
   ];
 }
 
 /** What a run left in the file: counts that balance, and a protocol that is still the one it ran; `note` says it is. */
-export async function recordChecks(definitions: ModdleElement): Promise<{ issues: Issue[]; note?: string }> {
-  const seal = await checkSeal(definitions);
-  return { issues: [...checkFlowConsistency(definitions), ...seal.issues], note: seal.note };
+export async function recordChecks(model: StudyModel): Promise<{ issues: Issue[]; note?: string }> {
+  const seal = await checkSeal(model);
+  return { issues: [...checkFlowConsistency(model), ...seal.issues], note: seal.note };
 }

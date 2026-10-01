@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { checkValues } from '@core/checks/values';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 /** A value its schema's type does not take is refused before any run: one an enumeration does not list, unless its
  * attribute takes free text too, and one that is not the number or the truth value its type is. */
@@ -34,7 +33,7 @@ test('an attribute holds a value of its type', () => {
     ['a block size in words', '          algorithm: block\n          blockSize: four', '          platform: jsPsych', ['"Arm" has blockSize: "four", which is not a whole number']],
   ];
   for (const [label, gateway, task, says] of CASES) {
-    const issues = checkValues(studyflowToDefinitions(study(gateway, task), freshModdle()));
+    const issues = checkValues(studyModel(study(gateway, task)));
     expect(issues.map((issue) => issue.message), label).toEqual(says);
     issues.forEach((issue) => expect(issue.severity, label).toBe('error'));
   }

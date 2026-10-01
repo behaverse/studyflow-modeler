@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { YAML_DUMP_OPTIONS, protocolDigest, studyModelOf, studyflowToDefinitions } from '@core/document';
+import { YAML_DUMP_OPTIONS, protocolDigest } from '@core/document';
 import { planChecks, recordChecks } from '@core/checks';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 /**
  * The fault library: faults seeded one at a time into a small study, each with what `studyflow validate` says of it,
@@ -141,7 +141,7 @@ const executed = async (): Promise<string> => PLAN + yaml.dump({
   },
 }, YAML_DUMP_OPTIONS);
 
-const digest = async (text: string): Promise<string> => protocolDigest(studyModelOf(studyflowToDefinitions(text, freshModdle())));
+const digest = async (text: string): Promise<string> => protocolDigest(studyModel(text));
 
 /** `sha256:` and the first 12 hex digits, as the seal quotes a digest. */
 const short = (sha: string): string => `${sha.slice(0, 19)}…`;
@@ -151,7 +151,7 @@ async function validate(text: string): Promise<string[]> {
   const lines: string[] = [];
   let definitions: any;
   try {
-    definitions = studyflowToDefinitions(text, freshModdle(), (warning) => lines.push(`warning: ${warning}`));
+    definitions = studyModel(text, (warning) => lines.push(`warning: ${warning}`));
   } catch (error) {
     return [...lines, `error: ${(error as Error).message}`];
   }
@@ -272,7 +272,7 @@ test('the study the faults are seeded into passes, as deposited and as a run lef
   expect(await validate(PLAN)).toEqual([]);
   const copy = await executed();
   expect(await validate(copy)).toEqual([]);
-  expect((await recordChecks(studyflowToDefinitions(copy, freshModdle()))).note).toBe(`protocol matches run r1 (${short(await digest(PLAN))})`);
+  expect((await recordChecks(studyModel(copy))).note).toBe(`protocol matches run r1 (${short(await digest(PLAN))})`);
 });
 
 for (const { fault, check, into, edit, says } of FAULTS) {

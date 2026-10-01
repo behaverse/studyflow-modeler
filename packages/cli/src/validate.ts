@@ -8,6 +8,7 @@ import { installedSkills } from '@cli/skills';
 import { planChecks, recordChecks } from '@core/checks';
 import { checkSoundness } from '@core/checks/soundness';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
+import { studyModelOf } from '@core/document';
 import { xsdViolations } from '@cli/xsd';
 
 export type ValidateReport = {
@@ -38,16 +39,17 @@ export async function validate(input: string): Promise<ValidateReport> {
     const { definitions, warnings: readerWarnings } = await parseSource(source);
     warnings.push(...readerWarnings);
     // The plan checks, then what a run left in the file (nothing to check in a file no run has stamped).
-    const record = await recordChecks(definitions);
+    const model = studyModelOf(definitions);
+    const record = await recordChecks(model);
     // An executed copy in its run repository has the run's record beside it: what the file keeps is read off it.
     const journal = path.join(path.dirname(input), 'events.jsonl');
     const events = existsSync(journal) ? readFileSync(journal, 'utf8').split('\n').filter((line) => line.trim()).map((line) => JSON.parse(line)) : [];
-    const recorded = events.length > 0 ? checkRecorded(definitions, events) : [];
-    for (const { severity, message } of [...planChecks(definitions), ...checkImplementations(definitions, new Set([...SKILLS, ...installedSkills().map((skill) => skill.manifest)].flatMap((skill) => skill.schemes ?? []))), ...record.issues, ...recorded]) {
+    const recorded = events.length > 0 ? checkRecorded(model, events) : [];
+    for (const { severity, message } of [...planChecks(model), ...checkImplementations(model, new Set([...SKILLS, ...installedSkills().map((skill) => skill.manifest)].flatMap((skill) => skill.schemes ?? []))), ...record.issues, ...recorded]) {
       (severity === 'error' ? errors : warnings).push(message);
     }
     // Every way the study can go, explored, once the plan checks pass.
-    const soundness = errors.length === 0 ? await checkSoundness(definitions) : { issues: [] };
+    const soundness = errors.length === 0 ? await checkSoundness(model) : { issues: [] };
     for (const { message } of soundness.issues) warnings.push(message);
     const recordNote = record.note && events.length > 0 && recorded.length === 0 ? `${record.note}; its state is its record's` : record.note;
     note = [soundness.note, recordNote].filter(Boolean).join(', ') || undefined;

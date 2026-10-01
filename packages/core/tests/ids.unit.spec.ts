@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { checkIds } from '@core/checks/ids';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 test('an id two scopes each give an element is refused: a reference reaches one, and a run keeps one', () => {
   const study = (inner: string): string => `id: ids
@@ -26,8 +25,8 @@ P:
     F1: Sub -> Work
     F2: Work -> Done
 `;
-  expect(checkIds(studyflowToDefinitions(study('Inner'), freshModdle(), () => {}))).toEqual([]);
-  expect(checkIds(studyflowToDefinitions(study('Work'), freshModdle(), () => {}))).toEqual([{
+  expect(checkIds(studyModel(study('Inner'), () => {}))).toEqual([]);
+  expect(checkIds(studyModel(study('Work'), () => {}))).toEqual([{
     severity: 'error', elementId: 'Work', message: 'the id "Work" names 2 elements ("inner", "outer"): a reference to it reaches only one, and a run keeps one',
   }]);
 });

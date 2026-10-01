@@ -1,12 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { checkRecorded } from '@core/checks/recorded';
 import type { RunEvent } from '@core/engine';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 test('an executed copy keeps the state its run\'s record says, the timeline aside', () => {
-  const file = (reached: number, prov: string) => studyflowToDefinitions(`id: recorded
+  const file = (reached: number, prov: string) => studyModel(`id: recorded
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 S:
@@ -18,7 +17,7 @@ state:
     prov: [${prov}]
     reached: { Start: ${reached} }
   S: { count: 2 }
-`, freshModdle());
+`);
   const events: RunEvent[] = [
     { event: 'started', at: 't0', run: 'r', state: { _meta: { prov: [{ action: 'executed' }] } }, stamp: { action: 'executed' } },
     { event: 'reached', at: 't1', id: 'Start' },

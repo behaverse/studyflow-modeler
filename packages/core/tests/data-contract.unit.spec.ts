@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { checkDataContract } from '@core/checks/data-contract';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 /** The data contract: a step names, in its arguments, only columns of the schema bound to the dataset it reads. */
 
@@ -70,7 +69,7 @@ test('the columns a step names must be the ones the schema of the data it reads 
     ['the JSON the schema editor writes', study('{ values: [correct, response_time] }', { body: JSON_BODY }), [UNDEFINED('response_time')]],
   ];
   for (const [label, yaml, issues] of CASES) {
-    const found = checkDataContract(studyflowToDefinitions(yaml, freshModdle()));
+    const found = checkDataContract(studyModel(yaml));
     expect(found.map((issue) => `${issue.elementId}: ${issue.message}`), label).toEqual(issues);
     expect(found.every((issue) => issue.severity === 'error'), label).toBe(true);
   }

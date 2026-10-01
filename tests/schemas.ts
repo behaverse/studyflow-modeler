@@ -5,6 +5,8 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { metamodelOf } from '@core/model/packages';
 import type { Metamodel } from '@core/model/metamodel';
+import { StudyModel } from '@core/model/index';
+import { readStudy } from '@core/model/yaml';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
@@ -61,6 +63,13 @@ export function freshPackages(): Record<string, any> {
 /** The metamodel of BPMN and the shipped schemas. */
 export function freshMetamodel(): Metamodel {
   return metamodelOf(PACKAGES);
+}
+
+const METAMODEL = freshMetamodel();
+
+/** A study model of `text`, a `.studyflow.yaml` file, over the shipped schemas; `onWarning` hears what the reader says. */
+export function studyModel(text: string, onWarning: (message: string) => void = () => {}): StudyModel {
+  return new StudyModel(readStudy(text, METAMODEL, onWarning), METAMODEL);
 }
 
 /** A moddle over the shipped schemas that nothing else has parsed with. */

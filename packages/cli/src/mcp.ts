@@ -9,6 +9,7 @@ import { createInterface } from 'node:readline';
 
 import { Study } from '@canvas/index.ts';
 import { planChecks } from '@core/checks';
+import { studyModelOf } from '@core/document';
 import { schemaModdle } from '@cli/studyfile';
 
 const PROTOCOL = '2025-06-18';
@@ -42,7 +43,7 @@ export async function mcp(path: string): Promise<void> {
 
   const call = async (name: string, args: unknown): Promise<object> => {
     if (name === 'check') {
-      const issues = planChecks(study.definitions as never);
+      const issues = planChecks(studyModelOf(study.definitions));
       return { ok: !issues.some((issue) => issue.severity === 'error'), issues, warnings };
     }
     if (name === 'save') {

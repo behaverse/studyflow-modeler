@@ -4,6 +4,7 @@
  */
 import { NON_EXTENSION_PREFIXES } from '@core/constants';
 import type { Metamodel, PropertyDef } from '@core/model/metamodel';
+import { expandInline } from '@core/model/spelling';
 import { hostOf, propertyOf } from '@core/model/yaml';
 import { isElement, type Element, type Study, type Value } from '@core/model/types';
 
@@ -47,6 +48,24 @@ export class StudyModel {
   /** Every element with an id, in the order the file writes them. */
   elements(): IterableIterator<Element> {
     return this.byId.values();
+  }
+
+  /** Every element the study holds, ids or none, each before what it holds. */
+  all(): IterableIterator<Element> {
+    return this.holders.keys();
+  }
+
+  /** The id of `element`, else of the nearest element holding it that has one: whose an issue is. */
+  ownerOf(element: Element): string | undefined {
+    for (let at: Element | undefined = element; at; at = this.parentOf(at)) if (typeof at.id === 'string') return at.id;
+    return undefined;
+  }
+
+  /** The property `key` of `element` where it sits: an extension entry is its own type; any other element its BPMN
+   * element's, then its schema type's. */
+  propertyAt(element: Element, key: string): PropertyDef | undefined {
+    if (this.holders.get(element)?.key === 'extensionElements') return this.metamodel.has(element.type) ? this.metamodel.property(element.type, key) : undefined;
+    return this.property(element, key);
   }
 
   holderOf(element: Element): Holder | undefined {
@@ -94,6 +113,14 @@ export class StudyModel {
     return entry;
   }
 
+  /** What `element` holds under `name`: its own value, else its schema entry's (an entry its BPMN element keeps in
+   * `extensionElements`, when no schema types it). */
+  attribute(element: Element, name: string): Value | undefined {
+    if (name in element) return element[name];
+    const type = this.extensionType(element);
+    return type && type !== element.type ? this.entries(element).find((entry) => entry.type === type)?.[name] : undefined;
+  }
+
   /** The entries of `element`'s `extensionElements`, as the file lists them. */
   entries(element: Element): Element[] {
     const list = element.extensionElements;
@@ -109,6 +136,12 @@ export class StudyModel {
 
 export function isExtensionPrefix(prefix: string | undefined): boolean {
   return !!prefix && !NON_EXTENSION_PREFIXES.has(prefix);
+}
+
+/** A YAML-typed value as its text: the text itself, or the mapping the model holds it as, dumped. */
+export function yamlText(value: Value | undefined): string | undefined {
+  if (typeof value === 'string') return value;
+  return value && typeof value === 'object' && !Array.isArray(value) && !isElement(value) ? expandInline(value) : undefined;
 }
 
 /** A reference's id, whether a property holds an id or (in a long form) `{id}`. */

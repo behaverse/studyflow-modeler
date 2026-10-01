@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { checkExpressions } from '@core/checks/expressions';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 /** What a study writes to be evaluated is checked before any run: a condition is FEEL, a timer's time ISO 8601. */
 
@@ -45,7 +44,7 @@ test('a condition that is not the FEEL both runtimes run, and a timer that says 
     ['a schedule is not a wait', 'score >= 0.9', ', timeCycle: "0 9 * * 1"', ['warning Rest: passes a schedule at once']],
   ];
   for (const [label, gate, timer, says] of CASES) {
-    const issues = checkExpressions(studyflowToDefinitions(study(gate, timer), freshModdle()));
+    const issues = checkExpressions(studyModel(study(gate, timer)));
     expect(issues, label).toHaveLength(says.length);
     says.forEach((expected, index) => {
       const [, severity, element, fragment] = /^(\w+) (\w+): (.*)$/.exec(expected)!;

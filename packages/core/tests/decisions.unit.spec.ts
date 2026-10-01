@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { checkDecisions } from '@core/checks/decisions';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 /** An exclusive gateway's conditions on one number: an overlap leaves the choice to the flows' order, and a gap with
  * no default stops the walk. The fault library (fault-library.unit.spec.ts) shows the faults this catches. */
@@ -37,11 +36,11 @@ test('conditions on one number that overlap, or leave a value no flow takes, are
     ['not a comparison with numbers', 'contains(answer, \\"yes\\")', 'x > 1', true, []],
   ];
   for (const [label, yes, no, fallback, says] of CASES) {
-    const issues = checkDecisions(studyflowToDefinitions(gate(yes, no, fallback ? ', default: F_Else' : ''), freshModdle()));
+    const issues = checkDecisions(studyModel(gate(yes, no, fallback ? ', default: F_Else' : '')));
     expect(issues.map((issue) => `${issue.severity}: ${issue.message}`), label).toEqual(says.map((fragment) => expect.stringContaining(fragment.split(': ')[1])));
     issues.forEach((issue, index) => expect(issue.severity, label).toBe(says[index].split(':')[0]));
   }
   // Without the default flow, a value no condition holds for stops the walk.
-  const stuck = checkDecisions(studyflowToDefinitions(gate('x > 0.8', 'x < 0.5').replace('    F_Else: Gate -> C\n', ''), freshModdle()));
+  const stuck = checkDecisions(studyModel(gate('x > 0.8', 'x < 0.5').replace('    F_Else: Gate -> C\n', '')));
   expect(stuck.map((issue) => `${issue.severity}: ${issue.message}`)).toEqual(['error: "Gate": for x in [0.5, 0.8], no condition holds and there is no default flow, so the walk stops there']);
 });

@@ -1,42 +1,46 @@
 import { BPMN } from '@core/constants';
-import type { ModdleElement } from '@core/element/moddle';
+import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 
 /** A flow node with the sequence flows into and out of it and the boundary events on it, each in document order. */
 export type GraphNode = {
-  node: ModdleElement;
-  incoming: ModdleElement[];
-  outgoing: ModdleElement[];
-  boundaries: ModdleElement[];
+  node: Element;
+  incoming: Element[];
+  outgoing: Element[];
+  boundaries: Element[];
 };
 
-export const isA = (element: any, type: string): boolean => !!element?.$instanceOf?.(type);
+const list = (value: Value | undefined): Element[] => (Array.isArray(value) ? value.filter(isElement) : []);
 
 /** Every container of flow elements: the processes and choreographies, and the sub-processes in them, outermost first. */
-export function containers(definitions: ModdleElement): ModdleElement[] {
-  const found: ModdleElement[] = [];
-  const visit = (container: ModdleElement): void => {
+export function containers(model: StudyModel): Element[] {
+  const found: Element[] = [];
+  const visit = (container: Element): void => {
     found.push(container);
-    for (const element of container.flowElements ?? []) if (isA(element, BPMN.FlowElementsContainer)) visit(element);
+    for (const element of list(container.flowElements)) if (model.isA(element, BPMN.FlowElementsContainer)) visit(element);
   };
-  for (const root of definitions.rootElements ?? []) if (isA(root, BPMN.FlowElementsContainer)) visit(root);
+  for (const root of model.study.roots) if (model.isA(root, BPMN.FlowElementsContainer)) visit(root);
   return found;
 }
 
 /** A container's control flow: its sequence flows, and its flow nodes by element. The runners order a node's flows as the file does. */
-export function graphOf(container: ModdleElement): { flows: ModdleElement[]; nodes: Map<ModdleElement, GraphNode> } {
-  const elements: ModdleElement[] = container.flowElements ?? [];
-  const nodes = new Map<ModdleElement, GraphNode>();
-  for (const node of elements) if (isA(node, BPMN.FlowNode)) nodes.set(node, { node, incoming: [], outgoing: [], boundaries: [] });
-  const flows = elements.filter((element) => isA(element, BPMN.SequenceFlow));
+export function graphOf(model: StudyModel, container: Element): { flows: Element[]; nodes: Map<Element, GraphNode> } {
+  const elements = list(container.flowElements);
+  const nodes = new Map<Element, GraphNode>();
+  for (const node of elements) if (model.isA(node, BPMN.FlowNode)) nodes.set(node, { node, incoming: [], outgoing: [], boundaries: [] });
+  const at = (ref: Value | undefined): GraphNode | undefined => {
+    const target = model.get(idOf(ref) ?? undefined);
+    return target ? nodes.get(target) : undefined;
+  };
+  const flows = elements.filter((element) => model.isA(element, BPMN.SequenceFlow));
   for (const flow of flows) {
-    nodes.get(flow.sourceRef)?.outgoing.push(flow);
-    nodes.get(flow.targetRef)?.incoming.push(flow);
+    at(flow.sourceRef)?.outgoing.push(flow);
+    at(flow.targetRef)?.incoming.push(flow);
   }
-  for (const { node } of nodes.values()) if (isA(node, BPMN.BoundaryEvent)) nodes.get(node.attachedToRef)?.boundaries.push(node);
+  for (const { node } of nodes.values()) if (model.isA(node, BPMN.BoundaryEvent)) at(node.attachedToRef)?.boundaries.push(node);
   return { flows, nodes };
 }
 
 /** How a message names an element: its name, else its id, quoted. */
-export function quoted(element: ModdleElement): string {
+export function quoted(element: Element): string {
   return `"${element.name || element.id}"`;
 }

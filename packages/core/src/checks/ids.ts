@@ -1,29 +1,21 @@
-import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
 import { quoted } from '@core/checks/graph';
+import { isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 
 /**
  * Every id names one element. Two scopes may each hold an element of the same id in the file, and then a reference
  * to it reaches only one of them, and a run, which keeps its values and records by id, keeps one: an error, not the
  * reader's warning, since what is lost says nothing of itself.
  */
-export function checkIds(definitions: ModdleElement): Issue[] {
-  const named = new Map<string, ModdleElement[]>();
-  const seen = new Set<unknown>();
-  const visit = (element: ModdleElement): void => {
-    if (!element || typeof element !== 'object' || seen.has(element)) return;
-    seen.add(element);
-    if (typeof element.id === 'string' && element.$type?.startsWith('bpmn:') && element.$type !== 'bpmn:Definitions') {
-      named.set(element.id, [...(named.get(element.id) ?? []), element]);
-    }
-    for (const property of element.$descriptor?.properties ?? []) {
-      if (property.isReference) continue;
-      const value = element[property.name];
-      if (Array.isArray(value)) value.forEach(visit);
-      else if (value && typeof value === 'object' && '$type' in value) visit(value);
-    }
+export function checkIds(model: StudyModel): Issue[] {
+  const named = new Map<string, Element[]>();
+  const visit = (value: Value | undefined): void => {
+    if (Array.isArray(value)) value.forEach(visit);
+    if (!isElement(value)) return;
+    if (typeof value.id === 'string' && model.host(value).startsWith('bpmn:')) named.set(value.id, [...(named.get(value.id) ?? []), value]);
+    for (const [key, child] of Object.entries(value)) if (key !== 'type') visit(child);
   };
-  visit(definitions);
+  model.study.roots.forEach(visit);
   return [...named].filter(([, elements]) => elements.length > 1).map(([id, elements]) => ({
     severity: 'error',
     elementId: id,

@@ -1,9 +1,9 @@
 import { parseExpression } from 'feelin';
 
 import { BPMN } from '@core/constants';
-import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
-import { containers, graphOf, isA, quoted } from '@core/checks/graph';
+import { containers, graphOf, quoted } from '@core/checks/graph';
+import { expressionOf, idOf, type StudyModel } from '@core/model/index';
 import { cited } from '@core/expression/feel';
 
 /** A set of numbers: its intervals, each open or closed at either end. */
@@ -98,14 +98,16 @@ function rangeOf(expression: string): { name: string; range: Range } | undefined
  * leave the choice to the order of the flows, and a value none holds for, with no default flow, stops the walk. So a
  * criterion whose inequality was flipped, or moved in one branch only, is caught before any run.
  */
-export function checkDecisions(definitions: ModdleElement): Issue[] {
+export function checkDecisions(model: StudyModel): Issue[] {
   const issues: Issue[] = [];
-  for (const container of containers(definitions)) {
-    for (const { node, outgoing } of graphOf(container).nodes.values()) {
-      if (!isA(node, BPMN.ExclusiveGateway)) continue;
-      const conditional = outgoing.filter((flow) => flow !== node.default && typeof flow.conditionExpression?.body === 'string');
-      if (conditional.length < 2 || conditional.length !== outgoing.length - (node.default ? 1 : 0)) continue;
-      const ranges = conditional.map((flow) => rangeOf(flow.conditionExpression.body));
+  for (const container of containers(model)) {
+    for (const { node, outgoing } of graphOf(model, container).nodes.values()) {
+      if (!model.isA(node, BPMN.ExclusiveGateway)) continue;
+      const fallback = idOf(node.default);
+      const conditionOf = (flow: (typeof outgoing)[number]): string | undefined => expressionOf(flow.conditionExpression)?.body;
+      const conditional = outgoing.filter((flow) => flow.id !== fallback && conditionOf(flow) !== undefined);
+      if (conditional.length < 2 || conditional.length !== outgoing.length - (fallback ? 1 : 0)) continue;
+      const ranges = conditional.map((flow) => rangeOf(conditionOf(flow)!));
       if (ranges.some((found) => !found) || new Set(ranges.map((found) => found!.name)).size !== 1) continue;
       const name = ranges[0]!.name;
       for (let i = 0; i < ranges.length; i += 1) {
@@ -120,7 +122,7 @@ export function checkDecisions(definitions: ModdleElement): Issue[] {
         }
       }
       const none = complement(ranges.reduce((covered, found) => union(covered, found!.range), [] as Range));
-      if (none.length > 0 && !node.default) {
+      if (none.length > 0 && !fallback) {
         issues.push({
           severity: 'error',
           elementId: node.id,

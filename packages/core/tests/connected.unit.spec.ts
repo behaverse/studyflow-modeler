@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { checkConnected } from '@core/checks/connected';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 /** Well-formedness condition 3: every flow node lies on a path from a start event to an end event. */
 
@@ -71,7 +70,7 @@ test('each flow node lies on a path from a start event, or a boundary event, to 
     ['a container with no sequence flow is not checked', '    Only:\n      type: Task\n', []],
   ];
   for (const [label, elements, messages] of CASES) {
-    const issues = checkConnected(studyflowToDefinitions(study(elements), freshModdle()));
+    const issues = checkConnected(studyModel(study(elements)));
     expect(issues.map((issue) => `${issue.elementId}: ${issue.message}`), label).toEqual(messages);
     expect(issues.every((issue) => issue.severity === 'error'), label).toBe(true);
   }

@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { checkRunnerPaths } from '@core/checks/runner-paths';
-import { freshModdle } from '@tests/schemas';
+import { studyModel } from '@tests/schemas';
 
 /** The splits the walk does not take: it walks one path per pool. */
 
@@ -53,14 +52,14 @@ test('a pool walks one path: a parallel split stops a run, an activity or event 
     ['EventBasedGateway', []],
   ];
   for (const [type, issues] of CASES) {
-    const found = checkRunnerPaths(studyflowToDefinitions(split(type), freshModdle()));
+    const found = checkRunnerPaths(studyModel(split(type)));
     expect(found.map((issue) => `${issue.severity} ${issue.elementId}: ${issue.message}`), type).toEqual(issues);
   }
 });
 
 test('a scope walks from its first start event, and a second is warned about', () => {
   const study = split('ExclusiveGateway').replace('    End:\n', '    Later:\n      type: StartEvent\n    End:\n').replace('    F_End: Join -> End\n', '    F_End: Join -> End\n    F_Later: Later -> A\n');
-  expect(checkRunnerPaths(studyflowToDefinitions(study, freshModdle())).map((issue) => `${issue.severity} ${issue.elementId}: ${issue.message}`)).toEqual([
+  expect(checkRunnerPaths(studyModel(study)).map((issue) => `${issue.severity} ${issue.elementId}: ${issue.message}`)).toEqual([
     'warning Later: "Study" has 2 start events; a pool walks one path, from the first, "Start", so a path from "Later" never runs',
   ]);
 });
