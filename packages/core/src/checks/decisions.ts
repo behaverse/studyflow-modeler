@@ -96,12 +96,22 @@ function rangeOf(expression: string): { name: string; range: Range } | undefined
 /**
  * An exclusive gateway's conditions, when each compares the same name to numbers: two that hold for the same value
  * leave the choice to the order of the flows, and a value none holds for, with no default flow, stops the walk. So a
- * criterion whose inequality was flipped, or moved in one branch only, is caught before any run.
+ * criterion whose inequality was flipped, or moved in one branch only, is caught before any run. And a parallel
+ * gateway with conditions on its flows, which it never reads: a decision drawn as a split.
  */
 export function checkDecisions(model: StudyModel): Issue[] {
   const issues: Issue[] = [];
   for (const container of containers(model)) {
     for (const { node, outgoing } of graphOf(model, container).nodes.values()) {
+      // A parallel gateway takes every flow out of it: a condition on one is a decision it never makes (BPMN 2.0).
+      const conditioned = outgoing.filter((flow) => expressionOf(flow.conditionExpression) !== undefined);
+      if (model.isA(node, BPMN.ParallelGateway) && conditioned.length > 0) {
+        issues.push({
+          severity: 'error',
+          elementId: node.id,
+          message: `${quoted(node)} is a parallel gateway, which takes every flow out of it, so it never reads the conditions on ${conditioned.map(quoted).join(', ')}: make it an exclusive or an inclusive gateway`,
+        });
+      }
       if (!model.isA(node, BPMN.ExclusiveGateway)) continue;
       const fallback = idOf(node.default);
       const conditionOf = (flow: (typeof outgoing)[number]): string | undefined => expressionOf(flow.conditionExpression)?.body;

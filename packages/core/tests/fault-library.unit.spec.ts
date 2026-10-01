@@ -210,17 +210,18 @@ const FAULTS: Fault[] = [
   },
   {
     fault: 'Parallel branches within one pool',
-    check: 'missed',
+    check: 'decisions',
     into: 'plan',
-    // Valid BPMN the walk runs as drawn: both branches, where the author meant one.
+    // A decision drawn as a split: both branches would run, the conditions unread.
     edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: ParallelGateway\n      name: Accurate enough?'),
-    says: [],
+    says: ['error: "Accurate enough?" is a parallel gateway, which takes every flow out of it, so it never reads the conditions on "yes", "no": make it an exclusive or an inclusive gateway'],
   },
   {
     fault: 'An inclusive gateway',
     check: 'missed',
     into: 'plan',
-    // Valid BPMN the walk runs as drawn: every branch whose condition holds.
+    // Valid BPMN the walk runs as drawn: every branch whose condition holds, which here is the one an exclusive
+    // gateway would take, since the conditions exclude each other.
     edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: InclusiveGateway\n      name: Accurate enough?'),
     says: [],
   },
