@@ -4,8 +4,8 @@ Every key a `<name>/<name>.moddle.yaml` can carry, and what reads it. [README.md
 
 ## Schemas
 
-A skill's vocabulary is a moddle package written in YAML, named by the `schema` key of its `SKILL.md` and
-loaded with no registration. It has the shape of bpmn-moddle's own BPMN package
+A skill's vocabulary is a moddle package written in YAML, named by the `schema` key of its `SKILL.md` (several,
+comma-separated, each with a prefix of its own) and loaded with no registration. It has the shape of bpmn-moddle's own BPMN package
 (`node_modules/bpmn-moddle/resources/bpmn/json/bpmn.json`), plus keys only the app reads, most of them under
 `meta`; `SchemaModel` in `packages/core/src/notation/moddlePackage.ts` describes it. bpmn-moddle reads and
 writes the BPMN XML with it, and the catalog (`packages/core/src/notation/compile.ts`) compiles it into the palette,

@@ -38,7 +38,7 @@ skill
   .description('Install a skill (a skill of the same name is replaced).')
   .action((source: string) => {
     const added = addSkill(source);
-    console.log(`Installed ${added.manifest.name} in ${added.folder}${added.schema ? ` (schema ${added.schema.prefix}:)` : ''}`);
+    console.log(`Installed ${added.manifest.name} in ${added.folder}${added.schemas.length > 0 ? ` (schema ${added.schemas.map((schema) => `${schema.prefix}:`).join(', ')})` : ''}`);
   });
 skill
   .command('list')
@@ -46,9 +46,10 @@ skill
   .action(() => {
     const skills = installedSkills();
     if (skills.length === 0) console.log(`No skill installed in ${skillsHome()}.`);
-    for (const { manifest, schema } of skills) {
+    for (const { manifest, schemas } of skills) {
       const runs = Object.keys(manifest.runtimes ?? {}).join(', ');
-      console.log(`${manifest.name}${schema ? `  ${schema.prefix}:` : ''}${runs ? `  runs in ${runs}` : ''}  ${manifest.description.split('. ')[0]}`);
+      const prefixes = schemas.map((schema) => `  ${schema.prefix}:`).join('');
+      console.log(`${manifest.name}${prefixes}${runs ? `  runs in ${runs}` : ''}  ${manifest.description.split('. ')[0]}`);
     }
   });
 skill

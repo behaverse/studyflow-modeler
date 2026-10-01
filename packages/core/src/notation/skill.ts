@@ -10,8 +10,9 @@ export type SkillManifest = {
   /** The folder's name, and the runner's (`--runner reachy=…`, `STUDYFLOW_REACHY_PY`). */
   name: string;
   description: string;
-  /** `schema`: the BPMN extension the skill contributes (a `*.moddle.yaml`), relative to its folder. */
-  schema?: string;
+  /** `schema`: the BPMN extensions the skill contributes (`*.moddle.yaml` files, comma-separated), relative to its
+   * folder; each has a prefix of its own. */
+  schemas: string[];
   /** `runtimes.<runtime>`: what the skill gives each runtime (the names the study's `runtime` attribute uses) to
    * execute its elements, in any language. For `local` a command run in the skill's folder following the
    * partial-runner contract; for `browser` a module the browser runtime imports. The `prov` skill's `local`
@@ -49,7 +50,7 @@ export function parseSkillManifest(markdown: string, folder?: string): SkillMani
   return {
     name,
     description,
-    schema: meta.schema === undefined ? undefined : String(meta.schema),
+    schemas: meta.schema === undefined ? [] : String(meta.schema).split(',').map((file) => file.trim()).filter(Boolean),
     runtimes: byRuntime('runtimes'),
     modelerModule: meta['modeler'] === undefined ? undefined : String(meta['modeler']),
     schemes: meta.schemes === undefined ? undefined : String(meta.schemes).split(',').map((scheme) => scheme.trim()).filter(Boolean),

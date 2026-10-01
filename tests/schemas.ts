@@ -26,8 +26,7 @@ const SKILLS: SkillManifest[] = readdirSync(SKILLS_DIR)
   .map((name) => parseSkillManifest(readFileSync(path.join(SKILLS_DIR, name, 'SKILL.md'), 'utf8'), name))
   .sort((a, b) => a.name.localeCompare(b.name));
 
-const withSchema = SKILLS.filter((skill) => skill.schema);
-const schemaFiles = withSchema.map((skill) => path.join(SKILLS_DIR, skill.name, skill.schema!));
+const schemaFiles = SKILLS.flatMap((skill) => skill.schemas.map((schema) => path.join(SKILLS_DIR, skill.name, schema)));
 
 /** Every schema, read as `loader.ts` reads it. */
 function readModels(): SchemaModel[] {

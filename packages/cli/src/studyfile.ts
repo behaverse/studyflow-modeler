@@ -24,7 +24,7 @@ let metamodelPromise: Promise<Metamodel> | undefined;
 
 /** One metamodel per process, over every installed skill's schema: what a study model reads its types by. */
 export function schemaMetamodel(): Promise<Metamodel> {
-  metamodelPromise ??= loadAllSchemas(installedSkills().flatMap((skill) => (skill.schema ? [skill.schema] : []))).then(metamodelOf);
+  metamodelPromise ??= loadAllSchemas(installedSkills().flatMap((skill) => skill.schemas)).then(metamodelOf);
   return metamodelPromise;
 }
 

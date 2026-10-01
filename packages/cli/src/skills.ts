@@ -16,7 +16,7 @@ export function skillsHome(): string {
   return path.join(process.env.STUDYFLOW_HOME || path.join(homedir(), '.studyflow'), 'skills');
 }
 
-export type InstalledSkill = { folder: string; manifest: SkillManifest; schema?: SchemaModel };
+export type InstalledSkill = { folder: string; manifest: SkillManifest; schemas: SchemaModel[] };
 
 /** Every skill installed in the skills home, each read from its `SKILL.md` and its schema. */
 export function installedSkills(): InstalledSkill[] {
@@ -30,10 +30,8 @@ export function installedSkills(): InstalledSkill[] {
 
 function readSkill(folder: string): InstalledSkill {
   const manifest = parseSkillManifest(readFileSync(path.join(folder, 'SKILL.md'), 'utf8'), path.basename(folder));
-  const schema = manifest.schema
-    ? fromModdleYaml(readFileSync(path.join(folder, manifest.schema), 'utf8'), `${manifest.name}/${manifest.schema}`)
-    : undefined;
-  return { folder, manifest, schema };
+  const schemas = manifest.schemas.map((schema) => fromModdleYaml(readFileSync(path.join(folder, schema), 'utf8'), `${manifest.name}/${schema}`));
+  return { folder, manifest, schemas };
 }
 
 /** Install the skill at `source`, a folder or a git URL, under the name its `SKILL.md` gives; a skill of that name is replaced. */
@@ -58,7 +56,6 @@ export function removeSkill(name: string): boolean {
 
 /** Each installed skill's schema as its text, for the desktop app, which loads it beside the shipped ones. */
 export function installedSchemas(): { skill: string; description: string; schema: string; source: string }[] {
-  return installedSkills().flatMap(({ folder, manifest }) => (manifest.schema
-    ? [{ skill: manifest.name, description: manifest.description, schema: `${manifest.name}/${manifest.schema}`, source: readFileSync(path.join(folder, manifest.schema), 'utf8') }]
-    : []));
+  return installedSkills().flatMap(({ folder, manifest }) => manifest.schemas.map((schema) => (
+    { skill: manifest.name, description: manifest.description, schema: `${manifest.name}/${schema}`, source: readFileSync(path.join(folder, schema), 'utf8') })));
 }
