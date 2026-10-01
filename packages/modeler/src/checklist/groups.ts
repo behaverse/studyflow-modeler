@@ -1,5 +1,6 @@
-import { checklistItems, resolvePlaceholders, type ChecklistItem } from '@core/document';
-import { getAttribute } from '@core/element';
+import { checklistItems, type ChecklistItem } from '@core/document';
+import type { Element, StudyModel } from '@core/model/index';
+import { resolvePlaceholdersIn } from '@core/model/state';
 import type { ElementRecord } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 
@@ -10,21 +11,16 @@ export type ElementGroup = {
   items: ChecklistItem[];
 };
 
-function readChecklist(bo: any): string | undefined {
-  const value = getAttribute(bo, 'checklist');
-  return typeof value === 'string' && value.trim() ? value : undefined;
-}
-
-function buildChecklistGroup(record: ElementRecord, bo: any, definitions: any): ElementGroup | null {
-  const checklist = readChecklist(bo);
-  if (!checklist) return null;
+function buildChecklistGroup(record: ElementRecord, model: StudyModel, element: Element | undefined): ElementGroup | null {
+  const checklist = element && model.attribute(element, 'checklist');
+  if (typeof checklist !== 'string' || !checklist.trim()) return null;
   const items = checklistItems(checklist);
   if (items.length === 0) return null;
   return {
     id: record.id,
     // A view, like the canvas: `{reached}` in a name shows the last run's value.
-    label: resolvePlaceholders(bo.name || bo.id || '(unnamed)', definitions, bo.id ?? ''),
-    type: bo.$type || record.type,
+    label: resolvePlaceholdersIn(model, (typeof element!.name === 'string' && element!.name) || record.id || '(unnamed)', record.id),
+    type: record.type,
     items,
   };
 }
@@ -33,7 +29,8 @@ function buildChecklistGroup(record: ElementRecord, bo: any, definitions: any): 
 export function collectChecklistGroups(modeler: Editor): ElementGroup[] {
   if (!modeler) return [];
   const { study } = modeler;
+  const { model } = study;
   return study.list()
-    .map((record) => buildChecklistGroup(record, study.businessObject(record.id), study.definitions))
+    .map((record) => buildChecklistGroup(record, model, model.get(record.id)))
     .filter((group): group is ElementGroup => group !== null);
 }

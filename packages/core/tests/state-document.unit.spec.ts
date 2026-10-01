@@ -13,7 +13,8 @@ import {
   xmlToStudyflow,
   type StateTree,
 } from '@core/document';
-import { freshModdle } from '@tests/schemas';
+import { resolvePlaceholdersIn, resolveStateIn } from '@core/model/state';
+import { freshModdle, studyModel } from '@tests/schemas';
 
 /** `state:` is the retrospective tree (docs/reference.qmd, "Run state"): JSON on the Study extension, a mapping in the file. */
 
@@ -79,6 +80,7 @@ test.describe('state in the document', () => {
 
   test('resolveState reads the element, its containers out to the study root, and its own runner counter', () => {
     const definitions = studyflowToDefinitions(DOC, freshModdle());
+    const model = studyModel(DOC);
     const CASES: [elementId: string, path: string, expected: unknown][] = [
       ['Excluded_Pre', 'count', 3],
       ['Trial', 'failed_trials', 2], // Battery's, its container
@@ -100,6 +102,7 @@ test.describe('state in the document', () => {
     ];
     for (const [elementId, path, expected] of CASES) {
       expect(resolveState(definitions, elementId, path), `${elementId}: ${path}`).toBe(expected);
+      expect(resolveStateIn(model, elementId, path), `model, ${elementId}: ${path}`).toBe(expected);
     }
   });
 
@@ -119,6 +122,8 @@ test.describe('state in the document', () => {
       const definitions = studyflowToDefinitions(BODY, moddle);
       writeState(definitions, moddle, state);
       expect(resolvePlaceholders(text, definitions, 'Excluded_Pre'), label).toBe(expected);
+      const model = studyModel(BODY + (state ? yaml.dump({ state }, YAML_DUMP_OPTIONS) : ''));
+      expect(resolvePlaceholdersIn(model, text, 'Excluded_Pre'), `model, ${label}`).toBe(expected);
     }
   });
 });

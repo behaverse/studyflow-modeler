@@ -1,5 +1,6 @@
 import { getProperty, moveProperties, setProperty, type Moddle, type ModdleElement } from '@core/element/moddle';
 import { STUDY_EXTENSION_TYPE, primaryRoot, studyExtensionOf } from '@core/document/format';
+import { META_KEY, PLACEHOLDER } from '@core/model/state';
 
 /**
  * The retrospective `state` tree (docs/developers.qmd, "What a run leaves behind"): keyed by element id, stored as a JSON string on
@@ -8,13 +9,7 @@ import { STUDY_EXTENSION_TYPE, primaryRoot, studyExtensionOf } from '@core/docum
 
 export type StateTree = Record<string, any>;
 
-/** The one runner-owned key: `state._meta.prov` (run records) and `state._meta.<quantity>.<element_id>` (e.g. `reached`). */
-export const META_KEY = '_meta';
-
-/** Keys starting with `_` are the runner's own; authors cannot declare properties with such names. */
-export function isReservedStateKey(name: string): boolean {
-  return name.startsWith('_');
-}
+export { META_KEY, PLACEHOLDER, isReservedStateKey } from '@core/model/state';
 
 /** The `studyflow:Study` extension of the primary root, created (with its `extensionElements`) when missing. */
 export function ensureStudyExtension(definitions: ModdleElement, moddle: Moddle): ModdleElement | undefined {
@@ -153,13 +148,6 @@ export function resolveState(definitions: ModdleElement | null | undefined, elem
   return keys.length === 1 && keys[0] === REACHED ? tree[META_KEY]?.[REACHED]?.[elementId] ?? 0 : undefined;
 }
 
-/**
- * A placeholder, `{name}` or `{name.field}`, the one form every reader takes (docs/reference.qmd, "Placeholders"):
- * a letter of any script or `_`, then letters, digits, `_`, `-` and dots, so the braces of YAML or JSON in a value
- * stay put. The Python runners spell it `[^\W\d][\w.-]*`, which matches the same names wherever the two engines'
- * Unicode tables agree.
- */
-export const PLACEHOLDER = /\{\s*([\p{L}\p{Nl}\p{No}_][\p{L}\p{N}_.-]*)\s*\}/gu;
 
 /** Replaces every `{path}` the last run's state resolves with `String(value)`; an unresolved placeholder stays as written. */
 export function resolvePlaceholders(text: string, definitions: ModdleElement | null | undefined, elementId: string): string {

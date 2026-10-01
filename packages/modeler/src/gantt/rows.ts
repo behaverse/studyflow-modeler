@@ -1,5 +1,6 @@
-import { parseChecklistLines, resolvePlaceholders } from '@core/document';
-import { StudyflowElement } from '@core/element';
+import { parseChecklistLines } from '@core/document';
+import type { Element, StudyModel } from '@core/model/index';
+import { resolvePlaceholdersIn } from '@core/model/state';
 import { isExpandable } from '@core/document/outline';
 import type { ElementRecord, Font } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
@@ -47,11 +48,10 @@ function groupOf(record: ElementRecord, byId: ReadonlyMap<string, ElementRecord>
   return lane;
 }
 
-function readTimingAttrs(bo: any): TimingAttrs {
+function readTimingAttrs(model: StudyModel, element: Element): TimingAttrs {
   const out: TimingAttrs = {};
-  const handle = StudyflowElement.fromBusinessObject(bo);
   for (const k of ATTR_NAMES) {
-    const value = handle.getAttribute(k);
+    const value = model.attributeOrDefault(element, k);
     if (typeof value === 'string' && value.trim()) out[k] = value.trim();
   }
   return out;
@@ -127,8 +127,8 @@ function parseProgressPct(raw: string): number | undefined {
 }
 
 /** The progress a checklist implies when the element states none: ticked task items over all task items. */
-function checklistProgress(bo: any): { pct: number; label: string; text: string } | undefined {
-  const text = StudyflowElement.fromBusinessObject(bo).getAttribute('checklist');
+function checklistProgress(model: StudyModel, element: Element): { pct: number; label: string; text: string } | undefined {
+  const text = model.attributeOrDefault(element, 'checklist');
   if (typeof text !== 'string') return undefined;
   let total = 0;
   let checked = 0;
@@ -141,19 +141,20 @@ function checklistProgress(bo: any): { pct: number; label: string; text: string 
 }
 
 /**
- * The row for `record`, whose business object is `bo`, or null when it schedules nothing; `always` gives a container
+ * The row for `record`, whose element `model` holds, or null when it schedules nothing; `always` gives a container
  * one for the rows inside it. `external`: its caption sits beside it.
  */
-function buildGanttRow(record: ElementRecord, bo: any, anchor: number, definitions: any, external: boolean, always = false): Row | null {
-  const attrs = readTimingAttrs(bo);
+function buildGanttRow(record: ElementRecord, model: StudyModel, anchor: number, external: boolean, always = false): Row | null {
+  const element = model.get(record.id) ?? { type: record.type, id: record.id };
+  const attrs = readTimingAttrs(model, element);
   if (!always && !ATTR_NAMES.some((k) => attrs[k] !== undefined)) return null;
-  const checklist = attrs.progress ? undefined : checklistProgress(bo);
+  const checklist = attrs.progress ? undefined : checklistProgress(model, element);
   const progressPct = attrs.progress ? parseProgressPct(attrs.progress) : checklist?.pct;
   return {
     id: record.id,
     // A view, like the canvas: `{reached}` in a name shows the last run's value.
-    label: resolvePlaceholders(bo.name || bo.id || '(unnamed)', definitions, bo.id ?? ''),
-    type: bo.$type || record.type,
+    label: resolvePlaceholdersIn(model, (typeof element.name === 'string' && element.name) || record.id || '(unnamed)', record.id),
+    type: record.type,
     fill: record.fill,
     stroke: record.stroke,
     font: record.font,
@@ -212,13 +213,14 @@ export function collectGanttRows(modeler: Editor): Row[] {
   if (!modeler) return [];
   const { study } = modeler;
   const records = study.list();
+  const { model } = study;
   const byId = new Map(records.map((record) => [record.id, record]));
   const captioned = new Set(study.list({ kind: 'label' }).map((label) => label.owner));
   const rows = new Map<string, Row>();
   const anchor = Date.now();
   const add = (record: ElementRecord, always: boolean): Row | null => {
     const row = rows.get(record.id)
-      ?? buildGanttRow(record, study.businessObject(record.id), anchor, study.definitions, captioned.has(record.id), always);
+      ?? buildGanttRow(record, model, anchor, captioned.has(record.id), always);
     if (!row) return null;
     // The enclosing container (and its own) is a row too, so this one has a parent to fold under.
     const container = groupOf(record, byId);
