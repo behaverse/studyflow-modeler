@@ -1,5 +1,5 @@
 import type { Graph } from '@core/engine/graph';
-import { Interrupted, keepRecord, logAt, type Conversation, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
+import { Cancelled, Interrupted, keepRecord, logAt, type Conversation, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
 import type { PlanElement } from '@core/engine/plan';
 import type { Happening } from '@core/engine/record';
 import type { Steps } from '@core/engine/steps';
@@ -17,8 +17,10 @@ export class Post {
   private readonly serving = new Map<string, Promise<unknown>>();
   /** The exchanges each conversation with a pool that remembers has had this run. */
   private readonly turns = new Map<string, number>();
-  /** The pools waiting for a message, and what each waits at: when every pool still walking waits, none will come. */
-  private readonly blocked = new Map<string, string>();
+  /** Each pool's paths walking, and those of them waiting for a message, with what each waits at: when every path of
+   * every pool still walking waits, no message will come. */
+  private readonly walking = new Map<string, number>();
+  private readonly blocked = new Map<string, Map<string, string>>();
   private sent = 0;
   /** Why the run is ending, once a pool failed or the run was stopped: every wait fails with it. */
   failed: unknown;
@@ -39,6 +41,27 @@ export class Post {
   /** A pool's walk has ended: it sends nothing more. */
   ended(pool: string): void {
     this.poolsDone.add(pool);
+    this.notify();
+  }
+
+  /** A path of `pool` starts walking, or a path waiting for the paths of a scope inside it walks on. */
+  enter(pool: string): void {
+    this.walking.set(pool, (this.walking.get(pool) ?? 0) + 1);
+  }
+
+  /** A path of `pool` ends, or waits for the paths of a scope inside it: what is left of the pool may all be waiting. */
+  leave(pool: string): void {
+    this.walking.set(pool, (this.walking.get(pool) ?? 1) - 1);
+    this.checkStuck();
+  }
+
+  /** When every path of every pool still walking waits for a message, none will come: the run fails, saying what each
+   * waits at. A pool between its instances, with no path walking, is not waiting. */
+  private checkStuck(): void {
+    const pools = this.graph.plan.processes.filter((pool) => !this.poolsDone.has(pool));
+    const stuck = (pool: string): boolean => (this.walking.get(pool) ?? 0) > 0 && (this.blocked.get(pool)?.size ?? 0) >= this.walking.get(pool)!;
+    if (this.failed !== undefined || pools.length === 0 || !pools.every(stuck)) return;
+    this.failed = new Error(`the pools wait for each other: ${pools.flatMap((pool) => [...this.blocked.get(pool)!.values()]).join('; ')}`);
     this.notify();
   }
 
@@ -139,16 +162,14 @@ export class Post {
   /** A pool waits for a message. When every pool still walking waits so, no message will ever come: the run fails,
    * saying what each waits at. */
   private async waitFor(thread: Thread, what: string): Promise<void> {
-    this.blocked.set(thread.pool, what);
-    const walking = this.graph.plan.processes.filter((pool) => !this.poolsDone.has(pool));
-    if (this.failed === undefined && walking.every((pool) => this.blocked.has(pool))) {
-      this.failed = new Error(`the pools wait for each other: ${walking.map((pool) => this.blocked.get(pool)).join('; ')}`);
-      this.notify();
-    }
+    const blocked = this.blocked.get(thread.pool) ?? new Map<string, string>();
+    this.blocked.set(thread.pool, blocked);
+    blocked.set(thread.path, what);
+    this.checkStuck();
     try {
       await this.changed();
     } finally {
-      this.blocked.delete(thread.pool);
+      blocked.delete(thread.path);
     }
   }
 
@@ -231,9 +252,10 @@ export class Post {
     }
   }
 
-  /** Throws when a boundary event of an activity this pool is inside has happened, innermost first: its timer has
-   * run out, or (unless `timersOnly`) a message waits at it. */
+  /** Throws when the path's scope was ended by another of its paths, or when a boundary event of an activity the path
+   * is inside has happened, innermost first: its timer has run out, or (unless `timersOnly`) a message waits at it. */
   checkInterrupt(thread: Thread, timersOnly = false): void {
+    if (thread.cancels.some((signal) => signal.aborted)) throw new Cancelled();
     for (const { activity, flows, due } of [...thread.watching].reverse()) {
       if (due.length > 0) throw new Interrupted(activity, due[0]);
       if (timersOnly) continue;

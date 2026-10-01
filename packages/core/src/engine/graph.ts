@@ -28,6 +28,7 @@ export type Declared = { value: unknown; id?: string };
 export class Graph {
   readonly elements: Record<string, PlanElement>;
   readonly outgoing = new Map<string, PlanElement[]>();
+  readonly incoming = new Map<string, PlanElement[]>();
   readonly children = new Map<string, PlanElement[]>();
   /** Lexical scopes: the properties each declares, by name. */
   readonly properties = new Map<string, Map<string, Declared>>();
@@ -57,7 +58,10 @@ export class Graph {
         this.walked.add(element.id);
         push(this.children, element.parent ?? undefined, element);
       }
-      if (element.type === 'sequenceFlow') push(this.outgoing, element.attributes.sourceRef, element);
+      if (element.type === 'sequenceFlow') {
+        push(this.outgoing, element.attributes.sourceRef, element);
+        push(this.incoming, element.attributes.targetRef, element);
+      }
       else if (element.type === 'participant') this.participants.set(element.id, element);
       else if (element.type === 'messageFlow') {
         push(this.flowsOut, element.attributes.sourceRef, element);
@@ -88,6 +92,35 @@ export class Graph {
 
   nameOf(id: string): string {
     return this.elements[id]?.name || id;
+  }
+
+  /** Whether a token at `from` may still come to `to` along sequence flows, an activity's boundary events included. */
+  reaches(from: string, to: string): boolean {
+    const key = `${from}>${to}`;
+    let known = this.reach.get(key);
+    if (known === undefined) {
+      const seen = new Set<string>();
+      const queue = [from];
+      known = false;
+      while (queue.length > 0 && !known) {
+        const at = queue.shift()!;
+        if (at === to) known = true;
+        else if (!seen.has(at)) {
+          seen.add(at);
+          for (const flow of this.outgoing.get(at) ?? []) if (flow.attributes.targetRef) queue.push(flow.attributes.targetRef);
+          for (const boundary of this.boundaries.get(at) ?? []) queue.push(boundary.id);
+        }
+      }
+      this.reach.set(key, known);
+    }
+    return known;
+  }
+
+  private readonly reach = new Map<string, boolean>();
+
+  /** Whether `element` joins paths: a parallel or inclusive gateway more than one sequence flow comes into. */
+  joins(element: PlanElement): boolean {
+    return (element.type === 'parallelGateway' || element.type === 'inclusiveGateway') && (this.incoming.get(element.id) ?? []).length > 1;
   }
 
   /** The element, then its containers outward to the process. */

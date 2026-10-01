@@ -110,6 +110,15 @@ export type WalkOptions = {
   participant?: number;
 };
 
+/** A path stopped because another path of its scope ended the scope: it failed, left at a boundary event, or ended
+ * the scope at a terminate end event. */
+export class Cancelled extends Error {
+  constructor() {
+    super('stopped: another path ended its scope');
+    this.name = 'Cancelled';
+  }
+}
+
 /** A message reached a boundary event of a running activity, or a failure its error boundary event: the walk leaves
  * the activity for the event. */
 export class Interrupted extends Error {
@@ -124,16 +133,20 @@ export class Interrupted extends Error {
   }
 }
 
-/** One pool's walk: where it is, what it watches, what it last heard. */
+/** One path of a pool's walk: a token, where it is, what it watches, what its pool last heard. A pool walks one path
+ * until a split gives it more, each walking on its own until a join takes them back. */
 export type Thread = {
   /** The process it walks. */
   pool: string;
+  /** Which path it is, unique in the run; a pool's own thread, before any path starts, is ''. */
+  path: string;
   depth: number;
   /** The activities it is inside, outermost first, each with the message flows that end it and their boundary events,
-   * and the timer boundary events whose time has come. */
-  watching: { activity: string; flows: Map<string, PlanElement>; due: PlanElement[] }[];
-  /** Stops the hand-off it is waiting on, when it is waiting on one. */
-  handoff?: AbortController;
+   * the timer boundary events whose time has come, and what stops the hand-offs inside it when one has. */
+  watching: { activity: string; flows: Map<string, PlanElement>; due: PlanElement[]; stop: AbortController }[];
+  /** The scopes it walks in, outermost first: one aborts when another path of it failed, left it at a boundary event,
+   * or ended it at a terminate end event, and every path still in it stops. */
+  cancels: AbortSignal[];
   /** The message this pool last took from each other pool: what it sends back answers it. */
   heard: Map<string, string>;
   /** Which instance of the pool it walks, 1-based, and how often that instance has reached each random gateway. */

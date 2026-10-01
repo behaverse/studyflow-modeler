@@ -33,21 +33,83 @@ async function walked(study: string, runners: Record<string, Runner> = {}, optio
   return { walk, plan, log, error, events, reached: walk.state._meta?.reached ?? {}, state: walk.state };
 }
 
-test('a parallel, inclusive or complex split is refused instead of walked along one branch', async () => {
-  for (const [type, said] of [['ParallelGateway', /parallel split/], ['InclusiveGateway', /inclusive gateway/], ['ComplexGateway', /complex gateway/]] as const) {
-    const { error } = await walked(`S:
+test('a split walks each branch it takes as a path of its own, at once, and a join waits for the paths it joins', async () => {
+  const process = (split: string, join: string, flows = 'F2: Split -> A\n    F3: Split -> B') => `S:
   type: Process
   flowElements:
     Start: { type: StartEvent }
-    Split: { type: ${type} }
-    A: { type: EndEvent }
-    B: { type: EndEvent }
+    Split: { type: ${split} }
+    A: { type: Task }
+    B: { type: Task }
+    Join: { type: ${join} }
+    After: { type: Task }
+    End: { type: EndEvent }
+    F1: Start -> Split
+    ${flows}
+    F4: A -> Join
+    F5: B -> Join
+    F6: Join -> After
+    F7: After -> End
+`;
+  // A waits for B to have started: walked one after the other, the run would never end.
+  let started: () => void = () => undefined;
+  const bStarted = new Promise<void>((resolve) => { started = resolve; });
+  const ran: string[] = [];
+  const both = { A: async () => { await bStarted; ran.push('A'); return {}; }, B: () => { started(); ran.push('B'); return {}; }, After: () => { ran.push('After'); return {}; } };
+  const parallel = await walked(process('ParallelGateway', 'ParallelGateway'), both);
+  expect(parallel.error).toBeUndefined();
+  expect(ran).toEqual(['B', 'A', 'After']);
+  expect([parallel.reached.Join, parallel.reached.After], 'the join is reached by both tokens and passed once').toEqual([2, 1]);
+
+  // An inclusive split takes each flow whose condition holds, and its join waits only for the paths that can come.
+  const inclusive = await walked(process('InclusiveGateway', 'InclusiveGateway', "F2: { sourceRef: Split, targetRef: A, conditionExpression: 'true' }\n    F3: { sourceRef: Split, targetRef: B, conditionExpression: 'false' }"), {});
+  expect(inclusive.error).toBeUndefined();
+  expect([inclusive.reached.A, inclusive.reached.B, inclusive.reached.After]).toEqual([1, undefined, 1]);
+
+  // So does an activity with several flows out and no conditions on them.
+  const fanned = await walked(process('Task', 'ParallelGateway'), {});
+  expect([fanned.error, fanned.reached.A, fanned.reached.B, fanned.reached.After]).toEqual([undefined, 1, 1, 1]);
+
+  // A parallel join one of whose tokens can never come stops the run; a complex gateway is refused.
+  const stuck = await walked(process('ExclusiveGateway', 'ParallelGateway', "F2: { sourceRef: Split, targetRef: A, conditionExpression: 'true' }\n    F3: Split -> B"), {});
+  expect(stuck.error?.message).toMatch(/Join: a parallel join waits for a token along each of its 2 flows, and only 1 can come/);
+  expect((await walked(process('ComplexGateway', 'ParallelGateway'), {})).error?.message).toMatch(/complex gateway/);
+});
+
+test('a path that fails stops the paths beside it, its hand-offs too, and a terminate end event ends them without failing', async () => {
+  const study = (end: string) => `S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Split: { type: ParallelGateway }
+    A: { type: Task }
+    Slow: { type: Task }
+    End_A: ${end}
+    End_Slow: { type: EndEvent }
     F1: Start -> Split
     F2: Split -> A
-    F3: Split -> B
-`);
-    expect(error?.message, type).toMatch(said);
-  }
+    F3: Split -> Slow
+    F4: A -> End_A
+    F5: Slow -> End_Slow
+`;
+  // A's runner fails, or A goes on to a terminate end event; Slow's hand-off runs until it is told to stop.
+  const run = async (end: string, a: () => Promise<Handback>) => {
+    const stopped: string[] = [];
+    const walk = new Walk(planOf(studyModel(`id: study\n${HEAD}${study(end)}`)), {
+      claim: (id) => (id === 'Slow' || id === 'A' ? { name: 'test', live: true } : undefined),
+      perform: (id, _values, { signal }) => (id === 'A' ? a() : new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => { stopped.push(id); reject(new Error('stopped')); });
+      })),
+      log: () => undefined,
+      now: () => new Date().toISOString(),
+    });
+    const error = await walk.run().then(() => undefined, (caught: Error) => caught.message);
+    return { error, stopped, reached: walk.state._meta.reached };
+  };
+  const failing = await run('{ type: EndEvent }', () => Promise.reject(new Error('A broke')));
+  expect([failing.error, failing.stopped]).toEqual(['A broke', ['Slow']]);
+  const terminated = await run('{ type: EndEvent, eventDefinitions: { T: { type: TerminateEventDefinition } } }', () => Promise.resolve({}));
+  expect([terminated.error, terminated.stopped, terminated.reached.End_A, terminated.reached.End_Slow]).toEqual([undefined, ['Slow'], 1, undefined]);
 });
 
 test('the plan spells a compact data association as the BPMN XML does: a data input its slot names, the selection alone', () => {

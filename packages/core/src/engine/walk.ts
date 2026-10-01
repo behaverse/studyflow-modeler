@@ -1,7 +1,7 @@
 import { PLACEHOLDER } from '@core/model/state';
 import { allocationOf, draw, permutedBlock, pick, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
-import { HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
+import { Cancelled, HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
 import type { Plan, PlanElement } from '@core/engine/plan';
 import type { Happening, RunEvent } from '@core/engine/record';
 import { Post } from '@core/engine/post';
@@ -15,13 +15,36 @@ import { Values } from '@core/engine/values';
  * and shows each step as a screen, and the modeler hosts it as a dry run. It executes nothing itself and does no I/O:
  * a host says who claims an element and performs it, keeps the records, and decides what a re-run may reuse.
  *
- * Every pool with a process is walked at once, each as its own task, one path per pool. The pools talk only along
- * message flows, and the walk carries every message.
+ * Every pool with a process is walked at once, each as its own task. A pool walks one path until a split gives it
+ * more: each walks on its own, and a join waits for the paths it joins. The pools talk only along message flows, and
+ * the walk carries every message.
  */
 
 const bpmnType = (element: PlanElement): string => `bpmn:${element.type.charAt(0).toUpperCase()}${element.type.slice(1)}`;
 
 const has = (element: PlanElement, definition: string): boolean => (element.events ?? []).includes(definition);
+
+/** A path walking a scope: the token, and the element it is at. */
+type Path = { at: string; thread: Thread };
+
+/** The paths a scope's walk runs, the tokens waiting at its joins, and what ends them all. */
+type Scope = {
+  depth: number;
+  tasks: Promise<void>[];
+  running: Set<Path>;
+  /** The tokens that have come to each join and wait there, with the path the last came along. */
+  joins: Map<string, { arrived: number; thread: Thread }>;
+  cancel: AbortController;
+  /** What ended the scope, a path's failure or a boundary event outside it: the scope's walk throws it. */
+  failure?: unknown;
+};
+
+/** Every non-empty subset of `items`, smallest first: what an inclusive split may take. */
+function subsets<T>(items: T[]): T[][] {
+  const all: T[][] = [];
+  for (let mask = 1; mask < 1 << items.length; mask += 1) all.push(items.filter((_item, i) => mask & (1 << i)));
+  return all.sort((a, b) => a.length - b.length);
+}
 
 export class Walk {
   readonly graph: Graph;
@@ -41,6 +64,7 @@ export class Walk {
   /** Tells the host what happened: the run's record. */
   private readonly record: (happened: Happening) => void;
   private early: RunEvent[] | undefined = [];
+  private paths = 0;
 
   constructor(plan: Plan, host: Host, options: WalkOptions = {}) {
     this.host = host;
@@ -86,7 +110,7 @@ export class Walk {
     // Study-scoped properties persist across runs, so only ones the tree lacks take their `value`; a plain element's
     // properties live with the study (`Excluded (n={count})` counts across runs).
     for (const scope of graph.properties.keys()) {
-      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.memory.startScope(scope, false, this.note({ pool: '', depth: 0, watching: [], heard: new Map(), participant: 1, visits: new Map() }));
+      if (!CONTAINER_TYPES.has(graph.elements[scope]?.type ?? 'process')) this.memory.startScope(scope, false, this.note({ pool: '', path: '', depth: 0, watching: [], cancels: [], heard: new Map(), participant: 1, visits: new Map() }));
     }
   }
 
@@ -125,7 +149,7 @@ export class Walk {
    * instances run one after another, as a multi-instance activity's passes do. */
   private async runPool(pool: string): Promise<void> {
     const { graph } = this;
-    const thread: Thread = { pool, depth: 0, watching: [], heard: new Map(), participant: this.participant, visits: new Map() };
+    const thread: Thread = { pool, path: '', depth: 0, watching: [], cancels: [], heard: new Map(), participant: this.participant, visits: new Map() };
     const { participant, instances: drawn } = graph.instancesOf(pool);
     const instances = this.oneInstance ? 1 : drawn;
     const start = graph.entryOf(pool);
@@ -148,97 +172,188 @@ export class Walk {
     }
   }
 
-  /** A sub-process is walked one level in, but values are not scoped with it (BPMN §10.4.7). */
+  /**
+   * A scope (a pool's process, a sub-process) walked one level in, from `first`, until no path is left in it. Values
+   * are not scoped with it (BPMN §10.4.7). A split starts a path for each branch it takes; a join lets one path on
+   * once the paths it waits for have come. A path that fails, or leaves the scope at a boundary event of an activity
+   * around it, stops the others, and the scope's walk throws what it met.
+   */
   private async walk(first: PlanElement, depth: number, thread: Thread): Promise<void> {
-    const { graph, host } = this;
-    const outer = thread.depth;
+    const scope: Scope = { depth, tasks: [], running: new Set(), joins: new Map(), cancel: new AbortController() };
+    // The path walking into the scope waits for the paths inside it: they are its pool's walking paths meanwhile.
+    if (thread.path) this.post.leave(thread.pool);
     try {
-      let steps = 0;
-      let element: PlanElement | undefined = first;
-      while (element) {
-        steps += 1;
-        if (steps > this.maxSteps) throw new Error('step budget exhausted — is the flow cycling without an exit?');
-        thread.depth = depth;
-        const { id, type } = element;
+      this.spawn(scope, first, { ...thread, cancels: [...thread.cancels, scope.cancel.signal] });
+      while (scope.tasks.length > 0) await Promise.all(scope.tasks.splice(0));
+    } finally {
+      if (thread.path) this.post.enter(thread.pool);
+    }
+    if (scope.failure !== undefined) throw scope.failure;
+    if (thread.cancels.some((signal) => signal.aborted)) throw new Cancelled();
+  }
+
+  /** A path from `element`, in its own copy of `thread`: `joined` when it starts at a join its tokens have all come to. */
+  private spawn(scope: Scope, element: PlanElement, thread: Thread, joined = false): void {
+    const path: Path = { at: element.id, thread: { ...thread, path: `${thread.pool}#${this.paths += 1}`, watching: [...thread.watching] } };
+    scope.running.add(path);
+    this.post.enter(thread.pool);
+    // It starts once the path that split has gone on, so the branches start in the order the flows are drawn.
+    scope.tasks.push(Promise.resolve().then(() => this.walkPath(scope, path, element, joined))
+      .catch((error) => this.end(scope, error))
+      .finally(() => {
+        scope.running.delete(path);
+        this.post.leave(thread.pool);
+        this.settle(scope);
+      }));
+  }
+
+  /** Ends the scope's other paths: a path failed (`error`), left at a boundary event outside the scope, or ended it at a
+   * terminate end event (no `error`). A path a sibling stopped says nothing. */
+  private end(scope: Scope, error?: unknown): void {
+    if (error instanceof Cancelled) return;
+    if (scope.cancel.signal.aborted) return;
+    if (error !== undefined) scope.failure = error;
+    scope.cancel.abort();
+    this.post.notify();
+  }
+
+  /** A token comes to a join: whether its path goes on. A parallel join lets the last of the tokens it joins on, an
+   * inclusive one the last that can come, once no other path of the scope can still reach it. */
+  private arrive(scope: Scope, join: PlanElement, path: Path): boolean {
+    const waiting = scope.joins.get(join.id) ?? { arrived: 0, thread: path.thread };
+    waiting.arrived += 1;
+    waiting.thread = path.thread;
+    const needed = (this.graph.incoming.get(join.id) ?? []).length;
+    const done = join.type === 'parallelGateway'
+      ? waiting.arrived >= needed
+      : ![...scope.running].some((other) => other !== path && this.graph.reaches(other.at, join.id));
+    if (!done) {
+      scope.joins.set(join.id, waiting);
+      return false;
+    }
+    if (join.type === 'parallelGateway' && waiting.arrived > needed) {
+      waiting.arrived -= needed;
+      scope.joins.set(join.id, waiting);
+    } else {
+      scope.joins.delete(join.id);
+    }
+    return true;
+  }
+
+  /** After a path moved or ended: an inclusive join no path can reach any more lets its tokens on, and a parallel join
+   * some of whose tokens can no longer come stops the scope. */
+  private settle(scope: Scope): void {
+    if (scope.cancel.signal.aborted) return;
+    for (const [id, waiting] of [...scope.joins]) {
+      if ([...scope.running].some((path) => this.graph.reaches(path.at, id))) continue;
+      const join = this.graph.elements[id];
+      scope.joins.delete(id);
+      if (join.type === 'inclusiveGateway') {
+        this.spawn(scope, join, waiting.thread, true);
+      } else {
+        const needed = (this.graph.incoming.get(id) ?? []).length;
+        this.end(scope, new Error(`${id}: a parallel join waits for a token along each of its ${needed} flows, and only ${waiting.arrived} can come`));
+      }
+    }
+  }
+
+  /** One path of a scope, from `first` until it ends, waits at a join, or meets what ends the scope. */
+  private async walkPath(scope: Scope, path: Path, first: PlanElement, joined: boolean): Promise<void> {
+    const { graph, host } = this;
+    const { depth } = scope;
+    const thread = path.thread;
+    thread.depth = depth;
+    let steps = 0;
+    let arriving = !joined;
+    let element: PlanElement | undefined = first;
+    while (element) {
+      steps += 1;
+      if (steps > this.maxSteps) throw new Error('step budget exhausted — is the flow cycling without an exit?');
+      const { id, type } = element;
+      path.at = id;
+      if (scope.joins.size > 0) this.settle(scope);
+      if (arriving) {
         this.memory.trace.push(id);
         this.memory.count(id);
-        this.post.checkInterrupt(thread);
-        const name = graph.nameOf(id);
-
-        if (type === 'endEvent') {
-          const entry = this.steps.begin(id, name, bpmnType(element));
-          // A runner may claim the end too: its chance to fold what it started for the study.
-          if (host.claim(id)) await this.executeViaRunner(element, entry, thread);
-          await this.post.throwFrom(element, thread);
-          this.steps.end(entry);
-          this.record({ event: 'executed', id, entry });
-          this.log(thread, 'event.reached', `● ${id}`);
-          host.passed?.(id);
-          const container = graph.get(element.parent);
-          const boundary = has(element, 'errorEventDefinition') ? this.errorBoundary(container) : undefined;
-          // An error end event ends the sub-process around it at that sub-process's error boundary event.
-          if (boundary) throw new Interrupted(container!.id, boundary);
-          return;
-        }
-        if (type === 'parallelGateway' && (graph.outgoing.get(id) ?? []).length > 1) {
-          // Each pool is one path; walking on would run the first branch only.
-          throw new Error(`${id}: a parallel split, and a pool walks one path. `
-            + 'Put the steps in sequence, or give each branch a pool of its own.');
-        }
-        if ((type === 'inclusiveGateway' || type === 'complexGateway') && (graph.outgoing.get(id) ?? []).length > 1) {
-          // Taking one flow would walk it as an exclusive gateway, which it is not.
-          throw new Error(`${id}: ${type === 'inclusiveGateway' ? 'an inclusive gateway takes every flow whose condition holds' : 'a complex gateway goes by an activation rule the walk does not read'}, `
-            + 'and a pool walks one path. Make it an exclusive gateway, or give each branch a pool of its own.');
-        }
-        if (GATEWAY_TYPES.has(type) || type === 'parallelGateway') {
-          this.log(thread, 'gateway.reached', `◇ ${id}`);
-        } else if (PASSTHROUGH_TYPES.has(type)) {
-          const entry = this.steps.begin(id, name, bpmnType(element));
-          const runner = host.claim(id);
-          try {
-            if (runner) {
-              // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
-              this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
-              this.adopt(id, await this.handOff(id, this.memory.json(), thread), entry);
-            } else if (graph.flowsIn.has(id)) {
-              // A catch event a message flow reaches waits for that message; its content is the result.
-              this.log(thread, 'event.waiting', `◐ ${id}  (waiting for a message)`);
-              this.memory.store(id, (await this.post.receive(id, graph.flowsIn.get(id)!, thread)).content);
-            } else if (element.timer) {
-              // A timer event waits for its time: a duration from now, or a date.
-              const ms = this.timerMs(element);
-              this.log(thread, 'event.waiting', `◐ ${id}  (waiting ${ms}ms for its timer)`);
-              await this.post.sleep(ms, id, thread);
-            }
-          } catch (error) {
-            if (error instanceof Interrupted) this.steps.end(entry);
-            else this.steps.fail(entry, error);
-            throw error;
-          }
-          await this.post.throwFrom(element, thread);
-          this.steps.end(entry);
-          this.record({ event: 'executed', id, entry });
-          this.log(thread, 'event.reached', `○ ${id}`);
-        } else {
-          const boundary = await this.perform(element, depth, thread);
-          if (boundary) {
-            // The activity ended at one of its boundary events: the walk goes on from there.
-            this.memory.trace.push(boundary.id);
-            this.memory.count(boundary.id);
-            this.record({ event: 'executed', id: boundary.id });
-            await host.moved?.(boundary.id, undefined, thread.pool);
-            this.log(thread, 'event.reached', `○ ${boundary.id}  (ended ${id})`);
-            element = await this.next(boundary, thread);
-            continue;
-          }
-        }
-        // After `next`, so a gateway's decision is in its record entry too.
-        const following = await this.next(element, thread);
-        host.passed?.(id);
-        element = following;
       }
-    } finally {
-      thread.depth = outer;
+      this.post.checkInterrupt(thread);
+      if (arriving && graph.joins(element) && !this.arrive(scope, element, path)) {
+        this.log(thread, 'gateway.waiting', `◇ ${id}  (waiting for the paths it joins)`, { level: 'debug' });
+        return;
+      }
+      arriving = true;
+      const name = graph.nameOf(id);
+
+      if (type === 'endEvent') {
+        const entry = this.steps.begin(id, name, bpmnType(element));
+        // A runner may claim the end too: its chance to fold what it started for the study.
+        if (host.claim(id)) await this.executeViaRunner(element, entry, thread);
+        await this.post.throwFrom(element, thread);
+        this.steps.end(entry);
+        this.record({ event: 'executed', id, entry });
+        this.log(thread, 'event.reached', `● ${id}`);
+        host.passed?.(id);
+        const container = graph.get(element.parent);
+        const boundary = has(element, 'errorEventDefinition') ? this.errorBoundary(container) : undefined;
+        // An error end event ends the sub-process around it at that sub-process's error boundary event.
+        if (boundary) throw new Interrupted(container!.id, boundary);
+        // A terminate end event ends every path of its scope; any other ends its own.
+        if (has(element, 'terminateEventDefinition')) this.end(scope);
+        return;
+      }
+      if (type === 'complexGateway' && (graph.outgoing.get(id) ?? []).length > 1) {
+        // Taking one flow would walk it as an exclusive gateway, which it is not.
+        throw new Error(`${id}: a complex gateway goes by an activation rule the walk does not read. `
+          + 'Make it an exclusive, inclusive or parallel gateway.');
+      }
+      let from: PlanElement = element;
+      if (GATEWAY_TYPES.has(type) || type === 'parallelGateway') {
+        this.log(thread, 'gateway.reached', `◇ ${id}`);
+      } else if (PASSTHROUGH_TYPES.has(type)) {
+        const entry = this.steps.begin(id, name, bpmnType(element));
+        const runner = host.claim(id);
+        try {
+          if (runner) {
+            // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
+            this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
+            this.adopt(id, await this.handOff(id, this.memory.json(), thread), entry);
+          } else if (graph.flowsIn.has(id)) {
+            // A catch event a message flow reaches waits for that message; its content is the result.
+            this.log(thread, 'event.waiting', `◐ ${id}  (waiting for a message)`);
+            this.memory.store(id, (await this.post.receive(id, graph.flowsIn.get(id)!, thread)).content);
+          } else if (element.timer) {
+            // A timer event waits for its time: a duration from now, or a date.
+            const ms = this.timerMs(element);
+            this.log(thread, 'event.waiting', `◐ ${id}  (waiting ${ms}ms for its timer)`);
+            await this.post.sleep(ms, id, thread);
+          }
+        } catch (error) {
+          if (error instanceof Interrupted || error instanceof Cancelled) this.steps.end(entry);
+          else this.steps.fail(entry, error);
+          throw error;
+        }
+        await this.post.throwFrom(element, thread);
+        this.steps.end(entry);
+        this.record({ event: 'executed', id, entry });
+        this.log(thread, 'event.reached', `○ ${id}`);
+      } else {
+        const boundary = await this.perform(element, depth, thread);
+        if (boundary) {
+          // The activity ended at one of its boundary events: the walk goes on from there.
+          this.memory.trace.push(boundary.id);
+          this.memory.count(boundary.id);
+          this.record({ event: 'executed', id: boundary.id });
+          await host.moved?.(boundary.id, undefined, thread.pool);
+          this.log(thread, 'event.reached', `○ ${boundary.id}  (ended ${id})`);
+          from = boundary;
+        }
+      }
+      // After `next`, so a gateway's decision is in its record entry too.
+      const following = await this.next(from, thread);
+      if (from === element) host.passed?.(id);
+      // A split: each branch past the first is a path of its own.
+      for (const branch of following.slice(1)) this.spawn(scope, branch, thread);
+      element = following[0];
     }
   }
 
@@ -255,16 +370,18 @@ export class Walk {
     const { graph } = this;
     const { id } = element;
     const due: PlanElement[] = [];
+    const stop = new AbortController();
     thread.watching.push({
       activity: id,
       flows: new Map((graph.boundaries.get(id) ?? [])
         .flatMap((boundary) => (graph.flowsIn.get(boundary.id) ?? []).map((flow): [string, PlanElement] => [flow.id, boundary]))),
       due,
+      stop,
     });
     // A timer at a boundary event runs from the moment the activity is entered; when its time comes it ends the
-    // activity, stopping the hand-off the pool is waiting on.
+    // activity, stopping every hand-off inside it.
     const timers = (graph.boundaries.get(id) ?? []).filter((boundary) => boundary.timer)
-      .map((boundary) => this.post.timer(this.timerMs(boundary), boundary.id, () => { due.push(boundary); thread.handoff?.abort(); }));
+      .map((boundary) => this.post.timer(this.timerMs(boundary), boundary.id, () => { due.push(boundary); stop.abort(); }));
     try {
       let passes = 0;
       const listed = this.host.choose ? undefined : this.loopList(element);
@@ -376,6 +493,8 @@ export class Walk {
       if (error instanceof Interrupted) {
         entry.interruptedBy = error.boundary.id;
         this.steps.end(entry);
+      } else if (error instanceof Cancelled) {
+        this.steps.end(entry);
       } else {
         this.steps.fail(entry, error);
       }
@@ -411,6 +530,10 @@ export class Walk {
     } catch (error) {
       if (error instanceof Interrupted) {
         entry.interruptedBy = error.boundary.id;
+        this.steps.end(entry);
+        throw error;
+      }
+      if (error instanceof Cancelled) {
         this.steps.end(entry);
         throw error;
       }
@@ -501,14 +624,20 @@ export class Walk {
     if (handed.result !== undefined) this.memory.store(id, handed.result);
   }
 
-  /** One hand-off to the host, which a timer at a boundary event of an activity around it may stop: the walk then
-   * leaves for that event, whatever the hand-off had done. */
+  /** One hand-off to the host, which a timer at a boundary event of an activity around it may stop, and so may a
+   * path that ends its scope: the walk then leaves for that event, or stops, whatever the hand-off had done. */
   private async handOff(id: string, values: Record<string, unknown>, thread: Thread, talk?: Talk): Promise<Handback> {
-    const handoff = thread.handoff = new AbortController();
+    const handoff = new AbortController();
+    const stops = [...thread.watching.map(({ stop }) => stop.signal), ...thread.cancels];
+    const abort = (): void => handoff.abort();
+    for (const signal of stops) {
+      if (signal.aborted) handoff.abort();
+      else signal.addEventListener('abort', abort, { once: true });
+    }
     try {
       return await this.host.perform(id, values, { talk, note: this.note(thread), signal: handoff.signal });
     } finally {
-      thread.handoff = undefined;
+      for (const signal of stops) signal.removeEventListener('abort', abort);
       this.post.checkInterrupt(thread, true);
     }
   }
@@ -544,47 +673,71 @@ export class Walk {
     return target;
   }
 
-  private async next(element: PlanElement, thread: Thread): Promise<PlanElement | undefined> {
+  /** Where the path goes from `element`: one element, or, at a split, the first element of each branch it takes. */
+  private async next(element: PlanElement, thread: Thread): Promise<PlanElement[]> {
     const { graph, host } = this;
     const { id } = element;
     const flows = graph.outgoing.get(id) ?? [];
-    if (flows.length === 0) return undefined;
-    if (!GATEWAY_TYPES.has(element.type)) return this.follow(flows[0], thread);
+    const along = async (taken: PlanElement[]): Promise<PlanElement[]> => {
+      const targets: PlanElement[] = [];
+      for (const flow of taken) {
+        const target = await this.follow(flow, thread);
+        if (target) targets.push(target);
+      }
+      return targets;
+    };
+    if (flows.length === 0) return [];
+    if (element.type === 'parallelGateway') return along(flows);
+    if (!GATEWAY_TYPES.has(element.type)) {
+      if (flows.length === 1) return along(flows);
+      // Several flows out of an activity or an event: each without a condition is taken, each with one whose condition
+      // holds, and the default flow when no condition does.
+      const conditional = flows.filter((flow) => flow.condition);
+      const held = host.choose
+        ? (conditional.length > 0 ? this.chooseFlows(id, conditional, true) : [])
+        : conditional.filter((flow) => this.memory.evaluate(flow.condition!, id) === true);
+      const bare = flows.filter((flow) => !flow.condition && flow.id !== element.attributes.default);
+      const fallback = held.length === 0 ? flows.filter((flow) => flow.id === element.attributes.default) : [];
+      return along([...bare, ...held, ...fallback]);
+    }
 
     // A clean gateway replays its recorded decision: same inputs, same seed, same verdict. A gateway a live runner
-    // samples decides live, so its decision never replays.
-    const prior = this.live.has(id) ? undefined : host.reuse?.decision(id);
+    // samples decides live, so its decision never replays; an inclusive one decides again each time.
+    const prior = this.live.has(id) || element.type === 'inclusiveGateway' ? undefined : host.reuse?.decision(id);
     const replayed = prior && flows.find((flow) => flow.id === prior.flow);
     if (prior && replayed) {
       this.log(thread, 'gateway.replayed', `↻ ${id} → ${prior.flow}  (decision from run ${prior.run})`);
       this.record({ event: 'reused', id, run: prior.run, flow: prior.flow });
-      return this.follow(replayed, thread);
+      return along([replayed]);
     }
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
 
-    /** Record the decision and how it was made, then follow `flow`. */
-    const take = (flow: PlanElement, how: string, marks: Record<string, boolean> = {}): Promise<PlanElement | undefined> => {
-      entry.taken = { sequenceFlow: flow.id, name: flow.name, how, ...marks };
+    /** Record the decision and how it was made, then follow the flows taken. */
+    const take = (taken: PlanElement[], how: string, marks: Record<string, boolean> = {}): Promise<PlanElement[]> => {
+      entry.taken = taken.length === 1
+        ? { sequenceFlow: taken[0].id, name: taken[0].name, how, ...marks }
+        : { sequenceFlows: taken.map((flow) => flow.id), how, ...marks };
       this.steps.end(entry);
-      this.log(thread, 'sequenceFlow.taken', `    ${how} → ${flow.id}`);
-      this.record({ event: 'executed', id, flow: flow.id, entry });
-      return this.follow(flow, thread);
+      this.log(thread, 'sequenceFlow.taken', `    ${how} → ${taken.map((flow) => flow.id).join(', ')}`);
+      this.record({ event: 'executed', id, ...(taken.length === 1 ? { flow: taken[0].id } : {}), entry });
+      return along(taken);
     };
 
     if (element.type === 'eventBasedGateway') {
       this.log(thread, 'event.waiting', `    (waiting for the first message along ${flows.length} branches)`);
       try {
-        return take(await this.post.race(id, flows, thread), 'first message', { message: true });
+        return take([await this.post.race(id, flows, thread)], 'first message', { message: true });
       } catch (error) {
-        if (error instanceof Interrupted) this.steps.end(entry);
+        if (error instanceof Interrupted || error instanceof Cancelled) this.steps.end(entry);
         else this.steps.fail(entry, error);
         throw error;
       }
     }
 
     if (host.choose && flows.length > 1) {
+      if (element.type === 'inclusiveGateway') return take(this.chooseFlows(id, flows, false), 'chosen');
       const chosen = host.choose(id, flows.map((flow) => flow.id));
-      return take(flows.find((flow) => flow.id === chosen) ?? flows[0], 'chosen');
+      return take([flows.find((flow) => flow.id === chosen) ?? flows[0]], 'chosen');
     }
 
     const allocation = this.allocations.get(id);
@@ -606,9 +759,10 @@ export class Walk {
       } else {
         arm = pick(this.seed === undefined ? Math.random() : draw(this.seed, id, thread.participant, visit), allocation.weights);
       }
-      return take(flows[arm], 'drawn', { random: true });
+      return take([flows[arm]], 'drawn', { random: true });
     }
 
+    const held: PlanElement[] = [];
     try {
       let bindings: Record<string, unknown> = {};
       const runner = host.claim(id);
@@ -627,25 +781,37 @@ export class Walk {
           sequenceFlow: flow.id, conditionExpression: flow.condition.body, held: verdict === true,
         });
         this.log(thread, 'conditionExpression.evaluated', `    ${flow.condition.body} → ${verdict === true}  [${flow.id}]`, { level: 'debug' });
-        if (verdict === true) return take(flow, flow.condition.body);
+        if (verdict !== true) continue;
+        // An exclusive gateway takes the first flow whose condition holds; an inclusive one, every one.
+        if (element.type !== 'inclusiveGateway') return take([flow], flow.condition.body);
+        held.push(flow);
       }
     } catch (error) {
       const chosen = host.decide?.(id, flows.map((flow) => flow.id), error as Error);
       const decided = flows.find((flow) => flow.id === chosen);
-      if (decided) return take(decided, 'decided by the host');
+      if (decided) return take([decided], 'decided by the host');
       this.steps.fail(entry, error);
       throw error;
     }
+    if (held.length > 0) return take(held, held.map((flow) => flow.condition!.body).join('; '));
 
     // No condition held: the default flow, else the one flow without a condition.
     const chosen = flows.find((flow) => flow.id === element.attributes.default);
-    if (chosen) return take(chosen, 'default', { default: true });
+    if (chosen) return take([chosen], 'default', { default: true });
     const bare = flows.filter((flow) => !flow.condition);
-    if (bare.length === 1) return take(bare[0], 'otherwise', { otherwise: true });
+    if (bare.length === 1) return take(bare, 'otherwise', { otherwise: true });
     entry.status = 'stuck';
     this.steps.end(entry);
     this.steps.status = 'error';
     throw new Error(`${id}: no condition held, and there is no default flow or single flow without a condition`);
+  }
+
+  /** The flows an exploring host picks at a split that takes each whose condition holds: any one or more of them, or
+   * (`none`) none, for the default to take. */
+  private chooseFlows(id: string, flows: PlanElement[], none: boolean): PlanElement[] {
+    const options = subsets(flows).map((taken) => taken.map((flow) => flow.id).join('+'));
+    const chosen = this.host.choose!(id, none ? ['none', ...options] : options);
+    return chosen === 'none' ? [] : flows.filter((flow) => chosen.split('+').includes(flow.id));
   }
 
   private log(thread: Thread, event: string, message: string, detail?: Parameters<Note>[2]): void {

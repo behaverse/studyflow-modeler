@@ -13,7 +13,8 @@ import { Walk } from '@core/engine/walk';
  * never take may still be reported.
  *
  * What it finds: a run in which a pool waits for a message none will send (the pools wait for each other, or the
- * sender has ended), and a message sent that nothing takes. Each comes with the choices that lead to it.
+ * sender has ended), a parallel join one of whose tokens can never come, and a message sent that nothing takes. Each
+ * comes with the choices that lead to it.
  */
 export type Finding = { message: string; path: string[] };
 
@@ -32,7 +33,7 @@ export type ExploreOptions = {
   maxPasses?: number;
 };
 
-const MESSAGING = /waits along|wait for each other|waits for a message/;
+const STUCK = /waits along|wait for each other|waits for a message|a parallel join waits/;
 
 export async function explore(plan: Plan, { maxRuns = 2000, maxPasses = 2 }: ExploreOptions = {}): Promise<Exploration> {
   const graph = new Graph(plan);
@@ -74,7 +75,7 @@ export async function explore(plan: Plan, { maxRuns = 2000, maxPasses = 2 }: Exp
       for (const flow of walk.untaken()) note(`a message along ${flow} is sent and nothing takes it`, path);
     } catch (error) {
       const message = (error as Error)?.message ?? String(error);
-      if (MESSAGING.test(message)) note(message, path);
+      if (STUCK.test(message)) note(message, path);
     }
     // The next sequence: the last choice with an option left takes it, and what follows starts over.
     script = script.slice(0, widths.length);
