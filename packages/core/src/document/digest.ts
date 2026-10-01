@@ -1,6 +1,6 @@
-import { isModdleElement, type ModdleElement } from '@core/element/moddle';
 import { STUDY_EXTENSION_TYPE } from '@core/document/format';
-import { inlineYamlValue } from '@core/model/spelling';
+import { inlineYamlValue, isExpressionType, isYamlValueProperty } from '@core/model/spelling';
+import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import { parseChecklistLines, serializeChecklistLines } from '@core/document/checklist';
 
 /** The per-element run records a run stamps on the elements it touched. */
@@ -25,37 +25,77 @@ const HOLDERS = new Set([STUDY_EXTENSION_TYPE, 'bpmn:ExtensionElements']);
 const sorted = (entries: [string, unknown][]): Record<string, unknown> =>
   Object.fromEntries(entries.sort(([a], [b]) => (a < b ? -1 : 1)));
 
+/* --- the digest of a study model --- */
+
 /**
- * A value as plain data: an element as its type and its properties by the moddle descriptors, references as ids, keys
- * sorted. A YAML value counts by the mapping it holds when the file may spell it as one, since a trip through the
- * file turns its text into that mapping and back into other text.
+ * An element of a study model as `canonical` reads the same element in moddle: its BPMN type, with a schema's typed
+ * element's attributes in a wrapper entry under `extensionElements`, expressions and documentation as elements, a
+ * YAML-typed value as its mapping. So a protocol hashes the same, whichever holds the study.
  */
-function canonical(value: any): unknown {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (!value || typeof value !== 'object') return value;
-  if (!isModdleElement(value)) return sorted(Object.entries(value).map(([key, item]) => [key, canonical(item)]));
-  const entries: [string, unknown][] = [['$type', value.$type]];
-  for (const p of value.$descriptor?.properties ?? []) {
-    if (p.isVirtual || DRAWING.has(p.name) || RECORDED.has(p.name) || (p.name === 'state' && value.$type === STUDY_EXTENSION_TYPE)) continue;
-    let v = value[p.name];
-    if (v === undefined || v === null || v === p.default) continue;
-    if (p.name === 'checklist' && typeof v === 'string') v = unticked(v);
-    if (p.isReference) v = p.isMany ? v.map((ref: any) => ref?.id ?? ref) : v?.id ?? v;
-    else if (p.isMany) v = v.filter((item: any) => item?.$type !== RUN_RECORD).map(canonical).filter((item: any) => item !== undefined);
-    else v = canonical(inlineYamlValue(v, p) ?? v);
-    if (v !== undefined && !(Array.isArray(v) && v.length === 0)) entries.push([p.name, v]);
+function canonicalIn(model: StudyModel, value: Value | undefined, declared: string | undefined): unknown {
+  if (Array.isArray(value)) return value.map((item) => canonicalIn(model, item, declared));
+  if (typeof value === 'string' && declared && model.metamodel.has(declared)) {
+    if (isExpressionType(declared)) return canonicalElementIn(model, { type: 'bpmn:FormalExpression', body: value });
+    if (declared === 'bpmn:Documentation') return canonicalElementIn(model, { type: declared, text: value });
   }
-  return entries.length === 1 && HOLDERS.has(value.$type!) ? undefined : sorted(entries);
+  // Where BPMN expects an element, a schema's typed element is that BPMN element; anywhere else (an extension entry) an
+  // element is its own type.
+  if (isElement(value)) return canonicalElementIn(model, value, !declared?.startsWith('bpmn:'));
+  if (!value || typeof value !== 'object') return value;
+  return sorted(Object.entries(value).map(([key, item]) => [key, canonicalIn(model, item as Value, undefined)]));
+}
+
+function canonicalElementIn(model: StudyModel, element: Element, entry = false): unknown {
+  const host = entry ? element.type : model.host(element);
+  if (!model.metamodel.has(host)) return sorted([['$type', element.type]]);
+  const typed = entry ? undefined : model.typedEntry(element);
+  const entries: [string, unknown][] = [['$type', host]];
+  for (const p of model.metamodel.descriptor(host).properties) {
+    const key = p.ns.localName;
+    if (p.isVirtual || DRAWING.has(key) || RECORDED.has(key) || (key === 'state' && host === STUDY_EXTENSION_TYPE)) continue;
+    let v: unknown = element[key];
+    if (key === 'extensionElements') {
+      const listed = [...(typed ? [typed] : []), ...(Array.isArray(v) ? v : isElement(v) && Array.isArray(v.values) ? v.values : [])];
+      v = listed.length === 0 ? undefined : canonicalElementIn(model, { type: 'bpmn:ExtensionElements', values: listed });
+      if (v !== undefined) entries.push([key, v]);
+      continue;
+    }
+    // A node's flows in and out are what its container's sequence flows say, as the reader links them, after any it lists.
+    if ((key === 'incoming' || key === 'outgoing') && p.isReference && !entry) v = flowsAt(model, element, key, v as Value[] | undefined);
+    if (v === undefined || v === null || v === p.default) continue;
+    if (key === 'checklist' && typeof v === 'string') v = unticked(v);
+    if (p.isReference) v = p.isMany ? (v as Value[]).map((ref) => idOf(ref) ?? ref) : idOf(v as Value) ?? v;
+    else if (p.isMany) {
+      v = (v as Value[]).filter((item) => !(isElement(item) && item.type === RUN_RECORD))
+        .map((item) => canonicalIn(model, item, p.type)).filter((item) => item !== undefined);
+    } else if (isYamlValueProperty(p) && typeof v === 'string') {
+      v = canonicalIn(model, (inlineYamlValue(v, p) ?? v) as Value, undefined);
+    } else v = canonicalIn(model, v as Value, p.type);
+    if (v !== undefined && !(Array.isArray(v) && v.length === 0)) entries.push([key, v]);
+  }
+  return entries.length === 1 && HOLDERS.has(host) ? undefined : sorted(entries);
+}
+
+/** The sequence flows into or out of `element`, those it lists first, then the rest its container holds, in order. */
+function flowsAt(model: StudyModel, element: Element, key: 'incoming' | 'outgoing', listed: Value[] | undefined): Value[] {
+  const end = key === 'incoming' ? 'targetRef' : 'sourceRef';
+  const siblings = model.parentOf(element)?.flowElements;
+  const flows = (Array.isArray(siblings) ? siblings : []).filter((flow): flow is Element => isElement(flow)
+    && model.isA(flow, 'bpmn:SequenceFlow') && flow[end] === element.id && typeof flow.id === 'string');
+  const ids = (listed ?? []).map((ref) => idOf(ref)).filter((id): id is string => !!id);
+  return [...ids, ...flows.map((flow) => flow.id!).filter((id) => !ids.includes(id))];
 }
 
 /**
  * The protocol a study describes, as `sha256:<hex>` over a canonical JSON of every root element and everything under
- * it: not the DI, not the run `state`, not the per-element run records, not the drawing on semantic elements
- * ({@link DRAWING}), not what a run or an audit fills in ({@link RECORDED}, checklist ticks). `studyflow run` hands it to the run, which records it as its `plan`, and `studyflow validate`
- * recomputes it, so an executed copy whose protocol was edited after the run no longer matches.
+ * it, each element as BPMN holds it (a schema's typed element as its BPMN element and its schema's entry): not the
+ * drawing, not the run `state`, not the per-element run records, not the drawing on semantic elements ({@link DRAWING}),
+ * not what a run or an audit fills in ({@link RECORDED}, checklist ticks). `studyflow run` hands it to the run, which
+ * records it as its `plan`, and `studyflow validate` recomputes it, so an executed copy whose protocol was edited after
+ * the run no longer matches.
  */
-export async function protocolDigest(definitions: ModdleElement): Promise<string> {
-  const json = JSON.stringify((definitions.rootElements ?? []).map(canonical));
+export async function protocolDigest(model: StudyModel): Promise<string> {
+  const json = JSON.stringify(model.study.roots.map((root) => canonicalElementIn(model, root)));
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json)));
   return `sha256:${Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }

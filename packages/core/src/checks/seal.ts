@@ -1,6 +1,7 @@
 import type { ModdleElement } from '@core/element/moddle';
 import { META_KEY, readState } from '@core/document/state';
 import { protocolDigest } from '@core/document/digest';
+import { studyModelOf } from '@core/document';
 import type { Issue } from '@core/checks';
 
 /** `sha256:` and the first 12 hex digits. */
@@ -14,7 +15,7 @@ export async function checkSeal(definitions: ModdleElement): Promise<{ issues: I
   const prov = readState(definitions)[META_KEY]?.prov;
   const record = Array.isArray(prov) ? prov.findLast((entry) => entry?.action === 'executed' && typeof entry.plan === 'string') : undefined;
   if (!record) return { issues: [] };
-  const now = await protocolDigest(definitions);
+  const now = await protocolDigest(studyModelOf(definitions));
   if (now === record.plan) return { issues: [], note: `protocol matches run ${record.run} (${short(now)})` };
   return {
     issues: [{ severity: 'warning', message: `protocol changed since run ${record.run}: recorded ${short(record.plan)}, now ${short(now)}` }],

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { inlineIoSpecification, protocolDigest, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
+import { inlineIoSpecification, protocolDigest, studyModelOf, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
 import { freshModdle } from '@tests/schemas';
 
 /** The protocol digest a run records as its `plan`: the study without its drawing, its run state, or its run records. */
@@ -76,7 +76,7 @@ const swap = (from: string, to: string) => (text: string): string => {
   return text.replace(from, to);
 };
 
-const digest = async (text: string): Promise<string> => protocolDigest(studyflowToDefinitions(text, freshModdle()));
+const digest = async (text: string): Promise<string> => protocolDigest(studyModelOf(studyflowToDefinitions(text, freshModdle())));
 
 /** What a run leaves: its state (on a Study extension the file did not have), and a record on each element it ran. */
 const RUN = (text: string): string => [
@@ -92,7 +92,8 @@ const RUN = (text: string): string => [
 
 test('the drawing, the run state and the run records leave the digest alone; the protocol changes it', async () => {
   const base = await digest(PLAN);
-  expect(base).toMatch(/^sha256:[0-9a-f]{64}$/);
+  // By value: a run's seal compares digests made by different builds, so what the digest reads may not move.
+  expect(base).toBe('sha256:a55eaa25b36efdd0dd255b1ca25e3b0973c61e34efaba1fe43cfc226a7df9e71');
 
   const CASES: [label: string, edit: (text: string) => string | Promise<string>, changes: boolean][] = [
     ['a shape moves', swap('bounds: 120 20 100 80', 'bounds: 160 60 100 80'), false],
@@ -120,5 +121,5 @@ test('the drawing, the run state and the run records leave the digest alone; the
   // Read from BPMN XML as `studyflow` reads it, with the data associations compacted: the same protocol.
   const { rootElement } = await freshModdle().fromXML(await studyflowToXml(PLAN, freshModdle()));
   inlineIoSpecification(rootElement);
-  expect(await protocolDigest(rootElement)).toBe(base);
+  expect(await protocolDigest(studyModelOf(rootElement))).toBe(base);
 });

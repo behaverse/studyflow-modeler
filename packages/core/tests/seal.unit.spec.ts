@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { YAML_DUMP_OPTIONS, protocolDigest, studyflowToDefinitions } from '@core/document';
+import { YAML_DUMP_OPTIONS, protocolDigest, studyModelOf, studyflowToDefinitions } from '@core/document';
 import { checkSeal } from '@core/checks/seal';
 import { freshModdle } from '@tests/schemas';
 
@@ -29,9 +29,9 @@ const stamped = (plan: string, prov: object[]): string => plan + yaml.dump({ sta
 const short = (digest: string): string => `${digest.slice(0, 19)}…`;
 
 test('validate says which run the protocol still matches, and warns once it no longer does', async () => {
-  const digest = await protocolDigest(studyflowToDefinitions(PLAN, freshModdle()));
+  const digest = await protocolDigest(studyModelOf(studyflowToDefinitions(PLAN, freshModdle())));
   const edited = PLAN.replace('Play 30 trials', 'Play 20 trials');
-  const now = await protocolDigest(studyflowToDefinitions(edited, freshModdle()));
+  const now = await protocolDigest(studyModelOf(studyflowToDefinitions(edited, freshModdle())));
   const RUNS = [
     { action: 'created', who: 'author' },
     { action: 'executed', run: 'r1', plan: 'sha256:0000000000000000' },

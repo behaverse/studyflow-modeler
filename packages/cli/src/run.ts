@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { declaredRuntime, embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg, xmlToStudyflow } from '@core/document';
+import { declaredRuntime, embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg, studyModelOf, xmlToStudyflow } from '@core/document';
 import { planChecks } from '@core/checks';
 import type { ModdleElement } from '@core/element/moddle';
 import { asXml, parseSource, readSource, schemaModdle, sourceOf } from '@cli/studyfile';
@@ -82,7 +82,7 @@ export async function run(input: string, options: RunOptions): Promise<void> {
       process.exitCode = 1;
       return;
     }
-    process.exitCode = await runLocally(input, source, await protocolDigest(definitions), options);
+    process.exitCode = await runLocally(input, source, await protocolDigest(studyModelOf(definitions)), options);
     return;
   }
 

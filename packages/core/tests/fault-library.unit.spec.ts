@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { YAML_DUMP_OPTIONS, protocolDigest, studyflowToDefinitions } from '@core/document';
+import { YAML_DUMP_OPTIONS, protocolDigest, studyModelOf, studyflowToDefinitions } from '@core/document';
 import { planChecks, recordChecks } from '@core/checks';
 import { freshModdle } from '@tests/schemas';
 
@@ -141,7 +141,7 @@ const executed = async (): Promise<string> => PLAN + yaml.dump({
   },
 }, YAML_DUMP_OPTIONS);
 
-const digest = async (text: string): Promise<string> => protocolDigest(studyflowToDefinitions(text, freshModdle()));
+const digest = async (text: string): Promise<string> => protocolDigest(studyModelOf(studyflowToDefinitions(text, freshModdle())));
 
 /** `sha256:` and the first 12 hex digits, as the seal quotes a digest. */
 const short = (sha: string): string => `${sha.slice(0, 19)}…`;

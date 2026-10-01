@@ -1,4 +1,4 @@
-import { primaryRoot, protocolDigest } from '@core/document';
+import { primaryRoot, protocolDigest, studyModelOf } from '@core/document';
 import { parseSource, readSource, type StudyflowSource } from '@cli/studyfile';
 
 export type StudyInfo = {
@@ -40,7 +40,7 @@ export async function info(input: string): Promise<StudyInfo> {
       version: typeof root?.version === 'string' ? root.version : undefined,
       documentation: firstDocumentation(root),
     },
-    protocol: await protocolDigest(definitions),
+    protocol: await protocolDigest(studyModelOf(definitions)),
     elements,
     warnings,
   };
