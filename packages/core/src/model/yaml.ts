@@ -77,10 +77,13 @@ class Reader {
 
   private readonly metamodel: Metamodel;
   private readonly warn: Warn;
+  /** What the definitions declare, the namespaces of foreign elements among it. */
+  private readonly namespaces: Record<string, unknown>;
 
-  constructor(metamodel: Metamodel, warn: Warn) {
+  constructor(metamodel: Metamodel, warn: Warn, namespaces: Record<string, unknown>) {
     this.metamodel = metamodel;
     this.warn = warn;
+    this.namespaces = namespaces;
   }
 
   /** `raw`, a file's node, where `declared` is expected. */
@@ -98,9 +101,10 @@ class Reader {
       if (!name) throw new Error(`Element is missing a 'type': ${JSON.stringify(raw).slice(0, 120)}`);
       type = longTypeName(name);
       if (!this.metamodel.has(type)) {
-        // An element of a namespace no loaded schema declares (BPMN XML's foreign extensions) is kept as written: its
-        // attributes and its child elements' text. A type a loaded schema lacks is a mistake.
-        if (this.metamodel.package(type.split(':')[0])) throw new Error(`unknown type <${type}>`);
+        // An element of a namespace no loaded schema declares but the definitions do (BPMN XML's foreign extensions)
+        // is kept as written: its attributes and its child elements' texts. Any other type is a mistake.
+        const prefix = type.split(':')[0];
+        if (this.metamodel.package(prefix) || typeof this.namespaces[`xmlns:${prefix}`] !== 'string') throw new Error(`unknown type <${type}>`);
         return { ...(node as Record<string, Value>), type };
       }
     }
@@ -276,8 +280,8 @@ export function canonicalDrawing(metamodel: Metamodel, diType: string, drawing: 
 export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: Warn = (message) => console.warn(`[studyflow read] ${message}`)): Study {
   const doc = (typeof source === 'string' ? yaml.load(source) : source) as YamlDoc;
   if (!isMapping(doc) || !('definitions' in doc)) throw new Error("Not a studyflow YAML document (missing 'definitions').");
-  const reader = new Reader(metamodel, warn);
   const definitions: Record<string, Value> = { ...(doc.definitions as Record<string, Value> ?? {}) };
+  const reader = new Reader(metamodel, warn, definitions);
   const id = doc.id ?? definitions.id;
   delete definitions.id;
   const raws: unknown[] = [];

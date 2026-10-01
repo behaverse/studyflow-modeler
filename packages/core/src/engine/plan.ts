@@ -186,11 +186,11 @@ function extensionIn(model: StudyModel, entry: Element): Extension {
   const declared = model.study.definitions[`xmlns:${prefix}`];
   const namespace = model.metamodel.package(prefix)?.uri ?? (typeof declared === 'string' ? declared : '');
   if (!model.metamodel.has(entry.type)) {
-    // A foreign element: its attributes and its children's text, as the model keeps them.
+    // A foreign element: its attributes and its children's texts, one text where a name does not repeat.
     const attributes: Record<string, string | string[]> = {};
     for (const [key, value] of Object.entries(entry)) {
       if (key === 'type' || value === undefined || value === null) continue;
-      if (Array.isArray(value)) attributes[key] = value.map(String);
+      if (Array.isArray(value)) attributes[key] = value.length === 1 ? String(value[0]) : value.map(String);
       else if (typeof value !== 'object') attributes[key] = String(value);
     }
     return { namespace, type: tagIn(model, entry.type), attributes };

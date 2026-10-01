@@ -42,9 +42,12 @@ class ModdleBuilder {
   private inlineDi: InlineDi[] = [];
   private descriptors = new Map<string, any>();
   private onWarning?: (message: string) => void;
+  /** What the definitions declare, the namespaces of foreign elements among it. */
+  private namespaces: Record<string, unknown>;
 
-  constructor(moddle: Moddle, onWarning?: (message: string) => void) {
+  constructor(moddle: Moddle, namespaces: Record<string, unknown>, onWarning?: (message: string) => void) {
     this.moddle = moddle;
+    this.namespaces = namespaces;
     this.onWarning = onWarning;
   }
 
@@ -59,6 +62,7 @@ class ModdleBuilder {
     const spelled = (type as string | undefined) ?? impliedTypeName(props, declaredType) ?? declaredType;
     if (!spelled) throw new Error(`Element is missing a 'type': ${JSON.stringify(node).slice(0, 120)}`);
     const typeName = longTypeName(spelled);
+    if (!this.moddle.getPackage(typeName.split(':')[0])) return this.foreign(typeName, props);
     if (DI_NODE_TYPES.has(typeName)) expandDiNode(props);
 
     const el = this.createElement(typeName);
@@ -110,6 +114,18 @@ class ModdleBuilder {
       if (this.byId.has(el.id)) this.onWarning?.(`the id '${el.id}' names two elements; a reference to it reaches only the last`);
       this.byId.set(el.id, el);
     }
+    return el;
+  }
+
+  /** An element of a namespace no loaded schema declares, in the namespace `definitions:` declares for its prefix: its
+   * attributes, and a child element for each of a list's texts. */
+  private foreign(type: string, props: Record<string, unknown>): any {
+    const [prefix] = type.split(':');
+    const uri = this.namespaces[`xmlns:${prefix}`];
+    if (typeof uri !== 'string') throw new Error(`unknown type <${type}>`);
+    const el = this.moddle.createAny(type, uri, Object.fromEntries(Object.entries(props).filter(([, value]) => !Array.isArray(value))));
+    el.$children = Object.entries(props).flatMap(([key, value]) => (Array.isArray(value)
+      ? value.map((text) => this.moddle.createAny(`${prefix}:${key}`, uri, { $body: String(text) })) : []));
     return el;
   }
 
@@ -257,7 +273,7 @@ export function studyflowToDefinitions(
 
   const definitionAttrs: Record<string, unknown> = { ...((doc.definitions as Record<string, unknown>) ?? {}) };
 
-  const builder = new ModdleBuilder(moddle, onWarning);
+  const builder = new ModdleBuilder(moddle, definitionAttrs, onWarning);
   const definitions = builder.build(
     {
       type: 'bpmn:Definitions',

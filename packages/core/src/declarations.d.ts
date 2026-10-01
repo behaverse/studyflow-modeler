@@ -5,6 +5,8 @@ declare module 'bpmn-moddle' {
     fromXML(xml: string): Promise<{ rootElement: any; warnings: string[] }>;
     toXML(element: any, options?: { format?: boolean }): Promise<{ xml: string }>;
     create(type: string, attrs?: Record<string, any>): any;
+    /** An element of a namespace no package declares. */
+    createAny(name: string, nsUri: string, properties?: Record<string, any>): any;
     getTypeDescriptor(typeName: string): any;
     getElementDescriptor(element: any): any;
     getPropertyDescriptor(element: any, propertyName: string): any;

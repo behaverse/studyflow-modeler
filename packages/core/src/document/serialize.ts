@@ -73,15 +73,14 @@ function nameFirst(out: Record<string, unknown>): Record<string, unknown> {
   return { ...(type === undefined ? {} : { type }), name, ...rest };
 }
 
-/** An element of a namespace no loaded schema declares, as its runner reads it: its attributes, then its child
- * elements' text by local name (a list when a name repeats). */
+/** An element of a namespace no loaded schema declares: its attributes, then its child elements' texts by local name,
+ * always a list, so a child reads back as a child and an attribute as an attribute. */
 function serializeForeign(el: any): Record<string, unknown> {
   const out: Record<string, unknown> = { type: el.$type };
   for (const [key, value] of Object.entries(el)) if (!key.startsWith('$') && typeof value !== 'object') out[key] = value;
   for (const child of el.$children ?? []) {
     const key = String(child.$type).split(':').pop()!;
-    const text = String(child.$body ?? '').trim();
-    out[key] = key in out ? [out[key], text].flat() : text;
+    out[key] = [...(out[key] as string[] | undefined ?? []), String(child.$body ?? '').trim()];
   }
   return out;
 }

@@ -438,13 +438,18 @@ P:
     expect(again.rootElements[0].flowElements.find((el: any) => el.id === 'Split').default).toBeUndefined();
   });
 
-  test('an element from a namespace no schema declares is dropped on open and in conversion, with a warning, so the YAML reads back', async () => {
+  test('an element from a namespace no schema declares is spelled by its attributes and its children\'s texts, and one holding more is dropped, with a warning, so the YAML reads back', async () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:camunda="http://camunda.org/schema/1.0/bpmn" xmlns:lab="http://example.org/lab" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:process id="P">
     <bpmn:task id="T">
       <bpmn:extensionElements>
         <camunda:inputOutput><camunda:inputParameter name="x">1</camunda:inputParameter></camunda:inputOutput>
+      </bpmn:extensionElements>
+    </bpmn:task>
+    <bpmn:task id="R">
+      <bpmn:extensionElements>
+        <lab:rig platform="x"><lab:note>a</lab:note></lab:rig>
       </bpmn:extensionElements>
     </bpmn:task>
   </bpmn:process>
@@ -458,6 +463,9 @@ P:
     expect(converted).toEqual(opened);
     const task = studyflowToDefinitions(text, freshModdle()).rootElements[0].flowElements[0];
     expect(task.extensionElements).toBeUndefined();
+    // A child's text is a list even when it is one, so it is written back as a child, not as an attribute.
+    expect(text).toContain('- type: lab:rig\n          platform: x\n          note:\n            - a\n');
+    expect(await studyflowToXml(text, freshModdle())).toContain('<lab:rig platform="x">\n          <lab:note>a</lab:note>\n        </lab:rig>');
   });
 
   test('an id two elements share is reported: a reference to it could reach only one', () => {
