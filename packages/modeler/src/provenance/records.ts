@@ -1,4 +1,5 @@
-import { primaryRoot, resolvePlaceholders } from '@core/document';
+import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { resolvePlaceholdersIn } from '@core/model/state';
 import { readTrail } from '@modeler/provenance/trail';
 import { ICONS } from '@modeler/icons';
 
@@ -23,10 +24,10 @@ const LANES = [
 export const laneOf = (lane: number) => LANES[lane % LANES.length];
 
 /** Icons only where the shape says something at a glance: gateways, events, containers; the rest stay bare. */
-function shapeIconOf(el: any): string | undefined {
-  if (el?.$instanceOf?.('bpmn:Gateway')) return ICONS.diamond;
-  if (el?.$instanceOf?.('bpmn:Event')) return ICONS.circle;
-  if (el?.$instanceOf?.('bpmn:SubProcess')) return ICONS.plusBox;
+function shapeIconOf(model: StudyModel, el: Element): string | undefined {
+  if (model.isA(el, 'bpmn:Gateway')) return ICONS.diamond;
+  if (model.isA(el, 'bpmn:Event')) return ICONS.circle;
+  if (model.isA(el, 'bpmn:SubProcess')) return ICONS.plusBox;
   return undefined;
 }
 
@@ -44,7 +45,7 @@ export type ProvenanceRecord = {
   scopeLabel: string;
   isDocument: boolean;
   icon?: string;
-  /** The element's live `prov:Activity` moddle element, or the plain `_meta.prov` record for document rows. */
+  /** The element's `prov:Activity` entry as the study model held it, or the plain `_meta.prov` record for document rows. */
   entry: any;
   invalidated?: boolean;
   /** An `invalidated` marker whose named record no longer stands: inert history, never voids or branches again. */
@@ -63,9 +64,8 @@ export function voids(
   return marker.what ? marker.what === record.when : (!marker.run || marker.run === record.run);
 }
 
-function readActivities(bo: any): any[] {
-  const values: any[] = bo?.extensionElements?.values ?? [];
-  return values.filter((value) => value?.$type === 'prov:Activity');
+function readActivities(model: StudyModel, el: Element): Element[] {
+  return model.entries(el).filter((value) => value.type === 'prov:Activity');
 }
 
 function toRecord(
@@ -96,8 +96,10 @@ function instant(record: ProvenanceRecord): number {
   return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
 }
 
-function walkFlowElements(container: any, visit: (el: any) => void): void {
-  for (const el of container?.flowElements ?? []) {
+const elementsIn = (value: Value | undefined): Element[] => (Array.isArray(value) ? value.filter(isElement) : []);
+
+function walkFlowElements(container: Element, visit: (el: Element) => void): void {
+  for (const el of elementsIn(container.flowElements)) {
     visit(el);
     walkFlowElements(el, visit);
   }
@@ -106,23 +108,21 @@ function walkFlowElements(container: any, visit: (el: any) => void): void {
 /** Longest-path rank of every flow element, over sequence flows plus data reads and writes.
  * The runner's stamps have second precision, so same-second ties are constant, and the diagram
  * itself says what must have come first. Children rank inside their subprocess's own slot. */
-function flowRanks(definitions: any): Map<string, number> {
+function flowRanks(model: StudyModel): Map<string, number> {
   const ranks = new Map<string, number>();
-  const rankContainer = (container: any, base: number, span: number): void => {
-    const els: any[] = (container?.flowElements ?? []).filter((el: any) => el.id);
+  const rankContainer = (container: Element, base: number, span: number): void => {
+    const els = elementsIn(container.flowElements).filter((el): el is Element & { id: string } => typeof el.id === 'string');
     if (!els.length) return;
     const byId = new Set(els.map((el) => el.id));
     const preds = new Map<string, Array<[string, number]>>(els.map((el) => [el.id, []]));
-    const link = (fromRef: any, toRef: any, weight: number) => {
-      if (fromRef?.id && toRef?.id && byId.has(fromRef.id) && byId.has(toRef.id)) {
-        preds.get(toRef.id)!.push([fromRef.id, weight]);
-      }
+    const link = (from: string | null | undefined, to: string | null | undefined, weight: number) => {
+      if (from && to && byId.has(from) && byId.has(to)) preds.get(to)!.push([from, weight]);
     };
     for (const el of els) {
-      if (el.sourceRef && el.targetRef) link(el.sourceRef, el.targetRef, 1);
+      if (el.sourceRef && el.targetRef) link(idOf(el.sourceRef), idOf(el.targetRef), 1);
       // Half steps: an activity's outputs appear right after it, before the flow moves on.
-      for (const assoc of el.dataInputAssociations ?? []) link(assoc.sourceRef?.[0], el, 0.5);
-      for (const assoc of el.dataOutputAssociations ?? []) link(el, assoc.targetRef, 0.5);
+      for (const assoc of elementsIn(el.dataInputAssociations)) link(idOf([assoc.sourceRef].flat()[0] as Value), el.id, 0.5);
+      for (const assoc of elementsIn(el.dataOutputAssociations)) link(el.id, idOf(assoc.targetRef), 0.5);
     }
     const depths = new Map<string, number>();
     const depthOf = (id: string, stack: Set<string>): number => {
@@ -142,31 +142,33 @@ function flowRanks(definitions: any): Map<string, number> {
       rankContainer(el, rank, unit);
     }
   };
-  for (const root of definitions?.rootElements ?? []) rankContainer(root, 0, 1);
+  for (const root of model.study.roots) rankContainer(root, 0, 1);
   return ranks;
 }
 
-export function collectProvenance(definitions: any): ProvenanceRecord[] {
+const nameOf = (el: Element | undefined, otherwise: string): string => (typeof el?.name === 'string' && el.name) || el?.id || otherwise;
+
+export function collectProvenance(model: StudyModel): ProvenanceRecord[] {
   const records: ProvenanceRecord[] = [];
 
-  const root = primaryRoot(definitions);
-  for (const entry of readTrail(definitions)) {
+  const root = model.primaryRoot();
+  for (const entry of readTrail(model)) {
     records.push(toRecord(entry, {
       id: root?.id ?? '(document)',
-      label: resolvePlaceholders(root?.name || root?.id || '(document)', definitions, root?.id ?? ''),
+      label: resolvePlaceholdersIn(model, nameOf(root, '(document)'), root?.id ?? ''),
       isDocument: true,
       icon: ICONS.document,
     }));
   }
 
-  for (const rootElement of definitions?.rootElements ?? []) {
+  for (const rootElement of model.study.roots) {
     walkFlowElements(rootElement, (el) => {
-      for (const entry of readActivities(el)) {
+      for (const entry of readActivities(model, el)) {
         records.push(toRecord(entry, {
           id: el.id || '(unnamed)',
-          label: resolvePlaceholders(el.name || el.id || '(unnamed)', definitions, el.id ?? ''),
+          label: resolvePlaceholdersIn(model, nameOf(el, '(unnamed)'), el.id ?? ''),
           isDocument: false,
-          icon: shapeIconOf(el),
+          icon: shapeIconOf(model, el),
         }));
       }
     });
@@ -177,7 +179,7 @@ export function collectProvenance(definitions: any): ProvenanceRecord[] {
   // Stamps have second precision, so kind breaks a same-second tie first.
   const tieRank = (record: ProvenanceRecord): number =>
     record.action === 'invalidated' ? 0 : record.isDocument ? 1 : 2;
-  const ranks = flowRanks(definitions);
+  const ranks = flowRanks(model);
   return records.sort((a, b) => {
     const left = instant(a);
     const right = instant(b);

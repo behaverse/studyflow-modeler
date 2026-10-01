@@ -171,6 +171,11 @@ export class Renderer {
     return resolvePlaceholders(nameOf(businessObject), this.scene?.definitions, businessObject?.id ?? '');
   }
 
+  /** The scene drawn from. */
+  get drawing(): Scene | undefined {
+    return this.scene;
+  }
+
   /** Draw `scene` into `layer` in paint order: every element, or those `shows` keeps. */
   renderScene(scene: Scene, layer: SVGElement, shows: (element: SceneElement) => boolean = () => true): void {
     this.graphicsById.clear();

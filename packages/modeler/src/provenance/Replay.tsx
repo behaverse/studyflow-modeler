@@ -287,7 +287,7 @@ function ReplayTimeline({ onClose }: Props) {
   }, [editor]);
 
   const records = useMemo(
-    () => collectProvenance(editor.getDefinitions()),
+    () => collectProvenance(editor.study.model),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision` stands in for the document
     [editor, revision],
   );

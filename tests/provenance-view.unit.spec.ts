@@ -1,105 +1,85 @@
 import { expect, test } from '@playwright/test';
 
 import { Study } from '@canvas/index.ts';
-import { readState, writeState } from '@core/document';
+import { studyflowToXml, xmlToStudy } from '@core/document';
+import { isElement, type Element, type StudyModel } from '@core/model/index';
+import { studyText } from '@core/model/yaml';
 import { ICONS } from '@modeler/icons';
 import { runInvalidateProvenanceRecord } from '@modeler/provenance/commands';
 import {
   applyStatuses, assignLanes, collectProvenance, displayOrder, recordDetails, voids,
 } from '@modeler/provenance/records';
-import { primaryRoot } from '@core/document';
 import { appendTrailEntry } from '@modeler/provenance/trail';
-import { freshModdle } from './schemas';
+import { freshMetamodel, freshModdle } from './schemas';
 import { exampleXml } from './utils';
 
 /** The document trail merged with the per-element `executed` records a run archives, oldest first. */
 
-const moddle = freshModdle();
+const metamodel = freshMetamodel();
 
-async function definitionsOf(xml: string): Promise<any> {
-  const { rootElement } = await moddle.fromXML(xml);
-  return rootElement;
+async function modelOf(xml: string): Promise<StudyModel> {
+  return xmlToStudy(xml, metamodel);
 }
+
+const activitiesOf = (el: Element): Element[] => (Array.isArray(el.extensionElements) ? el.extensionElements.filter(isElement) : []);
 
 // The shipped example carries a real trail (runs, a branch, a consumed marker) for the
 // Provenance view to show; these tests build their own histories, so start from a clean slate.
-function stripTrail(definitions: any): any {
-  const strip = (el: any): void => {
-    if (el?.extensionElements) {
-      el.extensionElements.values = el.extensionElements.values.filter(
-        (value: any) => value.$type !== 'prov:Activity');
-    }
-    for (const child of el?.flowElements ?? []) strip(child);
-  };
-  const root = primaryRoot(definitions)!;
-  strip(root);
-  const tree = readState(definitions);
-  delete tree._meta?.prov;
-  writeState(definitions, moddle, tree);
-  return definitions;
+function stripTrail(model: StudyModel): StudyModel {
+  for (const el of model.all()) {
+    if (Array.isArray(el.extensionElements)) el.extensionElements = activitiesOf(el).filter((value) => value.type !== 'prov:Activity');
+  }
+  delete (model.study.state?._meta as { prov?: unknown } | undefined)?.prov;
+  return model;
 }
 
 /** The runner's per-element stamp: an `executed` activity on the element itself. */
-function stampElement(el: any, stamp: Record<string, string>): void {
-  const entry = moddle.create('prov:Activity', stamp);
-  if (!el.extensionElements) {
-    el.extensionElements = moddle.create('bpmn:ExtensionElements', { values: [] });
-    el.extensionElements.$parent = el;
-  }
-  el.extensionElements.values.push(entry);
-  entry.$parent = el.extensionElements;
+function stampElement(el: Element, stamp: Record<string, string>): void {
+  el.extensionElements = [...activitiesOf(el), { type: 'prov:Activity', ...stamp }];
 }
 
-function firstActivity(definitions: any): any {
-  const root = primaryRoot(definitions)!;
-  const el = root.flowElements.find((e: any) => /Task|SubProcess/.test(e.$type));
+const flowElementsOf = (model: StudyModel): Element[] => {
+  const root = model.primaryRoot()!;
+  return Array.isArray(root.flowElements) ? root.flowElements.filter(isElement) : [];
+};
+
+function firstActivity(model: StudyModel): Element {
+  const el = flowElementsOf(model).find((e) => /Task|SubProcess/.test(model.host(e)));
   expect(el, 'example should contain an activity to stamp').toBeTruthy();
-  return el;
+  return el!;
 }
 
-/** The services `runInvalidateProvenanceRecord` touches, over real moddle objects. */
-function mockModeler(definitions: any) {
-  const registry = new Map<string, any>();
-  const index = (container: any) => {
-    for (const el of container?.flowElements ?? []) {
-      if (el.id) registry.set(el.id, { id: el.id, businessObject: el });
-      index(el);
-    }
-  };
-  for (const root of definitions.rootElements ?? []) index(root);
+const firstEvent = (model: StudyModel): Element => flowElementsOf(model).find((e) => /Event$/.test(model.host(e)))!;
 
-  // A partial `Editor`: invalidation looks an element up and writes one moddle object back as a single study edit.
-  return {
-    getDefinitions: () => definitions,
-    study: Study.fromDefinitions(definitions),
-    canvas: { get: (id: string) => registry.get(id) },
-  };
+/** What `runInvalidateProvenanceRecord` touches: a study of `model`, which it edits. */
+async function mockModeler(model: StudyModel) {
+  return { study: await Study.open(studyText(model.study, model.metamodel), { moddle: freshModdle() }) };
 }
 
 test.describe('provenance view model', () => {
   test('merges the document trail with per-element run records, oldest first', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
+    const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
 
-    appendTrailEntry(definitions, moddle, {
+    appendTrailEntry(model, {
       action: 'created',
       when: '2026-07-30T08:00:00Z',
       with: 'studyflow-modeler/26.0731',
     });
-    appendTrailEntry(definitions, moddle, {
+    appendTrailEntry(model, {
       action: 'executed',
       when: '2026-07-31T10:00:00Z',
       who: '',
       run: 'run-001',
       seed: '42',
     });
-    const task = firstActivity(definitions);
+    const task = firstActivity(model);
     stampElement(task, {
       action: 'executed',
       when: '2026-07-31T09:59:00Z',
       run: 'run-001',
     });
 
-    const records = collectProvenance(definitions);
+    const records = collectProvenance(model);
     expect(records.map((r) => [r.action, r.when, r.isDocument])).toEqual([
       ['created', '2026-07-30T08:00:00Z', true],
       ['executed', '2026-07-31T09:59:00Z', false],
@@ -117,37 +97,37 @@ test.describe('provenance view model', () => {
       ['run', 'run-001'],
       ['seed', '42'],
     ]);
-    // Document rows project plain `_meta.prov` records, not moddle elements, and an empty fact (`who`) is left out.
+    // Document rows project plain `_meta.prov` records, not `prov:Activity` entries, and an empty fact (`who`) is left out.
     expect(records[2].entry).toEqual({ action: 'executed', when: '2026-07-31T10:00:00Z', run: 'run-001', seed: 42 });
   });
 
   test('sorts undated entries last and keeps document order among them', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
+    const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
 
-    appendTrailEntry(definitions, moddle, { action: 'created', when: '' });
-    appendTrailEntry(definitions, moddle, { action: 'modified', when: '2026-07-31T11:00:00Z' });
-    appendTrailEntry(definitions, moddle, { action: 'reviewed', when: '' });
+    appendTrailEntry(model, { action: 'created', when: '' });
+    appendTrailEntry(model, { action: 'modified', when: '2026-07-31T11:00:00Z' });
+    appendTrailEntry(model, { action: 'reviewed', when: '' });
 
-    const records = collectProvenance(definitions);
+    const records = collectProvenance(model);
     expect(records.map((r) => r.action)).toEqual(['modified', 'created', 'reviewed']);
     expect(records[1].when).toBeUndefined();
   });
 
   test('invalidating a run record keeps it and appends a marker, once', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const task = firstActivity(definitions);
+    const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
+    const task = firstActivity(model);
     stampElement(task, { action: 'executed', when: '2026-08-01T13:00:00Z', run: 'run-003' });
-    const before = task.extensionElements.values.length;
+    const before = activitiesOf(task).length;
 
-    const modeler = mockModeler(definitions);
-    const record = collectProvenance(definitions).find((r) => !r.isDocument)!;
+    const modeler = await mockModeler(model);
+    const record = collectProvenance(modeler.study.model).find((r) => !r.isDocument)!;
 
     expect(runInvalidateProvenanceRecord(modeler as any, {
       type: 'InvalidateProvenanceRecord', elementId: record.scopeId, entry: record.entry,
     })).toBe(true);
 
-    expect(task.extensionElements.values.length).toBe(before + 1);
-    const after = collectProvenance(definitions).filter((r) => !r.isDocument);
+    expect(activitiesOf(modeler.study.element(task.id!)!).length).toBe(before + 1);
+    const after = collectProvenance(modeler.study.model).filter((r) => !r.isDocument);
     const executed = after.find((r) => r.action === 'executed')!;
     const marker = after.find((r) => r.action === 'invalidated')!;
     expect(executed.invalidated).toBe(true);
@@ -171,16 +151,16 @@ test.describe('provenance view model', () => {
       { label: 'superseded', keepOld: true },
     ];
     for (const { label, keepOld } of CASES) {
-      const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-      const task = firstActivity(definitions);
+      const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
+      const task = firstActivity(model);
       stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
       stampElement(task, { action: 'invalidated', when: '2026-08-01T11:00:00Z', what: '2026-08-01T10:00:00Z', run: 'repo' });
       if (!keepOld) {
-        task.extensionElements.values = task.extensionElements.values.filter((v: any) => v.action !== 'executed');
+        task.extensionElements = activitiesOf(task).filter((v) => v.action !== 'executed');
       }
       stampElement(task, { action: 'executed', when: '2026-08-01T12:00:00Z', run: 'repo' });
 
-      const records = collectProvenance(definitions).filter((r) => !r.isDocument);
+      const records = collectProvenance(model).filter((r) => !r.isDocument);
       const executed = records.filter((r) => r.action === 'executed');
       const fresh = executed.at(-1)!;
       expect(fresh.invalidated, label).toBe(false);
@@ -217,44 +197,36 @@ test.describe('provenance view model', () => {
         ['split_train_test:invalidated', 'document:executed', 'split_train_test:executed']],
     ];
     for (const [label, stamps, expected] of CASES) {
-      const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-      const byId = new Map<string, any>();
-      const index = (container: any): void => {
-        for (const el of container?.flowElements ?? []) {
-          byId.set(el.id, el);
-          index(el);
-        }
-      };
-      for (const root of definitions.rootElements ?? []) index(root);
+      const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
+      const byId = new Map([...model.elements()].map((el) => [el.id!, el]));
       for (const [target, action, what] of stamps) {
         if (target === 'document') {
-          appendTrailEntry(definitions, moddle, { action, when, run: 'repo' });
+          appendTrailEntry(model, { action, when, run: 'repo' });
           continue;
         }
         expect(byId.get(target), `${label}: sklearn_pipeline has ${target}`).toBeTruthy();
-        stampElement(byId.get(target), { action, when, run: 'repo', ...(what ? { what } : {}) });
+        stampElement(byId.get(target)!, { action, when, run: 'repo', ...(what ? { what } : {}) });
       }
 
-      const order = collectProvenance(definitions).map((r) => `${r.isDocument ? 'document' : r.scopeId}:${r.action}`);
+      const order = collectProvenance(model).map((r) => `${r.isDocument ? 'document' : r.scopeId}:${r.action}`);
       expect(order, label).toEqual(expected);
     }
   });
 
   test('a consumed marker forks the graph at the invocation that superseded it', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const root = primaryRoot(definitions)!;
-    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
-    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
-    const task = firstActivity(definitions);
+    const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
+        appendTrailEntry(model, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    appendTrailEntry(model, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
+    const task = firstActivity(model);
     // The re-run's fresh record, and the consumed marker naming the record it replaced.
     stampElement(task, { action: 'executed', when: '2026-08-02T10:05:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T12:00:00Z', what: '2026-08-01T10:05:00Z', run: 'repo' });
     // An untouched ✕ on another element: a pending fork, not a lane.
-    const other = root.flowElements.find((e: any) => /Event$/.test(e.$type));
+    const other = firstEvent(model);
     stampElement(other, { action: 'executed', when: '2026-08-01T10:06:00Z', run: 'repo' });
     stampElement(other, { action: 'invalidated', when: '2026-08-02T12:00:00Z', what: '2026-08-01T10:06:00Z', run: 'repo' });
 
-    const records = collectProvenance(definitions);
+    const records = collectProvenance(model);
     const graph = assignLanes(records);
     const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
     expect(graph.get(stamps[0])).toMatchObject({ lane: 0 });
@@ -271,13 +243,12 @@ test.describe('provenance view model', () => {
   });
 
   test('two invalidations of the first branch open two separate lanes', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const root = primaryRoot(definitions)!;
-    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
-    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
-    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-03T10:00:00Z', run: 'repo' });
-    const task = firstActivity(definitions);
-    const other = root.flowElements.find((e: any) => /Event$/.test(e.$type));
+    const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
+        appendTrailEntry(model, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    appendTrailEntry(model, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
+    appendTrailEntry(model, { action: 'executed', when: '2026-08-03T10:00:00Z', run: 'repo' });
+    const task = firstActivity(model);
+    const other = firstEvent(model);
     // Run B consumed task's marker; run C consumed other's marker AND re-ran task again.
     stampElement(task, { action: 'executed', when: '2026-08-01T10:05:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T12:00:00Z', what: '2026-08-01T10:05:00Z', run: 'repo' });
@@ -287,7 +258,7 @@ test.describe('provenance view model', () => {
     stampElement(other, { action: 'invalidated', when: '2026-08-02T12:00:00Z', what: '2026-08-01T10:06:00Z', run: 'repo' });
     stampElement(other, { action: 'executed', when: '2026-08-03T10:06:00Z', run: 'repo' });
 
-    const records = collectProvenance(definitions);
+    const records = collectProvenance(model);
     const graph = assignLanes(records);
     const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
     expect(stamps.map((s) => graph.get(s)!.lane)).toEqual([0, 1, 2]);
@@ -296,8 +267,8 @@ test.describe('provenance view model', () => {
   });
 
   test('per-element records survive the XML round trip', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const task = firstActivity(definitions);
+    const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
+    const task = firstActivity(model);
     stampElement(task, {
       action: 'executed',
       when: '2026-07-31T12:00:00Z',
@@ -305,8 +276,8 @@ test.describe('provenance view model', () => {
       seed: '7',
     });
 
-    const { xml } = await moddle.toXML(definitions, { format: true });
-    const records = collectProvenance(await definitionsOf(xml));
+    const xml = await studyflowToXml(studyText(model.study, model.metamodel), freshModdle());
+    const records = collectProvenance(await modelOf(xml));
 
     expect(records).toHaveLength(1);
     expect(records[0].isDocument).toBe(false);
@@ -320,12 +291,12 @@ test.describe('provenance view model', () => {
 test.describe('replay', () => {
   /** The forked-run history: executed, then its ✕ marker, then the branch's fresh record. */
   async function forkedHistory(): Promise<any[]> {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const task = firstActivity(definitions);
+    const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
+    const task = firstActivity(model);
     stampElement(task, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T11:00:00Z', what: '2026-08-01T10:00:00Z', run: 'repo' });
     stampElement(task, { action: 'executed', when: '2026-08-02T12:00:00Z', run: 'repo' });
-    return collectProvenance(definitions);
+    return collectProvenance(model);
   }
 
   const prefix = (records: any[], at: number): any[] =>
@@ -344,15 +315,15 @@ test.describe('replay', () => {
   });
 
   test('a run stamped after an armed marker opens its lane before the re-run lands', async () => {
-    const definitions = stripTrail(await definitionsOf(await exampleXml('sklearn_pipeline')));
-    const task = firstActivity(definitions);
-    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
+    const model = stripTrail(await modelOf(await exampleXml('sklearn_pipeline')));
+    const task = firstActivity(model);
+    appendTrailEntry(model, { action: 'executed', when: '2026-08-01T10:00:00Z', run: 'repo' });
     stampElement(task, { action: 'executed', when: '2026-08-01T10:05:00Z', run: 'repo' });
     stampElement(task, { action: 'invalidated', when: '2026-08-01T12:00:00Z', what: '2026-08-01T10:05:00Z', run: 'repo' });
     // The branch's own stamp; its re-run of the step is still on the way.
-    appendTrailEntry(definitions, moddle, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
+    appendTrailEntry(model, { action: 'executed', when: '2026-08-02T10:00:00Z', run: 'repo' });
 
-    const records = displayOrder(collectProvenance(definitions));
+    const records = displayOrder(collectProvenance(model));
     const graph = assignLanes(records);
     const stamps = records.filter((r) => r.isDocument && r.action === 'executed');
     expect(graph.get(stamps[1])!.lane).toBe(1);

@@ -38,7 +38,7 @@ export function ProvenanceDialog({ isOpen, onClose, scopeId }: Props) {
   const [scope, setScope] = useState(scopeId);
   const [showReused, setShowReused] = useState(true);
   const allRecords = useMemo(
-    () => collectProvenance(modeler.getDefinitions()),
+    () => collectProvenance(modeler.study.model),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `revision` stands in for the document
     [modeler, revision],
   );

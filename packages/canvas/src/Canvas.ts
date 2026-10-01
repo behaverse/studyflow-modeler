@@ -549,7 +549,8 @@ export class Canvas {
    */
   private reconcile(changed: readonly string[] | 'all'): void {
     const scene = this.scene;
-    const replaced = changed === 'all';
+    // An edit the study made by reading its document back holds another scene too.
+    const replaced = changed === 'all' || this.renderer.drawing !== scene;
     if (replaced) {
       // Another scene: what points into the old one lets go, and is found again by id.
       this.gestures.cancel();

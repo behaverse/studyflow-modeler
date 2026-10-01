@@ -12,7 +12,7 @@ import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute
 import { getProperty, type Moddle } from '@core/element/moddle.ts';
 import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts';
 import { StudyModel, type Element } from '@core/model/index.ts';
-import { readStudy } from '@core/model/yaml.ts';
+import { readStudy, writeStudy } from '@core/model/yaml.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
@@ -419,6 +419,44 @@ export class Study {
     if (!found) return refused(`no element '${id}'`);
     const commit = () => this.write(found.drawn, write);
     return run === undefined ? commit() : this.within(`edit:${id}:${run}`, commit);
+  }
+
+  /**
+   * Write the element `id` names in the study model, as one commit: `write` changes a copy of {@link model}, which is
+   * read back whole, as `set` reads a value the file spells. Edits naming the same `run` one after another are one
+   * undo step. Refused, and nothing changed, when the reader cannot place what was written. In-process only, not a tool.
+   */
+  revise(id: string, write: (element: Element, model: StudyModel) => void, run?: string): StudyResult {
+    const before = this.model;
+    const metamodel = before.metamodel;
+    const copy = new StudyModel(readStudy(JSON.parse(this.history.now) as YamlDoc, metamodel, () => {}), metamodel);
+    const element = copy.get(id);
+    if (!element) return refused(`no element '${id}'`);
+    const unwritten = JSON.stringify(copy.study);
+    write(element, copy);
+    if (JSON.stringify(copy.study) === unwritten) return { ok: true, ...NOTHING };
+    copy.reindex();
+    const moddle = moddleOf(this.definitions);
+    const warnings = (doc: YamlDoc): { definitions: ModdleObject; warnings: Set<string> } => {
+      const heard = new Set<string>();
+      return { definitions: studyflowToDefinitions(doc, moddle, (warning) => heard.add(warning)), warnings: heard };
+    };
+    const known = warnings(JSON.parse(this.history.now) as YamlDoc).warnings;
+    let revised: ReturnType<typeof warnings>;
+    try {
+      revised = warnings(writeStudy(copy.study, metamodel));
+    } catch (error) {
+      return refused(error instanceof Error ? error.message : String(error));
+    }
+    const misread = [...revised.warnings].find((warning) => !known.has(warning));
+    if (misread) return refused(misread);
+    const scene = this.read(revised.definitions, own(this).scene.revision + 1);
+    const snapshot = snapshotOf(scene.definitions);
+    if (run === undefined) this.history.push(snapshot);
+    else this.history.runAs(`revise:${id}:${run}`, () => this.history.record(snapshot));
+    const change = { cause: 'edit' as const, ...revisedIds(before, this.model) };
+    this.announce(change);
+    return { ok: true, ...change };
   }
 
   /**
@@ -1048,6 +1086,20 @@ function layOut(scene: Scene): SceneElement[] {
     here.forEach((flow, i) => { flow.waypoints = spread[i]; });
   }
   return [...moved, ...flows];
+}
+
+/** What a revision did, by id: the elements only `after` holds, those it holds otherwise, and those it no longer holds. */
+function revisedIds(before: StudyModel, after: StudyModel): ChangedIds {
+  const spelled = (model: StudyModel): Map<string, string> => new Map([...model.elements()].map((element) => [element.id!, JSON.stringify(element)]));
+  const was = spelled(before);
+  const is = spelled(after);
+  const changed = [...is].filter(([id, text]) => was.has(id) && was.get(id) !== text).map(([id]) => id);
+  const root = after.primaryRoot()?.id;
+  return {
+    added: [...is.keys()].filter((id) => !was.has(id)),
+    changed: root && !changed.includes(root) && JSON.stringify(before.study.state) !== JSON.stringify(after.study.state) ? [...changed, root] : changed,
+    removed: [...was.keys()].filter((id) => !is.has(id)),
+  };
 }
 
 /** One scene in place of another, by id: the nodes and edges only `before` held, those only `after` holds, and the rest. */
