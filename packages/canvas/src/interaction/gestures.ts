@@ -2,31 +2,32 @@
  * The pointer loop: one `pointerdown` decides an intent (pan, marquee, move,
  * resize, waypoint, reconnect, create, connect), `pointermove` feeds it, and
  * `pointerup` commits. Also the wheel, touch pinch, double click, hover, the
- * canvas-scoped keyboard shortcuts, and copy, cut and paste.
+ * canvas-scoped keyboard shortcuts, and copy, cut and paste. The camera moves in
+ * `pan.ts`, the rubber band is `marquee.ts`, and alignment `snapLines.ts`.
  */
 
 import type { Canvas } from '@canvas/Canvas.ts';
 import type { Drag, GridAxes, Movable } from '@canvas/study/drag.ts';
-import { nodesIntersecting, normalizeRect, type HitOptions } from '@canvas/study/hit.ts';
+import type { HitOptions } from '@canvas/study/hit.ts';
 import type { LabelEditing } from '@canvas/interaction/labelEditing.ts';
+import { Marquee } from '@canvas/interaction/marquee.ts';
+import { Pan } from '@canvas/interaction/pan.ts';
 import type { HandleHit, Selection, WaypointHit } from '@canvas/interaction/selection.ts';
 import { RESIZING_MARKER } from '@canvas/interaction/selection.ts';
-import { collectSnapTargets, snapMove, snapPoint, type SnapTargets } from '@canvas/interaction/snapping.ts';
+import { SnapLines } from '@canvas/interaction/snapLines.ts';
 import type { Connect, ConnectionEnd } from '@canvas/interaction/connect.ts';
 import type { Create } from '@canvas/interaction/create.ts';
 import type { CreatePrototype, NewElement } from '@canvas/study/prototype.ts';
 import type { Rules } from '@canvas/study/rules.ts';
-import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
 import { Keys } from '@canvas/interaction/keys.ts';
 import { isExpandable } from '@core/document/outline.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
-import { append, create, ownerDocument, remove } from '@canvas/render/svg.ts';
+import { ownerDocument } from '@canvas/render/svg.ts';
 import { distanceToSegment } from '@canvas/study/edit.ts';
 
 const DRAG_THRESHOLD_PX = 3;
-const ZOOM_STEP = 1.25;
-const WHEEL_ZOOM = 0.002;
 const EDGE_BODY_TOLERANCE = 5;
 const CLIPBOARD_EVENTS = ['copy', 'cut', 'paste'] as const;
 
@@ -45,12 +46,6 @@ interface Gesture {
   waypoint?: WaypointHit;
   /** A press on one member of a multi-selection collapses to it if the gesture ends as a click. */
   collapseTo?: SceneElement;
-}
-
-interface SnapContext {
-  targets: SnapTargets;
-  bounds?: Bounds;
-  point?: Point;
 }
 
 function endpointOf(edge: SceneEdge, index: number): ConnectionEnd | undefined {
@@ -112,12 +107,9 @@ export class Gestures {
   private readonly canvas: Canvas;
   private readonly tools: GestureTools;
   private gesture?: Gesture;
-  private marqueeRect?: SVGRectElement;
-  private snapLines?: SVGGElement;
-  private snapContext?: SnapContext;
-  private panFrom?: Point;
-  private touches = new Map<number, Point>();
-  private pinch?: { prevMid: Point; prevDist: number };
+  private readonly pan: Pan;
+  private readonly marquee: Marquee;
+  private readonly snapLines: SnapLines;
   private dropTargetIds: string[] = [];
   private resizingId?: string;
 
@@ -141,6 +133,9 @@ export class Gestures {
     this.canvas = canvas;
     this.tools = tools;
     this.keys = new Keys(canvas, tools);
+    this.pan = new Pan(tools.svg, tools.viewport, () => canvas.getContainer());
+    this.marquee = new Marquee(tools.overlays, tools.selection);
+    this.snapLines = new SnapLines(tools.overlays, tools.viewport);
     const root = this.tools.svg;
     root.addEventListener('pointerdown', this.onDown);
     root.addEventListener('dblclick', this.onDblClick);
@@ -208,7 +203,7 @@ export class Gestures {
     this.tools.create.cancel();
     this.tools.connect.cancel();
     this.endGesture();
-    this.clearMarquee();
+    this.marquee.clear();
   }
 
   private eventPoint(ev: MouseEvent): Point {
@@ -235,10 +230,12 @@ export class Gestures {
     if (!scene) return;
     if (typeof ev.button === 'number' && ev.button !== 0) return;
     if (ev.pointerType === 'touch') {
-      if (this.touches.size >= 2) return;
-      this.touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-      if (this.touches.size === 2) {
-        this.startPinch();
+      const touch = this.pan.touchDown(ev);
+      if (touch === 'ignored') return;
+      if (touch === 'pinch') {
+        this.cancel();
+        this.pan.startPinch();
+        this.listen();
         return;
       }
     }
@@ -298,38 +295,10 @@ export class Gestures {
     this.listen();
   }
 
-  private startPinch(): void {
-    this.cancel();
-    const [a, b] = [...this.touches.values()];
-    this.pinch = { prevMid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, prevDist: Math.hypot(b.x - a.x, b.y - a.y) };
-    this.listen();
-  }
-
-  private updatePinch(): void {
-    const p = this.pinch;
-    if (!p || this.touches.size < 2) return;
-    const [a, b] = [...this.touches.values()];
-    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    const dist = Math.hypot(b.x - a.x, b.y - a.y);
-    const viewport = this.tools.viewport;
-    if (p.prevDist > 0 && dist > 0) {
-      const center = viewport.toDiagram(mid);
-      viewport.zoom(viewport.getViewbox().scale * (dist / p.prevDist), center);
-    }
-    this.panBy(mid.x - p.prevMid.x, mid.y - p.prevMid.y);
-    this.pinch = { prevMid: mid, prevDist: dist };
-  }
-
   // --- pointer move -------------------------------------------------------------
 
   private handlePointerMove(ev: PointerEvent): void {
-    if (ev.pointerType === 'touch' && this.touches.has(ev.pointerId)) {
-      this.touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
-    }
-    if (this.pinch) {
-      this.updatePinch();
-      return;
-    }
+    if (this.pan.touchMove(ev)) return;
     const g = this.gesture;
     if (!g) return;
     if (g.intent === 'pan') {
@@ -344,14 +313,7 @@ export class Gestures {
     if (!g.marquee && Math.hypot(ev.clientX - g.downScreen.x, ev.clientY - g.downScreen.y) < DRAG_THRESHOLD_PX) return;
     if (g.intent === 'marquee') {
       g.marquee = true;
-      this.drawMarquee(g.downDiagram, pt);
-      const scene = this.tools.scene();
-      if (scene) {
-        const rect = normalizeRect({ x: g.downDiagram.x, y: g.downDiagram.y, width: pt.x - g.downDiagram.x, height: pt.y - g.downDiagram.y });
-        const enclosed = nodesIntersecting(scene, rect, this.tools.scope());
-        const selection = this.tools.selection;
-        selection.previewSelection(g.shift ? [...selection.get(), ...enclosed] : enclosed);
-      }
+      this.marquee.draw(g.downDiagram, pt, this.tools.scene(), this.tools.scope(), g.shift);
       return;
     }
     if (this.startDrag(g)) {
@@ -375,19 +337,9 @@ export class Gestures {
     if (!g.dragging) {
       if (Math.hypot(ev.clientX - g.downScreen.x, ev.clientY - g.downScreen.y) < DRAG_THRESHOLD_PX) return;
       g.dragging = true;
-      this.panFrom = { ...g.downScreen };
-      this.tools.svg.classList.add('sf-panning');
+      this.pan.start(g.downScreen);
     }
-    const from = this.panFrom ?? g.downScreen;
-    this.panBy(ev.clientX - from.x, ev.clientY - from.y);
-    this.panFrom = { x: ev.clientX, y: ev.clientY };
-  }
-
-  private panBy(dxScreen: number, dyScreen: number): void {
-    const viewport = this.tools.viewport;
-    const box = viewport.getViewbox();
-    const rect = this.canvas.getContainer().getBoundingClientRect();
-    viewport.pan(dxScreen * (box.width / (rect.width || box.width)), dyScreen * (box.height / (rect.height || box.height)));
+    this.pan.to({ x: ev.clientX, y: ev.clientY });
   }
 
   private startDrag(g: Gesture): boolean {
@@ -453,96 +405,34 @@ export class Gestures {
   // --- alignment snapping ----------------------------------------------------------
 
   private beginSnapping(g: Gesture, moving?: readonly Movable[]): void {
-    this.snapContext = undefined;
+    this.snapLines.end();
     const scene = this.tools.scene();
     if (!scene) return;
-    if (g.intent === 'move' && moving && moving.length > 0) {
-      const lead = moving[0];
-      const ids = new Set(moving.map((el) => el.id));
-      this.snapContext = {
-        targets: collectSnapTargets(scene, this.tools.scope(), ids, 'mid'),
-        bounds: { x: lead.x, y: lead.y, width: lead.width, height: lead.height },
-      };
-      return;
-    }
-    if (g.intent === 'resize' && g.handle) {
-      const target = g.handle.target;
-      const handle = g.handle.handle;
-      this.snapContext = {
-        targets: collectSnapTargets(scene, this.tools.scope(), new Set([target.id]), 'bounds'),
-        point: {
-          x: handle.includes('w') ? target.x : target.x + target.width,
-          y: handle.includes('n') ? target.y : target.y + target.height,
-        },
-      };
-      return;
-    }
-    if (g.intent === 'waypoint' && g.waypoint) {
+    const scope = this.tools.scope();
+    if (g.intent === 'move' && moving) this.snapLines.beginMove(scene, scope, moving);
+    else if (g.intent === 'resize' && g.handle) {
+      const { target, handle } = g.handle;
+      this.snapLines.beginPoint(scene, scope, {
+        x: handle.includes('w') ? target.x : target.x + target.width,
+        y: handle.includes('n') ? target.y : target.y + target.height,
+      }, new Set([target.id]));
+    } else if (g.intent === 'waypoint' && g.waypoint) {
       const p = g.waypoint.insert ? g.downDiagram : g.waypoint.edge.waypoints[g.waypoint.index];
-      if (!p) return;
-      this.snapContext = { targets: collectSnapTargets(scene, this.tools.scope(), new Set<string>(), 'bounds'), point: { x: p.x, y: p.y } };
+      if (p) this.snapLines.beginPoint(scene, scope, p);
     }
   }
 
   /** Alignment first (with guides), then whatever axis it left alone is the grid's. */
   private snapGesture(g: Gesture, point: Point): { point: Point; grid: GridAxes } {
-    const ctx = this.snapContext;
-    if (!ctx || !this.tools.drag()?.isActive()) {
-      this.hideSnapLines();
-      return { point, grid: { x: true, y: true } };
-    }
-    const dx = point.x - g.downDiagram.x;
-    const dy = point.y - g.downDiagram.y;
-    if (ctx.bounds) {
-      const snapped = snapMove(ctx.bounds, dx, dy, ctx.targets);
-      this.showSnapLines(snapped.guideX, snapped.guideY);
-      return {
-        point: { x: g.downDiagram.x + snapped.dx, y: g.downDiagram.y + snapped.dy },
-        grid: { x: snapped.guideX === undefined, y: snapped.guideY === undefined },
-      };
-    }
-    if (ctx.point) {
-      const moved = { x: ctx.point.x + dx, y: ctx.point.y + dy };
-      const snapped = snapPoint(moved, ctx.targets);
-      this.showSnapLines(snapped.guideX, snapped.guideY);
-      return {
-        point: { x: point.x + (snapped.point.x - moved.x), y: point.y + (snapped.point.y - moved.y) },
-        grid: { x: snapped.guideX === undefined, y: snapped.guideY === undefined },
-      };
-    }
-    this.hideSnapLines();
-    return { point, grid: { x: true, y: true } };
-  }
-
-  private showSnapLines(x?: number, y?: number): void {
-    if (x === undefined && y === undefined) {
-      this.hideSnapLines();
-      return;
-    }
-    const box = this.tools.viewport.getViewbox();
-    if (!this.snapLines) {
-      this.snapLines = create('g', { class: 'sf-snap-lines' }) as SVGGElement;
-      append(this.tools.overlays, this.snapLines);
-    }
-    while (this.snapLines.firstChild) this.snapLines.removeChild(this.snapLines.firstChild);
-    if (x !== undefined) append(this.snapLines, create('line', { class: 'sf-snap-line', x1: x, y1: box.y, x2: x, y2: box.y + box.height }));
-    if (y !== undefined) append(this.snapLines, create('line', { class: 'sf-snap-line', x1: box.x, y1: y, x2: box.x + box.width, y2: y }));
-  }
-
-  private hideSnapLines(): void {
-    remove(this.snapLines);
-    this.snapLines = undefined;
+    return this.tools.drag()?.isActive() ? this.snapLines.snap(g.downDiagram, point) : this.snapLines.unsnapped(point);
   }
 
   // --- pointer up ------------------------------------------------------------------
 
   private handlePointerUp(ev: PointerEvent): void {
-    if (ev.pointerType === 'touch') this.touches.delete(ev.pointerId);
-    if (this.pinch) {
-      if (this.touches.size === 0) {
-        this.pinch = undefined;
-        this.endGesture();
-      }
+    const touch = this.pan.touchUp(ev);
+    if (touch) {
+      if (touch === 'pinched') this.endGesture();
       return;
     }
     const g = this.gesture;
@@ -554,7 +444,7 @@ export class Gestures {
     const snapped = g && scene ? this.snapGesture(g, this.eventPoint(ev)) : undefined;
     this.endGesture();
     if (!g || !scene || !snapped) {
-      this.clearMarquee();
+      this.marquee.clear();
       return;
     }
     const pt = snapped.point;
@@ -581,31 +471,28 @@ export class Gestures {
         else drag?.end(pt, snapped.grid);
       }
     } else if (g.marquee) {
-      const rect = normalizeRect({ x: g.downDiagram.x, y: g.downDiagram.y, width: pt.x - g.downDiagram.x, height: pt.y - g.downDiagram.y });
-      selection.select(nodesIntersecting(scene, rect, this.tools.scope()), g.shift);
+      this.marquee.select(g.downDiagram, pt, scene, this.tools.scope(), g.shift);
     } else if ((g.intent === 'marquee' || g.intent === 'pan') && !g.shift) {
       selection.clear();
     } else if (g.collapseTo && Math.hypot(ev.clientX - g.downScreen.x, ev.clientY - g.downScreen.y) < DRAG_THRESHOLD_PX) {
       selection.select(g.collapseTo);
     }
-    this.clearMarquee();
+    this.marquee.clear();
   }
 
   private endGesture(): void {
     this.gesture = undefined;
-    this.pinch = undefined;
+    this.pan.end();
     const selection = this.tools.selection;
     if (this.resizingId) {
       selection.removeMarker(this.resizingId, RESIZING_MARKER);
       this.resizingId = undefined;
     }
     this.markDropTarget(undefined, false);
-    this.hideSnapLines();
-    this.snapContext = undefined;
-    this.panFrom = undefined;
+    this.snapLines.end();
     this.markGesture(undefined);
     const root = this.tools.svg;
-    root.classList.remove('sf-drag-active', 'sf-panning');
+    root.classList.remove('sf-drag-active');
     const doc = root.ownerDocument ?? ownerDocument();
     doc.removeEventListener('pointermove', this.onMove);
     doc.removeEventListener('pointerup', this.onUp);
@@ -614,26 +501,12 @@ export class Gestures {
   }
 
   private handlePointerCancel(): void {
-    this.touches.clear();
+    this.pan.touchCancel();
     this.cancel();
   }
 
   private handleKeyDown(ev: KeyboardEvent): void {
     if (ev.key === 'Escape' && this.gesture) this.cancel();
-  }
-
-  private drawMarquee(a: Point, b: Point): void {
-    const rect = normalizeRect({ x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y });
-    if (!this.marqueeRect) {
-      this.marqueeRect = append(this.tools.overlays, create('rect', { class: 'sf-marquee' })) as SVGRectElement;
-    }
-    for (const [name, value] of Object.entries(rect)) this.marqueeRect.setAttribute(name, String(value));
-  }
-
-  private clearMarquee(): void {
-    remove(this.marqueeRect);
-    this.marqueeRect = undefined;
-    this.tools.selection.clearPreview();
   }
 
   // --- double click, hover, wheel ----------------------------------------------------
@@ -661,27 +534,14 @@ export class Gestures {
 
   private handleHover(ev: MouseEvent): void {
     this.pointer = { x: ev.clientX, y: ev.clientY };
-    if (!this.tools.scene() || this.gesture || this.pinch) return;
+    if (!this.tools.scene() || this.gesture || this.pan.pinching) return;
     const hit = this.tools.hitTest(this.eventPoint(ev));
     this.tools.selection.setHovered(hit && hit.kind === 'edge' ? hit : undefined);
   }
 
-  /** Wheel pans; `Ctrl`/`Cmd`+wheel zooms about the cursor. */
   private handleWheel(ev: WheelEvent): void {
     if (!this.tools.scene()) return;
     ev.preventDefault?.();
-    const lines = ev.deltaMode !== 0 ? 16 : 1;
-    const deltaX = (ev.deltaX ?? 0) * lines;
-    const deltaY = (ev.deltaY ?? 0) * lines;
-    if (ev.ctrlKey || ev.metaKey) {
-      const viewport = this.tools.viewport;
-      viewport.zoom(viewport.getViewbox().scale * Math.exp(-deltaY * WHEEL_ZOOM), this.eventPoint(ev));
-      return;
-    }
-    if (ev.shiftKey) this.panBy(-deltaY, 0);
-    else this.panBy(-deltaX, -deltaY);
+    this.pan.wheel(ev, this.eventPoint(ev));
   }
-
 }
-
-export { ZOOM_STEP };
