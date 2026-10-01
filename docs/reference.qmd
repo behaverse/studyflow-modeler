@@ -215,16 +215,14 @@ These attributes describe the study's schedule in visits and days, which is what
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Dataset` | `bpmn:DataStoreReference` | A collection the study reads or produces, under a declared standard. | `format`, `schema`, `uri`, `catalog`; `bidsDataType` for BIDS |
+| `Dataset` | `bpmn:DataStoreReference` | A collection the study reads or produces, under a declared standard. | `format`, `schema`, `uri`, `catalog` |
 | `Schema` | `bpmn:DataObjectReference` | How data are laid out: columns, types, requiredness. | `format` (`csvw`, `linkml`, `jsonschema`), `body` |
 | `Table` | `bpmn:DataObjectReference` | Rows and columns, with that structure committed to. | `format`, `schema` |
-| `Timeseries` | `bpmn:DataObjectReference` | A continuously sampled recording. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
-| `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording. | `eventType`, `eventOnset`, `eventOffset`, `eventCount` |
 | `Parameters` | `bpmn:DataObjectReference` | Settings wired into the steps that read them, so a variant of the study is a value change, not a redraw. Wired into a sub-process, its keys are that sub-process's read-only properties. One wired into nothing does nothing. | `values` |
 | `DataCatalog` | not drawn | A registry a dataset is published in; the dataset's `catalog` names it. | `uri` |
 | any of them | - | Where the value lives. Unset, it only passes between steps. | `uri` |
 
-`format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), from the behaverse skill, whose `behaverse:BDMDataset` adds `dataLevel`), `bids` ([BIDS](https://bids.neuroimaging.io/), which adds `bidsDataType`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or `nwb` ([NWB](https://www.nwb.org/)).
+`format` ties a dataset to a community standard: `bdm` ([Behaverse Data Model](https://behaverse.org/data-model/), from the behaverse skill, whose `behaverse:BDMDataset` adds `dataLevel`), `psych-ds` ([Psych-DS](https://psych-ds.github.io/)), or, from the eeg skill, `bids` ([BIDS](https://bids.neuroimaging.io/); its `eeg:BIDSDataset` adds `dataType`) and `nwb` ([NWB](https://www.nwb.org/)).
 
 ## What a step runs
 
@@ -246,6 +244,8 @@ A step that fails goes on from the error boundary event drawn on it, if it carri
 |:--|:--|:--|:--|
 | `Prompt` | `bpmn:DataObjectReference` | A prompt kept as data, wired into the steps that send it to a model. | `template` |
 | `Session` | `bpmn:Participant` | One acquisition session, carrying the device settings every phase inside it shares. | `device`, `modalities` |
+| `Timeseries` | `bpmn:DataObjectReference` | A continuously sampled signal. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
+| `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording (BIDS `events.tsv`). | `eventTypes`, `timeUnit`, `format`, `schema` |
 | `Recording` | `bpmn:DataObjectReference` | The biosignal recording a session produces. A narrower `Timeseries`. | `modalities`, `eventChannel`, plus `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` from `Timeseries` |
 | `Activity` | not drawn | One entry of the record of what ran. | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `plan`, `commit`, `note` |
 

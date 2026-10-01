@@ -39,43 +39,9 @@ enumerations:
   - name: DatasetFormatEnum
     description: Data standard the dataset is organized by.
     literalValues:
-      - name: BIDS (Brain Imaging Data Structure)
-        value: bids
-        icon: bids-dataset-icon
       - name: Psych-DS
         value: psych-ds
         icon: iconify ph--flask
-      - name: NWB (Neurodata Without Borders)
-        value: nwb
-  - name: BIDSDataTypeEnum
-    description: BIDS data type (the modality folder).
-    literalValues:
-      - name: anat (anatomical MRI)
-        value: anat
-      - name: beh (behavioral)
-        value: beh
-      - name: dwi (diffusion MRI)
-        value: dwi
-      - name: eeg (electroencephalography)
-        value: eeg
-      - name: func (functional MRI)
-        value: func
-      - name: ieeg (intracranial EEG)
-        value: ieeg
-      - name: meg (magnetoencephalography)
-        value: meg
-      - name: micr (microscopy)
-        value: micr
-      - name: motion (motion capture)
-        value: motion
-      - name: mrs (magnetic resonance spectroscopy)
-        value: mrs
-      - name: nirs (near-infrared spectroscopy)
-        value: nirs
-      - name: perf (arterial spin labeling)
-        value: perf
-      - name: pet (positron emission tomography)
-        value: pet
   - name: TableFormatEnum
     description: On-disk format of a table.
     literalValues:
@@ -91,16 +57,6 @@ enumerations:
         value: jsonl
       - name: Excel (xlsx)
         value: xlsx
-  # The general-purpose formats; the biosignal ones (EDF, BrainVision, XDF, …) come from `eeg` by `extends`.
-  - name: TimeseriesFormatEnum
-    description: On-disk format of a time-series recording.
-    literalValues:
-      - name: NWB (Neurodata Without Borders)
-        value: nwb
-      - name: Parquet
-        value: parquet
-      - name: Zarr
-        value: zarr
   - name: SchemaFormatEnum
     description: Language the schema is written in.
     literalValues:
@@ -112,15 +68,6 @@ enumerations:
         value: jsonschema
       - name: Frictionless Table Schema
         value: frictionless
-  - name: TimeUnitEnum
-    description: Unit that event times are expressed in.
-    literalValues:
-      - name: Seconds
-        value: seconds
-      - name: Milliseconds
-        value: milliseconds
-      - name: Samples
-        value: samples
   - name: CompletionCodeTypeEnum
     description: How the completion code is produced when the study ends.
     literalValues:
@@ -513,7 +460,7 @@ types:
         type: ActorTypeEnum
         default: human
       - name: implementation
-        description: The program, model, or device, as `<scheme>://<ref>` (`claude://claude-haiku-4-5`, `ollama://gemma4`, `lsl://triggers`).
+        description: The program, model, or device, as `<scheme>://<ref>`, a scheme a loaded skill runs.
         isAttr: true
         type: String
         meta:
@@ -575,17 +522,6 @@ types:
           order: 1
           categories:
             - Data
-      - name: bidsDataType
-        description: BIDS data type.
-        isAttr: true
-        type: BIDSDataTypeEnum
-        default: beh
-        meta:
-          order: 2
-          categories:
-            - Data
-          condition:
-            format: bids
       - name: schema
         description: Schema describing the dataset's structure.
         isAttr: true
@@ -603,13 +539,13 @@ types:
           categories:
             - Data
   - name: DataCatalog
-    description: A registry datasets are published in (OpenNeuro, Behaverse).
+    description: A registry datasets are published in.
     superClass:
       - bpmn:BaseElement
     isAbstract: false
     properties:
       - name: uri
-        description: Where the registry is (`https://openneuro.org`).
+        description: Where the registry is, as a URL.
         isAttr: true
         type: String
         meta:
@@ -636,102 +572,6 @@ types:
         isAttr: true
         type: Schema
         meta:
-          categories:
-            - Data
-  - name: Timeseries
-    description: A signal sampled over time (EEG, eye tracking, accelerometer).
-    superClass:
-      - bpmn:DataObjectReference
-    isAbstract: false
-    meta:
-      icon: iconify ph--chart-line
-      roles:
-        - signal
-    properties:
-      - name: samplingRate
-        description: Samples per second.
-        isAttr: true
-        type: Real
-        meta:
-          order: 1
-          unit: Hz
-          categories:
-            - Data
-      - name: channelCount
-        description: Number of channels.
-        isAttr: true
-        type: Integer
-        meta:
-          order: 2
-          categories:
-            - Data
-      - name: units
-        description: Physical unit of the values (`uV`, `deg`, `g`).
-        isAttr: true
-        type: String
-        meta:
-          order: 3
-          categories:
-            - Data
-      - name: recordingDuration
-        description: Length of the recording.
-        isAttr: true
-        type: Real
-        meta:
-          order: 4
-          unit: s
-          categories:
-            - Data
-      - name: format
-        description: On-disk format of the recording.
-        isAttr: true
-        type: TimeseriesFormatEnum
-        meta:
-          order: 5
-          categories:
-            - Data
-  - name: EventMarker
-    # An events table (BIDS `events.tsv`): one row per time-stamped occurrence.
-    description: 'Time-stamped occurrences in a recording: stimuli, responses, triggers.'
-    superClass:
-      - bpmn:DataObjectReference
-    isAbstract: false
-    meta:
-      icon: iconify ph--lightning
-    properties:
-      - name: eventTypes
-        description: Kinds of event the table holds, one per entry (`stimulus`, `response`).
-        isAttr: false
-        isMany: true
-        type: String
-        meta:
-          order: 1
-          categories:
-            - Data
-      - name: timeUnit
-        description: Unit the onsets are expressed in.
-        isAttr: true
-        type: TimeUnitEnum
-        default: seconds
-        meta:
-          order: 2
-          categories:
-            - Data
-      - name: format
-        description: On-disk format of the events table.
-        isAttr: true
-        type: TableFormatEnum
-        default: tsv
-        meta:
-          order: 3
-          categories:
-            - Data
-      - name: schema
-        description: Schema describing the table's columns.
-        isAttr: true
-        type: Schema
-        meta:
-          order: 4
           categories:
             - Data
 

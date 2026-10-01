@@ -14,7 +14,7 @@ function toSnakeCase(name: string): string {
 function isEegRelevant(element: ExportedElement): boolean {
   if (!element.type) return false;
   if (hasRole(element, 'acquisition') || hasRole(element, 'signal') || hasRole(element, 'instrument')) return true;
-  return element.isDataElement && EEG_DATA_TYPES.has(String(element.attributes.bidsDataType ?? ''));
+  return element.isDataElement && EEG_DATA_TYPES.has(String(element.attributes.dataType ?? ''));
 }
 
 function toEntry(bo: ExportedElement): GenericRecord {

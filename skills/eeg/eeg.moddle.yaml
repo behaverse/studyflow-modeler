@@ -3,7 +3,8 @@
 name: EEG & Biosignals
 prefix: eeg
 description: >-
-  EEG and biosignal acquisition: sessions, recordings, and preprocessing presets.
+  EEG and biosignal acquisition: time series, event tables, BIDS datasets, sessions, recordings, and
+  preprocessing presets.
 uri: https://w3id.org/studyflow/eeg
 icon: iconify tabler--hexagon-letter-e
 order: 101
@@ -12,9 +13,52 @@ xml:
 version: '26.9.1'
 
 enumerations:
-  - extends: studyflow:TimeseriesFormatEnum
-    description: Biosignal recording formats, added to the core's general-purpose ones.
+  - extends: studyflow:DatasetFormatEnum
+    description: Adds the neuroimaging and neurophysiology standards to the dataset formats.
     literalValues:
+      - name: BIDS (Brain Imaging Data Structure)
+        value: bids
+        icon: bids-dataset-icon
+      - name: NWB (Neurodata Without Borders)
+        value: nwb
+  - name: BIDSDataTypeEnum
+    description: BIDS data type (the modality folder).
+    literalValues:
+      - name: anat (anatomical MRI)
+        value: anat
+      - name: beh (behavioral)
+        value: beh
+      - name: dwi (diffusion MRI)
+        value: dwi
+      - name: eeg (electroencephalography)
+        value: eeg
+      - name: func (functional MRI)
+        value: func
+      - name: ieeg (intracranial EEG)
+        value: ieeg
+      - name: meg (magnetoencephalography)
+        value: meg
+      - name: micr (microscopy)
+        value: micr
+      - name: motion (motion capture)
+        value: motion
+      - name: mrs (magnetic resonance spectroscopy)
+        value: mrs
+      - name: nirs (near-infrared spectroscopy)
+        value: nirs
+      - name: perf (arterial spin labeling)
+        value: perf
+      - name: pet (positron emission tomography)
+        value: pet
+  - name: TimeseriesFormatEnum
+    description: On-disk format of a time-series recording.
+    literalValues:
+      - name: NWB (Neurodata Without Borders)
+        value: nwb
+      - name: Parquet
+        value: parquet
+      - name: Zarr
+        value: zarr
       - name: EDF (European Data Format)
         value: edf
       - name: BDF (Biosemi Data Format)
@@ -27,6 +71,15 @@ enumerations:
         value: set
       - name: XDF (Lab Streaming Layer)
         value: xdf
+  - name: TimeUnitEnum
+    description: Unit that event times are expressed in.
+    literalValues:
+      - name: Seconds
+        value: seconds
+      - name: Milliseconds
+        value: milliseconds
+      - name: Samples
+        value: samples
   # Amplifiers and headsets in common use; the attribute is editable, so any
   # other system name is accepted as free text.
   - name: DeviceEnum
@@ -169,12 +222,131 @@ types:
           order: 6
           unit: kΩ
 
+  - name: Timeseries
+    description: A signal sampled over time (EEG, eye tracking, accelerometer).
+    superClass:
+      - bpmn:DataObjectReference
+    isAbstract: false
+    meta:
+      icon: iconify ph--chart-line
+      roles:
+        - signal
+    properties:
+      - name: samplingRate
+        description: Samples per second.
+        isAttr: true
+        type: Real
+        meta:
+          order: 1
+          unit: Hz
+          categories:
+            - Data
+      - name: channelCount
+        description: Number of channels.
+        isAttr: true
+        type: Integer
+        meta:
+          order: 2
+          categories:
+            - Data
+      - name: units
+        description: Physical unit of the values (`uV`, `deg`, `g`).
+        isAttr: true
+        type: String
+        meta:
+          order: 3
+          categories:
+            - Data
+      - name: recordingDuration
+        description: Length of the recording.
+        isAttr: true
+        type: Real
+        meta:
+          order: 4
+          unit: s
+          categories:
+            - Data
+      - name: format
+        description: On-disk format of the recording.
+        isAttr: true
+        type: TimeseriesFormatEnum
+        meta:
+          order: 5
+          categories:
+            - Data
+  - name: EventMarker
+    # An events table (BIDS `events.tsv`): one row per time-stamped occurrence.
+    description: 'Time-stamped occurrences in a recording: stimuli, responses, triggers.'
+    superClass:
+      - bpmn:DataObjectReference
+    isAbstract: false
+    meta:
+      icon: iconify ph--lightning
+    properties:
+      - name: eventTypes
+        description: Kinds of event the table holds, one per entry (`stimulus`, `response`).
+        isAttr: false
+        isMany: true
+        type: String
+        meta:
+          order: 1
+          categories:
+            - Data
+      - name: timeUnit
+        description: Unit the onsets are expressed in.
+        isAttr: true
+        type: TimeUnitEnum
+        default: seconds
+        meta:
+          order: 2
+          categories:
+            - Data
+      - name: format
+        description: On-disk format of the events table.
+        isAttr: true
+        type: studyflow:TableFormatEnum
+        default: tsv
+        meta:
+          order: 3
+          categories:
+            - Data
+      - name: schema
+        description: Schema describing the table's columns.
+        isAttr: true
+        type: studyflow:Schema
+        meta:
+          order: 4
+          categories:
+            - Data
+  - name: BIDSDataset
+    description: A dataset laid out by BIDS, one modality folder per data type.
+    superClass:
+      - studyflow:Dataset
+    meta:
+      icon: bids-dataset-icon
+    properties:
+      - name: format
+        default: bids
+        type: String
+        isAttr: true
+        redefines: studyflow:Dataset#format
+        meta:
+          pinned: true
+      - name: dataType
+        description: BIDS data type (the modality folder).
+        isAttr: true
+        type: BIDSDataTypeEnum
+        default: beh
+        meta:
+          order: 2
+          categories:
+            - Data
   # Sampling rate, channel count, units, duration, on-disk format, and the
-  # `signal` role come from `studyflow:Timeseries`.
+  # `signal` role come from `Timeseries`.
   - name: Recording
     description: The biosignal recording a session produces.
     superClass:
-      - studyflow:Timeseries
+      - Timeseries
     meta:
       roles:
         - acquisition

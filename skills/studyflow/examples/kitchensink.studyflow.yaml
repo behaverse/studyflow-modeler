@@ -107,11 +107,11 @@ Kitchen_Sink:
       name: Table
       format: parquet
     Sf_Timeseries:
-      type: studyflow:Timeseries
+      type: eeg:Timeseries
       name: Timeseries
       format: edf
     Sf_EventMarker:
-      type: studyflow:EventMarker
+      type: eeg:EventMarker
       name: Event marker
       eventTypes:
         - stimulus

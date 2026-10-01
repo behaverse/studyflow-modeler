@@ -30,10 +30,10 @@ traits), which a domain pack must not copy; its `Scheduling` is the plainest tra
 - An enum attribute that allows values outside its list is `meta.editable: true`.
 - A property a type adds to a BPMN element (a type that `extends` one) is an attribute, `isAttr: true`: BPMN's XML schema takes another namespace's attributes on any element, and no child element but `extensionElements`, so the file stays valid BPMN. A wrapper type, one that sits in `extensionElements`, may hold child elements.
 - A placeholder in a value is `{name}` (dotted paths allowed: `{Play.trials}`). Every reader resolves it by one rule, [Placeholders](../docs/reference.qmd#placeholders), and nothing reads `$name`, `${name}` or `{{name}}`.
-- A reference to software, a model, or a device is `<scheme>://<ref>` (`python://`, `claude://claude-haiku-4-5`, `ollama://gemma4`), whatever attribute holds it.
+- A reference to software, a model, or a device is `<scheme>://<ref>` (`python://`, `shell://`), whatever attribute holds it.
 - Element icons are iconify's Phosphor set (`iconify ph--<name>`): its 1.5px line matches the element outline, where `mdi`/`tabler` read twice as bold. Verify a glyph exists in `node_modules/@iconify/json/json/<set>.json` before using it; an unknown name falls back to the BPMN ancestor's icon.
-- Reuse core types by inheritance rather than restating fields: a biosignal recording is a `studyflow:Timeseries`, a battery task a `cognitive:CognitiveTask`.
-- Name the schema's own types bare (`type: DeviceEnum`) and another schema's with its prefix (`superClass: [studyflow:Timeseries]`, `type: studyflow:YAMLString`); moddle reads a bare name as the schema's own. The catalog also looks a bare name up in every schema and takes the first it finds, so no two schemas declare the same name.
+- Reuse core types by inheritance rather than restating fields: a BIDS dataset is a `studyflow:Dataset`, a battery task a `cognitive:CognitiveTask`.
+- Name the schema's own types bare (`type: DeviceEnum`) and another schema's with its prefix (`superClass: [studyflow:Dataset]`, `type: studyflow:YAMLString`); moddle reads a bare name as the schema's own. The catalog also looks a bare name up in every schema and takes the first it finds, so no two schemas declare the same name.
 
 ## Schema-level keys
 
@@ -63,7 +63,7 @@ and enumeration names that no other schema declares.
 | `name` | The type's name; the schema's prefix qualifies it (`eeg:Session`). |
 | `description` | Palette and inspector tooltip. |
 | `superClass: [bpmn:X]` | A **wrapper**: created as that BPMN element, with its own element inside `extensionElements`. The wrapper is no X itself: it carries none of X's attributes, and no trait on X reaches it, so an attribute lives in one place (an own `icon` goes on the element). A file names such an element by the wrapper's type (`type: eeg:Session`), its attributes beside the element's, and the X it attaches to follows. |
-| `superClass: [Type]` | Inherits another type, which decides the BPMN element (`eeg:Recording` is a `studyflow:Timeseries`). |
+| `superClass: [Type]` | Inherits another type, which decides the BPMN element (`eeg:BIDSDataset` is a `studyflow:Dataset`). |
 | `extends: [bpmn:X, …]` with `isAbstract: true` | A **trait**: its attributes mix onto those BPMN types and their subtypes. It has no `superClass` and is never created itself. |
 | `isAbstract: true` | Not creatable. |
 | `meta` | The app's own keys; below. |

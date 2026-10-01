@@ -65,7 +65,7 @@ export function exportToLinkML(model: ExportModel): string {
 
   doc.classes = Object.keys(classes).length > 0 ? classes : {
     EmptyDataPlane: {
-      description: 'No data-plane elements were found in this diagram. Add a Schema, Dataset, Table, Timeseries, or Event element to populate the export.',
+      description: 'No data-plane elements were found in this diagram. Add a Schema, Dataset, Table, or another data element to populate the export.',
     },
   };
 

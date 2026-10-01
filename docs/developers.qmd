@@ -88,7 +88,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | `bpmn:SubProcess` | - | walked one level in, its properties a scope of its own, re-entered on each pass | the same |
 | `bpmn:ExclusiveGateway`, `cognitive:EligibilityGateway` | - | conditions (FEEL), then `default`, then the one edge without a condition | the same rule |
 | `cognitive:RandomGateway` | warns where allocation attributes cannot be honored | the seeded draw, weighted by the ratio | the same draw; permuted blocks over the cohort |
-| `studyflow:Dataset`, `studyflow:Table`, `studyflow:Timeseries`, `studyflow:Schema`, `studyflow:EventMarker` | - | - | loaded and saved wherever they carry a `uri` |
+| `studyflow:Dataset`, `studyflow:Table`, `studyflow:Schema`, and a skill's data types (`eeg:Timeseries`) | - | - | loaded and saved wherever they carry a `uri` |
 | `studyflow:Parameters` | reports overridden, undeclared, and unbound names | bound before the walk | - |
 | Timers | the time is ISO 8601 | a timer event waits for its time; one at a boundary event ends the step when it runs out, and its screen is dropped | the same, and the step's runner is stopped |
 | Loop and multi-instance markers | - | one pass after another: while `loopCondition` holds, `loopCardinality` times, or once per item of `loopDataInputRef` | the same |

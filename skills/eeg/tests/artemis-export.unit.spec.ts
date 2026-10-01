@@ -15,7 +15,7 @@ function eegDiagram(): any {
     name: 'N-back',
     platform: 'jspsych',
   });
-  const recording = wrapperElement('bpmn:DataObjectReference', 'studyflow:Timeseries', {
+  const recording = wrapperElement('bpmn:DataObjectReference', 'eeg:Timeseries', {
     id: 'EEG_1',
     name: 'Raw EEG',
     samplingRate: 250,
@@ -68,7 +68,7 @@ test.describe('ARTEM-IS export', () => {
     })]);
     // The recording is a dataset, with its declared attributes.
     expect(datasets, JSON.stringify(datasets)).toEqual([expect.objectContaining({
-      element_id: 'EEG_1', studyflow_type: 'studyflow:Timeseries', sampling_rate: 250, channel_count: 16,
+      element_id: 'EEG_1', studyflow_type: 'eeg:Timeseries', sampling_rate: 250, channel_count: 16,
     })]);
   });
 

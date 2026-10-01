@@ -35,7 +35,7 @@ function expectEveryPrefixDeclared(turtle: string, label: string): void {
 
 /** An EEG recording, an operation over it, and the table it writes. */
 function analysisDiagram(): any {
-  const recording = wrapperElement('bpmn:DataObjectReference', 'studyflow:Timeseries', {
+  const recording = wrapperElement('bpmn:DataObjectReference', 'eeg:Timeseries', {
     id: 'EEG_1',
     name: 'Raw EEG',
     samplingRate: 250,

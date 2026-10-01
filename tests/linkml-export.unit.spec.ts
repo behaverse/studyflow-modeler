@@ -9,7 +9,7 @@ import { exampleNames } from '@tests/utils';
 /** Every catalog-declared attribute of a data element must appear in the exported linkml schema. */
 
 test('exportToLinkML collects data elements stored as extension wrappers', () => {
-  const recording = wrapperElement('bpmn:DataObjectReference', 'studyflow:Timeseries', {
+  const recording = wrapperElement('bpmn:DataObjectReference', 'eeg:Timeseries', {
     id: 'EEG_1',
     name: 'Raw EEG',
     samplingRate: 250,
@@ -21,7 +21,7 @@ test('exportToLinkML collects data elements stored as extension wrappers', () =>
 
   const cls = doc.classes.Raw_EEG;
   expect(cls, JSON.stringify(doc.classes)).toBeTruthy();
-  expect(cls.class_uri).toBe('studyflow:Timeseries');
+  expect(cls.class_uri).toBe('eeg:Timeseries');
   expect(cls.attributes.samplingRate.range).toBe('float');
   expect(cls.attributes.channelCount.range).toBe('integer');
   expect(cls.annotations.format).toBe('edf');
