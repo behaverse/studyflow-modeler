@@ -171,7 +171,7 @@ type Fault = {
   /** The fault, in the words of the manuscript's table. */
   fault: string;
   /** The check that reports it, or `missed`. */
-  check: 'reader' | 'soundness' | 'runner paths' | 'decisions' | 'data contract' | 'flow consistency' | 'seal' | 'missed';
+  check: 'reader' | 'endpoints' | 'soundness' | 'runner paths' | 'decisions' | 'data contract' | 'flow consistency' | 'seal' | 'missed';
   /** Seeded into the deposited plan, or into the copy a run stamped. */
   into: 'plan' | 'executed copy';
   edit: (text: string) => string;
@@ -207,6 +207,13 @@ const FAULTS: Fault[] = [
     into: 'executed copy',
     edit: swap('trials: 30', 'trials: 20'),
     says: [/^warning: protocol changed since run r1: recorded sha256:[0-9a-f]{12}…, now sha256:[0-9a-f]{12}…$/],
+  },
+  {
+    fault: 'A step drawn as the data another step reads',
+    check: 'endpoints',
+    into: 'plan',
+    edit: swap('In_Settings: { sourceRef: [Settings] }', 'In_Settings: { sourceRef: [Summarize] }'),
+    says: ['error: "Play the task" reads "Accuracy per subject" along a data association, but it is no data element: an order between steps is a sequence flow'],
   },
   {
     fault: 'Parallel branches within one pool',

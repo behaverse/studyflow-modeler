@@ -73,7 +73,7 @@ program
 
 program
   .command('validate')
-  .description('Check a studyflow: that it reads, is sound, takes only paths the runners walk, reads only columns its schemas define, and is valid BPMN 2.0 XML (against the OMG schema, with xmllint); once run, that its counts balance and its protocol is the one the run recorded.')
+  .description('Check a studyflow: that it reads, its edges join what they may, it is sound, takes only paths the runners walk, reads only columns its schemas define, and is valid BPMN 2.0 XML (against the OMG schema, with xmllint); once run, that its counts balance and its protocol is the one the run recorded.')
   .argument('<input>', 'file to check')
   .option('--strict', 'exit non-zero on warnings, not just errors')
   .action(async (input: string, options: { strict?: boolean }) => {
