@@ -3,6 +3,8 @@ import { Field, Label } from '@headlessui/react';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
 import { ExpressionRow } from '@modeler/inspector/inputs';
+import { useInspectedModel } from '@modeler/inspector/hooks';
+import { idOf, isElement } from '@core/model/index';
 import { HelpTooltip } from '@modeler/inspector/widgets';
 import { field as fld } from '@modeler/inspector/styles';
 
@@ -14,14 +16,14 @@ const ASSOCIATION_TYPES = new Set(['bpmn:DataInputAssociation', 'bpmn:DataOutput
 
 export function WireTransformationSection({ element }: { element: any }) {
   const modeler = useModeler();
-  const businessObject = element?.businessObject ?? element;
-  if (!ASSOCIATION_TYPES.has(businessObject?.$type)) return null;
+  const model = useInspectedModel();
+  if (!element || !ASSOCIATION_TYPES.has(model.host(element))) return null;
 
-  const expression = businessObject.get?.('transformation') ?? businessObject.transformation;
-  const body: string = expression?.get?.('body') ?? expression?.body ?? '';
-  const isOutput = businessObject.$type === 'bpmn:DataOutputAssociation';
-  const source = businessObject.get?.('sourceRef')?.[0] ?? businessObject.sourceRef?.[0];
-  const placeholder = isOutput ? 'result' : source?.name || source?.id || 'input';
+  const expression = element.transformation;
+  const body: string = (isElement(expression) ? expression.body : expression) as string ?? '';
+  const isOutput = model.host(element) === 'bpmn:DataOutputAssociation';
+  const source = model.get(idOf([element.sourceRef].flat()[0]) ?? undefined);
+  const placeholder = isOutput ? 'result' : String(source?.name || source?.id || 'input');
 
   return (
     <Field className={fld.field}>
@@ -40,4 +42,3 @@ export function WireTransformationSection({ element }: { element: any }) {
     </Field>
   );
 }
-

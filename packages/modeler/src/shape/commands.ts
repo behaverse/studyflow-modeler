@@ -58,8 +58,7 @@ export type SwapChoreographyInitiatorCommand = {
 };
 
 export function runSwapChoreographyInitiator(modeler: Editor, command: SwapChoreographyInitiatorCommand): void {
-  const task = modeler.study.businessObject(command.id);
-  if (task) modeler.study.edit(command.id, (writer) => swapChoreographyInitiator(task, writer));
+  modeler.study.revise(command.id, (task, model, ids) => swapChoreographyInitiator(model, task, ids));
 }
 
 export type ToggleDefaultFlowCommand = {
@@ -72,11 +71,10 @@ export function runToggleDefaultFlow(modeler: Editor, command: ToggleDefaultFlow
   const { study } = modeler;
   const flow = study.get(command.id);
   if (flow?.kind !== 'edge' || flow.source === undefined) return;
-  const source: any = study.businessObject(flow.source);
-  const flowObject = study.businessObject(flow.id);
-  study.edit(flow.id, (writer) => writer.set(source, {
-    default: source.default === flowObject ? undefined : flowObject,
-  }));
+  study.revise(flow.source, (source) => {
+    if (source.default === flow.id) delete source.default;
+    else source.default = flow.id;
+  });
 }
 
 export type GoToElementCommand = {

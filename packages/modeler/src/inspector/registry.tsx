@@ -8,9 +8,11 @@ import { executeCommand } from '@modeler/commandBus';
 import { ArrayInput, ChecklistInput, EnumInput, EnumListInput, ExpressionInput } from '@modeler/inspector/inputs';
 import { CodeEditor, SchemaEditor } from '@modeler/inspector/editors';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
-import { useAttributeState, useInspectedElement } from '@modeler/inspector/hooks';
-import { resolvePlaceholders, type AttributeOverride } from '@core/document';
-import { definitionsOf, getAttribute, toBusinessObject } from '@core/element';
+import { useAttributeState, useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
+import { readAttribute } from '@modeler/inspector/element';
+import type { Element } from '@core/model/index';
+import type { AttributeOverride } from '@core/model/parameters';
+import { resolvePlaceholdersIn } from '@core/model/state';
 import { field as s } from '@modeler/inspector/styles';
 
 const TYPING_DEBOUNCE_MS = 400;
@@ -23,10 +25,11 @@ function StringInput({ attrDef, isMarkdown }: { attrDef: AttributeSpec; isMarkdo
   );
   const name = attrDef.ns.name;
   const element = useInspectedElement();
+  const model = useInspectedModel();
   // `{count}` shows its run-state value under the input; the input itself keeps the placeholder.
   // `raw || ''` passes numbers through (an Integer attribute like `seed`), so guard the type.
   const resolved = typeof value === 'string' && value.includes('{')
-    ? resolvePlaceholders(value, definitionsOf(element), toBusinessObject(element)?.id ?? '')
+    ? resolvePlaceholdersIn(model, value, element?.id ?? '')
     : value;
 
   function handleChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -137,20 +140,24 @@ function ReadonlyInput({ attrDef }: { attrDef: AttributeSpec }) {
 /** An attribute a Parameters object sets: its value shown, never edited here, with the object that sets it one click away. */
 export function OverriddenInput({ attrDef, override }: { attrDef: AttributeSpec; override: AttributeOverride }) {
   const { element, modeler } = useAttributeState<unknown>(attrDef, (raw) => raw);
+  const model = useInspectedModel();
   const name = attrDef.ns.name;
   const shown = typeof override.value === 'string' ? override.value : JSON.stringify(override.value);
-  const own = getAttribute(element, name);
-  const source = (bo: any) => (
-    <button
-      key={bo.id}
-      type="button"
-      className={s.overriddenSource}
-      title={`Select ${bo.name || bo.id}`}
-      onClick={() => executeCommand(modeler, { type: 'SelectElement', id: bo.id })}
-    >
-      {bo.name || bo.id}
-    </button>
-  );
+  const own = readAttribute(model, element, name);
+  const source = (from: Element) => {
+    const label = String(from.name || from.id);
+    return (
+      <button
+        key={String(from.id)}
+        type="button"
+        className={s.overriddenSource}
+        title={`Select ${label}`}
+        onClick={() => executeCommand(modeler, { type: 'SelectElement', id: String(from.id) })}
+      >
+        {label}
+      </button>
+    );
+  };
   const [first, ...others] = override.sources;
   return (
     <>

@@ -8,13 +8,14 @@ import { getTypeName, resolveDisplayName } from '@modeler/inspector/element';
 import { clampPanelWidth, defaultPanelWidth, fromStoredWidth, toStoredWidth } from '@modeler/inspector/panelWidth';
 import { loadInspectorWidth, saveInspectorWidth } from '@modeler/settings/store';
 import { inspector as s } from '@modeler/inspector/styles';
+import type { Element, StudyModel } from '@core/model/index';
 import type { Editor } from '@modeler/editor/port';
 
-function Header({ element }: { element: any }) {
+function Header({ element, model }: { element: Element; model: StudyModel }) {
   return (
     <>
-      <h1 className={s.headerTitle}>{resolveDisplayName(element)}</h1>
-      <h2 className={s.headerSubtitle}>{getTypeName(element)}</h2>
+      <h1 className={s.headerTitle}>{resolveDisplayName(model, element)}</h1>
+      <h2 className={s.headerSubtitle}>{getTypeName(model, element)}</h2>
     </>
   );
 }
@@ -31,49 +32,42 @@ function ToggleButton({ isInspectorVisible, onClick }: { isInspectorVisible: boo
 }
 
 /**
- * What the inspector shows: the business object behind the one selected element (a caption's is what it
- * captions), else behind what the view shows, the container it is drilled into or the document root.
+ * What the inspector shows, by id: the one selected element (a caption's is what it captions), else what the view
+ * shows, the container it is drilled into or the document root.
  */
-function inspected(editor: Editor, selection: readonly string[]): any {
+function inspected(editor: Editor, selection: readonly string[]): string {
   const id = selection.length === 1 ? selection[0] : editor.canvas.scope ?? editor.study.root.id;
-  return editor.study.businessObject(id);
+  const record = editor.study.get(id);
+  return record?.kind === 'label' && record.owner ? record.owner : id;
 }
 
-function useSelectedElement(editor: Editor): any {
-  const [element, setElement] = useState<any>(() => inspected(editor, []));
+/** The inspected element as the study holds it now: read again after every change, so it is never an older one. */
+function useSelectedElement(editor: Editor): Element | undefined {
+  const [id, setId] = useState<string>(() => inspected(editor, []));
   const [, bumpVersion] = useReducer((version) => version + 1, 0);
-  const elementRef = useRef<any>(element);
-
-  // Matching `ElementsChanged` against a ref keeps the subscription from re-establishing on every selection change.
-  useEffect(() => {
-    elementRef.current = element;
-  }, [element]);
 
   useEffect(() => {
-    const onRootSet = () => setElement(inspected(editor, []));
-    const onSelectionChanged = (e: any) => setElement(inspected(editor, e.newSelection ?? []));
-    const onElementsChanged = (e: { added: string[]; changed: string[] }) => {
-      const shown = elementRef.current;
-      if (shown && [...e.added, ...e.changed].includes(shown.id)) bumpVersion();
-    };
+    const onRootSet = () => setId(inspected(editor, []));
+    const onSelectionChanged = (e: any) => setId(inspected(editor, e.newSelection ?? []));
 
     editor.events.on('SelectionChanged', onSelectionChanged);
     editor.events.on('RootSet', onRootSet);
-    editor.events.on('ElementsChanged', onElementsChanged);
+    const stopListening = editor.study.on('change', bumpVersion);
 
     return () => {
       editor.events.off('SelectionChanged', onSelectionChanged);
       editor.events.off('RootSet', onRootSet);
-      editor.events.off('ElementsChanged', onElementsChanged);
+      stopListening();
     };
   }, [editor]);
 
-  return element;
+  return editor.study.element(id);
 }
 
 export function Panel() {
   const modeler = useModeler();
   const element = useSelectedElement(modeler);
+  const { model } = modeler.study;
   // Below 900px an open panel leaves no canvas worth drawing on (the same
   // threshold `--inspector-gutter` uses), so it starts out of the way. The
   // toggle is still there, and reopening floats it over the canvas.
@@ -108,7 +102,7 @@ export function Panel() {
   const toggle = () => setIsVisible((v) => !v);
 
   return (
-    <InspectorContext.Provider value={{ element }}>
+    <InspectorContext.Provider value={{ element, model }}>
       <div className={s.wrapper}>
         <div
           data-testid="inspector-root"
@@ -118,11 +112,11 @@ export function Panel() {
         >
           {element && (
             <>
-              <Header element={element} />
+              <Header element={element} model={model} />
               <div className={s.panelBody}>
                 <CategoryTabs
                   element={element}
-                  categories={Object.entries(getAttributesByCategory(element))}
+                  categories={Object.entries(getAttributesByCategory(model, element))}
                 />
               </div>
             </>

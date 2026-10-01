@@ -9,7 +9,8 @@ import 'prismjs/components/prism-python';
 import 'prismjs/themes/prism.css';
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
-import { getAttribute } from '@core/element';
+import { useInspectedModel } from '@modeler/inspector/hooks';
+import { readAttribute } from '@modeler/inspector/element';
 import { executeCommand } from '@modeler/commandBus';
 import { useAttributeState } from '@modeler/inspector/hooks';
 import { parseSchemaBody, type SchemaColumn, type SchemaFormat } from '@core/document';
@@ -36,6 +37,7 @@ function highlight(code: string, language: string): string {
 
 export function CodeEditor({ attrDef }: { attrDef: AttributeSpec }) {
   const { value, commit, attributeName, element, modeler } = useAttributeState<string>(attrDef, (raw) => raw || '');
+  const model = useInspectedModel();
   const languageAttr: string | undefined = attrDef.meta?.languageAttr;
   const [modalOpen, setModalOpen] = useState(false);
   const [modalValue, setModalValue] = useState(value);
@@ -43,7 +45,7 @@ export function CodeEditor({ attrDef }: { attrDef: AttributeSpec }) {
 
   function showEditorModal() {
     setModalValue(value);
-    setModalLanguage(languageAttr ? String(getAttribute(element, languageAttr) ?? '') : '');
+    setModalLanguage(languageAttr ? String(readAttribute(model, element, languageAttr) ?? '') : '');
     setModalOpen(true);
   }
 
@@ -53,7 +55,7 @@ export function CodeEditor({ attrDef }: { attrDef: AttributeSpec }) {
 
   function saveModal() {
     commit(modalValue);
-    if (languageAttr && modalLanguage !== String(getAttribute(element, languageAttr) ?? '')) {
+    if (languageAttr && modalLanguage !== String(readAttribute(model, element, languageAttr) ?? '')) {
       executeCommand(modeler, {
         type: 'UpdateAttribute', element, attributeName: languageAttr, value: modalLanguage || undefined,
       });

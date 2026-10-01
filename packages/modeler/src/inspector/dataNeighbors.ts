@@ -1,6 +1,5 @@
-import { StudyflowElement, toBusinessObject } from '@core/element';
 import { getCatalog, isBpmnSubtypeOf } from '@core/notation';
-import { is } from '@modeler/editor/port';
+import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 
 const DATA_BPMN_TYPES = [
   'bpmn:DataObject',
@@ -11,17 +10,13 @@ const DATA_BPMN_TYPES = [
   'bpmn:Property',
 ];
 
-function isDataElement(element: any): boolean {
-  if (!element) return false;
-  if (DATA_BPMN_TYPES.some((t) => is(element, t))) return true;
-  const bpmnType = getCatalog().bpmnTypeOf(StudyflowElement.fromBusinessObject(element).extensionType);
+function isDataElement(model: StudyModel, element: Element): boolean {
+  if (DATA_BPMN_TYPES.some((t) => model.isA(element, t))) return true;
+  const bpmnType = getCatalog().bpmnTypeOf(model.extensionType(element));
   return !!bpmnType && DATA_BPMN_TYPES.some((t) => isBpmnSubtypeOf(bpmnType, t));
 }
 
-function nameOf(element: any): string | undefined {
-  const bo = toBusinessObject(element);
-  return bo?.name || bo?.id || element?.id;
-}
+const nameOf = (element: Element): string | undefined => (typeof element.name === 'string' && element.name) || element.id;
 
 /** BPMN's own name for each data element kind, most specific first. */
 const KIND_LABELS: Array<[string, string]> = [
@@ -34,8 +29,8 @@ const KIND_LABELS: Array<[string, string]> = [
   ['bpmn:DataOutput', 'data output'],
 ];
 
-function kindOf(element: any): string {
-  for (const [type, label] of KIND_LABELS) if (is(element, type)) return label;
+function kindOf(model: StudyModel, element: Element): string {
+  for (const [type, label] of KIND_LABELS) if (model.isA(element, type)) return label;
   return 'data';
 }
 
@@ -50,52 +45,44 @@ export type DataNeighbor = {
   associationId?: string;
 };
 
-function containerOf(element: any): any {
-  let node = toBusinessObject(element)?.$parent;
-  while (node && !is(node, 'bpmn:Process') && !is(node, 'bpmn:SubProcess')) node = node.$parent;
+function containerOf(model: StudyModel, element: Element): Element | undefined {
+  let node = model.parentOf(element);
+  while (node && !model.isA(node, 'bpmn:Process') && !model.isA(node, 'bpmn:SubProcess')) node = model.parentOf(node);
   return node;
 }
 
-function outerScopeOf(element: any, dataElement: any): string | undefined {
-  const owner = containerOf(dataElement);
-  if (!owner || owner === containerOf(element)) return undefined;
-  return owner.name || owner.id;
+function outerScopeOf(model: StudyModel, element: Element, dataElement: Element): string | undefined {
+  const owner = containerOf(model, dataElement);
+  if (!owner || owner === containerOf(model, element)) return undefined;
+  return nameOf(owner);
 }
 
-export function supportsDataAssociations(element: any, direction: 'inputs' | 'outputs'): boolean {
-  const listName = direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations';
-  const properties: any[] = toBusinessObject(element)?.$descriptor?.properties ?? [];
-  return properties.some((property: any) => property?.name === listName);
+export function supportsDataAssociations(model: StudyModel, element: Element, direction: 'inputs' | 'outputs'): boolean {
+  return !!model.property(element, direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations');
 }
 
-export function getInferredDataNeighbors(
-  element: any,
-  direction: 'inputs' | 'outputs',
-): DataNeighbor[] {
-  const businessObject = toBusinessObject(element);
-  const listName = direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations';
-  const associations: any[] = businessObject?.get?.(listName) ?? businessObject?.[listName] ?? [];
+const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : value === undefined ? [] : [value]);
 
-  return associations
-    .flatMap((association: any) => {
-      // BPMN gives an input association many sources and an output association one target.
-      const ends: any[] = direction === 'inputs'
-        ? association?.sourceRef ?? []
-        : [association?.targetRef].filter(Boolean);
-      const expression = association.get?.('transformation') ?? association.transformation;
-      const raw = expression?.get?.('body') ?? expression?.body;
-      const binding = (typeof raw === 'string' ? raw : undefined) || undefined;
+export function getInferredDataNeighbors(model: StudyModel, element: Element, direction: 'inputs' | 'outputs'): DataNeighbor[] {
+  const associations = listIn(element[direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations']).filter(isElement);
 
-      return ends
-        .filter(isDataElement)
-        .filter((end: any) => !!nameOf(end))
-        .map((end: any): DataNeighbor => ({
-          name: nameOf(end) as string,
-          binding,
-          declared: is(end, 'bpmn:Property'),
-          kind: kindOf(end),
-          outerScope: is(end, 'bpmn:Property') ? undefined : outerScopeOf(element, end),
-          associationId: association?.id,
-        }));
-    });
+  return associations.flatMap((association) => {
+    // BPMN gives an input association many sources and an output association one target.
+    const ends = (direction === 'inputs' ? listIn(association.sourceRef) : listIn(association.targetRef))
+      .map((ref) => model.get(idOf(ref) ?? undefined))
+      .filter((end): end is Element => !!end);
+    const raw = isElement(association.transformation) ? association.transformation.body : association.transformation;
+    const binding = (typeof raw === 'string' ? raw : undefined) || undefined;
+
+    return ends
+      .filter((end) => isDataElement(model, end) && !!nameOf(end))
+      .map((end): DataNeighbor => ({
+        name: nameOf(end)!,
+        binding,
+        declared: model.isA(end, 'bpmn:Property'),
+        kind: kindOf(model, end),
+        outerScope: model.isA(end, 'bpmn:Property') ? undefined : outerScopeOf(model, element, end),
+        associationId: association.id,
+      }));
+  });
 }

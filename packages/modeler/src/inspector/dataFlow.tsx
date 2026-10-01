@@ -4,7 +4,7 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 import { ICONS } from '@modeler/icons';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
-import { useInspectedElement } from '@modeler/inspector/hooks';
+import { useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
 import { HelpTooltip } from '@modeler/inspector/widgets';
 import { getInferredDataNeighbors, supportsDataAssociations, type DataNeighbor } from '@modeler/inspector/dataNeighbors';
 import { getPropertiesInScope } from '@modeler/inspector/stateProperties';
@@ -22,6 +22,7 @@ type Direction = 'input' | 'output';
 
 export function DataFlowSection({ direction }: { direction: Direction }) {
   const element = useInspectedElement();
+  const model = useInspectedModel();
   const modeler = useModeler();
 
   const [, setRevision] = useState(0);
@@ -31,14 +32,15 @@ export function DataFlowSection({ direction }: { direction: Direction }) {
     return () => modeler.events.off('ElementsChanged', bump);
   }, [modeler]);
 
-  const inScope = getPropertiesInScope(element);
+  if (!element) return null;
+  const inScope = getPropertiesInScope(model, element);
   const neighbors: Record<Direction, DataNeighbor[]> = {
-    input: getInferredDataNeighbors(element, 'inputs'),
-    output: getInferredDataNeighbors(element, 'outputs'),
+    input: getInferredDataNeighbors(model, element, 'inputs'),
+    output: getInferredDataNeighbors(model, element, 'outputs'),
   };
   const supported: Record<Direction, boolean> = {
-    input: supportsDataAssociations(element, 'inputs'),
-    output: supportsDataAssociations(element, 'outputs'),
+    input: supportsDataAssociations(model, element, 'inputs'),
+    output: supportsDataAssociations(model, element, 'outputs'),
   };
 
   if (!supported[direction]) return null;

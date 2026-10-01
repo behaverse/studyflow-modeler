@@ -4,6 +4,7 @@
  * participant the actor below.
  */
 import { idOf, type Element, type StudyModel } from '@core/model/index';
+import type { Ids } from '@core/model/items';
 import { wiredIn } from '@core/model/parameters';
 
 export const DEFAULT_TOP = 'Participant A';
@@ -56,4 +57,52 @@ export function bandsOf(model: StudyModel, task: Element): { top: string; bottom
     bottom: name(bottom) ?? DEFAULT_BOTTOM,
     initiator: initiating && bottom && initiating === bottom.id && bottom !== top ? 'bottom' : 'top',
   };
+}
+
+/**
+ * The element that holds a choreography task's participants: its enclosing `bpmn:Choreography` or, in a study rooted
+ * on a process, a `bpmn:Collaboration` among its roots. One is made (with no drawing, so its participants live in the
+ * file without being drawn) when neither is there.
+ */
+function participantHolderIn(model: StudyModel, task: Element, ids: Ids): Element {
+  for (let at = model.parentOf(task); at; at = model.parentOf(at)) if (model.isA(at, 'bpmn:Collaboration')) return at;
+  const existing = model.study.roots.find((root) => model.isA(root, 'bpmn:Collaboration'));
+  if (existing) return existing;
+  const made: Element = { type: 'bpmn:Collaboration', id: ids.next('Collaboration_'), participants: [] };
+  model.study.roots.push(made);
+  return made;
+}
+
+/** A new participant named `name`, filed with the task's other participants. */
+export function mintParticipantIn(model: StudyModel, task: Element, name: string, ids: Ids): Element {
+  const holder = participantHolderIn(model, task, ids);
+  const participant: Element = { type: 'bpmn:Participant', id: ids.next('Participant_'), name };
+  holder.participants = [...(Array.isArray(holder.participants) ? holder.participants : []), participant];
+  model.reindex();
+  return participant;
+}
+
+/**
+ * The `[top, bottom]` participants of a choreography task, minting what the study lacks: a plain task gets two, the
+ * top one initiating unless the task names one; a typed task gets one, the actor (both bands answer it), and no
+ * initiator, since the presenting side is the task itself.
+ */
+export function ensureParticipantsIn(model: StudyModel, task: Element, ids: Ids): [Element, Element] {
+  const list = participantsOf(model, task);
+  if (isTypedChoreography(model, task)) {
+    if (list.length >= 1) {
+      const actor = actorIn(model, task)!;
+      return [actor, actor];
+    }
+    const actor = mintParticipantIn(model, task, 'Participant', ids);
+    task.participantRef = [actor.id!];
+    delete task.initiatingParticipantRef;
+    return [actor, actor];
+  }
+  if (list.length >= 2) return [list[0], list[1]];
+  const top = list[0] ?? mintParticipantIn(model, task, DEFAULT_TOP, ids);
+  const bottom = list[1] ?? mintParticipantIn(model, task, DEFAULT_BOTTOM, ids);
+  task.participantRef = [top.id!, bottom.id!];
+  task.initiatingParticipantRef ??= top.id!;
+  return [top, bottom];
 }

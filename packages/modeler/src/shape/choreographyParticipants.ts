@@ -1,52 +1,40 @@
-import { DEFAULT_BOTTOM, DEFAULT_TOP, actorOf, ensureChoreographyParticipants, isTypedChoreography, mintParticipant } from '@core/document';
-import { definitionsOf, getAttribute, toBusinessObject } from '@core/element';
+import { DEFAULT_BOTTOM, DEFAULT_TOP, actorIn, ensureParticipantsIn, isTypedChoreography, mintParticipantIn } from '@core/model/choreography';
+import { idOf, isElement, type Element, type StudyModel } from '@core/model/index';
+import type { Ids } from '@core/model/items';
 import { getCatalog } from '@core/notation';
-import type { StudyWriter } from '@canvas/index.ts';
 
-/* Who takes a choreography task's bands, as inspector edits: the participants themselves are minted by core's
-   `ensureChoreographyParticipants` and `mintParticipant`, and each edit here goes through a study edit's `writer`. */
+/* Who takes a choreography task's bands, as inspector edits: each changes the study model a `study.revise` hands it,
+   the participants minted by core's `ensureParticipantsIn` and `mintParticipantIn`. */
 
 /** What finds what the study draws, by id: the editor's study. */
 type Drawn = { get(id: string): unknown };
 
 /** A pool on the canvas, as against an actor that only takes bands: one with a process, or one the study draws
  * (a model's pool has no process of its own). */
-export function isPool(participant: any, drawn: Drawn): boolean {
+export function isPool(participant: Element | undefined, drawn: Drawn): boolean {
   return Boolean(participant?.processRef) || Boolean(participant?.id && drawn.get(participant.id));
 }
 
 /** A new actor for a typed task, named as typed, put on its band in place of a drawn pool that must keep its name. */
-export function nameNewActor(element: any, writer: StudyWriter, drawn: Drawn, name: string): void {
-  const actor = mintParticipant(toBusinessObject(element) as any, name, writer.ids);
-  if (actor) selectBandParticipant(element, writer, drawn, 'bottom', actor);
+export function nameNewActor(model: StudyModel, task: Element, ids: Ids, drawn: Drawn, name: string): void {
+  selectBandParticipant(model, task, ids, drawn, 'bottom', mintParticipantIn(model, task, name, ids));
 }
 
-/** Whether another choreography task in the file still shows `participant` on a band. */
-function referencedElsewhere(definitions: any, participant: any, except: any): boolean {
-  const visit = (container: any): boolean => (container?.get?.('flowElements') ?? container?.flowElements ?? [])
-    .some((el: any) => (el !== except && (el.get?.('participantRef') ?? el.participantRef ?? []).includes(participant)) || visit(el));
-  return (definitions?.get?.('rootElements') ?? definitions?.rootElements ?? []).some(visit);
-}
+const refsOf = (element: Element): string[] => (Array.isArray(element.participantRef) ? element.participantRef.map(idOf).filter((id): id is string => !!id) : []);
 
 /** Drop a participant that only ever took bands and takes none any more; a pool on the canvas stays. */
-function dropIfOrphan(element: any, writer: StudyWriter, drawn: Drawn, participant: any): void {
+function dropIfOrphan(model: StudyModel, task: Element, drawn: Drawn, participant: Element | undefined): void {
   if (!participant || isPool(participant, drawn)) return;
-  const definitions = definitionsOf(participant);
-  if (referencedElsewhere(definitions, participant, toBusinessObject(element))) return;
-  const holder = participant.$parent;
-  const held: any[] = holder?.get?.('participants') ?? holder?.participants ?? [];
-  if (!holder || !held.includes(participant)) return;
-  writer.set(holder, { participants: held.filter((p: any) => p !== participant) });
+  if ([...model.all()].some((element) => element !== task && refsOf(element).includes(participant.id!))) return;
+  const holder = model.parentOf(participant);
+  if (!holder || !Array.isArray(holder.participants)) return;
+  holder.participants = holder.participants.filter((held) => held !== participant);
+  model.reindex();
 }
 
-export function swapChoreographyInitiator(element: any, writer: StudyWriter): void {
-  const bo: any = toBusinessObject(element);
-  const pair = ensureChoreographyParticipants(bo, writer.ids);
-  if (!pair) return;
-  const [top, bottom] = pair;
-  writer.set(bo, {
-    initiatingParticipantRef: bo.get('initiatingParticipantRef') === top ? bottom : top,
-  });
+export function swapChoreographyInitiator(model: StudyModel, task: Element, ids: Ids): void {
+  const [top, bottom] = ensureParticipantsIn(model, task, ids);
+  task.initiatingParticipantRef = idOf(task.initiatingParticipantRef) === top.id ? bottom.id! : top.id!;
 }
 
 /* --- Choosing who takes a band, and what kind of actor that is --- */
@@ -81,77 +69,81 @@ export function participantKinds(): ParticipantKind[] {
   });
 }
 
-/** Every participant the file declares: the pools drawn on the canvas and the actors that only take bands. */
-export function listParticipants(bo: any): any[] {
-  const definitions = definitionsOf(bo);
-  return (definitions?.get?.('rootElements') ?? definitions?.rootElements ?? [])
-    .filter((root: any) => root?.$type === 'bpmn:Collaboration' || root?.$type === 'bpmn:Choreography')
-    .flatMap((holder: any) => holder.get?.('participants') ?? holder.participants ?? []);
+/** Every participant the study declares: the pools drawn on the canvas and the actors that only take bands. */
+export function listParticipants(model: StudyModel): Element[] {
+  return model.study.roots
+    .filter((root) => model.isA(root, 'bpmn:Collaboration'))
+    .flatMap((holder) => (Array.isArray(holder.participants) ? holder.participants.filter(isElement) : []));
 }
 
-/** The participant's kind from its extension: the type it carries and, among that type's kinds, the one its attribute picks (its default when unset). */
-export function participantKind(participant: any): ParticipantKind | undefined {
+/** What types a participant: itself, when a schema types it, and the entries it carries. */
+const typingsOf = (model: StudyModel, participant: Element): Element[] =>
+  [...(model.host(participant) !== participant.type ? [participant] : []), ...model.entries(participant)];
+
+/** The participant's kind from its type: the type it carries and, among that type's kinds, the one its attribute picks (its default when unset). */
+export function participantKind(model: StudyModel, participant: Element | undefined): ParticipantKind | undefined {
+  if (!participant) return undefined;
   const kinds = participantKinds();
-  for (const ext of participant?.extensionElements?.values ?? []) {
-    const ofType = kinds.filter((kind) => kind.type.toLowerCase() === String(ext?.$type ?? '').toLowerCase());
+  for (const typed of typingsOf(model, participant)) {
+    const ofType = kinds.filter((kind) => kind.type.toLowerCase() === typed.type.toLowerCase());
     if (ofType.length === 0) continue;
     const attribute = ofType[0].attribute;
     if (!attribute) return ofType[0];
-    const value = String(getAttribute(participant, attribute) ?? '');
+    const value = String(model.attributeOrDefault(participant, attribute) ?? '');
     return ofType.find((kind) => kind.value === value) ?? ofType[0];
   }
   return undefined;
+}
+
+/** The participant as the BPMN participant it is, with no schema type and no entries. */
+function untype(model: StudyModel, participant: Element): void {
+  const typed = model.typedEntry(participant);
+  if (typed) {
+    for (const key of Object.keys(typed)) if (key !== 'type') delete participant[key];
+    participant.type = model.host(participant);
+  }
+  delete participant.extensionElements;
 }
 
 /**
  * Type a participant that only takes bands as the kind `id` names, or untype it (`''`). The participant has no
  * shape, so the edit is about the task whose band shows it.
  */
-export function setParticipantKind(writer: StudyWriter, participant: any, id: string): void {
-  if (!participant || (participantKind(participant)?.id ?? '') === id) return;
+export function setParticipantKind(model: StudyModel, participant: Element | undefined, id: string): void {
+  if (!participant || (participantKind(model, participant)?.id ?? '') === id) return;
   if (!id) {
-    writer.set(participant, { extensionElements: undefined });
+    untype(model, participant);
     return;
   }
   const kind = participantKinds().find((candidate) => candidate.id === id);
   if (!kind) return;
-  const current = (participant.extensionElements?.values ?? []).find((ext: any) => String(ext?.$type ?? '').toLowerCase() === kind.type.toLowerCase());
-  if (current && kind.attribute) { // the same extension, another of its kinds
-    writer.set(current, { [kind.attribute]: kind.value });
+  const current = typingsOf(model, participant).find((typed) => typed.type.toLowerCase() === kind.type.toLowerCase());
+  if (current && kind.attribute) { // the same type, another of its kinds
+    current[kind.attribute] = kind.value!;
     return;
   }
-  const wrapper = writer.create(kind.type, kind.attribute ? { [kind.attribute]: kind.value } : {});
-  const container = writer.create('bpmn:ExtensionElements', { values: [wrapper] });
-  wrapper.$parent = container;
-  container.$parent = participant;
-  writer.set(participant, { extensionElements: container });
+  untype(model, participant);
+  participant.extensionElements = [{ type: kind.type, ...(kind.attribute ? { [kind.attribute]: kind.value! } : {}) }];
 }
 
 /**
  * Put an existing participant (a pool, or an actor) on a band, or clear the band with `null`: a typed task then
  * falls back to the pool it sits in, a plain task gets a fresh placeholder. The initiator follows a replaced band.
  */
-export function selectBandParticipant(element: any, writer: StudyWriter, drawn: Drawn, band: 'top' | 'bottom', participant: any | null): void {
-  const bo: any = toBusinessObject(element);
-  if (isTypedChoreography(bo)) {
-    const replaced = actorOf(bo);
-    if (replaced === participant) return;
-    writer.set(bo, { participantRef: participant ? [participant] : [], initiatingParticipantRef: undefined });
-    dropIfOrphan(element, writer, drawn, replaced);
+export function selectBandParticipant(model: StudyModel, task: Element, ids: Ids, drawn: Drawn, band: 'top' | 'bottom', participant: Element | null): void {
+  if (isTypedChoreography(model, task)) {
+    const replaced = actorIn(model, task);
+    if (replaced?.id === participant?.id) return;
+    task.participantRef = participant ? [participant.id!] : [];
+    delete task.initiatingParticipantRef;
+    dropIfOrphan(model, task, drawn, replaced);
     return;
   }
-  const pair = ensureChoreographyParticipants(bo, writer.ids);
-  if (!pair) return;
-  const [top, bottom] = pair;
+  const [top, bottom] = ensureParticipantsIn(model, task, ids);
   const replaced = band === 'top' ? top : bottom;
-  if (replaced === participant) return;
-  const next = participant ?? mintParticipant(bo, band === 'top' ? DEFAULT_TOP : DEFAULT_BOTTOM, writer.ids);
-  if (!next) return;
-  const refs = band === 'top' ? [next, bottom] : [top, next];
-  const initiating = bo.get('initiatingParticipantRef');
-  writer.set(bo, {
-    participantRef: refs,
-    initiatingParticipantRef: initiating === replaced ? next : initiating,
-  });
-  dropIfOrphan(element, writer, drawn, replaced);
+  if (replaced.id === participant?.id) return;
+  const next = participant ?? mintParticipantIn(model, task, band === 'top' ? DEFAULT_TOP : DEFAULT_BOTTOM, ids);
+  task.participantRef = band === 'top' ? [next.id!, bottom.id!] : [top.id!, next.id!];
+  if (idOf(task.initiatingParticipantRef) === replaced.id) task.initiatingParticipantRef = next.id!;
+  dropIfOrphan(model, task, drawn, replaced);
 }

@@ -14,13 +14,14 @@ import {
 } from '@headlessui/react';
 import { useState } from 'react';
 import { t } from '@modeler/i18n';
-import { actorOf, isTypedChoreography, readChoreographyBands } from '@core/document';
-import { StudyflowElement, isExtensionPrefix } from '@core/element';
+import { isExtensionPrefix } from '@core/element';
+import { actorIn, bandsOf, isTypedChoreography } from '@core/model/choreography';
+import { idOf, type Value } from '@core/model/index';
 import { getCatalog } from '@core/notation';
 import { isPool, listParticipants, participantKind, participantKinds, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
-import { InspectorContext } from '@modeler/inspector/hooks';
+import { InspectorContext, useInspectedModel } from '@modeler/inspector/hooks';
 import { AttributeInput } from '@modeler/inspector/registry';
 import { categoriesOf, isAttributeVisible } from '@modeler/inspector/categories';
 import { HelpTooltip } from '@modeler/inspector/widgets';
@@ -34,9 +35,9 @@ const INITIATOR_HELP = 'Which participant starts the interaction; its band is dr
 const KIND_HELP = 'What takes this band, among the kinds the loaded extensions declare; the settings of that kind follow.';
 
 export function ChoreographyParticipantsSection({ element }: { element: any }) {
-  const businessObject = element?.businessObject ?? element;
-  if (businessObject?.$type !== 'bpmn:ChoreographyTask') return null;
-  return <ParticipantFields key={businessObject.id} element={element} />;
+  const model = useInspectedModel();
+  if (!element || model.host(element) !== 'bpmn:ChoreographyTask') return null;
+  return <ParticipantFields key={element.id} element={element} />;
 }
 
 /** How a participant's kind reads: a drawn pool's is set on the pool, a band-only actor's on the band. */
@@ -53,9 +54,10 @@ function ParticipantField({ element, field, participant, label, help, declared, 
   element: any; field: 'top' | 'bottom'; participant: any; label: string; help: string; declared: any[]; typed: boolean; fallback?: string;
 }) {
   const modeler = useModeler();
+  const model = useInspectedModel();
   const [query, setQuery] = useState('');
   const name = participant?.name ?? fallback; // a plain task's band reads its placeholder until someone is named
-  const kind = participantKind(participant);
+  const kind = participantKind(model, participant);
   // Typing narrows the list to matching participants, so Enter on a name no one has commits the text itself.
   const q = query.trim().toLowerCase();
   const options = q ? declared.filter((p: any) => String(p.name ?? p.id).toLowerCase().includes(q)) : declared;
@@ -100,7 +102,7 @@ function ParticipantField({ element, field, participant, label, help, declared, 
               {!q && <ComboboxOption value="" className={s.comboOption}>{t('participantNone')}</ComboboxOption>}
               {options.map((p: any) => (
                 <ComboboxOption key={p.id} value={p.id} className={s.comboOption}>
-                  {p.name || p.id}{participantKind(p) ? ` (${kindLabel(participantKind(p))})` : ''}
+                  {p.name || p.id}{participantKind(model, p) ? ` (${kindLabel(participantKind(model, p))})` : ''}
                 </ComboboxOption>
               ))}
             </ComboboxOptions>
@@ -123,14 +125,16 @@ function ActorFields({ element, field, participant, kind }: {
   element: any; field: 'top' | 'bottom'; participant: any; kind: ParticipantKind | undefined;
 }) {
   const modeler = useModeler();
+  const model = useInspectedModel();
   const kinds = [{ name: kindLabel(undefined), value: '' }, ...participantKinds().map((k) => ({ name: k.label, value: k.id }))];
   // Kind stands for the attribute that picks it; the rest of the extension's default-tab settings render as they would on a pool.
-  const attrDefs = StudyflowElement.fromBusinessObject(participant).extensionAttributes()
+  const extensionType = model.extensionType(participant);
+  const attrDefs = (extensionType ? getCatalog().instanceAttributesOf(extensionType) : [])
     .filter((d) => (isExtensionPrefix(d.ns?.prefix) || !!d.redefines) && d.ns?.localName !== kind?.attribute)
     .filter((d) => categoriesOf(d).includes(getCatalog().defaultCategoryOf(d.ns?.prefix)))
     .sort((a, b) => (a.meta?.order ?? Infinity) - (b.meta?.order ?? Infinity));
   return (
-    <InspectorContext.Provider value={{ element: participant }}>
+    <InspectorContext.Provider value={{ element: participant, model }}>
       <Field className={s.field}>
         <Label className={s.label}>
           {t('participantKind')}
@@ -146,7 +150,7 @@ function ActorFields({ element, field, participant, kind }: {
           />
         </div>
       </Field>
-      {attrDefs.filter((d) => isAttributeVisible(d, participant)).map((d) => (
+      {attrDefs.filter((d) => isAttributeVisible(model, d, participant)).map((d) => (
         <Field key={d.ns.name} className={s.field}><AttributeInput attrDef={d} /></Field>
       ))}
     </InspectorContext.Provider>
@@ -155,17 +159,17 @@ function ActorFields({ element, field, participant, kind }: {
 
 function ParticipantFields({ element }: { element: any }) {
   const modeler = useModeler();
-  const bo = element.businessObject ?? element;
-  const bands = readChoreographyBands(bo);
-  const refs: any[] = bo.get?.('participantRef') ?? bo.participantRef ?? [];
-  const declared = listParticipants(bo);
-  const typed = isTypedChoreography(bo);
+  const model = useInspectedModel();
+  const bands = bandsOf(model, element);
+  const refs = (Array.isArray(element.participantRef) ? element.participantRef : []).map((ref: Value) => model.get(idOf(ref) ?? undefined));
+  const declared = listParticipants(model);
+  const typed = isTypedChoreography(model, element);
   const commitInitiator = (value: 'top' | 'bottom') =>
     executeCommand(modeler, { type: 'UpdateChoreographyParticipants', element, field: 'initiator', value });
 
   if (typed) {
     // A cognitive task presents itself (its upper band reads from the task); its one participant takes it.
-    return <ParticipantField element={element} field="bottom" participant={actorOf(bo)} label={t('participant')} help={TAKER_HELP} declared={declared} typed />;
+    return <ParticipantField element={element} field="bottom" participant={actorIn(model, element)} label={t('participant')} help={TAKER_HELP} declared={declared} typed />;
   }
 
   return (

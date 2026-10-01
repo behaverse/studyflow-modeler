@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { StudyflowElement, getAttribute } from '@core/element';
 import { getAttributesByCategory } from '@modeler/inspector/categories';
-import { freshModdle } from './schemas';
+import { freshModdle, studyModel } from './schemas';
 
 /** The executable surface across the task family. */
 
@@ -41,9 +41,17 @@ test('a task keeps its software in BPMN\'s own form: `implementation` an attribu
   }
 });
 
+/** The tabs the inspector shows for one element of `type`, alone in a study (a process is the study). */
+function categoriesOf(type: string): Record<string, unknown[]> {
+  const head = 'id: D\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n';
+  const local = type.replace('bpmn:', '');
+  const model = studyModel(type === 'bpmn:Process' ? `${head}T_3:\n  type: ${local}\n` : `${head}P:\n  type: Process\n  flowElements:\n    T_3: { type: ${local} }\n`);
+  return getAttributesByCategory(model, model.get('T_3')!);
+}
+
 test('the inspector offers implementation on the native types, script on script tasks', () => {
   const executionNames = (taskType: string) =>
-    (getAttributesByCategory(moddle.create(taskType, { id: 'T_2' }))['Execution'] ?? [])
+    ((categoriesOf(taskType)['Execution'] ?? []) as any[])
       .map((attr: any) => attr.ns?.localName ?? attr.name);
 
   for (const taskType of NATIVE_TYPES) {
@@ -63,6 +71,6 @@ test('the Execution tab is for what runs or holds state: activities and the stud
     ['bpmn:StartEvent', false],
   ];
   for (const [type, hasTab] of CASES) {
-    expect('Execution' in getAttributesByCategory(moddle.create(type, { id: 'T_3' })), type).toBe(hasTab);
+    expect('Execution' in categoriesOf(type), type).toBe(hasTab);
   }
 });

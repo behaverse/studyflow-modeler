@@ -1,14 +1,11 @@
-import { is } from '@modeler/editor/port';
 import { getCatalog } from '@core/notation';
-import { definitionsOf, toBusinessObject, type ModdleElement } from '@core/element';
-import { isDeclaredProperty } from '@core/constants';
+import { idOf, isElement, type Element, type StudyModel } from '@core/model/index';
 
 export type StateProperty = {
   id: string;
   name: string;
   /** `structureRef` of the referenced item definition, '' when untyped. */
   itemType: string;
-  moddleElement: any;
 };
 
 function builtinItemTypes(): string[] {
@@ -16,64 +13,60 @@ function builtinItemTypes(): string[] {
     .map((literal) => String(literal.value));
 }
 
-function getDeclaredItemTypes(elementOrBo: any): string[] {
-  const rootElements: any[] = definitionsOf(elementOrBo)?.rootElements ?? [];
-  const declared = rootElements
-    .filter((re) => re?.$type === 'bpmn:ItemDefinition')
-    .map((re) => (typeof re.structureRef === 'string' ? re.structureRef.trim() : ''))
+function getDeclaredItemTypes(model: StudyModel): string[] {
+  const declared = model.study.roots
+    .filter((root) => model.host(root) === 'bpmn:ItemDefinition')
+    .map((root) => (typeof root.structureRef === 'string' ? root.structureRef.trim() : ''))
     .filter(Boolean);
   return [...new Set(declared)];
 }
 
-export function itemTypeOptions(elementOrBo: any): string[] {
+export function itemTypeOptions(model: StudyModel): string[] {
   const builtins = builtinItemTypes();
-  const declared = getDeclaredItemTypes(elementOrBo)
+  const declared = getDeclaredItemTypes(model)
     .filter((type) => !builtins.includes(type))
     .sort((a, b) => a.localeCompare(b));
   return [...builtins, ...declared];
 }
 
-/** What a message flow carries: the `structureRef` of its message's item definition, '' when it names none. */
-export function messageStructureOf(elementOrBo: any): string {
-  const flow = toBusinessObject(elementOrBo);
-  const message = flow?.get?.('messageRef') ?? flow?.messageRef;
-  const item = message?.get?.('itemRef') ?? message?.itemRef;
+/** The `structureRef` of the item definition `ref` names, '' when it names none. */
+function structureOf(model: StudyModel, ref: unknown): string {
+  const item = model.get(idOf(ref as never) ?? undefined);
   return typeof item?.structureRef === 'string' ? item.structureRef : '';
 }
 
+/** What a message flow carries: the `structureRef` of its message's item definition, '' when it names none. */
+export function messageStructureOf(model: StudyModel, flow: Element): string {
+  return structureOf(model, model.get(idOf(flow.messageRef) ?? undefined)?.itemRef);
+}
+
 /** Only these three may carry Properties in BPMN 2.0 (§10.3.1). */
-function supportsStateProperties(element: any): boolean {
-  if (!element) return false;
-  return is(element, 'bpmn:Process') || is(element, 'bpmn:Activity') || is(element, 'bpmn:Event');
+function supportsStateProperties(model: StudyModel, element: Element): boolean {
+  return model.isA(element, 'bpmn:Process') || model.isA(element, 'bpmn:Activity') || model.isA(element, 'bpmn:Event');
 }
 
-/** The moddle object whose `properties` an element declares: a pool stands for the process it references. */
-export function scopeOf(elementOrBo: any): ModdleElement {
-  const businessObject = toBusinessObject(elementOrBo);
-  const process = businessObject?.$type === 'bpmn:Participant'
-    ? (businessObject.get?.('processRef') ?? businessObject.processRef)
-    : undefined;
-  return process ?? businessObject;
+/** The element whose `properties` an element declares: a pool stands for the process it references. */
+export function scopeOf(model: StudyModel, element: Element): Element {
+  return model.host(element) === 'bpmn:Participant' ? model.get(idOf(element.processRef) ?? undefined) ?? element : element;
 }
 
-export function isScopeContainer(element: any): boolean {
-  const scope = scopeOf(element);
-  return is(scope, 'bpmn:Process') || is(scope, 'bpmn:SubProcess');
+export function isScopeContainer(model: StudyModel, element: Element): boolean {
+  const scope = scopeOf(model, element);
+  return model.isA(scope, 'bpmn:Process') || model.isA(scope, 'bpmn:SubProcess');
 }
 
-function declaredProperties(element: any): any[] {
-  const businessObject = scopeOf(element);
-  const properties = businessObject?.get?.('properties') ?? businessObject?.properties ?? [];
-  return (Array.isArray(properties) ? properties : []).filter((p: any) => isDeclaredProperty(p));
+/** The `bpmn:Property` elements an element declares. */
+export function declaredProperties(model: StudyModel, element: Element): Element[] {
+  const { properties } = scopeOf(model, element);
+  return (Array.isArray(properties) ? properties : []).filter((p): p is Element => isElement(p) && model.host(p) === 'bpmn:Property');
 }
 
-export function getStateProperties(element: any): StateProperty[] {
-  return declaredProperties(element)
-    .map((p: any) => ({
-      id: p.id,
+export function getStateProperties(model: StudyModel, element: Element): StateProperty[] {
+  return declaredProperties(model, element)
+    .map((p) => ({
+      id: String(p.id),
       name: typeof p.name === 'string' ? p.name : '',
-      itemType: p.itemSubjectRef?.structureRef ?? '',
-      moddleElement: p,
+      itemType: structureOf(model, p.itemSubjectRef),
     }));
 }
 
@@ -85,27 +78,27 @@ export type ScopedProperty = StateProperty & {
 };
 
 /** Every property an element may read or write, resolved outward through its containers (BPMN 2.0 §10.4.7); an inner declaration shadows an outer one of the same name. */
-export function getPropertiesInScope(element: any): ScopedProperty[] {
+export function getPropertiesInScope(model: StudyModel, element: Element): ScopedProperty[] {
   const out: ScopedProperty[] = [];
   const seenNames = new Set<string>();
 
-  let node: ModdleElement | undefined = scopeOf(element);
+  let node: Element | undefined = scopeOf(model, element);
   let own = true;
   while (node) {
-    if (supportsStateProperties(node)) {
-      for (const property of getStateProperties(node)) {
+    if (supportsStateProperties(model, node)) {
+      for (const property of getStateProperties(model, node)) {
         if (!property.name || seenNames.has(property.name)) continue;
         seenNames.add(property.name);
         out.push({
           ...property,
-          ownerId: node.id,
-          ownerLabel: node.name || node.id,
+          ownerId: String(node.id),
+          ownerLabel: (typeof node.name === 'string' && node.name) || String(node.id),
           own,
-          ownerIsRoot: is(node, 'bpmn:Process'),
+          ownerIsRoot: model.isA(node, 'bpmn:Process'),
         });
       }
     }
-    node = node.$parent;
+    node = model.parentOf(node);
     own = false;
   }
   return out;

@@ -1,10 +1,12 @@
-import { StudyflowElement, getAttribute, isExtensionPrefix } from '@core/element';
+import { getAttributeSpec, isExtensionPrefix } from '@core/element';
+import type { Element, StudyModel } from '@core/model/index';
+import { readAttribute } from '@modeler/inspector/element';
 import { getCatalog, UNDECLARED_CATEGORY_ORDER, type AttributeSpec } from '@core/notation';
 import { toLocalName } from '@core/naming';
 import { supportsLoopCharacteristics } from '@modeler/inspector/loopCharacteristics';
 import { isScopeContainer } from '@modeler/inspector/stateProperties';
 
-export function isAttributeVisible(attrDef: AttributeSpec | undefined, element: any): boolean {
+export function isAttributeVisible(model: StudyModel, attrDef: AttributeSpec | undefined, element: Element | undefined): boolean {
   if (!attrDef || !element) return true;
   if (attrDef.meta?.pinned) return false;
   if (!attrDef.meta?.condition) return true;
@@ -16,7 +18,7 @@ export function isAttributeVisible(attrDef: AttributeSpec | undefined, element: 
     if (expected && typeof expected === 'object' && '$not' in expected) return !matches(actual, (expected as { $not: unknown }).$not);
     return actual === expected;
   };
-  return Object.entries(conditions).every(([key, expected]) => matches(getAttribute(element, key), expected));
+  return Object.entries(conditions).every(([key, expected]) => matches(readAttribute(model, element, key), expected));
 }
 
 /** The tabs an attribute files under: the ones it names, else its schema's default (`TypeCatalog.defaultCategoryOf`). */
@@ -43,10 +45,11 @@ function isIdentity(attrDef: AttributeSpec): boolean {
   );
 }
 
-export function getAttributesByCategory(element: any): Record<string, AttributeSpec[]> {
+export function getAttributesByCategory(model: StudyModel, element: Element): Record<string, AttributeSpec[]> {
   const byCategory: Record<string, AttributeSpec[]> = {};
-  const handle = StudyflowElement.fromBusinessObject(element);
-  const extAttrDefs = handle.extensionAttributes();
+  const host = model.host(element);
+  const extensionType = model.extensionType(element);
+  const extAttrDefs = extensionType ? getCatalog().instanceAttributesOf(extensionType) : [];
   const seen = new Set<string>();
 
   const overridden = new Set(
@@ -56,14 +59,14 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
   );
 
   const identity = [
-    handle.attribute('bpmn:id'),
-    handle.attribute('bpmn:name'),
+    getAttributeSpec(host, 'bpmn:id'),
+    getAttributeSpec(host, 'bpmn:name'),
   ].filter((d): d is AttributeSpec => Boolean(d));
 
   const collect = (attrDefs: readonly AttributeSpec[], predicate: (attrDef: AttributeSpec) => boolean) => {
     attrDefs.forEach((attrDef) => {
       if (!predicate(attrDef)) return;
-      if (!isAttributeVisible(attrDef, element)) return;
+      if (!isAttributeVisible(model, attrDef, element)) return;
 
       const key = attrDef.ns?.name ?? attrDef.name;
       if (seen.has(key)) return;
@@ -80,7 +83,7 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
   // Schema-declared attributes render; plain BPMN natives don't.
   const isDeclared = (attrDef: AttributeSpec) => isExtensionPrefix(attrDef.ns?.prefix) || !!attrDef.redefines;
 
-  collect(handle.attributes(), (attrDef: AttributeSpec) =>
+  collect(getCatalog().instanceAttributesOf(host), (attrDef: AttributeSpec) =>
     !overridden.has(attrDef.ns?.localName ?? attrDef.name)
     && !isIdentity(attrDef)
     && isDeclared(attrDef)
@@ -88,7 +91,7 @@ export function getAttributesByCategory(element: any): Record<string, AttributeS
 
   collect(extAttrDefs, isDeclared);
 
-  if (supportsLoopCharacteristics(element) || isScopeContainer(element)) {
+  if (supportsLoopCharacteristics(model, element) || isScopeContainer(model, element)) {
     byCategory['Execution'] ??= [];
   }
 

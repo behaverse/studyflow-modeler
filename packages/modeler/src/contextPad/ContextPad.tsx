@@ -225,7 +225,7 @@ export function ContextPad() {
         if (label) {
           void executeCommand(modeler, {
             type: 'UpdateAttribute',
-            element: modeler.study.businessObject(label.owner!),
+            element: { id: label.owner },
             attributeName: 'name',
             value: '',
           });

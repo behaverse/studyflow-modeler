@@ -12,6 +12,7 @@ import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute
 import { getProperty, type Moddle } from '@core/element/moddle.ts';
 import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts';
 import { StudyModel, type Element } from '@core/model/index.ts';
+import type { Ids } from '@core/model/items.ts';
 import { readStudy, writeStudy } from '@core/model/yaml.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
@@ -426,14 +427,23 @@ export class Study {
    * read back whole, as `set` reads a value the file spells. Edits naming the same `run` one after another are one
    * undo step. Refused, and nothing changed, when the reader cannot place what was written. In-process only, not a tool.
    */
-  revise(id: string, write: (element: Element, model: StudyModel) => void, run?: string): StudyResult {
+  revise(id: string, write: (element: Element, model: StudyModel, ids: Ids) => void, run?: string): StudyResult {
     const before = this.model;
     const metamodel = before.metamodel;
     const copy = new StudyModel(readStudy(JSON.parse(this.history.now) as YamlDoc, metamodel, () => {}), metamodel);
     const element = copy.get(id);
     if (!element) return refused(`no element '${id}'`);
     const unwritten = JSON.stringify(copy.study);
-    write(element, copy);
+    const { ids } = own(this).mutator;
+    write(element, copy, {
+      next: (prefix) => ids.nextPrefixed(prefix),
+      free: (base) => {
+        let free = base;
+        for (let n = 2; ids.assigned(free); n += 1) free = `${base}_${n}`;
+        ids.claim(free);
+        return free;
+      },
+    });
     if (JSON.stringify(copy.study) === unwritten) return { ok: true, ...NOTHING };
     copy.reindex();
     const moddle = moddleOf(this.definitions);

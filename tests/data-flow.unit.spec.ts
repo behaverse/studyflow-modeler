@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-import { inlineIoSpecification, studyflowToXml } from '@core/document';
+import { inlineIoSpecification, xmlToStudy } from '@core/document';
 import { getInferredDataNeighbors } from '@modeler/inspector/dataNeighbors';
 import { getPropertiesInScope, getStateProperties, isScopeContainer } from '@modeler/inspector/stateProperties';
-import { freshModdle } from './schemas';
+import { freshMetamodel, freshModdle, studyModel } from './schemas';
 import { exampleNames as examples, exampleXml } from './utils';
 
 /** A step's data contract and what the canvas draws are two readings of one file; they must agree. */
@@ -87,15 +87,10 @@ test('every shipped example routes its data flow through data associations, and 
   expect(problems).toEqual([]);
 });
 
-function elementById(definitions: any, id: string): any {
-  return [...activities(definitions), ...(definitions.rootElements ?? [])].find((e: any) => e.id === id);
-}
-
 test.describe('what the inspector reports for a step', () => {
   test('names the scope a data association reaches into, and stays quiet about a sibling', async () => {
     // A step two sub-processes in reads a data object its process declares.
-    const moddle = freshModdle();
-    const { rootElement: definitions } = await moddle.fromXML(await studyflowToXml(`id: harness
+    const model = studyModel(`id: harness
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Harness:
@@ -117,10 +112,9 @@ Harness:
                 In_Rubric:
                   sourceRef: [Rubric]
                   transformation: rubric
-`, moddle));
-    inlineIoSpecification(definitions);
+`);
 
-    expect(getInferredDataNeighbors(elementById(definitions, 'Score'), 'inputs')).toEqual([
+    expect(getInferredDataNeighbors(model, model.get('Score')!, 'inputs')).toEqual([
       expect.objectContaining({
         name: 'Scoring rubric',
         kind: expect.stringMatching(/data object/i),
@@ -129,8 +123,8 @@ Harness:
       }),
     ]);
 
-    const { definitions: sklearn } = await read('sklearn_pipeline');
-    expect(getInferredDataNeighbors(elementById(sklearn, 'select_features'), 'inputs')).toEqual([
+    const sklearn = await xmlToStudy(await exampleXml('sklearn_pipeline'), freshMetamodel());
+    expect(getInferredDataNeighbors(sklearn, sklearn.get('select_features')!, 'inputs')).toEqual([
       expect.objectContaining({
         name: 'input_dataset',
         outerScope: undefined,
@@ -140,17 +134,15 @@ Harness:
 
   test('reads a pool\'s properties from the process it references', async () => {
     // In a collaboration the canvas offers the Collaboration and its pools, never the process itself.
-    const moddle = freshModdle();
-    const { rootElement: definitions } = await moddle.fromXML(`<?xml version="1.0" encoding="UTF-8"?>
+    const model = await xmlToStudy(`<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="D" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:collaboration id="C"><bpmn:participant id="Pool_Reachy" name="Reachy Mini" processRef="Reachy_Participant"/></bpmn:collaboration>
   <bpmn:process id="Reachy_Participant"><bpmn:property id="P_screenGaze" name="screenGaze"/><bpmn:startEvent id="S"/></bpmn:process>
-</bpmn:definitions>`);
-    const collaboration = definitions.rootElements.find((root: any) => root.$type === 'bpmn:Collaboration');
-    const pool = collaboration.participants.find((p: any) => p.id === 'Pool_Reachy');
+</bpmn:definitions>`, freshMetamodel());
+    const pool = model.get('Pool_Reachy')!;
 
-    expect(isScopeContainer(pool)).toBe(true);
-    expect(getStateProperties(pool).map((p) => p.name)).toEqual(['screenGaze']);
-    expect(getPropertiesInScope(pool).map((p) => [p.name, p.ownerId, p.own])).toEqual([['screenGaze', 'Reachy_Participant', true]]);
+    expect(isScopeContainer(model, pool)).toBe(true);
+    expect(getStateProperties(model, pool).map((p) => p.name)).toEqual(['screenGaze']);
+    expect(getPropertiesInScope(model, pool).map((p) => [p.name, p.ownerId, p.own])).toEqual([['screenGaze', 'Reachy_Participant', true]]);
   });
 });

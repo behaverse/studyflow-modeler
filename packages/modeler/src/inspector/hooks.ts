@@ -1,15 +1,23 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { AttributeSpec } from '@core/notation';
-import { getAttribute } from '@core/element';
+import type { Element, StudyModel } from '@core/model/index';
+import { readAttribute } from '@modeler/inspector/element';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 
-export const InspectorContext = createContext<{ element: any | undefined }>({
+export const InspectorContext = createContext<{ element: Element | undefined; model: StudyModel | undefined }>({
   element: undefined,
+  model: undefined,
 });
 
+/** The element the inspector shows, as the study holds it now. */
 export function useInspectedElement(): any | undefined {
   return useContext(InspectorContext).element;
+}
+
+/** The study model the inspected element is in. */
+export function useInspectedModel(): StudyModel {
+  return useContext(InspectorContext).model!;
 }
 
 /** Debounce batches a typing burst into one write, one undo step; the cleanup flush keeps a selection change from swallowing the tail. */
@@ -19,11 +27,12 @@ export function useAttributeState<T>(
   options?: { debounceMs?: number },
 ) {
   const element = useInspectedElement();
+  const model = useInspectedModel();
   const modeler = useModeler();
   const attributeName = attrDef.ns?.name ?? attrDef.name;
   const debounceMs = options?.debounceMs ?? 0;
 
-  const modelValue = parse(getAttribute(element, attributeName));
+  const modelValue = parse(readAttribute(model, element, attributeName));
 
   const pendingRef = useRef<{ element: any; attributeName: string; value: T } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

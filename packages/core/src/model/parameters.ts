@@ -103,3 +103,38 @@ export function wiredIn(model: StudyModel, element: Element): { attributes: Mapp
   const sources = wiredSourcesIn(model, element);
   return sources.length === 0 ? undefined : splitIn(model, element, mergeParameters(element.id!, sources));
 }
+
+export type AttributeOverride = {
+  /** The attribute's local name, the key that sets it. */
+  attribute: string;
+  value: unknown;
+  /** The Parameters objects setting it: more than one is a clash a run refuses. */
+  sources: Element[];
+};
+
+/** Which of a step's attributes the Parameters wired into it set, by local name. */
+export function attributeOverridesIn(model: StudyModel, element: Element): Map<string, AttributeOverride> {
+  const overrides = new Map<string, AttributeOverride>();
+  const sources = wiredSourcesIn(model, element);
+  if (sources.length === 0) return overrides;
+  const names = overridableIn(model, element);
+  for (const [id, values] of sources) {
+    const source = model.get(id)!;
+    for (const [key, value] of Object.entries(values)) {
+      if (!names.has(key)) continue;
+      const known = overrides.get(key);
+      if (known) known.sources.push(source);
+      else overrides.set(key, { attribute: key, value, sources: [source] });
+    }
+  }
+  return overrides;
+}
+
+/** The read-only properties a sub-process takes from the Parameters wired into it: each key that sets none of its
+ * attributes, beside the properties it declares. */
+export function wiredPropertiesIn(model: StudyModel, element: Element): { name: string; value: unknown; source: Element }[] {
+  const names = overridableIn(model, element);
+  return wiredSourcesIn(model, element).flatMap(([id, values]) => Object.entries(values)
+    .filter(([key]) => !names.has(key))
+    .map(([name, value]) => ({ name, value, source: model.get(id)! })));
+}

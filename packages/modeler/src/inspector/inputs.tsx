@@ -19,13 +19,13 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEv
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
 import { getCatalog } from '@core/notation';
-import { getAttribute } from '@core/element';
 import { PLACEHOLDER } from '@core/document/state';
 import { feelSyntaxError } from '@core/expression/feel';
 import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from '@core/document';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
-import { useAttributeState, useInspectedElement } from '@modeler/inspector/hooks';
+import { useAttributeState, useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
+import { readAttribute } from '@modeler/inspector/element';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { field as s } from '@modeler/inspector/styles';
 
@@ -64,10 +64,11 @@ export function ExpressionRow({ name, placeholder, value, onCommit }: {
 
 export function ExpressionInput({ attrDef }: { attrDef: AttributeSpec }) {
   const element = useInspectedElement();
+  const model = useInspectedModel();
   const modeler = useModeler();
   const attributeName = attrDef.ns?.name ?? attrDef.name;
 
-  const raw = getAttribute(element, attributeName);
+  const raw = readAttribute(model, element, attributeName);
   const value = typeof raw === 'string' ? raw : '';
 
   return (

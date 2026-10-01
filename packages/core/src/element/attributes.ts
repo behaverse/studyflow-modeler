@@ -71,8 +71,9 @@ export function getAttributeSpecs(elementOrType: ModdleElement | string | null |
   return getCatalog().instanceAttributesOf(typeNameOf(elementOrType));
 }
 
+/** The spec of the attribute `name` an element, or a type by its name, takes. */
 export function getAttributeSpec(
-  elementOrBO: ModdleElement | null | undefined,
+  elementOrBO: ModdleElement | string | null | undefined,
   name: string | undefined,
 ): AttributeSpec | undefined {
   if (!name) return undefined;

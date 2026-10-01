@@ -5,7 +5,7 @@ import { t } from '@modeler/i18n';
 import { getAttributeSpec } from '@core/element';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
-import { useInspectedElement } from '@modeler/inspector/hooks';
+import { useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { ExpressionRow } from '@modeler/inspector/inputs';
 import {
@@ -35,12 +35,13 @@ function expressionText(value: any): string {
 
 export function LoopSection() {
   const element = useInspectedElement();
+  const model = useInspectedModel();
   const modeler = useModeler();
 
   const loopCharacteristics = getLoopCharacteristics(element);
   const kind = loopKindOf(element);
 
-  if (!supportsLoopCharacteristics(element)) return null;
+  if (!supportsLoopCharacteristics(model, element)) return null;
 
   const setKind = (next: LoopKind) => {
     if (next === kind) return;
@@ -57,7 +58,7 @@ export function LoopSection() {
     executeCommand(modeler, {
       type: 'UpdateLoopCharacteristics',
       element,
-      loopType: loopCharacteristics.$type,
+      loopType: loopCharacteristics!.type,
       properties: { [name]: value },
     });
   };
@@ -69,7 +70,7 @@ export function LoopSection() {
   };
 
   const conditionDef = loopCharacteristics
-    ? getAttributeSpec(loopCharacteristics, 'loopCondition')
+    ? getAttributeSpec(loopCharacteristics.type, 'loopCondition')
     : undefined;
 
   return (
@@ -112,7 +113,7 @@ export function LoopSection() {
             <ExpressionRow
               name="loopCondition"
               placeholder="score < 0.9"
-              value={expressionText(loopCharacteristics.get('loopCondition'))}
+              value={expressionText(loopCharacteristics?.loopCondition)}
               onCommit={(next) => setField('loopCondition', next)}
             />
           </Field>
@@ -126,7 +127,7 @@ export function LoopSection() {
               type="number"
               min={1}
               step={1}
-              value={loopCharacteristics.get('loopMaximum') ?? ''}
+              value={String(loopCharacteristics?.loopMaximum ?? '')}
               onChange={(e: ChangeEvent<HTMLInputElement>) => commitLoopMaximum(e.target.value)}
               className={s.textInput}
             />
@@ -136,7 +137,7 @@ export function LoopSection() {
               <span className={s.booleanGroup}>
                 <Checkbox
                   name="testBefore"
-                  checked={loopCharacteristics.get('testBefore') === true}
+                  checked={loopCharacteristics?.testBefore === true}
                   onChange={(checked: boolean) => setField('testBefore', checked)}
                   className={s.checkbox}
                 >

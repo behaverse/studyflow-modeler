@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Field, Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import { attributeOverrides, type AttributeOverride } from '@core/document';
+import { attributeOverridesIn, type AttributeOverride } from '@core/model/parameters';
 import type { AttributeSpec } from '@core/notation';
 import { t } from '@modeler/i18n';
-import { useInspectedElement } from '@modeler/inspector/hooks';
+import { useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
 import { isAttributeVisible } from '@modeler/inspector/categories';
 import { elementKey } from '@modeler/inspector/element';
 import { AttributeInput, OverriddenInput } from '@modeler/inspector/registry';
@@ -12,8 +12,9 @@ import { inspector as s, field as fld } from '@modeler/inspector/styles';
 
 function AttributeFields({ attrDefs }: { attrDefs: any[] }) {
   const element = useInspectedElement();
+  const model = useInspectedModel();
   // What the Parameters wired into the element set on it.
-  const overrides = attributeOverrides(element);
+  const overrides = element ? attributeOverridesIn(model, element) : new Map<string, AttributeOverride>();
   return (
     <>
       {attrDefs.map((attrDef: AttributeSpec) => (
@@ -29,8 +30,9 @@ function AttributeFields({ attrDefs }: { attrDefs: any[] }) {
 
 function AttributeField({ attrDef, override }: { attrDef: AttributeSpec; override?: AttributeOverride }) {
   const element = useInspectedElement();
+  const model = useInspectedModel();
 
-  if (!isAttributeVisible(attrDef, element)) return null;
+  if (!isAttributeVisible(model, attrDef, element)) return null;
 
   return (
     <Field className={fld.field}>

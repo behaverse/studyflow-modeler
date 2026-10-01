@@ -2,10 +2,10 @@
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions, Input } from '@headlessui/react';
 import { useState, type ChangeEvent } from 'react';
 import { ICONS } from '@modeler/icons';
-import { wiredProperties } from '@core/document';
+import { wiredPropertiesIn } from '@core/model/parameters';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
-import { useInspectedElement } from '@modeler/inspector/hooks';
+import { useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
 import { HelpTooltip } from '@modeler/inspector/widgets';
 import { getStateProperties, isScopeContainer, itemTypeOptions } from '@modeler/inspector/stateProperties';
 import { field as s } from '@modeler/inspector/styles';
@@ -15,14 +15,15 @@ const SCOPE_DESCRIPTION =
 
 export function StateSection() {
   const element = useInspectedElement();
+  const model = useInspectedModel();
   const modeler = useModeler();
 
-  if (!isScopeContainer(element)) return null;
+  if (!element || !isScopeContainer(model, element)) return null;
 
-  const properties = getStateProperties(element);
-  const types = itemTypeOptions(element);
+  const properties = getStateProperties(model, element);
+  const types = itemTypeOptions(model);
   // What the Parameters wired into a sub-process set: properties of it like the declared ones, but read-only.
-  const wired = wiredProperties(element);
+  const wired = wiredPropertiesIn(model, element);
 
   const dispatch = (command: any) =>
     executeCommand(modeler, { type: 'UpdateStateProperties', element, ...command });
@@ -95,9 +96,9 @@ export function StateSection() {
                 <button
                   type="button"
                   className={s.overriddenSource}
-                  onClick={() => executeCommand(modeler, { type: 'SelectElement', id: source.id })}
+                  onClick={() => executeCommand(modeler, { type: 'SelectElement', id: String(source.id) })}
                 >
-                  {source.name || source.id}
+                  {String(source.name || source.id)}
                 </button>
                 ; read-only inside, edit it there.
               </div>
