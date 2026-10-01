@@ -109,7 +109,7 @@ function FallbackForm({ onSubmit }: { onSubmit: (text: string) => void }) {
 
 function Questionnaire({ job, session, log, complete }: NodeProps<QuestionnaireJob>) {
   const definition = getInstrument(job.instrument);
-  const title = definition?.title || job.node.businessObject?.name || 'Questionnaire';
+  const title = definition?.title || readString(job.node, 'name') || 'Questionnaire';
   const instrumentKey = job.instrument || 'unspecified';
 
   return (

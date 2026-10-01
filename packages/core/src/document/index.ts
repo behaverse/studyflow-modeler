@@ -26,8 +26,6 @@ export {
   PARAMETERS_TYPE,
   attributeOverrides,
   effectiveAttribute,
-  hasPath,
-  mergeParameters,
   overridableAttributes,
   parametersOf,
   splitAttributes,
@@ -148,6 +146,7 @@ export {
   extractStudyflowFromPng,
 } from '@core/document/png';
 export { extractStudyflowFromSvg, replaceStudyflowInSvg } from '@core/document/svg';
+export { moddleOf, xmlToStudy } from '@core/document/bpmn';
 
 const metamodels = new WeakMap<object, Metamodel>();
 

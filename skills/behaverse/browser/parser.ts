@@ -1,4 +1,4 @@
-import { getAttribute } from '@core/element';
+import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import type { FlowNode } from '@runner/flow';
 import type { Session } from '@runner/session';
 import { BEHAVERSE_TASK_TYPE, WHO_ANSWERS_KEYS, type BehaverseTaskPayload } from '@skills/behaverse/browser/types';
@@ -19,25 +19,18 @@ export function withRunIdentity(
   };
 }
 
-export function readBehaverseAttribute(bo: any, attributeName: string): string | undefined {
-  const resolved = getAttribute(bo, attributeName);
-  if (typeof resolved === 'string' && resolved.length > 0) return resolved;
-
-  const rawAttrs = bo?.$attrs;
-  if (rawAttrs && typeof rawAttrs === 'object') {
-    const namespaced = rawAttrs[`cognitive:${attributeName}`];
-    if (typeof namespaced === 'string' && namespaced.length > 0) return namespaced;
-    const bare = rawAttrs[attributeName];
-    if (typeof bare === 'string' && bare.length > 0) return bare;
+/** An attribute of a step as text: what its schema entry holds, or a raw `cognitive:` one the file spells. */
+export function readBehaverseAttribute(model: StudyModel, element: Element, attributeName: string): string | undefined {
+  for (const value of [model.attributeOrDefault(element, attributeName), element[`cognitive:${attributeName}`]]) {
+    if (typeof value === 'string' && value.length > 0) return value;
   }
-
   return undefined;
 }
 
 export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | null {
   if (node.extensionType !== BEHAVERSE_TASK_TYPE) return null;
 
-  const instrument = readBehaverseAttribute(node.businessObject, 'instrument') ?? '';
+  const instrument = readBehaverseAttribute(node.model, node.element, 'instrument') ?? '';
   if (!instrument || instrument === 'undefined') {
     throw new Error(
       `behaverse:Task '${node.id}' has no instrument, so the browser runner cannot tell which task to load. `
@@ -45,7 +38,7 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
     );
   }
   // The task's `timeline` is the one place that says what runs; it keys the bridge's completion matcher too.
-  const timeline = readBehaverseAttribute(node.businessObject, 'timeline');
+  const timeline = readBehaverseAttribute(node.model, node.element, 'timeline');
   if (!timeline) {
     throw new Error(
       `behaverse:Task '${node.id}' names no timeline, so it has no trials to run. `
@@ -70,7 +63,7 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
   }
 
   // Who takes the task is its participant (band, message flow, or pool): a person, or a bot of some kind.
-  const actor = actorOf(node.businessObject);
+  const actor = actorOf(node.model, node.element);
   const agentType: 'human' | 'bot' = actor.kind && actor.kind !== 'human' ? 'bot' : 'human';
 
   // `scene` is the wire's name for the instrument (Unity's `Activity.Scene`).
@@ -105,7 +98,7 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
       const [provider, model] = splitModel(actor.model, node.id);
       bot.ResponseSource = 'llm';
       bot.LLM = { Provider: provider, Model: model };
-      const prompt = promptOf(node.businessObject);
+      const prompt = promptOf(node.model, node.element);
       if (prompt) bot.Prompt = prompt;
     } else if (!(actor.kind === 'software' && actor.model === 'behaverse://bot')) {
       // Anyone else answers along the task's message flows, which only the local runtime carries.
@@ -126,46 +119,44 @@ type Actor = { kind: string; model: string };
  * other end of a message flow touching it (a pool, or a step's pool); else the pool the task sits in. A
  * `reachy:Robot` is a robot; a `studyflow:Actor` is what its `actorType` says, with its `implementation` as the
  * model. `kind` is empty when no one is named any of those ways. */
-export function actorOf(bo: any): Actor {
-  const initiating = bo?.initiatingParticipantRef;
-  let candidates = ((bo?.participantRef ?? []) as any[]).filter((p) => p && p !== initiating);
-  if (candidates.length === 0) candidates = messagePartnersOf(bo);
-  if (candidates.length === 0) candidates = poolsOf(bo);
+export function actorOf(model: StudyModel, task: Element): Actor {
+  const initiating = idOf(task.initiatingParticipantRef);
+  let candidates = listIn(task.participantRef).map(idOf).filter((id) => id && id !== initiating)
+    .map((id) => model.get(id!)).filter((participant): participant is Element => !!participant);
+  if (candidates.length === 0) candidates = messagePartnersOf(model, task);
+  if (candidates.length === 0) candidates = poolsOf(model, task);
   for (const participant of candidates) {
-    for (const ext of (participant.extensionElements?.values ?? []) as any[]) {
-      const type = String(ext?.$type ?? '').toLowerCase();
+    for (const typed of [participant, ...model.entries(participant)]) {
+      const type = typed.type.toLowerCase();
       if (type === 'reachy:robot') return { kind: 'robot', model: '' };
       if (type === 'studyflow:actor') {
-        // Read through the participant: the catalog resolves a wrapper's attributes from its element.
-        return {
-          kind: String(getAttribute(participant, 'actorType') ?? 'human'),
-          model: String(getAttribute(participant, 'implementation') ?? ''),
-        };
+        const read = (name: string): Value | undefined => typed[name] ?? model.attributeOrDefault(participant, name);
+        return { kind: String(read('actorType') ?? 'human'), model: String(read('implementation') ?? '') };
       }
     }
   }
   return { kind: '', model: '' };
 }
 
-function processOf(bo: any): any {
-  let process = bo?.$parent;
-  while (process && process.$type !== 'bpmn:Process') process = process.$parent;
+const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : []);
+
+function processOf(model: StudyModel, element: Element): Element | undefined {
+  let process = model.parentOf(element);
+  while (process && model.host(process) !== 'bpmn:Process') process = model.parentOf(process);
   return process;
 }
 
-function collaborationsOf(bo: any): any[] {
-  let definitions = bo;
-  while (definitions && definitions.$type !== 'bpmn:Definitions') definitions = definitions.$parent;
-  return (definitions?.rootElements ?? []).filter((root: any) => root?.$type === 'bpmn:Collaboration');
+function collaborationsOf(model: StudyModel): Element[] {
+  return model.study.roots.filter((root) => model.host(root) === 'bpmn:Collaboration');
 }
 
 /** The participants whose pool holds the element: outward to its process, then every participant naming it. */
-function poolsOf(bo: any): any[] {
-  const process = processOf(bo);
+function poolsOf(model: StudyModel, element: Element): Element[] {
+  const process = processOf(model, element);
   if (!process) return [];
-  return collaborationsOf(bo)
-    .flatMap((collaboration: any) => collaboration.participants ?? [])
-    .filter((participant: any) => participant?.processRef === process);
+  return collaborationsOf(model)
+    .flatMap((collaboration) => listIn(collaboration.participants).filter(isElement))
+    .filter((participant) => idOf(participant.processRef) === process.id);
 }
 
 // The messages a task exchanges, as a message flow's `messageRef` → `itemRef` → `structureRef` names them.
@@ -173,45 +164,49 @@ const TRIAL = 'behaverse:Trial';
 const RESPONSE = 'behaverse:Response';
 
 /** What a message flow carries: its message's item definition (`structureRef`), '' when it names none. */
-function messageStructureOf(flow: any): string {
-  return String(flow?.messageRef?.itemRef?.structureRef ?? '');
+function messageStructureOf(model: StudyModel, flow: Element): string {
+  const message = model.get(idOf(flow.messageRef) ?? undefined);
+  return String(model.get(idOf(message?.itemRef) ?? undefined)?.structureRef ?? '');
 }
 
 /** The participants at the other end of the message flows touching the element: a pool itself, or a step's pool.
  * A flow that names its message outranks one that does not, and counts only when it carries a trial out of the
  * task or a response back into it; more than one partner left is an ambiguity to fix in the diagram, not an order to guess. */
-function messagePartnersOf(bo: any): any[] {
-  const typed: any[] = [];
-  const untyped: any[] = [];
-  for (const flow of collaborationsOf(bo).flatMap((collaboration: any) => collaboration.messageFlows ?? [])) {
-    if (flow?.sourceRef !== bo && flow?.targetRef !== bo) continue;
-    const outgoing = flow.sourceRef === bo;
-    const structure = messageStructureOf(flow);
+function messagePartnersOf(model: StudyModel, element: Element): Element[] {
+  const typed: Element[] = [];
+  const untyped: Element[] = [];
+  for (const flow of collaborationsOf(model).flatMap((collaboration) => listIn(collaboration.messageFlows).filter(isElement))) {
+    const source = idOf(flow.sourceRef);
+    const target = idOf(flow.targetRef);
+    if (source !== element.id && target !== element.id) continue;
+    const outgoing = source === element.id;
+    const structure = messageStructureOf(model, flow);
     if (structure && structure !== TRIAL && structure !== RESPONSE) continue; // another skill's exchange
     if (structure && (structure === TRIAL) !== outgoing) {
       throw new Error(`message flow '${flow.id}' carries ${structure} the wrong way: trials leave the task, responses come back`);
     }
-    const other = outgoing ? flow.targetRef : flow.sourceRef;
+    const other = model.get((outgoing ? target : source) ?? undefined);
     const into = structure ? typed : untyped;
-    for (const participant of other?.$type === 'bpmn:Participant' ? [other] : poolsOf(other)) {
+    for (const participant of !other ? [] : model.host(other) === 'bpmn:Participant' ? [other] : poolsOf(model, other)) {
       if (!into.includes(participant)) into.push(participant);
     }
   }
   const partners = typed.length > 0 ? typed : untyped;
   if (partners.length > 1) {
-    throw new Error(`${bo.id} exchanges messages with ${partners.map((p) => p.id).join(', ')}: name the message each flow `
+    throw new Error(`${element.id} exchanges messages with ${partners.map((p) => p.id).join(', ')}: name the message each flow `
       + `carries (messageRef, ${TRIAL} or ${RESPONSE}), or keep one partner`);
   }
   return partners;
 }
 
 /** The `agentic:Prompt` data object wired into the task, as its template text. */
-export function promptOf(bo: any): string {
-  for (const association of (bo?.dataInputAssociations ?? []) as any[]) {
-    for (const source of (association?.sourceRef ?? []) as any[]) {
-      const typed = ((source?.extensionElements?.values ?? []) as any[])
-        .some((ext) => String(ext?.$type ?? '').toLowerCase() === 'agentic:prompt');
-      if (typed) return String(getAttribute(source, 'template') ?? '');
+export function promptOf(model: StudyModel, task: Element): string {
+  for (const association of listIn(task.dataInputAssociations).filter(isElement)) {
+    for (const ref of listIn(association.sourceRef)) {
+      const source = model.get(idOf(ref) ?? undefined);
+      if (source && [source, ...model.entries(source)].some((typed) => typed.type.toLowerCase() === 'agentic:prompt')) {
+        return String(model.attributeOrDefault(source, 'template') ?? '');
+      }
     }
   }
   return '';

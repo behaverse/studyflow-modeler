@@ -1,7 +1,9 @@
 import type { FlowNode } from '@runner/flow';
 import type { NodeProps } from '@runner/nodes/types';
 import { NodePanel } from '@runner/nodes/NodePanel';
-import { readChoreographyBands } from '@core/document';
+import { bandsOf } from '@core/model/choreography';
+import { documentationOf } from '@core/model/index';
+import { readString } from '@runner/flow';
 import { nodeStyles } from '@runner/nodes/styles';
 import { registerNode } from '@runner/nodes/registry';
 
@@ -33,8 +35,8 @@ function ParticipantRow({ name, initiates }: { name: string; initiates: boolean 
 }
 
 function Choreography({ job, complete }: NodeProps<ChoreographyJob>) {
-  const title = job.node.businessObject?.name || 'Interaction';
-  const documentation = job.node.businessObject?.documentation?.[0]?.text || '';
+  const title = readString(job.node, 'name') || 'Interaction';
+  const documentation = documentationOf(job.node.element) || '';
 
   return (
     <NodePanel>
@@ -60,7 +62,7 @@ registerNode({
   type: 'choreography',
   match: { bpmnType: 'bpmn:ChoreographyTask' },
   toJob: (node) => {
-    const { top, bottom, initiator } = readChoreographyBands(node.businessObject);
+    const { top, bottom, initiator } = bandsOf(node.model, node.element);
     return { type: 'choreography', node, topParticipant: top, bottomParticipant: bottom, initiator };
   },
   Component: Choreography,

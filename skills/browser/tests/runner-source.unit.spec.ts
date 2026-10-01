@@ -5,10 +5,10 @@ import { expect, test } from '@playwright/test';
 
 import { readParameters, resolveRunSource } from '@runner/source';
 import { parseStudyflow, Studyflow } from '@runner/studyflow';
-import { studyModelOf } from '@core/document';
-import { getAttribute } from '@core/element';
+import { xmlToStudy } from '@core/document';
 import { Graph, planOf, type Plan } from '@core/engine';
-import { freshModdle, freshPackages } from '@tests/schemas';
+import { freshMetamodel, freshPackages } from '@tests/schemas';
+import { attributeOf } from '@runner/flow';
 
 /** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
 
@@ -95,7 +95,7 @@ test('a link overrides the data object rather than sitting beside it', async () 
   const study = await parseStudyflow(DEMO, freshPackages(), { task: 'NB', timeline: 'XCIT_NB_01', blocks: '5', arm: 'control' });
 
   expect([...study.parameters.overridden].sort()).toEqual(['blocks', 'task', 'timeline']);
-  expect(study.flowNodes.get('Task')?.businessObject?.name).toBe('NB / XCIT_NB_01');
+  expect(study.flowNodes.get('Task')?.element.name).toBe('NB / XCIT_NB_01');
   expect(study.flowNodes.get('Task')?.parameters.blocks, 'an overriding value takes the type of the one it replaces').toBe(5);
   // The Task's name reads the properties the link binds, never the Task's own settings, which stay the Task's alone;
   // a parameter the study declares nowhere still binds, and is named as undeclared.
@@ -143,7 +143,7 @@ test('the runner\'s Behaverse demo: a link picks the instrument through the stud
   ];
   for (const [given, instrument, timeline] of CASES) {
     const task = (await parseStudyflow(demo, freshPackages(), given)).flowNodes.get('Task')!;
-    expect([getAttribute(task.businessObject, 'instrument'), getAttribute(task.businessObject, 'timeline'), task.parameters], instrument)
+    expect([attributeOf(task, 'instrument'), attributeOf(task, 'timeline'), task.parameters], instrument)
       .toEqual([instrument, timeline, {}]);
   }
 });
@@ -179,7 +179,7 @@ eyes: closed
 /** The plan the walk and its runners read of `xml` (packages/core/src/engine), or the error that stops the run. */
 async function planned(xml: string): Promise<{ plan?: Plan; error?: string }> {
   try {
-    return { plan: planOf(studyModelOf((await freshModdle().fromXML(xml)).rootElement)) };
+    return { plan: planOf(await xmlToStudy(xml, freshMetamodel(), { asWritten: true })) };
   } catch (error) {
     return { error: (error as Error).message };
   }
@@ -198,7 +198,7 @@ test('both runtimes read the Parameters wired into a step the same way: merged, 
   const expected = { Timelines: { XCIT_NB_01: null }, Bot: { Speed: 20, SkipInstructions: true } };
   const browser = new Studyflow(await parseStudyflow(merged, freshPackages()));
   const task = browser.flowNodes.get('T')!;
-  expect([task.parameters, getAttribute(task.businessObject, 'restDuration'), getAttribute(task.businessObject, 'eyes'), browser.seed])
+  expect([task.parameters, attributeOf(task, 'restDuration'), attributeOf(task, 'eyes'), browser.seed])
     .toEqual([expected, 30, 'open', 3]);
   const local = await localDigest(merged);
   expect([local.parameters, local.rest, local.seed]).toEqual([expected, { restDuration: '30' }, '3']);
@@ -239,7 +239,7 @@ speed: 20
 test('the Parameters wired into a sub-process are its read-only properties, in both runtimes, as if it declared them', async () => {
   const study = await parseStudyflow(WIRED_BLOCK(), freshPackages());
   // `{label}` inside the sub-process reads its own, hiding the study's; outside, the study's.
-  expect(['Block', 'Inside', 'After'].map((id) => study.flowNodes.get(id)?.businessObject?.name)).toEqual(['inner', 'inner at 20', 'outer']);
+  expect(['Block', 'Inside', 'After'].map((id) => study.flowNodes.get(id)?.element.name)).toEqual(['inner', 'inner at 20', 'outer']);
   // The refusal names the sub-process and the property declared twice.
   const clash = /Block.*label/;
   const graph = new Graph((await planned(WIRED_BLOCK())).plan!);
@@ -286,7 +286,7 @@ test('config wired into a task is that task\'s settings alone, and fills no plac
     const study = await parseStudyflow(TWO_STEPS(association), freshPackages(), {});
     expect(['First', 'Second'].map((id) => study.flowNodes.get(id)?.parameters), label).toEqual([first, {}]);
     // `{name}` reads properties: `label` is declared nowhere, so its placeholders stay as written, demanded of no one.
-    expect(['First', 'Second'].map((id) => study.flowNodes.get(id)?.businessObject?.name), label).toEqual(['{label}', '{label}']);
+    expect(['First', 'Second'].map((id) => study.flowNodes.get(id)?.element.name), label).toEqual(['{label}', '{label}']);
     expect(study.parameters.unbound, label).toEqual([]);
   }
   // A link key only an unwired object carries overrides nothing: it binds as undeclared.
@@ -318,8 +318,8 @@ Redirects:
 
   // A declared one nothing has bound is reported, not silently emptied.
   expect(study.parameters.unbound).toEqual(['task']);
-  expect(study.flowNodes.get('Trial')?.businessObject?.name).toBe('Trial {count}');
-  expect(study.flowNodes.get('Done')?.businessObject?.redirectTo).toContain('cc={COMPLETION_CODE}');
+  expect(study.flowNodes.get('Trial')?.element.name).toBe('Trial {count}');
+  expect(attributeOf(study.flowNodes.get('Done')!, 'redirectTo')).toContain('cc={COMPLETION_CODE}');
 });
 
 test('every kind of task is a step the run reaches', async () => {

@@ -48,36 +48,6 @@ export function wiredParameters(elementOrBO: unknown): ParametersSource[] {
   return sources;
 }
 
-/** Whether `path` (`Bot.Speed`, `Streams.0`) leads to a value inside `node`. */
-export function hasPath(node: unknown, path: string[]): boolean {
-  for (const key of path) {
-    if (!node || typeof node !== 'object' || !Object.hasOwn(node, key)) return false;
-    node = (node as Mapping)[key];
-  }
-  return true;
-}
-
-/** What a reader reads from several Parameters, merged. Mappings merge key by key; a value two of them set is an
- * error, since nothing drawn orders the wires. */
-export function mergeParameters(readerId: string, sources: [string, Mapping][]): Mapping {
-  const into = (target: Mapping, source: Mapping, id: string, path: string[]): void => {
-    for (const [key, value] of Object.entries(source)) {
-      const at = [...path, key];
-      if (!Object.hasOwn(target, key)) {
-        target[key] = structuredClone(value);
-      } else if (isMapping(target[key]) && isMapping(value)) {
-        into(target[key], value, id, at);
-      } else {
-        const [other] = sources.find(([, carried]) => hasPath(carried, at))!;
-        throw new Error(`${readerId} reads ${at.join('.')} from both ${other} and ${id}: set it in one of them.`);
-      }
-    }
-  };
-  const merged: Mapping = {};
-  for (const [id, carried] of sources) into(merged, carried, id, []);
-  return merged;
-}
-
 /** The attributes a Parameters key may set on an element: the XML attributes its own type declares, by local name. */
 export function overridableAttributes(elementOrBO: unknown): Set<string> {
   return new Set(StudyflowElement.fromBusinessObject(elementOrBO).extensionAttributes()

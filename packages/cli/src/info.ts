@@ -1,5 +1,5 @@
 import { protocolDigest } from '@core/document';
-import { isElement, type Element, type Value } from '@core/model/index';
+import { documentationOf, isElement, type Element, type Value } from '@core/model/index';
 import { parseSource, readSource, type StudyflowSource } from '@cli/studyfile';
 
 export type StudyInfo = {
@@ -13,13 +13,6 @@ export type StudyInfo = {
 };
 
 const text = (value: Value | undefined): string | undefined => (typeof value === 'string' && value.trim() ? value.trim() : undefined);
-
-/** An element's first documentation: its text, or the first of a list. */
-function firstDocumentation(element: Element | undefined): string | undefined {
-  const documentation = element?.documentation;
-  const first = Array.isArray(documentation) ? documentation[0] : documentation;
-  return text(isElement(first) ? first.text : first);
-}
 
 export async function info(input: string): Promise<StudyInfo> {
   const source = await readSource(input);
@@ -44,7 +37,7 @@ export async function info(input: string): Promise<StudyInfo> {
       id: root?.id,
       name: text(root?.name),
       version: text(model.studyOf(root)?.version),
-      documentation: firstDocumentation(root),
+      documentation: documentationOf(root),
     },
     protocol: await protocolDigest(model),
     elements,

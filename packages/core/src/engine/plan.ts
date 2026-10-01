@@ -1,8 +1,7 @@
 import { getCatalog, hasCatalog } from '@core/notation';
-import { mergeParameters } from '@core/document/parameters';
 import type { Timer } from '@core/engine/timer';
-import * as yaml from 'js-yaml';
 import { expressionOf as modelExpression, idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { wiredIn } from '@core/model/parameters';
 import { expandInline, splitBinding } from '@core/model/spelling';
 
 const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
@@ -272,57 +271,6 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
   const branching = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.branching : undefined;
   if (typeof branching === 'string') digest.branching = branching;
   return digest;
-}
-
-/** The mapping a `studyflow:Parameters` data object carries; undefined for any other element, or an empty one. */
-export function parametersIn(model: StudyModel, element: Element | undefined): Record<string, unknown> | undefined {
-  if (!element || model.extensionType(element) !== PARAMETERS) return undefined;
-  const entry = element.type === PARAMETERS ? element : model.entries(element).find((candidate) => candidate.type === PARAMETERS);
-  let values: unknown = entry?.values;
-  if (typeof values === 'string') {
-    try {
-      values = yaml.load(values);
-    } catch {
-      return undefined;
-    }
-  }
-  return values && typeof values === 'object' && !Array.isArray(values) && Object.keys(values).length > 0 ? values as Record<string, unknown> : undefined;
-}
-
-const PARAMETERS = 'studyflow:Parameters';
-
-/** The attributes a Parameters key may set on `element`: the XML attributes its schema type declares. */
-function overridableIn(model: StudyModel, element: Element): Set<string> {
-  const type = model.extensionType(element);
-  if (!type) return new Set();
-  return new Set(model.metamodel.descriptor(type).properties
-    .filter((p) => p.isAttr && p.ns.prefix !== 'bpmn')
-    .map((p) => p.ns.localName));
-}
-
-/** The Parameters wired into `element`, merged and split into the attributes they set and the rest. */
-function wiredIn(model: StudyModel, element: Element): { attributes: Record<string, unknown>; rest: Record<string, unknown> } | undefined {
-  const sources: [string, Record<string, unknown>][] = [];
-  for (const association of listIn(element.dataInputAssociations).filter(isElement)) {
-    for (const ref of listIn(association.sourceRef)) {
-      const id = idOf(ref);
-      const values = parametersIn(model, model.get(id ?? undefined));
-      if (id && values && !sources.some(([known]) => known === id)) sources.push([id, values]);
-    }
-  }
-  if (sources.length === 0) return undefined;
-  const merged = mergeParameters(element.id!, sources);
-  const names = overridableIn(model, element);
-  const attributes: Record<string, unknown> = {};
-  const rest: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(merged)) {
-    if (!names.has(key)) rest[key] = value;
-    else if (value === null || typeof value === 'object') {
-      const got = value === null ? 'nothing' : Array.isArray(value) ? 'a list' : 'a mapping';
-      throw new Error(`${element.id} reads ${key}, one of its attributes, which takes one value, not ${got}.`);
-    } else attributes[key] = value;
-  }
-  return { attributes, rest };
 }
 
 /** A study model's elements as a run reads them. */

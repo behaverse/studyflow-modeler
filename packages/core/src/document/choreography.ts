@@ -5,11 +5,11 @@ import { StudyflowElement } from '@core/element/handle';
 import { getCatalog, hasCatalog } from '@core/notation';
 import { applyXmlPasses, primaryRoot, isHeadlessCollaboration } from '@core/document/format';
 import { attributeOverrides } from '@core/document/parameters';
+import { DEFAULT_BOTTOM, DEFAULT_TOP } from '@core/model/choreography';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
 
-export const DEFAULT_TOP = 'Participant A';
-export const DEFAULT_BOTTOM = 'Participant B';
+export { DEFAULT_BOTTOM, DEFAULT_TOP } from '@core/model/choreography';
 
 /** The task's type wrapper, by the rule attribute reads use: a stamp such as a runner's `prov:activity` is not one. */
 function typeWrapperOf(bo: ModdleElement): ModdleElement | null {

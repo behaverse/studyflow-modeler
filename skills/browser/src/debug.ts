@@ -8,6 +8,8 @@
  * the allocation draw, so the path through the study is the true one and only
  * the long screens are stood in for.
  */
+import { readString, type FlowNode } from '@runner/flow';
+
 const TRUTHY = new Set(['1', 'true', 'yes', 'on', '']);
 
 export function isDebug(search: string = window.location.search): boolean {
@@ -23,17 +25,11 @@ export type DebugCard = {
   details: Record<string, string>;
 };
 
-export function describeForDebug(node: {
-  id: string;
-  type?: string;
-  extensionType?: string;
-  businessObject?: { name?: string; $attrs?: Record<string, unknown>; [key: string]: unknown };
-}, kind: string): DebugCard {
-  const bo = node.businessObject ?? {};
+export function describeForDebug(node: FlowNode, kind: string): DebugCard {
   const details: Record<string, string> = { id: node.id };
   for (const key of ['instrument', 'timeline', 'platform']) {
-    const value = (bo as Record<string, unknown>)[key] ?? (bo.$attrs ?? {})[key];
-    if (typeof value === 'string' && value) details[key] = value;
+    const value = readString(node, key);
+    if (value) details[key] = value;
   }
-  return { name: (bo.name as string) || node.id, kind, details };
+  return { name: readString(node, 'name') || node.id, kind, details };
 }

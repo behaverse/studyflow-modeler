@@ -1,5 +1,4 @@
-import { getAttribute } from '@core/element';
-import type { FlowNode } from '@runner/flow';
+import { attributeOf, type FlowNode } from '@runner/flow';
 
 /** Query parameters a panel provider may use to hand the code to the study. */
 const PARAM_NAMES = ['cc', 'completion_code', 'COMPLETION_CODE', 'PROLIFIC_PID'];
@@ -7,7 +6,7 @@ const PARAM_NAMES = ['cc', 'completion_code', 'COMPLETION_CODE', 'PROLIFIC_PID']
 export type CompletionCodeType = 'none' | 'static' | 'dynamic';
 
 export function readCompletionCodeType(node: FlowNode): CompletionCodeType {
-  return (getAttribute(node.businessObject, 'completionCodeType') as CompletionCodeType | undefined) ?? 'none';
+  return (attributeOf(node, 'completionCodeType') as CompletionCodeType | undefined) ?? 'none';
 }
 
 export function resolveCompletionCode(

@@ -121,6 +121,26 @@ export class StudyModel {
     return type && type !== element.type ? this.entries(element).find((entry) => entry.type === type)?.[name] : undefined;
   }
 
+  /** What `element` holds under `name`, as {@link attribute} reads it, else the default its schema declares. */
+  attributeOrDefault(element: Element, name: string): Value | undefined {
+    const value = this.attribute(element, name);
+    if (value !== undefined) return value;
+    const type = this.extensionType(element);
+    const declared = this.property(element, name) ?? (type ? this.metamodel.property(type, name) : undefined);
+    return declared?.default as Value | undefined;
+  }
+
+  /** Set what `element` holds under `name` where {@link attribute} reads it: the element's own value when it holds one or
+   * its type declares it, else its schema entry's. `undefined` removes it. */
+  setAttribute(element: Element, name: string, value: Value | undefined): void {
+    const type = this.extensionType(element);
+    const entry = type && type !== element.type && !(name in element) && !this.property(element, name)
+      ? this.entries(element).find((candidate) => candidate.type === type) : undefined;
+    const holder = entry ?? element;
+    if (value === undefined) delete holder[name];
+    else holder[name] = value;
+  }
+
   /** The entries of `element`'s `extensionElements`, as the file lists them. */
   entries(element: Element): Element[] {
     const list = element.extensionElements;
@@ -159,6 +179,14 @@ export function isExtensionPrefix(prefix: string | undefined): boolean {
 export function yamlText(value: Value | undefined): string | undefined {
   if (typeof value === 'string') return value;
   return value && typeof value === 'object' && !Array.isArray(value) && !isElement(value) ? expandInline(value) : undefined;
+}
+
+/** An element's first documentation, as its text: undefined when it has none. */
+export function documentationOf(element: Element | undefined): string | undefined {
+  const documentation = element?.documentation;
+  const first = Array.isArray(documentation) ? documentation[0] : documentation;
+  const text = isElement(first) ? first.text : first;
+  return typeof text === 'string' && text.trim() ? text.trim() : undefined;
 }
 
 /** A reference's id, whether a property holds an id or (in a long form) `{id}`. */

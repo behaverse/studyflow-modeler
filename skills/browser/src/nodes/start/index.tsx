@@ -103,7 +103,7 @@ registerNode({
     type: 'start',
     node,
     consentFormUri: readString(node, 'consentFormUri'),
-    studyName: node.businessObject?.name || undefined,
+    studyName: readString(node, 'name'),
   }),
   Component: Start,
   validateNode: validateStartEvent,

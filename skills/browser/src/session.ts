@@ -147,10 +147,11 @@ export class Session {
 
   /** The screen of one message to a pool the person plays. */
   private messageJob(pool: string, message: Message): Job {
-    const element = this.studyflow.plan.elements[pool];
-    const node = { id: pool, type: 'bpmn:Participant', businessObject: { id: pool, name: element?.name ?? pool }, parameters: {}, outgoing: [], incoming: [] };
+    const { model } = this.studyflow;
+    const element = model.get(pool) ?? { type: 'bpmn:Participant', id: pool };
+    const node = { id: pool, type: 'bpmn:Participant', element, model, parameters: {}, outgoing: [], incoming: [] };
     const job = findByFlowNode(node)?.toJob(node) as Job | null | undefined;
-    if (!job) throw new Error(`the page has no screen to answer a message to '${element?.name || pool}'`);
+    if (!job) throw new Error(`the page has no screen to answer a message to '${element.name || pool}'`);
     return { ...job, message } as unknown as Job;
   }
 

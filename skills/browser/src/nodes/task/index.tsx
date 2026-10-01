@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react';
-import type { FlowNode } from '@runner/flow';
+import { readString, type FlowNode } from '@runner/flow';
 import type { NodeProps } from '@runner/nodes/types';
 import { NodePanel } from '@runner/nodes/NodePanel';
 import { nodeStyles } from '@runner/nodes/styles';
@@ -75,7 +75,7 @@ function ImplementationPanel({ node }: { node: FlowNode }) {
 }
 
 function Task({ job, log, complete }: NodeProps<TaskJob>) {
-  const name = job.node.businessObject?.name || job.node.id;
+  const name = readString(job.node, 'name') || job.node.id;
   const implementation = useMemo(() => readImplementation(job.node), [job.node]);
 
   useEffect(() => {

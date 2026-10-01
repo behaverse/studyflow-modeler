@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Message } from '@core/engine';
-import type { FlowNode } from '@runner/flow';
+import { readString, type FlowNode } from '@runner/flow';
 import type { NodeProps } from '@runner/nodes/types';
 import { NodePanel } from '@runner/nodes/NodePanel';
 import { nodeStyles } from '@runner/nodes/styles';
@@ -30,7 +30,7 @@ function MessageScreen({ job, session, complete }: NodeProps<MessageJob>) {
 
   return (
     <NodePanel>
-      <h2 className={nodeStyles.title}>{job.node.businessObject?.name || job.node.id}</h2>
+      <h2 className={nodeStyles.title}>{readString(job.node, 'name') || job.node.id}</h2>
       {view.texts.map((line, i) => <p key={i} className={nodeStyles.body}>{line}</p>)}
       {view.fields.length > 0 && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-stone-800">

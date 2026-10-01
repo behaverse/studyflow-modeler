@@ -1,8 +1,8 @@
 import * as yaml from 'js-yaml';
 
-import { getAttribute } from '@core/element';
 import { parseImplementationRef, type ImplementationRef } from '@core/implementation';
-import { readString, type FlowNode } from '@runner/flow';
+import { yamlText } from '@core/model/index';
+import { attributeOf, readString, type FlowNode } from '@runner/flow';
 import type { Studyflow } from '@runner/studyflow';
 import type { ValidationIssue } from '@runner/nodes/types';
 
@@ -15,8 +15,8 @@ export type Implementation = {
 export function readImplementation(node: FlowNode): Implementation | undefined {
   const ref = readString(node, 'implementation');
   if (!ref) return undefined;
-  const withValue = getAttribute(node.businessObject, 'additionalArguments');
-  const argsYaml = typeof withValue === 'string' && withValue.trim() ? withValue : undefined;
+  const withValue = yamlText(attributeOf(node, 'additionalArguments'));
+  const argsYaml = withValue?.trim() ? withValue : undefined;
   return { ref, argsYaml };
 }
 

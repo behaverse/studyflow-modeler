@@ -18,7 +18,7 @@ type InstructionJob = {
 };
 
 function Instruction({ job, complete }: NodeProps<InstructionJob>) {
-  const title = job.node.businessObject?.name || 'Instructions';
+  const title = readString(job.node, 'name') || 'Instructions';
   const content = job.content || 'There is nothing to read here. Press Continue.';
 
   return (

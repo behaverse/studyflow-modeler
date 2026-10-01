@@ -7,6 +7,9 @@ import type { AnyNodeDefinition, NodeDefinition } from '@runner/nodes/types';
 
 const nodes: AnyNodeDefinition[] = [];
 
+/** BPMN's tasks: `bpmn:Task` and its subtypes. */
+const TASKS: ReadonlySet<string> = new Set([BPMN.Task, BPMN.UserTask, BPMN.ScriptTask, BPMN.ServiceTask, BPMN.ManualTask, BPMN.SendTask, BPMN.ReceiveTask, BPMN.BusinessRuleTask]);
+
 export function registerNode<J extends Job, C = unknown>(def: NodeDefinition<J, C>): void {
   if (nodes.some((n) => n.type === def.type)) {
     throw new Error(`Duplicate node type '${def.type}' registered.`);
@@ -33,7 +36,7 @@ export function findByFlowNode(node: FlowNode): AnyNodeDefinition | undefined {
     }
   }
   // `{ fallback: 'task' }` catches any task (a `bpmn:Task` subtype) the more specific matchers left unclaimed.
-  if (node.businessObject?.$instanceOf?.(BPMN.Task)) {
+  if (TASKS.has(node.type)) {
     return registered.find((d) => 'fallback' in d.match && d.match.fallback === 'task');
   }
   return undefined;
