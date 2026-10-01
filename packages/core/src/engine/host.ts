@@ -91,6 +91,11 @@ export type Host = {
   /** A gateway the walk could not decide, because a condition could not be evaluated: a dry run, where no step ran to
    * bind what the condition reads, names the flow to take. */
   decide?(gateway: string, flows: string[], error: Error): string | undefined;
+  /** Free choice, for exploring every way a study can go: each decision the walk would make by data or by chance is
+   * the host's instead, one of `options` at `at`. A gateway's flow (`<gateway>`, the flow ids), another pass of an
+   * activity (`<activity>:again`, `again` or `done`), the conditional boundary event that ends a finished activity
+   * (`<activity>:ends`, `none` or a boundary id). */
+  choose?(at: string, options: string[]): string;
 };
 
 export type WalkOptions = {

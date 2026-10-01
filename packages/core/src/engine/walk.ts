@@ -267,7 +267,7 @@ export class Walk {
       .map((boundary) => this.post.timer(this.timerMs(boundary), boundary.id, () => { due.push(boundary); thread.handoff?.abort(); }));
     try {
       let passes = 0;
-      const listed = this.loopList(element);
+      const listed = this.host.choose ? undefined : this.loopList(element);
       const outputs: unknown[] = [];
       while (listed ? passes < listed.items.length : this.loopsAgain(element, passes)) {
         passes += 1;
@@ -301,6 +301,11 @@ export class Walk {
    * and bindings already adopted; its `{placeholders}` read as FEEL paths, so `{Play.failedTrialRate} > 0.2` reads the
    * element's own result. */
   private conditionalBoundary(element: PlanElement, thread: Thread): PlanElement | undefined {
+    const conditional = (this.graph.boundaries.get(element.id) ?? []).filter((boundary) => has(boundary, 'conditionalEventDefinition') && boundary.condition);
+    if (this.host.choose && conditional.length > 0) {
+      const chosen = this.host.choose(`${element.id}:ends`, ['none', ...conditional.map((boundary) => boundary.id)]);
+      return conditional.find((boundary) => boundary.id === chosen);
+    }
     for (const boundary of this.graph.boundaries.get(element.id) ?? []) {
       if (!has(boundary, 'conditionalEventDefinition') || !boundary.condition) continue;
       const { body, language } = boundary.condition;
@@ -336,6 +341,11 @@ export class Walk {
   private loopsAgain(element: PlanElement, passes: number): boolean {
     const { loop } = element;
     if (!loop) return passes === 0;
+    if (this.host.choose) {
+      if (passes === 0 && !(loop.kind === 'standard' && loop.testBefore)) return true;
+      if (loop.kind === 'standard' && loop.maximum && passes >= loop.maximum) return false;
+      return this.host.choose(`${element.id}:again`, ['again', 'done']) === 'again';
+    }
     if (loop.kind === 'multiInstance') {
       if (!loop.cardinality) return passes === 0;
       return passes < Math.trunc(Number(this.memory.evaluate(loop.cardinality, element.id)));
@@ -572,6 +582,11 @@ export class Walk {
       }
     }
 
+    if (host.choose && flows.length > 1) {
+      const chosen = host.choose(id, flows.map((flow) => flow.id));
+      return take(flows.find((flow) => flow.id === chosen) ?? flows[0], 'chosen');
+    }
+
     const allocation = this.allocations.get(id);
     if (allocation) {
       // A participant's draws are its own: the seed, the gateway, which instance of the pool this is, and which of
@@ -651,6 +666,11 @@ export class Walk {
   // --- what a host reads and writes of the run's values ---
 
   /** The `state` tree: `state.<scope>.<property>`, and `state._meta`, the walk's own. */
+  /** The flows whose messages were sent this run and never taken. */
+  untaken(): string[] {
+    return this.post.untaken();
+  }
+
   get state(): StateTree {
     return this.memory.state;
   }
