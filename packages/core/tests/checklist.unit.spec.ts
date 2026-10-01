@@ -1,8 +1,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { studyflowToXml, xmlToStudyflow } from '@core/document';
-import { freshModdle } from '@tests/schemas';
+import { xmlOf, yamlOf } from '@tests/schemas';
 
 /** The checklist is an attribute of its element, `studyflow:checklist`, beside the prose of its documentation. */
 
@@ -21,8 +20,8 @@ P:
 `;
 
 test('a checklist is written as an attribute of its element, which BPMN\'s schema allows, and reads back as the YAML pair', async () => {
-  const xml = await studyflowToXml(DOC, freshModdle());
+  const xml = await xmlOf(DOC);
   expect(xml).toContain('<bpmn:documentation>Prose about the step.</bpmn:documentation>');
   expect(xml).toContain('studyflow:checklist="- [x] consent approved&#10;- [ ] pilot reviewed"');
-  expect(await xmlToStudyflow(xml, freshModdle())).toBe(DOC);
+  expect(await yamlOf(xml)).toBe(DOC);
 });

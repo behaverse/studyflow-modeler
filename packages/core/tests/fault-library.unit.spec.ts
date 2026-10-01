@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { YAML_DUMP_OPTIONS, protocolDigest } from '@core/document';
+import { protocolDigest } from '@core/document';
+import { YAML_DUMP_OPTIONS } from '@core/model/spelling';
 import { planChecks, recordChecks } from '@core/checks';
 import { studyModel } from '@tests/schemas';
 

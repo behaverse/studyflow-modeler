@@ -1,12 +1,9 @@
 import * as yaml from 'js-yaml';
 
 import { choreographyToProcessRoot } from '@core/document/choreography';
-import { isModdleElement, type Moddle } from '@core/element/moddle';
-import {
-  RESERVED_DOC_KEYS,
-  primaryRoot,
-  type YamlDoc,
-} from '@core/document/format';
+import { isModdleElement, type Moddle } from '@core/document/moddle';
+import { primaryRoot } from '@core/document/format';
+import { RESERVED_DOC_KEYS, type YamlDoc } from '@core/model/yaml';
 import { MODDLE_BUILTIN_TYPES } from '@core/notation/moddlePackage';
 import {
   elementListProperty,
@@ -19,7 +16,8 @@ import {
   type DiType,
 } from '@core/document/shorthand';
 import { DI_NODE_TYPES, expandDiNode, expandInline, expandInlineFlow, impliedTypeName, isExpressionType, isYamlValueProperty, keyedMapToList, longTypeName, qualifiesAsInlineValue } from '@core/model/spelling';
-import { writeState, type StateTree } from '@core/document/state';
+import type { StateTree } from '@core/model/state';
+import { writeState } from '@core/document/state';
 
 type PendingRef = {
   element: any;

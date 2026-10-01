@@ -19,7 +19,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEv
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
 import { getCatalog } from '@core/notation';
-import { PLACEHOLDER } from '@core/document/state';
+import { PLACEHOLDER } from '@core/model/state';
 import { feelSyntaxError } from '@core/expression/feel';
 import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from '@core/document';
 import { executeCommand } from '@modeler/commandBus';

@@ -1,5 +1,5 @@
 import { BPMN } from '@core/constants';
-import { META_KEY } from '@core/document/state';
+import { META_KEY } from '@core/model/state';
 import type { Element, StudyModel } from '@core/model/index';
 import type { Issue } from '@core/checks';
 import { containers, graphOf, quoted } from '@core/checks/graph';

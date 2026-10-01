@@ -1,4 +1,4 @@
-import { RESERVED_DOC_KEYS, type YamlDoc } from '@core/document/format';
+import { RESERVED_DOC_KEYS, type YamlDoc } from '@core/model/yaml';
 import type { Element, StudyModel } from '@core/model/index';
 import { expandInlineFlow, keyedMapToList } from '@core/model/spelling';
 

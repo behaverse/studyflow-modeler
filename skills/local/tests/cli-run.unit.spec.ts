@@ -6,11 +6,10 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { studyflowToXml } from '@core/document';
+import { xmlToStudy } from '@core/document';
 import { stateOf } from '@core/engine';
-import { freshModdle } from '@tests/schemas';
-
-const moddle = freshModdle();
+import type { Element } from '@core/model/index';
+import { freshMetamodel, xmlOf } from '@tests/schemas';
 
 /** The local runtime (skills/local/src): what a run leaves in its repository, what a re-run reuses of it, and the
  * hand-off to partial runners. How the study is walked is pinned by packages/core/tests/engine.unit.spec.ts. */
@@ -47,30 +46,31 @@ function archivedState(file: string): any {
  * events were (an end event is left by none). The nodes it fails for.
  */
 async function unconserved(xml: string, reached: Record<string, number>): Promise<string[]> {
-  const { rootElement } = await moddle.fromXML(xml);
-  const all: any[] = [];
-  const collect = (container: any): void => {
-    for (const element of container.flowElements ?? []) {
+  const model = await xmlToStudy(xml, freshMetamodel());
+  const all: Element[] = [];
+  const collect = (container: Element): void => {
+    for (const element of (container.flowElements ?? []) as Element[]) {
       all.push(element);
       collect(element);
     }
   };
-  rootElement.rootElements.forEach(collect);
-  const taken = (elements: any[]) => elements.reduce((sum, element) => sum + (reached[element.id] ?? 0), 0);
-  const flows = all.filter((element) => element.$type === 'bpmn:SequenceFlow');
-  return all.filter((element) => element.$instanceOf('bpmn:FlowNode')).flatMap((node) => {
-    const into = taken(flows.filter((flow) => flow.targetRef === node));
-    const out = taken(flows.filter((flow) => flow.sourceRef === node)) + taken(all.filter((event) => event.attachedToRef === node));
+  model.study.roots.forEach(collect);
+  const taken = (elements: Element[]) => elements.reduce((sum, element) => sum + (reached[element.id!] ?? 0), 0);
+  const flows = all.filter((element) => model.host(element) === 'bpmn:SequenceFlow');
+  return all.filter((element) => model.isA(element, 'bpmn:FlowNode')).flatMap((node) => {
+    const type = model.host(node);
+    const into = taken(flows.filter((flow) => flow.targetRef === node.id));
+    const out = taken(flows.filter((flow) => flow.sourceRef === node.id)) + taken(all.filter((event) => event.attachedToRef === node.id));
     return [
-      ...(['bpmn:StartEvent', 'bpmn:BoundaryEvent'].includes(node.$type) || taken([node]) === into ? [] : [`${node.id} in`]),
-      ...(node.$type === 'bpmn:EndEvent' || taken([node]) === out ? [] : [`${node.id} out`]),
+      ...(['bpmn:StartEvent', 'bpmn:BoundaryEvent'].includes(type) || taken([node]) === into ? [] : [`${node.id} in`]),
+      ...(type === 'bpmn:EndEvent' || taken([node]) === out ? [] : [`${node.id} out`]),
     ];
   });
 }
 
 test.describe('the state a run keeps', () => {
   test('appends _meta.prov and counts reaches; a re-run counts again from where the run it redoes started', async () => {
-    const xml = await studyflowToXml(`id: reach
+    const xml = await xmlOf(`id: reach
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 S:
@@ -90,7 +90,7 @@ S:
           name: count
           value: "0"
     F1: Start -> Done
-`, moddle);
+`);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
     const plan = path.join(dir, 'reach.bpmn');
     fs.writeFileSync(plan, xml);
@@ -165,7 +165,7 @@ test.describe('a re-run', () => {
   test('counts each sequence flow it takes, so a node is reached as often as its flows bring it in and take it out', async () => {
     // A gateway that loops back twice, a step that leaves at its boundary event the second time, and a default flow
     // never taken. Run again from its record, the gateway replays its decision, and that flow counts too.
-    const xml = await studyflowToXml(`id: conserve
+    const xml = await xmlOf(`id: conserve
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 S:
@@ -198,7 +198,7 @@ S:
     F_Skip: Gate -> Skipped
     F_Back: Try -> Gate
     F_Out: Enough -> Out
-`, moddle);
+`);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-conserve-'));
     fs.writeFileSync(path.join(dir, 'conserve.bpmn'), xml);
     const archived = path.join(dir, 'run', 'conserve.bpmn');
@@ -220,7 +220,7 @@ S:
   });
 
   test('--from a step redoes it and every step after it, and reuses the steps before it', async () => {
-    const xml = await studyflowToXml(`id: again
+    const xml = await xmlOf(`id: again
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 S:
@@ -240,7 +240,7 @@ S:
     F2: W -> A
     F3: A -> B
     F4: B -> Done
-`, moddle);
+`);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-run-'));
     fs.writeFileSync(path.join(dir, 'again.bpmn'), xml);
     const repo = path.join(dir, 'run');
@@ -464,7 +464,7 @@ P:
     // the exchange on the cohort and the task inside it is what talks: out along the sub-process's flow, back in.
     // The sub-process is divided into a lane too (BPMN allows a lane set on any FlowElementsContainer): the walk
     // and the plan digest see through it, as they do through a pool's lanes.
-    const xml = await studyflowToXml(`id: nested
+    const xml = await xmlOf(`id: nested
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 C:
@@ -499,7 +499,7 @@ S:
     Done: { type: EndEvent }
     SF1: S0 -> Subject
     SF2: Subject -> Done
-`, moddle);
+`);
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-nested-talk-'));
     fs.writeFileSync(path.join(dir, 'plan.bpmn'), xml);
     const heard = path.join(dir, 'heard.json');

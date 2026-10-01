@@ -1,5 +1,3 @@
-import { applyXmlPasses } from '@core/document/format';
-import type { Moddle } from '@core/element/moddle';
 import { splitBinding } from '@core/model/spelling';
 
 function combineBinding(slot: string | undefined, selection: string | undefined): string | undefined {
@@ -157,8 +155,4 @@ export function inlineIoSpecification(definitions: any): boolean {
   }));
 
   return changed;
-}
-
-export async function toStandardBpmnXml(xml: string, moddle: Moddle): Promise<string> {
-  return applyXmlPasses(xml, moddle, [expandIoSpecification]);
 }

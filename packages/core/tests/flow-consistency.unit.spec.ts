@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { YAML_DUMP_OPTIONS } from '@core/document';
+import { YAML_DUMP_OPTIONS } from '@core/model/spelling';
 import { checkFlowConsistency } from '@core/checks/flow-consistency';
 import { studyModel } from '@tests/schemas';
 

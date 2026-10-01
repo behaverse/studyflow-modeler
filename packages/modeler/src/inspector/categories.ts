@@ -1,6 +1,5 @@
-import { getAttributeSpec, isExtensionPrefix } from '@core/element';
-import type { Element, StudyModel } from '@core/model/index';
-import { readAttribute } from '@core/model/index';
+import { getAttributeSpec } from '@core/element';
+import { isExtensionPrefix, readAttribute, type Element, type StudyModel } from '@core/model/index';
 import { getCatalog, UNDECLARED_CATEGORY_ORDER, type AttributeSpec } from '@core/notation';
 import { toLocalName } from '@core/naming';
 import { supportsLoopCharacteristics } from '@modeler/inspector/loopCharacteristics';

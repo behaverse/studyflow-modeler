@@ -1,22 +1,12 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import {
-  YAML_DUMP_OPTIONS,
-  readState,
-  resolvePlaceholders,
-  resolveState,
-  studyExtensionOf,
-  studyflowToDefinitions,
-  studyflowToXml,
-  writeState,
-  xmlToStudyflow,
-  type StateTree,
-} from '@core/document';
-import { resolvePlaceholdersIn, resolveStateIn } from '@core/model/state';
-import { freshModdle, studyModel } from '@tests/schemas';
+import { xmlToStudy } from '@core/document';
+import { YAML_DUMP_OPTIONS } from '@core/model/spelling';
+import { resolvePlaceholdersIn, resolveStateIn, type StateTree } from '@core/model/state';
+import { freshMetamodel, studyModel, xmlOf, yamlOf } from '@tests/schemas';
 
-/** `state:` is the retrospective tree (docs/reference.qmd, "Run state"): JSON on the Study extension, a mapping in the file. */
+/** `state:` is the retrospective tree (docs/reference.qmd, "Run state"): JSON on the Study extension in the XML, a mapping in the file. */
 
 const STATE = {
   _meta: {
@@ -65,21 +55,16 @@ const DOC = BODY + STATE_BLOCK;
 
 test.describe('state in the document', () => {
   test('YAML -> XML -> YAML keeps state: byte-identical, and the XML holds it as JSON', async () => {
-    const xml = await studyflowToXml(DOC, freshModdle());
-    expect(xml).toMatch(/<studyflow:study>\s*<studyflow:state>\{.*\}<\/studyflow:state>/s);
+    const xml = await xmlOf(DOC);
+    const json = xml.match(/<studyflow:study>\s*<studyflow:state>(\{.*\})<\/studyflow:state>/s)?.[1] ?? '';
+    expect(JSON.parse(json.replace(/&quot;/g, '"').replace(/&amp;/g, '&'))).toEqual(STATE);
     expect(xml).toContain('studyflow:value="0"');
 
-    const moddle = freshModdle();
-    const { rootElement } = await moddle.fromXML(xml);
-    expect(JSON.parse(studyExtensionOf(rootElement)!.state)).toEqual(STATE);
-    expect(readState(rootElement)).toEqual(STATE);
-
-    const back = await xmlToStudyflow(xml, freshModdle());
-    expect(back.endsWith(STATE_BLOCK)).toBe(true);
+    expect((await xmlToStudy(xml, freshMetamodel())).study.state).toEqual(STATE);
+    expect((await yamlOf(xml)).endsWith(STATE_BLOCK)).toBe(true);
   });
 
-  test('resolveState reads the element, its containers out to the study root, and its own runner counter', () => {
-    const definitions = studyflowToDefinitions(DOC, freshModdle());
+  test('a lookup reads the element, its containers out to the study root, and its own runner counter', () => {
     const model = studyModel(DOC);
     const CASES: [elementId: string, path: string, expected: unknown][] = [
       ['Excluded_Pre', 'count', 3],
@@ -101,12 +86,11 @@ test.describe('state in the document', () => {
       ['Trial', 'state._meta.prov.0.who', 'alice'],
     ];
     for (const [elementId, path, expected] of CASES) {
-      expect(resolveState(definitions, elementId, path), `${elementId}: ${path}`).toBe(expected);
-      expect(resolveStateIn(model, elementId, path), `model, ${elementId}: ${path}`).toBe(expected);
+      expect(resolveStateIn(model, elementId, path), `${elementId}: ${path}`).toBe(expected);
     }
   });
 
-  test('resolvePlaceholders substitutes what resolves and leaves the rest as written', () => {
+  test('a placeholder is substituted where it resolves and left as written where it does not', () => {
     const CASES: [label: string, state: StateTree | undefined, text: string, expected: string][] = [
       ['a name in scope', STATE, 'Excluded (n={count})', 'Excluded (n=3)'],
       ['an unresolved name stays', STATE, '{arm}/{missing} {reached} {state.Battery.failed_trials}', 'A/{missing} 4 2'],
@@ -117,13 +101,9 @@ test.describe('state in the document', () => {
       // As in the Python runners.
       ['a name of letters of any script, and hyphens', { Example_Study: { durée: 3 }, _meta: { reached: { 'sid-12': 4 } } }, '{durée} {state._meta.reached.sid-12}', '3 4'],
     ];
-    const moddle = freshModdle();
     for (const [label, state, text, expected] of CASES) {
-      const definitions = studyflowToDefinitions(BODY, moddle);
-      writeState(definitions, moddle, state);
-      expect(resolvePlaceholders(text, definitions, 'Excluded_Pre'), label).toBe(expected);
       const model = studyModel(BODY + (state ? yaml.dump({ state }, YAML_DUMP_OPTIONS) : ''));
-      expect(resolvePlaceholdersIn(model, text, 'Excluded_Pre'), `model, ${label}`).toBe(expected);
+      expect(resolvePlaceholdersIn(model, text, 'Excluded_Pre'), label).toBe(expected);
     }
   });
 });

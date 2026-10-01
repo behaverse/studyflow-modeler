@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { inlineIoSpecification, protocolDigest, studyModelOf, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
-import { freshModdle } from '@tests/schemas';
+import { protocolDigest, xmlToStudy } from '@core/document';
+import { freshMetamodel, studyModel, xmlOf, yamlOf } from '@tests/schemas';
 
 /** The protocol digest a run records as its `plan`: the study without its drawing, its run state, or its run records. */
 
@@ -76,7 +76,7 @@ const swap = (from: string, to: string) => (text: string): string => {
   return text.replace(from, to);
 };
 
-const digest = async (text: string): Promise<string> => protocolDigest(studyModelOf(studyflowToDefinitions(text, freshModdle())));
+const digest = async (text: string): Promise<string> => protocolDigest(studyModel(text));
 
 /** What a run leaves: its state (on a Study extension the file did not have), and a record on each element it ran. */
 const RUN = (text: string): string => [
@@ -107,7 +107,7 @@ test('the drawing, the run state and the run records leave the digest alone; the
     ['a checklist item ticked', swap('- [ ] Settings wired in', '- [x] Settings wired in'), false],
     ['a progress', swap('name: Play the task', 'name: Play the task\n      progress: done'), false],
     // How `studyflow run` keeps the executed copy: through BPMN XML and back, which respells the schema's JSON as YAML.
-    ['the trip through XML and back', async (text) => xmlToStudyflow(await studyflowToXml(text, freshModdle()), freshModdle()), false],
+    ['the trip through XML and back', async (text) => yamlOf(await xmlOf(text)), false],
     ['a parameter value', swap('trials: 30', 'trials: 20'), true],
     ['a condition expression', swap('accuracy >= 0.8', 'accuracy > 0.8'), true],
     ['documentation', swap('Thirty trials', 'Twenty trials'), true],
@@ -119,7 +119,5 @@ test('the drawing, the run state and the run records leave the digest alone; the
   }
 
   // Read from BPMN XML as `studyflow` reads it, with the data associations compacted: the same protocol.
-  const { rootElement } = await freshModdle().fromXML(await studyflowToXml(PLAN, freshModdle()));
-  inlineIoSpecification(rootElement);
-  expect(await protocolDigest(studyModelOf(rootElement))).toBe(base);
+  expect(await protocolDigest(await xmlToStudy(await xmlOf(PLAN), freshMetamodel()))).toBe(base);
 });

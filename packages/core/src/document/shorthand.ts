@@ -1,5 +1,5 @@
 import { BPMN_FORMAL_EXPRESSION, isExpressionType } from '@core/model/spelling';
-import { isModdleElement, type ModdleElement } from '@core/element/moddle';
+import { isModdleElement, type ModdleElement } from '@core/document/moddle';
 
 /* The short forms, in the order a reader meets them; each one is reversible, and the long form is always accepted.
    Specified for authors in docs/reference.qmd, "The file"; pinned by packages/core/tests/studyflow-yaml.unit.spec.ts. */

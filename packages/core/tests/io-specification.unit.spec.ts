@@ -3,19 +3,15 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { fromWireXml, studyflowToXml, toStandardBpmnXml, xmlToStudyflow } from '@core/document';
-import { freshModdle } from '@tests/schemas';
+import { studyToXml, xmlToStudy } from '@core/document';
+import { studyText } from '@core/model/yaml';
+import { freshMetamodel, freshModdle, xmlOf, yamlOf } from '@tests/schemas';
 import { exampleNames, exampleText } from '@tests/utils';
 
-/** Exported `.bpmn` carries the full `ioSpecification`; reading it back folds it into the data associations. */
+/** The BPMN XML a study writes carries the full `ioSpecification`; reading it back folds it into the data associations. */
 
 /** Draws its data associations in core types alone. */
 const STATE_PROPERTIES_FIXTURE = path.join(process.cwd(), 'packages/core/tests/fixtures/state-properties.studyflow.yaml');
-
-/** The compact form the canvas edits: what the `.bpmn` export lowers. */
-async function canvasForm(text: string): Promise<string> {
-  return fromWireXml(await studyflowToXml(text, freshModdle()), freshModdle());
-}
 
 /** The activity of that id, as moddle reads the XML: the structure, not the serializer's spelling of it. */
 async function activityOf(xml: string, id: string): Promise<any> {
@@ -25,13 +21,11 @@ async function activityOf(xml: string, id: string): Promise<any> {
 }
 
 test.describe('standard-BPMN ioSpecification boundary', () => {
-  test('the canvas form, lowered to standard BPMN, folds back to the shipped YAML', async () => {
+  test('a study written as standard BPMN folds back to the shipped YAML', async () => {
     const fixture = readFileSync(STATE_PROPERTIES_FIXTURE, 'utf8');
 
     // What another BPMN tool reads: a data input per bound source, named after it, and `result` for the output.
-    const compact = await canvasForm(fixture);
-    expect(compact).not.toContain('ioSpecification');
-    const standard = await toStandardBpmnXml(compact, freshModdle());
+    const standard = await xmlOf(fixture);
     const activity = await activityOf(standard, 'Run_Trial');
     const io = activity.ioSpecification;
     expect(io.dataInputs.map((input: any) => input.name)).toEqual(['arm']);
@@ -46,8 +40,7 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
       ['the state-properties fixture', fixture] as [string, string],
     ].filter(([, text]) => /data(Input|Output)Associations:/.test(text));
     for (const [name, text] of CASES) {
-      const lowered = await toStandardBpmnXml(await canvasForm(text), freshModdle());
-      expect(await xmlToStudyflow(lowered, freshModdle()), name).toBe(text);
+      expect(await yamlOf(await xmlOf(text)), name).toBe(text);
     }
   });
 
@@ -61,16 +54,16 @@ test.describe('standard-BPMN ioSpecification boundary', () => {
   </bpmn:process>
 </bpmn:definitions>`;
 
-    const standard = await toStandardBpmnXml(compact, freshModdle());
+    const standard = await studyToXml(await xmlToStudy(compact, freshMetamodel()));
     // An unnamed source still gets a data input, named for what it is.
     expect((await activityOf(standard, 'Step')).ioSpecification.dataInputs.map((input: any) => input.name)).toEqual(['input']);
     expect(standard).not.toContain('transformation');
 
-    const folded = await fromWireXml(standard, freshModdle());
-    expect(folded).not.toContain('transformation');
-    expect(folded).not.toContain('ioSpecification');
+    const folded = await xmlToStudy(standard, freshMetamodel());
+    const text = studyText(folded.study, folded.metamodel);
+    expect(text).not.toContain('transformation');
+    expect(text).not.toContain('ioSpecification');
 
-    const relowered = await toStandardBpmnXml(folded, freshModdle());
-    expect(relowered).toBe(standard);
+    expect(await studyToXml(folded)).toBe(standard);
   });
 });

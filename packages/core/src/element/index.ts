@@ -1,23 +1,8 @@
-import { getCatalog, hasCatalog } from '@core/notation';
-import {
-  definitionsOf,
-  getAttributeSpec,
-  getRawAttribute,
-  isExtensionPrefix,
-  toBusinessObject,
-} from '@core/element/attributes';
-import { StudyflowElement, type ModdleWriter } from '@core/element/handle';
+/** What an element of a type is, by its type's name: the data associations, an event's definition, a schema's defaults and attributes. */
+import type { Element } from '@core/model/index';
+import { getCatalog } from '@core/notation';
 
-export {
-  definitionsOf,
-  getAttributeSpec,
-  getRawAttribute,
-  isExtensionPrefix,
-  toBusinessObject,
-  StudyflowElement,
-  type ModdleWriter,
-};
-export type { ModdleElement } from '@core/element/moddle';
+export { getAttributeSpec, getAttributeSpecs } from '@core/element/attributes';
 
 /** The association a data shape feeding an activity is. */
 export const DATA_INPUT_ASSOCIATION = 'bpmn:DataInputAssociation';
@@ -32,44 +17,19 @@ export function isDataAssociationType(type: string): boolean {
   return type === DATA_INPUT_ASSOCIATION || type === DATA_OUTPUT_ASSOCIATION;
 }
 
-/** The association type for a direction. */
-export function typeForDirection(direction: DataAssociationDirection): string {
-  return direction === 'input' ? DATA_INPUT_ASSOCIATION : DATA_OUTPUT_ASSOCIATION;
-}
-
 /** The list property on the activity a direction's associations are filed under. */
 export function associationPropertyFor(direction: DataAssociationDirection): string {
   return direction === 'input' ? 'dataInputAssociations' : 'dataOutputAssociations';
 }
 
-/** The `$type` of an event's first definition (`'bpmn:TimerEventDefinition'`), or `undefined` for a plain event. */
-export function eventDefinitionTypeOf(bo: any): string | undefined {
-  const defs = bo?.eventDefinitions;
-  const first = Array.isArray(defs) ? defs[0] : undefined;
-  return first?.$type ?? first?.type;
+/** The type of an event's first definition (`'bpmn:TimerEventDefinition'`), or `undefined` for a plain event. */
+export function eventDefinitionTypeOf(event: Partial<Element> | undefined): string | undefined {
+  const definitions = event?.eventDefinitions;
+  const first = Array.isArray(definitions) ? definitions[0] : undefined;
+  return first && typeof first === 'object' && !Array.isArray(first) && typeof first.type === 'string' ? first.type : undefined;
 }
 
-/** Derived, not stored; shared by the canvas marker and the NIDM/Artemis exporters so it cannot drift. */
-export function isDataOperationActivity(elementOrBO: any): boolean {
-  if (!elementOrBO) return false;
-  const extensionType = getExtensionType(elementOrBO);
-  if (extensionType && hasCatalog() && getCatalog().hasRole(extensionType, 'instrument')) return false;
-  const implementation = getAttribute(elementOrBO, 'implementation');
-  return typeof implementation === 'string' && implementation.trim() !== '';
-}
-
+/** The defaults a schema type declares, by their qualified names (`cognitive:restDuration`). */
 export function getDefaults(typeName: string): Record<string, any> {
   return { ...getCatalog().defaultsOf(typeName) };
-}
-
-export function getExtensionType(elementOrBO: any): string | undefined {
-  return StudyflowElement.fromBusinessObject(elementOrBO).extensionType;
-}
-
-export function getAttribute(elementOrBO: any, attributeName: string): any {
-  return StudyflowElement.fromBusinessObject(elementOrBO).getAttribute(attributeName);
-}
-
-export function setAttribute(element: any, attributeName: string, value: any, writer?: ModdleWriter): void {
-  StudyflowElement.fromBusinessObject(element, writer).setAttribute(attributeName, value);
 }

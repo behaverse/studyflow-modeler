@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
+import { readStudy } from '@core/model/yaml';
 import { BPMN_ANCESTORS, buildCatalog } from '@core/notation';
 import { MODDLE_BUILTIN_TYPES, type SchemaModel } from '@core/notation/moddlePackage';
-import { SCHEMAS, freshModdle, loadSchemaModels } from './schemas';
+import { SCHEMAS, freshMetamodel, freshModdle, loadSchemaModels } from './schemas';
 
 /** The shipped schemas, each rule checked across all of them, as the app loads them. */
 
@@ -98,14 +98,14 @@ test('every concrete type and every trait target instantiates in moddle, a wrapp
 });
 
 test('every template reads as studyflow with no warnings, is rooted on a BPMN element, and has a palette icon', () => {
-  const moddle = freshModdle();
+  const metamodel = freshMetamodel();
   for (const model of models) {
     for (const template of model.templates ?? []) {
       const label = `${model.prefix}: ${template.description}`;
       expect(typeof template.description, `${model.prefix} template description`).toBe('string');
       const warnings: string[] = [];
-      const definitions = studyflowToDefinitions({ definitions: {}, elements: template.elements }, moddle, (message) => warnings.push(message));
-      expect(definitions.rootElements.length, label).toBeGreaterThan(0);
+      const study = readStudy(structuredClone({ definitions: {}, elements: template.elements }), metamodel, (message) => warnings.push(message));
+      expect(study.roots.length, label).toBeGreaterThan(0);
       expect(warnings, label).toEqual([]);
     }
   }
@@ -124,7 +124,7 @@ test('a cognitive task takes an onset and a duration like any activity', () => {
   const elements = {
     Task: { type: 'ChoreographyTask', extensionElements: [{ type: 'cognitive:CognitiveTask' }], onset: 'T0+6min', duration: '5min' },
   };
-  studyflowToDefinitions({ definitions: {}, elements }, freshModdle(), (message) => warnings.push(message));
+  readStudy({ definitions: {}, elements }, freshMetamodel(), (message) => warnings.push(message));
   expect(warnings).toEqual([]);
 });
 

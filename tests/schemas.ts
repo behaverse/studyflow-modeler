@@ -6,7 +6,8 @@ import { BpmnModdle } from 'bpmn-moddle';
 import { metamodelOf } from '@core/model/packages';
 import type { Metamodel } from '@core/model/metamodel';
 import { StudyModel } from '@core/model/index';
-import { readStudy } from '@core/model/yaml';
+import { studyToXml, xmlToStudy } from '@core/document';
+import { readStudy, studyText } from '@core/model/yaml';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
@@ -70,6 +71,17 @@ const METAMODEL = freshMetamodel();
 /** A study model of `text`, a `.studyflow.yaml` file, over the shipped schemas; `onWarning` hears what the reader says. */
 export function studyModel(text: string, onWarning: (message: string) => void = () => {}): StudyModel {
   return new StudyModel(readStudy(text, METAMODEL, onWarning), METAMODEL);
+}
+
+/** `text`, a `.studyflow.yaml` file, as the BPMN XML the study writes. */
+export function xmlOf(text: string): Promise<string> {
+  return studyToXml(studyModel(text));
+}
+
+/** `xml`, a BPMN file, as the `.studyflow.yaml` the study it reads writes; `onWarning` hears what the reader says. */
+export async function yamlOf(xml: string, onWarning?: (message: string) => void): Promise<string> {
+  const model = await xmlToStudy(xml, METAMODEL, { onWarning });
+  return studyText(model.study, model.metamodel);
 }
 
 /** A moddle over the shipped schemas that nothing else has parsed with. */

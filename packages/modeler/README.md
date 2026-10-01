@@ -29,7 +29,7 @@ Skills add to the modeler through `skills/<name>/modeler.ts` (`skillModules.ts`)
 
 ## Where state lives
 
-The document lives in the canvas and its moddle; views keep React state. What outlives a component is in a few module-level stores, each read through `useSyncExternalStore` where a view shows it:
+The document lives in the canvas's study, a study model; views keep React state. What outlives a component is in a few module-level stores, each read through `useSyncExternalStore` where a view shows it:
 
 | Store | What |
 | --- | --- |

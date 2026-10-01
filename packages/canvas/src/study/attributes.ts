@@ -4,8 +4,8 @@
  * it holds now. What the inspector shows, less its layout.
  */
 
-import { getAttributeSpec, isExtensionPrefix } from '@core/element/index.ts';
-import { readAttribute, type Element, type StudyModel } from '@core/model/index.ts';
+import { getAttributeSpec } from '@core/element/index.ts';
+import { isExtensionPrefix, readAttribute, type Element, type StudyModel } from '@core/model/index.ts';
 import { getCatalog, hasCatalog, type AttributeSpec } from '@core/notation/index.ts';
 
 export interface AttributeRecord {

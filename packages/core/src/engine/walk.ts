@@ -1,4 +1,4 @@
-import { PLACEHOLDER } from '@core/document/state';
+import { PLACEHOLDER } from '@core/model/state';
 import { allocationOf, draw, permutedBlock, pick, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
 import { HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';

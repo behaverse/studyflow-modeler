@@ -14,9 +14,8 @@ import {
 } from '@headlessui/react';
 import { useState } from 'react';
 import { t } from '@modeler/i18n';
-import { isExtensionPrefix } from '@core/element';
 import { actorIn, bandsOf, isTypedChoreography } from '@core/model/choreography';
-import { idOf, type Value } from '@core/model/index';
+import { idOf, isExtensionPrefix, type Value } from '@core/model/index';
 import { getCatalog } from '@core/notation';
 import { isPool, listParticipants, participantKind, participantKinds, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { executeCommand } from '@modeler/commandBus';

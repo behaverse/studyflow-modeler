@@ -1,133 +1,12 @@
+/**
+ * The passes that put a BPMN file's choreography in the form a study holds, and back: another tool's choreography
+ * root read as a process, and an exchange (a choreography task in a process) written as the BPMN task it is.
+ */
 import { BPMN } from '@core/constants';
-import { definitionsOf } from '@core/element/attributes';
-import { getProperty, moveProperties, setProperty, type ModdleElement, type Moddle } from '@core/element/moddle';
-import { StudyflowElement } from '@core/element/handle';
-import { getCatalog, hasCatalog } from '@core/notation';
-import { applyXmlPasses, primaryRoot, isHeadlessCollaboration } from '@core/document/format';
-import { attributeOverrides } from '@core/document/parameters';
-import { DEFAULT_BOTTOM, DEFAULT_TOP } from '@core/model/choreography';
+import { moveProperties, type ModdleElement } from '@core/document/moddle';
+import { primaryRoot, isHeadlessCollaboration } from '@core/document/format';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
-
-export { DEFAULT_BOTTOM, DEFAULT_TOP } from '@core/model/choreography';
-
-/** The task's type wrapper, by the rule attribute reads use: a stamp such as a runner's `prov:activity` is not one. */
-function typeWrapperOf(bo: ModdleElement): ModdleElement | null {
-  return StudyflowElement.fromBusinessObject(bo).extension;
-}
-
-/** A typed choreography task (a cognitive task) presents itself; its one participant reference is the actor. */
-export function isTypedChoreography(bo: ModdleElement): boolean {
-  return typeWrapperOf(bo) !== null;
-}
-
-const DEFAULT_PRESENTER = 'Task software';
-
-/**
- * What presents a typed task: its type's `meta.presenter`, a template over the extension's attributes
- * (`Behaverse - {instrument}`, `{platform}`), read raw, or as the Parameters wired into the task set them. A type
- * that declares none, or a template that comes out empty, presents as the study's software.
- */
-export function presenterLabel(bo: ModdleElement): string {
-  const ext = typeWrapperOf(bo);
-  const template = hasCatalog() ? getCatalog().getType(ext?.$type)?.meta?.presenter : undefined;
-  if (typeof template !== 'string') return DEFAULT_PRESENTER;
-  const overrides = attributeOverrides(bo);
-  const label = template.replace(/\{(\w+)\}/g, (_match, name: string) => {
-    const value = overrides.get(name)?.value ?? ext?.[name] ?? ext?.$attrs?.[name];
-    return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
-  }).trim();
-  return label || DEFAULT_PRESENTER;
-}
-
-/** The actor a typed task names: its participant that does not initiate, else its first. */
-export function actorOf(bo: ModdleElement): ModdleElement | undefined {
-  const refs: ModdleElement[] = getProperty(bo, 'participantRef') ?? [];
-  const initiating = getProperty(bo, 'initiatingParticipantRef');
-  return refs.find((participant) => participant !== initiating) ?? refs[0];
-}
-
-/** What mints the ids of new participants and of the collaboration that holds them. */
-export type ParticipantIds = { nextPrefixed(prefix: string): string };
-
-/**
- * The element that owns `participants` for a choreography task: its enclosing `bpmn:Choreography` or, in a
- * process-rooted document, a `bpmn:Collaboration` among the root elements. One is created (with no DI plane, so its
- * participants live in the file without drawing) when neither exists.
- */
-function participantHolder(bo: ModdleElement, ids: ParticipantIds): ModdleElement | undefined {
-  const seen = new Set<ModdleElement>();
-  for (let current = bo.$parent; current && !seen.has(current); current = current.$parent) {
-    seen.add(current);
-    if (Array.isArray(getProperty(current, 'participants'))) return current;
-  }
-  const definitions = definitionsOf(bo);
-  if (!definitions?.$model?.create) return undefined;
-  const roots: ModdleElement[] = getProperty(definitions, 'rootElements') ?? [];
-  const existing = roots.find((root) => Array.isArray(getProperty(root, 'participants')));
-  if (existing) return existing;
-  const created = definitions.$model.create('bpmn:Collaboration', { id: ids.nextPrefixed('Collaboration_'), participants: [] });
-  created.$parent = definitions;
-  setProperty(definitions, 'rootElements', [...roots, created]);
-  return created;
-}
-
-/** A new participant named `name`, filed with the task's other participants; `undefined` without a moddle factory. */
-export function mintParticipant(bo: ModdleElement, name: string, ids: ParticipantIds): ModdleElement | undefined {
-  const model = bo.$model ?? definitionsOf(bo)?.$model;
-  const holder = model?.create ? participantHolder(bo, ids) : undefined;
-  if (!holder) return undefined;
-  const participant = model.create('bpmn:Participant', { id: ids.nextPrefixed('Participant_'), name });
-  participant.$parent = holder;
-  setProperty(holder, 'participants', [...(getProperty(holder, 'participants') ?? []), participant]);
-  return participant;
-}
-
-/**
- * The `[top, bottom]` participants of a choreography task, minting what the document lacks: a plain
- * task gets two, the top one initiating unless the task names one; a typed task gets one, the actor
- * (both bands answer it), and no initiator, since the presenting side is the task itself. The writes go
- * straight onto moddle; the caller records the edit. `undefined` when there is no moddle factory.
- */
-export function ensureChoreographyParticipants(bo: ModdleElement, ids: ParticipantIds): [ModdleElement, ModdleElement] | undefined {
-  const list: ModdleElement[] = getProperty(bo, 'participantRef') ?? [];
-  const typed = isTypedChoreography(bo);
-  if (typed && list.length >= 1) {
-    const actor = actorOf(bo)!;
-    return [actor, actor];
-  }
-  if (list.length >= 2) return [list[0], list[1]];
-  if (typed) {
-    const actor = mintParticipant(bo, 'Participant', ids);
-    if (!actor) return undefined;
-    setProperty(bo, 'participantRef', [actor]);
-    setProperty(bo, 'initiatingParticipantRef', undefined);
-    return [actor, actor];
-  }
-  const top = list[0] ?? mintParticipant(bo, DEFAULT_TOP, ids);
-  const bottom = list[1] ?? mintParticipant(bo, DEFAULT_BOTTOM, ids);
-  if (!top || !bottom) return undefined;
-  setProperty(bo, 'participantRef', [top, bottom]);
-  setProperty(bo, 'initiatingParticipantRef', getProperty(bo, 'initiatingParticipantRef') ?? top);
-  return [top, bottom];
-}
-
-export function readChoreographyBands(
-  bo: ModdleElement,
-): { top: string; bottom: string; initiator: 'top' | 'bottom' } {
-  if (isTypedChoreography(bo)) {
-    return { top: presenterLabel(bo), bottom: actorOf(bo)?.name || DEFAULT_BOTTOM, initiator: 'top' };
-  }
-  const refs = getProperty(bo, 'participantRef') ?? [];
-  const top = refs[0];
-  const bottom = refs[1];
-  const initiating = getProperty(bo, 'initiatingParticipantRef');
-  return {
-    top: top?.name || DEFAULT_TOP,
-    bottom: bottom?.name || DEFAULT_BOTTOM,
-    initiator: initiating && initiating === bottom && bottom !== top ? 'bottom' : 'top',
-  };
-}
 
 function isChoreographyTaskBo(el: ModdleElement | null | undefined): boolean {
   return el?.$type === CHOREOGRAPHY_TASK;
@@ -296,9 +175,4 @@ export function tasksToExchanges(definitions: any): boolean {
     if (task.get('initiator')) exchange.set('initiatingParticipantRef', task.get('initiator'));
   }
   return tasks.length > 0;
-}
-
-/** The BPMN XML of a study: a choreography task in a process as the BPMN task it is ({@link exchangesToTasks}). */
-export async function toWireXml(xml: string, moddle: Moddle): Promise<string> {
-  return applyXmlPasses(xml, moddle, [exchangesToTasks]);
 }

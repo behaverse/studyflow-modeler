@@ -4,10 +4,13 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { definitionsToStudyflow, fromWireXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
+import { studyToXml } from '@core/document';
+import { studyflowToDefinitions } from '@core/document/deserialize';
+import { definitionsToYamlDoc } from '@core/document/serialize';
+import { YAML_DUMP_OPTIONS } from '@core/model/spelling';
 import { exampleNames as examples, exampleText } from '@tests/utils';
 import { readStudy, studyText } from '@core/model/yaml';
-import { freshMetamodel, freshModdle } from '@tests/schemas';
+import { freshMetamodel, freshModdle, studyModel, xmlOf, yamlOf } from '@tests/schemas';
 
 /** The `.studyflow.yaml` spelling: the short forms the writer emits, every shipped file spelled that way, and the long forms the reader still takes. */
 
@@ -70,14 +73,14 @@ diagram:
           bpmnElement: Start
           bounds: { x: 160, "y": 180, width: 36, height: 36 }
 `;
-    const xml = await studyflowToXml(legacy, freshModdle());
+    const xml = await xmlOf(legacy);
     // The study model reads the long spellings into what the file writes.
     const metamodel = freshMetamodel();
-    expect(studyText(readStudy(legacy, metamodel), metamodel)).toBe(await xmlToStudyflow(xml, freshModdle()));
+    expect(studyText(readStudy(legacy, metamodel), metamodel)).toBe(await yamlOf(xml));
     expect(xml).toContain('XCIT_NB_01');
     expect(xml).toContain('Start_di');
 
-    const doc: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
+    const doc: any = yaml.load(await yamlOf(xml));
     expect(doc.id).toBe('legacy_demo');
     expect(doc.definitions['xmlns:studyflow']).toBeUndefined();
     expect(doc.diagram).toBeUndefined();
@@ -127,8 +130,7 @@ P:
       text: hello
     Assoc_1: Note_1 -> T1
 `;
-    const moddle = freshModdle();
-    const xml = await studyflowToXml(doc, moddle);
+    const xml = await xmlOf(doc);
     expect(xml).toMatch(/<bpmn2?:task id="T1" name="Read">/);
     expect(xml).toMatch(/<bpmn2?:sequenceFlow id="F1" sourceRef="Start" targetRef="T1" \/>/);
     expect(xml).toMatch(/<bpmn2?:sequenceFlow id="F2" name="done" sourceRef="T1" targetRef="End" \/>/);
@@ -147,7 +149,7 @@ P:
     expect(xml).toContain('bioc:stroke="#4a6f9c"');
     expect(xml).toContain('studyflow:font="bold right #4a6f9c"');
 
-    const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
+    const back: any = yaml.load(await yamlOf(xml));
     expect(back.layout.T1).toEqual({ bounds: '100 0 100 80', fill: '#dbe8f5', stroke: '#4a6f9c', font: 'bold right #4a6f9c' });
     expect(back.P.flowElements.F1).toBe('Start -> T1');
     expect(back.P.artifacts.Assoc_1).toBe('Note_1 -> T1');
@@ -185,10 +187,10 @@ P:
           values:
             stimulus: "<p>&lt; L &amp; R <<< </p>"
 `;
-    const xml = await studyflowToXml(doc, freshModdle());
+    const xml = await xmlOf(doc);
     expect(xml).not.toContain('<<<');
 
-    const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
+    const back: any = yaml.load(await yamlOf(xml));
     expect(back.P.flowElements.C1.values.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
   });
 
@@ -208,9 +210,9 @@ P:
         - type: studyflow:Parameters
           values: "${values}"
 `;
-    const xml = await studyflowToXml(doc, freshModdle());
+    const xml = await xmlOf(doc);
     expect(xml).toContain(values);
-    const back: any = yaml.load(await xmlToStudyflow(xml, freshModdle()));
+    const back: any = yaml.load(await yamlOf(xml));
     expect(back.P.flowElements.C1.values).toBe(values);
   });
 
@@ -247,11 +249,11 @@ R:
     Answer:
       type: ReceiveTask
 `;
-    const xml = await studyflowToXml(text, freshModdle());
+    const xml = await xmlOf(text);
     expect(xml).toContain('messageRef="Trial"');
     expect(xml).toContain('<bpmn:message id="Trial" itemRef="Trial_Item" />');
     expect(xml).toContain('<bpmn:itemDefinition id="Trial_Item" structureRef="behaverse:Trial" />');
-    const back = await xmlToStudyflow(xml, freshModdle());
+    const back = await yamlOf(xml);
     expect(back).toContain('messageRef: Trial\n');
     expect(back).toContain('Trial:\n  type: Message\n  itemRef: Trial_Item\n');
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');
@@ -288,12 +290,12 @@ S:
           condition: "{Play.failedTrialRate} > 0.2"
       attachedToRef: Play
 `;
-    const xml = await studyflowToXml(text, freshModdle());
+    const xml = await xmlOf(text);
     expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics>');
     expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics isSequential="true">');
     expect(xml).toMatch(/<bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">4<\/bpmn:loopCardinality>/);
     expect(xml).toMatch(/<bpmn:condition xsi:type="bpmn:tFormalExpression">\{Play.failedTrialRate\} &gt; 0.2<\/bpmn:condition>/);
-    expect(await xmlToStudyflow(xml, freshModdle())).toBe(text);
+    expect(await yamlOf(xml)).toBe(text);
   });
 
   test('lanes inside a sub-process, and a pool\'s participant multiplicity, keep their spelling through a round trip', async () => {
@@ -340,12 +342,12 @@ layout:
   S0:
     bounds: 200 140 36 36
 `;
-    const xml = await studyflowToXml(text, freshModdle());
+    const xml = await xmlOf(text);
     expect(xml).toContain('<bpmn:participantMultiplicity minimum="4" maximum="4" />');
     // The lane set is the sub-process's own, not the process's.
     expect(xml).toMatch(/<bpmn:subProcess id="Session">\s*<bpmn:laneSet id="LaneSet_Session">/);
     expect(xml).toContain('<bpmn:flowNodeRef>S0</bpmn:flowNodeRef>');
-    expect(await xmlToStudyflow(xml, freshModdle())).toBe(text);
+    expect(await yamlOf(xml)).toBe(text);
   });
 
   test('a pool diagram with no `diagram:` node draws its collaboration, whose Study takes the state', () => {
@@ -398,7 +400,7 @@ diagram:
       id: DP
       bpmnElement: P
 `;
-    const written = await xmlToStudyflow(await studyflowToXml(text, freshModdle()), freshModdle());
+    const written = await yamlOf(await xmlOf(text));
     expect(studyflowToDefinitions(written, freshModdle()).diagrams[0].plane.bpmnElement.id).toBe('P');
   });
 
@@ -432,7 +434,7 @@ P:
     b.incoming.splice(b.incoming.indexOf(flow), 1);
 
     const warnings: string[] = [];
-    const text = definitionsToStudyflow(definitions, (message) => warnings.push(message));
+    const text = yaml.dump(definitionsToYamlDoc(definitions, (message) => warnings.push(message)), YAML_DUMP_OPTIONS);
     expect(warnings).toEqual([expect.stringMatching(/'Split' refers by default to 'Flow_2'/)]);
     const again = studyflowToDefinitions(text, freshModdle());
     expect(again.rootElements[0].flowElements.find((el: any) => el.id === 'Split').default).toBeUndefined();
@@ -455,17 +457,14 @@ P:
   </bpmn:process>
 </bpmn:definitions>`;
     const opened: string[] = [];
-    expect(await fromWireXml(xml, freshModdle(), (message) => opened.push(message))).not.toContain('camunda:inputOutput');
+    const text = await yamlOf(xml, (message) => opened.push(message));
+    expect(text).not.toContain('camunda:inputOutput');
     expect(opened).toEqual([expect.stringMatching(/^T: <camunda:inputOutput> is from a namespace no loaded schema declares/)]);
-
-    const converted: string[] = [];
-    const text = await xmlToStudyflow(xml, freshModdle(), (message) => converted.push(message));
-    expect(converted).toEqual(opened);
     const task = studyflowToDefinitions(text, freshModdle()).rootElements[0].flowElements[0];
     expect(task.extensionElements).toBeUndefined();
     // A child's text is a list even when it is one, so it is written back as a child, not as an attribute.
     expect(text).toContain('- type: lab:rig\n          platform: x\n          note:\n            - a\n');
-    expect(await studyflowToXml(text, freshModdle())).toContain('<lab:rig platform="x">\n          <lab:note>a</lab:note>\n        </lab:rig>');
+    expect(await xmlOf(text)).toContain('<lab:rig platform="x">\n          <lab:note>a</lab:note>\n        </lab:rig>');
   });
 
   test('an id two elements share is reported: a reference to it could reach only one', () => {
@@ -477,7 +476,6 @@ P:
   });
 
   test('`studyflow validate` flags the attributes the modeler flags on open, and the own `icon` and `font` are declared', async () => {
-    const moddle = freshModdle();
     const text = `id: s
 definitions: {}
 Study:
@@ -497,9 +495,9 @@ Study:
 `;
     // The CLI reads the YAML alone; the modeler then reads the XML written from it with moddle's reader.
     const read: string[] = [];
-    const xml = await studyflowToXml(text, moddle, (message) => read.push(message));
+    const xml = await studyToXml(studyModel(text, (message) => read.push(message)));
     const opened: string[] = [];
-    await fromWireXml(xml, moddle, (message) => opened.push(message));
+    await yamlOf(xml, (message) => opened.push(message));
 
     expect(read).toEqual([expect.stringMatching(/unknown attribute <studyflow:colour>.*SubProcess/)]);
     expect(opened).toEqual([expect.stringMatching(/^Chain: .*<studyflow:colour>/)]);
@@ -509,7 +507,6 @@ Study:
   });
 
   test('a flow node at the top level, which BPMN drops, is flagged by `studyflow validate` as by the modeler on open', async () => {
-    const moddle = freshModdle();
     const text = `id: s
 definitions: {}
 Study:
@@ -521,9 +518,9 @@ Loose:
   type: ServiceTask
 `;
     const read: string[] = [];
-    const xml = await studyflowToXml(text, moddle, (message) => read.push(message));
+    const xml = await studyToXml(studyModel(text, (message) => read.push(message)));
     const opened: string[] = [];
-    await fromWireXml(xml, moddle, (message) => opened.push(message));
+    await yamlOf(xml, (message) => opened.push(message));
 
     expect(read).toEqual([expect.stringMatching(/unrecognized element <bpmn:ServiceTask> 'Loose'/)]);
     expect(opened).toEqual([expect.stringContaining('unrecognized element <bpmn:serviceTask>')]);
@@ -536,7 +533,7 @@ Loose:
   ]) {
     test(`${name}: spelled the way the modeler writes it`, async () => {
       const text = read();
-      expect(await xmlToStudyflow(await studyflowToXml(text, freshModdle()), freshModdle())).toBe(text);
+      expect(await yamlOf(await xmlOf(text))).toBe(text);
       // The study model reads it and writes it back as it is.
       const metamodel = freshMetamodel();
       expect(studyText(readStudy(text, metamodel), metamodel)).toBe(text);

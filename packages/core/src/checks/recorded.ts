@@ -1,4 +1,4 @@
-import { META_KEY } from '@core/document/state';
+import { META_KEY } from '@core/model/state';
 import type { StudyModel } from '@core/model/index';
 import type { Issue } from '@core/checks';
 import { stateOf, type RunEvent } from '@core/engine/record';

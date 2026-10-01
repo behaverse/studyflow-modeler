@@ -1,12 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-import { StudyflowElement, getAttribute } from '@core/element';
+import { studyToXml } from '@core/document';
+import { StudyModel, type Element } from '@core/model/index';
 import { getAttributesByCategory } from '@modeler/inspector/categories';
-import { freshModdle, studyModel } from './schemas';
+import { freshMetamodel, studyModel } from './schemas';
 
 /** The executable surface across the task family. */
-
-const moddle = freshModdle();
 
 const REF = 'python://analysis.summarize@1.2';
 
@@ -19,20 +18,17 @@ const NATIVE_TYPES = [
 ];
 
 async function serialized(taskType: string, attribute: string, value: string): Promise<string> {
-  const task = moddle.create(taskType, { id: 'T_1' });
-  StudyflowElement.fromBusinessObject(task).setAttribute(attribute, value);
-  expect(getAttribute(task, attribute)).toBe(value);
-
-  const process = moddle.create('bpmn:Process', { id: 'P_1', flowElements: [task] });
-  const definitions = moddle.create('bpmn:Definitions', { id: 'D_1', rootElements: [process] });
-  const { xml } = await moddle.toXML(definitions);
-  return xml;
+  const task: Element = { type: taskType, id: 'T_1' };
+  const model = new StudyModel({ id: 'D_1', definitions: {}, roots: [{ type: 'bpmn:Process', id: 'P_1', flowElements: [task] }], layout: {} }, freshMetamodel());
+  model.setAttribute(task, attribute, value);
+  expect(model.attribute(task, attribute)).toBe(value);
+  return studyToXml(model);
 }
 
 test('a task keeps its software in BPMN\'s own form: `implementation` an attribute, a script a child', async () => {
   const CASES: Array<[string, string, string, string]> = [
     ...NATIVE_TYPES.map((taskType): [string, string, string, string] => [taskType, 'implementation', REF, `implementation="${REF}"`]),
-    ['bpmn:ScriptTask', 'bpmn:script', 'print(42)', '<bpmn:script>print(42)</bpmn:script>'],
+    ['bpmn:ScriptTask', 'script', 'print(42)', '<bpmn:script>print(42)</bpmn:script>'],
   ];
   for (const [taskType, attribute, value, native] of CASES) {
     const xml = await serialized(taskType, attribute, value);

@@ -1,14 +1,16 @@
 /**
- * BPMN XML in and out of a study model. moddle reads and writes the XML; what it reads is put in the form the YAML
- * reader builds (an exchange, a process root) and read as a study model.
+ * BPMN XML in and out of a study model, the one place moddle reads and writes. What moddle reads is put in the form
+ * the YAML reader builds (an exchange, a process root, compact data inputs) and read as a study model; a study is
+ * written by building moddle's tree from its YAML.
  */
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { choreographyToProcessRoot, headlessPlaneToProcessRoot, tasksToExchanges } from '@core/document/choreography';
+import { choreographyToProcessRoot, exchangesToTasks, headlessPlaneToProcessRoot, tasksToExchanges } from '@core/document/choreography';
+import { studyflowToDefinitions } from '@core/document/deserialize';
 import { dropForeignElements } from '@core/document/format';
-import { inlineIoSpecification } from '@core/document/io-specification';
-import { looksLikeXml, readerWarning, studyModelOf, studyflowToXml } from '@core/document/index';
-import type { Moddle } from '@core/element/moddle';
+import { expandIoSpecification, inlineIoSpecification } from '@core/document/io-specification';
+import { definitionsToYamlDoc } from '@core/document/serialize';
+import type { Moddle } from '@core/document/moddle';
 import { StudyModel } from '@core/model/index';
 import { choreographyToProcessIn } from '@core/model/choreography';
 import type { Metamodel } from '@core/model/metamodel';
@@ -18,6 +20,11 @@ import { readStudy, studyText } from '@core/model/yaml';
 const BPMN_PREFIXES = new Set(bpmnPackages().map((pkg) => pkg.prefix));
 
 const moddles = new WeakMap<Metamodel, Moddle>();
+
+/** Whether file text is XML rather than YAML. */
+export function looksLikeXml(text: string): boolean {
+  return /^﻿?\s*</.test(text);
+}
 
 /** The moddle over the schemas `metamodel` reads: one per metamodel, given its own copy of their packages. */
 export function moddleOf(metamodel: Metamodel): Moddle {
@@ -30,20 +37,26 @@ export function moddleOf(metamodel: Metamodel): Moddle {
   return moddle;
 }
 
+/** A moddle reader warning as text, led by the id of the element it is about: "unknown attribute <name>" alone points nowhere. */
+function readerWarning(warning: any): string {
+  const message = warning?.message ?? String(warning);
+  return warning?.element?.id ? `${warning.element.id}: ${message}` : message;
+}
+
 /**
  * The study model of BPMN XML. Its data inputs are read into the compact form the YAML writes, so a study checks and
  * digests alike in either spelling; `asWritten` keeps the ones the XML declares, as a run hands them on. `onWarning`
- * hears what the reader could not place.
+ * hears what the reader could not place, content it drops included.
  */
 export async function xmlToStudy(xml: string, metamodel: Metamodel, { asWritten = false, onWarning }: { asWritten?: boolean; onWarning?: (message: string) => void } = {}): Promise<StudyModel> {
-  const { rootElement, warnings } = await moddleOf(metamodel).fromXML(xml);
+  const { rootElement: definitions, warnings } = await moddleOf(metamodel).fromXML(xml);
   for (const warning of warnings) onWarning?.(readerWarning(warning));
-  dropForeignElements(rootElement, onWarning);
-  tasksToExchanges(rootElement);
-  choreographyToProcessRoot(rootElement);
-  headlessPlaneToProcessRoot(rootElement);
-  if (!asWritten) inlineIoSpecification(rootElement);
-  return studyModelOf(rootElement, metamodel);
+  dropForeignElements(definitions, onWarning);
+  tasksToExchanges(definitions);
+  choreographyToProcessRoot(definitions);
+  headlessPlaneToProcessRoot(definitions);
+  if (!asWritten) inlineIoSpecification(definitions);
+  return new StudyModel(readStudy(definitionsToYamlDoc(definitions, onWarning), metamodel, () => {}), metamodel);
 }
 
 /** The study model of file text, a `.studyflow.yaml` or BPMN XML (read as {@link xmlToStudy} reads it). */
@@ -56,6 +69,11 @@ export async function parseStudy(text: string, metamodel: Metamodel, options: { 
 
 /** The study as BPMN XML: an exchange written as the BPMN task it is, a compact data input with the data input it
  * stands for. */
-export function studyToXml(model: StudyModel): Promise<string> {
-  return studyflowToXml(studyText(model.study, model.metamodel), moddleOf(model.metamodel));
+export async function studyToXml(model: StudyModel): Promise<string> {
+  const moddle = moddleOf(model.metamodel);
+  const definitions = studyflowToDefinitions(studyText(model.study, model.metamodel), moddle);
+  exchangesToTasks(definitions);
+  expandIoSpecification(definitions);
+  const { xml } = await moddle.toXML(definitions, { format: true });
+  return xml;
 }

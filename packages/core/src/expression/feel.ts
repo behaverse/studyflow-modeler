@@ -9,7 +9,7 @@ import { evaluate, parseExpression } from 'feelin';
 
 type SyntaxNode = ReturnType<typeof parseExpression>['topNode'];
 
-import { PLACEHOLDER } from '@core/document/state';
+import { PLACEHOLDER } from '@core/model/state';
 
 export type FeelResult = { value: unknown; error?: string };
 

@@ -1,5 +1,6 @@
-import { isModdleElement } from '@core/element/moddle';
-import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, inferredRoot, isHeadlessCollaboration, type YamlDoc } from '@core/document/format';
+import { isModdleElement } from '@core/document/moddle';
+import { STUDY_EXTENSION_TYPE, inferredRoot, isHeadlessCollaboration } from '@core/document/format';
+import { RESERVED_DOC_KEYS, type YamlDoc } from '@core/model/yaml';
 import { readState } from '@core/document/state';
 import {
   flowEndsOf,

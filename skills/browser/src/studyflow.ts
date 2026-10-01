@@ -1,4 +1,5 @@
-import { PLACEHOLDER, looksLikeXml, xmlToStudy, type StateTree } from '@core/document';
+import { looksLikeXml, xmlToStudy } from '@core/document';
+import { PLACEHOLDER, type StateTree } from '@core/model/state';
 import { BPMN } from '@core/constants';
 import { planOf, type Plan } from '@core/engine';
 import { StudyModel, idOf, isElement, type Element, type Value } from '@core/model/index';

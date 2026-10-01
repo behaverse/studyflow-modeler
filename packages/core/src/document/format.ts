@@ -1,20 +1,10 @@
-import { getProperty, type ModdleElement } from '@core/element/moddle';
-
-export type YamlDoc = Record<string, unknown>;
-
-export const RESERVED_DOC_KEYS = new Set(['id', 'definitions', 'elements', 'layout', 'diagram', 'state']);
+import type { ModdleElement } from '@core/document/moddle';
 
 export const STUDY_EXTENSION_TYPE = 'studyflow:Study';
 
 /** A collaboration with no pool, only actors that take bands: it holds participants for the process and draws nothing. */
 export function isHeadlessCollaboration(root: any): boolean {
   return root?.$type === 'bpmn:Collaboration' && !(root.participants ?? []).some((p: any) => p?.processRef);
-}
-
-/** Where the study is meant to run: `runtime` on the `studyflow:Study` extension of the primary root. Unset, the schema says `local`. */
-export function declaredRuntime(definitions: ModdleElement | null | undefined): string {
-  const value = getProperty(studyExtensionOf(definitions), 'runtime');
-  return typeof value === 'string' && value ? value : 'local';
 }
 
 /** The `studyflow:Study` extension of the primary root: where `runtime`, `state`, and the study's own fields live. */
@@ -79,26 +69,3 @@ export const dropForeignElements: XmlPass = (definitions, onWarning) => {
   visit(definitions);
   return dropped;
 };
-
-export async function applyXmlPasses(
-  xml: string,
-  moddle: {
-    fromXML(xml: string): Promise<{ rootElement: any; warnings: unknown[] }>;
-    toXML(element: any, options?: { format?: boolean }): Promise<{ xml: string }>;
-  },
-  passes: XmlPass[],
-  onWarning?: (warning: unknown) => void,
-): Promise<string> {
-  if (passes.length === 0) return xml;
-
-  const { rootElement, warnings } = await moddle.fromXML(xml);
-  for (const warning of warnings) onWarning?.(warning);
-  let changed = false;
-  for (const pass of passes) {
-    // Not `changed ||= pass(...)`: every pass must run, and `||=` short-circuits.
-    if (pass(rootElement, onWarning)) changed = true;
-  }
-  if (!changed) return xml;
-
-  return (await moddle.toXML(rootElement, { format: true })).xml;
-}

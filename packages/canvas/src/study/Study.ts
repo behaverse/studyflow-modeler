@@ -3,14 +3,14 @@
  * of each change. It needs no DOM: a canvas is one view of a study, and several views may share one.
  */
 
-import { parseStudy, patchDoc, studyToXml } from '@core/document/index.ts';
-import type { YamlDoc } from '@core/document/format.ts';
+import { parseStudy, studyToXml } from '@core/document/index.ts';
 import { categoryOf, isDataShape, isExpandable } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf } from '@core/element/index.ts';
 import { isElement, StudyModel, type Element, type Value } from '@core/model/index.ts';
 import { setItemSubjectIn, setMessageItemIn, type Ids } from '@core/model/items.ts';
 import type { Metamodel } from '@core/model/metamodel.ts';
-import { readStudy, studyText, writeStudy } from '@core/model/yaml.ts';
+import { patchDoc } from '@core/model/patch.ts';
+import { readStudy, studyText, writeStudy, type YamlDoc } from '@core/model/yaml.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { declares, describeType, extensionMisfit, NOTHING, refused, runRead, runStep, shapeFor } from '@canvas/study/calls.ts';

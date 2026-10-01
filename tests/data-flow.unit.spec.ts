@@ -1,84 +1,66 @@
 import { expect, test } from '@playwright/test';
 
-import { inlineIoSpecification, xmlToStudy } from '@core/document';
+import { xmlToStudy } from '@core/document';
+import type { Element, StudyModel } from '@core/model/index';
 import { getInferredDataNeighbors } from '@modeler/inspector/dataNeighbors';
 import { getPropertiesInScope, getStateProperties, isScopeContainer } from '@modeler/inspector/stateProperties';
-import { freshMetamodel, freshModdle, studyModel } from './schemas';
-import { exampleNames as examples, exampleXml } from './utils';
+import { freshMetamodel, studyModel } from './schemas';
+import { exampleNames as examples, exampleText, exampleXml } from './utils';
 
 /** A step's data contract and what the canvas draws are two readings of one file; they must agree. */
 
-type Model = { definitions: any; planes: Array<Map<string, any>> };
-
 const DRAWN_DATA = ['bpmn:DataObjectReference', 'bpmn:DataStoreReference'];
 
-function isDrawnData(element: any): boolean {
-  return DRAWN_DATA.includes(element?.$type);
+const listOf = (element: Element | undefined, key: string): Element[] => (element?.[key] as Element[] | undefined) ?? [];
+
+function isDrawnData(model: StudyModel, id: unknown): boolean {
+  const element = typeof id === 'string' ? model.get(id) : undefined;
+  return !!element && DRAWN_DATA.includes(model.host(element));
 }
 
-function activities(definitions: any): any[] {
-  const found: any[] = [];
-  const visit = (container: any): void => {
-    for (const element of container?.flowElements ?? []) {
+function activities(model: StudyModel): Element[] {
+  const found: Element[] = [];
+  const visit = (container: Element): void => {
+    for (const element of listOf(container, 'flowElements')) {
       found.push(element);
-      if (element.flowElements) visit(element);
+      visit(element);
     }
   };
-  for (const root of definitions.rootElements ?? []) visit(root);
+  model.study.roots.forEach(visit);
   return found;
 }
 
-/** What the steps read or write through their data associations. */
-function associatedData(definitions: any): any[] {
-  return activities(definitions).flatMap((step: any) => [
-    ...(step.dataInputAssociations ?? []).flatMap((association: any) => association.sourceRef ?? []),
-    ...(step.dataOutputAssociations ?? []).map((association: any) => association.targetRef).filter(Boolean),
+/** The ids of what the steps read or write through their data associations. */
+function associatedData(model: StudyModel): string[] {
+  return activities(model).flatMap((step) => [
+    ...listOf(step, 'dataInputAssociations').flatMap((association) => (association.sourceRef as string[] | undefined) ?? []),
+    ...listOf(step, 'dataOutputAssociations').map((association) => association.targetRef as string | undefined).filter((id): id is string => !!id),
   ]);
 }
 
-function connectsAnything(definitions: any): boolean {
-  if (associatedData(definitions).length > 0) return true;
-  if (activities(definitions).some((el: any) => el.$type === 'bpmn:SequenceFlow')) return true;
-  return (definitions.rootElements ?? []).some((root: any) => (root.messageFlows ?? []).length > 0);
+function connectsAnything(model: StudyModel): boolean {
+  if (associatedData(model).length > 0) return true;
+  if (activities(model).some((element) => model.host(element) === 'bpmn:SequenceFlow')) return true;
+  return model.study.roots.some((root) => listOf(root, 'messageFlows').length > 0);
 }
 
-async function read(name: string): Promise<Model> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(await exampleXml(name));
-  // Shipped payloads carry native ioSpecification; fold to the compact form the inspector reads, as import does.
-  inlineIoSpecification(definitions);
-
-  const planes: Array<Map<string, any>> = [];
-  for (const diagram of definitions.diagrams ?? []) {
-    const shapes = new Map<string, any>();
-    for (const di of diagram.plane?.get('planeElement') ?? []) {
-      if (di.$type === 'bpmndi:BPMNShape' && di.bpmnElement?.id) shapes.set(di.bpmnElement.id, di);
-    }
-    planes.push(shapes);
-  }
-  return { definitions, planes };
-}
-
-test('every shipped example routes its data flow through data associations, and names who reads or writes each data element it draws', async () => {
+test('every shipped example routes its data flow through data associations, and names who reads or writes each data element it draws', () => {
   const problems: string[] = [];
   for (const name of examples) {
-    const { definitions, planes } = await read(name);
-    const artifactAssociations: any[] = (definitions.rootElements ?? [])
-      .flatMap((root: any) => root.artifacts ?? [])
-      .filter((a: any) => a.$type === 'bpmn:Association');
+    const model = studyModel(exampleText(name));
+    const artifactAssociations = model.study.roots
+      .flatMap((root) => listOf(root, 'artifacts'))
+      .filter((artifact) => model.host(artifact) === 'bpmn:Association');
 
-    for (const a of artifactAssociations.filter((a) => isDrawnData(a.sourceRef) !== isDrawnData(a.targetRef))) {
-      problems.push(`${name}: artifact association ${a.id} (${a.sourceRef?.id} -> ${a.targetRef?.id}) stands in for data flow`);
+    for (const a of artifactAssociations.filter((a) => isDrawnData(model, a.sourceRef) !== isDrawnData(model, a.targetRef))) {
+      problems.push(`${name}: artifact association ${a.id} (${a.sourceRef} -> ${a.targetRef}) stands in for data flow`);
     }
 
     // A catalogue joins nothing at all, so its data shapes are specimens (see `connectsAnything`).
-    if (!connectsAnything(definitions)) continue;
-    const named = new Set([
-      ...associatedData(definitions).map((dataElement) => dataElement.id),
-      ...artifactAssociations.flatMap((a) => [a.sourceRef?.id, a.targetRef?.id]),
-    ]);
-    for (const element of activities(definitions).filter(isDrawnData)) {
-      if (planes.some((shapes) => shapes.has(element.id)) && !named.has(element.id)) {
+    if (!connectsAnything(model)) continue;
+    const named = new Set([...associatedData(model), ...artifactAssociations.flatMap((a) => [a.sourceRef, a.targetRef])]);
+    for (const element of activities(model).filter((element) => isDrawnData(model, element.id))) {
+      if (element.id! in model.study.layout && !named.has(element.id)) {
         problems.push(`${name}: ${element.id} (${element.name ?? ''}) is drawn, but no association names it`);
       }
     }

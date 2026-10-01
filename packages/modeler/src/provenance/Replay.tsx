@@ -269,7 +269,7 @@ const scopeName = (r: ProvenanceRecord) =>
 
 export function ReplayPanel({ onClose }: Props) {
   const editor = useModeler();
-  // `importXML` fires no `HistoryChanged`, so we bump a separate version to force a new timeline when the document changes.
+  // Opening a study fires no `HistoryChanged`, so we bump a separate version to force a new timeline when the document changes.
   const [docVersion, bumpDocVersion] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
     editor.events.on('ImportDone', bumpDocVersion);

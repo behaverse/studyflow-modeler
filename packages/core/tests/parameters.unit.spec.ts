@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-import { attributeOverrides, effectiveAttribute, splitAttributes, studyflowToDefinitions } from '@core/document';
-import { freshModdle } from '@tests/schemas';
+import { attributeOverridesIn, splitIn } from '@core/model/parameters';
+import { studyModel } from '@tests/schemas';
 
 /** What the Parameters wired into a step set on it: a key naming one of its attributes; only a wire makes one count. */
 
@@ -51,20 +51,19 @@ Overrides:
 `;
 
 test('a key naming one of a step\'s own attributes sets it, any other key is its configuration, and an unwired object sets nothing', () => {
-  const definitions: any = studyflowToDefinitions(STUDY, freshModdle());
-  const process = definitions.rootElements.find((root: any) => root.$type === 'bpmn:Process');
-  const pause = process.flowElements.find((element: any) => element.id === 'Pause');
+  const model = studyModel(STUDY);
+  const [process, pause] = [model.get('Overrides')!, model.get('Pause')!];
 
-  const overrides = attributeOverrides(pause);
+  const overrides = attributeOverridesIn(model, pause);
   expect([...overrides.keys()].sort(), 'beep is no attribute of a Rest').toEqual(['eyes', 'restDuration']);
-  expect(effectiveAttribute(pause, 'eyes')).toBe('closed');
+  expect(overrides.get('eyes')?.value).toBe('closed');
   // Two objects setting one attribute: both are named, and a run refuses it.
   expect(overrides.get('restDuration')?.sources.map((source) => source.id).sort()).toEqual(['Eyes', 'Timing']);
   // Knobs is wired into nothing: its `seed` leaves the Study's alone, its `eyes` the Rest's.
-  expect(attributeOverrides(process).size).toBe(0);
-  expect(effectiveAttribute(process, 'seed')).toBe(3);
+  expect(attributeOverridesIn(model, process).size).toBe(0);
+  expect(model.attribute(process, 'seed')).toBe(3);
 
-  expect(splitAttributes(pause, { eyes: 'open', beep: true }, 'Pause')).toEqual({ attributes: { eyes: 'open' }, rest: { beep: true } });
-  expect(() => splitAttributes(pause, { restDuration: { seconds: 30 } }, 'Pause'))
+  expect(splitIn(model, pause, { eyes: 'open', beep: true })).toEqual({ attributes: { eyes: 'open' }, rest: { beep: true } });
+  expect(() => splitIn(model, pause, { restDuration: { seconds: 30 } }))
     .toThrow(/Pause.*restDuration.*mapping/);
 });

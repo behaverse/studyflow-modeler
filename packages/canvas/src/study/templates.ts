@@ -3,7 +3,7 @@
  * aside (and code that names it following), then laid out inside the shape the template drops as.
  */
 
-import { PLACEHOLDER } from '@core/document/index.ts';
+import { PLACEHOLDER } from '@core/model/state.ts';
 import { StudyModel, isElement, type Element, type Value } from '@core/model/index.ts';
 import { renameIds } from '@core/model/root.ts';
 import { readStudy } from '@core/model/yaml.ts';

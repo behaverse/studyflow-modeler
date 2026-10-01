@@ -4,6 +4,9 @@
  */
 import type { StudyModel } from '@core/model/index';
 
+/** The run state: what each element's entry holds, by its id, and the runner's own under {@link META_KEY}. */
+export type StateTree = Record<string, any>;
+
 /** The one runner-owned key: `state._meta.prov` (run records) and `state._meta.<quantity>.<element_id>` (e.g. `reached`). */
 export const META_KEY = '_meta';
 

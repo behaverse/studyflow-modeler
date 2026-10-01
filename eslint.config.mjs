@@ -3,9 +3,23 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 
-// The enforced boundaries: core/ is framework-free and names no bpmn-js service; the modeler and the browser
-// runtime never import each other (what both need lives in core/, their shared localStorage in @core/storage);
-// the modeler reaches the canvas through its index only; and the canvas's study/ needs no DOM.
+// The enforced boundaries: core/ is framework-free and names no bpmn-js service; moddle is core/document's, which
+// reads and writes BPMN XML with it; the modeler and the browser runtime never import each other (what both need
+// lives in core/, their shared localStorage in @core/storage); the modeler reaches the canvas through its index
+// only; and the canvas's study/ needs no DOM.
+
+// What reaches moddle: the library itself, and core/document's modules but its surface (the barrel, the images, the
+// digest, the schema body, the outline geometry).
+const MODDLE = {
+  selector: 'ImportDeclaration[source.value=/^(bpmn-moddle|@core\\/document\\/(?!(index|png|svg|digest|schema-body|outline)(\\.ts)?$).*)$/]',
+  message: 'moddle is core/document\'s: read and write a study through the study model, and BPMN XML through @core/document.',
+};
+// The bpmn-js services core/ may not name, even as `any`.
+const BPMN_JS_SERVICES = {
+  selector: 'Identifier[name=/^(modeling|bpmnFactory|elementRegistry|commandStack|eventBus|modeler|injector|popupMenu|contextPad)$/]',
+  message: 'core/ is the domain layer: it may not name a bpmn-js service, even as `any`. Accept a port (see `AttributeUpdater`) and let the caller pass the adapter.',
+};
+
 export default [
   // `.claude/worktrees` holds other checkouts of this repo, each linted in its own.
   { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results', '.claude'] },
@@ -116,10 +130,17 @@ export default [
         ],
       }],
       // Import bans miss services passed in as `any`; ban the names too.
-      'no-restricted-syntax': ['error', {
-        selector: 'Identifier[name=/^(modeling|bpmnFactory|elementRegistry|commandStack|eventBus|modeler|injector|popupMenu|contextPad)$/]',
-        message: 'core/ is the domain layer: it may not name a bpmn-js service, even as `any`. Accept a port (see `AttributeUpdater`) and let the caller pass the adapter.',
-      }],
+      'no-restricted-syntax': ['error', BPMN_JS_SERVICES],
     },
+  },
+  {
+    files: ['packages/core/src/**/*.ts'],
+    ignores: ['packages/core/src/document/**'],
+    rules: { 'no-restricted-syntax': ['error', BPMN_JS_SERVICES, MODDLE] },
+  },
+  {
+    files: ['packages/*/src/**/*.{ts,tsx}', 'skills/**/*.{ts,tsx}'],
+    ignores: ['packages/core/src/**', 'skills/*/tests/**'],
+    rules: { 'no-restricted-syntax': ['error', MODDLE] },
   },
 ]

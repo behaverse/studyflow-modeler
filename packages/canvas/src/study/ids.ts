@@ -2,45 +2,12 @@
 
 import { toLocalName } from '@core/naming.ts';
 
-import type { Element, StudyModel } from '@core/model/index.ts';
+import type { StudyModel } from '@core/model/index.ts';
 import type { Ids } from '@core/model/items.ts';
 
 /** `'bpmn:UserTask'` → `'UserTask_'`. */
 export function prefixFor(type: string): string {
   return `${toLocalName(type) ?? type}_`;
-}
-
-/** The types that carry an id (bpmn-js's `BpmnFactory` list). */
-const ID_BEARING_TYPES = [
-  'bpmn:RootElement',
-  'bpmn:FlowElement',
-  'bpmn:MessageFlow',
-  'bpmn:DataAssociation',
-  'bpmn:Artifact',
-  'bpmn:Participant',
-  'bpmn:Lane',
-  'bpmn:LaneSet',
-  'bpmn:Process',
-  'bpmn:Collaboration',
-  'bpmndi:BPMNShape',
-  'bpmndi:BPMNEdge',
-  'bpmndi:BPMNDiagram',
-  'bpmndi:BPMNPlane',
-  'bpmn:Property',
-  'bpmn:CategoryValue',
-];
-
-export function needsId(model: StudyModel, element: Element): boolean {
-  return ID_BEARING_TYPES.some((type) => model.isA(element, type));
-}
-
-/** bpmn-js's semantic prefixes (`bpmn:UserTask` → `Activity_`). */
-export function idPrefixFor(model: StudyModel, element: Element): string {
-  if (model.isA(element, 'bpmn:Activity')) return 'Activity_';
-  if (model.isA(element, 'bpmn:Event')) return 'Event_';
-  if (model.isA(element, 'bpmn:Gateway')) return 'Gateway_';
-  if (model.isA(element, 'bpmn:SequenceFlow') || model.isA(element, 'bpmn:MessageFlow')) return 'Flow_';
-  return prefixFor(model.host(element));
 }
 
 export class IdGenerator {
