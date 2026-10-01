@@ -264,7 +264,7 @@ test('an AI finds what it may write before it writes: describe says what a type 
 
   // A list is what elements are, not where they are drawn, unless asked; a name finds one in any case.
   const found = (study.call('list', { name: 'rea' }) as any).elements;
-  expect(found).toEqual([{ id: 'Task_1', kind: 'node', type: 'bpmn:Task', name: 'Read', incoming: [], outgoing: [] }]);
+  expect(found).toEqual([{ id: 'Task_1', kind: 'node', type: 'bpmn:Task', name: 'Read', incoming: [], outgoing: [], default: null }]);
   expect((study.call('list', { name: 'rea', geometry: true }) as any).elements[0].bounds).toEqual({ x: 200, y: 80, width: 100, height: 80 });
 });
 
@@ -592,7 +592,7 @@ test('reads are plain data: a record by id, the root, a filtered list; the moddl
 
   expect(study.root).toEqual({ id: 'Process_1', kind: 'root', type: 'bpmn:Process' });
   expect(study.get('Task_1')).toEqual({
-    id: 'Task_1', kind: 'node', type: 'bpmn:Task', name: 'Read', bounds: { x: 200, y: 80, width: 100, height: 80 }, incoming: [], outgoing: ['Flow_1'],
+    id: 'Task_1', kind: 'node', type: 'bpmn:Task', name: 'Read', bounds: { x: 200, y: 80, width: 100, height: 80 }, incoming: [], outgoing: ['Flow_1'], default: null,
   });
   expect(study.get('Flow_1')).toMatchObject({ kind: 'edge', type: 'bpmn:SequenceFlow', source: 'Task_1', target: 'Sub_1' });
   expect(study.get('Sub_1')).toMatchObject({ kind: 'node', expanded: false });
