@@ -31,11 +31,6 @@ export function exampleFile(name: string): Buffer {
   return readFileSync(examplePath(name));
 }
 
-/** The blank diagram the app starts from, the same file `NewDiagram` loads. */
-export function blankDiagram(): Buffer {
-  return readFileSync(path.join(process.cwd(), 'assets/new_diagram.bpmn'));
-}
-
 /** The example's `.studyflow.yaml` text. */
 export function exampleText(name: string): string {
   return readFileSync(examplePath(name), 'utf8');

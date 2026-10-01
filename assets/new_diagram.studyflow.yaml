@@ -1,0 +1,12 @@
+id: sample-diagram
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Study_1:
+  type: studyflow:Study
+  flowElements:
+    StartEvent_1:
+      type: StartEvent
+  isExecutable: true
+layout:
+  StartEvent_1:
+    bounds: 412 240 36 36

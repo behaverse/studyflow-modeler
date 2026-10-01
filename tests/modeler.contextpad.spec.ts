@@ -169,7 +169,7 @@ test.describe('The context pad', () => {
     await expect(preview).toHaveCount(0);
 
     const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*sourceRef="Task_[^"]*"[^>]*targetRef="UserTask_/);
+    expect(bpmn).toMatch(/<bpmn:sequenceFlow[^>]*sourceRef="Task_[^"]*"[^>]*targetRef="UserTask_/);
   });
 
   test('the wrench retypes the element through the replace menu, as one undo step', async ({ page }) => {
@@ -233,7 +233,7 @@ test.describe('The context pad', () => {
     await expect(page.locator('g[data-element-id^="TextAnnotation_"]')).toHaveCount(1);
 
     const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toContain('<bpmn2:textAnnotation');
-    expect(bpmn).toMatch(/<bpmn2:association[^>]*sourceRef="(SequenceFlow|Flow)_/);
+    expect(bpmn).toContain('<bpmn:textAnnotation');
+    expect(bpmn).toMatch(/<bpmn:association[^>]*sourceRef="(SequenceFlow|Flow)_/);
   });
 });

@@ -2,9 +2,23 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { embedStudyflowIntoPng } from '@core/document/png';
 
-import { blankDiagram, browseForDiagram, diagramTitle, exampleText, gotoModeler, runPaletteCommand } from './utils';
+import { browseForDiagram, diagramTitle, exampleText, gotoModeler, runPaletteCommand } from './utils';
 
-const DIAGRAM = blankDiagram().toString('utf8');
+/** A BPMN file of one start event. */
+const DIAGRAM = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" id="sample-diagram" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Study_1" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Study_1">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="412" y="240" width="36" height="36" />
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
+`;
 const DIAGRAM_B64 = Buffer.from(DIAGRAM, 'utf8').toString('base64');
 /** A one-pixel PNG with a diagram embedded in it: opening reads the diagram, never the pixels. */
 const ONE_PIXEL_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');

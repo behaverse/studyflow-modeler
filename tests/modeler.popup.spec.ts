@@ -64,7 +64,7 @@ test.describe('App popup menus', () => {
     await expect(page.locator('g[data-element-id^="EndEvent_"]')).toHaveCount(1);
 
     const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toMatch(/<bpmn2:sequenceFlow[^>]*sourceRef="ServiceTask_[^"]*"[^>]*targetRef="EndEvent_/);
+    expect(bpmn).toMatch(/<bpmn:sequenceFlow[^>]*sourceRef="ServiceTask_[^"]*"[^>]*targetRef="EndEvent_/);
     // Placed one gap to the right of its source, not on top of it.
     expect(shapeX(bpmn, 'EndEvent_')).toBeGreaterThan(shapeX(bpmn, 'ServiceTask_'));
   });

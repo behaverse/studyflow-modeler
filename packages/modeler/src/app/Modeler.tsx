@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BpmnModdle } from 'bpmn-moddle';
 
-import new_diagram from '#assets/new_diagram.bpmn?raw';
+import new_diagram from '#assets/new_diagram.studyflow.yaml?raw';
 import { Study } from '@canvas/index.ts';
 import { fromWireXml } from '@core/document';
 import { loadSchemas } from '@core/notation/loader';

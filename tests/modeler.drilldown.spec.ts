@@ -90,7 +90,7 @@ test.describe('sub-process drill-down', () => {
   });
 
   test('a sub-process dropped from the palette is authorable: badge, plane, contents', async ({ page }) => {
-    // The dead end this closes: the drop used to emit a lone `<bpmn2:subProcess/>`
+    // The dead end this closes: the drop used to emit a lone `<bpmn:subProcess/>`
     // whose `BPMNShape` carried no `isExpanded` and no diagram of its own, so it
     // rendered as a bare box — no ⊞, no badge, double-click inert — and there was no
     // route through the UI to put anything inside it.
@@ -121,8 +121,8 @@ test.describe('sub-process drill-down', () => {
     // sub-process, and its DI in the one plane the document has.
     const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
     expect(bpmn).toContain(`isExpanded="false"`);
-    const subProcess = bpmn.slice(bpmn.indexOf(`<bpmn2:subProcess id="${id}"`));
-    expect(subProcess.slice(0, subProcess.indexOf('</bpmn2:subProcess>'))).toContain(String(taskId));
+    const subProcess = bpmn.slice(bpmn.indexOf(`<bpmn:subProcess id="${id}"`));
+    expect(subProcess.slice(0, subProcess.indexOf('</bpmn:subProcess>'))).toContain(String(taskId));
     expect(bpmn.match(/<bpmndi:BPMNDiagram/g) ?? []).toHaveLength(1);
 
     // Out: the sub-process is collapsed again and its contents are off screen.

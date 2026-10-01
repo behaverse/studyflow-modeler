@@ -1,4 +1,4 @@
-import new_diagram from '#assets/new_diagram.bpmn?raw';
+import new_diagram from '#assets/new_diagram.studyflow.yaml?raw';
 import { fromWireXml, looksLikeXml, studyflowToXml } from '@core/document';
 import { filenameStem } from '@modeler/diagram/file';
 import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
@@ -34,7 +34,7 @@ export type NewDiagramCommand = {
 };
 
 export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand): Promise<any> {
-  const result = await importXml(modeler, { xml: new_diagram });
+  const result = await importXml(modeler, { xml: await studyflowToXml(new_diagram, modeler.model.moddle()) });
   modeler.canvas.zoom('fit');
   return result;
 }
