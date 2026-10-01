@@ -4,6 +4,7 @@ import path from 'node:path';
 import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
 import { studyToXml } from '@core/document';
+import { diagramHandoffKey, type DiagramHandoffEnvelope } from '@core/storage';
 
 const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
@@ -170,4 +171,21 @@ export async function readDownload(download: Download): Promise<Buffer> {
   }
 
   return readFileSync(filePath);
+}
+
+/** Stage a studyflow XML as a hand-off (mimicking the modeler's "Run" button), then open the runtime. */
+export async function runStudyflow(page: Page, id: string, xml: string): Promise<void> {
+  const key = diagramHandoffKey(id);
+  const envelope: DiagramHandoffEnvelope = { createdAt: Date.now(), xml };
+  await page.addInitScript(
+    ({ k, v }) => {
+      try {
+        localStorage.setItem(k, v);
+      } catch {
+        /* ignore */
+      }
+    },
+    { k: key, v: JSON.stringify(envelope) },
+  );
+  await page.goto(`/run/?diagram=${id}&seed=42`);
 }

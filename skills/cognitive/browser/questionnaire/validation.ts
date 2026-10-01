@@ -1,6 +1,6 @@
 import { readString, type FlowNode } from '@runner/flow';
 import type { ValidationIssue } from '@runner/nodes/types';
-import { getInstrument, listInstrumentIds } from '@runner/nodes/questionnaire/instruments';
+import { getInstrument, listInstrumentIds } from '@skills/cognitive/browser/questionnaire/instruments';
 
 export function validateQuestionnaire(node: FlowNode): ValidationIssue[] {
   const instrument = readString(node, 'instrument') ?? '';

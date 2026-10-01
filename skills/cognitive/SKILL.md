@@ -4,8 +4,10 @@ description: "Cognitive and behavioral research vocabulary: cognitive tasks, que
 license: MIT
 metadata:
   schema: "cognitive.moddle.yaml"
+  runtimes:
+    browser: "browser/index.tsx"
 ---
 
-The default research elements. `Instruction` and `Questionnaire` are executed by the
-[browser](../browser/SKILL.md) runtime's own node modules; `behaverse:Task` by the
-[behaverse](../behaverse/SKILL.md) skill's runners.
+The default research elements. `Instruction` and `Questionnaire` are screens of this skill's own in the browser
+runtime (`browser/`); `behaverse:Task` is executed by the [behaverse](../behaverse/SKILL.md) skill's runners. A study
+that needs none of it can turn the skill off.

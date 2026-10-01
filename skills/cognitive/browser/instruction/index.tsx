@@ -3,7 +3,7 @@ import type { NodeProps } from '@runner/nodes/types';
 import { NodePanel } from '@runner/nodes/NodePanel';
 import { nodeStyles } from '@runner/nodes/styles';
 import { registerNode } from '@runner/nodes/registry';
-import { validateInstruction } from '@runner/nodes/instruction/validation';
+import { validateInstruction } from '@skills/cognitive/browser/instruction/validation';
 
 declare module '@runner/jobs' {
   interface JobsByType {

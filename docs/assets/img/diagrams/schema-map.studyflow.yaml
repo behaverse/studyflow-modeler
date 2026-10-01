@@ -51,12 +51,12 @@ Schema_Map:
       bounds: 770 132 36 36
     Required_Sets:
       type: DataObjectReference
-      name: "Required, always loaded: studyflow, prov, cognitive, local"
+      name: "Required, always loaded: studyflow, prov"
       bounds: 197 230 36 50
       label: 125 285 180 45
     Skill_Sets:
       type: DataObjectReference
-      name: "One per skill: behaverse, eeg, agentic, reachy, browser"
+      name: "One per skill: cognitive, behaverse, eeg, agentic, reachy"
       bounds: 407 230 36 50
       label: 335 285 180 45
     Settings:

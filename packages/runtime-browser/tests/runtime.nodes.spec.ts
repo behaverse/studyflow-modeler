@@ -1,62 +1,18 @@
 import fs from 'node:fs';
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
-import { diagramHandoffKey, type DiagramHandoffEnvelope } from '@core/storage';
-import { gotoModeler } from '@tests/utils';
-
-/** Stage a studyflow XML as a hand-off (mimicking the modeler's "Run" button), then open the runtime. */
-async function runStudyflow(page: Page, id: string, xml: string): Promise<void> {
-  const key = diagramHandoffKey(id);
-  const envelope: DiagramHandoffEnvelope = { createdAt: Date.now(), xml };
-  await page.addInitScript(
-    ({ k, v }) => {
-      try {
-        localStorage.setItem(k, v);
-      } catch {
-        /* ignore */
-      }
-    },
-    { k: key, v: JSON.stringify(envelope) },
-  );
-  await page.goto(`/run/?diagram=${id}&seed=42`);
-}
-
-const NO_UNITY_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="runner-stages-no-unity" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Study_1" isExecutable="false">
-    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
-    <bpmn2:startEvent id="StartEvent_1" name="Welcome">
-      <bpmn2:outgoing>F1</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:task id="Instr_1" name="Instructions">
-      <bpmn2:extensionElements><cognitive:instruction content="Read this carefully." /></bpmn2:extensionElements>
-      <bpmn2:incoming>F1</bpmn2:incoming>
-      <bpmn2:outgoing>F2</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:task id="Quest_1" name="PHQ-9">
-      <bpmn2:extensionElements><cognitive:questionnaire instrument="phq-9" /></bpmn2:extensionElements>
-      <bpmn2:incoming>F2</bpmn2:incoming>
-      <bpmn2:outgoing>F3</bpmn2:outgoing>
-    </bpmn2:task>
-    <bpmn2:endEvent id="EndEvent_1">
-      <bpmn2:incoming>F3</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Instr_1" />
-    <bpmn2:sequenceFlow id="F2" sourceRef="Instr_1" targetRef="Quest_1" />
-    <bpmn2:sequenceFlow id="F3" sourceRef="Quest_1" targetRef="EndEvent_1" />
-  </bpmn2:process>
-</bpmn2:definitions>`;
+import { diagramHandoffKey } from '@core/storage';
+import { gotoModeler, runStudyflow } from '@tests/utils';
 
 const CONSENT_DECLINE_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="runner-stages-consent" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-consent" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:process id="Study_1" isExecutable="false">
     <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
     <bpmn2:startEvent id="StartEvent_1" name="Consent" studyflow:consentFormUri="/consent.txt">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:task id="Instr_1" name="Should not appear">
-      <bpmn2:extensionElements><cognitive:instruction content="never" /></bpmn2:extensionElements>
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
     </bpmn2:task>
@@ -69,10 +25,10 @@ const CONSENT_DECLINE_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn2:definitions>`;
 
 const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive" id="runner-stages-untyped" targetNamespace="http://bpmn.io/schema/bpmn">
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-untyped" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:process id="Study_1" isExecutable="false">
     <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
-    <bpmn2:startEvent id="StartEvent_1">
+    <bpmn2:startEvent id="StartEvent_1" name="Welcome">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
     <bpmn2:task id="Untyped_1" name="Plain task">
@@ -177,38 +133,7 @@ const CHOREOGRAPHY_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn2:definitions>`;
 
 test.describe('Studyflow runtime nodes', () => {
-  test('no-Unity flow advances through start, instruction, questionnaire, end', async ({ page }) => {
-    let manifestFetched = false;
-    page.on('request', (req) => {
-      if (req.url().includes('/assessment-unity/StreamingAssets/Studyflow/manifest.json')) {
-        manifestFetched = true;
-      }
-    });
-
-    await runStudyflow(page, 'runner-stages-no-unity', NO_UNITY_XML);
-
-    await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
-    await page.getByRole('button', { name: /begin/i }).click();
-
-    await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
-    await expect(page.getByText('Read this carefully.')).toBeVisible();
-    await page.getByRole('button', { name: /continue/i }).click();
-
-    await expect(page.getByRole('heading', { name: /PHQ-9/ })).toBeVisible();
-    const submit = page.getByRole('button', { name: /submit/i });
-    await expect(submit).toBeDisabled();
-    for (let i = 1; i <= 9; i += 1) {
-      // The radios are sr-only (styling lives on the wrapping <label>), so .check() needs force to reach them.
-      await page.locator(`input[name="phq9_${i}"][value="1"]`).check({ force: true });
-    }
-    await expect(submit).toBeEnabled();
-    await submit.click();
-
-    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
-    expect(manifestFetched).toBe(false);
-  });
-
-  test('declined consent aborts the run before instruction', async ({ page }) => {
+  test('declined consent aborts the run before the first step', async ({ page }) => {
     await page.route('**/consent.txt', (route) =>
       route.fulfill({ status: 200, contentType: 'text/plain', body: 'You agree to participate.' }),
     );
@@ -261,7 +186,7 @@ test.describe('Studyflow runtime nodes', () => {
     await page.goto('/run/');
     await page.evaluate(
       ({ k, v }) => window.localStorage.setItem(k, v),
-      { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: NO_UNITY_XML }) },
+      { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: UNTYPED_TASK_XML }) },
     );
 
     await page.goto(`/run/?diagram=${id}&seed=42`);
@@ -270,7 +195,7 @@ test.describe('Studyflow runtime nodes', () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
     await page.getByRole('button', { name: /begin/i }).click();
-    await expect(page.getByRole('heading', { name: 'Instructions' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Plain task' })).toBeVisible();
   });
 
   test('the person at the page answers what the study sends their pool, and the record of the run can be taken away', async ({ page }) => {

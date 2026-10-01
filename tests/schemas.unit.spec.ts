@@ -23,7 +23,7 @@ test('the shipped schemas compile with no diagnostics', () => {
 });
 
 // Two schemas with one prefix are a compile diagnostic; a shared URI or name is not.
-test('no two schemas share a URI or declare the same name, and the required ones are studyflow, prov, cognitive, local', () => {
+test("no two schemas share a URI or declare the same name, and the required ones are the studyflow skill's", () => {
   const uris = models.map((model) => model.uri);
   expect(new Set(uris).size, 'one URI per schema').toBe(uris.length);
 
@@ -37,7 +37,7 @@ test('no two schemas share a URI or declare the same name, and the required ones
   }
 
   expect(SCHEMAS.filter((schema) => schema.required).map((schema) => schema.prefix).sort())
-    .toEqual(['cognitive', 'prov', 'studyflow']);
+    .toEqual(['prov', 'studyflow']);
 });
 
 test('each schema has a quoted YY.M.N version, an http(s) uri, a lowercase prefix, a lowerCase tagAlias, a one-row blurb and PascalCase names', () => {

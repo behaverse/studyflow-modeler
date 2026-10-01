@@ -4,8 +4,8 @@ import type { NodeProps } from '@runner/nodes/types';
 import { NodePanel } from '@runner/nodes/NodePanel';
 import { nodeStyles } from '@runner/nodes/styles';
 import { registerNode } from '@runner/nodes/registry';
-import { getInstrument, type InstrumentDefinition } from '@runner/nodes/questionnaire/instruments';
-import { validateQuestionnaire } from '@runner/nodes/questionnaire/validation';
+import { getInstrument, type InstrumentDefinition } from '@skills/cognitive/browser/questionnaire/instruments';
+import { validateQuestionnaire } from '@skills/cognitive/browser/questionnaire/validation';
 
 declare module '@runner/jobs' {
   interface JobsByType {

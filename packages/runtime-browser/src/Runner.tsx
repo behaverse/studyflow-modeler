@@ -9,7 +9,7 @@ import { readParticipant, readSubjectId } from '@runner/subject';
 import { Studyflow } from '@runner/studyflow';
 import { Aborted, Session } from '@runner/session';
 import type { Job } from '@runner/jobs';
-import { findByType, validate } from '@runner/nodes';
+import { findByType, skillModulesLoaded, validate } from '@runner/nodes';
 import type { LogKind, NodeProps, ValidationIssue } from '@runner/nodes/types';
 import {
   createSession,
@@ -212,6 +212,8 @@ export function Runner() {
         setPhase('loading');
         const schemas = await loadAllSchemas();
         const studyflow = await Studyflow.parse(xml, schemas, parameters);
+        // The session picks each step's screen as it starts, so the skills' screens must have registered by then.
+        await skillModulesLoaded;
         const { values, overridden, undeclared, unbound } = studyflow.parameters;
         // A subject id names the run in the record.
         const agentId = readSubjectId(parameters) ?? `anon-${crypto.randomUUID().slice(0, 8)}`;
