@@ -1,7 +1,6 @@
-import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
-import { studyModelOf } from '@core/document';
 import { explore, planOf } from '@core/engine';
+import type { StudyModel } from '@core/model/index';
 
 /**
  * Soundness: every way the study can go ends, and ends properly. Each pool is one path, so a connected study
@@ -10,18 +9,25 @@ import { explore, planOf } from '@core/engine';
  * with every decision a free choice, so a finding may lie on a path its conditions never take: it is a warning, with
  * the choices that lead to it.
  */
-export async function checkSoundness(definitions: ModdleElement): Promise<{ issues: Issue[]; note?: string }> {
+export async function checkSoundness(model: StudyModel): Promise<{ issues: Issue[]; note?: string }> {
   let plan;
   try {
-    plan = planOf(studyModelOf(definitions));
+    plan = planOf(model);
   } catch {
     return { issues: [] }; // a study the walk cannot plan is reported by the plan checks
   }
-  const { runs, complete, findings } = await explore(plan);
+  let exploration;
+  try {
+    exploration = await explore(plan);
+  } catch (error) {
+    // What stops a walk before it starts (an allocation it cannot apply) stops the exploration too.
+    return { issues: [{ severity: 'warning', message: `soundness was not checked: ${(error as Error).message}` }] };
+  }
+  const { runs, complete, findings } = exploration;
   const issues: Issue[] = findings.map(({ message, path }) => ({
     severity: 'warning',
     message: `${message}${path.length > 0 ? `, when ${path.join(', ')}` : ''}`,
   }));
   if (!complete) issues.push({ severity: 'warning', message: `soundness was checked on the first ${runs} ways the study can go, not on every one` });
-  return { issues, note: complete && issues.length === 0 ? `sound over the ${runs} ways it can go` : undefined };
+  return { issues, note: complete && issues.length === 0 ? `sound over ${runs === 1 ? 'the one way' : `the ${runs} ways`} it can go` : undefined };
 }
