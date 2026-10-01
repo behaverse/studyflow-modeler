@@ -496,6 +496,12 @@ Phase:
       value: Phase one
 `;
 
+test('a record says which flow a shape BPMN gives a default takes by default, and nothing on what takes none', () => {
+  const study = Study.fromDefinitions(studyflowToDefinitions(CLIPBOARD, freshModdle()));
+  expect([study.get('Gate')?.default, study.get('Ask')?.default, study.get('Other')?.default]).toEqual(['To_Other', null, null]);
+  expect(study.get('Form')).not.toHaveProperty('default');
+});
+
 test('copy writes shapes as a document of their own: what they hold, what sits on them, the flows between them, and nothing of what stays', () => {
   const study = Study.fromDefinitions(studyflowToDefinitions(CLIPBOARD, freshModdle()));
   const copied = study.copy({ ids: ['Ask', 'Gate', 'Form_label', 'Sub', 'Around'] });

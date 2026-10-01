@@ -33,6 +33,8 @@ export interface ElementRecord {
   /** A shape's flows in and out. */
   readonly incoming?: readonly string[];
   readonly outgoing?: readonly string[];
+  /** A shape BPMN gives a default flow (an exclusive gateway, an activity): which of its flows it is, null for none. */
+  readonly default?: string | null;
   /** A flow's ends, and the route between them. */
   readonly source?: string;
   readonly target?: string;
@@ -73,6 +75,7 @@ export function recordOf(element: SceneElement | RootElement): ElementRecord {
     };
   }
   const host = getProperty(element.businessObject, 'attachedToRef') as ModdleObject | undefined;
+  const takesDefault = !!(element.businessObject.$descriptor as { propertiesByName?: Record<string, unknown> } | undefined)?.propertiesByName?.default;
   return {
     ...placed,
     kind: 'node',
@@ -81,6 +84,7 @@ export function recordOf(element: SceneElement | RootElement): ElementRecord {
     ...(host?.id ? { attachedTo: host.id } : {}),
     incoming: element.incoming.map((edge) => edge.id),
     outgoing: element.outgoing.map((edge) => edge.id),
+    ...(takesDefault ? { default: (getProperty(element.businessObject, 'default') as ModdleObject | undefined)?.id ?? null } : {}),
     ...styleOf(element),
   };
 }

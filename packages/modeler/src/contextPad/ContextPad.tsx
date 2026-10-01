@@ -138,10 +138,8 @@ export function ContextPad() {
     // activity) gets the toggle-default entry: the metamodel says which, not a list here.
     const flow = single?.kind === 'edge' && single.type === 'bpmn:SequenceFlow' ? single : undefined;
     const flowSource = flow?.source === undefined ? undefined : study.get(flow.source);
-    const sourceObject = flowSource && (study.businessObject(flowSource.id) as { $descriptor?: { propertiesByName?: Record<string, unknown> } } | undefined);
-    const canToggleDefault = !!sourceObject?.$descriptor?.propertiesByName?.['default'];
-    const isDefault = canToggleDefault && !!flow && !!flowSource
-      && (study.businessObject(flowSource.id) as { default?: unknown } | undefined)?.default === study.businessObject(flow.id);
+    const canToggleDefault = flowSource?.default !== undefined;
+    const isDefault = canToggleDefault && !!flow && flowSource?.default === flow.id;
     // What the rules let the one selected element take part in.
     const can = (tool: 'append' | 'connect' | 'replace', args: Record<string, unknown>): boolean => !!single && study.can(tool, args).ok;
     return contextPadEntries({
