@@ -61,7 +61,9 @@ export class Session {
   private serving: string | undefined;
   /** What the person answered the message on screen. */
   private replied: unknown = null;
-  private show: (id: string, job?: Job) => Promise<void> = () => Promise.reject(new Error('the session is not running'));
+  private show: (id: string, job: Job | undefined, signal?: AbortSignal) => Promise<unknown> = () => Promise.reject(new Error('the session is not running'));
+  /** The screens asked for, one at a time: a step on another path of the walk waits for the one on screen. */
+  private turn: Promise<unknown> = Promise.resolve();
   private refuse: (reason: string) => void = () => undefined;
 
   constructor(studyflow: Studyflow, context: SessionContext = {}) {
@@ -88,10 +90,14 @@ export class Session {
     const host: Host = {
       claim: (id) => (this.jobs.has(id) ? { name: this.jobs.get(id)!.type, live: true } : this.people.has(id) ? { name: 'person', live: true } : undefined),
       perform: async (id, _values, { message, signal }) => {
-        signal?.addEventListener('abort', () => { this.refuse('its time ran out'); this.onExpired?.(id); });
-        if (!message) return this.show(id).then(() => ({}));
-        await this.show(id, this.messageJob(id, message));
-        return { result: this.replied };
+        const job = message ? this.messageJob(id, message) : undefined;
+        const shown = this.turn.then(() => {
+          if (signal?.aborted) throw new Aborted('its time ran out');
+          return this.show(id, job, signal);
+        });
+        this.turn = shown.catch(() => undefined);
+        const replied = await shown;
+        return message ? { result: replied } : {};
       },
       record: (event) => this.events.push(event),
       log: (_event, message, detail) => {
@@ -161,11 +167,12 @@ export class Session {
     const offered: (Job | Error | null)[] = [];
     let wake: (() => void) | undefined;
     const offer = (next: Job | Error | null): void => { offered.push(next); wake?.(); };
-    this.show = (id, job) => new Promise((resolve, reject) => {
+    this.show = (id, job, signal) => new Promise((resolve, reject) => {
       this.serving = id;
       this.replied = null;
-      shown = () => { this.serving = undefined; resolve(); };
+      shown = () => { this.serving = undefined; resolve(this.replied); };
       this.refuse = (reason) => { this.serving = undefined; reject(new Aborted(reason)); };
+      signal?.addEventListener('abort', () => { this.refuse('its time ran out'); this.onExpired?.(id); }, { once: true });
       offer(job ?? this.jobs.get(id)!);
     });
     const now = (): string => new Date().toISOString();

@@ -347,3 +347,25 @@ S:
   expect(session.getRecord().map((event) => event.event)).toContain('answered');
   expect(stateOf(session.getRecord())).toEqual(session.getState());
 });
+
+test('the steps of parallel paths take turns on screen, and the join waits for both', async () => {
+  const session = new Session(await load(`${HEAD}Study:
+  type: bpmn:Process
+  flowElements:
+    Start: { type: StartEvent }
+    Split: { type: ParallelGateway }
+    Left: { type: Task }
+    Right: { type: Task }
+    Join: { type: ParallelGateway }
+    After: { type: Task }
+    End: { type: EndEvent }
+    F1: Start -> Split
+    F2: Split -> Left
+    F3: Split -> Right
+    F4: Left -> Join
+    F5: Right -> Join
+    F6: Join -> After
+    F7: After -> End
+`));
+  expect(await visits(session)).toEqual(['Start', 'Left', 'Right', 'After', 'End']);
+});
