@@ -88,7 +88,7 @@ test('validate says the protocol matches the run that recorded it, and warns onc
   const changed = studyflow(['validate', edited]);
   expect(changed.status).toBe(0);
   expect(changed.stderr).toMatch(/^warning: protocol changed since run r1: recorded sha256:[0-9a-f]{12}…, now sha256:[0-9a-f]{12}…\n$/);
-  expect(changed.stdout).toBe(`${edited}: OK (1 warning)\n`);
+  expect(changed.stdout).toBe(`${edited}: OK (1 warning), sound over the 2 ways it can go\n`);
 });
 
 test('validate says where the BPMN XML a study is written as breaks the BPMN 2.0 schema', () => {
