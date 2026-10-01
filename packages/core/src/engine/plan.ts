@@ -1,9 +1,12 @@
 import { getCatalog, hasCatalog } from '@core/notation';
-import { getExtensionType } from '@core/element';
 import type { ModdleElement } from '@core/element/moddle';
 import { STUDY_EXTENSION_TYPE, primaryRoot } from '@core/document/format';
-import { mergeParameters, parametersOf, splitAttributes } from '@core/document/parameters';
+import { mergeParameters } from '@core/document/parameters';
 import type { Timer } from '@core/engine/timer';
+import * as yaml from 'js-yaml';
+import { expressionOf as modelExpression, idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { expandInline } from '@core/model/spelling';
+import { inferredRoot, isHeadlessCollaboration } from '@core/model/yaml';
 
 /**
  * The plan: a study as one JSON document, what a partial runner reads instead of the diagram (skills/local/SKILL.md,
@@ -83,154 +86,6 @@ export type Plan = {
 const CONTAINERS = new Set(['bpmn:SubProcess', 'bpmn:AdHocSubProcess', 'bpmn:Transaction']);
 const PROV_ACTIVITY = 'prov:Activity';
 
-/** The local name an XML tag takes for a moddle type: `bpmn:ExclusiveGateway` is `exclusiveGateway`. */
-function tagOf(element: ModdleElement): string {
-  const local = element.$descriptor?.ns?.localName ?? String(element.$type).split(':').pop()!;
-  const pkg = element.$model?.getPackage?.(element.$descriptor?.ns?.prefix);
-  return pkg && pkg.xml?.tagAlias !== 'lowerCase' ? local : local.charAt(0).toLowerCase() + local.slice(1);
-}
-
-/** An attribute value as the XML writes it. */
-function text(value: unknown): string {
-  if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (value && typeof value === 'object' && 'id' in value) return String((value as { id: unknown }).id);
-  return String(value);
-}
-
-/** The XML attributes an element has, under their local names, as text; `skip` names the ones left out. */
-function attributesOf(element: ModdleElement, skip: ReadonlySet<string> = new Set()): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const property of element.$descriptor?.properties ?? []) {
-    const local = property.ns?.localName ?? property.name;
-    if (!property.isAttr || skip.has(local) || !Object.hasOwn(element, property.name)) continue;
-    const value = element[property.name];
-    if (value !== undefined && value !== null) out[local] = text(value);
-  }
-  // An element no loaded schema declares keeps its attributes as plain fields.
-  const undeclared = element.$descriptor?.isGeneric ? Object.entries(element).filter(([key]) => !key.startsWith('$')) : [];
-  for (const [key, value] of [...Object.entries(element.$attrs ?? {}), ...undeclared]) {
-    const local = key.split(':').pop()!;
-    if (!key.startsWith('xmlns') && !skip.has(local) && typeof value !== 'object' && typeof value !== 'function') out[local] = String(value);
-  }
-  return out;
-}
-
-/** An extension element under local names: its attributes, then its child elements' text (a list when a name repeats). */
-function extensionOf(ext: ModdleElement): Extension {
-  const attributes: Record<string, string | string[]> = attributesOf(ext);
-  const add = (name: string, value: string): void => {
-    const known = attributes[name];
-    attributes[name] = known === undefined ? value : Array.isArray(known) ? [...known, value] : [known, value];
-  };
-  for (const property of ext.$descriptor?.properties ?? []) {
-    if (property.isAttr || !Object.hasOwn(ext, property.name)) continue;
-    const values = property.isMany ? ext[property.name] : [ext[property.name]];
-    for (const value of values ?? []) if (typeof value === 'string') add(property.ns?.localName ?? property.name, value.trim());
-  }
-  for (const child of ext.$children ?? []) add(String(child.$type).split(':').pop()!, String(child.$body ?? '').trim());
-  return { namespace: namespaceOf(ext), type: tagOf(ext), attributes };
-}
-
-/** The namespace an element's prefix is bound to: a loaded schema's, else the one the document declares for it. */
-function namespaceOf(element: ModdleElement): string {
-  const prefix = element.$descriptor?.ns?.prefix;
-  const schema = element.$model?.getPackage?.(prefix)?.uri;
-  if (schema) return schema;
-  for (let at: ModdleElement | undefined = element; at; at = at.$parent) {
-    const declared = at.$attrs?.[`xmlns:${prefix}`];
-    if (typeof declared === 'string') return declared;
-  }
-  return '';
-}
-
-function expressionOf(expression: ModdleElement | undefined): Expression | undefined {
-  const body = typeof expression?.body === 'string' ? expression.body.trim() : '';
-  return body ? { body, language: expression?.language ?? null } : undefined;
-}
-
-function loopOf(marker: ModdleElement | undefined): Loop | undefined {
-  if (marker?.$type === 'bpmn:StandardLoopCharacteristics') {
-    return {
-      kind: 'standard',
-      testBefore: marker.testBefore === true,
-      maximum: typeof marker.loopMaximum === 'number' ? marker.loopMaximum : null,
-      condition: expressionOf(marker.loopCondition) ?? null,
-    };
-  }
-  if (marker?.$type === 'bpmn:MultiInstanceLoopCharacteristics') {
-    return {
-      kind: 'multiInstance',
-      cardinality: expressionOf(marker.loopCardinality) ?? null,
-      input: marker.loopDataInputRef?.id ?? null,
-      inputItem: marker.inputDataItem?.name ?? null,
-      outputItem: marker.outputDataItem?.name ?? null,
-      output: marker.loopDataOutputRef?.id ?? null,
-    };
-  }
-  return undefined;
-}
-
-const id = (ref: any): string | null => (typeof ref === 'string' ? ref : ref?.id ?? null);
-
-/** One element as a partial runner sees it: what the XML says, under local names, nothing inferred. */
-export function planElement(element: ModdleElement): PlanElement {
-  const ioSlots: Record<string, string> = {};
-  for (const input of element.ioSpecification?.dataInputs ?? []) if (input?.id) ioSlots[input.id] = input.name ?? '';
-  const binding = (association: ModdleElement): Binding => ({
-    target: id(association.targetRef),
-    transformation: typeof association.transformation?.body === 'string' ? association.transformation.body.trim() || null : null,
-    language: association.transformation?.language ?? null,
-  });
-  const digest: PlanElement = {
-    id: element.id,
-    type: tagOf(element),
-    name: element.name ?? null,
-    attributes: attributesOf(element, new Set(['id', 'name'])),
-    extensions: (element.extensionElements?.values ?? [])
-      .filter((ext: ModdleElement) => ext.$type !== PROV_ACTIVITY)
-      .map(extensionOf),
-    additionalArguments: typeof element.additionalArguments === 'string' ? element.additionalArguments.trim() || null : null,
-    ioSlots,
-    inputs: (element.dataInputAssociations ?? []).flatMap((association: ModdleElement) => (association.sourceRef ?? [])
-      .map((source: ModdleElement) => ({ source: id(source)!, ...binding(association) }))
-      .filter((input: { source: string | null }) => input.source)),
-    outputs: (element.dataOutputAssociations ?? []).map(binding),
-    participants: (element.participantRef ?? []).map(id).filter(Boolean),
-  };
-  const condition = expressionOf(element.conditionExpression)
-    ?? expressionOf(element.eventDefinitions?.find((d: ModdleElement) => d.$type === 'bpmn:ConditionalEventDefinition')?.condition);
-  if (condition) digest.condition = condition;
-  const loop = loopOf(element.loopCharacteristics);
-  if (loop) digest.loop = loop;
-  if (element.eventDefinitions?.length) digest.events = element.eventDefinitions.map(tagOf);
-  const timed = element.eventDefinitions?.find((d: ModdleElement) => d.$type === 'bpmn:TimerEventDefinition');
-  if (timed) {
-    const time = (expression: ModdleElement | undefined): string | undefined => expressionOf(expression)?.body;
-    digest.timer = { duration: time(timed.timeDuration), date: time(timed.timeDate), cycle: time(timed.timeCycle) };
-  }
-  if (typeof element.participantMultiplicity?.maximum === 'number') digest.multiplicity = element.participantMultiplicity.maximum;
-  const actor = (element.extensionElements?.values ?? []).find((ext: ModdleElement) => ext.$type === 'studyflow:Actor');
-  if (actor?.memory === 'conversation') digest.memory = 'conversation';
-  const extensionType = getExtensionType(element);
-  const branching = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.branching : undefined;
-  if (typeof branching === 'string') digest.branching = branching;
-  return digest;
-}
-
-/** The Parameters wired into an element, merged and split into the attributes they set and the rest; undefined when
- * none is wired. */
-function wired(element: ModdleElement): { attributes: Record<string, unknown>; rest: Record<string, unknown> } | undefined {
-  const sources: [string, Record<string, unknown>][] = [];
-  for (const association of element.dataInputAssociations ?? []) {
-    for (const source of association.sourceRef ?? []) {
-      const values = parametersOf(source);
-      if (values && !sources.some(([known]) => known === source.id)) sources.push([source.id, values]);
-    }
-  }
-  if (sources.length === 0) return undefined;
-  return splitAttributes(element, mergeParameters(element.id, sources), element.id);
-}
-
 /** Identifier-shaped names, one element each: a name two elements share, or one that is also an id, binds nothing. */
 export function boundNames(elements: Record<string, PlanElement>): Record<string, string> {
   const named = Object.values(elements).filter((element) => element.name && /^[A-Za-z_]\w*$/.test(element.name));
@@ -289,40 +144,294 @@ export function indexOf(definitions: ModdleElement): StudyIndex {
   return { processes, root, study: studyOf(root) ?? studyOf(process), walked, others };
 }
 
+/* --- the plan of a study model --- */
+
+/** The local name an XML tag takes for a type: `bpmn:ExclusiveGateway` is `exclusiveGateway`. */
+function tagIn(model: StudyModel, type: string): string {
+  const [prefix, local] = type.includes(':') ? type.split(':') : ['', type];
+  const pkg = model.metamodel.package(prefix);
+  return pkg && pkg.xml?.tagAlias !== 'lowerCase' ? local : local.charAt(0).toLowerCase() + local.slice(1);
+}
+
+/** A value as the XML writes it: text, a truth value, a reference's id, a YAML mapping as its text. */
+function textIn(value: Value): string {
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (isElement(value)) return String(value.id);
+  if (value && typeof value === 'object' && !Array.isArray(value)) return expandInline(value as Record<string, unknown>);
+  return String(value);
+}
+
+/** The XML attributes `element` has as `type` (its BPMN element, or its schema type for its entry), as text. */
+function attributesIn(model: StudyModel, element: Element, type: string, skip: ReadonlySet<string> = new Set()): Record<string, string> {
+  const out: Record<string, string> = {};
+  const descriptor = model.metamodel.descriptor(type);
+  for (const property of descriptor.properties) {
+    const local = property.ns.localName;
+    if (!property.isAttr || skip.has(local) || !(local in element)) continue;
+    const value = element[local];
+    if (value !== undefined && value !== null) out[local] = textIn(value);
+  }
+  // A key no schema declares stays an attribute of the element, as the XML keeps it.
+  for (const [key, value] of Object.entries(element)) {
+    if (key === 'type' || model.property(element, key) || key.startsWith('xmlns')) continue;
+    const local = key.split(':').pop()!;
+    if (!skip.has(local) && value !== null && typeof value !== 'object') out[local] = String(value);
+  }
+  return out;
+}
+
+/** An extension entry under local names: its attributes, then its text-valued children (a list when a name repeats). */
+function extensionIn(model: StudyModel, entry: Element): Extension {
+  const prefix = entry.type.split(':')[0];
+  const declared = model.study.definitions[`xmlns:${prefix}`];
+  const namespace = model.metamodel.package(prefix)?.uri ?? (typeof declared === 'string' ? declared : '');
+  if (!model.metamodel.has(entry.type)) {
+    // A foreign element: its attributes and its children's text, as the model keeps them.
+    const attributes: Record<string, string | string[]> = {};
+    for (const [key, value] of Object.entries(entry)) {
+      if (key === 'type' || value === undefined || value === null) continue;
+      if (Array.isArray(value)) attributes[key] = value.map(String);
+      else if (typeof value !== 'object') attributes[key] = String(value);
+    }
+    return { namespace, type: tagIn(model, entry.type), attributes };
+  }
+  const attributes: Record<string, string | string[]> = attributesIn(model, entry, entry.type);
+  const add = (name: string, value: string): void => {
+    const known = attributes[name];
+    attributes[name] = known === undefined ? value : Array.isArray(known) ? [...known, value] : [known, value];
+  };
+  for (const property of model.metamodel.descriptor(entry.type).properties) {
+    const local = property.ns.localName;
+    if (property.isAttr || !(local in entry)) continue;
+    const values = property.isMany ? entry[local] as Value[] : [entry[local]];
+    // A YAML-typed child the model holds as its mapping is the text the XML writes.
+    for (const value of values ?? []) if (typeof value === 'string' || (isMapping(value) && !isElement(value))) add(local, textIn(value).trim());
+  }
+  return { namespace, type: tagIn(model, entry.type), attributes };
+}
+
+function loopIn(marker: Value | undefined): Loop | undefined {
+  if (!isElement(marker)) return undefined;
+  if (marker.type === 'bpmn:StandardLoopCharacteristics') {
+    return {
+      kind: 'standard',
+      testBefore: marker.testBefore === true,
+      maximum: typeof marker.loopMaximum === 'number' ? marker.loopMaximum : null,
+      condition: expressionIn(marker.loopCondition) ?? null,
+    };
+  }
+  if (marker.type === 'bpmn:MultiInstanceLoopCharacteristics') {
+    const nameOf = (item: Value | undefined): string | null => (isElement(item) && typeof item.name === 'string' ? item.name : null);
+    return {
+      kind: 'multiInstance',
+      cardinality: expressionIn(marker.loopCardinality) ?? null,
+      input: idOf(marker.loopDataInputRef),
+      inputItem: nameOf(marker.inputDataItem),
+      outputItem: nameOf(marker.outputDataItem),
+      output: idOf(marker.loopDataOutputRef),
+    };
+  }
+  return undefined;
+}
+
+function expressionIn(value: Value | undefined): Expression | undefined {
+  return modelExpression(value);
+}
+
+const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : []);
+
+/** One element of a study model as a partial runner sees it: what its BPMN XML says, under local names. */
+export function planElement(model: StudyModel, element: Element): PlanElement {
+  const host = model.host(element);
+  const ioSlots: Record<string, string> = {};
+  const io = element.ioSpecification;
+  for (const input of isElement(io) ? listIn(io.dataInputs) : []) if (isElement(input) && input.id) ioSlots[input.id] = typeof input.name === 'string' ? input.name : '';
+  const binding = (association: Element): Binding => {
+    const transformation = association.transformation;
+    const expression = expressionIn(transformation);
+    return {
+      target: idOf(association.targetRef),
+      transformation: expression?.body || null,
+      language: isElement(transformation) && typeof transformation.language === 'string' ? transformation.language : null,
+    };
+  };
+  const extensions = [model.typedEntry(element), ...model.entries(element)]
+    .filter((entry): entry is Element => !!entry && entry.type !== PROV_ACTIVITY);
+  const args = element.additionalArguments;
+  const digest: PlanElement = {
+    id: element.id!,
+    type: tagIn(model, host),
+    name: typeof element.name === 'string' ? element.name : null,
+    attributes: attributesIn(model, element, host, new Set(['id', 'name'])),
+    extensions: extensions.map((entry) => extensionIn(model, entry)),
+    additionalArguments: args === undefined || args === null ? null : textIn(args).trim() || null,
+    ioSlots,
+    inputs: listIn(element.dataInputAssociations).filter(isElement).flatMap((association) => listIn(association.sourceRef)
+      .map((source) => ({ source: idOf(source)!, ...binding(association) }))
+      .filter((input) => input.source)),
+    outputs: listIn(element.dataOutputAssociations).filter(isElement).map(binding),
+    participants: listIn(element.participantRef).map(idOf).filter((id): id is string => !!id),
+  };
+  const definitions = listIn(element.eventDefinitions).filter(isElement);
+  const condition = expressionIn(element.conditionExpression)
+    ?? expressionIn(definitions.find((definition) => definition.type === 'bpmn:ConditionalEventDefinition')?.condition);
+  if (condition) digest.condition = condition;
+  const loop = loopIn(element.loopCharacteristics);
+  if (loop) digest.loop = loop;
+  if (definitions.length > 0) digest.events = definitions.map((definition) => tagIn(model, definition.type));
+  const timed = definitions.find((definition) => definition.type === 'bpmn:TimerEventDefinition');
+  if (timed) {
+    const time = (value: Value | undefined): string | undefined => expressionIn(value)?.body;
+    digest.timer = { duration: time(timed.timeDuration), date: time(timed.timeDate), cycle: time(timed.timeCycle) };
+  }
+  const multiplicity = element.participantMultiplicity;
+  if (isElement(multiplicity) && typeof multiplicity.maximum === 'number') digest.multiplicity = multiplicity.maximum;
+  const actor = element.type === 'studyflow:Actor' ? element : model.entries(element).find((entry) => entry.type === 'studyflow:Actor');
+  if (actor?.memory === 'conversation') digest.memory = 'conversation';
+  const extensionType = model.extensionType(element);
+  const branching = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.branching : undefined;
+  if (typeof branching === 'string') digest.branching = branching;
+  return digest;
+}
+
+/** The mapping a `studyflow:Parameters` data object carries; undefined for any other element, or an empty one. */
+export function parametersIn(model: StudyModel, element: Element | undefined): Record<string, unknown> | undefined {
+  if (!element || model.extensionType(element) !== PARAMETERS) return undefined;
+  const entry = element.type === PARAMETERS ? element : model.entries(element).find((candidate) => candidate.type === PARAMETERS);
+  let values: unknown = entry?.values;
+  if (typeof values === 'string') {
+    try {
+      values = yaml.load(values);
+    } catch {
+      return undefined;
+    }
+  }
+  return values && typeof values === 'object' && !Array.isArray(values) && Object.keys(values).length > 0 ? values as Record<string, unknown> : undefined;
+}
+
+const PARAMETERS = 'studyflow:Parameters';
+
+/** The attributes a Parameters key may set on `element`: the XML attributes its schema type declares. */
+function overridableIn(model: StudyModel, element: Element): Set<string> {
+  const type = model.extensionType(element);
+  if (!type) return new Set();
+  return new Set(model.metamodel.descriptor(type).properties
+    .filter((p) => p.isAttr && p.ns.prefix !== 'bpmn')
+    .map((p) => p.ns.localName));
+}
+
+/** The Parameters wired into `element`, merged and split into the attributes they set and the rest. */
+function wiredIn(model: StudyModel, element: Element): { attributes: Record<string, unknown>; rest: Record<string, unknown> } | undefined {
+  const sources: [string, Record<string, unknown>][] = [];
+  for (const association of listIn(element.dataInputAssociations).filter(isElement)) {
+    for (const ref of listIn(association.sourceRef)) {
+      const id = idOf(ref);
+      const values = parametersIn(model, model.get(id ?? undefined));
+      if (id && values && !sources.some(([known]) => known === id)) sources.push([id, values]);
+    }
+  }
+  if (sources.length === 0) return undefined;
+  const merged = mergeParameters(element.id!, sources);
+  const names = overridableIn(model, element);
+  const attributes: Record<string, unknown> = {};
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(merged)) {
+    if (!names.has(key)) rest[key] = value;
+    else if (value === null || typeof value === 'object') {
+      const got = value === null ? 'nothing' : Array.isArray(value) ? 'a list' : 'a mapping';
+      throw new Error(`${element.id} reads ${key}, one of its attributes, which takes one value, not ${got}.`);
+    } else attributes[key] = value;
+  }
+  return { attributes, rest };
+}
+
+/** A study model's elements as a run reads them. */
+export type ModelIndex = {
+  processes: Element[];
+  root: Element;
+  study: Element | undefined;
+  walked: Map<string, { element: Element; parent: Element }>;
+  others: Element[];
+};
+
+/** The root a study model's drawing names, unless that is a collaboration with no pool; else the one the reader infers. */
+function primaryRootIn(model: StudyModel): Element | undefined {
+  const plane = model.study.diagram?.[0];
+  const named = isMapping(plane) && isMapping(plane.plane) ? model.get(String(plane.plane.bpmnElement ?? '')) : undefined;
+  if (named && !isHeadlessCollaboration(named)) return named;
+  return inferredRoot(model.study, model.metamodel);
+}
+
+const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
+
+export function modelIndexOf(model: StudyModel): ModelIndex {
+  const roots = model.study.roots;
+  const processes_ = roots.filter((root) => model.host(root) === 'bpmn:Process');
+  const flows = (root: Element): Element[] => listIn(root.flowElements).filter(isElement);
+  let walkable = processes_.filter((root) => flows(root).some((element) => model.host(element) === 'bpmn:SequenceFlow'));
+  // A study of steps and no flow is walked from its one step (the walk refuses more than one).
+  if (walkable.length === 0) walkable = processes_.filter((root) => flows(root).length > 0).slice(0, 1);
+  if (walkable.length === 0) throw new Error('no process with a sequence flow to walk');
+  const process = walkable.find((candidate) => model.studyOf(candidate)) ?? walkable[0];
+  const root = roots.find((candidate) => model.studyOf(candidate)) ?? primaryRootIn(model) ?? process;
+
+  const walked: ModelIndex['walked'] = new Map();
+  const index = (container: Element): void => {
+    for (const element of [...listIn(container.properties), ...listIn(container.flowElements), ...listIn(container.artifacts)]) {
+      if (!isElement(element) || !element.id) continue;
+      walked.set(element.id, { element, parent: container });
+      if (CONTAINERS.has(model.host(element))) index(element);
+      // A plain element's properties are its own scope's (`Excluded (n={count})`).
+      else for (const property of listIn(element.properties)) if (isElement(property) && property.id) walked.set(property.id, { element: property, parent: element });
+    }
+  };
+  const processes = [process, ...walkable.filter((other) => other !== process)];
+  for (const each of processes) index(each);
+
+  const others = roots.flatMap((definition) => {
+    const host = model.host(definition);
+    if (host === 'bpmn:Message' || host === 'bpmn:ItemDefinition') return definition.id ? [definition] : [];
+    if (host !== 'bpmn:Collaboration') return [];
+    return [...listIn(definition.participants), ...listIn(definition.messageFlows)].filter((child): child is Element => isElement(child) && !!child.id);
+  });
+  return { processes, root, study: model.studyOf(root) ?? model.studyOf(process), walked, others };
+}
+
+/** The plan of a study model. */
 /** The plan of a study: every element by id (pool participants, message flows, messages and item definitions
  * included), the study, and the processes to walk. */
-export function planOf(definitions: ModdleElement, { options = {}, sources = [] }: PlanOptions = {}): Plan {
-  const { processes, root, study, walked, others } = indexOf(definitions);
+export function planOf(model: StudyModel, { options = {}, sources = [] }: PlanOptions = {}): Plan {
+  const { processes, root, study, walked, others } = modelIndexOf(model);
   const elements: Record<string, PlanElement> = {};
   for (const [id, { element, parent }] of walked) {
-    const digest = planElement(element);
+    const digest = planElement(model, element);
     digest.parent = parent.id;
-    const read = wired(element);
+    const read = wiredIn(model, element);
     if (read) {
-      // A key naming one of the element's attributes sets it (`instrument: WO`); the rest is its `parameters`.
       digest.parameters = read.rest;
       const ext = digest.extensions[0];
-      if (ext) for (const [key, value] of Object.entries(read.attributes)) ext.attributes[key] = text(value);
+      if (ext) for (const [key, value] of Object.entries(read.attributes)) ext.attributes[key] = textIn(value as Value);
     }
     elements[id] = digest;
   }
   const names = boundNames(elements);
-  for (const other of others) elements[other.id] = planElement(other);
+  for (const other of others) elements[other.id!] = planElement(model, other);
 
-  const pool = others.find((other) => other.$type === 'bpmn:Participant' && other.processRef === processes[0]);
+  const pool = others.find((other) => model.host(other) === 'bpmn:Participant' && other.processRef === processes[0].id);
   const seed = study?.seed;
+  const nameOf = (element: Element | undefined): string | undefined => (typeof element?.name === 'string' && element.name ? element.name : undefined);
   return {
     protocol: PROTOCOL,
     options,
     study: {
       id: root.id ?? null,
-      name: root.name || processes[0].name || pool?.name || root.id || null,
+      name: nameOf(root) || nameOf(processes[0]) || nameOf(pool) || root.id || null,
       seed: seed === undefined || seed === null ? null : String(seed),
-      dependencies: (study?.dependencies ?? []).map((spec: unknown) => String(spec).trim()).filter(Boolean),
+      dependencies: listIn(study?.dependencies).map((spec) => String(spec).trim()).filter(Boolean),
     },
     sources,
     elements,
     names,
-    processes: processes.map((walkedProcess) => walkedProcess.id),
+    processes: processes.map((walkedProcess) => walkedProcess.id!),
   };
 }

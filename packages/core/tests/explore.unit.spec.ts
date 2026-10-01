@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
+import { studyModelOf, studyflowToDefinitions } from '@core/document';
 import { explore, planOf } from '@core/engine';
 import { freshModdle } from '@tests/schemas';
 
 /** Soundness by exploring every way a study can go: each decision a free choice, every run walked dry. */
 
-const plan = (study: string) => planOf(studyflowToDefinitions(`id: s\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n${study}`, freshModdle()));
+const plan = (study: string) => planOf(studyModelOf(studyflowToDefinitions(`id: s\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n${study}`, freshModdle())));
 
 /** Left decides whether to tell Right; Right always waits to be told, and once told, Left also says goodbye at a
  * boundary event Right has left by then. */

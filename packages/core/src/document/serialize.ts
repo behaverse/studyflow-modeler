@@ -73,7 +73,21 @@ function nameFirst(out: Record<string, unknown>): Record<string, unknown> {
   return { ...(type === undefined ? {} : { type }), name, ...rest };
 }
 
+/** An element of a namespace no loaded schema declares, as its runner reads it: its attributes, then its child
+ * elements' text by local name (a list when a name repeats). */
+function serializeForeign(el: any): Record<string, unknown> {
+  const out: Record<string, unknown> = { type: el.$type };
+  for (const [key, value] of Object.entries(el)) if (!key.startsWith('$') && typeof value !== 'object') out[key] = value;
+  for (const child of el.$children ?? []) {
+    const key = String(child.$type).split(':').pop()!;
+    const text = String(child.$body ?? '').trim();
+    out[key] = key in out ? [out[key], text].flat() : text;
+  }
+  return out;
+}
+
 function serializeElement(el: any, declaredType?: string, ctx?: SerializeContext): Record<string, unknown> {
+  if (el.$descriptor?.isGeneric) return serializeForeign(el);
   const out: Record<string, unknown> = {};
   // Its drawing, keyed before its children's so the layout reads in document order.
   const di = ctx && typeof el.id === 'string' ? ctx.di.get(el.id) : undefined;

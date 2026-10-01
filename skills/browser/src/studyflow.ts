@@ -4,6 +4,7 @@ import {
   PARAMETERS_TYPE,
   PLACEHOLDER,
   choreographyToProcessRoot,
+  studyModelOf,
   tasksToExchanges,
   ensureStudyExtension,
   looksLikeXml,
@@ -194,7 +195,7 @@ export async function parseStudyflow(
     study,
     flowNodes,
     sequenceFlows,
-    plan: planOf(definitions),
+    plan: planOf(studyModelOf(definitions)),
     parameters: bound,
     state: readState(definitions),
   };

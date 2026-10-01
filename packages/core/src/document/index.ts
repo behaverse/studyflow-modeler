@@ -1,5 +1,8 @@
 import * as yaml from 'js-yaml';
 
+import { Metamodel, type PackageDef } from '@core/model/metamodel';
+import { StudyModel } from '@core/model/index';
+import { readStudy } from '@core/model/yaml';
 import type { Moddle } from '@core/element/moddle';
 
 import { applyXmlPasses, dropForeignElements } from '@core/document/format';
@@ -145,3 +148,16 @@ export {
   extractStudyflowFromPng,
 } from '@core/document/png';
 export { extractStudyflowFromSvg, replaceStudyflowInSvg } from '@core/document/svg';
+
+const metamodels = new WeakMap<object, Metamodel>();
+
+/** The study model of definitions moddle holds: what reads a study as data, for the paths that still hold moddle. */
+export function studyModelOf(definitions: any): StudyModel {
+  const moddle = definitions.$model;
+  let metamodel = metamodels.get(moddle);
+  if (!metamodel) {
+    metamodel = new Metamodel(structuredClone(moddle.getPackages()) as PackageDef[]);
+    metamodels.set(moddle, metamodel);
+  }
+  return new StudyModel(readStudy(definitionsToYamlDoc(definitions), metamodel, () => {}), metamodel);
+}

@@ -5,6 +5,7 @@ import { expect, test } from '@playwright/test';
 
 import { readParameters, resolveRunSource } from '@runner/source';
 import { parseStudyflow, Studyflow } from '@runner/studyflow';
+import { studyModelOf } from '@core/document';
 import { getAttribute } from '@core/element';
 import { Graph, planOf, type Plan } from '@core/engine';
 import { freshModdle, freshPackages } from '@tests/schemas';
@@ -178,7 +179,7 @@ eyes: closed
 /** The plan the walk and its runners read of `xml` (packages/core/src/engine), or the error that stops the run. */
 async function planned(xml: string): Promise<{ plan?: Plan; error?: string }> {
   try {
-    return { plan: planOf((await freshModdle().fromXML(xml)).rootElement) };
+    return { plan: planOf(studyModelOf((await freshModdle().fromXML(xml)).rootElement)) };
   } catch (error) {
     return { error: (error as Error).message };
   }

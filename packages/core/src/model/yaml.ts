@@ -97,7 +97,12 @@ class Reader {
       const name = spelled ?? impliedTypeName(props, declared) ?? declared;
       if (!name) throw new Error(`Element is missing a 'type': ${JSON.stringify(raw).slice(0, 120)}`);
       type = longTypeName(name);
-      if (!this.metamodel.has(type)) throw new Error(`unknown type <${type}>`);
+      if (!this.metamodel.has(type)) {
+        // An element of a namespace no loaded schema declares (BPMN XML's foreign extensions) is kept as written: its
+        // attributes and its child elements' text. A type a loaded schema lacks is a mistake.
+        if (this.metamodel.package(type.split(':')[0])) throw new Error(`unknown type <${type}>`);
+        return { ...(node as Record<string, Value>), type };
+      }
     }
     const host = typed ? attachOf(this.metamodel, typed)! : type;
     const own = this.metamodel.descriptor(host);

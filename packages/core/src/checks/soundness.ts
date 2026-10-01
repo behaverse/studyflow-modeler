@@ -1,5 +1,6 @@
 import type { ModdleElement } from '@core/element/moddle';
 import type { Issue } from '@core/checks';
+import { studyModelOf } from '@core/document';
 import { explore, planOf } from '@core/engine';
 
 /**
@@ -12,7 +13,7 @@ import { explore, planOf } from '@core/engine';
 export async function checkSoundness(definitions: ModdleElement): Promise<{ issues: Issue[]; note?: string }> {
   let plan;
   try {
-    plan = planOf(definitions);
+    plan = planOf(studyModelOf(definitions));
   } catch {
     return { issues: [] }; // a study the walk cannot plan is reported by the plan checks
   }

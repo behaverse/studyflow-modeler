@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
+import { studyModelOf, studyflowToDefinitions } from '@core/document';
 import { HandoffError, Walk, allocationOf, draw, dryHost, durationMs, permutedBlock, pick, planOf, stateOf, type Handback, type Host, type PlanElement, type RunEvent, type Talk, type WalkOptions } from '@core/engine';
 import { freshModdle } from '@tests/schemas';
 
@@ -15,7 +15,7 @@ type Runner = (values: Record<string, any>, talk?: Talk) => Handback | Promise<H
 const HEAD = 'definitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n';
 
 async function walked(study: string, runners: Record<string, Runner> = {}, options: WalkOptions = {}) {
-  const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}${study}`, freshModdle()));
+  const plan = planOf(studyModelOf(studyflowToDefinitions(`id: study\n${HEAD}${study}`, freshModdle())));
   const log: string[] = [];
   const events: RunEvent[] = [];
   const start = structuredClone(options.state ?? {});
@@ -93,7 +93,7 @@ test('a random gateway allocates as it says, and what it cannot apply stops the 
 
 test('a seeded random gateway draws again at each visit', async () => {
   const fixture = fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/random-loop.studyflow.yaml'), 'utf8');
-  const plan = planOf(studyflowToDefinitions(fixture, freshModdle()));
+  const plan = planOf(studyModelOf(studyflowToDefinitions(fixture, freshModdle())));
   const taken: string[] = [];
   const walk = new Walk(plan, {
     claim: () => undefined,
@@ -919,7 +919,7 @@ test('a gateway where no condition holds, with no default and two flows without 
 });
 
 test('what repeats never skips or replays: a record keeps its last pass only', async () => {
-  const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}C:
+  const plan = planOf(studyModelOf(studyflowToDefinitions(`id: study\n${HEAD}C:
   type: Collaboration
   participants:
     Subjects: { name: Subjects, participantMultiplicity: { maximum: 2 }, processRef: S }
@@ -954,7 +954,7 @@ L:
     LF1: Once -> Pick
     LF2: Pick -> Rounds
     LF3: Rounds -> L9
-`, freshModdle()));
+`, freshModdle())));
   // A host with records of an earlier run: what it is asked to reuse is what runs once a run.
   const asked = new Set<string>();
   const walk = new Walk(plan, {
@@ -975,7 +975,7 @@ L:
 });
 
 test('a participant\'s session walks one instance of its pool, and writes a value under the name a scope declares', async () => {
-  const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}C:
+  const plan = planOf(studyModelOf(studyflowToDefinitions(`id: study\n${HEAD}C:
   type: Collaboration
   participants:
     Subjects: { name: Subjects, participantMultiplicity: { maximum: 4 }, processRef: S }
@@ -998,7 +998,7 @@ S:
     S9: { type: EndEvent }
     SF0: S0 -> Block
     SF1: Block -> S9
-`, freshModdle()));
+`, freshModdle())));
   const seen: unknown[] = [];
   const walk: Walk = new Walk(plan, {
     claim: (id) => (id === 'Trial' ? { name: 'screen', live: true } : undefined),
@@ -1017,7 +1017,7 @@ S:
 });
 
 test('a dry run walks the study and executes nothing: steps are done at once, a pool nobody plays answers, a gateway nothing can decide takes a flow', async () => {
-  const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}C:
+  const plan = planOf(studyModelOf(studyflowToDefinitions(`id: study\n${HEAD}C:
   type: Collaboration
   participants:
     Lab: { name: Lab, processRef: S }
@@ -1045,7 +1045,7 @@ S:
       sourceRef: Good
       targetRef: Retry
       conditionExpression: Fit.accuracy <= 0.9
-`, freshModdle()));
+`, freshModdle())));
   const moves: string[] = [];
   const walk = new Walk(plan, dryHost(plan, { moved: (to, along, pool) => { moves.push(`${pool}: ${along ?? 'at'} ${to}`); } }), { seed: null });
   await walk.run();
@@ -1090,7 +1090,7 @@ const TIMED = `S:
 
 for (const [label, slow, ends] of [['runs out, the walk leaves by it and the hand-off is stopped', true, 'TimedOut'], ['does not, the step ends its own way', false, 'Done']] as const) {
   test(`a timer event waits for its time, by the host's clock; when a timer at a boundary event ${label}`, async () => {
-    const plan = planOf(studyflowToDefinitions(`id: study\n${HEAD}${TIMED}`, freshModdle()));
+    const plan = planOf(studyModelOf(studyflowToDefinitions(`id: study\n${HEAD}${TIMED}`, freshModdle())));
     const waited: [number, string][] = [];
     let stopped = false;
     const walk = new Walk(plan, {

@@ -10,9 +10,10 @@ import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } f
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import { readState, writeState } from '@core/document';
+import { readState, studyModelOf, writeState } from '@core/document';
 import type { Moddle, ModdleElement } from '@core/element/moddle';
-import { CONTAINER_TYPES, Walk, indexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
+import { CONTAINER_TYPES, Walk, indexOf, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
+import type { Element, StudyModel } from '@core/model/index';
 import { RunLog, timelineTimestamp } from '@skills/local/src/log';
 import { Records, humanBytes } from '@skills/local/src/reuse';
 import { PartialRunner, discoverRunners, type RunnerCommand } from '@skills/local/src/runners';
@@ -116,7 +117,8 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     const at = option.indexOf('=');
     return at < 0 ? [option, true] : [option.slice(0, at), option.slice(at + 1)];
   }));
-  const plan = planOf(definitions, { options, sources });
+  const model = studyModelOf(definitions);
+  const plan = planOf(model, { options, sources });
   // Root seed: read from the study, never drawn here. Partial runners read the same plan, so every process seeds
   // identically. A study without a seed runs unseeded.
   const { seed } = plan.study;
@@ -223,12 +225,14 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     if (!studies.has(commit)) studies.set(commit, undefined);
     return studies.get(commit) === undefined ? undefined : studies.get(commit)!.get(id) ?? null;
   };
-  const drawn = (element: ModdleElement): string => JSON.stringify(planElement(element));
+  const drawn = (of: StudyModel, element: Element): string => JSON.stringify(planElement(of, element));
   for (const commit of new Set([...prior.values()].flatMap((record) => record.commit ?? []))) {
     const bytes = repo.fileAt(commit, path.basename(archive));
     const then = bytes && await run.read(bytes).catch(() => undefined);
-    if (then) studies.set(commit, new Map([...indexOf(then).walked].map(([id, { element }]) => [id, drawn(element)])));
+    const thenModel = then && studyModelOf(then);
+    if (thenModel) studies.set(commit, new Map([...modelIndexOf(thenModel).walked].map(([id, { element }]) => [id, drawn(thenModel, element)])));
   }
+  const walked = modelIndexOf(model).walked;
 
   // The walk and what it may reuse are made below, from the host that serves them.
   const made = {} as { walk: Walk; records: Records };
@@ -303,7 +307,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   }
   made.records = new Records({
     graph: walk.graph, prior, repo, dir, sources, drawnAt,
-    drawn: (id) => drawn(index.walked.get(id)!.element),
+    drawn: (id) => drawn(model, walked.get(id)!.element),
   });
 
   // The trailers of a commit that stamps no element are the document stamp's own attributes.

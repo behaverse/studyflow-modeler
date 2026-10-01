@@ -5,6 +5,7 @@
  */
 
 import { readState } from '@core/document';
+import { studyModelOf } from '@core/document';
 import { Walk, dryHost, planOf, type Plan } from '@core/engine';
 import { isBpmnSubtypeOf } from '@core/notation';
 import type { Canvas, EventBus } from '@modeler/editor/port';
@@ -139,7 +140,7 @@ export default class TokenSimulator {
   /** The plan of the study as it stands; a study with nothing to walk has no tokens. */
   private readPlan(): void {
     try {
-      this.plan = planOf(this.host.study.definitions);
+      this.plan = planOf(studyModelOf(this.host.study.definitions));
     } catch {
       this.plan = undefined;
     }
