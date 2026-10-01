@@ -4,8 +4,6 @@
  * run does: it waits where a run waits for a message, and it stops where a run would stop.
  */
 
-import { readState } from '@core/document';
-import { studyModelOf } from '@core/document';
 import { Walk, dryHost, planOf, type Plan } from '@core/engine';
 import { isBpmnSubtypeOf } from '@core/notation';
 import type { Canvas, EventBus } from '@modeler/editor/port';
@@ -15,7 +13,7 @@ import { computeSegLengths, dedupePoints, samplePolyline, smootherstep, tokenAnc
 export interface SimulationHost {
   events: Pick<EventBus, 'on' | 'off' | 'fire'>;
   /** What the tokens walk. */
-  study: Pick<Study, 'get' | 'definitions'>;
+  study: Pick<Study, 'get' | 'model'>;
   /** Where they are drawn, and whether the view shows where they are. */
   canvas: Pick<Canvas, 'layer' | 'draws' | 'scope'>;
 }
@@ -140,7 +138,7 @@ export default class TokenSimulator {
   /** The plan of the study as it stands; a study with nothing to walk has no tokens. */
   private readPlan(): void {
     try {
-      this.plan = planOf(studyModelOf(this.host.study.definitions));
+      this.plan = planOf(this.host.study.model);
     } catch {
       this.plan = undefined;
     }
@@ -174,7 +172,7 @@ export default class TokenSimulator {
       walk = new Walk(plan, dryHost(plan, {
         moved: (to, along, pool) => this.move(run, pool, to, along),
         passed: (id) => this.passed(run, plan, id),
-      }), { seed: null, state: readState(this.host.study.definitions) });
+      }), { seed: null, state: structuredClone(this.host.study.model.study.state ?? {}) });
     } catch {
       return; // a study the walk refuses before its first step
     }

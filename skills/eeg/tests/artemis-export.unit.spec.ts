@@ -1,7 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+import type { Element } from '@core/model/index';
+
 import { exportToArtemis } from '@skills/eeg/modeler';
-import { dataInput, dataOutput, exampleExportModel, fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { dataInput, dataOutput, exampleExportModel, fakeExportModel, wrapperElement } from '@tests/exporterFixture';
 import { exampleNames } from '@tests/utils';
 
 /** The ARTEM-IS report, over hand-built business objects. */
@@ -25,19 +27,21 @@ function eegDiagram(): any {
     format: 'parquet',
   });
 
-  const clean = moddle.create('bpmn:ServiceTask', {
+  const clean: Element = {
+    type: 'bpmn:ServiceTask',
     id: 'Filter_1',
     name: 'Remove artifacts',
     implementation: 'docker://sccn/eegprep',
-  });
+  };
   clean.dataInputAssociations = [dataInput(recording)];
   clean.dataOutputAssociations = [dataOutput(cleaned)];
 
-  const summarize = moddle.create('bpmn:ServiceTask', {
+  const summarize: Element = {
+    type: 'bpmn:ServiceTask',
     id: 'Reduce_1',
     name: 'Fit model',
     implementation: 'python://sklearn.linear_model.LinearRegression',
-  });
+  };
   summarize.dataInputAssociations = [dataInput(cleaned)];
 
   return fakeExportModel([task, recording, cleaned, clean, summarize], { diagramName: 'EEG study' });

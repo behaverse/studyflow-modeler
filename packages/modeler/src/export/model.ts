@@ -1,5 +1,5 @@
 import { getCatalog, type AttributeSpec, type TypeRole } from '@core/notation';
-import { isDataOperationActivity, StudyflowElement } from '@core/element';
+import { idOf, isElement, yamlText, type Element, type StudyModel, type Value } from '@core/model/index';
 import { exportDiagramName } from '@modeler/diagram/name';
 import type { Editor } from '@modeler/editor/port';
 
@@ -40,7 +40,11 @@ export function hasRole(element: ExportedElement, role: TypeRole): boolean {
 /** The one walk over the study the interchange exporters are built from. */
 export function buildExportModel(modeler: Editor): ExportModel {
   const { study } = modeler;
-  const elements = study.list().map((record) => readElement(study.businessObject(record.id), record.id));
+  const { model } = study;
+  const elements = study.list().flatMap((record) => {
+    const element = model.get(record.id);
+    return element ? [readElement(model, element)] : [];
+  });
 
   const dataElements = elements.filter((element) => element.isDataElement);
 
@@ -54,57 +58,69 @@ export function buildExportModel(modeler: Editor): ExportModel {
   };
 }
 
-function readElement(businessObject: any, fallbackId?: string): ExportedElement {
-  const element = StudyflowElement.fromBusinessObject(businessObject);
-  const id = businessObject.id || fallbackId || '';
-  const isDataOperation = isDataOperationActivity(businessObject);
-  const roles = rolesOf(businessObject, element);
+function readElement(model: StudyModel, element: Element): ExportedElement {
+  const id = element.id ?? '';
+  const host = model.host(element);
+  const extensionType = model.extensionType(element);
+  const roles = rolesOf(host, extensionType);
+  const isDataOperation = isDataOperation_(model, element, extensionType);
 
   const attributes: Record<string, unknown> = {};
   const specs: AttributeSpec[] = [];
-  for (const spec of declaredAttributes(element)) {
+  for (const spec of declaredAttributes(host, extensionType)) {
     const key = spec.ns.localName;
     if (!key) continue;
-    const value = element.getAttribute(key);
+    const value = model.attributeOrDefault(element, key);
     if (value === undefined || value === null || value === '') continue;
     if (Array.isArray(value) && value.length === 0) continue;
     attributes[key] = toSerializable(value);
     specs.push(spec);
   }
+  const documentation = listIn(element.documentation)
+    .map((entry) => (isElement(entry) ? entry.text : entry))
+    .filter((text): text is string => typeof text === 'string');
 
   return {
     id,
-    name: (businessObject.name as string | undefined) || id,
-    type: schemaTypeOf(businessObject, element) as string,
-    documentation: element.getAttribute('documentation') as string | undefined,
+    name: (typeof element.name === 'string' && element.name) || id,
+    type: extensionType ?? host,
+    documentation: documentation.length > 0 ? documentation.join('\n\n') : undefined,
     attributes,
     specs,
     roles,
     isDataElement: roles.includes('data-element'),
     isDataOperation,
-    inputs: isDataOperation ? associatedIds(businessObject, 'inputs') : [],
-    outputs: isDataOperation ? associatedIds(businessObject, 'outputs') : [],
+    inputs: isDataOperation ? listIn(element.dataInputAssociations).filter(isElement).flatMap((association) => listIn(association.sourceRef).map(idOf)).filter(isId) : [],
+    outputs: isDataOperation ? listIn(element.dataOutputAssociations).filter(isElement).map((association) => idOf(association.targetRef)).filter(isId) : [],
   };
 }
 
+const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : value === undefined ? [] : [value]);
+
+const isId = (id: string | null): id is string => typeof id === 'string' && id !== '';
+
+/** Derived, not stored: an activity that names an implementation, unless it is an instrument (as the canvas marks it). */
+function isDataOperation_(model: StudyModel, element: Element, extensionType: string | undefined): boolean {
+  if (extensionType && getCatalog().hasRole(extensionType, 'instrument')) return false;
+  const implementation = model.attributeOrDefault(element, 'implementation');
+  return typeof implementation === 'string' && implementation.trim() !== '';
+}
+
 /** A wrapper element carries roles under both its BPMN host type and the schema type it wraps. */
-function rolesOf(businessObject: any, element: StudyflowElement): TypeRole[] {
+function rolesOf(host: string, extensionType: string | undefined): TypeRole[] {
   const catalog = getCatalog();
   const roles = new Set<TypeRole>();
-  for (const name of [businessObject?.$type as string | undefined, element.extensionType]) {
+  for (const name of [host, extensionType]) {
     for (const role of catalog.getType(name ?? '')?.roles ?? []) roles.add(role);
   }
   return [...roles];
 }
 
-function schemaTypeOf(businessObject: any, element: StudyflowElement): string | undefined {
-  return element.extensionType ?? (businessObject?.$type as string | undefined);
-}
-
-function declaredAttributes(element: StudyflowElement): AttributeSpec[] {
-  const specs = [...element.attributes()];
+function declaredAttributes(host: string, extensionType: string | undefined): AttributeSpec[] {
+  const catalog = getCatalog();
+  const specs = [...catalog.instanceAttributesOf(host)];
   const seen = new Set(specs.map((spec) => spec.ns.localName));
-  for (const spec of element.extensionAttributes()) {
+  for (const spec of extensionType ? catalog.instanceAttributesOf(extensionType) : []) {
     if (seen.has(spec.ns.localName)) continue;
     seen.add(spec.ns.localName);
     specs.push(spec);
@@ -112,24 +128,10 @@ function declaredAttributes(element: StudyflowElement): AttributeSpec[] {
   return specs;
 }
 
-function associatedIds(bo: any, direction: 'inputs' | 'outputs'): string[] {
-  const listName = direction === 'inputs' ? 'dataInputAssociations' : 'dataOutputAssociations';
-  const associations: any[] = bo?.get?.(listName) ?? bo?.[listName] ?? [];
-  return associations.flatMap((association) => {
-    const ends: { id?: unknown }[] = direction === 'inputs'
-      ? association?.get?.('sourceRef') ?? association?.sourceRef ?? []
-      : [association?.get?.('targetRef') ?? association?.targetRef];
-    return ends
-      .map((end) => end?.id)
-      .filter((id): id is string => typeof id === 'string' && id !== '');
-  });
-}
-
-function toSerializable(value: unknown): unknown {
+/** A value as text an exporter writes: a reference by its id, a YAML-typed mapping as its text. */
+function toSerializable(value: Value): unknown {
   if (Array.isArray(value)) return value.map(toSerializable);
-  if (value && typeof value === 'object') {
-    const id = (value as { id?: unknown }).id;
-    return typeof id === 'string' ? id : JSON.stringify(value);
-  }
+  if (isElement(value)) return typeof value.id === 'string' ? value.id : JSON.stringify(value);
+  if (value && typeof value === 'object') return yamlText(value);
   return value;
 }

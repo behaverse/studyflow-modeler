@@ -4,13 +4,15 @@
  * study, and several views may share one.
  */
 
-import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, patchDoc, readerWarning, setItemSubject, setMessageItem, studyflowToDefinitions, toWireXml } from '@core/document';
+import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, metamodelOfModdle, patchDoc, readerWarning, setItemSubject, setMessageItem, studyflowToDefinitions, toWireXml } from '@core/document';
 import type { YamlDoc } from '@core/document/format.ts';
 import { definitionsToYamlDoc } from '@core/document/serialize.ts';
 import { categoryOf, isExpandable } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute, StudyflowElement } from '@core/element/index.ts';
 import { getProperty, type Moddle } from '@core/element/moddle.ts';
 import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts';
+import { StudyModel, type Element } from '@core/model/index.ts';
+import { readStudy } from '@core/model/yaml.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
@@ -139,6 +141,8 @@ export class Study {
   private readonly history: History<string>;
   /** The last commit, for the verb that made it to report. */
   private committed?: Commit;
+  /** The study model of the document at a revision ({@link model}). */
+  private derived?: { revision: number; model: StudyModel };
 
   private constructor(definitions: ModdleObject, options: ImportOptions) {
     this.options = options;
@@ -177,6 +181,24 @@ export class Study {
     const moddle = moddleOf(scene.definitions);
     const { xml } = await moddle.toXML(scene.definitions, { format: true });
     return toWireXml(xml, moddle);
+  }
+
+  /**
+   * The study as a study model, read off the document as it stands: a new one after each change, so an element of an
+   * older one is not this study's. What reads the study holds it; what edits it goes through the verbs.
+   */
+  get model(): StudyModel {
+    const { scene } = own(this);
+    if (this.derived?.revision !== scene.revision) {
+      const metamodel = metamodelOfModdle(moddleOf(scene.definitions));
+      this.derived = { revision: scene.revision, model: new StudyModel(readStudy(JSON.parse(this.history.now) as YamlDoc, metamodel, () => {}), metamodel) };
+    }
+    return this.derived.model;
+  }
+
+  /** The element `id` names in {@link model}, drawn or not. */
+  element(id: string): Element | undefined {
+    return this.model.get(id);
   }
 
   /** The `bpmn:Definitions` the study edits: another object after a load, an undo or a redo. */

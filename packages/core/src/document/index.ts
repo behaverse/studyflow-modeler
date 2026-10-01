@@ -150,14 +150,19 @@ export { moddleOf, xmlToStudy } from '@core/document/bpmn';
 
 const metamodels = new WeakMap<object, Metamodel>();
 
+/** The metamodel of the packages `moddle` registered: one per moddle. */
+export function metamodelOfModdle(moddle: Moddle): Metamodel {
+  let metamodel = metamodels.get(moddle);
+  if (!metamodel) {
+    metamodel = new Metamodel(structuredClone((moddle as unknown as { getPackages(): unknown[] }).getPackages()) as PackageDef[]);
+    metamodels.set(moddle, metamodel);
+  }
+  return metamodel;
+}
+
 /** The study model of definitions moddle holds: what reads a study as data, for the paths that still hold moddle. The
  * metamodel is moddle's own packages', unless one is given. */
 export function studyModelOf(definitions: any, given?: Metamodel): StudyModel {
-  const moddle = definitions.$model;
-  let metamodel = given ?? metamodels.get(moddle);
-  if (!metamodel) {
-    metamodel = new Metamodel(structuredClone(moddle.getPackages()) as PackageDef[]);
-    metamodels.set(moddle, metamodel);
-  }
+  const metamodel = given ?? metamodelOfModdle(definitions.$model);
   return new StudyModel(readStudy(definitionsToYamlDoc(definitions), metamodel, () => {}), metamodel);
 }

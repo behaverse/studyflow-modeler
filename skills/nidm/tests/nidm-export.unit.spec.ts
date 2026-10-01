@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 
-import { StudyflowElement } from '@core/element';
+import type { Element } from '@core/model/index';
+
 import { exportToNidm } from '@skills/nidm/modeler';
-import { dataInput, dataOutput, exampleExportModel, fakeExportModel, moddle, wrapperElement } from '@tests/exporterFixture';
+import { dataInput, dataOutput, exampleExportModel, fakeExportModel, wrapperElement } from '@tests/exporterFixture';
 import { exampleNames } from '@tests/utils';
 
 /** The NIDM-Results (Turtle) export, over hand-built business objects. */
@@ -45,12 +46,13 @@ function analysisDiagram(): any {
     name: 'Trial table',
     format: 'parquet',
   });
-  const filter = moddle.create('bpmn:ServiceTask', {
+  const filter: Element = {
+    type: 'bpmn:ServiceTask',
     id: 'Filter_1',
     name: 'Filter signal',
     implementation: 'python://scipy.signal.butter',
-  });
-  StudyflowElement.fromBusinessObject(filter).setAttribute('documentation', 'Band-pass 1-100 Hz.');
+  };
+  filter.documentation = 'Band-pass 1-100 Hz.';
   filter.dataInputAssociations = [dataInput(recording)];
   filter.dataOutputAssociations = [dataOutput(table)];
 

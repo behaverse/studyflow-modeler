@@ -1,85 +1,67 @@
-import { StudyflowElement } from '@core/element';
+import { xmlToStudy } from '@core/document';
+import { StudyModel, type Element } from '@core/model/index';
+import { readStudy } from '@core/model/yaml';
 import { buildExportModel, type ExportModel } from '@modeler/export/model';
-import { freshModdle } from './schemas';
+import { freshMetamodel } from './schemas';
 import { exampleXml } from './utils';
 
-/** The interchange exporters' fixture: a moddle to build elements with, an element-registry stand-in, and the shipped examples as models. */
-
-export const moddle: any = freshModdle();
+/** The interchange exporters' fixture: elements spelled as a file spells them, a study stand-in listing them, and the
+ * shipped examples as models. */
 
 export type FakeModelerOptions = {
   diagramName?: string;
 };
 
 /**
- * A partial `Editor`: the exporters list the study's elements, read each one's business object, and take the
+ * A partial `Editor`: the exporters list the study's elements, read each one off the study model, and take the
  * diagram's name off the root, and that is the whole of what they ask the editor for — which is why one study
  * stand-in serves every interchange format.
  */
-function fakeModeler(businessObjects: any[], { diagramName }: FakeModelerOptions = {}): any {
-  const byId = new Map(businessObjects.map((bo) => [bo.id, bo]));
+function fakeModeler(model: StudyModel, { diagramName }: FakeModelerOptions = {}): any {
+  const listed = [...model.elements()].filter((element) => !ROOT_TYPES.has(model.host(element)));
   return {
     study: {
       root: { id: 'Process_1', kind: 'root', type: 'bpmn:Process', ...(diagramName ? { name: diagramName } : {}) },
-      list: () => businessObjects.map((bo) => ({ id: bo.id, kind: 'node', type: bo.$type })),
-      businessObject: (id: string) => byId.get(id),
+      list: () => listed.map((element) => ({ id: element.id, kind: 'node', type: model.host(element) })),
+      model,
     },
   };
 }
 
-/** What the interchange exporters take: the semantic model over a stand-in registry. */
-export function fakeExportModel(businessObjects: any[], options: FakeModelerOptions = {}): ExportModel {
-  return buildExportModel(fakeModeler(businessObjects, options));
+/** What the interchange exporters take: the semantic model of a process holding `elements`, as a file spells them. */
+export function fakeExportModel(elements: Element[], options: FakeModelerOptions = {}): ExportModel {
+  const metamodel = freshMetamodel();
+  const doc = { id: 'D', definitions: { targetNamespace: 'http://bpmn.io/schema/bpmn' }, Process_1: { type: 'bpmn:Process', flowElements: elements } };
+  return buildExportModel(fakeModeler(new StudyModel(readStudy(structuredClone(doc), metamodel, () => {}), metamodel), options));
 }
 
+/** An element of `bpmnType` a schema's `extensionType` extends, its attributes on the type's entry. */
 export function wrapperElement(
   bpmnType: string,
   extensionType: string,
   { id, name, ...attributes }: Record<string, any>,
-): any {
-  const bo = moddle.create(bpmnType, { id, ...(name === undefined ? {} : { name }) });
-  StudyflowElement.fromBusinessObject(bo).ensureExtension(extensionType, moddle, attributes);
-  return bo;
+): Element {
+  return { type: bpmnType, id, ...(name === undefined ? {} : { name }), extensionElements: [{ type: extensionType, ...attributes }] };
 }
 
 /** An activity's data edges: an input from `source`, an output into `target`. */
-export function dataInput(source: any): any {
-  return moddle.create('bpmn:DataInputAssociation', { sourceRef: [source] });
+export function dataInput(source: Element): Element {
+  return { type: 'bpmn:DataInputAssociation', sourceRef: [source.id!] };
 }
 
-export function dataOutput(target: any): any {
-  return moddle.create('bpmn:DataOutputAssociation', { targetRef: target });
+export function dataOutput(target: Element): Element {
+  return { type: 'bpmn:DataOutputAssociation', targetRef: target.id! };
 }
 
 /** The root elements a diagram is named after. */
 const ROOT_TYPES = new Set(['bpmn:Process', 'bpmn:Collaboration', 'bpmn:Choreography']);
 
-/** Stands in for the element registry: every identified element in the tree, diagram interchange excluded. */
-function businessObjects(definitions: any): any[] {
-  const out: any[] = [];
-  const seen = new Set<any>();
-
-  (function visit(node: any): void {
-    if (!node || typeof node !== 'object' || seen.has(node)) return;
-    seen.add(node);
-    if (typeof node.$type === 'string' && typeof node.id === 'string') out.push(node);
-    for (const key of Object.keys(node)) {
-      if (key.startsWith('$') || key === 'diagrams' || key === 'di') continue;
-      const value = node[key];
-      if (Array.isArray(value)) value.forEach(visit);
-      else visit(value);
-    }
-  })(definitions);
-
-  return out;
-}
-
-/** A shipped example as the exporters take it: its XML parsed, every element registered, named after its root. */
+/** A shipped example as the exporters take it: its study model, every element listed, named after its root. */
 export async function exampleExportModel(name: string): Promise<ExportModel> {
-  const { rootElement: definitions } = await freshModdle().fromXML(await exampleXml(name));
-  const root = (definitions.rootElements ?? []).find((element: any) => ROOT_TYPES.has(element.$type));
-  const model = fakeExportModel(businessObjects(definitions), { diagramName: root?.name });
+  const model = await xmlToStudy(await exampleXml(name), freshMetamodel());
+  const root = model.study.roots.find((element) => ROOT_TYPES.has(model.host(element)));
+  const exported = buildExportModel(fakeModeler(model, { diagramName: typeof root?.name === 'string' ? root.name : undefined }));
   // An empty model would pass every exporter's check while testing nothing.
-  if (model.elements.length === 0) throw new Error(`${name}: the export model holds no elements`);
-  return model;
+  if (exported.elements.length === 0) throw new Error(`${name}: the export model holds no elements`);
+  return exported;
 }
