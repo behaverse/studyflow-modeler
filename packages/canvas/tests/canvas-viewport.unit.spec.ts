@@ -184,3 +184,23 @@ test('an appended shape the view does not show is panned into it, the least that
   // The least pan: it now sits just inside the right edge, the margin away.
   expect(made.x + made.width).toBeCloseTo(380, 6);
 });
+
+test('a glide lands where it goes, and says so; one another move of the camera stops says it did not', async () => {
+  // jsdom moves nothing on its own: frames come on a timer here, and nothing asks for reduced motion.
+  const view = win as unknown as { matchMedia?: unknown; requestAnimationFrame?: unknown; cancelAnimationFrame?: unknown };
+  const saved = { matchMedia: view.matchMedia, requestAnimationFrame: view.requestAnimationFrame, cancelAnimationFrame: view.cancelAnimationFrame };
+  view.matchMedia = () => ({ matches: false });
+  view.requestAnimationFrame = (step: (now: number) => void) => setTimeout(() => step(performance.now()), 5);
+  view.cancelAnimationFrame = (frame: ReturnType<typeof setTimeout>) => clearTimeout(frame);
+  try {
+    const canvas = load();
+    const goal = { x: 500, y: 400, width: 300, height: 200 };
+    expect(await canvas.glideTo(goal, 30)).toBe(true);
+    expect(canvas.viewbox).toMatchObject(goal);
+    const stopped = canvas.glideTo({ x: 0, y: 0, width: 900, height: 900 }, 1000);
+    canvas.setViewbox({ x: 10, y: 10, width: 100, height: 100 });
+    expect(await stopped).toBe(false);
+  } finally {
+    Object.assign(view, saved);
+  }
+});

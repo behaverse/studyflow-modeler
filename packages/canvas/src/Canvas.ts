@@ -412,6 +412,12 @@ export class Canvas {
     this.viewport.setViewbox(box);
   }
 
+  /** Glide to `box`, a region of the diagram, over `ms` (the camera's own pace without it): whether it landed there,
+   * once it does, or false once another move of the camera stopped it. At once where motion is reduced. */
+  glideTo(box: Bounds, ms?: number): Promise<boolean> {
+    return this.viewport.glideTo(box, ms);
+  }
+
   /**
    * Zoom to a scale, a step in or out about the view's centre, or to fit what the view draws, gliding there; the scale
    * it lands on.

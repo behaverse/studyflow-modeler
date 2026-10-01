@@ -181,23 +181,13 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
         const height = vb.outer.height / scale;
         return { x: shape.x + shape.width / 2 - width / 2, y: shape.y + shape.height / 2 - height / 2, width, height };
       };
+      // The camera glides as the canvas moves it; the view fades over the same time. A step that comes first stops the
+      // glide, and what was to follow it does not happen.
       const fly = (dest: any, ms: number, fade: 'out' | 'in', then?: () => void) => {
-        const vb0 = canvas.viewbox;
-        const start = performance.now();
-        const frame = (now: number) => {
-          const t = Math.min((now - start) / ms, 1);
-          const eased = smootherstep(t);
-          canvas.setViewbox({
-            x: vb0.x + (dest.x - vb0.x) * eased,
-            y: vb0.y + (dest.y - vb0.y) * eased,
-            width: vb0.width + (dest.width - vb0.width) * eased,
-            height: vb0.height + (dest.height - vb0.height) * eased,
-          });
-          view.style.opacity = String(fade === 'out' ? 1 - eased : eased);
-          if (t < 1) glideFrame.current = requestAnimationFrame(frame);
-          else { glideFrame.current = null; then?.(); }
-        };
-        glideFrame.current = requestAnimationFrame(frame);
+        void view.getBoundingClientRect();
+        view.style.transition = `opacity ${ms}ms ease-in-out`;
+        view.style.opacity = fade === 'out' ? '0' : '1';
+        void canvas.glideTo(dest, ms).then((arrived) => { if (arrived) then?.(); });
       };
 
       if (inward) {
@@ -261,18 +251,11 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     const { segLengths, totalDist } = computeSegLengths(points);
     const duration = Math.min(450, Math.max(200, totalDist / 0.7));
     const start = performance.now();
-    const vb0 = canvas.viewbox;
-    const dest = camera(to);
+    // The camera follows as the canvas glides it; the token runs the flow over the same time.
+    void canvas.glideTo(camera(to), duration);
     const frame = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
-      const eased = smootherstep(t);
-      setPos(samplePolyline(points, segLengths, eased * totalDist), target.id, rootId);
-      canvas.setViewbox({
-        x: vb0.x + (dest.x - vb0.x) * eased,
-        y: vb0.y + (dest.y - vb0.y) * eased,
-        width: vb0.width + (dest.width - vb0.width) * eased,
-        height: vb0.height + (dest.height - vb0.height) * eased,
-      });
+      setPos(samplePolyline(points, segLengths, smootherstep(t) * totalDist), target.id, rootId);
       glideFrame.current = t < 1 ? requestAnimationFrame(frame) : null;
     };
     glideFrame.current = requestAnimationFrame(frame);

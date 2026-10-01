@@ -39,6 +39,8 @@ export class Viewport {
   /** Where a glide is taking the camera, while one is under way. */
   private goal?: Box;
   private frame?: number;
+  /** Tells the glide under way's caller whether it landed (true) or another move stopped it (false). */
+  private landed?: (arrived: boolean) => void;
   /** Told after every move of the camera, once constructed. */
   private onChange?: () => void;
   /** What the host's UI covers now, asked at each fit and reveal. */
@@ -71,15 +73,17 @@ export class Viewport {
    * Show `box`: at once, or with `glide` travelling there, its centre in a line and its scale evenly. Any other move
    * of the camera stops a glide where it is and goes on from there.
    */
-  private moveTo(box: Box, glide = false): void {
+  private moveTo(box: Box, glide = false, ms: number = DURATION.camera): Promise<boolean> {
     const view = this.root.ownerDocument?.defaultView;
     if (this.frame !== undefined) view?.cancelAnimationFrame(this.frame);
     this.frame = undefined;
     this.goal = undefined;
+    this.landed?.(false);
+    this.landed = undefined;
     if (!glide || !view || !moves(this.root)) {
       this.box = box;
       this.applyViewbox();
-      return;
+      return Promise.resolve(true);
     }
     const from = this.box;
     const cx = (b: Box): number => b.x + b.width / 2;
@@ -87,7 +91,7 @@ export class Viewport {
     let start: number | undefined;
     const step = (now: number): void => {
       start ??= now;
-      const t = Math.min(1, (now - start) / DURATION.camera);
+      const t = Math.min(1, (now - start) / ms);
       const k = easeOut(t);
       const width = from.width * (box.width / from.width) ** k;
       const height = from.height * (box.height / from.height) ** k;
@@ -95,11 +99,22 @@ export class Viewport {
       const y = cy(from) + (cy(box) - cy(from)) * k - height / 2;
       this.box = t < 1 ? { x, y, width, height } : box;
       this.frame = t < 1 ? view.requestAnimationFrame(step) : undefined;
-      if (t >= 1) this.goal = undefined;
       this.applyViewbox();
+      if (t >= 1) {
+        this.goal = undefined;
+        const landed = this.landed;
+        this.landed = undefined;
+        landed?.(true);
+      }
     };
     this.goal = box;
     this.frame = view.requestAnimationFrame(step);
+    return new Promise((resolve) => { this.landed = resolve; });
+  }
+
+  /** Glide to `box` over `ms`: whether it landed there, once it does, or false once another move stops it. */
+  glideTo(box: Box, ms?: number): Promise<boolean> {
+    return this.moveTo(box, true, ms);
   }
 
   getViewbox(): Viewbox {
