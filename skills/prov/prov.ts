@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { devNull, userInfo } from 'node:os';
 import path from 'node:path';
 
-import type { Moddle, ModdleElement } from '@core/element/moddle';
+import { isElement, type Element } from '@core/model/index';
 
 export type Log = (event: string, message: string, detail?: { level?: 'debug' | 'info' | 'warning' | 'error' }) => void;
 
@@ -30,16 +30,18 @@ export function currentUser(): string {
   }
 }
 
-const activitiesOf = (element: ModdleElement): ModdleElement[] =>
-  (element.extensionElements?.values ?? []).filter((value: ModdleElement) => value.$type === ACTIVITY);
+const activitiesOf = (element: Element): Element[] =>
+  (Array.isArray(element.extensionElements) ? element.extensionElements : []).filter((value): value is Element => isElement(value) && value.type === ACTIVITY);
+
+const text = (value: unknown): string | undefined => (value === undefined || value === null ? undefined : String(value));
 
 /** An element's `executed` entries in document (chronological) order, and its `invalidated` markers. */
-function timelineOf(element: ModdleElement): { executed: ElementRecord[]; markers: { run?: string; what?: string }[] } {
+function timelineOf(element: Element): { executed: ElementRecord[]; markers: { run?: string; what?: string }[] } {
   const executed: ElementRecord[] = [];
   const markers: { run?: string; what?: string }[] = [];
   for (const entry of activitiesOf(element)) {
-    if (entry.action === 'executed' && entry.run) executed.push({ run: entry.run, when: entry.when, what: entry.what, commit: entry.commit });
-    else if (entry.action === 'invalidated') markers.push({ run: entry.run, what: entry.what });
+    if (entry.action === 'executed' && entry.run) executed.push({ run: text(entry.run)!, when: text(entry.when)!, what: text(entry.what), commit: text(entry.commit) });
+    else if (entry.action === 'invalidated') markers.push({ run: text(entry.run), what: text(entry.what) });
   }
   return { executed, markers };
 }
@@ -49,49 +51,41 @@ function timelineOf(element: ModdleElement): { executed: ElementRecord[]; marker
  * or, lacking a `what`, coarsely by run, a standing re-run pin. Older entries a branching run superseded are the first
  * branch's history and never stand.
  */
-export function elementRecords(elements: Iterable<ModdleElement>): Map<string, ElementRecord> {
+export function elementRecords(elements: Iterable<Element>): Map<string, ElementRecord> {
   const records = new Map<string, ElementRecord>();
   for (const element of elements) {
     const { executed, markers } = timelineOf(element);
     const newest = executed.at(-1);
     if (!newest) continue;
     const voided = markers.some(({ run, what }) => (what ? what === newest.when : !run || run === newest.run));
-    if (!voided) records.set(element.id, newest);
+    if (!voided && element.id) records.set(element.id, newest);
   }
   return records;
 }
 
 /** Elements whose marker names the newest record (`what` is its `when`); only these branch. Coarse markers without a
  * `what` re-run their step in place and never branch. */
-export function invalidatedElements(elements: Iterable<ModdleElement>): string[] {
+export function invalidatedElements(elements: Iterable<Element>): string[] {
   const marked: string[] = [];
   for (const element of elements) {
     const { executed, markers } = timelineOf(element);
     const newest = executed.at(-1)?.when;
-    if (newest && markers.some(({ what }) => what && what === newest)) marked.push(element.id);
+    if (newest && element.id && markers.some(({ what }) => what && what === newest)) marked.push(element.id);
   }
   return marked;
 }
 
 /** Appends a record to the element's timeline. Only the same-action entries `replace` names are dropped first;
  * `invalidated` markers are history and are never deleted. */
-export function stampElement(moddle: Moddle, element: ModdleElement, stamp: Stamp, replace?: string): void {
-  let holder = element.extensionElements;
-  if (!holder) {
-    holder = moddle.create('bpmn:ExtensionElements', { values: [] });
-    holder.$parent = element;
-    element.extensionElements = holder;
-  }
-  const values: ModdleElement[] = holder.get('values');
+export function stampElement(element: Element, stamp: Stamp, replace?: string): void {
+  const values = Array.isArray(element.extensionElements) ? element.extensionElements : (element.extensionElements = []);
   if (replace) {
     for (let i = values.length - 1; i >= 0; i -= 1) {
-      if (values[i].$type === ACTIVITY && values[i].action === replace) values.splice(i, 1);
+      const value = values[i];
+      if (isElement(value) && value.type === ACTIVITY && value.action === replace) values.splice(i, 1);
     }
   }
-  const fields = Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (stamp[name] ? [[name, stamp[name]]] : [])));
-  const entry = moddle.create(ACTIVITY, fields);
-  entry.$parent = holder;
-  values.push(entry);
+  values.push({ type: ACTIVITY, ...Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (stamp[name] ? [[name, stamp[name]]] : []))) });
 }
 
 /**

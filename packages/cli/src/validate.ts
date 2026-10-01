@@ -8,7 +8,6 @@ import { installedSkills } from '@cli/skills';
 import { planChecks, recordChecks } from '@core/checks';
 import { checkSoundness } from '@core/checks/soundness';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
-import { studyModelOf } from '@core/document';
 import { xsdViolations } from '@cli/xsd';
 
 export type ValidateReport = {
@@ -36,10 +35,9 @@ export async function validate(input: string): Promise<ValidateReport> {
 
   let note: string | undefined;
   try {
-    const { definitions, warnings: readerWarnings } = await parseSource(source);
+    const { model, warnings: readerWarnings } = await parseSource(source);
     warnings.push(...readerWarnings);
     // The plan checks, then what a run left in the file (nothing to check in a file no run has stamped).
-    const model = studyModelOf(definitions);
     const record = await recordChecks(model);
     // An executed copy in its run repository has the run's record beside it: what the file keeps is read off it.
     const journal = path.join(path.dirname(input), 'events.jsonl');

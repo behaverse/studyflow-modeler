@@ -1,5 +1,5 @@
-export { PROTOCOL, boundNames, indexOf, modelIndexOf, planElement, planOf } from '@core/engine/plan';
-export type { Binding, Expression, Extension, Loop, ModelIndex, Plan, PlanElement, PlanOptions, StudyIndex } from '@core/engine/plan';
+export { PROTOCOL, boundNames, modelIndexOf, planElement, planOf } from '@core/engine/plan';
+export type { Binding, Expression, Extension, Loop, ModelIndex, Plan, PlanElement, PlanOptions } from '@core/engine/plan';
 export { CONTAINER_TYPES, GATEWAY_TYPES, Graph, literal } from '@core/engine/graph';
 export { allocationOf, draw, permutedBlock, pick } from '@core/engine/allocation';
 export { Steps } from '@core/engine/steps';

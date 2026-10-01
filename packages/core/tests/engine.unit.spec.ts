@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
 
 import { studyModelOf, studyflowToDefinitions } from '@core/document';
 import { HandoffError, Walk, allocationOf, draw, dryHost, durationMs, permutedBlock, pick, planOf, stateOf, type Handback, type Host, type PlanElement, type RunEvent, type Talk, type WalkOptions } from '@core/engine';
-import { freshModdle } from '@tests/schemas';
+import { freshModdle, studyModel } from '@tests/schemas';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
  * scripted here, and reads what the walk leaves: the visit counts, the state tree, its log. */
@@ -49,6 +49,30 @@ test('a parallel, inclusive or complex split is refused instead of walked along 
 `);
     expect(error?.message, type).toMatch(said);
   }
+});
+
+test('the plan spells a compact data association as the BPMN XML does: a data input its slot names, the selection alone', () => {
+  const plan = planOf(studyModel(`id: study
+${HEAD}S:
+  type: Process
+  flowElements:
+    Digits: { type: DataObjectReference, name: digits }
+    Model: { type: DataObjectReference, name: model }
+    Start: { type: StartEvent }
+    Fit:
+      type: Task
+      dataInputAssociations:
+        A1: { sourceRef: [Digits], transformation: 'table = x[1]' }
+        A2: { sourceRef: [Digits] }
+        A3: { sourceRef: [Digits], transformation: table }
+      dataOutputAssociations:
+        A4: { targetRef: Model, transformation: result.model }
+    F1: Start -> Fit
+`));
+  const { ioSlots, inputs, outputs } = plan.elements.Fit;
+  expect(ioSlots).toEqual({ Fit_in_table: 'table', Fit_in_digits: 'digits', Fit_in_table_2: 'table' });
+  expect(inputs.map(({ target, transformation }) => [target, transformation])).toEqual([['Fit_in_table', 'x[1]'], ['Fit_in_digits', null], ['Fit_in_table_2', null]]);
+  expect(outputs).toEqual([{ target: 'Model', transformation: 'result.model', language: null }]);
 });
 
 test('a seeded draw is the same number in every runtime', () => {

@@ -5,7 +5,7 @@
 import { NON_EXTENSION_PREFIXES } from '@core/constants';
 import type { Metamodel, PropertyDef } from '@core/model/metamodel';
 import { expandInline } from '@core/model/spelling';
-import { hostOf, propertyOf } from '@core/model/yaml';
+import { hostOf, inferredRoot, isHeadlessCollaboration, propertyOf } from '@core/model/yaml';
 import { isElement, type Element, type Study, type Value } from '@core/model/types';
 
 export type { Drawing, Element, State, Study, Value } from '@core/model/types';
@@ -132,7 +132,24 @@ export class StudyModel {
     if (!root) return undefined;
     return root.type === 'studyflow:Study' ? root : this.entries(root).find((entry) => entry.type === 'studyflow:Study');
   }
+
+  /** The root the study is: the one its drawing names, unless that is a collaboration with no pool; else the one the
+   * reader infers. */
+  primaryRoot(): Element | undefined {
+    const plane = this.study.diagram?.[0];
+    const named = isMapping(plane) && isMapping(plane.plane) ? this.get(String(plane.plane.bpmnElement ?? '')) : undefined;
+    if (named && !isHeadlessCollaboration(named)) return named;
+    return inferredRoot(this.study, this.metamodel);
+  }
+
+  /** The runtime the study declares on its `studyflow:Study`, else `local`. */
+  runtime(): string {
+    const runtime = this.studyOf(this.primaryRoot())?.runtime;
+    return typeof runtime === 'string' && runtime ? runtime : 'local';
+  }
 }
+
+const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 export function isExtensionPrefix(prefix: string | undefined): boolean {
   return !!prefix && !NON_EXTENSION_PREFIXES.has(prefix);

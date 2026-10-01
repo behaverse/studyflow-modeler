@@ -10,9 +10,7 @@ import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } f
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import { readState, studyModelOf, writeState } from '@core/document';
-import type { Moddle, ModdleElement } from '@core/element/moddle';
-import { CONTAINER_TYPES, Walk, indexOf, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
+import { CONTAINER_TYPES, Walk, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
 import type { Element, StudyModel } from '@core/model/index';
 import { RunLog, timelineTimestamp } from '@skills/local/src/log';
 import { Records, humanBytes } from '@skills/local/src/reuse';
@@ -22,12 +20,11 @@ import { RunRepo, TIMELINE_FIELDS, branchPoint, currentUser, elementRecords, inv
 export type LocalRun = {
   /** The study file as given. */
   input: string;
-  definitions: ModdleElement;
-  moddle: Moddle;
+  model: StudyModel;
   /** Writes the study to `target`, in the format the original is spelled in. */
-  write(definitions: ModdleElement, target: string): Promise<void>;
+  write(model: StudyModel, target: string): Promise<void>;
   /** Reads a study back from the bytes a commit holds under the archive's name; undefined when it will not read. */
-  read(bytes: Uint8Array): Promise<ModdleElement | undefined>;
+  read(bytes: Uint8Array): Promise<StudyModel | undefined>;
   /** Where the shipped skills are: the checkout's `skills/`, or `libexec/skills` as installed. */
   skillRoots: string[];
   /** The protocol's digest (core's `protocolDigest`), recorded as the run's `plan`. */
@@ -83,6 +80,15 @@ function resolveRepoDir(explicit: string | undefined, input: string, started: Da
   return candidate;
 }
 
+/** The run state a study carries, as a tree of its own. */
+const stateIn = (model: StudyModel): Record<string, any> => structuredClone(model.study.state ?? {});
+
+/** Puts `tree` on the study as its run state; an empty one leaves it none. */
+function setState(model: StudyModel, tree: Record<string, unknown>): void {
+  if (Object.keys(tree).length > 0) model.study.state = structuredClone(tree);
+  else delete model.study.state;
+}
+
 export async function runLocal(run: LocalRun): Promise<number> {
   // Every runner it starts is told when the run is over, however it ends.
   const started: PartialRunner[] = [];
@@ -94,7 +100,7 @@ export async function runLocal(run: LocalRun): Promise<number> {
 }
 
 async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number> {
-  const { definitions, moddle } = run;
+  const { model } = run;
   const started = new Date();
   const stamp = runStamp(started);
   const dir = resolveRepoDir(run.repo, run.input, started);
@@ -110,14 +116,13 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // A repository created just now has nothing to attribute to anyone: its baseline is the `started` commit.
   if (!repo.created && repo.dirty()) repo.commit('changed outside a run', { 'Prov-Action': 'modified', 'Prov-When': startedAt }, startedAt);
 
-  const index = indexOf(definitions);
+  const index = modelIndexOf(model);
   const elements = [...index.walked.values()].map(({ element }) => element);
   const sources = [...new Set([path.resolve(path.dirname(run.input)), ...(run.inputs ?? []).map((input) => path.resolve(input)), process.cwd()])];
   const options = Object.fromEntries((run.options ?? []).map((option) => {
     const at = option.indexOf('=');
     return at < 0 ? [option, true] : [option.slice(0, at), option.slice(at + 1)];
   }));
-  const model = studyModelOf(definitions);
   const plan = planOf(model, { options, sources });
   // Root seed: read from the study, never drawn here. Partial runners read the same plan, so every process seeds
   // identically. A study without a seed runs unseeded.
@@ -167,13 +172,13 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // and what it walks again counts, and draws, as it did then. The timeline of runs (`_meta.prov`) is history, and
   // keeps growing.
   const archive = path.join(dir, path.basename(run.input));
-  let state = readState(definitions);
+  let state: Record<string, any> = stateIn(model);
   const redone = repo.lastStarted();
   const then = redone ? repo.fileAt(redone, path.basename(archive)) : undefined;
   const earlier = then && await run.read(then).catch(() => undefined);
   if (earlier) {
     const { prov } = state._meta ?? {};
-    state = readState(earlier);
+    state = stateIn(earlier);
     if (prov) (state._meta ??= {}).prov = prov;
     else delete state._meta?.prov;
     log.event('state.restored', `  from ${redone!.slice(0, 8)}, where the run this one redoes started`, { level: 'debug' });
@@ -182,11 +187,11 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   const document: Stamp = { action: 'executed', when: startedAt, who, with: run.tool, run: runId, seed: numeric ? Number(seed) : seed ?? undefined, plan: run.digest };
   const timeline = Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (document[name] ? [[name, document[name]]] : [])));
   ((state._meta ??= {}).prov ??= []).push(timeline);
-  writeState(definitions, moddle, state);
+  setState(model, state);
 
   // Archived before the first step, so a killed run still leaves a readable study behind.
   mkdirSync(dir, { recursive: true });
-  await run.write(definitions, archive);
+  await run.write(model, archive);
   log.event('diagram.archived', `  → ${archive}`, { level: 'debug' });
 
   // Partial runners never open the study: they read `.cache/plan.json`. Each is started once, and asked which ids it
@@ -229,10 +234,9 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   for (const commit of new Set([...prior.values()].flatMap((record) => record.commit ?? []))) {
     const bytes = repo.fileAt(commit, path.basename(archive));
     const then = bytes && await run.read(bytes).catch(() => undefined);
-    const thenModel = then && studyModelOf(then);
-    if (thenModel) studies.set(commit, new Map([...modelIndexOf(thenModel).walked].map(([id, { element }]) => [id, drawn(thenModel, element)])));
+    if (then) studies.set(commit, new Map([...modelIndexOf(then).walked].map(([id, { element }]) => [id, drawn(then, element)])));
   }
-  const walked = modelIndexOf(model).walked;
+  const { walked } = index;
 
   // The walk and what it may reuse are made below, from the host that serves them.
   const made = {} as { walk: Walk; records: Records };
@@ -356,12 +360,12 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     ...[...decided].map(([id, { when }]): [string, string] => [id, when]),
     ...[...reused].map(([id, { when }]): [string, string] => [id, when]),
   ]);
-  writeState(definitions, moddle, stateOf(events));
+  setState(model, stateOf(events));
   for (const [id, action, extra] of stamps) {
-    const element = index.walked.get(id)?.element;
-    if (element) stampElement(moddle, element, { action, when: moments.get(id), run: runId, ...extra }, replaces(action, id));
+    const element = walked.get(id)?.element;
+    if (element) stampElement(element, { action, when: moments.get(id), run: runId, ...extra }, replaces(action, id));
   }
-  await run.write(definitions, archive);
+  await run.write(model, archive);
   log.event('diagram.archived', `  → ${archive}`, { level: 'debug' });
 
   if (!run.debug) rmSync(cache, { recursive: true, force: true });

@@ -3,10 +3,10 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { declaredRuntime, embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg, studyModelOf, xmlToStudyflow } from '@core/document';
+import { embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg } from '@core/document';
 import { planChecks } from '@core/checks';
-import type { ModdleElement } from '@core/element/moddle';
-import { asXml, parseSource, readSource, schemaModdle, sourceOf } from '@cli/studyfile';
+import type { StudyModel } from '@core/model/index';
+import { parseSource, readSource, sourceOf, studySource } from '@cli/studyfile';
 import { runLocal, type LocalRun } from '@skills/local/src/run';
 
 /* `studyflow run`: hand the study to the runtime it declares; this CLI hosts `local` itself (skills/local). */
@@ -33,25 +33,21 @@ function skillRoots(): string[] {
   return candidates.filter((candidate) => existsSync(path.join(candidate, 'local', 'SKILL.md'))).slice(0, 1);
 }
 
-async function runLocally(input: string, source: Awaited<ReturnType<typeof readSource>>, digest: string, options: RunOptions): Promise<number> {
-  // The walk reads standard BPMN, so a YAML file or an image reaches it through the XML it spells, and the run
-  // repository keeps the study as the original is named and spelled: YAML as YAML, an image with the study inside.
-  const moddle = await schemaModdle();
-  const read = async (from: typeof source): Promise<ModdleElement> => (await moddle.fromXML(await asXml(from))).rootElement;
-  const write = async (definitions: ModdleElement, target: string): Promise<void> => {
-    const { xml } = await moddle.toXML(definitions, { format: true });
-    if (source.container === 'text') return writeFile(target, source.kind === 'xml' ? xml : await xmlToStudyflow(xml, moddle), 'utf8');
+async function runLocally(input: string, source: Awaited<ReturnType<typeof readSource>>, model: StudyModel, digest: string, options: RunOptions): Promise<number> {
+  // The run repository keeps the study as the original is named and spelled: YAML as YAML, XML as XML, an image with
+  // the study inside.
+  const write = async (study: StudyModel, target: string): Promise<void> => {
+    if (source.container === 'text') return writeFile(target, await studySource(study, source.kind), 'utf8');
     const base = existsSync(target) ? target : input;
     await writeFile(target, source.container === 'png'
-      ? embedStudyflowIntoPng(new Uint8Array(await readFile(base)), await xmlToStudyflow(xml, moddle))
-      : replaceStudyflowInSvg(await readFile(base, 'utf8'), xml));
+      ? embedStudyflowIntoPng(new Uint8Array(await readFile(base)), await studySource(study, 'yaml'))
+      : replaceStudyflowInSvg(await readFile(base, 'utf8'), await studySource(study, 'xml')));
   };
   return runLocal({
     input,
-    moddle,
-    definitions: await read(source),
+    model,
     write,
-    read: (bytes) => read(sourceOf(bytes, source.container)),
+    read: async (bytes) => (await parseSource(sourceOf(bytes, source.container), { asWritten: true })).model,
     skillRoots: skillRoots(),
     digest,
     tool: TOOL,
@@ -69,20 +65,21 @@ async function runLocally(input: string, source: Awaited<ReturnType<typeof readS
 
 export async function run(input: string, options: RunOptions): Promise<void> {
   const source = await readSource(input);
-  const { definitions } = await parseSource(source);
+  const { model } = await parseSource(source);
 
   // No list of runtimes here: a skill may add one to `RuntimeEnum`, and one this CLI cannot run is refused below.
-  const runtime = options.runtime ?? declaredRuntime(definitions);
+  const runtime = options.runtime ?? model.runtime();
 
   if (runtime === 'local') {
     // The checks `studyflow validate` applies to the plan; an error among them keeps the study from starting.
-    const issues = planChecks(studyModelOf(definitions));
+    const issues = planChecks(model);
     for (const { severity, message } of issues) (severity === 'error' ? console.error : console.warn)(`${severity}: ${message}`);
     if (issues.some((issue) => issue.severity === 'error')) {
       process.exitCode = 1;
       return;
     }
-    process.exitCode = await runLocally(input, source, await protocolDigest(studyModelOf(definitions)), options);
+    const { model: written } = await parseSource(source, { asWritten: true });
+    process.exitCode = await runLocally(input, source, written, await protocolDigest(model), options);
     return;
   }
 

@@ -1,5 +1,5 @@
 import type { Issue } from '@core/checks';
-import { splitBinding } from '@core/document/io-specification';
+import { splitBinding } from '@core/model/spelling';
 import { timerDelay } from '@core/engine/timer';
 import { feelSyntaxError } from '@core/expression/feel';
 import { expressionOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';

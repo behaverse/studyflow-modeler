@@ -1,16 +1,6 @@
 import { applyXmlPasses } from '@core/document/format';
 import type { Moddle } from '@core/element/moddle';
-
-export function splitBinding(value: string | undefined): { slot?: string; selection?: string } {
-  const text = (value ?? '').trim();
-  if (!text) return {};
-  const slotOnly = /^(self|\*|[A-Za-z_]\w*)$/.exec(text);
-  if (slotOnly) return { slot: slotOnly[1] };
-  // `=` splits the halves; `==` belongs to the selection (a comparison).
-  const both = /^(self|\*|[A-Za-z_]\w*)\s*=(?!=)\s*(\S.*)$/.exec(text);
-  if (both) return { slot: both[1], selection: both[2].trim() };
-  return { selection: text };
-}
+import { splitBinding } from '@core/model/spelling';
 
 function combineBinding(slot: string | undefined, selection: string | undefined): string | undefined {
   if (slot && selection) return `${slot} = ${selection}`;

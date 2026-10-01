@@ -76,6 +76,9 @@ test('validate says the protocol matches the run that recorded it, and warns onc
   const pools = write('pools.studyflow.yaml', `id: pools\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nC:\n  type: Collaboration\n  participants:\n    P1: { processRef: S1 }\n    P2: { processRef: S2 }\n${
     ['S1', 'S2'].map((pool) => `${pool}:\n  type: Process\n  flowElements:\n    ${pool}_Start: { type: StartEvent }\n    ${pool}_End: { type: EndEvent }\n    ${pool}_F: ${pool}_Start -> ${pool}_End\n`).join('')}`);
   expect(JSON.parse(studyflow(['info', '--json', pools]).stdout).elements).toEqual({ 'bpmn:StartEvent': 2, 'bpmn:EndEvent': 2, 'bpmn:SequenceFlow': 2 });
+  // The study's own fields are its Study's.
+  const versioned = write('versioned.studyflow.yaml', plan.replace('  type: Process\n', '  type: Process\n  extensionElements:\n    - { type: studyflow:Study, version: "1.2" }\n'));
+  expect(JSON.parse(studyflow(['info', '--json', versioned]).stdout).study).toMatchObject({ id: 'Study', version: '1.2' });
 
   const state = `state:\n  _meta:\n    prov:\n      - { action: executed, run: r1, plan: "${protocol}" }\n`;
   const sealed = write('sealed.studyflow.yaml', plan + state);

@@ -1,12 +1,11 @@
 import { getCatalog, hasCatalog } from '@core/notation';
-import type { ModdleElement } from '@core/element/moddle';
-import { STUDY_EXTENSION_TYPE, primaryRoot } from '@core/document/format';
 import { mergeParameters } from '@core/document/parameters';
 import type { Timer } from '@core/engine/timer';
 import * as yaml from 'js-yaml';
 import { expressionOf as modelExpression, idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
-import { expandInline } from '@core/model/spelling';
-import { inferredRoot, isHeadlessCollaboration } from '@core/model/yaml';
+import { expandInline, splitBinding } from '@core/model/spelling';
+
+const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /**
  * The plan: a study as one JSON document, what a partial runner reads instead of the diagram (skills/local/SKILL.md,
@@ -97,52 +96,6 @@ export function boundNames(elements: Record<string, PlanElement>): Record<string
 }
 
 export type PlanOptions = { options?: Record<string, unknown>; sources?: string[] };
-
-/** A study's elements as a run reads them. */
-export type StudyIndex = {
-  /** The processes to walk: every one with a sequence flow, the study's own first. */
-  processes: ModdleElement[];
-  /** The root carrying the study (a pool diagram's collaboration, else the process): its id and name are the run's. */
-  root: ModdleElement;
-  study: ModdleElement | undefined;
-  /** Every element of the walked processes, by id, with its container. */
-  walked: Map<string, { element: ModdleElement; parent: ModdleElement }>;
-  /** What the collaborations and the definitions hold beside them: participants, message flows, messages, item definitions. */
-  others: ModdleElement[];
-};
-
-export function indexOf(definitions: ModdleElement): StudyIndex {
-  const roots: ModdleElement[] = definitions.rootElements ?? [];
-  const processes_ = roots.filter((root) => root.$type === 'bpmn:Process');
-  let walkable = processes_.filter((root) => (root.flowElements ?? []).some((element: ModdleElement) => element.$type === 'bpmn:SequenceFlow'));
-  // A study of steps and no flow is walked from its one step (the walk refuses more than one).
-  if (walkable.length === 0) walkable = processes_.filter((root) => (root.flowElements ?? []).length > 0).slice(0, 1);
-  if (walkable.length === 0) throw new Error('no process with a sequence flow to walk');
-  const studyOf = (root: ModdleElement): ModdleElement | undefined =>
-    root?.extensionElements?.values?.find((ext: ModdleElement) => ext.$type === STUDY_EXTENSION_TYPE);
-  const process = walkable.find((candidate) => studyOf(candidate)) ?? walkable[0];
-  const root = roots.find((candidate) => studyOf(candidate)) ?? primaryRoot(definitions) ?? process;
-
-  const walked: StudyIndex['walked'] = new Map();
-  const index = (container: ModdleElement): void => {
-    for (const element of [...(container.properties ?? []), ...(container.flowElements ?? []), ...(container.artifacts ?? [])]) {
-      if (!element?.id) continue;
-      walked.set(element.id, { element, parent: container });
-      if (CONTAINERS.has(element.$type)) index(element);
-      // A plain element's properties are its own scope's (`Excluded (n={count})`).
-      else for (const property of element.properties ?? []) if (property?.id) walked.set(property.id, { element: property, parent: element });
-    }
-  };
-  const processes = [process, ...walkable.filter((other) => other !== process)];
-  for (const each of processes) index(each);
-
-  const others = roots.flatMap((definition) => {
-    if (definition.$type === 'bpmn:Message' || definition.$type === 'bpmn:ItemDefinition') return definition.id ? [definition] : [];
-    if (definition.$type !== 'bpmn:Collaboration') return [];
-    return [...(definition.participants ?? []), ...(definition.messageFlows ?? [])].filter((child) => child?.id);
-  });
-  return { processes, root, study: studyOf(root) ?? studyOf(process), walked, others };
-}
 
 /* --- the plan of a study model --- */
 
@@ -240,21 +193,50 @@ function expressionIn(value: Value | undefined): Expression | undefined {
 
 const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : []);
 
-/** One element of a study model as a partial runner sees it: what its BPMN XML says, under local names. */
-export function planElement(model: StudyModel, element: Element): PlanElement {
-  const host = model.host(element);
+/**
+ * An activity's data associations as its BPMN XML spells them. A compact input (one targeting no `bpmn:DataInput`)
+ * is written to XML (`expandIoSpecification`) as targeting a data input `<activity>_in_<slot>` its slot names, with the
+ * selection alone as its transformation; a compact output keeps its selection alone. An activity whose
+ * `ioSpecification` is written out is read as it is.
+ */
+function dataAssociationsIn(model: StudyModel, element: Element): Pick<PlanElement, 'ioSlots' | 'inputs' | 'outputs'> {
   const ioSlots: Record<string, string> = {};
   const io = element.ioSpecification;
   for (const input of isElement(io) ? listIn(io.dataInputs) : []) if (isElement(input) && input.id) ioSlots[input.id] = typeof input.name === 'string' ? input.name : '';
-  const binding = (association: Element): Binding => {
+  const compact = !isElement(io);
+  const binding = (association: Element, lowered: boolean): Binding => {
     const transformation = association.transformation;
     const expression = expressionIn(transformation);
+    const body = lowered ? splitBinding(expression?.body).selection : expression?.body;
     return {
       target: idOf(association.targetRef),
-      transformation: expression?.body || null,
-      language: isElement(transformation) && typeof transformation.language === 'string' ? transformation.language : null,
+      transformation: body || null,
+      language: (!lowered || body) && isElement(transformation) && typeof transformation.language === 'string' ? transformation.language : null,
     };
   };
+  const used = new Set<string>();
+  const inputs = listIn(element.dataInputAssociations).filter(isElement).flatMap((association) => {
+    const sources = listIn(association.sourceRef).map(idOf).filter((source): source is string => !!source);
+    if (!compact || association.targetRef !== undefined) return sources.map((source) => ({ source, ...binding(association, false) }));
+    const first = model.get(sources[0]);
+    const slot = splitBinding(expressionIn(association.transformation)?.body).slot
+      || (typeof first?.name === 'string' && first.name) || sources[0] || 'input';
+    const stem = `${element.id}_in_${slot.replace(/[^A-Za-z0-9_]+/g, '_')}`;
+    let target = stem;
+    for (let n = 2; used.has(target); n += 1) target = `${stem}_${n}`;
+    used.add(target);
+    ioSlots[target] = slot;
+    return sources.map((source) => ({ source, ...binding(association, true), target }));
+  });
+  const outputs = listIn(element.dataOutputAssociations).filter(isElement)
+    .map((association) => binding(association, compact && listIn(association.sourceRef).length === 0));
+  return { ioSlots, inputs, outputs };
+}
+
+/** One element of a study model as a partial runner sees it: what its BPMN XML says, under local names. */
+export function planElement(model: StudyModel, element: Element): PlanElement {
+  const host = model.host(element);
+  const { ioSlots, inputs, outputs } = dataAssociationsIn(model, element);
   const extensions = [model.typedEntry(element), ...model.entries(element)]
     .filter((entry): entry is Element => !!entry && entry.type !== PROV_ACTIVITY);
   const args = element.additionalArguments;
@@ -266,10 +248,8 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
     extensions: extensions.map((entry) => extensionIn(model, entry)),
     additionalArguments: args === undefined || args === null ? null : textIn(args).trim() || null,
     ioSlots,
-    inputs: listIn(element.dataInputAssociations).filter(isElement).flatMap((association) => listIn(association.sourceRef)
-      .map((source) => ({ source: idOf(source)!, ...binding(association) }))
-      .filter((input) => input.source)),
-    outputs: listIn(element.dataOutputAssociations).filter(isElement).map(binding),
+    inputs,
+    outputs,
     participants: listIn(element.participantRef).map(idOf).filter((id): id is string => !!id),
   };
   const definitions = listIn(element.eventDefinitions).filter(isElement);
@@ -354,16 +334,6 @@ export type ModelIndex = {
   others: Element[];
 };
 
-/** The root a study model's drawing names, unless that is a collaboration with no pool; else the one the reader infers. */
-function primaryRootIn(model: StudyModel): Element | undefined {
-  const plane = model.study.diagram?.[0];
-  const named = isMapping(plane) && isMapping(plane.plane) ? model.get(String(plane.plane.bpmnElement ?? '')) : undefined;
-  if (named && !isHeadlessCollaboration(named)) return named;
-  return inferredRoot(model.study, model.metamodel);
-}
-
-const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
-
 export function modelIndexOf(model: StudyModel): ModelIndex {
   const roots = model.study.roots;
   const processes_ = roots.filter((root) => model.host(root) === 'bpmn:Process');
@@ -373,7 +343,7 @@ export function modelIndexOf(model: StudyModel): ModelIndex {
   if (walkable.length === 0) walkable = processes_.filter((root) => flows(root).length > 0).slice(0, 1);
   if (walkable.length === 0) throw new Error('no process with a sequence flow to walk');
   const process = walkable.find((candidate) => model.studyOf(candidate)) ?? walkable[0];
-  const root = roots.find((candidate) => model.studyOf(candidate)) ?? primaryRootIn(model) ?? process;
+  const root = roots.find((candidate) => model.studyOf(candidate)) ?? model.primaryRoot() ?? process;
 
   const walked: ModelIndex['walked'] = new Map();
   const index = (container: Element): void => {

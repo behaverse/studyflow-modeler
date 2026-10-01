@@ -151,10 +151,11 @@ export { extractStudyflowFromSvg, replaceStudyflowInSvg } from '@core/document/s
 
 const metamodels = new WeakMap<object, Metamodel>();
 
-/** The study model of definitions moddle holds: what reads a study as data, for the paths that still hold moddle. */
-export function studyModelOf(definitions: any): StudyModel {
+/** The study model of definitions moddle holds: what reads a study as data, for the paths that still hold moddle. The
+ * metamodel is moddle's own packages', unless one is given. */
+export function studyModelOf(definitions: any, given?: Metamodel): StudyModel {
   const moddle = definitions.$model;
-  let metamodel = metamodels.get(moddle);
+  let metamodel = given ?? metamodels.get(moddle);
   if (!metamodel) {
     metamodel = new Metamodel(structuredClone(moddle.getPackages()) as PackageDef[]);
     metamodels.set(moddle, metamodel);

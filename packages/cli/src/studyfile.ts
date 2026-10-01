@@ -5,9 +5,13 @@ import { BpmnModdle } from 'bpmn-moddle';
 
 import { installedSkills } from '@cli/skills';
 
-import { choreographyToProcessRoot, looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, inlineIoSpecification, readerWarning, tasksToExchanges, xmlToStudyflow, studyflowToXml, studyflowToDefinitions } from '@core/document';
-import { loadAllSchemas } from '@core/notation/loader';
+import { choreographyToProcessRoot, looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, inlineIoSpecification, readerWarning, studyModelOf, tasksToExchanges, xmlToStudyflow, studyflowToXml } from '@core/document';
 import type { Moddle } from '@core/element/moddle';
+import { StudyModel } from '@core/model/index';
+import type { Metamodel } from '@core/model/metamodel';
+import { metamodelOf } from '@core/model/packages';
+import { readStudy, studyText } from '@core/model/yaml';
+import { loadAllSchemas } from '@core/notation/loader';
 
 export type SourceKind = 'yaml' | 'xml';
 
@@ -19,13 +23,26 @@ export type StudyflowSource = {
   container: 'text' | 'png' | 'svg';
 };
 
+let schemasPromise: Promise<Record<string, any>> | undefined;
 let moddlePromise: Promise<Moddle> | undefined;
+let metamodelPromise: Promise<Metamodel> | undefined;
 
-/** One schema-aware moddle per process; building it parses every shipped schema. */
+/** Every installed skill's schema, parsed once per process. */
+function schemas(): Promise<Record<string, any>> {
+  schemasPromise ??= loadAllSchemas(installedSkills().flatMap((skill) => (skill.schema ? [skill.schema] : [])));
+  return schemasPromise;
+}
+
+/** One schema-aware moddle per process: what reads and writes BPMN XML. */
 export function schemaModdle(): Promise<Moddle> {
-  moddlePromise ??= loadAllSchemas(installedSkills().flatMap((skill) => (skill.schema ? [skill.schema] : [])))
-    .then((schemas) => new BpmnModdle(schemas) as unknown as Moddle);
+  moddlePromise ??= schemas().then((packages) => new BpmnModdle(packages) as unknown as Moddle);
   return moddlePromise;
+}
+
+/** One metamodel per process: what a study model reads its types by. */
+export function schemaMetamodel(): Promise<Metamodel> {
+  metamodelPromise ??= schemas().then(metamodelOf);
+  return metamodelPromise;
 }
 
 export async function readSource(path: string): Promise<StudyflowSource> {
@@ -57,23 +74,27 @@ export async function asYaml(source: StudyflowSource, onWarning?: (message: stri
 }
 
 export type ParseResult = {
-  definitions: any;
+  model: StudyModel;
   warnings: string[];
 };
 
-/** Parse to a moddle `bpmn:Definitions`, collecting non-fatal reader warnings. XML is read into the form the YAML
- * reader builds, compact data associations included, so a study checks and digests alike in either spelling. */
-export async function parseSource(source: StudyflowSource): Promise<ParseResult> {
-  const moddle = await schemaModdle();
+/** Read a study model, collecting non-fatal reader warnings. XML is read into the form the YAML reader builds, compact
+ * data associations included, so a study checks and digests alike in either spelling; `asWritten` keeps the data
+ * inputs it declares, as a run hands them on. */
+export async function parseSource(source: StudyflowSource, { asWritten = false } = {}): Promise<ParseResult> {
+  const metamodel = await schemaMetamodel();
   const warnings: string[] = [];
-  if (source.kind === 'yaml') {
-    const definitions = studyflowToDefinitions(source.text, moddle, (message) => warnings.push(message));
-    return { definitions, warnings };
-  }
-  const { rootElement, warnings: xmlWarnings } = await moddle.fromXML(source.text);
+  if (source.kind === 'yaml') return { model: new StudyModel(readStudy(source.text, metamodel, (message) => warnings.push(message)), metamodel), warnings };
+  const { rootElement, warnings: xmlWarnings } = await (await schemaModdle()).fromXML(source.text);
   warnings.push(...xmlWarnings.map(readerWarning));
   tasksToExchanges(rootElement);
   choreographyToProcessRoot(rootElement);
-  inlineIoSpecification(rootElement);
-  return { definitions: rootElement, warnings };
+  if (!asWritten) inlineIoSpecification(rootElement);
+  return { model: studyModelOf(rootElement, metamodel), warnings };
+}
+
+/** The study as `.studyflow` YAML, or as the BPMN XML it spells. */
+export async function studySource(model: StudyModel, kind: SourceKind): Promise<string> {
+  const text = studyText(model.study, model.metamodel);
+  return kind === 'yaml' ? text : studyflowToXml(text, await schemaModdle());
 }

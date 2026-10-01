@@ -236,3 +236,15 @@ export function impliedTypeName(node: Record<string, unknown>, declaredType: str
   }
   return undefined;
 }
+
+/** A compact data input's transformation, `slot = selection`: the slot it fills, the selection it reads, or both. */
+export function splitBinding(value: string | undefined): { slot?: string; selection?: string } {
+  const text = (value ?? '').trim();
+  if (!text) return {};
+  const slotOnly = /^(self|\*|[A-Za-z_]\w*)$/.exec(text);
+  if (slotOnly) return { slot: slotOnly[1] };
+  // `=` splits the halves; `==` belongs to the selection (a comparison).
+  const both = /^(self|\*|[A-Za-z_]\w*)\s*=(?!=)\s*(\S.*)$/.exec(text);
+  if (both) return { slot: both[1], selection: both[2].trim() };
+  return { selection: text };
+}
