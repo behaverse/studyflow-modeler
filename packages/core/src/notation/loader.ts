@@ -24,8 +24,7 @@ export const SCHEMA_LOAD_FAILURES: SchemaLoadFailure[] = [];
 function readSkills(): SkillManifest[] {
   const skills: SkillManifest[] = [];
   for (const [path, source] of Object.entries(manifestSources)) {
-    // `/SKILL.md` when the bundling app's own root is a skill folder (the browser runtime): no folder to check against.
-    const folder = path.split('/').at(-2) || undefined;
+    const folder = path.split('/').at(-2);
     try {
       skills.push(parseSkillManifest(source, folder));
     } catch (err) {
@@ -44,8 +43,7 @@ function parseAll(): SchemaModel[] {
   const models: SchemaModel[] = [];
   for (const skill of SKILLS) for (const schema of skill.schemas) {
     const sourceName = `${skill.name}/${schema}`;
-    // `/<schema>` when the bundling app's own root is this skill's folder (the browser runtime), as with `/SKILL.md` above.
-    const key = Object.keys(yamlSources).find((path) => path.endsWith(`/${sourceName}`) || path === `/${schema}`);
+    const key = Object.keys(yamlSources).find((path) => path.endsWith(`/${sourceName}`));
     const source = key ? yamlSources[key] : undefined;
     if (!source) {
       SCHEMA_LOAD_FAILURES.push({ sourceName, message: `SKILL.md declares this schema, but there is no such file` });

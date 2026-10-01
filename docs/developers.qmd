@@ -6,7 +6,7 @@ description: "The programs that read studyflow files, how to build and run them,
 | Program | Does | Lives in |
 |:--|:--|:--|
 | the modeler | authoring: edit, validate, import and export a studyflow | [`packages/modeler`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/modeler) |
-| the browser runtime | the `browser` skill: hosts the walk for one participant and shows each step as a screen, served at `./run/` | [`skills/browser`](https://github.com/behaverse/studyflow-modeler/tree/main/skills/browser) |
+| the browser runtime | hosts the walk for one participant and shows each step as a screen, served at `./run/` | [`packages/runtime-browser`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/runtime-browser) |
 | the local runtime | hosts the walk on your machine, records, and hands each element to the skill that claims it | [`packages/runtime-local`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/runtime-local) |
 | the command line | `studyflow` with `convert`, `validate`, `info`, and `run` | [`packages/cli`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/cli) |
 | the core | the object model they all share: YAML to BPMN and back, element access, and the walk, the one engine both runtimes and the modeler's simulation host | [`packages/core`](https://github.com/behaverse/studyflow-modeler/tree/main/packages/core) |

@@ -5,8 +5,7 @@
   "license": "MIT",
   "workspaces": [
     "packages/*",
-    "!packages/electron",
-    "skills/browser"
+    "!packages/electron"
   ],
   "engines": {
     "node": ">=20.19"
@@ -26,7 +25,7 @@
     "release": "node packages/cli/scripts/release.mjs"
   },
   "devDependencies": {
-    "@behaverse/studyflow-browser-skill": "*",
+    "@behaverse/studyflow-runtime-browser": "*",
     "@behaverse/studyflow-core": "*",
     "@behaverse/studyflow-modeler": "*",
     "@eslint/js": "^10.0.1",

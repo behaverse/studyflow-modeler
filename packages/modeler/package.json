@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@behaverse/studyflow-browser-skill": "*",
+    "@behaverse/studyflow-runtime-browser": "*",
     "@behaverse/studyflow-canvas": "*",
     "@behaverse/studyflow-core": "*",
     "@headlessui/react": "^2.2.10",

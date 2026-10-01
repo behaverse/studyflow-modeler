@@ -1,6 +1,20 @@
-# @behaverse/studyflow-browser-skill
+# The browser runtime
 
 The browser runner executes a studyflow with a participant in front of it, one screen at a time: consent, instructions, questionnaires, cognitive and Behaverse (Unity) tasks. Served at `/run/`.
+
+It hosts the walk (`packages/core/src/engine`, the engine the local runtime hosts too) for one participant: a
+step one of its node modules has a screen for is handed to that screen, and the walk goes on when the screen is
+done. Its own node modules under `src/nodes/` execute the core vocabulary (start, end, instruction,
+questionnaire, task, choreography); every other skill's `runtimes.browser` module is imported
+at startup and registers itself the same way.
+
+Pools talk as they do in a local run. A pool with no process whose actor is human (a pool that says no
+`actorType` is human) is the person at the page: each message the study sends it is a screen (`src/nodes/message/`)
+showing what it carries, the options it offers as buttons, and what the person answers is the reply. A step with no
+screen of its own that exchanges messages is left to the walk, which sends and receives for it and fills its data
+edges. A flow to a pool no one in the page plays (a model, a device) is refused before the first screen: the local
+runtime carries it. The session keeps the run's record, the events a local run keeps in `events.jsonl`, and the page
+offers it for download when the run ends.
 
 ```bash
 npm run dev     # from the repo root: http://localhost:5173/run/

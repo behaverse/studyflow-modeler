@@ -16,7 +16,7 @@ export const aliases = [
   { find: '@core', replacement: resolve(ROOT, 'packages/core/src') },
   { find: '@canvas', replacement: resolve(ROOT, 'packages/canvas/src') },
   { find: '@modeler', replacement: resolve(ROOT, 'packages/modeler/src') },
-  { find: '@runner', replacement: resolve(ROOT, 'skills/browser/src') },
+  { find: '@runner', replacement: resolve(ROOT, 'packages/runtime-browser/src') },
   { find: '@runtime-local', replacement: resolve(ROOT, 'packages/runtime-local/src') },
   { find: '@cli', replacement: resolve(ROOT, 'packages/cli/src') },
   { find: '@desktop', replacement: resolve(ROOT, 'packages/desktop') },

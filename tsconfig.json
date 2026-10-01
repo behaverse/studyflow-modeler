@@ -12,7 +12,7 @@
         "@cli/*": ["./packages/cli/src/*"],
         "@desktop/*": ["./packages/desktop/*"],
         "@modeler/*": ["./packages/modeler/src/*"],
-        "@runner/*": ["./skills/browser/src/*"],
+        "@runner/*": ["./packages/runtime-browser/src/*"],
         "@runtime-local/*": ["./packages/runtime-local/src/*"],
         "@tests/*": ["./tests/*"],
         "@skills/*": ["./skills/*"],

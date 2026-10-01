@@ -9,7 +9,7 @@ import { ROOT, aliases, define } from '../../vite.shared'
  * build and the LLM proxy). The template-literal import is one esbuild resolves at config bundling, for every match. */
 async function skillDevPlugins(): Promise<Plugin[]> {
   const skills = readdirSync(resolve(ROOT, 'skills')).filter((name) => existsSync(resolve(ROOT, 'skills', name, 'browser/vite.ts')))
-  const modules = await Promise.all(skills.map((name) => import(`../${name}/browser/vite.ts`)))
+  const modules = await Promise.all(skills.map((name) => import(`../../skills/${name}/browser/vite.ts`)))
   return modules.flatMap((module: { devPlugins(): Plugin[] }) => module.devPlugins())
 }
 

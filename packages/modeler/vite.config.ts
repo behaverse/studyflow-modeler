@@ -5,10 +5,10 @@ import react from '@vitejs/plugin-react'
 import { openWindow } from '../desktop/edit'
 import { ROOT, aliases, define } from '../../vite.shared'
 
-// The browser runner (skills/browser) is its own Vite app, served by this dev server under its paths, so dev is
+// The browser runner (packages/runtime-browser) is its own Vite app, served by this dev server under its paths, so dev is
 // one origin on one port, exactly as the merged dist/ is in production (the diagram hand-off rides on same-origin
 // localStorage). Its config runs in middleware mode here; HMR shares this server's socket, under /run/.
-const RUNNER_ROOT = resolve(ROOT, 'skills/browser')
+const RUNNER_ROOT = resolve(ROOT, 'packages/runtime-browser')
 // /api: the dev endpoints the runner's skills serve (the LLM proxy); /run also covers what they mount under it.
 const RUNNER_PATHS = ['/run', '/api']
 const runner = (): Plugin => ({

@@ -1,6 +1,6 @@
 {
-  "name": "@behaverse/studyflow-browser-skill",
-  "description": "The Behaverse Studyflow browser runner — executes the participant-facing half of a studyflow.",
+  "name": "@behaverse/studyflow-runtime-browser",
+  "description": "The Studyflow browser runtime: executes the participant-facing half of a studyflow.",
   "private": true,
   "type": "module",
   "license": "MIT",

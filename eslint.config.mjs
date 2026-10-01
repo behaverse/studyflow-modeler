@@ -49,7 +49,7 @@ export default [
   },
 
   {
-    files: ['packages/modeler/src/**/*.{ts,tsx}', 'skills/browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}'],
+    files: ['packages/modeler/src/**/*.{ts,tsx}', 'packages/runtime-browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs['recommended-latest'].rules,
   },
@@ -66,8 +66,8 @@ export default [
     },
   },
   {
-    // The browser runtime is the `browser` skill; another skill's `browser/` folder is one of its node modules.
-    files: ['skills/browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}'],
+    // The browser runtime, and a skill's `browser/` folder, one of its node modules.
+    files: ['packages/runtime-browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
