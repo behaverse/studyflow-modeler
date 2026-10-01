@@ -6,7 +6,8 @@ import * as yaml from 'js-yaml';
 
 import { definitionsToStudyflow, fromWireXml, studyflowToDefinitions, studyflowToXml, xmlToStudyflow } from '@core/document';
 import { exampleNames as examples, exampleText } from '@tests/utils';
-import { freshModdle } from '@tests/schemas';
+import { readStudy, studyText } from '@core/model/yaml';
+import { freshMetamodel, freshModdle } from '@tests/schemas';
 
 /** The `.studyflow.yaml` spelling: the short forms the writer emits, every shipped file spelled that way, and the long forms the reader still takes. */
 
@@ -70,6 +71,9 @@ diagram:
           bounds: { x: 160, "y": 180, width: 36, height: 36 }
 `;
     const xml = await studyflowToXml(legacy, freshModdle());
+    // The study model reads the long spellings into what the file writes.
+    const metamodel = freshMetamodel();
+    expect(studyText(readStudy(legacy, metamodel), metamodel)).toBe(await xmlToStudyflow(xml, freshModdle()));
     expect(xml).toContain('XCIT_NB_01');
     expect(xml).toContain('Start_di');
 
@@ -525,6 +529,9 @@ Loose:
     test(`${name}: spelled the way the modeler writes it`, async () => {
       const text = read();
       expect(await xmlToStudyflow(await studyflowToXml(text, freshModdle()), freshModdle())).toBe(text);
+      // The study model reads it and writes it back as it is.
+      const metamodel = freshMetamodel();
+      expect(studyText(readStudy(text, metamodel), metamodel)).toBe(text);
     });
   }
 });

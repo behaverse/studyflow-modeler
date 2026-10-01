@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-import { Metamodel, type PackageDef } from '@core/model/metamodel';
-import { freshModdle } from '@tests/schemas';
+import { freshMetamodel, freshModdle } from '@tests/schemas';
 
 /** The metamodel reads the package definitions moddle reads, and gives every type what moddle gives it. */
 
 const FLAGS = ['isMany', 'isReference', 'isAttr', 'isBody', 'isId', 'isVirtual', 'default', 'inherited'] as const;
 
 test('every type of every package holds the properties moddle gives it, in its order, with its flags', () => {
+  // BPMN's packages read from bpmn-moddle's resources, the schemas' as the loader compiles them.
   const moddle = freshModdle();
-  const metamodel = new Metamodel(structuredClone(moddle.getPackages()) as PackageDef[]);
+  const metamodel = freshMetamodel();
   // A trait, a type that extends others, is no type an element is: it only adds properties to those it extends.
   const names = metamodel.types().filter((type) => type.extends.length === 0).map((type) => type.name);
   expect(names.length).toBeGreaterThan(150);

@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { BpmnModdle } from 'bpmn-moddle';
 
+import { metamodelOf } from '@core/model/packages';
+import type { Metamodel } from '@core/model/metamodel';
 import { buildCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml, toModdlePackages, type SchemaModel } from '@core/notation/moddlePackage';
 import { buildManifest, sortSchemas, type SchemaInfo } from '@core/notation/manifest';
@@ -54,6 +56,11 @@ const PACKAGES = schemaPackages(loadSchemaModels());
 /** The shipped schemas as moddle packages, a copy per call: moddle rewrites the packages it registers. */
 export function freshPackages(): Record<string, any> {
   return structuredClone(PACKAGES);
+}
+
+/** The metamodel of BPMN and the shipped schemas. */
+export function freshMetamodel(): Metamodel {
+  return metamodelOf(PACKAGES);
 }
 
 /** A moddle over the shipped schemas that nothing else has parsed with. */

@@ -1,5 +1,3 @@
-import * as yaml from 'js-yaml';
-
 import { getProperty, type ModdleElement } from '@core/element/moddle';
 
 export type YamlDoc = Record<string, unknown>;
@@ -7,8 +5,6 @@ export type YamlDoc = Record<string, unknown>;
 export const RESERVED_DOC_KEYS = new Set(['id', 'definitions', 'elements', 'layout', 'diagram', 'state']);
 
 export const STUDY_EXTENSION_TYPE = 'studyflow:Study';
-
-export const YAML_DUMP_OPTIONS: yaml.DumpOptions = { noRefs: true, lineWidth: 120, quotingType: '"' };
 
 /** A collaboration with no pool, only actors that take bands: it holds participants for the process and draws nothing. */
 export function isHeadlessCollaboration(root: any): boolean {

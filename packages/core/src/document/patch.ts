@@ -1,6 +1,6 @@
 import type { ModdleElement } from '@core/element/moddle';
 import { RESERVED_DOC_KEYS, type YamlDoc } from '@core/document/format';
-import { expandInlineFlow, keyedMapToList } from '@core/document/shorthand';
+import { expandInlineFlow, keyedMapToList } from '@core/model/spelling';
 
 type Node = Record<string, unknown>;
 

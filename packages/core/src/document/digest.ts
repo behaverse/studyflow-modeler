@@ -1,6 +1,6 @@
 import { isModdleElement, type ModdleElement } from '@core/element/moddle';
 import { STUDY_EXTENSION_TYPE } from '@core/document/format';
-import { inlineYamlValue } from '@core/document/shorthand';
+import { inlineYamlValue } from '@core/model/spelling';
 import { parseChecklistLines, serializeChecklistLines } from '@core/document/checklist';
 
 /** The per-element run records a run stamps on the elements it touched. */

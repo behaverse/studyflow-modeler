@@ -1,4 +1,4 @@
-import { longTypeName } from '@core/document/shorthand';
+import { longTypeName } from '@core/model/spelling';
 import type { TypeCatalog } from '@core/notation/query';
 import type { SchemaModel } from '@core/notation/moddlePackage';
 import type { Template } from '@core/notation/types';

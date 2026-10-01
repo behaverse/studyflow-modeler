@@ -9,25 +9,16 @@ import {
 } from '@core/document/format';
 import { MODDLE_BUILTIN_TYPES } from '@core/notation/moddlePackage';
 import {
-  DI_NODE_TYPES,
   elementListProperty,
-  expandDiNode,
   expandDocumentationEntry,
   expandExpressionBody,
-  expandInline,
-  expandInlineFlow,
   extractInlineDi,
-  impliedTypeName,
   unfoldTypedElement,
   isDocumentationProperty,
   isDocumentationType,
-  isExpressionType,
-  isYamlValueProperty,
-  keyedMapToList,
-  longTypeName,
-  qualifiesAsInlineValue,
   type DiType,
 } from '@core/document/shorthand';
+import { DI_NODE_TYPES, expandDiNode, expandInline, expandInlineFlow, impliedTypeName, isExpressionType, isYamlValueProperty, keyedMapToList, longTypeName, qualifiesAsInlineValue } from '@core/model/spelling';
 import { writeState, type StateTree } from '@core/document/state';
 
 type PendingRef = {

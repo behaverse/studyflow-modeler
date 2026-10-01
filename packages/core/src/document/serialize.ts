@@ -2,22 +2,17 @@ import { isModdleElement } from '@core/element/moddle';
 import { RESERVED_DOC_KEYS, STUDY_EXTENSION_TYPE, inferredRoot, isHeadlessCollaboration, type YamlDoc } from '@core/document/format';
 import { readState } from '@core/document/state';
 import {
-  DI_NODE_TYPES,
-  compactDiNode,
   flowEndsOf,
   inlineDocumentationEntries,
   inlineElementList,
   inlineExpressionBody,
-  inlineYamlValue,
-  impliedTypeName,
   foldTypedElement,
   isImpliedFlowList,
   isRedundantNamespaceDeclaration,
-  keyItemsById,
   planInlineDi,
-  shortTypeName,
   type FlowEnds,
 } from '@core/document/shorthand';
+import { DI_NODE_TYPES, compactDiNode, inlineYamlValue, impliedTypeName, keyItemsById, shortTypeName } from '@core/model/spelling';
 
 type SerializeContext = {
   di: Map<string, Record<string, unknown>>;

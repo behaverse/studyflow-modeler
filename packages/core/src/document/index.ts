@@ -2,7 +2,8 @@ import * as yaml from 'js-yaml';
 
 import type { Moddle } from '@core/element/moddle';
 
-import { YAML_DUMP_OPTIONS, applyXmlPasses, dropForeignElements } from '@core/document/format';
+import { applyXmlPasses, dropForeignElements } from '@core/document/format';
+import { YAML_DUMP_OPTIONS } from '@core/model/spelling';
 import { definitionsToYamlDoc } from '@core/document/serialize';
 import { inlineIoSpecification, expandIoSpecification } from '@core/document/io-specification';
 import { choreographyToProcessRoot, exchangesToTasks, headlessPlaneToProcessRoot, tasksToExchanges } from '@core/document/choreography';
@@ -10,9 +11,9 @@ import { studyflowToDefinitions } from '@core/document/deserialize';
 
 /* The package's surface: outside `core/document`, only this barrel, `png.ts`, `svg.ts` and `outline.ts` are imported. */
 export { studyflowToDefinitions } from '@core/document/deserialize';
+export { YAML_DUMP_OPTIONS } from '@core/model/spelling';
 export {
   STUDY_EXTENSION_TYPE,
-  YAML_DUMP_OPTIONS,
   applyXmlPasses,
   declaredRuntime,
   primaryRoot,
