@@ -6,6 +6,7 @@
 import * as yaml from 'js-yaml';
 
 import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { getCatalog, hasCatalog } from '@core/notation';
 
 export const PARAMETERS = 'studyflow:Parameters';
 
@@ -137,4 +138,16 @@ export function wiredPropertiesIn(model: StudyModel, element: Element): { name: 
   return wiredSourcesIn(model, element).flatMap(([id, values]) => Object.entries(values)
     .filter(([key]) => !names.has(key))
     .map(([name, value]) => ({ name, value, source: model.get(id)! })));
+}
+
+/** Derived, not stored: an activity of `extensionType` that names `implementation`, unless it is an instrument; the
+ * canvas marks it, and the exporters read it. */
+export function isDataOperation(extensionType: string | undefined, implementation: unknown): boolean {
+  if (extensionType && hasCatalog() && getCatalog().hasRole(extensionType, 'instrument')) return false;
+  return typeof implementation === 'string' && implementation.trim() !== '';
+}
+
+/** Whether `element` is a data operation ({@link isDataOperation}). */
+export function isDataOperationIn(model: StudyModel, element: Element): boolean {
+  return isDataOperation(model.extensionType(element), model.attributeOrDefault(element, 'implementation'));
 }

@@ -3,14 +3,13 @@
  * `study/text.ts`'s, the same heuristic layout and hit-testing use.
  */
 
-import { isTypedChoreography } from '@canvas/study/choreography.ts';
+import { extensionTypeOf } from '@core/model/index.ts';
 import type { Font, TextAlign } from '@canvas/study/font.ts';
 import type { Bounds, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { fit, FONT, LINE_HEIGHT, wrap } from '@canvas/study/text.ts';
 import { categoryOf } from '@core/document/outline.ts';
 import { activityMarkers } from '@canvas/render/shapes.ts';
 import { append, create } from '@canvas/render/svg.ts';
-
 
 export const LABEL_FONT = '"IBM Plex Sans", Helvetica, sans-serif';
 /** The face for text that reads as prose beside the diagram: a note, and the name a pool runs up its band. */
@@ -114,7 +113,7 @@ export function internalLabelRegion(node: SceneNode, name = ''): Bounds {
   if (node.isExpanded === true) return { x: 0, y: 0, width, height: TOP_STRIP };
   const category = categoryOf(node.type);
   const floor = activityMarkers(node).length > 0 ? height - CHROME.foot : height;
-  const bands = category === 'task' || (category === 'choreography' && isTypedChoreography(node.businessObject))
+  const bands = category === 'task' || (category === 'choreography' && extensionTypeOf(node.element) !== undefined)
     ? [[CHROME.head, height - CHROME.foot], [CHROME.head, floor]]
     : [];
   const needed = Math.max(LINE_HEIGHT, wrap(name, width - 4, FONT.internal, 4).length * LINE_HEIGHT);

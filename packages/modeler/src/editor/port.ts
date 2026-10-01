@@ -4,22 +4,16 @@
  */
 
 import type { Canvas, Study } from '@canvas/index.ts';
-import { toBusinessObject } from '@core/element';
+import type { Metamodel } from '@core/model/metamodel';
 import type { Template } from '@core/notation';
 import type { EventBus } from '@modeler/editor/bus';
 
 export type { Canvas, EventBus };
 
-/** A moddle object (business object, DI, or extension element). */
-export type ModelElement = any;
-
-export type Moddle = import('bpmn-moddle').BpmnModdle;
-
-/** Schema-aware document model access (bpmn-moddle): what reads and writes files; the study mints what it adds. */
+/** What the study is read and spelled by. */
 export interface EditorModel {
-  moddle(): Moddle;
-  /** The schema packages the moddle was built from, untouched: a converted document is built with the same ones. */
-  packages(): Record<string, any>;
+  /** The metamodel of the schemas enabled in Settings. */
+  metamodel(): Metamodel;
 }
 
 export interface EditorTemplates {
@@ -39,12 +33,15 @@ export interface Editor {
   redo(): void;
   canUndo(): boolean;
   canRedo(): boolean;
-  importXML(xml: string): Promise<{ warnings: unknown[] }>;
+  /**
+   * Put the study `text` spells, a `.studyflow.yaml` or BPMN XML, in place of this one; the history starts over.
+   * `onWarning` hears what reading it could not place.
+   */
+  open(text: string, onWarning?: (message: string) => void): Promise<void>;
   /** The document as a BPMN XML file holds it (the study's `toXml`). */
   saveXML(): Promise<{ xml: string }>;
   /** What the canvas shows, as a standalone SVG drawn afresh, without the editor's chrome. */
   toSvg(): string;
-  getDefinitions(): ModelElement | undefined;
   /** The document, and every write on it: one command, one `edit`, one undo step. */
   study: Study;
   /** The view: its selection, scope and camera, by id. */
@@ -55,9 +52,4 @@ export interface Editor {
   templates: EditorTemplates;
   simulation: EditorSimulation;
   destroy(): void;
-}
-
-export function is(element: ModelElement, type: string): boolean {
-  const bo: any = toBusinessObject(element);
-  return !!bo && typeof bo.$instanceOf === 'function' && bo.$instanceOf(type);
 }

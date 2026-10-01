@@ -1,94 +1,53 @@
 /**
- * {@link Scene} → BPMN DI. Rebuilds `definitions.diagrams` from the scene: one plane
- * holding a `BPMNShape` / `BPMNEdge` per element, a `BPMNLabel` per pinned caption.
+ * {@link Scene} → the study's drawing. Rewrites the layout map from the scene: an entry per shape and per edge, its
+ * box or route, colours, caption style, the box of a pinned caption, and what a shape shows (expanded, a marker).
  */
 
-import { COLOR_PROPERTIES } from '@canvas/study/color.ts';
-import { FONT_PROPERTY, formatFont, type Font } from '@canvas/study/font.ts';
-import { asList, asModdle, mint, modelOf, setParent, type ModdleFactory } from '@canvas/study/moddle.ts';
-import type { ModdleObject, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
+import { formatFont } from '@canvas/study/font.ts';
+import type { Scene, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 import { isExpandable } from '@core/document/outline.ts';
-import { getProperty, setProperty } from '@core/element/moddle.ts';
+import type { Drawing, Value } from '@core/model/index.ts';
+import { canonicalDrawing, inferredRoot } from '@core/model/yaml.ts';
 import { drawablesOf } from '@canvas/study/tree.ts';
 
-export function writeDi(scene: Scene): void {
-  const definitions = scene.definitions;
-  const factory = modelOf(definitions);
-  let diagram = asList(getProperty(definitions, 'diagrams'))[0];
-  if (!diagram) {
-    diagram = mint(factory, 'bpmndi:BPMNDiagram', { id: 'BPMNDiagram_1' });
-    setParent(diagram, definitions);
+export function writeLayout(scene: Scene): void {
+  const { model } = scene;
+  const layout: Record<string, Drawing> = {};
+  for (const element of drawablesOf(scene)) layout[element.id] = drawingOf(scene, element);
+  model.study.layout = layout;
+  nameRoot(scene);
+}
+
+/** The diagram names the root it draws, unless the reader infers that root anyway. */
+function nameRoot(scene: Scene): void {
+  const { study, metamodel } = scene.model;
+  const named = scene.root.id;
+  const [first, ...rest] = study.diagram ?? [];
+  if (first && typeof first === 'object' && !Array.isArray(first)) {
+    const diagram = first as Record<string, Value>;
+    diagram.plane = { ...(diagram.plane as Record<string, Value> | undefined), ...(named ? { bpmnElement: named } : {}) };
+    study.diagram = [diagram, ...rest];
+  } else if (named && named !== inferredRoot(study, metamodel)?.id) {
+    study.diagram = [{ plane: { bpmnElement: named } }, ...rest];
   }
-  let plane = asModdle(getProperty(diagram, 'plane'));
-  if (!plane) {
-    plane = mint(factory, 'bpmndi:BPMNPlane', { id: 'BPMNPlane_1' });
-    setParent(plane, diagram);
-    setProperty(diagram, 'plane', plane);
+}
+
+const box = ({ x, y, width, height }: { x: number; y: number; width: number; height: number }): string => `${x} ${y} ${width} ${height}`;
+
+/** How the study draws `element`: its shape or its edge, in the file's spelling. */
+export function drawingOf(scene: Scene, element: SceneNode | SceneEdge): Drawing {
+  const drawing: Record<string, Value> = {};
+  if (element.kind === 'node') {
+    drawing.bounds = box(element);
+    if (element.isExpanded !== undefined && (isExpandable(element.type) || element.type === 'bpmn:Participant')) drawing.isExpanded = element.isExpanded;
+    if (element.isMarkerVisible !== undefined) drawing.isMarkerVisible = element.isMarkerVisible;
+    if (element.fill) drawing.fill = element.fill;
+  } else {
+    drawing.waypoint = element.waypoints.map((p) => `${p.x},${p.y}`).join(' ');
   }
-  setProperty(plane, 'bpmnElement', scene.root);
-  const elements: ModdleObject[] = [];
-  for (const element of drawablesOf(scene)) {
-    const di = diOf(element, factory);
-    setParent(di, plane);
-    elements.push(di);
-  }
-  setProperty(plane, 'planeElement', elements);
-  setProperty(definitions, 'diagrams', [diagram]);
-}
-
-/** How a file draws `element`: its `BPMNShape` or `BPMNEdge`. */
-export function diOf(element: SceneNode | SceneEdge, factory: ModdleFactory | undefined): ModdleObject {
-  return element.kind === 'node' ? shapeDi(element, factory) : edgeDi(element, factory);
-}
-
-function shapeDi(node: SceneNode, factory: ModdleFactory | undefined): ModdleObject {
-  const di = mint(factory, 'bpmndi:BPMNShape', {
-    id: `${node.id}_di`,
-    bpmnElement: node.businessObject,
-    bounds: bounds(factory, node),
-  });
-  setParent(getProperty(di, 'bounds') as ModdleObject, di);
-  if (node.isExpanded !== undefined && (isExpandable(node.type) || node.type === 'bpmn:Participant')) {
-    setProperty(di, 'isExpanded', node.isExpanded);
-  }
-  if (node.isMarkerVisible !== undefined) setProperty(di, 'isMarkerVisible', node.isMarkerVisible);
-  writeColors(di, node.fill, node.stroke);
-  writeFont(di, node.font);
-  writeLabel(di, node.label, factory);
-  return di;
-}
-
-function edgeDi(edge: SceneEdge, factory: ModdleFactory | undefined): ModdleObject {
-  const di = mint(factory, 'bpmndi:BPMNEdge', {
-    id: `${edge.id}_di`,
-    bpmnElement: edge.businessObject,
-    waypoint: edge.waypoints.map((p) => mint(factory, 'dc:Point', { x: p.x, y: p.y })),
-  });
-  for (const point of asList(getProperty(di, 'waypoint'))) setParent(point, di);
-  writeColors(di, undefined, edge.stroke);
-  writeFont(di, edge.font);
-  writeLabel(di, edge.label, factory);
-  return di;
-}
-
-function bounds(factory: ModdleFactory | undefined, box: { x: number; y: number; width: number; height: number }): ModdleObject {
-  return mint(factory, 'dc:Bounds', { x: box.x, y: box.y, width: box.width, height: box.height });
-}
-
-function writeColors(di: ModdleObject, fill: string | undefined, stroke: string | undefined): void {
-  if (fill) for (const name of COLOR_PROPERTIES.fill) setProperty(di, name, fill);
-  if (stroke) for (const name of COLOR_PROPERTIES.stroke) setProperty(di, name, stroke);
-}
-
-function writeFont(di: ModdleObject, font: Font | undefined): void {
-  const text = formatFont(font);
-  if (text) setProperty(di, FONT_PROPERTY, text);
-}
-
-function writeLabel(di: ModdleObject, label: SceneLabel | undefined, factory: ModdleFactory | undefined): void {
-  if (!label?.pinned) return;
-  const labelDi = mint(factory, 'bpmndi:BPMNLabel', { bounds: bounds(factory, label) });
-  setParent(getProperty(labelDi, 'bounds') as ModdleObject, labelDi);
-  setParent(labelDi, di);
-  setProperty(di, 'label', labelDi);
+  if (element.stroke) drawing.stroke = element.stroke;
+  const font = formatFont(element.font);
+  if (font) drawing.font = font;
+  if (element.label?.pinned) drawing.label = box(element.label);
+  return canonicalDrawing(scene.model.metamodel, element.kind === 'node' ? 'bpmndi:BPMNShape' : 'bpmndi:BPMNEdge', drawing);
 }

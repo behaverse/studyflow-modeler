@@ -4,7 +4,7 @@ import { Study } from '@canvas/index.ts';
 import { isElement, type Element } from '@core/model/index';
 import type { Editor } from '@modeler/editor/port';
 import { runUpdateDataBinding, runUpdateTransformation } from '@modeler/inspector/commands';
-import { freshModdle } from './schemas';
+import { freshMetamodel } from './schemas';
 
 /**
  * A data association as the inspector writes it: bound to a property from the picker, its transformation
@@ -26,7 +26,7 @@ Study:
       dataInputAssociations:
         In: {}
     DataOutput_rate: { type: Task }
-`, { moddle: freshModdle() });
+`, { metamodel: freshMetamodel() });
   return { study, editor: { study } as unknown as Editor, task: () => study.element('Step')!, association: () => study.element('In')! };
 }
 

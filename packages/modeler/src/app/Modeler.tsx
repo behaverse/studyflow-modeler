@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import new_diagram from '#assets/new_diagram.studyflow.yaml?raw';
 import { Study } from '@canvas/index.ts';
-import { fromWireXml } from '@core/document';
+import type { Metamodel } from '@core/model/metamodel';
+import { metamodelOf } from '@core/model/packages';
 import { loadSchemas } from '@core/notation/loader';
 import { fetchInstalledSchemas } from '@modeler/app/installedSchemas';
 import { mountEditor } from '@modeler/editor/mount';
@@ -15,7 +15,7 @@ import { notify } from '@modeler/app/noticeStore';
 import { openDiagramFile } from '@modeler/open/openFile';
 import { surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
-import type { Editor, Moddle } from '@modeler/editor/port';
+import type { Editor } from '@modeler/editor/port';
 
 const s = {
   root: 'relative flex flex-1 h-full',
@@ -44,24 +44,22 @@ async function openFromUrl(editor: Editor): Promise<void> {
 /** Mount the editor in `container` with the enabled schemas and the installed ones, on the autosaved diagram if it
  * opens, else a new one. */
 async function bootEditor(container: HTMLElement, autosaved: string | undefined): Promise<Editor> {
-  const extensionSchemas = await loadSchemas(getSettings().enabledSchemas, await fetchInstalledSchemas());
-  // moddle rewrites the property descriptors it registers, so it gets a copy: `packages()` hands out the original.
-  const moddle = new BpmnModdle(structuredClone(extensionSchemas));
-  return mountEditor({ container, study: await openStudy(autosaved, moddle), moddle, extensionSchemas });
+  const metamodel = metamodelOf(await loadSchemas(getSettings().enabledSchemas, await fetchInstalledSchemas()));
+  return mountEditor({ container, study: await openStudy(autosaved, metamodel), metamodel });
 }
 
 /** The autosaved diagram if it opens, else a new one. */
-async function openStudy(autosaved: string | undefined, moddle: Moddle): Promise<Study> {
+async function openStudy(autosaved: string | undefined, metamodel: Metamodel): Promise<Study> {
   const onWarning = (warning: string) => console.warn('Canvas import warning:', warning);
   if (autosaved) {
     try {
-      return await Study.open(await fromWireXml(autosaved, moddle), { moddle, onWarning });
+      return await Study.open(autosaved, { metamodel, onWarning });
     } catch (err) {
       console.warn('Could not open the autosaved diagram; starting a new one, and the autosave is cleared.', err);
       clearAutosavedDiagram();
     }
   }
-  return Study.open(new_diagram, { moddle, onWarning });
+  return Study.open(new_diagram, { metamodel, onWarning });
 }
 
 /** The canvas and the boot that puts an editor on it; `onReady` hands the editor to the app. */

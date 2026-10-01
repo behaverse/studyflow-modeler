@@ -33,29 +33,16 @@
  * from instead of leaving a declared-but-unassociated `dataInput` behind — which
  * would silently make the activity un-inlineable on the next save.
  *
- * Like `study/remove.ts`, this module only mutates the moddle tree; the scene
+ * Like `study/remove.ts`, this module only writes the study model; the scene
  * bookkeeping, the revision bump and the events are the Mutator's.
  */
 
 import { IdGenerator } from '@canvas/study/ids.ts';
-import {
-  asList,
-  asModdle,
-  clearParent,
-  mint,
-  modelOf,
-  nameOf,
-  pullFrom,
-  pushInto,
-  refBOs,
-  setParent,
-  setRef,
-  type ModdleFactory,
-} from '@canvas/study/moddle.ts';
-import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
+import { addRef, dropRef, idsIn, listOf, mint, nameOf, setRef } from '@canvas/study/elements.ts';
+import type { SceneNode } from '@canvas/study/scene.ts';
 import { isDataShape } from '@core/document/outline.ts';
 import { associationPropertyFor, type DataAssociationDirection } from '@core/element/index.ts';
-import { getProperty, setProperty } from '@core/element/moddle.ts';
+import { isElement, type Element, type StudyModel } from '@core/model/index.ts';
 
 /** The two ends of a data association, sorted into their BPMN roles. */
 export interface DataAssociationEnds {
@@ -76,13 +63,12 @@ export interface DataAssociationEnds {
  * caller.
  *
  * Returns `undefined` when the pair is not one data shape and one shape that can
- * actually hold that direction, which is exactly when the rules refuse it. The
- * second half matters: only `bpmn:Activity` and `bpmn:ThrowEvent` own
- * `dataInputAssociations`, and only `bpmn:Activity` and `bpmn:CatchEvent` own
- * `dataOutputAssociations` — filing one onto, say, a start event would land in
- * moddle's `$attrs` and serialize as garbage, so the descriptor is asked.
+ * actually hold that direction, which is exactly when the rules refuse it: only
+ * `bpmn:Activity` and `bpmn:ThrowEvent` own `dataInputAssociations`, and only
+ * `bpmn:Activity` and `bpmn:CatchEvent` own `dataOutputAssociations`, so the metamodel is asked.
  */
 export function dataAssociationEnds(
+  model: StudyModel,
   source: SceneNode | undefined,
   target: SceneNode | undefined,
 ): DataAssociationEnds | undefined {
@@ -93,59 +79,41 @@ export function dataAssociationEnds(
   const ends: DataAssociationEnds = sourceIsData
     ? { data: source, activity: target, direction: 'input' }
     : { data: target, activity: source, direction: 'output' };
-  return canHoldAssociations(ends.activity.businessObject, ends.direction) ? ends : undefined;
+  return model.property(ends.activity.element, associationPropertyFor(ends.direction)) ? ends : undefined;
+}
+
+/** The activity a data association hangs off, read from the study: the element that holds it. */
+export function activityOf(model: StudyModel, association: Element): Element | undefined {
+  const parent = model.parentOf(association);
+  return parent && !isDataShape(model.host(parent)) ? parent : undefined;
 }
 
 /**
- * Whether `bo`'s moddle descriptor declares the association list for `direction`.
- * A plain bag with no descriptor (the hand-built-scene fallback) is trusted.
- */
-function canHoldAssociations(bo: ModdleObject, direction: DataAssociationDirection): boolean {
-  const byName = (bo as { $descriptor?: { propertiesByName?: Record<string, unknown> } })
-    .$descriptor?.propertiesByName;
-  if (!byName) return true;
-  return byName[associationPropertyFor(direction)] !== undefined;
-}
-
-/**
- * The activity a data association hangs off, read from the *document* rather than
- * from the scene: the association's own moddle `$parent`. Used by deletion, which
- * must find the owner even for an association the importer could only half resolve.
- */
-export function activityOf(bo: ModdleObject): ModdleObject | undefined {
-  const parent = asModdle((bo as { $parent?: unknown }).$parent);
-  return parent && !isDataShape(parent.$type) ? parent : undefined;
-}
-
-/**
- * Wire a freshly minted association business object to its two ends and file it on
- * the activity. Writes `sourceRef`/`targetRef` at the schema's own cardinality
- * ({@link setRef} reads the descriptor: `sourceRef` is a list, `targetRef` is not),
- * mints the `ioSpecification` slot when the activity declares one, and pushes the
- * association into the activity's `dataInput|OutputAssociations`.
+ * Wire a freshly minted association to its two ends and file it on the activity: its `sourceRef`/`targetRef` at the
+ * schema's own cardinality (`sourceRef` is a list, `targetRef` is not), the `ioSpecification` slot minted when the
+ * activity declares one, and the association in the activity's `dataInput|OutputAssociations`.
  */
 export function wireDataAssociation(
-  bo: ModdleObject,
+  model: StudyModel,
+  association: Element,
   ends: DataAssociationEnds,
   ids: IdGenerator,
 ): void {
-  const activity = ends.activity.businessObject;
-  const data = ends.data.businessObject;
+  const activity = ends.activity.element;
+  const data = ends.data.element;
   const io = ioSpecificationOf(activity);
-  const factory = modelOf(activity) ?? modelOf(data) ?? modelOf(bo);
 
   if (ends.direction === 'input') {
-    setRef(bo, 'sourceRef', data);
+    setRef(model, association, 'sourceRef', data);
     // With no `ioSpecification` the target slot stays unset — the compact form core's
     // `expandIoSpecification` fills in on the way out to standard BPMN.
-    if (io) setRef(bo, 'targetRef', mintDataInput(io, activity, data, factory, ids));
+    if (io) setRef(model, association, 'targetRef', mintDataInput(model, io, activity, data, ids));
   } else {
-    setRef(bo, 'targetRef', data);
-    if (io) setRef(bo, 'sourceRef', mintDataOutput(io, activity, factory, ids));
+    setRef(model, association, 'targetRef', data);
+    if (io) setRef(model, association, 'sourceRef', mintDataOutput(model, io, activity, ids));
   }
 
-  setParent(bo, activity);
-  pushInto(activity, associationPropertyFor(ends.direction), bo);
+  model.file(association, activity, associationPropertyFor(ends.direction));
 }
 
 /**
@@ -157,58 +125,50 @@ export function wireDataAssociation(
  * Call it while the association is still wired — before its refs are cleared and
  * before it is unfiled — so its slot is still reachable.
  */
-export function pruneDataAssociation(bo: ModdleObject, activity: ModdleObject | undefined): void {
+export function pruneDataAssociation(model: StudyModel, association: Element, activity: Element | undefined): void {
   if (!activity) return;
   const io = ioSpecificationOf(activity);
   if (!io) return;
 
-  const declarations = [
-    ...refBOs(getProperty(bo, 'targetRef')),
-    ...refBOs(getProperty(bo, 'sourceRef')),
-  ].filter((ref) => ref.$type === 'bpmn:DataInput' || ref.$type === 'bpmn:DataOutput');
+  const declarations = [...idsIn(association.targetRef), ...idsIn(association.sourceRef)]
+    .map((id) => model.get(id))
+    .filter((ref): ref is Element => !!ref && (ref.type === 'bpmn:DataInput' || ref.type === 'bpmn:DataOutput'));
 
   for (const declaration of declarations) {
-    if (isStillDeclared(activity, declaration, bo)) continue;
-    pullFrom(io, declaration.$type === 'bpmn:DataInput' ? 'dataInputs' : 'dataOutputs', declaration);
-    for (const set of asList(getProperty(io, 'inputSets'))) pullFrom(set, 'dataInputRefs', declaration);
-    for (const set of asList(getProperty(io, 'outputSets'))) pullFrom(set, 'dataOutputRefs', declaration);
-    clearParent(declaration);
+    if (isStillDeclared(activity, declaration, association)) continue;
+    for (const set of listOf(io, 'inputSets')) dropRef(set, 'dataInputRefs', declaration);
+    for (const set of listOf(io, 'outputSets')) dropRef(set, 'dataOutputRefs', declaration);
+    model.unfile(declaration);
   }
 
-  if (asList(getProperty(io, 'dataInputs')).length > 0) return;
-  if (asList(getProperty(io, 'dataOutputs')).length > 0) return;
+  if (listOf(io, 'dataInputs').length > 0) return;
+  if (listOf(io, 'dataOutputs').length > 0) return;
   // An `ioSpecification` declaring neither inputs nor outputs is noise the compact
   // form has no room for; core's own inlining drops it for exactly this reason.
-  setProperty(activity, 'ioSpecification', undefined);
-  clearParent(io);
+  model.unfile(io);
 }
 
 // --- internals ---------------------------------------------------------------
 
 /** The activity's `bpmn:InputOutputSpecification`, when it declares one. */
-function ioSpecificationOf(activity: ModdleObject): ModdleObject | undefined {
-  return asModdle(getProperty(activity, 'ioSpecification'));
+function ioSpecificationOf(activity: Element): Element | undefined {
+  return isElement(activity.ioSpecification) ? activity.ioSpecification : undefined;
 }
 
 /** Whether anything other than `exclude` still needs `declaration`. */
-function isStillDeclared(
-  activity: ModdleObject,
-  declaration: ModdleObject,
-  exclude: ModdleObject,
-): boolean {
+function isStillDeclared(activity: Element, declaration: Element, exclude: Element): boolean {
   for (const direction of ['input', 'output'] as const) {
-    for (const association of asList(getProperty(activity, associationPropertyFor(direction)))) {
+    for (const association of listOf(activity, associationPropertyFor(direction))) {
       if (association === exclude) continue;
-      if (refBOs(getProperty(association, 'sourceRef')).includes(declaration)) return true;
-      if (refBOs(getProperty(association, 'targetRef')).includes(declaration)) return true;
+      if ([...idsIn(association.sourceRef), ...idsIn(association.targetRef)].includes(declaration.id!)) return true;
     }
   }
   // A multi-instance marker may bind the same slot (`@core/document/io-specification.ts`
   // refuses to inline an activity whose `loopCharacteristics` reference it).
-  const loop = asModdle(getProperty(activity, 'loopCharacteristics'));
-  if (!loop) return false;
+  const loop = activity.loopCharacteristics;
+  if (!isElement(loop)) return false;
   return ['loopDataInputRef', 'loopDataOutputRef', 'inputDataItem', 'outputDataItem']
-    .some((name) => refBOs(getProperty(loop, name)).includes(declaration));
+    .some((name) => idsIn(loop[name]).includes(declaration.id!));
 }
 
 /** A document-unique id for `base`, falling back to a counter suffix when taken. */
@@ -228,19 +188,11 @@ function idSlug(name: string): string {
  * data shape it is fed from — the same slot name (and id shape) core's
  * `expandIoSpecification` would have produced for the compact form.
  */
-function mintDataInput(
-  io: ModdleObject,
-  activity: ModdleObject,
-  data: ModdleObject,
-  factory: ModdleFactory | undefined,
-  ids: IdGenerator,
-): ModdleObject {
-  const name = nameOf(data) || (typeof data.id === 'string' ? data.id : '') || 'input';
-  const id = uniqueId(ids, `${activityId(activity)}_in_${idSlug(name)}`);
-  const dataInput = mint(factory, 'bpmn:DataInput', { id, name });
-  setParent(dataInput, io);
-  pushInto(io, 'dataInputs', dataInput);
-  pushInto(setOf(io, 'inputSets', activity, factory, ids), 'dataInputRefs', dataInput);
+function mintDataInput(model: StudyModel, io: Element, activity: Element, data: Element, ids: IdGenerator): Element {
+  const name = nameOf(data) || data.id || 'input';
+  const dataInput = mint('bpmn:DataInput', { id: uniqueId(ids, `${activityId(activity)}_in_${idSlug(name)}`), name });
+  model.file(dataInput, io, 'dataInputs');
+  addRef(setOf(model, io, 'inputSets', activity, ids), 'dataInputRefs', dataInput);
   return dataInput;
 }
 
@@ -249,46 +201,29 @@ function mintDataInput(
  * implicit output of an activity onto ONE `result` slot, so an existing one is
  * reused rather than duplicated.
  */
-function mintDataOutput(
-  io: ModdleObject,
-  activity: ModdleObject,
-  factory: ModdleFactory | undefined,
-  ids: IdGenerator,
-): ModdleObject {
-  const existing = asList(getProperty(io, 'dataOutputs')).find((out) => nameOf(out) === 'result');
+function mintDataOutput(model: StudyModel, io: Element, activity: Element, ids: IdGenerator): Element {
+  const existing = listOf(io, 'dataOutputs').find((out) => nameOf(out) === 'result');
   if (existing) {
-    pushInto(setOf(io, 'outputSets', activity, factory, ids), 'dataOutputRefs', existing);
+    addRef(setOf(model, io, 'outputSets', activity, ids), 'dataOutputRefs', existing);
     return existing;
   }
-  const dataOutput = mint(factory, 'bpmn:DataOutput', {
-    id: uniqueId(ids, `${activityId(activity)}_result`),
-    name: 'result',
-  });
-  setParent(dataOutput, io);
-  pushInto(io, 'dataOutputs', dataOutput);
-  pushInto(setOf(io, 'outputSets', activity, factory, ids), 'dataOutputRefs', dataOutput);
+  const dataOutput = mint('bpmn:DataOutput', { id: uniqueId(ids, `${activityId(activity)}_result`), name: 'result' });
+  model.file(dataOutput, io, 'dataOutputs');
+  addRef(setOf(model, io, 'outputSets', activity, ids), 'dataOutputRefs', dataOutput);
   return dataOutput;
 }
 
 /** The first `bpmn:InputSet`/`bpmn:OutputSet` of an `ioSpecification`, minted if absent. */
-function setOf(
-  io: ModdleObject,
-  property: 'inputSets' | 'outputSets',
-  activity: ModdleObject,
-  factory: ModdleFactory | undefined,
-  ids: IdGenerator,
-): ModdleObject {
-  const existing = asList(getProperty(io, property))[0];
+function setOf(model: StudyModel, io: Element, property: 'inputSets' | 'outputSets', activity: Element, ids: IdGenerator): Element {
+  const existing = listOf(io, property)[0];
   if (existing) return existing;
   const suffix = property === 'inputSets' ? 'inputSet' : 'outputSet';
-  const created = mint(factory, property === 'inputSets' ? 'bpmn:InputSet' : 'bpmn:OutputSet', {
-    id: uniqueId(ids, `${activityId(activity)}_${suffix}`),
-  });
-  setParent(created, io);
-  pushInto(io, property, created);
+  const created = mint(property === 'inputSets' ? 'bpmn:InputSet' : 'bpmn:OutputSet', { id: uniqueId(ids, `${activityId(activity)}_${suffix}`) });
+  model.file(created, io, property);
   return created;
 }
 
-function activityId(activity: ModdleObject): string {
-  return typeof activity.id === 'string' && activity.id ? activity.id : 'activity';
+function activityId(activity: Element): string {
+  return activity.id || 'activity';
 }
+

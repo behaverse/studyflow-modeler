@@ -5,7 +5,7 @@
 
 import { BPMN } from '@core/constants.ts';
 
-import { nameOf } from '@canvas/study/moddle.ts';
+import { nameOf } from '@canvas/study/elements.ts';
 import type { Bounds, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { edgeLabelBox, labelHeightFor, nodeLabelBox } from '@canvas/study/text.ts';
 import { DATA_TYPES } from '@core/document/outline.ts';
@@ -35,7 +35,7 @@ function derivedBox(owner: SceneNode | SceneEdge, name: string): Bounds {
  * Returns the label, or `undefined` when the owner draws none.
  */
 export function syncLabel(scene: Scene, owner: SceneNode | SceneEdge): SceneLabel | undefined {
-  const name = nameOf(owner.businessObject);
+  const name = nameOf(owner.element);
   if (!name || !hasExternalLabel(owner)) {
     dropLabel(scene, owner);
     return undefined;
@@ -47,7 +47,7 @@ export function syncLabel(scene: Scene, owner: SceneNode | SceneEdge): SceneLabe
   }
   label.parent = owner.parent;
   label.type = owner.type;
-  label.businessObject = owner.businessObject;
+  label.element = owner.element;
   if (label.pinned) {
     label.height = labelHeightFor(name, label.width);
   } else {
@@ -62,7 +62,7 @@ export function mintLabel(owner: SceneNode | SceneEdge, box: Bounds, pinned: boo
     id: labelIdOf(owner),
     kind: 'label',
     type: owner.type,
-    businessObject: owner.businessObject,
+    element: owner.element,
     parent: owner.parent,
     owner,
     pinned,

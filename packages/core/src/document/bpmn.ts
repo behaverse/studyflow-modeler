@@ -4,13 +4,16 @@
  */
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { choreographyToProcessRoot, tasksToExchanges } from '@core/document/choreography';
+import { choreographyToProcessRoot, headlessPlaneToProcessRoot, tasksToExchanges } from '@core/document/choreography';
+import { dropForeignElements } from '@core/document/format';
 import { inlineIoSpecification } from '@core/document/io-specification';
-import { readerWarning, studyModelOf } from '@core/document/index';
+import { looksLikeXml, readerWarning, studyModelOf, studyflowToXml } from '@core/document/index';
 import type { Moddle } from '@core/element/moddle';
-import type { StudyModel } from '@core/model/index';
+import { StudyModel } from '@core/model/index';
+import { choreographyToProcessIn } from '@core/model/choreography';
 import type { Metamodel } from '@core/model/metamodel';
 import { bpmnPackages } from '@core/model/packages';
+import { readStudy, studyText } from '@core/model/yaml';
 
 const BPMN_PREFIXES = new Set(bpmnPackages().map((pkg) => pkg.prefix));
 
@@ -35,8 +38,24 @@ export function moddleOf(metamodel: Metamodel): Moddle {
 export async function xmlToStudy(xml: string, metamodel: Metamodel, { asWritten = false, onWarning }: { asWritten?: boolean; onWarning?: (message: string) => void } = {}): Promise<StudyModel> {
   const { rootElement, warnings } = await moddleOf(metamodel).fromXML(xml);
   for (const warning of warnings) onWarning?.(readerWarning(warning));
+  dropForeignElements(rootElement, onWarning);
   tasksToExchanges(rootElement);
   choreographyToProcessRoot(rootElement);
+  headlessPlaneToProcessRoot(rootElement);
   if (!asWritten) inlineIoSpecification(rootElement);
   return studyModelOf(rootElement, metamodel);
+}
+
+/** The study model of file text, a `.studyflow.yaml` or BPMN XML (read as {@link xmlToStudy} reads it). */
+export async function parseStudy(text: string, metamodel: Metamodel, options: { asWritten?: boolean; onWarning?: (message: string) => void } = {}): Promise<StudyModel> {
+  if (looksLikeXml(text)) return xmlToStudy(text, metamodel, options);
+  const model = new StudyModel(readStudy(text, metamodel, options.onWarning), metamodel);
+  choreographyToProcessIn(model);
+  return model;
+}
+
+/** The study as BPMN XML: an exchange written as the BPMN task it is, a compact data input with the data input it
+ * stands for. */
+export function studyToXml(model: StudyModel): Promise<string> {
+  return studyflowToXml(studyText(model.study, model.metamodel), moddleOf(model.metamodel));
 }

@@ -9,7 +9,7 @@ import { ArrayInput, ChecklistInput, EnumInput, EnumListInput, ExpressionInput }
 import { CodeEditor, SchemaEditor } from '@modeler/inspector/editors';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { useAttributeState, useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
-import { readAttribute } from '@modeler/inspector/element';
+import { readAttribute } from '@core/model/index';
 import type { Element } from '@core/model/index';
 import type { AttributeOverride } from '@core/model/parameters';
 import { resolvePlaceholdersIn } from '@core/model/state';

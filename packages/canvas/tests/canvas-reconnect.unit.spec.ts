@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test';
 import { Canvas } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/study/orthogonal.ts';
 import type { Point, SceneEdge } from '@canvas/study/scene.ts';
+import type { Element } from '@core/model/index';
 
-import { diOf, edge, loadYaml, node, pointerDown, pointerMove, pointerUp, sceneOf, svgOf, written, type Loaded } from './canvasHarness';
+import { edge, loadYaml, node, pointerDown, pointerMove, pointerUp, savedDrawing, sceneOf, svgOf, waypointsOf, type Loaded } from './canvasHarness';
 
 /**
  * Dragging a connection's end. What is under the drop decides the outcome:
@@ -50,12 +51,9 @@ function load(yaml = FIXTURE_YAML): Loaded {
   return loadYaml(yaml);
 }
 
-function process(definitions: any): any {
-  return definitions.rootElements.find((el: any) => el.id === 'Process_1');
-}
-
-function flowElement(definitions: any, id: string): any {
-  return process(definitions).flowElements.find((el: any) => el.id === id);
+/** The element `id` names in the study `canvas` edits. */
+function flowElement(canvas: Canvas, id: string): Element {
+  return canvas.study.model.get(id)!;
 }
 
 function last(edge: SceneEdge): Point {
@@ -85,7 +83,7 @@ test('dragging the target end onto another task rewires it and docks where it wa
     ['aimed at its centre', { x: 450, y: 120 }, [119, 121]],
   ];
   for (const [label, drop, [low, high]] of CASES) {
-    const { canvas, definitions } = load();
+    const { canvas } = load();
     const flow = edge(canvas, 'Flow_1');
     const target = node(canvas, 'Task_2');
 
@@ -95,8 +93,7 @@ test('dragging the target end onto another task rewires it and docks where it wa
     expect(flow.target, label).toBe(target);
     expect(target.incoming, label).toContain(flow);
     expect(node(canvas, 'Task_1').incoming, label).toEqual([]);
-    expect(flowElement(definitions, 'Flow_1').targetRef.id, label).toBe('Task_2');
-    expect(flowElement(definitions, 'Task_2').incoming?.map((f: any) => f.id), label).toEqual(['Flow_1']);
+    expect(flowElement(canvas, 'Flow_1').targetRef, label).toBe('Task_2');
 
     const tip = last(flow);
     expect(tip.x, label).toBe(target.x);
@@ -122,9 +119,8 @@ test('a rules-refused target leaves the edge untouched', async () => {
 
   expect(flow.target?.id).toBe('Task_1');
   expect(flow.waypoints).toEqual(before);
-  const saved = await written(loaded);
-  expect(diOf(saved, 'Flow_1').waypoint).toMatchObject(before);
-  expect(flowElement(saved, 'Flow_1').targetRef.id).toBe('Task_1');
+  expect(waypointsOf(savedDrawing(loaded, 'Flow_1'))).toMatchObject(before);
+  expect(flowElement(canvas, 'Flow_1').targetRef).toBe('Task_1');
   expect(sceneOf(canvas).revision).toBe(revision);
 });
 
@@ -150,7 +146,7 @@ test('dropped on empty space the endpoint free-moves, exactly like a bendpoint',
   expect(isOrthogonal(flow.waypoints)).toBe(false);
   expect(flow.waypoints[0]).toEqual({ x: 136, y: 118 });
 
-  expect(diOf(await written(loaded), 'Flow_1').waypoint).toMatchObject(flow.waypoints);
+  expect(waypointsOf(savedDrawing(loaded, 'Flow_1'))).toMatchObject(flow.waypoints);
 });
 
 test('a reconnect drop lands on the grid, like every other waypoint gesture', async () => {

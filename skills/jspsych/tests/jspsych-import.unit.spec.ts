@@ -2,70 +2,73 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
-import * as yaml from 'js-yaml';
 
 import jspsych from '@skills/jspsych/modeler';
 import { parseImplementationRef } from '@core/implementation';
-import { freshModdle, freshPackages } from '@tests/schemas';
+import type { Element, StudyModel } from '@core/model/index';
+import { freshMetamodel, studyModel } from '@tests/schemas';
 
 /** jsPsych -> Studyflow: what the modeler's "Open" makes of a timeline file, through the skill's opener. */
 
 const FLANKER = JSON.parse(readFileSync(path.join(process.cwd(), 'skills/jspsych/tests/fixtures/flanker.timeline.json'), 'utf8'));
 
 /** Opens `text` as "Open" does, keeping what the opener warned about. */
-async function open(text: string): Promise<{ xml: string; warnings: string[] }> {
+function open(text: string): { model: StudyModel; warnings: string[] } {
   const warnings: string[] = [];
-  const xml = await jspsych.opens[0].toXml(text, { name: 'Flanker demo', packages: freshPackages(), warn: (message) => warnings.push(message) });
-  return { xml, warnings };
+  const yaml = jspsych.opens[0].toStudyflow(text, { name: 'Flanker demo', metamodel: freshMetamodel(), warn: (message: string) => warnings.push(message) });
+  return { model: studyModel(yaml, (message) => warnings.push(message)), warnings };
 }
 
-test('opens a timeline as a study that chains start -> tasks -> end, a cognitive task per trial', async () => {
+/** The process `model` opened as. */
+const processOf = (model: StudyModel): Element => model.study.roots.find((root) => model.isA(root, 'bpmn:Process'))!;
+const listOf = (element: Element, key: string): Element[] => (element[key] as Element[] | undefined) ?? [];
+
+test('opens a timeline as a study that chains start -> tasks -> end, a cognitive task per trial', () => {
   // A trial whose stimulus is markup and escapes, text the XML must carry as written.
   const escapes = { type: 'html-keyboard-response', name: 'Escapes', stimulus: '<p>&lt; L &amp; R <<<<< </p>' };
-  const { xml, warnings } = await open(JSON.stringify([...FLANKER, escapes]));
+  const { model, warnings } = open(JSON.stringify([...FLANKER, escapes]));
   expect(warnings).toEqual([]);
 
-  const { rootElement: definitions } = await freshModdle().fromXML(xml);
-  const process = definitions.rootElements.find((element: any) => element.$type === 'bpmn:Process');
-  const chain: any[] = [];
-  for (let node = process.flowElements.find((element: any) => element.$type === 'bpmn:StartEvent'); node; node = node.outgoing?.[0]?.targetRef) {
+  const process = processOf(model);
+  const flowElements = listOf(process, 'flowElements');
+  const chain: Element[] = [];
+  for (let node = flowElements.find((element) => element.type === 'bpmn:StartEvent'); node;) {
     chain.push(node);
+    const next = flowElements.find((element) => element.type === 'bpmn:SequenceFlow' && element.sourceRef === node!.id)?.targetRef;
+    node = typeof next === 'string' ? model.get(next) : undefined;
   }
 
   // The leading consent node is the start event's consent link, not a task.
   expect(chain.map((node) => node.name)).toEqual(['Start', 'Instructions', 'Fixation', 'Flanker test', 'Debrief', 'Escapes', 'End']);
-  expect(chain[0].get('studyflow:consentFormUri')).toBe('https://example.org/protocols/flanker/consent.md');
+  expect(chain[0].consentFormUri).toBe('https://example.org/protocols/flanker/consent.md');
 
   // Each trial is a cognitive task: platform jspsych, a versioned `jspsych://` implementation, and a Parameters
   // object wired into it holding the trial's parameters bar `type`.
   const trials = [...FLANKER.slice(1), escapes];
-  const wires: any[] = [];
+  const wires: Element[] = [];
   for (const [i, task] of chain.slice(1, -1).entries()) {
-    const ref = parseImplementationRef(task.implementation);
-    expect(ref.ok && [ref.value.scheme, ref.value.version], task.name).toEqual(['jspsych', '8']);
-    const [wrapper] = task.extensionElements.values;
-    expect([wrapper.$type, wrapper.get('platform')], task.name).toEqual(['cognitive:CognitiveTask', 'jspsych']);
-    const [wire] = task.dataInputAssociations;
+    const ref = parseImplementationRef(String(task.implementation));
+    expect(ref.ok && [ref.value.scheme, ref.value.version], String(task.name)).toEqual(['jspsych', '8']);
+    expect([model.extensionType(task), model.attribute(task, 'platform')], String(task.name)).toEqual(['cognitive:CognitiveTask', 'jspsych']);
+    const [wire] = listOf(task, 'dataInputAssociations');
     wires.push(wire);
-    const [holder] = wire.sourceRef[0].extensionElements.values;
-    expect(holder.$type, task.name).toBe('studyflow:Parameters');
+    const holder = model.get((wire.sourceRef as string[])[0])!;
+    expect(holder.type, String(task.name)).toBe('studyflow:Parameters');
     const { type: _type, ...parameters } = trials[i];
-    expect(yaml.load(holder.get('values')), task.name).toEqual(parameters);
+    expect(holder.values, String(task.name)).toEqual(parameters);
   }
 
   // Laid out: every node, flow and wire has its shape or edge.
-  const drawn = definitions.diagrams[0].plane.planeElement.map((di: any) => di.bpmnElement.id);
-  expect(drawn.sort()).toEqual([...process.flowElements, ...wires].map((element: any) => element.id).sort());
+  expect(Object.keys(model.study.layout).sort()).toEqual([...flowElements, ...wires].map((element) => element.id).sort());
 });
 
 /** The ids of the tasks the opened study holds. */
-async function taskIds(text: string): Promise<string[]> {
-  const { rootElement } = await freshModdle().fromXML((await open(text)).xml);
-  const process = rootElement.rootElements.find((element: any) => element.$type === 'bpmn:Process');
-  return process.flowElements.filter((element: any) => /Task$/.test(element.$type)).map((element: any) => element.id);
+function taskIds(text: string): string[] {
+  const { model } = open(text);
+  return listOf(processOf(model), 'flowElements').filter((element) => /Task$/.test(model.host(element))).map((element) => element.id!);
 }
 
-test('opens a timeline array or an experiment object holding one, and rejects JSON that is neither', async () => {
+test('opens a timeline array or an experiment object holding one, and rejects JSON that is neither', () => {
   const CASES: [string, RegExp | undefined][] = [
     [JSON.stringify({ timeline: FLANKER }), undefined],
     ['{ not json', /JSON/],
@@ -77,7 +80,7 @@ test('opens a timeline array or an experiment object holding one, and rejects JS
   ];
 
   for (const [text, error] of CASES) {
-    if (error) await expect(open(text), text).rejects.toThrow(error);
-    else expect(await taskIds(text), text).toContain('Flanker_test');
+    if (error) expect(() => open(text), text).toThrow(error);
+    else expect(taskIds(text), text).toContain('Flanker_test');
   }
 });

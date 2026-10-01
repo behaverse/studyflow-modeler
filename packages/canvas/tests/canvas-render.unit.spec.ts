@@ -2,12 +2,13 @@ import { expect, test } from '@playwright/test';
 
 import { renderSvg, type Canvas } from '@canvas/index.ts';
 import { INK } from '@canvas/view/theme.ts';
-import { studyflowToDefinitions } from '@core/document';
+import { xmlToStudy } from '@core/document';
 import { CHROME } from '@canvas/render/labels.ts';
 import { LINE_HEIGHT } from '@canvas/study/text.ts';
 import { choreographyBandHeight, PARTICIPANT_BAND } from '@core/document/outline.ts';
 
-import { canvasOn, diElements, edge, freshModdle, graphicsOf, installDocument, loadCanvas, loadYaml, node, svgOf } from './canvasHarness';
+import { boundsOf, canvasOn, edge, graphicsOf, installDocument, loadCanvas, loadYaml, node, svgOf, waypointsOf } from './canvasHarness';
+import { freshMetamodel, studyModel } from '@tests/schemas';
 import { exampleNames, exampleXml } from '@tests/utils';
 
 /**
@@ -53,15 +54,14 @@ function translateOf(g: Element | undefined): { x: number; y: number } {
 
 for (const name of exampleNames) {
   test(`${name}: renders to SVG mirroring its DI`, async () => {
-    const moddle = freshModdle();
-    const { rootElement: definitions } = await moddle.fromXML(await exampleXml(name));
-
-    const shapes = diElements(definitions).filter((di) => di.$type === 'bpmndi:BPMNShape');
-    const edges = diElements(definitions).filter((di) => di.$type === 'bpmndi:BPMNEdge');
+    const model = await xmlToStudy(await exampleXml(name), freshMetamodel());
+    const drawings = Object.entries(model.study.layout);
+    const shapes = drawings.filter(([, drawing]) => 'bounds' in drawing);
+    const edges = drawings.filter(([, drawing]) => 'waypoint' in drawing);
 
     // (a) A full render, and a picture of it, do not throw.
     const warnings: string[] = [];
-    const canvas = canvasOn(definitions, { onWarning: (w: string) => warnings.push(w) });
+    const canvas = canvasOn(model, { onWarning: (w: string) => warnings.push(w) });
     const svg = renderSvg(canvas.study);
     expect(svg, `${name}: produces an SVG string`).toContain('<svg');
     expect(svg.length, `${name}: SVG is non-empty`).toBeGreaterThan(0);
@@ -73,15 +73,12 @@ for (const name of exampleNames) {
     expect(shapeGroups.length, `${name}: one <g.sf-shape> per BPMNShape`).toBe(
       shapes.length,
     );
-    for (const shape of shapes) {
-      const id = shape.bpmnElement?.id as string;
+    for (const [id, drawing] of shapes) {
       const g = graphicsOf(canvas, id);
       expect(g, `${name}: shape ${id} has a rendered group`).toBeTruthy();
-      expect(g!.getAttribute('data-element-type')).toBe(shape.bpmnElement.$type);
-      expect(translateOf(g), `${name}: shape ${id} sits at its DI bounds`).toEqual({
-        x: shape.bounds.x,
-        y: shape.bounds.y,
-      });
+      expect(g!.getAttribute('data-element-type')).toBe(model.host(model.get(id)!));
+      const { x, y } = boundsOf(drawing)!;
+      expect(translateOf(g), `${name}: shape ${id} sits at its DI bounds`).toEqual({ x, y });
     }
 
     // (c) One line per BPMNEdge, through its di:waypoint list. The path rounds its
@@ -90,19 +87,16 @@ for (const name of exampleNames) {
     expect(lines.length, `${name}: one connection <path> per BPMNEdge`).toBe(
       edges.length,
     );
-    for (const di of edges) {
-      const id = di.bpmnElement?.id as string;
+    for (const [id, drawing] of edges) {
       const g = graphicsOf(canvas, id);
       expect(g, `${name}: edge ${id} has a rendered group`).toBeTruthy();
       const line = g!.querySelector('path.sf-connection-line');
       expect(line, `${name}: edge ${id} draws a connection path`).toBeTruthy();
-      const expected = (di.waypoint ?? [])
-        .map((wp: any) => `${wp.x},${wp.y}`)
-        .join(' ');
-      expect(line!.getAttribute('data-waypoints')).toBe(expected);
+      const waypoints = waypointsOf(drawing)!;
+      expect(line!.getAttribute('data-waypoints')).toBe(waypoints.map((wp) => `${wp.x},${wp.y}`).join(' '));
       // The drawn geometry still STARTS at the first waypoint, whatever the
       // corners in between do (arcs are cut out of a corner, never added around it).
-      const first = (di.waypoint ?? [])[0];
+      const first = waypoints[0];
       expect(pathStart(line!.getAttribute('d')!), `${name}: edge ${id} starts at its first waypoint`).toEqual({ x: first.x, y: first.y });
     }
   });
@@ -133,7 +127,8 @@ test('a group is captioned from its categoryValue, centred across the frame', as
   // The caption is NOT the group's `name` (it has none): BPMN keeps it on the
   // referenced `bpmn:CategoryValue`.
   for (const id of ['Group_BpmnEvents', 'Group_BpmnGateways', 'Group_Exec']) {
-    const caption = (node(canvas, id).businessObject as any).categoryValueRef?.value as string | undefined;
+    const { model } = canvas.study;
+    const caption = model.get(String(node(canvas, id).element.categoryValueRef))?.value as string | undefined;
     expect(caption, `${id} has a category value`).toBeTruthy();
     expect(textsOf(canvas, id), id).toEqual([caption]);
   }
@@ -148,11 +143,11 @@ test('a group is captioned from its categoryValue, centred across the frame', as
 test('a text annotation draws its `text`, wrapped — not its `name`', async () => {
   const canvas = await render('kitchensink');
   const lines = textsOf(canvas, 'Bd_Annotation');
-  const bo = node(canvas, 'Bd_Annotation').businessObject;
+  const note = node(canvas, 'Bd_Annotation').element;
   expect(lines.length).toBeGreaterThan(1);
   // The text, the whole text, and nothing else: a `name` is a placeholder BPMN does
   // not display, and drawing it was the bug.
-  expect(lines.join(' ')).toBe(bo.text);
+  expect(lines.join(' ')).toBe(note.text);
   // A note reads left by default, and says so: its `font` may align it otherwise.
   expect(graphicsOf(canvas, 'Bd_Annotation')!.querySelector('text')!.getAttribute('text-anchor')).toBe('start');
 });
@@ -459,8 +454,8 @@ state:
 `;
 
 test('a drawn label shows the run state its placeholders name; the model keeps the raw name', async () => {
-  const definitions = studyflowToDefinitions(STATE_YAML, freshModdle());
-  const canvas = canvasOn(definitions);
+  const model = studyModel(STATE_YAML);
+  const canvas = canvasOn(model);
 
   // The external label of the end event: resolved from its own state entry.
   const captionOf = (of: typeof canvas, owner: string): string => of.study.list({ kind: 'label' }).find((caption) => caption.owner === owner)!.id;
@@ -472,7 +467,7 @@ test('a drawn label shows the run state its placeholders name; the model keeps t
   const flowLabel = captionOf(canvas, 'Flow_1');
   expect(textsOf(canvas, flowLabel).join(' ')).toBe('excluded (n=1)');
   // Serialization is untouched.
-  expect(definitions.rootElements[0].flowElements[1].name).toBe('Excluded (n={count})');
+  expect(model.get('Excluded_Pre')!.name).toBe('Excluded (n={count})');
 
   // A picture shows what the view shows (the caption wraps after its first word).
   expect(renderSvg(canvas.study)).toContain('>(n=3)</text>');
@@ -626,7 +621,7 @@ test('a lane paints under what its depth draws on it: a note\'s link in a proces
 });
 
 test('a collapsed sub-process hides its contents but draws its own data associations', async () => {
-  // A data association's moddle parent is its activity, but it sits beside it: it once
+  // A data association is held by its activity, but it sits beside it: it once
   // counted as the collapsed container's content and went hidden with it.
   const { canvas } = loadYaml(SUBPROCESS_YAML);
   expect(graphicsOf(canvas, 'Hidden')!.getAttribute('display')).toBe('none');

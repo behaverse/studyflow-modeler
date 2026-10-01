@@ -9,8 +9,7 @@ import { createInterface } from 'node:readline';
 
 import { Study } from '@canvas/index.ts';
 import { planChecks } from '@core/checks';
-import { studyModelOf } from '@core/document';
-import { schemaModdle } from '@cli/studyfile';
+import { schemaMetamodel } from '@cli/studyfile';
 
 const PROTOCOL = '2025-06-18';
 
@@ -33,9 +32,8 @@ const FILE_TOOLS = [
 ];
 
 export async function mcp(path: string): Promise<void> {
-  const moddle = await schemaModdle();
   const warnings: string[] = [];
-  const study = await Study.open(await readFile(path, 'utf8'), { moddle, onWarning: (message: string) => warnings.push(message) } as never);
+  const study = await Study.open(await readFile(path, 'utf8'), { metamodel: await schemaMetamodel(), onWarning: (message: string) => warnings.push(message) });
   const xml = /\.(bpmn|xml)$/i.test(path);
   const send = (message: object) => process.stdout.write(`${JSON.stringify(message)}\n`);
   const reply = (id: Request['id'], result: object) => send({ jsonrpc: '2.0', id, result });
@@ -43,7 +41,7 @@ export async function mcp(path: string): Promise<void> {
 
   const call = async (name: string, args: unknown): Promise<object> => {
     if (name === 'check') {
-      const issues = planChecks(studyModelOf(study.definitions));
+      const issues = planChecks(study.model);
       return { ok: !issues.some((issue) => issue.severity === 'error'), issues, warnings };
     }
     if (name === 'save') {

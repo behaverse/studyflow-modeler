@@ -3,12 +3,11 @@ import { extname } from 'node:path';
 
 import { installedSkills } from '@cli/skills';
 
-import { looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, moddleOf, xmlToStudy, xmlToStudyflow, studyflowToXml } from '@core/document';
-import type { Moddle } from '@core/element/moddle';
-import { StudyModel } from '@core/model/index';
+import { looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, parseStudy, studyToXml } from '@core/document';
+import type { StudyModel } from '@core/model/index';
 import type { Metamodel } from '@core/model/metamodel';
 import { metamodelOf } from '@core/model/packages';
-import { readStudy, studyText } from '@core/model/yaml';
+import { studyText } from '@core/model/yaml';
 import { loadAllSchemas } from '@core/notation/loader';
 
 export type SourceKind = 'yaml' | 'xml';
@@ -29,11 +28,6 @@ export function schemaMetamodel(): Promise<Metamodel> {
   return metamodelPromise;
 }
 
-/** The moddle over the same schemas: what reads and writes BPMN XML. */
-export async function schemaModdle(): Promise<Moddle> {
-  return moddleOf(await schemaMetamodel());
-}
-
 export async function readSource(path: string): Promise<StudyflowSource> {
   const extension = extname(path).toLowerCase();
   return sourceOf(await readFile(path), extension === '.png' ? 'png' : extension === '.svg' ? 'svg' : 'text');
@@ -52,14 +46,13 @@ export function sourceOf(bytes: Uint8Array, container: StudyflowSource['containe
 /** The source as BPMN XML, whatever it arrived as. XML is passed through unread, so only YAML can warn. */
 export async function asXml(source: StudyflowSource, onWarning?: (message: string) => void): Promise<string> {
   if (source.kind === 'xml') return source.text;
-  return studyflowToXml(source.text, await schemaModdle(), onWarning);
+  return studyToXml(await parseStudy(source.text, await schemaMetamodel(), { onWarning }));
 }
 
 /** The source as `.studyflow` YAML, whatever it arrived as. */
 export async function asYaml(source: StudyflowSource, onWarning?: (message: string) => void): Promise<string> {
-  const xml = await asXml(source, onWarning);
-  // YAML was read on its way to XML; the XML written from it is not the input, so its reading is not reported.
-  return xmlToStudyflow(xml, await schemaModdle(), source.kind === 'xml' ? onWarning : undefined);
+  const model = await parseStudy(source.text, await schemaMetamodel(), { onWarning });
+  return studyText(model.study, model.metamodel);
 }
 
 export type ParseResult = {
@@ -74,14 +67,10 @@ export async function parseSource(source: StudyflowSource, { asWritten = false }
   const metamodel = await schemaMetamodel();
   const warnings: string[] = [];
   const onWarning = (message: string): void => { warnings.push(message); };
-  const model = source.kind === 'yaml'
-    ? new StudyModel(readStudy(source.text, metamodel, onWarning), metamodel)
-    : await xmlToStudy(source.text, metamodel, { asWritten, onWarning });
-  return { model, warnings };
+  return { model: await parseStudy(source.text, metamodel, { asWritten, onWarning }), warnings };
 }
 
 /** The study as `.studyflow` YAML, or as the BPMN XML it spells. */
 export async function studySource(model: StudyModel, kind: SourceKind): Promise<string> {
-  const text = studyText(model.study, model.metamodel);
-  return kind === 'yaml' ? text : studyflowToXml(text, await schemaModdle());
+  return kind === 'yaml' ? studyText(model.study, model.metamodel) : studyToXml(model);
 }

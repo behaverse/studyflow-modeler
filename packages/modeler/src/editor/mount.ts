@@ -6,21 +6,22 @@
 
 import { Canvas, renderSvg } from '@canvas/index.ts';
 import type { CanvasOptions, IconDef, Insets, Study } from '@canvas/index.ts';
+import { parseStudy } from '@core/document';
+import { extensionTypeOf, heldAttribute, type Element } from '@core/model/index';
+import type { Metamodel } from '@core/model/metamodel';
 import { getCatalog } from '@core/notation';
-import { StudyflowElement } from '@core/element';
 import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
 import { EventBus } from '@modeler/editor/bus';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
-import type { Editor, EditorModel, EditorSimulation, EditorTemplates, Moddle } from '@modeler/editor/port';
+import type { Editor, EditorModel, EditorSimulation, EditorTemplates } from '@modeler/editor/port';
 
 export type MountEditorOptions = {
   container: HTMLElement;
-  /** The document the editor opens on, read by `moddle`. */
+  /** The study the editor opens on, read by `metamodel`. */
   study: Study;
-  /** A moddle over `extensionSchemas`, the schemas enabled in Settings. */
-  moddle: Moddle;
-  extensionSchemas: Record<string, any>;
+  /** The metamodel of the schemas enabled in Settings. */
+  metamodel: Metamodel;
 };
 
 /**
@@ -33,14 +34,14 @@ const iconFor = (icon: string): IconDef => (/^data:image\//i.test(icon) ? { href
  * The app's glyph pipeline as the canvas's icon resolver: a marker name or a BPMN
  * local name in, a resolved glyph out. `null` means "this type has no glyph".
  */
-function resolveIcon(iconKey: string, businessObject?: any): IconDef | null | undefined {
+function resolveIcon(iconKey: string, element?: Element): IconDef | null | undefined {
   const marker = MARKER_ICONS[iconKey];
   if (marker) return iconFor(marker);
   if (iconKey.startsWith('iconify ') || iconKey.startsWith('i-')) return iconFor(iconKey);
-  if (businessObject) {
-    const element = StudyflowElement.fromBusinessObject(businessObject);
-    const templateIcon = element.businessObject.get?.('studyflow:icon');
-    const extEntry = element.extensionType ? getCatalog().getType(element.extensionType) : undefined;
+  if (element) {
+    const templateIcon = heldAttribute(element, 'icon');
+    const extensionType = extensionTypeOf(element);
+    const extEntry = extensionType ? getCatalog().getType(extensionType) : undefined;
     const bpmnFallback = iconKey === 'DataObjectReference' ? undefined : BPMN_ICON_OVERRIDES[`bpmn:${iconKey}`];
     const icon = templateIcon || extEntry?.iconClass || bpmnFallback;
     if (typeof icon === 'string' && icon) return iconFor(icon);
@@ -74,10 +75,7 @@ export function mountEditor(options: MountEditorOptions): Editor {
   // How the app draws a study, on the canvas and in a picture of it.
   const drawing: CanvasOptions = { iconResolver: resolveIcon };
   const canvas = new Canvas(options.container, study, { ...drawing, insets: () => coveredEdges(options.container) });
-  const model: EditorModel = {
-    moddle: () => options.moddle,
-    packages: () => options.extensionSchemas,
-  };
+  const model: EditorModel = { metamodel: () => options.metamodel };
 
   // The app's bus: the view's news and the study's, forwarded in the topics the app's modules hear.
   const bus = new EventBus();
@@ -89,10 +87,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
 
   const saveXML = async (): Promise<{ xml: string }> => ({ xml: await study.toXml() });
 
-  const importXML = async (xml: string): Promise<{ warnings: unknown[] }> => {
-    await study.load(xml);
-    return { warnings: [] };
-  };
 
   // What the app hears of the study, after the canvas has drawn it (and said `RootSet`): an edit, by id; an edit,
   // an undo or a redo moves the history; a load, an undo or a redo puts another document in place, which
@@ -118,10 +112,9 @@ export function mountEditor(options: MountEditorOptions): Editor {
     redo: () => study.redo(),
     canUndo: () => study.canUndo,
     canRedo: () => study.canRedo,
-    importXML,
+    open: async (text, onWarning) => study.load(await parseStudy(text, options.metamodel, { onWarning })),
     saveXML,
     toSvg: () => renderSvg(study, { ...drawing, scope: canvas.scope }),
-    getDefinitions: () => study.definitions,
     study,
     canvas,
     events: bus,

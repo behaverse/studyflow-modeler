@@ -41,6 +41,49 @@ export class StudyModel {
     for (const root of this.study.roots) visit(root, { key: 'rootElements' });
   }
 
+  /** Put `element`, and all it holds, at the end of `parent`'s list `key` (the study's roots without a parent). */
+  file(element: Element, parent: Element | undefined, key = 'rootElements'): void {
+    const list = parent ? (Array.isArray(parent[key]) ? parent[key] as Value[] : (parent[key] = [])) : this.study.roots;
+    if (!list.includes(element)) list.push(element as never);
+    this.indexUnder(element, { parent, key });
+  }
+
+  /** Take `element`, and all it holds, out of the list that holds it; where it was. */
+  unfile(element: Element): Holder | undefined {
+    const holder = this.holders.get(element);
+    if (!holder) return undefined;
+    const list = holder.parent ? holder.parent[holder.key] : this.study.roots;
+    if (Array.isArray(list)) {
+      const at = list.indexOf(element as never);
+      if (at >= 0) list.splice(at, 1);
+    } else if (holder.parent && holder.parent[holder.key] === element) {
+      delete holder.parent[holder.key];
+    }
+    const forget = (value: Value | undefined): void => {
+      if (Array.isArray(value)) value.forEach(forget);
+      else if (isElement(value)) {
+        this.holders.delete(value);
+        if (typeof value.id === 'string' && this.byId.get(value.id) === value) this.byId.delete(value.id);
+        for (const [key, child] of Object.entries(value)) if (key !== 'type') forget(child);
+      }
+    };
+    forget(element);
+    return holder;
+  }
+
+  /** Index `element`, and all it holds, as held at `holder`: what a write that sets a property to an element calls. */
+  indexUnder(element: Element, holder: Holder): void {
+    const visit = (value: Value | undefined, at: Holder): void => {
+      if (Array.isArray(value)) value.forEach((item) => visit(item, at));
+      else if (isElement(value)) {
+        this.holders.set(value, at);
+        if (typeof value.id === 'string' && value.id) this.byId.set(value.id, value);
+        for (const [key, child] of Object.entries(value)) if (key !== 'type') visit(child, { parent: value, key });
+      }
+    };
+    visit(element, holder);
+  }
+
   get(id: string | undefined): Element | undefined {
     return id === undefined ? undefined : this.byId.get(id);
   }
@@ -171,6 +214,24 @@ export class StudyModel {
 
 const isMapping = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
 
+/** The schema type that extends `element`, read off the element alone: its own type when a schema types it, else its
+ * first schema entry's (a provenance record is no such entry). */
+export function extensionTypeOf(element: Element | undefined): string | undefined {
+  if (!element) return undefined;
+  if (!element.type.startsWith('bpmn:')) return element.type;
+  const entries = Array.isArray(element.extensionElements) ? element.extensionElements.filter(isElement) : [];
+  return entries.find((entry) => isExtensionPrefix(entry.type.split(':')[0]))?.type;
+}
+
+/** What `element` holds under `name`, read off the element alone: its own value, else its schema entry's. */
+export function heldAttribute(element: Element | undefined, name: string): Value | undefined {
+  if (!element) return undefined;
+  if (name in element) return element[name];
+  const type = extensionTypeOf(element);
+  const entries = Array.isArray(element.extensionElements) ? element.extensionElements.filter(isElement) : [];
+  return type && type !== element.type ? entries.find((entry) => entry.type === type)?.[name] : undefined;
+}
+
 export function isExtensionPrefix(prefix: string | undefined): boolean {
   return !!prefix && !NON_EXTENSION_PREFIXES.has(prefix);
 }
@@ -179,6 +240,22 @@ export function isExtensionPrefix(prefix: string | undefined): boolean {
 export function yamlText(value: Value | undefined): string | undefined {
   if (typeof value === 'string') return value;
   return value && typeof value === 'object' && !Array.isArray(value) && !isElement(value) ? expandInline(value) : undefined;
+}
+
+/**
+ * What `element` holds under the attribute `name` (`bpmn:name`, `studyflow:checklist`), as a field shows it: its value
+ * or its schema's default, documentation as one text, a YAML-typed value as its text.
+ */
+export function readAttribute(model: StudyModel, element: Element | undefined, name: string): Value | undefined {
+  if (!element) return undefined;
+  const local = name.includes(':') ? name.slice(name.indexOf(':') + 1) : name;
+  const value = model.attributeOrDefault(element, local);
+  if (local === 'documentation' && Array.isArray(value)) {
+    const texts = value.map((entry) => (isElement(entry) ? entry.text : entry)).filter((text): text is string => typeof text === 'string');
+    return texts.length > 0 ? texts.join('\n\n') : undefined;
+  }
+  if (value && typeof value === 'object' && !Array.isArray(value) && !isElement(value)) return yamlText(value);
+  return value;
 }
 
 /** An element's first documentation, as its text: undefined when it has none. */

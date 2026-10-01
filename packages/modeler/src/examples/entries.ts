@@ -1,5 +1,6 @@
-import { studyflowToDefinitions } from '@core/document';
-import type { Moddle } from '@core/element/moddle';
+import { StudyModel } from '@core/model/index';
+import type { Metamodel } from '@core/model/metamodel';
+import { readStudy } from '@core/model/yaml';
 import { SCHEMA_MODELS, skillOfSchema } from '@core/notation/loader';
 import { compareExamples } from '@modeler/examples/catalog';
 import { exampleMetadata } from '@modeler/examples/metadata';
@@ -49,11 +50,11 @@ export function buildInitialEntries(): ExampleEntry[] {
  * The same entries with each example's title and blurb read in, and each example drawn. A
  * failed read keeps the card and marks it; an example this page's schemas cannot build is left out.
  */
-export function loadExampleEntries(moddle: Moddle): Promise<ExampleEntry[]> {
+export function loadExampleEntries(metamodel: Metamodel): Promise<ExampleEntry[]> {
   read ??= Promise.all(
     buildInitialEntries().map(async (entry) => {
       try {
-        return card(entry, await fetch(entry.url).then((r) => r.text()), moddle);
+        return card(entry, await fetch(entry.url).then((r) => r.text()), metamodel);
       } catch (err) {
         console.error(`Failed to read example ${entry.filename}:`, err);
         return { ...entry, error: 'Could not be read. Reload the page to try again.' };
@@ -64,15 +65,15 @@ export function loadExampleEntries(moddle: Moddle): Promise<ExampleEntry[]> {
 }
 
 /** An example's card, drawn; nothing when it names a type no enabled schema declares. */
-function card(entry: ExampleEntry, yaml: string, moddle: Moddle): ExampleEntry | undefined {
-  let definitions;
+function card(entry: ExampleEntry, yaml: string, metamodel: Metamodel): ExampleEntry | undefined {
+  let model;
   try {
-    definitions = studyflowToDefinitions(yaml, moddle);
+    model = new StudyModel(readStudy(yaml, metamodel, () => {}), metamodel);
   } catch (err) {
     console.warn(`Example ${entry.filename} is left out of the gallery:`, err);
     return undefined;
   }
-  const metadata = exampleMetadata(definitions, entry.title);
-  const svg = drawPreview(definitions);
+  const metadata = exampleMetadata(model, entry.title);
+  const svg = drawPreview(model);
   return { ...entry, ...metadata, thumb: URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })) };
 }

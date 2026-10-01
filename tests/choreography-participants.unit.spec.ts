@@ -4,14 +4,14 @@ import { Study } from '@canvas/index.ts';
 import { bandsOf, ensureParticipantsIn } from '@core/model/choreography';
 import { isElement } from '@core/model/index';
 import { selectBandParticipant, swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
-import { freshModdle } from './schemas';
+import { freshMetamodel } from './schemas';
 
 /** Flipping a choreography task's `initiatingParticipantRef`, and clearing a band. */
 
 const HEAD = 'definitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n';
 
 test('swap flips the initiating participant', async () => {
-  const study = await Study.open(`id: Defs\n${HEAD}Proc:\n  type: Process\n  flowElements:\n    Consent: { type: ChoreographyTask, name: Give consent }\n`, { moddle: freshModdle() });
+  const study = await Study.open(`id: Defs\n${HEAD}Proc:\n  type: Process\n  flowElements:\n    Consent: { type: ChoreographyTask, name: Give consent }\n`, { metamodel: freshMetamodel() });
   const task = () => study.element('Consent')!;
   study.revise('Consent', (consent, model, ids) => { ensureParticipantsIn(model, consent, ids); });
   const [top, bottom] = task().participantRef as string[];
@@ -40,7 +40,7 @@ Proc:
       type: ChoreographyTask
       extensionElements:
         - type: cognitive:CognitiveTask
-`, { moddle: freshModdle() });
+`, { metamodel: freshMetamodel() });
   // The model's pool is drawn, with no process of its own; the actor only takes bands.
   const drawn = { get: (id: string) => (id === 'Model' ? {} : undefined) };
   const takenBy = (id: string) => study.revise('Play', (task) => { task.participantRef = [id]; });

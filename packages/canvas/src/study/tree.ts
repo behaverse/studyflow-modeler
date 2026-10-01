@@ -2,8 +2,8 @@
 
 import { BPMN } from '@core/constants.ts';
 import { isExpandable } from '@core/document/outline.ts';
-import { getProperty } from '@core/element/moddle.ts';
-import type { Bounds, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import { idsIn } from '@canvas/study/elements.ts';
 
 export const COLLAPSED_SIZE = { width: 100, height: 80 } as const;
 export const EXPANDED_SIZE = { width: 350, height: 200 } as const;
@@ -66,7 +66,7 @@ export function zRankOf(element: SceneElement): number {
 /** Whether `element` sits inside `node`, however deep. */
 /** The activity a boundary event sits on; none for any other shape. */
 export function hostOf(scene: Scene, node: SceneNode): SceneNode | undefined {
-  const host = scene.byBusinessObject.get(getProperty(node.businessObject, 'attachedToRef') as ModdleObject);
+  const host = scene.elementsById.get(idsIn(node.element.attachedToRef)[0] ?? '');
   return host?.kind === 'node' ? host : undefined;
 }
 

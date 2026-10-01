@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas, Study, type Bounds, type Insets } from '@canvas/index.ts';
+import { studyModel } from '@tests/schemas';
 
 import { hitAt, installDocument, jsdomWindow, loadYaml, pointerDown, pointerMove, pointerUp, svgOf } from './canvasHarness';
 
@@ -129,7 +130,7 @@ function covered(insets: Insets): Canvas {
   const container = installDocument().createElement('div');
   Object.defineProperties(container, { clientWidth: { value: 400 }, clientHeight: { value: 600 } });
   container.getBoundingClientRect = () => ({ x: 0, y: 0, left: 0, top: 0, right: 400, bottom: 600, width: 400, height: 600 }) as DOMRect;
-  return new Canvas(container, Study.fromDefinitions(loadYaml(FIXTURE_YAML).definitions), { insets: () => insets });
+  return new Canvas(container, Study.of(studyModel(FIXTURE_YAML)), { insets: () => insets });
 }
 
 test('a fit and a reveal keep the diagram inside what the host\'s own UI leaves of the view', async () => {

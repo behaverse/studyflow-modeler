@@ -1,37 +1,27 @@
 /**
  * Deletion: the closure of what cannot survive the removed elements (contents,
  * attached boundary events, incident edges), unwired from every reference in the
- * moddle tree and dropped from the scene.
+ * study model and dropped from the scene.
  */
 
 import { isDataAssociationType } from '@core/element/index.ts';
-import { getProperty, setProperty } from '@core/element/moddle.ts';
+import type { Element } from '@core/model/index.ts';
 
 import { activityOf, pruneDataAssociation } from '@canvas/study/dataAssociation.ts';
+import { dropRef, idsIn, listOf, refOf } from '@canvas/study/elements.ts';
 import type { IdGenerator } from '@canvas/study/ids.ts';
 import { dropLabel } from '@canvas/study/labels.ts';
-import {
-  asList,
-  asModdle,
-  clearParent,
-  clearRef,
-  parentOf,
-  pullFrom,
-  pushInto,
-  refBOs,
-  setParent,
-  unfile,
-} from '@canvas/study/moddle.ts';
-import type { Drawable, ModdleObject, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Drawable, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { changeRoot } from '@canvas/study/root.ts';
 import { depthOf } from '@canvas/study/tree.ts';
 
 
-function attachedIndex(scene: Scene): Map<ModdleObject, SceneNode[]> {
-  const index = new Map<ModdleObject, SceneNode[]>();
+/** The boundary events on each activity, by its id. */
+function attachedIndex(scene: Scene): Map<string, SceneNode[]> {
+  const index = new Map<string, SceneNode[]>();
   for (const element of scene.elementsById.values()) {
     if (element.kind !== 'node') continue;
-    const host = asModdle(getProperty(element.businessObject, 'attachedToRef'));
+    const [host] = idsIn(element.element.attachedToRef);
     if (!host) continue;
     index.set(host, [...(index.get(host) ?? []), element]);
   }
@@ -46,15 +36,15 @@ function laneNodes(scene: Scene): SceneNode[] {
   return lanes;
 }
 
-/** Edges referencing a CONNECTION as an end (an association off a sequence flow). */
-function danglingRefIndex(scene: Scene): Map<ModdleObject, SceneEdge[]> {
-  const index = new Map<ModdleObject, SceneEdge[]>();
+/** Edges referencing a CONNECTION as an end (an association off a sequence flow), by that connection's id. */
+function danglingRefIndex(scene: Scene): Map<string, SceneEdge[]> {
+  const index = new Map<string, SceneEdge[]>();
   for (const element of scene.elementsById.values()) {
     if (element.kind !== 'edge') continue;
     for (const end of ['sourceRef', 'targetRef'] as const) {
-      for (const ref of refBOs(getProperty(element.businessObject, end))) {
-        if (scene.byBusinessObject.get(ref)?.kind !== 'edge') continue;
-        index.set(ref, [...(index.get(ref) ?? []), element]);
+      for (const id of idsIn(element.element[end])) {
+        if (scene.elementsById.get(id)?.kind !== 'edge') continue;
+        index.set(id, [...(index.get(id) ?? []), element]);
       }
     }
   }
@@ -71,11 +61,11 @@ function collectRemoval(scene: Scene, seeds: readonly SceneElement[]): Drawable[
     if (seen.has(element)) return;
     seen.add(element);
     out.push(element);
-    for (const edge of referencing.get(element.businessObject) ?? []) visit(edge);
+    for (const edge of referencing.get(element.id) ?? []) visit(edge);
     if (element.kind === 'edge') return;
     for (const child of element.children.slice()) if (child.kind !== 'label') visit(child);
     for (const edge of [...element.incoming, ...element.outgoing]) visit(edge);
-    for (const boundary of attached.get(element.businessObject) ?? []) visit(boundary);
+    for (const boundary of attached.get(element.id) ?? []) visit(boundary);
   };
   for (const seed of seeds) if (seed.kind !== 'label') visit(seed);
   return out;
@@ -89,7 +79,7 @@ export interface DeleteResult {
   rootChanged: boolean;
 }
 
-/** Remove `elements` and their closure from the scene and the document; the caller commits the result. */
+/** Remove `elements` and their closure from the scene and the study; the caller commits the result. */
 export function deleteElements(scene: Scene, elements: readonly SceneElement[], ids: IdGenerator): DeleteResult {
   const removed = collectRemoval(scene, elements);
   if (removed.length === 0) return { removed: [], changed: [], rootChanged: false };
@@ -107,16 +97,13 @@ export function deleteElements(scene: Scene, elements: readonly SceneElement[], 
   const nodes = removed
     .filter((el): el is SceneNode => el.kind === 'node')
     .sort((a, b) => depthOf(b) - depthOf(a));
-  for (const edge of edges) detachEdge(edge, removedSet, changed);
+  for (const edge of edges) detachEdge(scene, edge, removedSet, changed);
   for (const node of nodes) detachNode(node, scene, lanes, removedSet, changed);
   if (process) retireCollaboration(scene, collaboration, process);
 
   for (const element of removed) {
     dropLabel(scene, element);
     if (scene.elementsById.get(element.id) === element) scene.elementsById.delete(element.id);
-    if (scene.byBusinessObject.get(element.businessObject) === element) {
-      scene.byBusinessObject.delete(element.businessObject);
-    }
   }
   const parents = new Set<SceneNode>();
   for (const element of removed) {
@@ -135,14 +122,15 @@ export function deleteElements(scene: Scene, elements: readonly SceneElement[], 
 }
 
 /** The process of the collaboration root's first pool, when the deletion takes every pool it has. */
-function processLeftByLastPool(scene: Scene, removedSet: Set<SceneElement>): ModdleObject | undefined {
-  if (scene.root.$type !== 'bpmn:Collaboration') return undefined;
-  const pools = asList(getProperty(scene.root, 'participants')).filter((participant) => asModdle(getProperty(participant, 'processRef')));
-  const isRemoved = (pool: ModdleObject): boolean => {
-    const node = scene.byBusinessObject.get(pool);
+function processLeftByLastPool(scene: Scene, removedSet: Set<SceneElement>): Element | undefined {
+  const { model } = scene;
+  if (model.host(scene.root) !== 'bpmn:Collaboration') return undefined;
+  const pools = listOf(scene.root, 'participants').filter((participant) => participant.processRef);
+  const isRemoved = (pool: Element): boolean => {
+    const node = scene.elementsById.get(pool.id ?? '');
     return !!node && removedSet.has(node);
   };
-  return pools.length > 0 && pools.every(isRemoved) ? asModdle(getProperty(pools[0], 'processRef')) : undefined;
+  return pools.length > 0 && pools.every(isRemoved) ? refOf(model, pools[0], 'processRef') : undefined;
 }
 
 /**
@@ -150,31 +138,29 @@ function processLeftByLastPool(scene: Scene, removedSet: Set<SceneElement>): Mod
  * the collaboration files beside its pools moves to the process, and the collaboration goes unless actors that
  * only take bands are left in it.
  */
-function retireCollaboration(scene: Scene, collaboration: ModdleObject, process: ModdleObject): void {
-  for (const artifact of asList(getProperty(collaboration, 'artifacts'))) {
-    setParent(artifact, process);
-    pushInto(process, 'artifacts', artifact);
+function retireCollaboration(scene: Scene, collaboration: Element, process: Element): void {
+  const { model } = scene;
+  for (const artifact of listOf(collaboration, 'artifacts')) {
+    model.unfile(artifact);
+    model.file(artifact, process, 'artifacts');
   }
-  setProperty(collaboration, 'artifacts', []);
-  if (asList(getProperty(collaboration, 'participants')).length > 0) return;
-  pullFrom(scene.definitions, 'rootElements', collaboration);
-  clearParent(collaboration);
+  if (listOf(collaboration, 'participants').length > 0) return;
+  model.unfile(collaboration);
 }
 
-function detachEdge(edge: SceneEdge, removedSet: Set<SceneElement>, changed: Set<Drawable>): void {
-  const bo = edge.businessObject;
-  const sourceBOs = [...(edge.source ? [edge.source.businessObject] : []), ...refBOs(getProperty(bo, 'sourceRef'))];
-  const targetBOs = [...(edge.target ? [edge.target.businessObject] : []), ...refBOs(getProperty(bo, 'targetRef'))];
+function detachEdge(scene: Scene, edge: SceneEdge, removedSet: Set<SceneElement>, changed: Set<Drawable>): void {
+  const { model } = scene;
+  const flow = edge.element;
+  const ends = (key: 'sourceRef' | 'targetRef', drawn: SceneNode | undefined): Element[] =>
+    [...new Set([...(drawn ? [drawn.element] : []), ...idsIn(flow[key]).map((id) => model.get(id)).filter((end): end is Element => !!end)])];
 
-  if (isDataAssociationType(edge.type)) pruneDataAssociation(bo, activityOf(bo));
-  for (const end of sourceBOs) {
-    pullFrom(end, 'outgoing', bo);
-    if (getProperty(end, 'default') === bo) setProperty(end, 'default', undefined);
+  if (isDataAssociationType(edge.type)) pruneDataAssociation(model, flow, activityOf(model, flow));
+  for (const end of ends('sourceRef', edge.source)) {
+    dropRef(end, 'outgoing', flow);
+    if (end.default === flow.id) delete end.default;
   }
-  for (const end of targetBOs) pullFrom(end, 'incoming', bo);
-  clearRef(bo, 'sourceRef');
-  clearRef(bo, 'targetRef');
-  unfile(bo, [parentOf(bo), ...sourceBOs, ...targetBOs]);
+  for (const end of ends('targetRef', edge.target)) dropRef(end, 'incoming', flow);
+  model.unfile(flow);
 
   if (edge.source && !removedSet.has(edge.source)) {
     edge.source.outgoing = edge.source.outgoing.filter((e) => e !== edge);
@@ -195,31 +181,26 @@ function detachNode(
   removedSet: Set<SceneElement>,
   changed: Set<Drawable>,
 ): void {
-  const bo = node.businessObject;
+  const { model } = scene;
+  const element = node.element;
   for (const lane of lanes) {
-    if (lane !== node && pullFrom(lane.businessObject, 'flowNodeRef', bo) && !removedSet.has(lane)) {
-      changed.add(lane);
-    }
+    if (lane !== node && dropRef(lane.element, 'flowNodeRef', element) && !removedSet.has(lane)) changed.add(lane);
   }
   if (node.type === 'bpmn:Participant') releaseProcessRef(node, scene, removedSet);
-  const owner = parentOf(bo);
-  unfile(bo, [owner]);
+  const owner = model.unfile(element)?.parent;
   // An emptied lane set is meaningless on its own.
-  if (owner?.$type === 'bpmn:LaneSet') {
-    const remaining = getProperty(owner, 'lanes');
-    if (!Array.isArray(remaining) || remaining.length === 0) unfile(owner, [parentOf(owner)]);
-  }
+  if (owner && model.host(owner) === 'bpmn:LaneSet' && listOf(owner, 'lanes').length === 0) model.unfile(owner);
 }
 
 /** Drop the `bpmn:Process` a deleted pool depicted, unless something still needs it. */
 function releaseProcessRef(node: SceneNode, scene: Scene, removedSet: Set<SceneElement>): void {
-  const processRef = asModdle(getProperty(node.businessObject, 'processRef'));
-  if (!processRef) return;
+  const { model } = scene;
+  const process = refOf(model, node.element, 'processRef');
+  if (!process) return;
   for (const element of scene.elementsById.values()) {
     if (element === node || element.kind !== 'node' || removedSet.has(element)) continue;
-    if (asModdle(getProperty(element.businessObject, 'processRef')) === processRef) return;
+    if (idsIn(element.element.processRef)[0] === process.id) return;
   }
-  if (scene.root === processRef) return;
-  pullFrom(scene.definitions, 'rootElements', processRef);
-  clearParent(processRef);
+  if (scene.root === process) return;
+  model.unfile(process);
 }

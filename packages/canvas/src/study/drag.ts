@@ -7,11 +7,10 @@
 
 import { isContainerNode, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
-import { nameOf } from '@canvas/study/moddle.ts';
+import { idsIn, nameOf } from '@canvas/study/elements.ts';
 import { planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/study/text.ts';
 import { cropPoint } from '@core/document/outline.ts';
-import { getProperty } from '@core/element/moddle.ts';
 import { freeMoveEnd, moveBendpoint, moveBendpointSquare, moveTerminal, samePoints } from '@canvas/study/edit.ts';
 import { isRouted, orthogonalize, rerouteEdge } from '@canvas/study/orthogonal.ts';
 import { containerFor, type Rules, type Size } from '@canvas/study/rules.ts';
@@ -209,7 +208,7 @@ export class Drag {
       }
     }
     const min = target.kind === 'label'
-      ? labelMinSize(nameOf(target.businessObject))
+      ? labelMinSize(nameOf(target.element))
       : this.rules.minSizeFor(target);
     const labelOrigin = target.kind === 'node' && target.label?.pinned ? { x: target.label.x, y: target.label.y } : undefined;
     this.state = {
@@ -394,7 +393,7 @@ export class Drag {
       else right = left + min.width;
     }
     let minHeight = min.height;
-    if (target.kind === 'label') minHeight = Math.max(minHeight, labelHeightFor(nameOf(target.businessObject), right - left));
+    if (target.kind === 'label') minHeight = Math.max(minHeight, labelHeightFor(nameOf(target.element), right - left));
     if (bottom - top < minHeight) {
       if (handle.includes('n')) top = bottom - minHeight;
       else bottom = top + minHeight;
@@ -443,9 +442,9 @@ export class Drag {
 /** The shapes attached to `hosts` (boundary events) that are not among them already. */
 function attachedTo(scene: Scene, hosts: readonly SceneNode[]): SceneNode[] {
   const moving = new Set(hosts);
-  const bos = new Set(hosts.map((host) => host.businessObject));
+  const ids = new Set(hosts.map((host) => host.id));
   return [...scene.elementsById.values()].filter((element): element is SceneNode =>
-    element.kind === 'node' && !moving.has(element) && bos.has(getProperty(element.businessObject, 'attachedToRef')));
+    element.kind === 'node' && !moving.has(element) && ids.has(idsIn(element.element.attachedToRef)[0] ?? ''));
 }
 
 function movedFrom(state: DragState, element: SceneElement): boolean {

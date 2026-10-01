@@ -1,11 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 import './pageGlobals';
-import { studyflowToDefinitions } from '@core/document';
 import { defineStudyflowCanvas, type StudyflowCanvasElement } from '@canvas/element.ts';
 import { Study } from '@canvas/index.ts';
+import { freshMetamodel, studyModel } from '@tests/schemas';
 
-import { freshModdle, installDocument } from './canvasHarness';
+import { installDocument } from './canvasHarness';
 
 /** `<studyflow-canvas>` in jsdom: the element a page embeds, built on the canvas's index alone. */
 
@@ -29,7 +29,7 @@ test('<studyflow-canvas> shows the study it is handed, looks only when readonly,
   element.setAttribute('readonly', '');
   doc.body.appendChild(element as unknown as Node);
 
-  element.study = Study.fromDefinitions(studyflowToDefinitions(study('Handed'), freshModdle()));
+  element.study = Study.of(studyModel(study('Handed')));
   expect(element.querySelector('[data-element-id="Handed"]')).not.toBeNull();
   expect(element.canvas?.editable).toBe(false);
   element.removeAttribute('readonly');
@@ -38,7 +38,7 @@ test('<studyflow-canvas> shows the study it is handed, looks only when readonly,
   const fetched = globalThis.fetch;
   globalThis.fetch = (async () => ({ ok: true, text: async () => study('Read') })) as unknown as typeof fetch;
   try {
-    element.moddle = freshModdle();
+    element.metamodel = freshMetamodel();
     element.setAttribute('src', 'read.studyflow.yaml');
     await expect.poll(() => element.querySelector('[data-element-id="Read"]')).not.toBeNull();
     expect(element.querySelector('[data-element-id="Handed"]'), 'one view at a time').toBeNull();

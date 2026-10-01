@@ -1,19 +1,6 @@
 /** Element colors: `#rrggbb` normalization and the two bpmn.io DI vocabularies. */
 
-import { getProperty } from '@core/element/moddle.ts';
-
-import type { ElementColors, ModdleObject } from '@canvas/study/scene.ts';
-
-/** DI attribute names per colour role, current vocabulary first, legacy second. */
-export const COLOR_PROPERTIES: Readonly<Record<'fill' | 'stroke', readonly string[]>> = {
-  fill: ['color:background-color', 'bioc:fill'],
-  stroke: ['color:border-color', 'bioc:stroke'],
-};
-
-const READ_ORDER: Readonly<Record<'fill' | 'stroke', readonly string[]>> = {
-  fill: ['fill', 'background-color', 'bioc:fill', 'color:background-color'],
-  stroke: ['stroke', 'border-color', 'bioc:stroke', 'color:border-color'],
-};
+import type { ElementColors } from '@canvas/study/scene.ts';
 
 const SHORT_HEX = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i;
 const FULL_HEX = /^#[0-9a-f]{6}$/i;
@@ -41,21 +28,6 @@ export function normalizeColors(colors: ElementColors): ElementColors {
   const out: ElementColors = {};
   for (const role of ['fill', 'stroke'] as const) {
     if (role in colors) out[role] = normalizeColor(colors[role]) ?? null;
-  }
-  return out;
-}
-
-/** The colours a `bpmndi:BPMNShape` / `BPMNEdge` carries, in either vocabulary. */
-export function readColorsOf(di: ModdleObject | undefined): { fill?: string; stroke?: string } {
-  const out: { fill?: string; stroke?: string } = {};
-  for (const role of ['fill', 'stroke'] as const) {
-    for (const name of READ_ORDER[role]) {
-      const value = getProperty(di, name);
-      if (typeof value === 'string' && value) {
-        out[role] = value;
-        break;
-      }
-    }
   }
   return out;
 }

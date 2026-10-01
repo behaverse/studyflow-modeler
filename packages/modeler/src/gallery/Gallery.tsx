@@ -67,7 +67,7 @@ export function GalleryDialog({ isOpen, onClose }: Props) {
     if (!isOpen || !modeler) return;
     let cancelled = false;
 
-    loadExampleEntries(modeler.model.moddle()).then((read) => {
+    loadExampleEntries(modeler.model.metamodel()).then((read) => {
       if (!cancelled) setEntries(read);
     });
 

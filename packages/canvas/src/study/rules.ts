@@ -4,17 +4,17 @@
  * then plain structural BPMN sense.
  */
 
+import { extensionTypeOf } from '@core/model/index.ts';
 import { isDataShape } from '@core/document/outline.ts';
-import { getExtensionType } from '@core/element/index.ts';
 import { bpmnFamilyOf, isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 import type { TypeCatalog } from '@core/notation/query.ts';
-import type { ModdleObject } from '@canvas/study/scene.ts';
+import type { Element } from '@core/model/index.ts';
 
 /** The structural minimum a rule needs; a detached palette shape satisfies it. */
 export interface RuleElement {
   readonly type?: string;
-  readonly businessObject?: ModdleObject;
+  readonly element?: Element;
   readonly parent?: RuleElement;
   readonly children?: readonly unknown[];
   readonly source?: RuleElement;
@@ -50,7 +50,7 @@ function isFlowContainer(type: string): boolean {
 }
 
 function bpmnTypeOf(element: RuleElement | undefined, catalog?: TypeCatalog): string {
-  const raw = element?.type ?? (element?.businessObject?.$type as string | undefined);
+  const raw = element?.type ?? element?.element?.type;
   if (!raw) return '';
   if (raw.startsWith('bpmn:')) return raw;
   return catalog?.bpmnTypeOf(raw) ?? raw;
@@ -59,8 +59,7 @@ function bpmnTypeOf(element: RuleElement | undefined, catalog?: TypeCatalog): st
 /** The extension type when there is one, else the BPMN type: what the schema rule is keyed by. */
 function typeRefOf(element: RuleElement | undefined): string | undefined {
   if (!element) return undefined;
-  const bo = element.businessObject;
-  return (bo ? getExtensionType(bo) : undefined) ?? element.type ?? (bo?.$type as string | undefined);
+  return extensionTypeOf(element.element) ?? element.type ?? element.element?.type;
 }
 
 const MAX_DEPTH = 64;

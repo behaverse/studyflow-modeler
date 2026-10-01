@@ -3,8 +3,9 @@ import { expect, test } from '@playwright/test';
 import type { Canvas, NewShape } from '@canvas/index.ts';
 import { APPEND_DISTANCE } from '@canvas/study/autoplace.ts';
 import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
+import type { Element } from '@core/model/index';
 
-import { diOf, edge, loadYaml, node, sceneOf, written, type Loaded } from './canvasHarness';
+import { edge, loadYaml, node, savedDrawing, sceneOf, type Loaded } from './canvasHarness';
 
 /**
  * Click-append (`study/autoplace.ts`). A clicked append needs no pointer, so the
@@ -138,7 +139,7 @@ Process_1:
 test.describe('auto-place (click-append)', () => {
   test('appends the shape and the flow that reaches it, both written to the document, and selects the shape', async () => {
     const loaded = load();
-    const { canvas, definitions } = loaded;
+    const { canvas } = loaded;
     const source = node(canvas, 'Task_1');
 
     const appended = appendFrom(canvas, source, { type: 'bpmn:EndEvent', name: 'Appended' });
@@ -148,37 +149,36 @@ test.describe('auto-place (click-append)', () => {
     expect(appended!.x).toBe(source.x + source.width + APPEND_DISTANCE);
     expect(appended!.y + appended!.height / 2).toBe(source.y + source.height / 2);
 
-    // The business object landed in the process, carrying the descriptor's attributes...
-    const process = definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process');
-    const flowElements = process.flowElements ?? [];
-    expect(flowElements.find((f: any) => f.id === appended!.id)?.name).toBe('Appended');
+    // The element landed in the process, carrying the descriptor's attributes...
+    const { model } = canvas.study;
+    const flowElements = (model.study.roots.find((r) => model.isA(r, 'bpmn:Process'))!.flowElements ?? []) as Element[];
+    expect(flowElements.find((f) => f.id === appended!.id)?.name).toBe('Appended');
 
-    // ...with a sequence flow from the source to it, wired both ways.
-    const flow = flowElements.find(
-      (f: any) => f.$type === 'bpmn:SequenceFlow' && f.targetRef?.id === appended!.id,
-    );
+    // ...with a sequence flow from the source to it.
+    const flow = flowElements.find((f) => f.type === 'bpmn:SequenceFlow' && f.targetRef === appended!.id)!;
     expect(flow).toBeTruthy();
-    expect(flow.sourceRef.id).toBe('Task_1');
+    expect(flow.sourceRef).toBe('Task_1');
 
-    // ...and DI for both halves, which is what makes the append survive a round-trip.
-    const saved = await written(loaded);
-    expect(diOf(saved, appended!.id)?.$type).toBe('bpmndi:BPMNShape');
-    expect(diOf(saved, flow.id)?.$type).toBe('bpmndi:BPMNEdge');
+    // ...and a drawing for both halves, which is what makes the append survive a round-trip.
+    expect(savedDrawing(loaded, appended!.id)?.bounds).toBeTruthy();
+    expect(savedDrawing(loaded, flow.id!)?.waypoint).toBeTruthy();
 
     // The shape is what is left selected, not the flow drawn to it.
     expect(canvas.selection).toEqual([appended!.id]);
   });
 
   test('refuses to append from an end event, writing nothing at all', async () => {
-    const { canvas, definitions } = load();
-    const before = (definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process').flowElements ?? []).length;
+    const { canvas } = load();
+    const { model } = canvas.study;
+    const flowCount = (): number => ((model.study.roots.find((r) => model.isA(r, 'bpmn:Process'))!.flowElements ?? []) as Element[]).length;
+    const before = flowCount();
 
     // `shape.append` is false for an end event (nothing may follow it), and the
     // gate is asked BEFORE the shape is minted — otherwise a refused connection
     // would leave an orphan behind.
     expect(appendFrom(canvas, node(canvas, 'End_1'), { type: 'bpmn:Task' })).toBeUndefined();
 
-    const after = (definitions.rootElements.find((r: any) => r.$type === 'bpmn:Process').flowElements ?? []).length;
+    const after = flowCount();
     expect(after).toBe(before);
   });
 

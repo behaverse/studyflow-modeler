@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { AttributeSpec } from '@core/notation';
 import type { Element, StudyModel } from '@core/model/index';
-import { readAttribute } from '@modeler/inspector/element';
+import { readAttribute } from '@core/model/index';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 

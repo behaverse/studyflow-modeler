@@ -5,7 +5,7 @@ import { Study } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 import { runUpdateMessage } from '@modeler/inspector/commands';
 import { messageStructureOf } from '@modeler/inspector/stateProperties';
-import { freshModdle } from './schemas';
+import { freshMetamodel } from './schemas';
 
 /** A message flow's Message field: `messageRef` -> `bpmn:Message` -> `itemRef` -> `bpmn:ItemDefinition.structureRef`. */
 
@@ -31,7 +31,7 @@ R:
 `;
 
 test('the Message field makes one message per structure, shares it, and drops it with its last flow', async () => {
-  const study = await Study.open(FILE, { moddle: freshModdle() });
+  const study = await Study.open(FILE, { metamodel: freshMetamodel() });
   const editor = { study } as unknown as Editor;
   const flow = (id: string) => study.element(id)!;
   const roots = (type: string) => study.model.study.roots.filter((root) => root.type === type);

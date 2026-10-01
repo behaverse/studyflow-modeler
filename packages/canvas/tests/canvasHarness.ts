@@ -1,13 +1,13 @@
 /**
  * The preamble every canvas unit spec used to re-declare.
  *
- * A canvas spec needs the same three things before it can assert anything: a fresh
- * moddle over the shipped schemas, with their catalog installed (`@tests/schemas`), a
+ * A canvas spec needs the same three things before it can assert anything: the
+ * metamodel of the shipped schemas, with their catalog installed (`@tests/schemas`), a
  * DOM to mint SVG into (jsdom: a canvas draws in its container's document, and a
  * picture drawn without one in the document {@link installDocument} sets), and a pointer shim, because a `Canvas` listens for real
  * `pointerdown`/`pointermove`/`pointerup` events in *screen* coordinates while a
  * test only knows *diagram* coordinates. Then it reads what it did: a scene element
- * by id, a `bpmndi` element, the document as XML.
+ * by id, a drawing in the layout the study writes, the document as XML.
  *
  * All of it lives here once. A spec that drives the editor calls {@link loadCanvas}
  * or {@link loadYaml}, which install the document for it.
@@ -27,10 +27,8 @@ import type { Scene } from '@canvas/study/scene.ts';
 import { studyInternals } from '@canvas/study/Study.ts';
 import type { Bounds, CanvasOptions, ImportOptions } from '@canvas/index.ts';
 import type { SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
-import { studyflowToDefinitions } from '@core/document';
-import { freshModdle } from '@tests/schemas';
-
-export { freshModdle };
+import type { Drawing, StudyModel } from '@core/model/index';
+import { freshMetamodel, studyModel } from '@tests/schemas';
 
 let jsdom: JSDOM | undefined;
 
@@ -47,36 +45,29 @@ export function installDocument(): Document {
   return doc;
 }
 
-/** A parsed fixture and the canvas that shows it — the shape every spec used. */
+/** A fixture's canvas — the shape every spec used. */
 export interface Loaded {
   canvas: Canvas;
-  /** The live `bpmn:Definitions` tree the canvas's study edits in place. */
-  definitions: any;
-  /** The moddle instance it was parsed with. */
-  moddle: any;
 }
 
 /** How the study reads the document, and how the canvas draws it. */
 export type LoadOptions = ImportOptions & CanvasOptions;
 
-/** A fresh {@link Canvas}, in a detached container, on a study of `definitions`. */
-export function canvasOn(definitions: any, { onWarning, ...options }: LoadOptions = {}): Canvas {
+/** A fresh {@link Canvas}, in a detached container, on a study of `model`. */
+export function canvasOn(model: StudyModel, { onWarning, ...options }: LoadOptions = {}): Canvas {
   const container = installDocument().createElement('div');
-  return new Canvas(container, Study.fromDefinitions(definitions, { onWarning }), options);
+  return new Canvas(container, Study.of(model, { onWarning }), options);
 }
 
-/** Parse `xml` and show it in a fresh {@link Canvas}. */
-export async function loadCanvas(xml: string, options: LoadOptions = {}): Promise<Loaded> {
-  const moddle = freshModdle();
-  const { rootElement: definitions } = await moddle.fromXML(xml);
-  return { canvas: canvasOn(definitions, options), definitions, moddle };
+/** Read `xml` and show it in a fresh {@link Canvas}. */
+export async function loadCanvas(xml: string, { onWarning, ...options }: LoadOptions = {}): Promise<Loaded> {
+  const study = await Study.open(xml, { metamodel: freshMetamodel(), onWarning });
+  return { canvas: new Canvas(installDocument().createElement('div'), study, options) };
 }
 
-/** Build `yaml`, a `.studyflow.yaml` text, and show it in a fresh {@link Canvas}, as the modeler opens the file. */
+/** Read `yaml`, a `.studyflow.yaml` text, and show it in a fresh {@link Canvas}, as the modeler opens the file. */
 export function loadYaml(yaml: string, options: LoadOptions = {}): Loaded {
-  const moddle = freshModdle();
-  const definitions = studyflowToDefinitions(yaml, moddle);
-  return { canvas: canvasOn(definitions, options), definitions, moddle };
+  return { canvas: canvasOn(studyModel(yaml, options.onWarning), options) };
 }
 
 /** A point in DIAGRAM coordinates — what a spec reads off the scene or the DI. */
@@ -226,25 +217,28 @@ export function centre(box: Bounds): Pt {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-/**
- * Every `bpmndi:BPMNShape` and `bpmndi:BPMNEdge` the definitions hold, across their
- * planes. A study writes its geometry back only when it writes its file ({@link written}).
- */
-export function diElements(definitions: any): any[] {
-  return (definitions.diagrams ?? []).flatMap((diagram: any) => diagram.plane?.planeElement ?? []);
+/** The drawing of `id` in the file the study writes, read back: what a spec finds there is what was saved. */
+export function savedDrawing({ canvas }: Loaded, id: string): Drawing | undefined {
+  return studyModel(canvas.study.toYaml()).study.layout[id];
 }
 
-/** The `bpmndi` shape or edge that draws `id`. */
-export function diOf(definitions: any, id: string): any {
-  return diElements(definitions).find((di) => di.bpmnElement?.id === id);
+/** A drawing's box, as numbers. */
+export function boundsOf(drawing: Drawing | undefined): Bounds | undefined {
+  if (typeof drawing?.bounds !== 'string') return undefined;
+  const [x, y, width, height] = drawing.bounds.split(/\s+/).map(Number);
+  return { x, y, width, height };
+}
+
+/** A drawing's route, as points. */
+export function waypointsOf(drawing: Drawing | undefined): Pt[] | undefined {
+  if (typeof drawing?.waypoint !== 'string') return undefined;
+  return drawing.waypoint.split(/\s+/).map((point) => {
+    const [x, y] = point.split(',').map(Number);
+    return { x, y };
+  });
 }
 
 /** The document as the study writes its file. */
 export async function xmlOf({ canvas }: Loaded): Promise<string> {
   return canvas.study.toXml();
-}
-
-/** The file the study writes, read back: the DI a spec finds there is what was saved. */
-export async function written(loaded: Loaded): Promise<any> {
-  return (await loaded.moddle.fromXML(await xmlOf(loaded))).rootElement;
 }

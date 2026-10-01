@@ -18,8 +18,8 @@ import { connectsToFixture, loadSchemaModels } from '@tests/schemas';
  *   into a start event, no self-loop, sequence vs. message flow by participant
  *   boundary, containment.
  *
- * The rules are pure, so nothing here needs a DOM, a canvas or a moddle instance:
- * a `RuleElement` is any object carrying `type` / `businessObject` / `parent`,
+ * The rules are pure, so nothing here needs a DOM, a canvas or a study:
+ * a `RuleElement` is any object carrying `type` / `element` / `parent`,
  * which is exactly what `SceneNode`, `SceneEdge` and a detached palette shape all
  * are. Each table row is the question, the rules' answer and the expected one.
  */
@@ -45,18 +45,15 @@ interface NodeOptions {
   isExpanded?: boolean;
 }
 
-/** A scene-node-shaped element: `type` is the BPMN type, the BO carries the extension. */
+/** A scene-node-shaped element: `type` is the BPMN type, its element carries the extension. */
 function node(type: string, options: NodeOptions = {}): RuleElement {
-  const businessObject: any = { $type: type };
-  if (options.extension) {
-    businessObject.extensionElements = { $type: 'bpmn:ExtensionElements', values: [{ $type: options.extension }] };
-  }
-  return { type, businessObject, parent: options.parent, isExpanded: options.isExpanded, incoming: [], outgoing: [] };
+  const element = { type, ...(options.extension ? { extensionElements: [{ type: options.extension }] } : {}) };
+  return { type, element, parent: options.parent, isExpanded: options.isExpanded, incoming: [], outgoing: [] };
 }
 
 /** A scene-edge-shaped element. */
 function edge(type: string, source?: RuleElement, target?: RuleElement): RuleElement {
-  return { type, businessObject: { $type: type }, source, target };
+  return { type, element: { type }, source, target };
 }
 
 /** An edge registered on both of its ends, the way the scene holds one. */
@@ -156,7 +153,7 @@ test('canReconnect judges the dragged end with the one left in place, and keeps 
 test('what may be created, or retyped, where', () => {
   const pool = node('bpmn:Participant');
   const lane = node('bpmn:Lane', { parent: pool });
-  const collaboration: RuleElement = { businessObject: { $type: 'bpmn:Collaboration' } };
+  const collaboration: RuleElement = { element: { type: 'bpmn:Collaboration' } };
   const expanded = node('bpmn:SubProcess', { isExpanded: true });
   const collapsed = node('bpmn:SubProcess', { isExpanded: false });
   const task = node('bpmn:Task');

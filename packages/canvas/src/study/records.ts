@@ -1,14 +1,13 @@
 /**
  * An element as plain data, what a study's reads return: what it is, where it sits and how it connects, by id.
- * JSON through and through, so a host, a spec and an AI read it alike; the moddle behind it stays in-process
- * (`study.businessObject(id)`).
+ * JSON through and through, so a host, a spec and an AI read it alike; the element as the study model holds it is
+ * `study.element(id)`.
  */
 
-import { getExtensionType } from '@core/element/index.ts';
-import { nameOf } from '@canvas/study/moddle.ts';
-import { isRootElement, type Bounds, type Font, type ModdleObject, type Point, type RootElement, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
+import type { Element, StudyModel } from '@core/model/index.ts';
+import { idsIn, nameOf } from '@canvas/study/elements.ts';
+import { isRootElement, type Bounds, type Font, type Point, type RootElement, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { isExpandable } from '@core/document/outline.ts';
-import { getProperty } from '@core/element/moddle.ts';
 import { planeOf } from '@canvas/study/tree.ts';
 
 export interface ElementRecord {
@@ -50,8 +49,8 @@ export interface ElementRecord {
 }
 
 /** `element` as data. */
-export function recordOf(element: SceneElement | RootElement): ElementRecord {
-  if (isRootElement(element)) return { id: element.id, kind: 'root', type: element.type, ...describe(element.businessObject) };
+export function recordOf(model: StudyModel, element: SceneElement | RootElement): ElementRecord {
+  if (isRootElement(element)) return { id: element.id, kind: 'root', type: element.type, ...describe(model, element.element) };
   const box = (bounds: Bounds): Bounds => ({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height });
   if (element.kind === 'label') {
     return { id: element.id, kind: 'label', type: element.type, owner: element.owner.id, bounds: box(element), ...(element.pinned ? { pinned: true } : {}) };
@@ -60,7 +59,7 @@ export function recordOf(element: SceneElement | RootElement): ElementRecord {
   const placed = {
     id: element.id,
     type: element.type,
-    ...describe(element.businessObject),
+    ...describe(model, element.element),
     ...(element.parent ? { parent: element.parent.id } : {}),
     ...(plane ? { plane: plane.id } : {}),
   };
@@ -74,17 +73,17 @@ export function recordOf(element: SceneElement | RootElement): ElementRecord {
       ...styleOf(element),
     };
   }
-  const host = getProperty(element.businessObject, 'attachedToRef') as ModdleObject | undefined;
-  const takesDefault = !!(element.businessObject.$descriptor as { propertiesByName?: Record<string, unknown> } | undefined)?.propertiesByName?.default;
+  const [host] = idsIn(element.element.attachedToRef);
+  const takesDefault = !!model.property(element.element, 'default');
   return {
     ...placed,
     kind: 'node',
     bounds: box(element),
     ...(isExpandable(element.type) ? { expanded: element.isExpanded !== false } : {}),
-    ...(host?.id ? { attachedTo: host.id } : {}),
+    ...(host ? { attachedTo: host } : {}),
     incoming: element.incoming.map((edge) => edge.id),
     outgoing: element.outgoing.map((edge) => edge.id),
-    ...(takesDefault ? { default: (getProperty(element.businessObject, 'default') as ModdleObject | undefined)?.id ?? null } : {}),
+    ...(takesDefault ? { default: idsIn(element.element.default)[0] ?? null } : {}),
     ...styleOf(element),
   };
 }
@@ -99,9 +98,9 @@ function styleOf(element: SceneNode | SceneEdge): Pick<ElementRecord, 'fill' | '
   };
 }
 
-/** What a business object says of itself: the schema type extending it, and its name. */
-function describe(businessObject: ModdleObject): Pick<ElementRecord, 'extension' | 'name'> {
-  const extension = getExtensionType(businessObject);
-  const name = nameOf(businessObject);
+/** What an element says of itself: the schema type extending it, and its name. */
+function describe(model: StudyModel, element: Element): Pick<ElementRecord, 'extension' | 'name'> {
+  const extension = model.extensionType(element);
+  const name = nameOf(element);
   return { ...(extension ? { extension } : {}), ...(name ? { name } : {}) };
 }

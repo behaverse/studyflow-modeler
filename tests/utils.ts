@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { expect, type Download, type Locator, type Page } from '@playwright/test';
 
-import { studyflowToXml, xmlToStudyflow } from '@core/document';
+import { studyToXml } from '@core/document';
 
 const SKILLS_DIR = path.join(process.cwd(), 'skills');
 
@@ -36,17 +36,11 @@ export function exampleText(name: string): string {
   return readFileSync(examplePath(name), 'utf8');
 }
 
-let schemaModdle: Promise<any> | undefined;
-
 /** The example as BPMN XML: what its YAML spells. */
 export async function exampleXml(name: string): Promise<string> {
-  // Built on first use: most e2e workers never read an example's XML.
-  schemaModdle ??= import('./schemas').then(({ freshModdle }) => freshModdle());
-  return studyflowToXml(exampleText(name), await schemaModdle);
-}
-
-export async function exampleStudyflow(name: string, moddle: any): Promise<string> {
-  return xmlToStudyflow(await exampleXml(name), moddle);
+  // Imported on first use: most e2e workers never read an example's XML, and the schemas install the catalog.
+  const { studyModel } = await import('./schemas');
+  return studyToXml(studyModel(exampleText(name)));
 }
 
 export function withoutDiagramInterchange(xml: string): string {

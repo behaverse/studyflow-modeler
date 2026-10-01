@@ -1,5 +1,5 @@
 import new_diagram from '#assets/new_diagram.studyflow.yaml?raw';
-import { fromWireXml, looksLikeXml, studyflowToXml } from '@core/document';
+import { looksLikeXml } from '@core/document';
 import { filenameStem } from '@modeler/diagram/file';
 import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
 import { importableFormatFor, openerFor } from '@modeler/diagram/formats';
@@ -33,33 +33,24 @@ export type NewDiagramCommand = {
   type: 'NewDiagram';
 };
 
-export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand): Promise<any> {
-  const result = await importXml(modeler, { xml: await studyflowToXml(new_diagram, modeler.model.moddle()) });
+export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand): Promise<void> {
+  await openText(modeler, new_diagram);
   modeler.canvas.zoom('fit');
-  return result;
 }
 
-
-type ImportXmlPayload = {
-  xml: string;
-  onWarning?: (message: string) => void;
-};
-
-async function importXml(modeler: Editor, command: ImportXmlPayload): Promise<any> {
+/** Put the study `text` spells on the canvas; `onWarning` hears what reading it could not place. */
+async function openText(modeler: Editor, text: string, onWarning?: (message: string) => void): Promise<void> {
   // Whatever was linked described the canvas being replaced. Carrying the link across would point
   // auto-save at that file and overwrite it with an unrelated diagram; `runOpenDiagram` links
   // again once it knows which file the new canvas actually came from.
   unlinkFile();
 
-  const moddle = modeler.model.moddle();
-  const xml = await fromWireXml(command.xml, moddle, command.onWarning);
-  const result = await modeler.importXML(xml);
-  // `importXML` starts the undo history over, so the trail bookkeeping restarts with it.
+  await modeler.open(text, onWarning);
+  // `open` starts the undo history over, so the trail bookkeeping restarts with it.
   resetTrailStamping(modeler);
-  // The canvas is now exactly what was imported, whichever path got here. `runOpenDiagram` marks
+  // The canvas is now exactly what was opened, whichever path got here. `runOpenDiagram` marks
   // again after its rename, which is the one edit that is part of opening rather than after it.
   markOpened();
-  return result;
 }
 
 
@@ -82,33 +73,24 @@ function fileText(filename: string, content: string | ArrayBuffer): string {
   return format?.id === 'svg' ? extractStudyflowFromSvg(text) : text;
 }
 
-async function toXml(
-  modeler: Editor,
-  filename: string,
-  content: string | ArrayBuffer,
-  onWarning: (message: string) => void,
-): Promise<string> {
+/** The study the file holds, as `.studyflow.yaml` or BPMN XML text. */
+function studyText(modeler: Editor, filename: string, content: string | ArrayBuffer): string {
   const text = fileText(filename, content);
   if (looksLikeXml(text)) return text;
   // A foreign format a skill opens (a jsPsych timeline): converted to a studyflow on the way in, same "Open".
   const opener = openerFor(filename);
-  if (opener) {
-    return opener.toXml(text, {
-      name: filenameStem(filename),
-      packages: modeler.model.packages(),
-      warn: (message) => notify('warning', message),
-    });
-  }
-  return studyflowToXml(text, modeler.model.moddle(), onWarning);
+  if (!opener) return text;
+  return opener.toStudyflow(text, {
+    name: filenameStem(filename),
+    metamodel: modeler.model.metamodel(),
+    warn: (message) => notify('warning', message),
+  });
 }
 
-export async function runOpenDiagram(modeler: Editor, command: OpenDiagramCommand): Promise<any> {
+export async function runOpenDiagram(modeler: Editor, command: OpenDiagramCommand): Promise<void> {
   // What reading could not place is gone from the next save, so say what it met, as `studyflow validate` does.
   const warnings: string[] = [];
-  const onWarning = (message: string) => { warnings.push(message); };
-  const xml = await toXml(modeler, command.filename, command.content, onWarning);
-
-  const result = await importXml(modeler, { xml, onWarning });
+  await openText(modeler, studyText(modeler, command.filename, command.content), (message) => { warnings.push(message); });
   if (warnings.length > 0) {
     notify('warning', [`Reading ${command.filename} raised warnings:`, ...warnings].join('\n'), { keep: true });
   }
@@ -124,6 +106,4 @@ export async function runOpenDiagram(modeler: Editor, command: OpenDiagramComman
 
   // Everything up to here is the file, not an edit of it, so auto-save has nothing to write yet.
   markOpened();
-
-  return result;
 }

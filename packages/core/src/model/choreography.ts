@@ -1,9 +1,9 @@
 /**
  * A choreography task's bands, read off the study model: who is on top, who is below, and which of them starts the
  * exchange. A plain task names two participants; a typed one (a cognitive task) presents itself on top, its one
- * participant the actor below.
+ * participant the actor below. And another tool's choreography, read as the process a study is.
  */
-import { idOf, type Element, type StudyModel } from '@core/model/index';
+import { idOf, isElement, type Element, type StudyModel } from '@core/model/index';
 import type { Ids } from '@core/model/items';
 import { wiredIn } from '@core/model/parameters';
 
@@ -105,4 +105,39 @@ export function ensureParticipantsIn(model: StudyModel, task: Element, ids: Ids)
   task.participantRef = [top.id!, bottom.id!];
   task.initiatingParticipantRef ??= top.id!;
   return [top, bottom];
+}
+
+/** What a choreography root holds that is its own kind's: none of it travels when it is read as a process. */
+const CHOREOGRAPHY_OWN = new Set(['type', 'id', 'participants', 'messageFlows', 'isExecutable']);
+
+/**
+ * A `bpmn:Choreography` root, from another tool's file, read as the process a study is: its choreography tasks are
+ * exchanges in a process, their participants held by a collaboration with no pool. Whether there was one to read.
+ */
+export function choreographyToProcessIn(model: StudyModel): boolean {
+  const { roots } = model.study;
+  const choreography = roots.find((root) => model.host(root) === 'bpmn:Choreography');
+  if (!choreography) return false;
+
+  const declared = model.metamodel.descriptor('bpmn:Process').propertiesByName;
+  const process: Element = { type: 'bpmn:Process', id: choreography.id, isExecutable: false };
+  for (const [key, value] of Object.entries(choreography)) {
+    if (!CHOREOGRAPHY_OWN.has(key) && (declared[key] || key.includes(':'))) process[key] = value;
+  }
+  // A study is a process: the choreography's message flows go with its root, and each task keeps its bands.
+  for (const element of Array.isArray(process.flowElements) ? process.flowElements : []) {
+    if (isElement(element) && model.host(element) === 'bpmn:ChoreographyTask') delete element.messageFlowRef;
+  }
+
+  roots.splice(roots.indexOf(choreography), 1, process);
+  // A participant is no root element: the ones left need a collaboration to be held by, which draws no pool.
+  const participants = Array.isArray(choreography.participants) ? choreography.participants : [];
+  if (participants.length > 0) {
+    const taken = new Set(roots.map((root) => root.id));
+    let id = `${choreography.id}_participants`;
+    for (let n = 2; taken.has(id); n++) id = `${choreography.id}_participants_${n}`;
+    roots.push({ type: 'bpmn:Collaboration', id, participants });
+  }
+  model.reindex();
+  return true;
 }

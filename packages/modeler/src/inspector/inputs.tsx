@@ -25,7 +25,7 @@ import { parseChecklistLines, serializeChecklistLines, type ChecklistLine } from
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
 import { useAttributeState, useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
-import { readAttribute } from '@modeler/inspector/element';
+import { readAttribute } from '@core/model/index';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { field as s } from '@modeler/inspector/styles';
 

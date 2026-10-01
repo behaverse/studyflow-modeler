@@ -10,7 +10,7 @@ import 'prismjs/themes/prism.css';
 import { t } from '@modeler/i18n';
 import { ICONS } from '@modeler/icons';
 import { useInspectedModel } from '@modeler/inspector/hooks';
-import { readAttribute } from '@modeler/inspector/element';
+import { readAttribute } from '@core/model/index';
 import { executeCommand } from '@modeler/commandBus';
 import { useAttributeState } from '@modeler/inspector/hooks';
 import { parseSchemaBody, type SchemaColumn, type SchemaFormat } from '@core/document';

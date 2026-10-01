@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
 import { Canvas, Study } from '@canvas/index.ts';
-import { studyflowToDefinitions } from '@core/document';
+import type { Element, StudyModel } from '@core/model/index';
+import { studyModel } from '@tests/schemas';
 
 import {
+  boundsOf,
   centre,
-  diOf,
-  freshModdle,
   graphicsOf,
   installDocument,
   keyEvent,
@@ -22,8 +22,7 @@ import {
  * (`pointerdown`, `dblclick`), the host container (`keydown`, the shortcut scope),
  * and, while a gesture runs, the document (`pointermove`/`pointerup`/`keydown`). The
  * container outlives the canvas (a new diagram keeps the same `<div>`), so a canvas
- * that cannot be torn down keeps answering keystrokes and pins its whole
- * `bpmn:Definitions` tree.
+ * that cannot be torn down keeps answering keystrokes and pins its whole study.
  */
 
 const doc = installDocument();
@@ -43,8 +42,8 @@ Process_1:
       bounds: 200 80 100 80
 `;
 
-function parse(): any {
-  return studyflowToDefinitions(PROCESS_YAML, freshModdle());
+function parse(): StudyModel {
+  return studyModel(PROCESS_YAML);
 }
 
 function container(): HTMLElement {
@@ -74,8 +73,8 @@ function trackListeners(target: any): { live: () => string[] } {
 test('destroy hands the container back clean, so a stale canvas no longer answers keys on it', async () => {
   const host = container();
   const tracked = trackListeners(host);
-  const staleDefs = parse();
-  const stale = new Canvas(host, Study.fromDefinitions(staleDefs));
+  const staleModel = parse();
+  const stale = new Canvas(host, Study.of(staleModel));
   stale.select('Task_1');
   expect(tracked.live(), 'the shortcut listener sits on the host container').toContain('keydown');
   expect(host.contains(svgOf(stale) as unknown as Node)).toBe(true);
@@ -87,19 +86,19 @@ test('destroy hands the container back clean, so a stale canvas no longer answer
   expect(tracked.live(), 'a second destroy is a no-op').toEqual([]);
 
   // The host reuses the same element for the next editor: Delete reaches only the live canvas.
-  const liveDefs = parse();
-  const live = new Canvas(host, Study.fromDefinitions(liveDefs));
+  const liveModel = parse();
+  const live = new Canvas(host, Study.of(liveModel));
   live.select('Start_1');
   host.dispatchEvent(keyEvent('keydown', { key: 'Delete' }));
 
-  const ids = (defs: any): string[] => defs.rootElements[0].flowElements.map((el: any) => el.id).sort();
-  expect(ids(staleDefs), 'the destroyed canvas kept its hands off its document').toEqual(['Start_1', 'Task_1']);
-  expect(ids(liveDefs), 'the live canvas deleted its own selection').toEqual(['Task_1']);
+  const ids = (model: StudyModel): string[] => (model.study.roots[0].flowElements as Element[]).map((el) => el.id!).sort();
+  expect(ids(staleModel), 'the destroyed canvas kept its hands off its document').toEqual(['Start_1', 'Task_1']);
+  expect(ids(liveModel), 'the live canvas deleted its own selection').toEqual(['Task_1']);
   live.destroy();
 });
 
 test('several views draw one study: an edit reaches each, each keeps its own selection, and destroying one leaves the others drawing', () => {
-  const study = Study.fromDefinitions(parse());
+  const study = Study.of(parse());
   const left = new Canvas(container(), study);
   const right = new Canvas(container(), study);
 
@@ -115,7 +114,7 @@ test('several views draw one study: an edit reaches each, each keeps its own sel
 });
 
 test('a view that is not editable selects, pans and zooms, and edits nothing until it is', () => {
-  const study = Study.fromDefinitions(parse());
+  const study = Study.of(parse());
   const view = new Canvas(container(), study, { editable: false });
   const task = node(view, 'Task_1');
 
@@ -136,8 +135,8 @@ test('a view that is not editable selects, pans and zooms, and edits nothing unt
 
 test('destroy mid-gesture abandons the drag and drops the document-level listeners', async () => {
   const host = container();
-  const definitions = parse();
-  const canvas = new Canvas(host, Study.fromDefinitions(definitions));
+  const model = parse();
+  const canvas = new Canvas(host, Study.of(model));
   const doc = svgOf(canvas).ownerDocument!;
   const tracked = trackListeners(doc);
   const task = node(canvas, 'Task_1');
@@ -150,10 +149,10 @@ test('destroy mid-gesture abandons the drag and drops the document-level listene
   canvas.destroy();
 
   expect(tracked.live(), 'the document trio is removed even mid-drag').toEqual([]);
-  // The gesture was abandoned, not committed: the snapshot is back and the DI,
+  // The gesture was abandoned, not committed: the snapshot is back and the layout,
   // which a live drag never touches, still describes the original box.
   expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 80 });
-  expect(diOf(definitions, 'Task_1').bounds).toMatchObject({ x: 200, y: 80 });
+  expect(boundsOf(model.study.layout.Task_1)).toMatchObject({ x: 200, y: 80 });
 
   // A late event from the in-flight gesture must not reach a torn-down canvas.
   pointerUp(canvas, { x: 310, y: 180 });

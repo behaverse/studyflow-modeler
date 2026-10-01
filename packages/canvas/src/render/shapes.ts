@@ -3,30 +3,29 @@
  * appends to `parent` and returns the primary outline element.
  */
 
+import { extensionTypeOf, heldAttribute } from '@core/model/index.ts';
 import { categoryOf, dataObjectFold, dataStoreRim, PARTICIPANT_BAND } from '@core/document/outline.ts';
-import { getAttribute, isDataOperationActivity } from '@core/element/index.ts';
-import { getProperty } from '@core/element/moddle.ts';
+import { isElement, type Element } from '@core/model/index.ts';
+import { isDataOperation } from '@core/model/parameters.ts';
 
-import { asModdle } from '@canvas/study/moddle.ts';
-import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
+import type { SceneNode } from '@canvas/study/scene.ts';
 import { isCollapsed } from '@canvas/study/tree.ts';
 import { append, create } from '@canvas/render/svg.ts';
 
 /** The bottom-centre markers an activity draws, in BPMN's order. A pool's own marker is `participantInstances`. */
 export function activityMarkers(node: SceneNode): string[] {
   if (categoryOf(node.type) !== 'task') return [];
-  const bo = node.businessObject;
+  const element = node.element;
   const markers: string[] = [];
-  const checklist = getAttribute(bo, 'checklist');
+  const checklist = heldAttribute(element, 'checklist');
   if (typeof checklist === 'string' && checklist.trim()) markers.push('checklist');
-  if (isDataOperationActivity(bo)) markers.push('function');
+  if (isDataOperation(extensionTypeOf(element), heldAttribute(element, 'implementation'))) markers.push('function');
   if (isCollapsed(node)) markers.push('subprocess');
   if (node.type === 'bpmn:AdHocSubProcess') markers.push('adhoc');
-  if (getProperty(bo, 'isForCompensation') === true) markers.push('compensation');
-  const loop = getProperty(bo, 'loopCharacteristics') as ModdleObject | undefined;
-  if (loop) {
-    const sequential = getProperty(loop, 'isSequential');
-    markers.push(sequential === true ? 'sequential' : sequential === false ? 'parallel' : 'loop');
+  if (element.isForCompensation === true) markers.push('compensation');
+  const loop = element.loopCharacteristics;
+  if (isElement(loop)) {
+    markers.push(loop.type !== 'bpmn:MultiInstanceLoopCharacteristics' ? 'loop' : loop.isSequential === true ? 'sequential' : 'parallel');
   }
   return markers;
 }
@@ -35,8 +34,9 @@ export function activityMarkers(node: SceneNode): string[] {
  * How many instances of a pool's process run: BPMN's `participantMultiplicity/@maximum`, 1 by default.
  * More than one is marked like a parallel multi-instance activity, but in the pool's title band.
  */
-export function participantInstances(bo: ModdleObject | undefined): number {
-  const maximum = getProperty(asModdle(getProperty(bo, 'participantMultiplicity')), 'maximum');
+export function participantInstances(element: Element | undefined): number {
+  const multiplicity = element?.participantMultiplicity;
+  const maximum = isElement(multiplicity) ? multiplicity.maximum : undefined;
   return typeof maximum === 'number' && maximum > 0 ? maximum : 1;
 }
 

@@ -146,7 +146,7 @@ export {
   extractStudyflowFromPng,
 } from '@core/document/png';
 export { extractStudyflowFromSvg, replaceStudyflowInSvg } from '@core/document/svg';
-export { moddleOf, xmlToStudy } from '@core/document/bpmn';
+export { moddleOf, parseStudy, studyToXml, xmlToStudy } from '@core/document/bpmn';
 
 const metamodels = new WeakMap<object, Metamodel>();
 

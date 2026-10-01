@@ -17,9 +17,8 @@ import { hitTest, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
 import { LabelEditing } from '@canvas/interaction/labelEditing.ts';
 import { EDITING_MARKER, OUTLINE_OFFSET, Selection } from '@canvas/interaction/selection.ts';
 import { labelIdOf, syncLabel } from '@canvas/study/labels.ts';
-import { modelOf } from '@canvas/study/moddle.ts';
 import { studyInternals, type Study, type StudyResult } from '@canvas/study/Study.ts';
-import { type Bounds, type ModdleObject, type Point, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
+import { type Bounds, type Point, type Scene, type SceneEdge, type SceneElement, type SceneNode } from '@canvas/study/scene.ts';
 import { shapeOf } from '@canvas/study/templates.ts';
 import { boundsOf, isCollapsed, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { categoryOf, isExpandable } from '@core/document/outline.ts';
@@ -171,6 +170,7 @@ export class Canvas {
       container: this.container,
       viewport: this.viewport,
       rename: (element, band, text) => this.study.rename({ id: element.id, name: text, ...(band === 'name' ? {} : { band }) }).ok,
+      model: () => this.study.model,
       restoreFocus: () => this.focus(),
       // While its text is edited in place, an element drops its outline and its drawn text: the caption, else its own.
       onEditing: (element, editing) => {
@@ -709,7 +709,7 @@ export class Canvas {
       id: '',
       kind: 'node',
       type: prototype.type,
-      businessObject: prototype.businessObject ?? ({ $type: prototype.type } as ModdleObject),
+      element: prototype.element ?? { type: prototype.type },
       ...bounds,
       children: [],
       incoming: [],
@@ -741,7 +741,7 @@ export class Canvas {
   /** Begin a create drag from the palette; `event` may originate outside the canvas. False for a template the catalog lacks. */
   startCreate(event: MouseEvent | undefined, what: NewElement): boolean {
     const shape = shapeOf(what);
-    return this.isEditable && !!shape && this.gestures.startCreate(event, what, prototypeOf(shape, draftOf(shape, modelOf(this.scene.definitions))));
+    return this.isEditable && !!shape && this.gestures.startCreate(event, what, prototypeOf(shape, draftOf(this.scene.model, shape)));
   }
 
   /** A freshly created shape: selected, and (for a task-like shape) named. */
@@ -782,11 +782,11 @@ export class Canvas {
     const source = this.scene.elementsById.get(from);
     const shape = shapeOf(what);
     if (!this.isEditable || !source || source.kind === 'label' || !shape) return undefined;
-    const prototype = prototypeOf(shape, draftOf(shape, modelOf(this.scene.definitions)));
+    const prototype = prototypeOf(shape, draftOf(this.scene.model, shape));
     if (!this.rules.canAppendType(source, prototype.type)) return undefined;
     const bounds = boundsFor(prototype, appendSpot(this.scene, source, prototype, prototype.type));
     const preview = create('g', { class: 'sf-preview sf-append-preview' }) as SVGGElement;
-    const probe: RuleElement = { type: prototype.type, businessObject: prototype.businessObject, parent: source.parent };
+    const probe: RuleElement = { type: prototype.type, element: prototype.element, parent: source.parent };
     const spec = this.rules.canConnect(source, probe);
     const type = spec ? spec.type : CONNECTION.sequenceFlow;
     const line = previewEdge(routeFor(type, routableEnd(source), { ...bounds, type: prototype.type }), 'sf-append-preview-line', {

@@ -1,12 +1,11 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { Study, studyInternals, studyMutator, type StudyChange } from '@canvas/study/Study.ts';
 import type { StudyTool } from '@canvas/study/tools.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
-import type { ModdleObject, SceneNode } from '@canvas/study/scene.ts';
+import type { SceneNode } from '@canvas/study/scene.ts';
 
-import { freshModdle } from '@tests/schemas';
+import { freshMetamodel, studyModel } from '@tests/schemas';
 
 /**
  * The Study: a document, its edits and its undo history, with no DOM. This spec installs no document, so
@@ -64,14 +63,14 @@ Dyad:
       bounds: 260 175 150 90
 `;
 
-const open = (): Study => Study.fromDefinitions(studyflowToDefinitions(YAML, freshModdle()));
+const open = (): Study => Study.of(studyModel(YAML));
 
 /** The study's one writer. An undo swaps in another scene and another mutator, so a spec asks for both each time. */
 const mutatorOf = (study: Study): Mutator => studyMutator(study);
 const nodeOf = (study: Study, id: string): SceneNode => studyInternals(study).scene.elementsById.get(id) as SceneNode;
 const rename = (study: Study, name: string): unknown => mutatorOf(study).setName(nodeOf(study, 'Task_1'), name);
 
-const rootTypes = (study: Study): string[] => (study.definitions.rootElements as ModdleObject[]).map((root) => root.$type);
+const rootTypes = (study: Study): string[] => study.model.study.roots.map((root) => study.model.host(root));
 
 test('a study announces each commit once, to each listener in turn, with no DOM', () => {
   const study = open();
@@ -104,7 +103,7 @@ test('a load replaces the document, read as a file opens, in one change, and the
 });
 
 test('a study writes its file as a file holds it, XML or YAML, without touching what it edits, and reopens it the same', async () => {
-  const study = await Study.open(CHOREOGRAPHY, { moddle: freshModdle() });
+  const study = await Study.open(CHOREOGRAPHY, { metamodel: freshMetamodel() });
 
   const xml = await study.toXml();
   const yaml = study.toYaml();
@@ -114,8 +113,8 @@ test('a study writes its file as a file holds it, XML or YAML, without touching 
   expect(xml).toContain('<bpmn:task id="Consent" name="Give consent" studyflow:exchange="true"');
   expect(yaml).toContain('Dyad:\n  type: Process');
   expect(rootTypes(study)).toContain('bpmn:Process');
-  expect(await (await Study.open(xml, { moddle: freshModdle() })).toXml()).toBe(xml);
-  expect((await Study.open(yaml, { moddle: freshModdle() })).toYaml()).toBe(yaml);
+  expect(await (await Study.open(xml, { metamodel: freshMetamodel() })).toXml()).toBe(xml);
+  expect((await Study.open(yaml, { metamodel: freshMetamodel() })).toYaml()).toBe(yaml);
   expect(open().toYaml(), 'a process is written as it is edited').toContain('Process_1:\n  type: Process');
 });
 
@@ -207,23 +206,22 @@ test('set writes an attribute where its schema keeps it, by any id the document 
     .toEqual({ ok: false, reason: "no element 'Nope'", added: [], changed: [], removed: [] });
 
   expect(heard, 'a refusal writes nothing and says nothing').toEqual(['Task_1', 'Process_1']);
-  expect(nodeOf(study, 'Task_1').businessObject.name).toBe('Screen');
-  expect((study.definitions.rootElements as any[])[0].properties[0].name).toBe('total');
+  expect(study.element('Task_1')!.name).toBe('Screen');
+  expect(study.element('Count')!.name).toBe('total');
 });
 
 test('set takes a structured attribute as the file spells it: a loop, a timer, the data a step reads, a reference; each one undo step', () => {
   const study = open();
-  const task = (): any => nodeOf(study, 'Task_1').businessObject;
+  const task = (): any => study.element('Task_1');
 
   // A loop marker, polymorphic, so it names its type as the file does.
   expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: { type: 'StandardLoopCharacteristics', loopMaximum: 3, loopCondition: 'count < 3' } }))
     .toMatchObject({ ok: true, changed: ['Task_1'] });
-  expect(task().loopCharacteristics).toMatchObject({ $type: 'bpmn:StandardLoopCharacteristics', loopMaximum: 3 });
-  expect(task().loopCharacteristics.loopCondition.body).toBe('count < 3');
+  expect(task().loopCharacteristics).toMatchObject({ type: 'bpmn:StandardLoopCharacteristics', loopMaximum: 3, loopCondition: 'count < 3' });
 
   // What a step reads, by the id of what it reads: a reference the document resolves.
   expect(study.set({ id: 'Task_1', attribute: 'dataInputAssociations', value: { In_Count: { sourceRef: ['Count'] } } }).ok).toBe(true);
-  expect(task().dataInputAssociations[0].sourceRef[0]).toBe((study.definitions.rootElements as any[])[0].properties[0]);
+  expect(task().dataInputAssociations[0].sourceRef).toEqual(['Count']);
 
   // A name the document does not hold is refused, and nothing is written.
   const before = study.toYaml();
@@ -269,7 +267,7 @@ test('an AI finds what it may write before it writes: describe says what a type 
 });
 
 test('item says what a message flow carries and what a property holds, keeping one definition of each', async () => {
-  const study = Study.fromDefinitions(studyflowToDefinitions(`id: Defs_3
+  const study = Study.of(studyModel(`id: Defs_3
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 C:
@@ -286,8 +284,8 @@ P:
     Seen: { name: seen }
   flowElements:
     Ask: { type: Task, bounds: 200 80 100 80 }
-`, freshModdle()));
-  const roots = (): string[] => (study.definitions.rootElements as any[]).map((root) => `${root.$type} ${root.id}`);
+`));
+  const roots = (): string[] => study.model.study.roots.map((root) => `${root.type} ${root.id}`);
   expect(study.call('item', { id: 'M_Ask', structure: 'behaverse:Trial' }).ok).toBe(true);
   expect(study.call('item', { id: 'M_Again', structure: 'behaverse:Trial' }).ok).toBe(true);
   expect(study.call('item', { id: 'Seen', structure: 'behaverse:Trial' }).ok).toBe(true);
@@ -301,20 +299,19 @@ P:
   expect(study.call('item', { id: 'Ask', structure: 'x' })).toMatchObject({ ok: false, reason: expect.stringContaining('holds no item') });
 });
 
-test('an edit is one commit and one undo step, however many moddle writes it makes', () => {
+test('a revision is one commit and one undo step, however many writes it makes', () => {
   const study = open();
-  const task = nodeOf(study, 'Task_1').businessObject;
 
-  const result = study.edit('Task_1', (writer) => {
-    writer.set(task, { name: 'Reads' });
-    writer.set(task, { name: 'Reads twice', isForCompensation: true });
+  const result = study.revise('Task_1', (task) => {
+    task.name = 'Reads';
+    Object.assign(task, { name: 'Reads twice', isForCompensation: true });
   });
 
   expect(result).toEqual({ ok: true, added: [], changed: ['Task_1'], removed: [] });
   expect(study.revision).toBe(1);
   expect(study.undo().ok).toBe(true);
   expect(study.canUndo, 'one undo takes back every write').toBe(false);
-  expect(nodeOf(study, 'Task_1').businessObject.name).toBe('Read');
+  expect(study.element('Task_1')!.name).toBe('Read');
 });
 
 // --- creation ----------------------------------------------------------------------------
@@ -413,7 +410,7 @@ test('move takes shapes by a delta with their flows, and into a container the ru
 });
 
 test('an activity moved takes the boundary events on it along', () => {
-  const study = Study.fromDefinitions(studyflowToDefinitions(`id: Defs_B
+  const study = Study.of(studyModel(`id: Defs_B
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 P:
@@ -429,7 +426,7 @@ P:
         T_1:
           type: TimerEventDefinition
       bounds: 132 162 36 36
-`, freshModdle()));
+`));
   expect(study.move({ ids: ['Host'], by: { x: 50, y: 20 } })).toMatchObject({ ok: true, changed: expect.arrayContaining(['Host', 'Timer']) });
   expect(study.get('Timer')!.bounds).toMatchObject({ x: 182, y: 182 });
 });
@@ -497,13 +494,13 @@ Phase:
 `;
 
 test('a record says which flow a shape BPMN gives a default takes by default, and nothing on what takes none', () => {
-  const study = Study.fromDefinitions(studyflowToDefinitions(CLIPBOARD, freshModdle()));
+  const study = Study.of(studyModel(CLIPBOARD));
   expect([study.get('Gate')?.default, study.get('Ask')?.default, study.get('Other')?.default]).toEqual(['To_Other', null, null]);
   expect(study.get('Form')).not.toHaveProperty('default');
 });
 
 test('copy writes shapes as a document of their own: what they hold, what sits on them, the flows between them, and nothing of what stays', () => {
-  const study = Study.fromDefinitions(studyflowToDefinitions(CLIPBOARD, freshModdle()));
+  const study = Study.of(studyModel(CLIPBOARD));
   const copied = study.copy({ ids: ['Ask', 'Gate', 'Form_label', 'Sub', 'Around'] });
   expect(copied.ok).toBe(true);
   const yaml = (copied as { yaml: string }).yaml;
@@ -517,7 +514,7 @@ test('copy writes shapes as a document of their own: what they hold, what sits o
 });
 
 test('paste draws a copy in as one edit: fresh ids for taken ones, centred where it is put, into what is there; a document it cannot take is refused', () => {
-  const study = Study.fromDefinitions(studyflowToDefinitions(CLIPBOARD, freshModdle()));
+  const study = Study.of(studyModel(CLIPBOARD));
   const yaml = (study.copy({ ids: ['Ask', 'Gate', 'Form'] }) as { yaml: string }).yaml;
   const before = study.list().length;
 
@@ -560,8 +557,8 @@ test('a reconnected data association is filed on its new activity, the one that 
   study.connect({ from: 'Data', to: 'Task_1', id: 'In_1' });
   study.connect({ from: 'Task_1', to: 'Data', id: 'Out_1' });
   // What the file says, read back: the activity an association hangs off is the one that takes or makes the data.
-  const reopened = () => Study.fromDefinitions(studyflowToDefinitions(study.toYaml(), freshModdle()));
-  const ownerOf = (again: Study, id: string) => (again.businessObject(id)?.$parent as { id?: string } | undefined)?.id;
+  const reopened = () => Study.of(studyModel(study.toYaml()));
+  const ownerOf = (again: Study, id: string) => again.model.holderOf(again.element(id)!)?.parent?.id;
 
   const CASES: [label: string, args: { id: string; from?: string; to?: string }, ends: { source: string; target: string }, owner: string][] = [
     ['an input onto another activity', { id: 'In_1', to: 'Two' }, { source: 'Data', target: 'Two' }, 'Two'],
@@ -612,7 +609,7 @@ test('reads are plain data: a record by id, the root, a filtered list; the moddl
   expect(study.list({ within: 'Sub_1' }).map((record) => record.id)).toEqual(['Task_In']);
   expect(study.list({ kind: 'edge', type: 'bpmn:SequenceFlow' }).map((record) => record.id)).toEqual(['Flow_1']);
   expect(JSON.parse(JSON.stringify(study.list())), 'JSON through and through').toEqual(study.list());
-  expect(study.businessObject('Count')?.$type).toBe('bpmn:Property');
+  expect(study.element('Count')?.type).toBe('bpmn:Property');
 });
 
 test('attributes lists what set takes on an element, by the names the file spells, with what each holds now', () => {
@@ -657,7 +654,7 @@ test('an MCP client drives a study through its tools: listed as JSON, called wit
   expect(call(study, 'set', { id: 'Done', attribute: 'name', value: 'Finished' })).toMatchObject({ ok: true, changed: ['Done'] });
   expect(call(study, 'list', { type: 'bpmn:EndEvent' }).elements).toMatchObject([{ id: 'Done', name: 'Finished' }]);
 
-  const reopened = await Study.open(call(study, 'document').yaml, { moddle: freshModdle() });
+  const reopened = await Study.open(call(study, 'document').yaml, { metamodel: freshMetamodel() });
   expect(reopened.get('Done')).toEqual(study.get('Done'));
 
   expect(call(study, 'undo')).toMatchObject({ ok: true });
@@ -675,9 +672,8 @@ test('typing into one field is one undo step: a set per keystroke, an edit namin
   expect(study.undo().ok).toBe(true);
   expect(study.get('Task_1')?.name, 'the typing undoes as one').toBe(before);
 
-  const task = study.businessObject('Task_1')!;
-  for (const text of ['a', 'ab']) study.edit('Task_1', (writer) => writer.set(task, { name: text }), 'name');
-  study.edit('Task_1', (writer) => writer.set(study.businessObject('Task_1')!, { name: 'c' }));
+  for (const text of ['a', 'ab']) study.revise('Task_1', (task) => { task.name = text; }, 'name');
+  study.revise('Task_1', (task) => { task.name = 'c'; });
   study.undo();
   expect(study.get('Task_1')?.name, 'an edit naming no run is a step of its own').toBe('ab');
 });
@@ -732,4 +728,9 @@ test('what the catalog lists, add makes: every BPMN shape type, every schema typ
     const into = what.type === 'bpmn:BoundaryEvent' ? { into: 'Task_1' } : {};
     expect(call(open(), 'add', { ...what, ...into }), JSON.stringify(what)).toMatchObject({ ok: true });
   }
+
+  // A schema type comes with its defaults, and is the type the element is, as the file spells it.
+  const study = open();
+  const { id } = call(study, 'add', { type: 'bpmn:Task', extension: 'cognitive:Rest' });
+  expect(study.element(id)).toMatchObject({ type: 'cognitive:Rest', restDuration: 60 });
 });

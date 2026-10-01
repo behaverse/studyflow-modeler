@@ -4,18 +4,19 @@
  */
 
 import { BPMN } from '@core/constants.ts';
-import { effectiveAttribute, resolvePlaceholders } from '@core/document/index.ts';
 import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore, PARTICIPANT_BAND } from '@core/document/outline.ts';
-import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, getAttribute, isDataAssociationType, StudyflowElement } from '@core/element/index.ts';
+import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@core/element/index.ts';
+import { readAttribute, type Element, type StudyModel } from '@core/model/index.ts';
+import { attributeOverridesIn } from '@core/model/parameters.ts';
+import { resolvePlaceholdersIn } from '@core/model/state.ts';
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
-import { getProperty } from '@core/element/moddle.ts';
 
-import { isTypedChoreography, readChoreographyBands } from '@canvas/study/choreography.ts';
+import { bandsOf, isTypedChoreography } from '@canvas/study/choreography.ts';
 import { normalizeColor } from '@canvas/study/color.ts';
 
-import { nameOf } from '@canvas/study/moddle.ts';
-import type { ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
+import { idsIn, listOf, nameOf } from '@canvas/study/elements.ts';
+import type { Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver } from '@canvas/render/icons.ts';
 import { boxesMeet, boxOf, EDGE_CORNER_RADIUS, lineJumps, type Box, type Span } from '@canvas/render/jumps.ts';
@@ -79,45 +80,45 @@ const EVENT_ICON_SIZE = 20;
 const DATA_ICON_SIZE = 20;
 const ANNOTATION_PADDING = 7;
 
-/** The schema type `bo` is an instance of: its extension type, else its BPMN type. */
-function schemaTypeOf(bo: ModdleObject): string {
-  return StudyflowElement.fromBusinessObject(bo).extensionType ?? bo.$type;
+/** The schema type `element` is an instance of: its extension type, else its BPMN type. */
+function schemaTypeOf(model: StudyModel, element: Element): string {
+  return model.extensionType(element) ?? model.host(element);
 }
 
 /**
  * The value of the attribute a type's `meta.glyph` names, drawn as text over the type icon; a custom icon
  * replaces it. Like the other schema decorations below, nothing is drawn before a catalog is installed.
  */
-function iconGlyph(bo: ModdleObject | undefined): string | undefined {
+function iconGlyph(model: StudyModel, element: Element): string | undefined {
   if (!hasCatalog()) return undefined;
-  const element = StudyflowElement.fromBusinessObject(bo);
-  const name = getCatalog().getType(element.extensionType)?.meta?.glyph;
+  const name = getCatalog().getType(model.extensionType(element))?.meta?.glyph;
   if (typeof name !== 'string') return undefined;
-  if (element.businessObject?.get?.('studyflow:icon')) return undefined;
+  if (model.attribute(element, 'icon')) return undefined;
   // What a run reads: the value the Parameters wired into the task set, else its own.
-  const value = effectiveAttribute(bo, name);
+  const override = attributeOverridesIn(model, element).get(name);
+  const value = override ? override.value : model.attributeOrDefault(element, name);
   if (typeof value !== 'string' || !value) return undefined;
   return value.toUpperCase();
 }
 
-/** Icon keys of schema attributes declaring `meta.icon` that hold a value on `bo`. */
-function overlayIconsOf(bo: ModdleObject | undefined): string[] {
-  if (!bo || !hasCatalog()) return [];
+/** Icon keys of schema attributes declaring `meta.icon` that hold a value on `element`. */
+function overlayIconsOf(model: StudyModel, element: Element): string[] {
+  if (!hasCatalog()) return [];
   const keys: string[] = [];
-  for (const attr of getCatalog().instanceAttributesOf(schemaTypeOf(bo))) {
+  for (const attr of getCatalog().instanceAttributesOf(schemaTypeOf(model, element))) {
     const icon = attr.meta?.icon;
-    if (typeof icon === 'string' && icon && getAttribute(bo, attr.name)) keys.push(icon);
+    if (typeof icon === 'string' && icon && readAttribute(model, element, attr.name)) keys.push(icon);
   }
   return keys;
 }
 
 /** The icon the schema gives the literal a data store's `format` holds, looked up in the enumeration that attribute declares. */
-function formatIconOf(bo: ModdleObject): string | undefined {
+function formatIconOf(model: StudyModel, element: Element): string | undefined {
   if (!hasCatalog()) return undefined;
-  const format = getAttribute(bo, 'format');
+  const format = model.attributeOrDefault(element, 'format');
   if (typeof format !== 'string' || !format) return undefined;
   const catalog = getCatalog();
-  const enumeration = catalog.enumOf(catalog.attributeOf(schemaTypeOf(bo), 'format')?.type);
+  const enumeration = catalog.enumOf(catalog.attributeOf(schemaTypeOf(model, element), 'format')?.type);
   const icon = enumeration?.literals.find((literal) => literal.value === format)?.icon;
   return typeof icon === 'string' && icon ? icon : undefined;
 }
@@ -166,9 +167,15 @@ export class Renderer {
     this.iconResolver = options.iconResolver;
   }
 
-  /** The name drawn for `businessObject`: `{count}` shows its run-state value; the model keeps the raw name. */
-  private nameOf(businessObject: ModdleObject | undefined): string {
-    return resolvePlaceholders(nameOf(businessObject), this.scene?.definitions, businessObject?.id ?? '');
+  /** The name drawn for `element`: `{count}` shows its run-state value; the model keeps the raw name. */
+  private nameOf(element: Element): string {
+    const name = nameOf(element);
+    return this.scene ? resolvePlaceholdersIn(this.scene.model, name, element.id ?? '') : name;
+  }
+
+  /** The study model drawn from. */
+  private get model(): StudyModel {
+    return this.scene!.model;
   }
 
   /** The scene drawn from. */
@@ -243,7 +250,7 @@ export class Renderer {
     });
     const style: ShapeStyle = { stroke: node.stroke ?? INK.stroke, fill: node.fill ?? INK.fill };
     const iconColor = node.stroke ?? INK.muted;
-    const name = this.nameOf(node.businessObject);
+    const name = this.nameOf(node.element);
 
     switch (categoryOf(node.type)) {
       case 'event': {
@@ -254,7 +261,7 @@ export class Renderer {
       }
       case 'task': {
         drawTask(g, node.width, node.height, style, THICK_ACTIVITY.has(node.type));
-        const glyph = iconGlyph(node.businessObject);
+        const glyph = iconGlyph(this.model, node.element);
         this.drawTypeIcon(g, node, iconColor);
         drawIconText(g, glyph, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
         this.drawMarkers(g, node, iconColor);
@@ -274,9 +281,9 @@ export class Renderer {
         this.drawOverlayIcons(g, node, iconColor);
         break;
       case 'choreography': {
-        const glyph = iconGlyph(node.businessObject);
-        const typed = isTypedChoreography(node.businessObject);
-        if (!typed || (getProperty(node.businessObject, 'participantRef') as unknown[] | undefined)?.length) {
+        const glyph = iconGlyph(this.model, node.element);
+        const typed = isTypedChoreography(this.model, node.element);
+        if (!typed || idsIn(node.element.participantRef).length > 0) {
           // Bands name the parties; the type glyph sits in the middle band, where the task's own name is.
           this.drawChoreography(g, node, style, name);
           const inner = append(g, group(0, choreographyBandHeight(node.height)));
@@ -299,7 +306,7 @@ export class Renderer {
         break;
       case 'annotation': {
         drawTextAnnotation(g, node.width, node.height, style);
-        const text = getProperty(node.businessObject, 'text');
+        const text = node.element.text;
         this.drawAnnotationText(g, node, (typeof text === 'string' && text) || name, INK.text);
         break;
       }
@@ -334,7 +341,7 @@ export class Renderer {
       'stroke-linejoin': 'round',
       'stroke-linecap': 'round',
       'stroke-dasharray': edgeDashArray(edge.type),
-      'marker-end': markerEndFor(edge.type, edge.businessObject),
+      'marker-end': markerEndFor(edge.type, edge.element),
       'marker-start': markerStartFor(edge.type, isDefaultFlow(edge)),
     }));
     return g;
@@ -391,7 +398,7 @@ export class Renderer {
   }
 
   drawLabelElement(label: SceneLabel): SVGGElement {
-    const g = drawLabel(label, this.nameOf(label.businessObject), label.owner.stroke ?? INK.muted);
+    const g = drawLabel(label, this.nameOf(label.element), label.owner.stroke ?? INK.muted);
     if (isHidden(label, this.scope)) g.setAttribute('display', 'none');
     return g;
   }
@@ -400,19 +407,17 @@ export class Renderer {
     const key = toLocalName(node.type);
     if (!key) return;
     // A plain task has no glyph of its own; it only gets one when the host names one.
-    if (key === 'Task' && !this.iconResolver?.(key, node.businessObject)) return;
-    drawIcon(g, key, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, color, this.iconResolver, node.businessObject);
+    if (key === 'Task' && !this.iconResolver?.(key, node.element)) return;
+    drawIcon(g, key, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, color, this.iconResolver, node.element);
   }
 
   private drawEventIcons(g: SVGGElement, node: SceneNode, color: string, kind?: string): void {
     const resolver = this.iconResolver;
     if (!resolver) return;
-    const bo = node.businessObject;
     const x = (node.width - EVENT_ICON_SIZE) / 2;
     const y = (node.height - EVENT_ICON_SIZE) / 2;
-    const defs = getProperty(bo, 'eventDefinitions');
-    const def = Array.isArray(defs) ? (defs[0] as ModdleObject | undefined) : undefined;
-    let defKey = def ? toLocalName(def.$type) : undefined;
+    const def = listOf(node.element, 'eventDefinitions')[0];
+    let defKey = def ? toLocalName(def.type) : undefined;
     // BPMN draws a throwing (end) event's symbol filled: the host may name that variant under `<definition>:end`.
     if (defKey && kind === 'end' && resolver(`${defKey}:end`, def)) defKey = `${defKey}:end`;
     let centreTaken = false;
@@ -423,8 +428,8 @@ export class Renderer {
       // No definition: the host may still name a glyph for the element itself — a
       // schema event type's icon (`meta.icon` on an `IntermediateCatchEvent` wrapper).
       const typeKey = toLocalName(node.type);
-      if (typeKey && resolver(typeKey, bo)) {
-        drawIcon(g, typeKey, x, y, EVENT_ICON_SIZE, color, resolver, bo);
+      if (typeKey && resolver(typeKey, node.element)) {
+        drawIcon(g, typeKey, x, y, EVENT_ICON_SIZE, color, resolver, node.element);
         centreTaken = true;
       }
     }
@@ -432,7 +437,7 @@ export class Renderer {
     // once a glyph sits there they move to the top-right rim, like on other shapes.
     if (centreTaken) this.drawOverlayIcons(g, node, color, -2, -2);
     else {
-      for (const key of overlayIconsOf(bo)) {
+      for (const key of overlayIconsOf(this.model, node.element)) {
         if (resolver(key)) drawIcon(g, key, x, y, EVENT_ICON_SIZE, color, resolver);
       }
     }
@@ -443,7 +448,7 @@ export class Renderer {
     const resolver = this.iconResolver;
     if (!resolver) return;
     let x = node.width - OVERLAY_ICON_SIZE - inset;
-    for (const key of overlayIconsOf(node.businessObject)) {
+    for (const key of overlayIconsOf(this.model, node.element)) {
       if (!resolver(key)) continue;
       drawIcon(g, key, x, y, OVERLAY_ICON_SIZE, color, resolver);
       x -= OVERLAY_ICON_SIZE + 4;
@@ -453,7 +458,7 @@ export class Renderer {
   private drawDataIcons(g: SVGGElement, node: SceneNode, color: string): void {
     const resolver = this.iconResolver;
     if (!resolver) return;
-    const key = (isDataStore(node.type) && formatIconOf(node.businessObject)) || toLocalName(node.type);
+    const key = (isDataStore(node.type) && formatIconOf(this.model, node.element)) || toLocalName(node.type);
     if (!key) return;
     // A data store's glyph is centred on the cylinder's body, below the rim.
     const cy = isDataStore(node.type) ? (2 * dataStoreRim(node.height) + node.height) / 2 : node.height / 2;
@@ -462,17 +467,17 @@ export class Renderer {
       drawSvgPaths(g, def, 4, cy - 7, node.width - 8, 14, color, key);
       return;
     }
-    if (!resolver(key, node.businessObject)) return;
+    if (!resolver(key, node.element)) return;
     const size = DATA_ICON_SIZE;
-    drawIcon(g, key, (node.width - size) / 2, cy - size / 2, size, color, resolver, node.businessObject);
+    drawIcon(g, key, (node.width - size) / 2, cy - size / 2, size, color, resolver, node.element);
   }
 
   private drawGatewayGlyph(g: SVGGElement, node: SceneNode, color: string): void {
     const key = toLocalName(node.type);
     const cx = node.width / 2;
     const cy = node.height / 2;
-    if (key && this.iconResolver?.(key, node.businessObject)) {
-      drawIcon(g, key, cx - 10, cy - 10, 20, color, this.iconResolver, node.businessObject);
+    if (key && this.iconResolver?.(key, node.element)) {
+      drawIcon(g, key, cx - 10, cy - 10, 20, color, this.iconResolver, node.element);
       return;
     }
     const line = (d: string): void => {
@@ -502,14 +507,13 @@ export class Renderer {
 
   /** Bottom-centre activity markers, in the row `CHROME.foot` keeps clear. */
   private drawMarkers(g: SVGGElement, node: SceneNode, color: string): void {
-    const bo = node.businessObject;
     const markers = activityMarkers(node);
     if (markers.length === 0) return;
     const gap = 4;
     const y = node.height - MARKER_SIZE - 4;
     const startX = (node.width - markers.length * MARKER_SIZE - (markers.length - 1) * gap) / 2;
     markers.forEach((marker, i) => {
-      drawIcon(g, marker, startX + i * (MARKER_SIZE + gap), y, MARKER_SIZE, color, this.iconResolver, bo);
+      drawIcon(g, marker, startX + i * (MARKER_SIZE + gap), y, MARKER_SIZE, color, this.iconResolver, node.element);
     });
   }
 
@@ -522,11 +526,11 @@ export class Renderer {
    * Returns the band length it takes, which the name gives up.
    */
   private drawBandMarker(g: SVGGElement, node: SceneNode, color: string): number {
-    const instances = participantInstances(node.businessObject);
+    const instances = participantInstances(node.element);
     if (node.type !== BPMN.Participant || instances < 2) return 0;
     const centre = Math.min(PARTICIPANT_BAND, node.width) / 2;
     const y = node.height - MARKER_SIZE - LINE_HEIGHT - BAND_MARKER_GAP;
-    drawIcon(g, 'parallel', centre - MARKER_SIZE / 2, y, MARKER_SIZE, color, this.iconResolver, node.businessObject);
+    drawIcon(g, 'parallel', centre - MARKER_SIZE / 2, y, MARKER_SIZE, color, this.iconResolver, node.element);
     append(g, textLine(`×${instances}`, centre, y + MARKER_SIZE + LINE_HEIGHT / 2,
       { fontSize: FONT.band, color: INK.text, weight: WEIGHT.internal }));
     return MARKER_SIZE + LINE_HEIGHT + 2 * BAND_MARKER_GAP;
@@ -534,8 +538,7 @@ export class Renderer {
 
   /** A group's caption lives on its `bpmn:CategoryValue`, centred on the top edge. */
   private drawGroupLabel(g: SVGGElement, node: SceneNode, color: string): void {
-    const categoryValue = getProperty(node.businessObject, 'categoryValueRef');
-    const value = categoryValue && typeof categoryValue === 'object' ? getProperty(categoryValue as ModdleObject, 'value') : undefined;
+    const value = this.model.get(idsIn(node.element.categoryValueRef)[0])?.value;
     if (typeof value !== 'string' || !value) return;
     drawBandText(g, value, node.width / 2, 10, node.width, color, FONT.external, WEIGHT.external, node.font);
   }
@@ -566,7 +569,7 @@ export class Renderer {
     const { width, height } = node;
     const bandHeight = choreographyBandHeight(height);
     const { stroke, fill } = style;
-    const bands = readChoreographyBands(node.businessObject);
+    const bands = bandsOf(this.model, node.element);
     const receivingFill = node.fill ? darken(node.fill) : INK.band;
     const topFill = bands.initiator === 'top' ? INK.fill : receivingFill;
     const bottomFill = bands.initiator === 'bottom' ? INK.fill : receivingFill;
@@ -642,7 +645,7 @@ export function edgeDashArray(type: string): string | null {
 }
 
 function isDefaultFlow(edge: SceneEdge): boolean {
-  return edge.type === BPMN.SequenceFlow && getProperty(edge.source?.businessObject, 'default') === edge.businessObject;
+  return edge.type === BPMN.SequenceFlow && !!edge.source && idsIn(edge.source.element.default)[0] === edge.id;
 }
 
 function markerIdFor(type: string): string {
@@ -652,9 +655,9 @@ function markerIdFor(type: string): string {
 }
 
 /** A plain association is arrowless unless directed; everything else points somewhere. */
-export function markerEndFor(type: string, businessObject?: ModdleObject): string | null {
+export function markerEndFor(type: string, element?: Element): string | null {
   if (type === BPMN.Association) {
-    const dir = getProperty(businessObject, 'associationDirection');
+    const dir = element?.associationDirection;
     if (dir !== 'One' && dir !== 'Both') return null;
   }
   return `url(#${markerIdFor(type)})`;

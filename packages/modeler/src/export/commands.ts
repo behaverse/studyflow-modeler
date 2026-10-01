@@ -1,5 +1,4 @@
 import { exportDiagramName } from '@modeler/diagram/name';
-import { toStandardBpmnXml, xmlToStudyflow } from '@core/document';
 import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/diagram/formats';
 import { buildExportModel } from '@modeler/export/model';
 import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
@@ -13,14 +12,14 @@ export type ExportDiagramCommand = {
   format?: ExportFormatId;
 };
 
-// Data associations are lowered to the standard `ioSpecification` form so other BPMN tooling sees ordinary BPMN.
-async function toBpmn(modeler: Editor): Promise<string> {
-  return toStandardBpmnXml((await modeler.saveXML()).xml, modeler.model.moddle());
+// The study's XML writes each data association in the standard `ioSpecification` form, so other BPMN tooling sees ordinary BPMN.
+function toBpmn(modeler: Editor): Promise<string> {
+  return modeler.study.toXml();
 }
 
 /** The diagram as a `.studyflow.yaml` holds it. */
-async function toStudyflow(modeler: Editor): Promise<string> {
-  return xmlToStudyflow((await modeler.saveXML()).xml, modeler.model.moddle());
+function toStudyflow(modeler: Editor): string {
+  return modeler.study.toYaml();
 }
 
 /**
@@ -30,10 +29,8 @@ async function toStudyflow(modeler: Editor): Promise<string> {
  * real `<svg>` body, so what `toSvg` draws is already what the export carries.
  */
 async function renderSvg(modeler: Editor): Promise<{ svg: string; studyflow: string }> {
-  // The SVG first, synchronously: it is a snapshot of the study as it stands, and
-  // `toStudyflow` walks the same live moddle tree.
   const svg = modeler.toSvg();
-  const studyflow = await toStudyflow(modeler);
+  const studyflow = toStudyflow(modeler);
   const cleaned = dropUnresolvedIcons(svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1'));
   return { svg: cleaned, studyflow };
 }

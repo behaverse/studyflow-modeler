@@ -4,11 +4,9 @@
  * it holds now. What the inspector shows, less its layout.
  */
 
-import { isExtensionPrefix, StudyflowElement } from '@core/element/index.ts';
+import { getAttributeSpec, isExtensionPrefix } from '@core/element/index.ts';
+import { readAttribute, type Element, type StudyModel } from '@core/model/index.ts';
 import { getCatalog, hasCatalog, type AttributeSpec } from '@core/notation/index.ts';
-import { getProperty } from '@core/element/moddle.ts';
-
-import type { ModdleObject } from '@canvas/study/scene.ts';
 
 export interface AttributeRecord {
   /** What `set` takes, as the document spells it: the local name, qualified only where two of the element's share it. */
@@ -26,22 +24,24 @@ export interface AttributeRecord {
   readonly value?: unknown;
 }
 
-/** The attributes the element behind `moddle` takes, in the inspector's order: its name, its type's, its extension's, its checklist. */
-export function attributesOf(moddle: ModdleObject): AttributeRecord[] {
-  const element = StudyflowElement.fromBusinessObject(moddle);
-  const extension = element.extensionAttributes();
+/** The attributes `element` takes, in the inspector's order: its name, its type's, its extension's, its checklist. */
+export function attributesOf(model: StudyModel, element: Element): AttributeRecord[] {
+  const host = model.host(element);
+  const extensionType = model.extensionType(element);
+  const catalog = getCatalog();
+  const extension = extensionType ? catalog.instanceAttributesOf(extensionType) : [];
   // What the extension redefines, it keeps: the BPMN type's own spelling of it steps aside.
   const redefined = new Set(extension.map((spec) => spec.redefinedName ?? localNameOf(spec)));
   const declared = (spec: AttributeSpec): boolean => isExtensionPrefix(spec.ns?.prefix) || !!spec.redefines;
-  const name = element.attribute('bpmn:name');
+  const name = getAttributeSpec(host, 'bpmn:name');
   const specs = [
-    ...(name && hasProperty(moddle, 'name') ? [name] : []),
-    ...element.attributes().filter((spec) => declared(spec) && !redefined.has(localNameOf(spec))),
+    ...(name && (model.property(element, 'name') || element.name !== undefined) ? [name] : []),
+    ...catalog.instanceAttributesOf(host).filter((spec) => declared(spec) && !redefined.has(localNameOf(spec))),
     ...extension.filter(declared),
   ].filter((spec, index, all) => !spec.meta?.pinned && all.findIndex((other) => keyOf(other) === keyOf(spec)) === index);
   const shared = new Set(specs.map(localNameOf).filter((local, index, all) => all.indexOf(local) !== index));
   return specs.map((spec): AttributeRecord => {
-    const value = plain(element.getAttribute(localNameOf(spec)));
+    const value = plain(readAttribute(model, element, localNameOf(spec)));
     const values = spec.isEnum && hasCatalog() ? getCatalog().enumOf(spec.type, spec.ns?.prefix)?.literals.map((literal) => literal.value) : undefined;
     // An attribute kept in an element's body (documentation, an expression) reads and writes as text.
     return {
@@ -62,11 +62,6 @@ function localNameOf(spec: AttributeSpec): string {
 
 function keyOf(spec: AttributeSpec): string {
   return spec.ns?.name ?? spec.name;
-}
-
-function hasProperty(moddle: ModdleObject, name: string): boolean {
-  const descriptor = moddle.$descriptor as { propertiesByName?: Record<string, unknown> } | undefined;
-  return !!descriptor?.propertiesByName?.[name] || getProperty(moddle, name) !== undefined;
 }
 
 /** `value` as plain JSON: text, a number, true or false, or a list of those; nothing for a structured value. */

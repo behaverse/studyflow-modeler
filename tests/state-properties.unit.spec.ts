@@ -5,7 +5,7 @@ import type { Element } from '@core/model/index';
 import { runUpdateStateProperties } from '@modeler/inspector/commands';
 import { getPropertiesInScope, itemTypeOptions } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
-import { freshModdle, studyModel } from './schemas';
+import { freshMetamodel, studyModel } from './schemas';
 
 /** State as BPMN's own declared variables. */
 
@@ -13,7 +13,7 @@ const HEAD = 'id: Defs\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/b
 
 /** A study of `body`, and the editor the state commands write through: that study, which it reaches alone. */
 async function editorOver(body: string) {
-  const study = await Study.open(HEAD + body, { moddle: freshModdle() });
+  const study = await Study.open(HEAD + body, { metamodel: freshMetamodel() });
   return { study, modeler: { study } as unknown as Editor };
 }
 

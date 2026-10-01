@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import { Study } from '@canvas/index.ts';
-import { studyflowToXml, xmlToStudy } from '@core/document';
+import { studyToXml, xmlToStudy } from '@core/document';
 import { isElement, type Element, type StudyModel } from '@core/model/index';
 import { studyText } from '@core/model/yaml';
 import { ICONS } from '@modeler/icons';
@@ -10,7 +10,7 @@ import {
   applyStatuses, assignLanes, collectProvenance, displayOrder, recordDetails, voids,
 } from '@modeler/provenance/records';
 import { appendTrailEntry } from '@modeler/provenance/trail';
-import { freshMetamodel, freshModdle } from './schemas';
+import { freshMetamodel } from './schemas';
 import { exampleXml } from './utils';
 
 /** The document trail merged with the per-element `executed` records a run archives, oldest first. */
@@ -53,7 +53,7 @@ const firstEvent = (model: StudyModel): Element => flowElementsOf(model).find((e
 
 /** What `runInvalidateProvenanceRecord` touches: a study of `model`, which it edits. */
 async function mockModeler(model: StudyModel) {
-  return { study: await Study.open(studyText(model.study, model.metamodel), { moddle: freshModdle() }) };
+  return { study: await Study.open(studyText(model.study, model.metamodel), { metamodel: freshMetamodel() }) };
 }
 
 test.describe('provenance view model', () => {
@@ -276,7 +276,7 @@ test.describe('provenance view model', () => {
       seed: '7',
     });
 
-    const xml = await studyflowToXml(studyText(model.study, model.metamodel), freshModdle());
+    const xml = await studyToXml(model);
     const records = collectProvenance(await modelOf(xml));
 
     expect(records).toHaveLength(1);

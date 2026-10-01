@@ -3,7 +3,7 @@
  * inline SVG paths, an SVG body, a CSS class the host's icon pipeline paints, or an image.
  */
 
-import type { ModdleObject } from '@canvas/study/scene.ts';
+import type { Element } from '@core/model/index.ts';
 import { append, create, createHtml, ownerDocument } from '@canvas/render/svg.ts';
 
 export interface SvgIconDef {
@@ -33,7 +33,7 @@ export interface ImageIconDef {
 export type IconDef = SvgIconDef | CssIconDef | InlineSvgIconDef | ImageIconDef;
 
 /** `undefined`: no answer, the bundled paths are tried. `null`: this key has no glyph, draw nothing. */
-export type IconResolver = (iconKey: string, businessObject?: ModdleObject) => IconDef | null | undefined;
+export type IconResolver = (iconKey: string, element?: Element) => IconDef | null | undefined;
 
 function isCssIcon(def: IconDef): def is CssIconDef {
   return typeof (def as CssIconDef).cssClass === 'string';
@@ -64,10 +64,10 @@ export function drawIcon(
   size: number,
   color: string,
   resolver?: IconResolver,
-  businessObject?: ModdleObject,
+  element?: Element,
 ): SVGElement | undefined {
   if (!iconKey) return undefined;
-  const answer = resolver?.(iconKey, businessObject);
+  const answer = resolver?.(iconKey, element);
   if (answer === null) return undefined;
   const resolved: IconDef | undefined = answer ?? SVG_ICON_PATHS[iconKey];
   if (resolved) {

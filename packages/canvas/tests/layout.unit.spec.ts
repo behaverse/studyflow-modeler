@@ -3,10 +3,9 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
 import { Study, type Bounds, type ElementRecord, type Point } from '@canvas/index.ts';
 
-import { freshModdle } from '@tests/schemas';
+import { freshMetamodel, studyModel } from '@tests/schemas';
 import { exampleXml, withoutDiagramInterchange } from '@tests/utils';
 
 /**
@@ -14,7 +13,7 @@ import { exampleXml, withoutDiagramInterchange } from '@tests/utils';
  * drawing is drawn and laid out the same way as it opens.
  */
 
-const open = (yaml: string): Study => Study.fromDefinitions(studyflowToDefinitions(yaml, freshModdle()));
+const open = (yaml: string): Study => Study.of(studyModel(yaml));
 const box = (study: Study, id: string): Bounds => study.get(id)!.bounds!;
 const middle = (study: Study, id: string): Point => {
   const b = box(study, id);
@@ -585,7 +584,7 @@ P:
 
 test('flows the router would lay on one line are slid apart', async () => {
   // CONSORT fans out at gateways and sends a boundary event's flow from each step to one shared end.
-  const study = await Study.open(await exampleXml('consort2025'), { moddle: freshModdle() });
+  const study = await Study.open(await exampleXml('consort2025'), { metamodel: freshMetamodel() });
   study.layout();
   const runs = study.list({ kind: 'edge' }).flatMap((flow: ElementRecord) => flow.waypoints!.slice(1).map((b, i) => ({ flow, a: flow.waypoints![i], b })));
   for (const [i, p] of runs.entries()) {
@@ -603,7 +602,7 @@ test('flows the router would lay on one line are slid apart', async () => {
 
 test('a document with no drawing is drawn as it opens: laid out, what it holds kept, and it reopens as it was drawn', async () => {
   const text = readFileSync(path.join(process.cwd(), 'tests/fixtures/layoutless.studyflow'), 'utf8');
-  const study = await Study.open(text, { moddle: freshModdle() });
+  const study = await Study.open(text, { metamodel: freshMetamodel() });
 
   expect(study.get('DidNotStart')).toMatchObject({ kind: 'node', attachedTo: 'Allocate' });
   expect(study.get('Flow_Eligible')).toMatchObject({ kind: 'edge', source: 'Eligibility_Gateway', target: 'Allocate' });
@@ -613,7 +612,7 @@ test('a document with no drawing is drawn as it opens: laid out, what it holds k
 
   const xml = await study.toXml();
   for (const kept of ['studyflow:study', 'cognitive:questionnaire', 'instrument="screening"', 'attachedToRef="Allocate"']) expect(xml).toContain(kept);
-  expect(boxes(await Study.open(xml, { moddle: freshModdle() }))).toBe(boxes(study));
+  expect(boxes(await Study.open(xml, { metamodel: freshMetamodel() }))).toBe(boxes(study));
 });
 
 test('a data association whose ends are drawn is drawn as the document opens, and one into a property never is', async () => {
@@ -621,12 +620,12 @@ test('a data association whose ends are drawn is drawn as the document opens, an
   const complete = await exampleXml('cognitive_battery');
   const stripped = complete.replace(/[ \t]*<bpmndi:BPMNEdge id="DataOutput_[\s\S]*?<\/bpmndi:BPMNEdge>\n/g, '');
   expect(stripped).not.toMatch(/BPMNEdge[^>]*bpmnElement="DataOutput_Survey_Data"/);
-  const study = await Study.open(stripped, { moddle: freshModdle() });
+  const study = await Study.open(stripped, { metamodel: freshMetamodel() });
   expect(study.get('DataOutput_Survey_Data')).toMatchObject({ kind: 'edge', source: 'Survey', target: 'Dataset_Battery' });
-  expect(boxes(study)).toBe(boxes(await Study.open(complete, { moddle: freshModdle() })));
+  expect(boxes(study)).toBe(boxes(await Study.open(complete, { metamodel: freshMetamodel() })));
 
   // sklearn's pipeline writes its features into a property, which no shape draws.
-  const drafted = await Study.open(withoutDiagramInterchange(await exampleXml('sklearn_pipeline')), { moddle: freshModdle() });
+  const drafted = await Study.open(withoutDiagramInterchange(await exampleXml('sklearn_pipeline')), { metamodel: freshMetamodel() });
   const drawn = drafted.list({ kind: 'edge' }).map((flow) => flow.id);
   expect(drawn).toContain('DataInput_Input_Features');
   expect(drawn).not.toContain('DataOutput_Features');

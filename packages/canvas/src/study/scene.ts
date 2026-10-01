@@ -1,20 +1,15 @@
 /**
- * The scene graph: one tree of nodes, edges and labels in a single coordinate space.
+ * The scene graph: one tree of nodes, edges and labels in a single coordinate space, drawn from a study model.
  *
- * Geometry, colours and the DI flags live here and are written out to BPMN DI on
- * save (`study/di.ts`). The business objects stay the source of truth for
- * everything semantic (names, references, containment, attributes).
+ * Geometry, colours and the drawing's flags live here and are written into the study's layout on each commit
+ * (`study/di.ts`). The study model's elements stay the source of truth for everything semantic (names,
+ * references, containment, attributes).
  */
 
 import type { Bounds, Point } from '@core/document/outline.ts';
+import type { Element, StudyModel } from '@core/model/index.ts';
 
 import type { Font } from '@canvas/study/font.ts';
-
-export type ModdleObject = {
-  readonly $type: string;
-  id?: string;
-  [key: string]: unknown;
-};
 
 export type { Bounds, Point };
 
@@ -27,8 +22,10 @@ export type { Font, FontPatch, TextAlign } from '@canvas/study/font.ts';
 
 interface Base {
   readonly id: string;
+  /** The BPMN element it is (`bpmn:Task`); a schema's type of it is its element's. */
   type: string;
-  businessObject: ModdleObject;
+  /** What it draws, as the study model holds it. */
+  element: Element;
   /** Containing node, or `undefined` at the top level. */
   parent?: SceneNode;
 }
@@ -64,7 +61,7 @@ export interface SceneEdge extends Base {
 }
 
 /**
- * A caption drawn beside its owner. `businessObject` and `type` are the owner's,
+ * A caption drawn beside its owner. `element` and `type` are the owner's,
  * so selecting a label inspects the element it names. Unpinned labels are re-derived
  * from the owner on every redraw; a pinned one keeps the box the user (or the
  * document) gave it.
@@ -81,7 +78,7 @@ export interface SceneLabel extends Base {
 
 export type SceneElement = SceneNode | SceneEdge | SceneLabel;
 
-/** What has a business object of its own: nodes and edges, not the labels that caption them. */
+/** What draws an element of its own: nodes and edges, not the labels that caption them. */
 export type Drawable = SceneNode | SceneEdge;
 
 /** The document root (process / collaboration) projected onto an element shape. */
@@ -89,20 +86,20 @@ export interface RootElement {
   readonly id: string;
   readonly type: string;
   readonly isRoot: true;
-  businessObject: ModdleObject;
+  element: Element;
   children: SceneElement[];
   parent: undefined;
 }
 
 export interface Scene {
-  definitions: ModdleObject;
-  /** The business object the diagram depicts (`bpmn:Process` or `bpmn:Collaboration`). */
-  root: ModdleObject;
+  /** The study the scene draws, which every edit writes. */
+  model: StudyModel;
+  /** The root the diagram depicts (`bpmn:Process` or `bpmn:Collaboration`). */
+  root: Element;
   rootElement: RootElement;
   /** Top-level nodes and edges, in document order. */
   children: SceneElement[];
   elementsById: Map<string, SceneElement>;
-  byBusinessObject: Map<ModdleObject, SceneNode | SceneEdge>;
   /** Bumped on every committed edit. */
   revision: number;
 }

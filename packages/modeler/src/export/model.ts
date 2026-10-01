@@ -1,5 +1,6 @@
 import { getCatalog, type AttributeSpec, type TypeRole } from '@core/notation';
 import { idOf, isElement, yamlText, type Element, type StudyModel, type Value } from '@core/model/index';
+import { isDataOperationIn } from '@core/model/parameters';
 import { exportDiagramName } from '@modeler/diagram/name';
 import type { Editor } from '@modeler/editor/port';
 
@@ -63,7 +64,7 @@ function readElement(model: StudyModel, element: Element): ExportedElement {
   const host = model.host(element);
   const extensionType = model.extensionType(element);
   const roles = rolesOf(host, extensionType);
-  const isDataOperation = isDataOperation_(model, element, extensionType);
+  const isDataOperation = isDataOperationIn(model, element);
 
   const attributes: Record<string, unknown> = {};
   const specs: AttributeSpec[] = [];
@@ -98,13 +99,6 @@ function readElement(model: StudyModel, element: Element): ExportedElement {
 const listIn = (value: Value | undefined): Value[] => (Array.isArray(value) ? value : value === undefined ? [] : [value]);
 
 const isId = (id: string | null): id is string => typeof id === 'string' && id !== '';
-
-/** Derived, not stored: an activity that names an implementation, unless it is an instrument (as the canvas marks it). */
-function isDataOperation_(model: StudyModel, element: Element, extensionType: string | undefined): boolean {
-  if (extensionType && getCatalog().hasRole(extensionType, 'instrument')) return false;
-  const implementation = model.attributeOrDefault(element, 'implementation');
-  return typeof implementation === 'string' && implementation.trim() !== '';
-}
 
 /** A wrapper element carries roles under both its BPMN host type and the schema type it wraps. */
 function rolesOf(host: string, extensionType: string | undefined): TypeRole[] {

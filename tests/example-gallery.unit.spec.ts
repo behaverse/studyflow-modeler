@@ -1,23 +1,19 @@
 import { expect, test } from '@playwright/test';
 
 import { compareExamples, galleryCategories, UNCATEGORIZED } from '@modeler/examples/catalog';
-import { studyflowToDefinitions } from '@core/document';
+import { documentationOf, type StudyModel } from '@core/model/index';
 import { exampleMetadata } from '@modeler/examples/metadata';
 import { drawPreview } from '@modeler/examples/preview';
 import { installDocument } from '../packages/canvas/tests/canvasHarness';
-import { freshModdle } from './schemas';
-import { exampleNames, exampleStudyflow, exampleXml } from './utils';
+import { studyModel } from './schemas';
+import { exampleNames, exampleText, exampleXml } from './utils';
 
 /**
  * An example ships as a `.studyflow.yaml`. The skill it ships with — `skills/<name>/examples/` — is the shelf its
  * card lands on, so the file itself carries no category.
  */
 
-const moddle = freshModdle();
-
-async function definitionsOf(name: string): Promise<any> {
-  return (await moddle.fromXML(await exampleXml(name))).rootElement;
-}
+const modelOf = (name: string): StudyModel => studyModel(exampleText(name));
 
 test.describe('shipped examples', () => {
   test('there are examples, and each one is a drawn diagram', async () => {
@@ -32,10 +28,10 @@ test.describe('shipped examples', () => {
 
   test('each declares the title and blurb its card is made of', async () => {
     for (const name of exampleNames) {
-      const definitions = await definitionsOf(name);
-      const { title, summary } = exampleMetadata(definitions, name);
+      const model = modelOf(name);
+      const { title, summary } = exampleMetadata(model, name);
 
-      expect(definitions.rootElements.some((root: any) => root.name?.trim() === title), `${name} has no named root`)
+      expect(model.study.roots.some((root) => typeof root.name === 'string' && root.name.trim() === title), `${name} has no named root`)
         .toBe(true);
       expect(summary, `${name} documents nothing to put on its card`).not.toBe('');
       expect(summary.length, `${name}'s first sentence overflows its card`).toBeLessThan(160);
@@ -44,18 +40,18 @@ test.describe('shipped examples', () => {
 
   test('a pool diagram is read from both its roots', async () => {
     // spirit2025 names its collaboration and documents its process.
-    const definitions = await definitionsOf('spirit2025');
-    const rootOf = (type: string) => definitions.rootElements.find((root: any) => root.$type === type);
-    const { title, summary } = exampleMetadata(definitions, 'spirit2025');
+    const model = modelOf('spirit2025');
+    const rootOf = (type: string) => model.study.roots.find((root) => model.isA(root, type))!;
+    const { title, summary } = exampleMetadata(model, 'spirit2025');
     expect(title).toBe(rootOf('bpmn:Collaboration').name);
-    const documentation = (rootOf('bpmn:Process').documentation?.[0]?.text ?? '').replace(/\s+/g, ' ').trim();
+    const documentation = (documentationOf(rootOf('bpmn:Process')) ?? '').replace(/\s+/g, ' ').trim();
     expect(summary).not.toBe('');
     expect(documentation.startsWith(summary), 'the blurb is the process documentation\'s first sentence').toBe(true);
   });
 
   test('a YAML example\'s card draws the main canvas, without glyphs', async () => {
     installDocument();
-    const svg = drawPreview(studyflowToDefinitions(await exampleStudyflow('sklearn_pipeline', moddle), moddle));
+    const svg = drawPreview(modelOf('sklearn_pipeline'));
 
     expect(svg).toContain('data-element-id="select_model"');
     expect(svg).not.toContain('data-element-id="cross_validate"');

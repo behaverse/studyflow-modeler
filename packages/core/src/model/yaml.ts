@@ -68,6 +68,25 @@ function isMapping(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
+/** An element in its long form, a BPMN element and its schema type's entry, as its schema type: what the file
+ * spells and the reader reads. Unchanged when the entry cannot fold (another schema type, or keys the element holds). */
+export function foldTyped(metamodel: Metamodel, element: Element): Element {
+  const entries = element.extensionElements;
+  if (!Array.isArray(entries)) return element;
+  const typed = entries.filter((entry): entry is Element => isElement(entry) && attachOf(metamodel, entry.type) === element.type);
+  if (typed.length !== 1) return element;
+  const [entry] = typed;
+  const own = localKeys(metamodel.descriptor(element.type));
+  const keys = Object.keys(entry).filter((key) => key !== 'type');
+  if (keys.some((key) => own.has(key) || key in element || key.includes(':'))) return element;
+  const rest = entries.filter((other) => other !== entry);
+  const folded: Element = { ...element, type: entry.type };
+  delete folded.extensionElements;
+  for (const key of keys) folded[key] = entry[key];
+  if (rest.length > 0) folded.extensionElements = rest;
+  return folded;
+}
+
 /* --- reading --- */
 
 class Reader {
@@ -151,7 +170,7 @@ class Reader {
       if (this.ids.has(element.id)) this.warn(`the id '${element.id}' names two elements; a reference to it reaches only the last`);
       this.ids.set(element.id, element);
     }
-    return typed ? element : this.folded(element);
+    return typed ? element : foldTyped(this.metamodel, element);
   }
 
   /** What `raw` is where a `declared` value is expected: an element, an expression's text, a list, or itself. */
@@ -180,23 +199,6 @@ class Reader {
     return element;
   }
 
-  /** The element written in its long form, a BPMN element and its schema type's entry, as its schema type. */
-  private folded(element: Element): Element {
-    const entries = element.extensionElements;
-    if (!Array.isArray(entries)) return element;
-    const typed = entries.filter((entry): entry is Element => isElement(entry) && attachOf(this.metamodel, entry.type) === element.type);
-    if (typed.length !== 1) return element;
-    const [entry] = typed;
-    const own = localKeys(this.metamodel.descriptor(element.type));
-    const keys = Object.keys(entry).filter((key) => key !== 'type');
-    if (keys.some((key) => own.has(key) || key in element || key.includes(':'))) return element;
-    const rest = entries.filter((other) => other !== entry);
-    const folded: Element = { ...element, type: entry.type };
-    delete folded.extensionElements;
-    for (const key of keys) folded[key] = entry[key];
-    if (rest.length > 0) folded.extensionElements = rest;
-    return folded;
-  }
 
   /** The drawing written on an element (`bounds`, `waypoint`, colours), moved to the layout. */
   private inlineDrawing(node: Record<string, unknown>, own: Descriptor): void {

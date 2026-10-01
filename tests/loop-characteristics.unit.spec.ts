@@ -5,7 +5,7 @@ import type { Element } from '@core/model/index';
 import { runUpdateLoopCharacteristics } from '@modeler/inspector/commands';
 import { loopKindOf } from '@modeler/inspector/loopCharacteristics';
 import type { Editor } from '@modeler/editor/port';
-import { freshModdle } from './schemas';
+import { freshMetamodel } from './schemas';
 
 /** `UpdateLoopCharacteristics` writes every `loopCharacteristics` change through the study, one commit each. */
 
@@ -18,7 +18,7 @@ Study:
   type: Process
   flowElements:
     Improve: { type: SubProcess }
-`, { moddle: freshModdle() });
+`, { metamodel: freshMetamodel() });
   return { study, modeler: { study } as unknown as Editor, element: () => study.element('Improve')! };
 }
 

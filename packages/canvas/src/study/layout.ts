@@ -23,11 +23,10 @@
  */
 
 import { centerOf, isDataShape, PARTICIPANT_BAND } from '@core/document/outline.ts';
-import { getProperty } from '@core/element/moddle.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
-import { asList } from '@canvas/study/moddle.ts';
-import type { Bounds, ModdleObject, Point, RootElement, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import { idsIn } from '@canvas/study/elements.ts';
+import type { Bounds, Point, RootElement, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { isRootElement } from '@canvas/study/scene.ts';
 import { hostOf, isCollapsed, isExpanded } from '@canvas/study/tree.ts';
 
@@ -337,7 +336,7 @@ function arrangement(nodes: readonly SceneNode[], reach: (node: SceneNode) => Re
 /** The flow between `shapes`: a boundary event's flows leave from its activity, and a message ends at a shape it reaches. */
 function flowGraph(shapes: readonly SceneNode[], events: readonly SceneNode[]): Flow {
   const inFlow = new Set(shapes);
-  const hosts = new Map(events.map((event) => [event, shapes.find((shape) => shape.businessObject === getProperty(event.businessObject, 'attachedToRef'))] as const));
+  const hosts = new Map(events.map((event) => [event, shapes.find((shape) => shape.id === idsIn(event.element.attachedToRef)[0])] as const));
   const shapeOf = (node: SceneNode | undefined): SceneNode | undefined => (node && hosts.has(node) ? hosts.get(node) : node && inFlow.has(node) ? node : undefined);
   const empty = (): Map<SceneNode, SceneNode[]> => new Map(shapes.map((shape) => [shape, [] as SceneNode[]] as const));
   const graph: Flow = { next: empty(), prev: empty(), after: empty(), before: empty() };
@@ -570,8 +569,8 @@ function follow(scene: Scene, nodes: readonly SceneNode[], before: ReadonlyMap<S
   for (const group of nodes.filter((node) => node.type === 'bpmn:Group')) {
     const was = before.get(group)!;
     // What it held: what stood inside it, and what its category names.
-    const value = getProperty(group.businessObject, 'categoryValueRef');
-    const named = (node: SceneNode): boolean => !!value && asList(getProperty(node.businessObject, 'categoryValueRef')).includes(value as ModdleObject);
+    const [value] = idsIn(group.element.categoryValueRef);
+    const named = (node: SceneNode): boolean => !!value && idsIn(node.element.categoryValueRef).includes(value);
     const members = nodes.filter((node) => node.type !== 'bpmn:Group' && !isLane(node) && !isPool(node) && (inside(was, centerOf(before.get(node)!)) || named(node)));
     if (members.length === 0) continue;
     // Shapes that kept their arrangement keep their group as it was drawn; else it is drawn round them afresh.
@@ -645,7 +644,7 @@ function laneDepth(lane: SceneNode | undefined): number {
 
 /** The shapes of the container's flow, its lanes' included: not pools, lanes, notes, groups, data or what sits on an activity. */
 function flowShapes(container: Container): SceneNode[] {
-  return holdings(container).filter((child) => !isPool(child) && !isArtifact(child.type) && !isDataShape(child.type) && !getProperty(child.businessObject, 'attachedToRef'));
+  return holdings(container).filter((child) => !isPool(child) && !isArtifact(child.type) && !isDataShape(child.type) && !child.element.attachedToRef);
 }
 
 function dataShapes(container: Container): SceneNode[] {
@@ -654,7 +653,7 @@ function dataShapes(container: Container): SceneNode[] {
 
 /** What sits on the container's activities, its lanes' included. */
 function boundaryEvents(container: Container): SceneNode[] {
-  return holdings(container).filter((child) => !!getProperty(child.businessObject, 'attachedToRef'));
+  return holdings(container).filter((child) => !!child.element.attachedToRef);
 }
 
 /** The shapes the container holds, its lanes' included, not the lanes. */

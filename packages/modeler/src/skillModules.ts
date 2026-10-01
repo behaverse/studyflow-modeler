@@ -1,4 +1,5 @@
 import { SKILLS } from '@core/notation/loader';
+import type { Metamodel } from '@core/model/metamodel';
 import type { ExportFormat } from '@modeler/diagram/formats';
 import type { InspectorSection } from '@modeler/inspector/sections';
 
@@ -6,8 +7,8 @@ import type { InspectorSection } from '@modeler/inspector/sections';
 export type OpenContext = {
   /** The file's name without its extension, for naming what it becomes. */
   name: string;
-  /** The enabled schemas as moddle packages, to build the document with. */
-  packages: Record<string, any>;
+  /** The metamodel of the enabled schemas, to spell the study with. */
+  metamodel: Metamodel;
   /** Tell the user what the conversion changed. */
   warn(message: string): void;
 };
@@ -17,7 +18,8 @@ export type Opener = {
   label: string;
   extension: string;
   mimeType: string;
-  toXml(text: string, context: OpenContext): Promise<string>;
+  /** The file as a `.studyflow.yaml`. */
+  toStudyflow(text: string, context: OpenContext): string;
 };
 
 /** What a skill's `modeler.ts` exports by default: the projections the modeler writes, the foreign formats it opens,

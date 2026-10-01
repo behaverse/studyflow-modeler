@@ -5,12 +5,15 @@
  */
 
 import { categoryOf, isExpandable, type NodeCategory } from '@core/document/outline.ts';
-import { getDefaults, StudyflowElement } from '@core/element/index.ts';
+import { getDefaults } from '@core/element/index.ts';
+import type { Element, StudyModel, Value } from '@core/model/index.ts';
+import { foldTyped } from '@core/model/yaml.ts';
+import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 
-import { mint, type ModdleFactory } from '@canvas/study/moddle.ts';
+import { mint } from '@canvas/study/elements.ts';
 import type { AddShapeSpec } from '@canvas/study/mutator.ts';
 import type { RuleElement } from '@canvas/study/rules.ts';
-import type { Bounds, ModdleObject, Point } from '@canvas/study/scene.ts';
+import type { Bounds, Point } from '@canvas/study/scene.ts';
 import { EXPANDED_SIZE } from '@canvas/study/tree.ts';
 
 /** A new shape: a BPMN type, typed further by a schema's extension. */
@@ -22,7 +25,7 @@ export interface NewShape {
   /** A container drawn open, its contents in view; one is born closed unless this says otherwise. */
   expanded?: boolean;
   name?: string;
-  /** Set on its business object; `eventDefinitions: [{ type }]` makes an event variant. */
+  /** Set on its element; `eventDefinitions: [{ type }]` makes an event variant. */
   attributes?: Record<string, unknown>;
 }
 
@@ -33,7 +36,8 @@ export type NewElement = NewShape | { template: string };
 export interface CreatePrototype extends RuleElement {
   readonly kind: 'prototype';
   readonly type: string;
-  businessObject?: ModdleObject;
+  /** The element a ghost draws, never filed. */
+  element?: Element;
   width: number;
   height: number;
   extensionType?: string;
@@ -64,34 +68,48 @@ function expandedOf(shape: NewShape): boolean | undefined {
   return isExpandable(shape.type) ? shape.expanded === true : undefined;
 }
 
-/** What `shape` sets on its business object: its attributes, and its name. */
+/** What `shape` sets on its element: its attributes, and its name. */
 function attributesOf(shape: NewShape): Record<string, unknown> | undefined {
   if (shape.name === undefined) return shape.attributes && { ...shape.attributes };
   return { ...shape.attributes, name: shape.name };
 }
 
-/** `shape` before it exists, at its type's default size; `draft` is a business object for a ghost to draw. */
-export function prototypeOf(shape: NewShape, draft?: ModdleObject): CreatePrototype {
+/** `shape` before it exists, at its type's default size; `draft` is an element for a ghost to draw. */
+export function prototypeOf(shape: NewShape, draft?: Element): CreatePrototype {
   const isExpanded = expandedOf(shape);
   const attrs = attributesOf(shape);
   return {
     kind: 'prototype',
     type: shape.type,
     ...defaultSizeFor(shape.type, isExpanded),
-    ...(draft ? { businessObject: draft } : {}),
+    ...(draft ? { element: draft } : {}),
     ...(shape.extension ? { extensionType: shape.extension } : {}),
     ...(attrs ? { attrs } : {}),
     ...(isExpanded !== undefined ? { isExpanded } : {}),
   };
 }
 
-/** A business object of `shape` for a ghost to draw: minted, never filed. */
-export function draftOf(shape: NewShape, factory: ModdleFactory | undefined): ModdleObject {
-  const draft = mint(factory, shape.type, attributesOf(shape));
-  if (shape.extension && factory?.create) {
-    StudyflowElement.fromBusinessObject(draft).ensureExtension(shape.extension, factory as never, getDefaults(shape.extension));
+/** An element of `shape` for a ghost to draw: minted, never filed. */
+export function draftOf(model: StudyModel, shape: NewShape): Element {
+  return mintTyped(model, shape.type, attributesOf(shape) ?? {}, shape.extension);
+}
+
+/**
+ * A new element of `type` with `attributes`, typed by the schema type `extension` when there is one: the extension's
+ * defaults where its attributes live (a trait's on the element, a type's on its entry), written as the file spells
+ * it (a type the element is, rather than an entry, where it can be).
+ */
+export function mintTyped(model: StudyModel, type: string, attributes: Record<string, unknown>, extension?: string): Element {
+  const element = mint(type, attributes);
+  if (!extension) return element;
+  const trait = hasCatalog() && getCatalog().getType(extension)?.style === 'trait';
+  if (!trait) element.extensionElements = [{ type: extension }];
+  // The defaults are named as the schema declares them (`cognitive:restDuration`); the study holds them by local name.
+  for (const [qualified, value] of Object.entries(getDefaults(extension))) {
+    const name = qualified.slice(qualified.indexOf(':') + 1);
+    if (!(name in attributes)) model.setAttribute(element, name, value as Value);
   }
-  return draft;
+  return foldTyped(model.metamodel, element);
 }
 
 /** What the mutator mints for `prototype` at `center`, under the id given when there is one. */

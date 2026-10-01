@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { BpmnModdle } from 'bpmn-moddle';
 
 import { renderSvg, type Canvas, type IconDef } from '@canvas/index.ts';
 import { INK } from '@canvas/view/theme.ts';
+import { xmlToStudy } from '@core/document';
+import { extensionTypeOf, type Element as StudyElement } from '@core/model/index';
+import { metamodelOf } from '@core/model/packages';
 import { buildCatalog, getCatalog, setCatalog } from '@core/notation';
 import { fromModdleYaml } from '@core/notation/moddlePackage';
 
@@ -145,8 +147,7 @@ test('the attribute a type\'s `meta.glyph` names is drawn over its icon, upper-c
   const shipped = getCatalog();
   setCatalog(buildCatalog(models));
   try {
-    const { rootElement } = await new BpmnModdle(schemaPackages(models) as any).fromXML(GLYPH_XML);
-    const canvas = canvasOn(rootElement, { iconResolver: () => GLYPH_DEF });
+    const canvas = canvasOn(await xmlToStudy(GLYPH_XML, metamodelOf(schemaPackages(models))), { iconResolver: () => GLYPH_DEF });
     const glyphOf = (id: string) => graphics(canvas, id).querySelector('text.sf-icon-text');
 
     expect(glyphOf('Short')?.textContent).toBe('NB');
@@ -258,9 +259,9 @@ Process_D:
 `;
 
 /** Stands in for the modeler's resolver in the data cases: a class draws, a typed element draws. */
-function dataResolver(key: string, bo?: any): IconDef | null | undefined {
+function dataResolver(key: string, element?: StudyElement): IconDef | null | undefined {
   if (key.startsWith('iconify ')) return GLYPH_DEF;
-  if (bo?.extensionElements) return GLYPH_DEF;
+  if (extensionTypeOf(element)) return GLYPH_DEF;
   return null;
 }
 

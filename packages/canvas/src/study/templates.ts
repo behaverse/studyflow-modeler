@@ -1,34 +1,29 @@
 /**
- * A template, dropped: its elements built as a file holding them builds, an id the document already holds moved
+ * A template, dropped: its elements built as a file holding them builds, an id the study already holds moved
  * aside (and code that names it following), then laid out inside the shape the template drops as.
  */
 
-import { PLACEHOLDER, studyflowToDefinitions } from '@core/document/index.ts';
+import { PLACEHOLDER } from '@core/document/index.ts';
+import { StudyModel, isElement, type Element, type Value } from '@core/model/index.ts';
+import { renameIds } from '@core/model/root.ts';
+import { readStudy } from '@core/model/yaml.ts';
 import { getCatalog, hasCatalog, type Template } from '@core/notation/index.ts';
-import { getProperty } from '@core/element/moddle.ts';
 
+import { idsIn, listOf, refOf } from '@canvas/study/elements.ts';
 import type { IdGenerator } from '@canvas/study/ids.ts';
-import { modelOf } from '@canvas/study/moddle.ts';
+import { boxOf } from '@canvas/study/import.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import { routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
 import type { Rules } from '@canvas/study/rules.ts';
-import type { Bounds, ModdleObject, Point, SceneNode } from '@canvas/study/scene.ts';
-
-/** A moddle element as the template walk reads it: its descriptor names its properties. */
-type Described = ModdleObject & {
-  $descriptor: { properties: { name: string; isReference?: boolean }[] };
-  $instanceOf(type: string): boolean;
-  $attrs?: Record<string, unknown>;
-  set(name: string, value: unknown): void;
-};
+import type { Bounds, Point, SceneNode } from '@canvas/study/scene.ts';
 
 /** A template's elements, and where its drawing puts them, ready to lay out inside the shape it drops as. */
 export interface TemplateBuild {
   /** The element the template drops as, its flow taken out to be laid out. */
-  root: ModdleObject;
-  nodes: { businessObject: ModdleObject; bounds: Bounds }[];
-  flows: { businessObject: ModdleObject; waypoints?: Point[] }[];
+  root: Element;
+  nodes: { element: Element; bounds: Bounds }[];
+  flows: { element: Element; waypoints?: Point[] }[];
 }
 
 /** Left covers the pool's label band. */
@@ -46,51 +41,54 @@ export function shapeOf(what: NewElement): NewShape | undefined {
   return template && { type: template.bpmnType, ...(template.extensionType ? { extension: template.extensionType } : {}) };
 }
 
-/** `template`'s elements, built for `document`: an id `document` holds is suffixed from `ids`, and code naming it follows. */
-export function buildTemplate(template: Template, document: ModdleObject, ids: Pick<IdGenerator, 'nextPrefixed'>): TemplateBuild {
-  const definitions = buildElements(template.elements, document, ids);
-  const root = (getProperty(definitions, 'rootElements') as Described[])[0];
-  const isPool = root.$type === 'bpmn:Participant';
-  const children = (getProperty(isPool ? getProperty(root, 'processRef') as ModdleObject : root, 'flowElements') ?? []) as Described[];
+/** `template`'s elements, built for `model`: an id `model` holds is suffixed from `ids`, and code naming it follows. */
+export function buildTemplate(template: Template, model: StudyModel, ids: Pick<IdGenerator, 'nextPrefixed'>): TemplateBuild {
+  const fragment = new StudyModel(readStudy(structuredClone({ definitions: {}, elements: template.elements }) as never, model.metamodel, () => {}), model.metamodel);
+  renameClashes(fragment, model, ids);
+  const root = fragment.study.roots[0];
+  const isPool = fragment.host(root) === 'bpmn:Participant';
+  const holder = isPool ? refOf(fragment, root, 'processRef') : root;
+  const children = listOf(holder, 'flowElements');
   // The layout files each element as it places it; a pool takes its process from the layout, only its flow from the template.
-  if (isPool) root.set('processRef', undefined);
-  else if (children.length > 0) root.set('flowElements', []);
+  if (isPool) delete root.processRef;
+  else if (children.length > 0) root.flowElements = [];
+  for (const child of children) fragment.unfile(child);
 
-  const bounds = new Map<ModdleObject, Bounds>();
-  const routes = new Map<ModdleObject, Point[]>();
-  const diagram = (getProperty(definitions, 'diagrams') as ModdleObject[] | undefined)?.[0];
-  for (const di of (getProperty(getProperty(diagram, 'plane') as ModdleObject | undefined, 'planeElement') ?? []) as ModdleObject[]) {
-    const element = getProperty(di, 'bpmnElement') as ModdleObject;
-    const box = getProperty(di, 'bounds') as Bounds | undefined;
-    const waypoints = getProperty(di, 'waypoint') as Point[] | undefined;
-    if (box) bounds.set(element, { x: box.x, y: box.y, width: box.width, height: box.height });
-    if (waypoints?.length) routes.set(element, waypoints.map(({ x, y }) => ({ x, y })));
-  }
-  const isFlow = (bo: Described): boolean => bo.$instanceOf('bpmn:SequenceFlow');
+  const isFlow = (element: Element): boolean => fragment.isA(element, 'bpmn:SequenceFlow');
+  const { layout } = fragment.study;
+  const boundsOf = (element: Element): Bounds => {
+    const box = element.id ? boxOf(layout[element.id]?.bounds) : undefined;
+    return box?.x !== undefined ? { x: box.x, y: box.y ?? 0, width: box.width ?? 0, height: box.height ?? 0 } : { x: 0, y: 0, ...defaultSizeFor(fragment.host(element)) };
+  };
+  const routeOf = (element: Element): Point[] | undefined => {
+    const text = element.id ? layout[element.id]?.waypoint : undefined;
+    if (typeof text !== 'string' || !text.trim()) return undefined;
+    return text.trim().split(/\s+/).map((pair) => {
+      const [x, y] = pair.split(',').map(Number);
+      return { x, y };
+    });
+  };
 
   return {
     root,
-    nodes: children.filter((bo) => !isFlow(bo)).map((bo) => ({
-      businessObject: bo,
-      bounds: bounds.get(bo) ?? { x: 0, y: 0, ...defaultSizeFor(bo.$type) },
-    })),
-    flows: children.filter(isFlow).map((bo) => ({ businessObject: bo, waypoints: routes.get(bo) })),
+    nodes: children.filter((element) => !isFlow(element)).map((element) => ({ element, bounds: boundsOf(element) })),
+    flows: children.filter(isFlow).map((element) => ({ element, waypoints: routeOf(element) })),
   };
 }
 
 /** Lay `build` out inside `container`, the shape its template dropped as: its nodes where it draws them, then its flows. */
-export function layOutTemplate(mutator: Mutator, rules: Rules, container: SceneNode, build: TemplateBuild): void {
+export function layOutTemplate(mutator: Mutator, rules: Rules, container: SceneNode, build: TemplateBuild, host: (element: Element) => string): void {
   const shift = fitParticipant(mutator, container, build.nodes.map((node) => node.bounds));
 
-  const placed = new Map<unknown, SceneNode>();
-  for (const { businessObject, bounds } of build.nodes) {
+  const placed = new Map<string, SceneNode>();
+  for (const { element, bounds } of build.nodes) {
     const at = { ...bounds, x: bounds.x + shift.x, y: bounds.y + shift.y };
-    placed.set(businessObject, mutator.addShape({ type: businessObject.$type, businessObject, bounds: at, parent: container }));
+    placed.set(element.id!, mutator.addShape({ type: host(element), element, bounds: at, parent: container }));
   }
 
-  for (const { businessObject: flow, waypoints } of build.flows) {
-    const source = placed.get(getProperty(flow, 'sourceRef'));
-    const target = placed.get(getProperty(flow, 'targetRef'));
+  for (const { element: flow, waypoints } of build.flows) {
+    const source = placed.get(idsIn(flow.sourceRef)[0] ?? '');
+    const target = placed.get(idsIn(flow.targetRef)[0] ?? '');
     const spec = source && target ? rules.canConnect(source, target) : false;
     if (!source || !target || !spec) {
       console.warn(`[templates] Skipping connection '${flow.id}' - source or target not found.`);
@@ -100,7 +98,7 @@ export function layOutTemplate(mutator: Mutator, rules: Rules, container: SceneN
       type: spec.type,
       source,
       target,
-      businessObject: flow,
+      element: flow,
       waypoints: waypoints?.map(({ x, y }) => ({ x: x + shift.x, y: y + shift.y })) ?? routeFor(spec.type, routableEnd(source), target),
     });
   }
@@ -125,62 +123,36 @@ function fitParticipant(mutator: Mutator, pool: SceneNode, boxes: Bounds[]): { x
   };
 }
 
-/** Every moddle element in a subtree; references are not followed. */
-function* elementsIn(value: unknown): Generator<Described> {
-  if (Array.isArray(value)) {
-    for (const item of value) yield* elementsIn(item);
-  } else if ((value as Described | undefined)?.$descriptor) {
-    const element = value as Described;
-    yield element;
-    for (const property of element.$descriptor.properties) {
-      if (!property.isReference) yield* elementsIn((element as Record<string, unknown>)[property.name]);
-    }
-  }
-}
-
-/** Renamed ids where code names them: every word of an expression's body, and the name in each `{placeholder}`. */
-function renameInCode(element: Described, renamed: Map<string, string>): void {
+/** Renamed ids where code names them: every word of an expression, and the name in each `{placeholder}`. */
+function renameInCode(model: StudyModel, element: Element, renamed: Map<string, string>): void {
   const inPlaceholders = (text: string): string => text.replace(PLACEHOLDER, (match, path: string) => {
     const head = path.split('.')[0];
     return renamed.has(head) ? match.replace(head, renamed.get(head)!) : match;
   });
-  const isExpression = element.$instanceOf('bpmn:Expression');
-  for (const property of element.$descriptor.properties) {
-    const value = (element as Record<string, unknown>)[property.name];
-    if (property.isReference || property.name === 'id') continue;
-    if (isExpression && property.name === 'body' && typeof value === 'string') {
-      element.set('body', value.replace(/[\p{L}\p{N}_-]+/gu, (word) => renamed.get(word) ?? word));
-    } else if (typeof value === 'string') {
-      element.set(property.name, inPlaceholders(value));
-    } else if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-      element.set(property.name, value.map(inPlaceholders));
-    }
+  const inExpression = (text: string): string => text.replace(/[\p{L}\p{N}_-]+/gu, (word) => renamed.get(word) ?? word);
+  for (const [key, value] of Object.entries(element)) {
+    if (key === 'type' || key === 'id' || value === undefined) continue;
+    const property = model.propertyAt(element, key);
+    if (property?.isReference) continue;
+    const expression = !!property && model.metamodel.has(property.type) && model.metamodel.isA(property.type, 'bpmn:Expression');
+    if (typeof value === 'string') element[key] = expression ? inExpression(value) : inPlaceholders(value);
+    else if (isElement(value) && expression && typeof value.body === 'string') value.body = inExpression(value.body);
+    else if (Array.isArray(value) && value.every((item) => typeof item === 'string')) element[key] = (value as string[]).map(inPlaceholders) as Value[];
   }
-  for (const [name, value] of Object.entries(element.$attrs ?? {})) {
-    if (typeof value === 'string') element.$attrs![name] = inPlaceholders(value);
-  }
-}
-
-/** The template's elements, built as a file holding them builds, their ids clear of `document`'s. */
-function buildElements(elements: Record<string, unknown>, document: ModdleObject, ids: Pick<IdGenerator, 'nextPrefixed'>): ModdleObject {
-  const definitions = studyflowToDefinitions({ definitions: {}, elements }, modelOf(document) as never) as ModdleObject;
-  renameClashes(definitions, document, ids);
-  return definitions;
 }
 
 /**
- * An id of `definitions` that `document` already holds is suffixed (a second drop gets `eo_gate_…`): references
- * follow the element they point at, and so does code that names it by text, an expression
- * (`state._meta.reached.eo_gate`) or a `{placeholder}`. Names and documentation keep the word.
+ * An id of `fragment` that `held` already holds is suffixed (a second drop gets `eo_gate_…`): references follow the
+ * element they point at, and so does code that names it by text, an expression (`state._meta.reached.eo_gate`) or a
+ * `{placeholder}`. Names and documentation keep the word.
  */
-export function renameClashes(definitions: ModdleObject, document: ModdleObject, ids: Pick<IdGenerator, 'nextPrefixed'>): void {
-  const held = new Set([...elementsIn(document)].map((element) => element.id));
+export function renameClashes(fragment: StudyModel, held: StudyModel, ids: Pick<IdGenerator, 'nextPrefixed'>): void {
   const renamed = new Map<string, string>();
-  for (const element of elementsIn(getProperty(definitions, 'rootElements'))) {
-    if (typeof element.id !== 'string' || !held.has(element.id)) continue;
-    const id = ids.nextPrefixed(`${element.id}_`);
-    renamed.set(element.id, id);
-    element.id = id;
+  for (const element of fragment.all()) {
+    if (typeof element.id !== 'string' || !held.get(element.id)) continue;
+    renamed.set(element.id, ids.nextPrefixed(`${element.id}_`));
   }
-  if (renamed.size > 0) for (const element of elementsIn(getProperty(definitions, 'rootElements'))) renameInCode(element, renamed);
+  if (renamed.size === 0) return;
+  renameIds(fragment, renamed);
+  for (const element of fragment.all()) renameInCode(fragment, element, renamed);
 }

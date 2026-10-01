@@ -6,7 +6,7 @@ import type { StudyModel } from '@core/model/index';
 import { studyText } from '@core/model/yaml';
 import type { Editor } from '@modeler/editor/port';
 import { readTrail, resetTrailStamping, stampTrailForExport, trailTimestamp } from '@modeler/provenance/trail';
-import { freshMetamodel, freshModdle } from './schemas';
+import { freshMetamodel } from './schemas';
 import { exampleXml } from './utils';
 
 /** Run records in `state._meta.prov`, stamped once per *fact* so re-rendering stays byte-stable. */
@@ -21,7 +21,7 @@ async function untrailed(name: string): Promise<StudyModel> {
 test.describe('provenance trail', () => {
   test('a stamp is a commit of the study, so undo and redo keep it with the history', async () => {
     const model = await untrailed('drawn_loop');
-    const study = await Study.open(studyText(model.study, model.metamodel), { moddle: freshModdle() });
+    const study = await Study.open(studyText(model.study, model.metamodel), { metamodel: freshMetamodel() });
     const modeler = { study, revision: () => study.revision } as unknown as Editor;
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('created');
     expect(readTrail(study.model)).toHaveLength(1);

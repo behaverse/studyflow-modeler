@@ -5,16 +5,16 @@
  * mutator to graft in.
  */
 
-import { definitionsToStudyflow, studyflowToDefinitions } from '@core/document/index.ts';
 import { isDataAssociationType } from '@core/element/index.ts';
-import { getProperty, setProperty } from '@core/element/moddle.ts';
+import { StudyModel, type Element, type Value } from '@core/model/index.ts';
+import { readStudy, studyText } from '@core/model/yaml.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
-import { diOf } from '@canvas/study/di.ts';
+import { drawingOf } from '@canvas/study/di.ts';
+import { listOf, refOf } from '@canvas/study/elements.ts';
 import type { IdGenerator } from '@canvas/study/ids.ts';
-import { importDefinitions } from '@canvas/study/import.ts';
-import { asList, asModdle, mint, modelOf, parentOf, setParent } from '@canvas/study/moddle.ts';
-import type { ModdleObject, Scene, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
+import { importStudy } from '@canvas/study/import.ts';
+import type { Scene, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 import { renameClashes } from '@canvas/study/templates.ts';
 import { hostOf } from '@canvas/study/tree.ts';
 
@@ -50,59 +50,61 @@ export function copyOf(scene: Scene, ids: readonly string[]): string | undefined
   // A flow inside a shape the copy holds goes with that shape; a data association with its activity.
   const topFlows = flows.filter((flow) => !(flow.parent && held.has(flow.parent)) && !isDataAssociationType(flow.type));
 
-  const factory = modelOf(scene.definitions);
+  const { model } = scene;
   const isArtifact = (element: SceneNode | SceneEdge): boolean => isBpmnSubtypeOf(element.type, 'bpmn:Artifact');
-  const process = mint(factory, 'bpmn:Process', { id: 'Copy', isExecutable: false });
-  setProperty(process, 'flowElements', [...top, ...topFlows].filter((element) => !isArtifact(element)).map((element) => element.businessObject));
-  setProperty(process, 'artifacts', [...top, ...topFlows].filter(isArtifact).map((element) => element.businessObject));
-  const plane = mint(factory, 'bpmndi:BPMNPlane', { id: 'Copy_plane', bpmnElement: process });
-  setProperty(plane, 'planeElement', [...held, ...flows].map((element) => diOf(element, factory)));
-  for (const di of asList(getProperty(plane, 'planeElement'))) setParent(di, plane);
-  const diagram = mint(factory, 'bpmndi:BPMNDiagram', { id: 'Copy_diagram', plane });
-  // A group's name is its category's value: the category comes along.
-  const categories = new Set([...held].map((node) => parentOf(asModdle(getProperty(node.businessObject, 'categoryValueRef')))).filter((category) => !!category));
-  const definitions = mint(factory, 'bpmn:Definitions', {
-    id: 'Copy_definitions',
-    targetNamespace: 'http://bpmn.io/schema/bpmn',
-    rootElements: [process, ...categories],
-    diagrams: [diagram],
-  });
-  setParent(plane, diagram);
-  setParent(diagram, definitions);
-  setParent(process, definitions);
-
-  // A data association to data left behind stays behind: set aside while the copy is written.
-  const taken = new Set(flows.map((flow) => flow.businessObject));
-  const aside: [ModdleObject, string, unknown][] = [];
+  // A data association to data left behind stays behind: set aside while the copy is taken.
+  const taken = new Set<Element>(flows.map((flow) => flow.element));
+  const aside: [Element, string, Value | undefined][] = [];
   for (const node of held) {
     for (const name of DATA_ASSOCIATIONS) {
-      const list = asList(getProperty(node.businessObject, name));
+      const list = listOf(node.element, name);
       if (list.every((association) => taken.has(association))) continue;
-      aside.push([node.businessObject, name, getProperty(node.businessObject, name)]);
-      setProperty(node.businessObject, name, list.filter((association) => taken.has(association)));
+      aside.push([node.element, name, node.element[name]]);
+      node.element[name] = list.filter((association) => taken.has(association));
     }
   }
+  let elements: Element[];
   try {
-    return definitionsToStudyflow(definitions);
+    elements = structuredClone([...top, ...topFlows].map((element) => element.element));
   } finally {
-    for (const [owner, name, list] of aside) setProperty(owner, name, list);
+    for (const [owner, name, list] of aside) owner[name] = list;
   }
+  const kept = [...top, ...topFlows];
+  const process: Element = {
+    type: 'bpmn:Process',
+    id: 'Copy',
+    isExecutable: false,
+    flowElements: elements.filter((_, i) => !isArtifact(kept[i])),
+    artifacts: elements.filter((_, i) => isArtifact(kept[i])),
+  };
+  // A group's name is its category's value: the category comes along.
+  const categories = new Set([...held].map((node) => {
+    const value = refOf(model, node.element, 'categoryValueRef');
+    return value && model.parentOf(value);
+  }).filter((category): category is Element => !!category));
+  const layout = Object.fromEntries([...held, ...flows].map((element) => [element.id, drawingOf(scene, element)]));
+  return studyText({
+    id: 'Copy_definitions',
+    definitions: { targetNamespace: 'http://bpmn.io/schema/bpmn' },
+    roots: [process, ...structuredClone([...categories])],
+    layout,
+  }, model.metamodel);
 }
 
 /**
- * `yaml`, a `.studyflow.yaml` document whose root is a process (a copy), drawn on its own, each id `document` holds
+ * `yaml`, a `.studyflow.yaml` document whose root is a process (a copy), drawn on its own, each id `model` holds
  * swapped for a fresh one from `ids`; a string says why it cannot be pasted.
  */
-export function fragmentOf(yaml: string, document: ModdleObject, ids: Pick<IdGenerator, 'nextPrefixed'>): Scene | string {
-  let definitions: ModdleObject;
+export function fragmentOf(yaml: string, model: StudyModel, ids: Pick<IdGenerator, 'nextPrefixed'>): Scene | string {
+  let pasted: StudyModel;
   try {
-    definitions = studyflowToDefinitions(yaml, modelOf(document) as never, () => {}) as ModdleObject;
+    pasted = new StudyModel(readStudy(yaml, model.metamodel, () => {}), model.metamodel);
   } catch (error) {
     return `not a studyflow document: ${error instanceof Error ? error.message : String(error)}`;
   }
-  renameClashes(definitions, document, ids);
-  const fragment = importDefinitions(definitions, { onWarning: () => {} });
-  if (!isBpmnSubtypeOf(fragment.root.$type, 'bpmn:Process')) return 'a paste takes shapes, not pools';
+  renameClashes(pasted, model, ids);
+  const fragment = importStudy(pasted, { onWarning: () => {} });
+  if (!isBpmnSubtypeOf(fragment.rootElement.type, 'bpmn:Process')) return 'a paste takes shapes, not pools';
   if ([...fragment.elementsById.values()].some((element) => element.kind === 'node' && FRAMES.has(element.type))) return 'a paste takes shapes, not lanes';
   if (!fragment.rootElement.children.some((element) => element.kind === 'node')) return 'the document draws no shapes';
   return fragment;

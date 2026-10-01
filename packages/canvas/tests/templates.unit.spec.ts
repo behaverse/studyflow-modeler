@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import { studyflowToDefinitions } from '@core/document';
+import { documentationOf, expressionOf } from '@core/model/index';
 import { buildCatalog, getCatalog, setCatalog, type TypeCatalog } from '@core/notation';
 import { fromModdleYaml } from '@core/notation/moddlePackage';
 import { Study, studyInternals } from '@canvas/study/Study.ts';
 import type { SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 
-import { freshModdle, loadSchemaModels } from '@tests/schemas';
+import { loadSchemaModels, studyModel } from '@tests/schemas';
 
 /**
  * A template, dropped (`study/templates.ts`): its elements laid out inside the shape it drops as, and an id the
@@ -45,7 +45,7 @@ templates:
 
 /** A study whose document holds one task, under `id`. */
 function holding(id: string): Study {
-  return Study.fromDefinitions(studyflowToDefinitions(`id: Defs_1
+  return Study.of(studyModel(`id: Defs_1
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Process_1:
@@ -54,7 +54,7 @@ Process_1:
     ${id}:
       type: Task
       bounds: 100 400 100 80
-`, freshModdle()));
+`));
 }
 
 const node = (study: Study, id: string): SceneNode => studyInternals(study).scene.elementsById.get(id) as SceneNode;
@@ -85,12 +85,12 @@ test('a held id is suffixed, and only code that names it follows: expressions an
   study.add({ template: 'loop::template:1', at: { x: 700, y: 200 } });
 
   const loop = node(study, 'Loop');
-  const gate = loop.children.find((child) => child.type === 'bpmn:ExclusiveGateway')!.businessObject as any;
-  const work = node(study, 'Work').businessObject as any;
-  const back = node(study, 'F2').businessObject as any;
+  const gate = loop.children.find((child) => child.type === 'bpmn:ExclusiveGateway')!.element;
+  const work = node(study, 'Work').element;
+  const back = node(study, 'F2').element;
   expect(gate.id).toMatch(/^Gate_\w+$/);
-  expect(back.conditionExpression.body).toBe(`state._meta.reached.${gate.id} < 3`);
+  expect(expressionOf(back.conditionExpression)?.body).toBe(`state._meta.reached.${gate.id} < 3`);
   expect(work.name).toBe(`Work, then ask {${gate.id}}`);
   expect(gate.name).toBe('Gate');
-  expect((loop.businessObject as any).documentation[0].text).toBe('Gate decides when Work stops.');
+  expect(documentationOf(loop.element)).toBe('Gate decides when Work stops.');
 });

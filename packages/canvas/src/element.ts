@@ -1,7 +1,7 @@
 /**
  * `<studyflow-canvas>`: a canvas as an HTML element, built on the package's index alone (lint-enforced), so it
  * needs nothing a host could not have. A page hands it a study (`element.study = study`), or names a file with
- * `src` once `element.moddle` says how to read one; `readonly` makes it a view to look at. Give it a size.
+ * `src` once `element.metamodel` says how to read one; `readonly` makes it a view to look at. Give it a size.
  * `defineStudyflowCanvas()` registers it.
  */
 
@@ -10,8 +10,8 @@ import { Canvas, Study, type CanvasOptions, type OpenOptions } from './index.ts'
 export class StudyflowCanvasElement extends HTMLElement {
   static readonly observedAttributes = ['src', 'readonly'];
 
-  /** Reads the file `src` names: a moddle over the schemas it uses. */
-  moddle?: OpenOptions['moddle'];
+  /** Reads the file `src` names: the metamodel of the schemas it uses. */
+  metamodel?: OpenOptions['metamodel'];
   /** How the view draws, read when it mounts: the icons, the grid. */
   options: CanvasOptions = {};
 
@@ -55,10 +55,10 @@ export class StudyflowCanvasElement extends HTMLElement {
     if (!src) return;
     const read = ++this.reads;
     try {
-      if (!this.moddle) throw new Error('<studyflow-canvas> reads a file with a moddle: set element.moddle first');
+      if (!this.metamodel) throw new Error('<studyflow-canvas> reads a file with a metamodel: set element.metamodel first');
       const response = await fetch(src);
       if (!response.ok) throw new Error(`<studyflow-canvas> could not read ${src}: ${response.status}`);
-      const study = await Study.open(await response.text(), { moddle: this.moddle });
+      const study = await Study.open(await response.text(), { metamodel: this.metamodel });
       if (read === this.reads) this.study = study;
     } catch (error) {
       const view = this.ownerDocument.defaultView;

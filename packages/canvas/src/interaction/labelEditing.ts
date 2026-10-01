@@ -4,9 +4,11 @@
  * choreography band. Enter commits, Escape abandons.
  */
 
-import { isChoreographyTask, isTypedChoreography, participantRefs, readChoreographyBands } from '@canvas/study/choreography.ts';
+import { extensionTypeOf } from '@core/model/index.ts';
+import { bandsOf, isChoreographyTask, participantRefs } from '@canvas/study/choreography.ts';
+import type { StudyModel } from '@core/model/index.ts';
 import { hasExternalLabel } from '@canvas/study/labels.ts';
-import { nameOf } from '@canvas/study/moddle.ts';
+import { nameOf } from '@canvas/study/elements.ts';
 import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { edgeLabelBox, FONT, LINE_HEIGHT, nodeLabelBox, textWidth } from '@canvas/study/text.ts';
 import { familyOf, internalLabelRegion, LABEL_FONT, WEIGHT } from '@canvas/render/labels.ts';
@@ -23,6 +25,8 @@ export interface LabelEditingOptions {
   /** Writes the text; its commit redraws what the text changes. */
   /** Write the edited text through the study: the element's name, or the participant its `top` or `bottom` band shows. */
   rename: (element: SceneNode | SceneEdge, band: LabelBand, text: string) => boolean;
+  /** The study model the edited elements are in, which says what a band shows. */
+  model: () => StudyModel;
   restoreFocus?: () => void;
   /** An edit opened or closed on `element`: the host hides its drawn text while the transparent editor stands in for it. */
   onEditing?: (element: SceneNode | SceneEdge, editing: boolean) => void;
@@ -47,14 +51,14 @@ function labelPlacement(element: SceneNode | SceneEdge): LabelPlacement {
 function choreographyBandAt(node: SceneNode, point: Point): LabelBand {
   const band = choreographyBandHeight(node.height);
   const rel = point.y - node.y;
-  if (rel <= band) return isTypedChoreography(node.businessObject) ? 'name' : 'top';
+  if (rel <= band) return extensionTypeOf(node.element) !== undefined ? 'name' : 'top';
   if (rel >= node.height - band) return 'bottom';
   return 'name';
 }
 
 /** The diagram-space region the text of `band` occupies. */
 export function labelBounds(element: SceneNode | SceneEdge, band: LabelBand): Bounds {
-  if (element.kind === 'edge') return element.label ?? edgeLabelBox(element, nameOf(element.businessObject) || 'x');
+  if (element.kind === 'edge') return element.label ?? edgeLabelBox(element, nameOf(element.element) || 'x');
   const node = element;
   if (isChoreographyTask(node)) {
     const h = choreographyBandHeight(node.height);
@@ -62,12 +66,12 @@ export function labelBounds(element: SceneNode | SceneEdge, band: LabelBand): Bo
     if (band === 'bottom') return { x: node.x, y: node.y + node.height - h, width: node.width, height: h };
     // The name is captioned inside the middle band, laid out like a task's (`renderer.ts drawChoreography`);
     // a typed one naming no party is drawn as a plain task and captions the whole box.
-    const plain = isTypedChoreography(node.businessObject) && participantRefs(node.businessObject).length === 0;
-    const region = internalLabelRegion(plain ? node : { ...node, height: node.height - 2 * h }, nameOf(node.businessObject));
+    const plain = extensionTypeOf(node.element) !== undefined && participantRefs(node.element).length === 0;
+    const region = internalLabelRegion(plain ? node : { ...node, height: node.height - 2 * h }, nameOf(node.element));
     return { x: node.x + region.x, y: node.y + (plain ? 0 : h) + region.y, width: region.width, height: region.height };
   }
-  if (hasExternalLabel(node)) return node.label ?? nodeLabelBox(node, nameOf(node.businessObject) || 'x');
-  const region = internalLabelRegion(node, nameOf(node.businessObject));
+  if (hasExternalLabel(node)) return node.label ?? nodeLabelBox(node, nameOf(node.element) || 'x');
+  const region = internalLabelRegion(node, nameOf(node.element));
   return { x: node.x + region.x, y: node.y + region.y, width: region.width, height: region.height };
 }
 
@@ -167,8 +171,8 @@ export class LabelEditing {
   }
 
   private textOf(element: SceneNode | SceneEdge, band: LabelBand): string {
-    if (band === 'name') return nameOf(element.businessObject);
-    const bands = readChoreographyBands(element.businessObject);
+    if (band === 'name') return nameOf(element.element);
+    const bands = bandsOf(this.options.model(), element.element);
     return band === 'top' ? bands.top : bands.bottom;
   }
 

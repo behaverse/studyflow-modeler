@@ -4,7 +4,9 @@ import type { Canvas, NewShape } from '@canvas/index.ts';
 import { isOrthogonal } from '@canvas/study/orthogonal.ts';
 import type { SceneNode } from '@canvas/study/scene.ts';
 
-import { canvasOn, edge, loadYaml, node, rulesOf, sceneOf, xmlOf, type Loaded } from './canvasHarness';
+import type { Element } from '@core/model/index';
+
+import { edge, loadCanvas, loadYaml, node, rulesOf, sceneOf, xmlOf, type Loaded } from './canvasHarness';
 
 /**
  * Retyping an element in place — the context pad's wrench, "Change element",
@@ -59,7 +61,7 @@ function retype(canvas: Canvas, element: SceneNode, what: NewShape): SceneNode |
 
 test('replacing a task mints the new type, keeps the name and rewires both flows — proven by toXML', async () => {
   const loaded = load();
-  const { canvas, moddle } = loaded;
+  const { canvas } = loaded;
   const task = node(canvas, 'Task_1');
 
   const replacement = retype(canvas, task, { type: 'bpmn:UserTask' });
@@ -91,8 +93,7 @@ test('replacing a task mints the new type, keeps the name and rewires both flows
 
   // And the whole thing re-imports — the strongest statement that nothing was left
   // dangling (a flow pointing at an unfiled business object throws here).
-  const { rootElement: reimported } = await moddle.fromXML(xml);
-  expect(canvasOn(reimported).study.get(id)).toBeTruthy();
+  expect((await loadCanvas(xml)).canvas.study.get(id)).toBeTruthy();
 });
 
 test('a replacement keeps the centre, in its own type\'s footprint unless both types share a shape', async () => {
@@ -153,7 +154,7 @@ test('replacing an event with a variant of the same type mints the event definit
   const attributes = { eventDefinitions: [{ type: 'bpmn:ErrorEventDefinition' }] };
   const errorEnd = retype(canvas, end, { type: 'bpmn:EndEvent', attributes })!;
   expect(errorEnd.id).not.toBe(end.id);
-  expect((errorEnd.businessObject as any).eventDefinitions[0].$type).toBe('bpmn:ErrorEventDefinition');
+  expect((errorEnd.element.eventDefinitions as Element[])[0].type).toBe('bpmn:ErrorEventDefinition');
   // The same variant again is "what it already is".
   expect(canvas.study.replace({ id: errorEnd.id, type: 'bpmn:EndEvent', attributes })).toMatchObject({ ok: true, id: errorEnd.id, added: [], removed: [] });
 });

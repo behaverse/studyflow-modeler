@@ -1,43 +1,41 @@
 /**
- * A study: the document (its BPMN definitions and the scene drawn from them), the one place it is
- * edited, its undo history, and the news of each change. It needs no DOM: a canvas is one view of a
- * study, and several views may share one.
+ * A study: the study model and the scene drawn from it, the one place it is edited, its undo history, and the news
+ * of each change. It needs no DOM: a canvas is one view of a study, and several views may share one.
  */
 
-import { definitionsToStudyflow, fromWireDefinitions, looksLikeXml, metamodelOfModdle, patchDoc, readerWarning, setItemSubject, setMessageItem, studyflowToDefinitions, toWireXml } from '@core/document';
+import { parseStudy, patchDoc, studyToXml } from '@core/document/index.ts';
 import type { YamlDoc } from '@core/document/format.ts';
-import { definitionsToYamlDoc } from '@core/document/serialize.ts';
-import { categoryOf, isExpandable } from '@core/document/outline.ts';
-import { eventDefinitionTypeOf, getAttributeSpec, getExtensionType, setAttribute, StudyflowElement } from '@core/element/index.ts';
-import { getProperty, type Moddle } from '@core/element/moddle.ts';
-import { getCatalog, hasCatalog, isBpmnSubtypeOf } from '@core/notation/index.ts';
-import { StudyModel, type Element } from '@core/model/index.ts';
-import type { Ids } from '@core/model/items.ts';
-import { readStudy, writeStudy } from '@core/model/yaml.ts';
+import { categoryOf, isDataShape, isExpandable } from '@core/document/outline.ts';
+import { eventDefinitionTypeOf } from '@core/element/index.ts';
+import { isElement, StudyModel, type Element, type Value } from '@core/model/index.ts';
+import { setItemSubjectIn, setMessageItemIn, type Ids } from '@core/model/items.ts';
+import type { Metamodel } from '@core/model/metamodel.ts';
+import { readStudy, studyText, writeStudy } from '@core/model/yaml.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
+import { declares, describeType, extensionMisfit, NOTHING, refused, runRead, runStep, shapeFor } from '@canvas/study/calls.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
-import { writeDi } from '@canvas/study/di.ts';
+import { tasksReferencing } from '@canvas/study/choreography.ts';
+import { writeLayout } from '@canvas/study/di.ts';
 import { draftDrawing, drawDataFlow } from '@canvas/study/draft.ts';
 import { Drag, type Movable } from '@canvas/study/drag.ts';
+import { idsIn, listOf } from '@canvas/study/elements.ts';
 import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
 import { History } from '@canvas/study/history.ts';
-import { importDefinitions, type ImportOptions } from '@canvas/study/import.ts';
+import { importStudy, type ImportOptions } from '@canvas/study/import.ts';
 import { syncLabel } from '@canvas/study/labels.ts';
-import { findById } from '@canvas/study/moddle.ts';
 import { Mutator, type AddShapeSpec, type Commit } from '@canvas/study/mutator.ts';
 import { layoutScene } from '@canvas/study/layout.ts';
 import { rerouteEdge, rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
 import { Rules } from '@canvas/study/rules.ts';
 import { spreadEdges } from '@canvas/study/spread.ts';
-import type { Bounds, Drawable, ElementColors, FontPatch, ModdleObject, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Bounds, Drawable, ElementColors, FontPatch, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
-import { buildTemplate, findTemplate, layOutTemplate, shapeOf } from '@canvas/study/templates.ts';
+import { buildTemplate, findTemplate, layOutTemplate } from '@canvas/study/templates.ts';
 import { copyOf, fragmentOf } from '@canvas/study/clipboard.ts';
-import { ASKABLE_TOOLS, isStepTool, misfitOf, STUDY_TOOLS, type ArgsOf, type StepTool, type StructureRecord, type StudyTool, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
+import { ASKABLE_TOOLS, isStepTool, misfitOf, STUDY_TOOLS, type StepTool, type StudyTool, type ToolResult } from '@canvas/study/tools.ts';
 import { boundsOf, edgesAffectedBy, hostOf, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
-import { writerFor, type StudyWriter } from '@canvas/study/writer.ts';
 
 /** The ids of the nodes and flows a change added, changed (the root's, when the diagram's own properties changed) and removed. */
 export interface ChangedIds {
@@ -56,8 +54,8 @@ export interface StudyChange extends ChangedIds {
 }
 
 export interface OpenOptions extends ImportOptions {
-  /** Reads the text: a moddle over the schemas the document uses. */
-  moddle: Moddle;
+  /** What the text is read by: the metamodel of the schemas the study uses. */
+  metamodel: Metamodel;
 }
 
 /**
@@ -122,11 +120,16 @@ function own(study: Study): Own {
 }
 
 /**
- * The document as an undo snapshot: its `.studyflow.yaml` tree as JSON rather than YAML text, which holds the same and
+ * The study as an undo snapshot: its `.studyflow.yaml` tree as JSON rather than YAML text, which holds the same and
  * is written and read back several times faster.
  */
-function snapshotOf(definitions: ModdleObject): string {
-  return JSON.stringify(definitionsToYamlDoc(definitions));
+function snapshotOf(model: StudyModel): string {
+  return JSON.stringify(writeStudy(model.study, model.metamodel));
+}
+
+/** A study model of a snapshot. */
+function modelOfSnapshot(snapshot: string, metamodel: Metamodel, onWarning: (message: string) => void = () => {}): StudyModel {
+  return new StudyModel(readStudy(JSON.parse(snapshot) as YamlDoc, metamodel, onWarning), metamodel);
 }
 
 export class Study {
@@ -138,63 +141,51 @@ export class Study {
   private holding: StudyChange[] | undefined;
   private readonly options: ImportOptions;
   private readonly rules = new Rules();
-  /** The document after each edit, as its `.studyflow.yaml` tree in JSON ({@link snapshotOf}): what undo and redo go back and forth through. */
+  /** The study after each edit, as its `.studyflow.yaml` tree in JSON ({@link snapshotOf}): what undo and redo go back and forth through. */
   private readonly history: History<string>;
   /** The last commit, for the verb that made it to report. */
   private committed?: Commit;
-  /** The study model of the document at a revision ({@link model}). */
-  private derived?: { revision: number; model: StudyModel };
 
-  private constructor(definitions: ModdleObject, options: ImportOptions) {
+  private constructor(model: StudyModel, options: ImportOptions) {
     this.options = options;
-    this.read(definitions, 0);
-    // As read, before any edit: the DI is the file's, so nothing is written back yet.
-    this.history = new History(snapshotOf(definitions));
+    this.read(model, 0);
+    // As read: a drawing drafted for an undrawn study is part of it from the start.
+    this.history = new History(snapshotOf(model));
   }
 
   /** A study of `text`, a `.studyflow.yaml` or BPMN XML file. */
   static async open(text: string, options: OpenOptions): Promise<Study> {
-    return new Study(await parse(text, options.moddle, options.onWarning), options);
+    return new Study(await parseStudy(text, options.metamodel, options), options);
   }
 
-  /** A study of `definitions`, which it edits in place from here on. */
-  static fromDefinitions(definitions: ModdleObject, options: ImportOptions = {}): Study {
-    return new Study(definitions, options);
+  /** A study of `model`, which it edits in place from here on. */
+  static of(model: StudyModel, options: ImportOptions = {}): Study {
+    return new Study(model, options);
   }
 
-  /** Replace the document with `source`, file text or definitions, as one change: a 'load', which the history starts over from. */
-  async load(source: string | ModdleObject): Promise<void> {
-    const definitions = typeof source === 'string' ? await parse(source, moddleOf(this.definitions), this.options.onWarning) : source;
-    this.swap(definitions, 'load');
+  /** Replace the study with `source`, file text or a study model, as one change: a 'load', which the history starts over from. */
+  async load(source: string | StudyModel): Promise<void> {
+    const model = typeof source === 'string' ? await parseStudy(source, this.model.metamodel, this.options) : source;
+    this.swap(model, 'load');
   }
 
-  /** The document as a `.studyflow.yaml` file holds it: the drawing written into its DI. */
+  /** The study as a `.studyflow.yaml` file holds it. */
   toYaml(): string {
-    const { scene } = own(this);
-    writeDi(scene);
-    return definitionsToStudyflow(scene.definitions);
+    const { model } = own(this).scene;
+    return studyText(model.study, model.metamodel);
   }
 
-  /** The document as a BPMN XML file holds it: the drawing written into its DI, an exchange as the BPMN task it is. */
-  async toXml(): Promise<string> {
-    const { scene } = own(this);
-    writeDi(scene);
-    const moddle = moddleOf(scene.definitions);
-    const { xml } = await moddle.toXML(scene.definitions, { format: true });
-    return toWireXml(xml, moddle);
+  /** The study as a BPMN XML file holds it: an exchange as the BPMN task it is. */
+  toXml(): Promise<string> {
+    return studyToXml(own(this).scene.model);
   }
 
   /**
-   * The study as a study model, read off the document as it stands: a new one after each change, so an element of an
-   * older one is not this study's. What reads the study holds it; what edits it goes through the verbs.
+   * The study model the study edits: another one after a load, an undo or a redo. What reads the study reads it; what
+   * edits it goes through the verbs, `revise` among them.
    */
   get model(): StudyModel {
-    const { scene } = own(this);
-    if (this.derived?.revision !== scene.revision) {
-      const metamodel = metamodelOfModdle(moddleOf(scene.definitions));
-      this.derived = { revision: scene.revision, model: new StudyModel(readStudy(JSON.parse(this.history.now) as YamlDoc, metamodel, () => {}), metamodel) };
-    }
-    return this.derived.model;
+    return own(this).scene.model;
   }
 
   /** The element `id` names in {@link model}, drawn or not. */
@@ -202,14 +193,10 @@ export class Study {
     return this.model.get(id);
   }
 
-  /** The `bpmn:Definitions` the study edits: another object after a load, an undo or a redo. */
-  get definitions(): ModdleObject {
-    return own(this).scene.definitions;
-  }
-
-  /** The document's root, a process or a collaboration, as data: always the document's, whatever a view shows. */
+  /** The study's root, a process or a collaboration, as data: always the study's, whatever a view shows. */
   get root(): ElementRecord {
-    return recordOf(own(this).scene.rootElement);
+    const { scene } = own(this);
+    return recordOf(scene.model, scene.rootElement);
   }
 
   /** The element `id` names, as data: a shape, a flow, a caption, or the root. */
@@ -217,7 +204,7 @@ export class Study {
     const { scene } = own(this);
     if (id === scene.rootElement.id) return this.root;
     const element = scene.elementsById.get(id);
-    return element && recordOf(element);
+    return element && recordOf(scene.model, element);
   }
 
   /**
@@ -231,25 +218,20 @@ export class Study {
     return [...scene.elementsById.values()]
       .filter((element) => (filter.kind ? element.kind === filter.kind : element.kind !== 'label'))
       .filter((element) => !within || isDescendantOf(element, within as SceneNode))
-      .map(recordOf)
+      .map((element) => recordOf(scene.model, element))
       .filter((record) => !filter.type || record.type === filter.type || record.extension === filter.type);
   }
 
   /** The attributes the element `id` takes, as data: by the names `set` takes, with what each holds now. */
   attributes(id: string): AttributeRecord[] | undefined {
     const found = this.find(id);
-    return found && attributesOf(found.moddle);
-  }
-
-  /** The moddle behind `id`, for in-process hosts reading what a record leaves out; not a tool. */
-  businessObject(id: string): ModdleObject | undefined {
-    return this.find(id)?.moddle;
+    return found && attributesOf(this.model, found.element);
   }
 
   /** What `add`, `append` and `replace` make, as data: the BPMN shape types, the schema types extending them, the templates. */
   catalog(): Catalog {
-    const moddle = moddleOf(this.definitions);
-    return installedCatalog((prefix) => moddle.getPackage(prefix) !== undefined);
+    const { metamodel } = this.model;
+    return installedCatalog((prefix) => metamodel.package(prefix) !== undefined);
   }
 
   /**
@@ -257,37 +239,9 @@ export class Study {
    * schema, a write all or nothing. Answers with one JSON object; `ok` false, and why, when the tool did nothing.
    */
   call(name: string, args: unknown = {}): ToolResult {
-    if (isStepTool(name)) return this.atomic(() => this.step(name, args));
+    if (isStepTool(name)) return this.atomic(() => runStep(this, name, args));
     const misfit = misfitOf(name, args);
-    if (misfit) return refused(misfit);
-    // What passed a tool's schema is what its schema admits.
-    const as = <Tool extends ToolName>(_tool: Tool): ArgsOf<Tool> => args as ArgsOf<Tool>;
-    switch (name as Exclude<ToolName, StepTool>) {
-      case 'document': return { ok: true, yaml: this.toYaml() };
-      case 'copy': return this.copy(as('copy'));
-      case 'get': {
-        const { id } = as('get');
-        const element = this.get(id);
-        return element ? { ok: true, element } : refused(`no element '${id}'`);
-      }
-      case 'list': {
-        const { name: part, geometry, ...filter } = as('list');
-        const wanted = part?.toLowerCase();
-        const found = this.list(filter).filter((element) => wanted === undefined || element.name?.toLowerCase().includes(wanted));
-        return { ok: true, elements: geometry ? found : found.map(undrawn) };
-      }
-      case 'describe': return this.describe(as('describe'));
-      case 'catalog': return { ok: true, ...this.catalog() };
-      case 'can': return this.can(as('can').tool, as('can').args);
-      case 'attributes': {
-        const { id } = as('attributes');
-        const attributes = this.attributes(id);
-        return attributes ? { ok: true, attributes } : refused(`no element '${id}'`);
-      }
-      case 'batch': return this.batch(as('batch'));
-      case 'undo': return this.undo();
-      case 'redo': return this.redo();
-    }
+    return misfit ? refused(misfit) : runRead(this, name, args);
   }
 
   /**
@@ -298,8 +252,8 @@ export class Study {
    */
   can(tool: StepTool, args: Record<string, unknown>): Verdict {
     if (!(ASKABLE_TOOLS as readonly string[]).includes(tool)) {
-      // Any other write is asked by running it on a copy of the document, which is then let go.
-      const copy = Study.fromDefinitions(studyflowToDefinitions(JSON.parse(this.history.now) as YamlDoc, moddleOf(this.definitions), () => {}), this.options);
+      // Any other write is asked by running it on a copy of the study, which is then let go.
+      const copy = Study.of(modelOfSnapshot(this.history.now, this.model.metamodel), this.options);
       const outcome = copy.call(tool, args);
       return outcome.ok ? { ok: true } : { ok: false, reason: (outcome as Verdict).reason };
     }
@@ -313,17 +267,7 @@ export class Study {
    * type's too), and the properties BPMN gives it, which `set` takes as the file spells them.
    */
   describe(args: { type: string; extension?: string }): ToolResult {
-    const model = moddleOf(this.definitions);
-    const misfit = args.extension === undefined ? undefined : extensionMisfit({ type: args.type, extension: args.extension } as NewShape);
-    if (misfit) return refused(misfit);
-    let made: ModdleObject;
-    try {
-      made = model.create(args.type, {}) as ModdleObject;
-    } catch {
-      return refused(`no type '${args.type}'`);
-    }
-    if (args.extension) StudyflowElement.fromBusinessObject(made).ensureExtension(args.extension, model, {});
-    return { ok: true, attributes: attributesOf(made), structure: structureOf(made, model) };
+    return describeType(this.model, args);
   }
 
   /**
@@ -333,12 +277,12 @@ export class Study {
   item({ id, structure }: { id: string; structure: string }): StudyResult {
     const found = this.find(id);
     if (!found) return refused(`no element '${id}'`);
-    const { moddle } = found;
-    const carries = moddle.$type === 'bpmn:MessageFlow';
-    if (!carries && !(moddle.$descriptor as { propertiesByName?: Record<string, unknown> })?.propertiesByName?.itemSubjectRef) {
+    const { model } = this;
+    const carries = model.host(found.element) === 'bpmn:MessageFlow';
+    if (!carries && !model.property(found.element, 'itemSubjectRef')) {
       return refused(`'${id}' is no message flow, property or data object: it holds no item`);
     }
-    return this.write(found.drawn, (writer) => (carries ? setMessageItem : setItemSubject)(writer, this.definitions, moddle, structure.trim()));
+    return this.revise(id, (element, held, ids) => (carries ? setMessageItemIn : setItemSubjectIn)(held, ids, element, structure.trim()));
   }
 
   /** Goes up by one on every change. */
@@ -355,32 +299,41 @@ export class Study {
   set({ id, attribute, value }: { id: string; attribute: string; value: unknown }): StudyResult {
     const found = this.find(id);
     if (!found) return refused(`no element '${id}'`);
-    if (!declares(found.moddle, attribute)) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
-    const property = (found.moddle.$descriptor as { propertiesByName?: Record<string, { isReference?: boolean }> } | undefined)?.propertiesByName?.[attribute];
+    const { model } = this;
+    const { element } = found;
+    if (!declares(model, element, attribute)) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
+    const local = attribute.includes(':') ? attribute.slice(attribute.indexOf(':') + 1) : attribute;
+    const property = model.property(element, local);
     // What BPMN keeps as an element or a reference is written as the file spells it, and cleared by taking it out;
     // text kept in an element of its own (an expression, the documentation) is written in place, as it is typed.
-    const held = [found.moddle[attribute]].flat()[0] as ModdleObject | undefined;
-    const text = typeof held?.$instanceOf === 'function' && (held.$instanceOf('bpmn:Expression') || held.$instanceOf('bpmn:Documentation'));
-    const structured = property?.isReference || (typeof held === 'object' && held !== null && !text);
-    if (value === null ? structured : typeof value === 'object' || property?.isReference) return this.spell(found.moddle, attribute, value, found.drawn?.id ?? this.root.id);
+    const held = [element[local]].flat()[0];
+    const text = typeof held === 'string' || (isElement(held) && (model.isA(held, 'bpmn:Expression') || model.isA(held, 'bpmn:Documentation')));
+    const structured = !!property?.isReference || (isElement(held) && !text);
+    if (value === null ? structured : typeof value === 'object' || property?.isReference) return this.spell(element, local, value, found.drawn?.id ?? this.root.id);
     // Typing into one attribute is one undo step, however many keystrokes wrote it.
-    return this.within(`set:${id}:${attribute}`, () => this.write(found.drawn, (writer) => setAttribute(found.moddle, attribute, value, writer)));
+    return this.within(`set:${id}:${attribute}`, () => this.commit(() => {
+      const written = value === '' || value === null || value === undefined ? undefined
+        : property?.isMany && typeof value === 'string' ? [value] : value as Value;
+      if (model.attribute(element, local) === written) return;
+      model.setAttribute(element, local, written);
+      this.touched(found.drawn, [element]);
+    }));
   }
 
   /**
-   * Write `attribute` of `moddle` as the file spells `value`: the document's tree with that one key changed, read
-   * back whole, so what the value names (a flow, a property, a data object) is what the document holds. One undo
+   * Write `attribute` of `element` as the file spells `value`: the study's tree with that one key changed, read
+   * back whole, so what the value names (a flow, a property, a data object) is what the study holds. One undo
    * step, reported on `about`. Refused, and nothing changed, when the reader cannot place something in it.
    */
-  private spell(moddle: ModdleObject, attribute: string, value: unknown, about: string): StudyResult {
-    const model = moddleOf(this.definitions);
-    const read = (doc: YamlDoc): { definitions: ModdleObject; warnings: string[] } => {
+  private spell(element: Element, attribute: string, value: unknown, about: string): StudyResult {
+    const { model } = this;
+    const read = (doc: YamlDoc): { model: StudyModel; warnings: string[] } => {
       const warnings: string[] = [];
-      return { definitions: studyflowToDefinitions(doc, model, (warning) => warnings.push(warning)), warnings };
+      return { model: new StudyModel(readStudy(doc, model.metamodel, (warning) => warnings.push(warning)), model.metamodel), warnings };
     };
     const doc = JSON.parse(this.history.now) as YamlDoc;
     const known = new Set(read(JSON.parse(this.history.now) as YamlDoc).warnings);
-    if (!patchDoc(doc, moddle, attribute, value)) return refused(`'${attribute}' of '${moddle.id}' is not written this way: edit it in the document`);
+    if (!patchDoc(doc, model, element, attribute, value)) return refused(`'${attribute}' of '${element.id}' is not written this way: edit it in the study`);
     let patched: ReturnType<typeof read>;
     try {
       patched = read(doc);
@@ -389,10 +342,10 @@ export class Study {
     }
     const misread = patched.warnings.find((warning) => !known.has(warning));
     if (misread) return refused(misread);
-    this.history.push(snapshotOf(patched.definitions));
-    // Heard as a redo is: another document in place of the one it held, which every view reads afresh. The caller is
-    // told what it wrote.
-    this.swap(patched.definitions, 'redo');
+    this.read(patched.model, own(this).scene.revision + 1);
+    this.history.push(snapshotOf(patched.model));
+    // Another study model in place of the one it held, which every view reads afresh; the caller is told what it wrote.
+    this.announce({ cause: 'edit', ...revisedIds(model, patched.model) });
     return { ok: true, added: [], changed: [about], removed: [] };
   }
 
@@ -412,61 +365,25 @@ export class Study {
   }
 
   /**
-   * Write the moddle behind `id` in place, as one commit: for what `set` cannot spell. Edits naming the same `run`
+   * Change the element `id` names, and whatever else of the study `write` reaches through the model, as one commit:
+   * what the write changed is found by comparing the study before and after, and redrawn. Edits naming the same `run`
    * (a field being typed into) one after another are one undo step. In-process only, not a tool.
    */
-  edit(id: string, write: (writer: StudyWriter) => void, run?: string): StudyResult {
+  revise(id: string, write: (element: Element, model: StudyModel, ids: Ids) => void, run?: string): StudyResult {
     const found = this.find(id);
     if (!found) return refused(`no element '${id}'`);
-    const commit = () => this.write(found.drawn, write);
-    return run === undefined ? commit() : this.within(`edit:${id}:${run}`, commit);
-  }
-
-  /**
-   * Write the element `id` names in the study model, as one commit: `write` changes a copy of {@link model}, which is
-   * read back whole, as `set` reads a value the file spells. Edits naming the same `run` one after another are one
-   * undo step. Refused, and nothing changed, when the reader cannot place what was written. In-process only, not a tool.
-   */
-  revise(id: string, write: (element: Element, model: StudyModel, ids: Ids) => void, run?: string): StudyResult {
-    const before = this.model;
-    const metamodel = before.metamodel;
-    const copy = new StudyModel(readStudy(JSON.parse(this.history.now) as YamlDoc, metamodel, () => {}), metamodel);
-    const element = copy.get(id);
-    if (!element) return refused(`no element '${id}'`);
-    const unwritten = JSON.stringify(copy.study);
-    const { ids } = own(this).mutator;
-    write(element, copy, {
-      next: (prefix) => ids.nextPrefixed(prefix),
-      free: (base) => {
-        let free = base;
-        for (let n = 2; ids.assigned(free); n += 1) free = `${base}_${n}`;
-        ids.claim(free);
-        return free;
-      },
+    const { scene, mutator } = own(this);
+    const { model } = scene;
+    const edit = (): StudyResult => this.commit(() => {
+      const before = textsOf(model);
+      write(found.element, model, mutator.ids.minter);
+      model.reindex();
+      const after = textsOf(model);
+      const changed = [...new Set([...before.keys(), ...after.keys()])].filter((key) => before.get(key) !== after.get(key));
+      if (changed.length === 0) return;
+      this.touched(found.drawn, changed.map((key) => model.get(key)).filter((element): element is Element => !!element));
     });
-    if (JSON.stringify(copy.study) === unwritten) return { ok: true, ...NOTHING };
-    copy.reindex();
-    const moddle = moddleOf(this.definitions);
-    const warnings = (doc: YamlDoc): { definitions: ModdleObject; warnings: Set<string> } => {
-      const heard = new Set<string>();
-      return { definitions: studyflowToDefinitions(doc, moddle, (warning) => heard.add(warning)), warnings: heard };
-    };
-    const known = warnings(JSON.parse(this.history.now) as YamlDoc).warnings;
-    let revised: ReturnType<typeof warnings>;
-    try {
-      revised = warnings(writeStudy(copy.study, metamodel));
-    } catch (error) {
-      return refused(error instanceof Error ? error.message : String(error));
-    }
-    const misread = [...revised.warnings].find((warning) => !known.has(warning));
-    if (misread) return refused(misread);
-    const scene = this.read(revised.definitions, own(this).scene.revision + 1);
-    const snapshot = snapshotOf(scene.definitions);
-    if (run === undefined) this.history.push(snapshot);
-    else this.history.runAs(`revise:${id}:${run}`, () => this.history.record(snapshot));
-    const change = { cause: 'edit' as const, ...revisedIds(before, this.model) };
-    this.announce(change);
-    return { ok: true, ...change };
+    return run === undefined ? edit() : this.within(`revise:${id}:${run}`, edit);
   }
 
   /**
@@ -526,14 +443,14 @@ export class Study {
     if (typeof checked === 'string') return refused(checked);
     const { node, prototype } = checked;
     if (!prototype) return refused('give a type');
-    if (prototype.type === node.type && prototype.extensionType === getExtensionType(node.businessObject)
-      && eventDefinitionTypeOf(prototype.attrs as never) === eventDefinitionTypeOf(node.businessObject)) {
+    if (prototype.type === node.type && prototype.extensionType === scene.model.extensionType(node.element)
+      && eventDefinitionTypeOf(prototype.attrs as never) === eventDefinitionTypeOf(node.element)) {
       return { ok: true, id: node.id, ...NOTHING };
     }
     const size = categoryOf(prototype.type) === categoryOf(node.type)
       ? { width: node.width, height: node.height }
       : defaultSizeFor(prototype.type, prototype.isExpanded);
-    const name = getProperty(node.businessObject, 'name');
+    const name = node.element.name;
     const attrs = { ...prototype.attrs, ...(typeof name === 'string' && name ? { name } : {}) };
     const spec: AddShapeSpec = {
       ...shapeSpec({ ...prototype, ...size }, { x: node.x + node.width / 2, y: node.y + node.height / 2 }),
@@ -665,7 +582,7 @@ export class Study {
     const named = top ? undefined : scene.elementsById.get(args.into!);
     if (!top && named?.kind !== 'node') return refused(`no container '${args.into}'`);
     const container = named?.kind === 'node' ? named : args.into === undefined && args.at ? containerOf(hitTest(scene, args.at)) : undefined;
-    const fragment = fragmentOf(args.yaml, scene.definitions, mutator.ids);
+    const fragment = fragmentOf(args.yaml, scene.model, mutator.ids);
     if (typeof fragment === 'string') return refused(fragment);
     const shapes = fragment.rootElement.children.filter((element): element is SceneNode => element.kind === 'node');
     const context = named?.kind === 'node' ? { ...named, isExpanded: true } : container ?? scene.rootElement;
@@ -726,7 +643,7 @@ export class Study {
   batch(args: { steps: { tool: string; args: unknown }[] }): StudyResult {
     return this.atomic(() => {
       for (const [index, step] of args.steps.entries()) {
-        const outcome = this.step(step.tool, step.args);
+        const outcome = runStep(this, step.tool, step.args);
         if (!outcome.ok) return refused(`step ${index + 1} (${step.tool}): ${outcome.reason}`);
       }
       return { ok: true, ...NOTHING };
@@ -757,16 +674,15 @@ export class Study {
     return () => this.listeners.delete(listener);
   }
 
-  /** Edit `definitions` from here on, in the form the canvas edits (as a file opens), and return their scene. */
-  private read(definitions: ModdleObject, revision: number): Scene {
-    fromWireDefinitions(definitions, this.options.onWarning);
-    // A document with no drawing is drawn as it is read, and laid out; a drawn one gets the data flow it leaves out.
-    const drafted = draftDrawing(definitions);
-    if (!drafted) drawDataFlow(definitions);
-    const scene = importDefinitions(definitions, this.options);
+  /** Edit `model` from here on, and return its scene. */
+  private read(model: StudyModel, revision: number): Scene {
+    // A study with no drawing is drawn as it is read, and laid out; a drawn one gets the data flow it leaves out.
+    const drafted = draftDrawing(model);
+    if (!drafted) drawDataFlow(model);
+    const scene = importStudy(model, this.options);
     if (drafted) {
       for (const element of layOut(scene)) if (element.kind !== 'label') syncLabel(scene, element);
-      writeDi(scene);
+      writeLayout(scene);
     }
     scene.revision = revision;
     const mutator = new Mutator(scene, (commit) => this.edited(commit));
@@ -784,25 +700,33 @@ export class Study {
   }
 
   /**
-   * The element `id` names, and the moddle behind it: a drawn one (a caption stands for what it captions), the root,
-   * or anything else the document holds, which is not drawn.
+   * The element `id` names: a drawn one (a caption stands for what it captions), the root, or anything else the study
+   * holds, which is not drawn.
    */
-  private find(id: string): { drawn?: Drawable; moddle: ModdleObject } | undefined {
+  private find(id: string): { drawn?: Drawable; element: Element } | undefined {
     const { scene } = own(this);
-    if (id === scene.rootElement.id) return { moddle: scene.rootElement.businessObject };
-    const element = scene.elementsById.get(id);
-    if (element) {
-      const drawn = element.kind === 'label' ? element.owner : element;
-      return { drawn, moddle: drawn.businessObject };
+    if (id === scene.rootElement.id) return { element: scene.rootElement.element };
+    const drawn = scene.elementsById.get(id);
+    if (drawn) {
+      const owner = drawn.kind === 'label' ? drawn.owner : drawn;
+      return { drawn: owner, element: owner.element };
     }
-    const moddle = findById(scene.definitions, id);
-    return moddle && { moddle };
+    const element = scene.model.get(id);
+    return element && { element };
   }
 
-  /** Run `write` as one commit about `drawn` (the root, without it), and say what it did by id. */
-  private write(drawn: Drawable | undefined, write: (writer: StudyWriter) => void): StudyResult {
+  /** Record a write of `elements` in the open commit, as what draws each of them: `about`, else the root. */
+  private touched(about: Drawable | undefined, elements: readonly Element[]): void {
     const { scene, mutator } = own(this);
-    return this.commit(() => write(writerFor(scene, mutator, drawn)));
+    const drawn = new Set<Drawable>();
+    for (const element of elements) {
+      const node = element.id ? scene.elementsById.get(element.id) : undefined;
+      if (node && node.kind !== 'label') for (const shown of redrawn(scene, node)) drawn.add(shown);
+      else if (scene.model.host(element) === 'bpmn:Participant' && about?.kind === 'node') for (const task of tasksReferencing(scene, element, about)) drawn.add(task);
+      else if (about) drawn.add(about);
+    }
+    if (drawn.size > 0) mutator.touch([...drawn]);
+    else mutator.record(scene.rootElement);
   }
 
   /** Run `edit` as one commit, and say what it did by id: `id` is the element it made, when it returns one. */
@@ -896,39 +820,6 @@ export class Study {
     return outcome;
   }
 
-  /** A write tool as a batch runs it: on `args` checked against the tool's schema; one that throws is refused. */
-  private step(tool: string, args: unknown): StudyResult {
-    const misfit = misfitOf(tool, args);
-    if (misfit) return refused(misfit);
-    if (!isStepTool(tool)) return refused(`a batch runs no '${tool}'`);
-    // Each verb takes what its tool's schema admits, or this does not compile. A new element is the one the schema
-    // says less of than the verb asks: one with neither a `type` nor a `template` is refused when it is made.
-    const verbs: { [Tool in StepTool]: (args: ArgsOf<Tool>) => StudyResult } = {
-      add: (a) => this.add(a as ArgsOf<'add'> & NewElement),
-      append: (a) => this.append(a as ArgsOf<'append'> & NewElement),
-      connect: (a) => this.connect(a),
-      replace: (a) => this.replace(a),
-      move: (a) => this.move(a),
-      reconnect: (a) => this.reconnect(a),
-      rename: (a) => this.rename(a),
-      resize: (a) => this.resize(a),
-      reroute: (a) => this.reroute(a),
-      paste: (a) => this.paste(a),
-      layout: () => this.layout(),
-      set: (a) => this.set(a),
-      item: (a) => this.item(a),
-      remove: (a) => this.remove(a),
-      style: (a) => this.style(a),
-      expand: (a) => this.expand(a),
-      collapse: (a) => this.collapse(a),
-    };
-    try {
-      return (verbs[tool] as (args: unknown) => StudyResult)(args);
-    } catch (error) {
-      return refused(error instanceof Error ? error.message : String(error));
-    }
-  }
-
   /** Whether `id` names an element the document already holds. */
   private taken(id: string | undefined): boolean {
     return id !== undefined && own(this).mutator.ids.assigned(id);
@@ -939,9 +830,9 @@ export class Study {
     const { scene, mutator, rules } = own(this);
     const template = 'template' in what ? findTemplate(what.template) : undefined;
     if (!template) return mutator.addShape({ ...shapeSpec(prototype, at, what.id), ...place });
-    const build = buildTemplate(template, scene.definitions, mutator.ids);
-    const node = mutator.addShape({ ...shapeSpec(prototype, at), type: build.root.$type, businessObject: build.root, ...place });
-    layOutTemplate(mutator, rules, node, build);
+    const build = buildTemplate(template, scene.model, mutator.ids);
+    const node = mutator.addShape({ ...shapeSpec(prototype, at), type: scene.model.host(build.root), element: build.root, ...place });
+    layOutTemplate(mutator, rules, node, build, (element) => scene.model.host(element));
     return node;
   }
 
@@ -973,8 +864,8 @@ export class Study {
   private edited(commit: Commit): void {
     this.committed = commit;
     const { scene } = own(this);
-    writeDi(scene);
-    this.history.record(snapshotOf(scene.definitions));
+    writeLayout(scene);
+    this.history.record(snapshotOf(scene.model));
     this.announce({ cause: 'edit', ...idsOf(commit) });
   }
 
@@ -982,15 +873,15 @@ export class Study {
   private travel(step: -1 | 1): StudyResult | undefined {
     const snapshot = this.history.travel(step);
     if (snapshot === undefined) return undefined;
-    const definitions = studyflowToDefinitions(JSON.parse(snapshot) as YamlDoc, moddleOf(this.definitions), this.options.onWarning);
-    return { ok: true, ...this.swap(definitions, step < 0 ? 'undo' : 'redo') };
+    const model = modelOfSnapshot(snapshot, this.model.metamodel, this.options.onWarning);
+    return { ok: true, ...this.swap(model, step < 0 ? 'undo' : 'redo') };
   }
 
-  /** Put `definitions` in place of the document, as one change; a load starts the history over. */
-  private swap(definitions: ModdleObject, cause: 'load' | 'undo' | 'redo'): ChangedIds {
+  /** Put `model` in place of the study, as one change; a load starts the history over. */
+  private swap(model: StudyModel, cause: 'load' | 'undo' | 'redo'): ChangedIds {
     const before = own(this).scene;
-    const after = this.read(definitions, before.revision + 1);
-    if (cause === 'load') this.history.reset(snapshotOf(definitions));
+    const after = this.read(model, before.revision + 1);
+    if (cause === 'load') this.history.reset(snapshotOf(model));
     const change = idsOf(byId(before, after));
     this.announce({ cause, ...change });
     return change;
@@ -1005,81 +896,36 @@ export class Study {
   }
 }
 
-const NOTHING: ChangedIds = { added: [], changed: [], removed: [] };
-
-/** A record without where it is drawn: what an element is, and how it connects. */
-function undrawn({ bounds: _bounds, waypoints: _waypoints, fill: _fill, stroke: _stroke, font: _font, pinned: _pinned, ...what }: ElementRecord): ElementRecord {
-  return what;
-}
-
-/** What BPMN declares and a schema does not re-declare, which no document writes by hand. */
-const UNSET = new Set(['id', 'incoming', 'outgoing', 'extensionElements', 'extensionDefinitions', 'lanes', 'categoryValueRef', 'auditing', 'monitoring']);
-
-/** The properties BPMN gives the element `made`, as `set` takes them: each with the concrete types it may hold. */
-function structureOf(made: ModdleObject, model: Moddle): StructureRecord[] {
-  const schema = new Set(attributesOf(made).map((attribute) => attribute.name));
-  const types: { name: string; isAbstract?: boolean }[] = model.getPackage('bpmn')?.types ?? [];
-  const concrete = (type: string): string[] => (type.startsWith('bpmn:')
-    ? types.filter((candidate) => !candidate.isAbstract && isBpmnSubtypeOf(`bpmn:${candidate.name}`, type)).map((candidate) => candidate.name)
-    : []);
-  const properties = ((made.$descriptor as { properties?: { name: string; type: string; isMany?: boolean; isReference?: boolean; ns?: { prefix?: string; localName?: string } }[] }).properties ?? []);
-  return properties
-    .filter((property) => property.ns?.prefix === 'bpmn' && !UNSET.has(property.name) && !schema.has(property.name))
-    .map((property): StructureRecord => {
-      const of = property.isReference ? [] : concrete(property.type);
-      return {
-        name: property.name,
-        type: property.type,
-        ...(property.isMany ? { many: true } : {}),
-        ...(property.isReference ? { reference: true } : {}),
-        ...(of.length > 1 ? { of } : {}),
-      };
-    });
-}
-
-function refused(reason: string): StudyResult {
-  return { ok: false, reason, ...NOTHING };
-}
-
-/** The shape `what` makes, or why it makes none. */
-function shapeFor(what: NewElement): NewShape | string {
-  if ('template' in what) return 'type' in what ? 'give a type or a template, not both' : shapeOf(what) ?? `no template '${what.template}'`;
-  if (typeof what.type !== 'string') return 'give a type or a template';
-  return extensionMisfit(what) ?? what;
-}
-
-/** Why `shape` cannot carry its extension, or nothing: a schema type, by its full name, that extends `shape.type`. */
-function extensionMisfit({ type, extension }: NewShape): string | undefined {
-  if (extension === undefined) return undefined;
-  const entry = hasCatalog() ? getCatalog().getType(extension) : undefined;
-  if (!entry?.bpmnType || entry.name !== extension) return `no schema type '${extension}'`;
-  return isBpmnSubtypeOf(type, entry.bpmnType) ? undefined : `a ${type} cannot be a ${extension}`;
-}
-
-/** Whether a schema, or BPMN, gives the element behind `moddle` the attribute `name`. */
-function declares(moddle: ModdleObject, name: string): boolean {
-  const element = StudyflowElement.fromBusinessObject(moddle);
-  const extension = element.extension;
-  const descriptor = moddle.$descriptor as { propertiesByName?: Record<string, unknown> } | undefined;
-  return !!element.attribute(name) || !!(extension && getAttributeSpec(extension, name)) || !!descriptor?.propertiesByName?.[name];
-}
-
 function idsOf({ added, changed, removed }: Commit): ChangedIds {
   const ids = (elements: readonly { id: string }[]): string[] => elements.map((element) => element.id);
   return { added: ids(added), changed: ids(changed), removed: ids(removed) };
 }
 
-/** File text, `.studyflow.yaml` or BPMN XML, as definitions. */
-async function parse(text: string, moddle: Moddle, onWarning?: (message: string) => void): Promise<ModdleObject> {
-  if (!looksLikeXml(text)) return studyflowToDefinitions(text, moddle, onWarning);
-  const { rootElement, warnings } = await moddle.fromXML(text);
-  for (const warning of warnings) onWarning?.(readerWarning(warning));
-  return rootElement;
+/** What shows `node`'s element once it changes: `node`, and whatever else draws it. */
+function redrawn(scene: Scene, node: Drawable): Drawable[] {
+  // A participant's name is drawn on every choreography task it takes a band of.
+  if (node.kind === 'node' && node.type === 'bpmn:Participant') return tasksReferencing(scene, node.element, node);
+  const drawn = new Set<Drawable>([node]);
+  // A flow draws its source's `default` as a slash, so every flow that leaves the source redraws.
+  if (node.kind === 'node' && scene.model.property(node.element, 'default')) for (const edge of node.outgoing) drawn.add(edge);
+  // A step may draw what the data it reads holds (a glyph a Parameters object sets).
+  if (node.kind === 'node' && isDataShape(node.type)) {
+    for (const element of scene.elementsById.values()) {
+      if (element.kind !== 'node' || element === node) continue;
+      if (listOf(element.element, 'dataInputAssociations').some((association) => idsIn(association.sourceRef).includes(node.id))) drawn.add(element);
+    }
+  }
+  return [...drawn];
 }
 
-/** The moddle that built `definitions`: it reads and writes their files. */
-function moddleOf(definitions: ModdleObject): Moddle {
-  return definitions.$model as Moddle;
+/** Each element of `model` by id, as text, with what it holds that has an id of its own named by that id; and the
+ * study's own (`''`): its definitions and its run state. */
+function textsOf(model: StudyModel): Map<string, string> {
+  const texts = new Map<string, string>([['', JSON.stringify([model.study.definitions, model.study.state ?? null])]]);
+  for (const element of model.elements()) {
+    texts.set(element.id!, JSON.stringify(element, (key, value) => (key !== '' && isElement(value) && typeof value.id === 'string' ? `#${value.id}` : value)));
+  }
+  return texts;
 }
 
 /**
