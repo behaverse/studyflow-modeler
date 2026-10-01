@@ -154,7 +154,8 @@ export function CommandPalette({ ref }: Props) {
       if (isBareKey(e, 'p') && !isOpen && !dialog && !isTyping(e.target)) {
         const selected = modeler.canvas.selection;
         // A caption stands for what it captions.
-        const scopeId = selected.length === 1 ? modeler.study.businessObject(selected[0])?.id : undefined;
+        const record = selected.length === 1 ? modeler.study.get(selected[0]) : undefined;
+        const scopeId = record?.kind === 'label' ? record.owner : record?.id;
         if (!scopeId) return;
         e.preventDefault();
         setDialog({ id: 'provenance', scopeId });

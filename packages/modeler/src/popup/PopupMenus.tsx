@@ -190,7 +190,7 @@ export function PopupMenus() {
       // type dropped, because "change it to what it already is" is not a choice.
       const currentBpmn = source?.type;
       const currentExtension = source?.extension;
-      const currentDefinition = eventDefinitionTypeOf(source && study.businessObject(source.id));
+      const currentDefinition = eventDefinitionTypeOf(source && study.element(source.id));
       const sections = buildElementEntries()
         .map((group) => ({
           id: group.id,

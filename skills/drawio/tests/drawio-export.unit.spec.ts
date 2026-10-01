@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { exportToDrawio } from '@skills/drawio/modeler';
 
-/** The BPMN -> draw.io mapping, over hand-built records and the business objects behind them. */
+/** The BPMN -> draw.io mapping, over hand-built records and the elements behind them. */
 
 type ShapeSpec = {
   id: string;
@@ -12,7 +12,7 @@ type ShapeSpec = {
   expanded?: boolean;
 };
 
-/** A shape as the study lists it, and the business object behind it. */
+/** A shape as the study lists it, and its element as the study model holds it. */
 function shape({ id, type, bo = {}, parent, expanded }: ShapeSpec): any {
   return {
     id,
@@ -21,7 +21,7 @@ function shape({ id, type, bo = {}, parent, expanded }: ShapeSpec): any {
     ...(parent ? { parent } : {}),
     bounds: { x: 100, y: 200, width: 100, height: 80 },
     ...(expanded === undefined ? {} : { expanded }),
-    businessObject: { $type: type, ...bo },
+    element: { type, id, ...bo },
   };
 }
 
@@ -33,18 +33,22 @@ function flow(id: string, type: string, source: string, target: string): any {
     source,
     target,
     waypoints: [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 50, y: 90 }, { x: 100, y: 90 }],
-    businessObject: { $type: type },
+    element: { type, id },
   };
 }
 
+/** The category values a group may name, which the study holds and does not draw. */
+const CATEGORY_VALUES = new Map([['Enrolment_value', { type: 'bpmn:CategoryValue', id: 'Enrolment_value', value: 'Enrolment' }]]);
+
 /** The study and the view as the export reads them: the view draws all but `hidden`. */
 function fakeModeler(elements: any[], hidden: string[] = []): any {
-  const byId = new Map(elements.map((element) => [element.id, element]));
+  const byId = new Map(elements.map((element) => [element.id, element.element]));
   return {
     study: {
       root: { id: 'Study_1', kind: 'root', type: 'bpmn:Process', name: 'My study' },
-      list: () => elements.map(({ businessObject, ...record }) => record),
-      businessObject: (id: string) => byId.get(id)?.businessObject,
+      list: () => elements.map(({ element: _element, ...record }) => record),
+      element: (id: string) => byId.get(id),
+      model: { get: (id: string) => byId.get(id) ?? CATEGORY_VALUES.get(id) },
     },
     canvas: { draws: (id: string) => !hidden.includes(id) },
   };
@@ -105,7 +109,7 @@ test.describe('draw.io export', () => {
       shape({ id: 'T1', type: 'bpmn:Task', bo: { name: 'Trial 1\nRound "A" & B' } }),
       shape({ id: 'T2', type: 'bpmn:Task', bo: { name: 'a <b> c' } }),
       shape({ id: 'Note', type: 'bpmn:TextAnnotation', bo: { text: 'A free-form note.' } }),
-      shape({ id: 'Grp', type: 'bpmn:Group', bo: { categoryValueRef: { value: 'Enrolment' } } }),
+      shape({ id: 'Grp', type: 'bpmn:Group', bo: { categoryValueRef: 'Enrolment_value' } }),
     ]));
 
     // A cell value is HTML inside an XML attribute: once XML-decoded, a line break is `<br>` and the name's own

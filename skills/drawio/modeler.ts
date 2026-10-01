@@ -3,7 +3,7 @@ import type { ExportFormat } from '@modeler/diagram/formats';
 import { embedBpmnIntoSvg } from '@modeler/export/svgEmbedding';
 import type { ModelerModule } from '@modeler/skillModules';
 import { exportDiagramName } from '@modeler/diagram/name';
-import { readChoreographyBands } from '@core/document';
+import { bandsOf } from '@core/model/choreography';
 import { choreographyBandHeight } from '@core/document/outline';
 import type { ElementRecord } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
@@ -104,32 +104,35 @@ function paintRank(element: any): number {
   return isFrame ? 0 : 2;
 }
 
-function labelOf(bo: any): string {
+/** What a shape reads: its element as the study model holds it, and the model, for what it refers to by id. */
+type Read = { bo: any; model: { get(id: string): any } };
+
+function labelOf({ bo, model }: Read, type: string): string {
   if (!bo) return '';
-  if (bo.$type === 'bpmn:TextAnnotation') return typeof bo.text === 'string' ? bo.text : '';
-  if (bo.$type === 'bpmn:Group') {
-    const category = bo.categoryValueRef?.value;
+  if (type === 'bpmn:TextAnnotation') return typeof bo.text === 'string' ? bo.text : '';
+  if (type === 'bpmn:Group') {
+    const category = model.get(bo.categoryValueRef)?.value;
     return typeof category === 'string' ? category : '';
   }
   return typeof bo.name === 'string' ? bo.name : '';
 }
 
-function activityMarkers(bo: any): string {
+function activityMarkers(bo: any, type: string): string {
   const loop = bo?.loopCharacteristics;
   let style = '';
-  if (loop?.$type === 'bpmn:MultiInstanceLoopCharacteristics') {
+  if (loop?.type === 'bpmn:MultiInstanceLoopCharacteristics') {
     style += loop.isSequential ? 'isLoopMultiSeq=1;' : 'isLoopMultiParallel=1;';
-  } else if (loop?.$type === 'bpmn:StandardLoopCharacteristics') {
+  } else if (loop?.type === 'bpmn:StandardLoopCharacteristics') {
     style += 'isLoopStandard=1;';
   }
-  if (bo?.$type === 'bpmn:AdHocSubProcess') style += 'isAdHoc=1;';
+  if (type === 'bpmn:AdHocSubProcess') style += 'isAdHoc=1;';
   return style;
 }
 
 function eventSymbol(bo: any): string {
   const definitions = bo?.eventDefinitions ?? [];
   if (definitions.length > 1) return bo?.parallelMultiple ? 'parallelMultiple' : 'multiple';
-  if (definitions.length === 1) return EVENT_SYMBOLS[definitions[0].$type] ?? 'general';
+  if (definitions.length === 1) return EVENT_SYMBOLS[definitions[0].type] ?? 'general';
   return 'general';
 }
 
@@ -143,7 +146,7 @@ function eventOutline(element: any, bo: any): string {
   }
 }
 
-function shapeStyle(element: any, bo: any): string {
+function shapeStyle(element: any, { bo, model }: Read): string {
   const type = element.type as string;
 
   if (type === 'bpmn:Participant') {
@@ -169,7 +172,7 @@ function shapeStyle(element: any, bo: any): string {
   if (type === 'bpmn:DataObjectReference' || type === 'bpmn:DataObject'
       || type === 'bpmn:DataInput' || type === 'bpmn:DataOutput') {
     const transfer = type === 'bpmn:DataInput' ? 'input' : type === 'bpmn:DataOutput' ? 'output' : 'none';
-    const collection = bo?.isCollection || bo?.dataObjectRef?.isCollection ? 'isCollection=1;' : '';
+    const collection = bo?.isCollection || model.get(bo?.dataObjectRef)?.isCollection ? 'isCollection=1;' : '';
     return `${DATA_OBJECT_BASE}bpmnTransferType=${transfer};${collection}`;
   }
   if (type.endsWith('Gateway')) {
@@ -182,12 +185,12 @@ function shapeStyle(element: any, bo: any): string {
     // `bpmnShapeType` only for the transaction: draw.io reads its `subprocess` value as an *event* sub-process.
     const transaction = type === 'bpmn:Transaction' ? 'bpmnShapeType=transaction;' : '';
     const collapsed = element.expanded === false ? 'isLoopSub=1;' : 'verticalAlign=top;';
-    return `${ACTIVITY_BASE}taskMarker=abstract;${transaction}${collapsed}${activityMarkers(bo)}`;
+    return `${ACTIVITY_BASE}taskMarker=abstract;${transaction}${collapsed}${activityMarkers(bo, type)}`;
   }
   if (type === 'bpmn:CallActivity') {
-    return `${ACTIVITY_BASE}taskMarker=abstract;strokeWidth=3;${activityMarkers(bo)}`;
+    return `${ACTIVITY_BASE}taskMarker=abstract;strokeWidth=3;${activityMarkers(bo, type)}`;
   }
-  return `${ACTIVITY_BASE}taskMarker=${TASK_MARKERS[type] ?? 'abstract'};${activityMarkers(bo)}`;
+  return `${ACTIVITY_BASE}taskMarker=${TASK_MARKERS[type] ?? 'abstract'};${activityMarkers(bo, type)}`;
 }
 
 function edgeStyle(element: any, bo: any): string {
@@ -208,7 +211,7 @@ function edgeStyle(element: any, bo: any): string {
 
   const base = 'edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;verticalAlign=bottom;'
     + 'endArrow=blockThin;endFill=1;endSize=6;';
-  if (element.sourceObject?.default === bo) return `${base}startArrow=dash;startFill=0;startSize=6;`;
+  if (element.sourceObject?.default === element.id) return `${base}startArrow=dash;startFill=0;startSize=6;`;
   if (bo?.conditionExpression) return `${base}startArrow=diamondThin;startFill=0;startSize=10;`;
   return base;
 }
@@ -226,11 +229,13 @@ function cell(id: string, value: string, style: string, parent: string, geometry
     + '        </mxCell>\n';
 }
 
+const readOf = (element: any): Read => ({ bo: element.bo, model: element.model });
+
 function choreographyCells(element: any): string {
   const id = toCellId(element.id);
   const { width, height } = element;
   const band = choreographyBandHeight(element.height);
-  const { top, bottom, initiator } = readChoreographyBands(element.businessObject);
+  const { top, bottom, initiator } = bandsOf(element.model, element.bo);
   const shade = (edge: 'top' | 'bottom') => (initiator === edge ? '' : `fillColor=${RECEIVING_BAND_FILL};`);
 
   return cell(id, '', CHOREOGRAPHY_FRAME + colorStyle(element), '1',
@@ -238,7 +243,7 @@ function choreographyCells(element: any): string {
     + cell(`${id}-band-top`, toCellValue(top),
       `${CHOREOGRAPHY_BAND}bottomLeftStyle=square;bottomRightStyle=square;${shade('top')}`, id,
       `x="0" y="0" width="${width}" height="${band}"`)
-    + cell(`${id}-body`, toCellValue(labelOf(element.businessObject)), CHOREOGRAPHY_BODY, id,
+    + cell(`${id}-body`, toCellValue(labelOf(readOf(element), element.type)), CHOREOGRAPHY_BODY, id,
       `x="0" y="${band}" width="${width}" height="${Math.max(0, height - 2 * band)}"`)
     + cell(`${id}-band-bottom`, toCellValue(bottom),
       `${CHOREOGRAPHY_BAND}topLeftStyle=square;topRightStyle=square;${shade('bottom')}`, id,
@@ -247,13 +252,13 @@ function choreographyCells(element: any): string {
 
 function vertexCell(element: any): string {
   if (element.type === 'bpmn:ChoreographyTask') return choreographyCells(element);
-  const bo = element.businessObject;
-  return cell(toCellId(element.id), toCellValue(labelOf(bo)), shapeStyle(element, bo) + colorStyle(element),
+  const read = readOf(element);
+  return cell(toCellId(element.id), toCellValue(labelOf(read, element.type)), shapeStyle(element, read) + colorStyle(element),
     '1', `x="${element.x}" y="${element.y}" width="${element.width}" height="${element.height}"`);
 }
 
 function edgeCell(element: any, known: Set<string>): string {
-  const bo = element.businessObject;
+  const bo = element.bo;
   const style = edgeStyle(element, bo) + colorStyle(element);
   const waypoints: Array<{ x: number; y: number }> = element.waypoints ?? [];
 
@@ -279,7 +284,7 @@ function edgeCell(element: any, known: Set<string>): string {
       + '            </Array>\n';
   }
 
-  return `        <mxCell id="${escapeXml(toCellId(element.id))}" value="${toCellValue(labelOf(bo))}"`
+  return `        <mxCell id="${escapeXml(toCellId(element.id))}" value="${toCellValue(labelOf(readOf(element), element.type))}"`
     + ` style="${escapeXml(style)}" edge="1" parent="1"${ends}>\n`
     + `          <mxGeometry relative="1" as="geometry">\n${geometry}          </mxGeometry>\n`
     + '        </mxCell>\n';
@@ -295,9 +300,9 @@ export function exportToDrawio(modeler: Editor): string {
   for (const record of records) {
     // Only what is on screen: the drilled-into container's contents, and nothing folded inside a collapsed one.
     if (!canvas.draws(record.id)) continue;
-    // A record, its box spread flat, and the business objects the styles read.
-    const element = { ...record, ...record.bounds, businessObject: study.businessObject(record.id) };
-    if (record.kind === 'edge') connections.push({ ...element, sourceObject: record.source && study.businessObject(record.source) });
+    // A record, its box spread flat, and the elements the styles read.
+    const element = { ...record, ...record.bounds, bo: study.element(record.id), model: study.model };
+    if (record.kind === 'edge') connections.push({ ...element, sourceObject: record.source && study.element(record.source) });
     else shapes.push(element);
   }
 
