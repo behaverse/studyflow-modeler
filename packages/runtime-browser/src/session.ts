@@ -1,4 +1,5 @@
-import { Graph, Walk, type Host, type Message, type PlanElement, type RunEvent, type StateTree } from '@core/engine';
+import { Graph, Walk, type Handback, type Host, type Message, type PlanElement, type RunEvent, type StateTree } from '@core/engine';
+import { evaluateFeel } from '@core/expression/feel';
 import { findByFlowNode } from '@runner/nodes/registry';
 import type { Job } from '@runner/jobs';
 import type { Studyflow } from '@runner/studyflow';
@@ -97,7 +98,8 @@ export class Session {
         });
         this.turn = shown.catch(() => undefined);
         const replied = await shown;
-        return message ? { result: replied } : {};
+        if (message) return { result: replied };
+        return replied === null ? {} : this.handback(studyflow.plan.elements[id], replied);
       },
       record: (event) => this.events.push(event),
       log: (_event, message, detail) => {
@@ -146,9 +148,25 @@ export class Session {
     return this.events;
   }
 
-  /** What the person answers the message on screen: the reply its sender gets. */
+  /** What the screen on show answers: for a message, the reply its sender gets; for a step, its result. */
   answer(reply: unknown): void {
     this.replied = reply;
+  }
+
+  /** A step's result, and each of its data outputs narrowed by that edge's `transformation`, as a runner binds them. */
+  private handback(element: PlanElement, result: unknown): Handback {
+    const values: Record<string, unknown> = {};
+    for (const { target, transformation } of element.outputs) {
+      if (!target) continue;
+      if (!transformation) {
+        values[target] = result;
+        continue;
+      }
+      const { value, error } = evaluateFeel(transformation, { result });
+      if (error) throw new Error(`${element.id}: ${error}`);
+      values[target] = value;
+    }
+    return { result, values };
   }
 
   /** The screen of one message to a pool the person plays. */

@@ -25,6 +25,7 @@ export type ValidationIssue = {
 };
 
 type NodeMatcher =
+  | { scheme: string }
   | { extensionType: string }
   | { bpmnType: string | string[] }
   | { fallback: 'task' };

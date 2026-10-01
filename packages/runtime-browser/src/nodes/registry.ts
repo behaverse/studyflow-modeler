@@ -1,5 +1,6 @@
 import { BPMN } from '@core/constants';
-import type { FlowNode } from '@runner/flow';
+import { parseImplementationRef } from '@core/implementation';
+import { readString, type FlowNode } from '@runner/flow';
 import type { Job } from '@runner/jobs';
 import type { AnyNodeDefinition, NodeDefinition } from '@runner/nodes/types';
 
@@ -24,6 +25,13 @@ export function getRegisteredNodes(): readonly AnyNodeDefinition[] {
 export function findByFlowNode(node: FlowNode): AnyNodeDefinition | undefined {
   const registered = getRegisteredNodes();
 
+  // What the step's `implementation` names runs it, whatever type the step is.
+  const reference = parseImplementationRef(readString(node, 'implementation'));
+  const scheme = reference.ok ? reference.value.scheme : undefined;
+  if (scheme) {
+    const def = registered.find((d) => 'scheme' in d.match && d.match.scheme === scheme);
+    if (def) return def;
+  }
   for (const def of registered) {
     if ('extensionType' in def.match && node.extensionType === def.match.extensionType) {
       return def;

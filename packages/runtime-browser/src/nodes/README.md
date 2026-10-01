@@ -6,7 +6,7 @@ An element runner is one folder, `src/nodes/<kind>/`, or `skills/<name>/browser/
 2. Declare the job type by augmenting `JobsByType` from `@runner/jobs`.
 3. Call `registerNode({ type, match, toJob, Component, validateNode? })`.
 
-`match` is `{ extensionType: 'studyflow:MyKind' }` (most specific), `{ bpmnType: 'bpmn:StartEvent' }` (one or a list), or `{ fallback: 'task' }`. `toJob` gets the step as a `FlowNode`: its `element` as the study model holds it, the `model` it is in (for what it refers to by id), and the `parameters` wired into it; `attributeOf(node, name)` and `readString(node, name)` read an attribute, its schema entry's when the element does not hold it. The component gets its `job`, `session.setVariable(name, value)` to publish what it collected, `complete()` to advance, and `abort(reason)` to stop.
+`match` is `{ scheme: 'jspsych' }` (the step's `implementation` names it, whatever its type), `{ extensionType: 'studyflow:MyKind' }`, `{ bpmnType: 'bpmn:StartEvent' }` (one or a list), or `{ fallback: 'task' }`. `toJob` gets the step as a `FlowNode`: its `element` as the study model holds it, the `model` it is in (for what it refers to by id), and the `parameters` wired into it; `attributeOf(node, name)` and `readString(node, name)` read an attribute, its schema entry's when the element does not hold it. The component gets its `job`, `session.answer(value)` to give the step its result (`{Step.field}` reads it), `session.setVariable(name, value)` to publish what it collected, `complete()` to advance, and `abort(reason)` to stop.
 
 ```tsx
 // src/nodes/wait/index.tsx

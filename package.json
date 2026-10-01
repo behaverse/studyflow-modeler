@@ -25,10 +25,11 @@
     "release": "node packages/cli/scripts/release.mjs"
   },
   "devDependencies": {
-    "@behaverse/studyflow-runtime-browser": "*",
     "@behaverse/studyflow-core": "*",
     "@behaverse/studyflow-modeler": "*",
+    "@behaverse/studyflow-runtime-browser": "*",
     "@eslint/js": "^10.0.1",
+    "@jspsych/plugin-html-keyboard-response": "^2.2.0",
     "@playwright/test": "^1.63.0",
     "@types/js-yaml": "^4.0.9",
     "@types/jsdom": "^30.0.0",
@@ -37,6 +38,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.12.0",
     "jsdom": "^30.1.1",
+    "jspsych": "^8.3.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.71.0"
   },
