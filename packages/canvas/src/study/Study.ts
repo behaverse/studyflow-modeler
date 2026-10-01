@@ -17,7 +17,7 @@ import { declares, describeType, extensionMisfit, NOTHING, refused, runRead, run
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
 import { writeLayout } from '@canvas/study/di.ts';
-import { draftDrawing, drawDataFlow } from '@canvas/study/draft.ts';
+import { draftDrawing, drawFlows } from '@canvas/study/draft.ts';
 import { Drag, type Movable } from '@canvas/study/drag.ts';
 import { idsIn, listOf } from '@canvas/study/elements.ts';
 import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
@@ -678,7 +678,7 @@ export class Study {
   private read(model: StudyModel, revision: number): Scene {
     // A study with no drawing is drawn as it is read, and laid out; a drawn one gets the data flow it leaves out.
     const drafted = draftDrawing(model);
-    if (!drafted) drawDataFlow(model);
+    if (!drafted) drawFlows(model);
     const scene = importStudy(model, this.options);
     if (drafted) {
       for (const element of layOut(scene)) if (element.kind !== 'label') syncLabel(scene, element);

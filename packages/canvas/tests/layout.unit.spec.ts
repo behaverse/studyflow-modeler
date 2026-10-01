@@ -615,7 +615,7 @@ test('a document with no drawing is drawn as it opens: laid out, what it holds k
   expect(boxes(await Study.open(xml, { metamodel: freshMetamodel() }))).toBe(boxes(study));
 });
 
-test('a data association whose ends are drawn is drawn as the document opens, and one into a property never is', async () => {
+test('a flow whose ends are drawn is drawn as the document opens, in the look the file gives it, and a data association into a property never is', async () => {
   // A file that places its shapes and leaves its data associations out: what it drew stays as drawn.
   const complete = await exampleXml('cognitive_battery');
   const stripped = complete.replace(/[ \t]*<bpmndi:BPMNEdge id="DataOutput_[\s\S]*?<\/bpmndi:BPMNEdge>\n/g, '');
@@ -629,4 +629,21 @@ test('a data association whose ends are drawn is drawn as the document opens, an
   const drawn = drafted.list({ kind: 'edge' }).map((flow) => flow.id);
   expect(drawn).toContain('DataInput_Input_Features');
   expect(drawn).not.toContain('DataOutput_Features');
+
+  // A sequence flow the file gives only its look is routed in that look.
+  const looked = await Study.open(`id: D
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    A: { type: Task, bounds: 100 100 100 80 }
+    B: { type: Task, bounds: 300 100 100 80 }
+    F: A -> B
+layout:
+  F:
+    stroke: "#5c8a55"
+`, { metamodel: freshMetamodel() });
+  expect(looked.get('F')).toMatchObject({ kind: 'edge', source: 'A', target: 'B' });
+  expect(looked.toYaml()).toContain('  F:\n    waypoint: 200,140 300,140\n    stroke: "#5c8a55"\n');
 });

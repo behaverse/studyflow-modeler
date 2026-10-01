@@ -3,7 +3,8 @@
  * drawing at all gets one, for the study to lay out as it reads it: each shape at its default size at the origin, a
  * boundary event on its activity's lower edge, a note above and right of what it annotates, a sub-process closed over
  * its contents, a group empty (the layout draws it round the shapes its category names), and each flow. A drawn
- * study whose data associations are not all drawn gets a route for each one both of whose ends are drawn.
+ * study whose flows are not all drawn gets a route for each one both of whose ends are drawn, in the look the study
+ * gives it.
  */
 
 import { isDataAssociationType } from '@core/element/index.ts';
@@ -96,8 +97,11 @@ export function draftDrawing(model: StudyModel): boolean {
   return true;
 }
 
-/** Route each data association the drawing leaves out, both of whose ends it draws. */
-export function drawDataFlow(model: StudyModel): void {
+/** The flows a route is drawn for: what a study's sequence and message flows, notes' links and data run along. */
+const ROUTED = ['bpmn:SequenceFlow', 'bpmn:MessageFlow', 'bpmn:Association'];
+
+/** Route each flow the drawing leaves out, or draws only the look of, both of whose ends it draws. */
+export function drawFlows(model: StudyModel): void {
   const { layout } = model.study;
   const boxes = new Map<Element, Bounds>();
   for (const [id, drawing] of Object.entries(layout)) {
@@ -105,17 +109,25 @@ export function drawDataFlow(model: StudyModel): void {
     const at = 'bounds' in drawing ? boxOf(drawing.bounds) : undefined;
     if (element && at) boxes.set(element, { x: at.x ?? 0, y: at.y ?? 0, width: at.width ?? 0, height: at.height ?? 0 });
   }
+  const undrawn = (flow: Element): boolean => !!flow.id && !('waypoint' in (layout[flow.id] ?? {}));
+  const draw = (flow: Element, source: Bounds, target: Bounds): void => {
+    layout[flow.id!] = { waypoint: route(routeFor(model.host(flow), source, target)), ...layout[flow.id!] };
+  };
   for (const [activity, at] of boxes) {
     for (const name of DATA_ASSOCIATIONS) {
       for (const association of listOf(activity, name)) {
         const data = dataEndOf(model, association);
         const dataBox = data && boxes.get(data);
-        if (!association.id || association.id in layout || !dataBox || !isDrawnAssociation(model, association)) continue;
+        if (!undrawn(association) || !dataBox || !isDrawnAssociation(model, association)) continue;
         const input = model.host(association) === 'bpmn:DataInputAssociation';
-        const [source, target] = input ? [dataBox, at] : [at, dataBox];
-        layout[association.id] = { waypoint: route(routeFor(model.host(association), source, target)) };
+        draw(association, input ? dataBox : at, input ? at : dataBox);
       }
     }
+  }
+  for (const flow of model.all()) {
+    if (!undrawn(flow) || !ROUTED.some((type) => isBpmnSubtypeOf(model.host(flow), type))) continue;
+    const [source, target] = [refOf(model, flow, 'sourceRef'), refOf(model, flow, 'targetRef')].map((end) => end && boxes.get(end));
+    if (source && target) draw(flow, source, target);
   }
 }
 
