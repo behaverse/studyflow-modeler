@@ -81,7 +81,8 @@ test('validate says the protocol matches the run that recorded it, and warns onc
   const sealed = write('sealed.studyflow.yaml', plan + state);
   const matched = studyflow(['validate', sealed]);
   expect(matched.status).toBe(0);
-  expect(matched.stdout).toBe(`${sealed}: OK, protocol matches run r1 (${protocol.slice(0, 19)}…)\n`);
+  // Its two ways, one a branch, explored and sound.
+  expect(matched.stdout).toBe(`${sealed}: OK, sound over the 2 ways it can go, protocol matches run r1 (${protocol.slice(0, 19)}…)\n`);
 
   const edited = write('edited.studyflow.yaml', plan.replace('Play 30 trials', 'Play 20 trials') + state);
   const changed = studyflow(['validate', edited]);

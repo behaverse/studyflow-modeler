@@ -6,6 +6,7 @@ import { checkImplementations } from '@core/checks/implementations';
 import { checkRecorded } from '@core/checks/recorded';
 import { installedSkills } from '@cli/skills';
 import { planChecks, recordChecks } from '@core/checks';
+import { checkSoundness } from '@core/checks/soundness';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
 import { xsdViolations } from '@cli/xsd';
 
@@ -45,7 +46,11 @@ export async function validate(input: string): Promise<ValidateReport> {
     for (const { severity, message } of [...planChecks(definitions), ...checkImplementations(definitions, new Set([...SKILLS, ...installedSkills().map((skill) => skill.manifest)].flatMap((skill) => skill.schemes ?? []))), ...record.issues, ...recorded]) {
       (severity === 'error' ? errors : warnings).push(message);
     }
-    note = record.note && events.length > 0 && recorded.length === 0 ? `${record.note}; its state is its record's` : record.note;
+    // Every way the study can go, explored, once the plan checks pass.
+    const soundness = errors.length === 0 ? await checkSoundness(definitions) : { issues: [] };
+    for (const { message } of soundness.issues) warnings.push(message);
+    const recordNote = record.note && events.length > 0 && recorded.length === 0 ? `${record.note}; its state is its record's` : record.note;
+    note = [soundness.note, recordNote].filter(Boolean).join(', ') || undefined;
     // The BPMN XML the study is written as, against the OMG's schema: what another BPMN tool reads.
     const violations = xsdViolations(await asXml(source));
     if (violations === undefined) warnings.push('the BPMN XML was not checked against the BPMN 2.0 schema: this machine has no xmllint');
