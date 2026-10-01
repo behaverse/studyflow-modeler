@@ -138,7 +138,7 @@ types:
       roles:
         - instrument
       # The upper band of the task: a template over its attributes, read raw.
-      presenter: "{platform}"
+      presenter: "<platform>"
     properties:
       - name: platform
         description: Software that delivers the task and reads the Parameters wired into it (PsychoPy, jsPsych, Behaverse).

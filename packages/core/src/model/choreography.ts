@@ -32,16 +32,17 @@ export function actorIn(model: StudyModel, task: Element): Element | undefined {
 }
 
 /**
- * What presents a typed task: its type's `meta.presenter`, a template over its attributes (`Behaverse - {instrument}`,
- * `{platform}`), as the Parameters wired into the task set them, else as written. A type that declares none, or a
- * template that comes out empty, presents as the study's software.
+ * What presents a typed task: its type's `meta.presenter`, a template naming its attributes in angle brackets
+ * (`Behaverse - <instrument>`, `<platform>`; braces are a run's placeholders), as the Parameters wired into the task
+ * set them, else as written. A type that declares none, or a template that comes out empty, presents as the study's
+ * software.
  */
 export function presenterIn(model: StudyModel, task: Element): string {
   const type = model.extensionType(task);
   const template = type ? model.metamodel.type(type)?.meta.presenter : undefined;
   if (typeof template !== 'string') return DEFAULT_PRESENTER;
   const wired = wiredIn(model, task)?.attributes ?? {};
-  const label = template.replace(/\{(\w+)\}/g, (_match, name: string) => {
+  const label = template.replace(/<(\w+)>/g, (_match, name: string) => {
     const value = name in wired ? wired[name] : model.attribute(task, name);
     return typeof value === 'string' || typeof value === 'number' ? String(value) : '';
   }).trim();

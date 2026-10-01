@@ -109,7 +109,7 @@ types:
       - cognitive:CognitiveTask
     meta:
       icon: iconify bi--hexagon
-      presenter: "Behaverse - {instrument}"
+      presenter: "Behaverse - <instrument>"
       glyph: instrument
     properties:
       - name: platform
