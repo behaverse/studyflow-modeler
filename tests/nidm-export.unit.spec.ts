@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import type { Element } from '@core/model/index';
 
-import { exportToNidm } from '@skills/nidm/modeler';
+import { exportToNidm } from '@modeler/formats/nidm';
 import { dataInput, dataOutput, exampleExportModel, fakeExportModel, wrapperElement } from '@tests/exporterFixture';
 import { exampleNames } from '@tests/utils';
 

@@ -1,7 +1,11 @@
-/** What the drawio skill gives the modeler: the draw.io export and the editable SVG, the diagram on screen drawn with draw.io's own BPMN shapes. */
+/**
+ * The draw.io projections the Manuscript view offers: `.drawio`, and an editable `.svg` carrying that same draw.io file
+ * in its `content` attribute (and the BPMN in its metadata), the figure a manuscript takes. Both are the shapes and
+ * flows on screen, styled from draw.io's BPMN palette (`mxgraph.bpmn.*`). Drilled into a container, the export is that
+ * container's contents; a collapsed container's contents stay out. Nothing reads a `.drawio` back.
+ */
 import type { ExportFormat } from '@modeler/diagram/formats';
 import { embedBpmnIntoSvg } from '@modeler/export/svgEmbedding';
-import type { ModelerModule } from '@modeler/skillModules';
 import { exportDiagramName } from '@modeler/diagram/name';
 import { bandsOf } from '@core/model/choreography';
 import { choreographyBandHeight } from '@core/document/outline';
@@ -353,4 +357,4 @@ export const editableSvg: ExportFormat = {
   },
 };
 
-export default { exports: [editableSvg, format] } satisfies ModelerModule;
+export const DRAWIO_FORMATS: ExportFormat[] = [editableSvg, format];

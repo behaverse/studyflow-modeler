@@ -1,6 +1,9 @@
-/** What the nidm skill gives the modeler: the diagram's data operations and data elements as NIDM-Results provenance. */
+/**
+ * The diagram's data operations and data elements as NIDM-Results provenance in Turtle: each data element a
+ * `prov:Entity`, each data operation a `prov:Activity` that `prov:used` its inputs and generated its outputs. Nothing
+ * reads it back.
+ */
 import type { ExportFormat } from '@modeler/diagram/formats';
-import type { ModelerModule } from '@modeler/skillModules';
 import { toLocalName } from '@core/naming';
 import type { ExportedElement, ExportModel } from '@modeler/export/model';
 
@@ -91,4 +94,4 @@ export const format: ExportFormat = {
   encode: ({ exportModel }) => exportToNidm(exportModel()),
 };
 
-export default { exports: [format] } satisfies ModelerModule;
+export const NIDM_FORMATS: ExportFormat[] = [format];

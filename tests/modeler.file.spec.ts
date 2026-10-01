@@ -33,7 +33,7 @@ test('opening a file says what its reading could not place', async ({ page }) =>
   await expect(page.getByTestId('notices')).toContainText(/retired\.bpmn/);
 });
 
-test('exports YAML, PNG, SVG and a skill\'s format; opens a layout-less file, a jsPsych timeline, and the exports again', async ({ page }) => {
+test('exports YAML, PNG, SVG and LinkML; opens a layout-less file, a jsPsych timeline, and the exports again', async ({ page }) => {
   await gotoModeler(page);
   const open = page.getByTestId('open-file-input');
   const title = diagramTitle(page);

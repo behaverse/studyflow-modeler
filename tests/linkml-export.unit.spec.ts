@@ -2,7 +2,7 @@
 import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
-import { exportToLinkML } from '@skills/linkml/modeler';
+import { exportToLinkML } from '@modeler/formats/linkml';
 import { exampleExportModel, fakeExportModel, wrapperElement } from '@tests/exporterFixture';
 import { exampleNames } from '@tests/utils';
 

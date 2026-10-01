@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { exportToDrawio } from '@skills/drawio/modeler';
+import { exportToDrawio } from '@modeler/formats/drawio';
 
 /** The BPMN -> draw.io mapping, over hand-built records and the elements behind them. */
 

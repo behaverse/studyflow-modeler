@@ -1,6 +1,8 @@
-/** What the linkml skill gives the modeler: a LinkML schema for the diagram's data elements. */
+/**
+ * A LinkML schema for the diagram's data elements: each becomes a class whose `class_uri` is its studyflow type and
+ * whose attributes are the type's declared properties, ranged by their schema types. Nothing reads it back.
+ */
 import type { ExportFormat } from '@modeler/diagram/formats';
-import type { ModelerModule } from '@modeler/skillModules';
 import * as yaml from 'js-yaml';
 import { getCatalog, type AttributeSpec } from '@core/notation';
 import type { ExportedElement, ExportModel } from '@modeler/export/model';
@@ -102,4 +104,4 @@ export const format: ExportFormat = {
   encode: ({ exportModel }) => exportToLinkML(exportModel()),
 };
 
-export default { exports: [format] } satisfies ModelerModule;
+export const LINKML_FORMATS: ExportFormat[] = [format];
