@@ -122,84 +122,6 @@
       <bpmndi:BPMNShape id="Pool_Tool_di" bpmnElement="Pool_Tool">
         <dc:Bounds x="40" y="540" width="1040" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Walk_Start_di" bpmnElement="Walk_Start">
-        <dc:Bounds x="100" y="132" width="36" height="36"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Ask_Claims_di" bpmnElement="Ask_Claims">
-        <dc:Bounds x="176" y="110" width="130" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Claims_Gate_di" bpmnElement="Claims_Gate">
-        <dc:Bounds x="346" y="125" width="50" height="50"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="326" y="180" width="90" height="30"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Stop_di" bpmnElement="Stop">
-        <dc:Bounds x="353" y="35" width="36" height="36"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="395" y="45" width="205" height="15"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Hand_Over_di" bpmnElement="Hand_Over">
-        <dc:Bounds x="436" y="110" width="130" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Adopt_di" bpmnElement="Adopt">
-        <dc:Bounds x="606" y="110" width="150" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Run_Dir_di" bpmnElement="Run_Dir">
-        <dc:Bounds x="656" y="197" width="50" height="50"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="712" y="214" width="135" height="15"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="More_Gate_di" bpmnElement="More_Gate">
-        <dc:Bounds x="796" y="125" width="50" height="50"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="786" y="180" width="80" height="30"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Walk_End_di" bpmnElement="Walk_End">
-        <dc:Bounds x="906" y="132" width="36" height="36"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="874" y="172" width="100" height="30"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Claims_Start_di" bpmnElement="Claims_Start">
-        <dc:Bounds x="172" y="392" width="36" height="36"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="145" y="432" width="90" height="30"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Print_Ids_di" bpmnElement="Print_Ids">
-        <dc:Bounds x="238" y="370" width="120" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Claims_End_di" bpmnElement="Claims_End">
-        <dc:Bounds x="398" y="392" width="36" height="36"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="386" y="432" width="60" height="15"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Element_Start_di" bpmnElement="Element_Start">
-        <dc:Bounds x="472" y="392" width="36" height="36"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="450" y="432" width="80" height="30"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Read_Plan_di" bpmnElement="Read_Plan">
-        <dc:Bounds x="540" y="370" width="120" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Run_Tool_di" bpmnElement="Run_Tool">
-        <dc:Bounds x="690" y="370" width="120" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Write_Back_di" bpmnElement="Write_Back">
-        <dc:Bounds x="840" y="370" width="120" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Element_End_di" bpmnElement="Element_End">
-        <dc:Bounds x="990" y="392" width="36" height="36"/>
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="986" y="432" width="44" height="15"/>
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Msg_Claims_di" bpmnElement="Msg_Claims">
         <di:waypoint x="190" y="190"/>
         <di:waypoint x="190" y="392"/>
@@ -246,10 +168,52 @@
           <dc:Bounds x="777" y="505" width="100" height="15"/>
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Walk_Start_di" bpmnElement="Walk_Start">
+        <dc:Bounds x="100" y="132" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Ask_Claims_di" bpmnElement="Ask_Claims">
+        <dc:Bounds x="176" y="110" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Claims_Gate_di" bpmnElement="Claims_Gate">
+        <dc:Bounds x="346" y="125" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="326" y="180" width="90" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Stop_di" bpmnElement="Stop">
+        <dc:Bounds x="353" y="35" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="395" y="45" width="205" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Hand_Over_di" bpmnElement="Hand_Over">
+        <dc:Bounds x="436" y="110" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Adopt_di" bpmnElement="Adopt">
+        <dc:Bounds x="606" y="110" width="150" height="80"/>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Out_Commit_di" bpmnElement="Out_Commit">
         <di:waypoint x="681" y="190"/>
         <di:waypoint x="681" y="197"/>
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Run_Dir_di" bpmnElement="Run_Dir">
+        <dc:Bounds x="656" y="197" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="712" y="214" width="135" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="More_Gate_di" bpmnElement="More_Gate">
+        <dc:Bounds x="796" y="125" width="50" height="50"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="786" y="180" width="80" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Walk_End_di" bpmnElement="Walk_End">
+        <dc:Bounds x="906" y="132" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="874" y="172" width="100" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_Start_di" bpmnElement="Flow_Start">
         <di:waypoint x="136" y="150"/>
         <di:waypoint x="176" y="150"/>
@@ -296,6 +260,42 @@
           <dc:Bounds x="862" y="133" width="20" height="15"/>
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Claims_Start_di" bpmnElement="Claims_Start">
+        <dc:Bounds x="172" y="392" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="145" y="432" width="90" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Print_Ids_di" bpmnElement="Print_Ids">
+        <dc:Bounds x="238" y="370" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Claims_End_di" bpmnElement="Claims_End">
+        <dc:Bounds x="398" y="392" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="386" y="432" width="60" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Element_Start_di" bpmnElement="Element_Start">
+        <dc:Bounds x="472" y="392" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="450" y="432" width="80" height="30"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Read_Plan_di" bpmnElement="Read_Plan">
+        <dc:Bounds x="540" y="370" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Run_Tool_di" bpmnElement="Run_Tool">
+        <dc:Bounds x="690" y="370" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Write_Back_di" bpmnElement="Write_Back">
+        <dc:Bounds x="840" y="370" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Element_End_di" bpmnElement="Element_End">
+        <dc:Bounds x="990" y="392" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="986" y="432" width="44" height="15"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_Asked_di" bpmnElement="Flow_Asked">
         <di:waypoint x="208" y="410"/>
         <di:waypoint x="238" y="410"/>

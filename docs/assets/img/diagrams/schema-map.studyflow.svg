@@ -80,12 +80,28 @@
       <bpmndi:BPMNShape id="Load_Required_di" bpmnElement="Load_Required">
         <dc:Bounds x="140" y="110" width="150" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="In_Required_di" bpmnElement="In_Required">
+        <di:waypoint x="215" y="230"/>
+        <di:waypoint x="215" y="190"/>
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Load_Skills_di" bpmnElement="Load_Skills">
         <dc:Bounds x="340" y="110" width="170" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="In_Settings_di" bpmnElement="In_Settings">
+        <di:waypoint x="425" y="60"/>
+        <di:waypoint x="425" y="110"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="In_Skills_di" bpmnElement="In_Skills">
+        <di:waypoint x="425" y="230"/>
+        <di:waypoint x="425" y="190"/>
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Compile_di" bpmnElement="Compile">
         <dc:Bounds x="560" y="110" width="150" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Out_Catalog_di" bpmnElement="Out_Catalog">
+        <di:waypoint x="635" y="190"/>
+        <di:waypoint x="635" y="230"/>
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Ready_di" bpmnElement="Ready">
         <dc:Bounds x="770" y="132" width="36" height="36"/>
       </bpmndi:BPMNShape>
@@ -113,22 +129,6 @@
           <dc:Bounds x="555" y="285" width="160" height="45"/>
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="In_Required_di" bpmnElement="In_Required">
-        <di:waypoint x="215" y="230"/>
-        <di:waypoint x="215" y="190"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="In_Settings_di" bpmnElement="In_Settings">
-        <di:waypoint x="425" y="60"/>
-        <di:waypoint x="425" y="110"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="In_Skills_di" bpmnElement="In_Skills">
-        <di:waypoint x="425" y="230"/>
-        <di:waypoint x="425" y="190"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Out_Catalog_di" bpmnElement="Out_Catalog">
-        <di:waypoint x="635" y="190"/>
-        <di:waypoint x="635" y="230"/>
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Opened_di" bpmnElement="Flow_Opened">
         <di:waypoint x="96" y="150"/>
         <di:waypoint x="140" y="150"/>

@@ -110,6 +110,10 @@
       <bpmndi:BPMNShape id="Browser_Run_di" bpmnElement="Browser_Run">
         <dc:Bounds x="510" y="120" width="170" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Out_Events_di" bpmnElement="Out_Events">
+        <di:waypoint x="595" y="120"/>
+        <di:waypoint x="595" y="80"/>
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Data_Server_di" bpmnElement="Data_Server">
         <dc:Bounds x="570" y="30" width="50" height="50"/>
         <bpmndi:BPMNLabel>
@@ -125,6 +129,10 @@
       <bpmndi:BPMNShape id="Walk_di" bpmnElement="Walk">
         <dc:Bounds x="740" y="280" width="190" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Out_Commits_di" bpmnElement="Out_Commits">
+        <di:waypoint x="835" y="360"/>
+        <di:waypoint x="835" y="400"/>
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Repository_di" bpmnElement="Repository">
         <dc:Bounds x="810" y="400" width="50" height="50"/>
         <bpmndi:BPMNLabel>
@@ -149,17 +157,6 @@
       <bpmndi:BPMNShape id="Branch_di" bpmnElement="Branch">
         <dc:Bounds x="510" y="440" width="170" height="80"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Skip_Note_di" bpmnElement="Skip_Note">
-        <dc:Bounds x="960" y="205" width="180" height="45"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Out_Events_di" bpmnElement="Out_Events">
-        <di:waypoint x="595" y="120"/>
-        <di:waypoint x="595" y="80"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Out_Commits_di" bpmnElement="Out_Commits">
-        <di:waypoint x="835" y="360"/>
-        <di:waypoint x="835" y="400"/>
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Saved_di" bpmnElement="Flow_Saved">
         <di:waypoint x="146" y="160"/>
         <di:waypoint x="190" y="160"/>
@@ -220,6 +217,9 @@
           <dc:Bounds x="442" y="530" width="20" height="15"/>
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Skip_Note_di" bpmnElement="Skip_Note">
+        <dc:Bounds x="960" y="205" width="180" height="45"/>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Skip_Link_di" bpmnElement="Skip_Link">
         <di:waypoint x="960" y="240"/>
         <di:waypoint x="915" y="280"/>

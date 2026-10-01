@@ -106,6 +106,12 @@
       <bpmndi:BPMNShape id="Pre_di" bpmnElement="Pre">
         <dc:Bounds x="140" y="80" width="140" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Out_Pre_di" bpmnElement="Out_Pre">
+        <di:waypoint x="210" y="160"/>
+        <di:waypoint x="210" y="265"/>
+        <di:waypoint x="530" y="265"/>
+        <di:waypoint x="530" y="290"/>
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Allocation_di" bpmnElement="Allocation">
         <dc:Bounds x="330" y="95" width="50" height="50"/>
         <bpmndi:BPMNLabel>
@@ -121,9 +127,24 @@
       <bpmndi:BPMNShape id="Post_di" bpmnElement="Post">
         <dc:Bounds x="620" y="80" width="140" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Out_Post_di" bpmnElement="Out_Post">
+        <di:waypoint x="720" y="160"/>
+        <di:waypoint x="720" y="265"/>
+        <di:waypoint x="560" y="265"/>
+        <di:waypoint x="560" y="290"/>
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="Fit_di" bpmnElement="Fit">
         <dc:Bounds x="810" y="80" width="140" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="In_Fit_di" bpmnElement="In_Fit">
+        <di:waypoint x="570" y="315"/>
+        <di:waypoint x="860" y="315"/>
+        <di:waypoint x="860" y="160"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Out_Fit_di" bpmnElement="Out_Fit">
+        <di:waypoint x="920" y="160"/>
+        <di:waypoint x="920" y="250"/>
+      </bpmndi:BPMNEdge>
       <bpmndi:BPMNShape id="End_di" bpmnElement="End">
         <dc:Bounds x="1000" y="102" width="36" height="36"/>
       </bpmndi:BPMNShape>
@@ -136,27 +157,6 @@
           <dc:Bounds x="944" y="268" width="80" height="15"/>
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="Out_Pre_di" bpmnElement="Out_Pre">
-        <di:waypoint x="210" y="160"/>
-        <di:waypoint x="210" y="265"/>
-        <di:waypoint x="530" y="265"/>
-        <di:waypoint x="530" y="290"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Out_Post_di" bpmnElement="Out_Post">
-        <di:waypoint x="720" y="160"/>
-        <di:waypoint x="720" y="265"/>
-        <di:waypoint x="560" y="265"/>
-        <di:waypoint x="560" y="290"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="In_Fit_di" bpmnElement="In_Fit">
-        <di:waypoint x="570" y="315"/>
-        <di:waypoint x="860" y="315"/>
-        <di:waypoint x="860" y="160"/>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Out_Fit_di" bpmnElement="Out_Fit">
-        <di:waypoint x="920" y="160"/>
-        <di:waypoint x="920" y="250"/>
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_Start_di" bpmnElement="Flow_Start">
         <di:waypoint x="96" y="120"/>
         <di:waypoint x="140" y="120"/>
