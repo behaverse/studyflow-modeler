@@ -210,17 +210,19 @@ const FAULTS: Fault[] = [
   },
   {
     fault: 'Parallel branches within one pool',
-    check: 'runner paths',
+    check: 'missed',
     into: 'plan',
+    // Valid BPMN the walk runs as drawn: both branches, where the author meant one.
     edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: ParallelGateway\n      name: Accurate enough?'),
-    says: ['error: "Accurate enough?" splits into 2 parallel paths; a pool walks one path, so the walk stops here'],
+    says: [],
   },
   {
     fault: 'An inclusive gateway',
-    check: 'runner paths',
+    check: 'missed',
     into: 'plan',
+    // Valid BPMN the walk runs as drawn: every branch whose condition holds.
     edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: InclusiveGateway\n      name: Accurate enough?'),
-    says: ['error: "Accurate enough?" is an inclusive gateway with 2 outgoing flows; a pool walks one path, so the walk stops here rather than take only the first whose condition holds'],
+    says: [],
   },
   {
     fault: 'Two elements share an id',
@@ -258,7 +260,7 @@ const FAULTS: Fault[] = [
     check: 'runner paths',
     into: 'plan',
     edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: ComplexGateway\n      name: Accurate enough?'),
-    says: ['error: "Accurate enough?" is a complex gateway with 2 outgoing flows; the walk reads no activation rule, so it stops here rather than take it as an exclusive gateway'],
+    says: ['error: "Accurate enough?" is a complex gateway with 2 outgoing flows; the walk reads no activation rule, so it stops here rather than take it as another kind of gateway'],
   },
   {
     fault: 'A difference test where the question asks for equivalence',

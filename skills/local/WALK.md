@@ -54,13 +54,17 @@ The run's values carry the study's state tree under `state` (`state.<scope>.<pro
 
 ## Where the walk departs from BPMN 2.0
 
-The walk is a profile of BPMN 2.0's execution semantics, one token per pool. Where it reads a construct otherwise
-than the specification does, it says so here, and `studyflow validate` refuses or warns about the construct:
+The walk is a profile of BPMN 2.0's execution semantics. A split starts a path for each flow it takes (a parallel
+gateway, every flow; an inclusive gateway, or an activity or event with several flows out, each whose condition holds
+and each without one), and the paths walk at once; a parallel join waits for a token along each flow into it, an
+inclusive join for the tokens that can still come. A path that fails, or leaves a sub-process at a boundary event, stops
+the paths beside it, and so does a terminate end event; a scope is done when its last path ends. Where the walk reads a
+construct otherwise than the specification does, it says so here, and `studyflow validate` refuses or warns about it:
 
-- **One path per pool.** A parallel split, an inclusive or complex gateway with several outgoing flows, and an
-  activity or event with several outgoing flows are refused. A parallel, inclusive or complex join, which BPMN waits
-  at for each path it joins, is passed as the one token arrives (a warning). A scope with several start events starts
-  at the first only (a warning).
+- **A complex gateway** is refused where it splits, and passes each token where it joins (a warning): the walk reads
+  no activation rule. A scope with several start events starts at the first only (a warning).
+- **A join that cannot complete.** A parallel join one of whose tokens can never come (an exclusive split joined by a
+  parallel gateway) stops the run, where BPMN would wait for ever; `studyflow validate` finds it before a run.
 - **A gateway's fallback.** When no condition holds, an exclusive gateway takes its default flow, else its one flow
   without a condition; BPMN would take every unconditioned flow.
 - **Repeats run in order.** A multi-instance marker's instances, parallel or not, run one after another, and so do

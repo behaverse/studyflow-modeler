@@ -3,9 +3,8 @@ import { explore, planOf } from '@core/engine';
 import type { StudyModel } from '@core/model/index';
 
 /**
- * Soundness: every way the study can go ends, and ends properly. Each pool is one path, so a connected study
- * (`connected.ts`) is sound within a pool; what is left is between pools, where one waits for a message the other
- * never sends, and a message sent that nothing takes. The study's runs are explored (`packages/core/src/engine/explore.ts`)
+ * Soundness: every way the study can go ends, and ends properly: no pool waits for a message the other never sends,
+ * no parallel join waits for a token that can never come, and no message is sent that nothing takes. The study's runs are explored (`packages/core/src/engine/explore.ts`)
  * with every decision a free choice, so a finding may lie on a path its conditions never take: it is a warning, with
  * the choices that lead to it.
  */

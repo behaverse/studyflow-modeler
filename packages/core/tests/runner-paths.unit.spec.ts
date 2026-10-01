@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { checkRunnerPaths } from '@core/checks/runner-paths';
 import { studyModel } from '@tests/schemas';
 
-/** The splits the walk does not take: it walks one path per pool. */
+/** What the walk reads otherwise than BPMN: a complex gateway, a second start event. */
 
 /** Start, then `node` (of `type`) splitting to A and B, which meet again at an end. */
 const split = (type: string): string => `id: paths
@@ -36,20 +36,16 @@ Study:
     F_End: Join -> End
 `;
 
-test('a pool walks one path: a parallel split stops a run, an activity or event follows only its first flow, an inclusive or a complex gateway stops it too, a waiting join is passed', () => {
+test('a split and a join are walked as BPMN says, but for a complex gateway, whose activation rule the walk does not read', () => {
   // Each issue as `<severity> <element id>: <message>`.
   const CASES: [type: string, issues: string[]][] = [
-    // The split stops a run; the join, two flows in and one out, is walked, and warned about.
-    ['ParallelGateway', [
-      'error Split: "Split here" splits into 2 parallel paths; a pool walks one path, so the walk stops here',
-      'warning Join: "Join" joins 2 paths, which BPMN waits for; a pool walks one path, so the walk passes it as it arrives (an exclusive gateway merges without waiting)',
-    ]],
-    ['Task', ['error Split: "Split here" has 2 outgoing sequence flows; a pool walks one path, so the walk follows only the first, "first"']],
-    ['IntermediateThrowEvent', ['error Split: "Split here" has 2 outgoing sequence flows; a pool walks one path, so the walk follows only the first, "first"']],
-    ['InclusiveGateway', ['error Split: "Split here" is an inclusive gateway with 2 outgoing flows; a pool walks one path, so the walk stops here rather than take only the first whose condition holds']],
-    ['ComplexGateway', ['error Split: "Split here" is a complex gateway with 2 outgoing flows; the walk reads no activation rule, so it stops here rather than take it as an exclusive gateway']],
+    ['ParallelGateway', []],
+    ['InclusiveGateway', []],
+    ['Task', []],
+    ['IntermediateThrowEvent', []],
     ['ExclusiveGateway', []],
     ['EventBasedGateway', []],
+    ['ComplexGateway', ['error Split: "Split here" is a complex gateway with 2 outgoing flows; the walk reads no activation rule, so it stops here rather than take it as another kind of gateway']],
   ];
   for (const [type, issues] of CASES) {
     const found = checkRunnerPaths(studyModel(split(type)));
@@ -60,6 +56,6 @@ test('a pool walks one path: a parallel split stops a run, an activity or event 
 test('a scope walks from its first start event, and a second is warned about', () => {
   const study = split('ExclusiveGateway').replace('    End:\n', '    Later:\n      type: StartEvent\n    End:\n').replace('    F_End: Join -> End\n', '    F_End: Join -> End\n    F_Later: Later -> A\n');
   expect(checkRunnerPaths(studyModel(study)).map((issue) => `${issue.severity} ${issue.elementId}: ${issue.message}`)).toEqual([
-    'warning Later: "Study" has 2 start events; a pool walks one path, from the first, "Start", so a path from "Later" never runs',
+    'warning Later: "Study" has 2 start events; the walk starts it at the first, "Start", so a path from "Later" never runs',
   ]);
 });

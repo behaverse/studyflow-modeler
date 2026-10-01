@@ -51,7 +51,7 @@ export function checkExpressions(model: StudyModel): Issue[] {
     }
     if (timer.cycle !== undefined && timer.duration === undefined && timer.date === undefined) {
       const kept = timerDelay(timer) > 0 ? 'waits for its first firing only' : 'passes a schedule at once';
-      issues.push({ severity: 'warning', elementId: event, message: `the timer on ${JSON.stringify(event)} is a cycle: a pool walks one path, so the walk ${kept}` });
+      issues.push({ severity: 'warning', elementId: event, message: `the timer on ${JSON.stringify(event)} is a cycle, and the walk ${kept}` });
     }
   }
   return issues;

@@ -262,7 +262,7 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
     """Speak the contract on stdin and stdout until the walk says `shutdown`. `claims(plan)` answers with the ids of
     the elements this runner takes (or `{"elements": [...], "live": False}` for ones a re-run may skip);
     `execute(step)` runs one and returns its result, raising on failure: what it had bound by then is still handed
-    back. One hand-off at a time runs on the main thread; one that overlaps it (two pools at once) runs on a thread of
+    back. One hand-off at a time runs on the main thread; one that overlaps it (two pools, or two paths of one, at once) runs on a thread of
     its own. `close()` runs at shutdown.
     `terminal` leaves what the runner prints on the terminal, for one a person sits at."""
     # The wire keeps the two pipes to itself: a command the runner starts reads nothing from it and writes to the

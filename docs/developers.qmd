@@ -70,8 +70,9 @@ Gateways decide which branch a run takes, and each kind decides differently:
 |:--|:--|
 | An exclusive gateway, and `cognitive:EligibilityGateway` | the first outgoing edge whose condition holds, otherwise the edge marked `default`, otherwise the one edge without a condition; with none of these the run stops |
 | `cognitive:RandomGateway` | a draw seeded from the study's `seed`, the gateway, the participant and its visit, weighted by `allocationRatio`; `algorithm: block` deals permuted blocks over the participants by number (a browser session is the participant its link's `participant` names) |
-| A parallel gateway | none: a pool walks one path, so `studyflow validate` reports a split as an error and `studyflow run` refuses the study |
-| An inclusive gateway | none, for the same reason: it would take every edge whose condition holds, so a split is an error too |
+| A parallel gateway | every outgoing edge, each walked as a path of its own at once; as a join, it waits for a token along each incoming edge |
+| An inclusive gateway | every outgoing edge whose condition holds, otherwise the edge marked `default`; as a join, it waits for the tokens that can still come |
+| An activity or event with several outgoing edges | each edge without a condition, each whose condition holds, and the `default` edge when none holds |
 
 - A runner that cannot evaluate a condition stops the run, rather than quietly taking the other branch.
 - A condition that names a value which is not in scope reports an exception, rather than evaluating to `false`.

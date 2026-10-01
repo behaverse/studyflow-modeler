@@ -121,6 +121,35 @@ S:
     expect(stateOf(events)).toEqual(second);
   });
 
+  test('a split\'s branches are walked at once and joined, and the counts the run keeps balance', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-split-'));
+    const plan = path.join(dir, 'split.bpmn');
+    fs.writeFileSync(plan, await xmlOf(`id: split
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Split: { type: ParallelGateway }
+    A: { type: Task }
+    B: { type: Task }
+    Join: { type: ParallelGateway }
+    End: { type: EndEvent }
+    F1: Start -> Split
+    F2: Split -> A
+    F3: Split -> B
+    F4: A -> Join
+    F5: B -> Join
+    F6: Join -> End
+`));
+    execFileSync(process.execPath, [BIN, 'run', plan, '--repo', path.join(dir, 'run'), '--quiet'], { cwd: dir, stdio: 'pipe', env: ENV });
+    const archived = path.join(dir, 'run', 'split.bpmn');
+    const { reached } = archivedState(archived)._meta;
+    expect([reached.Split, reached.A, reached.B, reached.Join, reached.End]).toEqual([1, 1, 1, 2, 1]);
+    expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV }).toString()).toContain(': OK');
+  });
+
   test('a re-run of several subjects draws the arms the run it redoes drew', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-arms-'));
     fs.writeFileSync(path.join(dir, 'arms.studyflow.yaml'), `id: arms

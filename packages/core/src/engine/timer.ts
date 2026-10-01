@@ -15,7 +15,7 @@ export function durationMs(text: string): number | undefined {
 
 /**
  * How long a timer waits from `now`, in milliseconds: its duration, or until its date, or the interval of its cycle
- * (`R3/PT10M`: a run waits for the first firing, and walks one path). A cycle that is a schedule (cron) is not a
+ * (`R3/PT10M`: a run waits for the first firing). A cycle that is a schedule (cron) is not a
  * wait: it passes at once. Throws when a duration or a date is not ISO 8601.
  */
 export function timerDelay(timer: Timer, now: number = Date.now()): number {

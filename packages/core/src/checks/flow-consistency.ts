@@ -7,7 +7,8 @@ import { containers, graphOf, quoted } from '@core/checks/graph';
 /**
  * Flow consistency of a run's counts, `state._meta.reached`: the tokens that reached a flow node are the tokens its
  * incoming sequence flows brought (a start or boundary event starts its own), and they leave by its outgoing flows or
- * its boundary events (an end event keeps them). A file whose runs counted no sequence flow is not checked.
+ * its boundary events (an end event keeps them); a parallel split sends each along every flow, and an inclusive split,
+ * an activity with several flows out and a join are not counted exactly. A file whose runs counted no sequence flow is not checked.
  */
 export function checkFlowConsistency(model: StudyModel): Issue[] {
   const reached = (model.study.state?.[META_KEY] as { reached?: Record<string, number> } | undefined)?.reached;
@@ -28,8 +29,15 @@ export function checkFlowConsistency(model: StudyModel): Issue[] {
         error(`reached ${n} != inflow ${inflow} (${Math.abs(n - inflow)} unaccounted)`);
       }
       const [outflow, attrition] = [sum(outgoing), sum(boundaries)];
-      if (!model.isA(node, BPMN.EndEvent) && n !== outflow + attrition) {
-        error(`inflow ${n} != outflow ${outflow} + attrition ${attrition} (${Math.abs(n - outflow - attrition)} unaccounted)`);
+      // A parallel split sends a token along each of its flows; an inclusive split, or an activity with several flows
+      // out, along the ones it takes; a join sends one on for the tokens it gathered.
+      const parallel = model.isA(node, BPMN.ParallelGateway);
+      const joins = incoming.length > 1 && (parallel || model.isA(node, BPMN.InclusiveGateway));
+      const splits = outgoing.length > 1 && (parallel || model.isA(node, BPMN.InclusiveGateway) || !model.isA(node, BPMN.Gateway));
+      if (joins || (splits && !parallel)) continue;
+      const leaving = splits ? n * outgoing.length : n;
+      if (!model.isA(node, BPMN.EndEvent) && leaving !== outflow + attrition) {
+        error(`${splits ? `${n} tokens split ${outgoing.length} ways` : `inflow ${n}`} != outflow ${outflow} + attrition ${attrition} (${Math.abs(leaving - outflow - attrition)} unaccounted)`);
       }
     }
   }
