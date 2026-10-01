@@ -1,6 +1,6 @@
 import type { FontPatch, StudyResult } from '@canvas/index.ts';
 import { newShape } from '@modeler/palette/newShape';
-import { swapChoreographyInitiator } from '@modeler/shape/choreographyParticipants';
+import { swapChoreographyInitiator } from '@core/model/choreography';
 import type { Editor } from '@modeler/editor/port';
 
 /* Every command here names its elements by id, as the study's verbs do. */

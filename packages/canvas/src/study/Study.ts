@@ -7,6 +7,7 @@ import { parseStudy, studyToXml } from '@core/document/index.ts';
 import { categoryOf, isDataShape, isExpandable } from '@core/document/outline.ts';
 import { eventDefinitionTypeOf } from '@core/element/index.ts';
 import { isElement, StudyModel, type Element, type Value } from '@core/model/index.ts';
+import { participantKinds, setBandsIn, type BandChange } from '@core/model/choreography.ts';
 import { setItemSubjectIn, setMessageItemIn, type Ids } from '@core/model/items.ts';
 import type { Metamodel } from '@core/model/metamodel.ts';
 import { patchDoc } from '@core/model/patch.ts';
@@ -52,6 +53,9 @@ export interface ChangedIds {
 export interface StudyChange extends ChangedIds {
   readonly cause: 'edit' | 'load' | 'undo' | 'redo';
 }
+
+/** Who takes a choreography task's bands, as `bands` changes them. */
+export type BandsChange = { top?: BandChange; bottom?: BandChange; initiator?: 'top' | 'bottom'; kinds?: { top?: string; bottom?: string } };
 
 export interface OpenOptions extends ImportOptions {
   /** What the text is read by: the metamodel of the schemas the study uses. */
@@ -268,6 +272,27 @@ export class Study {
    */
   describe(args: { type: string; extension?: string }): ToolResult {
     return describeType(this.model, args);
+  }
+
+  /**
+   * Say who takes the choreography task `id`'s bands (core's `setBandsIn`): a band's participant by its id, a name its
+   * participant takes, or `null` for none; `initiator`, the band that starts the exchange; `kinds`, the kind of actor
+   * on a band (`''` for none). Participants the task lacks are minted.
+   */
+  bands({ id, ...change }: { id: string } & BandsChange): StudyResult {
+    const found = this.find(id);
+    if (!found) return refused(`no element '${id}'`);
+    const { model } = this;
+    if (model.host(found.element) !== 'bpmn:ChoreographyTask') return refused(`'${id}' is no choreography task: it has no bands`);
+    for (const band of [change.top, change.bottom]) {
+      const named = band && 'participant' in band ? model.get(band.participant) : undefined;
+      if (band && 'participant' in band && (!named || model.host(named) !== 'bpmn:Participant')) return refused(`no participant '${band.participant}'`);
+    }
+    const kinds = new Set(participantKinds().map((kind) => kind.id));
+    for (const kind of Object.values(change.kinds ?? {})) {
+      if (kind && !kinds.has(kind)) return refused(`no participant kind '${kind}': ${[...kinds].join(', ') || 'no schema declares one'}`);
+    }
+    return this.revise(id, (task, held, ids) => setBandsIn(held, task, ids, change));
   }
 
   /**

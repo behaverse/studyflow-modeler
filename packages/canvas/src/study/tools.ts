@@ -37,7 +37,7 @@ export interface StudyTool {
 }
 
 /** The write tools a batch runs as its steps. */
-export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'rename', 'resize', 'reroute', 'paste', 'layout', 'set', 'item', 'remove', 'style', 'expand', 'collapse'] as const;
+export const STEP_TOOLS = ['add', 'append', 'connect', 'replace', 'move', 'reconnect', 'rename', 'resize', 'reroute', 'paste', 'layout', 'set', 'item', 'bands', 'remove', 'style', 'expand', 'collapse'] as const;
 
 export type StepTool = (typeof STEP_TOOLS)[number];
 export type ToolName = StepTool | 'document' | 'get' | 'list' | 'attributes' | 'describe' | 'catalog' | 'can' | 'copy' | 'batch' | 'undo' | 'redo';
@@ -100,6 +100,12 @@ const BOUNDS = {
   description: 'The top-left corner and the size, in diagram coordinates.',
 } as const;
 const COLOR = { type: ['string', 'null'], description: "A CSS colour; null for the stock one." } as const;
+const BAND = {
+  type: ['object', 'null'],
+  description: 'A participant by id, or a name, or null for none.',
+  properties: { participant: STRING, name: STRING },
+  additionalProperties: false,
+} as const;
 
 /** What a new shape is: `add`, `append` and `replace` take it. */
 const SHAPE = {
@@ -188,6 +194,13 @@ const TOOLS = [
     id: ID,
     structure: { type: 'string' },
   }, ['id', 'structure'], write(false, true)),
+  tool('bands', "Say who takes a choreography task's two bands, and which starts the exchange. A band takes a participant the study declares, by id (`{ participant: Robot }`), or a name its participant takes (`{ name: Experimenter }`; a typed task's drawn pool keeps its own, and a new actor of that name takes the band), or none (null). `kinds` types the actor on a band as one of the kinds the schemas declare (`''` for none). Participants the task lacks are made.", {
+    id: ID,
+    top: BAND,
+    bottom: BAND,
+    initiator: { type: 'string', enum: ['top', 'bottom'] },
+    kinds: { type: 'object', properties: { top: { type: 'string' }, bottom: { type: 'string' } }, additionalProperties: false },
+  }, ['id'], write(false, true)),
   tool('remove', "Remove elements and all that goes with them: their contents and their flows. A caption's id clears the name it shows.", { ids: IDS }, ['ids'], write(true, true)),
   tool('style', "Colour elements and letter their captions; a caption's id styles what it captions. What is left out stays as it is.", {
     ids: IDS,

@@ -1,4 +1,4 @@
-/** The choreography-task section: who takes each band, and what kind of actor that is. Pure helpers in `shape/choreographyParticipants.ts`. */
+/** The choreography-task section: who takes each band, and what kind of actor that is. The edits are core's (`@core/model/choreography`), through the study's `bands`. */
 import {
   Combobox,
   ComboboxButton,
@@ -17,7 +17,7 @@ import { t } from '@modeler/i18n';
 import { actorIn, bandsOf, isTypedChoreography } from '@core/model/choreography';
 import { idOf, isExtensionPrefix, type Value } from '@core/model/index';
 import { getCatalog } from '@core/notation';
-import { isPool, listParticipants, participantKind, participantKinds, type ParticipantKind } from '@modeler/shape/choreographyParticipants';
+import { isPool, listParticipants, participantKind, participantKinds, type ParticipantKind } from '@core/model/choreography';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
 import { InspectorContext, useInspectedModel } from '@modeler/inspector/hooks';
@@ -107,13 +107,13 @@ function ParticipantField({ element, field, participant, label, help, declared, 
             </ComboboxOptions>
           </Combobox>
         </div>
-        {isPool(participant, modeler.study) && (
+        {isPool(model, participant) && (
           <div className="mt-1 text-xs text-stone-500" data-testid={`choreography-${field}-kind`}>
             {t('participantKind')}: {kindLabel(kind)}
           </div>
         )}
       </Field>
-      {participant && !isPool(participant, modeler.study)
+      {participant && !isPool(model, participant)
         && <ActorFields key={participant.id} element={element} field={field} participant={participant} kind={kind} />}
     </>
   );

@@ -1,8 +1,7 @@
-import { ensureParticipantsIn, isTypedChoreography } from '@core/model/choreography';
+import { setParticipantKind } from '@core/model/choreography';
 import { isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import { setItemSubjectIn, setMessageItemIn } from '@core/model/items';
 import { isReservedStateKey } from '@core/model/state';
-import { isPool, nameNewActor, selectBandParticipant, setParticipantKind } from '@modeler/shape/choreographyParticipants';
 import { declaredProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
 
@@ -40,31 +39,15 @@ export type UpdateChoreographyParticipantsCommand = {
   | { field: 'initiator'; value: 'top' | 'bottom' }
 );
 
+/** Who takes a band, by the study's `bands`, as an AI says it with the tool of that name. */
 export function runUpdateChoreographyParticipants(
   modeler: Editor,
   command: UpdateChoreographyParticipantsCommand,
 ): void {
-  modeler.study.revise(String(command.element.id), (task, model, ids) => {
-    const [top, bottom] = ensureParticipantsIn(model, task, ids);
-
-    if (command.field === 'initiator') {
-      task.initiatingParticipantRef = (command.value === 'bottom' ? bottom : top).id!;
-      return;
-    }
-
-    if ('select' in command) {
-      const chosen = command.select && model.get(String(command.select.id));
-      selectBandParticipant(model, task, ids, modeler.study, command.field, chosen ?? null);
-      return;
-    }
-    const participant = command.field === 'top' ? top : bottom;
-    // A typed task's actor that is a drawn pool keeps its name: typing another names a new actor for this task.
-    if (isTypedChoreography(model, task) && isPool(participant, modeler.study)) {
-      nameNewActor(model, task, ids, modeler.study, command.value);
-      return;
-    }
-    participant.name = command.value;
-  });
+  const id = String(command.element.id);
+  if (command.field === 'initiator') modeler.study.bands({ id, initiator: command.value });
+  else if ('select' in command) modeler.study.bands({ id, [command.field]: command.select ? { participant: String(command.select.id) } : null });
+  else modeler.study.bands({ id, [command.field]: { name: command.value } });
 }
 
 

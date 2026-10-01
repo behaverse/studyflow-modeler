@@ -11,7 +11,7 @@ import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 import { attributesOf } from '@canvas/study/attributes.ts';
 import { mintTyped, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
 import type { ElementRecord } from '@canvas/study/records.ts';
-import type { ChangedIds, Study, StudyResult } from '@canvas/study/Study.ts';
+import type { BandsChange, ChangedIds, Study, StudyResult } from '@canvas/study/Study.ts';
 import { shapeOf } from '@canvas/study/templates.ts';
 import { isStepTool, misfitOf, type ArgsOf, type StepTool, type StructureRecord, type ToolName, type ToolResult } from '@canvas/study/tools.ts';
 
@@ -42,6 +42,7 @@ export function runStep(study: Study, tool: string, args: unknown): StudyResult 
     layout: () => study.layout(),
     set: (a) => study.set(a),
     item: (a) => study.item(a),
+    bands: (a) => study.bands(a as ArgsOf<'bands'> & BandsChange),
     remove: (a) => study.remove(a),
     style: (a) => study.style(a),
     expand: (a) => study.expand(a),
