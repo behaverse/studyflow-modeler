@@ -132,6 +132,8 @@ SPIRIT_2025:
         DataOutput_T1_AE:
           targetRef: Dataset_AE
       flowElements:
+        T1_Start:
+          type: StartEvent
         T1_Outcomes:
           type: Task
           name: Outcome assessment
@@ -154,8 +156,12 @@ SPIRIT_2025:
           checklist: "- [ ] SPIRIT 19: adherence check"
           onset: T0+6 weeks+4 days
           duration: 3 days
+        T1_End:
+          type: EndEvent
+        Flow_T1_Start_Outcomes: T1_Start -> T1_Outcomes
         Flow_T1_Outcomes_AE: T1_Outcomes -> T1_AE_Review
         Flow_T1_AE_Adherence: T1_AE_Review -> T1_Adherence
+        Flow_T1_Adherence_End: T1_Adherence -> T1_End
     Visit_T2:
       type: SubProcess
       name: Primary endpoint visit (t = t2, week 12)
@@ -284,16 +290,24 @@ layout:
     stroke: "#728cb9"
   DataOutput_T1_AE:
     waypoint: 790,640 817,820
+  T1_Start:
+    bounds: 302 602 36 36
   T1_Outcomes:
-    bounds: 310 590 130 60
+    bounds: 356 590 110 60
   T1_AE_Review:
-    bounds: 470 590 130 60
+    bounds: 484 590 110 60
   T1_Adherence:
-    bounds: 630 590 130 60
+    bounds: 612 590 110 60
+  T1_End:
+    bounds: 740 602 36 36
+  Flow_T1_Start_Outcomes:
+    waypoint: 338,620 356,620
   Flow_T1_Outcomes_AE:
-    waypoint: 440,620 470,620
+    waypoint: 466,620 484,620
   Flow_T1_AE_Adherence:
-    waypoint: 600,620 630,620
+    waypoint: 594,620 612,620
+  Flow_T1_Adherence_End:
+    waypoint: 722,620 740,620
   Visit_T2:
     bounds: 440 740 200 80
     isExpanded: false
