@@ -191,6 +191,7 @@ test('what may be created, or retyped, where', () => {
     ['retype a task as a user task', rules.canReplace(task, 'bpmn:UserTask'), true],
     ['retype a start event as an end event', rules.canReplace(node('bpmn:StartEvent'), 'bpmn:EndEvent'), true],
     ['retype a task as a pool', rules.canReplace(task, 'bpmn:Participant'), false],
+    ['retype a task as a start event, another family', rules.canReplace(task, 'bpmn:StartEvent'), false],
     ['retype a task as a boundary event', rules.canReplace(task, 'bpmn:BoundaryEvent'), false],
     ['retype a flow as a task', rules.canReplace(flow, 'bpmn:Task'), false],
     // With no type named it is the wrench's question: is this replaceable at all?

@@ -96,26 +96,22 @@ test('replacing a task mints the new type, keeps the name and rewires both flows
 });
 
 test('a replacement keeps the centre, in its own type\'s footprint unless both types share a shape', async () => {
-  // Task_1 is resized to 160x120 first: a size the user chose.
-  const CASES: [label: string, type: string, size: { width: number; height: number }][] = [
-    ['a task becomes an end event: a circle, not a 160x120 one', 'bpmn:EndEvent', { width: 36, height: 36 }],
-    ['a task becomes a service task: the size the user chose', 'bpmn:ServiceTask', { width: 160, height: 120 }],
-  ];
-  for (const [label, type, size] of CASES) {
-    const { canvas } = load();
-    canvas.study.resize({ id: 'Task_1', bounds: { x: 200, y: 80, width: 160, height: 120 } });
-
-    const replacement = retype(canvas, node(canvas, 'Task_1'), { type })!;
-
-    expect({ width: replacement.width, height: replacement.height }, label).toEqual(size);
-    expect({ x: replacement.x + replacement.width / 2, y: replacement.y + replacement.height / 2 }, label).toEqual({ x: 280, y: 140 });
-  }
+  // Task_1 is resized to 160x120 first: a size the user chose, which a service task keeps.
+  const { canvas } = load();
+  canvas.study.resize({ id: 'Task_1', bounds: { x: 200, y: 80, width: 160, height: 120 } });
+  const service = retype(canvas, node(canvas, 'Task_1'), { type: 'bpmn:ServiceTask' })!;
+  expect([service.x, service.y, service.width, service.height]).toEqual([200, 80, 160, 120]);
+  // A note becoming a group takes a group's footprint, about the same centre.
+  const note = node(canvas, canvas.study.add({ type: 'bpmn:TextAnnotation', at: { x: 600, y: 300 } }).id!);
+  const group = retype(canvas, note, { type: 'bpmn:Group' })!;
+  expect([group.width, group.height]).toEqual([300, 200]);
+  expect({ x: group.x + group.width / 2, y: group.y + group.height / 2 }).toEqual({ x: 600, y: 300 });
 });
 
 test('the flows are re-routed onto the replacement, squarely', async () => {
   const { canvas } = load();
 
-  const replacement = retype(canvas, node(canvas, 'Task_1'), { type: 'bpmn:EndEvent' })!;
+  const replacement = retype(canvas, node(canvas, 'Task_1'), { type: 'bpmn:UserTask' })!;
 
   for (const flow of [edge(canvas, 'Flow_1'), edge(canvas, 'Flow_2')]) {
     expect(isOrthogonal(flow.waypoints), `${flow.id} is square`).toBe(true);
@@ -153,8 +149,7 @@ test('a container with contents is not replaceable, so nothing inside it can be 
 
 test('replacing an event with a variant of the same type mints the event definition', async () => {
   const { canvas } = load();
-  const task = node(canvas, 'Task_1');
-  const end = retype(canvas, task, { type: 'bpmn:EndEvent' })!;
+  const end = node(canvas, 'End_1');
   const attributes = { eventDefinitions: [{ type: 'bpmn:ErrorEventDefinition' }] };
   const errorEnd = retype(canvas, end, { type: 'bpmn:EndEvent', attributes })!;
   expect(errorEnd.id).not.toBe(end.id);

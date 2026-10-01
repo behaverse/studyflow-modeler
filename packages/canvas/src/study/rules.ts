@@ -6,7 +6,7 @@
 
 import { isDataShape } from '@core/document/outline.ts';
 import { getExtensionType } from '@core/element/index.ts';
-import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
+import { bpmnFamilyOf, isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 import type { TypeCatalog } from '@core/notation/query.ts';
 import type { ModdleObject } from '@canvas/study/scene.ts';
@@ -312,7 +312,8 @@ export class Rules {
     return this.canAppend(source);
   }
 
-  /** May `shape` be retyped in place (to `targetType`, when given)? */
+  /** May `shape` be retyped in place (to `targetType`, when given)? Within its family only (`bpmnFamilyOf`): a retype
+   * across families rewires what an in-place swap cannot carry. */
   canReplace(shape: RuleElement | undefined, targetType?: string): boolean {
     if (!shape) return false;
     const replaceable = (candidate: string): boolean => isBpmnSubtypeOf(candidate, 'bpmn:FlowNode') || isArtifact(candidate);
@@ -322,6 +323,7 @@ export class Rules {
     if ((shape.children?.length ?? 0) > 0) return false;
     if (!targetType) return true;
     if (!replaceable(targetType) || isBpmnSubtypeOf(targetType, 'bpmn:BoundaryEvent')) return false;
+    if (bpmnFamilyOf(targetType) !== bpmnFamilyOf(type)) return false;
     const container = containerFor(shape.parent);
     const containerType = container ? bpmnTypeOf(container, this.catalog) : 'bpmn:Process';
     return canContain(targetType, containerType) === true;
