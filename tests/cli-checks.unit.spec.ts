@@ -8,6 +8,8 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
+import { examplePath } from './utils';
+
 /** `studyflow run` starts only a study that passes the plan checks and whose registered materials are as registered,
  * and records its protocol digest with the run; `validate` says whether the protocol is still the one a run recorded,
  * and whether each material is; `info` shows the digest. */
@@ -168,4 +170,9 @@ Study:
     server.closeAllConnections();
     server.close();
   }
+});
+
+test('the trial-list example ships its list as registered', () => {
+  const file = examplePath('trial_list');
+  expect(studyflow(['validate', file]).stdout).toBe(`${file}: OK, sound over the 2 ways it can go, the registered material matches its digest\n`);
 });

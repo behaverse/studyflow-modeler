@@ -1,0 +1,177 @@
+id: trial_list_doc
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+registered_trials:
+  type: Collaboration
+  name: Registered trial list
+  documentation: |
+    A trial list made outside Studyflow, registered by its content and played one trial at a time.
+
+    Its file, `trials.csv`, is the kind of list SweetPea writes for a Simon task: colour and side crossed, twice, in
+    an order fixed before the study runs. The study holds it as a Table bound to a CSVW schema, and its `digest` is
+    the file's SHA-256, so the list is part of the registered protocol: the protocol digest covers the digest,
+    `studyflow validate` checks the file against it, and `studyflow run` refuses to start once the file has changed.
+    A new list is registered by pasting the digest `validate` reports.
+
+    The first step loads the list as one record per trial; the schema's `separator` makes each trial's
+    `ResponseOptions` a list. `each_trial` carries BPMN's multi-instance marker over those records: each pass
+    hands its trial to the participant pool and keeps the answer, and the marker collects the answers, in the
+    order of the list, into the session's `answers` property.
+
+    The pool is a simulated participant (`simulate://planted`), so the study runs on this machine; with
+    `ollama://<model>` in its place a language model plays the same list.
+  extensionElements:
+    - type: studyflow:Study
+      seed: 42
+      dependencies:
+        - pandas>=2.0
+  participants:
+    Pool_Session:
+      name: Session
+      processRef: Session
+    Pool_Participant:
+      type: studyflow:Actor
+      name: Simulated participant
+      implementation: simulate://planted
+  messageFlows:
+    Msg_Trial:
+      name: the trial
+      sourceRef: answer_trial
+      targetRef: Pool_Participant
+    Msg_Answer:
+      name: the answer
+      sourceRef: Pool_Participant
+      targetRef: answer_trial
+Session:
+  type: Process
+  name: Session
+  properties:
+    trials:
+      name: trials
+    answers:
+      name: answers
+  flowElements:
+    start:
+      type: StartEvent
+    read_trials:
+      type: ServiceTask
+      name: Read the trial list
+      documentation: >-
+        `DataFrame.to_dict` with `orient: records`: the registered list, one record per trial, into the session's
+        `trials`.
+      dataInputAssociations:
+        In_Trial_List:
+          sourceRef:
+            - trial_list
+          transformation: self
+      dataOutputAssociations:
+        Out_Trials:
+          targetRef: trials
+      additionalArguments:
+        orient: records
+      implementation: python://pandas.DataFrame.to_dict
+    trial_list:
+      type: studyflow:Table
+      name: Trial list
+      schema: trial_schema
+      uri: trials.csv
+      digest: sha256:4dd32eb0c384de2e69e1b15cf6b1f59b19914ea765f3e685990b5e0992bf47b0
+    trial_schema:
+      type: studyflow:Schema
+      name: Trial schema
+      body:
+        "@context": http://www.w3.org/ns/csvw
+        tableSchema:
+          columns:
+            - name: Task
+              datatype: string
+            - name: Trial
+              datatype: integer
+            - name: Colour
+              datatype: string
+            - name: Side
+              datatype: string
+            - name: Stimulus
+              datatype: string
+            - name: ResponseOptions
+              datatype: string
+              separator: " "
+    each_trial:
+      type: SubProcess
+      name: Each trial
+      properties:
+        trial:
+          name: trial
+        answer:
+          name: answer
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
+        isSequential: true
+        loopDataInputRef: trials
+        loopDataOutputRef: answers
+        inputDataItem:
+          name: trial
+          id: each_trial_item
+        outputDataItem:
+          name: answer
+          id: each_trial_answer
+      flowElements:
+        trial_start:
+          type: StartEvent
+        answer_trial:
+          type: Task
+          name: Answer the trial
+          dataInputAssociations:
+            In_Trial:
+              sourceRef:
+                - trial
+          dataOutputAssociations:
+            Out_Answer:
+              targetRef: answer
+        trial_end:
+          type: EndEvent
+        flow_trial_answer: trial_start -> answer_trial
+        flow_trial_end: answer_trial -> trial_end
+    done:
+      type: EndEvent
+    flow_read: start -> read_trials
+    flow_each: read_trials -> each_trial
+    flow_done: each_trial -> done
+layout:
+  Pool_Session:
+    bounds: 120 80 800 330
+  Pool_Participant:
+    bounds: 120 450 800 100
+  Msg_Trial:
+    waypoint: 580,240 580,450
+  Msg_Answer:
+    waypoint: 600,450 600,240
+  start:
+    bounds: 170 182 36 36
+  read_trials:
+    bounds: 250 160 120 80
+  In_Trial_List:
+    waypoint: 310,300 310,240
+  trial_list:
+    bounds: 292 300 36 50
+  each_trial:
+    bounds: 420 120 340 160
+    isExpanded: true
+  trial_start:
+    bounds: 450 182 36 36
+  answer_trial:
+    bounds: 530 160 120 80
+  trial_end:
+    bounds: 694 182 36 36
+  flow_trial_answer:
+    waypoint: 486,200 530,200
+  flow_trial_end:
+    waypoint: 650,200 694,200
+  done:
+    bounds: 830 182 36 36
+  flow_read:
+    waypoint: 206,200 250,200
+  flow_each:
+    waypoint: 370,200 420,200
+  flow_done:
+    waypoint: 760,200 830,200

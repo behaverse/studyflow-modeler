@@ -1,0 +1,9 @@
+Task,Trial,Colour,Side,Stimulus,ResponseOptions
+Simon,1,red,left,a red square on the left of the screen,left right
+Simon,2,blue,left,a blue square on the left of the screen,left right
+Simon,3,blue,right,a blue square on the right of the screen,left right
+Simon,4,red,right,a red square on the right of the screen,left right
+Simon,5,blue,left,a blue square on the left of the screen,left right
+Simon,6,red,right,a red square on the right of the screen,left right
+Simon,7,red,left,a red square on the left of the screen,left right
+Simon,8,blue,right,a blue square on the right of the screen,left right
