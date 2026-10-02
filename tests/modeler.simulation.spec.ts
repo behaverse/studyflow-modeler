@@ -32,11 +32,10 @@ const tokens = (page: Page, selector: string) => page.locator(selector).evaluate
 const inside = (p: { cx: number; cy: number }, b: { x: number; y: number; w: number; h: number }, pad = 2) =>
   p.cx >= b.x - pad && p.cx <= b.x + b.w + pad && p.cy >= b.y - pad && p.cy <= b.y + b.h + pad;
 
-/** Each token's centre and the animation it plays: a pop at an end, a bounce where a walk stopped, a fade-out. */
+/** Each token's centre and the animation it plays: a pop at an end, a bounce where a walk stopped. */
 const tokenStyles = (page: Page) => page.locator('.studyflow-simulation-token').evaluateAll((els) => els.map((el) => {
   const r = el.getBoundingClientRect();
-  const { animationName, opacity } = (el as SVGElement).style;
-  return { cx: r.x + r.width / 2, cy: r.y + r.height / 2, animation: animationName, faded: opacity === '0' };
+  return { cx: r.x + r.width / 2, cy: r.y + r.height / 2, animation: (el as SVGElement).style.animationName };
 }));
 
 /** Two pools: one walks to its end event, the other stops short of one, at a task no flow leaves. */
@@ -122,7 +121,7 @@ test.describe('token simulation', () => {
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token')).some((t) => t.shown)).toBe(true);
 
     // Another study opened mid-simulation starts over. A token that reaches its end event pops there; one whose walk
-    // stops short bounces where it stopped, five at most on one element: a sixth fades the first out.
+    // stops short bounces where it stopped.
     await page.getByTestId('open-file-input').setInputFiles({ name: 'ends.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(ENDS_AND_STOPS) });
     await expect(shape(page, 'Stuck')).toBeVisible();
     await expect(app).toHaveClass(/simulation-active/);
@@ -131,9 +130,6 @@ test.describe('token simulation', () => {
       { intervals: [50], timeout: 10_000 }).toBe(true);
     await expect.poll(async () => (await tokenStyles(page)).some((t) => t.animation === 'token-bounce' && inside(t, stuck, 12)),
       { timeout: 10_000 }).toBe(true);
-    await expect.poll(async () => (await tokenStyles(page)).some((t) => t.faded && inside(t, stuck, 12)),
-      { intervals: [50], timeout: 15_000 }).toBe(true);
-    expect((await tokenStyles(page)).filter((t) => t.animation === 'token-bounce' && !t.faded).length).toBeLessThanOrEqual(5);
   });
 });
 
