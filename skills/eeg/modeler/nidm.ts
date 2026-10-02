@@ -89,9 +89,8 @@ export function exportToNidm(model: ExportModel): string {
   return lines.join('\n');
 }
 
-export const format: ExportFormat = {
+export const nidmFormat: ExportFormat = {
   id: 'nidm', group: 'Interchange', label: 'NIDM-Results', extension: '.nidm.ttl', mimeType: 'text/turtle;charset=utf-8',
   encode: ({ exportModel }) => exportToNidm(exportModel()),
 };
 
-export const NIDM_FORMATS: ExportFormat[] = [format];

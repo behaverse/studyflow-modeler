@@ -5,7 +5,6 @@ import { exportToPng } from '@modeler/export/svgEmbedding';
 import { SKILL_EXPORT_FORMATS, SKILL_OPENERS, type Opener } from '@modeler/skillModules';
 import { DRAWIO_FORMATS } from '@modeler/formats/drawio';
 import { LINKML_FORMATS } from '@modeler/formats/linkml';
-import { NIDM_FORMATS } from '@modeler/formats/nidm';
 
 /** The formats that carry the diagram itself, encoded by `export/commands.ts`. */
 export type DiagramFormatId = 'studyflow' | 'bpmn' | 'svg' | 'png';
@@ -97,7 +96,6 @@ const EXPORT_FORMATS: ExportFormat[] = [
   // (formats/), then a skill's `modeler.ts`.
   ...DRAWIO_FORMATS,
   ...LINKML_FORMATS,
-  ...NIDM_FORMATS,
   ...SKILL_EXPORT_FORMATS,
 ];
 

@@ -10,4 +10,5 @@ metadata:
 Vocabulary, and the one to copy when starting a new skill: inheritance from core types,
 wrappers, enums, roles, and implementation-bound templates. Its `modeler.ts` adds the ARTEM-IS
 export (`.artemis.json`), an EEG methods report drawn from the diagram's acquisition, signal, and
-instrument elements. Nothing executes these elements yet.
+instrument elements, and NIDM-Results (`.nidm.ttl`), the neuroimaging data model's provenance of the
+diagram's data operations. Nothing executes these elements yet.

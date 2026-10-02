@@ -1,7 +1,9 @@
-/** What the eeg skill gives the modeler: the ARTEM-IS export, an EEG methods report over the diagram's acquisition, signal, and instrument elements. */
+/** What the eeg skill gives the modeler: the ARTEM-IS export, an EEG methods report over the diagram's acquisition, signal, and instrument elements, and
+ * NIDM-Results, the neuroimaging data model's provenance of the diagram's data operations. */
 import type { ExportFormat } from '@modeler/diagram/formats';
 import { hasRole, type ExportedElement, type ExportModel } from '@modeler/export/model';
 import type { ModelerModule } from '@modeler/skillModules';
+import { nidmFormat } from '@skills/eeg/modeler/nidm';
 
 type GenericRecord = Record<string, unknown>;
 
@@ -103,4 +105,4 @@ export const format: ExportFormat = {
   encode: ({ exportModel }) => exportToArtemis(exportModel()),
 };
 
-export default { exports: [format] } satisfies ModelerModule;
+export default { exports: [format, nidmFormat] } satisfies ModelerModule;
