@@ -368,12 +368,11 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
                     step._cancelled.set()
                     step._inbox.put(None)
             elif method == "shutdown":
-                work.put(None)
                 wire.ending = request_id
-                return
+                break
             elif request_id is not None:
                 wire.send({"id": request_id, "error": {"code": -32601, "message": f"no method {method}"}})
-        # The walk is gone without a word: what runs is stopped.
+        # The walk is over, or gone without a word: what runs is stopped, so the runner closes and exits at once.
         for step in list(steps.values()):
             step._cancelled.set()
             step._inbox.put(None)

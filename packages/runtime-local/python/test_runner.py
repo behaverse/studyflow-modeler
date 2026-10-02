@@ -60,4 +60,22 @@ try:
     raise AssertionError("a stopped step started work")
 except runner.Cancelled:
     assert len(started) == 1
+
+# `shutdown` stops a hand-off still running, so the runner answers and exits at once rather than when it ends.
+import json  # noqa: E402
+import subprocess  # noqa: E402
+
+served = subprocess.Popen(
+    [sys.executable, "-c", "import runner; runner.serve(lambda plan: [], lambda step: print('waiting') or step.receive())"],
+    cwd=Path(__file__).parent, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+served.stdin.write('{"jsonrpc":"2.0","id":1,"method":"execute","params":{"element":"Wait"}}\n')
+served.stdin.flush()
+assert json.loads(served.stdout.readline())["method"] == "log"  # the hand-off runs
+try:
+    out, _ = served.communicate('{"jsonrpc":"2.0","id":2,"method":"shutdown"}\n', timeout=1)
+except subprocess.TimeoutExpired:
+    served.kill()
+    raise AssertionError("shutdown waited for the hand-off") from None
+answers = [json.loads(line) for line in out.splitlines()]
+assert served.returncode == 0 and [a["id"] for a in answers] == [1, 2] and answers[0]["error"]["code"] == 2, answers
 print("ok")
