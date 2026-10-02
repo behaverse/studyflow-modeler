@@ -20,6 +20,20 @@ types: [{ name: Thing, properties: [{ name: mode, isAttr: true, type: Mode, defa
       /Thing\.mode.*zzz.*lab:Mode/],
     ['a meta.editor naming no editor', [lab('types: [{ name: Thing, properties: [{ name: body, isAttr: true, type: String, meta: { editor: yamll } }] }]')],
       /Thing\.body.*editor.*yamll/],
+    ['a type\'s meta.editor naming no editor', [lab('types: [{ name: Thing, superClass: [bpmn:Task], meta: { editor: yamll } }]')], /lab Thing\].*editor.*yamll/],
+    ['an enum extending one no schema declares', [lab('enumerations: [{ extends: NoSuchEnum, literalValues: [{ name: X, value: x }] }]')],
+      /\[lab\].*unknown enum.*NoSuchEnum/],
+    ['an enum extension repeating a literal', [lab(`
+enumerations: [{ name: Mode, literalValues: [{ name: A, value: a }] }, { extends: Mode, literalValues: [{ name: Again, value: a }] }]`)],
+      /\[lab\] Mode.*literal 'a'/],
+    ['a trait extending a type with no BPMN attach point', [lab('types: [{ name: Base }, { name: Trait, extends: [Base], properties: [{ name: x, isAttr: true, type: String }] }]')],
+      /lab:Trait.*'Base'.*no BPMN attach point/],
+    ['a redefines that is no Type#property', [lab('types: [{ name: Thing, superClass: [bpmn:Task], properties: [{ name: x, isAttr: true, type: String, redefines: x }] }]')],
+      /lab:x.*'x' is not a 'Type#property'/],
+    ['an unqualified ref two schemas declare', [
+      lab('types: [{ name: Shared, superClass: [bpmn:Task] }, { name: Thing, superClass: [Shared] }]'),
+      fromModdleYaml('name: Kit\nprefix: kit\nuri: http://example.test/kit\ntypes: [{ name: Shared, superClass: [bpmn:Task] }]'),
+    ], /Shared.*lab:Shared, kit:Shared.*qualify/],
   ];
   for (const [mistake, schemas, diagnostic] of CASES) {
     expect(buildCatalog(schemas).diagnostics.join('\n'), mistake).toMatch(diagnostic);
