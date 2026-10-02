@@ -311,9 +311,11 @@ def failed_trial_rate(shown: set, answered: set) -> float:
 
 def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
     """What this run knows about the task's trials beside what the build records: which subject, and the properties in
-    scope at the hand-off, innermost last. The subject is the instance the nearest enclosing repeating activity is on
-    (`state._meta.instance`, 1-based), so both tasks of one subject stamp the same number and a task played twice per
-    subject stamps it twice; with no repeating activity around it, the task's own visit count, which the study's state keeps."""
+    scope at the hand-off, innermost last. The subject is the instance the nearest repeating scope around the task is on
+    (`state._meta.instance`, 1-based): an enclosing activity, else the pool of several instances whose process holds it
+    (kept under its participant's id). So every task of one subject stamps the same number, whichever subjects left
+    before reaching it, and a task played twice per subject stamps it twice; with no repeating scope around it, the
+    task's own visit count, which the study's state keeps."""
     tree = state.get("state") or {}
     meta = tree.get("_meta") or {}
     scopes: list[str] = []
@@ -325,7 +327,8 @@ def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], stat
     for scope in reversed(scopes):  # outward in, so an inner scope shadows an outer one
         held.update(tree.get(scope) or {})
     instances = meta.get("instance") or {}
-    subject = next((instances[scope] for scope in scopes[1:] if scope in instances),
+    around = [*scopes[1:], *pool_participants(scopes[-1], plan)]  # the process's pool is the outermost
+    subject = next((instances[scope] for scope in around if scope in instances),
                    (meta.get("reached") or {}).get(element.get("id"), 1))
     return {"subject": subject, "state": held}
 

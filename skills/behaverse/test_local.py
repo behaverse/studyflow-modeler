@@ -56,6 +56,12 @@ assert behaverse.trial_context(task(), plan, {}) == {"subject": 1, "state": {}}
 # both tasks of one subject stamp the same number, and a task played twice per subject stamps it twice.
 subjects = {"state": {"_meta": {"reached": {"Play": 7}, "instance": {"Subject": 2}}}}
 assert behaverse.trial_context(task(), plan, subjects)["subject"] == 2
+# A pool of several instances is the subject when nothing inside it repeats: the walk keeps its instance under the
+# participant's id. The fourth subject plays this task as the third to reach it, the first having left before it.
+in_pool = {"Play": task(), "Subject": {"type": "subProcess", "parent": "Study"},
+           "Participant_Subject": {"type": "participant", "attributes": {"processRef": "Study"}}}
+fourth = {"state": {"_meta": {"reached": {"Play": 3}, "instance": {"Participant_Subject": 4}}}}
+assert behaverse.trial_context(task(), in_pool, fourth)["subject"] == 4
 
 # A task inside a sub-process talks along the sub-process's message flows when it draws none of its own.
 def flow(fid, source, target):

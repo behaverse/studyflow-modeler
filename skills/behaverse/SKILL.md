@@ -25,9 +25,10 @@ named is an error rather than a guess. The task's trial records go to the `uri` 
 `<id>.events.jsonl` in the run. Several tasks may deposit into one drawn dataset, and a task in a loop plays once
 per pass: the first write of a run starts that file, the rest append, and the next run starts it again.
 Each line carries the runner's own `context` beside what the build recorded:
-`subject`, the instance the nearest repeating activity around the task is on (`state._meta.instance`, 1-based), so
-every task of one subject stamps the same number and a cohort of four sub-process instances numbers them 1 to 4
-(with no repeating activity around it, the task's own visit count, which the study's state keeps),
+`subject`, the instance the nearest repeating scope around the task is on (`state._meta.instance`, 1-based): an
+enclosing activity, else the pool of several instances (`participantMultiplicity`) whose process holds the task. So
+every task of one subject stamps the same number, whichever subjects left before reaching it, and a cohort of four
+instances numbers them 1 to 4 (with no repeating scope around it, the task's own visit count, which the study's state keeps),
 and `state`, the properties in scope at the hand-off (an enclosing sub-process's `arm`, say), so the trials group
 by subject and by condition without joining anything in.
 
