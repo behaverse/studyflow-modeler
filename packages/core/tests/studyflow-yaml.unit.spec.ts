@@ -201,34 +201,9 @@ P:
     expect(definitions.rootElements[0].flowElements.map((el: any) => el.id)).toEqual(['A', 'F1']);
   });
 
-  test('YAML carrying XML-unsafe markup round-trips XML <-> YAML', async () => {
-    // Raw `<`/`&` in the text would break the export.
-    const doc = `
-id: escape_demo
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
-P:
-  type: bpmn:Process
-  flowElements:
-    C1:
-      type: bpmn:DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values:
-            stimulus: "<p>&lt; L &amp; R <<< </p>"
-`;
-    const xml = await xmlOf(doc);
-    expect(xml).not.toContain('<<<');
-
-    const back: any = yaml.load(await yamlOf(xml));
-    expect(back.P.flowElements.C1.values.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
-  });
-
-  test('YAML with a comment stays text, so the comment survives a round trip', async () => {
-    // Folded into a mapping, the text would come back without its comment.
-    const values = 'triggerChannel: markers  # sent with the biosignals';
-    const doc = `
-id: comment_demo
+  test('a Parameters text round-trips XML <-> YAML: markup unsafe in XML is escaped, and a comment survives', async () => {
+    const doc = (values: string) => `
+id: values_demo
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 P:
@@ -238,12 +213,18 @@ P:
       type: DataObjectReference
       extensionElements:
         - type: studyflow:Parameters
-          values: "${values}"
+          values: ${values}
 `;
-    const xml = await xmlOf(doc);
-    expect(xml).toContain(values);
-    const back: any = yaml.load(await yamlOf(xml));
-    expect(back.P.flowElements.C1.values).toBe(values);
+    // Raw `<`/`&` in the text would break the export.
+    const markup = await xmlOf(doc('\n            stimulus: "<p>&lt; L &amp; R <<< </p>"'));
+    expect(markup).not.toContain('<<<');
+    expect((yaml.load(await yamlOf(markup)) as any).P.flowElements.C1.values.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
+
+    // YAML with a comment stays text: folded into a mapping, it would come back without its comment.
+    const comment = 'triggerChannel: markers  # sent with the biosignals';
+    const commented = await xmlOf(doc(`"${comment}"`));
+    expect(commented).toContain(comment);
+    expect((yaml.load(await yamlOf(commented)) as any).P.flowElements.C1.values).toBe(comment);
   });
 
   test('a message flow names its message, and the message its item definition, through a round trip', async () => {
