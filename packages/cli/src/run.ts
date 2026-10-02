@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 import { embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg } from '@core/document';
 import { planChecks } from '@core/checks';
+import { checkMaterials } from '@core/checks/materials';
 import type { StudyModel } from '@core/model/index';
+import { materialReader } from '@cli/materials';
 import { parseSource, readSource, sourceOf, studySource } from '@cli/studyfile';
 import { runLocal, type LocalRun } from '@runtime-local/run';
 
@@ -81,8 +83,9 @@ export async function run(input: string, options: RunOptions): Promise<void> {
   const runtime = options.runtime ?? model.runtime();
 
   if (runtime === 'local') {
-    // The checks `studyflow validate` applies to the plan; an error among them keeps the study from starting.
-    const issues = planChecks(model);
+    // The checks `studyflow validate` applies to the plan, and the content of what it registers (a trial list that
+    // changed); an error among them keeps the study from starting.
+    const issues = [...planChecks(model), ...(await checkMaterials(model, materialReader(input))).issues];
     for (const { severity, message } of issues) (severity === 'error' ? console.error : console.warn)(`${severity}: ${message}`);
     if (issues.some((issue) => issue.severity === 'error')) {
       process.exitCode = 1;

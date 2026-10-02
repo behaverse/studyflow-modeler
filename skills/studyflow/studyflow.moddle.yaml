@@ -329,6 +329,15 @@ types:
           # Overlay icon drawn on the event when this attribute is set.
           icon: iconify ph--shield-check
           optional: true
+      # The consent form's content in the registered protocol: `studyflow validate` fetches it and compares, and
+      # `studyflow run` refuses to start on another text. BPMN has no content hash, so it sits beside the address.
+      - name: consentFormDigest
+        description: The consent form's SHA-256 (`sha256:<hex>`); validate and run refuse another text.
+        isAttr: true
+        type: String
+        meta:
+          condition:
+            consentFormUri: $set
   - name: SequenceFlow
     description: Lets a flow carry the condition it is taken on.
     extends:
@@ -745,13 +754,14 @@ types:
           expression: true
 
   # ===========================================================================
-  # Artifacts. One field on every BPMN data element: where the bytes live.
-  # How they are laid out is the element's own `format`; the engine reads it
-  # wherever the schema put it and falls back to the `uri`'s file extension.
-  # Unset `uri` means the value only flows in memory between steps.
+  # Artifacts. Two fields on every BPMN data element: where the bytes live,
+  # and, for content the protocol registers, their digest. How they are laid
+  # out is the element's own `format`; the engine reads it wherever the schema
+  # put it and falls back to the `uri`'s file extension. Unset `uri` means the
+  # value only flows in memory between steps.
   # ===========================================================================
   - name: Artifact
-    description: Storage location, mixed onto every data element.
+    description: Storage location and registered content, mixed onto every data element.
     extends:
       - bpmn:ItemAwareElement
     isAbstract: true
@@ -764,6 +774,19 @@ types:
           order: 1
           categories:
             - Data
+      # A material registered by its content (a trial list, a stimulus set): the digest is part of the protocol
+      # digest, `studyflow validate` reads the file (beside the study, or at its http(s) address) and compares, and
+      # `studyflow run` refuses to start on other content. BPMN has no content hash, so it sits beside `uri`.
+      - name: digest
+        description: The content's SHA-256 (`sha256:<hex>`); validate and run refuse other content.
+        isAttr: true
+        type: String
+        meta:
+          order: 2
+          categories:
+            - Data
+          condition:
+            uri: $set
 
   # ===========================================================================
   # A named configuration group the engine passes to steps like any other

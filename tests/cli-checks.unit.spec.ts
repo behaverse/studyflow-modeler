@@ -1,12 +1,16 @@
-import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-/** `studyflow run` starts only a study that passes the plan checks, and records its protocol digest with the run;
- * `validate` says whether the protocol is still the one a run recorded; `info` shows it. */
+/** `studyflow run` starts only a study that passes the plan checks and whose registered materials are as registered,
+ * and records its protocol digest with the run; `validate` says whether the protocol is still the one a run recorded,
+ * and whether each material is; `info` shows the digest. */
 
 const dir = mkdtempSync(path.join(tmpdir(), 'studyflow-checks-'));
 const bin = path.join(dir, 'bin', 'studyflow.mjs');
@@ -105,4 +109,63 @@ test('validate says where the BPMN XML a study is written as breaks the BPMN 2.0
   <bpmn:process id="P"><bpmn:startEvent id="S"/></bpmn:process>
 </bpmn:definitions>`);
   expect(studyflow(['validate', untargeted]).stderr).toContain("error: the BPMN XML breaks the BPMN 2.0 schema at line 2: Element 'bpmn:definitions': The attribute 'targetNamespace' is required but missing.");
+});
+
+/** `studyflow` without blocking this process, which serves what the study fetches. */
+const served = (args: string[], env: Record<string, string> = {}) => new Promise<{ status: number; stdout: string; stderr: string }>((resolve) => {
+  execFile(process.execPath, [bin, ...args], { encoding: 'utf8', env: { ...process.env, ...env } }, (error, stdout, stderr) => resolve({ status: error ? Number(error.code ?? 1) : 0, stdout, stderr }));
+});
+
+test('validate checks a registered material, beside the study or at its address, and names the digest to register; run refuses one that changed', async () => {
+  const sha256 = (text: string): string => `sha256:${createHash('sha256').update(text).digest('hex')}`;
+  const [TRIALS, CONSENT] = ['Trial,Side\n1,left\n2,right\n', '# Consent\n\nYou may stop at any time.\n'];
+  const server = createServer((_request, response) => response.end(CONSENT));
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const consent = `http://127.0.0.1:${(server.address() as AddressInfo).port}/consent.md`;
+  const folder = mkdtempSync(path.join(dir, 'materials-'));
+  const file = path.join(folder, 'registered.studyflow.yaml');
+  writeFileSync(file, `id: registered
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Study:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Consented
+      consentFormUri: ${consent}
+      consentFormDigest: ${sha256(CONSENT)}
+    Play:
+      type: Task
+      dataInputAssociations:
+        In_Trials: { sourceRef: [Trials] }
+    Trials:
+      type: studyflow:Table
+      name: Trial list
+      uri: trials.csv
+      digest: ${sha256(TRIALS)}
+    End:
+      type: EndEvent
+    F1: Start -> Play
+    F2: Play -> End
+`);
+  try {
+    writeFileSync(path.join(folder, 'trials.csv'), TRIALS);
+    expect((await served(['validate', file])).stdout).toBe(`${file}: OK, sound over the one way it can go, the 2 registered materials match their digests\n`);
+
+    const edited = `${TRIALS}3,left\n`;
+    writeFileSync(path.join(folder, 'trials.csv'), edited);
+    const says = `error: "Trial list" registers trials.csv as ${sha256(TRIALS).slice(0, 19)}…, and its content is ${sha256(edited)}: `
+      + `restore the registered content, or register this one with digest: ${sha256(edited)}\n`;
+    const changed = await served(['validate', file]);
+    expect(changed.status).toBe(1);
+    expect(changed.stderr).toBe(says);
+    const refused = await served(['run', file, '--repo', path.join(folder, 'run'), '--quiet'], { STUDYFLOW_HOME: dir });
+    expect(refused.status).toBe(1);
+    expect(refused.stderr).toBe(says);
+    expect(existsSync(path.join(folder, 'run'))).toBe(false);
+  } finally {
+    server.closeAllConnections();
+    server.close();
+  }
 });

@@ -3,8 +3,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { checkImplementations } from '@core/checks/implementations';
+import { checkMaterials } from '@core/checks/materials';
 import { checkRecorded } from '@core/checks/recorded';
 import { installedSkills } from '@cli/skills';
+import { materialReader } from '@cli/materials';
 import { planChecks, recordChecks } from '@core/checks';
 import { checkSoundness } from '@core/checks/soundness';
 import { asXml, parseSource, readSource } from '@cli/studyfile';
@@ -49,8 +51,11 @@ export async function validate(input: string): Promise<ValidateReport> {
     // Every way the study can go, explored, once the plan checks pass.
     const soundness = errors.length === 0 ? await checkSoundness(model) : { issues: [] };
     for (const { message } of soundness.issues) warnings.push(message);
+    // What the study registers by its content (a trial list, a consent form), read beside it or at its address.
+    const materials = await checkMaterials(model, materialReader(input));
+    for (const { severity, message } of materials.issues) (severity === 'error' ? errors : warnings).push(message);
     const recordNote = record.note && events.length > 0 && recorded.length === 0 ? `${record.note}; its state is its record's` : record.note;
-    note = [soundness.note, recordNote].filter(Boolean).join(', ') || undefined;
+    note = [soundness.note, materials.note, recordNote].filter(Boolean).join(', ') || undefined;
     // The BPMN XML the study is written as, against the OMG's schema: what another BPMN tool reads.
     const violations = xsdViolations(await asXml(source));
     if (violations === undefined) warnings.push('the BPMN XML was not checked against the BPMN 2.0 schema: this machine has no xmllint');

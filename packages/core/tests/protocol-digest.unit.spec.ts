@@ -118,6 +118,9 @@ test('the drawing, the run state and the run records leave the digest alone; the
     ['documentation', swap('Thirty trials', 'Twenty trials'), true],
     ['a checklist item reworded', swap('Settings wired in', 'Settings wired in and checked'), true],
     ['an added element', swap('    F1: Start -> Play', '    Extra:\n      type: Task\n    F1: Start -> Play'), true],
+    // A material registered by its content: the digest is the protocol's, so other content registered is a new protocol.
+    ['a data element\'s digest', swap('      name: Settings\n', `      name: Settings\n      digest: sha256:${'0'.repeat(64)}\n`), true],
+    ['a consent form\'s digest', swap('      type: StartEvent\n', `      type: StartEvent\n      consentFormDigest: sha256:${'0'.repeat(64)}\n`), true],
   ];
   for (const [label, edit, changes] of CASES) {
     expect(await digest(await edit(PLAN)) !== base, label).toBe(changes);
