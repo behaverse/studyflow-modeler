@@ -235,8 +235,8 @@ S:
       cwd: dir, stdio: 'pipe', env: ENV,
     });
 
+    // What the first run reaches is pinned by packages/core/tests/engine.unit.spec.ts, on this study.
     run(path.join(dir, 'conserve.bpmn'));
-    expect(archivedState(archived)._meta.reached).toEqual({ Start: 1, F1: 1, Gate: 2, F_Try: 2, Try: 2, F_Back: 1, Enough: 1, F_Out: 1, Out: 1 });
     expect(await unconserved(xml, archivedState(archived)._meta.reached)).toEqual([]);
 
     run(archived);
@@ -478,14 +478,14 @@ test.describe('partial runner hand-off', () => {
     <bpmn:sequenceFlow id="F2" sourceRef="Slow" targetRef="Done"/>
   </bpmn:process>
 </bpmn:definitions>`);
-    // A runner that does not heed `cancel`: its process is ended.
+    // A runner that does not heed `cancel`: its process is ended, the two seconds' grace after it.
     writeRunner(path.join(dir, 'slow.py'), "['Slow']", ['time.sleep(30)']);
     const started = Date.now();
     expect(() => execFileSync(process.execPath, [BIN, 'run', 'plan.bpmn', '--repo', 'run', '--quiet',
-      '--runner', `slow=python3 ${path.join(dir, 'slow.py')}`, '--step-timeout', '1'],
+      '--runner', `slow=python3 ${path.join(dir, 'slow.py')}`, '--step-timeout', '0.2'],
     { cwd: dir, stdio: 'pipe', env: ENV })).toThrow();
     expect(Date.now() - started).toBeLessThan(20_000);
-    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/took longer than 1s/);
+    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/took longer than 0\.2s/);
   });
 
   test('a timer at a boundary event stops the runner of the step it sits on, and the run goes on from the event', async () => {
