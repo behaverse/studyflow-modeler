@@ -56,7 +56,7 @@ Study:
 `, structuredClone(packages));
 
 /** What a page cannot carry is refused before the first screen, not walked as another study. */
-test('a message flow the page carries runs; one to a pool no one in the page plays, or from a screen, is refused; a screen fills no data edge', async () => {
+test('a message flow the page carries runs; one to a pool no one in the page plays, or from a screen, is refused; a screen fills no data edge, and a step no screen takes is passed over', async () => {
   const CASES: [string, string, string, string[]][] = [
     // A pool with no process and a human actor (none said is human) is the person at the page.
     // The asking task has no screen: the walk sends for it and fills its data edges.
@@ -64,6 +64,9 @@ test('a message flow the page carries runs; one to a pool no one in the page pla
     ['to a model', '{ type: studyflow:Actor, name: Model, actorType: llm, implementation: "ollama://gemma4" }', 'type: Task', ['error M_Ask']],
     // A screen neither talks nor fills a data edge.
     ['from a screen', '{ name: Model }', 'type: cognitive:Instruction', ['error M_Ask', 'warning Practice']],
+    // No screen takes a break; a gateway that draws its branch is the walk's.
+    ['from a step no screen takes', '{ name: Model }', 'type: cognitive:Rest', ['warning Practice']],
+    ['from a gateway that draws', '{ name: Model }', 'type: cognitive:RandomGateway', []],
   ];
   for (const [label, model, sender, says] of CASES) {
     const found = validateUnwalked(await study(model, sender)).map((issue) => `${issue.severity ?? 'error'} ${issue.nodeId}`).sort();

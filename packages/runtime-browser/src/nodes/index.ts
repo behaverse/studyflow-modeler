@@ -1,5 +1,4 @@
 import { checkEntryExit } from '@core/checks/entry-exit';
-import { getCatalog, hasCatalog } from '@core/notation';
 import { parseSkillManifest } from '@core/notation/skill';
 import { validateUnwalked } from '@runner/unwalked';
 import type { Studyflow } from '@runner/studyflow';
@@ -34,13 +33,6 @@ export function findByType(type: string): AnyNodeDefinition | undefined {
   return getRegisteredNodes().find((n) => n.type === type);
 }
 
-/** `meta.branching` off the schema, when a catalog is installed (it is not, in Node-side unit tests). */
-function branchingMode(extensionType: string): string | undefined {
-  if (!hasCatalog()) return undefined;
-  const mode = getCatalog().getType(extensionType)?.meta?.branching;
-  return typeof mode === 'string' ? mode : undefined;
-}
-
 export async function validate(studyflow: Studyflow, log: LogFn): Promise<ValidationIssue[]> {
   await skillModulesLoaded;
   // The consent form a page fetches and the code it hands are what `studyflow validate` checks too.
@@ -58,17 +50,6 @@ export async function validate(studyflow: Studyflow, log: LogFn): Promise<Valida
   for (const node of studyflow.flowNodes.values()) {
     const def = findByFlowNode(node);
     if (def?.validateNode) issues.push(...def.validateNode(node, studyflow, contexts.get(def)));
-
-    if (!def && node.extensionType) {
-      issues.push({
-        nodeId: node.id,
-        severity: 'warning',
-        // No screen decides for a model: no condition holds at that gateway, so don't promise the run continues.
-        message: branchingMode(node.extensionType) === 'model'
-          ? `'${node.extensionType}' picks its branch with a model, which the runner does not implement. The run stops here.`
-          : `'${node.extensionType}' is not executable in this runner. This step is skipped and the run continues.`,
-      });
-    }
   }
   return issues;
 }
