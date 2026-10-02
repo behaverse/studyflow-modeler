@@ -1,6 +1,6 @@
 import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { FlowNode } from '@runner/flow';
-import { RUNNER_ONLY_BOT_KEYS, type Manifest } from '@skills/behaverse/browser/types';
+import type { Manifest } from '@skills/behaverse/browser/types';
 import type { ValidationIssue } from '@runner/nodes/types';
 
 export async function fetchManifest(unityBuildUrl: string): Promise<Manifest> {
@@ -47,7 +47,8 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
     });
   }
 
-  // `Bot:` reaches Unity's per-task Bot field by field, so it must be one flat mapping (runner-only keys aside).
+  // `Bot:` reaches Unity's per-task Bot field by field, so it must be one flat mapping (the parser has refused the keys
+  // that say who answers).
   const bot = authored.Bot;
   if (bot != null) {
     if (typeof bot !== 'object' || Array.isArray(bot)) {
@@ -57,9 +58,7 @@ export function validateBehaverseNode(node: FlowNode, manifest: Manifest): Valid
           + `one per line (got ${Array.isArray(bot) ? 'a list' : typeof bot}).`,
       });
     } else {
-      const runnerOnly = new Set<string>(RUNNER_ONLY_BOT_KEYS);
       for (const [k, v] of Object.entries(bot as Record<string, unknown>)) {
-        if (runnerOnly.has(k)) continue;
         if (v !== null && typeof v === 'object') {
           issues.push({
             nodeId: node.id,

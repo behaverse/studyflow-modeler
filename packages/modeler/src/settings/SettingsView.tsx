@@ -310,13 +310,11 @@ function ExtensionsSection() {
     return false;
   }, [enabled, initial]);
 
+  // A required schema's switch is disabled, and loadSchemas loads it whatever this list says.
   function toggle(prefix: string, on: boolean) {
-    const schema = SCHEMAS.find((sc) => sc.prefix === prefix);
-    if (schema?.required && !on) return; // a required schema can't be disabled
     const next = new Set(enabled);
     if (on) next.add(prefix);
     else next.delete(prefix);
-    for (const sc of SCHEMAS) if (sc.required) next.add(sc.prefix); // required ones always included
     update({ enabledSchemas: SCHEMAS.map((sc) => sc.prefix).filter((p) => next.has(p)) });
   }
 

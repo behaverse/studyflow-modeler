@@ -15,7 +15,7 @@ export function shellWords(command: string): string[] {
   const words: string[] = [];
   let word = '';
   let quote = '';
-  let open = false;
+  let open = false; // a word has begun, even an empty quoted one
   for (let i = 0; i < command.length; i += 1) {
     const char = command[i];
     if (quote) {
@@ -29,7 +29,7 @@ export function shellWords(command: string): string[] {
       word += command[i += 1];
       open = true;
     } else if (/\s/.test(char)) {
-      if (word || open) words.push(word);
+      if (open) words.push(word);
       word = '';
       open = false;
     } else {
@@ -37,7 +37,7 @@ export function shellWords(command: string): string[] {
       open = true;
     }
   }
-  if (word || open) words.push(word);
+  if (open) words.push(word);
   return words;
 }
 

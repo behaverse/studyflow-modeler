@@ -198,11 +198,6 @@ export function importJsPsychTimeline(input: JsPsychTimelineInput, options: JsPs
 
     const functionRef = buildFunctionRef(pluginId, plugin?.version ?? DEFAULT_VERSION);
 
-    const parsed = parseImplementationRef(functionRef);
-    if (!parsed.ok) {
-      throw new Error(`jsPsych import: invalid function reference "${functionRef}" for node ${index + 1}: ${parsed.error}`);
-    }
-
     return {
       id: taskId,
       name: label,
