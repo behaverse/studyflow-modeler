@@ -1,89 +1,16 @@
 /**
- * The passes that put a BPMN file's choreography in the form a study holds, and back: another tool's choreography
- * root read as a process, and an exchange (a choreography task in a process) written as the BPMN task it is.
+ * The passes that put a BPMN file's choreography in the form a study holds, and back: an exchange (a choreography task
+ * in a process) written as the BPMN task it is. Another tool's choreography root is read as a process on the study
+ * model (`choreographyToProcessIn`).
  */
 import { BPMN } from '@core/constants';
-import { moveProperties, type ModdleElement } from '@core/document/moddle';
+import type { ModdleElement } from '@core/document/moddle';
 import { primaryRoot, isHeadlessCollaboration } from '@core/document/format';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
 
 function isChoreographyTaskBo(el: ModdleElement | null | undefined): boolean {
   return el?.$type === CHOREOGRAPHY_TASK;
-}
-
-/** Specific to a root's own type: these must not travel when a choreography is read as a process. */
-const OWN_STRUCTURE = new Set([
-  'flowElements', 'id', 'name', 'participants', 'messageFlows', 'isExecutable',
-]);
-
-function moveRootProperties(target: any, source: any): void {
-  const targetByName = target.$descriptor?.propertiesByName ?? {};
-  const names: string[] = [];
-  for (const p of source.$descriptor?.properties ?? []) {
-    if (OWN_STRUCTURE.has(p.name) || !targetByName[p.name]) continue;
-    names.push(p.name);
-  }
-  moveProperties(target, source, names);
-
-  for (const [name, value] of Object.entries(source.$attrs ?? {})) {
-    if (OWN_STRUCTURE.has(name)) continue;
-    target.$attrs[name] = value;
-    delete source.$attrs[name];
-  }
-}
-
-function retargetPlanes(definitions: any, from: any, to: any): void {
-  for (const diagram of definitions.diagrams ?? []) {
-    if (diagram.plane?.bpmnElement === from) diagram.plane.bpmnElement = to;
-  }
-}
-
-function uniqueId(base: string, taken: Set<string>): string {
-  let id = base;
-  for (let n = 2; taken.has(id); n++) id = `${base}_${n}`;
-  taken.add(id);
-  return id;
-}
-
-/** A `bpmn:Choreography` root, from another tool's file, read as the process a study is: its choreography tasks are
- * exchanges in a process, their participants held by a collaboration with no pool. */
-export function choreographyToProcessRoot(definitions: any): boolean {
-  const rootElements = definitions?.rootElements ?? [];
-  const choreography = rootElements.find((re: any) => re.$type === 'bpmn:Choreography');
-  if (!choreography) return false;
-
-  const model = definitions.$model;
-  const process = model.create('bpmn:Process', { id: choreography.id, isExecutable: false });
-  if (choreography.name !== undefined) process.set('name', choreography.name);
-  process.$parent = definitions;
-  moveRootProperties(process, choreography);
-
-  for (const el of choreography.flowElements ?? []) {
-    if (!isChoreographyTaskBo(el)) continue;
-    // A study is a process: the choreography's message flows go with its root, and each task keeps its bands.
-    el.set('messageFlowRef', undefined);
-  }
-
-  moveProperties(process, choreography, ['flowElements']);
-
-  // A Participant is not a RootElement: survivors need a headless Collaboration to stay resolvable, and with no DI plane no pool is drawn.
-  const newRoots = rootElements.map((re: any) => (re === choreography ? process : re));
-  const participants = choreography.get('participants') ?? [];
-  if (participants.length > 0) {
-    const taken = new Set<string>(newRoots.map((re: any) => re.id).filter(Boolean));
-    const collaboration = model.create('bpmn:Collaboration', {
-      id: uniqueId(`${choreography.id}_participants`, taken),
-      participants,
-    });
-    collaboration.$parent = definitions;
-    for (const p of participants) p.$parent = collaboration;
-    choreography.set('participants', undefined);
-    newRoots.push(collaboration);
-  }
-  definitions.rootElements = newRoots;
-  retargetPlanes(definitions, choreography, process);
-  return true;
 }
 
 /** A plane naming a collaboration with no pool draws the process's flow: point it at the process, the root everywhere else. */

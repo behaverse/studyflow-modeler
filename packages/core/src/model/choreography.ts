@@ -8,6 +8,7 @@ import { idOf, isElement, type Element, type StudyModel } from '@core/model/inde
 import { getCatalog } from '@core/notation';
 import type { Ids } from '@core/model/items';
 import { wiredIn } from '@core/model/parameters';
+import { foldTyped } from '@core/model/yaml';
 
 export const DEFAULT_TOP = 'Participant A';
 export const DEFAULT_BOTTOM = 'Participant B';
@@ -123,10 +124,12 @@ export function choreographyToProcessIn(model: StudyModel): boolean {
   if (!choreography) return false;
 
   const declared = model.metamodel.descriptor('bpmn:Process').propertiesByName;
-  const process: Element = { type: 'bpmn:Process', id: choreography.id, isExecutable: false };
+  const read: Element = { type: 'bpmn:Process', id: choreography.id, isExecutable: false };
   for (const [key, value] of Object.entries(choreography)) {
-    if (!CHOREOGRAPHY_OWN.has(key) && (declared[key] || key.includes(':'))) process[key] = value;
+    if (!CHOREOGRAPHY_OWN.has(key) && (declared[key] || key.includes(':'))) read[key] = value;
   }
+  // A Study the choreography carried types the process, as it would have typed a process read as one.
+  const process = foldTyped(model.metamodel, read);
   // A study is a process: the choreography's message flows go with its root, and each task keeps its bands.
   for (const element of Array.isArray(process.flowElements) ? process.flowElements : []) {
     if (isElement(element) && model.host(element) === 'bpmn:ChoreographyTask') delete element.messageFlowRef;

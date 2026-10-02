@@ -1,11 +1,11 @@
 /**
  * BPMN XML in and out of a study model, the one place moddle reads and writes. What moddle reads is put in the form
- * the YAML reader builds (an exchange, a process root, compact data inputs) and read as a study model; a study is
- * written by building moddle's tree from its YAML.
+ * the YAML reader builds (an exchange, compact data inputs) and read as a study model, whose choreography root is then
+ * read as a process, as a YAML file's is; a study is written by building moddle's tree from its YAML.
  */
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { choreographyToProcessRoot, exchangesToTasks, headlessPlaneToProcessRoot, tasksToExchanges } from '@core/document/choreography';
+import { exchangesToTasks, headlessPlaneToProcessRoot, tasksToExchanges } from '@core/document/choreography';
 import { studyflowToDefinitions } from '@core/document/deserialize';
 import { dropForeignElements } from '@core/document/format';
 import { expandIoSpecification, inlineIoSpecification } from '@core/document/io-specification';
@@ -53,10 +53,11 @@ export async function xmlToStudy(xml: string, metamodel: Metamodel, { asWritten 
   for (const warning of warnings) onWarning?.(readerWarning(warning));
   dropForeignElements(definitions, onWarning);
   tasksToExchanges(definitions);
-  choreographyToProcessRoot(definitions);
   headlessPlaneToProcessRoot(definitions);
   if (!asWritten) inlineIoSpecification(definitions);
-  return new StudyModel(readStudy(definitionsToYamlDoc(definitions, onWarning), metamodel, () => {}), metamodel);
+  const model = new StudyModel(readStudy(definitionsToYamlDoc(definitions, onWarning), metamodel, () => {}), metamodel);
+  choreographyToProcessIn(model);
+  return model;
 }
 
 /** The study model of file text, a `.studyflow.yaml` or BPMN XML (read as {@link xmlToStudy} reads it). */

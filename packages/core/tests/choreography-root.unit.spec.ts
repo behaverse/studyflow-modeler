@@ -46,6 +46,8 @@ test('a choreography is read as a process of exchanges, keeps what its root carr
   expect(model.get(String(task.initiatingParticipantRef))?.name).toBe('Experimenter');
   expect(task.messageFlowRef).toBeUndefined();
   expect(process.name).toBe('Dyadic decision study');
+  // The Study it carried types it, as it types a process read as one.
+  expect(process.type).toBe('studyflow:Study');
   expect(documentationOf(process)).toContain('two-participant');
   expect(model.studyOf(process)?.tags).toEqual(['Reference']);
   expect(process['studyflow:signature']).toBe('abc123');
