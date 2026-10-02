@@ -1,4 +1,4 @@
-import type { AttributeSpec, EnumLiteral } from '@core/notation';
+import type { AttributeSpec } from '@core/notation';
 import {
   Checkbox,
   Combobox,
@@ -26,6 +26,7 @@ import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
 import { useAttributeState, useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
 import { readAttribute } from '@core/model/index';
+import { filterOptions, resolveTyped, toOptions, type Option } from '@modeler/inspector/options';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { field as s } from '@modeler/inspector/styles';
 
@@ -319,16 +320,6 @@ export function EnumInput({ attrDef }: Props) {
   );
 }
 
-type Option ={ name: string; value: string; description?: string };
-
-export function toOptions(literals: EnumLiteral[] | undefined): Option[] {
-  return (literals ?? []).map((literal) => ({
-    name: literal.name,
-    value: String(literal.value),
-    description: literal.description,
-  }));
-}
-
 type SubProps = {
   name: string;
   ariaLabel: string;
@@ -379,15 +370,7 @@ function EditableEnumCombobox({ name, ariaLabel, value, literalValues, onCommit 
     return m;
   }, [literalValues]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return literalValues;
-    return literalValues.filter((l) =>
-      l.name.toLowerCase().includes(q)
-      || l.value.toLowerCase().includes(q)
-      || l.description?.toLowerCase().includes(q),
-    );
-  }, [literalValues, query]);
+  const filtered = useMemo(() => filterOptions(literalValues, query), [literalValues, query]);
 
   function displayValue(v: string | null) {
     if (v == null) return '';
@@ -396,15 +379,6 @@ function EditableEnumCombobox({ name, ariaLabel, value, literalValues, onCommit 
 
   function commitIfChanged(next: string) {
     if (next !== value) onCommit(next);
-  }
-
-  /** The field shows a literal's *label*, so text maps to its value ("N-Back (NB)" -> "NB") */
-  function resolveTyped(text: string): string {
-    const typed = text.trim();
-    if (!typed) return '';
-    const match = literalValues.find((l) =>
-      l.name.toLowerCase() === typed.toLowerCase() || l.value.toLowerCase() === typed.toLowerCase());
-    return match ? match.value : typed;
   }
 
   return (
@@ -427,7 +401,7 @@ function EditableEnumCombobox({ name, ariaLabel, value, literalValues, onCommit 
           onChange={(event) => setQuery(event.target.value)}
           onBlur={(event) => {
             setQuery('');
-            commitIfChanged(resolveTyped(event.target.value));
+            commitIfChanged(resolveTyped(literalValues, event.target.value));
           }}
         />
         <ComboboxButton className={s.comboChevronBtn} aria-label="Show suggestions">
