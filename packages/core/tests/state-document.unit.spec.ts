@@ -94,7 +94,8 @@ test.describe('state in the document', () => {
     const CASES: [label: string, state: StateTree | undefined, text: string, expected: string][] = [
       ['a name in scope', STATE, 'Excluded (n={count})', 'Excluded (n=3)'],
       ['an unresolved name stays', STATE, '{arm}/{missing} {reached} {state.Battery.failed_trials}', 'A/{missing} 4 2'],
-      ['nothing resolves without state', undefined, 'Excluded (n={count})', 'Excluded (n={count})'],
+      ['without state, the value the file declares', undefined, 'Excluded (n={count})', 'Excluded (n=0)'],
+      ['a name declared with no value stays', undefined, '{arm}', '{arm}'],
       // A deposited file no run has touched reads n=0, as a preregistered exit nobody took should.
       ['a counter with no run behind it is 0', undefined, 'Excluded (n={reached})', 'Excluded (n=0)'],
       ['only the braces of a name: YAML and JSON in a value stay put', STATE, '{a: 1} {"arm": 2} {arm}', '{a: 1} {"arm": 2} A'],
@@ -104,6 +105,67 @@ test.describe('state in the document', () => {
     for (const [label, state, text, expected] of CASES) {
       const model = studyModel(BODY + (state ? yaml.dump({ state }, YAML_DUMP_OPTIONS) : ''));
       expect(resolvePlaceholdersIn(model, text, 'Excluded_Pre'), label).toBe(expected);
+    }
+  });
+
+  test('before any run, a placeholder reads the value the file declares, and :% draws a number as a percentage', () => {
+    // A threshold on the process, decision rules wired into a sub-process, settings wired into a task.
+    const declared = `id: declared_probe
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Subjects:
+  type: Process
+  properties:
+    P_Max:
+      name: max_unanswered
+      value: 0.2
+    P_Arm:
+      name: arm
+      value: none
+  flowElements:
+    Play:
+      type: Task
+      dataInputAssociations:
+        In_Pace:
+          sourceRef:
+            - Pace
+    Pace:
+      type: studyflow:Parameters
+      values:
+        speed: 5
+    Analysis:
+      type: SubProcess
+      properties:
+        P_Arm_Inner:
+          name: arm
+          value: cautious
+      dataInputAssociations:
+        In_Rules:
+          sourceRef:
+            - Rules
+      flowElements:
+        Test:
+          type: ExclusiveGateway
+    Rules:
+      type: studyflow:Parameters
+      values:
+        alpha: 0.05
+        rules:
+          min_per_arm: 4
+`;
+    const CASES: [label: string, state: StateTree | undefined, elementId: string, text: string, expected: string][] = [
+      ['a property the process declares', undefined, 'Play', '> {max_unanswered} unanswered', '> 0.2 unanswered'],
+      ['as a percentage', undefined, 'Play', '> {max_unanswered:%} unanswered', '> 20% unanswered'],
+      ['a key of the Parameters wired into a sub-process, and a field of one', undefined, 'Test', 'p < {alpha}, {rules.min_per_arm} per arm', 'p < 0.05, 4 per arm'],
+      ['the Parameters wired into a task declare nothing', undefined, 'Play', '{speed}', '{speed}'],
+      ['the innermost declaration wins', undefined, 'Test', '{arm}', 'cautious'],
+      ['a run\'s state over the value declared', { Subjects: { max_unanswered: 0.25 } }, 'Play', '{max_unanswered:%}', '25%'],
+      ['a scope\'s declared value over an outer scope\'s state', { Subjects: { arm: 'impulsive' } }, 'Test', '{arm}', 'cautious'],
+      ['only a number takes the percentage', undefined, 'Play', '{arm:%}', '{arm:%}'],
+    ];
+    for (const [label, state, elementId, text, expected] of CASES) {
+      const model = studyModel(declared + (state ? yaml.dump({ state }, YAML_DUMP_OPTIONS) : ''));
+      expect(resolvePlaceholdersIn(model, text, elementId), label).toBe(expected);
     }
   });
 });

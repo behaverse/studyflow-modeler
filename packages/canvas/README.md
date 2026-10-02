@@ -35,7 +35,7 @@ canvas.select(made.id!);
 - **Events**, through `on(event, listener)`: `select` (the ids selected), `scope` (what it shows: on a drill-down, and whenever it draws its study afresh after a load, an undo or a redo, before it reselects), `appendMenu` (the `a` key, on the selection), `camera` (each move of the camera and change of the view's size, as `viewbox`). What an edit did, the study says, after every view has drawn it.
 - `destroy()` hands the container back clean.
 
-A caption shows the run state its `{placeholders}` name; the model keeps the raw name. Icons are what `iconResolver` answers for a type (`null` draws none), and otherwise the canvas's own glyph, when it has one.
+A caption shows the values its `{placeholders}` name, the last run's state or else what the file declares; the model keeps the raw name. Icons are what `iconResolver` answers for a type (`null` draws none), and otherwise the canvas's own glyph, when it has one.
 
 ## renderSvg
 
