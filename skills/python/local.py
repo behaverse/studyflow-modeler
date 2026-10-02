@@ -87,11 +87,28 @@ class Plan:
         attributes = element.get("attributes") or {}
         return attributes.get("uri"), attributes.get("format")
 
+    def log(self, element_id: str, fmt: str) -> bool:
+        """Whether the element is a log: a `.jsonl` data store, which grows a line at a time."""
+        return fmt == "jsonl" and (self.elements.get(element_id) or {}).get("type") == "dataStoreReference"
+
     def appends(self, element_id: str, value: Any, fmt: str) -> bool:
-        """Whether writing `value` adds a line to the element rather than replacing it: one record, a mapping, into a
-        `.jsonl` data store, as a trial log grows a line at a time."""
-        store = (self.elements.get(element_id) or {}).get("type") == "dataStoreReference"
-        return store and fmt == "jsonl" and isinstance(value, dict)
+        """Whether writing `value` adds a line to the element rather than replacing it: one record, a mapping, into a log."""
+        return self.log(element_id, fmt) and isinstance(value, dict)
+
+    def written(self, element_id: str) -> bool:
+        """Whether a step of the study writes the element, so it is never a boundary input."""
+        return any(output.get("target") == element_id for element in self.elements.values() for output in element.get("outputs") or [])
+
+    def columns(self, element_id: str) -> list[str]:
+        """The columns the schema bound to a data element declares: its `schema`, a `studyflow:Schema` whose body is a
+        CSVW table schema. None without one."""
+        def attribute(element: dict[str, Any], name: str) -> Any:
+            held = [(element.get("attributes") or {}).get(name), *((ext.get("attributes") or {}).get(name) for ext in element.get("extensions") or [])]
+            return next((value for value in held if value), None)
+        body = attribute(self.elements.get(str(attribute(self.elements.get(element_id) or {}, "schema"))) or {}, "body")
+        table = (yaml.safe_load(body) if isinstance(body, str) else body) or {}
+        listed = (table.get("tableSchema") or table).get("columns") if isinstance(table, dict) else None
+        return [column["name"] for column in listed or [] if isinstance(column, dict) and column.get("name")]
 
 
 def format_for(uri: str, declared: str | None) -> str:
@@ -260,9 +277,15 @@ class Run:
         uri, declared = self.studyflow.artifact(element_id)
         if uri:
             path = self.repo / uri
-            if not path.exists():
-                self.stage_input(uri, path)
-            value = load_artifact(path, format_for(uri, declared))
+            fmt = format_for(uri, declared)
+            if self.studyflow.log(element_id, fmt) and self.studyflow.written(element_id) and (not path.exists() or path.stat().st_size == 0):
+                # A log the study's own steps add to, before its first line: a table with no row, and its schema's columns.
+                import pandas
+                value = pandas.DataFrame(columns=self.studyflow.columns(element_id))
+            else:
+                if not path.exists():
+                    self.stage_input(uri, path)
+                value = load_artifact(path, fmt)
             self.values[element_id] = value
             return value
         spilled = self.spill / f"{element_id}.joblib"

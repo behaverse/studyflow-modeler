@@ -18,7 +18,10 @@ A data element's `uri` says how its value is loaded and saved, by the `format` i
 key becomes an `a.b` column, so `context.subject` groups) and saves with `orient="records"`. One record, a mapping,
 written to a `jsonl` data store (a `Dataset`) is appended to it as a line, as a trial log grows: a step that runs once
 per subject, in a pool of several instances or a loop, leaves one line per subject, and the store's value stays the
-file, every line of it, rather than that record.
+file, every line of it, rather than that record. Before its first line such a store, one a step of the study writes,
+reads as a table with no row and the columns of the `studyflow:Schema` bound to it (CSVW `tableSchema.columns`), so
+a step that matches or groups on them finds nothing rather than failing; a missing store no step writes is a boundary
+input, and fails as one.
 A version after `@` pins the implementation, `python://sklearn.svm.SVC@1.7`: the distribution that provides its
 top-level module (for the standard library, Python itself) must be installed at a version whose components start
 with the pin's, so `1.7` holds for 1.7.2 and not for 1.70. A mismatch, or no metadata to compare, fails the step

@@ -134,6 +134,27 @@ with tempfile.TemporaryDirectory() as folder:
     python.save_artifact(table, Path(folder) / "again.jsonl", "jsonl")
     assert list(python.load_artifact(Path(folder) / "again.jsonl", "jsonl")["context.subject"]) == [1, 2]
 
+# A `.jsonl` data store a step of the study writes holds nothing before its first line: a table with no row and the
+# columns its schema declares, so a match on them finds nothing rather than failing. One no step writes is a boundary
+# input, and missing it still fails.
+with tempfile.TemporaryDirectory() as folder:
+    body = "tableSchema:\n  columns:\n    - name: context.subject\n    - name: context.state.arm\n"
+    logs = python.Plan({"elements": {
+        "Completers": {"id": "Completers", "type": "dataStoreReference", "attributes": {"uri": "data/completers.jsonl"},
+                       "extensions": [{"type": "dataset", "attributes": {"schema": "Completer_Schema"}}]},
+        "Completer_Schema": {"id": "Completer_Schema", "type": "dataObjectReference", "attributes": {},
+                             "extensions": [{"type": "schema", "attributes": {"body": body}}]},
+        "Record": {"id": "Record", "outputs": [{"target": "Completers"}]},
+        "Imported": {"id": "Imported", "type": "dataStoreReference", "attributes": {"uri": "data/imported.jsonl"}},
+    }})
+    empty = python.Run(logs, Path(folder), Path(folder) / ".cache", []).value_of("Completers")
+    assert empty.empty and list(empty.columns) == ["context.subject", "context.state.arm"], empty
+    try:
+        python.Run(logs, Path(folder), Path(folder) / ".cache", []).value_of("Imported")
+        raise AssertionError("a missing boundary input reads as nothing")
+    except FileNotFoundError:
+        pass
+
 # A column the step names and its table lacks is said so, with the nearest column the table has; a KeyError pandas
 # words as a sentence is left as it is.
 import pandas  # noqa: E402
