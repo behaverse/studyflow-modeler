@@ -64,16 +64,16 @@ interface MoveState {
   snap: boolean;
   reroute: boolean;
   obstacles: Bounds[];
-  nodes: SceneNode[];
-  nodeOrigins: Map<SceneNode, Point>;
-  /** Pinned captions travelling with their nodes, and captions dragged on their own. */
-  labels: SceneLabel[];
-  labelOrigins: Map<SceneLabel, Point>;
+  /** Where the shape (else caption) that snaps to the grid started; the rest keep their offsets from it. */
+  lead: Point;
+  /** The moving nodes, each with where it started. */
+  nodes: Map<SceneNode, Point>;
+  /** Pinned captions travelling with their nodes, and captions dragged on their own, each with where it started. */
+  labels: Map<SceneLabel, Point>;
   /** Captions dragged on their own: pinned on drop. */
   loose: SceneLabel[];
-  edges: SceneEdge[];
-  edgeOrigins: Map<SceneEdge, Point[]>;
-  follow: Map<SceneEdge, EdgeFollow>;
+  /** The edges at the moving nodes, each with its route at the start. */
+  edges: Map<SceneEdge, Point[]>;
   /** The edges whose routes are still the router's, drawn afresh as their ends move. */
   routed: ReadonlySet<SceneEdge>;
 }
@@ -86,8 +86,7 @@ interface ResizeState {
   bounds: Bounds;
   min: Size;
   labelOrigin?: Point;
-  edges: SceneEdge[];
-  edgeOrigins: Map<SceneEdge, Point[]>;
+  edges: Map<SceneEdge, Point[]>;
 }
 
 interface WaypointState {
@@ -152,30 +151,18 @@ export class Drag {
     const loose = elements.filter((el): el is SceneLabel => el.kind === 'label' && !(el.owner.kind === 'node' && nodeSet.has(el.owner)));
     if (nodes.length === 0 && loose.length === 0) return false;
 
-    const nodeOrigins = new Map<SceneNode, Point>();
-    const labels: SceneLabel[] = [...loose];
-    const labelOrigins = new Map<SceneLabel, Point>();
+    const lead = nodes[0] ?? loose[0];
+    const labels = new Map<SceneLabel, Point>(loose.map((label) => [label, { x: label.x, y: label.y }]));
+    const edges = new Map<SceneEdge, Point[]>();
     for (const node of nodes) {
-      nodeOrigins.set(node, { x: node.x, y: node.y });
-      if (node.label?.pinned) labels.push(node.label);
-    }
-    const edges: SceneEdge[] = [];
-    const edgeOrigins = new Map<SceneEdge, Point[]>();
-    const follow = new Map<SceneEdge, EdgeFollow>();
-    for (const node of nodes) {
+      if (node.label?.pinned) labels.set(node.label, { x: node.label.x, y: node.label.y });
       for (const edge of [...node.outgoing, ...node.incoming]) {
-        if (edgeOrigins.has(edge)) continue;
-        const sourceMoving = !!edge.source && nodeSet.has(edge.source);
-        const targetMoving = !!edge.target && nodeSet.has(edge.target);
-        follow.set(edge, sourceMoving && targetMoving ? 'all' : sourceMoving ? 'first' : 'last');
-        edgeOrigins.set(edge, edge.waypoints.map((p) => ({ x: p.x, y: p.y })));
-        edges.push(edge);
-        if (edge.label?.pinned && sourceMoving && targetMoving) labels.push(edge.label);
+        edges.set(edge, edge.waypoints.map((p) => ({ x: p.x, y: p.y })));
+        if (edge.label?.pinned && followOf(edge, nodeSet) === 'all') labels.set(edge.label, { x: edge.label.x, y: edge.label.y });
       }
     }
-    for (const label of labels) labelOrigins.set(label, { x: label.x, y: label.y });
     // The routes still as the router drew them: a move draws those afresh, where a route bent by hand stays bent.
-    const routed = new Set(edges.filter((edge) => follow.get(edge) !== 'all' && isRouted(edge, obstaclesIn(scene, planeOf(edge)))));
+    const routed = new Set([...edges.keys()].filter((edge) => followOf(edge, nodeSet) !== 'all' && isRouted(edge, obstaclesIn(scene, planeOf(edge)))));
 
     this.state = {
       kind: 'move',
@@ -183,14 +170,11 @@ export class Drag {
       snap: options?.snapToGrid ?? this.snap,
       reroute: options?.rerouteEdges ?? true,
       obstacles: this.obstaclesFor(nodes),
-      nodes,
-      nodeOrigins,
+      lead: { x: lead.x, y: lead.y },
+      nodes: new Map(nodes.map((node) => [node, { x: node.x, y: node.y }])),
       labels,
-      labelOrigins,
       loose,
       edges,
-      edgeOrigins,
-      follow,
       routed,
     };
     return true;
@@ -198,14 +182,9 @@ export class Drag {
 
   startResize(target: Movable, handle: ResizeHandle, origin: Point): boolean {
     this.state = undefined;
-    const edges: SceneEdge[] = [];
-    const edgeOrigins = new Map<SceneEdge, Point[]>();
+    const edges = new Map<SceneEdge, Point[]>();
     if (target.kind === 'node') {
-      for (const edge of [...target.outgoing, ...target.incoming]) {
-        if (edgeOrigins.has(edge)) continue;
-        edgeOrigins.set(edge, edge.waypoints.map((p) => ({ x: p.x, y: p.y })));
-        edges.push(edge);
-      }
+      for (const edge of [...target.outgoing, ...target.incoming]) edges.set(edge, edge.waypoints.map((p) => ({ x: p.x, y: p.y })));
     }
     const min = target.kind === 'label'
       ? labelMinSize(nameOf(target.element))
@@ -220,7 +199,6 @@ export class Drag {
       min,
       ...(labelOrigin ? { labelOrigin } : {}),
       edges,
-      edgeOrigins,
     };
     return true;
   }
@@ -277,13 +255,14 @@ export class Drag {
   dropAt(point: Point): MoveDrop | undefined {
     const state = this.state;
     const scene = this.getScene();
-    if (state?.kind !== 'move' || state.nodes.length === 0) return undefined;
-    const moving = new Set(state.nodes.map((node) => node.id));
+    if (state?.kind !== 'move' || state.nodes.size === 0) return undefined;
+    const nodes = [...state.nodes.keys()];
+    const moving = new Set(nodes.map((node) => node.id));
     const over = this.hitTest(point, { accept: (el) => !moving.has(el.kind === 'label' ? el.owner.id : el.id) });
     const hit = !over || over.kind === 'label' ? undefined : over.kind === 'node' && isContainerNode(over) ? over : over.parent;
     const container = containerFor(hit) as SceneNode | undefined;
     const parent = container?.kind === 'node' ? container : undefined;
-    const roots = state.nodes.filter((node) => !(node.parent && moving.has(node.parent.id)));
+    const roots = nodes.filter((node) => !(node.parent && moving.has(node.parent.id)));
     const scope = this.getScope();
     const allowed = this.rules.canMove(roots, parent ?? (scope ? { ...scope, isExpanded: true } : scene.rootElement));
     const home = parent ?? scope;
@@ -329,31 +308,21 @@ export class Drag {
     let dx = rawDx;
     let dy = rawDy;
     if (state.snap) {
-      const lead: Movable | undefined = state.nodes[0] ?? state.loose[0];
-      if (lead) {
-        const from = lead.kind === 'node' ? state.nodeOrigins.get(lead) : state.labelOrigins.get(lead);
-        if (from) {
-          if (this.axes.x) dx = snapTo(from.x + rawDx, DEFAULT_GRID_SIZE) - from.x;
-          if (this.axes.y) dy = snapTo(from.y + rawDy, DEFAULT_GRID_SIZE) - from.y;
-        }
-      }
+      const { lead } = state;
+      if (this.axes.x) dx = snapTo(lead.x + rawDx, DEFAULT_GRID_SIZE) - lead.x;
+      if (this.axes.y) dy = snapTo(lead.y + rawDy, DEFAULT_GRID_SIZE) - lead.y;
     }
-    for (const node of state.nodes) {
-      const from = state.nodeOrigins.get(node);
-      if (!from) continue;
+    for (const [node, from] of state.nodes) {
       node.x = from.x + dx;
       node.y = from.y + dy;
     }
-    for (const label of state.labels) {
-      const from = state.labelOrigins.get(label);
-      if (!from) continue;
+    for (const [label, from] of state.labels) {
       label.x = from.x + dx;
       label.y = from.y + dy;
     }
-    for (const edge of state.edges) {
-      const original = state.edgeOrigins.get(edge);
-      if (!original || original.length === 0) continue;
-      const mode = state.follow.get(edge) ?? 'last';
+    for (const [edge, original] of state.edges) {
+      if (original.length === 0) continue;
+      const mode = followOf(edge, state.nodes);
       if (mode === 'all') {
         edge.waypoints = original.map((p) => ({ x: p.x + dx, y: p.y + dy }));
         continue;
@@ -373,7 +342,7 @@ export class Drag {
       edge.waypoints = points;
       if (state.reroute) rerouteEdge(edge, { obstacles: state.obstacles });
     }
-    return [...state.nodes, ...state.edges, ...state.loose];
+    return [...state.nodes.keys(), ...state.edges.keys(), ...state.loose];
   }
 
   private applyResize(state: ResizeState, dx: number, dy: number): SceneElement[] {
@@ -410,16 +379,15 @@ export class Drag {
       target.label.x = anchor.x + target.x + target.width / 2 - (bounds.x + bounds.width / 2);
       target.label.y = anchor.y + target.y + target.height / 2 - (bounds.y + bounds.height / 2);
     }
-    for (const edge of state.edges) {
-      const original = state.edgeOrigins.get(edge);
-      if (!original || original.length === 0) continue;
+    for (const [edge, original] of state.edges) {
+      if (original.length === 0) continue;
       const points = original.map((p) => ({ x: p.x, y: p.y }));
       const last = points.length - 1;
       if (edge.source === target) points[0] = cropPoint(target, original[1] ?? original[0]);
       if (edge.target === target) points[last] = cropPoint(target, original[last - 1] ?? original[last]);
       edge.waypoints = points;
     }
-    return [target, ...state.edges];
+    return [target, ...state.edges.keys()];
   }
 
   private applyWaypoint(state: WaypointState, dx: number, dy: number): SceneElement[] {
@@ -439,6 +407,13 @@ export class Drag {
   }
 }
 
+/** Which ends of `edge` a move of `moving` carries: both, its source's, or else its target's. */
+function followOf(edge: SceneEdge, moving: { has(node: SceneNode): boolean }): EdgeFollow {
+  const source = !!edge.source && moving.has(edge.source);
+  const target = !!edge.target && moving.has(edge.target);
+  return source && target ? 'all' : source ? 'first' : 'last';
+}
+
 /** The shapes attached to `hosts` (boundary events) that are not among them already. */
 function attachedTo(scene: Scene, hosts: readonly SceneNode[]): SceneNode[] {
   const moving = new Set(hosts);
@@ -449,12 +424,12 @@ function attachedTo(scene: Scene, hosts: readonly SceneNode[]): SceneNode[] {
 
 function movedFrom(state: DragState, element: SceneElement): boolean {
   if (element.kind === 'edge') {
-    const original = state.kind === 'waypoint' ? state.original : state.edgeOrigins.get(element);
-    return !original || !samePoints(original, element.waypoints);
+    const original = state.kind === 'waypoint' ? state.original : state.edges.get(element)!;
+    return !samePoints(original, element.waypoints);
   }
   if (state.kind === 'move') {
-    const from = element.kind === 'node' ? state.nodeOrigins.get(element) : state.labelOrigins.get(element);
-    return !from || from.x !== element.x || from.y !== element.y;
+    const from = element.kind === 'node' ? state.nodes.get(element)! : state.labels.get(element)!;
+    return from.x !== element.x || from.y !== element.y;
   }
   if (state.kind === 'resize') {
     const b = state.bounds;
@@ -464,19 +439,10 @@ function movedFrom(state: DragState, element: SceneElement): boolean {
 }
 
 function restoreMove(state: MoveState): SceneElement[] {
-  for (const node of state.nodes) {
-    const from = state.nodeOrigins.get(node);
-    if (from) Object.assign(node, from);
-  }
-  for (const label of state.labels) {
-    const from = state.labelOrigins.get(label);
-    if (from) Object.assign(label, from);
-  }
-  for (const edge of state.edges) {
-    const original = state.edgeOrigins.get(edge);
-    if (original) edge.waypoints = original.map((p) => ({ x: p.x, y: p.y }));
-  }
-  return [...state.nodes, ...state.edges, ...state.loose];
+  for (const [node, from] of state.nodes) Object.assign(node, from);
+  for (const [label, from] of state.labels) Object.assign(label, from);
+  for (const [edge, original] of state.edges) edge.waypoints = original.map((p) => ({ x: p.x, y: p.y }));
+  return [...state.nodes.keys(), ...state.edges.keys(), ...state.loose];
 }
 
 function restoreResize(state: ResizeState): SceneElement[] {
@@ -484,11 +450,8 @@ function restoreResize(state: ResizeState): SceneElement[] {
   Object.assign(target, bounds);
   if (target.kind === 'label') return [target];
   if (state.labelOrigin && target.label) Object.assign(target.label, state.labelOrigin);
-  for (const edge of state.edges) {
-    const original = state.edgeOrigins.get(edge);
-    if (original) edge.waypoints = original.map((p) => ({ x: p.x, y: p.y }));
-  }
-  return [target, ...state.edges];
+  for (const [edge, original] of state.edges) edge.waypoints = original.map((p) => ({ x: p.x, y: p.y }));
+  return [target, ...state.edges.keys()];
 }
 
 function restoreWaypoint(state: WaypointState): SceneElement[] {
