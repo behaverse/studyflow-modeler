@@ -97,6 +97,7 @@ SPIRIT_2025:
     Allocate_Gate:
       type: cognitive:RandomGateway
       name: Stratified allocation
+      algorithm: block
       stratifyBy: age_band
       strata:
         - "age_band: 18-29"

@@ -1,5 +1,5 @@
 import { PLACEHOLDER } from '@core/model/state';
-import { allocationOf, draw, permutedBlock, pick, withoutConcealedSeed, type Allocation } from '@core/engine/allocation';
+import { allocationOf, alternated, draw, minimized, permutedBlock, pick, withoutCohort, withoutConcealedSeed, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
 import { Cancelled, HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
 import type { Plan, PlanElement } from '@core/engine/plan';
@@ -61,6 +61,8 @@ export class Walk {
   private readonly oneInstance: boolean;
   private readonly participant: number;
   private readonly blocks = new Map<string, number[]>();
+  /** What each allocation sequence has dealt so far, in order: each participant's levels of its factors, and its arm. */
+  private readonly dealt = new Map<string, { levels: string[]; arm: number }[]>();
   private readonly memory: Values;
   private readonly post: Post;
   /** Tells the host what happened: the run's record. */
@@ -98,6 +100,11 @@ export class Walk {
         if (given !== undefined) this.concealed.set(gateway.id, given);
         else if (allocation.seedDigest && options.seed !== null) {
           throw new Error(withoutConcealedSeed(gateway, allocation.seedDigest));
+        }
+        // Strata and minimization deal by the participants before this one, which a session of one participant (a
+        // browser's) does not walk; one that explores every way instead of drawing needs none of them.
+        if (allocation.factors.length > 0 && this.oneInstance && !host.choose) {
+          throw new Error(withoutCohort(gateway, allocation));
         }
       }
     }
@@ -137,9 +144,6 @@ export class Walk {
       .map((element) => element.name!));
     for (const name of [...ambiguous].sort()) {
       host.log('name.ambiguous', `  ${name} names more than one element, or is also an id: \`{${name}.…}\` cites nothing until it is unique`, { level: 'warning' });
-    }
-    for (const { unapplied } of this.allocations.values()) {
-      if (unapplied) host.log('allocation.unapplied', `  ${unapplied}`, { level: 'warning' });
     }
     const pools = graph.plan.processes;
     // Every pool runs at once, each on its own token; the message flows are where they wait for each other.
@@ -755,24 +759,54 @@ export class Walk {
 
     const allocation = this.allocations.get(id);
     if (allocation) {
-      // A participant's draws are its own: the seed, the gateway, which instance of the pool this is, and which of
-      // its visits. So a participant draws the same in any runtime and on any re-run, whatever the others drew.
+      // A participant's draw is its own: the seed, the gateway, which instance of the pool this is, and which of its
+      // visits. So a participant draws the same in any runtime and on any re-run, whatever the others drew. Blocks and
+      // alternation deal by its place in a sequence; strata and minimization by the participants before it as well.
       const visit = (thread.visits.get(id) ?? 0) + 1;
       thread.visits.set(id, visit);
       const seed = this.concealed.get(id) ?? this.seed;
+      const u = (): number => (seed === undefined ? Math.random() : draw(seed, id, thread.participant, visit));
+      // The sequence the gateway deals along, and this participant's place n in it: the participants, by number, and a
+      // gateway a participant passes again (along a cycle) deals each visit along a sequence of its own; inside a loop,
+      // one participant's visits.
+      const visits = this.alongVisits(id);
+      const along = visits ? `${id}#${thread.participant}` : `${id}@${visit}`;
+      let [sequence, n] = [along, visits ? visit : thread.participant];
+      // The participant's level of each factor it is stratified or minimized on, as it has them on reaching the gateway.
+      let levels: string[];
+      try {
+        levels = allocation.factors.map((factor) => this.levelOf(factor, element, thread));
+      } catch (error) {
+        const chosen = host.decide?.(id, flows.map((flow) => flow.id), error as Error);
+        const decided = flows.find((flow) => flow.id === chosen);
+        if (decided) return take([decided], 'decided by the host');
+        this.steps.fail(entry, error);
+        throw error;
+      }
+      const dealt = this.dealt.get(along) ?? [];
+      this.dealt.set(along, dealt);
+      if (levels.length > 0 && allocation.algorithm !== 'minimization') {
+        // Within strata: the k-th participant of a stratum takes place k of the stratum's own sequence.
+        n = dealt.filter((past) => past.levels.every((level, f) => level === levels[f])).length + 1;
+        sequence = `${along}/${allocation.factors.map((factor, f) => `${factor}=${levels[f]}`).join(',')}`;
+      }
       let arm: number;
       if (allocation.algorithm === 'block') {
-        // Blocks over the participants, by number; a gateway a participant passes again (in a loop, or along a cycle)
-        // allocates its visits in blocks of their own. Position n sits at (n - 1) % size in block (n - 1) // size.
-        const within = this.graph.scopeChain(id).some((scope) => this.graph.elements[scope]?.loop);
-        const [sequence, n] = within ? [`${id}#${thread.participant}`, visit] : [`${id}@${visit}`, thread.participant];
+        // Place n sits at (n - 1) % size in block (n - 1) // size.
         const block = Math.floor((n - 1) / allocation.size);
         const key = `${sequence}:${block}`;
         if (!this.blocks.has(key)) this.blocks.set(key, permutedBlock(seed, sequence, block, allocation.weights, allocation.size));
         arm = this.blocks.get(key)![(n - 1) % allocation.size];
+      } else if (allocation.algorithm === 'alternation') {
+        arm = alternated(n, allocation.weights);
+      } else if (allocation.algorithm === 'minimization') {
+        // How many before it, at its level of each factor, took each arm.
+        const counts = levels.map((level, f) => allocation.weights.map((_weight, a) => dealt.filter((past) => past.levels[f] === level && past.arm === a).length));
+        arm = minimized(counts, u());
       } else {
-        arm = pick(seed === undefined ? Math.random() : draw(seed, id, thread.participant, visit), allocation.weights);
+        arm = pick(u(), allocation.weights);
       }
+      dealt.push({ levels, arm });
       return take([flows[arm]], 'drawn', { random: true });
     }
 
@@ -818,6 +852,21 @@ export class Walk {
     this.steps.end(entry);
     this.steps.status = 'error';
     throw new Error(`${id}: no condition held, and there is no default flow or single flow without a condition`);
+  }
+
+  /** Whether a gateway deals along one participant's visits, inside a loop, rather than along the participants. */
+  private alongVisits(id: string): boolean {
+    return this.graph.scopeChain(id).some((scope) => this.graph.elements[scope]?.loop);
+  }
+
+  /** A participant's level of a factor its gateway stratifies or minimizes on: what `{factor}` cites at the gateway. */
+  private levelOf(factor: string, gateway: PlanElement, thread: Thread): string {
+    const value = this.memory.cite(factor, gateway.id);
+    if (value === undefined) {
+      throw new Error(`'${gateway.name || gateway.id}' balances its arms on '${factor}', which participant ${thread.participant} `
+        + 'does not have on reaching it: a step before the gateway (a screening) writes it.');
+    }
+    return typeof value === 'string' ? value : JSON.stringify(value);
   }
 
   /** The flows an exploring host picks at a split that takes each whose condition holds: any one or more of them, or

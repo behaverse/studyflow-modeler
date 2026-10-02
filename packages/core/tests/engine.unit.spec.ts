@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { HandoffError, Walk, allocationOf, draw, dryHost, durationMs, permutedBlock, pick, planOf, stateOf, type Handback, type Host, type PlanElement, type RunEvent, type Talk, type WalkOptions } from '@core/engine';
+import { HandoffError, MINIMIZATION_PROBABILITY, Walk, allocationOf, alternated, draw, dryHost, durationMs, explore, minimized, permutedBlock, pick, planOf, stateOf, type Handback, type Host, type PlanElement, type RunEvent, type Talk, type WalkOptions } from '@core/engine';
 import { studyModel } from '@tests/schemas';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
@@ -136,9 +136,16 @@ ${HEAD}S:
   expect(outputs).toEqual([{ target: 'Model', transformation: 'result.model', language: null }]);
 });
 
-test('a seeded draw is the same number in every runtime', () => {
-  const rows: [number, string, number, number, number][] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/draws.json'), 'utf8'));
-  for (const [seed, gateway, participant, visit, u] of rows) expect(draw(seed, gateway, participant, visit)).toBe(u);
+test('a seeded draw, and a permuted block, is the same in every runtime', () => {
+  const fixture: {
+    draw: [number, string, number, number, number][];
+    permutedBlock: [number, string, number, number[], number, number[]][];
+  } = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/draws.json'), 'utf8'));
+  for (const [seed, gateway, participant, visit, u] of fixture.draw) expect(draw(seed, gateway, participant, visit)).toBe(u);
+  // A block's sequence is the gateway and the visit (`@`), or the participant inside a loop (`#`), then any stratum.
+  for (const [seed, sequence, block, weights, size, arms] of fixture.permutedBlock) {
+    expect(permutedBlock(seed, sequence, block, weights, size), `${sequence} block ${block}`).toEqual(arms);
+  }
 });
 
 test('a random gateway allocates as it says, and what it cannot apply stops the run before the walk', () => {
@@ -159,21 +166,39 @@ test('a random gateway allocates as it says, and what it cannot apply stops the 
   }
   expect(permutedBlock(undefined, 'Draw', 0, [1, 1], 4).sort()).toEqual([0, 0, 1, 1]); // unseeded, still balanced
 
+  // Alternation deals the arms in turn, each for its share of the ratio.
+  expect([1, 2, 3, 4, 5, 6].map((n) => [alternated(n, [1, 1]), alternated(n, [2, 1])])).toEqual([[0, 0], [1, 0], [0, 1], [1, 0], [0, 0], [1, 1]]);
+
+  // Minimization: the counts at this participant's level of each factor, the draw, and the arm taken. The arm of least
+  // imbalance is taken four times in five; the others share the fifth.
+  const MINIMIZED: [counts: number[][], u: number, arm: number][] = [
+    [[[0, 0]], 0.3, 0], [[[0, 0]], 0.7, 1], // nobody before: every arm ties, and the draw picks among them all
+    [[[2, 1]], 0.79, 1], [[[2, 1]], 0.8, 0], // B evens the factor; A only from MINIMIZATION_PROBABILITY up
+    [[[1, 0, 0]], 0.2, 1], [[[1, 0, 0]], 0.6, 2], [[[1, 0, 0]], 0.9, 0], // B and C tie for least
+    [[[1, 0, 2], [0, 1, 1]], 0.1, 0], [[[1, 0, 2], [0, 1, 1]], 0.85, 1], [[[1, 0, 2], [0, 1, 1]], 0.95, 2], // ranges 2, 3, 5 over two factors
+  ];
+  expect(MINIMIZATION_PROBABILITY).toBe(0.8);
+  for (const [counts, u, arm] of MINIMIZED) expect(minimized(counts, u), `${JSON.stringify(counts)} at ${u}`).toBe(arm);
+
   const gateway = (attributes: Record<string, string> = {}): PlanElement => ({
     id: 'Draw', type: 'exclusiveGateway', name: 'Allocation', attributes: {}, additionalArguments: null, ioSlots: {}, inputs: [], outputs: [],
     participants: [], extensions: [{ namespace: '', type: 'randomGateway', attributes }],
   });
-  expect(allocationOf(gateway(), 2)).toEqual({ algorithm: 'simple', weights: [1, 1], size: 4, unapplied: undefined });
+  expect(allocationOf(gateway(), 2)).toEqual({ algorithm: 'simple', weights: [1, 1], size: 4, factors: [] });
   expect(allocationOf(gateway({ algorithm: 'block', allocationRatio: '2:1', blockSize: '6' }), 2)).toMatchObject({ algorithm: 'block', weights: [2, 1], size: 6 });
-  // A block the ratio cannot fill, a ratio that misses a branch.
-  const REFUSED: [Record<string, string>, number][] = [
-    [{ algorithm: 'block', allocationRatio: '2:1' }, 2], [{ algorithm: 'block' }, 3], [{ allocationRatio: '1:1' }, 3], [{ allocationRatio: '1:x' }, 2],
+  expect(allocationOf(gateway({ algorithm: 'minimization', stratifyBy: 'age_band, sex' }), 2)).toMatchObject({ algorithm: 'minimization', factors: ['age_band', 'sex'] });
+  // What the walk cannot apply as written stops it before it starts.
+  const REFUSED: [Record<string, string>, number, RegExp][] = [
+    [{ algorithm: 'block', allocationRatio: '2:1' }, 2, /blocks of 4/], [{ algorithm: 'block' }, 3, /blocks of 4/],
+    [{ allocationRatio: '1:1' }, 3, /allocationRatio '1:1'/], [{ allocationRatio: '1:x' }, 2, /allocationRatio '1:x'/],
+    [{ algorithm: 'blocks' }, 2, /algorithm 'blocks', which the walk does not know/],
+    [{ stratifyBy: 'age_band' }, 2, /stratifies by age_band under simple randomization/],
+    [{ algorithm: 'minimization' }, 2, /names none/],
+    [{ algorithm: 'minimization', stratifyBy: 'sex', allocationRatio: '2:1' }, 2, /minimization balances equal arms/],
   ];
-  for (const [attributes, arms] of REFUSED) expect(() => allocationOf(gateway(attributes), arms), JSON.stringify(attributes)).toThrow(/'Allocation'/);
-  // What it does not apply is warned about, saying what it does instead.
-  expect(allocationOf(gateway({ algorithm: 'minimization', stratifyBy: 'age_band' }), 2).unapplied).toMatch(
-    /^'Allocation' specifies minimization assignment and stratification by 'age_band', which this runner does not apply: it draws one of the 2 outgoing branches/);
-  expect(allocationOf(gateway({ algorithm: 'block', stratifyBy: 'age_band' }), 2).unapplied).toContain('in permuted blocks of 4');
+  for (const [attributes, arms, message] of REFUSED) {
+    expect(() => allocationOf(gateway(attributes), arms), JSON.stringify(attributes)).toThrow(new RegExp(`^'Allocation' .*${message.source}`));
+  }
 });
 
 // The cohort is walked whole, so a gateway can allocate in permuted blocks: four subjects (a pool of four participant
@@ -212,8 +237,9 @@ S:
 }
 
 // A participant draws for itself: the k-th instance of a pool of six takes the arm that a session walked as
-// participant k takes (the browser's `?participant=k`), and a re-run takes the same arms again, in blocks or not.
-for (const algorithm of ['simple', 'block']) {
+// participant k takes (the browser's `?participant=k`), and a re-run takes the same arms again, drawn alone, in
+// blocks, or in turn.
+for (const algorithm of ['simple', 'block', 'alternation']) {
   test(`participant k draws the same arm in its cohort, alone, and on a re-run (${algorithm})`, async () => {
     const cohort = `C:
   type: Collaboration
@@ -254,6 +280,87 @@ S:
       alone.push(...arms((await walked(cohort, {}, { oneInstance: true, participant })).log));
     }
     expect(alone).toEqual(arms(first.log));
+    if (algorithm === 'alternation') expect(arms(first.log)).toEqual(['A', 'B', 'A', 'B', 'A', 'B']);
+  });
+}
+
+// Strata and minimization deal by the participants before: eight subjects, screened into a band and a sex, reach the
+// gateway in turn. Within strata, the k-th subject of a stratum takes place k of the stratum's own sequence
+// (`Allocate@1/band=young,sex=f`); minimization takes the counts of the subjects before at each of its levels, and its
+// own draw.
+const BANDS = ['young', 'old', 'young', 'young', 'old', 'old', 'young', 'old'];
+const SEXES = ['f', 'f', 'm', 'f', 'm', 'f', 'm', 'm'];
+for (const [algorithm, refusal] of [['block', /deals its arms within each stratum of 'band', 'sex'/], ['alternation', /deals its arms within/], ['minimization', /minimizes imbalance on 'band', 'sex'/]] as const) {
+  test(`a gateway allocates by the subjects before it, in the cohort and on a re-run, and a session of one refuses it (${algorithm})`, async () => {
+    const cohort = `C:
+  type: Collaboration
+  extensionElements:
+    - type: studyflow:Study
+      seed: 3
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 8
+      processRef: S
+S:
+  type: Process
+  properties:
+    P_Band: { name: band }
+    P_Sex: { name: sex }
+  flowElements:
+    S0: { type: StartEvent }
+    Screen: { type: Task }
+    Allocate:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+          algorithm: ${algorithm}
+          blockSize: 2
+          stratifyBy: band, sex
+    A: { type: Task }
+    B: { type: Task }
+    S9: { type: EndEvent }
+    SF0: S0 -> Screen
+    SF1: Screen -> Allocate
+    F_A: Allocate -> A
+    F_B: Allocate -> B
+    SF2: A -> S9
+    SF3: B -> S9
+`;
+    const screen = (values: Record<string, any>): Handback => {
+      const k = values.state._meta.instance.Subjects;
+      return { values: { P_Band: BANDS[k - 1], P_Sex: SEXES[k - 1] } };
+    };
+    const expected: number[] = [];
+    for (let k = 1; k <= 8; k += 1) {
+      const same = (j: number): boolean => BANDS[j] === BANDS[k - 1] && SEXES[j] === SEXES[k - 1];
+      const n = expected.filter((_arm, j) => same(j)).length + 1;
+      const sequence = `Allocate@1/band=${BANDS[k - 1]},sex=${SEXES[k - 1]}`;
+      const counts = [BANDS, SEXES].map((levels) => [0, 1].map((arm) => expected.filter((taken, j) => levels[j] === levels[k - 1] && taken === arm).length));
+      expected.push(algorithm === 'block' ? permutedBlock(3, sequence, Math.floor((n - 1) / 2), [1, 1], 2)[(n - 1) % 2]
+        : algorithm === 'alternation' ? alternated(n, [1, 1]) : minimized(counts, draw(3, 'Allocate', k, 1)));
+    }
+    const arms = (log: string[]): string[] => log.flatMap((line) => line.match(/drawn → F_([AB])/)?.[1] ?? []);
+    const first = await walked(cohort, { Screen: screen });
+    expect(arms(first.log)).toEqual(expected.map((arm) => 'AB'[arm]));
+    // Each stratum holds two subjects, so blocks of two and alternation give each of them both arms.
+    if (algorithm !== 'minimization') expect(new Set(['young,f', 'old,f', 'young,m', 'old,m'].map((stratum) => expected.filter((_arm, j) => `${BANDS[j]},${SEXES[j]}` === stratum).sort().join()))).toEqual(new Set(['0,1']));
+    expect(arms((await walked(cohort, { Screen: screen }, { state: first.state })).log)).toEqual(arms(first.log));
+
+    // A session of one subject cannot know the subjects before it, so it is refused before its first step; exploring
+    // every way the study can go draws nothing, and is not.
+    const plan = planOf(studyModel(`id: study\n${HEAD}${cohort}`));
+    expect(() => new Walk(plan, dryHost(plan), { oneInstance: true, participant: 2 })).toThrow(refusal);
+    expect(() => new Walk(plan, dryHost(plan), { oneInstance: true, participant: 2 })).toThrow(/a session of one participant does not know/);
+    expect((await explore(plan)).complete).toBe(true);
+
+    // A subject that reaches the gateway without its levels stops the run there; a dry run, where no step wrote them,
+    // takes a flow at random instead.
+    expect((await walked(cohort)).error?.message).toMatch(/^'Allocate' balances its arms on 'band', which participant 1 does not have on reaching it/);
+    const dry = new Walk(plan, dryHost(plan), { seed: null });
+    await dry.run();
+    expect(dry.state._meta.reached).toMatchObject({ Allocate: 8, S9: 8 });
   });
 }
 

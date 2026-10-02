@@ -89,8 +89,8 @@ export type Host = {
   /** A pool's token moves into `to`: along a sequence flow when it took one, else it starts there, or leaves an
    * activity for its boundary event. The walk waits for it, so a host may show the move. `pool` names whose token. */
   moved?(to: string, along: string | undefined, pool: string): void | Promise<void>;
-  /** A gateway the walk could not decide, because a condition could not be evaluated: a dry run, where no step ran to
-   * bind what the condition reads, names the flow to take. */
+  /** A gateway the walk could not decide, because a condition could not be evaluated or a participant lacks the value
+   * its allocation is stratified on: a dry run, where no step ran to bind what it reads, names the flow to take. */
   decide?(gateway: string, flows: string[], error: Error): string | undefined;
   /** Free choice, for exploring every way a study can go: each decision the walk would make by data or by chance is
    * the host's instead, one of `options` at `at`. A gateway's flow (`<gateway>`, the flow ids), another pass of an

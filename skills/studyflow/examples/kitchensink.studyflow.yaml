@@ -164,6 +164,7 @@ Kitchen_Sink:
     Cg_Stratified:
       type: cognitive:RandomGateway
       name: Stratified allocation
+      algorithm: block
       stratifyBy: age_band
     Cg_Eligibility:
       type: cognitive:EligibilityGateway
