@@ -17,6 +17,19 @@ export type FeelResult = { value: unknown; error?: string };
  * labels do, and it reads as `Play.trials > 3`. */
 export const cited = (expression: string): string => expression.replace(PLACEHOLDER, '$1');
 
+/** The names an expression reads, a path by the name it starts from (`congruency_test` and `alpha` in
+ * `congruency_test.pvalue < alpha`); the name of a function it calls is one too. */
+export function namesIn(written: string): Set<string> {
+  const expression = cited(written);
+  const names = new Set<string>();
+  parseExpression(expression, {}, undefined).iterate({
+    enter(node) {
+      if (node.type.name === 'VariableName') names.add(expression.slice(node.from, node.to));
+    },
+  });
+  return names;
+}
+
 /** The FEEL functions a study may call: both evaluators have them (feelin, and packages/runtime-local/python/feel.py's subset). */
 const FUNCTIONS = new Set(['not', 'contains', 'starts with', 'ends with', 'substring after', 'substring before', 'upper case',
   'lower case', 'string length', 'count', 'sum', 'min', 'max', 'mean', 'abs', 'is defined']);

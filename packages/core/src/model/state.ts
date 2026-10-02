@@ -56,6 +56,16 @@ function declaredOn(model: StudyModel, scope: Element, name: string): unknown {
   return wiredPropertiesIn(model, scope).find((wired) => wired.name === name)?.value;
 }
 
+/** The value `name` is declared with from `elementId` outward, the innermost declaration winning; `undefined` when
+ * no scope declares one. What a condition there reads before any run writes it. */
+export function declaredIn(model: StudyModel, elementId: string, name: string): unknown {
+  for (let scope = model.get(elementId); scope; scope = model.parentOf(scope)) {
+    const value = declaredOn(model, scope, name);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
 /**
  * Lexical lookup of a dotted `path` from `elementId`: the element, then each container outward to the study root,
  * each read as the last run left it in the state, else as the file declares it ({@link declaredOn}), so a label shows

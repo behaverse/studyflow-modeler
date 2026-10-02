@@ -12,6 +12,7 @@ import { checkEndpoints } from '@core/checks/endpoints';
 import { checkEntryExit } from '@core/checks/entry-exit';
 import { checkWrites } from '@core/checks/writes';
 import { checkConcealed, checkRevealed } from '@core/checks/concealed';
+import { checkLabels } from '@core/checks/labels';
 
 /* What `studyflow validate` checks beyond reading a file, each check in a file of its own; `studyflow run` applies
    the plan checks before it starts a study. */
@@ -23,11 +24,11 @@ export type Issue = {
   message: string;
 };
 
-/** The plan: one element an id, its edges between the elements they may join, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, a consent form to fetch and a completion code to hand, no two paths at once writing one value, reading only the columns its schemas define, and a concealed allocation registering a digest and being one a seed can conceal. */
+/** The plan: one element an id, its edges between the elements they may join, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, a consent form to fetch and a completion code to hand, no two paths at once writing one value, reading only the columns its schemas define, a concealed allocation registering a digest and being one a seed can conceal, and no name copying a value its element reads. */
 export function planChecks(model: StudyModel): Issue[] {
   return [
     ...checkIds(model), ...checkEndpoints(model), ...checkConnected(model), ...checkRunnerPaths(model), ...checkExpressions(model), ...checkDecisions(model),
-    ...checkValues(model), ...checkEntryExit(model), ...checkWrites(model), ...checkDataContract(model), ...checkConcealed(model),
+    ...checkValues(model), ...checkEntryExit(model), ...checkWrites(model), ...checkDataContract(model), ...checkConcealed(model), ...checkLabels(model),
   ];
 }
 
