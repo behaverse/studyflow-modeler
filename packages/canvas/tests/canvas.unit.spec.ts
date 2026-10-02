@@ -182,8 +182,9 @@ test('a boundary event attaches to the activity it is dropped on', async () => {
   expect(boundary.parent).toBeUndefined();
 });
 
-test('a palette create follows the pointer and lands, grid-snapped, where it is released: selected, and named when a task', async () => {
-  const { canvas } = load();
+test('a palette create follows the pointer and lands, grid-snapped, where it is released: selected, closed when a container, and named when a task', async () => {
+  // Every glyph resolves, so the markers are drawn.
+  const { canvas } = loadYaml(YAML, { iconResolver: () => ({ content: '<path d="M0 0h24v24H0z"/>', viewBox: '0 0 24 24' }) });
   const drop = (type: string, at: { x: number; y: number }): SceneNode => {
     expect(canvas.startCreate(undefined, { type })).toBe(true);
     pointerMove(canvas, at);
@@ -194,6 +195,11 @@ test('a palette create follows the pointer and lands, grid-snapped, where it is 
   expect(gateway.type).toBe('bpmn:ExclusiveGateway');
   expect(centre(gateway)).toEqual({ x: 700, y: 300 });
   expect(labelEditingOf(canvas).isActive()).toBe(false);
+
+  // Closed, with the marker that says it holds more.
+  const sub = drop('bpmn:SubProcess', { x: 1100, y: 300 });
+  expect(sub.isExpanded).toBe(false);
+  expect(graphicsOf(canvas, sub.id)!.querySelector('[data-icon-key="subprocess"]')).not.toBeNull();
 
   expect(drop('bpmn:Task', { x: 900, y: 300 }).type).toBe('bpmn:Task');
   expect(labelEditingOf(canvas).isActive(), 'a task is named as it lands').toBe(true);

@@ -1,20 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import {
-  addPaletteElement,
-  diagramTitle,
-  examplePath,
-  exportDiagram,
-  gotoModeler,
-  openCommandPalette,
-  pressOnCanvas,
-  readDownloadText,
-} from './utils';
+import { diagramTitle, examplePath, gotoModeler, openCommandPalette } from './utils';
 
 /**
  * Sub-process drill-down, end to end: the context pad's badge, the breadcrumb trail
- * and the plane each shows. What a double click does to a container is pinned in
- * jsdom (`packages/canvas/tests/canvas.unit.spec.ts`).
+ * and the plane each shows. What a double click does to a container, how a dropped
+ * one lands and what is dropped inside it are pinned in jsdom
+ * (`packages/canvas/tests/canvas.unit.spec.ts`).
  *
  * `sklearn_pipeline` is the fixture because it ships BOTH shapes of the feature at
  * once: `select_model` is drawn collapsed and owns its own `bpmndi:BPMNDiagram`,
@@ -33,7 +25,7 @@ async function openExample(page: import('@playwright/test').Page): Promise<void>
 const drilldown = (page: import('@playwright/test').Page) => page.getByTestId('context-pad-drilldown');
 
 test.describe('sub-process drill-down', () => {
-  test('the badge enters a sub-process and the breadcrumb leads back, whichever way its contents are stored', async ({ page }) => {
+  test('the badge enters a sub-process and the breadcrumb leads back, whichever way its contents are stored; drilled in, a rename names the study', async ({ page }) => {
     await openExample(page);
     const shape = (id: string) => page.locator(`g[data-element-id="${id}"]`);
     const crumbs = page.getByTestId('drilldown-breadcrumbs');
@@ -59,6 +51,18 @@ test.describe('sub-process drill-down', () => {
       await expect(shape(outside), id).toBeVisible();
       await expect(crumbs, id).toHaveCount(0);
     }
+
+    // Drilled in, the nav bar names the study, and a rename renames the study, not the sub-process:
+    // the trail reads the new name at once, and the sub-process keeps its own.
+    await shape('select_model').click();
+    await drilldown(page).click();
+    await expect(diagramTitle(page)).toHaveText('sklearn_pipeline');
+    await diagramTitle(page).click();
+    await page.getByTestId('diagram-name-input').fill('Pipeline');
+    await page.getByTestId('diagram-name-input').press('Enter');
+    await expect(diagramTitle(page)).toHaveText('Pipeline');
+    await expect(page.getByTestId('breadcrumb-sklearn_pipeline')).toContainText('Pipeline');
+    await expect(page.getByTestId('breadcrumb-select_model')).toContainText('select_model');
   });
 
   test('the command palette finds a step by name and shows it, inside the sub-process that holds it', async ({ page }) => {
@@ -71,63 +75,5 @@ test.describe('sub-process drill-down', () => {
     await expect(page.getByTestId('breadcrumb-select_model')).toBeVisible();
     await expect(page.locator('g[data-element-id="cross_validate"]')).toHaveClass(/selected/);
     await expect(page.locator('g[data-element-id="cross_validate"]')).toBeInViewport();
-  });
-
-  test('drilled in, the nav bar names the study, and a rename renames the study, not the sub-process', async ({ page }) => {
-    await openExample(page);
-    await page.locator('g[data-element-id="select_model"]').click();
-    await drilldown(page).click();
-    await expect(diagramTitle(page)).toHaveText('sklearn_pipeline');
-
-    await diagramTitle(page).click();
-    await page.getByTestId('diagram-name-input').fill('Pipeline');
-    await page.getByTestId('diagram-name-input').press('Enter');
-    await expect(diagramTitle(page)).toHaveText('Pipeline');
-
-    // The trail reads the new name at once, and the sub-process keeps its own.
-    await expect(page.getByTestId('breadcrumb-sklearn_pipeline')).toContainText('Pipeline');
-    await expect(page.getByTestId('breadcrumb-select_model')).toContainText('select_model');
-  });
-
-  test('a sub-process dropped from the palette is authorable: badge, plane, contents', async ({ page }) => {
-    // The dead end this closes: the drop used to emit a lone `<bpmn:subProcess/>`
-    // whose `BPMNShape` carried no `isExpanded` and no diagram of its own, so it
-    // rendered as a bare box — no ⊞, no badge, double-click inert — and there was no
-    // route through the UI to put anything inside it.
-    await gotoModeler(page);
-    await addPaletteElement(page, 'Containers', 'Sub-process', { x: 320, y: 240 });
-    await pressOnCanvas(page, 'Escape');
-
-    const sub = page.locator('g[data-element-type="bpmn:SubProcess"]').first();
-    await expect(sub).toBeVisible();
-    const id = await sub.getAttribute('data-element-id');
-
-    // Drawn collapsed (the ⊞ marker) and, once selected, offering the trip in.
-    await expect(sub.locator('[data-icon-key="subprocess"]')).toHaveCount(1);
-    await sub.click();
-    const badge = drilldown(page);
-    await expect(badge).toBeVisible();
-
-    // In: the trail appears, and a task dropped here lands INSIDE the sub-process.
-    await badge.click();
-    await expect(page.getByTestId('drilldown-breadcrumbs')).toContainText(String(id));
-    await addPaletteElement(page, 'Activities', 'Task', { x: 400, y: 300 });
-    await pressOnCanvas(page, 'Escape');
-    const task = page.locator('g[data-element-type="bpmn:Task"]').first();
-    await expect(task).toBeVisible();
-    const taskId = await task.getAttribute('data-element-id');
-
-    // The document says so: the task's business object is filed under the
-    // sub-process, and its DI in the one plane the document has.
-    const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toContain(`isExpanded="false"`);
-    const subProcess = bpmn.slice(bpmn.indexOf(`<bpmn:subProcess id="${id}"`));
-    expect(subProcess.slice(0, subProcess.indexOf('</bpmn:subProcess>'))).toContain(String(taskId));
-    expect(bpmn.match(/<bpmndi:BPMNDiagram/g) ?? []).toHaveLength(1);
-
-    // Out: the sub-process is collapsed again and its contents are off screen.
-    await page.getByTestId('drilldown-breadcrumbs').getByRole('button').first().click();
-    await expect(sub).toBeVisible();
-    await expect(task).toBeHidden();
   });
 });
