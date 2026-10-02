@@ -5,35 +5,9 @@ import { expect, test } from '@playwright/test';
 
 import { diagramTitle, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
 
-test('opening a file says what its reading could not place', async ({ page }) => {
+test('exports YAML, PNG, SVG and LinkML; opens a layout-less file, a jsPsych timeline, the exports again, and says what a file\'s reading could not place', async ({ page }) => {
+  // A clock the test runs forward, installed before the page loads, for the warning at the end.
   await page.clock.install();
-  await gotoModeler(page);
-
-  // No schema declares `studyflow:retired`: the reader drops it, so the next save would too.
-  await page.getByTestId('open-file-input').setInputFiles({
-    name: 'retired.bpmn',
-    mimeType: 'application/xml',
-    buffer: Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
-<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
-    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="Retired" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn:process id="Study">
-    <bpmn:startEvent id="Start">
-      <bpmn:extensionElements><studyflow:retired /></bpmn:extensionElements>
-    </bpmn:startEvent>
-  </bpmn:process>
-</bpmn:definitions>`),
-  });
-
-  await expect(page.locator('[data-element-id="Start"]')).toBeVisible();
-  await expect(page.getByTestId('notices')).toContainText(/retired\.bpmn/);
-  await expect(page.getByTestId('notices')).toContainText(/<studyflow:retired>/);
-
-  // Past the time a warning clears itself: this one names what the next save drops, so it waits to be dismissed.
-  await page.clock.fastForward(10_000);
-  await expect(page.getByTestId('notices')).toContainText(/retired\.bpmn/);
-});
-
-test('exports YAML, PNG, SVG and LinkML; opens a layout-less file, a jsPsych timeline, and the exports again', async ({ page }) => {
   await gotoModeler(page);
   const open = page.getByTestId('open-file-input');
   const title = diagramTitle(page);
@@ -84,4 +58,26 @@ test('exports YAML, PNG, SVG and LinkML; opens a layout-less file, a jsPsych tim
   await open.setInputFiles({ name: 'as-svg.studyflow.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(svgText, 'utf8') });
   await expect(title).toHaveText('as-svg');
   await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
+
+  // No schema declares `studyflow:retired`: the reader drops it, so the next save would too.
+  await open.setInputFiles({
+    name: 'retired.bpmn',
+    mimeType: 'application/xml',
+    buffer: Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="Retired" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Study">
+    <bpmn:startEvent id="Start">
+      <bpmn:extensionElements><studyflow:retired /></bpmn:extensionElements>
+    </bpmn:startEvent>
+  </bpmn:process>
+</bpmn:definitions>`),
+  });
+  await expect(page.locator('[data-element-id="Start"]')).toBeVisible();
+  await expect(page.getByTestId('notices')).toContainText(/retired\.bpmn/);
+  await expect(page.getByTestId('notices')).toContainText(/<studyflow:retired>/);
+
+  // Past the time a warning clears itself: this one names what the next save drops, so it waits to be dismissed.
+  await page.clock.fastForward(10_000);
+  await expect(page.getByTestId('notices')).toContainText(/retired\.bpmn/);
 });
