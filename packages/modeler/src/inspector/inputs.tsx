@@ -26,7 +26,7 @@ import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
 import { useAttributeState, useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
 import { readAttribute } from '@core/model/index';
-import { filterOptions, resolveTyped, toOptions, type Option } from '@modeler/inspector/options';
+import { filterOptions, resolveTyped, toggleLiteral, toOptions, type Option } from '@modeler/inspector/options';
 import { CheckIcon, HelpTooltip } from '@modeler/inspector/widgets';
 import { field as s } from '@modeler/inspector/styles';
 
@@ -100,13 +100,6 @@ export function EnumListInput({ attrDef }: Props) {
   const { value: values, commit } = useAttributeState<string[]>(attrDef, toArray);
   const name = attrDef.ns.name;
   const options = toOptions(getCatalog().enumOf(attrDef.type)?.literals);
-  const named = options.map((option) => option.value);
-
-  const toggle = (literal: string) => {
-    const selected = new Set(values);
-    if (!selected.delete(literal)) selected.add(literal);
-    commit([...named.filter((v) => selected.has(v)), ...values.filter((v) => !named.includes(v))]);
-  };
 
   return (
     <>
@@ -117,7 +110,7 @@ export function EnumListInput({ attrDef }: Props) {
       <div className={s.arrayList}>
         {options.map((option) => (
           <Field key={option.value} className={s.booleanGroup}>
-            <Checkbox checked={values.includes(option.value)} onChange={() => toggle(option.value)} className={s.checkbox}>
+            <Checkbox checked={values.includes(option.value)} onChange={() => commit(toggleLiteral(options, values, option.value))} className={s.checkbox}>
               <CheckIcon />
             </Checkbox>
             <Label className="text-sm/6 text-stone-800 cursor-pointer" title={option.description}>{option.name}</Label>

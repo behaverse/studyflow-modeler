@@ -21,6 +21,15 @@ export function filterOptions(options: Option[], query: string): Option[] {
     || option.description?.toLowerCase().includes(q));
 }
 
+/** A many-valued enum's values with `literal` ticked or unticked: the literals ticked, in the schema's order, then the
+ * values the schema does not name, kept as they were. */
+export function toggleLiteral(options: Option[], values: string[], literal: string): string[] {
+  const named = options.map((option) => option.value);
+  const selected = new Set(values);
+  if (!selected.delete(literal)) selected.add(literal);
+  return [...named.filter((value) => selected.has(value)), ...values.filter((value) => !named.includes(value))];
+}
+
 /** What typed text stores. The field shows a literal's label, so a label or a value, in any case, is that literal's
  * value ("N-Back (NB)" -> "NB"); other text is kept as typed. */
 export function resolveTyped(options: Option[], text: string): string {
