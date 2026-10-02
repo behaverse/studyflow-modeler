@@ -35,8 +35,8 @@ test('what a model is handed for a trial: the wired Prompt, the task, its earlie
     },
     { label: 'a stimulus of text is shown as it is', input: { stimulus: 'A' }, shown: ['  stimulus: A'] },
     {
-      label: 'a screenshot the build took goes as an image, and the model is told to go by it',
-      input: { screenshot: 'data:image/png;base64,iVBORw0KGgo=' },
+      label: 'a screenshot the build took goes as an image, its base64 unwrapped, and the model is told to go by it',
+      input: { screenshot: 'data:image/png;base64,iVBORw0K\nGgo=' },
       shown: ['  response options: Match, NonMatch', '  screenshot: attached (use the image to decide; ignore the textual stimulus if they disagree)'],
       image: { mediaType: 'image/png', data: 'iVBORw0KGgo=' },
     },

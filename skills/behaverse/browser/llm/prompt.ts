@@ -21,7 +21,8 @@ function formatStimulus(stimulus: unknown): string {
 }
 
 function parseDataUrl(url: string): { mediaType: string; data: string } | undefined {
-  const match = /^data:([^;,]+);base64,(.+)$/i.exec(url.trim());
+  // `s`: base64 wrapped onto lines is still one image, its line breaks dropped below.
+  const match = /^data:([^;,]+);base64,(.+)$/is.exec(url.trim());
   if (!match) return undefined;
   return { mediaType: match[1], data: match[2].replace(/\s+/g, '') };
 }
