@@ -1,10 +1,9 @@
-import { spawn } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { serveUi, type Served } from './serve';
+import { openWindow } from './window';
 
 /* `studyflow edit [file]` (`studyflow ui`: the same, without a file): the desktop app. Serve the modeler (`npm run build`,
  * the same `dist/` the webapp is) from this machine and open it in a window of its own. The page knows it is in one
@@ -40,46 +39,6 @@ export function uiDir(): string {
   const found = uiDirCandidates().find((dir) => existsSync(path.join(dir, 'app.html')));
   if (found) return found;
   throw new Error('The desktop app is not built. From the repo: `npm run build` (writes dist/), then `studyflow edit` again.');
-}
-
-/** A Chromium on this machine, if any: the app runs in its `--app` mode (a window of its own, no tabs or address
- * bar), and Chromium is the one engine with the File System Access API that saving back to disk needs. */
-function chromium(): string | undefined {
-  if (process.platform === 'darwin') {
-    return ['Google Chrome', 'Chromium', 'Brave Browser', 'Microsoft Edge']
-      .map((app) => `/Applications/${app}.app/Contents/MacOS/${app}`)
-      .find(existsSync);
-  }
-  if (process.platform === 'linux') {
-    const dirs = (process.env.PATH ?? '').split(path.delimiter);
-    return ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'brave-browser', 'microsoft-edge']
-      .flatMap((name) => dirs.map((dir) => path.join(dir, name)))
-      .find(existsSync);
-  }
-  return undefined;
-}
-
-/** Open `url` as a window of its own when a Chromium is around, else in the default browser. The window is the
- * app's lifetime: resolves when it closes (never, in the browser case). Also what `npm run dev:desktop` opens. */
-export function openWindow(url: string): Promise<void> {
-  const app = chromium();
-  if (!app) {
-    const [command, args] = process.platform === 'darwin' ? ['open', [url]]
-      : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
-        : ['xdg-open', [url]];
-    spawn(command, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref();
-    return new Promise(() => {});
-  }
-  // Its own profile: the app's file grants and drafts, apart from the user's browsing; also its own process, so
-  // closing the window ends this one.
-  // ponytail: one profile; a second `edit --port N` hands its window to the running Chromium and returns at once.
-  const child = spawn(app, [
-    `--app=${url}`,
-    `--user-data-dir=${path.join(homedir(), '.studyflow', 'chromium')}`,
-    '--no-first-run',
-    '--no-default-browser-check',
-  ], { stdio: 'ignore' });
-  return new Promise((resolve) => child.on('exit', () => resolve()).on('error', () => resolve()));
 }
 
 /** Serve the modeler and open it, on `file` (served at `/open/<name>`, which `/app?open=` fetches) when given. */

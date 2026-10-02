@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 import { createServer, defineConfig, type Plugin } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { openWindow } from '../desktop/edit'
+import { openWindow } from '../desktop/window'
 import { ROOT, aliases, define } from '../../vite.shared'
 
 // The browser runner (packages/runtime-browser) is its own Vite app, served by this dev server under its paths, so dev is
