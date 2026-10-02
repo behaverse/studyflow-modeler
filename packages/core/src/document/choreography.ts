@@ -5,22 +5,11 @@
  */
 import { BPMN } from '@core/constants';
 import type { ModdleElement } from '@core/document/moddle';
-import { primaryRoot, isHeadlessCollaboration } from '@core/document/format';
 
 const CHOREOGRAPHY_TASK = BPMN.ChoreographyTask;
 
 function isChoreographyTaskBo(el: ModdleElement | null | undefined): boolean {
   return el?.$type === CHOREOGRAPHY_TASK;
-}
-
-/** A plane naming a collaboration with no pool draws the process's flow: point it at the process, the root everywhere else. */
-export function headlessPlaneToProcessRoot(definitions: any): boolean {
-  const plane = definitions?.diagrams?.[0]?.plane;
-  if (!isHeadlessCollaboration(plane?.bpmnElement)) return false;
-  const root = primaryRoot(definitions);
-  if (!root || root === plane.bpmnElement) return false;
-  plane.bpmnElement = root;
-  return true;
 }
 
 /** Every moddle element `root` holds, itself included, reached through what each contains. */

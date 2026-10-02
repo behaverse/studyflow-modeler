@@ -98,11 +98,14 @@ class Reader {
   private readonly warn: Warn;
   /** What the definitions declare, the namespaces of foreign elements among it. */
   private readonly namespaces: Record<string, unknown>;
+  /** Whether a drawing written on an element moves to the layout: not in diagram interchange, which is drawing itself. */
+  private readonly drawings: boolean;
 
-  constructor(metamodel: Metamodel, warn: Warn, namespaces: Record<string, unknown>) {
+  constructor(metamodel: Metamodel, warn: Warn, namespaces: Record<string, unknown>, drawings = true) {
     this.metamodel = metamodel;
     this.warn = warn;
     this.namespaces = namespaces;
+    this.drawings = drawings;
   }
 
   /** `raw`, a file's node, where `declared` is expected. */
@@ -135,7 +138,7 @@ class Reader {
     if (DI_NODE_TYPES.has(type)) expandDiNode(node);
 
     const element: Element = { type };
-    this.inlineDrawing(node, own, host);
+    if (this.drawings) this.inlineDrawing(node, own, host);
     for (const [key, raw] of Object.entries(node)) {
       if (raw === undefined || raw === null) continue;
       const p = own.propertiesByName[key] ?? (wrapper && !own.propertiesByName[key] ? wrapper.propertiesByName[key] : undefined);
@@ -147,30 +150,31 @@ class Reader {
         else if (this.metamodel.package(key.split(':')[0])) this.warn(`unknown attribute <${key}> on ${type}`);
         continue;
       }
-      const name = p.ns.localName;
-      if (p.isReference) {
-        element[name] = (p.isMany ? (Array.isArray(raw) ? raw : [raw]).map(String) : String(raw)) as Value;
-        this.references.push({ element, key: name, many: !!p.isMany, context: type });
-        continue;
-      }
-      if (p.isMany) {
-        const list = Array.isArray(raw) ? raw as unknown[]
-          : typeof raw === 'string' && p.type === DOCUMENTATION ? [raw]
-          : keyedMapToList(raw);
-        element[name] = list.map((item) => this.value(expandInlineFlow(item), p.type));
-        continue;
-      }
-      if (isYamlValueProperty(p)) {
-        element[name] = yamlValue(raw);
-        continue;
-      }
-      element[name] = this.value(raw, p.type);
+      this.property(element, p, raw);
     }
     if (typeof element.id === 'string' && element.id) {
       if (this.ids.has(element.id)) this.warn(`the id '${element.id}' names two elements; a reference to it reaches only the last`);
       this.ids.set(element.id, element);
     }
     return typed ? element : foldTyped(this.metamodel, element);
+  }
+
+  /** `raw`, the file's value of `element`'s property `p`, read onto `element` under the property's local name. */
+  property(element: Element, p: PropertyDef, raw: unknown): void {
+    const name = p.ns.localName;
+    if (p.isReference) {
+      element[name] = (p.isMany ? (Array.isArray(raw) ? raw : [raw]).map(String) : String(raw)) as Value;
+      this.references.push({ element, key: name, many: !!p.isMany, context: element.type });
+      return;
+    }
+    if (p.isMany) {
+      const list = Array.isArray(raw) ? raw as unknown[]
+        : typeof raw === 'string' && p.type === DOCUMENTATION ? [raw]
+        : keyedMapToList(raw);
+      element[name] = list.map((item) => this.value(expandInlineFlow(item), p.type));
+      return;
+    }
+    element[name] = isYamlValueProperty(p) ? yamlValue(raw) : this.value(raw, p.type);
   }
 
   /** What `raw` is where a `declared` value is expected: an element, an expression's text, a list, or itself. */
@@ -187,10 +191,12 @@ class Reader {
     return raw as Value;
   }
 
-  /** An element as the file writes it: an expression of nothing but its text as the text, a list holder as its list. */
+  /** An element as the file writes it: an expression or documentation of nothing but its text as the text, a list
+   * holder as its list. */
   private simplified(element: Element): Value {
-    if (isExpressionType(element.type) && typeof element.body === 'string' && element.body !== ''
-      && Object.keys(element).every((key) => key === 'type' || key === 'body')) return element.body;
+    const key = isExpressionType(element.type) ? 'body' : element.type === DOCUMENTATION ? 'text' : undefined;
+    const text = key ? element[key] : undefined;
+    if (typeof text === 'string' && text !== '' && Object.keys(element).every((other) => other === 'type' || other === key)) return text;
     const list = elementList(this.metamodel, element.type);
     if (list && Object.keys(element).every((key) => key === 'type' || key === list.ns.localName)) {
       const items = element[list.ns.localName];
@@ -297,6 +303,15 @@ export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: 
   const reader = new Reader(metamodel, warn, definitions);
   const id = doc.id ?? definitions.id;
   delete definitions.id;
+  // What the definitions hold besides their attributes (documentation, imports, extension elements) reads as an
+  // element's would.
+  const holder: Element = { type: 'bpmn:Definitions' };
+  for (const p of metamodel.descriptor('bpmn:Definitions').properties) {
+    const raw = definitions[p.ns.localName];
+    if (raw === undefined || raw === null || p.isReference || BUILTIN_TYPES.has(p.type)) continue;
+    reader.property(holder, p, raw);
+    definitions[p.ns.localName] = holder[p.ns.localName]!;
+  }
   const raws: unknown[] = [];
   for (const [key, body] of Object.entries(doc)) {
     if (RESERVED_DOC_KEYS.has(key)) continue;
@@ -327,7 +342,7 @@ export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: 
       reader.drawn(elementId, diType, drawing as Record<string, unknown>);
     }
   }
-  const diagram = Array.isArray(doc.diagram) ? readDiagrams(doc.diagram, reader, metamodel) : undefined;
+  const diagram = Array.isArray(doc.diagram) ? readDiagrams(doc.diagram, reader, metamodel, definitions) : undefined;
   reader.resolve();
   const study: Study = { ...(id === undefined ? {} : { id: String(id) }), definitions, roots, layout: reader.layout };
   if (diagram && diagram.length > 0) study.diagram = diagram;
@@ -336,13 +351,16 @@ export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: 
   return study;
 }
 
-/** A diagram section: each plane element the layout can spell moves to it; the rest, and a diagram that says more than
- * which root it draws, stay. */
-function readDiagrams(raws: unknown[], reader: Reader, metamodel: Metamodel): Value[] {
+/** A diagram section, in the file's spelling: each plane element the layout can spell moves to it; the rest, and a
+ * diagram that says more than which root it draws, stay. */
+function readDiagrams(raws: unknown[], reader: Reader, metamodel: Metamodel, namespaces: Record<string, unknown>): Value[] {
   const kept: Value[] = [];
   raws.forEach((raw, index) => {
     if (!isMapping(raw)) return;
-    const diagram = { ...raw };
+    // Spelled as an element is, by a reader and a writer of its own: its ids are not the study's elements', and its
+    // references (to its own shapes too) stay as written.
+    const read = new Reader(metamodel, () => {}, namespaces, false).element(raw, 'bpmndi:BPMNDiagram');
+    const diagram = new Writer(metamodel, { has: () => true }).element(read, 'bpmndi:BPMNDiagram');
     const plane = isMapping(diagram.plane) ? { ...diagram.plane } : undefined;
     if (plane && index === 0) {
       const elements = Array.isArray(plane.planeElement) ? plane.planeElement : keyedMapToList(plane.planeElement);
@@ -364,7 +382,6 @@ function readDiagrams(raws: unknown[], reader: Reader, metamodel: Metamodel): Va
     }
     kept.push(diagram as Value);
   });
-  void metamodel;
   return kept;
 }
 
@@ -394,10 +411,11 @@ class Writer {
   readonly order: string[] = [];
 
   private readonly metamodel: Metamodel;
-  private readonly held: Set<string>;
+  /** The ids a reference may name: one naming any other is left out. */
+  private readonly held: { has(id: string): boolean };
   private readonly warn?: Warn;
 
-  constructor(metamodel: Metamodel, held: Set<string>, warn?: Warn) {
+  constructor(metamodel: Metamodel, held: { has(id: string): boolean }, warn?: Warn) {
     this.metamodel = metamodel;
     this.held = held;
     this.warn = warn;
@@ -429,13 +447,15 @@ class Writer {
     for (const [key, value] of Object.entries(element)) {
       if (!written.has(key) && value !== undefined && !(typed && wrapper?.propertiesByName[key])) out[key] = value;
     }
+    if (DI_NODE_TYPES.has(element.type)) compactDiNode(out);
     if (out.type !== undefined && impliedTypeName(out, declared) === element.type) delete out.type;
     if (!('name' in out)) return out;
     const { type, name, ...rest } = out;
     return { ...(type === undefined ? {} : { type }), name, ...rest };
   }
 
-  private property(out: Record<string, unknown>, element: Element, p: PropertyDef, key: string): void {
+  /** `element`'s property `p`, written to `out` under `key` as the file writes it. */
+  property(out: Record<string, unknown>, element: Element, p: PropertyDef, key: string): void {
     const value = element[key];
     if (value === undefined || value === null) return;
     if (p.default !== undefined && value === p.default) return;
@@ -542,12 +562,8 @@ export function writeStudy(study: Study, metamodel: Metamodel, warn?: Warn): Yam
   if (study.id !== undefined) doc.id = study.id;
   const definitions: Record<string, unknown> = {};
   const own = metamodel.descriptor('bpmn:Definitions');
-  for (const p of own.properties) {
-    const key = p.ns.localName;
-    const value = study.definitions[key];
-    if (key === 'id' || value === undefined || value === null || (p.default !== undefined && value === p.default)) continue;
-    definitions[key] = value;
-  }
+  const holder: Element = { ...study.definitions, type: 'bpmn:Definitions' };
+  for (const p of own.properties) if (p.ns.localName !== 'id') writer.property(definitions, holder, p, p.ns.localName);
   for (const [key, value] of Object.entries(study.definitions)) {
     if (!(key in definitions) && !own.propertiesByName[key] && !redundantNamespace(metamodel, key, value)) definitions[key] = value;
   }

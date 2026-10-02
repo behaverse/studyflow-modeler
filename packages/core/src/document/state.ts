@@ -1,5 +1,6 @@
-import { getProperty, setProperty, type Moddle, type ModdleElement } from '@core/document/moddle';
+import { setProperty, type Moddle, type ModdleElement } from '@core/document/moddle';
 import { STUDY_EXTENSION_TYPE, primaryRoot, studyExtensionOf } from '@core/document/format';
+import type { StudyModel } from '@core/model/index';
 import type { StateTree } from '@core/model/state';
 
 /**
@@ -31,20 +32,23 @@ function extensionElementsOf(element: any, moddle: Moddle): any {
   return holder;
 }
 
-/** The parsed tree; `{}` when absent or not a JSON object. */
-export function readState(definitions: ModdleElement | null | undefined): StateTree {
-  return stateOn(studyExtensionOf(definitions));
-}
-
-function stateOn(study: ModdleElement | undefined): StateTree {
-  const raw = getProperty(study, 'state');
+/** The tree a Study's `state` text holds; `{}` when absent or not a JSON object. */
+function parsed(raw: unknown): StateTree {
   if (typeof raw !== 'string' || !raw.trim()) return {};
   try {
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    const tree = JSON.parse(raw);
+    return tree && typeof tree === 'object' && !Array.isArray(tree) ? tree : {};
   } catch {
     return {};
   }
+}
+
+/** The run state of a study read from BPMN XML, lifted off its Study to the study's own: the primary root's tree,
+ * and no Study's text. */
+export function liftState(model: StudyModel): void {
+  const tree = parsed(model.studyOf(model.primaryRoot())?.state);
+  for (const element of model.all()) if (element.type === STUDY_EXTENSION_TYPE) delete element.state;
+  if (Object.keys(tree).length > 0) model.study.state = tree;
 }
 
 /** JSON-encodes `tree` onto the Study extension (created when missing); an empty tree removes the property. */

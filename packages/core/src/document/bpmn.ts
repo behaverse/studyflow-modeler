@@ -1,18 +1,19 @@
 /**
  * BPMN XML in and out of a study model, the one place moddle reads and writes. What moddle reads is put in the form
- * the YAML reader builds (an exchange, compact data inputs) and read as a study model, whose choreography root is then
- * read as a process, as a YAML file's is; a study is written by building moddle's tree from its YAML.
+ * a study holds (an exchange, compact data inputs) and read as a study model from its long form, as a file is read;
+ * a study is written by building moddle's tree from its YAML.
  */
 import { BpmnModdle } from 'bpmn-moddle';
 
-import { exchangesToTasks, headlessPlaneToProcessRoot, tasksToExchanges } from '@core/document/choreography';
+import { exchangesToTasks, tasksToExchanges } from '@core/document/choreography';
 import { studyflowToDefinitions } from '@core/document/deserialize';
 import { dropForeignElements } from '@core/document/format';
 import { expandIoSpecification, inlineIoSpecification } from '@core/document/io-specification';
 import { definitionsToYamlDoc } from '@core/document/serialize';
 import type { Moddle } from '@core/document/moddle';
+import { liftState } from '@core/document/state';
 import { StudyModel } from '@core/model/index';
-import { choreographyToProcessIn } from '@core/model/choreography';
+import { choreographyToProcessIn, headlessPlaneToProcessIn } from '@core/model/choreography';
 import type { Metamodel } from '@core/model/metamodel';
 import { bpmnPackages } from '@core/model/packages';
 import { readStudy, studyText } from '@core/model/yaml';
@@ -53,10 +54,12 @@ export async function xmlToStudy(xml: string, metamodel: Metamodel, { asWritten 
   for (const warning of warnings) onWarning?.(readerWarning(warning));
   dropForeignElements(definitions, onWarning);
   tasksToExchanges(definitions);
-  headlessPlaneToProcessRoot(definitions);
   if (!asWritten) inlineIoSpecification(definitions);
-  const model = new StudyModel(readStudy(definitionsToYamlDoc(definitions, onWarning), metamodel, () => {}), metamodel);
+  // moddle's reader has said what it could not place, which the study's reader would only say again.
+  const model = new StudyModel(readStudy(definitionsToYamlDoc(definitions), metamodel, () => {}), metamodel);
   choreographyToProcessIn(model);
+  headlessPlaneToProcessIn(model);
+  liftState(model);
   return model;
 }
 

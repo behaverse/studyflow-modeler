@@ -6,8 +6,6 @@ import * as yaml from 'js-yaml';
 
 import { studyToXml } from '@core/document';
 import { studyflowToDefinitions } from '@core/document/deserialize';
-import { definitionsToYamlDoc } from '@core/document/serialize';
-import { YAML_DUMP_OPTIONS } from '@core/model/spelling';
 import { exampleNames as examples, exampleText } from '@tests/utils';
 import { readStudy, studyText } from '@core/model/yaml';
 import { freshMetamodel, freshModdle, studyModel, xmlOf, yamlOf } from '@tests/schemas';
@@ -272,7 +270,8 @@ R:
 
   test('a conditional boundary event and a multi-instance marker keep their spelling through a round trip', async () => {
     // Both are BPMN's own: the boundary's `condition` says when the walk leaves a finished step, and the marker's
-    // `loopCardinality` how many instances of it run. An expression is a string, so an integer cardinality is quoted.
+    // `loopCardinality` how many instances of it run. An expression is a string, so an integer cardinality is quoted;
+    // one that names its language is an element, which its XML types with an `xsi:type` the YAML leaves to moddle.
     const text = `id: cohort
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -292,7 +291,10 @@ S:
       loopCharacteristics:
         type: MultiInstanceLoopCharacteristics
         isSequential: true
-        loopCardinality: "3"
+        loopCardinality:
+          type: FormalExpression
+          body: "3"
+          language: feel
     Noisy:
       type: BoundaryEvent
       eventDefinitions:
@@ -304,6 +306,7 @@ S:
     const xml = await xmlOf(text);
     expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics>');
     expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics isSequential="true">');
+    expect(xml).toContain('<bpmn:loopCardinality xsi:type="bpmn:tFormalExpression" language="feel">3</bpmn:loopCardinality>');
     expect(xml).toMatch(/<bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">4<\/bpmn:loopCardinality>/);
     expect(xml).toMatch(/<bpmn:condition xsi:type="bpmn:tFormalExpression">\{Play.failedTrialRate\} &gt; 0.2<\/bpmn:condition>/);
     expect(await yamlOf(xml)).toBe(text);
@@ -415,8 +418,8 @@ diagram:
     expect(studyflowToDefinitions(written, freshModdle()).diagrams[0].plane.bpmnElement.id).toBe('P');
   });
 
-  test('a reference to an element the document no longer holds is left out with a warning, so the file reads back', () => {
-    const definitions = studyflowToDefinitions(`id: dangling
+  test('a reference to an element the study no longer holds is left out with a warning, so the file reads back', () => {
+    const model = studyModel(`id: dangling
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 P:
@@ -435,20 +438,14 @@ P:
     Flow_2:
       sourceRef: Split
       targetRef: B
-`, freshModdle());
-    // Deleted the way a careless edit would: unfiled and unwired, but still the gateway's default.
-    const [process] = definitions.rootElements;
-    const byId = (id: string) => process.flowElements.find((el: any) => el.id === id);
-    const [split, b, flow] = [byId('Split'), byId('B'), byId('Flow_2')];
-    process.flowElements.splice(process.flowElements.indexOf(flow), 1);
-    split.outgoing.splice(split.outgoing.indexOf(flow), 1);
-    b.incoming.splice(b.incoming.indexOf(flow), 1);
+`);
+    // Deleted the way a careless edit would: unfiled, but still the gateway's default.
+    model.unfile(model.get('Flow_2')!);
 
     const warnings: string[] = [];
-    const text = yaml.dump(definitionsToYamlDoc(definitions, (message) => warnings.push(message)), YAML_DUMP_OPTIONS);
+    const text = studyText(model.study, model.metamodel, (message) => warnings.push(message));
     expect(warnings).toEqual([expect.stringMatching(/'Split' refers by default to 'Flow_2'/)]);
-    const again = studyflowToDefinitions(text, freshModdle());
-    expect(again.rootElements[0].flowElements.find((el: any) => el.id === 'Split').default).toBeUndefined();
+    expect(studyModel(text).get('Split')).not.toHaveProperty('default');
   });
 
   test('an element from a namespace no schema declares is spelled by its attributes and its children\'s texts, and one holding more is dropped, with a warning, so the YAML reads back', async () => {

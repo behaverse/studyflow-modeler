@@ -4,11 +4,11 @@
  * participant the actor below. Who takes the bands, and the kind of actor each is; and another tool's choreography,
  * read as the process a study is.
  */
-import { idOf, isElement, type Element, type StudyModel } from '@core/model/index';
+import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import { getCatalog } from '@core/notation';
 import type { Ids } from '@core/model/items';
 import { wiredIn } from '@core/model/parameters';
-import { foldTyped } from '@core/model/yaml';
+import { foldTyped, isHeadlessCollaboration } from '@core/model/yaml';
 
 export const DEFAULT_TOP = 'Participant A';
 export const DEFAULT_BOTTOM = 'Participant B';
@@ -147,6 +147,20 @@ export function choreographyToProcessIn(model: StudyModel): boolean {
   model.reindex();
   return true;
 }
+
+/** A plane naming a collaboration with no pool draws the process's flow: it names the root the study is. Whether it
+ * named one. */
+export function headlessPlaneToProcessIn(model: StudyModel): boolean {
+  const diagram = model.study.diagram?.[0];
+  const plane = isMapping(diagram) && isMapping(diagram.plane) ? diagram.plane : undefined;
+  const named = model.get(typeof plane?.bpmnElement === 'string' ? plane.bpmnElement : undefined);
+  const root = model.primaryRoot();
+  if (!plane || !named || !isHeadlessCollaboration(named) || !root?.id || root === named) return false;
+  plane.bpmnElement = root.id;
+  return true;
+}
+
+const isMapping = (value: unknown): value is Record<string, Value> => !!value && typeof value === 'object' && !Array.isArray(value);
 
 /* --- Who takes a band, and what kind of actor that is --- */
 
