@@ -2,7 +2,7 @@
 
 What the walk (`packages/core/src/engine`) does with a study on this machine: what a re-run skips, how messages
 travel between pools, how an activity repeats or is ended, and where the state lives. What a partial runner is told
-and hands back is the contract in [SKILL.md](SKILL.md).
+and hands back is the contract in [CONTRACT.md](CONTRACT.md).
 
 ## Re-runs
 
@@ -27,8 +27,8 @@ Pools talk only along message flows, and the walk carries every message: `{"id",
 
 - An element no runner claims does its own. An activity sends its data inputs along each flow out of it, as a mapping of source id to value; a data element with no value this run gives its `uri`, else null, and the receiver reads it from the plan. Then, if a flow comes into it, it waits for the next message along one and takes its content as its result, into its data outputs through their `transformation`s. So a send task sends, a receive task receives, and a task with flows both ways to one pool asks it. A catch or start event with a flow into it waits for a message. A throw or end event sends one carrying null.
 - A step with no message flow of its own exchanges along the nearest enclosing sub-process's, else along its pool's, so a collapsed sub-process or a pool carries the exchange its steps make, lanes and all; a step with flows of its own inherits none. An unclaimed step inherits only when it has data inputs to send, and then only the flows to and from other pools, never a pool's once-only message to a step in another pool; like any step that talks, it never skips or replays.
-- A claimed element's runner does its own while it runs, and a participant with no process is a pool a runner may claim: each message sent to it is one hand-off, and the runner's result is the answer ([SKILL.md](SKILL.md), "Messages").
-- A pool whose actor's `memory` is `conversation` keeps one conversation with each instance of the pool asking it, for the run: the walk counts its exchanges, and its runner keeps what was said ([SKILL.md](SKILL.md), "Messages").
+- A claimed element's runner does its own while it runs, and a participant with no process is a pool a runner may claim: each message sent to it is one hand-off, and the runner's result is the answer ([CONTRACT.md](CONTRACT.md), "Messages").
+- A pool whose actor's `memory` is `conversation` keeps one conversation with each instance of the pool asking it, for the run: the walk counts its exchanges, and its runner keeps what was said ([CONTRACT.md](CONTRACT.md), "Messages").
 - What an element sends answers the message its pool last took from the target's pool, by `inReplyTo`.
 - An event-based gateway takes the branch whose message comes first: each branch starts at a catch event or a receive task a message flow reaches, and that step takes the message. Its decision is never replayed.
 - An element with message flows never replays. A wait with nothing left to send it, because every sender's pool has ended, fails the run.
