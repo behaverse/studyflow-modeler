@@ -1,7 +1,7 @@
 import { attributeOf, type FlowNode } from '@runner/flow';
 
 /** Query parameters a panel provider may use to hand the code to the study. */
-const PARAM_NAMES = ['cc', 'completion_code', 'COMPLETION_CODE', 'PROLIFIC_PID'];
+const PARAM_NAMES = ['cc', 'completion_code', 'COMPLETION_CODE'];
 
 export type CompletionCodeType = 'none' | 'static' | 'dynamic';
 

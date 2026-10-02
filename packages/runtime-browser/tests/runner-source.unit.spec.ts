@@ -353,6 +353,7 @@ Codes:
     ['the link\'s COMPLETION_CODE', 'Dynamic', '?COMPLETION_CODE=AB12', 'AB12'],
     ['a blank code is none', 'Dynamic', '?cc=%20', FRESH],
     ['a link with no code', 'Dynamic', '?diagram=x', FRESH],
+    ['a link carrying only the participant\'s Prolific ID, which is no code', 'Dynamic', '?PROLIFIC_PID=5f8e2b1c9d3a4e0012345678', FRESH],
     ['a static code, whatever the link carries', 'Static', '?cc=AB12', 'C0DE42'],
     ['an end event of no code type', 'Plain', '?cc=AB12', null],
   ];
