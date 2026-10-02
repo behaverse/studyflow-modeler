@@ -1,37 +1,4 @@
-import type { ModdleElement } from '@core/document/moddle';
-
 export const STUDY_EXTENSION_TYPE = 'studyflow:Study';
-
-/** A collaboration with no pool, only actors that take bands: it holds participants for the process and draws nothing. */
-export function isHeadlessCollaboration(root: any): boolean {
-  return root?.$type === 'bpmn:Collaboration' && !(root.participants ?? []).some((p: any) => p?.processRef);
-}
-
-/** The `studyflow:Study` extension of the primary root: where `runtime`, `state`, and the study's own fields live. */
-export function studyExtensionOf(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
-  const root: any = primaryRoot(definitions);
-  return root?.extensionElements?.values?.find((ext: any) => ext?.$type === STUDY_EXTENSION_TYPE);
-}
-
-/** The study's root: the element the DI plane names (it is what the canvas draws) unless that is a collaboration
- * without a process; else the root {@link inferredRoot} picks. */
-export function primaryRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
-  const named = definitions?.diagrams?.[0]?.plane?.bpmnElement;
-  if (named && !isHeadlessCollaboration(named)) return named;
-  return inferredRoot(definitions);
-}
-
-/** The root a document whose plane names none draws: the first collaboration with a process, then the first process,
- * then the first choreography; else the first root with an id, of any kind. */
-export function inferredRoot(definitions: ModdleElement | null | undefined): ModdleElement | undefined {
-  const roots: ModdleElement[] = definitions?.rootElements ?? [];
-  const isType = (root: any, type: string) => (root?.$instanceOf ? root.$instanceOf(type) : root?.$type === type);
-  for (const type of ['bpmn:Collaboration', 'bpmn:Process', 'bpmn:Choreography']) {
-    const root = roots.find((candidate) => isType(candidate, type) && !isHeadlessCollaboration(candidate));
-    if (root) return root;
-  }
-  return roots.find((root) => typeof root?.id === 'string');
-}
 
 /** Rewrites parsed definitions in place and says whether it changed anything; `onWarning` hears what it drops. */
 export type XmlPass = (definitions: any, onWarning?: (message: string) => void) => boolean;
