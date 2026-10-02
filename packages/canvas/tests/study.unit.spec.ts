@@ -486,6 +486,39 @@ P:
   expect(study.get('Timer')!.bounds).toMatchObject({ x: 182, y: 182 });
 });
 
+test('a lane moved into a pool that has none is filed in a lane set the pool\'s process is given; one undo takes both back', () => {
+  const study = Study.of(studyModel(`id: Defs_L
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 600 300 }
+    Home: { name: Home, processRef: Q, bounds: 100 400 600 300 }
+P:
+  type: Process
+  laneSets:
+    Set_P:
+      lanes:
+        Screen: { name: Screen, bounds: 130 50 570 150 }
+        Model: { name: Model, bounds: 130 200 570 150 }
+Q:
+  type: Process
+`));
+  const before = study.toYaml();
+  const { model } = study;
+
+  expect(study.move({ ids: ['Model'], by: { x: 0, y: 350 }, into: 'Home' })).toMatchObject({ ok: true, changed: ['Model'] });
+  expect(study.get('Model')).toMatchObject({ parent: 'Home' });
+  const laneSet = model.parentOf(model.get('Model')!)!;
+  expect(model.host(laneSet)).toBe('bpmn:LaneSet');
+  expect(model.holderOf(laneSet)).toMatchObject({ parent: { id: 'Q' }, key: 'laneSets' });
+  expect(model.get('Set_P')!.lanes, 'the pool it left keeps its other lane').toEqual([model.get('Screen')]);
+
+  expect(study.undo().ok).toBe(true);
+  expect(study.toYaml()).toBe(before);
+});
+
 const CLIPBOARD = `id: Defs_C
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
