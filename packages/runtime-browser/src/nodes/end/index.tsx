@@ -10,7 +10,6 @@ import {
   substituteCompletionCode,
   type CompletionCodeType,
 } from '@runner/nodes/end/completionCode';
-import { validateEndEvent } from '@runner/nodes/end/validation';
 
 declare module '@runner/jobs' {
   interface JobsByType {
@@ -114,5 +113,4 @@ registerNode({
     completionCode: readString(node, 'completionCode'),
   }),
   Component: End,
-  validateNode: validateEndEvent,
 });

@@ -167,7 +167,7 @@ test.describe('Studyflow runtime nodes', () => {
     await page.goto('/run/?diagram=runner-refusals&seed=42&task=NB');
     const invalid = page.getByTestId('runner-invalid');
     await expect(invalid).toContainText('This study cannot run');
-    await expect(invalid.getByRole('listitem')).toHaveText([/^EndEvent_1: completionCodeType is 'static' but completionCode is empty.*Type the code in completionCode/]);
+    await expect(invalid.getByRole('listitem')).toHaveText([/^EndEvent_1: "EndEvent_1" has completionCodeType: static and no completionCode.*type the code in completionCode/]);
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeHidden();
   });
 

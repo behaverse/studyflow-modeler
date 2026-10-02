@@ -169,7 +169,12 @@ export function importJsPsychTimeline(input: JsPsychTimelineInput, options: JsPs
   let consentFormUri: string | undefined;
   let taskNodes = nodes;
   if (nodes.length > 0 && looksLikeConsent(nodes[0])) {
-    consentFormUri = consentUriOf(nodes[0]) ?? 'consent.md';
+    consentFormUri = consentUriOf(nodes[0]);
+    if (!consentFormUri) {
+      // A path from the site's root, as a page fetches it: the author's form goes there, or the link is changed.
+      consentFormUri = '/consent.md';
+      warnings.push('The consent screen links no form; the start event links /consent.md. Point consentFormUri at your form.');
+    }
     taskNodes = nodes.slice(1);
   }
 

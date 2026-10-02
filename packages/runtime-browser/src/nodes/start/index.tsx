@@ -4,7 +4,6 @@ import type { NodeProps } from '@runner/nodes/types';
 import { NodePanel } from '@runner/nodes/NodePanel';
 import { nodeStyles } from '@runner/nodes/styles';
 import { registerNode } from '@runner/nodes/registry';
-import { validateStartEvent } from '@runner/nodes/start/validation';
 
 declare module '@runner/jobs' {
   interface JobsByType {
@@ -106,5 +105,4 @@ registerNode({
     studyName: readString(node, 'name'),
   }),
   Component: Start,
-  validateNode: validateStartEvent,
 });

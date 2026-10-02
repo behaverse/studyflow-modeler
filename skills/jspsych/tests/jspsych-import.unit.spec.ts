@@ -62,6 +62,14 @@ test('opens a timeline as a study that chains start -> tasks -> end, a cognitive
   expect(Object.keys(model.study.layout).sort()).toEqual([...flowElements, ...wires].map((element) => element.id).sort());
 });
 
+test('a consent screen that links no form links one from the site\'s root, which a page can fetch, and says so', () => {
+  const { consent_url: _url, ...consent } = FLANKER[0];
+  const { model, warnings } = open(JSON.stringify([consent, ...FLANKER.slice(1)]));
+  const start = listOf(processOf(model), 'flowElements').find((element) => element.type === 'bpmn:StartEvent')!;
+  expect(start.consentFormUri).toBe('/consent.md');
+  expect(warnings).toEqual([expect.stringContaining('Point consentFormUri at your form')]);
+});
+
 /** The ids of the tasks the opened study holds. */
 function taskIds(text: string): string[] {
   const { model } = open(text);

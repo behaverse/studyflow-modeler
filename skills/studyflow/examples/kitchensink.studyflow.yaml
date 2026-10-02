@@ -22,7 +22,7 @@ Kitchen_Sink:
     Ev_Start:
       type: StartEvent
       name: Start
-      consentFormUri: consent.md
+      consentFormUri: https://example.org/protocols/kitchensink/consent.md
     Ev_End:
       type: EndEvent
       name: End
