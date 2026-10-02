@@ -1,10 +1,12 @@
 import { expect, test } from './e2e';
 
+import { STORAGE_KEYS } from '@core/storage';
+
 import { SCHEMAS } from './schemas';
-import { gotoModeler, openCommandPalette, runPaletteCommand } from './utils';
+import { addPaletteElement, gotoModeler, openCommandPalette, runPaletteCommand } from './utils';
 
 test.describe('Studyflow modeler smoke', () => {
-  test('loads the modeler shell, whose Gantt and Settings views open from the command palette', async ({ page }) => {
+  test('loads the modeler shell, whose Gantt view opens from the command palette', async ({ page }) => {
     await gotoModeler(page);
 
     await expect(page.getByRole('button', { name: /command palette/i })).toBeVisible();
@@ -28,10 +30,20 @@ test.describe('Studyflow modeler smoke', () => {
     await expect(gantt).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(gantt).toBeHidden();
+  });
 
-    // Settings lists every schema the app loads, each a switch, a required one locked on.
+  test('Settings: Auto-save off drops the kept copy, a skill switched off leaves the palette on reload, and a reset or a clear the browser cannot store still applies, with one warning', async ({ page }) => {
+    await gotoModeler(page);
+    const autosaved = () => page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.autosaveDiagram);
+    await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
+    await expect.poll(autosaved).not.toBeNull();
     await runPaletteCommand(page, /^Settings/);
-    await page.getByText(/^Extensions$/).first().click();
+    const autoSave = page.getByRole('combobox', { name: 'Auto-save' });
+    await autoSave.selectOption('off');
+    await expect.poll(autosaved).toBeNull();
+
+    // Extensions lists every schema the app loads, each a switch, a required one locked on.
+    await page.getByRole('button', { name: 'Extensions' }).click();
     for (const schema of SCHEMAS) {
       const toggle = page.getByRole('switch', { name: new RegExp(`\\b${schema.name}\\b`) });
       await expect(toggle).toBeAttached();
@@ -39,5 +51,30 @@ test.describe('Studyflow modeler smoke', () => {
     }
     await expect(page.getByRole('img', { name: /required/i }))
       .toHaveCount(SCHEMAS.filter((schema) => schema.required).length);
+    await page.getByRole('switch', { name: 'Load the Reachy Mini elements' }).click();
+    await page.getByRole('button', { name: 'Reload now' }).click();
+    await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: 'Reachy Mini elements...' })).toHaveCount(0);
+
+    // With the settings' writes blocked, a reset still applies for the session, and clearing the local data still takes
+    // every key the app keeps, the settings stored before included; that neither was kept is said once.
+    await page.evaluate((key) => {
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (this: Storage, name: string, value: string) {
+        if (name === key) throw new DOMException('blocked', 'SecurityError');
+        setItem.call(this, name, value);
+      };
+    }, STORAGE_KEYS.settings);
+    await runPaletteCommand(page, /^Settings/);
+    const privacy = page.getByRole('button', { name: 'Privacy' });
+    await privacy.click();
+    await page.getByRole('button', { name: 'Reset to defaults' }).click();
+    await page.getByRole('button', { name: 'Editor' }).click();
+    await expect(autoSave).toHaveValue('local');
+    await privacy.click();
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name: 'Clear all local data' }).click();
+    await expect(page.getByText('0 keys, ~0 B')).toBeVisible();
+    await expect(page.getByTestId('notices').getByText(/^Settings could not be saved: this browser blocks local storage/)).toHaveCount(1);
   });
 });
