@@ -82,7 +82,8 @@ construct otherwise than the specification does, it says so here, and `studyflow
 - **Repeats run in order.** A multi-instance marker's instances, parallel or not, run one after another, and so do
   the instances of a pool with a `participantMultiplicity`, which share the study's counts and meet the pools they
   talk to in turn. A random gateway draws for each instance on its own (its participant number and its visit), so the
-  order does not change what it draws.
+  order does not change what it draws; one with `stratifyBy`, or minimizing, deals by the instances before it, in
+  their order.
 - **A pool's messages.** A step with no message flow of its own exchanges along its enclosing sub-process's or its
   pool's (see [Messages](#messages)). A flow out of a pool of several instances to a step in another pool is sent once,
   after the last instance, where BPMN would send one per instance, each starting an instance of the receiver.

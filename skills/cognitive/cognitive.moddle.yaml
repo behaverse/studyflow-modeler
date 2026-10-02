@@ -27,13 +27,15 @@ enumerations:
         description: Each participant is drawn independently.
       - name: Block randomization
         value: block
-        description: Permuted blocks keep arm sizes balanced over time.
+        description: Permuted blocks keep arm sizes balanced over time; with stratifyBy, within each stratum.
       - name: Minimization
         value: minimization
-        description: Each allocation minimizes covariate imbalance so far.
+        description: >-
+          Pocock–Simon, range method: each participant takes the arm that least unbalances the factors stratifyBy
+          names with probability 0.8, else another arm. Equal arms only.
       - name: Alternation
         value: alternation
-        description: Arms taken in turn; predictable, so rarely acceptable.
+        description: Arms taken in turn, by participant number; predictable, so rarely acceptable.
   - name: ExperimentSoftwareEnum
     description: Software that delivers a task.
     literalValues:
@@ -251,14 +253,17 @@ types:
           condition:
             algorithm: block
       - name: stratifyBy
-        description: Variable to randomize within, so arms stay balanced on it (`age_band`).
+        description: >-
+          The values to balance arms on, by name, comma-separated (`age_band`, `age_band, sex`), as each participant
+          has them on reaching the gateway: blocks and alternation are dealt within each stratum, minimization
+          balances each factor. A browser session, one participant, cannot apply them.
         isAttr: true
         type: String
         meta:
           order: 4
           optional: true
       - name: strata
-        description: 'The strata, one per entry (`age_band: 18-29`).'
+        description: 'The strata, one per entry (`age_band: 18-29`), for the reader: the walk deals within whatever values participants bring.'
         isAttr: false
         type: studyflow:MarkdownString
         isMany: true
