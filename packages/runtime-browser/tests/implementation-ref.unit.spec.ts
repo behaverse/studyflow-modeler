@@ -6,36 +6,22 @@ import { freshPackages } from '@tests/schemas';
 
 /** What the browser runner checks, before a run starts, of the functions a study's steps call. */
 
-test('a malformed implementation reference fails validation before the run starts', async () => {
-  const study = await Studyflow.parse(`id: bad_ref
+test('a malformed implementation reference fails validation before the run starts; a well-formed one raises nothing, whatever its scheme', async () => {
+  const study = (implementation: string) => Studyflow.parse(`id: refs
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Study:
   type: bpmn:Process
   flowElements:
-    Bad:
+    Step:
       type: bpmn:ServiceTask
-      name: Broken reference
-      implementation: python:/oops
+      implementation: ${implementation}
 `, freshPackages());
 
   // No `severity`: an error, which keeps the run from starting (a warning would let it proceed).
-  expect(validateImplementations(study)).toEqual([
-    { nodeId: 'Bad', message: expect.stringMatching(/implementation/i) },
+  expect(validateImplementations(await study('python:/oops'))).toEqual([
+    { nodeId: 'Step', message: expect.stringMatching(/implementation/i) },
   ]);
-});
-
-test('a well-formed reference raises nothing, whatever its scheme: the runner that claims it is found at run time', async () => {
-  const study = await Studyflow.parse(`id: shell_ref
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
-Study:
-  type: bpmn:Process
-  flowElements:
-    Say:
-      type: bpmn:ServiceTask
-      implementation: shell://say
-`, freshPackages());
-
-  expect(validateImplementations(study)).toEqual([]);
+  // The runner that claims a scheme is found at run time, so no scheme is unknown here.
+  expect(validateImplementations(await study('shell://say'))).toEqual([]);
 });

@@ -7,16 +7,9 @@ import { studyModel } from '@tests/schemas';
 
 /** The debug flag that stands name cards in for the heavy screens, and who is at the page. */
 
-test('debug is on for the flag spellings a link actually carries', () => {
-  for (const search of ['?debug=1', '?debug=true', '?debug', '?debug=', '?diagram=x&debug=yes']) {
-    expect(isDebug(search), search).toBe(true);
-  }
-});
-
-test('debug is off when absent or switched off', () => {
-  for (const search of ['', '?diagram=x', '?debug=0', '?debug=false', '?debug=off']) {
-    expect(isDebug(search), search).toBe(false);
-  }
+test('debug is on for the flag spellings a link actually carries, and off when absent or switched off', () => {
+  for (const search of ['?debug=1', '?debug=true', '?debug', '?debug=', '?diagram=x&debug=yes']) expect(isDebug(search), search).toBe(true);
+  for (const search of ['', '?diagram=x', '?debug=0', '?debug=false', '?debug=off']) expect(isDebug(search), search).toBe(false);
 });
 
 const model = studyModel(`id: d
