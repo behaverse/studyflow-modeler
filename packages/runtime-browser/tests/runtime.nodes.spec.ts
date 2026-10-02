@@ -87,28 +87,9 @@ const PERSON_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn:process>
 </bpmn:definitions>`;
 
-const BOUND_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-bound" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:process id="Study_1" isExecutable="false">
-    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
-    <bpmn2:startEvent id="StartEvent_1">
-      <bpmn2:outgoing>F1</bpmn2:outgoing>
-    </bpmn2:startEvent>
-    <bpmn2:serviceTask id="Bound_1" name="Median RT" implementation="python://pkg_for_st.do_map@1.2" studyflow:additionalArguments="column: rt&#10;fn: median">
-      <bpmn2:incoming>F1</bpmn2:incoming>
-      <bpmn2:outgoing>F2</bpmn2:outgoing>
-    </bpmn2:serviceTask>
-    <bpmn2:endEvent id="EndEvent_1">
-      <bpmn2:incoming>F2</bpmn2:incoming>
-    </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Bound_1" />
-    <bpmn2:sequenceFlow id="F2" sourceRef="Bound_1" targetRef="EndEvent_1" />
-  </bpmn2:process>
-</bpmn2:definitions>`;
-
-/** Native canvas form: the task carries participantRef into a headless collaboration. */
-const CHOREOGRAPHY_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-choreography" targetNamespace="http://bpmn.io/schema/bpmn">
+/** A bound task, then a choreography task in the native canvas form: it carries participantRef into a headless collaboration. */
+const NODE_SCREENS_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-stages-screens" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn2:collaboration id="Participants_1">
     <bpmn2:participant id="P_Subject" name="Subject" />
     <bpmn2:participant id="P_Experimenter" name="Experimenter" />
@@ -118,17 +99,22 @@ const CHOREOGRAPHY_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn2:startEvent id="StartEvent_1">
       <bpmn2:outgoing>F1</bpmn2:outgoing>
     </bpmn2:startEvent>
-    <bpmn2:choreographyTask id="Choreo_1" name="First decision round" initiatingParticipantRef="P_Experimenter">
+    <bpmn2:serviceTask id="Bound_1" name="Median RT" implementation="python://pkg_for_st.do_map@1.2" studyflow:additionalArguments="column: rt&#10;fn: median">
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+    <bpmn2:choreographyTask id="Choreo_1" name="First decision round" initiatingParticipantRef="P_Experimenter">
+      <bpmn2:incoming>F2</bpmn2:incoming>
+      <bpmn2:outgoing>F3</bpmn2:outgoing>
       <bpmn2:participantRef>P_Subject</bpmn2:participantRef>
       <bpmn2:participantRef>P_Experimenter</bpmn2:participantRef>
     </bpmn2:choreographyTask>
     <bpmn2:endEvent id="EndEvent_1">
-      <bpmn2:incoming>F2</bpmn2:incoming>
+      <bpmn2:incoming>F3</bpmn2:incoming>
     </bpmn2:endEvent>
-    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Choreo_1" />
-    <bpmn2:sequenceFlow id="F2" sourceRef="Choreo_1" targetRef="EndEvent_1" />
+    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Bound_1" />
+    <bpmn2:sequenceFlow id="F2" sourceRef="Bound_1" targetRef="Choreo_1" />
+    <bpmn2:sequenceFlow id="F3" sourceRef="Choreo_1" targetRef="EndEvent_1" />
   </bpmn2:process>
 </bpmn2:definitions>`;
 
@@ -149,8 +135,8 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByText('aborted', { exact: true })).toBeVisible();
   });
 
-  test('a bound task displays its function call and arguments', async ({ page }) => {
-    await runStudyflow(page, 'runner-stages-bound', BOUND_TASK_XML);
+  test('a bound task displays its function call and arguments; a choreography task shows both participants and marks the initiator', async ({ page }) => {
+    await runStudyflow(page, 'runner-stages-screens', NODE_SCREENS_XML);
 
     await page.getByRole('button', { name: /begin/i }).click();
 
@@ -158,14 +144,6 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.locator('code', { hasText: 'python://pkg_for_st.do_map@1.2' })).toBeVisible();
     await expect(page.getByText('median', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: /continue/i }).click();
-
-    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
-  });
-
-  test('a choreography task shows both participants and marks the initiator', async ({ page }) => {
-    await runStudyflow(page, 'runner-stages-choreography', CHOREOGRAPHY_XML);
-
-    await page.getByRole('button', { name: /begin/i }).click();
 
     await expect(page.getByRole('heading', { name: 'First decision round' })).toBeVisible();
     const participants = page.getByTestId('choreography-participants');
@@ -181,7 +159,10 @@ test.describe('Studyflow runtime nodes', () => {
   });
 
   // `addInitScript` re-seeds on every navigation, including the reload, and would make this pass regardless.
-  test('a reload mid-run still finds the diagram', async ({ page }) => {
+  test('a reload mid-run still finds the diagram, an untyped task is the generic continue step, and the hand-off is released once the run ends', async ({ page }) => {
+    // The node logs from an effect, where a log forced through flushSync made React report an error.
+    const errors: string[] = [];
+    page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
     const id = 'runner-reload';
     await page.goto('/run/');
     await page.evaluate(
@@ -196,6 +177,17 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeVisible();
     await page.getByRole('button', { name: /begin/i }).click();
     await expect(page.getByRole('heading', { name: 'Plain task' })).toBeVisible();
+    // The generic step's panel offers nothing but the one button that goes on.
+    await expect(page.getByRole('heading', { name: 'Plain task' }).locator('..').getByRole('button')).toHaveCount(1);
+    await page.getByRole('button', { name: /continue/i }).click();
+    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
+    expect(errors).toEqual([]);
+
+    const remaining = await page.evaluate(
+      (key) => window.localStorage.getItem(key),
+      diagramHandoffKey(id),
+    );
+    expect(remaining).toBeNull();
   });
 
   test('the person at the page answers what the study sends their pool, and the record of the run can be taken away', async ({ page }) => {
@@ -212,33 +204,6 @@ test.describe('Studyflow runtime nodes', () => {
     const events: { event: string; name?: string; value?: unknown }[] = fs.readFileSync(await (await download).path(), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     expect(events.find((event) => event.event === 'wrote' && event.name === 'answer')?.value).toBe('right');
     expect(events.at(-1)?.event).toBe('finished');
-  });
-
-  test('an untyped task is the generic continue step, and the hand-off is released once the run ends', async ({ page }) => {
-    // The node logs from an effect, where a log forced through flushSync made React report an error.
-    const errors: string[] = [];
-    page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
-    const id = 'runner-cleanup';
-    await page.goto('/run/');
-    await page.evaluate(
-      ({ k, v }) => window.localStorage.setItem(k, v),
-      { k: diagramHandoffKey(id), v: JSON.stringify({ createdAt: Date.now(), xml: UNTYPED_TASK_XML }) },
-    );
-
-    await page.goto(`/run/?diagram=${id}&seed=42`);
-    await page.getByRole('button', { name: /begin/i }).click();
-    await expect(page.getByRole('heading', { name: 'Plain task' })).toBeVisible();
-    // The generic step's panel offers nothing but the one button that goes on.
-    await expect(page.getByRole('heading', { name: 'Plain task' }).locator('..').getByRole('button')).toHaveCount(1);
-    await page.getByRole('button', { name: /continue/i }).click();
-    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
-    expect(errors).toEqual([]);
-
-    const remaining = await page.evaluate(
-      (key) => window.localStorage.getItem(key),
-      diagramHandoffKey(id),
-    );
-    expect(remaining).toBeNull();
   });
 
   // Every other case opens `run.html` directly; only this one covers the button. It has to claim
