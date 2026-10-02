@@ -22,7 +22,7 @@ const BPMN_JS_SERVICES = {
 
 export default [
   // `.claude/worktrees` holds other checkouts of this repo, each linted in its own.
-  { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results', '.claude'] },
+  { ignores: ['dist', '**/dist', 'docs', 'playwright-report', 'test-results', 'coverage', '.claude'] },
   // The repo's JavaScript is Node scripts: the release, the example renderer, the Electron shell, a dev proxy.
   {
     files: ['**/*.mjs'],
@@ -142,5 +142,15 @@ export default [
     files: ['packages/*/src/**/*.{ts,tsx}', 'skills/**/*.{ts,tsx}'],
     ignores: ['packages/core/src/**', 'skills/*/tests/**'],
     rules: { 'no-restricted-syntax': ['error', MODDLE] },
+  },
+  // An e2e spec takes `test` from tests/e2e.ts, whose fixture is how `npm run coverage` sees what the browser ran.
+  {
+    files: ['**/*.spec.ts'],
+    ignores: ['**/*.unit.spec.ts', '**/*.webkit.spec.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{ name: '@playwright/test', importNames: ['test'], message: 'An e2e spec takes `test` from tests/e2e.ts (`@tests/e2e`), so `npm run coverage` records what its pages run.' }],
+      }],
+    },
   },
 ]

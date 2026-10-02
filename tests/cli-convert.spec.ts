@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { expect, test } from '@playwright/test';
+import { expect, test } from './e2e';
 
 import { extractStudyflowFromPng, extractStudyflowFromSvg } from '@core/document';
 import { examplePath } from '@tests/utils';

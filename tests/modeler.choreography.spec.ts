@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './e2e';
 
 import { addPaletteElement, examplePath, exportDiagram, gotoModeler, labelEditor, readDownloadText } from './utils';
 

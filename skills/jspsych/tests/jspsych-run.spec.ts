@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@tests/e2e';
 
 import { studyToXml } from '@core/document';
 import { runStudyflow } from '@tests/utils';

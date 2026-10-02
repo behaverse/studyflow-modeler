@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 
-import { expect, test } from '@playwright/test';
+import { expect, test } from '@tests/e2e';
 
 import { diagramHandoffKey } from '@core/storage';
 import { gotoModeler, runStudyflow } from '@tests/utils';

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './e2e';
 
 import { STORAGE_KEYS } from '@core/storage';
 

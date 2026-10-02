@@ -9,7 +9,7 @@ npm install
 npm run dev                  # the modeler at http://localhost:5173/app.html, the browser runner at /run/
 npm run typecheck && npm run lint && npm run test:unit   # the gate: CI and `npm run release` run exactly this
 npm run test:e2e             # Playwright against its own dev server on :4173; CI skips it, so run it after UI changes
-npm run coverage             # the unit lane under c8 (.c8rc.json); open coverage/index.html. The e2e lane is not measured
+npm run coverage             # every lane under c8 (.c8rc.json), the browser's lines too; open coverage/index.html
 ```
 
 A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the dev server, `*.webkit.spec.ts` in WebKit. Where specs live, and what each kind pins: [Tests](#tests).
@@ -42,7 +42,7 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 
 ## Tests
 
-- A spec lives next to the code it tests, in `packages/core/tests`, `packages/canvas/tests`, `packages/desktop/tests` or `skills/<name>/tests`. `tests/` holds the modeler's specs, the CLI's, every e2e spec, and the helpers they share: `schemas.ts` (`freshModdle()`; importing it installs the shipped catalog), `utils.ts` (the shipped examples, the e2e steps) and `exporterFixture.ts`.
+- A spec lives next to the code it tests, in `packages/core/tests`, `packages/canvas/tests`, `packages/desktop/tests` or `skills/<name>/tests`. `tests/` holds the modeler's specs, the CLI's, every e2e spec, and the helpers they share: `schemas.ts` (`freshModdle()`; importing it installs the shipped catalog), `utils.ts` (the shipped examples, the e2e steps), `exporterFixture.ts`, and `e2e.ts`, the `test` every e2e spec takes (lint holds it), which records the browser's coverage under `npm run coverage`.
 - Pin a behaviour once, in the cheapest spec that sees it: a unit spec before an e2e one, the canvas through `src/index.ts` before a private helper. Look for the behaviour before adding a test, and add a row to its table rather than a near-copy.
 - An e2e spec is for what needs a browser, such as files, pickers and the UI wired end to end. One flow per feature.
 - Every shipped example gets two checks, each from one loop: its YAML is spelled the way the modeler writes it (`packages/core/tests/studyflow-yaml.unit.spec.ts`), and the canvas draws what its DI says (`packages/canvas/tests/canvas-render.unit.spec.ts`). No spec counts the examples or snapshots a drawing.
