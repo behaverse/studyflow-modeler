@@ -1,3 +1,4 @@
+import { boxToText, pointsToText, type Point } from '@core/model/spelling';
 import { foldTyped, studyText } from '@core/model/yaml';
 import type { Element, Study, Value } from '@core/model/index';
 import type { Metamodel } from '@core/model/metamodel';
@@ -15,10 +16,6 @@ const LAYOUT = {
   dataHeight: 50,
 } as const;
 
-type Point = { x: number; y: number };
-
-const route = (points: Point[]): string => points.map(({ x, y }) => `${x},${y}`).join(' ');
-
 /** An imported timeline as a `.studyflow.yaml`: start, a task per trial, end, in a row, each task's parameters wired in from below. */
 export function buildStudyflowYaml(study: ImportedStudy, metamodel: Metamodel): string {
   const flowElements: Element[] = [];
@@ -27,7 +24,7 @@ export function buildStudyflowYaml(study: ImportedStudy, metamodel: Metamodel): 
   let cursorX = LAYOUT.startX;
 
   const place = (element: Element, width: number, height: number): void => {
-    layout[element.id!] = { bounds: `${cursorX} ${LAYOUT.laneY - height / 2} ${width} ${height}` };
+    layout[element.id!] = { bounds: boxToText({ x: cursorX, y: LAYOUT.laneY - height / 2, width, height }) };
     sides.set(element.id!, { left: { x: cursorX, y: LAYOUT.laneY }, right: { x: cursorX + width, y: LAYOUT.laneY } });
     cursorX += width + LAYOUT.gap;
   };
@@ -50,8 +47,8 @@ export function buildStudyflowYaml(study: ImportedStudy, metamodel: Metamodel): 
       flowElements.push(parameters);
       const bottom = LAYOUT.laneY + LAYOUT.taskHeight / 2;
       const top = bottom + LAYOUT.gap;
-      layout[parameters.id!] = { bounds: `${center - LAYOUT.dataWidth / 2} ${top} ${LAYOUT.dataWidth} ${LAYOUT.dataHeight}` };
-      layout[association.id!] = { waypoint: route([{ x: center, y: top }, { x: center, y: bottom }]) };
+      layout[parameters.id!] = { bounds: boxToText({ x: center - LAYOUT.dataWidth / 2, y: top, width: LAYOUT.dataWidth, height: LAYOUT.dataHeight }) };
+      layout[association.id!] = { waypoint: pointsToText([{ x: center, y: top }, { x: center, y: bottom }]) };
     }
     return element;
   });
@@ -65,7 +62,7 @@ export function buildStudyflowYaml(study: ImportedStudy, metamodel: Metamodel): 
     const [source, target] = [chain[i].id!, chain[i + 1].id!];
     const id = `Flow_${source}_${target}`;
     flowElements.push({ type: 'bpmn:SequenceFlow', id, sourceRef: source, targetRef: target });
-    layout[id] = { waypoint: route([sides.get(source)!.right, sides.get(target)!.left]) };
+    layout[id] = { waypoint: pointsToText([sides.get(source)!.right, sides.get(target)!.left]) };
   }
 
   const process: Element = { type: 'studyflow:Study', id: study.processId, name: study.name, isExecutable: true, flowElements };
