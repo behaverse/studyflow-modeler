@@ -210,6 +210,28 @@ test('set writes an attribute where its schema keeps it, by any id the document 
   expect(study.element('Count')!.name).toBe('total');
 });
 
+test('set writes a list of text into the schema entry that keeps it, and an empty list clears it', () => {
+  const study = Study.of(studyModel(`id: Defs_4
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab_1:
+  type: Collaboration
+  extensionElements:
+    - type: studyflow:Study
+  participants:
+    Pool_1:
+      processRef: Process_1
+Process_1:
+  type: Process
+`));
+  const authors = () => study.model.attribute(study.element('Collab_1')!, 'authors');
+
+  expect(study.set({ id: 'Collab_1', attribute: 'studyflow:authors', value: ['Ada', ''] }).ok).toBe(true);
+  expect(authors()).toEqual(['Ada', '']);
+  expect(study.set({ id: 'Collab_1', attribute: 'studyflow:authors', value: [] }).ok).toBe(true);
+  expect(authors()).toBeUndefined();
+});
+
 test('set takes a structured attribute as the file spells it: a loop, a timer, the data a step reads, a reference; each one undo step', () => {
   const study = open();
   const task = (): any => study.element('Task_1');

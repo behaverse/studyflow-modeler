@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, useState } from 'react';
 import type { ChangeEvent, ComponentType } from 'react';
 import { Checkbox, Input, Label, Textarea } from '@headlessui/react';
 import { EDITOR_NAMES, type AttributeSpec, type EditorName } from '@core/notation';
@@ -75,15 +75,18 @@ function BooleanInput({ attrDef }: { attrDef: AttributeSpec }) {
 }
 
 function OptionalStringInput({ attrDef }: { attrDef: AttributeSpec }) {
-  const { value, commit } = useAttributeState<string | undefined>(
+  const { value, commit, element } = useAttributeState<string | undefined>(
     attrDef,
     (raw) => (raw == null ? undefined : String(raw)),
   );
   const name = attrDef.ns.name;
-  const isSet = value !== undefined;
+  // The study keeps no empty value, so a field ticked and not yet typed into is open here alone, for this element.
+  const [openFor, setOpenFor] = useState<unknown>(undefined);
+  const isSet = value !== undefined || (openFor !== undefined && openFor === element?.id);
 
   function handleToggle(checked: boolean) {
-    commit(checked ? '' : undefined);
+    setOpenFor(checked ? element?.id : undefined);
+    if (!checked) commit(undefined);
   }
 
   function handleTextChange(e: ChangeEvent<HTMLInputElement>) {

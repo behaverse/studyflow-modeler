@@ -334,10 +334,15 @@ export class Study {
     const held = [element[local]].flat()[0];
     const text = typeof held === 'string' || (isElement(held) && (model.isA(held, 'bpmn:Expression') || model.isA(held, 'bpmn:Documentation')));
     const structured = !!property?.isReference || (isElement(held) && !text);
-    if (value === null ? structured : typeof value === 'object' || property?.isReference) return this.spell(element, local, value, found.drawn?.id ?? this.root.id);
+    // A list of text, numbers or literals (a study's authors, a recording's modalities) is no structure: it is written
+    // in place as one of them is, in the schema entry that keeps it when the element has one.
+    const extension = model.extensionType(element);
+    const declared = property ?? (extension ? model.metamodel.property(extension, local) : undefined);
+    const plainList = Array.isArray(value) && value.every((item) => typeof item !== 'object') && !model.metamodel.has(declared?.type ?? '');
+    if (value === null ? structured : (typeof value === 'object' && !plainList) || property?.isReference) return this.spell(element, local, value, found.drawn?.id ?? this.root.id);
     // Typing into one attribute is one undo step, however many keystrokes wrote it.
     return this.within(`set:${id}:${attribute}`, () => this.commit(() => {
-      const written = value === '' || value === null || value === undefined ? undefined
+      const written = value === '' || value === null || value === undefined || (Array.isArray(value) && value.length === 0) ? undefined
         : property?.isMany && typeof value === 'string' ? [value] : value as Value;
       if (model.attribute(element, local) === written) return;
       model.setAttribute(element, local, written);
