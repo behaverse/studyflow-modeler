@@ -109,7 +109,14 @@ export function discoverRunners(roots: string[], dependencies: string[]): Map<st
 
 export type Claims = { elements: string[]; live: boolean };
 
-/** How long a runner asked to stop a hand-off, or to shut down, has before its process is ended. */
+/** How long a runner told to `cancel` a hand-off has to answer before its process is ended. A runner answers at once,
+ * letting work that cannot stop midway finish behind the answer (CONTRACT.md), and one running work it cannot leave (a
+ * study's own code) is ended either way. The second is a margin over the quarter of a second the shipped runners take,
+ * for a walk busy committing a step. */
+const CANCEL_MS = 1000;
+
+/** How long a runner asked to shut down, or ended, has to let go of what it holds (a robot to fold, a window to close)
+ * before its process is ended, or killed. */
 const GRACE_MS = 2000;
 
 /** Seconds a runner has to answer `initialize` (`--start-timeout`): long, since a first `uv run` installs the runner's
@@ -295,7 +302,7 @@ export class PartialRunner {
       if (stopped) return;
       stopped = why;
       this.write({ method: 'cancel', params: { element: id } });
-      grace = setTimeout(() => end(child), GRACE_MS);
+      grace = setTimeout(() => end(child), CANCEL_MS);
     };
     const timer = this.timeout ? setTimeout(() => cancel(`took longer than ${this.timeout}s, and was stopped`), this.timeout * 1000) : undefined;
     const aborted = (): void => cancel('was stopped');

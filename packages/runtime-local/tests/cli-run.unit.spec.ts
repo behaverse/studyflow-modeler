@@ -478,7 +478,7 @@ test.describe('partial runner hand-off', () => {
     <bpmn:sequenceFlow id="F2" sourceRef="Slow" targetRef="Done"/>
   </bpmn:process>
 </bpmn:definitions>`);
-    // A runner that does not heed `cancel`: its process is ended, the two seconds' grace after it.
+    // A runner that does not heed `cancel`: its process is ended a second after it.
     writeRunner(path.join(dir, 'slow.py'), "['Slow']", ['time.sleep(30)']);
     const started = Date.now();
     expect(() => execFileSync(process.execPath, [BIN, 'run', 'plan.bpmn', '--repo', 'run', '--quiet',
