@@ -52,6 +52,11 @@ Pools talk only along message flows, and the walk carries every message: `{"id",
 
 The run's values carry the study's state tree under `state` (`state.<scope>.<property>`, `state._meta`). `state._meta.reached.<id>` counts, over the study's runs, the tokens that reached each element and that took each sequence flow, so a flow's label may cite `{reached}` as a node's does. A data edge into a declared property writes it (`state.<scope>.<name>`), and so does a value a runner binds under the property's own id; re-entering a scope re-initialises both.
 
+Paths that run at once share their scopes' state. A step's outputs are taken when it finishes, so when steps on two
+such paths write one property or data element, the step that finishes last sets it, and which that is depends on how
+long each takes. `studyflow validate` warns about such a pair; pools also run at once, ordered only by their messages,
+and are not compared.
+
 ## Where the walk departs from BPMN 2.0
 
 The walk is a profile of BPMN 2.0's execution semantics. A split starts a path for each flow it takes (a parallel
