@@ -166,6 +166,18 @@ with tempfile.TemporaryDirectory() as folder:
     tested.execute(table)
     assert tested.bound == {"Test": {"statistic": 4.08, "pvalue": 0.002, "subjects": 8}}, tested.bound
 
+# A CSV's list column, a CSVW column with a `separator`, reads as lists: a trial's options arrive as a list.
+with tempfile.TemporaryDirectory() as folder:
+    (Path(folder) / "trials.csv").write_text("Trial,ResponseOptions\n1,left right\n2,\n")
+    body = "tableSchema:\n  columns:\n    - name: Trial\n    - name: ResponseOptions\n      separator: ' '\n"
+    listed = python.Plan({"elements": {
+        "Trials": {"id": "Trials", "type": "dataObjectReference", "attributes": {"uri": "trials.csv", "schema": "Trial_Schema"}},
+        "Trial_Schema": {"id": "Trial_Schema", "type": "dataObjectReference", "attributes": {},
+                         "extensions": [{"type": "schema", "attributes": {"body": body}}]},
+    }})
+    trials = python.Run(listed, Path(folder), Path(folder) / ".cache", []).value_of("Trials")
+    assert trials.to_dict(orient="records") == [{"Trial": 1, "ResponseOptions": ["left", "right"]}, {"Trial": 2, "ResponseOptions": []}], trials
+
 # A column the step names and its table lacks is said so, with the nearest column the table has; a KeyError pandas
 # words as a sentence is left as it is.
 import pandas  # noqa: E402

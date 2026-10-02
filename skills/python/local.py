@@ -99,16 +99,29 @@ class Plan:
         """Whether a step of the study writes the element, so it is never a boundary input."""
         return any(output.get("target") == element_id for element in self.elements.values() for output in element.get("outputs") or [])
 
-    def columns(self, element_id: str) -> list[str]:
-        """The columns the schema bound to a data element declares: its `schema`, a `studyflow:Schema` whose body is a
-        CSVW table schema. None without one."""
+    def schema_columns(self, element_id: str) -> list[dict[str, Any]]:
+        """The columns the schema bound to a data element declares, each as written: its `schema`, a `studyflow:Schema`
+        whose body is a CSVW table schema. None without one."""
         def attribute(element: dict[str, Any], name: str) -> Any:
             held = [(element.get("attributes") or {}).get(name), *((ext.get("attributes") or {}).get(name) for ext in element.get("extensions") or [])]
             return next((value for value in held if value), None)
         body = attribute(self.elements.get(str(attribute(self.elements.get(element_id) or {}, "schema"))) or {}, "body")
         table = (yaml.safe_load(body) if isinstance(body, str) else body) or {}
         listed = (table.get("tableSchema") or table).get("columns") if isinstance(table, dict) else None
-        return [column["name"] for column in listed or [] if isinstance(column, dict) and column.get("name")]
+        return [column for column in listed or [] if isinstance(column, dict) and column.get("name")]
+
+    def columns(self, element_id: str) -> list[str]:
+        """The names of the columns the schema bound to a data element declares."""
+        return [column["name"] for column in self.schema_columns(element_id)]
+
+    def with_lists(self, element_id: str, table: Any) -> Any:
+        """A CSV table with each list column its schema declares read as lists: a CSVW column with a `separator` holds
+        several values in a cell (`left right`), so a trial's options arrive as a list. An empty cell is no value."""
+        import pandas
+        for column in self.schema_columns(element_id):
+            if column.get("separator") and column["name"] in table:
+                table[column["name"]] = [[] if pandas.isna(cell) else str(cell).split(column["separator"]) for cell in table[column["name"]]]
+        return table
 
 
 def format_for(uri: str, declared: str | None) -> str:
@@ -286,6 +299,8 @@ class Run:
                 if not path.exists():
                     self.stage_input(uri, path)
                 value = load_artifact(path, fmt)
+                if fmt == "csv":
+                    value = self.studyflow.with_lists(element_id, value)
             self.values[element_id] = value
             return value
         spilled = self.spill / f"{element_id}.joblib"

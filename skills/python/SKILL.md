@@ -15,7 +15,9 @@ is claimed and called with its inputs, in an environment holding the study's `de
 [placeholder](../../docs/reference.qmd#placeholders), `{split.train}`, passes the value it cites rather than its text.
 A data element's `uri` says how its value is loaded and saved, by the `format` it declares or its suffix:
 `parquet`, `csv`, `json`, `joblib`, and `jsonl`, one JSON record per line, which loads as a flat table (a nested
-key becomes an `a.b` column, so `context.subject` groups) and saves with `orient="records"`. One record, a mapping,
+key becomes an `a.b` column, so `context.subject` groups) and saves with `orient="records"`. A `csv` whose bound
+`studyflow:Schema` gives a CSVW column a `separator` reads that column's cells as lists (`left right` with
+`separator: " "` is `["left", "right"]`), as CSVW reads a list-valued cell. One record, a mapping,
 written to a `jsonl` data store (a `Dataset`) is appended to it as a line, as a trial log grows: a step that runs once
 per subject, in a pool of several instances or a loop, leaves one line per subject, and the store's value stays the
 file, every line of it, rather than that record. Before its first line such a store, one a step of the study writes,
