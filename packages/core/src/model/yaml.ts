@@ -473,6 +473,12 @@ class Writer {
       out[key] = value.map((item) => this.value(item, p.type));
       return;
     }
+    // YAML an edit wrote as text is written as the mapping the reader makes of it, so a save after an edit spells it
+    // as a save after a reload does.
+    if (isYamlValueProperty(p) && typeof value === 'string') {
+      out[key] = (inlineYamlValue(value, p) ?? value) as Value;
+      return;
+    }
     out[key] = this.value(value, p.type);
   }
 

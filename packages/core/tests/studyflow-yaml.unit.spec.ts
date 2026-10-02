@@ -199,7 +199,7 @@ P:
     expect(model.get('F1')).toEqual({ type: 'bpmn:SequenceFlow', id: 'F1', sourceRef: 'A' });
   });
 
-  test('a Parameters text round-trips XML <-> YAML: markup unsafe in XML is escaped, and a comment survives', async () => {
+  test('a Parameters text round-trips XML <-> YAML: markup unsafe in XML is escaped, a comment survives, and text an edit wrote is its mapping', async () => {
     const doc = (values: string) => `
 id: values_demo
 definitions:
@@ -223,6 +223,14 @@ P:
     const commented = await xmlOf(doc(`"${comment}"`));
     expect(commented).toContain(comment);
     expect((yaml.load(await yamlOf(commented)) as any).P.flowElements.C1.values).toBe(comment);
+
+    // Text an edit wrote is spelled as the mapping a re-read holds, in YAML and XML, so the file does not depend on
+    // whether one came between.
+    const edited = studyModel(doc('{ seed: 1 }'));
+    edited.setAttribute(edited.get('C1')!, 'values', '{ seed: 2 }');
+    const text = studyText(edited.study, edited.metamodel);
+    expect((yaml.load(text) as any).P.flowElements.C1.values).toEqual({ seed: 2 });
+    expect(await studyToXml(edited)).toBe(await xmlOf(text));
   });
 
   test('a message flow names its message, and the message its item definition, through a round trip', async () => {
