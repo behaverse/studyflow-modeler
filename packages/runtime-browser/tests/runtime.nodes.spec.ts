@@ -34,6 +34,7 @@ const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn2:task id="Untyped_1" name="Plain task">
       <bpmn2:incoming>F1</bpmn2:incoming>
       <bpmn2:outgoing>F2</bpmn2:outgoing>
+      <bpmn2:standardLoopCharacteristics loopMaximum="2" />
     </bpmn2:task>
     <bpmn2:endEvent id="EndEvent_1">
       <bpmn2:incoming>F2</bpmn2:incoming>
@@ -195,7 +196,7 @@ test.describe('Studyflow runtime nodes', () => {
   });
 
   // `addInitScript` re-seeds on every navigation, including the reload, and would make this pass regardless.
-  test('a reload mid-run still finds the diagram, an untyped task is the generic continue step, and the hand-off is released once the run ends', async ({ page }) => {
+  test('a reload mid-run still finds the diagram, an untyped task is the generic continue step, shown afresh for each pass, and the hand-off is released once the run ends', async ({ page }) => {
     // The node logs from an effect, where a log forced through flushSync made React report an error.
     const errors: string[] = [];
     page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
@@ -215,7 +216,11 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByRole('heading', { name: 'Plain task' })).toBeVisible();
     // The generic step's panel offers nothing but the one button that goes on.
     await expect(page.getByRole('heading', { name: 'Plain task' }).locator('..').getByRole('button')).toHaveCount(1);
-    await page.getByRole('button', { name: /continue/i }).click();
+    // It repeats twice: the second pass is a screen of its own, which takes its own click.
+    for (let pass = 1; pass <= 2; pass += 1) {
+      await expect(page.getByRole('heading', { name: 'Plain task' }), `pass ${pass}`).toBeVisible();
+      await page.getByRole('button', { name: /continue/i }).click();
+    }
     await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
     expect(errors).toEqual([]);
 

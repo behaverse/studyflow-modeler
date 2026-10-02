@@ -120,6 +120,8 @@ export function Runner() {
   const [phase, setPhase] = useState('idle');
   const [log, setLog] = useState<Log[]>([]);
   const [currentJob, setCurrentJob] = useState<Job | null>(null);
+  // Each screen shown is a new one, a step reached again included, so it starts afresh and takes its own click.
+  const [shown, setShown] = useState(0);
   const [studyflowName, setStudyflowName] = useState<string | null>(null);
   const [blockingIssues, setBlockingIssues] = useState<ValidationIssue[]>([]);
   const [runError, setRunError] = useState<string | undefined>();
@@ -261,6 +263,7 @@ export function Runner() {
         setPhase('running');
         for await (const job of session.traverse()) {
           setCurrentJob(job);
+          setShown((count) => count + 1);
           setPhase(`job:${job.type}`);
           const outcome = await new Promise<NodeOutcome>((resolve) => {
             resolverRef.current = resolve;
@@ -302,7 +305,7 @@ export function Runner() {
         <div className={layout.stage}>
           {currentJob ? (
             <NodeRenderer
-              key={currentJob.node.id}
+              key={shown}
               job={currentJob}
               session={session!}
               log={addLog}
