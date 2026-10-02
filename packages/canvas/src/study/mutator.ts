@@ -51,6 +51,7 @@ import {
   EXPANDED_SIZE,
   frameAround,
   incidentEdgesOf,
+  isHidden,
 } from '@canvas/study/tree.ts';
 import { cropPoint, isExpandable } from '@core/document/outline.ts';
 import { samePoints } from '@canvas/study/edit.ts';
@@ -332,7 +333,7 @@ export class Mutator {
   // --- expand / collapse ------------------------------------------------------
 
   /**
-   * Collapse to the plain activity box, or expand around the contents — moving
+   * Collapse to the plain activity box, or expand around the contents it then shows — moving
    * them into the frame first when they sit elsewhere (placed while it was collapsed).
    * Incident and crossing edges re-dock to the new outline.
    */
@@ -343,14 +344,17 @@ export class Mutator {
     let bounds: Bounds = { x: node.x, y: node.y, ...COLLAPSED_SIZE };
     if (expanded) {
       bounds = { x: node.x, y: node.y, ...EXPANDED_SIZE };
-      const box = boundsOf(contents);
+      // The frame goes round what it shows: not what a closed container in it holds, nor a flow that leaves it.
+      const leaving = new Set<SceneElement>(crossingEdgesOf(node));
+      const shown = contents.filter((element) => !isHidden(element, node) && !leaving.has(element));
+      const box = boundsOf(shown);
       if (box) {
         const inside = box.x >= node.x && box.y >= node.y
           && box.x + box.width <= node.x + node.width && box.y + box.height <= node.y + node.height;
         if (!inside) {
           translateElements(contents, node.x + CONTENT_PADDING.left - box.x, node.y + CONTENT_PADDING.top - box.y);
         }
-        bounds = frameAround(node, boundsOf(contents) ?? box);
+        bounds = frameAround(node, boundsOf(shown) ?? box);
       }
     }
     const moved = this.applyBounds(node, bounds);

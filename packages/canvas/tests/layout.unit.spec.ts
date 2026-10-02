@@ -667,6 +667,10 @@ P:
         Read:
           type: ServiceTask
           name: Read the trials
+          dataInputAssociations:
+            In_Store:
+              sourceRef:
+                - Store
           dataOutputAssociations:
             Out_Table:
               targetRef: Table
@@ -679,13 +683,24 @@ P:
           flowElements:
             T_Start: { type: StartEvent }
             T_Run: { type: ServiceTask, name: Run the test }
+            T_Decide: { type: ExclusiveGateway }
+            T_Yes: { type: EndEvent }
+            T_No: { type: EndEvent }
+            T_Neither: { type: EndEvent }
+            T_Either: { type: EndEvent }
             TF_1: T_Start -> T_Run
+            TF_2: T_Run -> T_Decide
+            TF_3: T_Decide -> T_Yes
+            TF_4: T_Decide -> T_No
+            TF_5: T_Decide -> T_Neither
+            TF_6: T_Decide -> T_Either
         Not_Testable: { type: EndEvent, name: Not testable }
         AF_1: A_Start -> Read
         AF_2: Read -> Enough
         AF_3: Enough -> Test
         AF_4: Enough -> Not_Testable
     End: { type: EndEvent, bounds: 360 122 36 36 }
+    Store: { type: DataStoreReference, bounds: 100 900 50 50 }
     F_1:
       sourceRef: Start
       targetRef: Analysis
@@ -715,4 +730,9 @@ layout:
 
   study.expand({ id: 'Analysis' });
   for (const id of inside.slice(0, 6)) expect(holds(box(study, 'Analysis'), box(study, id))).toBe(true);
+  // Framed round what it shows: not what the closed Test holds, nor the route in from the store outside.
+  const shown = study.list({ within: 'Analysis' }).filter((r) => !r.plane && r.id !== 'In_Store');
+  const reach = (r: ElementRecord, axis: 'x' | 'y'): number => (r.bounds ? r.bounds[axis] + r.bounds[axis === 'x' ? 'width' : 'height'] : Math.max(...r.waypoints!.map((p) => p[axis])));
+  const frame = box(study, 'Analysis');
+  expect([frame.x + frame.width, bottom(frame)]).toEqual([Math.max(...shown.map((r) => reach(r, 'x'))) + 30, Math.max(...shown.map((r) => reach(r, 'y'))) + 30]);
 });
