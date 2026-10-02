@@ -1,5 +1,6 @@
 import { BPMN } from '@core/constants';
 import { parseImplementationRef } from '@core/implementation';
+import { isElement } from '@core/model/index';
 import { readString, type FlowNode } from '@runner/flow';
 import type { Job } from '@runner/jobs';
 import type { AnyNodeDefinition, NodeDefinition } from '@runner/nodes/types';
@@ -10,6 +11,14 @@ const nodes: AnyNodeDefinition[] = [];
 
 /** BPMN's tasks: `bpmn:Task` and its subtypes. */
 const TASKS: ReadonlySet<string> = new Set([BPMN.Task, BPMN.UserTask, BPMN.ScriptTask, BPMN.ServiceTask, BPMN.ManualTask, BPMN.SendTask, BPMN.ReceiveTask, BPMN.BusinessRuleTask]);
+
+/** A catch event that waits for a timer. Its screen shows that wait, which is the walk's: the walk keeps the time, and
+ * the step is never handed to the screen. */
+export function waitsForTime(node: FlowNode): boolean {
+  const definitions = Array.isArray(node.element.eventDefinitions) ? node.element.eventDefinitions : [];
+  return node.type === BPMN.IntermediateCatchEvent
+    && definitions.some((definition) => isElement(definition) && definition.type === 'bpmn:TimerEventDefinition');
+}
 
 export function registerNode<J extends Job, C = unknown>(def: NodeDefinition<J, C>): void {
   if (nodes.some((n) => n.type === def.type)) {
@@ -23,6 +32,8 @@ export function getRegisteredNodes(): readonly AnyNodeDefinition[] {
 }
 
 export function findByFlowNode(node: FlowNode): AnyNodeDefinition | undefined {
+  // A catch event's screen shows its timer's wait, so a catch event that waits for none has no screen.
+  if (node.type === BPMN.IntermediateCatchEvent && !waitsForTime(node)) return undefined;
   const registered = getRegisteredNodes();
 
   // What the step's `implementation` names runs it, whatever type the step is.

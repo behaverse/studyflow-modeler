@@ -37,6 +37,11 @@ registerNode({
 });
 ```
 
+A timer catch event's screen is never handed its step: the walk waits for the time itself, and the screen shows the
+wait. Its job gets `until`, when the wait ends (ms since the epoch); `WaitPanel` (`@runner/nodes/WaitPanel`) draws a
+title, what the participant does meanwhile, and the time left. The page drops the screen when the time is up, so it
+calls neither `complete` nor `abort`. A catch event that waits for no timer has no screen.
+
 A skill that watches the runs themselves rather than playing a step (the behaverse skill records them on its data server)
 calls `registerRunObserver({ start, finish, close?, toggle? })` from `@runner/observers` in the same module: `start` is
 told the study and who takes it once the checks pass, and may name the run; `finish` is told how it ended; `toggle`

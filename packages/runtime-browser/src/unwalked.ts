@@ -1,5 +1,5 @@
 import { Graph } from '@core/engine';
-import { findByFlowNode } from '@runner/nodes/registry';
+import { findByFlowNode, waitsForTime } from '@runner/nodes/registry';
 import { peopleOf } from '@runner/session';
 import type { Studyflow } from '@runner/studyflow';
 import type { ValidationIssue } from '@runner/nodes/types';
@@ -11,7 +11,8 @@ import type { ValidationIssue } from '@runner/nodes/types';
  * step of a pool the page walks, or a pool the person at the page plays (no process, a human actor), who answers each
  * message on a screen. A pool no one in the page plays (a model, a device), and a screen that would have to exchange
  * messages itself, are refused; what a screen does not do is said as a warning: fill a data edge. A step that
- * exchanges messages has no screen, and the walk fills its data edges as it sends and receives. A step of a type no
+ * exchanges messages has no screen, and the walk fills its data edges as it sends and receives. A timer event is never
+ * handed to its screen, which only shows the walk's wait: it is the walk's, as in a local run. A step of a type no
  * screen takes is warned about too.
  */
 export function validateUnwalked(studyflow: Studyflow): ValidationIssue[] {
@@ -27,7 +28,8 @@ export function validateUnwalked(studyflow: Studyflow): ValidationIssue[] {
     const label = element.name || element.id;
     const node = studyflow.flowNodes.get(element.id);
     const screen = node && findByFlowNode(node);
-    if (screen && !('fallback' in screen.match && talks(element.id)) && element.inputs.length + element.outputs.length > 0) {
+    const handed = screen && !waitsForTime(node) ? screen : undefined;
+    if (handed && !('fallback' in handed.match && talks(element.id)) && element.inputs.length + element.outputs.length > 0) {
       issues.push({ nodeId: element.id, severity: 'warning', message: `'${label}' reads or writes data along drawn edges, which this runtime's screens do not fill. ${locally}` });
     }
     // A step of a schema's type no screen takes is passed over, but for a gateway whose schema says how it branches,
@@ -47,7 +49,7 @@ export function validateUnwalked(studyflow: Studyflow): ValidationIssue[] {
       }
       const node = studyflow.flowNodes.get(element.id);
       const screen = node && findByFlowNode(node);
-      if (screen && !('fallback' in screen.match)) {
+      if (screen && !('fallback' in screen.match) && !waitsForTime(node)) {
         issues.push({ nodeId: flow.id, message: `'${label}' is a screen, and a screen does not exchange messages along ${flow.id}. ${locally}` });
       }
     }

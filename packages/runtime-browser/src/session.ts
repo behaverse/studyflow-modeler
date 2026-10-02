@@ -1,6 +1,6 @@
 import { Graph, Walk, type Handback, type Host, type Message, type PlanElement, type RunEvent, type StateTree } from '@core/engine';
 import { evaluateFeel } from '@core/expression/feel';
-import { findByFlowNode } from '@runner/nodes/registry';
+import { findByFlowNode, waitsForTime } from '@runner/nodes/registry';
 import type { Job } from '@runner/jobs';
 import type { Studyflow } from '@runner/studyflow';
 
@@ -12,7 +12,8 @@ export type SessionContext = {
   agentId?: string;
   sessionId?: string;
   onDiagnostic?: (message: string) => void;
-  /** A timer at a boundary event ended the step on screen: the page drops the screen and asks for the next job. */
+  /** A timer ended the screen on show: a timer event's wait is over, or a timer at a boundary event ended the step on
+   * screen. The page drops the screen and asks for the next job. */
   onExpired?: (id: string) => void;
 };
 
@@ -42,7 +43,8 @@ export function peopleOf(elements: Record<string, PlanElement>): Set<string> {
  * local runtime hosts too. A step a node module has a screen for is a claimed element, and its hand-off is that
  * screen: `traverse` yields its job, and asking for the next job says the screen is done. A pool the person plays
  * is claimed too: each message the study sends it is a screen, and what the person answers is the reply. A step
- * that exchanges messages has no screen of its own, so the walk sends and receives for it. Every event of the run is
+ * that exchanges messages has no screen of its own, so the walk sends and receives for it. A timer event is never
+ * claimed: the walk waits for its time, and its screen shows the wait meanwhile (`wait`). Every event of the run is
  * kept, the record a local run keeps in `events.jsonl` (`getRecord`).
  */
 export class Session {
@@ -52,6 +54,8 @@ export class Session {
 
   private readonly walk: Walk;
   private readonly jobs = new Map<string, Job>();
+  /** The screens of the timer events, each shown while the walk waits for its time. */
+  private readonly waits = new Map<string, Job>();
   private readonly undeclared = new Set<string>();
   private readonly onDiagnostic?: (message: string) => void;
   private readonly onExpired?: (id: string) => void;
@@ -85,7 +89,7 @@ export class Session {
       const exchanged = graph.exchange(elements[node.id]);
       if (definition && 'fallback' in definition.match && exchanged.outgoing.length + exchanged.incoming.length > 0) continue;
       const job = (definition?.toJob(node) as Job | null | undefined) ?? undefined;
-      if (job) this.jobs.set(node.id, job);
+      if (job) (waitsForTime(node) ? this.waits : this.jobs).set(node.id, job);
       else if (definition) this.diagnose(`'${node.id}' (${definition.type}) has nothing to run; step skipped`);
     }
     const host: Host = {
@@ -101,6 +105,7 @@ export class Session {
         if (message) return { result: replied };
         return replied === null ? {} : this.handback(studyflow.plan.elements[id], replied);
       },
+      wait: (ms, signal, at) => this.wait(ms, signal, at),
       record: (event) => this.events.push(event),
       log: (_event, message, detail) => {
         if (detail?.level === 'warning' || detail?.level === 'error') this.diagnose(message.trim());
@@ -167,6 +172,28 @@ export class Session {
       values[target] = value;
     }
     return { result, values };
+  }
+
+  /** A timer's wait, `ms` by the machine's clock. A timer event's screen shows it meanwhile, told when the wait ends
+   * (`until`), until the time comes or the walk stops waiting (a boundary event of an activity around it ended it):
+   * then the page is told to drop it. The screen never ends the wait. */
+  private wait(ms: number, signal: AbortSignal, at: string): Promise<void> {
+    const waited = new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, ms);
+      signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+    });
+    const job = this.waits.get(at);
+    if (job) {
+      const until = Date.now() + ms;
+      const over = new AbortController();
+      const end = (): void => over.abort();
+      signal.addEventListener('abort', end, { once: true });
+      void waited.then(end);
+      // Its turn may come after its time, when the screen before it outlasted the wait: it is then not shown.
+      const shown = this.turn.then(() => (over.signal.aborted ? undefined : this.show(at, { ...job, until } as Job, over.signal)));
+      this.turn = shown.catch(() => undefined);
+    }
+    return waited;
   }
 
   /** The screen of one message to a pool the person plays. */

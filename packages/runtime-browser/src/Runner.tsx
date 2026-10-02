@@ -215,7 +215,7 @@ export function Runner() {
           agentId,
           variables: values,
           onDiagnostic: (message: string) => addLog('error', message),
-          // A step whose timer ran out leaves its screen: the loop below goes on to the next job.
+          // A screen whose time is up is dropped: the loop below goes on to the next job.
           onExpired: () => handleResolve({ kind: 'complete' }),
         });
         if (participant === undefined && session.draws) {

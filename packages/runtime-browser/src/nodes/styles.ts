@@ -24,4 +24,5 @@ export const nodeStyles = {
   completionLabel: 'text-base font-semibold text-stone-900',
   completionCode: 'font-mono bg-stone-900 text-emerald-300 px-5 py-3 rounded text-2xl tracking-widest break-all select-all',
   redirectInfo: 'text-sm text-stone-600',
+  countdown: 'font-mono text-4xl tabular-nums text-stone-900 text-center py-4',
 } as const;

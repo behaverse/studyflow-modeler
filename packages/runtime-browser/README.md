@@ -4,8 +4,9 @@ The browser runner executes a studyflow with a participant in front of it, one s
 
 It hosts the walk (`packages/core/src/engine`, the engine the local runtime hosts too) for one participant: a
 step one of its node modules has a screen for is handed to that screen, and the walk goes on when the screen is
-done. Its own node modules under `src/nodes/` execute the core vocabulary (start, end, task, message,
-choreography); every skill's `runtimes.browser` module is imported
+done. A timer event is the walk's own: it waits for the time, and the page shows the wait meanwhile, the time left
+counting down. Its own node modules under `src/nodes/` execute the core vocabulary (start, end, task, message,
+choreography, timer); every skill's `runtimes.browser` module is imported
 at startup and registers itself the same way.
 
 Pools talk as they do in a local run. A pool with no process whose actor is human (a pool that says no

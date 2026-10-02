@@ -39,6 +39,12 @@ registerNode({
   toJob: (node: FlowNode) => ({ type: 'message', node, message: null }),
   Component: nothing,
 });
+registerNode({
+  type: 'timer',
+  match: { bpmnType: 'bpmn:IntermediateCatchEvent' },
+  toJob: (node: FlowNode) => ({ type: 'timer', node }),
+  Component: nothing,
+});
 
 const load = (yaml: string) => Studyflow.parse(yaml, structuredClone(packages));
 
@@ -196,6 +202,33 @@ test('a screen whose step a timer ends is dropped: the page is told, and the nex
     if (job.node.id === 'Slow') await expired; // the participant never finishes it
   }
   expect(shown).toEqual(['Start', 'Slow', 'TimedOut']);
+});
+
+test('a timer event is the walk\'s to wait: its screen is told when the wait ends, and the page is told to drop it then', async () => {
+  let expire!: () => void;
+  const expired = new Promise<void>((resolve) => { expire = resolve; });
+  const session = new Session(await load(`${HEAD}Study:
+  type: bpmn:Process
+  flowElements:
+    Start: { type: StartEvent }
+    Break:
+      type: IntermediateCatchEvent
+      eventDefinitions:
+        Timer: { type: TimerEventDefinition, timeDuration: PT0.2S }
+    End: { type: EndEvent }
+    F1: Start -> Break
+    F2: Break -> End
+`), { onExpired: () => expire() });
+  const shown: string[] = [];
+  for await (const job of session.traverse()) {
+    shown.push(job.node.id);
+    if (job.node.id === 'Break') {
+      const left = (job as { until?: number }).until! - Date.now();
+      expect([left > 0, left <= 200]).toEqual([true, true]);
+      await expired; // the screen has no button
+    }
+  }
+  expect(shown).toEqual(['Start', 'Break', 'End']);
 });
 
 test.describe('the state a session keeps', () => {

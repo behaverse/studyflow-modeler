@@ -8,11 +8,17 @@ import { loadSchemaModels, schemaPackages } from '@tests/schemas';
 
 const packages: Record<string, any> = schemaPackages(loadSchemaModels());
 
-// A screen of its own for an instruction, and the generic step every other task falls back to (a spec sharing this
-// worker may have registered it already).
+// A screen of its own for an instruction, the generic step every other task falls back to, and the screen a timer
+// event's wait shows (a spec sharing this worker may have registered them already).
 const registered = new Set(getRegisteredNodes().map((node) => node.type));
 if (!registered.has('instruction')) registerNode({ type: 'instruction', match: { extensionType: 'cognitive:Instruction' }, toJob: (node: FlowNode) => ({ type: 'instruction', node, content: '' }), Component: () => null });
 if (!registered.has('task')) registerNode({ type: 'task', match: { fallback: 'task' }, toJob: (node: FlowNode) => ({ type: 'task', node }), Component: () => null });
+if (!registered.has('timer')) registerNode({ type: 'timer', match: { bpmnType: 'bpmn:IntermediateCatchEvent' }, toJob: (node: FlowNode) => ({ type: 'timer', node }), Component: () => null });
+
+/** A rest, as its type mints it: its timer is how long it lasts. */
+const REST = `type: cognitive:Rest
+      eventDefinitions:
+        Practice_Timer: { type: TimerEventDefinition, timeDuration: PT1M }`;
 
 const study = (model: string, sender: string) => Studyflow.parse(`id: unwalked
 definitions:
@@ -64,7 +70,9 @@ test('a message flow the page carries runs; one to a pool no one in the page pla
     ['to a model', '{ type: studyflow:Actor, name: Model, actorType: llm, implementation: "ollama://gemma4" }', 'type: Task', ['error M_Ask']],
     // A screen neither talks nor fills a data edge.
     ['from a screen', '{ name: Model }', 'type: cognitive:Instruction', ['error M_Ask', 'warning Practice']],
-    // No screen takes a break; a gateway that draws its branch is the walk's.
+    // A timer event is the walk's, as in a local run: its screen only shows the wait, and the walk sends for it.
+    ['from a timer event', '{ name: Model }', REST, []],
+    // No screen takes a rest that says no time, which waits for nothing; a gateway that draws its branch is the walk's.
     ['from a step no screen takes', '{ name: Model }', 'type: cognitive:Rest', ['warning Practice']],
     ['from a gateway that draws', '{ name: Model }', 'type: cognitive:RandomGateway', []],
   ];
