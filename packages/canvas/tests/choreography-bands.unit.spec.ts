@@ -1,11 +1,17 @@
 import { expect, test } from '@playwright/test';
 
 import { Study } from '@canvas/index.ts';
+import { choreographyBandHeight } from '@core/document/outline.ts';
 import { bandsOf, swapChoreographyInitiator } from '@core/model/choreography';
 import { isElement } from '@core/model/index';
 import { freshMetamodel } from '@tests/schemas';
 
-/** Who takes a choreography task's bands, said with the study's `bands` tool, as the inspector says it too. */
+import { centre, doubleClick, graphicsOf, installDocument, keyEvent, labelEditingOf, loadYaml, node, svgOf } from './canvasHarness';
+
+/**
+ * Who takes a choreography task's bands, said with the study's `bands` tool, as the inspector says it too, and on the
+ * canvas, where a double click on a band edits it.
+ */
 
 const HEAD = 'definitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n';
 
@@ -71,4 +77,36 @@ Proc:
   takenBy('Subject');
   clearBottom();
   expect(participants()).toEqual(['Model']);
+});
+
+test('a double click edits the band under it, or the name between them, one undo step each, and Enter gives the keys back', async () => {
+  const { canvas } = loadYaml(`id: Defs\n${HEAD}Proc:\n  type: Process\n`);
+  // In the page, so focus can move.
+  installDocument().body.append(canvas.getContainer());
+  const id = canvas.study.add({ type: 'bpmn:ChoreographyTask', at: { x: 300, y: 200 } }).id!;
+  const task = node(canvas, id);
+  const band = choreographyBandHeight(task.height);
+  const drawn = () => graphicsOf(canvas, id)!.textContent;
+  /** Double click at `y` on the task, type `text` and press Enter: what the editor opened on. */
+  const edit = (y: number, text: string): string | undefined => {
+    doubleClick(canvas, { x: centre(task).x, y });
+    const initial = labelEditingOf(canvas).getSession()?.initial;
+    labelEditingOf(canvas).setValue(text);
+    canvas.getContainer().querySelector('.sf-label-editor')!.dispatchEvent(keyEvent('keydown', { key: 'Enter' }));
+    return initial;
+  };
+
+  expect(edit(task.y + band / 2, 'Subject'), 'the top band').toBe('Participant A');
+  expect(edit(task.y + task.height - band / 2, 'Experimenter'), 'the bottom band').toBe('Participant B');
+  expect(edit(centre(task).y, 'Give consent'), 'the name').toBe('');
+  expect(labelEditingOf(canvas).isActive()).toBe(false);
+  expect(installDocument().activeElement).toBe(svgOf(canvas));
+  expect(drawn()).toContain('Subject');
+  expect(drawn()).toContain('Experimenter');
+  expect(drawn()).toContain('Give consent');
+
+  canvas.study.undo();
+  expect(drawn()).not.toContain('Give consent');
+  expect(drawn()).toContain('Subject');
+  canvas.getContainer().remove();
 });

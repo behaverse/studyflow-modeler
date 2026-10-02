@@ -80,11 +80,6 @@ export function labelEditor(page: Page): Locator {
   return page.locator('.sf-label-editor');
 }
 
-/** Assert the open label editor's text. */
-export async function expectEditorText(page: Page, expected: string): Promise<void> {
-  await expect(labelEditor(page)).toHaveValue(expected);
-}
-
 export async function pressOnCanvas(page: Page, key: string): Promise<void> {
   await page.getByTestId('modeler-canvas').locator('svg[tabindex]').press(key);
 }
