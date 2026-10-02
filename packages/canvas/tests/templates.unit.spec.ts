@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { documentationOf, expressionOf } from '@core/model/index';
+import { documentationOf, expressionOf, type Element } from '@core/model/index';
 import { buildCatalog, getCatalog, setCatalog, type TypeCatalog } from '@core/notation';
 import { fromModdleYaml } from '@core/notation/moddlePackage';
 import { Study, studyInternals } from '@canvas/study/Study.ts';
@@ -23,6 +23,9 @@ templates:
       Loop:
         type: SubProcess
         documentation: Gate decides when Work stops.
+        loopCharacteristics:
+          type: StandardLoopCharacteristics
+          loopCondition: Gate = null
         flowElements:
           Work:
             type: Task
@@ -77,6 +80,11 @@ test('a template drops as its shape, closed, its elements inside where its drawi
   expect((node(study, 'F2') as unknown as SceneEdge).waypoints, 'a flow keeps the route its drawing gives it')
     .toEqual([{ x: 285, y: 165 }, { x: 285, y: 220 }, { x: 150, y: 220 }, { x: 150, y: 180 }]);
   expect(study.revision).toBe(1);
+
+  // Once the copy holding them is gone, the template's own ids are free again.
+  study.remove({ ids: ['Loop'] });
+  expect(study.add({ template: 'loop::template:1', at: { x: 700, y: 200 } })).toMatchObject({ ok: true, id: 'Loop' });
+  expect(node(study, 'Loop').children.map((child) => child.id).sort()).toEqual(['F1', 'F2', 'Gate', 'Work']);
 });
 
 test('a held id is suffixed, and only code that names it follows: expressions and placeholders, not prose', () => {
@@ -90,6 +98,7 @@ test('a held id is suffixed, and only code that names it follows: expressions an
   const back = node(study, 'F2').element;
   expect(gate.id).toMatch(/^Gate_\w+$/);
   expect(expressionOf(back.conditionExpression)?.body).toBe(`state._meta.reached.${gate.id} < 3`);
+  expect(expressionOf((loop.element.loopCharacteristics as Element).loopCondition)?.body).toBe(`${gate.id} = null`);
   expect(work.name).toBe(`Work, then ask {${gate.id}}`);
   expect(gate.name).toBe('Gate');
   expect(documentationOf(loop.element)).toBe('Gate decides when Work stops.');

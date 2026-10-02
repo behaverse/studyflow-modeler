@@ -46,7 +46,9 @@ test('exports YAML, PNG, SVG and LinkML; opens a layout-less file, a jsPsych tim
   const png = await exportDiagram(page, 'png');
   expect(png.suggestedFilename()).toBe('diagram.studyflow.png');
   const pngBytes = await readDownload(png);
-  const svgText = await readDownloadText(await exportDiagram(page, 'svg'));
+  const svg = await exportDiagram(page, 'svg');
+  expect(svg.suggestedFilename()).toBe('diagram.studyflow.svg');
+  const svgText = await readDownloadText(svg);
   // A skill's export is one more format in Save As; the figures a manuscript takes are in its own view.
   const linkml = await exportDiagram(page, 'linkml');
   expect(linkml.suggestedFilename()).toBe('diagram.linkml.yaml');
