@@ -9,6 +9,7 @@ npm install
 npm run dev                  # the modeler at http://localhost:5173/app.html, the browser runner at /run/
 npm run typecheck && npm run lint && npm run test:unit   # the gate: CI and `npm run release` run exactly this
 npm run test:e2e             # Playwright against its own dev server on :4173; CI skips it, so run it after UI changes
+npm run coverage             # the unit lane under c8 (.c8rc.json); open coverage/index.html. The e2e lane is not measured
 ```
 
 A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the dev server, `*.webkit.spec.ts` in WebKit. Where specs live, and what each kind pins: [Tests](#tests).
@@ -55,3 +56,4 @@ A spec named `*.unit.spec.ts` runs in Node, `*.spec.ts` in Chromium against the 
 - A `tests/` folder inside an ESM package needs a `package.json` of `{"type": "commonjs"}`, or Playwright fails to load it.
 - moddle rewrites the package descriptors it registers, so give each `BpmnModdle` its own copy (`structuredClone`): `moddleOf` keeps one per metamodel, and a spec takes one from `freshModdle()`.
 - `packages/electron` is a local screenshot tool: not a workspace, not the desktop app.
+- `.c8rc.json`'s includes start with `**/`: c8 matches the sources it remaps from a CLI spec's built bundle as `file://` URLs, which a pattern relative to the root never matches, and every line of them then reads covered.

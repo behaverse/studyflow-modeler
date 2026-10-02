@@ -1,0 +1,32 @@
+{
+  "all": true,
+  "src": [
+    "packages",
+    "skills"
+  ],
+  "include": [
+    "**/packages/*/src/**",
+    "**/packages/desktop/*.ts",
+    "**/skills/**"
+  ],
+  "exclude": [
+    "**/tests/**",
+    "**/*.spec.ts",
+    "**/*.d.ts",
+    "**/node_modules/**",
+    "**/dist/**",
+    "packages/electron/**"
+  ],
+  "extension": [
+    ".ts",
+    ".tsx",
+    ".js",
+    ".mjs"
+  ],
+  "reporter": [
+    "html",
+    "text-summary"
+  ],
+  "reports-dir": "coverage",
+  "exclude-after-remap": true
+}

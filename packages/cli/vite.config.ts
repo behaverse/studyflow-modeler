@@ -1,4 +1,4 @@
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import { aliases, define } from '../../vite.shared'
 
@@ -18,6 +18,9 @@ export default defineConfig({
     target: 'node20',
     outDir: 'dist',
     emptyOutDir: true,
+    // Under `npm run coverage` (c8 sets NODE_V8_COVERAGE) a spec's build carries its sources, so what the built CLI runs
+    // counts toward them.
+    sourcemap: process.env.NODE_V8_COVERAGE ? 'inline' : false,
     rollupOptions: {
       input: { studyflow: resolve(import.meta.dirname, 'src/cli.ts') },
       output: {
@@ -26,6 +29,8 @@ export default defineConfig({
         // One file: the bin resolves the repo's skills relative to
         // import.meta.url, which code-split chunks would point elsewhere.
         inlineDynamicImports: true,
+        // By absolute path: a spec builds into the temp folder, which macOS reaches through a symlink.
+        sourcemapPathTransform: (relative, map) => resolve(dirname(map), relative),
       },
     },
   },
