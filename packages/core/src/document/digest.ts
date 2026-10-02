@@ -25,6 +25,18 @@ const HOLDERS = new Set([STUDY_EXTENSION_TYPE, 'bpmn:ExtensionElements']);
 const sorted = (entries: [string, unknown][]): Record<string, unknown> =>
   Object.fromEntries(entries.sort(([a], [b]) => (a < b ? -1 : 1)));
 
+/**
+ * A checklist enters the digest in the form it had when it was a documentation entry rather than an attribute of its
+ * element: a `bpmn:Documentation` marked `checklist: true`, after the element's other documentation, its ticks
+ * cleared. Moving it to an attribute changed how BPMN holds it, not the protocol, so a run sealed before still matches.
+ */
+function addChecklistEntry(entries: [string, unknown][], checklist: string): void {
+  const entry = sorted([['$type', 'bpmn:Documentation'], ['checklist', true], ['text', unticked(checklist)]]);
+  const documentation = entries.find(([key]) => key === 'documentation');
+  if (documentation) (documentation[1] as unknown[]).push(entry);
+  else entries.push(['documentation', [entry]]);
+}
+
 /* --- the digest of a study model --- */
 
 /**
@@ -50,6 +62,7 @@ function canonicalElementIn(model: StudyModel, element: Element, entry = false):
   if (!model.metamodel.has(host)) return sorted([['$type', element.type]]);
   const typed = entry ? undefined : model.typedEntry(element);
   const entries: [string, unknown][] = [['$type', host]];
+  let checklist: string | undefined;
   for (const p of model.metamodel.descriptor(host).properties) {
     const key = p.ns.localName;
     if (p.isVirtual || DRAWING.has(key) || RECORDED.has(key) || (key === 'state' && host === STUDY_EXTENSION_TYPE)) continue;
@@ -63,7 +76,10 @@ function canonicalElementIn(model: StudyModel, element: Element, entry = false):
     // A node's flows in and out are what its container's sequence flows say, as the reader links them, after any it lists.
     if ((key === 'incoming' || key === 'outgoing') && p.isReference && !entry) v = flowsAt(model, element, key, v as Value[] | undefined);
     if (v === undefined || v === null || v === p.default) continue;
-    if (key === 'checklist' && typeof v === 'string') v = unticked(v);
+    if (key === 'checklist' && typeof v === 'string') {
+      checklist = v;
+      continue;
+    }
     if (p.isReference) v = p.isMany ? (v as Value[]).map((ref) => idOf(ref) ?? ref) : idOf(v as Value) ?? v;
     else if (p.isMany) {
       v = (v as Value[]).filter((item) => !(isElement(item) && item.type === RUN_RECORD))
@@ -73,6 +89,7 @@ function canonicalElementIn(model: StudyModel, element: Element, entry = false):
     } else v = canonicalIn(model, v as Value, p.type);
     if (v !== undefined && !(Array.isArray(v) && v.length === 0)) entries.push([key, v]);
   }
+  if (checklist !== undefined) addChecklistEntry(entries, checklist);
   return entries.length === 1 && HOLDERS.has(host) ? undefined : sorted(entries);
 }
 

@@ -32,6 +32,9 @@ Study:
       documentation: Thirty trials of the n-back.
       checklist: |-
         - [ ] Settings wired in
+      additionalArguments:
+        level: 2
+        blocks: [Test_A, Test_B]
       dataInputAssociations:
         In_Settings: { sourceRef: [Settings] }
       bounds: 120 20 100 80
@@ -92,8 +95,9 @@ const RUN = (text: string): string => [
 
 test('the drawing, the run state and the run records leave the digest alone; the protocol changes it', async () => {
   const base = await digest(PLAN);
-  // By value: a run's seal compares digests made by different builds, so what the digest reads may not move.
-  expect(base).toBe('sha256:a55eaa25b36efdd0dd255b1ca25e3b0973c61e34efaba1fe43cfc226a7df9e71');
+  // By value, the one release 26.9.29 gives: a run's seal compares digests made by different builds, so the digest may
+  // not move when BPMN holds the same protocol another way (since then, a checklist and arguments are XML attributes).
+  expect(base).toBe('sha256:2c77de46c16644a1a19cad816971073baa0c2b9ea984ff1f8cc6cb47ff617102');
 
   const CASES: [label: string, edit: (text: string) => string | Promise<string>, changes: boolean][] = [
     ['a shape moves', swap('bounds: 120 20 100 80', 'bounds: 160 60 100 80'), false],
@@ -109,6 +113,7 @@ test('the drawing, the run state and the run records leave the digest alone; the
     // How `studyflow run` keeps the executed copy: through BPMN XML and back, which respells the schema's JSON as YAML.
     ['the trip through XML and back', async (text) => yamlOf(await xmlOf(text)), false],
     ['a parameter value', swap('trials: 30', 'trials: 20'), true],
+    ['an argument value', swap('level: 2', 'level: 3'), true],
     ['a condition expression', swap('accuracy >= 0.8', 'accuracy > 0.8'), true],
     ['documentation', swap('Thirty trials', 'Twenty trials'), true],
     ['a checklist item reworded', swap('Settings wired in', 'Settings wired in and checked'), true],
