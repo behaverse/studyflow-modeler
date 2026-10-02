@@ -1,22 +1,22 @@
 /**
  * BPMN XML in and out of a study model, the one place moddle reads and writes. What moddle reads is put in the form
  * a study holds (an exchange, compact data inputs) and read as a study model from its long form, as a file is read;
- * a study is written by building moddle's tree from its YAML.
+ * a study is written by building moddle's tree from the study as its file holds it.
  */
 import { BpmnModdle } from 'bpmn-moddle';
 
 import { exchangesToTasks, tasksToExchanges } from '@core/document/choreography';
-import { studyflowToDefinitions } from '@core/document/deserialize';
+import { studyToDefinitions } from '@core/document/deserialize';
 import { dropForeignElements } from '@core/document/format';
 import { expandIoSpecification, inlineIoSpecification } from '@core/document/io-specification';
 import { definitionsToYamlDoc } from '@core/document/serialize';
 import type { Moddle } from '@core/document/moddle';
-import { liftState } from '@core/document/state';
+import { liftState, lowerState } from '@core/document/state';
 import { StudyModel } from '@core/model/index';
 import { choreographyToProcessIn, headlessPlaneToProcessIn } from '@core/model/choreography';
 import type { Metamodel } from '@core/model/metamodel';
 import { bpmnPackages } from '@core/model/packages';
-import { readStudy, studyText } from '@core/model/yaml';
+import { readStudy, writtenStudy } from '@core/model/yaml';
 
 const BPMN_PREFIXES = new Set(bpmnPackages().map((pkg) => pkg.prefix));
 
@@ -71,11 +71,13 @@ export async function parseStudy(text: string, metamodel: Metamodel, options: { 
   return model;
 }
 
-/** The study as BPMN XML: an exchange written as the BPMN task it is, a compact data input with the data input it
- * stands for. */
+/** The study as BPMN XML, written from the study its file holds: the run state on its Study, an exchange written as
+ * the BPMN task it is, a compact data input with the data input it stands for. */
 export async function studyToXml(model: StudyModel): Promise<string> {
   const moddle = moddleOf(model.metamodel);
-  const definitions = studyflowToDefinitions(studyText(model.study, model.metamodel), moddle);
+  const written = new StudyModel(writtenStudy(model.study, model.metamodel), model.metamodel);
+  lowerState(written);
+  const definitions = studyToDefinitions(written.study, written.metamodel, moddle);
   exchangesToTasks(definitions);
   expandIoSpecification(definitions);
   const { xml } = await moddle.toXML(definitions, { format: true });

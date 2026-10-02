@@ -5,10 +5,9 @@ import { expect, test } from '@playwright/test';
 import * as yaml from 'js-yaml';
 
 import { studyToXml } from '@core/document';
-import { studyflowToDefinitions } from '@core/document/deserialize';
 import { exampleNames as examples, exampleText } from '@tests/utils';
 import { readStudy, studyText } from '@core/model/yaml';
-import { freshMetamodel, freshModdle, studyModel, xmlOf, yamlOf } from '@tests/schemas';
+import { freshMetamodel, studyModel, xmlOf, yamlOf } from '@tests/schemas';
 
 /** The `.studyflow.yaml` spelling: the short forms the writer emits, every shipped file spelled that way, and the long forms the reader still takes. */
 
@@ -185,7 +184,7 @@ layout:
 
   test('a reference to an id the file does not hold is left out with a warning, and the rest reads', () => {
     const warnings: string[] = [];
-    const definitions = studyflowToDefinitions(`id: dangling
+    const model = studyModel(`id: dangling
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 P:
@@ -194,9 +193,10 @@ P:
     A:
       type: Task
     F1: A -> Gone
-`, freshModdle(), (message) => warnings.push(message));
+`, (message) => warnings.push(message));
     expect(warnings).toEqual([expect.stringMatching(/targetRef names 'Gone', which no element is/)]);
-    expect(definitions.rootElements[0].flowElements.map((el: any) => el.id)).toEqual(['A', 'F1']);
+    expect([...model.elements()].map((el) => el.id)).toEqual(['P', 'A', 'F1']);
+    expect(model.get('F1')).toEqual({ type: 'bpmn:SequenceFlow', id: 'F1', sourceRef: 'A' });
   });
 
   test('a Parameters text round-trips XML <-> YAML: markup unsafe in XML is escaped, and a comment survives', async () => {
@@ -364,8 +364,8 @@ layout:
     expect(await yamlOf(xml)).toBe(text);
   });
 
-  test('a pool diagram with no `diagram:` node draws its collaboration, whose Study takes the state', () => {
-    const definitions = studyflowToDefinitions(`id: pools
+  test('a pool diagram with no `diagram:` node draws its collaboration, whose Study takes the state', async () => {
+    const xml = await xmlOf(`id: pools
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 C:
@@ -385,11 +385,10 @@ P:
 state:
   Start:
     count: 1
-`, freshModdle());
-    const [collaboration, process] = definitions.rootElements;
-    expect(definitions.diagrams[0].plane.bpmnElement).toBe(collaboration);
-    expect(JSON.parse(collaboration.extensionElements.values[0].state)).toEqual({ Start: { count: 1 } });
-    expect(process.extensionElements).toBeUndefined();
+`);
+    expect(xml).toContain('<bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="C">');
+    expect(xml).toMatch(/<bpmn:collaboration id="C">\s*<bpmn:extensionElements>\s*<studyflow:study>\s*<studyflow:state>\{"Start":\{"count":1\}\}</);
+    expect(xml).toMatch(/<bpmn:process id="P">\s*<bpmn:startEvent/);
   });
 
   test('a plane naming the process beside a pool\'s collaboration keeps its `diagram:` node, so the process stays drawn', async () => {
@@ -415,7 +414,7 @@ diagram:
       bpmnElement: P
 `;
     const written = await yamlOf(await xmlOf(text));
-    expect(studyflowToDefinitions(written, freshModdle()).diagrams[0].plane.bpmnElement.id).toBe('P');
+    expect(studyModel(written).primaryRoot()?.id).toBe('P');
   });
 
   test('a reference to an element the study no longer holds is left out with a warning, so the file reads back', () => {
@@ -468,8 +467,7 @@ P:
     const text = await yamlOf(xml, (message) => opened.push(message));
     expect(text).not.toContain('camunda:inputOutput');
     expect(opened).toEqual([expect.stringMatching(/^T: <camunda:inputOutput> is from a namespace no loaded schema declares/)]);
-    const task = studyflowToDefinitions(text, freshModdle()).rootElements[0].flowElements[0];
-    expect(task.extensionElements).toBeUndefined();
+    expect(studyModel(text).get('T')).not.toHaveProperty('extensionElements');
     // A child's text is a list even when it is one, so it is written back as a child, not as an attribute.
     expect(text).toContain('- type: lab:rig\n          platform: x\n          note:\n            - a\n');
     expect(await xmlOf(text)).toContain('<lab:rig platform="x">\n          <lab:note>a</lab:note>\n        </lab:rig>');
@@ -477,9 +475,9 @@ P:
 
   test('an id two elements share is reported: a reference to it could reach only one', () => {
     const warnings: string[] = [];
-    studyflowToDefinitions({ definitions: {}, elements: {
+    readStudy({ definitions: {}, elements: {
       Outer: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' }, Inner: { type: 'SubProcess', flowElements: { Twin: { type: 'Task' } } } } },
-    } }, freshModdle(), (message) => warnings.push(message));
+    } }, freshMetamodel(), (message) => warnings.push(message));
     expect(warnings).toEqual([expect.stringMatching(/'Twin'.*two elements/)]);
   });
 

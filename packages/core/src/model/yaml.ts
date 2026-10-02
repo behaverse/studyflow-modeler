@@ -252,7 +252,7 @@ class Reader {
 }
 
 /** The one list a BPMN list holder holds (`extensionElements`'s `values`): a schema's element with one list is an entry. */
-function elementList(metamodel: Metamodel, type: string): PropertyDef | undefined {
+export function elementList(metamodel: Metamodel, type: string): PropertyDef | undefined {
   if (!metamodel.has(type)) return undefined;
   const descriptor = metamodel.descriptor(type);
   if (descriptor.ns.prefix !== 'bpmn') return undefined;
@@ -347,15 +347,20 @@ export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: 
   return study;
 }
 
+/** A diagram in the file's spelling, as a study holds it (`study.diagram`), as an element. Read by a reader of its own:
+ * its ids are not the study's elements', and its references (to its own shapes too) stay the ids they name. */
+export function diagramElement(raw: Record<string, unknown>, metamodel: Metamodel, namespaces: Record<string, unknown>): Element {
+  return new Reader(metamodel, () => {}, namespaces, false).element(raw, 'bpmndi:BPMNDiagram');
+}
+
 /** A diagram section, in the file's spelling: each plane element the layout can spell moves to it; the rest, and a
  * diagram that says more than which root it draws, stay. */
 function readDiagrams(raws: unknown[], reader: Reader, metamodel: Metamodel, namespaces: Record<string, unknown>): Value[] {
   const kept: Value[] = [];
   raws.forEach((raw, index) => {
     if (!isMapping(raw)) return;
-    // Spelled as an element is, by a reader and a writer of its own: its ids are not the study's elements', and its
-    // references (to its own shapes too) stay as written.
-    const read = new Reader(metamodel, () => {}, namespaces, false).element(raw, 'bpmndi:BPMNDiagram');
+    // Spelled as an element is, by a writer of its own that keeps every reference.
+    const read = diagramElement(raw, metamodel, namespaces);
     const diagram = new Speller(metamodel).element(new Writer(metamodel, { has: () => true }).element(read), 'bpmndi:BPMNDiagram');
     const plane = isMapping(diagram.plane) ? { ...diagram.plane } : undefined;
     if (plane && index === 0) {

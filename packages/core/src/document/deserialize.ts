@@ -1,122 +1,92 @@
-import * as yaml from 'js-yaml';
-
+/*
+ * moddle's tree of a study as its file holds it (`writtenStudy`), what its BPMN XML is written from; `serialize.ts`
+ * reads the tree back. Each element is created as its type (a mapping without one as the type its property declares),
+ * a schema's typed element as the BPMN element it attaches to, with its schema's entry first among its extension
+ * elements; a list holder from its list, an expression or documentation from its text, a YAML attribute's mapping as
+ * its text; a reference as the element it names; the layout as diagram interchange.
+ */
 import { isModdleElement, type Moddle } from '@core/document/moddle';
-import { primaryRoot } from '@core/document/format';
-import { RESERVED_DOC_KEYS, type YamlDoc } from '@core/model/yaml';
+import type { Metamodel } from '@core/model/metamodel';
+import { BPMN_FORMAL_EXPRESSION, DI_NODE_TYPES, expandDiNode, expandInline, isExpressionType, isYamlValueProperty, qualifiesAsInlineValue } from '@core/model/spelling';
+import type { Element, Study } from '@core/model/types';
+import { attachOf, diagramElement, elementList, inferredRoot } from '@core/model/yaml';
 import { MODDLE_BUILTIN_TYPES } from '@core/notation/moddlePackage';
-import {
-  elementListProperty,
-  expandDocumentationEntry,
-  expandExpressionBody,
-  extractInlineDi,
-  unfoldTypedElement,
-  isDocumentationProperty,
-  isDocumentationType,
-  type DiType,
-} from '@core/document/shorthand';
-import { DI_NODE_TYPES, expandDiNode, expandInline, expandInlineFlow, impliedTypeName, isExpressionType, isYamlValueProperty, keyedMapToList, longTypeName, qualifiesAsInlineValue } from '@core/model/spelling';
-import type { StateTree } from '@core/model/state';
-import { writeState } from '@core/document/state';
 
-type PendingRef = {
-  element: any;
-  property: string;
-  ids: string[];
-  isMany: boolean;
-  context: string;
-};
+const DOCUMENTATION = 'bpmn:Documentation';
 
-type InlineDi = {
-  element: any;
-  type: DiType;
-  props: Record<string, unknown>;
-};
+type Mapping = Record<string, any>;
+
+function isMapping(value: unknown): value is Mapping {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** A schema's typed element as the BPMN element `host` it attaches to: the keys only its schema declares go to its
+ * schema's entry, first among the element's extension elements. */
+function unfolded(metamodel: Metamodel, element: Element, host: string): Element {
+  const localKeys = (type: string) => new Set(metamodel.descriptor(type).properties.map((p) => p.ns.localName));
+  const own = localKeys(host);
+  const schema = localKeys(element.type);
+  const entry: Element = { type: element.type };
+  const out: Element = { type: host };
+  for (const [key, value] of Object.entries(element)) {
+    if (key === 'type') continue;
+    if (schema.has(key) && !own.has(key)) entry[key] = value;
+    else out[key] = value;
+  }
+  const list = out.extensionElements;
+  out.extensionElements = Array.isArray(list) ? [entry, ...list]
+    : isMapping(list) && Array.isArray(list.values) ? { ...list, values: [entry, ...list.values] }
+    : [entry];
+  return out;
+}
 
 class ModdleBuilder {
-  private moddle: Moddle;
-  private pending: PendingRef[] = [];
-  private byId = new Map<string, any>();
-  private inlineDi: InlineDi[] = [];
-  private descriptors = new Map<string, any>();
-  private onWarning?: (message: string) => void;
+  private readonly pending: { element: any; property: string; ids: string[]; isMany: boolean }[] = [];
+  private readonly byId = new Map<string, any>();
+  private readonly moddle: Moddle;
+  private readonly metamodel: Metamodel;
   /** What the definitions declare, the namespaces of foreign elements among it. */
-  private namespaces: Record<string, unknown>;
+  private readonly namespaces: Record<string, unknown>;
 
-  constructor(moddle: Moddle, namespaces: Record<string, unknown>, onWarning?: (message: string) => void) {
+  constructor(moddle: Moddle, metamodel: Metamodel, namespaces: Record<string, unknown>) {
     this.moddle = moddle;
+    this.metamodel = metamodel;
     this.namespaces = namespaces;
-    this.onWarning = onWarning;
   }
 
-  build(node: Record<string, any>, declaredType: string | undefined): any {
-    // A schema's typed element, written as its own type: read as the BPMN element it attaches to, with its wrapper.
-    // Only where a BPMN element is expected: an extension entry (`declaredType` Element) is the wrapper itself.
-    if (typeof node.type === 'string' && node.type.includes(':') && declaredType?.startsWith('bpmn:')) {
-      const unfolded = unfoldTypedElement(this.moddle, node, longTypeName(node.type));
-      if (unfolded) return this.build(unfolded, declaredType);
-    }
-    const { type, ...props } = node;
-    const spelled = (type as string | undefined) ?? impliedTypeName(props, declaredType) ?? declaredType;
-    if (!spelled) throw new Error(`Element is missing a 'type': ${JSON.stringify(node).slice(0, 120)}`);
-    const typeName = longTypeName(spelled);
-    if (!this.moddle.getPackage(typeName.split(':')[0])) return this.foreign(typeName, props);
-    if (DI_NODE_TYPES.has(typeName)) expandDiNode(props);
-
-    const el = this.createElement(typeName);
+  /** `node`, where an element of type `declared` is expected. */
+  build(node: Mapping, declared: string | undefined): any {
+    // Only where a BPMN element is expected: an extension entry is the schema's entry itself.
+    const host = typeof node.type === 'string' && declared?.startsWith('bpmn:') ? attachOf(this.metamodel, node.type) : undefined;
+    if (host) return this.build(unfolded(this.metamodel, node as Element, host), declared);
+    const { type = declared, ...props } = node;
+    if (!this.moddle.getPackage(type.split(':')[0])) return this.foreign(type, props);
+    if (DI_NODE_TYPES.has(type)) expandDiNode(props);
+    const el = this.moddle.create(type, {});
     const descriptor = this.moddle.getElementDescriptor(el);
-    this.extractInlineDi(el, descriptor, props);
-
     for (const [name, raw] of Object.entries(props)) {
       if (raw === undefined || raw === null) continue;
       const p = descriptor.propertiesByName?.[name];
-
-      if (!p) {
-        el.$attrs[name] = raw;
-        // A key in a namespace no loaded schema owns is foreign by design. A bare key is likely a typo, and so is one a
-        // loaded schema does not declare, which moddle's XML reader also flags when the modeler opens the file.
-        if (!name.includes(':')) this.onWarning?.(`unknown key '${name}' on ${typeName} kept as a raw attribute (typo, or its schema is not loaded?)`);
-        else if (this.moddle.getPackage(name.split(':')[0])) this.onWarning?.(`unknown attribute <${name}> on ${typeName}`);
-        continue;
-      }
-
-      if (p.isReference) {
+      if (!p) el.$attrs[name] = raw;
+      else if (p.isReference) {
         const ids = (p.isMany && Array.isArray(raw) ? raw : [raw]).map(String);
-        this.pending.push({ element: el, property: p.name, ids, isMany: !!p.isMany, context: typeName });
-        continue;
+        this.pending.push({ element: el, property: p.name, ids, isMany: !!p.isMany });
+      } else if (p.isMany) {
+        // A list it cannot read (a route that is not one) is none.
+        this.set(el, p.name, (Array.isArray(raw) ? raw : []).map((item) => this.value(item, p.type)));
+      } else if (isYamlValueProperty(p) && isMapping(raw) && qualifiesAsInlineValue(raw)) {
+        el.set(p.name, expandInline(raw));
+      } else {
+        this.set(el, p.name, this.value(raw, p.type));
       }
-
-      if (p.isMany) {
-        const list = Array.isArray(raw) ? (raw as unknown[])
-          : typeof raw === 'string' && isDocumentationProperty(p) ? [raw]
-          : keyedMapToList(raw);
-        const items = list.map((item) => this.buildValue(expandInlineFlow(item), p.type));
-        for (const item of items) if (isModdleElement(item)) item.$parent = el;
-        el.set(p.name, items);
-        continue;
-      }
-
-      if (isYamlValueProperty(p)
-          && raw && typeof raw === 'object' && !Array.isArray(raw)
-          && qualifiesAsInlineValue(raw as Record<string, unknown>)) {
-        el.set(p.name, expandInline(raw as Record<string, unknown>));
-        continue;
-      }
-
-      const value = this.buildValue(raw, p.type);
-      if (isModdleElement(value)) value.$parent = el;
-      el.set(p.name, value);
     }
-
-    if (typeof el.id === 'string' && el.id) {
-      if (this.byId.has(el.id)) this.onWarning?.(`the id '${el.id}' names two elements; a reference to it reaches only the last`);
-      this.byId.set(el.id, el);
-    }
+    if (typeof el.id === 'string' && el.id) this.byId.set(el.id, el);
     return el;
   }
 
-  /** An element of a namespace no loaded schema declares, in the namespace `definitions:` declares for its prefix: its
+  /** An element of a namespace no loaded schema declares, in the namespace the definitions declare for its prefix: its
    * attributes, and a child element for each of a list's texts. */
-  private foreign(type: string, props: Record<string, unknown>): any {
+  private foreign(type: string, props: Mapping): any {
     const [prefix] = type.split(':');
     const uri = this.namespaces[`xmlns:${prefix}`];
     if (typeof uri !== 'string') throw new Error(`unknown type <${type}>`);
@@ -126,116 +96,62 @@ class ModdleBuilder {
     return el;
   }
 
-  /** The document's `layout:` map, each element's drawing by its id, read as the drawing written on the element is. */
-  adoptLayout(layout: unknown): void {
-    if (!layout || typeof layout !== 'object' || Array.isArray(layout)) return;
-    for (const [id, drawing] of Object.entries(layout as Record<string, Record<string, unknown>>)) {
-      const element = this.byId.get(id);
-      const type = drawing && 'bounds' in drawing ? 'bpmndi:BPMNShape' : drawing && 'waypoint' in drawing ? 'bpmndi:BPMNEdge' : undefined;
-      if (!element) {
-        this.onWarning?.(`layout draws '${id}', which no element is; left out`);
-        continue;
-      }
-      // The look of an element not drawn yet: BPMN's diagram interchange has no shape or edge without its geometry.
-      if (!type) continue;
-      this.inlineDi.push({ element, type, props: { ...drawing } });
+  /** What `raw` is where a `declared` value is expected: an element, a list holder of its list, an expression or
+   * documentation of its text, or itself. */
+  private value(raw: unknown, declared: string): unknown {
+    const elementType = !MODDLE_BUILTIN_TYPES.has(declared);
+    if (Array.isArray(raw)) {
+      const list = elementType ? elementList(this.metamodel, declared) : undefined;
+      return list ? this.build({ type: declared, [list.ns.localName]: raw }, declared) : raw;
     }
+    if (isMapping(raw)) return 'type' in raw || elementType ? this.build(raw, declared) : raw;
+    if (typeof raw === 'string' && isExpressionType(declared)) return this.build({ type: BPMN_FORMAL_EXPRESSION, body: raw }, declared);
+    if (typeof raw === 'string' && declared === DOCUMENTATION) return this.build({ type: DOCUMENTATION, text: raw }, declared);
+    return raw;
   }
 
-  buildDiagrams(docDiagrams: unknown[]): any[] {
-    const diagrams = docDiagrams.map((node) => this.build(node as Record<string, any>, 'bpmndi:BPMNDiagram'));
-    if (this.inlineDi.length === 0) return diagrams;
+  private set(el: any, name: string, value: unknown): void {
+    for (const item of Array.isArray(value) ? value : [value]) if (isModdleElement(item)) item.$parent = el;
+    el.set(name, value);
+  }
 
+  /** The study's diagrams, and its layout on the first one's plane (a diagram made when the study has none): a shape
+   * or an edge for each drawing that has its geometry, since diagram interchange has none without. */
+  diagrams(study: Study): any[] {
+    // What each drawing draws, found before the diagrams' own ids are.
+    const drawn = Object.entries(study.layout).flatMap(([id, drawing]) => {
+      const type = 'bounds' in drawing ? 'bpmndi:BPMNShape' : 'waypoint' in drawing ? 'bpmndi:BPMNEdge' : undefined;
+      const element = this.byId.get(id);
+      return type && element ? [{ id, type, drawing, element }] : [];
+    });
+    const diagrams = (study.diagram ?? []).map((node) => this.build(diagramElement(node as Mapping, this.metamodel, this.namespaces), 'bpmndi:BPMNDiagram'));
+    if (drawn.length === 0) return diagrams;
     let diagram = diagrams[0];
     if (!diagram) {
       diagram = this.moddle.create('bpmndi:BPMNDiagram', { id: 'BPMNDiagram_1' });
       diagrams.push(diagram);
     }
-    let plane = diagram.plane;
-    if (!plane) {
-      plane = this.moddle.create('bpmndi:BPMNPlane', { id: 'BPMNPlane_1' });
-      plane.$parent = diagram;
-      diagram.set('plane', plane);
-    }
-
-    const planeElements = plane.get('planeElement');
-    for (const { element, type, props } of this.inlineDi) {
-      const id = typeof element.id === 'string' && element.id ? `${element.id}_di` : undefined;
-      const pe = this.build({ type, ...(id ? { id } : {}), ...props }, undefined);
-      pe.set('bpmnElement', element);
-      pe.$parent = plane;
-      planeElements.push(pe);
+    if (!diagram.plane) this.set(diagram, 'plane', this.moddle.create('bpmndi:BPMNPlane', { id: 'BPMNPlane_1' }));
+    const planeElements = diagram.plane.get('planeElement');
+    for (const { id, type, drawing, element } of drawn) {
+      const shape = this.build({ type, id: `${id}_di`, ...drawing }, undefined);
+      shape.set('bpmnElement', element);
+      shape.$parent = diagram.plane;
+      planeElements.push(shape);
     }
     return diagrams;
   }
 
-  private createElement(typeName: string): any {
-    return this.moddle.create(typeName, {});
-  }
-
-  private descriptorOf(typeName: string): any | undefined {
-    if (!this.descriptors.has(typeName)) {
-      let descriptor: any;
-      try {
-        descriptor = this.moddle.getElementDescriptor(this.createElement(typeName));
-      } catch {
-        descriptor = undefined;
-      }
-      this.descriptors.set(typeName, descriptor);
-    }
-    return this.descriptors.get(typeName);
-  }
-
-  private elementListPropertyOf(typeName: string): any | undefined {
-    return elementListProperty(this.descriptorOf(typeName));
-  }
-
-  private extractInlineDi(el: any, descriptor: any, props: Record<string, any>): void {
-    const extracted = extractInlineDi(
-      props,
-      descriptor.propertiesByName ?? {},
-      (type) => this.descriptorOf(type)?.propertiesByName ?? {},
-    );
-    if (extracted) this.inlineDi.push({ element: el, ...extracted });
-  }
-
-  private buildValue(raw: unknown, declaredType: string | undefined): unknown {
-    const isElementType = !!declaredType && !MODDLE_BUILTIN_TYPES.has(declaredType);
-
-    if (Array.isArray(raw)) {
-      const listProp = isElementType ? this.elementListPropertyOf(declaredType) : undefined;
-      return listProp ? this.build({ type: declaredType, [listProp.name]: raw }, declaredType) : raw;
-    }
-
-    if (raw && typeof raw === 'object') {
-      const node = raw as Record<string, any>;
-      if ('type' in node) return this.build(node, declaredType);
-      if (!isElementType) return raw;
-      return this.build(node, declaredType);
-    }
-
-    if (typeof raw === 'string' && isElementType) {
-      if (isExpressionType(declaredType)) return this.build(expandExpressionBody(raw), declaredType);
-      if (isDocumentationType(declaredType)) return this.build(expandDocumentationEntry(raw), declaredType);
-    }
-
-    return raw;
-  }
-
+  /** Each reference as the element it names; one naming no element (only a diagram can) is left out. */
   resolveReferences(): void {
-    // A reference to an id the file does not hold is left out with a warning, as the writer leaves one out: the rest
-    // of the file still reads.
-    for (const { element, property, ids, isMany, context } of this.pending) {
-      const targets = ids.flatMap((id) => {
-        const target = this.byId.get(id);
-        if (!target) this.onWarning?.(`${context}#${property} names '${id}', which no element is; left out`);
-        return target ? [target] : [];
-      });
+    for (const { element, property, ids, isMany } of this.pending) {
+      const targets = ids.flatMap((id) => (this.byId.has(id) ? [this.byId.get(id)] : []));
       if (isMany) element.set(property, targets);
       else if (targets.length > 0) element.set(property, targets[0]);
     }
   }
 
+  /** Each node's `incoming` and `outgoing` lists, with the flows that name it: the study leaves out what they say. */
   linkSequenceFlows(): void {
     for (const el of this.byId.values()) {
       if (!el.$instanceOf?.('bpmn:SequenceFlow') || !el.sourceRef || !el.targetRef) continue;
@@ -247,61 +163,19 @@ class ModdleBuilder {
   }
 }
 
-/** `source` is the file's text, or a document already parsed (a schema template's elements, under `elements:`). */
-export function studyflowToDefinitions(
-  source: string | YamlDoc,
-  moddle: Moddle,
-  onWarning: (message: string) => void = (message) => console.warn(`[studyflow read] ${message}`),
-): any {
-  const doc = (typeof source === 'string' ? yaml.load(source) : source) as YamlDoc;
-  if (!doc || typeof doc !== 'object' || !('definitions' in doc)) {
-    throw new Error("Not a studyflow YAML document (missing 'definitions').");
-  }
-
-  const rootElements: unknown[] = [];
-  for (const [key, body] of Object.entries(doc)) {
-    if (RESERVED_DOC_KEYS.has(key)) continue;
-    if (!body || typeof body !== 'object' || Array.isArray(body)) {
-      onWarning(`top-level key '${key}' is not an element and was ignored`);
-      continue;
-    }
-    rootElements.push(...keyedMapToList({ [key]: body }));
-  }
-  if (Array.isArray(doc.elements)) rootElements.push(...doc.elements);
-  else if (doc.elements) rootElements.push(...keyedMapToList(doc.elements));
-
-  const definitionAttrs: Record<string, unknown> = { ...((doc.definitions as Record<string, unknown>) ?? {}) };
-
-  const builder = new ModdleBuilder(moddle, definitionAttrs, onWarning);
-  const definitions = builder.build(
-    {
-      type: 'bpmn:Definitions',
-      ...definitionAttrs,
-      ...(doc.id !== undefined ? { id: doc.id } : {}),
-      rootElements,
-    },
-    'bpmn:Definitions',
-  );
-  // A file's top level holds BPMN root elements, and moddle drops anything else there as an "unrecognized element" when
-  // the modeler opens the file. A parsed document is a template's elements, which the modeler places inside a process.
-  if (typeof source === 'string') {
-    for (const root of definitions.rootElements ?? []) {
-      if (root.$instanceOf('bpmn:RootElement')) continue;
-      onWarning(`unrecognized element <${root.$type}>${root.id ? ` '${root.id}'` : ''} at the top level, which holds only root elements such as a process or a collaboration`);
-    }
-  }
-  builder.adoptLayout(doc.layout);
-  const diagrams = builder.buildDiagrams((doc.diagram as unknown[]) ?? []);
+/** moddle's definitions of `study`, a study as its file holds it (`writtenStudy`). */
+export function studyToDefinitions(study: Study, metamodel: Metamodel, moddle: Moddle): any {
+  const builder = new ModdleBuilder(moddle, metamodel, study.definitions);
+  const id = study.id === undefined ? {} : { id: study.id };
+  const definitions = builder.build({ type: 'bpmn:Definitions', ...study.definitions, ...id, rootElements: study.roots }, 'bpmn:Definitions');
+  const diagrams = builder.diagrams(study);
   for (const diagram of diagrams) diagram.$parent = definitions;
   if (diagrams.length > 0) definitions.set('diagrams', diagrams);
   builder.resolveReferences();
   builder.linkSequenceFlows();
-  // A plane the doc does not name draws the primary root, picked once the references are in: until a pool's
-  // `processRef` resolves, its collaboration looks like one holding only actors, and the process would win.
+  // A plane that names no root draws the one the reader infers.
   const plane = definitions.diagrams?.[0]?.plane;
-  if (plane && !plane.bpmnElement) plane.set('bpmnElement', primaryRoot(definitions));
-  if (doc.state && typeof doc.state === 'object' && !Array.isArray(doc.state)) {
-    writeState(definitions, moddle, doc.state as StateTree);
-  }
+  const root = inferredRoot(study, metamodel);
+  if (plane && !plane.bpmnElement && root) plane.set('bpmnElement', definitions.rootElements[study.roots.indexOf(root)]);
   return definitions;
 }
