@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
-import { JSDOM, type DOMWindow } from 'jsdom';
 
 import { parseStudyflow } from '@runner/studyflow';
 import { botForUnity } from '@skills/behaverse/browser/botConfig';
@@ -12,6 +11,7 @@ import type { BehaverseBotPayload, BehaverseTaskPayload, Manifest } from '@skill
 import { runOnUnity, waitForReady } from '@skills/behaverse/browser/unityRuntime';
 import { AWAITING_RESPONSE, READY, TASK_COMPLETED, type UnityInstance, type UnityWindow } from '@skills/behaverse/browser/unityTopics';
 import { validateBehaverseNode } from '@skills/behaverse/browser/validation';
+import { inPage, posted } from '@skills/behaverse/tests/page';
 import type { FlowNode } from '@runner/flow';
 import { freshPackages } from '@tests/schemas';
 
@@ -212,30 +212,6 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     expect(botForUnity(built?.bot), `${label}: the bot Unity gets`).toEqual(unityBot ?? payload?.bot);
   }
 });
-
-/** The runner's page and the build's frame, `page` standing as the global window the bridge listens on while `run` runs. */
-async function inPage(run: (page: DOMWindow, frame: DOMWindow) => Promise<void>): Promise<void> {
-  const page = new JSDOM('', { url: 'http://127.0.0.1/run/' }).window;
-  const frame = new JSDOM('', { url: 'http://127.0.0.1/run/assessment-unity/' }).window;
-  const host = globalThis as { window?: unknown };
-  const before = host.window;
-  host.window = page;
-  try {
-    await run(page, frame);
-  } finally {
-    host.window = before;
-    page.close();
-    frame.close();
-  }
-}
-
-/** Posts `data` to the page, as the build does from its frame, and waits until the page has had it. */
-function posted(page: DOMWindow, data: unknown): Promise<void> {
-  return new Promise((resolve) => {
-    page.addEventListener('message', () => resolve(), { once: true });
-    page.postMessage(data, '*');
-  });
-}
 
 test('what the page sends Unity and takes back: the task once to each runtime object, a model\'s answer to each trial it awaits, and the end of this task alone', async () => {
   const fetchBefore = globalThis.fetch;
