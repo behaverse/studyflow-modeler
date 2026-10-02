@@ -15,7 +15,13 @@
     "**/*.d.ts",
     "**/node_modules/**",
     "**/dist/**",
-    "packages/electron/**"
+    "packages/electron/**",
+    "**/packages/modeler/src/editor/port.ts",
+    "**/packages/runtime-browser/src/jobs.ts",
+    "**/packages/runtime-browser/src/nodes/types.ts",
+    "**/skills/behaverse/browser/llm/types.ts",
+    "**/skills/*/browser/vite.ts",
+    "**/skills/*/browser/**/*.mjs"
   ],
   "extension": [
     ".ts",
