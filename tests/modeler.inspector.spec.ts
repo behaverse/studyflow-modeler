@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { gotoModeler } from './utils';
+import { addPaletteElement, gotoModeler, setSelectedElementName } from './utils';
 
-test('an optional field opens when ticked, keeps what is typed into it, and unticking clears it', async ({ page }) => {
+test('inspector fields: an optional one opens when ticked and clears unticked, a name is drawn, and Enter in a checklist adds the next item', async ({ page }) => {
   await gotoModeler(page);
   const inspector = page.getByTestId('inspector-root');
   const toggle = inspector.getByRole('checkbox', { name: 'Version' });
@@ -17,4 +17,19 @@ test('an optional field opens when ticked, keeps what is typed into it, and unti
   await toggle.click();
   await expect(toggle).not.toBeChecked();
   await expect(field).toHaveCount(0);
+
+  await addPaletteElement(page, 'Activities', 'Task', { x: 340, y: 180 });
+  await setSelectedElementName(page, 'Review Task');
+  await expect(page.getByTestId('modeler-canvas')).toContainText('Review Task');
+
+  // The field's label names every item's textbox, so the items are told apart by position.
+  await page.getByRole('tab', { name: /documentation/i }).click();
+  const items = page.getByRole('textbox', { name: /^Checklist / });
+  await page.getByRole('button', { name: /add checklist item/i }).click();
+  await expect(items.first()).toBeFocused();
+  await items.first().fill('consent');
+  await items.first().press('Enter');
+
+  await expect(items).toHaveCount(2);
+  await expect(items.nth(1)).toBeFocused();
 });
