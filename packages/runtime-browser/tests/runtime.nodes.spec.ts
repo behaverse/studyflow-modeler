@@ -140,6 +140,23 @@ const NODE_SCREENS_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn2:process>
 </bpmn2:definitions>`;
 
+/** A questionnaire: a screen its node counts heavy, which debug stands a card in for. */
+const HEAVY = `id: runner-debug
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Study:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent, name: Welcome }
+    Mood:
+      type: cognitive:Questionnaire
+      name: Mood check
+      instrument: phq-9
+    End: { type: EndEvent }
+    F1: Start -> Mood
+    F2: Mood -> End
+`;
+
 test.describe('Studyflow runtime nodes', () => {
   test('declined consent aborts the run before the first step', async ({ page }) => {
     await page.route('**/consent.txt', (route) =>
@@ -229,6 +246,20 @@ test.describe('Studyflow runtime nodes', () => {
       diagramHandoffKey(id),
     );
     expect(remaining).toBeNull();
+  });
+
+  test('in debug, a heavy step is a card naming what would run there, and Continue walks on', async ({ page }) => {
+    await runStudyflow(page, 'runner-debug', HEAVY);
+    await page.goto('/run/?diagram=runner-debug&debug=1');
+    await page.getByRole('button', { name: /begin/i }).click();
+
+    await expect(page.getByRole('heading', { name: 'Mood check' })).toBeVisible();
+    await expect(page.getByText('would run · questionnaire')).toBeVisible();
+    await expect(page.getByText('phq-9', { exact: true })).toBeVisible();
+    // The instrument itself is not mounted: no item to answer, nothing to submit.
+    await expect(page.getByRole('button', { name: /submit/i })).toHaveCount(0);
+    await page.getByRole('button', { name: /continue/i }).click();
+    await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
   });
 
   test('an expired hand-off link says so', async ({ page }) => {
