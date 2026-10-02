@@ -1,6 +1,8 @@
-"""One check for the failed-trial rate and the context stamped on trials; run it with `python3 skills/behaverse/test_local.py`."""
+"""One check for the failed-trial rate, the context stamped on trials and the option a reply names; run it with
+`python3 skills/behaverse/test_local.py`."""
 
 import importlib.util
+import json
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("behaverse", Path(__file__).with_name("local.py"))
@@ -152,3 +154,9 @@ try:
     raise AssertionError("a Godot task was claimed")
 except ValueError as error:
     assert "Play is set to the Godot build" in str(error), error
+
+# The option a reply names, read as the browser's model bot reads one (tests/replies.json holds both to it); a send
+# task's one data input arrives as a mapping of one value.
+for reply, options, named in json.loads((Path(__file__).parent / "tests" / "replies.json").read_text(encoding="utf-8")):
+    assert behaverse.option_named(reply, options) == named, (reply, named)
+assert behaverse.option_named({"Answer": " match."}, ["Match", "NonMatch"]) == "Match"

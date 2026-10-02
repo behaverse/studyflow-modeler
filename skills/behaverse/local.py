@@ -33,6 +33,7 @@ import json
 import mimetypes
 import os
 import shutil
+import string
 import subprocess
 import sys
 import tempfile
@@ -338,7 +339,7 @@ def option_named(content: Any, options: list[str]) -> str | None:
     whole and without case. An answer that only mentions an option names none ("NonMatch" holds "Match")."""
     if isinstance(content, dict) and len(content) == 1:
         content = next(iter(content.values()))
-    text = str(content or "").strip().strip("`\"'.").strip().lower()
+    text = str(content or "").strip(string.whitespace + "`\"'.").lower()
     return next((option for option in options if option.lower() == text), None)
 
 

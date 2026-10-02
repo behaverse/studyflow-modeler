@@ -1,7 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { expect, test } from '@playwright/test';
 
 import { parseStudyflow } from '@runner/studyflow';
 import { botForUnity } from '@skills/behaverse/browser/botConfig';
+import { matchResponseOption } from '@skills/behaverse/browser/llm/bot';
 import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { BehaverseBotPayload, BehaverseTaskPayload, Manifest } from '@skills/behaverse/browser/types';
 import { validateBehaverseNode } from '@skills/behaverse/browser/validation';
@@ -246,4 +250,10 @@ test('against the build\'s manifest, an instrument or timeline it does not ship,
     expect(issues.map(({ nodeId }) => nodeId), label).toEqual(['TheTask']);
     expect(issues[0].message, label).toMatch(refusal);
   }
+});
+
+test('a model\'s reply names an option whole and without case, the quotes and full stops around it aside, as the local runner reads it', () => {
+  // [reply, options, the option it names]: the rows skills/behaverse/test_local.py holds option_named to as well.
+  const rows: [string, string[], string | null][] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'skills/behaverse/tests/replies.json'), 'utf8'));
+  for (const [reply, options, named] of rows) expect(matchResponseOption(reply, options) ?? null, JSON.stringify(reply)).toBe(named);
 });

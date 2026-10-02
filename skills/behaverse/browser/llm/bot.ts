@@ -57,12 +57,14 @@ async function callOllama(req: ProviderRequest, ollamaUrl: string): Promise<stri
   return content;
 }
 
+/** The reply without the whitespace, backticks, quotes and full stops around it. */
 function normalizeReply(raw: string): string {
-  return raw.trim().replace(/^[`"'\s]+|[`"'.\s]+$/g, '');
+  return raw.replace(/^[`"'.\s]+|[`"'.\s]+$/g, '');
 }
 
-/** The option the reply is, whole and without case; a reply that only mentions one names none ("NonMatch" holds "Match"). */
-function matchResponseOption(raw: string, options: string[]): string | undefined {
+/** The option the reply is, whole and without case; a reply that only mentions one names none ("NonMatch" holds "Match").
+ * The local runner reads a reply the same way (skills/behaverse/local.py's option_named, held to tests/replies.json). */
+export function matchResponseOption(raw: string, options: string[]): string | undefined {
   const reply = normalizeReply(raw).toLowerCase();
   return options.find((option) => option.toLowerCase() === reply);
 }

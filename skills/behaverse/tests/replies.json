@@ -1,0 +1,14 @@
+[
+  ["Match", ["Match", "NonMatch"], "Match"],
+  ["  match. ", ["Match", "NonMatch"], "Match"],
+  ["\"NonMatch\"", ["Match", "NonMatch"], "NonMatch"],
+  ["`Left`", ["Left", "Right"], "Left"],
+  ["'Right'.", ["Left", "Right"], "Right"],
+  [".Match", ["Match", "NonMatch"], "Match"],
+  ["' . Left'", ["Left", "Right"], "Left"],
+  ["NonMatch", ["Match", "NonMatch"], "NonMatch"],
+  ["It is Match", ["Match", "NonMatch"], null],
+  ["Match NonMatch", ["Match", "NonMatch"], null],
+  ["Left!", ["Left", "Right"], null],
+  ["", ["Match"], null]
+]
