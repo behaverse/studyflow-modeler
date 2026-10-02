@@ -72,12 +72,17 @@ test('a message flow the page carries runs; one to a pool no one in the page pla
     ['from a screen', '{ name: Model }', 'type: cognitive:Instruction', ['error M_Ask', 'warning Practice']],
     // A timer event is the walk's, as in a local run: its screen only shows the wait, and the walk sends for it.
     ['from a timer event', '{ name: Model }', REST, []],
-    // No screen takes a rest that says no time, which waits for nothing; a gateway that draws its branch is the walk's.
+    // No screen takes a rest that says no time, which waits for nothing.
     ['from a step no screen takes', '{ name: Model }', 'type: cognitive:Rest', ['warning Practice']],
+    // The walk decides every gateway, whatever its type: by a draw, or by its flows' conditions.
     ['from a gateway that draws', '{ name: Model }', 'type: cognitive:RandomGateway', []],
+    ['from a gateway that weighs its conditions', '{ name: Model }', 'type: cognitive:EligibilityGateway', []],
   ];
   for (const [label, model, sender, says] of CASES) {
     const found = validateUnwalked(await study(model, sender)).map((issue) => `${issue.severity ?? 'error'} ${issue.nodeId}`).sort();
     expect(found, label).toEqual(says);
   }
+  // What a step no screen takes is warned about says what happens to it.
+  const [passed] = validateUnwalked(await study('{ name: Model }', 'type: cognitive:Rest'));
+  expect(passed.message).toBe('This runtime has no screen for a cognitive:Rest: the run passes over this step without one.');
 });

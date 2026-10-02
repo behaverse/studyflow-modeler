@@ -1,4 +1,4 @@
-import { Graph } from '@core/engine';
+import { GATEWAY_TYPES, Graph } from '@core/engine';
 import { findByFlowNode, waitsForTime } from '@runner/nodes/registry';
 import { peopleOf } from '@runner/session';
 import type { Studyflow } from '@runner/studyflow';
@@ -12,8 +12,8 @@ import type { ValidationIssue } from '@runner/nodes/types';
  * message on a screen. A pool no one in the page plays (a model, a device), and a screen that would have to exchange
  * messages itself, are refused; what a screen does not do is said as a warning: fill a data edge. A step that
  * exchanges messages has no screen, and the walk fills its data edges as it sends and receives. A timer event is never
- * handed to its screen, which only shows the walk's wait: it is the walk's, as in a local run. A step of a type no
- * screen takes is warned about too.
+ * handed to its screen, which only shows the walk's wait: it is the walk's, as in a local run. So is every gateway. A
+ * step of a schema's type that no screen takes is warned about too: the run passes over it without a screen.
  */
 export function validateUnwalked(studyflow: Studyflow): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -32,10 +32,10 @@ export function validateUnwalked(studyflow: Studyflow): ValidationIssue[] {
     if (handed && !('fallback' in handed.match && talks(element.id)) && element.inputs.length + element.outputs.length > 0) {
       issues.push({ nodeId: element.id, severity: 'warning', message: `'${label}' reads or writes data along drawn edges, which this runtime's screens do not fill. ${locally}` });
     }
-    // A step of a schema's type no screen takes is passed over, but for a gateway whose schema says how it branches,
-    // which the walk takes.
-    if (node?.extensionType && !screen && !element.branching) {
-      issues.push({ nodeId: element.id, severity: 'warning', message: `'${node.extensionType}' is not executable in this runner. This step is skipped and the run continues.` });
+    // A step of a schema's type no screen takes is passed over, but for a gateway, which the walk decides whatever its
+    // type: by its flows' conditions, or by a draw.
+    if (node?.extensionType && !screen && !GATEWAY_TYPES.has(element.type) && element.type !== 'parallelGateway') {
+      issues.push({ nodeId: element.id, severity: 'warning', message: `This runtime has no screen for a ${node.extensionType}: the run passes over this step without one.` });
     }
   }
   const people = peopleOf(elements);
