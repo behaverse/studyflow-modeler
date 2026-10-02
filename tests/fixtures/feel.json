@@ -20,6 +20,8 @@
   ["result.trials", {"result": {"trials": [1, 2]}}, [1, 2]],
   ["result.trials[1]", {"result": {"trials": [7, 8]}}, 7],
   ["result.trials[-1]", {"result": {"trials": [7, 8]}}, 8],
+  ["result.trials[3]", {"result": {"trials": [7, 8]}}, null],
+  ["result.trials[-3]", {"result": {"trials": [7, 8]}}, null],
   ["count(xs)", {"xs": [1, 2, 3]}, 3],
   ["sum(xs)", {"xs": [1, 2, 3]}, 6],
   ["mean(xs)", {"xs": [1, 2, 3]}, 2],
@@ -50,5 +52,6 @@
   ["word == \"b\"", {"word": "b"}, {"error": true}],
   ["'READY' in Screening", {"Screening": "x"}, {"error": true}],
   ["result.count()", {"result": [1]}, {"error": true}],
-  ["result[0]", {"result": [1]}, {"error": true}]
+  ["result[0]", {"result": [1]}, {"error": true}],
+  ["result[n > 1]", {"result": [1, 2], "n": 2}, {"error": true}]
 ]
