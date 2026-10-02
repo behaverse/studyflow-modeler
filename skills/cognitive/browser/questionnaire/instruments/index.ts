@@ -111,14 +111,7 @@ const bdi2: InstrumentDefinition = {
   ],
 };
 
-const REGISTRY: Record<string, InstrumentDefinition> = {
-  'phq-9': phq9,
-  phq9: phq9,
-  'gad-7': gad7,
-  gad7: gad7,
-  'bdi-ii': bdi2,
-  'bdi2': bdi2,
-};
+const REGISTRY: Record<string, InstrumentDefinition> = Object.fromEntries([phq9, gad7, bdi2].map((definition) => [definition.id, definition]));
 
 export function getInstrument(id: string | undefined): InstrumentDefinition | null {
   if (!id) return null;
@@ -126,7 +119,7 @@ export function getInstrument(id: string | undefined): InstrumentDefinition | nu
   return REGISTRY[key] ?? null;
 }
 
-/** Canonical ids only (the registry also carries unhyphenated aliases), for listing them in messages. */
+/** The built-in instruments' ids, for listing them in messages. */
 export function listInstrumentIds(): string[] {
-  return [...new Set(Object.values(REGISTRY).map((definition) => definition.id))];
+  return Object.keys(REGISTRY);
 }
