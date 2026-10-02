@@ -12,11 +12,12 @@ export function readCompletionCodeType(node: FlowNode): CompletionCodeType {
 export function resolveCompletionCode(
   type: CompletionCodeType,
   staticValue: string | undefined,
+  search: string,
 ): string | null {
   if (type === 'none') return null;
   if (type === 'static') return staticValue?.trim() || null;
 
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(search);
   for (const key of PARAM_NAMES) {
     const value = params.get(key);
     if (value && value.trim()) return value.trim();

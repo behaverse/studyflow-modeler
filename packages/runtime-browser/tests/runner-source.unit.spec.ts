@@ -8,7 +8,8 @@ import { parseStudyflow, Studyflow } from '@runner/studyflow';
 import { xmlToStudy } from '@core/document';
 import { Graph, planOf, type Plan } from '@core/engine';
 import { freshMetamodel, freshPackages } from '@tests/schemas';
-import { attributeOf } from '@runner/flow';
+import { attributeOf, readString } from '@runner/flow';
+import { readCompletionCodeType, resolveCompletionCode, substituteCompletionCode } from '@runner/nodes/end/completionCode';
 
 /** What the runner's `diagram=` parameter accepts, and how the rest of the query string reaches the study. */
 
@@ -320,6 +321,50 @@ Redirects:
   expect(study.parameters.unbound).toEqual(['task']);
   expect(study.flowNodes.get('Trial')?.element.name).toBe('Trial {count}');
   expect(attributeOf(study.flowNodes.get('Done')!, 'redirectTo')).toContain('cc={COMPLETION_CODE}');
+});
+
+test('a dynamic completion code is the one the link carries, else a fresh one; a static one is the end event\'s own; the redirect carries it encoded', async () => {
+  const study = await parseStudyflow(`id: codes
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Codes:
+  type: bpmn:Process
+  flowElements:
+    Dynamic:
+      type: bpmn:EndEvent
+      redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
+      completionCodeType: dynamic
+    Static:
+      type: bpmn:EndEvent
+      completionCodeType: static
+      completionCode: " C0DE42 "
+    Plain:
+      type: bpmn:EndEvent
+`, freshPackages(), {});
+  // What the end event's screen shows, read as its job reads it, under the link's query string.
+  const codeOf = (id: string, search: string) => {
+    const end = study.flowNodes.get(id)!;
+    return resolveCompletionCode(readCompletionCodeType(end), readString(end, 'completionCode'), search);
+  };
+  const FRESH = /^[A-HJKMNP-Z2-9]{8}$/;
+  const CASES: [label: string, id: string, search: string, code: string | RegExp | null][] = [
+    ['the link\'s cc', 'Dynamic', '?diagram=x&cc=AB12', 'AB12'],
+    ['the link\'s completion_code, trimmed', 'Dynamic', '?completion_code=%20AB12%20', 'AB12'],
+    ['the link\'s COMPLETION_CODE', 'Dynamic', '?COMPLETION_CODE=AB12', 'AB12'],
+    ['a blank code is none', 'Dynamic', '?cc=%20', FRESH],
+    ['a link with no code', 'Dynamic', '?diagram=x', FRESH],
+    ['a static code, whatever the link carries', 'Static', '?cc=AB12', 'C0DE42'],
+    ['an end event of no code type', 'Plain', '?cc=AB12', null],
+  ];
+  for (const [label, id, search, code] of CASES) {
+    if (code instanceof RegExp) expect(codeOf(id, search), label).toMatch(code);
+    else expect(codeOf(id, search), label).toBe(code);
+  }
+  expect(codeOf('Dynamic', ''), 'each fresh code is drawn anew').not.toBe(codeOf('Dynamic', ''));
+
+  const redirect = readString(study.flowNodes.get('Dynamic')!, 'redirectTo')!;
+  expect(substituteCompletionCode(redirect, 'A&B C')).toBe('https://app.prolific.com/submissions/complete?cc=A%26B%20C');
+  expect(substituteCompletionCode(redirect, null)).toBe('https://app.prolific.com/submissions/complete?cc=');
 });
 
 test('every kind of task is a step the run reaches', async () => {

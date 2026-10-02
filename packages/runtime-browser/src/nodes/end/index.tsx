@@ -30,7 +30,7 @@ type EndJob = {
 
 function End({ job, session, log, complete }: NodeProps<EndJob>) {
   const code = useMemo(
-    () => resolveCompletionCode(job.completionCodeType, job.completionCode),
+    () => resolveCompletionCode(job.completionCodeType, job.completionCode, window.location.search),
     [job.completionCodeType, job.completionCode],
   );
   const redirectUrl = useMemo(
