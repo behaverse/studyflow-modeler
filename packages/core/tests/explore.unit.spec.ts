@@ -57,3 +57,58 @@ test('every way a study can go is walked, and a wait no message will end, or a m
     { message: 'a message along M_Bye is sent and nothing takes it', path: ['Gate → L_Told'] },
   ]);
 });
+
+/** A process of these flow elements. */
+const inProcess = (elements: string): string => `S:\n  type: Process\n  flowElements:\n${elements}`;
+
+// What the walk would decide by data, besides an exclusive gateway's flow, and the runs its choices make.
+const CHOICES: [label: string, study: string, runs: number][] = [
+  ['each set of flows an inclusive split may take', inProcess(`    Start: { type: StartEvent }
+    Split: { type: InclusiveGateway }
+    A: { type: Task }
+    B: { type: Task }
+    Join: { type: InclusiveGateway }
+    End: { type: EndEvent }
+    F0: Start -> Split
+    F_A: { sourceRef: Split, targetRef: A, conditionExpression: a }
+    F_B: { sourceRef: Split, targetRef: B, conditionExpression: b }
+    F1: A -> Join
+    F2: B -> Join
+    F3: Join -> End
+`), 3],
+  ['each set of conditioned flows out of a step, or none, for its default', inProcess(`    Start: { type: StartEvent }
+    Step: { type: Task, default: F_Else }
+    A: { type: EndEvent }
+    B: { type: EndEvent }
+    Else: { type: EndEvent }
+    F0: Start -> Step
+    F_A: { sourceRef: Step, targetRef: A, conditionExpression: a }
+    F_B: { sourceRef: Step, targetRef: B, conditionExpression: b }
+    F_Else: Step -> Else
+`), 4],
+  ['another pass of a repeating step, or none', inProcess(`    Start: { type: StartEvent }
+    Practice:
+      type: Task
+      loopCharacteristics: { type: StandardLoopCharacteristics, loopCondition: more }
+    End: { type: EndEvent }
+    F0: Start -> Practice
+    F1: Practice -> End
+`), 2],
+  ['each conditional boundary event a finished step may leave by, or none', inProcess(`    Start: { type: StartEvent }
+    Measure: { type: Task }
+    Noisy: { type: BoundaryEvent, attachedToRef: Measure, eventDefinitions: { C_Noisy: { type: ConditionalEventDefinition, condition: noisy } } }
+    Slow: { type: BoundaryEvent, attachedToRef: Measure, eventDefinitions: { C_Slow: { type: ConditionalEventDefinition, condition: slow } } }
+    End: { type: EndEvent }
+    Excluded: { type: EndEvent }
+    F0: Start -> Measure
+    F1: Measure -> End
+    F2: Noisy -> Excluded
+    F3: Slow -> Excluded
+`), 3],
+];
+
+test('each way a run may go is a run of its own, whatever the data would decide', async () => {
+  for (const [label, study, runs] of CHOICES) {
+    expect(await explore(plan(study)), label).toEqual({ runs, complete: true, findings: [] });
+  }
+});
