@@ -371,6 +371,30 @@ for (const [label, rate, expected] of RATES) {
   });
 }
 
+test('a gateway a runner claims decides on what the runner samples, and its record keeps the sample as bindings', async () => {
+  // A robot looks before it greets: the conditions read the face count it samples, which no step binds.
+  const study = `S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Seated: { type: ExclusiveGateway, default: F_Greet }
+    Ask: { type: EndEvent }
+    Greet: { type: EndEvent }
+    F1: Start -> Seated
+    F_Ask:
+      sourceRef: Seated
+      targetRef: Ask
+      conditionExpression: face_count = 0
+    F_Greet: Seated -> Greet
+`;
+  for (const [faces, flow] of [[0, 'F_Ask'], [2, 'F_Greet']] as const) {
+    const { walk } = await walked(study, { Seated: () => ({ result: { face_count: faces } }) });
+    expect(walk.steps.entries.find((entry) => entry.node === 'Seated'), `${faces} faces`).toMatchObject({
+      bindings: { face_count: faces }, taken: { sequenceFlow: flow },
+    });
+  }
+});
+
 // Three passes over the cohort, drawn two ways: BPMN's standard loop marker, and the multi-instance marker a cohort
 // of independent subjects carries (`loopCardinality` instances, run in order).
 const COHORT_MARKERS: [label: string, marker: string][] = [
