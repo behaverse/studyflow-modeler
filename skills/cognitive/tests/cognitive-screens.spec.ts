@@ -61,6 +61,37 @@ test('an instruction and a questionnaire are screens of their own, and a study w
   expect(manifestFetched).toBe(false);
 });
 
+/** A questionnaire whose instrument the runner has no item set for. */
+const FREE_TEXT = `id: runner-free-text
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Study:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent, name: Welcome }
+    Diary:
+      type: cognitive:Questionnaire
+      name: Sleep diary
+      instrument: sleep-diary
+    End: { type: EndEvent }
+    F1: Start -> Diary
+    F2: Diary -> End
+`;
+
+test('an instrument with no item set takes a free-text answer', async ({ page }) => {
+  await runStudyflow(page, 'runner-free-text', FREE_TEXT);
+  await page.getByRole('button', { name: /begin/i }).click();
+
+  await expect(page.getByRole('heading', { name: 'Sleep diary' })).toBeVisible();
+  await expect(page.getByText('Please respond in your own words.')).toBeVisible();
+  await page.getByRole('textbox').fill('I slept well.');
+  await page.getByRole('button', { name: /continue/i }).click();
+
+  await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
+  await page.getByRole('button', { name: /logs/i }).click();
+  await expect(page.getByText("Responded 'sleep-diary' in free text (13 chars)")).toBeVisible();
+});
+
 /** A rest the walk waits two seconds on, eyes closed. */
 const REST = `id: runner-rest
 definitions:
