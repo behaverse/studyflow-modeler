@@ -60,3 +60,35 @@ test('an instruction and a questionnaire are screens of their own, and a study w
   await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
   expect(manifestFetched).toBe(false);
 });
+
+/** A rest the walk waits two seconds on, eyes closed. */
+const REST = `id: runner-rest
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Study:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent, name: Welcome }
+    Baseline:
+      type: cognitive:Rest
+      name: Resting baseline
+      eyes: closed
+      eventDefinitions:
+        Baseline_Timer: { type: TimerEventDefinition, timeDuration: PT2S }
+    End: { type: EndEvent }
+    F1: Start -> Baseline
+    F2: Baseline -> End
+`;
+
+test('a rest says how to rest while the time left counts down, and the run goes on by itself when it is up', async ({ page }) => {
+  await runStudyflow(page, 'runner-rest', REST);
+  await page.getByRole('button', { name: /begin/i }).click();
+
+  await expect(page.getByRole('heading', { name: 'Resting baseline' })).toBeVisible();
+  await expect(page.getByText('Close your eyes and rest.')).toBeVisible();
+  const left = page.getByRole('timer', { name: 'Time left' });
+  await expect(left).toHaveText('0:02');
+  await expect(left).toHaveText('0:01');
+  // Nothing to press: the walk keeps the time.
+  await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
+});
