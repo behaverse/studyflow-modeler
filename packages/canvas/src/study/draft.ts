@@ -22,6 +22,12 @@ const DATA_ASSOCIATIONS = ['dataInputAssociations', 'dataOutputAssociations'];
 /** How far a drafted note stands from what it annotates. */
 const NOTE_GAP = 20;
 
+/** What a draft draws: the shapes, and the flows between them. */
+interface Draft {
+  shapes: Element[];
+  edges: Element[];
+}
+
 /** Draft a drawing for `model` when it holds none; whether it did. */
 export function draftDrawing(model: StudyModel): boolean {
   if (Object.keys(model.study.layout).length > 0) return false;
@@ -31,40 +37,49 @@ export function draftDrawing(model: StudyModel): boolean {
   const root = roots.find((element) => model.host(element) === 'bpmn:Collaboration' && listOf(element, 'participants').some((pool) => pool.processRef))
     ?? roots.find((element) => model.host(element) === 'bpmn:Process');
   if (!root) return false;
-  const shapes: Element[] = [];
-  const edges: Element[] = [];
-  const typeOf = (element: Element): string => model.host(element);
-  const artifacts = (container: Element): void => {
-    for (const artifact of listOf(container, 'artifacts')) (isBpmnSubtypeOf(typeOf(artifact), 'bpmn:Association') ? edges : shapes).push(artifact);
-  };
-  const drawContents = (container: Element): void => {
-    for (const element of listOf(container, 'flowElements')) {
-      if (isBpmnSubtypeOf(typeOf(element), 'bpmn:SequenceFlow')) edges.push(element);
-      else if (typeOf(element) !== 'bpmn:DataObject') shapes.push(element);
-      edges.push(...DATA_ASSOCIATIONS.flatMap((name) => listOf(element, name)).filter((association) => isDrawnAssociation(model, association)));
-      drawContents(element);
-    }
-    artifacts(container);
-    const drawLanes = (holder: Element | undefined): void => {
-      for (const lane of listOf(holder, 'lanes')) {
-        shapes.push(lane);
-        drawLanes(lane.childLaneSet as Element | undefined);
-      }
-    };
-    for (const laneSet of listOf(container, 'laneSets')) drawLanes(laneSet);
-  };
-  if (typeOf(root) === 'bpmn:Collaboration') {
+  const draft: Draft = { shapes: [], edges: [] };
+  if (model.host(root) === 'bpmn:Collaboration') {
     for (const pool of listOf(root, 'participants')) {
-      shapes.push(pool);
+      draft.shapes.push(pool);
       const process = refOf(model, pool, 'processRef');
-      if (process) drawContents(process);
+      if (process) drawContents(model, process, draft);
     }
-    edges.push(...listOf(root, 'messageFlows'));
-    artifacts(root);
+    draft.edges.push(...listOf(root, 'messageFlows'));
+    drawArtifacts(model, root, draft);
   } else {
-    drawContents(root);
+    drawContents(model, root, draft);
   }
+  place(model, draft);
+  if (root !== model.primaryRoot()) model.study.diagram = [{ plane: { bpmnElement: root.id! } }];
+  return true;
+}
 
+/** Add what `container` holds to `draft`, however deep: its flow, the data it reads and writes, its notes and lanes. */
+function drawContents(model: StudyModel, container: Element, draft: Draft): void {
+  for (const element of listOf(container, 'flowElements')) {
+    if (isBpmnSubtypeOf(model.host(element), 'bpmn:SequenceFlow')) draft.edges.push(element);
+    else if (model.host(element) !== 'bpmn:DataObject') draft.shapes.push(element);
+    draft.edges.push(...DATA_ASSOCIATIONS.flatMap((name) => listOf(element, name)).filter((association) => isDrawnAssociation(model, association)));
+    drawContents(model, element, draft);
+  }
+  drawArtifacts(model, container, draft);
+  const drawLanes = (holder: Element | undefined): void => {
+    for (const lane of listOf(holder, 'lanes')) {
+      draft.shapes.push(lane);
+      drawLanes(lane.childLaneSet as Element | undefined);
+    }
+  };
+  for (const laneSet of listOf(container, 'laneSets')) drawLanes(laneSet);
+}
+
+/** Add `container`'s notes and groups to `draft`, and the links from its notes. */
+function drawArtifacts(model: StudyModel, container: Element, draft: Draft): void {
+  for (const artifact of listOf(container, 'artifacts')) (isBpmnSubtypeOf(model.host(artifact), 'bpmn:Association') ? draft.edges : draft.shapes).push(artifact);
+}
+
+/** Write `draft` into the layout: each shape at the origin, each flow a stub. */
+function place(model: StudyModel, { shapes, edges }: Draft): void {
+  const typeOf = (element: Element): string => model.host(element);
   const boxes = new Map<Element, Bounds>(shapes.map((shape) => [shape, { x: 0, y: 0, ...(typeOf(shape) === 'bpmn:Group' ? { width: 0, height: 0 } : defaultSizeFor(typeOf(shape))) }] as const));
   for (const link of edges.filter((edge) => typeOf(edge) === 'bpmn:Association')) {
     const [from, to] = [refOf(model, link, 'sourceRef'), refOf(model, link, 'targetRef')];
@@ -91,8 +106,6 @@ export function draftDrawing(model: StudyModel): boolean {
     layout[shape.id!] = { bounds: boxToText(boxes.get(shape)!), ...(listOf(shape, 'flowElements').length > 0 ? { isExpanded: false } : {}) };
   }
   for (const edge of edges) layout[edge.id!] = { waypoint: pointsToText([{ x: 0, y: 0 }, { x: 0, y: 0 }]) };
-  if (root !== model.primaryRoot()) model.study.diagram = [{ plane: { bpmnElement: root.id! } }];
-  return true;
 }
 
 /** The flows a route is drawn for: what a study's sequence and message flows, notes' links and data run along. */
