@@ -262,7 +262,8 @@ export function ChecklistInput({ attrDef }: { attrDef: AttributeSpec }) {
                 <input
                   type="checkbox"
                   checked={line.checked}
-                  onChange={() => patch(index, { ...line, checked: !line.checked })}
+                  // A tick is one click, not a typing burst: it is written at once.
+                  onChange={() => { patch(index, { ...line, checked: !line.checked }); flush(); }}
                   aria-label={`${line.checked ? 'Uncheck' : 'Check'} ${line.text || 'item'}`}
                   className="ml-2 my-auto shrink-0 accent-stone-700"
                 />

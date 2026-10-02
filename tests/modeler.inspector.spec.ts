@@ -2,9 +2,9 @@ import * as yaml from 'js-yaml';
 
 import { expect, test } from './e2e';
 
-import { addPaletteElement, addSchemaPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText, setSelectedElementName } from './utils';
+import { addPaletteElement, addSchemaPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText, runPaletteCommand, setSelectedElementName } from './utils';
 
-test('inspector fields: an optional one opens when ticked and clears unticked, a name is drawn, and Enter in a checklist adds the next item', async ({ page }) => {
+test('inspector fields: an optional one opens when ticked and clears unticked, a name is drawn, Enter in a checklist adds the next item, and a ticked item is checked off in the Checklist view', async ({ page }) => {
   await gotoModeler(page);
   const inspector = page.getByTestId('inspector-root');
   const toggle = inspector.getByRole('checkbox', { name: 'Version' });
@@ -34,6 +34,16 @@ test('inspector fields: an optional one opens when ticked and clears unticked, a
 
   await expect(items).toHaveCount(2);
   await expect(items.nth(1)).toBeFocused();
+
+  // A ticked item is checked off in the study, where the Checklist view gathers every element's list.
+  await items.nth(1).fill('debrief');
+  await inspector.getByRole('checkbox', { name: 'Check consent' }).check();
+  await runPaletteCommand(page, 'View as Checklist...');
+  const view = page.getByRole('dialog');
+  await expect(view).toContainText('Review Task');
+  await expect(view).toContainText('1 of 2 items complete.');
+  await expect(view.getByRole('checkbox', { name: 'consent' })).toBeChecked();
+  await expect(view.getByRole('checkbox', { name: 'debrief' })).not.toBeChecked();
 });
 
 test("the code modals: a schema's columns are saved in the format picked, which the schema then names, and a script's code in the language picked, which one undo takes back whole", async ({ page }) => {
