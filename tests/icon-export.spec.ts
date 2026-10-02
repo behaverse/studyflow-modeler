@@ -32,7 +32,7 @@ const IMAGE_ICON_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </bpmn:definitions>`;
 
 test.describe('native SVG icons', () => {
-  test('the canvas and its SVG and PNG exports carry glyph paths, fetched from nowhere', async ({ page }) => {
+  test('the canvas and its SVG and PNG exports carry glyph paths, fetched from nowhere, and a data: image icon is painted', async ({ page }) => {
     const requests: string[] = [];
     page.on('request', (request) => { if (request.url().includes('iconify')) requests.push(request.url()); });
     await gotoModeler(page);
@@ -53,18 +53,15 @@ test.describe('native SVG icons', () => {
 
     const png = await readDownload(await exportDiagram(page, 'png'));
     expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-    expect(requests).toEqual([]);
-  });
 
-  test('an icon that is a data: image is painted into the PNG export', async ({ page }) => {
-    await gotoModeler(page);
+    // An icon that is a `data:` image is drawn as an `<image>`, and painted into the PNG.
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'image_icon.studyflow', mimeType: 'application/xml', buffer: Buffer.from(IMAGE_ICON_XML),
     });
-    await expect(page.getByTestId('modeler-canvas').locator('image.sf-icon[data-icon-key="UserTask"]')).toBeAttached();
+    await expect(canvas.locator('image.sf-icon[data-icon-key="UserTask"]')).toBeAttached();
 
     // The raster reads back (an `<image>` does not taint it, as a foreignObject does) with the glyph painted.
-    const png = await readDownload(await exportDiagram(page, 'png'));
+    const imagePng = await readDownload(await exportDiagram(page, 'png'));
     const redPixels = await page.evaluate(async (base64) => {
       const image = new Image();
       image.src = `data:image/png;base64,${base64}`;
@@ -75,7 +72,8 @@ test.describe('native SVG icons', () => {
       let count = 0;
       for (let i = 0; i < data.length; i += 4) if (data[i] > 200 && data[i + 1] < 50 && data[i + 2] < 50) count += 1;
       return count;
-    }, png.toString('base64'));
+    }, imagePng.toString('base64'));
     expect(redPixels).toBeGreaterThan(0);
+    expect(requests).toEqual([]);
   });
 });
