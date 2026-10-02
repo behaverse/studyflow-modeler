@@ -50,6 +50,8 @@ export type LocalRun = {
   options?: string[];
   /** Seconds a hand-off may take before it is stopped, and its step fails. */
   stepTimeout?: number;
+  /** Seconds a runner has to answer `initialize` before the run stops (600 by default). */
+  startTimeout?: number;
 };
 
 /** Short words for a run id's codename tail, drawn from the run's exact start moment. */
@@ -204,7 +206,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     mkdirSync(cache, { recursive: true });
     writeFileSync(path.join(cache, 'plan.json'), JSON.stringify(plan, null, 1));
   }
-  for (const [name, command] of commands) runners.push(new PartialRunner(name, command as RunnerCommand, dir, log, { timeout: run.stepTimeout, local: run.sdk }));
+  for (const [name, command] of commands) runners.push(new PartialRunner(name, command as RunnerCommand, dir, log, { timeout: run.stepTimeout, startTimeout: run.startTimeout, local: run.sdk }));
   // Every runner is asked at once; a claim is settled in the order the runners were found.
   const answers = await Promise.all(runners.map(async (runner) => ({ runner, answer: await runner.claims() })));
   for (const { runner, answer } of answers) {

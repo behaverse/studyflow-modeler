@@ -109,6 +109,7 @@ program
   .option('--debug', 'keep the .cache folder, with the values after each element, and write the debug lines to studyflow.log')
   .option('--option <name[=value]>', 'an option for the runners, in plan.json `options` (`--option sim` drives a simulated robot, `--option auto` answers prompts with canned values); repeatable', collect)
   .option('--step-timeout <seconds>', 'stop a hand-off that takes longer, and fail its step', Number)
+  .option('--start-timeout <seconds>', 'stop the run when a runner takes longer to answer initialize (default: 600, as a first `uv run` installs its packages)', Number)
   .action(async (input: string, options: RunOptions) => {
     const { run } = await import('@cli/run');
     await run(input, options);

@@ -112,6 +112,10 @@ export type Claims = { elements: string[]; live: boolean };
 /** How long a runner asked to stop a hand-off, or to shut down, has before its process is ended. */
 const GRACE_MS = 2000;
 
+/** Seconds a runner has to answer `initialize` (`--start-timeout`): long, since a first `uv run` installs the runner's
+ * packages before it can answer. */
+const START_TIMEOUT = 600;
+
 type Process = ChildProcessByStdio<Writable, Readable, null>;
 
 /** A JSON-RPC 2.0 message, one a line. */
@@ -142,6 +146,8 @@ export class PartialRunner {
   private readonly log: RunLog;
   /** Seconds a hand-off may take before it is stopped (`--step-timeout`). */
   private readonly timeout: number | undefined;
+  /** Seconds it has to answer `initialize` (`--start-timeout`). */
+  private readonly startTimeout: number;
   /** The runner SDK's folder, where a runner finds it (`STUDYFLOW_LOCAL`). */
   private readonly local: string | undefined;
   private child: Process | undefined;
@@ -151,13 +157,14 @@ export class PartialRunner {
   private readonly talks = new Map<string, Talk>();
   private prompting: Promise<unknown> = Promise.resolve();
 
-  constructor(name: string, { command, cwd }: RunnerCommand, repo: string, log: RunLog, options: { timeout?: number; local?: string }) {
+  constructor(name: string, { command, cwd }: RunnerCommand, repo: string, log: RunLog, options: { timeout?: number; startTimeout?: number; local?: string }) {
     this.name = name;
     this.argv = shellWords(command);
     this.cwd = cwd;
     this.dir = repo;
     this.log = log;
     this.timeout = options.timeout;
+    this.startTimeout = options.startTimeout ?? START_TIMEOUT;
     this.local = options.local;
   }
 
@@ -181,7 +188,7 @@ export class PartialRunner {
     return { elements: answer.elements ?? [], live: answer.live ?? true };
   }
 
-  /** The process, started and told the plan and the run. */
+  /** The process, started and told the plan and the run; one that does not answer in time is given up on. */
   private open(): Promise<Record<string, any>> {
     const cache = path.join(this.dir, '.cache');
     // The walk's own pid, so whatever a runner leaves running for the study can follow the walk; unbuffered, so a
@@ -202,7 +209,12 @@ export class PartialRunner {
     child.on('close', (code) => ended(new Error(`its process ended${code ? ` with code ${code}` : ''}`)));
     child.stdin.on('error', () => undefined); // a runner that is gone: its `close` says so
     createInterface({ input: child.stdout }).on('line', (line) => this.heard(line));
-    return this.request('initialize', { protocol: PROTOCOL, plan: path.join(cache, 'plan.json'), run: { dir: this.dir, cache } });
+    const answered = this.request('initialize', { protocol: PROTOCOL, plan: path.join(cache, 'plan.json'), run: { dir: this.dir, cache } });
+    let timer: NodeJS.Timeout | undefined;
+    const late = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`no answer within ${this.startTimeout}s, the --start-timeout`)), this.startTimeout * 1000);
+    });
+    return Promise.race([answered, late]).finally(() => clearTimeout(timer));
   }
 
   private write(message: Rpc): void {

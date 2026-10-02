@@ -14,7 +14,7 @@ import { runLocal, type LocalRun } from '@runtime-local/run';
 /** What the run record names as the tool that ran it (`with`). */
 const TOOL = `studyflow-cli/${import.meta.env?.APP_VERSION ?? 'dev'}`;
 
-export type RunOptions = Pick<LocalRun, 'repo' | 'inputs' | 'from' | 'fresh' | 'quiet' | 'debug' | 'stepTimeout'> & {
+export type RunOptions = Pick<LocalRun, 'repo' | 'inputs' | 'from' | 'fresh' | 'quiet' | 'debug' | 'stepTimeout' | 'startTimeout'> & {
   runtime?: string;
   runner?: string[];
   option?: string[];
@@ -65,6 +65,7 @@ async function runLocally(input: string, source: Awaited<ReturnType<typeof readS
     quiet: options.quiet,
     debug: options.debug,
     stepTimeout: options.stepTimeout,
+    startTimeout: options.startTimeout,
     runners: options.runner,
     options: options.option,
   });

@@ -528,7 +528,7 @@ P:
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/WARNING runner\.unavailable\s+the ghost runner needs no-such-runner-here/);
   });
 
-  test('a runner that cannot run the study says why at initialize, and one that never answers or speaks another protocol is refused; either way the run stops before the walk, in its words', () => {
+  test('a runner that cannot run the study says why at initialize, and one that never answers, answers too late or speaks another protocol is refused; either way the run stops before the walk, in its words', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-refused-'));
     fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), 'id: plain\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nP:\n  type: Process\n  flowElements:\n    Start: { type: StartEvent }\n    Work: { type: Task }\n    Done: { type: EndEvent }\n    F1: Start -> Work\n    F2: Work -> Done\n');
     // Its claims need a build this machine lacks: the SDK answers initialize with what was raised.
@@ -539,14 +539,18 @@ P:
       'asked = json.loads(sys.stdin.readline())',
       "print(json.dumps({'jsonrpc': '2.0', 'id': asked['id'], 'result': {'protocol': 1, 'elements': ['Work']}}), flush=True)",
     ].join('\n'));
-    for (const [runner, said] of [
+    // A runner that stays up and answers nothing, until it is told to shut down.
+    fs.writeFileSync(path.join(dir, 'silent.py'), 'import sys\nfor line in sys.stdin:\n    if \'"shutdown"\' in line:\n        break\n');
+    const ROWS: [runner: string, said: string, ...options: string[]][] = [
       [`lacking=python3 ${path.join(dir, 'lacking.py')}`, "the lacking runner cannot run this study: FileNotFoundError: [Errno 2] No such file or directory: 'Build/Task.app'"],
       ['mute=python3 -c "raise SystemExit(3)"', 'the mute runner did not answer initialize (its process ended with code 3): this walk speaks hand-off protocol 2'],
       [`other=python3 ${path.join(dir, 'other.py')}`, 'other speaks hand-off protocol 1; this walk speaks 2'],
-    ]) {
+      [`silent=python3 ${path.join(dir, 'silent.py')}`, 'the silent runner did not answer initialize (no answer within 1s, the --start-timeout): this walk speaks hand-off protocol 2', '--start-timeout', '1'],
+    ];
+    for (const [runner, said, ...options] of ROWS) {
       const repo = path.join(dir, runner.slice(0, runner.indexOf('=')));
-      // A runner that never answers would keep the walk waiting, and a synchronous call past the test's own timeout.
-      const done = spawnSync(process.execPath, [BIN, 'run', 'plan.studyflow.yaml', '--repo', repo, '--quiet', '--runner', runner], { cwd: dir, env: ENV, encoding: 'utf8', timeout: 20_000 });
+      // Should the start timeout fail, the walk would wait, and this synchronous call past the test's own timeout.
+      const done = spawnSync(process.execPath, [BIN, 'run', 'plan.studyflow.yaml', '--repo', repo, '--quiet', '--runner', runner, ...options], { cwd: dir, env: ENV, encoding: 'utf8', timeout: 20_000 });
       expect(done.status).toBe(1);
       expect(done.stderr).toContain(`error: ${said}`);
       // Nothing was walked: the run's record is empty.
