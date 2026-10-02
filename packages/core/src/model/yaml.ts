@@ -356,7 +356,7 @@ function readDiagrams(raws: unknown[], reader: Reader, metamodel: Metamodel, nam
     // Spelled as an element is, by a reader and a writer of its own: its ids are not the study's elements', and its
     // references (to its own shapes too) stay as written.
     const read = new Reader(metamodel, () => {}, namespaces, false).element(raw, 'bpmndi:BPMNDiagram');
-    const diagram = new Writer(metamodel, { has: () => true }).element(read, 'bpmndi:BPMNDiagram');
+    const diagram = new Speller(metamodel).element(new Writer(metamodel, { has: () => true }).element(read), 'bpmndi:BPMNDiagram');
     const plane = isMapping(diagram.plane) ? { ...diagram.plane } : undefined;
     if (plane && index === 0) {
       const elements = Array.isArray(plane.planeElement) ? plane.planeElement : keyedMapToList(plane.planeElement);
@@ -402,6 +402,9 @@ function impliedFlowLists(study: Study, metamodel: Metamodel): void {
 
 /* --- writing --- */
 
+/** What the file keeps of an element, in the order it writes it: each property in its type's order (a typed element's
+ * schema attributes where its schema's entry would stand), then the keys no schema declares; none that holds nothing
+ * or its default, no reference to an id the study does not hold, and no Study's run state. */
 class Writer {
   /** The ids of the elements written, in the order the file writes them: the layout map's order. */
   readonly order: string[] = [];
@@ -417,14 +420,12 @@ class Writer {
     this.warn = warn;
   }
 
-  element(element: Element, declared: string | undefined): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
+  element(element: Element): Element {
+    const out: Element = { type: element.type };
     if (typeof element.id === 'string') this.order.push(element.id);
     const host = hostOf(this.metamodel, element.type);
-    const typed = host !== element.type;
-    if (element.type !== declared) out.type = shortTypeName(element.type);
     const own = this.metamodel.has(host) ? this.metamodel.descriptor(host) : undefined;
-    const wrapper = typed ? this.metamodel.descriptor(element.type) : undefined;
+    const wrapper = host === element.type ? undefined : this.metamodel.descriptor(element.type);
     const written = new Set(['type']);
     for (const p of own?.properties ?? []) {
       const key = p.ns.localName;
@@ -441,17 +442,13 @@ class Writer {
       this.property(out, element, p, key);
     }
     for (const [key, value] of Object.entries(element)) {
-      if (!written.has(key) && value !== undefined && !(typed && wrapper?.propertiesByName[key])) out[key] = value;
+      if (!written.has(key) && value !== undefined && !wrapper?.propertiesByName[key]) out[key] = value;
     }
-    if (DI_NODE_TYPES.has(element.type)) compactDiNode(out);
-    if (out.type !== undefined && impliedTypeName(out, declared) === element.type) delete out.type;
-    if (!('name' in out)) return out;
-    const { type, name, ...rest } = out;
-    return { ...(type === undefined ? {} : { type }), name, ...rest };
+    return out;
   }
 
-  /** `element`'s property `p`, written to `out` under `key` as the file writes it. */
-  property(out: Record<string, unknown>, element: Element, p: PropertyDef, key: string): void {
+  /** `element`'s property `p`, kept in `out` under `key` when the file writes it. */
+  property(out: Record<string, Value | undefined>, element: Element, p: PropertyDef, key: string): void {
     const value = element[key];
     if (value === undefined || value === null) return;
     if (p.default !== undefined && value === p.default) return;
@@ -468,15 +465,61 @@ class Writer {
     }
     if (p.isMany) {
       if (!Array.isArray(value) || value.length === 0) return;
-      if (p.type === DOCUMENTATION && value.every((item) => typeof item === 'string')) {
-        out[key] = value.length === 1 ? value[0] : value;
-        return;
-      }
-      const items = value.map((item) => (typeof item === 'string' && p.type === DOCUMENTATION ? { text: item } : this.value(item, p.type)));
-      out[key] = keyItemsById(items) ?? items;
+      out[key] = value.map((item) => this.value(item, p.type));
       return;
     }
     out[key] = this.value(value, p.type);
+  }
+
+  private value(value: Value, declared: string | undefined): Value {
+    if (Array.isArray(value)) {
+      const list = declared && elementList(this.metamodel, declared);
+      return list ? value.map((item) => this.value(item, list.type)) : value;
+    }
+    if (isElement(value)) return this.element(value);
+    return value;
+  }
+}
+
+/** An element the {@link Writer} keeps, in the file's spelling: its type left out where its place or its keys say it, a
+ * BPMN type without its prefix, its name first, a list of elements keyed by id (a flow as an arrow), documentation as
+ * its text, a drawing's values on one line each. */
+class Speller {
+  private readonly metamodel: Metamodel;
+
+  constructor(metamodel: Metamodel) {
+    this.metamodel = metamodel;
+  }
+
+  element(element: Element, declared: string | undefined): Record<string, unknown> {
+    const { type: elementType, ...properties } = element;
+    const out: Record<string, unknown> = {};
+    if (elementType !== declared) out.type = shortTypeName(elementType);
+    Object.assign(out, this.properties(elementType, properties));
+    if (DI_NODE_TYPES.has(elementType)) compactDiNode(out);
+    if (out.type !== undefined && impliedTypeName(out, declared) === elementType) delete out.type;
+    if (!('name' in out)) return out;
+    const { type, name, ...rest } = out;
+    return { ...(type === undefined ? {} : { type }), name, ...rest };
+  }
+
+  /** The properties of an element of `type`, each in the file's spelling; a key no schema declares as it is. */
+  properties(type: string, properties: Record<string, Value | undefined>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(properties)) {
+      const p = propertyOf(this.metamodel, type, key);
+      out[key] = p?.ns.localName === key ? this.property(p, value!) : value;
+    }
+    return out;
+  }
+
+  private property(p: PropertyDef, value: Value): unknown {
+    if (p.isReference) return value;
+    if (!p.isMany) return this.value(value, p.type);
+    const list = value as Value[];
+    if (p.type === DOCUMENTATION && list.every((item) => typeof item === 'string')) return list.length === 1 ? list[0] : list;
+    const items = list.map((item) => (typeof item === 'string' && p.type === DOCUMENTATION ? { text: item } : this.value(item, p.type)));
+    return keyItemsById(items) ?? items;
   }
 
   private value(value: Value, declared: string | undefined): unknown {
@@ -539,23 +582,40 @@ function redundantDiagram(node: Value, study: Study, metamodel: Metamodel): bool
     || study.roots.some((root) => root.id === named && isHeadlessCollaboration(root));
 }
 
-/** The study as its file's document: the structure `js-yaml` dumps to the text the tools write. */
-export function writeStudy(study: Study, metamodel: Metamodel, warn?: Warn): YamlDoc {
+/** The study as its file holds it, what its YAML and its BPMN XML are both written from: the definitions without the
+ * namespaces the BPMN writer restores itself, each root as the {@link Writer} keeps it, the drawing of each element
+ * written in the order it is written, the diagram unless it says only which root the reader infers anyway, and the
+ * run state. `warn` hears each reference left out. */
+export function writtenStudy(study: Study, metamodel: Metamodel, warn?: Warn): Study {
   const writer = new Writer(metamodel, heldIds(study), warn);
-  const doc: YamlDoc = {};
-  if (study.id !== undefined) doc.id = study.id;
-  const definitions: Record<string, unknown> = {};
+  const definitions: Record<string, Value> = {};
   const own = metamodel.descriptor('bpmn:Definitions');
   const holder: Element = { ...study.definitions, type: 'bpmn:Definitions' };
   for (const p of own.properties) if (p.ns.localName !== 'id') writer.property(definitions, holder, p, p.ns.localName);
   for (const [key, value] of Object.entries(study.definitions)) {
     if (!(key in definitions) && !own.propertiesByName[key] && !redundantNamespace(metamodel, key, value)) definitions[key] = value;
   }
-  doc.definitions = definitions;
+  const roots = study.roots.map((root) => writer.element(root));
+  // Each drawing in the order its element is written, so the layout reads as the elements do.
+  const layout = Object.fromEntries(writer.order.filter((id) => study.layout[id]).map((id) => [id, study.layout[id]]));
+  const written: Study = { ...(study.id === undefined ? {} : { id: study.id }), definitions, roots, layout };
+  const diagram = (study.diagram ?? []).filter((node, index, all) => !(index === 0 && all.length === 1 && redundantDiagram(node, study, metamodel)));
+  if (diagram.length > 0) written.diagram = diagram;
+  if (study.state && Object.keys(study.state).length > 0) written.state = study.state;
+  return written;
+}
+
+/** The study as its file's document: the structure `js-yaml` dumps to the text the tools write. */
+export function writeStudy(study: Study, metamodel: Metamodel, warn?: Warn): YamlDoc {
+  const written = writtenStudy(study, metamodel, warn);
+  const speller = new Speller(metamodel);
+  const doc: YamlDoc = {};
+  if (written.id !== undefined) doc.id = written.id;
+  doc.definitions = speller.properties('bpmn:Definitions', written.definitions);
   const unkeyable: unknown[] = [];
-  const written = study.roots.map((root) => writer.element(root, 'bpmn:RootElement'));
-  const keyed = keyItemsById(written);
-  if (!keyed) unkeyable.push(...written);
+  const roots = written.roots.map((root) => speller.element(root, 'bpmn:RootElement'));
+  const keyed = keyItemsById(roots);
+  if (!keyed) unkeyable.push(...roots);
   else {
     for (const [key, body] of Object.entries(keyed)) {
       if (!RESERVED_DOC_KEYS.has(key) && !(key in doc)) doc[key] = body;
@@ -563,12 +623,9 @@ export function writeStudy(study: Study, metamodel: Metamodel, warn?: Warn): Yam
     }
   }
   if (unkeyable.length > 0) doc.elements = unkeyable;
-  // Each drawing in the order its element is written, so the layout reads as the elements do.
-  const layout = Object.fromEntries(writer.order.filter((id) => study.layout[id]).map((id) => [id, study.layout[id]]));
-  if (Object.keys(layout).length > 0) doc.layout = layout;
-  const diagram = (study.diagram ?? []).filter((node, index, all) => !(index === 0 && all.length === 1 && redundantDiagram(node, study, metamodel)));
-  if (diagram.length > 0) doc.diagram = diagram;
-  if (study.state && Object.keys(study.state).length > 0) doc.state = study.state;
+  if (Object.keys(written.layout).length > 0) doc.layout = written.layout;
+  if (written.diagram) doc.diagram = written.diagram;
+  if (written.state) doc.state = written.state;
   return doc;
 }
 
