@@ -14,7 +14,7 @@ import { readAttribute } from '@core/model/index';
 import { executeCommand } from '@modeler/commandBus';
 import { useAttributeState } from '@modeler/inspector/hooks';
 import { parseSchemaBody, type SchemaColumn, type SchemaFormat } from '@core/document';
-import { DATATYPES, serialize } from '@modeler/inspector/schemaFormats';
+import { DATATYPES, editedFormat, serialize } from '@modeler/inspector/schemaFormats';
 import { codeEditor as s } from '@modeler/inspector/styles';
 
 const SCRIPT_LANGUAGES = [
@@ -133,30 +133,39 @@ const cn = {
   formatRadio: 'flex items-center gap-1.5',
 };
 
+/** A schema's body: its columns in a table, in the format its `format` attribute names, or text when the table cannot hold it. */
 export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
-  const { value, commit, attributeName } = useAttributeState<string>(attrDef, (raw) => raw || '');
-  const [session, setSession] = useState<number | null>(null);
-  const parsed = useMemo(() => parseSchemaBody(value), [value]);
-  const [columns, setColumns] = useState<SchemaColumn[]>(parsed.columns);
-  const [format, setFormat] = useState<SchemaFormat>(parsed.format);
+  const { value, element } = useAttributeState<string>(attrDef, (raw) => raw || '');
+  const model = useInspectedModel();
+  const format = editedFormat(model.attribute(element, 'format'), value);
+  if (format) return <ColumnEditor attrDef={attrDef} edited={format} />;
+  return (
+    <>
+      <p className="mt-1 px-1 text-[0.6875rem]/4 text-stone-600">
+        The column editor edits a CSVW or LinkML schema written in place; this one is edited as text.
+      </p>
+      <CodeEditor attrDef={attrDef} />
+    </>
+  );
+}
+
+function ColumnEditor({ attrDef, edited }: { attrDef: AttributeSpec; edited: SchemaFormat }) {
+  const { value, attributeName, element, modeler } = useAttributeState<string>(attrDef, (raw) => raw || '');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [columns, setColumns] = useState<SchemaColumn[]>([]);
+  const [format, setFormat] = useState<SchemaFormat>(edited);
   const [showSource, setShowSource] = useState(false);
 
-  const modalOpen = session !== null;
-
-  // Each open is a counter-keyed session: the draft re-seeds at open time only, since `value` changing mid-session is the user's own commit echoing back.
-  const [seededFor, setSeededFor] = useState<number | null>(null);
-  if (modalOpen && seededFor !== session) {
-    setSeededFor(session);
-    setColumns(parsed.columns);
-    setFormat(parsed.format);
-    setShowSource(parsed.unparseable === true);
+  function open() {
+    setColumns(parseSchemaBody(value).columns);
+    setFormat(edited);
+    setShowSource(false);
+    setModalOpen(true);
   }
-
-  function open() { setSession((n) => (n ?? 0) + 1); }
-  function close() { setSession(null); }
+  function close() { setModalOpen(false); }
   function save() {
-    commit(serialize(columns, format));
-    setSession(null);
+    executeCommand(modeler, { type: 'UpdateSchema', element, format, body: serialize(columns, format) });
+    setModalOpen(false);
   }
 
   function updateColumn(idx: number, patch: Partial<SchemaColumn>) {
@@ -224,17 +233,6 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
                 {showSource ? 'Hide source' : 'View source'}
               </button>
             </div>
-
-            {parsed.unparseable && (
-              <p
-                data-testid="schema-unparseable"
-                className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2"
-                role="alert"
-              >
-                This schema is neither CSVW nor LinkML, so the table
-                below cannot represent it. Use View source and edit it directly.
-              </p>
-            )}
 
             {showSource ? (
               <pre className="bg-stone-50 border border-black/[0.06] rounded p-3 text-[0.6875rem] overflow-auto">
@@ -350,8 +348,7 @@ export function SchemaEditor({ attrDef }: { attrDef: AttributeSpec }) {
 
         <div className={s.modalActions}>
           <Button className={s.modalCancelBtn} onClick={close}>Cancel</Button>
-          {/* Disabled while unparseable: saving would serialize an empty column list over a schema this editor merely failed to read. */}
-          <Button className={s.modalSaveBtn} onClick={save} disabled={parsed.unparseable}>Save</Button>
+          <Button className={s.modalSaveBtn} onClick={save}>Save</Button>
         </div>
       </div>
     </div>

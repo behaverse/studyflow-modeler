@@ -1,6 +1,6 @@
 import * as yaml from 'js-yaml';
 
-import type { SchemaColumn, SchemaFormat } from '@core/document';
+import { parseSchemaBody, type SchemaColumn, type SchemaFormat } from '@core/document';
 
 /* The schema editor's writer, the inverse of core's `parseSchemaBody`: columns back to a CSVW or a LinkML body. */
 
@@ -14,6 +14,18 @@ export const DATATYPES = [
   'duration',
   'anyURI',
 ];
+
+/**
+ * The format the column editor edits a schema in: the one its `format` attribute names, else the one its body is
+ * written in. None when the table cannot hold the schema, a format other than CSVW and LinkML or a body it cannot read
+ * as either (a path, a URL): that schema is edited as text.
+ */
+export function editedFormat(format: unknown, body: string): SchemaFormat | undefined {
+  const parsed = parseSchemaBody(body);
+  if (parsed.unparseable) return undefined;
+  if (format === undefined) return parsed.format;
+  return format === 'csvw' || format === 'linkml' ? format : undefined;
+}
 
 function serializeCsvw(columns: SchemaColumn[]): string {
   const doc = {

@@ -19,6 +19,21 @@ export function runUpdateAttribute(modeler: Editor, command: UpdateAttributeComm
   modeler.study.set({ id: String(command.element.id), attribute: command.attributeName, value: command.value });
 }
 
+export type UpdateSchemaCommand = {
+  type: 'UpdateSchema';
+  element: { id?: unknown };
+  format: string;
+  body: string;
+};
+
+/** A schema's body and the format it is written in, as one edit. */
+export function runUpdateSchema(modeler: Editor, command: UpdateSchemaCommand): void {
+  modeler.study.revise(String(command.element.id), (schema, model) => {
+    model.setAttribute(schema, 'format', command.format);
+    model.setAttribute(schema, 'body', command.body);
+  });
+}
+
 export type SelectElementCommand = {
   type: 'SelectElement';
   id: string;
