@@ -216,7 +216,7 @@ These attributes describe the study's schedule in visits and days, which is what
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
 | `Dataset` | `bpmn:DataStoreReference` | A collection the study reads or produces, under a declared standard. | `format`, `schema`, `uri`, `catalog` |
-| `Schema` | `bpmn:DataObjectReference` | How data are laid out: columns, types, requiredness. | `format` (`csvw`, `linkml`, `jsonschema`), `body` |
+| `Schema` | `bpmn:DataObjectReference` | How data are laid out: columns, types, requiredness. | `format` (`csvw`, `linkml`, `jsonschema`, `frictionless`; the column editor edits the first two, and the others as text), `body` |
 | `Table` | `bpmn:DataObjectReference` | Rows and columns, with that structure committed to. | `format`, `schema` |
 | `Parameters` | `bpmn:DataObjectReference` | Settings wired into the steps that read them, so a variant of the study is a value change, not a redraw. Wired into a sub-process, its keys are that sub-process's read-only properties. One wired into nothing does nothing. | `values` |
 | `DataCatalog` | not drawn | A registry a dataset is published in; the dataset's `catalog` names it. | `uri` |
