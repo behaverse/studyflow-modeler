@@ -100,7 +100,7 @@ Each entry of a type's `properties` is one attribute.
 | --- | --- |
 | `name` | The attribute's name. Spelled `bpmn:<property>`, it is BPMN's own and stays in the BPMN namespace (`bpmn:implementation`). |
 | `description` | Inspector tooltip. |
-| `type` | The value's type: moddle's `String`, `Boolean`, `Integer` or `Real`, an enumeration, a value type, a type, or a BPMN element (below). Written on every attribute, `String` included. |
+| `type` | The value's type: moddle's `String`, `Boolean`, `Integer` or `Real`, an enumeration, a value type, a type, or a BPMN element (below). Written on every attribute, `String` included. The inspector edits a `Boolean` with a checkbox. |
 | `isAttr: true` | An XML attribute; below. |
 | `isMany: true` | A list, one child element per entry. |
 | `isBody: true` | The element's text body: the one attribute of a value holder. |
