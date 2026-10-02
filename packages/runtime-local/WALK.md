@@ -63,6 +63,10 @@ construct otherwise than the specification does, it says so here, and `studyflow
 
 - **A complex gateway** is refused where it splits, and passes each token where it joins (a warning): the walk reads
   no activation rule. A scope with several start events starts at the first only (a warning).
+- **Events the walk does not read.** A signal, escalation, compensation, link or cancel event is refused: each reaches
+  beyond where it is drawn (a signal to every catcher, a link to its target, a compensation back to steps already
+  done, an escalation or a cancel out to a scope around it), and the walk reads an event by its message flows, its
+  timer, its error, its condition or its terminate only.
 - **A join that cannot complete.** A parallel join one of whose tokens can never come (an exclusive split joined by a
   parallel gateway) stops the run, where BPMN would wait for ever; `studyflow validate` finds it before a run.
 - **A gateway's fallback.** When no condition holds, an exclusive gateway takes its default flow, else its one flow
