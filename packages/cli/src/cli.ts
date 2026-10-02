@@ -100,6 +100,7 @@ program
   .description('Execute a studyflow in the runtime it declares (or --runtime). `local` walks it on this machine (packages/runtime-local), once the plan passes the checks `validate` applies to it, and hands each element to the skill that claims it.')
   .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
   .option('--runtime <runtime>', 'override the document: local | browser')
+  .option('--author <name>', 'who runs the study, as git writes an author (\'Name <email>\', the email optional): the run\'s commits and its record name them. Without it they name no one (studyflow-runner), never this machine\'s user')
   .option('--repo <dir>', 'the run repository to write into, its name being the run id (default: the study\'s own directory when it already lives in one, else a fresh ~/.studyflow/runs/<YYMMDD+codename>)')
   .option('--inputs <dir>', 'also stage boundary inputs from this directory, after the study\'s own and before the working directory; repeatable', collect)
   .option('--from <ref>', 're-run from this point in the repository\'s history (a commit-ish), branching there')

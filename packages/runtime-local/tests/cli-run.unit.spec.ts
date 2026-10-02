@@ -122,6 +122,22 @@ S:
     expect(stateOf(events)).toEqual(second);
   });
 
+  test('names its --author on its commits and its record, and without one no one, never this machine\'s user', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-author-'));
+    fs.writeFileSync(path.join(dir, 'plain.studyflow.yaml'), 'id: plain\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nS:\n  type: Process\n  flowElements:\n    Start: { type: StartEvent }\n    Done: { type: EndEvent }\n    F1: Start -> Done\n');
+    const repo = path.join(dir, 'run');
+    const archived = path.join(repo, 'plain.studyflow.yaml');
+    const run = (file: string, ...extra: string[]) => execFileSync(process.execPath, [BIN, 'run', file, '--repo', repo, '--quiet', ...extra], { cwd: dir, stdio: 'pipe', env: ENV });
+    const named = () => execFileSync('git', ['-C', repo, 'log', '-1', '--format=%an <%ae>|%cn <%ce>|%(trailers:key=Prov-Who,valueonly,separator=)'], { encoding: 'utf8' }).trim();
+    run('plain.studyflow.yaml');
+    expect(named()).toBe('studyflow-runner <studyflow-runner@studyflow.invalid>|studyflow-runner <studyflow-runner@studyflow.invalid>|');
+    run(archived, '--author', 'Ada Lovelace <ada@example.org>');
+    expect(named()).toBe('Ada Lovelace <ada@example.org>|Ada Lovelace <ada@example.org>|Ada Lovelace <ada@example.org>');
+    expect((yaml.load(fs.readFileSync(archived, 'utf8')) as any).state._meta.prov.map((entry: { who?: string }) => entry.who)).toEqual([undefined, 'Ada Lovelace <ada@example.org>']);
+    // Nor does the repository's own config name anyone, for a commit made there by hand.
+    expect(spawnSync('git', ['-C', repo, 'config', '--local', 'user.name']).status).toBe(1);
+  });
+
   test('a split\'s branches are walked at once and joined, and the counts the run keeps balance', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-split-'));
     const plan = path.join(dir, 'split.bpmn');

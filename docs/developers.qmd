@@ -123,6 +123,8 @@ The retrospective part lives under `state`, a tree keyed by element id (`state:`
 
 These records are also what makes a partial re-run possible: the runner skips a step when its record still stands, nothing it reads was re-made during this run, its outputs are still there, and the `commit` its record names still holds what it ran with — every artifact it reads or makes, compared by git itself, and its own drawing, read back out of the plan that commit carries. So editing a step, a gateway's condition or an input file re-runs that step, and an output the worktree has lost comes back from the commit that made it rather than being recomputed. Invalidating a record cascades to everything downstream of the outputs that step re-makes.
 
+A run names who ran it only when it is told: `studyflow run --author 'Name <email>'` (the email optional) puts that author on the run's commits, as git's author and committer and in their `Prov-Who` trailer, and on its record as `who`. Without it the commits name `studyflow-runner` and the record names no one. Neither the machine's user nor git's own identity is read, so a run repository passed on carries no name its author did not give.
+
 ## Extending the notation
 
 ![The element sets that ship with Studyflow: two always load, and the rest, one per skill, you switch on in the modeler's settings.](assets/img/diagrams/schema-map.studyflow.svg){#fig-schema-map fig-alt="A Studyflow diagram. When the modeler opens, it loads the required sets, studyflow and prov; then the skill sets switched on in Settings, Extensions, one per skill: cognitive, behaverse, eeg, agentic and reachy; then compiles the catalog, which gives the palette, the inspector tabs and the XML namespaces."}

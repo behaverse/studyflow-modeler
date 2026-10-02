@@ -16,7 +16,7 @@ import type { Element, StudyModel } from '@core/model/index';
 import { RunLog, timelineTimestamp } from '@runtime-local/log';
 import { Records, humanBytes } from '@runtime-local/reuse';
 import { PartialRunner, discoverRunners, type RunnerCommand } from '@runtime-local/runners';
-import { RunRepo, TIMELINE_FIELDS, branchPoint, currentUser, elementRecords, invalidatedElements, stampElement, type Stamp } from '@runtime-local/prov';
+import { RunRepo, TIMELINE_FIELDS, authorOf, branchPoint, elementRecords, invalidatedElements, signature, stampElement, type Stamp } from '@runtime-local/prov';
 
 export type LocalRun = {
   /** The study file as given. */
@@ -34,6 +34,8 @@ export type LocalRun = {
   digest: string;
   /** What the run record names as the tool that ran it. */
   tool: string;
+  /** Who ran it, `Name <email>` or a name alone: its commits and its record name them. Without one they name no one. */
+  author?: string;
   /** The run repository to write into, its name being the run id. */
   repo?: string;
   /** More directories to stage boundary inputs from, after the study's own and before the working directory. */
@@ -109,14 +111,15 @@ export async function runLocal(run: LocalRun): Promise<number> {
 
 async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number> {
   const { model } = run;
+  const author = run.author === undefined ? undefined : authorOf(run.author);
   const started = new Date();
   const stamp = runStamp(started);
   const dir = resolveRepoDir(run.repo, run.input, started);
   const runId = path.basename(dir);
   const log = new RunLog(run.quiet ?? false, run.debug ?? false);
   log.start(dir);
-  const who = currentUser();
-  const repo = new RunRepo(dir, log.event);
+  const who = author && signature(author);
+  const repo = new RunRepo(dir, log.event, author);
   // A run interrupted mid-commit leaves git's lock behind; nothing else commits into a run repository.
   rmSync(path.join(dir, '.git', 'index.lock'), { force: true });
   repo.open();

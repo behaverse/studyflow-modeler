@@ -26,6 +26,7 @@ studyflow info study.studyflow.yaml --json
 studyflow edit study.studyflow.png              # the desktop app on that file; `studyflow ui` for a blank canvas
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.yaml   # the run folder keeps the study as YAML, stamped
 studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.yaml --from <ref>   # re-run from an earlier step; --fresh for all
+studyflow run study.studyflow.yaml --author 'Ada Lovelace <ada@example.org>'   # the run's commits and record name her; without it, no one
 studyflow run skills/reachy/examples/reachy_session.studyflow.yaml --option auto   # every task answered by a bot
 ```
 

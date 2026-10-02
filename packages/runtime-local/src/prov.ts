@@ -5,7 +5,7 @@
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { devNull, userInfo } from 'node:os';
+import { devNull } from 'node:os';
 import path from 'node:path';
 
 import { isElement, type Element } from '@core/model/index';
@@ -22,13 +22,23 @@ export type Stamp = Partial<Record<(typeof TIMELINE_FIELDS)[number], string | nu
 /** A step's standing record: the run that did it, when, what it decided, and the commit holding it as it ran. */
 export type ElementRecord = { run: string; when: string; what?: string; commit?: string };
 
-export function currentUser(): string {
-  try {
-    return userInfo().username;
-  } catch {
-    return '';
-  }
+/** Who ran a study, as git writes an author: `Name <email>`, the email optional (empty). */
+export type Author = { name: string; email: string };
+
+/** Whom a run's commits name when it is given no author: no one, never this machine's user. RFC 2606's reserved TLD
+ * gives an address git accepts and no mail ever leaves for. */
+const NO_AUTHOR: Author = { name: 'studyflow-runner', email: 'studyflow-runner@studyflow.invalid' };
+
+/** `--author`'s text, `Name <email>` or a name alone. */
+export function authorOf(given: string): Author {
+  const match = /^(.*?)\s*<([^<>]*)>\s*$/.exec(given);
+  const name = (match ? match[1] : given).trim();
+  if (!name || /[<>]/.test(name)) throw new Error(`--author wants 'Name <email>' or a name alone, got '${given}'`);
+  return { name, email: match ? match[2].trim() : '' };
 }
+
+/** An author as a record names them (`who`, `Prov-Who`): as git writes them, or the name alone. */
+export const signature = ({ name, email }: Author): string => (email ? `${name} <${email}>` : name);
 
 const activitiesOf = (element: Element): Element[] =>
   (Array.isArray(element.extensionElements) ? element.extensionElements : []).filter((value): value is Element => isElement(value) && value.type === ACTIVITY);
@@ -112,12 +122,16 @@ export class RunRepo {
   private readonly env: NodeJS.ProcessEnv;
   private readonly log: Log;
 
-  constructor(directory: string, log: Log) {
+  /** `author` is whom every commit names, as author and committer; git's own identity, from its config, never fills in. */
+  constructor(directory: string, log: Log, author: Author = NO_AUTHOR) {
     this.dir = directory;
     this.log = log;
     this.enabled = onPath('git');
     this.lfs = this.enabled && onPath('git-lfs');
-    this.env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !RunRepo.SCRUBBED.includes(key)));
+    this.env = {
+      ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !RunRepo.SCRUBBED.includes(key))),
+      GIT_AUTHOR_NAME: author.name, GIT_AUTHOR_EMAIL: author.email, GIT_COMMITTER_NAME: author.name, GIT_COMMITTER_EMAIL: author.email,
+    };
     if (!this.enabled) log('git.unavailable', '  no git on PATH — this run directory stays a plain folder', { level: 'warning' });
     else if (!this.lfs) log('git.lfs.unavailable', '  no git-lfs on PATH — artifacts are committed as plain blobs', { level: 'warning' });
   }
@@ -159,10 +173,6 @@ export class RunRepo {
     if (!this.git(['-c', 'init.defaultBranch=main', 'init', '-q'], { raw: true })) return;
     this.created = true;
     this.excludeCache();
-    const who = currentUser() || 'studyflow-runner';
-    this.git(['config', 'user.name', who]);
-    // RFC 2606's reserved TLD: an address git accepts and no mail ever leaves for.
-    this.git(['config', 'user.email', `${who}@studyflow.invalid`]);
     // A signing key the runner cannot unlock would fail every commit; provenance here is the history itself.
     this.git(['config', 'commit.gpgsign', 'false']);
     if (this.lfs) {
