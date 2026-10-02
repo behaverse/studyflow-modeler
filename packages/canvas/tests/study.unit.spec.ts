@@ -595,6 +595,61 @@ test('a reconnected data association is filed on its new activity, the one that 
   }
 });
 
+/** A step that declares its inputs and outputs, as a standard-BPMN file may: one input, read from Digits. */
+const DECLARED = `id: Defs_D
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Fit:
+      type: Task
+      name: Fit
+      bounds: 200 100 100 80
+      ioSpecification:
+        id: Fit_io
+        dataInputs:
+          Fit_in_digits:
+            name: digits
+        inputSets:
+          Fit_inputSet:
+            dataInputRefs:
+              - Fit_in_digits
+        outputSets:
+          Fit_outputSet: {}
+      dataInputAssociations:
+        In_1: Digits -> Fit_in_digits
+    Digits:
+      type: DataObjectReference
+      name: digits
+      bounds: 100 300 36 50
+    Table:
+      type: DataObjectReference
+      name: table
+      bounds: 200 300 36 50
+    Model:
+      type: DataObjectReference
+      name: model
+      bounds: 300 300 36 50
+`;
+
+test('on a step that declares its inputs and outputs, connecting data mints the slot, and deleting the connection gives it back, ioSpecification and all', () => {
+  const study = Study.of(studyModel(DECLARED));
+  const before = study.toYaml();
+  const io = (): any => study.element('Fit')!.ioSpecification;
+
+  study.connect({ from: 'Table', to: 'Fit', id: 'In_2' });
+  study.connect({ from: 'Fit', to: 'Model', id: 'Out_1' });
+  // Each slot is named as core names the one it mints for the compact form, and listed in the declaration's sets.
+  expect([study.element('In_2')!.targetRef, study.element('Out_1')!.sourceRef]).toEqual(['Fit_in_table', ['Fit_result']]);
+  expect([io().inputSets[0].dataInputRefs, io().outputSets[0].dataOutputRefs]).toEqual([['Fit_in_digits', 'Fit_in_table'], ['Fit_result']]);
+
+  study.remove({ ids: ['In_2', 'Out_1'] });
+  expect(study.toYaml()).toBe(before);
+  study.remove({ ids: ['In_1'] });
+  expect(io()).toBeUndefined();
+});
+
 test('remove takes what goes with an element; expand and collapse take only what holds contents', () => {
   const study = open();
   expect(study.remove({ ids: ['Nope'] })).toMatchObject({ ok: false, reason: "no element 'Nope'" });

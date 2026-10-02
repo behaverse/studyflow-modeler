@@ -22,10 +22,12 @@
  *   and `inlineIoSpecification` folds it away again on the way in. This is what the
  *   canvas sees for a document the app imported, so it is the common path.
  * - **Declared form** — the activity carries an `ioSpecification` (a standard-BPMN
- *   document opened as-is, e.g. the shipped `sklearn_pipeline` example). Then a bare
- *   association would be a dangling half-declaration, so the slot is minted too: a
- *   `bpmn:DataInput`/`bpmn:DataOutput` filed in the `ioSpecification` and referenced
- *   from its `inputSets`/`outputSets`, named the way core's own expansion names it.
+ *   document whose declarations the compact form cannot hold, such as a slot no
+ *   association uses or one a multi-instance marker binds, or a YAML file that spells
+ *   one out). Then a bare association would be a dangling half-declaration, so the
+ *   slot is minted too: a `bpmn:DataInput`/`bpmn:DataOutput` filed in the
+ *   `ioSpecification` and referenced from its `inputSets`/`outputSets`, named the way
+ *   core's own expansion names it.
  *
  * {@link pruneDataAssociation} is the exact inverse of that second half: deleting an
  * association gives back the slot it minted (and the `ioSpecification` itself once
