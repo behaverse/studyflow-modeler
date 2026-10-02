@@ -266,6 +266,16 @@ types:
           order: 5
           condition:
             stratifyBy: $set
+      - name: seedDigest
+        description: >-
+          Conceals the allocation: the `sha256:` digest of a seed this gateway draws from instead of the study's,
+          so the file commits to the allocation sequence without showing it. The run is given the seed, and its
+          executed copy reveals it.
+        isAttr: true
+        type: String
+        meta:
+          order: 6
+          optional: true
 
   - name: EligibilityGateway
     description: Lets eligible participants through; everyone else is screened out.

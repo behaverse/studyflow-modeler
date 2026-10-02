@@ -1,4 +1,4 @@
-import type { PlanElement } from '@core/engine/plan';
+import type { Plan, PlanElement } from '@core/engine/plan';
 
 /** mulberry32, a deterministic PRNG. */
 function mulberry32(seed: number): () => number {
@@ -26,7 +26,7 @@ function uniform(key: string): number {
  * Each draw depends on nothing else, so a participant draws the same whatever the others do, in any runtime and on
  * any re-run.
  */
-export function draw(seed: number, gatewayId: string, participant: number, visit: number): number {
+export function draw(seed: number | string, gatewayId: string, participant: number, visit: number): number {
   return uniform(`${seed}:${gatewayId}:${participant}:${visit}`);
 }
 
@@ -45,7 +45,7 @@ export function pick(u: number, weights: number[]): number {
 
 /** Block `block` (0-based) of a block-randomized sequence: `size` arms, each as often as its share of the ratio,
  * shuffled by Fisher-Yates on `uniform("seed:sequence:block<b>:i")`, or on `Math.random()` unseeded. */
-export function permutedBlock(seed: number | undefined, sequence: string, block: number, weights: number[], size: number): number[] {
+export function permutedBlock(seed: number | string | undefined, sequence: string, block: number, weights: number[], size: number): number[] {
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   const arms = weights.flatMap((weight, arm) => Array.from({ length: Math.floor(size / total) * weight }, () => arm));
   for (let i = arms.length - 1; i > 0; i -= 1) {
@@ -63,6 +63,8 @@ export type Allocation = {
   size: number;
   /** What the gateway asks for that the walk does not apply, phrased for a warning. */
   unapplied?: string;
+  /** A concealed allocation's `seedDigest`: the gateway draws from a seed of its own, which the file shows only as this. */
+  seedDigest?: string;
 };
 
 /**
@@ -101,7 +103,57 @@ export function allocationOf(gateway: PlanElement, arms: number): Allocation {
     algorithm: algorithm === 'block' ? 'block' : 'simple',
     weights,
     size,
+    seedDigest: read('seedDigest'),
     unapplied: asked.length === 0 ? undefined : `'${label}' specifies ${asked.join(' and ')}, which this runner does not apply: it ${does}. `
       + 'Allocate outside the diagram and pass the arm in as a study property, or drop the attribute so the file matches what runs.',
   };
+}
+
+/** The fewest characters a concealed seed may have: 32 hex digits are 128 bits, too many seeds to try one by one
+ * against the digest the file shows. */
+export const CONCEALED_SEED_LENGTH = 32;
+
+/** A concealed seed's digest, `sha256:<hex>` over its text, as a gateway's `seedDigest` registers it. */
+export async function seedDigestOf(seed: string): Promise<string> {
+  const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(seed)));
+  return `sha256:${Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** Why a run that was not given a concealed allocation's seed cannot draw it, and how a run is given it. */
+export function withoutConcealedSeed(gateway: PlanElement, digest: string): string {
+  return `'${gateway.name || gateway.id}' conceals its allocation: it draws from a seed the file shows only as `
+    + `${digest.slice(0, 19)}…, and this run was not given it. The local runtime takes it as `
+    + `\`--allocation-seed ${gateway.id}=<seed>\`; a browser session is never given it, since the link would carry it `
+    + 'to whoever hands the link out.';
+}
+
+/**
+ * The seeds a run was given for the gateways that conceal their allocation, by gateway id, each held against the
+ * `seedDigest` its gateway registers. A concealing gateway without one, a seed for a gateway that conceals nothing,
+ * one shorter than {@link CONCEALED_SEED_LENGTH}, or one whose digest is not the registered one is an error before
+ * the walk.
+ */
+export async function concealedSeeds(plan: Plan, given: Record<string, string>): Promise<Record<string, string>> {
+  for (const gateway of Object.values(plan.elements)) {
+    const digest = gateway.branching === 'random' ? gateway.extensions[0]?.attributes.seedDigest : undefined;
+    if (typeof digest === 'string' && digest && given[gateway.id] === undefined) throw new Error(withoutConcealedSeed(gateway, digest));
+  }
+  for (const [id, seed] of Object.entries(given)) {
+    const gateway = plan.elements[id];
+    const label = gateway ? gateway.name || id : id;
+    const registered = gateway?.branching === 'random' ? gateway.extensions[0]?.attributes.seedDigest : undefined;
+    if (typeof registered !== 'string' || !registered) {
+      throw new Error(`'${label}' is given a seed, but it is not a random gateway that conceals its allocation (no seedDigest).`);
+    }
+    if (seed.length < CONCEALED_SEED_LENGTH) {
+      throw new Error(`The seed given for '${label}' has ${seed.length} characters: a concealed seed needs at least `
+        + `${CONCEALED_SEED_LENGTH} (\`openssl rand -hex 16\`), or anyone could find it by trying seeds against its digest.`);
+    }
+    const digest = await seedDigestOf(seed);
+    if (digest !== registered) {
+      throw new Error(`The seed given for '${label}' is not the one its seedDigest registers: its digest is `
+        + `${digest.slice(0, 19)}…, the file's ${registered.slice(0, 19)}….`);
+    }
+  }
+  return given;
 }

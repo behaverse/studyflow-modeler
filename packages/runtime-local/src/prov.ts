@@ -15,7 +15,7 @@ export type Log = (event: string, message: string, detail?: { level?: 'debug' | 
 const ACTIVITY = 'prov:Activity';
 
 /** The fields of a record, in the order they are written. */
-export const TIMELINE_FIELDS = ['action', 'when', 'who', 'with', 'what', 'run', 'seed', 'plan', 'commit', 'note'] as const;
+export const TIMELINE_FIELDS = ['action', 'when', 'who', 'with', 'what', 'run', 'seed', 'allocationSeed', 'plan', 'commit', 'note'] as const;
 
 export type Stamp = Partial<Record<(typeof TIMELINE_FIELDS)[number], string | number | undefined>>;
 

@@ -1,7 +1,7 @@
 export { PROTOCOL, boundNames, modelIndexOf, planElement, planOf } from '@core/engine/plan';
 export type { Binding, Expression, Extension, Loop, ModelIndex, Plan, PlanElement, PlanOptions } from '@core/engine/plan';
 export { CONTAINER_TYPES, GATEWAY_TYPES, Graph, literal } from '@core/engine/graph';
-export { allocationOf, draw, permutedBlock, pick } from '@core/engine/allocation';
+export { CONCEALED_SEED_LENGTH, allocationOf, concealedSeeds, draw, permutedBlock, pick, seedDigestOf } from '@core/engine/allocation';
 export { Steps } from '@core/engine/steps';
 export type { Entry } from '@core/engine/steps';
 export { Walk } from '@core/engine/walk';

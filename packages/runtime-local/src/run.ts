@@ -6,11 +6,12 @@
  * lives in: the artifacts the `uri`s name, a copy of the study stamped `executed`, `studyflow.log` and the journal,
  * all in a git repository whose commit bodies hold the step records (packages/runtime-local/src/prov.ts).
  */
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import { CONTAINER_TYPES, Walk, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
+import { CONTAINER_TYPES, Walk, concealedSeeds, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
+import { revealedSeed } from '@core/checks/concealed';
 import type { Element, StudyModel } from '@core/model/index';
 import { RunLog, timelineTimestamp } from '@runtime-local/log';
 import { Records, humanBytes } from '@runtime-local/reuse';
@@ -48,6 +49,9 @@ export type LocalRun = {
   debug?: boolean;
   /** `NAME[=VALUE]` options for the runners, in plan.json `options`. */
   options?: string[];
+  /** `GATEWAY=SEED`, or `GATEWAY=@FILE` to read it from a file: the seed of a random gateway that conceals its
+   * allocation (`seedDigest`), which the file does not hold. */
+  allocationSeeds?: string[];
   /** Seconds a hand-off may take before it is stopped, and its step fails. */
   stepTimeout?: number;
   /** Seconds a runner has to answer `initialize` before the run stops (600 by default). */
@@ -131,6 +135,20 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // Root seed: read from the study, never drawn here. Partial runners read the same plan, so every process seeds
   // identically. A study without a seed runs unseeded.
   const { seed } = plan.study;
+  // A gateway that conceals its allocation draws from a seed the file shows only as its digest: the one given for it
+  // here, else the one an earlier run revealed on it. Each is held against the digest before anything runs.
+  const given: Record<string, string> = {};
+  for (const element of elements) {
+    const revealed = element.id && plan.elements[element.id]?.extensions[0]?.attributes.seedDigest ? revealedSeed(element) : undefined;
+    if (revealed) given[element.id!] = revealed;
+  }
+  for (const spec of run.allocationSeeds ?? []) {
+    const at = spec.indexOf('=');
+    if (at < 1 || at === spec.length - 1) throw new Error(`--allocation-seed wants GATEWAY=SEED or GATEWAY=@FILE, got '${spec.slice(0, at + 1)}…'`);
+    const value = spec.slice(at + 1);
+    given[spec.slice(0, at)] = value.startsWith('@') ? readFileSync(value.slice(1), 'utf8').trim() : value;
+  }
+  const concealed = await concealedSeeds(plan, given);
 
   // The runners, once the study is read: its `dependencies` go into every script runner's environment.
   const commands = discoverRunners(run.skillRoots, plan.study.dependencies);
@@ -303,7 +321,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
       writeFileSync(path.join(cache, `${id}.state.json`), JSON.stringify(values));
     },
   };
-  const walk = made.walk = new Walk(plan, host, { seed, state });
+  const walk = made.walk = new Walk(plan, host, { seed, state, concealed });
   // A data store a step that never skips writes (a trial log each subject appends to) starts as it was when the run
   // this one redoes started, or goes when it did not exist then: what the redone steps appended, they append again.
   const appended = new Set([...(redone ? walk.live : [])].flatMap((id) => (plan.elements[id]?.outputs ?? [])
@@ -353,7 +371,8 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   const stamps: [id: string, action: string, extra: Stamp][] = [
     // An event leaves no commit of its own: its record points at where the run had reached by the end.
     ...[...executed.keys()].sort().map((id): [string, string, Stamp] => [id, 'executed', { commit: commits.get(id) || head }]),
-    ...[...decided].sort().map(([id, { flow }]): [string, string, Stamp] => [id, 'executed', { what: flow, commit: commits.get(id) }]),
+    // A gateway that conceals its allocation reveals its seed here, once its run has drawn, so anyone can redo its draws.
+    ...[...decided].sort().map(([id, { flow }]): [string, string, Stamp] => [id, 'executed', { what: flow, allocationSeed: concealed[id], commit: commits.get(id) }]),
     ...[...created.keys()].sort().map((id): [string, string, Stamp] => [id, 'created', {}]),
     ...[...imported.keys()].sort().map((id): [string, string, Stamp] => [id, 'imported', {}]),
     ...[...reused].sort().map(([id, { trusted }]): [string, string, Stamp] => [id, 'reused', { what: trusted }]),

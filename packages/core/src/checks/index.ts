@@ -11,6 +11,7 @@ import { checkConnected } from '@core/checks/connected';
 import { checkEndpoints } from '@core/checks/endpoints';
 import { checkEntryExit } from '@core/checks/entry-exit';
 import { checkWrites } from '@core/checks/writes';
+import { checkConcealed, checkRevealed } from '@core/checks/concealed';
 
 /* What `studyflow validate` checks beyond reading a file, each check in a file of its own; `studyflow run` applies
    the plan checks before it starts a study. */
@@ -22,16 +23,19 @@ export type Issue = {
   message: string;
 };
 
-/** The plan: one element an id, its edges between the elements they may join, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, a consent form to fetch and a completion code to hand, no two paths at once writing one value, and reading only the columns its schemas define. */
+/** The plan: one element an id, its edges between the elements they may join, sound, walkable, its expressions FEEL, its decisions exclusive, its choices listed, a consent form to fetch and a completion code to hand, no two paths at once writing one value, reading only the columns its schemas define, and a concealed allocation registering a digest and being one a seed can conceal. */
 export function planChecks(model: StudyModel): Issue[] {
   return [
     ...checkIds(model), ...checkEndpoints(model), ...checkConnected(model), ...checkRunnerPaths(model), ...checkExpressions(model), ...checkDecisions(model),
-    ...checkValues(model), ...checkEntryExit(model), ...checkWrites(model), ...checkDataContract(model),
+    ...checkValues(model), ...checkEntryExit(model), ...checkWrites(model), ...checkDataContract(model), ...checkConcealed(model),
   ];
 }
 
-/** What a run left in the file: counts that balance, and a protocol that is still the one it ran; `note` says it is. */
+/** What a run left in the file: counts that balance, a protocol that is still the one it ran, and a concealed
+ * allocation's seed that is the one it registered; `note` says what matched. */
 export async function recordChecks(model: StudyModel): Promise<{ issues: Issue[]; note?: string }> {
   const seal = await checkSeal(model);
-  return { issues: [...checkFlowConsistency(model), ...seal.issues], note: seal.note };
+  const revealed = await checkRevealed(model);
+  const note = [seal.note, revealed.note].filter(Boolean).join(', ') || undefined;
+  return { issues: [...checkFlowConsistency(model), ...seal.issues, ...revealed.issues], note };
 }

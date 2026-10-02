@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -187,6 +188,55 @@ P:
     expect(first).toHaveLength(4);
     // Each participant draws for itself, so a re-run draws the same four arms.
     expect(arms(path.join(dir, 'run', 'arms.studyflow.yaml'))).toEqual(first);
+  });
+
+  test('a concealed allocation runs on the seed it is given, which the executed copy reveals and a re-run reads back', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-concealed-'));
+    const seed = '0123456789abcdef0123456789abcdef';
+    fs.writeFileSync(path.join(dir, 'allocation.seed'), `${seed}\n`);
+    fs.writeFileSync(path.join(dir, 'arms.studyflow.yaml'), `id: arms
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  extensionElements:
+    - type: studyflow:Study
+      seed: "7"
+  participants:
+    Subject: { name: Each subject, participantMultiplicity: { maximum: 4 }, processRef: P }
+P:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Arm:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+          algorithm: block
+          seedDigest: sha256:${createHash('sha256').update(seed).digest('hex')}
+      default: To_B
+    A: { type: EndEvent }
+    B: { type: EndEvent }
+    F0: Start -> Arm
+    To_A: Arm -> A
+    To_B: Arm -> B
+`);
+    const run = (file: string, ...extra: string[]) => spawnSync(process.execPath, [BIN, 'run', file, '--repo', path.join(dir, 'run'), '--quiet', ...extra], { cwd: dir, env: ENV });
+    const arms = (): string[] => [...fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8').matchAll(/→ (To_[AB])/g)].map((match) => match[1]);
+    // Without its seed the run cannot draw; with it, read from a file, it does, and the executed copy shows the seed
+    // the gateway drew from, which validate holds against the digest the file registered.
+    const refused = run('arms.studyflow.yaml');
+    expect(refused.status).not.toBe(0);
+    expect(refused.stderr.toString()).toContain('conceals its allocation');
+    expect(run('arms.studyflow.yaml', '--allocation-seed', 'Arm=@allocation.seed').status).toBe(0);
+    const first = arms();
+    expect(first).toHaveLength(4);
+    const archived = path.join(dir, 'run', 'arms.studyflow.yaml');
+    expect(fs.readFileSync(archived, 'utf8')).toMatch(new RegExp(`allocationSeed: "?${seed}"?`));
+    expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV }).toString()).toContain("allocation seed of 'Arm' matches its registered digest");
+    // The executed copy carries the seed, so a re-run of it draws the same arms without being given it again.
+    expect(run(archived).status).toBe(0);
+    expect(arms()).toEqual(first);
   });
 });
 

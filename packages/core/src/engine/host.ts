@@ -109,6 +109,9 @@ export type WalkOptions = {
   oneInstance?: boolean;
   /** Which instance of its pool that one is, 1-based (the browser's `?participant=`): a random gateway draws for it. */
   participant?: number;
+  /** The seeds of the random gateways that conceal their allocation (`seedDigest`), by gateway id, checked against
+   * their digests beforehand (`concealedSeeds`). Such a gateway draws from its own seed instead of the run's. */
+  concealed?: Record<string, string>;
 };
 
 /** A path stopped because another path of its scope ended the scope: it failed, left at a boundary event, or ended

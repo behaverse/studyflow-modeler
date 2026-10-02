@@ -18,6 +18,7 @@ export type RunOptions = Pick<LocalRun, 'repo' | 'inputs' | 'from' | 'fresh' | '
   runtime?: string;
   runner?: string[];
   option?: string[];
+  allocationSeed?: string[];
 };
 
 /** Where a folder this CLI ships can be: in the checkout (`checkout`, from the repo's root) when this is the bundle in
@@ -68,6 +69,7 @@ async function runLocally(input: string, source: Awaited<ReturnType<typeof readS
     startTimeout: options.startTimeout,
     runners: options.runner,
     options: options.option,
+    allocationSeeds: options.allocationSeed,
   });
 }
 

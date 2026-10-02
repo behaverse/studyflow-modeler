@@ -1,5 +1,5 @@
 import { PLACEHOLDER } from '@core/model/state';
-import { allocationOf, draw, permutedBlock, pick, type Allocation } from '@core/engine/allocation';
+import { allocationOf, draw, permutedBlock, pick, withoutConcealedSeed, type Allocation } from '@core/engine/allocation';
 import { CONTAINER_TYPES, GATEWAY_TYPES, Graph, PASSTHROUGH_TYPES } from '@core/engine/graph';
 import { Cancelled, HandoffError, Interrupted, keepRecord, logAt, type Handback, type Host, type Note, type StateTree, type Talk, type Thread, type WalkOptions } from '@core/engine/host';
 import type { Plan, PlanElement } from '@core/engine/plan';
@@ -55,6 +55,8 @@ export class Walk {
 
   private readonly host: Host;
   private readonly seed: number | undefined;
+  /** The seed each concealing gateway draws from in place of the run's. */
+  private readonly concealed = new Map<string, string>();
   private readonly maxSteps: number;
   private readonly oneInstance: boolean;
   private readonly participant: number;
@@ -88,7 +90,15 @@ export class Walk {
     // Each random gateway's allocation, read before the walk: one it cannot apply stops the run here.
     for (const gateway of Object.values(graph.elements)) {
       if (GATEWAY_TYPES.has(gateway.type) && gateway.branching === 'random') {
-        this.allocations.set(gateway.id, allocationOf(gateway, (graph.outgoing.get(gateway.id) ?? []).length));
+        const allocation = allocationOf(gateway, (graph.outgoing.get(gateway.id) ?? []).length);
+        this.allocations.set(gateway.id, allocation);
+        // A concealed allocation draws from the seed the run was given for it. Unseeded on purpose (a simulation, an
+        // exploration), it draws at random like every other gateway; otherwise a run without that seed cannot draw.
+        const given = options.concealed?.[gateway.id];
+        if (given !== undefined) this.concealed.set(gateway.id, given);
+        else if (allocation.seedDigest && options.seed !== null) {
+          throw new Error(withoutConcealedSeed(gateway, allocation.seedDigest));
+        }
       }
     }
     // Messages are interaction: an element that sends or takes them never skips or replays, nor does a gateway the
@@ -749,6 +759,7 @@ export class Walk {
       // its visits. So a participant draws the same in any runtime and on any re-run, whatever the others drew.
       const visit = (thread.visits.get(id) ?? 0) + 1;
       thread.visits.set(id, visit);
+      const seed = this.concealed.get(id) ?? this.seed;
       let arm: number;
       if (allocation.algorithm === 'block') {
         // Blocks over the participants, by number; a gateway a participant passes again (in a loop, or along a cycle)
@@ -757,10 +768,10 @@ export class Walk {
         const [sequence, n] = within ? [`${id}#${thread.participant}`, visit] : [`${id}@${visit}`, thread.participant];
         const block = Math.floor((n - 1) / allocation.size);
         const key = `${sequence}:${block}`;
-        if (!this.blocks.has(key)) this.blocks.set(key, permutedBlock(this.seed, sequence, block, allocation.weights, allocation.size));
+        if (!this.blocks.has(key)) this.blocks.set(key, permutedBlock(seed, sequence, block, allocation.weights, allocation.size));
         arm = this.blocks.get(key)![(n - 1) % allocation.size];
       } else {
-        arm = pick(this.seed === undefined ? Math.random() : draw(this.seed, id, thread.participant, visit), allocation.weights);
+        arm = pick(seed === undefined ? Math.random() : draw(seed, id, thread.participant, visit), allocation.weights);
       }
       return take([flows[arm]], 'drawn', { random: true });
     }

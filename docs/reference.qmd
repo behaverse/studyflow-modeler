@@ -141,13 +141,17 @@ A cognitive task's `platform` names the experiment package that delivers it (Psy
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `RandomGateway` | `bpmn:ExclusiveGateway` | Allocation: each participant takes one outgoing edge at random, one arm per edge. | `algorithm` (`simple`, `block`, `minimization`, `alternation`), `allocationRatio` (`1:1`, `2:1`), `blockSize`, `stratifyBy`, `strata` |
+| `RandomGateway` | `bpmn:ExclusiveGateway` | Allocation: each participant takes one outgoing edge at random, one arm per edge. | `algorithm` (`simple`, `block`, `minimization`, `alternation`), `allocationRatio` (`1:1`, `2:1`), `blockSize`, `stratifyBy`, `strata`, `seedDigest` |
 | `EligibilityGateway` | `bpmn:ExclusiveGateway` | Screening: criteria stated on the gateway, in readable sentences. | `inclusionCriteria`, `exclusionCriteria` |
 | A plain gateway | `bpmn:ExclusiveGateway` | A decision written out as one condition per outgoing edge. | `conditionExpression`, on each edge |
 
 Screening and allocation are separate types because they answer to different standards: a reviewer has to be able to read the eligibility criteria, and nobody should be able to predict an allocation draw.
 
 A `RandomGateway` draws for one participant: from the study's `seed`, the gateway's id, the participant's number (which instance of its pool it is, 1-based) and that participant's visit to the gateway, so each turn of a loop draws again, a participant draws the same whatever the others drew, a re-run draws what the run it redoes drew, and both runtimes draw the same arm for the same participant. A run honours `allocationRatio` as weights, and `algorithm: block` as permuted blocks of `blockSize` dealt over the participants by number, each shuffled from the seed, the gateway and the block; a gateway a participant passes more than once, inside a loop, deals that participant's visits in blocks of their own. It warns at its start about what it does not apply (`minimization`, `stratifyBy`). A browser session is one participant, the one its link's `participant` names (1 without it).
+
+Anyone who holds the file can redo those draws, so whoever enrols the participants could foresee each one's arm. A `RandomGateway` with `seedDigest` conceals its allocation, as CONSORT and SPIRIT ask of a trial: it draws from a seed of its own instead of the study's, and the file holds only that seed's SHA-256, `sha256:` and 64 hex digits. The file then commits to the allocation sequence without showing it. Make the seed long enough that nobody can find it by trying seeds against the digest (at least 32 characters, `openssl rand -hex 16`), keep it away from whoever enrols, and write its digest on the gateway (`printf %s "$seed" | shasum -a 256`). A local run is given it as `--allocation-seed <gateway>=<seed>`, or `<gateway>=@<file>` to keep it out of the shell history, and refuses to start without it or with a seed whose digest differs. Once the run has drawn, the gateway's record in the executed copy reveals the seed as `allocationSeed`, a re-run of that copy reads it back, and `studyflow validate` checks it against `seedDigest`, so anyone can then redo every draw. A browser session cannot conceal an allocation, since its link would carry the seed to whoever hands the link out; it refuses one. A simulation in the modeler draws at random.
+
+What a hidden seed conceals depends on the algorithm. Under `simple`, every draw. Under `block`, the order within each block, but not the block size, which the file states: whoever sees the arms of the participants before can tell the last arm of a block. Alternation is foreseeable whatever the seed, so `validate` refuses `seedDigest` on it.
 
 ## Who takes part
 

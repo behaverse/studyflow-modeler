@@ -67,6 +67,14 @@ types:
         type: Integer
         meta:
           optional: true
+      - name: allocationSeed
+        description: >-
+          For `executed` on a random gateway that conceals its allocation, the seed it drew from, which the run
+          reveals once it has drawn; its SHA-256 is the gateway's `seedDigest`.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
       - name: plan
         description: >-
           For `executed`, the digest of the protocol the run walked (`sha256:…`): the study without its
