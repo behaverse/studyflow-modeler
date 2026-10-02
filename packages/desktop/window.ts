@@ -5,27 +5,28 @@ import path from 'node:path';
 
 /* The desktop app's window: what `studyflow edit` opens the modeler in, and `npm run dev:desktop` the dev server. */
 
-/** A Chromium on this machine, if any: the app runs in its `--app` mode (a window of its own, no tabs or address
- * bar), and Chromium is the one engine with the File System Access API that saving back to disk needs. */
-function chromium(): string | undefined {
-  if (process.platform === 'darwin') {
+/** A Chromium on this machine (on `platform`, where `exists` finds a file), if any: the app runs in its `--app` mode (a
+ * window of its own, no tabs or address bar), and Chromium is the one engine with the File System Access API that
+ * saving back to disk needs. */
+export function chromium(platform: NodeJS.Platform = process.platform, exists: (file: string) => boolean = existsSync): string | undefined {
+  if (platform === 'darwin') {
     return ['Google Chrome', 'Chromium', 'Brave Browser', 'Microsoft Edge']
       .map((app) => `/Applications/${app}.app/Contents/MacOS/${app}`)
-      .find(existsSync);
+      .find(exists);
   }
-  if (process.platform === 'linux') {
+  if (platform === 'linux') {
     const dirs = (process.env.PATH ?? '').split(path.delimiter);
     return ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'brave-browser', 'microsoft-edge']
       .flatMap((name) => dirs.map((dir) => path.join(dir, name)))
-      .find(existsSync);
+      .find(exists);
   }
   return undefined;
 }
 
-/** Open `url` as a window of its own when a Chromium is around, else in the default browser. The window is the
+/** Open `url` as a window of its own when `find` finds a Chromium, else in the default browser. The window is the
  * app's lifetime: resolves when it closes (never, in the browser case). Also what `npm run dev:desktop` opens. */
-export function openWindow(url: string): Promise<void> {
-  const app = chromium();
+export function openWindow(url: string, find: () => string | undefined = chromium): Promise<void> {
+  const app = find();
   if (!app) {
     const [command, args] = process.platform === 'darwin' ? ['open', [url]]
       : process.platform === 'win32' ? ['cmd', ['/c', 'start', '', url]]
