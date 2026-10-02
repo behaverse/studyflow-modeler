@@ -4,7 +4,7 @@ import { expect, test } from './e2e';
 
 import { addPaletteElement, addSchemaPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText, runPaletteCommand, setSelectedElementName } from './utils';
 
-test('inspector fields: an optional one opens when ticked and clears unticked, a name is drawn, Enter in a checklist adds the next item, and a ticked item is checked off in the Checklist view', async ({ page }) => {
+test("inspector fields: an optional one opens when ticked and clears unticked, a name is drawn, Enter in a checklist adds the next item and a tick checks it off in the Checklist view, and a many-valued enum's tick is stored", async ({ page }) => {
   await gotoModeler(page);
   const inspector = page.getByTestId('inspector-root');
   const toggle = inspector.getByRole('checkbox', { name: 'Version' });
@@ -44,6 +44,16 @@ test('inspector fields: an optional one opens when ticked and clears unticked, a
   await expect(view).toContainText('1 of 2 items complete.');
   await expect(view.getByRole('checkbox', { name: 'consent' })).toBeChecked();
   await expect(view.getByRole('checkbox', { name: 'debrief' })).not.toBeChecked();
+  await page.keyboard.press('Escape');
+
+  // A many-valued enum is a checkbox per literal, and a tick lands in the study.
+  await addSchemaPaletteElement(page, 'Reachy Mini', 'Interaction Recording', { x: 340, y: 380 });
+  await page.keyboard.press('Escape');
+  await inspector.getByRole('tab', { name: 'Reachy Mini' }).click();
+  await inspector.getByRole('checkbox', { name: 'Audio' }).check();
+  const study = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as any;
+  const recording = Object.values<any>(study.Study_1.flowElements).find((element) => element.type === 'reachy:InteractionRecording');
+  expect(recording.streams).toEqual(['audio']);
 });
 
 test("the code modals: a schema's columns are saved in the format picked, which the schema then names, and a script's code in the language picked, which one undo takes back whole", async ({ page }) => {
