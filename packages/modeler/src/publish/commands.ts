@@ -14,7 +14,7 @@ export type PublishResult = {
 export async function runPublishDiagram(modeler: Editor, command: PublishDiagramCommand): Promise<PublishResult> {
   const { xml } = await modeler.saveXML();
 
-  const response = await fetch(`${URLS.apiBase}/v1/studies/${command.studyName}/flow`, {
+  const response = await fetch(`${URLS.apiBase}/v1/studies/${encodeURIComponent(command.studyName)}/flow`, {
     method: 'POST',
     headers: {
       'Content-Type': 'text/xml',
