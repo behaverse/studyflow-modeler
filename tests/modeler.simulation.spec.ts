@@ -7,7 +7,8 @@ import { examplePath, exampleXml, gotoModeler, runPaletteCommand } from './utils
  * Token placement in the simulator and the provenance replay across containers:
  * expanded sub-processes are walked through their own start events, and a drill-down
  * mid-animation hides tokens off its plane instead of restarting them. `sklearn_pipeline`
- * ships an expanded (`prepare_data`) and a collapsed (`select_model`) sub-process.
+ * ships an expanded (`prepare_data`) and a collapsed (`select_model`) sub-process. How a token
+ * ends: it pops at an end event, and bounces where its walk stopped short of one.
  */
 
 async function openExample(page: Page, name: string, xml?: string): Promise<void> {
@@ -31,12 +32,44 @@ const tokens = (page: Page, selector: string) => page.locator(selector).evaluate
 const inside = (p: { cx: number; cy: number }, b: { x: number; y: number; w: number; h: number }, pad = 2) =>
   p.cx >= b.x - pad && p.cx <= b.x + b.w + pad && p.cy >= b.y - pad && p.cy <= b.y + b.h + pad;
 
+/** Each token's centre and the animation it plays: a pop at an end, a bounce where a walk stopped, a fade-out. */
+const tokenStyles = (page: Page) => page.locator('.studyflow-simulation-token').evaluateAll((els) => els.map((el) => {
+  const r = el.getBoundingClientRect();
+  const { animationName, opacity } = (el as SVGElement).style;
+  return { cx: r.x + r.width / 2, cy: r.y + r.height / 2, animation: animationName, faded: opacity === '0' };
+}));
+
+/** Two pools: one walks to its end event, the other stops short of one, at a task no flow leaves. */
+const ENDS_AND_STOPS = `id: Defs_Ends
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Ends: { name: Ends, processRef: P_Ends, bounds: 100 50 600 150 }
+    Stops: { name: Stops, processRef: P_Stops, bounds: 100 250 600 150 }
+P_Ends:
+  type: Process
+  flowElements:
+    Begin: { type: StartEvent, bounds: 170 107 36 36 }
+    Work: { type: Task, bounds: 260 85 100 80 }
+    Done: { type: EndEvent, bounds: 420 107 36 36 }
+    F_1: Begin -> Work
+    F_2: Work -> Done
+P_Stops:
+  type: Process
+  flowElements:
+    Again: { type: StartEvent, bounds: 170 307 36 36 }
+    Stuck: { type: Task, bounds: 260 285 100 80 }
+    F_3: Again -> Stuck
+`;
+
 const shape = (page: Page, id: string) => page.locator(`g[data-element-id="${id}"]`);
 const drilldown = (page: Page, id: string) => shape(page, id).click({ position: { x: 12, y: 12 } })
   .then(() => page.getByTestId('context-pad-drilldown').click());
 
 test.describe('token simulation', () => {
-  test('tokens walk into an expanded sub-process and survive leaving a drilled-down plane', async ({ page }) => {
+  test('tokens walk into an expanded sub-process, survive leaving a drilled-down plane, and pop at an end or bounce where they stop', async ({ page }) => {
     await openExample(page, 'sklearn_pipeline');
     const app = page.getByTestId('modeler-app');
     await page.getByRole('button', { name: /^simulate$/i }).click();
@@ -87,6 +120,20 @@ test.describe('token simulation', () => {
     await page.getByTestId('breadcrumb-sklearn_pipeline').click();
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token')).some((t) => !t.shown)).toBe(true);
     await expect.poll(async () => (await tokens(page, '.studyflow-simulation-token')).some((t) => t.shown)).toBe(true);
+
+    // Another study opened mid-simulation starts over. A token that reaches its end event pops there; one whose walk
+    // stops short bounces where it stopped, five at most on one element: a sixth fades the first out.
+    await page.getByTestId('open-file-input').setInputFiles({ name: 'ends.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(ENDS_AND_STOPS) });
+    await expect(shape(page, 'Stuck')).toBeVisible();
+    await expect(app).toHaveClass(/simulation-active/);
+    const [done, stuck] = await Promise.all([box(shape(page, 'Done')), box(shape(page, 'Stuck'))]);
+    await expect.poll(async () => (await tokenStyles(page)).some((t) => t.animation === 'token-pop' && inside(t, done)),
+      { intervals: [50], timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await tokenStyles(page)).some((t) => t.animation === 'token-bounce' && inside(t, stuck, 12)),
+      { timeout: 10_000 }).toBe(true);
+    await expect.poll(async () => (await tokenStyles(page)).some((t) => t.faded && inside(t, stuck, 12)),
+      { intervals: [50], timeout: 15_000 }).toBe(true);
+    expect((await tokenStyles(page)).filter((t) => t.animation === 'token-bounce' && !t.faded).length).toBeLessThanOrEqual(5);
   });
 });
 
