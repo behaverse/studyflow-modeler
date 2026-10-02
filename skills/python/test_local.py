@@ -1,4 +1,4 @@
-"""One check for the python runner's arguments, pins, records and codecs; run it with
+"""One check for the python runner's arguments, pins, records, outputs, seed and codecs; run it with
 `python3 skills/python/test_local.py`."""
 
 import sys
@@ -72,6 +72,39 @@ dump = {"id": "Dump", "type": "serviceTask", "attributes": {"implementation": "p
 step = Step("Dump", {"elements": {"Dump": dump}}, {})
 assert python.claims(step.plan) == {"live": False, "elements": ["Dump"]}
 assert python.execute(step) == "[1]" and step.record == {"version": f"python {platform.python_version()}"}, step.record
+
+# What a step makes goes where its data outputs say, each narrowed by its edge's `transformation`: into the file its
+# `uri` names, by its format; a JSON-able value back to the walk too; any other spilled to the cache, where the next
+# hand-off reads it.
+from fractions import Fraction  # noqa: E402
+
+with tempfile.TemporaryDirectory() as folder:
+    made = python.Plan({"elements": {data: {"id": data, "type": "dataObjectReference", "attributes": attributes}
+                                     for data, attributes in (("Saved", {"uri": "out/a.json"}), ("Kept", {}), ("Third", {}))}})
+    out = python.Run(made, Path(folder), Path(folder) / ".cache", [])
+    pair = {"id": "Pair", "attributes": {"implementation": "python://builtins.dict"}, "additionalArguments": "a: [1, 2]",
+            "outputs": [{"target": "Saved", "transformation": "result.a"}, {"target": "Kept"}]}
+    assert out.execute(pair) == {"a": [1, 2]}
+    assert json.loads((Path(folder) / "out" / "a.json").read_text()) == [1, 2]
+    assert out.bound == {"Saved": [1, 2], "Kept": {"a": [1, 2]}}, out.bound
+    if importlib.util.find_spec("joblib") is not None:
+        divide = {"id": "Divide", "attributes": {"implementation": "python://fractions.Fraction"}, "additionalArguments": "args: [1, 3]",
+                  "outputs": [{"target": "Third"}]}
+        assert out.execute(divide) == Fraction(1, 3) and "Third" not in out.bound
+        assert python.Run(made, Path(folder), Path(folder) / ".cache", []).value_of("Third") == Fraction(1, 3)
+
+# Every hand-off starts from the study's seed: `random`, and numpy's global generator when numpy is here. A seed that
+# is no number seeds nothing, and fails nothing.
+import random  # noqa: E402
+
+firsts = {"python://random.random": random.Random(7).random()}
+if importlib.util.find_spec("numpy") is not None:
+    import numpy  # noqa: E402
+    firsts["python://numpy.random.random_sample"] = numpy.random.RandomState(7).random_sample()
+for implementation, first in firsts.items():
+    draw = {"id": "Draw", "type": "serviceTask", "attributes": {"implementation": implementation}}
+    assert python.execute(Step("Draw", {"study": {"seed": "7"}, "elements": {"Draw": draw}}, {})) == first, implementation
+    python.execute(Step("Draw", {"study": {"seed": "seven"}, "elements": {"Draw": draw}}, {}))
 
 # A `.jsonl` artifact (the behaverse runner's trial events) round-trips as a table, its nested keys as `a.b` columns.
 if importlib.util.find_spec("pandas") is None:
