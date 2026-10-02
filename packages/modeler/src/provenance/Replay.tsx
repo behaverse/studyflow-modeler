@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState, type RefObject } from 'react';
 import { useModeler } from '@modeler/app/useModeler';
 import {
   applyStatuses,
@@ -46,6 +46,16 @@ function resetFade(canvas: Canvas): void {
   view.style.opacity = '';
 }
 
+/** Stop the token's glide, and a plane change on its way, whose fade snaps back. */
+function stopMotion(canvas: Canvas, glideFrame: RefObject<number | null>, planeShift: RefObject<number | null>): void {
+  if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
+  glideFrame.current = null;
+  if (!planeShift.current) return;
+  clearTimeout(planeShift.current);
+  planeShift.current = null;
+  resetFade(canvas);
+}
+
 /** Dim the canvas, light up elements as their records land, and float a token on the active one. */
 function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
   const marked = useRef<Array<[string, string]>>([]);
@@ -59,10 +69,7 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
     return () => {
       for (const [id, m] of marked.current) canvas.mark(id, m, false);
       marked.current = [];
-      if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
-      glideFrame.current = null;
-      if (planeShift.current) clearTimeout(planeShift.current);
-      planeShift.current = null;
+      stopMotion(canvas, glideFrame, planeShift);
       resetFade(canvas);
       tokenPos.current = null;
       tokenRef.current?.remove();
@@ -120,14 +127,8 @@ function useReplayHighlights(editor: Editor, shown: ProvenanceRecord[]): void {
       token.setAttribute('cy', String(p.y));
       tokenPos.current = { x: p.x, y: p.y, elId, rootId };
     };
-    if (glideFrame.current) cancelAnimationFrame(glideFrame.current);
-    glideFrame.current = null;
     // An interrupted plane dive snaps visible; its pending placement is superseded by this step.
-    if (planeShift.current) {
-      clearTimeout(planeShift.current);
-      planeShift.current = null;
-      resetFade(canvas);
-    }
+    stopMotion(canvas, glideFrame, planeShift);
 
     if (!target) {
       // A document record moves nothing: the token idles, dimmed, where the last step left it.
