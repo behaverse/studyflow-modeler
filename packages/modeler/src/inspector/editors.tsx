@@ -54,12 +54,9 @@ export function CodeEditor({ attrDef }: { attrDef: AttributeSpec }) {
   }
 
   function saveModal() {
-    commit(modalValue);
-    if (languageAttr && modalLanguage !== String(readAttribute(model, element, languageAttr) ?? '')) {
-      executeCommand(modeler, {
-        type: 'UpdateAttribute', element, attributeName: languageAttr, value: modalLanguage || undefined,
-      });
-    }
+    // The code and its language are one save, so one undo takes back both.
+    if (languageAttr) executeCommand(modeler, { type: 'UpdateAttributes', element, values: { [attributeName]: modalValue, [languageAttr]: modalLanguage } });
+    else commit(modalValue);
     setModalOpen(false);
   }
 
@@ -164,7 +161,7 @@ function ColumnEditor({ attrDef, edited }: { attrDef: AttributeSpec; edited: Sch
   }
   function close() { setModalOpen(false); }
   function save() {
-    executeCommand(modeler, { type: 'UpdateSchema', element, format, body: serialize(columns, format) });
+    executeCommand(modeler, { type: 'UpdateAttributes', element, values: { format, body: serialize(columns, format) } });
     setModalOpen(false);
   }
 

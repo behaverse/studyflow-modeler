@@ -2,7 +2,7 @@ import * as yaml from 'js-yaml';
 
 import { expect, test } from './e2e';
 
-import { addPaletteElement, addSchemaPaletteElement, exportDiagram, gotoModeler, readDownloadText, setSelectedElementName } from './utils';
+import { addPaletteElement, addSchemaPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText, setSelectedElementName } from './utils';
 
 test('inspector fields: an optional one opens when ticked and clears unticked, a name is drawn, and Enter in a checklist adds the next item', async ({ page }) => {
   await gotoModeler(page);
@@ -36,7 +36,7 @@ test('inspector fields: an optional one opens when ticked and clears unticked, a
   await expect(items.nth(1)).toBeFocused();
 });
 
-test("the code modals: a schema's columns are saved in the format picked, which the schema then names, and a script's code in the language picked", async ({ page }) => {
+test("the code modals: a schema's columns are saved in the format picked, which the schema then names, and a script's code in the language picked, which one undo takes back whole", async ({ page }) => {
   await gotoModeler(page);
   const inspector = page.getByTestId('inspector-root');
   const dialog = page.getByRole('dialog');
@@ -62,10 +62,21 @@ test("the code modals: a schema's columns are saved in the format picked, which 
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toHaveCount(0);
 
-  const study = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as any;
-  const elements = Object.values<any>(study.Study_1.flowElements);
+  const exported = async () => Object.values<any>((yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as any).Study_1.flowElements);
+  // The code and its language are one save, so one undo takes back both, and a redo brings both back.
+  await pressOnCanvas(page, 'ControlOrMeta+z');
+  let script = (await exported()).find((element) => element.type === 'ScriptTask');
+  expect([script.script, script.scriptFormat]).toEqual([undefined, undefined]);
+  await inspector.getByRole('button', { name: /^Edit / }).click();
+  await dialog.getByRole('combobox').selectOption('python');
+  await dialog.locator('textarea').fill('print(42)');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+
+  const elements = await exported();
   const schema = elements.find((element) => element.type === 'studyflow:Schema');
   expect(schema.format).toBe('linkml');
-  expect(yaml.load(schema.body)).toEqual({ classes: { TableRow: { attributes: { rt: { range: 'number' } } } } });
-  expect(elements.find((element) => element.type === 'ScriptTask')).toMatchObject({ scriptFormat: 'python', script: 'print(42)' });
+  // A YAML body is spelled as YAML in the file, as the modeler writes it.
+  expect(schema.body).toEqual({ classes: { TableRow: { attributes: { rt: { range: 'number' } } } } });
+  script = elements.find((element) => element.type === 'ScriptTask');
+  expect(script).toMatchObject({ scriptFormat: 'python', script: 'print(42)' });
 });

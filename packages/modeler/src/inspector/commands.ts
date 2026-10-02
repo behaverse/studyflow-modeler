@@ -19,19 +19,19 @@ export function runUpdateAttribute(modeler: Editor, command: UpdateAttributeComm
   modeler.study.set({ id: String(command.element.id), attribute: command.attributeName, value: command.value });
 }
 
-export type UpdateSchemaCommand = {
-  type: 'UpdateSchema';
+export type UpdateAttributesCommand = {
+  type: 'UpdateAttributes';
   element: { id?: unknown };
-  format: string;
-  body: string;
+  /** By attribute name; an empty value clears the attribute. */
+  values: Record<string, unknown>;
 };
 
-/** A schema's body and the format it is written in, as one edit. */
-export function runUpdateSchema(modeler: Editor, command: UpdateSchemaCommand): void {
-  modeler.study.revise(String(command.element.id), (schema, model) => {
-    model.setAttribute(schema, 'format', command.format);
-    model.setAttribute(schema, 'body', command.body);
-  });
+/** Several attributes of one element, each written as `UpdateAttribute` writes one, as one edit and one undo step: what a
+ * modal saves together (a schema's body and its format, a script and its language). */
+export function runUpdateAttributes(modeler: Editor, command: UpdateAttributesCommand): void {
+  const id = String(command.element.id);
+  const steps = Object.entries(command.values).map(([attribute, value]) => ({ tool: 'set', args: { id, attribute, value: value === '' || value === undefined ? null : value } }));
+  modeler.study.batch({ steps });
 }
 
 export type SelectElementCommand = {
