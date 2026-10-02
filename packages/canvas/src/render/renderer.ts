@@ -18,7 +18,7 @@ import { normalizeColor } from '@canvas/study/color.ts';
 import { idsIn, listOf, nameOf } from '@canvas/study/elements.ts';
 import type { Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { isHidden, zRankOf } from '@canvas/study/tree.ts';
-import { drawIcon, drawIconText, drawSvgPaths, SVG_ICON_PATHS, type IconResolver } from '@canvas/render/icons.ts';
+import { drawIcon, drawIconText, drawImageIcon, type IconResolver } from '@canvas/render/icons.ts';
 import { boxesMeet, boxOf, EDGE_CORNER_RADIUS, lineJumps, type Box, type Span } from '@canvas/render/jumps.ts';
 import {
   alignedX,
@@ -462,14 +462,12 @@ export class Renderer {
     if (!key) return;
     // A data store's glyph is centred on the cylinder's body, below the rim.
     const cy = isDataStore(node.type) ? (2 * dataStoreRim(node.height) + node.height) / 2 : node.height / 2;
-    const def = SVG_ICON_PATHS[key];
-    if (def) {
-      drawSvgPaths(g, def, 4, cy - 7, node.width - 8, 14, color, key);
-      return;
-    }
-    if (!resolver(key, node.element)) return;
+    const def = resolver(key, node.element);
+    if (!def) return;
     const size = DATA_ICON_SIZE;
-    drawIcon(g, key, (node.width - size) / 2, cy - size / 2, size, color, resolver, node.element);
+    // An image keeps its own shape, so a logotype is fitted to a band across the body; a glyph is square.
+    if ('href' in def) drawImageIcon(g, def, 4, cy - size / 2, node.width - 8, size, key);
+    else drawIcon(g, key, (node.width - size) / 2, cy - size / 2, size, color, resolver, node.element);
   }
 
   private drawGatewayGlyph(g: SVGGElement, node: SceneNode, color: string): void {

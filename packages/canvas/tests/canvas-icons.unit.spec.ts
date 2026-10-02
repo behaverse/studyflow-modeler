@@ -257,8 +257,9 @@ Process_D:
       bounds: 400 100 36 50
 `;
 
-/** Stands in for the modeler's resolver in the data cases: a class draws, a typed element draws. */
+/** Stands in for the modeler's resolver in the data cases: an image, a class and a typed element draw. */
 function dataResolver(key: string, element?: StudyElement): IconDef | null | undefined {
+  if (key.startsWith('data:image/')) return { href: key };
   if (key.startsWith('iconify ')) return GLYPH_DEF;
   if (extensionTypeOf(element)) return GLYPH_DEF;
   return null;
@@ -267,12 +268,12 @@ function dataResolver(key: string, element?: StudyElement): IconDef | null | und
 test('a data store draws its format\'s icon, a typed data object its type\'s, a plain one none', async () => {
   const { canvas } = loadYaml(DATA_YAML, { iconResolver: dataResolver });
   const CASES: [label: string, id: string, keys: unknown[]][] = [
-    ['BIDS: the bundled logotype of the format its type pins', 'Store_bids', ['bids-dataset-icon']],
+    ['BIDS: the logotype its format embeds, as an image', 'Store_bids', [expect.stringMatching(/^data:image\/svg\+xml,/)]],
     ['Psych-DS: the class its format literal names', 'Store_psychds', [expect.stringMatching(/^iconify /)]],
     ['a table: its type glyph', 'Obj_table', ['DataObjectReference']],
     ['a plain data object', 'Obj_plain', []],
   ];
   for (const [label, id, keys] of CASES) expect(iconKeys(canvas, id), label).toEqual(keys);
-  // The bundled logotype is painted in the muted ink, like every other glyph.
-  expect(graphics(canvas, 'Store_bids').querySelector('g[data-icon-key="bids-dataset-icon"] path')!.getAttribute('fill')).toBe(INK.muted);
+  // An image keeps its own shape, so the wide logotype spans the store's body (50 wide, 4 in from each side).
+  expect(graphics(canvas, 'Store_bids').querySelector('image')!.getAttribute('width')).toBe('42');
 });
