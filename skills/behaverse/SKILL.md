@@ -39,9 +39,10 @@ when that sub-process is collapsed — sends each awaiting trial as the build de
 it the task's data inputs (the `agentic:Prompt` wired into it, above all), along the one out of it, and injects the answer that comes back naming one of the trial's options; any other answer, or none in time, is a miss, and nothing stands in for it.
 The browser runner plays a person, a model on the task's band (its `implementation` names it), or the build's random
 bot (a `software` taker whose `implementation` is `behaverse://bot`); any other taker answers along message flows, locally.
-When the task answers along message flows, its `failedTrialRate` is kept with its result: the share of the trials the build showed that it recorded no
+When the task answers along message flows, its `failedTrialRate` is kept with its result: the share of the trials the build showed, and took a response in, that it recorded no
 valid response for — the build is the authority, so an answer injected too late for the trial's window counts as a
-miss however well it named an option, and a build that reports no trial reports no failure. It is data, not policy:
+miss however well it named an option, a trial that takes none (the N-back's burn-in, whose every stream the build
+records as `BurnInDisabled`) is not counted, and a build that reports no trial reports no failure. It is data, not policy:
 a study that wants a bad run to leave the task draws a conditional boundary event on it
 (`{Play.failedTrialRate} > 0.2`), and the walk goes on from there. A task played any other way (by a person, by the
 build's own bot, or in the browser runner) carries no `failedTrialRate`, and a condition that cites it there fails the run.

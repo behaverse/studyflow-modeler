@@ -17,7 +17,7 @@ def task(**attributes):
 # a `TrialEnd` with a `responseTime`; the reply this runner sent does not, since the build may have stopped waiting.
 class Stage:
     def __init__(self):
-        self.shown, self.answered = set(), set()
+        self.shown, self.answered, self.unanswerable = set(), set(), set()
 
 
 def record(*events):
@@ -35,14 +35,24 @@ def trial(n, types, **rest):
 simon = record(*[trial(n, ["TrialStart"]) for n in range(1, 16)],
                *[trial(n, ["Click"]) for n in range(6, 16)])
 assert (len(simon.shown), len(simon.answered)) == (15, 10)
-assert round(behaverse.failed_trial_rate(simon.shown, simon.answered), 3) == 0.333
+assert round(behaverse.failed_trial_rate(simon.shown, simon.answered, simon.unanswerable), 3) == 0.333
 # N-back: the trial ends with a `responseTime`, or with none, which is the miss.
 nback = record(*[trial(n, ["TrialStart"]) for n in range(1, 5)],
                trial(1, ["TrialEnd"], result={"responseTime": 9.66}), trial(2, ["TrialEnd"], result={"responseTime": None}),
                trial(3, ["TrialEnd"], result={"responseTime": 5.5}), trial(4, ["TrialEnd"], result={}))
-assert behaverse.failed_trial_rate(nback.shown, nback.answered) == 0.5
+assert behaverse.failed_trial_rate(nback.shown, nback.answered, nback.unanswerable) == 0.5
+# The N-back's first trial of a block is a burn-in, which takes no response: every stream of its `TrialEnd` says
+# `BurnInDisabled`. It is no trial the rate counts, so of the two that took a response, one failed.
+def ended(n, response_time, *responses):
+    return trial(n, ["TrialEnd"], result={"responseTime": response_time,
+                                          "streamResults": [{"userResponseType": kind} for kind in responses]})
+
+
+burn_in = record(*[trial(n, ["TrialStart"]) for n in range(1, 4)], ended(1, None, "BurnInDisabled", "BurnInDisabled"),
+                 ended(2, 1.2, "Hit", "TimeOut"), ended(3, None, "TimeOut", "TimeOut"))
+assert behaverse.failed_trial_rate(burn_in.shown, burn_in.answered, burn_in.unanswerable) == 0.5
 # A build that reports no trial reports no failure; an event with no trial of its own is not one.
-assert behaverse.failed_trial_rate(set(), set()) == 0.0
+assert behaverse.failed_trial_rate(set(), set(), set()) == 0.0
 assert record({"trialContext": {"types": ["AppStarted"]}}).shown == set()
 
 # Every trial line says whose it is: the task's visit count (kept in the study's state, so a loop's iterations number the

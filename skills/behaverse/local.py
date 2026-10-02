@@ -300,12 +300,12 @@ def opened_this_run(cache: Path, events: Path) -> bool:
     return False
 
 
-def failed_trial_rate(shown: set, answered: set) -> float:
-    """The share of the trials the build showed that it recorded no valid response for. Data, not policy: what a
-    study does about it is a condition it draws. The build is the authority, not the reply: an answer this runner
-    injected too late for the window is a trial the build recorded without a response. A build that reports no
-    trial at all reports no failure."""
-    trials = shown | answered
+def failed_trial_rate(shown: set, answered: set, unanswerable: set) -> float:
+    """The share of the trials the build showed, and took a response in, that it recorded no valid response for. Data,
+    not policy: what a study does about it is a condition it draws. The build is the authority, not the reply: an
+    answer this runner injected too late for the window is a trial the build recorded without a response, and a trial
+    that took none (the N-back's burn-in) is no trial here. A build that reports no trial at all reports no failure."""
+    trials = (shown | answered) - unanswerable
     return len(trials - answered) / len(trials) if trials else 0.0
 
 
@@ -492,8 +492,9 @@ class Stage(ThreadingHTTPServer):
         self.events = events
         self.exchange = exchange
         self.context = context or {}
-        self.shown: set[tuple] = set()      # the trials the build started
-        self.answered: set[tuple] = set()   # those it recorded a response for
+        self.shown: set[tuple] = set()         # the trials the build started
+        self.answered: set[tuple] = set()      # those it recorded a response for
+        self.unanswerable: set[tuple] = set()  # those that took none
         self.trials = 0
         self.completion: dict[str, Any] = {}
         self.done = threading.Event()
@@ -503,7 +504,8 @@ class Stage(ThreadingHTTPServer):
 def tally(stage: Stage, event: dict[str, Any]) -> None:
     """One event, as the build's own record of a trial: `TrialStart` shows one, and a `Click` or a `TrialEnd` with a
     `responseTime` answers it. Both markers are the BDM envelope's (`trialContext.types`, `result`), not an
-    instrument's own event names."""
+    instrument's own event names. A `TrialEnd` whose every stream's response was `BurnInDisabled` took none: the
+    N-back's first trials of a block, which show a stimulus before there is one to compare it with and never ask."""
     context = event.get("trialContext") or {}
     kinds = context.get("types") or []
     trial = ((context.get("block") or {}).get("id"), (context.get("trial") or {}).get("id"))
@@ -513,6 +515,10 @@ def tally(stage: Stage, event: dict[str, Any]) -> None:
         stage.shown.add(trial)
     if "Click" in kinds or ("TrialEnd" in kinds and (event.get("result") or {}).get("responseTime") is not None):
         stage.answered.add(trial)
+    streams = (event.get("result") or {}).get("streamResults") or []
+    disabled = [isinstance(stream, dict) and stream.get("userResponseType") == "BurnInDisabled" for stream in streams]
+    if "TrialEnd" in kinds and disabled and all(disabled):
+        stage.unanswerable.add(trial)
 
 
 class StageHandler(BaseHTTPRequestHandler):
@@ -685,7 +691,7 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     print(f"    completed {completion.get('TaskId')} / {completion.get('TimelineId')} after {stage.trials} answered trials", flush=True)
     result = {**completion, "trials": stage.trials}
     if exchange is not None:
-        result["failedTrialRate"] = failed_trial_rate(stage.shown, stage.answered)
+        result["failedTrialRate"] = failed_trial_rate(stage.shown, stage.answered, stage.unanswerable)
     if events.exists():
         result["events"] = str(events)
     return result  # under the task's id, so a later step can cite it (`{Play.trials}`)
