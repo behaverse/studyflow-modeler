@@ -8,10 +8,10 @@ import { findByFlowNode, getRegisteredNodes } from '@runner/nodes/registry';
 // Auto-discovery: each `<kind>/index.tsx` here self-registers as a side effect of being imported.
 import.meta.glob('./*/index.tsx', { eager: true });
 
-// The skills' modules: whatever each `SKILL.md` names as `runtimes.browser`, imported so it registers itself the
-// same way.
+// The skills' modules: whatever each `SKILL.md` names as `runtimes.browser`, in its `browser/` folder, imported so it
+// registers itself the same way.
 const manifests = import.meta.glob('@skills/*/SKILL.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const modules = import.meta.glob('@skills/*/**/*.tsx');
+const modules = import.meta.glob('@skills/*/browser/**/*.tsx');
 
 export const skillModulesLoaded: Promise<void> = (async () => {
   for (const [path, source] of Object.entries(manifests)) {

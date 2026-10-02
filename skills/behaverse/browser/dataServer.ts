@@ -1,4 +1,4 @@
-import { getApiKey, shouldRecordEvents } from '@core/settings';
+import { getApiKey, shouldRecordEvents } from '@skills/behaverse/account';
 import type { Session } from '@runner/session';
 import type { LogFn } from '@runner/nodes/types';
 
@@ -8,7 +8,6 @@ export type DataServerConfig = {
   baseUrl?: string;
   studyName?: string;
   apiKey?: string;
-  disabled?: boolean;
 };
 
 export type SessionHandle = {
@@ -27,16 +26,13 @@ type UpdatePayload = {
   variables?: Record<string, unknown>;
 };
 
-export function loadDataServerConfig(): DataServerConfig {
-  return {
-    baseUrl: DATA_SERVER_URL,
-    apiKey: getApiKey(),
-    disabled: !shouldRecordEvents(),
-  };
+export function loadDataServerConfig(studyName?: string): DataServerConfig {
+  return { baseUrl: DATA_SERVER_URL, apiKey: getApiKey(), studyName };
 }
 
+/** Whether to reach the server: read each time, so switching recording off stops what a run in progress uploads. */
 function canConnect(config: DataServerConfig): config is Required<Pick<DataServerConfig, 'baseUrl' | 'studyName'>> & DataServerConfig {
-  return !!config.baseUrl && !!config.studyName && !config.disabled;
+  return !!config.baseUrl && !!config.studyName && shouldRecordEvents();
 }
 
 function buildHeaders(config: DataServerConfig, contentType?: string): HeadersInit {

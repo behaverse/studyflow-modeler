@@ -1,4 +1,4 @@
-import { recordEvents, type DataServerConfig } from '@runner/dataServer';
+import { recordEvents, type DataServerConfig } from '@skills/behaverse/browser/dataServer';
 
 /** The topic an embedded task posts each of its events on (`window.postMessage`); the recorder ships them to the data server. */
 export const EVENT = 'studyflow:Event';

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 import type { Editor } from '@modeler/editor/port';
-import { runPublishDiagram } from '@modeler/publish/commands';
+import { publishStudy } from '@skills/behaverse/modeler/publish';
 
 test('publishing posts the study under its name, encoded as one path segment, and hands back the preview link', async () => {
   const posted: { url: string; init: RequestInit }[] = [];
@@ -12,7 +12,7 @@ test('publishing posts the study under its name, encoded as one path segment, an
   }) as typeof fetch;
   try {
     const modeler = { saveXML: async () => ({ xml: '<definitions/>' }) } as unknown as Editor;
-    const result = await runPublishDiagram(modeler, { type: 'PublishDiagram', studyName: 'pilot 2/b?', apiKey: 'k' });
+    const result = await publishStudy(modeler, 'pilot 2/b?', 'k');
     expect(result).toEqual({ previewUrl: 'https://example.org/preview' });
     expect(posted.map(({ url }) => url)).toEqual(['https://api.behaverse.org/v1/studies/pilot%202%2Fb%3F/flow']);
     expect(posted[0].init.body).toBe('<definitions/>');

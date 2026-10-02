@@ -1,7 +1,7 @@
 export const TASK_COMPLETED = 'studyflow:TaskCompleted';
 export const AWAITING_RESPONSE = 'studyflow:AwaitingResponse';
 export const READY = 'studyflow:Ready';
-export { EVENT } from '@runner/events';
+export { EVENT } from '@skills/behaverse/browser/events';
 
 export type UnityInstance = {
   SendMessage: (gameObjectName: string, methodName: string, value?: string | number) => void;

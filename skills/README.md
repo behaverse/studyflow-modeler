@@ -13,7 +13,7 @@ metadata:
   runtimes:                           # what executes its elements, per runtime
     local: "uv run --script local.py" #   a command run in this folder (the contract: packages/runtime-local/CONTRACT.md)
     browser: "browser/index.tsx"      #   a node module the browser runner imports (browser/src/nodes/README.md)
-  modeler: "modeler.ts"               # projections it exports, foreign formats it opens, inspector sections
+  modeler: "modeler.ts"               # projections it exports, foreign formats it opens, inspector sections, Settings pages, Save destinations
 ---
 What the vocabulary means and how to author with it.
 ```

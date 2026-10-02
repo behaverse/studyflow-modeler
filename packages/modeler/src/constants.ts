@@ -1,7 +1,5 @@
 export const URLS = {
   githubRepo: 'https://github.com/behaverse/studyflow-modeler',
-  apiBase: 'https://api.behaverse.org',
-  apiDocs: 'https://api.behaverse.org/docs',
   docs: './docs',
 } as const;
 

@@ -1,26 +1,16 @@
 /** The `localStorage` the modeler and the browser runtime share: its keys, codecs, and the diagram hand-off from one to the other. */
 const STORAGE_PREFIX = 'studyflow-modeler:';
 
-const k = (name: string) => `${STORAGE_PREFIX}${name}`;
+/** The key the app keeps `name` under; a skill keeps what it stores under one too, so "Clear all local data" reaches it. */
+export const storageKey = (name: string): string => `${STORAGE_PREFIX}${name}`;
 
 export const STORAGE_KEYS = {
-  settings: k('settings'),
-  autosaveDiagram: k('autosave-diagram'),
-  inspectorWidth: k('inspector-width'),
-  apiKey: k('api-key'),
-  userEmail: k('user-email'),
-  recordEvents: k('record-events'),
-  diagramHandoffPrefix: k('handoff:'),
+  settings: storageKey('settings'),
+  autosaveDiagram: storageKey('autosave-diagram'),
+  inspectorWidth: storageKey('inspector-width'),
+  userEmail: storageKey('user-email'),
+  diagramHandoffPrefix: storageKey('handoff:'),
 } as const;
-
-const OWNED_KEYS: string[] = [
-  STORAGE_KEYS.settings,
-  STORAGE_KEYS.autosaveDiagram,
-  STORAGE_KEYS.inspectorWidth,
-  STORAGE_KEYS.apiKey,
-  STORAGE_KEYS.userEmail,
-  STORAGE_KEYS.recordEvents,
-];
 
 function storage(): Storage | undefined {
   try {
@@ -216,8 +206,7 @@ export function storageEstimate(): { keys: number; bytes: number } {
 export function clearOwnedKeys(): void {
   const ls = storage();
   if (!ls) return;
-  const doomed = new Set([...OWNED_KEYS, ...listKeys(STORAGE_KEYS.diagramHandoffPrefix)]);
   try {
-    for (const key of doomed) ls.removeItem(key);
+    for (const key of listKeys(STORAGE_PREFIX)) ls.removeItem(key);
   } catch {}
 }

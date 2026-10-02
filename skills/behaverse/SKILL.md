@@ -9,6 +9,7 @@ metadata:
   runtimes:
     browser: "browser/index.tsx"
     local: "uv run --script local.py"
+  modeler: "modeler.ts"
 ---
 
 The vocabulary is `behaverse.moddle.yaml` (`behaverse:Task`, `behaverse:BDMDataset`, and the literals it adds to cognitive's software list and the core's dataset formats and message structures); the runner executes `behaverse:Task`. A task's

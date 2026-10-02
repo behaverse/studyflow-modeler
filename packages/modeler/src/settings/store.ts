@@ -102,17 +102,8 @@ export function clearAllLocalData(): void {
   emit();
 }
 
-const apiKeyStore = persisted<string>(STORAGE_KEYS.apiKey, stringCodec, '');
+/** Who works here, as a sign-in found out: the provenance this app writes names them. */
 const userEmailStore = persisted<string>(STORAGE_KEYS.userEmail, stringCodec, '');
-
-export function getStoredApiKey(): string | undefined {
-  return apiKeyStore.peek();
-}
-
-export function setStoredApiKey(key: string | undefined | null): void {
-  if (!key) apiKeyStore.clear();
-  else apiKeyStore.save(key);
-}
 
 export function getStoredUserEmail(): string | undefined {
   return userEmailStore.peek();

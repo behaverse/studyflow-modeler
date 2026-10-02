@@ -36,3 +36,8 @@ registerNode({
   Component: Wait,
 });
 ```
+
+A skill that watches the runs themselves rather than playing a step (the behaverse skill records them on its data server)
+calls `registerRunObserver({ start, finish, close?, toggle? })` from `@runner/observers` in the same module: `start` is
+told the study and who takes it once the checks pass, and may name the run; `finish` is told how it ended; `toggle`
+puts a switch beside the runner's log.

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadAllSchemas } from '@core/notation/loader';
-import { shouldRecordEvents, setRecordEvents } from '@core/settings';
 import { clearDiagramHandoff, readDiagramHandoff } from '@core/storage';
 import { readParameters, resolveRunSource } from '@runner/source';
 import { describeForDebug, isDebug } from '@runner/debug';
@@ -11,14 +10,7 @@ import { Aborted, Session } from '@runner/session';
 import type { Job } from '@runner/jobs';
 import { findByType, skillModulesLoaded, validate } from '@runner/nodes';
 import type { LogKind, NodeProps, ValidationIssue } from '@runner/nodes/types';
-import {
-  createSession,
-  finishSession,
-  loadDataServerConfig,
-  type DataServerConfig,
-  type SessionHandle,
-} from '@runner/dataServer';
-import { createEventRecorder, type EventRecorder } from '@runner/events';
+import { getRunObservers, type RunObserver } from '@runner/observers';
 
 export const layout = {
   page: 'flex flex-col h-screen',
@@ -122,7 +114,6 @@ export function Runner() {
     const found = resolveRunSource(params.get('diagram') ?? '', DEMOS);
     return { source: found, handoffId: found?.kind === 'handoff' ? found.id : '', parameters: readParameters(params) };
   }, []);
-  const dataServerConfig = loadDataServerConfig();
 
   const [seed, setSeed] = useState<number | undefined>();
   const [xml, setXml] = useState<string | null>(null);
@@ -133,14 +124,13 @@ export function Runner() {
   const [blockingIssues, setBlockingIssues] = useState<ValidationIssue[]>([]);
   const [runError, setRunError] = useState<string | undefined>();
   const [logsOpen, setLogsOpen] = useState(false);
-  const [recording, setRecording] = useState(shouldRecordEvents());
+  const [toggles, setToggles] = useState<NonNullable<RunObserver['toggle']>[]>([]);
   const ranOnce = useRef(false);
   const resolverRef = useRef<((outcome: NodeOutcome) => void) | null>(null);
   const sessionRef = useRef<Session | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const serverSessionRef = useRef<SessionHandle | null>(null);
-  const dataServerRef = useRef<DataServerConfig>(dataServerConfig);
-  const recorderRef = useRef<EventRecorder | null>(null);
+  // The skills watching this run, once it starts.
+  const observersRef = useRef<RunObserver[]>([]);
   const logListRef = useRef<HTMLOListElement>(null);
   const stickToBottom = useRef(true);
 
@@ -158,10 +148,9 @@ export function Runner() {
     }
   }, []);
 
-  const toggleRecordEvents = useCallback((next: boolean) => {
-    setRecording(next);
-    setRecordEvents(next);
-    dataServerRef.current.disabled = !next;
+  // The switches the skills watching a run offer, once their modules have registered.
+  useEffect(() => {
+    void skillModulesLoaded.then(() => setToggles(getRunObservers().flatMap((observer) => observer.toggle ?? [])));
   }, []);
 
   const onLogScroll = useCallback((e: React.UIEvent<HTMLOListElement>) => {
@@ -207,7 +196,9 @@ export function Runner() {
     ranOnce.current = true;
 
     (async () => {
-      const dataServer = dataServerRef.current;
+      const finish = async (session: Session, status: 'completed' | 'canceled') => {
+        for (const observer of observersRef.current) await observer.finish({ session, status, log: addLog });
+      };
       try {
         setPhase('loading');
         const schemas = await loadAllSchemas();
@@ -242,9 +233,6 @@ export function Runner() {
         for (const name of undeclared) {
           addLog('skip', `'${name}' is not a declared parameter of this studyflow; its value is bound anyway.`);
         }
-        if (studyflow.studyId) {
-          dataServer.studyName = studyflow.studyId;
-        }
 
         // A value the link leaves unset is the first thing to fix, before the checks read a study missing it.
         const them = unbound.length === 1 ? 'it' : 'them';
@@ -261,29 +249,14 @@ export function Runner() {
           return;
         }
 
-        const handle = await createSession(dataServer, { agentId });
-        serverSessionRef.current = handle;
-        session.sessionId = handle.sessionId;
-        addLog(
-          handle.online ? 'info' : 'skip',
-          handle.online
-            ? `Connected to the Behaverse Data Server (session ${handle.sessionId}); responses will be uploaded.`
-            : `Not connected to the data server. Nothing will be stored.`
-        );
-
-        if (handle.online) {
-          recorderRef.current = createEventRecorder({
-            config: dataServer,
-            getAgentId: () => sessionRef.current?.agentId,
-            onFlush: (count, ok) =>
-              addLog(
-                ok ? 'info' : 'skip',
-                ok
-                  ? `Uploaded ${count} event(s) to the data server.`
-                  : `Could not upload ${count} event(s) to the data server; they were dropped.`,
-              ),
-          });
+        // The skills watching the run start with it; the first to name the run names it.
+        let runId: string | undefined;
+        for (const observer of getRunObservers()) {
+          const named = await observer.start({ studyId: studyflow.studyId, agentId, log: addLog });
+          observersRef.current.push(observer);
+          runId ??= named?.runId;
         }
+        session.sessionId = runId ?? crypto.randomUUID();
 
         setPhase('running');
         for await (const job of session.traverse()) {
@@ -300,24 +273,21 @@ export function Runner() {
           }
         }
         setPhase('done');
-        await finishSession(dataServer, serverSessionRef.current, session, 'completed', addLog);
+        await finish(session, 'completed');
       } catch (err) {
         if (err instanceof Aborted) {
           addLog('error', `The run stopped: ${err.message}.`);
           setPhase('aborted');
-          await finishSession(dataServer, serverSessionRef.current, sessionRef.current!, 'canceled', addLog);
+          await finish(sessionRef.current!, 'canceled');
           return;
         }
         addLog('error', err instanceof Error ? err.message : String(err));
         setRunError(err instanceof Error ? err.message : String(err));
         setPhase('error');
-        if (sessionRef.current) {
-          await finishSession(dataServer, serverSessionRef.current, sessionRef.current, 'canceled', addLog);
-        }
+        if (sessionRef.current) await finish(sessionRef.current, 'canceled');
       } finally {
-        await recorderRef.current?.flush();
-        recorderRef.current?.stop();
-        recorderRef.current = null;
+        for (const observer of observersRef.current) await observer.close?.();
+        observersRef.current = [];
         if (handoffId) clearDiagramHandoff(handoffId);
       }
     })();
@@ -392,15 +362,7 @@ export function Runner() {
               ×
             </button>
           </div>
-          <label className={layout.recordToggle}>
-            <input
-              type="checkbox"
-              checked={recording}
-              onChange={(e) => toggleRecordEvents(e.target.checked)}
-              className="accent-fuchsia-800"
-            />
-            <span>Record events</span>
-          </label>
+          {toggles.map((toggle) => <ObserverToggle key={toggle.label} toggle={toggle} />)}
           {session && ['done', 'aborted', 'error'].includes(phase) && (
             <button type="button" className={layout.recordLink} onClick={() => downloadRecord(session)}>
               Download the run's record (events.jsonl)
@@ -414,6 +376,22 @@ export function Runner() {
         </aside>
       </main>
     </div>
+  );
+}
+
+/** A skill's switch beside the log, such as recording the run. */
+function ObserverToggle({ toggle }: { toggle: NonNullable<RunObserver['toggle']> }) {
+  const [on, setOn] = useState(toggle.get);
+  return (
+    <label className={layout.recordToggle}>
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(e) => { toggle.set(e.target.checked); setOn(toggle.get()); }}
+        className="accent-fuchsia-800"
+      />
+      <span>{toggle.label}</span>
+    </label>
   );
 }
 

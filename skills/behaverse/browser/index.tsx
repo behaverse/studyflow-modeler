@@ -14,6 +14,8 @@ import { runOnUnity, waitForReady } from '@skills/behaverse/browser/unityRuntime
 import { getBehaverseTaskPayload, withRunIdentity } from '@skills/behaverse/browser/parser';
 import { fetchManifest, validateBehaverseNode } from '@skills/behaverse/browser/validation';
 import { registerNode } from '@runner/nodes/registry';
+// A run is recorded on the Behaverse Data Server when its runner's switch says so.
+import '@skills/behaverse/browser/recording';
 
 /** The Unity stage: the task's iframe, under a cover until Unity says it is ready. */
 const stage = {

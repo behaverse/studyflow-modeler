@@ -1,7 +1,9 @@
 import { SKILLS } from '@core/notation/loader';
 import type { Metamodel } from '@core/model/metamodel';
 import type { ExportFormat } from '@modeler/diagram/formats';
+import type { SaveDestination } from '@modeler/export/destinations';
 import type { InspectorSection } from '@modeler/inspector/sections';
+import type { SettingsSection } from '@modeler/settings/sections';
 
 /** What "Open" hands a skill converting a foreign file. */
 export type OpenContext = {
@@ -23,11 +25,13 @@ export type Opener = {
 };
 
 /** What a skill's `modeler.ts` exports by default: the projections the modeler writes, the foreign formats it opens,
- * the inspector sections it adds. */
+ * the inspector sections it adds, its pages of Settings, and the places "Save" can send a study besides this machine. */
 export type ModelerModule = {
   exports?: ExportFormat[];
   opens?: Opener[];
   sections?: InspectorSection[];
+  settings?: SettingsSection[];
+  destinations?: SaveDestination[];
 };
 
 // Every skill's `modeler.ts`, eagerly: the format lists are built once, at load, from what is here. The module is
@@ -53,3 +57,5 @@ const LOADED = loadSkillModules();
 export const SKILL_EXPORT_FORMATS: ExportFormat[] = LOADED.flatMap((module) => module.exports ?? []);
 export const SKILL_OPENERS: Opener[] = LOADED.flatMap((module) => module.opens ?? []);
 export const SKILL_INSPECTOR_SECTIONS: InspectorSection[] = LOADED.flatMap((module) => module.sections ?? []);
+export const SKILL_SETTINGS_SECTIONS: SettingsSection[] = LOADED.flatMap((module) => module.settings ?? []);
+export const SKILL_SAVE_DESTINATIONS: SaveDestination[] = LOADED.flatMap((module) => module.destinations ?? []);

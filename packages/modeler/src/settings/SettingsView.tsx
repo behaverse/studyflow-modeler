@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { SCHEMAS, SCHEMA_LOAD_FAILURES } from '@core/notation/loader';
 import { installedSchemas } from '@modeler/app/installedSchemas';
 import { schemaDiagnostics } from '@core/notation';
-import { setRecordEvents, shouldRecordEvents } from '@core/settings';
 import { ICONS } from '@modeler/icons';
 import { URLS } from '@modeler/constants';
 import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
@@ -11,16 +10,14 @@ import {
   clearAllLocalData,
   getSettings,
   getStorageEstimate,
-  getStoredApiKey,
-  getStoredUserEmail,
   resetSettings,
   setSettings,
-  setStoredApiKey,
-  setStoredUserEmail,
   subscribeSettings,
   type Settings,
 } from '@modeler/settings/store';
 import { Row, SectionHeader, SelectControl, ToggleControl } from '@modeler/settings/controls';
+import type { SettingsSection } from '@modeler/settings/sections';
+import { SKILL_SETTINGS_SECTIONS } from '@modeler/skillModules';
 import { settingsView as s } from '@modeler/settings/styles';
 
 function useSettings(): {
@@ -64,178 +61,6 @@ function AboutSection() {
           </a>
         }
       />
-    </>
-  );
-}
-
-const GUEST = 'guest';
-
-function useApiKey(): {
-  apiKey: string;
-  setApiKey: (key: string | null | undefined) => void;
-} {
-  const [apiKey, setApiKeyState] = useState<string>(() => getStoredApiKey() ?? GUEST);
-
-  useEffect(() => {
-    const onStorage = () => setApiKeyState(getStoredApiKey() ?? GUEST);
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
-
-  const setApiKey = useCallback((key: string | null | undefined) => {
-    setStoredApiKey(key);
-    setApiKeyState(key || GUEST);
-  }, []);
-
-  return { apiKey, setApiKey };
-}
-
-const GOOGLE_LOGIN_URL = `${URLS.apiBase}/v1/auth/google/login`;
-
-/** Origin the login popup must post from; `undefined` (non-absolute `apiBase`) must fail the login closed. */
-const API_BASE_ORIGIN: string | undefined = (() => {
-  try {
-    return new URL(URLS.apiBase).origin;
-  } catch {
-    return undefined;
-  }
-})();
-
-function AccountSection() {
-  const { apiKey, setApiKey } = useApiKey();
-  const isGuest = apiKey === GUEST;
-  const [revealKey, setRevealKey] = useState(false);
-  const [loginError, setLoginError] = useState<string | undefined>();
-  const [loginPending, setLoginPending] = useState(false);
-  const [storedEmail, setStoredEmail] = useState<string | undefined>(() => getStoredUserEmail());
-  const email = isGuest ? undefined : storedEmail;
-  const setEmail = setStoredEmail;
-
-  function loginWithGoogle() {
-    if (!API_BASE_ORIGIN) {
-      setLoginError('Sign-in is unavailable: this build has no server address. Keep working as a guest.');
-      return;
-    }
-    setLoginError(undefined);
-    setLoginPending(true);
-
-    const w = 480;
-    const h = 640;
-    const left = window.screenX + (window.outerWidth - w) / 2;
-    const top = window.screenY + (window.outerHeight - h) / 2;
-    const popup = window.open(
-      GOOGLE_LOGIN_URL,
-      'behaverse-login',
-      `width=${w},height=${h},left=${left},top=${top},popup=yes`,
-    );
-
-    if (!popup) {
-      setLoginPending(false);
-      setLoginError('The browser blocked the Google sign-in window. Allow pop-ups for this site and try again.');
-      return;
-    }
-
-    const onMessage = (e: MessageEvent) => {
-      if (e.origin !== API_BASE_ORIGIN) return;
-      const data = e.data as { type?: string; api_key?: string; email?: string } | null;
-      if (!data || data.type !== 'behaverse:login' || !data.api_key) return;
-      window.removeEventListener('message', onMessage);
-      clearInterval(closedTimer);
-      setApiKey(data.api_key);
-      if (data.email) {
-        setEmail(data.email);
-        setStoredUserEmail(data.email);
-      }
-      setLoginPending(false);
-      try { popup.close(); } catch { /* ignore */ }
-    };
-
-    const closedTimer = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(closedTimer);
-        window.removeEventListener('message', onMessage);
-        setLoginPending(false);
-      }
-    }, 500);
-
-    window.addEventListener('message', onMessage);
-  }
-
-  function signOut() {
-    setApiKey(null);
-    setStoredUserEmail(undefined);
-    setEmail(undefined);
-    setRevealKey(false);
-  }
-
-  return (
-    <>
-      <SectionHeader title="Account" description="Sign in to publish studyflows and record runs." />
-
-      <Row
-        label="Status"
-        help={
-          isGuest
-            ? 'You are working as a guest. Studyflows stay on this device.'
-            : email
-              ? <>Signed in as <strong className="font-semibold text-stone-900">{email}</strong></>
-              : 'Signed in.'
-        }
-        control={
-          <div className="flex flex-col items-end gap-1">
-            {isGuest ? (
-              <button
-                type="button"
-                className={`${s.inlineBtn} inline-flex items-center gap-2`}
-                disabled={loginPending}
-                onClick={loginWithGoogle}
-              >
-                <i className={ICONS.google} aria-hidden="true" />
-                <span>{loginPending ? 'Waiting for Google...' : 'Login with Google'}</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className={s.inlineBtn}
-                onClick={signOut}
-                title="Clears the saved API key and returns to guest mode"
-              >
-                Sign out
-              </button>
-            )}
-            {isGuest && loginError && <p className="text-xs text-red-700">{loginError}</p>}
-          </div>
-        }
-      />
-
-      {!isGuest && (
-        <Row
-          label="API key"
-          help="Stored in this browser only. Keep it secret, anyone holding it can act as you."
-          control={
-            <div className="relative inline-block">
-              <input
-                id="api-key-input"
-                type={revealKey ? 'text' : 'password'}
-                value={apiKey}
-                readOnly
-                className={`${s.textInput} pr-9`}
-              />
-              <button
-                type="button"
-                aria-controls="api-key-input"
-                aria-pressed={revealKey}
-                onClick={() => setRevealKey((v) => !v)}
-                title={revealKey ? 'Hide key' : 'Show key'}
-                className="absolute inset-y-0 right-0 flex items-center justify-center w-9 text-stone-500 hover:text-stone-900 cursor-pointer"
-              >
-                <i className={`iconify ${revealKey ? 'bi--eye-slash' : 'bi--eye'}`} aria-hidden="true" />
-              </button>
-            </div>
-          }
-        />
-      )}
-
     </>
   );
 }
@@ -391,8 +216,6 @@ function formatBytes(n: number): string {
 function PrivacySection() {
   const { reset } = useSettings();
   const [estimate, setEstimate] = useState(() => getStorageEstimate());
-  /** The browser runner's own "Record events" toggle drives this same `core/settings` key. */
-  const [recording, setRecording] = useState(() => shouldRecordEvents());
 
   const storageHelp = useMemo(
     () => `${estimate.keys} key${estimate.keys === 1 ? '' : 's'}, ~${formatBytes(estimate.bytes)}`,
@@ -403,22 +226,7 @@ function PrivacySection() {
     <>
       <SectionHeader
         title="Privacy"
-        description="Everything stays in this browser unless you publish or turn on run recording."
-      />
-
-      <Row
-        label="Record run data"
-        help="Send session, variable, and task events to the Behaverse Data Server. Off by default."
-        control={
-          <ToggleControl
-            label="Record run data"
-            checked={recording}
-            onChange={(next) => {
-              setRecordEvents(next);
-              setRecording(shouldRecordEvents());
-            }}
-          />
-        }
+        description="What this app keeps stays in this browser, unless a skill's own page here says it sends it somewhere."
       />
 
       <Row
@@ -431,7 +239,6 @@ function PrivacySection() {
             onClick={() => {
               if (window.confirm('Clear all local data, including settings and the saved studyflow? This cannot be undone.')) {
                 clearAllLocalData();
-                setRecording(shouldRecordEvents());
                 setEstimate(getStorageEstimate());
               }
             }}
@@ -454,25 +261,17 @@ function PrivacySection() {
   );
 }
 
-type SectionId = 'account' | 'editor' | 'extensions' | 'privacy' | 'about';
-
-type Section = {
-  id: SectionId;
-  label: string;
-  icon: string;
-  Component: () => React.ReactNode;
-};
-
-const SECTIONS: Section[] = [
-  { id: 'account', label: 'Account', icon: 'bi--person-circle', Component: AccountSection },
+// A skill's pages (an account it signs in to) sit between the app's own and Privacy and About.
+const SECTIONS: SettingsSection[] = [
   { id: 'editor', label: 'Editor', icon: 'bi--pencil', Component: EditorSection },
   { id: 'extensions', label: 'Extensions', icon: 'bi--diagram-3', Component: ExtensionsSection },
+  ...SKILL_SETTINGS_SECTIONS,
   { id: 'privacy', label: 'Privacy', icon: 'bi--shield-lock', Component: PrivacySection },
   { id: 'about', label: 'About', icon: 'bi--info-circle', Component: AboutSection },
 ];
 
 export function SettingsView({ onClose }: { onClose: () => void }) {
-  const [active, setActive] = useState<SectionId>('account');
+  const [active, setActive] = useState(SECTIONS[0].id);
   const ActiveSection = SECTIONS.find((sec) => sec.id === active)!.Component;
 
   return (

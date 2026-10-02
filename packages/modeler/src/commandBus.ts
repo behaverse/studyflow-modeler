@@ -6,14 +6,13 @@ import * as inspector from '@modeler/inspector/commands';
 import * as palette from '@modeler/palette/commands';
 import * as popup from '@modeler/popup/commands';
 import * as provenance from '@modeler/provenance/commands';
-import * as publish from '@modeler/publish/commands';
 import * as shape from '@modeler/shape/commands';
 import * as simulation from '@modeler/simulation/commands';
 import type { Editor } from '@modeler/editor/port';
 
 /* A command joins the bus by being listed here; command type `X` dispatches to `runX`. */
 const FEATURES = [
-  app, diagram, exportDiagram, inspector, palette, popup, provenance, publish, saveDiagram, shape, simulation,
+  app, diagram, exportDiagram, inspector, palette, popup, provenance, saveDiagram, shape, simulation,
 ] as const;
 
 type UnionToIntersection<U> =

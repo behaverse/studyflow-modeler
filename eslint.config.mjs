@@ -49,13 +49,13 @@ export default [
   },
 
   {
-    files: ['packages/modeler/src/**/*.{ts,tsx}', 'packages/runtime-browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}'],
+    files: ['packages/modeler/src/**/*.{ts,tsx}', 'packages/runtime-browser/src/**/*.{ts,tsx}', 'skills/*/browser/**/*.{ts,tsx}', 'skills/*/modeler/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs['recommended-latest'].rules,
   },
   // Each app may import itself but not the other.
   {
-    files: ['packages/modeler/src/**/*.{ts,tsx}', 'skills/*/modeler.ts'],
+    files: ['packages/modeler/src/**/*.{ts,tsx}', 'skills/*/modeler.ts', 'skills/*/modeler/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [
