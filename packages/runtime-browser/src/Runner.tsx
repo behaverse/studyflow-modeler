@@ -293,7 +293,8 @@ export function Runner() {
     })();
   }, [xml, addLog, handleResolve, handoffId, parameters]);
 
-  if (!xml) return <Help onFileLoaded={setXml} />;
+  // A link that names a study it cannot load says why, below; only a link that names none asks for a file.
+  if (!xml && !source) return <Help onFileLoaded={setXml} />;
 
   return (
     <div className={layout.page}>

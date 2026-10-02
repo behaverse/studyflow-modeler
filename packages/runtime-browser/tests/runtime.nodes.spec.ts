@@ -226,6 +226,14 @@ test.describe('Studyflow runtime nodes', () => {
     expect(remaining).toBeNull();
   });
 
+  test('an expired hand-off link says so', async ({ page }) => {
+    // Nothing is handed over under this id: the run it named has ended, or the link is stale.
+    await page.goto('/run/?diagram=runner-expired');
+    const error = page.getByTestId('runner-error');
+    await expect(error).toContainText('The study could not start');
+    await expect(error).toContainText('This link has expired or was already used.');
+  });
+
   test('the person at the page answers what the study sends their pool, and the record of the run can be taken away', async ({ page }) => {
     await runStudyflow(page, 'runner-person', PERSON_XML);
     await page.getByRole('button', { name: /begin/i }).click();
