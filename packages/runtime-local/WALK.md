@@ -15,6 +15,12 @@ what it re-makes, and nothing else. An output the worktree has lost comes
 back from the commit that made it. A record naming no commit cannot be checked, so its step runs once more and leaves
 one.
 
+A repository that keeps its data out of its history (`--data-outside-history`) holds each file's SHA-256 in
+`data.sha256` instead of the file, and a re-run compares a step's artifacts with the digests its record's commit holds.
+An output the run directory has lost, or holds otherwise, cannot come back from there: a re-run that needs it stops and
+names it rather than make another. A branch point's checkout leaves the files where they are, and the steps the
+re-run redoes write theirs again.
+
 A run in a repository whose history holds an earlier run redoes that run: it walks the study from its start again,
 reusing what still stands. So it starts from the state that run started from, as the study archived at that run's
 `started` commit holds it (after `--from`, the run the branch point is in), and what it walks again counts, and

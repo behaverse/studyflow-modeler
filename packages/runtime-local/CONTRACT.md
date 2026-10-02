@@ -39,7 +39,7 @@ Live elements run every time and never replay. `live: false` marks them replayab
 
 Hand-offs may overlap: two pools walked at once, or two paths of one pool after a split, may each be in the same runner. A hand-off is cancelled when a timer at a boundary event ends its activity, when another path of its scope fails or ends the scope, or when it outlasts `--step-timeout SECONDS` (its step then fails). A runner that has not answered a second after `cancel` has its process ended, and is started again for its next hand-off; so a runner answers at once, and work that cannot stop midway finishes behind the answer (the SDK's `unless_cancelled`). After `shutdown` it has two seconds to let go of what it holds and exit, or its process is ended.
 
-What a runner leaves in the run directory is committed at the next checkpoint, while `.cache/` is never committed and is removed when the run ends (`--debug` keeps it, and leaves in it the run's values after each element, `<id>.state.json`).
+What a runner leaves in the run directory is committed at the next checkpoint (in a run that keeps its data out of the history, `--data-outside-history`, its SHA-256 is, in `data.sha256`), while `.cache/` is never committed and is removed when the run ends (`--debug` keeps it, and leaves in it the run's values after each element, `<id>.state.json`).
 
 **What comes back.** A runner says what it binds; nothing is read off a changed copy of the values.
 
