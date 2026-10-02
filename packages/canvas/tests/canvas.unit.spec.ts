@@ -462,14 +462,27 @@ test('a host element anchored to elements is shown beside them, and steps aside 
   const { canvas } = load();
   const pad = installDocument().createElement('div');
   const task = node(canvas, 'Task_1');
+  // The view's frame on the page, the size it draws at so the scale stays 1: what the element is kept inside.
+  const { width, height } = canvas.viewbox;
+  canvas.getContainer().getBoundingClientRect = () => ({ left: 0, top: 0, right: width, bottom: height, width, height }) as DOMRect;
+  /** Where the element sits from the task's box on screen. */
+  const offset = () => {
+    const box = canvas.screenBox('Task_1')!;
+    const [x, y] = pad.style.transform.match(/-?[\d.]+/g)!.map(Number);
+    return { right: x - (box.x + box.width), top: y - box.y };
+  };
+  // 8px right of the selection outline, which stands 4 out from the shape, and level with the outline's top.
+  const beside = { right: 12, top: -4 };
 
   canvas.anchor(pad, ['Task_1']);
   expect(pad.style.visibility).toBe('visible');
+  expect(offset()).toEqual(beside);
   pointerDown(canvas, centre(task));
   pointerMove(canvas, { x: centre(task).x + 60, y: centre(task).y + 40 });
   expect(pad.style.visibility, 'out of the way while the shape is dragged').toBe('hidden');
   pointerUp(canvas, { x: centre(task).x + 60, y: centre(task).y + 40 });
   expect(pad.style.visibility, 'back once it lands').toBe('visible');
+  expect(offset(), 'beside where it landed').toEqual(beside);
 
   canvas.anchor(pad, ['Task_In']);
   expect(pad.style.visibility, 'the contents of a closed container are not drawn').toBe('hidden');

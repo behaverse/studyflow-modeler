@@ -12,9 +12,10 @@ import {
 
 /**
  * The app-rendered popup menus: the create menu behind the palette's more-elements
- * button, the append menu the context pad and the `a` key open, and the style menu.
- * Which entries they list is `tests/popup-menu.unit.spec.ts`'s; where an appended
- * element lands is canvas-autoplace's.
+ * button, the append menu the context pad and the `a` key open, the replace menu behind
+ * the pad's wrench, and the style menu. Which entries they list is
+ * `tests/popup-menu.unit.spec.ts`'s; where an appended element lands is canvas-autoplace's,
+ * and what a retype writes canvas-replace's.
  */
 
 const popup = (page: Page) => page.getByTestId('popup-menu');
@@ -31,7 +32,7 @@ function shapeX(bpmn: string, prefix: string): number {
 }
 
 test.describe('App popup menus', () => {
-  test('the create and append menus search, and place what you pick', async ({ page }) => {
+  test('the create and append menus search and place what you pick, and the replace menu retypes as one undo step', async ({ page }) => {
     await gotoModeler(page);
 
     // The palette's more-elements button: a searchable create menu. Searching narrows the
@@ -62,6 +63,18 @@ test.describe('App popup menus', () => {
     await page.getByTestId('popup-menu-entry-create-End').click();
     await expect(popup(page)).toHaveCount(0);
     await expect(page.locator('g[data-element-id^="EndEvent_"]')).toHaveCount(1);
+
+    // The wrench opens a searchable menu too, and a pick retypes the element where it stands:
+    // one edit, so one undo puts it back.
+    await service.click();
+    await page.getByTestId('context-pad-replace').click();
+    await expect(popup(page)).toBeVisible();
+    await page.getByTestId('popup-menu-entry-create-User').click();
+    await expect(service).toHaveCount(0);
+    await expect(page.locator('g[data-element-id^="UserTask_"]')).toHaveCount(1);
+    await pressOnCanvas(page, 'ControlOrMeta+z');
+    await expect(service).toHaveCount(1);
+    await expect(page.locator('g[data-element-id^="UserTask_"]')).toHaveCount(0);
 
     const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
     expect(bpmn).toMatch(/<bpmn:sequenceFlow[^>]*sourceRef="ServiceTask_[^"]*"[^>]*targetRef="EndEvent_/);

@@ -280,14 +280,17 @@ Process_1:
       ['a task in the slot', CROWDED_YAML, 'Task_1', 'bpmn:EndEvent'],
       ['an expanded sub-process in the slot', SUBPROCESS_YAML, 'Start_1', 'bpmn:EndEvent'],
       ['an annotation, whose slot is above the source', PROCESS_YAML, 'Task_1', 'bpmn:TextAnnotation'],
+      // A `bpmn:Association` may leave a sequence flow, so the note hangs off the flow itself.
+      ['an annotation off a flow', `${PROCESS_YAML}    Flow_1: Task_1 -> End_1\n`, 'Flow_1', 'bpmn:TextAnnotation'],
     ];
-    for (const [label, yaml, id, type] of CASES) {
+    for (const [label, yaml, source, type] of CASES) {
       const { canvas } = loadYaml(yaml);
-      const source = node(canvas, id);
-      const preview = canvas.previewAppend(source.id, { type });
+      const preview = canvas.previewAppend(source, { type });
       canvas.clearAppendPreview();
-      const appended = appendFrom(canvas, source, { type })!;
+      const appended = node(canvas, canvas.append(source, { type }).id!);
       expect({ x: preview!.x, y: preview!.y }, label).toEqual({ x: appended.x, y: appended.y });
+      const reaching = [...canvas.study.model.all()].find((element) => element.targetRef === appended.id);
+      expect(reaching?.sourceRef, `${label}: reached from its source`).toBe(source);
     }
   });
 });
