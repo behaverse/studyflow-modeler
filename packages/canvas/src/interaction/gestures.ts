@@ -24,7 +24,6 @@ import type { Viewport } from '@canvas/view/viewport.ts';
 import { Keys } from '@canvas/interaction/keys.ts';
 import { isExpandable } from '@core/document/outline.ts';
 import { TOP_STRIP } from '@canvas/render/labels.ts';
-import { ownerDocument } from '@canvas/render/svg.ts';
 import { distanceToSegment } from '@canvas/study/edit.ts';
 
 const DRAG_THRESHOLD_PX = 3;
@@ -211,7 +210,7 @@ export class Gestures {
   }
 
   private listen(): void {
-    const doc = this.tools.svg.ownerDocument ?? ownerDocument();
+    const doc = this.tools.svg.ownerDocument;
     doc.addEventListener('pointermove', this.onMove);
     doc.addEventListener('pointerup', this.onUp);
     doc.addEventListener('pointercancel', this.onCancel);
@@ -493,7 +492,7 @@ export class Gestures {
     this.markGesture(undefined);
     const root = this.tools.svg;
     root.classList.remove('sf-drag-active');
-    const doc = root.ownerDocument ?? ownerDocument();
+    const doc = root.ownerDocument;
     doc.removeEventListener('pointermove', this.onMove);
     doc.removeEventListener('pointerup', this.onUp);
     doc.removeEventListener('pointercancel', this.onCancel);

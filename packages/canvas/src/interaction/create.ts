@@ -17,19 +17,19 @@ export interface DropTarget {
 }
 
 export interface CreateOptions {
-  getScene: () => Scene | undefined;
+  getScene: () => Scene;
   rules: Rules;
   hitTest: (point: Point) => SceneElement | undefined;
   layer: SVGGElement;
   /** Grid snap for the drop centre. */
-  snap?: (point: Point) => Point;
+  snap: (point: Point) => Point;
   /** The container a drop on empty background lands in (the drill-down scope). */
-  getContainer?: () => SceneNode | undefined;
+  getContainer: () => SceneNode | undefined;
   /** Add `what` centred on `center`, into `into` (the top level without it): the shape made, or nothing. */
   drop: (what: NewElement, center: Point, into: SceneNode | undefined) => SceneNode | undefined;
-  drawGhost?: (prototype: CreatePrototype, bounds: Bounds) => SVGElement | undefined;
+  drawGhost: (prototype: CreatePrototype, bounds: Bounds) => SVGElement | undefined;
   /** The element under the pointer and whether it would take the drop; `undefined` at the end. */
-  markTarget?: (target: SceneElement | undefined, allowed: boolean) => void;
+  markTarget: (target: SceneElement | undefined, allowed: boolean) => void;
 }
 
 interface CreateState {
@@ -55,7 +55,6 @@ export class Create {
   }
 
   start(what: NewElement, prototype: CreatePrototype, center: Point): boolean {
-    if (!this.options.getScene()) return false;
     this.state = { what, prototype, center: { ...center }, target: { verdict: false } };
     this.update(center);
     return true;
@@ -64,12 +63,12 @@ export class Create {
   update(point: Point): void {
     const state = this.state;
     if (!state) return;
-    state.center = this.options.snap ? this.options.snap(point) : { ...point };
+    state.center = this.options.snap(point);
     const over = this.options.hitTest(state.center);
     state.target = this.resolveTargetOver(state.prototype, over);
     const allowed = state.target.verdict !== false;
     this.drawPreview(state.prototype, boundsFor(state.prototype, state.center));
-    this.options.markTarget?.(over, allowed);
+    this.options.markTarget(over, allowed);
   }
 
   end(point: Point): SceneNode | undefined {
@@ -80,7 +79,7 @@ export class Create {
     this.state = undefined;
     this.clearPreview();
     if (target.verdict === false) return undefined;
-    return this.options.drop(what, center, target.parent ?? this.options.getContainer?.());
+    return this.options.drop(what, center, target.parent ?? this.options.getContainer());
   }
 
   cancel(): void {
@@ -90,10 +89,9 @@ export class Create {
 
   private resolveTargetOver(prototype: CreatePrototype, over: SceneElement | undefined): DropTarget {
     const scene = this.options.getScene();
-    if (!scene) return { verdict: false };
     const parent = containerOf(over);
     // Inside a drilled-into container, a drop on empty background belongs to it even while it is drawn collapsed.
-    const scope = this.options.getContainer?.();
+    const scope = this.options.getContainer();
     const context: RuleElement = parent ?? (scope ? { ...scope, isExpanded: true } : scene.rootElement);
     const verdict = this.options.rules.canCreate(prototype, context, { root: scene.rootElement });
     if (verdict === 'attach') return parent ? { parent, verdict } : { verdict: false };
@@ -102,13 +100,13 @@ export class Create {
 
   private drawPreview(prototype: CreatePrototype, bounds: Bounds): void {
     remove(this.preview);
-    this.preview = this.options.drawGhost?.(prototype, bounds);
+    this.preview = this.options.drawGhost(prototype, bounds);
     if (this.preview) append(this.options.layer, this.preview);
   }
 
   private clearPreview(): void {
     remove(this.preview);
     this.preview = undefined;
-    this.options.markTarget?.(undefined, false);
+    this.options.markTarget(undefined, false);
   }
 }

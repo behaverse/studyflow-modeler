@@ -48,12 +48,12 @@ export interface DragOptions {
   snapToGrid?: boolean;
   /** A resize's minimum size, and whether a container takes a drop. */
   rules: Rules;
-  getScene: () => Scene | undefined;
+  getScene: () => Scene;
   /** The container the view is drilled into, which takes a move dropped on empty background. */
   getScope: () => SceneNode | undefined;
   hitTest: (point: Point, options?: HitOptions) => SceneElement | undefined;
   /** Boxes a live re-route steers around, asked once per move. */
-  obstacles?: (moving: readonly SceneNode[]) => Bounds[];
+  obstacles: (moving: readonly SceneNode[]) => Bounds[];
 }
 
 type EdgeFollow = 'all' | 'first' | 'last';
@@ -110,10 +110,10 @@ export class Drag {
   private readonly settle: DragOptions['settle'];
   private readonly redraw: (elements: SceneElement[]) => void;
   private readonly rules: Rules;
-  private readonly getScene: () => Scene | undefined;
+  private readonly getScene: () => Scene;
   private readonly getScope: () => SceneNode | undefined;
   private readonly hitTest: DragOptions['hitTest'];
-  private readonly obstaclesFor?: (moving: readonly SceneNode[]) => Bounds[];
+  private readonly obstaclesFor: (moving: readonly SceneNode[]) => Bounds[];
   private snap: boolean;
   private state?: DragState;
   private axes: GridAxes = BOTH_AXES;
@@ -147,7 +147,7 @@ export class Drag {
     const scene = this.getScene();
     const moving = withDescendants(elements.filter((el): el is SceneNode => el.kind === 'node'));
     // A boundary event sits on its activity: wherever the activity goes, it goes.
-    const nodes = scene ? [...moving, ...attachedTo(scene, moving)] : moving;
+    const nodes = [...moving, ...attachedTo(scene, moving)];
     const nodeSet = new Set(nodes);
     const loose = elements.filter((el): el is SceneLabel => el.kind === 'label' && !(el.owner.kind === 'node' && nodeSet.has(el.owner)));
     if (nodes.length === 0 && loose.length === 0) return false;
@@ -175,14 +175,14 @@ export class Drag {
     }
     for (const label of labels) labelOrigins.set(label, { x: label.x, y: label.y });
     // The routes still as the router drew them: a move draws those afresh, where a route bent by hand stays bent.
-    const routed = new Set(scene ? edges.filter((edge) => follow.get(edge) !== 'all' && isRouted(edge, obstaclesIn(scene, planeOf(edge)))) : []);
+    const routed = new Set(edges.filter((edge) => follow.get(edge) !== 'all' && isRouted(edge, obstaclesIn(scene, planeOf(edge)))));
 
     this.state = {
       kind: 'move',
       origin: { ...origin },
       snap: options?.snapToGrid ?? this.snap,
       reroute: options?.rerouteEdges ?? true,
-      obstacles: this.obstaclesFor?.(nodes) ?? [],
+      obstacles: this.obstaclesFor(nodes),
       nodes,
       nodeOrigins,
       labels,
@@ -277,7 +277,7 @@ export class Drag {
   dropAt(point: Point): MoveDrop | undefined {
     const state = this.state;
     const scene = this.getScene();
-    if (state?.kind !== 'move' || state.nodes.length === 0 || !scene) return undefined;
+    if (state?.kind !== 'move' || state.nodes.length === 0) return undefined;
     const moving = new Set(state.nodes.map((node) => node.id));
     const over = this.hitTest(point, { accept: (el) => !moving.has(el.kind === 'label' ? el.owner.id : el.id) });
     const hit = !over || over.kind === 'label' ? undefined : over.kind === 'node' && isContainerNode(over) ? over : over.parent;

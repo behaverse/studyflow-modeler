@@ -5,7 +5,7 @@
  */
 
 import { freeMoveEnd, redockEnd } from '@canvas/study/edit.ts';
-import type { Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
+import type { Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { markerEndFor, markerStartFor, previewEdge } from '@canvas/render/renderer.ts';
 import { append, create as svgCreate, remove } from '@canvas/render/svg.ts';
 import { cropPoint } from '@core/document/outline.ts';
@@ -15,14 +15,13 @@ import { CONNECTION, type ConnectionSpec, type Rules } from '@canvas/study/rules
 export type ConnectionEnd = 'source' | 'target';
 
 export interface ConnectOptions {
-  getScene: () => Scene | undefined;
   /** Move `end` of `edge` onto `node` through the study, routed through `waypoints`; whether it did. */
   reconnect: (edge: SceneEdge, end: ConnectionEnd, node: SceneNode, waypoints?: Point[]) => boolean;
   rules: Rules;
   hitTest: (point: Point) => SceneElement | undefined;
   layer: SVGGElement;
-  markTarget?: (target: SceneNode | undefined, allowed: boolean) => void;
-  snap?: (point: Point) => Point;
+  markTarget: (target: SceneNode | undefined, allowed: boolean) => void;
+  snap: (point: Point) => Point;
   /** Connect `source` to `target`: the edge made, or nothing when refused. */
   link: (source: SceneNode, target: SceneNode) => SceneEdge | undefined;
 }
@@ -63,14 +62,13 @@ export class Connect {
   }
 
   start(source: SceneNode, point: Point): boolean {
-    if (!this.options.getScene()) return false;
     this.state = { kind: 'connect', source, point: { ...point } };
     this.update(point);
     return true;
   }
 
   startReconnect(edge: SceneEdge, end: ConnectionEnd, point: Point): boolean {
-    if (!this.options.getScene() || edge.waypoints.length < 2) return false;
+    if (edge.waypoints.length < 2) return false;
     this.state = { kind: 'reconnect', edge, end, point: { ...point } };
     this.update(point);
     return true;
@@ -85,13 +83,13 @@ export class Connect {
       const spec = hovered ? this.options.rules.canConnect(state.source, hovered) : false;
       state.target = spec ? hovered : undefined;
       state.spec = spec || undefined;
-      this.options.markTarget?.(hovered, !!spec);
+      this.options.markTarget(hovered, !!spec);
       this.drawPreview(this.connectPreviewPoints(state), spec ? 'ok' : hovered ? 'rejected' : 'pending', spec ? spec.type : undefined);
       return;
     }
     const verdict = hovered ? this.reconnectVerdict(state.edge, state.end, hovered) : false;
     state.candidate = verdict ? hovered : undefined;
-    this.options.markTarget?.(hovered, !!verdict);
+    this.options.markTarget(hovered, !!verdict);
     this.drawPreview(this.reconnectPreviewPoints(state), verdict ? 'ok' : hovered ? 'rejected' : 'pending', state.edge.type);
   }
 
@@ -134,7 +132,7 @@ export class Connect {
   }
 
   private snap(point: Point): Point {
-    return this.options.snap ? this.options.snap(point) : point;
+    return this.options.snap(point);
   }
 
   private nodeAt(point: Point): SceneNode | undefined {
@@ -180,7 +178,7 @@ export class Connect {
     remove(this.preview);
     this.preview = undefined;
     this.setRootStatus(undefined);
-    this.options.markTarget?.(undefined, false);
+    this.options.markTarget(undefined, false);
   }
 
   /** The verdict on the root, where the stylesheet hangs the cursor. */

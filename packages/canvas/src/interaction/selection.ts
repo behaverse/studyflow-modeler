@@ -15,10 +15,10 @@ export interface SelectionOptions {
   getGraphics: (id: string) => SVGGElement | undefined;
   /** The selection changed, to these ids. */
   onChange: (ids: string[]) => void;
-  canResize?: (target: Resizable) => boolean;
+  canResize: (target: Resizable) => boolean;
   /** Turns whatever a caller names an element by (an id, a stale copy) into the scene element. */
   /** The element as the scene now holds it, by id; none when it holds none. */
-  resolve?: (value: SceneElement | string) => SceneElement | undefined;
+  resolve: (value: SceneElement | string) => SceneElement | undefined;
 }
 
 const HANDLE_SIZE = 7;
@@ -57,8 +57,8 @@ export class Selection {
     this.layer = options.layer;
     this.getGraphics = options.getGraphics;
     this.onChange = options.onChange;
-    this.canResize = options.canResize ?? (() => true);
-    this.resolve = options.resolve ?? ((value) => value as SceneElement | undefined);
+    this.canResize = options.canResize;
+    this.resolve = options.resolve;
   }
 
   get(): SceneElement[] {

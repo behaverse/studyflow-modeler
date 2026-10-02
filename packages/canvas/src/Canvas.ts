@@ -195,7 +195,6 @@ export class Canvas {
       markTarget: (target, allowed) => this.gestures.markDropTarget(target, allowed),
     });
     this.connect = new Connect({
-      getScene: () => this.scene,
       reconnect: (edge, end, node, waypoints) => this.study.reconnect({
         id: edge.id, ...(end === 'source' ? { from: node.id } : { to: node.id }), ...(waypoints ? { waypoints } : {}),
       }).ok,

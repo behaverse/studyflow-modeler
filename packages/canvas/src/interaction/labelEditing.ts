@@ -13,7 +13,6 @@ import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/
 import { edgeLabelBox, FONT, LINE_HEIGHT, nodeLabelBox, textWidth } from '@canvas/study/text.ts';
 import { familyOf, internalLabelRegion, LABEL_FONT, WEIGHT } from '@canvas/render/labels.ts';
 import { choreographyBandHeight } from '@core/document/outline.ts';
-import { ownerDocument } from '@canvas/render/svg.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
 
 export type LabelBand = 'name' | 'top' | 'bottom';
@@ -184,7 +183,7 @@ export class LabelEditing {
 
   private createInput(session: LabelEditingSession): HTMLTextAreaElement {
     const { container } = this.options;
-    const doc = container.ownerDocument ?? ownerDocument();
+    const doc = container.ownerDocument;
     const placement = labelPlacement(session.element);
     const input = doc.createElement('textarea');
     input.className = `sf-label-editor sf-label-editor-${placement}`;
