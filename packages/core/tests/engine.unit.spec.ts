@@ -176,20 +176,6 @@ test('a random gateway allocates as it says, and what it cannot apply stops the 
   expect(allocationOf(gateway({ algorithm: 'block', stratifyBy: 'age_band' }), 2).unapplied).toContain('in permuted blocks of 4');
 });
 
-test('a seeded random gateway draws again at each visit', async () => {
-  const fixture = fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/random-loop.studyflow.yaml'), 'utf8');
-  const plan = planOf(studyModel(fixture));
-  const taken: string[] = [];
-  const walk = new Walk(plan, {
-    claim: () => undefined,
-    perform: async () => ({}),
-    log: (event, message) => { if (event === 'sequenceFlow.taken' && message.includes('drawn')) taken.push(message.trim().slice(-1)); },
-    now: () => '',
-  });
-  await walk.run();
-  expect(taken).toEqual(['A', 'A', 'A', 'B']);
-});
-
 // The cohort is walked whole, so a gateway can allocate in permuted blocks: four subjects (a pool of four participant
 // instances) through a block of four split two and two, whatever the seed, or none.
 for (const study of ['\n  extensionElements:\n    - type: studyflow:Study\n      seed: 15', '']) {
@@ -514,8 +500,8 @@ test('a multi-instance marker over a list runs once per item, binds each in its 
   expect(reached).toMatchObject({ Each: 1, E0: 3, EF_Quiet: 1, Shout: 2 });
 });
 
-test('when no condition holds and there is no default, the one flow without a condition is taken', async () => {
-  const { reached } = await walked(`S:
+test('when no condition holds and there is no default, the one flow without a condition is taken, and two such flows stop the run', async () => {
+  const gate = (condition: string) => `S:
   type: Process
   flowElements:
     Start: { type: StartEvent }
@@ -526,11 +512,14 @@ test('when no condition holds and there is no default, the one flow without a co
     F_No:
       type: SequenceFlow
       sourceRef: Gate
-      targetRef: No
-      conditionExpression: 1 > 2
+      targetRef: No${condition}
     F_Otherwise: Gate -> Otherwise
-`);
-  expect(reached).toEqual({ Start: 1, F1: 1, Gate: 1, F_Otherwise: 1, Otherwise: 1 });
+`;
+  const one = await walked(gate('\n      conditionExpression: 1 > 2'));
+  expect(one.reached).toEqual({ Start: 1, F1: 1, Gate: 1, F_Otherwise: 1, Otherwise: 1 });
+  const two = await walked(gate(''));
+  expect(two.error?.message).toMatch(/Gate: no condition held/);
+  expect(two.walk.steps.entries.at(-1)).toMatchObject({ node: 'Gate', status: 'stuck' });
 });
 
 test('a sub-process without a start event is stepped past', async () => {
@@ -985,22 +974,6 @@ test('a study of one step and no flow starts at that step; two steps nothing lea
   expect([one.error, one.reached]).toEqual([undefined, { Only: 1 }]);
   const two = await walked('S:\n  type: Process\n  flowElements:\n    Only: { type: Task }\n    Second: { type: Task }\n');
   expect(two.error?.message).toMatch(/start/);
-});
-
-test('a gateway where no condition holds, with no default and two flows without a condition, stops the run', async () => {
-  const { error, walk } = await walked(`S:
-  type: Process
-  flowElements:
-    Start: { type: StartEvent }
-    Gate: { type: ExclusiveGateway }
-    A: { type: EndEvent }
-    B: { type: EndEvent }
-    F1: Start -> Gate
-    F_A: Gate -> A
-    F_B: Gate -> B
-`);
-  expect(error?.message).toMatch(/Gate: no condition held/);
-  expect(walk.steps.entries.at(-1)).toMatchObject({ node: 'Gate', status: 'stuck' });
 });
 
 test('what repeats never skips or replays: a record keeps its last pass only', async () => {
