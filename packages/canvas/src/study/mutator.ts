@@ -455,10 +455,12 @@ export class Mutator {
       const from = flowContainerOf(scene, node.parent);
       const to = flowContainerOf(scene, parent);
       const element = node.element;
-      scene.model.unfile(element);
+      const holder = scene.model.unfile(element)?.parent;
       if (from.lane) dropRef(from.lane, 'flowNodeRef', element);
       this.fileElement(element, node.type, to.owner);
       if (to.lane && isBpmnSubtypeOf(node.type, 'bpmn:FlowNode')) addRef(to.lane, 'flowNodeRef', element);
+      // A lane set left empty goes, as on a deletion (study/remove.ts).
+      if (holder && scene.model.host(holder) === 'bpmn:LaneSet' && listOf(holder, 'lanes').length === 0) scene.model.unfile(holder);
       unlinkFromTree(scene, node);
       linkIntoTree(scene, node, parent);
       changed.push(node);

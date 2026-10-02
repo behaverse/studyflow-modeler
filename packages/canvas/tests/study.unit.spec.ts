@@ -517,6 +517,11 @@ Q:
 
   expect(study.undo().ok).toBe(true);
   expect(study.toYaml()).toBe(before);
+
+  // Moved back, it takes the lane set it empties along, as a deletion does.
+  study.redo();
+  study.move({ ids: ['Model'], by: { x: 0, y: -350 }, into: 'Lab' });
+  expect(study.toYaml()).toBe(before);
 });
 
 const CLIPBOARD = `id: Defs_C
