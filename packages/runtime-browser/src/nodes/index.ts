@@ -44,7 +44,7 @@ function branchingMode(extensionType: string): string | undefined {
 export async function validate(studyflow: Studyflow, log: LogFn): Promise<ValidationIssue[]> {
   await skillModulesLoaded;
   // The consent form a page fetches and the code it hands are what `studyflow validate` checks too.
-  const entryExit = checkEntryExit(studyflow.model).map(({ elementId, severity, message }) => ({ nodeId: elementId ?? '', severity, message }));
+  const entryExit = checkEntryExit(studyflow.model).map(({ elementId, severity, message }) => ({ nodeId: elementId, severity, message }));
   const issues: ValidationIssue[] = [...entryExit, ...validateUnwalked(studyflow)];
 
   // What a definition prepares (a build manifest, say) goes to its own validators and nowhere else.

@@ -156,16 +156,16 @@ test.describe('Studyflow runtime nodes', () => {
     await expect(page.getByText('aborted', { exact: true })).toBeVisible();
   });
 
-  test('a study the checks refuse, or a link missing a parameter it needs, stops on a screen naming what to fix', async ({ page }) => {
+  test('a study the checks refuse, or a link missing a parameter it needs, stops on one screen naming what to fix', async ({ page }) => {
     await runStudyflow(page, 'runner-refusals', REFUSED_XML);
+    const invalid = page.getByTestId('runner-invalid');
     // The link is the first thing to fix: the study leaves `task` to it.
-    await expect(page.getByTestId('runner-error')).toContainText('The study could not start');
-    await expect(page.getByTestId('runner-error')).toContainText(/expects task to be set.*Add it to the address, e\.g\. &task=/);
+    await expect(invalid).toContainText('This study cannot run');
+    await expect(invalid.getByRole('listitem')).toHaveText([/^This studyflow expects task to be set.*Add it to the address, e\.g\. &task=/]);
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeHidden();
 
     // `runStudyflow` stages the hand-off again on every navigation.
     await page.goto('/run/?diagram=runner-refusals&seed=42&task=NB');
-    const invalid = page.getByTestId('runner-invalid');
     await expect(invalid).toContainText('This study cannot run');
     await expect(invalid.getByRole('listitem')).toHaveText([/^EndEvent_1: "EndEvent_1" has completionCodeType: static and no completionCode.*type the code in completionCode/]);
     await expect(page.getByRole('heading', { name: 'Welcome' })).toBeHidden();

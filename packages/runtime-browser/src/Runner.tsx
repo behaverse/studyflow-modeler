@@ -242,23 +242,17 @@ export function Runner() {
         for (const name of undeclared) {
           addLog('skip', `'${name}' is not a declared parameter of this studyflow; its value is bound anyway.`);
         }
-        if (unbound.length > 0) {
-          addLog('error', `The link gave no value for: ${unbound.join(', ')}.`);
-          setRunError(
-            `This studyflow expects ${unbound.join(', ')} to be set, and this link does not set ${unbound.length === 1 ? 'it' : 'them'}. `
-            + `Add ${unbound.length === 1 ? 'it' : 'them'} to the address, e.g. &${unbound[0]}=...`,
-          );
-          setPhase('error');
-          return;
-        }
-
         if (studyflow.studyId) {
           dataServer.studyName = studyflow.studyId;
         }
 
-        const issues = await validate(studyflow, addLog);
+        // A value the link leaves unset is the first thing to fix, before the checks read a study missing it.
+        const them = unbound.length === 1 ? 'it' : 'them';
+        const issues: ValidationIssue[] = unbound.length > 0
+          ? [{ message: `This studyflow expects ${unbound.join(', ')} to be set, and this link does not set ${them}. Add ${them} to the address, e.g. &${unbound[0]}=...` }]
+          : await validate(studyflow, addLog);
         for (const issue of issues) {
-          addLog(issue.severity === 'warning' ? 'skip' : 'error', `${issue.nodeId}: ${issue.message}`);
+          addLog(issue.severity === 'warning' ? 'skip' : 'error', named(issue));
         }
         const blocking = issues.filter((issue) => issue.severity !== 'warning');
         if (blocking.length > 0) {
@@ -347,12 +341,12 @@ export function Runner() {
             <div className={layout.terminal} role="alert" data-testid="runner-invalid">
               <p className={layout.terminalTitle}>This study cannot run</p>
               <p className={layout.terminalBody}>
-                Fix {blockingIssues.length === 1 ? 'this' : 'these'} in the modeler, then run it again.
+                Fix {blockingIssues.length === 1 ? 'this' : 'these'}, then run it again.
                 Until then it cannot be given to a participant.
               </p>
               <ul className={layout.terminalList}>
                 {blockingIssues.map((issue, i) => (
-                  <li key={`${issue.nodeId}:${i}`}>{issue.nodeId}: {issue.message}</li>
+                  <li key={i}>{named(issue)}</li>
                 ))}
               </ul>
             </div>
@@ -421,6 +415,11 @@ export function Runner() {
       </main>
     </div>
   );
+}
+
+/** An issue as the screen and the log say it: after the step it is about, when it is about one. */
+function named(issue: ValidationIssue): string {
+  return issue.nodeId ? `${issue.nodeId}: ${issue.message}` : issue.message;
 }
 
 /** The run's record, as a local run keeps it in `events.jsonl`: one event a line. */

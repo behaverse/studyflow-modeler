@@ -18,7 +18,8 @@ export type NodeProps<J extends Job = Job> = {
 };
 
 export type ValidationIssue = {
-  nodeId: string;
+  /** The step it is about; none for what is not about one (a value the link leaves unset). */
+  nodeId?: string;
   message: string;
   /** `error` (the default) stops the run; `warning` is reported and the run proceeds. */
   severity?: 'error' | 'warning';
