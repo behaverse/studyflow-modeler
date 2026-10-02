@@ -56,23 +56,13 @@ test("inspector fields: an optional one opens when ticked and clears unticked, a
   expect(recording.streams).toEqual(['audio']);
 });
 
-test("the code modals: a schema's columns are saved in the format picked, which the schema then names, and a script's code in the language picked, which one undo takes back whole", async ({ page }) => {
+test("the code modals: a schema's columns are saved as the table is left, in the format picked, which the schema then names, and a script's code in the language picked; each modal's save is one undo step", async ({ page }) => {
   await gotoModeler(page);
   const inspector = page.getByTestId('inspector-root');
   const dialog = page.getByRole('dialog');
 
   await addSchemaPaletteElement(page, 'Core', 'Schema', { x: 340, y: 180 });
   await page.keyboard.press('Escape');
-  await inspector.getByRole('tab', { name: 'Data' }).click();
-  await inspector.getByRole('button', { name: 'Edit columns' }).click();
-  await expect(dialog.getByRole('radio', { name: 'CSVW JSON-LD' })).toBeChecked();
-  await dialog.getByRole('button', { name: '+ Add column' }).click();
-  await dialog.getByPlaceholder('column_name').fill('rt');
-  await dialog.getByRole('combobox').selectOption('number');
-  await dialog.getByRole('radio', { name: 'LinkML YAML' }).check();
-  await dialog.getByRole('button', { name: 'Save' }).click();
-  await expect(dialog).toHaveCount(0);
-
   await addPaletteElement(page, 'Activities', 'Script', { x: 340, y: 380 });
   await page.keyboard.press('Escape');
   await inspector.getByRole('tab', { name: 'Execution' }).click();
@@ -82,21 +72,35 @@ test("the code modals: a schema's columns are saved in the format picked, which 
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toHaveCount(0);
 
-  const exported = async () => Object.values<any>((yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as any).Study_1.flowElements);
-  // The code and its language are one save, so one undo takes back both, and a redo brings both back.
-  await pressOnCanvas(page, 'ControlOrMeta+z');
-  let script = (await exported()).find((element) => element.type === 'ScriptTask');
-  expect([script.script, script.scriptFormat]).toEqual([undefined, undefined]);
-  await inspector.getByRole('button', { name: /^Edit / }).click();
-  await dialog.getByRole('combobox').selectOption('python');
-  await dialog.locator('textarea').fill('print(42)');
+  await page.getByTestId('modeler-canvas').click({ position: { x: 340, y: 180 } });
+  await inspector.getByRole('tab', { name: 'Data' }).click();
+  await inspector.getByRole('button', { name: 'Edit columns' }).click();
+  await expect(dialog.getByRole('radio', { name: 'CSVW JSON-LD' })).toBeChecked();
+  // Three columns, the last moved up past the second and the first removed.
+  for (const name of ['rt', 'trial', 'acc']) {
+    await dialog.getByRole('button', { name: '+ Add column' }).click();
+    await dialog.getByPlaceholder('column_name').last().fill(name);
+  }
+  await dialog.getByRole('combobox').last().selectOption('number');
+  await dialog.getByTitle('Move up').last().click();
+  await dialog.getByTitle('Remove column').first().click();
+  await dialog.getByRole('radio', { name: 'LinkML YAML' }).check();
   await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog).toHaveCount(0);
 
-  const elements = await exported();
-  const schema = elements.find((element) => element.type === 'studyflow:Schema');
+  const exported = async () => {
+    const elements = Object.values<any>((yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as any).Study_1.flowElements);
+    return { schema: elements.find((element) => element.type === 'studyflow:Schema'), script: elements.find((element) => element.type === 'ScriptTask') };
+  };
+  let { schema, script } = await exported();
   expect(schema.format).toBe('linkml');
   // A YAML body is spelled as YAML in the file, as the modeler writes it.
-  expect(schema.body).toEqual({ classes: { TableRow: { attributes: { rt: { range: 'number' } } } } });
-  script = elements.find((element) => element.type === 'ScriptTask');
+  expect(Object.entries(schema.body.classes.TableRow.attributes)).toEqual([['acc', { range: 'number' }], ['trial', { range: 'string' }]]);
   expect(script).toMatchObject({ scriptFormat: 'python', script: 'print(42)' });
+
+  // A modal saves what it edits as one edit, the columns and their format, the code and its language. Past the stamp
+  // the save left (`provenance/trail.ts`), an undo per modal takes back each whole.
+  for (let i = 0; i < 3; i++) await pressOnCanvas(page, 'ControlOrMeta+z');
+  ({ schema, script } = await exported());
+  expect([schema.format, schema.body, script.script, script.scriptFormat]).toEqual([undefined, undefined, undefined, undefined]);
 });
