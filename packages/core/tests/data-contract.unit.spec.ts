@@ -63,6 +63,11 @@ test('the columns a step names must be the ones the schema of the data it reads 
       study('{ subset: [correct], by: subject, key: correct, column: [response_time], on: subject, usecols: [subject], columns: correct, aggfunc: { rt: mean }, dtype: { rt: float } }'),
       [],
     ],
+    [
+      'the variables a test names in a long table: its measure, its factors and its subject',
+      study('{ dv: response_time, within: correct, between: [group], subject: subjct, alternative: greater }'),
+      [UNDEFINED('group'), UNDEFINED('subjct', 'subject')],
+    ],
     ['a {placeholder} is filled in at run time', study('{ index: "{grouping}" }'), []],
     ['data no schema is bound to', study('{ index: participant }', { bound: false }), []],
     ['a LinkML schema', study('{ values: [correct, response_time] }', { body: LINKML }), [UNDEFINED('response_time')]],

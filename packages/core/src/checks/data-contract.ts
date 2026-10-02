@@ -5,8 +5,9 @@ import type { Issue } from '@core/checks';
 import { containers, quoted } from '@core/checks/graph';
 import { idOf, isElement, yamlText, type Element, type StudyModel } from '@core/model/index';
 
-/** The top-level `additionalArguments` keys whose values name columns of the table a step reads, as pandas spells them. */
-const COLUMN_ARGUMENTS = ['index', 'columns', 'values', 'subset', 'by', 'key', 'column', 'on', 'usecols'];
+/** The top-level `additionalArguments` keys whose values name columns of the table a step reads, as pandas spells them,
+ * and as statistics libraries name a test's variables in a long table (pingouin's `dv`, `within`, `between`, `subject`). */
+const COLUMN_ARGUMENTS = ['index', 'columns', 'values', 'subset', 'by', 'key', 'column', 'on', 'usecols', 'dv', 'within', 'between', 'subject'];
 
 /** Levenshtein distance, one row at a time. */
 function distance(a: string, b: string): number {
