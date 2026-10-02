@@ -356,6 +356,35 @@ test('creation takes plain data: the caller\'s id, a container by its id, a free
   expect(study.revision, 'what was refused wrote nothing').toBe(2);
 });
 
+test('a flow drawn between two pools is a message flow the collaboration holds', () => {
+  const POOLS = `id: Defs_M
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 600 200 }
+    Model: { name: Model, bounds: 100 300 600 100 }
+P:
+  type: Process
+  flowElements:
+    Ask: { type: Task, bounds: 200 100 100 80 }
+`;
+  // A drawing that names the process makes it the root, and draws the pools all the same.
+  const CASES: [label: string, file: string, root: string][] = [
+    ['the collaboration drawn', POOLS, 'bpmn:Collaboration'],
+    ['the process drawn', `${POOLS}diagram:\n  - plane: { bpmnElement: P }\n`, 'bpmn:Process'],
+  ];
+  for (const [label, file, root] of CASES) {
+    const study = Study.of(studyModel(file));
+    expect(study.root.type, label).toBe(root);
+    expect(study.connect({ from: 'Ask', to: 'Model', id: 'Ask_Model' }), label).toMatchObject({ ok: true });
+    const flow = study.model.get('Ask_Model')!;
+    expect(flow.type, label).toBe('bpmn:MessageFlow');
+    expect(study.model.holderOf(flow), label).toMatchObject({ parent: { id: 'C' }, key: 'messageFlows' });
+  }
+});
+
 test('a batch is one edit and one undo step, its steps plain data; a refused step takes back those before it and says which', async () => {
   const study = open();
 
