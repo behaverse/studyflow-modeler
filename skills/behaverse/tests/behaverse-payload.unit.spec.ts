@@ -2,12 +2,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
+import { JSDOM, type DOMWindow } from 'jsdom';
 
 import { parseStudyflow } from '@runner/studyflow';
 import { botForUnity } from '@skills/behaverse/browser/botConfig';
 import { matchResponseOption } from '@skills/behaverse/browser/llm/bot';
 import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
 import type { BehaverseBotPayload, BehaverseTaskPayload, Manifest } from '@skills/behaverse/browser/types';
+import { runOnUnity, waitForReady } from '@skills/behaverse/browser/unityRuntime';
+import { AWAITING_RESPONSE, READY, TASK_COMPLETED, type UnityInstance, type UnityWindow } from '@skills/behaverse/browser/unityTopics';
 import { validateBehaverseNode } from '@skills/behaverse/browser/validation';
 import type { FlowNode } from '@runner/flow';
 import { freshPackages } from '@tests/schemas';
@@ -208,6 +211,94 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     expect(built, label).toEqual({ scene: 'NB', timeline: 'XCIT_NB_01', metadata: { studyflowNodeId: 'TheTask' }, ...payload });
     expect(botForUnity(built?.bot), `${label}: the bot Unity gets`).toEqual(unityBot ?? payload?.bot);
   }
+});
+
+/** The runner's page and the build's frame, `page` standing as the global window the bridge listens on while `run` runs. */
+async function inPage(run: (page: DOMWindow, frame: DOMWindow) => Promise<void>): Promise<void> {
+  const page = new JSDOM('', { url: 'http://127.0.0.1/run/' }).window;
+  const frame = new JSDOM('', { url: 'http://127.0.0.1/run/assessment-unity/' }).window;
+  const host = globalThis as { window?: unknown };
+  const before = host.window;
+  host.window = page;
+  try {
+    await run(page, frame);
+  } finally {
+    host.window = before;
+    page.close();
+    frame.close();
+  }
+}
+
+/** Posts `data` to the page, as the build does from its frame, and waits until the page has had it. */
+function posted(page: DOMWindow, data: unknown): Promise<void> {
+  return new Promise((resolve) => {
+    page.addEventListener('message', () => resolve(), { once: true });
+    page.postMessage(data, '*');
+  });
+}
+
+test('what the page sends Unity and takes back: the task once to each runtime object, a model\'s answer to each trial it awaits, and the end of this task alone', async () => {
+  const fetchBefore = globalThis.fetch;
+  const asked: string[] = [];
+  globalThis.fetch = (async (_url: string, init: RequestInit) => {
+    asked.push(JSON.parse(String(init.body)).user);
+    return new Response(JSON.stringify({ response: 'NonMatch' }));
+  }) as typeof fetch;
+  try {
+    await inPage(async (page, frame) => {
+      const sent: [string, string, unknown][] = [];
+      const unity: UnityInstance = { SendMessage: (object, method, json) => { sent.push([object, method, JSON.parse(String(json))]); } };
+      const payload: BehaverseTaskPayload = {
+        scene: 'NB', timeline: 'XCIT_NB_01', configMode: 'builtin', agentType: 'bot', metadata: { studyflowNodeId: 'TheTask' },
+        bot: { Speed: 20, ResponseSource: 'llm', LLM: { Provider: 'claude', Model: 'claude-haiku-4-5' }, Prompt: PROMPT },
+      };
+      const done = runOnUnity(unity, payload, () => frame as unknown as UnityWindow);
+      // Either object a build may run the task on gets it, its bot less what only the runner reads.
+      const task = { ...payload, bot: { Speed: 20, ResponseSource: 'external' } };
+      expect(sent).toEqual([['AssessmentRuntime', 'RunCognitiveTask', task], ['GameManager', 'RunCognitiveTask', task]]);
+      sent.length = 0;
+
+      // The build says it awaits a trial on every channel it has: an event in its frame and in the page, and a message.
+      const awaiting = async (RequestId: string, TrialIndex: number) => {
+        const detail = { RequestId, TrialIndex, Stimulus: { Value: 'A' }, ResponseOptions: ['Match', 'NonMatch'], MaxResponseTime: 2 };
+        frame.dispatchEvent(new frame.CustomEvent(AWAITING_RESPONSE, { detail }));
+        page.dispatchEvent(new page.CustomEvent(AWAITING_RESPONSE, { detail }));
+        await posted(page, { type: AWAITING_RESPONSE, detail });
+      };
+      await awaiting('r1', 0);
+      const answer = { RequestId: 'r1', Response: 'NonMatch', ResponseOptionIndex: 1, Agent: { Id: 'claude:claude-haiku-4-5' } };
+      await expect.poll(() => sent).toEqual([['AssessmentRuntime', 'InjectResponse', answer], ['GameManager', 'InjectResponse', answer]]);
+      expect(asked, 'the model is asked once a trial').toHaveLength(1);
+      await awaiting('r2', 1);
+      expect(asked[1], 'the next trial\'s prompt has the answered one').toContain('  trial 0: stimulus={"Value":"A"}, response=NonMatch');
+
+      // Another task's end, or another timeline's, is not this one's; once its own has come, a trial the build still
+      // awaits is no longer answered.
+      await posted(page, { type: TASK_COMPLETED, detail: { TaskId: 'WO', TimelineId: '', IsCompleted: true } });
+      await posted(page, { type: TASK_COMPLETED, detail: { TaskId: 'NB', TimelineId: 'XCIT_NB_02', IsCompleted: true } });
+      page.dispatchEvent(new page.CustomEvent(TASK_COMPLETED, { detail: { TaskId: 'NB', TimelineId: 'XCIT_NB_01', IsCompleted: true } }));
+      expect(await done).toEqual({ TaskId: 'NB', TimelineId: 'XCIT_NB_01', IsCompleted: true });
+      await awaiting('r3', 2);
+      expect(asked).toHaveLength(2);
+    });
+  } finally {
+    globalThis.fetch = fetchBefore;
+  }
+});
+
+test('the build is ready once its frame has an instance and says so; a build that never does is refused, by name', async () => {
+  await inPage(async (page, frame) => {
+    const unity: UnityInstance = { SendMessage: () => {} };
+    const iframe = { contentWindow: frame } as unknown as HTMLIFrameElement;
+    const ready = waitForReady(() => iframe);
+    Object.assign(frame, { unityInstance: unity });
+    await posted(page, { type: READY });
+    expect(await ready).toBe(unity);
+    // A build that said so before the page asked is ready at once.
+    Object.assign(frame, { studyflowReady: true });
+    expect(await waitForReady(() => iframe, 0)).toBe(unity);
+    await expect(waitForReady(() => null, 50)).rejects.toThrow(/Behaverse assessment build did not load/);
+  });
 });
 
 /** The task in a pool, with a trial flowing into it from a model rather than out to one. */
