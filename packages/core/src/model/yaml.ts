@@ -14,10 +14,10 @@ import {
   expandInline,
   expandInlineFlow,
   impliedTypeName,
-  inlineFlow,
   inlineYamlValue,
   isExpressionType,
   isYamlValueProperty,
+  keyItemsById,
   keyedMapToList,
   longTypeName,
   qualifiesAsInlineValue,
@@ -249,10 +249,6 @@ class Reader {
       else delete element[key];
     }
   }
-
-  get elements(): ReadonlyMap<string, Element> {
-    return this.ids;
-  }
 }
 
 /** The one list a BPMN list holder holds (`extensionElements`'s `values`): a schema's element with one list is an entry. */
@@ -477,7 +473,7 @@ class Writer {
         return;
       }
       const items = value.map((item) => (typeof item === 'string' && p.type === DOCUMENTATION ? { text: item } : this.value(item, p.type)));
-      out[key] = keyedById(items) ?? items;
+      out[key] = keyItemsById(items) ?? items;
       return;
     }
     out[key] = this.value(value, p.type);
@@ -491,18 +487,6 @@ class Writer {
     if (isElement(value)) return this.element(value, declared);
     return value;
   }
-}
-
-/** A list of elements with distinct ids as the file writes it: keyed by id, a flow that only joins two ends as an arrow. */
-function keyedById(items: unknown[]): Record<string, unknown> | undefined {
-  const out: Record<string, unknown> = {};
-  for (const item of items) {
-    if (!isMapping(item)) return undefined;
-    const { id, ...body } = item;
-    if (typeof id !== 'string' || id === '' || id in out) return undefined;
-    out[id] = inlineFlow(item) ?? body;
-  }
-  return out;
 }
 
 /** Every id the study's elements hold. */
@@ -570,7 +554,7 @@ export function writeStudy(study: Study, metamodel: Metamodel, warn?: Warn): Yam
   doc.definitions = definitions;
   const unkeyable: unknown[] = [];
   const written = study.roots.map((root) => writer.element(root, 'bpmn:RootElement'));
-  const keyed = keyedById(written);
+  const keyed = keyItemsById(written);
   if (!keyed) unkeyable.push(...written);
   else {
     for (const [key, body] of Object.entries(keyed)) {

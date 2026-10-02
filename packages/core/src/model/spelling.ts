@@ -60,6 +60,7 @@ const FONT_KEY = 'font';
 
 /* 4. id-keyed */
 
+/** A list of elements with distinct ids as the file writes it: keyed by id, a flow that only joins two ends as an arrow. */
 export function keyItemsById(items: unknown[]): Record<string, unknown> | undefined {
   const out: Record<string, unknown> = {};
   for (const item of items) {
