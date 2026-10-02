@@ -1,0 +1,115 @@
+id: counterbalanced_order
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Counterbalanced_Order_Collaboration:
+  type: Collaboration
+  name: Counterbalanced task order
+  participants:
+    Participants:
+      name: Participants
+      participantMultiplicity:
+        maximum: 4
+      processRef: Counterbalanced_Order
+Counterbalanced_Order:
+  type: studyflow:Study
+  name: Counterbalanced task order
+  documentation: >-
+    Two tasks in both orders, one order per arm of a random gateway that deals permuted blocks of two. Every two
+    participants take both orders, so the cohort of four takes each order twice, whatever the seed.
+  seed: 7
+  flowElements:
+    Start:
+      type: StartEvent
+      name: Participant arrives
+    Allocate_Order:
+      type: cognitive:RandomGateway
+      name: Which order?
+      algorithm: block
+      allocationRatio: "1:1"
+      blockSize: 2
+    Stroop_First:
+      type: Task
+      name: Stroop task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          platform: jspsych
+    Flanker_Second:
+      type: Task
+      name: Flanker task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          platform: jspsych
+    Flanker_First:
+      type: Task
+      name: Flanker task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          platform: jspsych
+    Stroop_Second:
+      type: Task
+      name: Stroop task
+      extensionElements:
+        - type: cognitive:CognitiveTask
+          platform: jspsych
+    Merge_Order:
+      type: ExclusiveGateway
+    End:
+      type: EndEvent
+      name: Session complete
+    Flow_Start_Allocate: Start -> Allocate_Order
+    Flow_Order_Stroop_First:
+      name: Stroop first
+      sourceRef: Allocate_Order
+      targetRef: Stroop_First
+    Flow_Order_Flanker_First:
+      name: Flanker first
+      sourceRef: Allocate_Order
+      targetRef: Flanker_First
+    Flow_Stroop_Flanker: Stroop_First -> Flanker_Second
+    Flow_Flanker_Stroop: Flanker_First -> Stroop_Second
+    Flow_Flanker_Merge: Flanker_Second -> Merge_Order
+    Flow_Stroop_Merge: Stroop_Second -> Merge_Order
+    Flow_Merge_End: Merge_Order -> End
+layout:
+  Participants:
+    bounds: 120 60 800 300
+    isHorizontal: true
+  Start:
+    bounds: 182 192 36 36
+    label: 160 235 80 30
+  Allocate_Order:
+    bounds: 270 185 50 50
+    isMarkerVisible: true
+    label: 225 240 60 15
+  Stroop_First:
+    bounds: 380 100 120 80
+  Flanker_Second:
+    bounds: 550 100 120 80
+  Flanker_First:
+    bounds: 380 240 120 80
+  Stroop_Second:
+    bounds: 550 240 120 80
+  Merge_Order:
+    bounds: 720 185 50 50
+    isMarkerVisible: true
+  End:
+    bounds: 832 192 36 36
+    label: 810 235 80 30
+  Flow_Start_Allocate:
+    waypoint: 218,210 270,210
+  Flow_Order_Stroop_First:
+    waypoint: 295,185 295,140 380,140
+    label: 302 118 70 15
+  Flow_Order_Flanker_First:
+    waypoint: 295,235 295,280 380,280
+    label: 302 258 70 15
+  Flow_Stroop_Flanker:
+    waypoint: 500,140 550,140
+  Flow_Flanker_Stroop:
+    waypoint: 500,280 550,280
+  Flow_Flanker_Merge:
+    waypoint: 670,140 745,140 745,185
+  Flow_Stroop_Merge:
+    waypoint: 670,280 745,280 745,235
+  Flow_Merge_End:
+    waypoint: 770,210 832,210

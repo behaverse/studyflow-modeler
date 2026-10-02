@@ -5,6 +5,7 @@ import { expect, test } from '@playwright/test';
 
 import { HandoffError, MINIMIZATION_PROBABILITY, Walk, allocationOf, alternated, draw, dryHost, durationMs, explore, minimized, permutedBlock, pick, planOf, stateOf, type Handback, type Host, type PlanElement, type RunEvent, type Talk, type WalkOptions } from '@core/engine';
 import { studyModel } from '@tests/schemas';
+import { exampleText } from '@tests/utils';
 
 /** The walk (packages/core/src/engine): what every runtime runs. Each case walks a study written inline with runners
  * scripted here, and reads what the walk leaves: the visit counts, the state tree, its log. */
@@ -201,38 +202,15 @@ test('a random gateway allocates as it says, and what it cannot apply stops the 
   }
 });
 
-// The cohort is walked whole, so a gateway can allocate in permuted blocks: four subjects (a pool of four participant
-// instances) through a block of four split two and two, whatever the seed, or none.
-for (const study of ['\n  extensionElements:\n    - type: studyflow:Study\n      seed: 15', '']) {
-  test(`a gateway allocating in blocks of four splits four subjects two and two${study ? '' : ', unseeded'}`, async () => {
-    const { reached } = await walked(`C:
-  type: Collaboration${study}
-  participants:
-    Subjects:
-      name: Subjects
-      participantMultiplicity:
-        maximum: 4
-      processRef: S
-S:
-  type: Process
-  flowElements:
-    S0: { type: StartEvent }
-    Allocate:
-      type: ExclusiveGateway
-      extensionElements:
-        - type: cognitive:RandomGateway
-          algorithm: block
-          blockSize: 4
-    A: { type: Task }
-    B: { type: Task }
-    S9: { type: EndEvent }
-    SF0: S0 -> Allocate
-    F_A: Allocate -> A
-    F_B: Allocate -> B
-    SF1: A -> S9
-    SF2: B -> S9
-`);
-    expect(reached).toMatchObject({ Allocate: 4, F_A: 2, A: 2, F_B: 2, B: 2 });
+// The cohort is walked whole, so a gateway can allocate in permuted blocks. Counterbalancing is such an allocation: the
+// shipped example's arms are its two task orders, dealt in blocks of two, so its four participants take each order
+// twice, whatever the seed, or none.
+for (const seed of [undefined, null]) {
+  test(`the counterbalanced example gives each task order to two of its four participants${seed === null ? ', unseeded' : ''}`, async () => {
+    const plan = planOf(studyModel(exampleText('counterbalanced_order')));
+    const walk = new Walk(plan, dryHost(plan), { seed });
+    await walk.run();
+    expect(walk.state._meta.reached).toMatchObject({ Allocate_Order: 4, Stroop_First: 2, Flanker_First: 2, End: 4 });
   });
 }
 
