@@ -43,6 +43,27 @@ const UNTYPED_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
   </bpmn2:process>
 </bpmn2:definitions>`;
 
+/** A step named after the study's `task`, which nothing in the study sets, and an end event promising a code it does not hold. */
+const REFUSED_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-refusals" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn2:process id="Study_1" isExecutable="false">
+    <bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
+    <bpmn2:property id="P_Task" name="task" />
+    <bpmn2:startEvent id="StartEvent_1" name="Welcome">
+      <bpmn2:outgoing>F1</bpmn2:outgoing>
+    </bpmn2:startEvent>
+    <bpmn2:task id="Task_1" name="{task}">
+      <bpmn2:incoming>F1</bpmn2:incoming>
+      <bpmn2:outgoing>F2</bpmn2:outgoing>
+    </bpmn2:task>
+    <bpmn2:endEvent id="EndEvent_1" studyflow:completionCodeType="static">
+      <bpmn2:incoming>F2</bpmn2:incoming>
+    </bpmn2:endEvent>
+    <bpmn2:sequenceFlow id="F1" sourceRef="StartEvent_1" targetRef="Task_1" />
+    <bpmn2:sequenceFlow id="F2" sourceRef="Task_1" targetRef="EndEvent_1" />
+  </bpmn2:process>
+</bpmn2:definitions>`;
+
 const PERSON_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="runner-person" targetNamespace="http://bpmn.io/schema/bpmn">
   <bpmn:collaboration id="C">
@@ -133,6 +154,21 @@ test.describe('Studyflow runtime nodes', () => {
 
     await expect(page.getByRole('heading', { name: 'Should not appear' })).toBeHidden();
     await expect(page.getByText('aborted', { exact: true })).toBeVisible();
+  });
+
+  test('a study the checks refuse, or a link missing a parameter it needs, stops on a screen naming what to fix', async ({ page }) => {
+    await runStudyflow(page, 'runner-refusals', REFUSED_XML);
+    // The link is the first thing to fix: the study leaves `task` to it.
+    await expect(page.getByTestId('runner-error')).toContainText('The study could not start');
+    await expect(page.getByTestId('runner-error')).toContainText(/expects task to be set.*Add it to the address, e\.g\. &task=/);
+    await expect(page.getByRole('heading', { name: 'Welcome' })).toBeHidden();
+
+    // `runStudyflow` stages the hand-off again on every navigation.
+    await page.goto('/run/?diagram=runner-refusals&seed=42&task=NB');
+    const invalid = page.getByTestId('runner-invalid');
+    await expect(invalid).toContainText('This study cannot run');
+    await expect(invalid.getByRole('listitem')).toHaveText([/^EndEvent_1: completionCodeType is 'static' but completionCode is empty.*Type the code in completionCode/]);
+    await expect(page.getByRole('heading', { name: 'Welcome' })).toBeHidden();
   });
 
   test('a bound task displays its function call and arguments; a choreography task shows both participants and marks the initiator', async ({ page }) => {
