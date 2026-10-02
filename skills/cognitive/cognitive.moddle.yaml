@@ -13,6 +13,12 @@ xml:
 version: '26.9.1'
 
 enumerations:
+  - extends: studyflow:DatasetFormatEnum
+    description: Adds the standard psychological datasets are organized by.
+    literalValues:
+      - name: Psych-DS
+        value: psych-ds
+        icon: iconify ph--flask
   - name: AllocationAlgorithmEnum
     description: How participants are allocated to arms.
     literalValues:

@@ -37,11 +37,8 @@ categories:
 
 enumerations:
   - name: DatasetFormatEnum
-    description: Data standard the dataset is organized by.
-    literalValues:
-      - name: Psych-DS
-        value: psych-ds
-        icon: iconify ph--flask
+    description: Data standard the dataset is organized by. A skill adds the standards its domain keeps data in.
+    literalValues: []
   - name: TableFormatEnum
     description: On-disk format of a table.
     literalValues:

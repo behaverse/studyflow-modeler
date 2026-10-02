@@ -54,9 +54,6 @@ export function exportToLinkML(model: ExportModel): string {
     prefixes: {
       linkml: 'https://w3id.org/linkml/',
       studyflow: EXPORT_NS,
-      bids: 'https://bids-specification.readthedocs.io/',
-      psychds: 'https://psych-ds.github.io/',
-      bdm: 'https://behaverse.org/data-model/',
       csvw: 'http://www.w3.org/ns/csvw#',
     },
     default_prefix: 'studyflow',
