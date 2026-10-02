@@ -101,7 +101,7 @@ async function renameDiagram(page: Page, name: string): Promise<void> {
 }
 
 test.describe('Saving back into the opened file', () => {
-  test('opens through the picker, writes every edit back with no download, and lets the file go on New', async ({ page }) => {
+  test('an opened file takes every edit unsigned, a save signs it, a change underneath stops it, New lets it go, Save As links another', async ({ page }) => {
     await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
     await gotoModeler(page, { pickers: true });
 
@@ -109,19 +109,46 @@ test.describe('Saving back into the opened file', () => {
     await expect(diagramTitle(page)).toHaveText('demo');
 
     const status = page.getByTestId('file-status');
+    const writes = async () => (await disk(page)).writes;
     await expect(status).toContainText('demo.bpmn');
     await expect(status).toHaveAttribute('data-file-state', 'clean');
     // Opening alone writes nothing: the file is only touched once the diagram changes. Waited out
     // past the auto-save debounce, because "not yet" and "never" look identical at zero.
     await page.waitForTimeout(1500);
-    expect((await disk(page)).writes).toBe(0);
+    expect(await writes()).toBe(0);
 
     await renameDiagram(page, 'renamed');
-
-    await expect.poll(async () => (await disk(page)).writes).toBeGreaterThan(0);
+    await expect.poll(writes).toBe(1);
     await expect(status).toHaveAttribute('data-file-state', 'clean');
+    expect((await disk(page)).text).toContain('renamed');
+    // A stamp per edit burst would turn the trail into a keystroke log, so auto-save adds none.
+    expect(stamps((await disk(page)).text)).toBe(0);
+
+    await page.keyboard.press('ControlOrMeta+s');
+    await expect.poll(writes).toBe(2);
+    // Saving deliberately is a person saying they changed this, and that is what gets recorded.
+    expect(stamps((await disk(page)).text)).toBe(1);
+    // The linked file keeps its own format.
+    expect((await disk(page)).text).toContain('<?xml');
+
+    // The palette's Save is the same explicit save, written with nothing changed since, and no dialog.
+    await runPaletteCommand(page, /^Save demo\.bpmn/);
+    await expect(page.getByTestId('save-dialog')).toHaveCount(0);
+    await expect.poll(writes).toBe(3);
+
+    // Something else writes the file: a git checkout, another editor, a sync client.
+    await page.evaluate(() => {
+      window.__disk!.content = btoa('clobbered by something else');
+      window.__disk!.lastModified += 5000;
+    });
+    await renameDiagram(page, 'second');
+    await expect(status).toHaveAttribute('data-file-state', 'conflict');
+    expect(await writes()).toBe(3);
+    // The chip is the way out: an explicit save replaces what is on disk.
+    await status.click();
+    await expect.poll(writes).toBe(4);
     const saved = await disk(page);
-    expect(saved.text).toContain('renamed');
+    expect(saved.text).toContain('second');
 
     // A new diagram is not that file, and must never be written over it.
     await runPaletteCommand(page, /^New/);
@@ -131,75 +158,19 @@ test.describe('Saving back into the opened file', () => {
     const after = await disk(page);
     expect(after.writes).toBe(saved.writes);
     expect(after.text).toBe(saved.text);
-  });
 
-  test('Export saves to a file the user places, and keeps saving there', async ({ page }) => {
-    await installFakeDisk(page, 'unused.bpmn', '');
-    await gotoModeler(page, { pickers: true });
-
-    await runPaletteCommand(page, /^Save As/);
-    await page.getByTestId('export-format').selectOption('studyflow');
-    await page.getByTestId('save-submit').click();
-
-    const status = page.getByTestId('file-status');
-    await expect(status).toContainText('diagram.studyflow.yaml');
-    await expect.poll(async () => (await disk(page)).writes).toBe(1);
-    expect((await disk(page)).text).toContain('definitions:');
-
-    // Linked by that save: the next edit goes to the same file without asking again.
-    await renameDiagram(page, 'placed');
-    await expect.poll(async () => (await disk(page)).writes).toBe(2);
-    expect((await disk(page)).text).toContain('placed');
-  });
-
-  test('a file changed underneath stops auto-save until the user says overwrite', async ({ page }) => {
-    await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
-    await gotoModeler(page, { pickers: true });
-    await browseForDiagram(page);
-    await renameDiagram(page, 'first');
-    await expect.poll(async () => (await disk(page)).writes).toBe(1);
-
-    // Something else writes the file: a git checkout, another editor, a sync client.
-    await page.evaluate(() => {
-      window.__disk!.content = btoa('clobbered by something else');
-      window.__disk!.lastModified += 5000;
-    });
-
-    await renameDiagram(page, 'second');
-    const status = page.getByTestId('file-status');
-    await expect(status).toHaveAttribute('data-file-state', 'conflict');
-    expect((await disk(page)).writes).toBe(1);
-
-    // The chip is the way out: an explicit save replaces what is on disk.
-    await status.click();
-    await expect.poll(async () => (await disk(page)).writes).toBe(2);
-    expect((await disk(page)).text).toContain('second');
-  });
-
-  test('auto-save leaves the provenance trail alone; an explicit save, by shortcut or palette, signs it', async ({ page }) => {
-    await installFakeDisk(page, 'demo.bpmn', DIAGRAM_B64);
-    await gotoModeler(page, { pickers: true });
-    await browseForDiagram(page);
-
-    await renameDiagram(page, 'edited-once');
-    await expect.poll(async () => (await disk(page)).writes).toBe(1);
-    // A stamp per edit burst would turn the trail into a keystroke log, so auto-save adds none.
-    expect(stamps((await disk(page)).text)).toBe(0);
-
-    await page.keyboard.press('ControlOrMeta+s');
-    await expect.poll(async () => (await disk(page)).writes).toBe(2);
-    // Saving deliberately is a person saying they changed this, and that is what gets recorded.
-    expect(stamps((await disk(page)).text)).toBe(1);
-    // The linked file keeps its own format.
-    expect((await disk(page)).text).toContain('<?xml');
-
-    // The palette's Save is the same explicit save, written with nothing changed since, and no dialog;
-    // Save As... is how the dialog is reached.
-    await runPaletteCommand(page, /^Save demo\.bpmn/);
-    await expect(page.getByTestId('save-dialog')).toHaveCount(0);
-    await expect.poll(async () => (await disk(page)).writes).toBe(3);
+    // Save As... is how the dialog is reached: it saves to a file the user places, and links it, so
+    // the next edit goes there without asking again.
     await runPaletteCommand(page, /^Save As/);
     await expect(page.getByTestId('save-dialog')).toBeVisible();
+    await page.getByTestId('export-format').selectOption('studyflow');
+    await page.getByTestId('save-submit').click();
+    await expect(status).toContainText('diagram.studyflow.yaml');
+    await expect.poll(writes).toBe(5);
+    expect((await disk(page)).text).toContain('definitions:');
+    await renameDiagram(page, 'placed');
+    await expect.poll(writes).toBe(6);
+    expect((await disk(page)).text).toContain('placed');
   });
 
   test('an image link waits for an explicit save rather than re-rendering per edit', async ({ page }) => {
