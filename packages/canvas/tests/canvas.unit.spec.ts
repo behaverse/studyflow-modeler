@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { renderSvg, type Canvas } from '@canvas/index.ts';
 import type { SceneEdge, SceneNode } from '@canvas/study/scene.ts';
+import { LINE_HEIGHT, labelMinSize } from '@canvas/study/text.ts';
 
 import {
   centre,
@@ -287,24 +288,32 @@ test('dragging a selected task moves it, re-docks its flows and leaves its capti
 test('Escape abandons a drag and puts the snapshot back', async () => {
   const { canvas } = load();
   const task = node(canvas, 'Task_1');
-  click(canvas, centre(task));
-  pointerDown(canvas, centre(task));
-  pointerMove(canvas, { x: centre(task).x + 50, y: centre(task).y + 50 });
-  expect(task.x).not.toBe(200);
-  svgOf(canvas).ownerDocument!.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
-  pointerUp(canvas, { x: 250, y: 168 });
-  expect({ x: task.x, y: task.y }).toEqual({ x: 200, y: 78 });
-  expect(edge(canvas, 'Flow_1').waypoints).toEqual([{ x: 136, y: 118 }, { x: 200, y: 118 }]);
-
-  // A resize keeps a snapshot of its own, and Escape puts that back too.
-  const grab = { x: task.x + task.width + 4, y: task.y + task.height + 4 };
-  pointerDown(canvas, grab);
-  pointerMove(canvas, { x: grab.x + 33, y: grab.y + 17 });
-  expect(task.width).not.toBe(100);
-  svgOf(canvas).ownerDocument!.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
-  pointerUp(canvas, { x: grab.x + 33, y: grab.y + 17 });
-  expect({ x: task.x, y: task.y, width: task.width, height: task.height }).toEqual({ x: 200, y: 78, width: 100, height: 80 });
-  expect(edge(canvas, 'Flow_1').waypoints).toEqual([{ x: 136, y: 118 }, { x: 200, y: 118 }]);
+  const caption = label(canvas, 'Start_1_label');
+  const textAt = (id: string) => [...graphicsOf(canvas, id)!.querySelectorAll('text')].map((t) => `${t.getAttribute('x')},${t.getAttribute('y')}`);
+  const snapshot = () => ({
+    task: { x: task.x, y: task.y, width: task.width, height: task.height },
+    flows: ['Flow_1', 'Flow_2'].map((id) => edge(canvas, id).waypoints.map((p) => ({ ...p }))),
+    caption: { x: caption.x, y: caption.y, width: caption.width, height: caption.height, pinned: caption.pinned },
+    drawn: [task.id, caption.id].map(textAt),
+  });
+  const before = snapshot();
+  // [the drag, where a click selects, where the drag grabs]: each keeps a snapshot of its own.
+  const CASES: [label: string, select: { x: number; y: number }, grab: () => { x: number; y: number }][] = [
+    ['a move', centre(task), () => centre(task)],
+    ['a resize', centre(task), () => ({ x: task.x + task.width + 4, y: task.y + task.height + 4 })],
+    ['a bend drawn out of a flow', { x: 330, y: 118 }, () => ({ x: 330, y: 118 })],
+    ['a caption\'s corner', centre(caption), () => ({ x: caption.x + caption.width + 4, y: caption.y + caption.height + 4 })],
+  ];
+  for (const [what, select, grab] of CASES) {
+    click(canvas, select);
+    const from = grab();
+    pointerDown(canvas, from);
+    pointerMove(canvas, { x: from.x + 33, y: from.y + 47 });
+    expect(snapshot(), `${what} changes something`).not.toEqual(before);
+    svgOf(canvas).ownerDocument!.dispatchEvent(keyEvent('keydown', { key: 'Escape' }));
+    pointerUp(canvas, { x: from.x + 33, y: from.y + 47 });
+    expect(snapshot(), what).toEqual(before);
+  }
 });
 
 test('a corner handle resizes, clamped to the rules\' minimum', async () => {
@@ -527,6 +536,23 @@ test('a dragged caption moves alone and becomes pinned in the document', async (
   expect(Math.round(centre(caption).x - from.x)).toBe(30);
   expect({ x: start.x, y: start.y }).toEqual({ x: 100, y: 100 });
   expect(await xmlOf(loaded)).toMatch(/Start_1_di[\s\S]*?<bpmndi:BPMNLabel>/);
+});
+
+test('dragging a caption\'s corner pins it and keeps it tall enough for its text', async () => {
+  const { canvas } = load();
+  const name = 'Give consent first';
+  canvas.study.set({ id: 'Start_1', attribute: 'name', value: name });
+  const caption = label(canvas, 'Start_1_label');
+  expect(caption.pinned).toBe(false);
+  click(canvas, centre(caption));
+  // The corner pulled up and in past every word: no narrower than the widest, as tall as the lines it then wraps to.
+  const corner = { x: caption.x + caption.width + 4, y: caption.y + caption.height + 4 };
+  dragBy(canvas, corner, { x: corner.x - 200, y: corner.y - 200 });
+  expect(caption.pinned).toBe(true);
+  expect(caption.width).toBeCloseTo(labelMinSize(name).width, 6);
+  const lines = graphicsOf(canvas, caption.id)!.querySelectorAll('text').length;
+  expect(lines).toBe(3);
+  expect(caption.height).toBe(lines * LINE_HEIGHT);
 });
 
 test('renaming through the inline editor re-fits a caption, and naming an unnamed flow mints one', async () => {
