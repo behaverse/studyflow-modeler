@@ -10,7 +10,8 @@ import { exampleXml, withoutDiagramInterchange } from '@tests/utils';
 
 /**
  * Tidy: the study's `layout` verb lays the whole diagram out afresh, as one edit; and a document read with no
- * drawing is drawn and laid out the same way as it opens.
+ * drawing is drawn and laid out the same way as it opens, as is what a sub-process drawn closed holds when the
+ * document draws none of it.
  */
 
 const open = (yaml: string): Study => Study.of(studyModel(yaml));
@@ -646,4 +647,72 @@ layout:
 `, { metamodel: freshMetamodel() });
   expect(looked.get('F')).toMatchObject({ kind: 'edge', source: 'A', target: 'B' });
   expect(looked.toYaml()).toContain('  F:\n    waypoint: 200,140 300,140\n    stroke: "#5c8a55"\n');
+});
+
+test('what a sub-process drawn closed holds is drawn as the document opens when the file draws none of it: laid out on its plane, the rest as drawn', () => {
+  const study = open(`id: D
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent, bounds: 100 122 36 36 }
+    Analysis:
+      type: SubProcess
+      name: Analysis
+      bounds: 200 100 100 80
+      isExpanded: false
+      flowElements:
+        A_Start: { type: StartEvent }
+        Read:
+          type: ServiceTask
+          name: Read the trials
+          dataOutputAssociations:
+            Out_Table:
+              targetRef: Table
+        Table: { type: DataObjectReference, name: Trials, dataObjectRef: Table_Data }
+        Table_Data: { type: DataObject }
+        Enough: { type: ExclusiveGateway, name: Enough subjects? }
+        Test:
+          type: SubProcess
+          name: Test
+          flowElements:
+            T_Start: { type: StartEvent }
+            T_Run: { type: ServiceTask, name: Run the test }
+            TF_1: T_Start -> T_Run
+        Not_Testable: { type: EndEvent, name: Not testable }
+        AF_1: A_Start -> Read
+        AF_2: Read -> Enough
+        AF_3: Enough -> Test
+        AF_4: Enough -> Not_Testable
+    End: { type: EndEvent, bounds: 360 122 36 36 }
+    F_1:
+      sourceRef: Start
+      targetRef: Analysis
+      waypoint: 136,140 200,140
+    F_2:
+      sourceRef: Analysis
+      targetRef: End
+      waypoint: 300,140 360,140
+layout:
+  Read:
+    fill: "#dcebd6"
+`);
+  expect([box(study, 'Start'), box(study, 'Analysis'), study.get('F_2')!.waypoints]).toEqual([
+    { x: 100, y: 122, width: 36, height: 36 }, { x: 200, y: 100, width: 100, height: 80 }, [{ x: 300, y: 140 }, { x: 360, y: 140 }],
+  ]);
+
+  const inside = ['A_Start', 'Read', 'Table', 'Enough', 'Test', 'Not_Testable', 'AF_1', 'Out_Table'];
+  expect(inside.map((id) => study.get(id)?.plane)).toEqual(inside.map(() => 'Analysis'));
+  expect(['T_Start', 'T_Run', 'TF_1'].map((id) => study.get(id)?.plane), 'a sub-process inside is drawn closed, over its own plane').toEqual(['Test', 'Test', 'Test']);
+  const [start, read, enough, test] = ['A_Start', 'Read', 'Enough', 'Test'].map((id) => middle(study, id));
+  expect([start.x < read.x, read.x < enough.x, enough.x < test.x]).toEqual([true, true, true]);
+  const shapes = inside.slice(0, 6).map((id) => box(study, id));
+  for (const [i, a] of shapes.entries()) for (const b of shapes.slice(i + 1)) expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
+  expect(study.get('Read')!.fill, 'the look the file gives a shape it does not place is kept').toBe('#dcebd6');
+  const where = (drawn: Study): Record<string, Bounds | undefined> => Object.fromEntries(drawn.list({ kind: 'node' }).map((r) => [r.id, r.bounds]));
+  expect(where(open(study.toYaml())), 'the drawing is the study\'s from the start').toEqual(where(study));
+
+  study.expand({ id: 'Analysis' });
+  for (const id of inside.slice(0, 6)) expect(holds(box(study, 'Analysis'), box(study, id))).toBe(true);
 });

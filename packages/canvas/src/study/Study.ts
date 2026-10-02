@@ -17,8 +17,8 @@ import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { declares, describeType, extensionMisfit, NOTHING, refused, runRead, runStep, shapeFor } from '@canvas/study/calls.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
-import { writeLayout } from '@canvas/study/di.ts';
-import { draftDrawing, drawFlows } from '@canvas/study/draft.ts';
+import { drawingOf, writeLayout } from '@canvas/study/di.ts';
+import { draftClosedContents, draftDrawing, drawFlows } from '@canvas/study/draft.ts';
 import { Drag, type Movable } from '@canvas/study/drag.ts';
 import { idsIn, listOf } from '@canvas/study/elements.ts';
 import { containerOf, hitTest, obstaclesIn } from '@canvas/study/hit.ts';
@@ -36,7 +36,7 @@ import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate } from '@canvas/study/templates.ts';
 import { copyOf, fragmentOf } from '@canvas/study/clipboard.ts';
 import { ASKABLE_TOOLS, isStepTool, misfitOf, STUDY_TOOLS, type StepTool, type StudyTool, type ToolResult } from '@canvas/study/tools.ts';
-import { boundsOf, edgesAffectedBy, hostOf, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
+import { boundsOf, contentsOf, edgesAffectedBy, hostOf, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
 
 /** The ids of the nodes and flows a change added, changed (the root's, when the diagram's own properties changed) and removed. */
 export interface ChangedIds {
@@ -706,13 +706,19 @@ export class Study {
 
   /** Edit `model` from here on, and return its scene. */
   private read(model: StudyModel, revision: number): Scene {
-    // A study with no drawing is drawn as it is read, and laid out; a drawn one gets the data flow it leaves out.
+    // A study with no drawing is drawn as it is read, and laid out; a drawn one gets the data flow it leaves out, and
+    // what a sub-process it draws closed holds when it draws none of that, laid out on that sub-process's plane.
     const drafted = draftDrawing(model);
+    const closed = drafted ? [] : draftClosedContents(model);
     if (!drafted) drawFlows(model);
     const scene = importStudy(model, this.options);
     if (drafted) {
       for (const element of layOut(scene)) if (element.kind !== 'label') syncLabel(scene, element);
       writeLayout(scene);
+    } else if (closed.length > 0) {
+      const planes = closed.map((id) => scene.elementsById.get(id) as SceneNode);
+      for (const element of layOut(scene, planes)) if (element.kind !== 'label') syncLabel(scene, element);
+      for (const element of planes.flatMap(contentsOf)) if (element.kind !== 'label') model.study.layout[element.id] = drawingOf(scene, element);
     }
     scene.revision = revision;
     const mutator = new Mutator(scene, (commit) => this.edited(commit));
@@ -959,12 +965,13 @@ function textsOf(model: StudyModel): Map<string, string> {
 }
 
 /**
- * Lay `scene` out afresh (`study/layout.ts`) and route every flow anew, those on one line slid apart
- * (`study/spread.ts`); what that moved, captions among it.
+ * Lay `scene` out afresh (`study/layout.ts`), or only the planes of the closed containers `planes`, and route every
+ * flow there anew, those on one line slid apart (`study/spread.ts`); what that moved, captions among it.
  */
-function layOut(scene: Scene): SceneElement[] {
-  const moved = layoutScene(scene);
-  const flows = [...scene.elementsById.values()].filter((element): element is SceneEdge => element.kind === 'edge');
+function layOut(scene: Scene, planes?: readonly SceneNode[]): SceneElement[] {
+  const moved = layoutScene(scene, planes);
+  const flows = [...scene.elementsById.values()].filter((element): element is SceneEdge => element.kind === 'edge'
+    && (!planes || planes.some((plane) => isDescendantOf(element, plane))));
   for (const flow of flows) rerouteEdge(flow, { obstacles: obstaclesIn(scene, planeOf(flow)) });
   for (const plane of new Set(flows.map(planeOf))) {
     const here = flows.filter((flow) => planeOf(flow) === plane);

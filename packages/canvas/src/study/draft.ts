@@ -3,8 +3,9 @@
  * drawing at all gets one, for the study to lay out as it reads it: each shape at its default size at the origin, a
  * boundary event on its activity's lower edge, a note above and right of what it annotates, a sub-process closed over
  * its contents, a group empty (the layout draws it round the shapes its category names), and each flow. A drawn
- * study whose flows are not all drawn gets a route for each one both of whose ends are drawn, in the look the study
- * gives it.
+ * study gets the same for what a sub-process it draws closed holds, when it draws none of that, for the study to lay
+ * out on that sub-process's own plane; and a route for each flow it leaves out both of whose ends are drawn, in the
+ * look the study gives it.
  */
 
 import { isDataAssociationType } from '@core/element/index.ts';
@@ -54,6 +55,27 @@ export function draftDrawing(model: StudyModel): boolean {
   return true;
 }
 
+/**
+ * Draft what each sub-process the drawing draws closed holds, when it draws none of that and no further diagram draws
+ * its plane (as another tool draws a closed sub-process's contents); the ids of those sub-processes.
+ */
+export function draftClosedContents(model: StudyModel): string[] {
+  const { layout } = model.study;
+  const drawn = (element: Element): boolean => ['bounds', 'waypoint'].some((key) => key in (layout[element.id!] ?? {}));
+  const planes = new Set((model.study.diagram ?? []).map((diagram) => ((diagram as Element).plane as Element | undefined)?.bpmnElement));
+  const drafted: string[] = [];
+  for (const [id, drawing] of Object.entries(layout)) {
+    const closed = model.get(id);
+    if (!closed || drawing.isExpanded !== false || planes.has(id)) continue;
+    const draft: Draft = { shapes: [], edges: [] };
+    drawContents(model, closed, draft);
+    if (draft.shapes.length === 0 || [...draft.shapes, ...draft.edges].some(drawn)) continue;
+    place(model, draft);
+    drafted.push(id);
+  }
+  return drafted;
+}
+
 /** Add what `container` holds to `draft`, however deep: its flow, the data it reads and writes, its notes and lanes. */
 function drawContents(model: StudyModel, container: Element, draft: Draft): void {
   for (const element of listOf(container, 'flowElements')) {
@@ -77,7 +99,7 @@ function drawArtifacts(model: StudyModel, container: Element, draft: Draft): voi
   for (const artifact of listOf(container, 'artifacts')) (isBpmnSubtypeOf(model.host(artifact), 'bpmn:Association') ? draft.edges : draft.shapes).push(artifact);
 }
 
-/** Write `draft` into the layout: each shape at the origin, each flow a stub. */
+/** Write `draft` into the layout, over the look the layout gives any of it: each shape at the origin, each flow a stub. */
 function place(model: StudyModel, { shapes, edges }: Draft): void {
   const typeOf = (element: Element): string => model.host(element);
   const boxes = new Map<Element, Bounds>(shapes.map((shape) => [shape, { x: 0, y: 0, ...(typeOf(shape) === 'bpmn:Group' ? { width: 0, height: 0 } : defaultSizeFor(typeOf(shape))) }] as const));
@@ -103,9 +125,9 @@ function place(model: StudyModel, { shapes, edges }: Draft): void {
   }
   const { layout } = model.study;
   for (const shape of shapes) {
-    layout[shape.id!] = { bounds: boxToText(boxes.get(shape)!), ...(listOf(shape, 'flowElements').length > 0 ? { isExpanded: false } : {}) };
+    layout[shape.id!] = { bounds: boxToText(boxes.get(shape)!), ...(listOf(shape, 'flowElements').length > 0 ? { isExpanded: false } : {}), ...layout[shape.id!] };
   }
-  for (const edge of edges) layout[edge.id!] = { waypoint: pointsToText([{ x: 0, y: 0 }, { x: 0, y: 0 }]) };
+  for (const edge of edges) layout[edge.id!] = { waypoint: pointsToText([{ x: 0, y: 0 }, { x: 0, y: 0 }]), ...layout[edge.id!] };
 }
 
 /** The flows a route is drawn for: what a study's sequence and message flows, notes' links and data run along. */

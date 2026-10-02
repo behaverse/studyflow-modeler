@@ -12,11 +12,11 @@
  * widest. Lanes that hand work back and forth share their layers; lanes that are the phases of one flow, each handing
  * on only to later ones, each start again at the left edge.
  *
- * An open sub-process is laid out inside first and then placed like any shape; a closed one's plane is laid out apart.
- * A data shape stands in a row under the steps it feeds or takes from; the shapes no flow reaches (and the notes
- * nothing links) keep their own arrangement under that, or stand in rows when they have none (they overlap). A
- * boundary event keeps its place on its activity, a note its place beside what it annotates, and a group is drawn
- * round the shapes it held.
+ * An open sub-process is laid out inside first and then placed like any shape; a closed one's plane is laid out apart,
+ * and may be laid out alone. A data shape stands in a row under the steps it feeds or takes from; the shapes no flow
+ * reaches (and the notes nothing links) keep their own arrangement under that, or stand in rows when they have none
+ * (they overlap). A boundary event keeps its place on its activity, a note its place beside what it annotates, and a
+ * group is drawn round the shapes it held.
  *
  * Shapes keep their sizes; containers are sized round what they hold. Pure geometry on the scene: it writes the boxes
  * and returns what it moved, for the caller to route the flows afresh and commit.
@@ -28,7 +28,7 @@ import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import { idsIn } from '@canvas/study/elements.ts';
 import type { Bounds, Point, RootElement, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { isRootElement } from '@canvas/study/scene.ts';
-import { hostOf, isCollapsed, isExpanded } from '@canvas/study/tree.ts';
+import { hostOf, isCollapsed, isDescendantOf, isExpanded } from '@canvas/study/tree.ts';
 
 /** Room between layers and between rows, round what a container holds, between pools and round a group's shapes. */
 const GAP_X = 60;
@@ -76,9 +76,13 @@ interface Laid {
   place(x: number, y: number): void;
 }
 
-/** Lay `scene` out afresh; what moved (shapes and pinned captions), for the caller to commit with the flows re-routed. */
-export function layoutScene(scene: Scene): SceneElement[] {
-  const nodes = [...scene.elementsById.values()].filter(isNode);
+/**
+ * Lay `scene` out afresh, or only the planes of the closed containers `planes` and what they hold; what moved (shapes
+ * and pinned captions), for the caller to commit with the flows re-routed.
+ */
+export function layoutScene(scene: Scene, planes?: readonly SceneNode[]): SceneElement[] {
+  const laid = (element: SceneElement): boolean => !planes || planes.some((plane) => isDescendantOf(element, plane));
+  const nodes = [...scene.elementsById.values()].filter(isNode).filter(laid);
   const before = new Map(nodes.map((node) => [node, boxOf(node)] as const));
   const top = scene.rootElement.children.filter(isNode);
   const pools = top.filter((node) => node.type === 'bpmn:Participant').sort((a, b) => a.y - b.y);
@@ -89,17 +93,19 @@ export function layoutScene(scene: Scene): SceneElement[] {
   const roomsOf = (shapes: readonly SceneNode[]): Bounds[] => shapes.filter((node) => !isArtifact(node.type)).map((node) => roomOf(node, reach(node)));
   if (down) nodes.forEach(turn);
 
-  const origin = cornerOf(roomsOf(top)) ?? { x: 100, y: 100 };
-  layoutFlow(pools.length > 0 ? [...pools, scene.rootElement] : [scene.rootElement], reach).place(origin.x, origin.y);
+  if (!planes) {
+    const origin = cornerOf(roomsOf(top)) ?? { x: 100, y: 100 };
+    layoutFlow(pools.length > 0 ? [...pools, scene.rootElement] : [scene.rootElement], reach).place(origin.x, origin.y);
+  }
   // A closed container's plane is drawn apart: laid out on its own, where it was.
-  for (const node of nodes.filter(isCollapsed)) {
+  for (const node of [...(planes ?? []), ...nodes].filter(isCollapsed)) {
     const corner = cornerOf(roomsOf(node.children.filter(isNode)));
     if (corner) layoutFlow([node], reach).place(corner.x, corner.y);
   }
   if (down) nodes.forEach(turn);
 
   follow(scene, nodes, before, onPage);
-  return [...nodes.filter((node) => !sameBox(node, before.get(node)!)), ...pinnedCaptions(scene, before)];
+  return [...nodes.filter((node) => !sameBox(node, before.get(node)!)), ...pinnedCaptions(scene, before, laid)];
 }
 
 /** Lay out what `holders` hold as one flow, in bands: one to each lane, or to a holder without lanes. */
@@ -561,7 +567,7 @@ function follow(scene: Scene, nodes: readonly SceneNode[], before: ReadonlyMap<S
   for (const note of nodes.filter((node) => node.type === 'bpmn:TextAnnotation')) {
     const link = [...note.incoming, ...note.outgoing][0];
     const other = link && (link.source === note ? link.target : link.source);
-    if (!other) continue;
+    if (!other || !before.has(other)) continue;
     const by = delta(other, before);
     const was = before.get(note)!;
     setBox(note, { ...was, x: was.x + by.x, y: was.y + by.y });
@@ -585,13 +591,13 @@ function follow(scene: Scene, nodes: readonly SceneNode[], before: ReadonlyMap<S
 }
 
 /**
- * Pinned captions, which stay put as their owners move: a shape's goes with it; a flow's is let go, to be placed
- * afresh on the route the flow gets.
+ * The pinned captions of what was laid out, which stay put as their owners move: a shape's goes with it; a flow's
+ * is let go, to be placed afresh on the route the flow gets.
  */
-function pinnedCaptions(scene: Scene, before: ReadonlyMap<SceneNode, Bounds>): SceneElement[] {
+function pinnedCaptions(scene: Scene, before: ReadonlyMap<SceneNode, Bounds>, laid: (element: SceneElement) => boolean): SceneElement[] {
   const moved: SceneElement[] = [];
   for (const element of scene.elementsById.values()) {
-    if (element.kind !== 'label' || !element.pinned) continue;
+    if (element.kind !== 'label' || !element.pinned || !laid(element.owner)) continue;
     if (element.owner.kind === 'edge') {
       element.pinned = false;
       moved.push(element);
