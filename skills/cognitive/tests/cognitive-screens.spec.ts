@@ -111,7 +111,22 @@ Study:
     F2: Baseline -> End
 `;
 
-test('a rest says how to rest while the time left counts down, and the run goes on by itself when it is up', async ({ page }) => {
+test('a rest says how to rest while the time left counts down, and the run goes on by itself when it is up, with a tone for eyes kept closed', async ({ page }) => {
+  // The page's audio, counted rather than heard: each tone started.
+  await page.addInitScript(() => {
+    const tones = { started: 0 };
+    const node = { connect: (next: unknown) => next, frequency: { value: 0 }, gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} } };
+    Object.assign(window, {
+      tones,
+      AudioContext: class {
+        currentTime = 0;
+        destination = {};
+        createGain() { return node; }
+        createOscillator() { return { ...node, start: () => { tones.started += 1; }, stop() {}, onended: null }; }
+        close() { return Promise.resolve(); }
+      },
+    });
+  });
   await runStudyflow(page, 'runner-rest', REST);
   await page.getByRole('button', { name: /begin/i }).click();
 
@@ -120,6 +135,8 @@ test('a rest says how to rest while the time left counts down, and the run goes 
   const left = page.getByRole('timer', { name: 'Time left' });
   await expect(left).toHaveText('0:02');
   await expect(left).toHaveText('0:01');
-  // Nothing to press: the walk keeps the time.
+  expect(await page.evaluate(() => (window as unknown as { tones: { started: number } }).tones.started)).toBe(0);
+  // Nothing to press: the walk keeps the time, and a tone tells closed eyes it is up.
   await expect(page.getByRole('heading', { name: /complete/i })).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { tones: { started: number } }).tones.started)).toBe(1);
 });
