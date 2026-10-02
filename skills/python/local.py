@@ -87,6 +87,12 @@ class Plan:
         attributes = element.get("attributes") or {}
         return attributes.get("uri"), attributes.get("format")
 
+    def appends(self, element_id: str, value: Any, fmt: str) -> bool:
+        """Whether writing `value` adds a line to the element rather than replacing it: one record, a mapping, into a
+        `.jsonl` data store, as a trial log grows a line at a time."""
+        store = (self.elements.get(element_id) or {}).get("type") == "dataStoreReference"
+        return store and fmt == "jsonl" and isinstance(value, dict)
+
 
 def format_for(uri: str, declared: str | None) -> str:
     return declared or Path(uri).suffix.lstrip(".").lower()
@@ -131,6 +137,12 @@ def save_artifact(value: Any, path: Path, fmt: str) -> None:
         value.savefig(path, dpi=150, bbox_inches="tight")
     else:
         raise ValueError(f"no handler for format {fmt!r} ({path})")
+
+
+def append_record(record: dict[str, Any], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as file:
+        file.write(json.dumps(record, separators=(",", ":"), default=str) + "\n")
 
 
 def write_digits_table(path: Path) -> None:
@@ -379,10 +391,15 @@ class Run:
                 continue
             expression = binding.get("transformation") or ""
             bound = self.evaluate(expression, {"result": result}, language=binding.get("language")) if expression else result
+            uri, declared_format = self.studyflow.artifact(target_id)
+            if uri and self.studyflow.appends(target_id, bound, format_for(uri, declared_format)):
+                # The store's value stays its file, every line of it, so the one record is not bound in its place.
+                append_record(bound, self.repo / uri)
+                print(f"appended a line to {uri}")
+                continue
             self.values[target_id] = bound
             if jsonable(bound):
                 self.bound[target_id] = bound
-            uri, declared_format = self.studyflow.artifact(target_id)
             if uri:
                 path = self.repo / uri
                 save_artifact(bound, path, format_for(uri, declared_format))

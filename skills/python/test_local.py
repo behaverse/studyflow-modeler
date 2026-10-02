@@ -93,6 +93,19 @@ with tempfile.TemporaryDirectory() as folder:
         assert out.execute(divide) == Fraction(1, 3) and "Third" not in out.bound
         assert python.Run(made, Path(folder), Path(folder) / ".cache", []).value_of("Third") == Fraction(1, 3)
 
+# One record, a mapping, into a `.jsonl` data store is a line more of it: a step that runs once per subject leaves a line
+# per subject. The store's value stays the file, so the record is not bound in its place.
+with tempfile.TemporaryDirectory() as folder:
+    logged = python.Plan({"elements": {"Completers": {"id": "Completers", "type": "dataStoreReference",
+                                                      "attributes": {"uri": "data/completers.jsonl"}}}})
+    out = python.Run(logged, Path(folder), Path(folder) / ".cache", [])
+    for subject in (1, 2):
+        line = {"id": "Line", "attributes": {"implementation": "python://builtins.dict"},
+                "additionalArguments": f"context: {{subject: {subject}}}", "outputs": [{"target": "Completers"}]}
+        assert out.execute(line) == {"context": {"subject": subject}}
+    assert (Path(folder) / "data" / "completers.jsonl").read_text() == '{"context":{"subject":1}}\n{"context":{"subject":2}}\n'
+    assert "Completers" not in out.bound and "Completers" not in out.values, out.bound
+
 # Every hand-off starts from the study's seed: `random`, and numpy's global generator when numpy is here. A seed that
 # is no number seeds nothing, and fails nothing.
 import random  # noqa: E402
