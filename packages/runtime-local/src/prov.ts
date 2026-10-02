@@ -4,6 +4,7 @@
  * (skills/studyflow/prov.moddle.yaml), which the next run reads back as its records.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { devNull } from 'node:os';
 import path from 'node:path';
@@ -39,6 +40,31 @@ export function authorOf(given: string): Author {
 
 /** An author as a record names them (`who`, `Prov-Who`): as git writes them, or the name alone. */
 export const signature = ({ name, email }: Author): string => (email ? `${name} <${email}>` : name);
+
+/** What a run that keeps its data out of the history (`--data-outside-history`) commits in the data's place: the SHA-256
+ * of each file the history leaves out, in `sha256sum`'s format, so `sha256sum -c data.sha256` checks a run directory. */
+export const MANIFEST = 'data.sha256';
+
+/** What the `.gitignore` of such a repository says first, to whoever opens it. */
+const KEPT_OUT = [
+  '# studyflow run --data-outside-history: this history holds the study as run and data.sha256, the SHA-256 of every',
+  '# other file here, which stays in this directory alone.',
+  '/*',
+];
+
+const manifestOf = (text: string): Map<string, string> => new Map(text.split('\n').flatMap((line) => {
+  const entry = /^([0-9a-f]{64}) [ *](.+)$/.exec(line);
+  return entry ? [[entry[2], entry[1]] as [string, string]] : [];
+}));
+
+/** The digests of `uri`, a file or a folder, as one text: equal texts, the same files with the same content. */
+function digestsAt(digests: Map<string, string>, uri: string): string {
+  const at = path.posix.normalize(uri).replace(/\/$/, '');
+  return [...digests].filter(([name]) => name === at || name.startsWith(`${at}/`)).sort().join('\n');
+}
+
+/** A file the history keeps out that a run needs as an earlier commit left it, and which is not: the run stops. */
+export class KeptOutOfHistory extends Error {}
 
 const activitiesOf = (element: Element): Element[] =>
   (Array.isArray(element.extensionElements) ? element.extensionElements : []).filter((value): value is Element => isElement(value) && value.type === ACTIVITY);
@@ -99,7 +125,9 @@ export function stampElement(element: Element, stamp: Stamp, replace?: string): 
 }
 
 /**
- * The run directory as a git repository. Replication never fails a run: git trouble degrades to a no-op.
+ * The run directory as a git repository. Replication never fails a run: git trouble degrades to a no-op. What stops
+ * one is a repository that keeps its data out of its history and cannot keep its word: asked of a history that holds
+ * data already ({@link keepDataOut}), or to put back a file it holds only the digest of ({@link restore}).
  */
 export class RunRepo {
   /** An inherited GIT_DIR would aim every command at the caller's repository instead of this one. */
@@ -117,6 +145,8 @@ export class RunRepo {
 
   readonly dir: string;
   created = false;
+  /** Whether the history keeps the run's data out ({@link keepDataOut}). */
+  private outside = false;
   private enabled: boolean;
   private readonly lfs: boolean;
   private readonly env: NodeJS.ProcessEnv;
@@ -192,22 +222,74 @@ export class RunRepo {
     if (!marks.includes('.cache/')) writeFileSync(exclude, `${marks}.cache/\n`);
   }
 
+  /**
+   * Keeps the run's data out of the history when `asked` (`--data-outside-history`), and in a repository whose history
+   * holds the manifest, asked or not. Its commits then hold `study`, the study as run, and the manifest; every other
+   * file in the run directory stays there alone, and a `.gitignore` says so, to git and to whoever opens the
+   * repository. A history that holds data already cannot give it back, so asking there is refused.
+   */
+  keepDataOut(study: string, asked: boolean): void {
+    if (!this.active) return;
+    const kept = this.fileAt('HEAD', MANIFEST) !== undefined;
+    if (!kept && !asked) return;
+    if (!kept && this.head()) {
+      throw new Error(`${this.dir} holds its data in its history already: --data-outside-history keeps it out of a run repository from its first commit. Run into a new --repo.`);
+    }
+    this.outside = true;
+    const ignore = path.join(this.dir, '.gitignore');
+    const listed = existsSync(ignore) ? readFileSync(ignore, 'utf8').split('\n').filter((line) => line.startsWith('!/')) : [];
+    const committed = ['.gitignore', '.gitattributes', MANIFEST, study].map((name) => `!/${name.replace(/[*?[\\]/g, '\\$&')}`);
+    writeFileSync(ignore, `${[...KEPT_OUT, ...new Set([...listed, ...committed])].join('\n')}\n`);
+  }
+
+  /** The SHA-256 of each file under `paths` the history keeps out, by its path in the run directory; `.cache/`, which
+   * no commit holds either way, aside. */
+  private digests(paths: string[], except: readonly string[] = []): Map<string, string> {
+    const listed = this.git(['ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--', ...paths]);
+    const found = new Map<string, string>();
+    for (const name of listed?.out.split('\0') ?? []) {
+      if (!name || name.startsWith('.cache/') || except.includes(name)) continue;
+      try {
+        found.set(name, createHash('sha256').update(readFileSync(path.join(this.dir, name))).digest('hex'));
+      } catch { /* removed since it was listed, by a runner still at work */ }
+    }
+    return found;
+  }
+
+  /** The digests the manifest at `commit` holds. */
+  private manifestAt(commit: string): Map<string, string> {
+    return manifestOf(this.fileAt(commit, MANIFEST)?.toString('utf8') ?? '');
+  }
+
+  /** Writes the manifest of the files the history keeps out. Without `accounts` the record and the log keep the lines
+   * the last commit gave them, as a checkpoint commits neither. */
+  private writeManifest(accounts: boolean): void {
+    const file = path.join(this.dir, MANIFEST);
+    const digests = this.digests(['.'], accounts ? [] : RunRepo.ACCOUNTS);
+    const before = accounts || !existsSync(file) ? new Map<string, string>() : manifestOf(readFileSync(file, 'utf8'));
+    for (const account of RunRepo.ACCOUNTS) if (before.has(account)) digests.set(account, before.get(account)!);
+    writeFileSync(file, [...digests].sort(([a], [b]) => (a < b ? -1 : 1)).map(([name, digest]) => `${digest}  ${name}\n`).join(''));
+  }
+
   /** A commit of everything in the run directory: a run's `started` and `finished`, an edit made outside a run. */
   commit(subject: string, trailers: Record<string, string | number | null | undefined> = {}, when?: string): void {
-    this.commitWith(['.'], subject, trailers, when);
+    this.commitWith(true, subject, trailers, when);
   }
 
   /** One step's checkpoint: whatever the step wrote, without the run's record and log, which grow with every step and
    * are committed with the run's `started` and `finished` commits. */
   checkpoint(subject: string, trailers: Record<string, string | number | null | undefined> = {}, when?: string): void {
-    this.commitWith(['.', ...RunRepo.ACCOUNTS.map((file) => `:(exclude)${file}`)], subject, trailers, when);
+    this.commitWith(false, subject, trailers, when);
   }
 
-  private commitWith(paths: string[], subject: string, trailers: Record<string, string | number | null | undefined>, when?: string): void {
+  private commitWith(accounts: boolean, subject: string, trailers: Record<string, string | number | null | undefined>, when?: string): void {
     const lines = Object.entries(trailers).filter(([, value]) => value !== undefined && value !== null && value !== '').map(([key, value]) => `${key}: ${value}`);
     // Trailers must be the message's last block.
     const message = [subject, lines.join('\n')].filter(Boolean).join('\n\n');
-    if (!this.git(['add', '-A', '--', ...paths])) return;
+    if (this.outside) this.writeManifest(accounts);
+    // Kept out, the record and the log need no excluding, and `add` refuses to be told of a file it ignores.
+    const excluded = accounts || this.outside ? [] : RunRepo.ACCOUNTS.map((file) => `:(exclude)${file}`);
+    if (!this.git(['add', '-A', '--', '.', ...excluded])) return;
     this.git([...RunRepo.CHECKPOINT, 'commit', '-q', '--allow-empty', '-m', message], { when });
   }
 
@@ -236,10 +318,15 @@ export class RunRepo {
     return done?.ok ? done.out.trim() : '';
   }
 
-  /** Whether any of `paths` differs from what `commit` holds — git's own object hashes, not ours. */
+  /** Whether any of `paths` differs from what `commit` holds — git's own object hashes, not ours; a file the history
+   * keeps out, from the SHA-256 the commit's manifest holds. */
   changedSince(commit: string, paths: string[]): boolean {
     const done = this.git(['diff', '--quiet', commit, '--', ...paths], { tolerate: true });
-    return !done?.ok;
+    if (!done?.ok) return true;
+    if (!this.outside) return false;
+    const then = this.manifestAt(commit);
+    const now = this.digests(paths);
+    return paths.some((uri) => digestsAt(then, uri) !== digestsAt(now, uri));
   }
 
   /** One file as `commit` holds it; undefined when that commit has no such file. */
@@ -252,6 +339,15 @@ export class RunRepo {
    * so an LFS pointer comes back as its file. */
   restore(uri: string, commit: string | undefined): boolean {
     if (!commit) return false;
+    if (this.outside) {
+      // The history holds a digest, not the file: one still as the commit left it stands, and one that is not stops the
+      // run rather than let a step run on something else.
+      const then = digestsAt(this.manifestAt(commit), uri);
+      if (!then) return false;
+      if (then === digestsAt(this.digests([uri]), uri)) return true;
+      throw new KeptOutOfHistory(`${uri} is not as ${commit.slice(0, 8)} left it, and this run repository keeps its data out of its history: `
+        + `${MANIFEST} there holds the file's SHA-256, not the file. Put it back as it was.`);
+    }
     const done = this.git(['checkout', commit, '--', uri], { tolerate: true });
     return !!done?.ok && existsSync(path.join(this.dir, uri));
   }
@@ -295,8 +391,10 @@ export class RunRepo {
     return done?.ok ? done.out.trim() : '';
   }
 
-  /** `studyflow.log` and the journal are left out: every run writes them, which is not an edit from outside. */
+  /** `studyflow.log` and the journal are left out: every run writes them, which is not an edit from outside. A file the
+   * history keeps out shows as the manifest, written first. */
   dirty(): boolean {
+    if (this.outside) this.writeManifest(false);
     const done = this.git(['status', '--porcelain', '--', '.', ...RunRepo.ACCOUNTS.map((file) => `:(exclude)${file}`)]);
     return !!done?.out.trim();
   }

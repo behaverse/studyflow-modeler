@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { GATEWAY_TYPES, type Graph } from '@core/engine/graph';
 import type { Note, PlanElement, Reuse } from '@core/engine';
-import type { ElementRecord, RunRepo } from '@runtime-local/prov';
+import { KeptOutOfHistory, type ElementRecord, type RunRepo } from '@runtime-local/prov';
 
 /**
  * What a re-run reuses (packages/runtime-local/CONTRACT.md, "Re-runs"). A step is skipped when its record still stands: nothing it
@@ -193,7 +193,8 @@ export class Records implements Reuse {
     // Consumers load values themselves (partial runners, per hand-off): existence is enough here.
     try {
       for (const target of targets.filter((id) => graph.uriOf(id))) this.ensureArtifact(target, element.id, note);
-    } catch {
+    } catch (error) {
+      if (error instanceof KeptOutOfHistory) throw error; // the history cannot give it back, and a run in its place may differ
       return 'invalid'; // a failed staging means a real run
     }
     // Last, so the comparison reads the artifacts as staging and the history have left them.

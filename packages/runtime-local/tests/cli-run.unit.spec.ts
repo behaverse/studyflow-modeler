@@ -941,6 +941,69 @@ P:
 
 });
 
+test.describe('a run that keeps its data out of the history', () => {
+  test.skip(!hasPython(), 'python3 is not on PATH');
+
+  test('commits the study and the digests of the rest, which validate, prov and a re-run read in the run directory; a re-run missing one stops', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-outside-'));
+    fs.writeFileSync(path.join(dir, 'p.studyflow.yaml'), `id: outside
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Make:
+      type: Task
+      dataOutputAssociations: { Out_Y: { targetRef: Y } }
+    Y: { type: DataObjectReference, uri: out.json }
+    Done: { type: EndEvent }
+    F1: Start -> Make
+    F2: Make -> Done
+`);
+    // A replayable runner that writes its output, and a picture under a name no data element gives.
+    writeRunner(path.join(dir, 'fake.py'), "{'elements': ['Make'], 'live': False}", [
+      "(step.run_dir / 'frames').mkdir(exist_ok=True)",
+      "open(step.run_dir / 'frames' / '1.jpg', 'w').write('face')",
+      "open(step.run_dir / 'out.json', 'w').write('{\"made\": 1}')",
+      'return 1',
+    ]);
+    const repo = path.join(dir, 'run');
+    const archived = path.join(repo, 'p.studyflow.yaml');
+    const studyflow = (...args: string[]) => spawnSync(process.execPath, [BIN, ...args], { cwd: dir, env: ENV, encoding: 'utf8' });
+    const run = (file: string, ...extra: string[]) => studyflow('run', file, '--repo', repo, '--quiet', '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`, ...extra);
+    const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+    // Every file any commit ever held, `.gitattributes` aside (there where git-lfs is installed).
+    const committed = () => [...new Set(git('log', '--all', '--format=', '--name-only').split('\n').filter((name) => name && name !== '.gitattributes'))].sort();
+    const sha = (file: string) => createHash('sha256').update(fs.readFileSync(path.join(repo, file))).digest('hex');
+
+    expect(run('p.studyflow.yaml', '--data-outside-history').status).toBe(0);
+    expect(committed()).toEqual(['.gitignore', 'data.sha256', 'p.studyflow.yaml']);
+    // The manifest the last commit holds lists every other file, the record, the log and the picture included, by
+    // the SHA-256 of the file the run directory keeps.
+    const manifest = git('show', 'HEAD:data.sha256').split('\n').map((line) => line.split('  ').reverse());
+    expect(manifest.map(([name]) => name)).toEqual(['events.jsonl', 'frames/1.jpg', 'out.json', 'studyflow.log']);
+    for (const [name, digest] of manifest) expect(digest).toBe(sha(name));
+    // The executed copy is checked against its record beside it, and prov reads that record there.
+    expect(studyflow('validate', archived).stdout).toContain(': OK');
+    expect(studyflow('prov', repo).stdout).toContain('prov:Activity');
+
+    // A re-run keeps it out unasked, and reuses the step whose output is as its commit's manifest has it.
+    expect(run(archived).status).toBe(0);
+    expect(fs.readFileSync(path.join(repo, 'studyflow.log'), 'utf8')).toContain('↻ Make');
+    expect(committed()).toEqual(['.gitignore', 'data.sha256', 'p.studyflow.yaml']);
+    // An output the run directory lost cannot come back from the history, so the re-run stops rather than make another.
+    fs.rmSync(path.join(repo, 'out.json'));
+    expect(run(archived).status).toBe(1);
+    expect(fs.readFileSync(path.join(repo, 'studyflow.log'), 'utf8')).toMatch(/out\.json is not as \w{8} left it, and this run repository keeps its data out of its history/);
+    expect(fs.existsSync(path.join(repo, 'out.json'))).toBe(false);
+
+    // A clone holds no record: prov says where it is.
+    execFileSync('git', ['clone', '-q', repo, path.join(dir, 'clone')]);
+    expect(studyflow('prov', path.join(dir, 'clone')).stderr).toContain("was kept out of its run repository's history (data.sha256 holds its SHA-256)");
+  });
+});
+
 /** `studyflow run` on a YAML study keeps it as YAML in the run repository, and stages from beside the original. */
 
 test.describe('studyflow run on a converted study', () => {

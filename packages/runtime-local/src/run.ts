@@ -4,7 +4,8 @@
  * a time (SKILL.md, beside this folder, is that contract). What a run leaves is a run directory, `--repo DIR` or else
  * `~/.studyflow/runs/<id>/` (YYMMDD plus a codename, `260821heron/`), or the one the study handed to it already
  * lives in: the artifacts the `uri`s name, a copy of the study stamped `executed`, `studyflow.log` and the journal,
- * all in a git repository whose commit bodies hold the step records (packages/runtime-local/src/prov.ts).
+ * all in a git repository whose commit bodies hold the step records (packages/runtime-local/src/prov.ts); with
+ * `--data-outside-history`, its commits hold the study and the SHA-256 of the rest, which stays in the directory alone.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -38,6 +39,9 @@ export type LocalRun = {
   author?: string;
   /** The run repository to write into, its name being the run id. */
   repo?: string;
+  /** Keep the run's data out of the repository's history: its commits hold the study and `data.sha256`, the SHA-256 of
+   * every other file in the run directory. Asked at a repository's first commit, every later run in it keeps it. */
+  dataOutsideHistory?: boolean;
   /** More directories to stage boundary inputs from, after the study's own and before the working directory. */
   inputs?: string[];
   /** Re-run from this point in the repository's history (a commit-ish), branching there. */
@@ -123,6 +127,9 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // A run interrupted mid-commit leaves git's lock behind; nothing else commits into a run repository.
   rmSync(path.join(dir, '.git', 'index.lock'), { force: true });
   repo.open();
+  // The study as run, under its own name: with the data kept out of the history, the one file the history holds.
+  const archive = path.join(dir, path.basename(run.input));
+  repo.keepDataOut(path.basename(archive), run.dataOutsideHistory ?? false);
   const startedAt = timelineTimestamp(started);
   // A repository created just now has nothing to attribute to anyone: its baseline is the `started` commit.
   if (!repo.created && repo.dirty()) repo.commit('changed outside a run', { 'Prov-Action': 'modified', 'Prov-When': startedAt }, startedAt);
@@ -196,7 +203,6 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   // stands. So it starts from the state that run started from, as the study archived at that run's start holds it,
   // and what it walks again counts, and draws, as it did then. The timeline of runs (`_meta.prov`) is history, and
   // keeps growing.
-  const archive = path.join(dir, path.basename(run.input));
   let state: Record<string, any> = stateIn(model);
   const redone = repo.lastStarted();
   const then = redone ? repo.fileAt(redone, path.basename(archive)) : undefined;

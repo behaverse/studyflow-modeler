@@ -102,6 +102,7 @@ program
   .option('--runtime <runtime>', 'override the document: local | browser')
   .option('--author <name>', 'who runs the study, as git writes an author (\'Name <email>\', the email optional): the run\'s commits and its record name them. Without it they name no one (studyflow-runner), never this machine\'s user')
   .option('--repo <dir>', 'the run repository to write into, its name being the run id (default: the study\'s own directory when it already lives in one, else a fresh ~/.studyflow/runs/<YYMMDD+codename>)')
+  .option('--data-outside-history', 'keep the run\'s data out of the run repository\'s history: its commits hold the study and data.sha256, the SHA-256 of every other file in the run directory (the record, the log, each file a step wrote), which stay in the directory alone. Asked at a repository\'s first commit, every later run in it keeps it')
   .option('--inputs <dir>', 'also stage boundary inputs from this directory, after the study\'s own and before the working directory; repeatable', collect)
   .option('--from <ref>', 're-run from this point in the repository\'s history (a commit-ish), branching there')
   .option('--fresh', 'ignore the study\'s per-element run records and re-run every step')

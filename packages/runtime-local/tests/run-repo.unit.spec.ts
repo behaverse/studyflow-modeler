@@ -44,3 +44,51 @@ test('a checkpoint starts no housekeeping, which is done once the run has ended'
   expect(packs()).toHaveLength(1);
   expect(execFileSync('git', ['-C', dir, 'rev-list', '--count', 'HEAD'], { encoding: 'utf8' }).trim()).toBe('3');
 });
+
+test('a repository that keeps its data out commits the study and the digests of the rest, and compares by them', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-outside-'));
+  const repo = new RunRepo(dir, () => undefined);
+  repo.open();
+  repo.keepDataOut('s.studyflow.yaml', true);
+  const write = (name: string, text: string): void => {
+    fs.mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
+    fs.writeFileSync(path.join(dir, name), text);
+  };
+  const sha = (text: string): string => createHash('sha256').update(text).digest('hex');
+  const git = (...args: string[]): string => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8' }).trim();
+  // What HEAD holds, and `.gitattributes` too where git-lfs is installed.
+  const committed = (): string[] => git('ls-tree', '-r', '--name-only', 'HEAD').split('\n').filter((name) => name !== '.gitattributes');
+  write('s.studyflow.yaml', 'id: s\n');
+  write('events.jsonl', 'a\n');
+  write('frames/1.jpg', 'face');
+  repo.commit('started', { 'Prov-Action': 'executed' });
+  const started = git('rev-parse', 'HEAD');
+  expect(committed()).toEqual(['.gitignore', 'data.sha256', 's.studyflow.yaml']);
+  expect(git('show', 'HEAD:data.sha256')).toBe(`${sha('a\n')}  events.jsonl\n${sha('face')}  frames/1.jpg`);
+
+  // A checkpoint commits neither the record nor the log, so its manifest lists them as the last commit did.
+  write('events.jsonl', 'a\nb\n');
+  write('frames/1.jpg', 'another face');
+  repo.checkpoint('executed Look', { 'Prov-Action': 'executed', 'Prov-Node': 'Look' });
+  expect(git('show', 'HEAD:data.sha256')).toBe(`${sha('a\n')}  events.jsonl\n${sha('another face')}  frames/1.jpg`);
+  expect(repo.changedSince(started, ['frames/'])).toBe(true);
+  expect(repo.changedSince(git('rev-parse', 'HEAD'), ['frames/'])).toBe(false);
+
+  // Nothing comes back from such a history: a file not as the commit left it stops the run.
+  fs.rmSync(path.join(dir, 'frames'), { recursive: true });
+  expect(() => repo.restore('frames/', started)).toThrow(/frames\/ is not as .* left it, and this run repository keeps its data out of its history/);
+  expect(repo.restore('never.json', started)).toBe(false);
+
+  // A later run keeps it unasked; one that asks of a history holding data is refused.
+  const again = new RunRepo(dir, () => undefined);
+  again.keepDataOut('s.studyflow.yaml', false);
+  write('later.json', '{}');
+  again.commit('finished');
+  expect(committed()).toEqual(['.gitignore', 'data.sha256', 's.studyflow.yaml']);
+  const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-plain-'));
+  const held = new RunRepo(plain, () => undefined);
+  held.open();
+  fs.writeFileSync(path.join(plain, 'events.jsonl'), 'a\n');
+  held.commit('started');
+  expect(() => held.keepDataOut('s.studyflow.yaml', true)).toThrow(/holds its data in its history already/);
+});
