@@ -1175,9 +1175,16 @@ def main() -> int:
             release()
 
     def execute(step: runner.Step) -> Any:
+        # The robot finishes a move or a line it has begun, but a step the walk stops answers at once, so the walk
+        # never ends this process and the robot's link with it.
+        return step.unless_cancelled(lambda: act(step))
+
+    def act(step: runner.Step) -> Any:
         studyflow = Plan(step.plan)
         element = step.element
         with one:
+            if step.cancelled:
+                raise runner.Cancelled(f"{step.id} was stopped while the robot was busy")
             if element.get("type") == "endEvent":
                 # The robot pool's end: the seat is dismissed, and the robot let go.
                 ended = end_study(args.port)
