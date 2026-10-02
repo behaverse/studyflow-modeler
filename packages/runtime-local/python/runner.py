@@ -195,6 +195,31 @@ class Step:
     def cancelled(self) -> bool:
         return self._cancelled.is_set()
 
+    def unless_cancelled(self, work: Callable[[], Any]) -> Any:
+        """What `work()` returns or raises, run on a thread of its own. When the walk stops the step first, `Cancelled`
+        is raised at once, and the work, which cannot be stopped midway (a robot's move, a model's request), finishes
+        behind the answer and is dropped: for a runner whose process is costly to start again, which the walk would
+        otherwise end. Work that can stop checks `cancelled` instead."""
+        outcome: "queue.Queue[tuple[bool, Any]]" = queue.Queue()
+
+        def run() -> None:
+            try:
+                outcome.put((True, work()))
+            except BaseException as error:  # noqa: BLE001 - raised again on the hand-off's own thread
+                outcome.put((False, error))
+
+        if not self.cancelled:
+            threading.Thread(target=run, daemon=True).start()
+        while not self.cancelled:
+            try:
+                done, value = outcome.get(timeout=0.05)
+            except queue.Empty:
+                continue
+            if done:
+                return value
+            raise value
+        raise Cancelled(f"{self.id} was stopped")
+
     def prompt(self, text: str, default: str = "") -> str:
         """Ask the person running the study, on the walk's terminal; `default` when there is none to ask."""
         return str(self._wire.request("prompt", {"element": self.id, "text": text, "default": default})) if self._wire else default

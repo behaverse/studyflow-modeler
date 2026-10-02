@@ -71,7 +71,7 @@ if __name__ == "__main__":
     sys.exit(serve(claims, execute))
 ```
 
-`step` carries the hand-off: `id`, `element`, `attributes`, `plan`, `values`, `message`, `options`, `seed`, `run_dir` and `cache`; `bind(id, value)`, `write(scope, name, value)` and `note(**record)` for what goes back; `resolve(path)`, `fill(text)` and `read(text)` for placeholders; `send`, `receive` and `ask` for messages; `prompt(text, default)` for the person; `cancelled`, which a long step checks (a `receive` raises `Cancelled`). What the runner prints goes to the run log, unless it serves with `terminal=True`, for a runner a person sits at. One hand-off at a time runs on the process's main thread, and one that overlaps it on a thread of its own.
+`step` carries the hand-off: `id`, `element`, `attributes`, `plan`, `values`, `message`, `options`, `seed`, `run_dir` and `cache`; `bind(id, value)`, `write(scope, name, value)` and `note(**record)` for what goes back; `resolve(path)`, `fill(text)` and `read(text)` for placeholders; `send`, `receive` and `ask` for messages; `prompt(text, default)` for the person; `cancelled`, which a long step checks (a `receive` raises `Cancelled`), and `unless_cancelled(work)` for work that cannot stop midway (a robot's move, a model's request): a cancel is answered at once, and the work finishes behind the answer. What the runner prints goes to the run log, unless it serves with `terminal=True`, for a runner a person sits at. One hand-off at a time runs on the process's main thread, and one that overlaps it on a thread of its own.
 
 **The plan.** `plan.json` is a digest of the study, written once per run. A runner never opens the diagram.
 

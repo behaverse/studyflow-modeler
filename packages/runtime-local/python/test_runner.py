@@ -34,4 +34,30 @@ assert set(runner.Step("Step", inner, nested).handback(None, 0.0)) == {"duration
 made = runner.Step("Make", {"elements": {"Make": {"outputs": [{"target": "Shown", "transformation": "result.trials"}, {"target": "All"}]}}}, {})
 made.outputs({"trials": [1, 2], "key": [3, 4]})
 assert made.bound == {"Shown": [1, 2], "All": {"trials": [1, 2], "key": [3, 4]}}
+
+# Work that cannot be stopped midway hands back its value or its error; when the walk stops the step, the hand-off
+# answers at once and the work finishes behind it. A step already stopped starts none.
+import threading  # noqa: E402
+import time  # noqa: E402
+
+move = runner.Step("Move", {}, {})
+assert move.unless_cancelled(lambda: 7) == 7
+try:
+    move.unless_cancelled(lambda: 1 / 0)
+    raise AssertionError("the work's error is the hand-off's")
+except ZeroDivisionError:
+    pass
+finished, started = threading.Event(), []
+threading.Timer(0.1, move._cancelled.set).start()
+try:
+    move.unless_cancelled(lambda: started.append(time.monotonic()) or time.sleep(0.6) or finished.set())
+    raise AssertionError("a stopped step waited for its work")
+except runner.Cancelled:
+    answered = time.monotonic() - started[0]
+assert answered < 0.4 and finished.wait(2), answered
+try:
+    move.unless_cancelled(lambda: started.append(time.monotonic()))
+    raise AssertionError("a stopped step started work")
+except runner.Cancelled:
+    assert len(started) == 1
 print("ok")
