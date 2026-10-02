@@ -813,8 +813,8 @@ test('style restyles the caption and the font survives the round trip', async ()
   const loaded = load();
   const { canvas } = loaded;
   const task = node(canvas, 'Task_1');
-  canvas.study.style({ ids: ['Task_1', 'Flow_2'], font: { bold: true, align: 'right', color: '#4a6f9c' } });
-  expect(task.font).toEqual({ bold: true, align: 'right', color: '#4a6f9c' });
+  canvas.study.style({ ids: ['Task_1', 'Flow_2'], font: { bold: true, italic: true, align: 'right', color: '#4a6f9c' } });
+  expect(task.font).toEqual({ bold: true, italic: true, align: 'right', color: '#4a6f9c' });
   const text = graphicsOf(canvas, 'Task_1')!.querySelector('text.sf-label')!;
   const BOLD = /^(bold|[6-9]00)$/;
   expect(text.getAttribute('font-weight')).toMatch(BOLD);
@@ -823,10 +823,10 @@ test('style restyles the caption and the font survives the round trip', async ()
   // A flow's caption is an element of its own, painted from the flow's font.
   expect(graphicsOf(canvas, 'Flow_2_label')!.querySelector('text.sf-label')!.getAttribute('font-weight')).toMatch(BOLD);
   const xml = await xmlOf(loaded);
-  expect(xml).toContain('studyflow:font="bold right #4a6f9c"');
+  expect(xml).toContain('studyflow:font="bold italic right #4a6f9c"');
   const again = await loadCanvas(xml);
-  expect(node(again.canvas, 'Task_1').font).toEqual({ bold: true, align: 'right', color: '#4a6f9c' });
-  canvas.study.style({ ids: ['Task_1'], font: { bold: false, align: null, color: null } });
+  expect(node(again.canvas, 'Task_1').font).toEqual({ bold: true, italic: true, align: 'right', color: '#4a6f9c' });
+  canvas.study.style({ ids: ['Task_1'], font: { bold: false, italic: false, align: null, color: null } });
   expect(task.font).toBeUndefined();
 });
 

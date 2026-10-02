@@ -2,34 +2,20 @@ import { expect, test, type Page } from '@playwright/test';
 
 import { ELEMENT_COLORS } from '@modeler/shape/colors';
 
-import {
-  addPaletteElement,
-  exportDiagram,
-  gotoModeler,
-  pressOnCanvas,
-  readDownloadText,
-} from './utils';
+import { addPaletteElement, gotoModeler, pressOnCanvas } from './utils';
 
 /**
  * The app-rendered popup menus: the create menu behind the palette's more-elements
  * button, the append menu the context pad and the `a` key open, the replace menu behind
  * the pad's wrench, and the style menu. Which entries they list is
  * `tests/popup-menu.unit.spec.ts`'s; where an appended element lands is canvas-autoplace's,
- * and what a retype writes canvas-replace's.
+ * what a retype writes canvas-replace's, and what a style writes canvas.unit's.
  */
 
 const popup = (page: Page) => page.getByTestId('popup-menu');
 
 /** The swatch's paint as an attribute matcher: the canvas may spell the hex in either case. */
 const swatch = (label: string, half: 'fill' | 'stroke'): RegExp => new RegExp(`^${ELEMENT_COLORS.find((c) => c.label === label)![half]!}$`, 'i');
-
-/** The `x` of the `bpmndi:BPMNShape` whose `bpmnElement` id starts with `prefix`. */
-function shapeX(bpmn: string, prefix: string): number {
-  const match = new RegExp(
-    `<bpmndi:BPMNShape[^>]*bpmnElement="${prefix}[^"]*"[^>]*>\\s*<dc:Bounds[^>]*x="([-\\d.]+)"`,
-  ).exec(bpmn);
-  return match ? Number(match[1]) : NaN;
-}
 
 test.describe('App popup menus', () => {
   test('the create and append menus search and place what you pick, and the replace menu retypes as one undo step', async ({ page }) => {
@@ -75,11 +61,6 @@ test.describe('App popup menus', () => {
     await pressOnCanvas(page, 'ControlOrMeta+z');
     await expect(service).toHaveCount(1);
     await expect(page.locator('g[data-element-id^="UserTask_"]')).toHaveCount(0);
-
-    const bpmn = await readDownloadText(await exportDiagram(page, 'bpmn'));
-    expect(bpmn).toMatch(/<bpmn:sequenceFlow[^>]*sourceRef="ServiceTask_[^"]*"[^>]*targetRef="EndEvent_/);
-    // Placed one gap to the right of its source, not on top of it.
-    expect(shapeX(bpmn, 'EndEvent_')).toBeGreaterThan(shapeX(bpmn, 'ServiceTask_'));
   });
 
   test('the style menu sets colours and text styles on one element, and paints a multi-selection at once', async ({ page }) => {
@@ -122,10 +103,6 @@ test.describe('App popup menus', () => {
     await expect(text).toHaveAttribute('text-anchor', 'middle');
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
-
-    // The file carries the text style on one `font` line.
-    const yamlText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-    expect(yamlText).toMatch(new RegExp(`font: ['"]?bold italic ${ELEMENT_COLORS.find((c) => c.label === 'Red')!.stroke}['"]?`, 'i'));
 
     // Multi-select both, then repaint: the menu acts on the whole selection.
     await task.click();
