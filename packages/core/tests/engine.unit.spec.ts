@@ -1193,6 +1193,18 @@ test('a hand-off that fails after binding something keeps what it had bound, and
   expect(walk.steps.entries.find((entry) => entry.node === 'Collect')).toMatchObject({ status: 'error', build: '26.08' });
 });
 
+test('a step whose implementation no runner claims fails, naming the scheme no skill in reach declares', async () => {
+  const { error, walk } = await walked(`S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Fit: { type: ServiceTask, implementation: "python://m.fit" }
+    F1: Start -> Fit
+`);
+  expect(error?.message).toBe('no partial runner claims Fit (python://m.fit): no skill in reach declares python:// elements (or a studyflow-python on PATH)');
+  expect(walk.steps.entries.find((entry) => entry.node === 'Fit')).toMatchObject({ status: 'error', implementation: 'python://m.fit' });
+});
+
 test('a rest a runner claims waits in its runner, and what it recorded goes out along its data outputs', async () => {
   const plan = planOf(studyModel(`id: study
 ${HEAD}S:
