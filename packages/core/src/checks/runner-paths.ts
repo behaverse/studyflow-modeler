@@ -1,7 +1,7 @@
 import { BPMN } from '@core/constants';
 import type { Issue } from '@core/checks';
 import { containers, graphOf, quoted } from '@core/checks/graph';
-import type { StudyModel } from '@core/model/index';
+import { expressionOf, isElement, type Element, type StudyModel } from '@core/model/index';
 
 /** The event definitions the walk reads: a message (along the message flows), a timer, an error, a condition, a terminate. */
 const READ_EVENTS = ['bpmn:MessageEventDefinition', 'bpmn:TimerEventDefinition', 'bpmn:ErrorEventDefinition', 'bpmn:ConditionalEventDefinition', 'bpmn:TerminateEventDefinition'];
@@ -15,7 +15,8 @@ const KINDS: Record<string, string> = { Escalation: 'an escalation', Compensate:
  * a scope's second start event never starts it; and an event of a kind it does not read (a signal, an escalation, a
  * compensation, a link, a cancel), each reaching beyond where it is drawn, would pass as a plain event, so it is
  * refused. Parallel and inclusive splits and joins are walked as BPMN says, and a join one of whose tokens can never
- * come is the soundness check's to find.
+ * come is the soundness check's to find. A standard loop with neither a condition nor a maximum, and no boundary event
+ * to end it, repeats until the walk gives up on it, so it is refused too.
  */
 export function checkRunnerPaths(model: StudyModel): Issue[] {
   const issues: Issue[] = [];
@@ -30,7 +31,14 @@ export function checkRunnerPaths(model: StudyModel): Issue[] {
         message: `${quoted(container)} has ${starts.length} start events; the walk starts it at the first, ${quoted(starts[0])}, so a path from ${starts.slice(1).map(quoted).join(', ')} never runs`,
       });
     }
-    for (const { node, incoming, outgoing } of nodes.values()) {
+    for (const { node, incoming, outgoing, boundaries } of nodes.values()) {
+      if (repeatsForever(model, node, boundaries)) {
+        issues.push({
+          severity: 'error',
+          elementId: node.id,
+          message: `${quoted(node)} repeats with neither a loopCondition nor a loopMaximum, and no boundary event to end it, so it never ends; give it a loopCondition or a loopMaximum`,
+        });
+      }
       if (!model.isA(node, BPMN.ComplexGateway)) continue;
       if (incoming.length > 1) {
         issues.push({
@@ -60,4 +68,15 @@ export function checkRunnerPaths(model: StudyModel): Issue[] {
     });
   }
   return issues;
+}
+
+/** Whether `node` carries a standard loop marker only a boundary event could end, and has none that can: a message, a
+ * timer or an error ends it between passes, while a condition is read once it is done, which it never is. */
+function repeatsForever(model: StudyModel, node: Element, boundaries: Element[]): boolean {
+  const loop = node.loopCharacteristics;
+  if (!isElement(loop) || loop.type !== 'bpmn:StandardLoopCharacteristics') return false;
+  if (typeof loop.loopMaximum === 'number' || expressionOf(loop.loopCondition)) return false;
+  const conditional = (boundary: Element): boolean => (Array.isArray(boundary.eventDefinitions) ? boundary.eventDefinitions : [])
+    .some((definition) => isElement(definition) && model.isA(definition, 'bpmn:ConditionalEventDefinition'));
+  return boundaries.every(conditional);
 }

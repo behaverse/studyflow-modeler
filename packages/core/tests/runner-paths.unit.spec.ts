@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import { checkRunnerPaths } from '@core/checks/runner-paths';
 import { studyModel } from '@tests/schemas';
 
-/** What the walk reads otherwise than BPMN: a complex gateway, a second start event, an event of a kind it does not read. */
+/** What the walk reads otherwise than BPMN: a complex gateway, a second start event, an event of a kind it does not read;
+ * and a loop that nothing ends. */
 
 /** Start, then `node` (of `type`) splitting to A and B, which meet again at an end. */
 const split = (type: string): string => `id: paths
@@ -96,5 +97,24 @@ Study:
   for (const [type, definition, issues] of CASES) {
     const found = checkRunnerPaths(studyModel(event(type, definition)));
     expect(found.map((issue) => `${issue.severity} ${issue.elementId}: ${issue.message}`), definition).toEqual(issues);
+  }
+});
+
+test('a standard loop that nothing ends is refused, saying what would end it', () => {
+  /** The split's step A, repeating under a standard loop marker of `marker`, with `boundary` on it. */
+  const looped = (marker: string, boundary = ''): string => split('ExclusiveGateway').replace('    A:\n      type: Task\n',
+    `    A:\n      type: Task\n      name: Practice\n      loopCharacteristics: { type: StandardLoopCharacteristics${marker} }\n${boundary}`);
+  const on = (definition: string): string => `    Out:\n      type: BoundaryEvent\n      attachedToRef: A\n      eventDefinitions:\n        - type: ${definition}\n`;
+  const refused = ['error A: "Practice" repeats with neither a loopCondition nor a loopMaximum, and no boundary event to end it, so it never ends; give it a loopCondition or a loopMaximum'];
+  const CASES: [label: string, study: string, issues: string[]][] = [
+    ['neither a condition nor a maximum', looped(''), refused],
+    ['a loopMaximum', looped(', loopMaximum: 3'), []],
+    ['a loopCondition', looped(', loopCondition: score < 0.9'), []],
+    ['a timer at its boundary', looped('', on('TimerEventDefinition')), []],
+    ['only a condition at its boundary, which is read once the loop is done', looped('', on('ConditionalEventDefinition')), refused],
+  ];
+  for (const [label, study, issues] of CASES) {
+    const found = checkRunnerPaths(studyModel(study));
+    expect(found.map((issue) => `${issue.severity} ${issue.elementId}: ${issue.message}`), label).toEqual(issues);
   }
 });

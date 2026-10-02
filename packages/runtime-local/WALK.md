@@ -74,6 +74,9 @@ construct otherwise than the specification does, it says so here, and `studyflow
   timer, its error, its condition or its terminate only.
 - **A join that cannot complete.** A parallel join one of whose tokens can never come (an exclusive split joined by a
   parallel gateway) stops the run, where BPMN would wait for ever; `studyflow validate` finds it before a run.
+- **A loop that cannot end.** A standard loop marker with neither a `loopCondition` nor a `loopMaximum`, and no
+  boundary event to end it (a conditional one is read once the loop is done), stops the run after a thousand passes,
+  where BPMN would repeat it for ever; `studyflow validate` refuses it.
 - **A gateway's fallback.** When no condition holds, an exclusive gateway takes its default flow, else its one flow
   without a condition; BPMN would take every unconditioned flow.
 - **Repeats run in order.** A multi-instance marker's instances, parallel or not, run one after another, and so do
