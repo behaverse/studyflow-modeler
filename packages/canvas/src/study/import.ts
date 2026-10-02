@@ -7,6 +7,7 @@
 
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@core/element/index.ts';
 import type { Drawing, Element, StudyModel, Value } from '@core/model/index.ts';
+import { textToBox, textToPoints } from '@core/model/spelling.ts';
 import { parseFont } from '@canvas/study/font.ts';
 import { idsIn, refOf } from '@canvas/study/elements.ts';
 import { mintLabel, syncLabel } from '@canvas/study/labels.ts';
@@ -33,10 +34,7 @@ const isFiniteNumber = (value: unknown): value is number => typeof value === 'nu
 
 /** A box as a drawing spells it: `x y w h`, or a mapping of the four. */
 export function boxOf(value: Value | undefined): Partial<Bounds> | undefined {
-  if (typeof value === 'string') {
-    const [x, y, width, height] = value.trim().split(/\s+/).map(Number);
-    return { x, y, width, height };
-  }
+  if (typeof value === 'string') return textToBox(value);
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
   const box = value as Record<string, Value>;
   const number = (key: string): number | undefined => (isFiniteNumber(box[key]) ? box[key] as number : undefined);
@@ -45,12 +43,7 @@ export function boxOf(value: Value | undefined): Partial<Bounds> | undefined {
 
 /** A route as a drawing spells it: `x,y x,y`, or a list of points. */
 function pointsOf(value: Value | undefined): Point[] {
-  if (typeof value === 'string') {
-    return value.trim().split(/\s+/).filter(Boolean).map((pair) => {
-      const [x, y] = pair.split(',').map(Number);
-      return { x: isFiniteNumber(x) ? x : 0, y: isFiniteNumber(y) ? y : 0 };
-    });
-  }
+  if (typeof value === 'string') return textToPoints(value) ?? [];
   return (Array.isArray(value) ? value : []).map((point) => {
     const { x, y } = (point ?? {}) as Record<string, Value>;
     return { x: isFiniteNumber(x) ? x : 0, y: isFiniteNumber(y) ? y : 0 };

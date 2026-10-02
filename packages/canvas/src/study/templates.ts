@@ -6,6 +6,7 @@
 import { PLACEHOLDER } from '@core/model/state.ts';
 import { StudyModel, isElement, type Element, type Value } from '@core/model/index.ts';
 import { renameIds } from '@core/model/root.ts';
+import { textToPoints } from '@core/model/spelling.ts';
 import { readStudy } from '@core/model/yaml.ts';
 import { getCatalog, hasCatalog, type Template } from '@core/notation/index.ts';
 
@@ -62,11 +63,7 @@ export function buildTemplate(template: Template, model: StudyModel, ids: Pick<I
   };
   const routeOf = (element: Element): Point[] | undefined => {
     const text = element.id ? layout[element.id]?.waypoint : undefined;
-    if (typeof text !== 'string' || !text.trim()) return undefined;
-    return text.trim().split(/\s+/).map((pair) => {
-      const [x, y] = pair.split(',').map(Number);
-      return { x, y };
-    });
+    return typeof text === 'string' ? textToPoints(text) : undefined;
   };
 
   return {

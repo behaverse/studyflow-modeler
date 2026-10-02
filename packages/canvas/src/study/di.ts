@@ -7,6 +7,7 @@ import { formatFont } from '@canvas/study/font.ts';
 import type { Scene, SceneEdge, SceneNode } from '@canvas/study/scene.ts';
 import { isExpandable } from '@core/document/outline.ts';
 import type { Drawing, Value } from '@core/model/index.ts';
+import { boxToText, pointsToText } from '@core/model/spelling.ts';
 import { canonicalDrawing, inferredRoot } from '@core/model/yaml.ts';
 import { drawablesOf } from '@canvas/study/tree.ts';
 
@@ -32,22 +33,20 @@ function nameRoot(scene: Scene): void {
   }
 }
 
-const box = ({ x, y, width, height }: { x: number; y: number; width: number; height: number }): string => `${x} ${y} ${width} ${height}`;
-
 /** How the study draws `element`: its shape or its edge, in the file's spelling. */
 export function drawingOf(scene: Scene, element: SceneNode | SceneEdge): Drawing {
   const drawing: Record<string, Value> = {};
   if (element.kind === 'node') {
-    drawing.bounds = box(element);
+    drawing.bounds = boxToText(element);
     if (element.isExpanded !== undefined && (isExpandable(element.type) || element.type === 'bpmn:Participant')) drawing.isExpanded = element.isExpanded;
     if (element.isMarkerVisible !== undefined) drawing.isMarkerVisible = element.isMarkerVisible;
     if (element.fill) drawing.fill = element.fill;
   } else {
-    drawing.waypoint = element.waypoints.map((p) => `${p.x},${p.y}`).join(' ');
+    drawing.waypoint = pointsToText(element.waypoints);
   }
   if (element.stroke) drawing.stroke = element.stroke;
   const font = formatFont(element.font);
   if (font) drawing.font = font;
-  if (element.label?.pinned) drawing.label = box(element.label);
+  if (element.label?.pinned) drawing.label = boxToText(element.label);
   return canonicalDrawing(scene.model.metamodel, element.kind === 'node' ? 'bpmndi:BPMNShape' : 'bpmndi:BPMNEdge', drawing);
 }

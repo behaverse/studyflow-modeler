@@ -105,40 +105,50 @@ export function longTypeName(name: string): string {
 
 export const DI_NODE_TYPES = new Set(['bpmndi:BPMNShape', 'bpmndi:BPMNEdge']);
 
-type Box = { x: number; y: number; width: number; height: number };
+export type Point = { x: number; y: number };
+export type Box = Point & { width: number; height: number };
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
-function boxToText(box: unknown): string | undefined {
-  if (!box || typeof box !== 'object' || Array.isArray(box)) return undefined;
-  const { x, y, width, height, ...rest } = box as Record<string, unknown>;
-  if (Object.keys(rest).length > 0 || ![x, y, width, height].every(isFiniteNumber)) return undefined;
+/** A box as a drawing writes it: `x y width height`. */
+export function boxToText({ x, y, width, height }: Box): string {
   return `${x} ${y} ${width} ${height}`;
 }
 
-function textToBox(text: string): Box | undefined {
+/** A drawing's box, from its text: four numbers, else none. */
+export function textToBox(text: string): Box | undefined {
   const parts = text.trim().split(/\s+/).map(Number);
   if (parts.length !== 4 || !parts.every(Number.isFinite)) return undefined;
   const [x, y, width, height] = parts;
   return { x, y, width, height };
 }
 
-function pointsToText(points: unknown): string | undefined {
-  if (!Array.isArray(points) || points.length === 0) return undefined;
-  const pairs: string[] = [];
-  for (const point of points) {
-    if (!point || typeof point !== 'object') return undefined;
-    const { x, y, ...rest } = point as Record<string, unknown>;
-    if (Object.keys(rest).length > 0 || !isFiniteNumber(x) || !isFiniteNumber(y)) return undefined;
-    pairs.push(`${x},${y}`);
-  }
-  return pairs.join(' ');
+/** A route as a drawing writes it: `x,y x,y …`. */
+export function pointsToText(points: readonly Point[]): string {
+  return points.map(({ x, y }) => `${x},${y}`).join(' ');
 }
 
-function textToPoints(text: string): { x: number; y: number }[] | undefined {
+/** A drawing's route, from its text: pairs of numbers, else none. */
+export function textToPoints(text: string): Point[] | undefined {
   const points = text.trim().split(/\s+/).map((pair) => pair.split(',').map(Number));
   if (points.some((point) => point.length !== 2 || !point.every(Number.isFinite))) return undefined;
   return points.map(([x, y]) => ({ x, y }));
+}
+
+/** Whether `value` holds a box and nothing else, so its text says all of it. */
+function isBox(value: unknown): value is Box {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const { x, y, width, height, ...rest } = value as Record<string, unknown>;
+  return Object.keys(rest).length === 0 && [x, y, width, height].every(isFiniteNumber);
+}
+
+/** Whether `value` is a route of points that hold nothing else, so its text says all of it. */
+function isRoute(value: unknown): value is Point[] {
+  return Array.isArray(value) && value.length > 0 && value.every((point) => {
+    if (!point || typeof point !== 'object') return false;
+    const { x, y, ...rest } = point as Record<string, unknown>;
+    return Object.keys(rest).length === 0 && isFiniteNumber(x) && isFiniteNumber(y);
+  });
 }
 
 /** Each colour role's DI property names by local name: the `color` vocabulary first, the `bioc` one second. */
@@ -149,15 +159,12 @@ const COLOR_KEYS = {
 
 /** Rewrite a serialized DI node in place: geometry on one line, one key per colour. */
 export function compactDiNode(node: Record<string, unknown>): void {
-  const bounds = boxToText(node.bounds);
-  if (bounds !== undefined) node.bounds = bounds;
-  const waypoint = pointsToText(node.waypoint);
-  if (waypoint !== undefined) node.waypoint = waypoint;
+  if (isBox(node.bounds)) node.bounds = boxToText(node.bounds);
+  if (isRoute(node.waypoint)) node.waypoint = pointsToText(node.waypoint);
   const label = node.label;
   if (label && typeof label === 'object' && !Array.isArray(label)) {
     const { bounds: labelBounds, ...rest } = label as Record<string, unknown>;
-    const text = Object.keys(rest).length === 0 ? boxToText(labelBounds) : undefined;
-    if (text !== undefined) node.label = text;
+    if (Object.keys(rest).length === 0 && isBox(labelBounds)) node.label = boxToText(labelBounds);
   }
   for (const role of ['fill', 'stroke'] as const) {
     const [colorKey, biocKey] = COLOR_KEYS[role];

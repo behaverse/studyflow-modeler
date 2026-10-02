@@ -9,6 +9,7 @@
 
 import { isDataAssociationType } from '@core/element/index.ts';
 import type { Element, StudyModel } from '@core/model/index.ts';
+import { boxToText, pointsToText } from '@core/model/spelling.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
 import { listOf, refOf } from '@canvas/study/elements.ts';
@@ -20,9 +21,6 @@ import type { Bounds } from '@canvas/study/scene.ts';
 const DATA_ASSOCIATIONS = ['dataInputAssociations', 'dataOutputAssociations'];
 /** How far a drafted note stands from what it annotates. */
 const NOTE_GAP = 20;
-
-const box = ({ x, y, width, height }: Bounds): string => `${x} ${y} ${width} ${height}`;
-const route = (points: readonly { x: number; y: number }[]): string => points.map((p) => `${p.x},${p.y}`).join(' ');
 
 /** Draft a drawing for `model` when it holds none; whether it did. */
 export function draftDrawing(model: StudyModel): boolean {
@@ -90,9 +88,9 @@ export function draftDrawing(model: StudyModel): boolean {
   }
   const { layout } = model.study;
   for (const shape of shapes) {
-    layout[shape.id!] = { bounds: box(boxes.get(shape)!), ...(listOf(shape, 'flowElements').length > 0 ? { isExpanded: false } : {}) };
+    layout[shape.id!] = { bounds: boxToText(boxes.get(shape)!), ...(listOf(shape, 'flowElements').length > 0 ? { isExpanded: false } : {}) };
   }
-  for (const edge of edges) layout[edge.id!] = { waypoint: route([{ x: 0, y: 0 }, { x: 0, y: 0 }]) };
+  for (const edge of edges) layout[edge.id!] = { waypoint: pointsToText([{ x: 0, y: 0 }, { x: 0, y: 0 }]) };
   if (root !== model.primaryRoot()) model.study.diagram = [{ plane: { bpmnElement: root.id! } }];
   return true;
 }
@@ -111,7 +109,7 @@ export function drawFlows(model: StudyModel): void {
   }
   const undrawn = (flow: Element): boolean => !!flow.id && !('waypoint' in (layout[flow.id] ?? {}));
   const draw = (flow: Element, source: Bounds, target: Bounds): void => {
-    layout[flow.id!] = { waypoint: route(routeFor(model.host(flow), source, target)), ...layout[flow.id!] };
+    layout[flow.id!] = { waypoint: pointsToText(routeFor(model.host(flow), source, target)), ...layout[flow.id!] };
   };
   for (const [activity, at] of boxes) {
     for (const name of DATA_ASSOCIATIONS) {
