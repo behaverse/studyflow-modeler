@@ -195,7 +195,9 @@ def execute(step: Step) -> str:
         if len(history) != 2 * step.conversation["turn"]:
             raise RuntimeError(f"{step.id}: the conversation '{step.conversation['id']}' is at turn {step.conversation['turn']}, and this "
                                f"runner holds {len(history) // 2} of its exchanges: it was started again, and lost them")
-    reply, record = CLIENTS[provider](model, parts, history)
+    # A request the walk stops (`--step-timeout`) answers at once and is left to finish, its reply dropped: ending this
+    # process would lose every conversation it holds.
+    reply, record = step.unless_cancelled(lambda: CLIENTS[provider](model, parts, history))
     print(f"{provider}://{model}: {reply.strip()[:160]!r}")
     # The request as sent: its text, as far as a record needs it, how many images went with it, and after how many
     # exchanges of its conversation.

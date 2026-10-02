@@ -4,12 +4,15 @@
 import importlib.util
 import os
 import tempfile
+import threading
+import time
 import urllib.error
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("agentic", Path(__file__).with_name("local.py"))
 agentic = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(agentic)
+import runner  # noqa: E402 - the SDK the runner put on the path
 
 
 def actor(**attributes):
@@ -123,6 +126,27 @@ try:
     raise AssertionError("a conversation this runner lost is refused")
 except RuntimeError as error:
     assert "lost them" in str(error), error
+# A turn the walk stops (`--step-timeout`) answers at once, so the runner is never ended for it, and is no part of the
+# conversation: the walk asks that turn again, and the model hears the turns before it, not the stopped one.
+def slow(url, body, headers, timeout):
+    time.sleep(0.5)
+    return post(url, body, headers, timeout)
+
+
+agentic.post = slow
+stopped = agentic.Step("Model", asked, {}, {"id": "t2", "flow": "M_Ask", "content": {"Note": "trial 2, stopped"}},
+                       conversation={"id": "Model with Subjects #1", "turn": 2})
+threading.Timer(0.1, stopped._cancelled.set).start()
+try:
+    agentic.execute(stopped)
+    raise AssertionError("a stopped turn waited for its reply")
+except runner.Cancelled:
+    pass
+agentic.post = remembering
+again = agentic.Step("Model", asked, {}, {"id": "t2", "flow": "M_Ask", "content": {"Note": "trial 2"}},
+                     conversation={"id": "Model with Subjects #1", "turn": 2})
+assert agentic.execute(again) == "Left"
+assert [m["content"] for m in chats[-1] if m["role"] == "user"] == ["Note: trial 0", "Note: trial 1", "Note: trial 2"], chats[-1]
 agentic.post = post
 
 # A lookup that fails is noted, and the answer stands; a model is described once a run, so this is another one.
