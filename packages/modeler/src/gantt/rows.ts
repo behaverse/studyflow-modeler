@@ -211,7 +211,6 @@ function summarize(group: Row, children: Row[]): void {
  * any, in tree order: a container's rows follow it. Onsets are relative to a single shared anchor.
  */
 export function collectGanttRows(modeler: Editor): Row[] {
-  if (!modeler) return [];
   const { study } = modeler;
   const records = study.list();
   const { model } = study;

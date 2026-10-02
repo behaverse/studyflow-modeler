@@ -1,7 +1,7 @@
 /**
  * `mountEditor`: put a canvas on a study in a container and hand back the {@link Editor}.
  * Everything schema-, document- or app-shaped is assembled here and injected: the icon
- * resolver, templates and the simulator.
+ * resolver and the simulator.
  */
 
 import { Canvas, renderSvg } from '@canvas/index.ts';
@@ -14,7 +14,7 @@ import { BPMN_ICON_OVERRIDES, MARKER_ICONS } from '@modeler/draw/icons';
 import { EventBus } from '@modeler/editor/bus';
 import TokenSimulator from '@modeler/simulation/TokenSimulator';
 import { getSettings, subscribeSettings } from '@modeler/settings/store';
-import type { Editor, EditorModel, EditorSimulation, EditorTemplates } from '@modeler/editor/port';
+import type { Editor, EditorModel, EditorSimulation } from '@modeler/editor/port';
 
 export type MountEditorOptions = {
   container: HTMLElement;
@@ -97,8 +97,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
     if (cause !== 'load') bus.fire('HistoryChanged', {});
   });
 
-  const templates: EditorTemplates = { getAll: () => getCatalog().allTemplates() };
-
   const simulator = new TokenSimulator({ events: bus, study, canvas });
   const simulation: EditorSimulation = { toggle: () => simulator.toggle(), isActive: () => simulator.isActive() };
 
@@ -119,7 +117,6 @@ export function mountEditor(options: MountEditorOptions): Editor {
     canvas,
     events: bus,
     model,
-    templates,
     simulation,
     destroy: () => {
       simulator.dispose();

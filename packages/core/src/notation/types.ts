@@ -19,7 +19,6 @@ export interface AttributeMeta {
   pinned?: boolean;
   optional?: boolean;
   editable?: boolean;
-  readonly?: boolean;
   expression?: boolean;
   languageAttr?: string;
   icon?: string;

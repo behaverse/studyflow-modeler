@@ -1,11 +1,10 @@
 /**
  * The editor the app holds: the canvas and its study, plus the app services around
- * them (the document model, templates, simulation). Built by `editor/mount.ts`.
+ * them (the document model, simulation). Built by `editor/mount.ts`.
  */
 
 import type { Canvas, Study } from '@canvas/index.ts';
 import type { Metamodel } from '@core/model/metamodel';
-import type { Template } from '@core/notation';
 import type { EventBus } from '@modeler/editor/bus';
 
 export type { Canvas, EventBus };
@@ -14,10 +13,6 @@ export type { Canvas, EventBus };
 export interface EditorModel {
   /** The metamodel of the schemas enabled in Settings. */
   metamodel(): Metamodel;
-}
-
-export interface EditorTemplates {
-  getAll(): Template[];
 }
 
 export interface EditorSimulation {
@@ -49,7 +44,6 @@ export interface Editor {
   /** The app's bus: what the canvas and the study announce, forwarded, and the commands. */
   events: EventBus;
   model: EditorModel;
-  templates: EditorTemplates;
   simulation: EditorSimulation;
   destroy(): void;
 }

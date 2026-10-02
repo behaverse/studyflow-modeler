@@ -117,29 +117,6 @@ function OptionalStringInput({ attrDef }: { attrDef: AttributeSpec }) {
   );
 }
 
-function ReadonlyInput({ attrDef }: { attrDef: AttributeSpec }) {
-  const { value } = useAttributeState<string>(attrDef, (raw) => (raw == null ? '' : String(raw)));
-  const name = attrDef.ns.name;
-
-  return (
-    <>
-      <Label className={s.label}>
-        {t(name)}
-        <HelpTooltip name={name} description={attrDef?.description} />
-      </Label>
-      <Input
-        name={name}
-        type="text"
-        value={value}
-        readOnly
-        disabled
-        placeholder="written at run time"
-        className={s.textInput}
-      />
-    </>
-  );
-}
-
 /** An attribute a Parameters object sets: its value shown, never edited here, with the object that sets it one click away. */
 export function OverriddenInput({ attrDef, override }: { attrDef: AttributeSpec; override: AttributeOverride }) {
   const { element, modeler } = useAttributeState<unknown>(attrDef, (raw) => raw);
@@ -215,7 +192,6 @@ export function AttributeInput({ attrDef }: { attrDef: AttributeSpec }) {
 }
 
 function pickInput(attrDef: AttributeSpec) {
-  if (attrDef.meta?.readonly) return ReadonlyInput;
   if (attrDef.meta?.expression) return ExpressionInput;
 
   const named = namedInput(attrDef.meta?.editor);

@@ -143,7 +143,6 @@ types:
 | `pinned` | Fixed value, never rendered. |
 | `optional` | Renders the opt-in checkbox editor (`String` attributes; declarative intent elsewhere). |
 | `editable` | Enum that also accepts free text. |
-| `readonly` | Run-record field: shown, never edited. |
 | `condition` | Visibility predicate over sibling attributes: `{attr: value}`, with `$set` for a non-empty value, a list for any of several, `{$not: value}`. |
 | `editor` | Named editor override. Known names (checked at compile): `csvw-table`, `code`, `markdown`, `checklist`; the list lives in `packages/core/src/notation/types.ts` (`EDITOR_NAMES`) and the inspector registry is typed off it. |
 | `expression` | With `type: bpmn:Expression`: the inspector edits it as a string of FEEL, and flags one that does not parse ([Expressions](../docs/reference.qmd#expressions)). |

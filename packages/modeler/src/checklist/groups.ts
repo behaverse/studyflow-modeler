@@ -27,7 +27,6 @@ function buildChecklistGroup(record: ElementRecord, model: StudyModel, element: 
 
 /** One group per element carrying a `studyflow:checklist`, in the order the study lists them. */
 export function collectChecklistGroups(modeler: Editor): ElementGroup[] {
-  if (!modeler) return [];
   const { study } = modeler;
   const { model } = study;
   return study.list()

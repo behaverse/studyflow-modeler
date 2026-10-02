@@ -60,7 +60,6 @@ export function usePaletteDrag(
     },
 
     onPointerMove: (draggable, event) => {
-      if (!modeler) return;
       if (!pressedRef.current || startedRef.current) return;
       const { x, y } = pressPosRef.current;
       if (Math.hypot(event.clientX - x, event.clientY - y) < DRAG_THRESHOLD) return;
@@ -75,7 +74,6 @@ export function usePaletteDrag(
     },
 
     onClick: (draggable, event) => {
-      if (!modeler) return;
       event.preventDefault();
       if (startedRef.current) {
         startedRef.current = false;
