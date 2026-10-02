@@ -139,9 +139,3 @@ export function evaluateFeel(written: string, context: Record<string, unknown>):
     return { value: null, error: (error as Error).message };
   }
 }
-
-/** Whether a condition holds: only `true` does. */
-export function feelHolds(expression: string, context: Record<string, unknown>): FeelResult {
-  const { value, error } = evaluateFeel(expression, context);
-  return { value: value === true, error };
-}

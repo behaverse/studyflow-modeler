@@ -25,11 +25,6 @@ export function refOf(model: StudyModel, owner: Element | undefined, key: string
   return model.get(idsIn(owner?.[key])[0]);
 }
 
-/** Every element `owner` refers to under `key`. */
-export function refsOf(model: StudyModel, owner: Element | undefined, key: string): Element[] {
-  return idsIn(owner?.[key]).map((id) => model.get(id)).filter((target): target is Element => !!target);
-}
-
 /** Refer `owner` under `key` to `target`, as one id or a list of one where the metamodel says many; none clears it. */
 export function setRef(model: StudyModel, owner: Element, key: string, target: Element | undefined): void {
   const many = model.property(owner, key)?.isMany === true;

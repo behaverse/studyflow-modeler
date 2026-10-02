@@ -11,12 +11,6 @@ export function toLocalName(name: string | undefined): string | undefined {
   return idx === -1 ? name : name.slice(idx + 1);
 }
 
-export function toPrefix(name: string | undefined): string | undefined {
-  if (!name) return undefined;
-  const idx = name.indexOf(':');
-  return idx === -1 ? undefined : name.slice(0, idx);
-}
-
 export function firstSentence(text: string): string {
   const flat = text.replace(/\s+/g, ' ').trim();
   return (flat.match(/^.*?[.!?](?=\s+[A-Z(“"]|\s*$)/)?.[0] ?? flat).trim();

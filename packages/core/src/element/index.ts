@@ -2,7 +2,7 @@
 import type { Element } from '@core/model/index';
 import { getCatalog } from '@core/notation';
 
-export { getAttributeSpec, getAttributeSpecs } from '@core/element/attributes';
+export { getAttributeSpec } from '@core/element/attributes';
 
 /** The association a data shape feeding an activity is. */
 export const DATA_INPUT_ASSOCIATION = 'bpmn:DataInputAssociation';

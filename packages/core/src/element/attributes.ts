@@ -17,11 +17,6 @@ const BPMN_NATIVE_SPECS: Record<string, AttributeSpec> = {
   },
 };
 
-/** The attributes an element of `type` takes, its schema's included. */
-export function getAttributeSpecs(type: string | undefined): readonly AttributeSpec[] {
-  return getCatalog().instanceAttributesOf(type);
-}
-
 /** The spec of the attribute `name` an element of `type` takes. */
 export function getAttributeSpec(type: string | undefined, name: string | undefined): AttributeSpec | undefined {
   if (!name) return undefined;

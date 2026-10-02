@@ -54,7 +54,3 @@ export const BPMN = {
 
 /** Namespaces that are not element extensions, so `isExtensionPrefix` rejects them (unrelated to a schema's `required` flag); `prov` is here because a per-element `prov:Activity` is a runner's stamp on the element, not its wrapper. */
 export const NON_EXTENSION_PREFIXES = new Set(['bpmn', 'bpmndi', 'dc', 'di', 'xsi', 'xml', 'prov']);
-
-export function isDeclaredProperty(property: { $type?: string }): boolean {
-  return property?.$type === BPMN.Property;
-}
