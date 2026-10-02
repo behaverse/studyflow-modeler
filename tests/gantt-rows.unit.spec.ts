@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { axisTicks, collectGanttRows, dependencyPath, ROW_H, ROW_PAD, tickLabel } from '@modeler/gantt/rows';
+import { ancestorsOf, axisTicks, collectGanttRows, dependencyPath, layoutGantt, OPEN_H, ROW_H, ROW_PAD, tickLabel } from '@modeler/gantt/rows';
 import { loadYaml } from '../packages/canvas/tests/canvasHarness';
 
 /** A timed step whose name cites the last run's state (docs/reference.qmd, "Placeholders"), then a gateway, then a timed step with a checklist. */
@@ -166,6 +166,24 @@ test('a pool, lane or sub-process holding scheduled elements is a group row ahea
   // The lane spans Setup and WP and averages them; the pool is the lane again.
   expect(rows[1]).toMatchObject({ label: 'Ops', onsetMin: 0, durationMin: 5 * 1440, progressPct: 75 });
   expect(rows[0]).toMatchObject({ label: 'Site', progressPct: 75 });
+});
+
+test('the chart puts every bar on one scale and an open group\'s column down over its rows; folding a group hides them, and their arrows leave from it', () => {
+  const rows = collectGanttRows({ study: loadYaml(GROUP_YAML).canvas.study } as any);
+  const ancestors = ancestorsOf(rows);
+
+  const open = layoutGantt(rows, ancestors, new Set(), 100, 700);
+  expect(open.scale).toEqual({ min: 0, max: 7 * 1440 });
+  // A starts one day into the seven the study spans, and lasts two.
+  expect(open.bars.get('A')).toMatchObject({ x: 100 + 100, w: 200 });
+  const [wp, b] = [open.bars.get('WP')!, open.bars.get('B')!];
+  expect(open.bands.find((band) => band.id === 'WP')).toMatchObject({ x: wp.x, w: wp.w, y: wp.y + OPEN_H, h: b.y + ROW_H - wp.y - OPEN_H });
+  expect(open.edges.map((edge) => edge.key)).toEqual(['B->Analysis']);
+
+  const folded = layoutGantt(rows, ancestors, new Set(['WP']), 100, 700);
+  expect(folded.visible.map((row) => row.id)).toEqual(['Pool_Site', 'Lane_Ops', 'Setup', 'WP', 'Pool_Lab', 'Analysis']);
+  expect(folded.bands.map((band) => band.id)).toEqual(['Pool_Site', 'Lane_Ops', 'Pool_Lab']);
+  expect(folded.edges.map((edge) => edge.key)).toEqual(['WP->Analysis']);
 });
 
 /** The x/y pairs a path visits, whatever commands join them. */

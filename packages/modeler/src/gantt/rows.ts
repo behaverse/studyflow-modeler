@@ -4,6 +4,7 @@ import { resolvePlaceholdersIn } from '@core/model/state';
 import { isExpandable } from '@core/document/outline';
 import type { ElementRecord, Font } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
+import { DEFAULT_STROKE } from '@modeler/shape/colors';
 
 type TimingAttrs = {
   onset?: string;
@@ -277,6 +278,10 @@ export function tickLabel(min: number): string {
 
 export const ROW_H = 20;
 export const ROW_PAD = 12;
+export const PITCH = ROW_H + ROW_PAD;
+/** An open group's bar is slimmer: its ears drop to the row's full height over the rows it spans. */
+export const OPEN_H = ROW_H - 6;
+const AXIS_H = 22;
 /** How far an arrow steps out of the bar it leaves before it can turn back. */
 const STUB = 8;
 
@@ -317,4 +322,71 @@ export function dependencyPath(from: Bar, to: Bar): string {
   if (x0 <= to.x + to.w) return roundedPolyline([[x0, y0], [x1, y0], [x1, y1]]);
   const yGap = down ? to.y - ROW_PAD / 2 : to.y + ROW_H + ROW_PAD / 2;
   return roundedPolyline([[x0, y0], [x0 + STUB, y0], [x0 + STUB, yGap], [to.x + inset, yGap], [to.x + inset, y1]]);
+}
+
+/** Each row's groups, outermost first. */
+export function ancestorsOf(rows: readonly Row[]): Map<string, string[]> {
+  const of = new Map<string, string[]>();
+  for (const r of rows) of.set(r.id, r.parent ? [...of.get(r.parent) ?? [], r.parent] : []);
+  return of;
+}
+
+export type GanttLayout = {
+  /** The rows drawn: none under a folded group. */
+  visible: Row[];
+  /** The earliest onset and the latest end, in minutes; none when no row has an onset, and bars then start at the axis. */
+  scale?: { min: number; max: number };
+  /** Where a minute on the scale falls, from the axis's start. */
+  at: (min: number) => number;
+  bars: Map<string, Bar>;
+  axisY: number;
+  height: number;
+  /** An open group's column: its bar's span, drawn faintly down over the rows inside it. */
+  bands: { id: string; x: number; y: number; w: number; h: number; stroke: string }[];
+  /** One arrow per pair of drawn bars: a row under a folded group hands its arrows to the outermost folded group above it. */
+  edges: { key: string; from: string; to: string; a: Bar; b: Bar }[];
+};
+
+/**
+ * The chart, one SVG for every pool and lane so a dependency can run from a bar in one to a bar in another, and one
+ * axis under them all: the rows `collapsed` leaves drawn, a bar each on one scale after a label column `labelW` wide,
+ * across an axis `chartW` wide.
+ */
+export function layoutGantt(rows: readonly Row[], ancestors: ReadonlyMap<string, string[]>, collapsed: ReadonlySet<string>, labelW: number, chartW: number): GanttLayout {
+  const visible = rows.filter((r) => !ancestors.get(r.id)!.some((id) => collapsed.has(id)));
+  const onsets = rows.map((r) => r.onsetMin).filter((v): v is number => v !== undefined);
+  const ends = rows.map((r) => (r.onsetMin !== undefined ? r.onsetMin + (r.durationMin ?? 0) : undefined)).filter((v): v is number => v !== undefined);
+  const scale = onsets.length > 0 ? { min: Math.min(...onsets), max: Math.max(...ends, ...onsets) } : undefined;
+  const range = scale ? Math.max(1, scale.max - scale.min) : 1;
+  const at = (min: number) => ((min - (scale?.min ?? 0)) / range) * chartW;
+
+  const bars = new Map<string, Bar>();
+  let y = 4;
+  for (const r of visible) {
+    const x = scale && r.onsetMin !== undefined ? labelW + at(r.onsetMin) : labelW;
+    const w = scale && r.onsetMin !== undefined && r.durationMin !== undefined
+      ? Math.max(2, at(r.onsetMin + r.durationMin) - at(r.onsetMin))
+      : (r.durationMin !== undefined ? 24 : 6);
+    bars.set(r.id, { x, y, w, stroke: r.stroke ?? DEFAULT_STROKE });
+    y += PITCH;
+  }
+  const axisY = y + 2;
+  const height = axisY + (scale ? AXIS_H : 0) + 4;
+
+  const bands = visible.filter((g) => g.group && !collapsed.has(g.id)).map((g) => {
+    const bar = bars.get(g.id)!;
+    const bottom = Math.max(...visible.filter((r) => ancestors.get(r.id)!.includes(g.id)).map((r) => bars.get(r.id)!.y + ROW_H));
+    return { id: g.id, x: bar.x, w: bar.w, y: bar.y + OPEN_H, h: bottom - bar.y - OPEN_H, stroke: bar.stroke };
+  });
+
+  const shown = (id: string) => ancestors.get(id)!.find((g) => collapsed.has(g)) ?? id;
+  const edges = [...new Map(rows.flatMap((r) => r.after.flatMap((after) => {
+    const from = shown(after);
+    const to = shown(r.id);
+    const a = bars.get(from);
+    const b = bars.get(to);
+    return a && b && from !== to ? [[`${from}->${to}`, { key: `${from}->${to}`, from, to, a, b }] as const] : [];
+  }))).values()];
+
+  return { visible, scale, at, bars, axisY, height, bands, edges };
 }

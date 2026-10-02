@@ -1,8 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
-import { ROW_H, ROW_PAD, axisTicks, collectGanttRows, dependencyPath, tickLabel } from '@modeler/gantt/rows';
-import type { Bar } from '@modeler/gantt/rows';
+import { OPEN_H, PITCH, ROW_H, ROW_PAD, ancestorsOf, axisTicks, collectGanttRows, dependencyPath, layoutGantt, tickLabel } from '@modeler/gantt/rows';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
@@ -13,15 +12,11 @@ type Props = { isOpen: boolean; onClose: () => void };
 const MIN_CHART_W = 320;
 /** Room one tick label needs, so the axis picks a step whose labels never overlap. */
 const TICK_W = 56;
-const PITCH = ROW_H + ROW_PAD;
-/** An open group's bar is slimmer: its ears drop to the row's full height over the rows it spans. */
-const OPEN_H = ROW_H - 6;
 /** The label column hugs the widest label, up to this; a wider one wraps. */
 const LABEL_MAX = 200;
 const LABEL_PAD = 12;
 /** How far a row inside a group sits in from its group's label. */
 const INDENT = 14;
-const AXIS_H = 22;
 
 /** The attributes of a figure centred on a point. */
 function figureAt(x: number, y: number) {
@@ -46,16 +41,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
     if (!next.delete(id)) next.add(id);
     return next;
   });
-  // A row's groups, outermost first; a row under a folded one is not drawn.
-  const ancestors = useMemo(() => {
-    const of = new Map<string, string[]>();
-    for (const r of rows) of.set(r.id, r.parent ? [...of.get(r.parent) ?? [], r.parent] : []);
-    return of;
-  }, [rows]);
-  const visible = useMemo(
-    () => rows.filter((r) => !ancestors.get(r.id)!.some((id) => collapsed.has(id))),
-    [rows, ancestors, collapsed],
-  );
+  const ancestors = useMemo(() => ancestorsOf(rows), [rows]);
 
   // The chart fills the dialog: re-measured when the body resizes, which is what maximizing does to it.
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -76,55 +62,9 @@ export function GanttDialog({ isOpen, onClose }: Props) {
   // Half a tick label past the axis end, so the last label is whole.
   const chartW = Math.max(MIN_CHART_W, bodyW - labelW - TICK_W / 2);
 
-  const { minOnset, maxOnset, hasScale } = useMemo(() => {
-    const onsets = rows.map((r) => r.onsetMin).filter((v): v is number => v !== undefined);
-    const ends = rows.map((r) => {
-      if (r.onsetMin !== undefined && r.durationMin !== undefined) return r.onsetMin + r.durationMin;
-      if (r.onsetMin !== undefined) return r.onsetMin;
-      return undefined;
-    }).filter((v): v is number => v !== undefined);
-    if (onsets.length === 0) return { minOnset: 0, maxOnset: 0, hasScale: false };
-    return {
-      minOnset: Math.min(...onsets),
-      maxOnset: Math.max(...ends, ...onsets),
-      hasScale: true,
-    };
-  }, [rows]);
-
-  const range = Math.max(1, maxOnset - minOnset);
-  const xForMin = (min: number) => ((min - minOnset) / range) * chartW;
-  const ticks = hasScale ? axisTicks(minOnset, maxOnset, Math.max(2, Math.floor(chartW / TICK_W))) : [];
-
-  // One SVG for every pool and lane, so a dependency can run from a bar in one to a bar in another,
-  // and one axis under them all: every row is on the same scale.
-  const bars = new Map<string, Bar>();
-  let y = 4;
-  for (const r of visible) {
-    const x = hasScale && r.onsetMin !== undefined ? labelW + xForMin(r.onsetMin) : labelW;
-    const w = hasScale && r.onsetMin !== undefined && r.durationMin !== undefined
-      ? Math.max(2, xForMin(r.onsetMin + r.durationMin) - xForMin(r.onsetMin))
-      : (r.durationMin !== undefined ? 24 : 6);
-    bars.set(r.id, { x, y, w, stroke: r.stroke ?? DEFAULT_STROKE });
-    y += PITCH;
-  }
-  const axisY = y + 2;
-  const height = axisY + (hasScale ? AXIS_H : 0) + 4;
-  // An open group's column: its bar's span, drawn faintly down over the rows inside it.
-  const bands = visible.filter((g) => g.group && !collapsed.has(g.id)).map((g) => {
-    const bar = bars.get(g.id)!;
-    const bottom = Math.max(...visible.filter((r) => ancestors.get(r.id)!.includes(g.id)).map((r) => bars.get(r.id)!.y + ROW_H));
-    return { id: g.id, x: bar.x, w: bar.w, y: bar.y + OPEN_H, h: bottom - bar.y - OPEN_H, stroke: bar.stroke };
-  });
+  const { visible, scale, at, bars, axisY, height, bands, edges } = layoutGantt(rows, ancestors, collapsed, labelW, chartW);
+  const ticks = scale ? axisTicks(scale.min, scale.max, Math.max(2, Math.floor(chartW / TICK_W))) : [];
   const labelOf = new Map(rows.map((r) => [r.id, r.label]));
-  // A row under a folded group hands its arrows to the outermost folded group above it.
-  const shown = (id: string) => ancestors.get(id)!.find((g) => collapsed.has(g)) ?? id;
-  const edges = [...new Map(rows.flatMap((r) => r.after.flatMap((after) => {
-    const from = shown(after);
-    const to = shown(r.id);
-    const a = bars.get(from);
-    const b = bars.get(to);
-    return a && b && from !== to ? [[`${from}->${to}`, { key: `${from}->${to}`, from, to, a, b }] as const] : [];
-  }))).values()];
 
   return (
     <Modal
@@ -152,11 +92,11 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                         <path d="M1,1 L6,3.5 L1,6" fill="none" stroke="context-stroke" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
                       </marker>
                     </defs>
-                    {hasScale && (
+                    {scale && (
                       <g transform={`translate(${labelW}, ${axisY})`}>
                         <line x1={0} x2={chartW} y1={0} y2={0} stroke={DEFAULT_STROKE} strokeWidth={1} />
                         {ticks.map((t) => (
-                          <g key={t} transform={`translate(${xForMin(t)}, 0)`}>
+                          <g key={t} transform={`translate(${at(t)}, 0)`}>
                             <line y1={0} y2={4} stroke={DEFAULT_STROKE} strokeWidth={1} />
                             <text y={15} textAnchor="middle" fontSize={10} fill="#78716c">{tickLabel(t)}</text>
                           </g>
@@ -252,7 +192,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                     })}
                   </svg>
                 </div>
-                {!hasScale && (
+                {!scale && (
                   <p className="text-[0.6875rem] text-stone-500 italic">
                     No parseable <code>onset</code> values found; bars are placed at column 0
                     and sized by <code>duration</code> only.
