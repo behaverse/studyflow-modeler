@@ -160,3 +160,35 @@ except ValueError as error:
 for reply, options, named in json.loads((Path(__file__).parent / "tests" / "replies.json").read_text(encoding="utf-8")):
     assert behaverse.option_named(reply, options) == named, (reply, named)
 assert behaverse.option_named({"Answer": " match."}, ["Match", "NonMatch"]) == "Match"
+
+# A task the walk stops answers at once, so the walk never has to end this runner, and its window closes behind the
+# answer. A sleeping process stands in for the browser, and an empty folder for the build.
+import argparse  # noqa: E402
+import subprocess  # noqa: E402
+import sys  # noqa: E402
+import threading  # noqa: E402
+import time  # noqa: E402
+
+with tempfile.TemporaryDirectory() as folder:
+    build, profile = Path(folder) / "build", Path(folder) / "profile"
+    build.mkdir()
+    (build / "index.html").write_text("")
+    profile.mkdir()
+    windows = []
+    behaverse.open_stage = lambda url: windows.append(subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)", f"--user-data-dir={profile}"])) or windows[-1]
+    step = behaverse.Step("Play", {"elements": {"Play": task(timeline="T")}}, {}, run_dir=Path(folder) / "run")
+    stopped = []
+    threading.Timer(0.3, lambda: stopped.append(time.monotonic()) or step._cancelled.set()).start()
+    try:
+        behaverse.perform(step, argparse.Namespace(build=build, port=0, timeout=0, no_browser=False, auto=True))
+        raise AssertionError("a stopped task completed")
+    except behaverse.Cancelled:
+        answered = time.monotonic() - stopped[0]
+    assert answered < 0.5, f"a stopped task answered {answered:.2f}s after the stop"
+    assert windows[0].wait(timeout=5) is not None  # its window closes
+    for _ in range(50):  # and its profile goes
+        if not profile.exists():
+            break
+        time.sleep(0.1)
+    assert not profile.exists()

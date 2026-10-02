@@ -627,6 +627,20 @@ def profile_of(browser: subprocess.Popen) -> str:
     return next(arg.split("=", 1)[1] for arg in browser.args if str(arg).startswith("--user-data-dir="))
 
 
+def close_stage(stage: Stage, browser: subprocess.Popen | None) -> None:
+    """Close the task's window, stop serving it, and throw the window's profile away."""
+    if browser is not None:
+        browser.terminate()
+    stage.shutdown()
+    if browser is None:
+        return
+    try:
+        browser.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        browser.kill()
+    shutil.rmtree(profile_of(browser), ignore_errors=True)
+
+
 REPO = Path(__file__).resolve().parents[2]  # skills/behaverse/local.py
 UNITY_BUILD_DEFAULTS = [REPO / "run" / "assessment-unity" / "Build" / "WebGL", REPO.parent / "assessment-unity" / "Build" / "WebGL"]
 
@@ -671,21 +685,21 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     browser = None if args.no_browser else open_stage(url)
     deadline = time.monotonic() + args.timeout if args.timeout else None
     try:
-        while not stage.done.wait(0.5):
+        while not stage.done.wait(0.1):
             if step.cancelled:
                 raise Cancelled(f"{step.id} was stopped")
             if deadline and time.monotonic() > deadline:
                 raise TimeoutError(f"no completion from the task within {args.timeout}s")
-    finally:
-        stage.shutdown()
-        if browser is not None:
-            time.sleep(1.0)  # the completion notice stays up for a moment before the window goes
-            browser.terminate()
-            try:
-                browser.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                browser.kill()
-            shutil.rmtree(profile_of(browser), ignore_errors=True)
+    except BaseException:
+        # Stopped or failed: the walk hears at once, and the window closes behind the answer, on a thread the process
+        # does not exit before.
+        threading.Thread(target=close_stage, args=(stage, browser)).start()
+        raise
+    # The completion notice stays up for a moment before the window goes, unless the walk stops the step meanwhile.
+    shown = time.monotonic() + 1.0
+    while browser is not None and time.monotonic() < shown and not step.cancelled:
+        time.sleep(0.1)
+    close_stage(stage, browser)
     completion = stage.completion
     if not completion.get("IsCompleted"):
         raise RuntimeError(f"the task stopped before the end: {completion or 'no detail'}")
