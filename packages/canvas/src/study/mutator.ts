@@ -112,12 +112,13 @@ function participantBoundsAround(dropped: Bounds, contents: readonly SceneElemen
   };
 }
 
-function collaborationOf(scene: Scene): Element | undefined {
-  const { model } = scene;
-  if (model.host(scene.root) === 'bpmn:Collaboration') return scene.root;
-  for (const drawn of scene.elementsById.values()) {
-    const owner = drawn.kind === 'label' ? undefined : model.parentOf(drawn.element);
-    if (owner && model.host(owner) === 'bpmn:Collaboration') return owner;
+/** The collaboration a message flow between `ends` belongs to: the one holding the pool either end sits in. */
+function collaborationOf(scene: Scene, ...ends: (SceneNode | SceneEdge)[]): Element | undefined {
+  for (const end of ends) {
+    let node: SceneNode | undefined = end.kind === 'node' ? end : undefined;
+    while (node && node.type !== 'bpmn:Participant') node = node.parent;
+    const owner = node && scene.model.parentOf(node.element);
+    if (owner && scene.model.host(owner) === 'bpmn:Collaboration') return owner;
   }
   return undefined;
 }
@@ -733,7 +734,7 @@ export class Mutator {
   private fileConnection(element: Element, type: string, source: SceneNode | SceneEdge, target: SceneNode): void {
     const { model } = this.scene;
     if (isBpmnSubtypeOf(type, 'bpmn:MessageFlow')) {
-      const collaboration = collaborationOf(this.scene);
+      const collaboration = collaborationOf(this.scene, source, target);
       if (collaboration) {
         model.file(element, collaboration, 'messageFlows');
         return;
