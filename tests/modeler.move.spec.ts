@@ -1,6 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './e2e';
 
+import { STORAGE_KEYS } from '@core/storage';
+
 import {
   addPaletteElement,
   exportDiagram,
@@ -44,6 +46,8 @@ test.describe('Moving a shape', () => {
     await expect(toggle, 'snapping is on out of the box').toHaveAttribute('aria-checked', 'true');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
+    // Only what the user changed is stored, so a default changed later reaches every setting they left alone.
+    expect(await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEYS.settings)).toBe('{"snapToGrid":false}');
     // Escape closes Settings and hands the canvas back.
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('modeler-canvas')).toBeVisible();

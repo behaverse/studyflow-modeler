@@ -4,7 +4,7 @@ import new_diagram from '#assets/new_diagram.studyflow.yaml?raw';
 import { Study } from '@canvas/index.ts';
 import type { Metamodel } from '@core/model/metamodel';
 import { metamodelOf } from '@core/model/packages';
-import { loadSchemas } from '@core/notation/loader';
+import { loadSchemas, SCHEMA_NAMES } from '@core/notation/loader';
 import { fetchInstalledSchemas } from '@modeler/app/installedSchemas';
 import { mountEditor } from '@modeler/editor/mount';
 import { connectCommandBus } from '@modeler/commandBus';
@@ -41,10 +41,12 @@ async function openFromUrl(editor: Editor): Promise<void> {
   }
 }
 
-/** Mount the editor in `container` with the enabled schemas and the installed ones, on the autosaved diagram if it
- * opens, else a new one. */
+/** Mount the editor in `container` with the shipped schemas the user has not turned off and the installed ones, on the
+ * autosaved diagram if it opens, else a new one. */
 async function bootEditor(container: HTMLElement, autosaved: string | undefined): Promise<Editor> {
-  const metamodel = metamodelOf(await loadSchemas(getSettings().enabledSchemas, await fetchInstalledSchemas()));
+  const { disabledSchemas } = getSettings();
+  const enabled = SCHEMA_NAMES.filter((prefix) => !disabledSchemas.includes(prefix));
+  const metamodel = metamodelOf(await loadSchemas(enabled, await fetchInstalledSchemas()));
   return mountEditor({ container, study: await openStudy(autosaved, metamodel), metamodel });
 }
 

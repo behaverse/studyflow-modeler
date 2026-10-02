@@ -127,20 +127,20 @@ function diagnosticsFor(prefix: string): string[] {
 
 function ExtensionsSection() {
   const { settings, update } = useSettings();
-  const enabled = useMemo(() => new Set(settings.enabledSchemas), [settings.enabledSchemas]);
-  const [initial] = useState(() => new Set(settings.enabledSchemas)); // what was enabled when the section opened
+  const disabled = useMemo(() => new Set(settings.disabledSchemas), [settings.disabledSchemas]);
+  const [initial] = useState(() => new Set(settings.disabledSchemas)); // what was off when the section opened
   const dirty = useMemo(() => {
-    if (initial.size !== enabled.size) return true;
-    for (const id of initial) if (!enabled.has(id)) return true;
+    if (initial.size !== disabled.size) return true;
+    for (const id of initial) if (!disabled.has(id)) return true;
     return false;
-  }, [enabled, initial]);
+  }, [disabled, initial]);
 
-  // A required schema's switch is disabled, and loadSchemas loads it whatever this list says.
+  // A required schema's switch is disabled, and it is never stored as off.
   function toggle(prefix: string, on: boolean) {
-    const next = new Set(enabled);
-    if (on) next.add(prefix);
-    else next.delete(prefix);
-    update({ enabledSchemas: SCHEMAS.map((sc) => sc.prefix).filter((p) => next.has(p)) });
+    const next = new Set(disabled);
+    if (on) next.delete(prefix);
+    else next.add(prefix);
+    update({ disabledSchemas: SCHEMAS.filter((sc) => !sc.required && next.has(sc.prefix)).map((sc) => sc.prefix) });
   }
 
   return (
@@ -186,7 +186,7 @@ function ExtensionsSection() {
             control={
               <ToggleControl
                 label={`Load the ${schema.name} elements`}
-                checked={schema.required || enabled.has(schema.prefix)}
+                checked={schema.required || !disabled.has(schema.prefix)}
                 onChange={(on) => toggle(schema.prefix, on)}
                 disabled={schema.required}
               />

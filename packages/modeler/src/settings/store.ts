@@ -1,4 +1,3 @@
-import { SCHEMA_NAMES } from '@core/notation/loader';
 import {
   clearOwnedKeys,
   jsonCodec,
@@ -20,16 +19,24 @@ export type Settings = {
   autoSaveToFile: boolean;
   /** Whether a drag lands on the 10-unit grid; alignment snapping wins inside its own threshold either way. */
   snapToGrid: boolean;
-  /** Moddle prefixes of extension schemas to load at boot. */
-  enabledSchemas: string[];
+  /** Moddle prefixes of the shipped schemas the user turned off; a required one is never among them. */
+  disabledSchemas: string[];
 };
 
 const DEFAULT_SETTINGS: Settings = {
   diagramAutoSave: 'local',
   autoSaveToFile: true,
   snapToGrid: true,
-  enabledSchemas: [...SCHEMA_NAMES],
+  disabledSchemas: [],
 };
+
+/** The settings the user changed: one left at its default is not stored, so a later default reaches whoever never
+ * changed it. */
+function changedSettings(settings: Settings): Partial<Settings> {
+  return Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
+    .filter(([key, fallback]) => JSON.stringify(settings[key as keyof Settings]) !== JSON.stringify(fallback))
+    .map(([key]) => [key, settings[key as keyof Settings]]));
+}
 
 const settingsStore = persisted<Partial<Settings>>(
   STORAGE_KEYS.settings,
@@ -55,7 +62,7 @@ settingsStore.subscribe(() => {
 });
 
 function emit(): void {
-  lastWrite = settingsStore.save(current);
+  lastWrite = settingsStore.save(changedSettings(current));
   if (lastWrite !== 'ok' && !warned) {
     warned = true;
     notify('warning',
