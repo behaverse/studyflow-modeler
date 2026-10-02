@@ -328,6 +328,74 @@ S:
     run(stamped);
     expect(since(mark)).toEqual(expect.arrayContaining(['executed Tune', 'skipped Read (run run)']));
   });
+
+  test('a re-run redoes, transitively, every step that reads what it re-made, and the step whose in-memory value one of them reads; the rest is reused', () => {
+    test.skip(!hasPython(), 'python3 is not on PATH');
+    // Make writes a.json, Scale reads it into b.json, and Report reads b.json and the count Count holds in memory
+    // only, which Note reads too.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-taint-'));
+    fs.writeFileSync(path.join(dir, 'chain.studyflow.yaml'), `id: chain
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Count:
+      type: Task
+      dataOutputAssociations: { Out_N: { targetRef: N } }
+    N: { type: DataObjectReference }
+    Note:
+      type: Task
+      dataInputAssociations: { In_N: { sourceRef: [N] } }
+    Make:
+      type: Task
+      additionalArguments: { value: 1 }
+      dataOutputAssociations: { Out_A: { targetRef: A } }
+    A: { type: DataObjectReference, uri: a.json }
+    Scale:
+      type: Task
+      dataInputAssociations: { In_A: { sourceRef: [A] } }
+      dataOutputAssociations: { Out_B: { targetRef: B } }
+    B: { type: DataObjectReference, uri: b.json }
+    Report:
+      type: Task
+      dataInputAssociations: { In_B: { sourceRef: [B] }, In_N2: { sourceRef: [N] } }
+      dataOutputAssociations: { Out_R: { targetRef: R } }
+    R: { type: DataObjectReference, uri: r.json }
+    Done: { type: EndEvent }
+    F1: Start -> Count
+    F2: Count -> Note
+    F3: Note -> Make
+    F4: Make -> Scale
+    F5: Scale -> Report
+    F6: Report -> Done
+`);
+    writeRunner(path.join(dir, 'fake.py'), "{'elements': ['Count', 'Note', 'Make', 'Scale', 'Report'], 'live': False}", [
+      "load = lambda name: json.load(open(step.run_dir / name))",
+      "save = lambda name, value: json.dump(value, open(step.run_dir / name, 'w'))",
+      "if step.id == 'Count': step.bind('N', 2)",
+      "if step.id == 'Make': save('a.json', int(step.element['additionalArguments'].split(':')[1]))",
+      "if step.id == 'Scale': save('b.json', load('a.json') * 10)",
+      "if step.id == 'Report': save('r.json', [load('b.json'), step.values.get('N')])",
+    ]);
+    const repo = path.join(dir, 'run');
+    const archived = path.join(repo, 'chain.studyflow.yaml');
+    const run = (plan: string) => execFileSync(process.execPath, [BIN, 'run', plan, '--repo', repo, '--quiet', '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`], {
+      cwd: dir, stdio: 'pipe', env: ENV,
+    });
+    const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+    run(path.join(dir, 'chain.studyflow.yaml'));
+    const mark = git('rev-parse', 'HEAD');
+
+    fs.writeFileSync(archived, fs.readFileSync(archived, 'utf8').replace('value: 1', 'value: 2'));
+    run(archived);
+    // Scale and Report read what Make re-made, one after the other; Count re-makes the count Report reads, which a
+    // skipped step would not have bound; Note reads only that count, the same again, and is reused.
+    expect(git('log', '--reverse', '--format=%s', `${mark}..HEAD`).split('\n').filter((subject) => /^(executed|skipped) /.test(subject)))
+      .toEqual(['executed Count', 'skipped Note (run run)', 'executed Make', 'executed Scale', 'executed Report']);
+    expect(JSON.parse(fs.readFileSync(path.join(repo, 'r.json'), 'utf8'))).toEqual([20, 2]);
+  });
 });
 
 /** The contract with partial runners (packages/runtime-local/CONTRACT.md), spoken here by runners written with its SDK. */
