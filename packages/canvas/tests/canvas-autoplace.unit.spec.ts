@@ -182,48 +182,27 @@ test.describe('auto-place (click-append)', () => {
     expect(after).toBe(before);
   });
 
-  test('an occupied slot is nudged past, not silently dropped', async () => {
-    const { canvas } = loadYaml(CROWDED_YAML);
-    const source = node(canvas, 'Task_1');
-    const blocker = node(canvas, 'Blocker_1');
+  test('an occupied slot is nudged below in its column, and the flow into it runs clear of what holds the slot', async () => {
+    // Behind the second row, a report: append twice from a start event and the second flow "is not visible as it's
+    // under the first created task and edge". The router bends a diagonal pair along the DOMINANT axis, so while the
+    // drop is nearer than it is lower the flow sets off sideways at the source's own y, straight through the holder.
+    const CASES: [label: string, yaml: string, from: string, type: string, holder: (canvas: Canvas, source: SceneNode) => SceneNode][] = [
+      ['a shape drawn there', CROWDED_YAML, 'Task_1', 'bpmn:EndEvent', (canvas) => node(canvas, 'Blocker_1')],
+      ['the first successor', SOLO_YAML, 'Start_1', 'bpmn:Task', (canvas, source) => appendFrom(canvas, source, { type: 'bpmn:Task' })!],
+    ];
+    for (const [label, yaml, from, type, holder] of CASES) {
+      const { canvas } = loadYaml(yaml);
+      const source = node(canvas, from);
+      const held = holder(canvas, source);
 
-    const appended = appendFrom(canvas, source, { type: 'bpmn:EndEvent' });
+      const appended = appendFrom(canvas, source, { type });
 
-    expect(appended, 'the append happened at all').toBeTruthy();
-    // Same lane as always — only the row moved.
-    expect(appended!.x).toBe(source.x + source.width + APPEND_DISTANCE);
-    expect(appended!.y).toBeGreaterThan(blocker.y + blocker.height);
-
-    // And it fell far enough that the router's elbow points DOWN out of the source
-    // rather than sideways through the blocker (see `verticalEscape`).
-    const dx = Math.abs((appended!.x + appended!.width / 2) - (source.x + source.width / 2));
-    const dy = Math.abs((appended!.y + appended!.height / 2) - (source.y + source.height / 2));
-    expect(dy).toBeGreaterThan(dx);
-  });
-
-  test('the second flow is not hidden under the first successor', async () => {
-    // The report: append twice from a start event and the second flow "is not
-    // visible as it's under the first created task and edge". The router bends a
-    // diagonal pair along the DOMINANT axis, so while the drop is nearer than it is
-    // lower the flow sets off sideways at the source's own y — straight through the
-    // sibling. The placement has to fall far enough for the elbow to flip.
-    const { canvas } = loadYaml(SOLO_YAML);
-    const source = node(canvas, 'Start_1');
-
-    const first = appendFrom(canvas, source, { type: 'bpmn:Task' })!;
-    const second = appendFrom(canvas, source, { type: 'bpmn:Task' })!;
-    const flow = edgeBetween(canvas, source.id, second.id);
-
-    // The first one is unnudged; the second fans out below it instead of stacking.
-    expect(first.y + first.height / 2).toBe(source.y + source.height / 2);
-    expect(second.y).toBeGreaterThanOrEqual(first.y + first.height);
-
-    expect(flow, 'the second flow exists').toBeTruthy();
-    for (const [a, b] of segments(flow!.waypoints)) {
-      expect(
-        crosses(a, b, first),
-        `segment (${a.x},${a.y})-(${b.x},${b.y}) runs through the first successor`,
-      ).toBe(false);
+      expect(appended, `${label}: the append happened at all`).toBeTruthy();
+      expect(appended!.x, label).toBe(source.x + source.width + APPEND_DISTANCE);
+      expect(appended!.y, label).toBeGreaterThanOrEqual(held.y + held.height);
+      for (const [a, b] of segments(edgeBetween(canvas, source.id, appended!.id)!.waypoints)) {
+        expect(crosses(a, b, held), `${label}: segment (${a.x},${a.y})-(${b.x},${b.y}) runs through the holder`).toBe(false);
+      }
     }
   });
 

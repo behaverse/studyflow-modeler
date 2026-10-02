@@ -59,7 +59,7 @@ function retype(canvas: Canvas, element: SceneNode, what: NewShape): SceneNode |
   return id === undefined ? undefined : node(canvas, id);
 }
 
-test('replacing a task mints the new type, keeps the name and rewires both flows — proven by toXML', async () => {
+test('replacing a task mints the new type, keeps the name and rewires both flows, re-routed squarely — proven by toXML', async () => {
   const loaded = load();
   const { canvas } = loaded;
   const task = node(canvas, 'Task_1');
@@ -69,6 +69,11 @@ test('replacing a task mints the new type, keeps the name and rewires both flows
   expect(replacement, 'the swap was allowed').toBeTruthy();
   expect(replacement!.type).toBe('bpmn:UserTask');
   expect(replacement!.id).not.toBe('Task_1');
+  expect(edge(canvas, 'Flow_1').target).toBe(replacement);
+  expect(edge(canvas, 'Flow_2').source).toBe(replacement);
+  for (const flow of [edge(canvas, 'Flow_1'), edge(canvas, 'Flow_2')]) {
+    expect(isOrthogonal(flow.waypoints), `${flow.id} is square`).toBe(true);
+  }
 
   const xml = await xmlOf(loaded);
 
@@ -107,18 +112,6 @@ test('a replacement keeps the centre, in its own type\'s footprint unless both t
   const group = retype(canvas, note, { type: 'bpmn:Group' })!;
   expect([group.width, group.height]).toEqual([300, 200]);
   expect({ x: group.x + group.width / 2, y: group.y + group.height / 2 }).toEqual({ x: 600, y: 300 });
-});
-
-test('the flows are re-routed onto the replacement, squarely', async () => {
-  const { canvas } = load();
-
-  const replacement = retype(canvas, node(canvas, 'Task_1'), { type: 'bpmn:UserTask' })!;
-
-  for (const flow of [edge(canvas, 'Flow_1'), edge(canvas, 'Flow_2')]) {
-    expect(isOrthogonal(flow.waypoints), `${flow.id} is square`).toBe(true);
-  }
-  expect(edge(canvas, 'Flow_1').target).toBe(replacement);
-  expect(edge(canvas, 'Flow_2').source).toBe(replacement);
 });
 
 test('replacing an element with the type it already is writes nothing', async () => {

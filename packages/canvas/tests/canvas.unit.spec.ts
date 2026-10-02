@@ -659,18 +659,6 @@ test('an undo draws the study again over what is drawn and keeps the view on it,
   expect(heard).toEqual(['scope Process_1']);
 });
 
-test('dropping a shape into an expanded container re-files it there', async () => {
-  const { canvas } = load();
-  const sub = node(canvas, 'Sub_1');
-  canvas.study.expand({ id: sub.id });
-  const task = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 800, y: 118 } }).id!);
-  click(canvas, centre(task));
-  dragBy(canvas, centre(task), { x: sub.x + sub.width - 60, y: sub.y + sub.height - 50 });
-  expect(task.parent).toBe(sub);
-  expect(sub.element.flowElements).toContain(task.element);
-  expect(sceneOf(canvas).children).not.toContain(task);
-});
-
 test('a shape dropped into a container is drawn above it, even one drawn before the container', async () => {
   const { canvas } = load();
   const task = node(canvas, canvas.study.add({ type: 'bpmn:Task', at: { x: 800, y: 118 } }).id!);
@@ -706,7 +694,10 @@ test('an edit made of several is one commit: one revision, one change', async ()
     labelEditingOf(canvas).cancel();
     expect({ revisions: scene.revision - revision, fired }, what).toEqual({ revisions: 1, fired: 1 });
   }
+  // The move re-filed the shape: the container holds it, in the scene and in the document.
   expect(loose.parent).toBe(sub);
+  expect(sub.element.flowElements).toContain(loose.element);
+  expect(scene.children).not.toContain(loose);
   expect(canvas.study.get('Start_1')).toBeUndefined();
   expect(node(canvas, 'End_1').element.name).toBeUndefined();
 });
