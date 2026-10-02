@@ -33,8 +33,9 @@ by subject and by condition without joining anything in.
 
 Who answers is what the diagram draws, never a `Bot:` entry, which only says how the build's bot plays. In a local
 run a task with message flows — its own, or the nearest enclosing sub-process's, which is where BPMN can draw them
-when that sub-process is collapsed — sends each awaiting trial, and with it the task's data inputs (the `agentic:Prompt`
-wired into it, above all), along the one out of it, and injects the answer that comes back naming one of the trial's options; any other answer, or none in time, is a miss, and nothing stands in for it.
+when that sub-process is collapsed — sends each awaiting trial as the build describes it (`TrialIndex`, its `Stimulus`,
+`ResponseOptions`, `MaxResponseTime`, the instrument as `Scene`, and a `Screenshot` when the build takes one), and with
+it the task's data inputs (the `agentic:Prompt` wired into it, above all), along the one out of it, and injects the answer that comes back naming one of the trial's options; any other answer, or none in time, is a miss, and nothing stands in for it.
 The browser runner plays a person, a model on the task's band (its `implementation` names it), or the build's random
 bot (a `software` taker whose `implementation` is `behaverse://bot`); any other taker answers along message flows, locally.
 When the task answers along message flows, its `failedTrialRate` is kept with its result: the share of the trials the build showed that it recorded no

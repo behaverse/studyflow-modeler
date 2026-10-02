@@ -17,8 +17,10 @@ the pool and one back, and nothing else names a model. `local.py` plays such a p
 sent to it is one request, and the reply goes back along the pool's flow (`../../packages/runtime-local/CONTRACT.md`, "Messages").
 
 The request is the message's content, in its order. A `Prompt` wired into the asking step gives its text, an image
-file in the run or a `data:image/` value goes as an image, other text as text, and anything else as JSON. The runner
-adds no prompt of its own. A call that fails answers null, and the run records the error.
+file in the run or a `data:image/` value goes as an image, and any other value as `<name>: <value>`, the value as text
+or, when it is not text, as JSON (`Stimulus: {"Value": "3"}`). The name is that of the element the content's key is (a
+property named `instruction`), else the key itself (a field of a Behaverse trial). The runner adds no prompt of its
+own. A call that fails answers null, and the run records the error.
 
 A model answers each message on its own, unless its pool's `memory` is `conversation`. Then the runner keeps each
 conversation the walk names (one per instance of the pool asking, for the run) and sends it along, turn by turn,

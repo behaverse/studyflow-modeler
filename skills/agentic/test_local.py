@@ -29,6 +29,7 @@ elements = {
             "template": "Be {arm}. Trial {reached} of {Play.trials}, in {state.Study.room}. {nothing}"}}]},
     "Task": {"type": "task", "parent": "Subject"},
     "Subject": {"type": "subProcess", "parent": "Study"},
+    "P_Instruction": {"type": "property", "name": "instruction"},
 }
 plan = {"elements": elements, "names": {"Play_1": "Play"}}
 assert agentic.model_pools(plan) == ["Model"]
@@ -39,14 +40,22 @@ try:
 except ValueError:
     pass
 
-# The request is the content, in order: a prompt's text, an image in the run, other text, JSON; nothing added.
+# The request is the content, in order: a prompt's text, an image in the run, and any other value under its name, as
+# text or as JSON; nothing added. The name is the element's its key is, else the key.
 with tempfile.TemporaryDirectory() as run:
     (Path(run) / "frames").mkdir()
     (Path(run) / "frames" / "trial-1.jpg").write_bytes(b"\xff\xd8jpeg")
-    content = {"Frame": "frames/trial-1.jpg", "Instructions": None, "Note": "left is yellow", "Trial": {"n": 1}}
+    content = {"Frame": "frames/trial-1.jpg", "Instructions": None, "Note": "left is yellow", "Trial": {"n": 1},
+               "P_Instruction": "Take your time."}
     parts = agentic.parts_of(content, plan, Path(run), {}, "Task")
     assert parts == [{"image": ("image/jpeg", "/9hqcGVn")}, {"text": "Answer Left or Right."},
-                     {"text": "left is yellow"}, {"text": '{"n": 1}'}], parts
+                     {"text": "Note: left is yellow"}, {"text": 'Trial: {"n": 1}'}, {"text": "instruction: Take your time."}], parts
+    # A Behaverse trial, as its task sends it: the model reads each field of it by name, the stimulus above all.
+    trial = {"Instructions": None, "TrialIndex": 1, "Stimulus": {"Value": "3"}, "ResponseOptions": ["Match", "NonMatch"],
+             "MaxResponseTime": 20, "Scene": "NB"}
+    assert agentic.parts_of(trial, plan, Path(run), {}, "Task") == [
+        {"text": "Answer Left or Right."}, {"text": "TrialIndex: 1"}, {"text": 'Stimulus: {"Value": "3"}'},
+        {"text": 'ResponseOptions: ["Match", "NonMatch"]'}, {"text": "MaxResponseTime: 20"}, {"text": "Scene: NB"}]
     assert agentic.parts_of("data:image/png;base64,AAAA", plan, Path(run), {}, "Task") == [{"image": ("image/png", "AAAA")}]
     assert agentic.parts_of({"Missing": None}, plan, Path(run), {}, "Task") == []
 
@@ -85,7 +94,7 @@ step = agentic.Step("Model", asked, {}, {"id": "m1", "flow": "M_Ask", "content":
 assert agentic.execute(step) == "Left" and step.record == {
     "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False}, "digest": "ab12", "quantization": "Q4_0",
     "parameters": "temperature 1\ntop_k 64", "version": "ollama 0.12.3",
-    "sent": {"text": 'left is yellow\n\n{"n": 1}', "images": 1},
+    "sent": {"text": 'Note: left is yellow\n\nTrial: {"n": 1}', "images": 1},
 }, step.record
 
 
@@ -105,7 +114,7 @@ for turn in (0, 1):
     step = agentic.Step("Model", asked, {}, {"id": f"t{turn}", "flow": "M_Ask", "content": {"Note": f"trial {turn}"}},
                         conversation={"id": "Model with Subjects #1", "turn": turn})
     assert agentic.execute(step) == "Left"
-assert [(m["role"], m["content"]) for m in chats[-1]] == [("user", "trial 0"), ("assistant", "Left"), ("user", "trial 1")], chats[-1]
+assert [(m["role"], m["content"]) for m in chats[-1]] == [("user", "Note: trial 0"), ("assistant", "Left"), ("user", "Note: trial 1")], chats[-1]
 assert step.record["sent"]["turn"] == 1
 lost = agentic.Step("Model", asked, {}, {"id": "t9", "flow": "M_Ask", "content": {"Note": "trial 9"}},
                     conversation={"id": "Model with Subjects #2", "turn": 3})

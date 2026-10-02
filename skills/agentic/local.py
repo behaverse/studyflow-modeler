@@ -70,8 +70,10 @@ def image_of(value: str, run_dir: Path) -> tuple[str, str] | None:
 
 def parts_of(content: Any, plan: dict[str, Any], run_dir: Path, values: dict[str, Any], scope: str) -> list[dict[str, Any]]:
     """The request, part by part, in the content's order: a `Prompt`'s text for a null value its id names, an image
-    for an image, text for other text, and JSON for anything else. Nothing is added; the prompt's placeholders are
-    resolved against the state the walk handed over, from the asking step's scope."""
+    for an image, and for any other value its name, then the value as text, or as JSON when it is not text
+    (`Stimulus: {"Value": "3"}`). The name is the element's that its key is, else the key itself (a field of a
+    trial). Nothing else is added; the prompt's placeholders are resolved against the state the walk handed over, from
+    the asking step's scope."""
     elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
     parts: list[dict[str, Any]] = []
     for key, value in (content.items() if isinstance(content, dict) else [(None, content)]):
@@ -83,7 +85,9 @@ def parts_of(content: Any, plan: dict[str, Any], run_dir: Path, values: dict[str
         elif isinstance(value, str) and (image := image_of(value, run_dir)):
             parts.append({"image": image})
         else:
-            parts.append({"text": value if isinstance(value, str) else json.dumps(value)})
+            text = value if isinstance(value, str) else json.dumps(value)
+            name = (elements.get(str(key)) or {}).get("name") or key
+            parts.append({"text": text if key is None else f"{name}: {text}"})
     return parts
 
 

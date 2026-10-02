@@ -355,7 +355,9 @@ class Exchange:
         self.inputs = inputs or {}
 
     def ask(self, trial: dict[str, Any]) -> dict[str, Any]:
-        """The trial's answer as the page injects it, or {} when none names an option within the response window."""
+        """The trial's answer as the page injects it, or {} when none names an option within the response window. The
+        message carries the task's data inputs, then the trial as the page relays it (its stimulus, options and window),
+        less the build's request id, which only the page needs."""
         request = str(trial.get("RequestId") or "")
         options = [str(option) for option in trial.get("ResponseOptions") or []]
         content = {**self.inputs, **{key: value for key, value in trial.items() if key != "RequestId" and value is not None}}
@@ -428,13 +430,14 @@ const poll = setInterval(() => {
   if (window.studyflowReady || (frame.contentWindow && frame.contentWindow.studyflowReady)) { clearInterval(poll); start(); }
 }, 100);
 
-// Along the task's message flows: the runner sends the trial and waits for the answer that names it. No answer, no
-// injection: the trial's own response window ends it, a miss.
+// Along the task's message flows: the runner sends the trial as the build describes it (its stimulus, the options it
+// takes, its window) and waits for the answer that names it. No answer, no injection: the trial's own response window
+// ends it, a miss.
 async function answer(d) {
   const options = d.ResponseOptions;
   const reply = await fetch('/respond', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ RequestId: d.RequestId, TrialIndex: d.TrialIndex, ResponseOptions: options,
+    body: JSON.stringify({ RequestId: d.RequestId, TrialIndex: d.TrialIndex, Stimulus: d.Stimulus, ResponseOptions: options,
       MaxResponseTime: d.MaxResponseTime, Scene: STAGE.scene, Screenshot: d.Screenshot || undefined }),
   }).then((r) => r.json()).catch(() => ({}));
   if (!options.includes(reply.Response)) return;
