@@ -194,7 +194,7 @@ test('the history holds what edits changed: nothing for a no-op, no redo past a 
 
 // --- writes ----------------------------------------------------------------------------
 
-test('set writes an attribute where its schema keeps it, by any id the document holds; an unknown id is refused', () => {
+test('set writes an attribute where its schema keeps it, by any id the document holds, and an empty text removes it; an unknown id is refused', () => {
   const study = open();
   const heard: string[] = [];
   study.on('change', (change) => heard.push(change.changed.join()));
@@ -208,6 +208,10 @@ test('set writes an attribute where its schema keeps it, by any id the document 
   expect(heard, 'a refusal writes nothing and says nothing').toEqual(['Task_1', 'Process_1']);
   expect(study.element('Task_1')!.name).toBe('Screen');
   expect(study.element('Count')!.name).toBe('total');
+
+  // No text, no attribute: a field emptied removes what it held.
+  expect(study.set({ id: 'Task_1', attribute: 'name', value: '' }).ok).toBe(true);
+  expect(study.element('Task_1')).not.toHaveProperty('name');
 });
 
 test('set writes a list of text into the schema entry that keeps it, and an empty list clears it', () => {

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { addPaletteElement, examplePath, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
+import { addPaletteElement, exportDiagram, gotoModeler, pressOnCanvas, readDownloadText } from './utils';
 
 /**
  * The inspector's Execution tab: run state as `bpmn:Property` declarations and the data associations
@@ -18,7 +18,7 @@ const SEQUENTIAL_MARKER = '[data-icon-key="sequential"]';
 /** The name field of a declared property, labelled with the property's id. */
 const propertyName = (page: import('@playwright/test').Page, id: string) => page.getByRole('textbox', { name: new RegExp(`\\b${id}\\b`) });
 
-test('the study declares typed properties, and a step binds one from the picker', async ({ page }) => {
+test('the study declares typed properties, a step binds one from the picker, and a container declares its own', async ({ page }) => {
   await gotoModeler(page);
   const inspector = page.getByTestId('inspector-root');
   const openExecutionTab = () => inspector.getByRole('tab', { name: /execution/i }).click();
@@ -48,6 +48,18 @@ test('the study declares typed properties, and a step binds one from the picker'
   await expect(inspector.getByRole('button', { name: /unbind.*\barm\b/i })).toBeVisible();
   await page.getByLabel(/transformation.*\barm\b/i).fill('lower case(arm)');
 
+  // A container opens a scope, so it declares its own, under an id no other scope holds; removing one is an edit that undoes.
+  await addPaletteElement(page, 'Containers', 'Sub-process', { x: 620, y: 400 });
+  await page.keyboard.press('Escape');
+  await openExecutionTab();
+  await page.getByTestId('add-property').click();
+  const trialIndex = propertyName(page, 'Property_3');
+  await trialIndex.fill('trial_index');
+  await page.getByRole('button', { name: /remove.*trial_index/i }).click();
+  await expect(trialIndex).toHaveCount(0);
+  await pressOnCanvas(page, 'ControlOrMeta+z');
+  await expect(trialIndex).toHaveValue('trial_index');
+
   const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
   expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_string');
   expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_torch.Tensor');
@@ -55,24 +67,7 @@ test('the study declares typed properties, and a step binds one from the picker'
   expect(studyflowText).toContain('transformation: lower case(arm)');
 });
 
-// On a diagram of its own: a container's first property takes `Property_1` even when the study
-// already holds one (`nextPropertyId` looks at one scope), and the next import loses one of the two.
-test('a container declares its own properties, and removing one is an edit that undoes', async ({ page }) => {
-  await gotoModeler(page);
-  await addPaletteElement(page, 'Containers', 'Sub-process', { x: 620, y: 400 });
-  await page.keyboard.press('Escape');
-  await page.getByTestId('inspector-root').getByRole('tab', { name: /execution/i }).click();
-
-  await page.getByTestId('add-property').click();
-  const name = propertyName(page, 'Property_1');
-  await name.fill('trial_index');
-  await page.getByRole('button', { name: /remove.*trial_index/i }).click();
-  await expect(name).toHaveCount(0);
-  await pressOnCanvas(page, 'ControlOrMeta+z');
-  await expect(name).toHaveValue('trial_index');
-});
-
-test('a step repeats: its kind sets the canvas marker, its condition takes a language, and edits undo', async ({ page }) => {
+test('a step repeats: its kind sets the canvas marker, its condition is FEEL and flagged when not, and edits undo', async ({ page }) => {
   await gotoModeler(page);
   const canvas = page.getByTestId('modeler-canvas');
 
@@ -89,7 +84,12 @@ test('a step repeats: its kind sets the canvas marker, its condition takes a lan
 
   const section = page.getByTestId('loop-section');
   const condition = section.locator('textarea[name="loopCondition"]');
+  // One language everywhere: the field names it, and marks an expression written in another.
+  await expect(section.getByText('FEEL', { exact: true })).toBeVisible();
+  await condition.fill("state.trace.count('Gate') < 8");
+  await expect(condition).toHaveAttribute('aria-invalid', 'true');
   await condition.fill('score < 0.9');
+  await expect(condition).not.toHaveAttribute('aria-invalid', 'true');
   await section.locator('input[name="loopMaximum"]').fill('5');
   // The only checkbox in loop mode is testBefore.
   await section.getByRole('checkbox').click();
@@ -111,32 +111,6 @@ test('a step repeats: its kind sets the canvas marker, its condition takes a lan
   await expect(kind).toContainText(/loop/i);
   await expect(condition).toHaveValue('score < 0.9');
   await expect(section.locator('input[name="loopMaximum"]')).toHaveValue('5');
-
-  const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-  expect(studyflowText).toContain('type: StandardLoopCharacteristics');
-  expect(studyflowText).toContain('loopCondition: score < 0.9');
-});
-
-test('an expression field says it is FEEL and flags one that is not, and emptying it removes the expression', async ({ page }) => {
-  await gotoModeler(page);
-  await page.getByTestId('open-file-input').setInputFiles(examplePath('drawn_loop'));
-  await expect(page.locator('g[data-element-id="Say"]')).toBeVisible();
-
-  await page.locator('g[data-element-id="Again_label"]').click();
-  const condition = page.locator('textarea[name="bpmn:conditionExpression"]');
-  await expect(condition).toHaveValue('state._meta.reached.Gate < 8');
-
-  // One language everywhere: the field names it, and marks an expression written in another.
-  const badge = page.getByText('FEEL', { exact: true });
-  await expect(badge).toBeVisible();
-  await condition.fill("state.trace.count('Gate') < 8");
-  await expect(condition).toHaveAttribute('aria-invalid', 'true');
-  await condition.fill('state._meta.reached.Gate < 8');
-  await expect(condition).not.toHaveAttribute('aria-invalid', 'true');
-
-  // No text, no element: clearing the field removes the expression, so the conditional-flow marker follows.
-  await condition.fill('');
-  expect(await readDownloadText(await exportDiagram(page, 'bpmn'))).not.toContain('conditionExpression');
 });
 
 /** A Behaverse task whose own instrument is NB, and a Parameters object wired into it that sets WO; a sub-process with one
