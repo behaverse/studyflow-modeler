@@ -466,7 +466,7 @@ export class Renderer {
     if (!def) return;
     const size = DATA_ICON_SIZE;
     // An image keeps its own shape, so a logotype is fitted to a band across the body; a glyph is square.
-    if ('href' in def) drawImageIcon(g, def, 4, cy - size / 2, node.width - 8, size, key);
+    if ('href' in def) drawImageIcon(g, def, 4, cy - size / 2, node.width - 8, size, color, key);
     else drawIcon(g, key, (node.width - size) / 2, cy - size / 2, size, color, resolver, node.element);
   }
 

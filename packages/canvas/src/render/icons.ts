@@ -18,8 +18,8 @@ export interface CssIconDef {
 }
 
 /**
- * An image URL, drawn as an SVG `<image>`: it keeps its own colours, and runs no script
- * however the document came by it. The browser loads `href`, so hand it only a `data:` URL.
+ * An image URL, drawn as an SVG `<image>`, which runs no script however the document came by it, and
+ * painted in the glyph's colour like every other glyph. The browser loads `href`, so hand it only a `data:` URL.
  */
 export interface ImageIconDef {
   href: string;
@@ -59,10 +59,16 @@ export function drawIcon(
       : drawCssIcon(container, resolved.cssClass, x, y, size, color, iconKey);
   }
   if (isInlineIcon(resolved)) return drawInlineSvgIcon(container, resolved, x, y, size, color, iconKey);
-  return drawImageIcon(container, resolved, x, y, size, size, iconKey);
+  return drawImageIcon(container, resolved, x, y, size, size, color, iconKey);
 }
 
-/** An image icon fitted to `width × height` at `(x, y)`, keeping its own shape: a logotype runs wide. */
+let tints = 0;
+
+/**
+ * An image icon fitted to `width × height` at `(x, y)`, keeping its own shape (a logotype runs wide), and painted in
+ * `color` where it is opaque: a filter of the canvas's own floods the colour and keeps it where the image has ink, so
+ * nothing of the image's but its pixels reaches the drawing.
+ */
 export function drawImageIcon(
   container: SVGElement,
   def: ImageIconDef,
@@ -70,9 +76,16 @@ export function drawImageIcon(
   y: number,
   width: number,
   height: number,
+  color: string,
   iconKey: string,
 ): SVGElement {
-  return append(container, create('image', { x, y, width, height, href: def.href, class: 'sf-icon', 'data-icon-key': iconKey }));
+  const g = append(container, create('g', { class: 'sf-icon', 'data-icon-key': iconKey }));
+  const id = `sf-tint-${tints += 1}`;
+  const filter = append(g, create('filter', { id, 'color-interpolation-filters': 'sRGB' }));
+  append(filter, create('feFlood', { 'flood-color': color }));
+  append(filter, create('feComposite', { in2: 'SourceAlpha', operator: 'in' }));
+  append(g, create('image', { x, y, width, height, href: def.href, filter: `url(#${id})` }));
+  return g;
 }
 
 function drawInlineSvgIcon(

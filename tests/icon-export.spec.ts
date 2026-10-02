@@ -16,7 +16,7 @@ async function openExample(page: Page, name: string, title: string): Promise<voi
   await expect(diagramTitle(page)).toContainText(title);
 }
 
-/** A user task whose icon is a `data:` image: red, so the raster shows whether it was painted. */
+/** A user task whose icon is a `data:` image, red: the raster shows it painted, in the ink rather than its own red. */
 const IMAGE_ICON = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" fill="#f00"/></svg>')}`;
 const IMAGE_ICON_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
@@ -59,22 +59,29 @@ test.describe('native SVG icons', () => {
     await page.getByTestId('open-file-input').setInputFiles({
       name: 'image_icon.studyflow', mimeType: 'application/xml', buffer: Buffer.from(IMAGE_ICON_XML),
     });
-    await expect(canvas.locator('image.sf-icon[data-icon-key="UserTask"]')).toBeAttached();
+    await expect(canvas.locator('g.sf-icon[data-icon-key="UserTask"] > image')).toBeAttached();
 
-    // The raster reads back (an `<image>` does not taint it, as a foreignObject does) with the glyph painted.
+    // The raster reads back (an `<image>` does not taint it, as a foreignObject does) with the glyph painted in the
+    // muted ink (#78716c), which nothing else on a plain task is, and none of the image's own red.
     const imagePng = await readDownload(await exportDiagram(page, 'png'));
-    const redPixels = await page.evaluate(async (base64) => {
+    const painted = await page.evaluate(async (base64) => {
       const image = new Image();
       image.src = `data:image/png;base64,${base64}`;
       await image.decode();
       const context = Object.assign(document.createElement('canvas'), { width: image.width, height: image.height }).getContext('2d')!;
       context.drawImage(image, 0, 0);
       const { data } = context.getImageData(0, 0, image.width, image.height);
-      let count = 0;
-      for (let i = 0; i < data.length; i += 4) if (data[i] > 200 && data[i + 1] < 50 && data[i + 2] < 50) count += 1;
-      return count;
+      const near = (i: number, [r, g, b]: number[]) => Math.abs(data[i] - r) <= 2 && Math.abs(data[i + 1] - g) <= 2 && Math.abs(data[i + 2] - b) <= 2;
+      let ink = 0;
+      let red = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (near(i, [0x78, 0x71, 0x6c])) ink += 1;
+        if (data[i] > 200 && data[i + 1] < 50 && data[i + 2] < 50) red += 1;
+      }
+      return { ink, red };
     }, imagePng.toString('base64'));
-    expect(redPixels).toBeGreaterThan(0);
+    expect(painted.ink).toBeGreaterThan(20);
+    expect(painted.red).toBe(0);
     expect(requests).toEqual([]);
   });
 });

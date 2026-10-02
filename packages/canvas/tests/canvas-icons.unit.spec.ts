@@ -64,11 +64,12 @@ function iconKeys(canvas: Canvas, id: string): (string | null)[] {
 }
 
 test('the resolver\'s answer decides how a type glyph is drawn, and whether at all', async () => {
-  // A `data:` image draws as itself: an `<image>` runs no script, whatever document it came in.
+  // A `data:` image draws as an `<image>`, which runs no script whatever document it came in, painted in the ink by a
+  // filter of the canvas's own.
   const href = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${GLYPH}</svg>`)}`;
   const CASES: [label: string, resolver: Resolver, drawn: string | null, exported?: string][] = [
     ['inline content: a nested <svg> with its paths', () => GLYPH_DEF, 'svg.sf-icon > path[d="M4 4h16v16H4z"]', 'M4 4h16v16H4z'],
-    ['an image URL: an <image>', () => ({ href }), `image.sf-icon[href="${href}"]`, `href="${href}"`],
+    ['an image URL: an <image>, tinted', () => ({ href }), `g.sf-icon > image[href="${href}"][filter^="url(#sf-tint-"]`, `href="${href}"`],
     ['a class the stylesheet does not know: a foreignObject for the host to paint', () => ({ cssClass: 'iconify bi--person' }), 'foreignObject.icon-container > div[data-icon-class="iconify bi--person"]'],
     // `null` is the app's answer for a type BPMN draws no glyph for (a sub-process, a call activity).
     ['null: nothing', (key) => (key === 'loop' ? GLYPH_DEF : null), null],
@@ -274,6 +275,9 @@ test('a data store draws its format\'s icon, a typed data object its type\'s, a 
     ['a plain data object', 'Obj_plain', []],
   ];
   for (const [label, id, keys] of CASES) expect(iconKeys(canvas, id), label).toEqual(keys);
-  // An image keeps its own shape, so the wide logotype spans the store's body (50 wide, 4 in from each side).
-  expect(graphics(canvas, 'Store_bids').querySelector('image')!.getAttribute('width')).toBe('42');
+  // An image keeps its own shape, so the wide logotype spans the store's body (50 wide, 4 in from each side), and is
+  // painted in the store's ink, the muted one when the store has no colour of its own.
+  const bids = graphics(canvas, 'Store_bids');
+  expect(bids.querySelector('image')!.getAttribute('width')).toBe('42');
+  expect(bids.querySelector('feFlood')!.getAttribute('flood-color')).toBe(INK.muted);
 });
