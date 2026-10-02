@@ -71,6 +71,7 @@ export function feelSyntaxError(written: string): string | undefined {
 }
 
 const ORDERED = '__ordered';
+const DEFINED = '__defined';
 const RELATIONS = new Set(['<', '<=', '>', '>=']);
 
 /** `a < b` as DMN orders it: a number with a number, a string with a string, and null for any other pair, where
@@ -82,13 +83,31 @@ function ordered(left: unknown, relation: string, right: unknown): boolean | nul
   return relation === '<' ? a < b : relation === '<=' ? a <= b : relation === '>' ? a > b : a >= b;
 }
 
-/** The expression with each ordering comparison spelt as a call to `ordered`, which feelin then evaluates. */
-function withOrdering(expression: string): string {
+function defined(value: unknown): boolean {
+  return value !== null && value !== undefined;
+}
+
+/** The name a path, an index or a name starts from; none for any other expression. */
+function rootName(node: SyntaxNode, expression: string): string | undefined {
+  let root: SyntaxNode | null = node;
+  while (root && (root.type.name === 'PathExpression' || root.type.name === 'FilterExpression')) root = root.firstChild;
+  return root?.type.name === 'VariableName' ? expression.slice(root.from, root.to) : undefined;
+}
+
+/** The expression as feelin evaluates it: each ordering comparison a call to `ordered`, and each `is defined(x)`, which
+ * feelin lacks, read as feel.py reads it: a name is defined when a scope declares it, a path when it reaches a value. */
+function forFeelin(expression: string, declared: Set<string>): string {
   const spell = (node: SyntaxNode): string => {
     const [left, operator, right] = [node.firstChild, node.firstChild?.nextSibling, node.lastChild];
     const relation = operator && expression.slice(operator.from, operator.to);
     if (node.type.name === 'Comparison' && operator?.type.name === 'CompareOp' && left && right && RELATIONS.has(relation!)) {
       return `${ORDERED}(${spell(left)}, "${relation}", ${spell(right)})`;
+    }
+    const argument = node.getChild('PositionalParameters')?.firstChild;
+    if (node.type.name === 'FunctionInvocation' && left && expression.slice(left.from, left.to) === 'is defined' && argument && !argument.nextSibling) {
+      const root = rootName(argument, expression);
+      if (root !== undefined && !declared.has(root)) return 'false';
+      return argument.type.name === 'VariableName' ? 'true' : `${DEFINED}(${spell(argument)})`;
     }
     let text = '';
     let at = node.from;
@@ -109,7 +128,7 @@ export function evaluateFeel(written: string, context: Record<string, unknown>):
   try {
     // A name a scope declares but has not written is null, not missing.
     const declared = Object.fromEntries(Object.entries(context).map(([name, value]) => [name, value === undefined ? null : value]));
-    const { value, warnings } = evaluate(withOrdering(expression), { ...declared, [ORDERED]: ordered });
+    const { value, warnings } = evaluate(forFeelin(expression, new Set(Object.keys(declared))), { ...declared, [ORDERED]: ordered, [DEFINED]: defined });
     const missing = warnings.find((warning) => warning.type === 'NO_VARIABLE_FOUND');
     if (missing) {
       const name = /'([^']+)'/.exec(missing.message)?.[1] ?? missing.message;
