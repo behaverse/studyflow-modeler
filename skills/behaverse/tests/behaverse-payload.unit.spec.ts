@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 import { parseStudyflow } from '@runner/studyflow';
 import { botForUnity } from '@skills/behaverse/browser/botConfig';
 import { getBehaverseTaskPayload } from '@skills/behaverse/browser/parser';
-import type { BehaverseBotPayload, BehaverseTaskPayload } from '@skills/behaverse/browser/types';
+import type { BehaverseBotPayload, BehaverseTaskPayload, Manifest } from '@skills/behaverse/browser/types';
+import { validateBehaverseNode } from '@skills/behaverse/browser/validation';
 import type { FlowNode } from '@runner/flow';
 import { freshPackages } from '@tests/schemas';
 
@@ -202,5 +203,47 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
     const built = await payloadOf(xml);
     expect(built, label).toEqual({ scene: 'NB', timeline: 'XCIT_NB_01', metadata: { studyflowNodeId: 'TheTask' }, ...payload });
     expect(botForUnity(built?.bot), `${label}: the bot Unity gets`).toEqual(unityBot ?? payload?.bot);
+  }
+});
+
+/** The task in a pool, with a trial flowing into it from a model rather than out to one. */
+const TRIAL_INTO_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="trial_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn2:itemDefinition id="Trial_Item" structureRef="behaverse:Trial" />
+  <bpmn2:message id="Trial" itemRef="Trial_Item" />
+  <bpmn2:collaboration id="C">
+    <bpmn2:participant id="Lab" name="Lab" processRef="P" />
+    <bpmn2:participant id="Claude" name="Claude"><bpmn2:extensionElements><studyflow:actor actorType="llm" implementation="claude://claude-haiku-4-5" /></bpmn2:extensionElements></bpmn2:participant>
+    <bpmn2:messageFlow id="M_Trial" sourceRef="Claude" targetRef="TheTask" messageRef="Trial" />
+  </bpmn2:collaboration>
+  <bpmn2:process id="P"><bpmn2:extensionElements><studyflow:study /></bpmn2:extensionElements>
+    <bpmn2:task id="TheTask" name="The task"><bpmn2:extensionElements><behaverse:task instrument="NB" timeline="XCIT_NB_01" /></bpmn2:extensionElements></bpmn2:task>
+  </bpmn2:process>
+</bpmn2:definitions>`;
+
+/** A build shipping NB with one timeline, and WO with none. */
+const MANIFEST: Manifest = { version: 1, tasks: [{ id: 'NB', timelines: ['XCIT_NB_01'] }, { id: 'WO', timelines: [] }] };
+
+test('against the build\'s manifest, an instrument or timeline it does not ship, a nested Bot setting, or a trial flowing into the task is refused with the fix', async () => {
+  const CASES: [label: string, xml: string, refusal: RegExp | null][] = [
+    ['a timeline the build ships runs', taskXml('timeline: XCIT_NB_01\n'), null],
+    ['a timeline the wired Parameters define runs', taskXml('timeline: T1\nTimelines:\n  T1: {Name: T1}\n'), null],
+    ['a task naming no instrument', taskXml('timeline: XCIT_NB_01\n').replace(' instrument="NB"', ''), /no instrument.*Set instrument/],
+    ['an instrument the build does not ship', taskXml('instrument: ZZ\ntimeline: XCIT_NB_01\n'), /no task called 'ZZ'.*one of: NB, WO/],
+    ['a timeline the build does not ship', taskXml('timeline: XCIT_NB_99\n'), /'NB' has no timeline called 'XCIT_NB_99'.*one of: XCIT_NB_01, or define it under Timelines/],
+    ['a timeline of an instrument the build ships none for', taskXml('instrument: WO\ntimeline: SimonTask\n'), /'WO' has no timeline called 'SimonTask'.*define it under Timelines/],
+    ['a Bot that is a list', taskXml('timeline: XCIT_NB_01\nBot: [20]\n'), /Bot.*must be a mapping.*got a list/],
+    ['a nested Bot setting', taskXml('timeline: XCIT_NB_01\nBot:\n  Speed: {Fast: 20}\n'), /'Speed' holds a nested mapping.*Move its entries up/],
+    ['a trial flowing into the task', TRIAL_INTO_TASK_XML, /M_Trial.*behaverse:Trial the wrong way: trials leave the task/],
+  ];
+  for (const [label, xml, refusal] of CASES) {
+    const { flowNodes } = await parseStudyflow(xml, freshPackages());
+    const issues = validateBehaverseNode(flowNodes.get('TheTask') as FlowNode, MANIFEST);
+    if (!refusal) {
+      expect(issues, label).toEqual([]);
+      continue;
+    }
+    expect(issues.map(({ nodeId }) => nodeId), label).toEqual(['TheTask']);
+    expect(issues[0].message, label).toMatch(refusal);
   }
 });
