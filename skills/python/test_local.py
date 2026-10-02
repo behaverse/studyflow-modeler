@@ -155,6 +155,17 @@ with tempfile.TemporaryDirectory() as folder:
     except FileNotFoundError:
         pass
 
+# An output edge's path on a table reads its column before its attribute: `result.T` of a test's one-row table is its
+# `T` column, not the table transposed, so the edge hands the walk the numbers a decision reads.
+with tempfile.TemporaryDirectory() as folder:
+    tested = python.Run(python.Plan({"elements": {"Test": {"id": "Test", "type": "property", "attributes": {}}}}),
+                        Path(folder), Path(folder) / ".cache", [])
+    table = {"id": "Table", "attributes": {"implementation": "python://pandas.DataFrame"},
+             "additionalArguments": "data: {T: [4.08], dof: [7.0], p_unc: [0.002]}",
+             "outputs": [{"target": "Test", "transformation": "{statistic: result.T[1], pvalue: result.p_unc[1], subjects: result.dof[1] + 1}"}]}
+    tested.execute(table)
+    assert tested.bound == {"Test": {"statistic": 4.08, "pvalue": 0.002, "subjects": 8}}, tested.bound
+
 # A column the step names and its table lacks is said so, with the nearest column the table has; a KeyError pandas
 # words as a sentence is left as it is.
 import pandas  # noqa: E402
