@@ -286,6 +286,48 @@ S:
     );
   });
 
+  test('an invalidated record makes the next run branch at its step\'s commit, the furthest back of them, redo every step from there, and reuse the steps before it', () => {
+    // C is written before A, so the furthest back is not merely the first marker read.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-invalidated-'));
+    fs.writeFileSync(path.join(dir, 'steps.studyflow.yaml'), `id: steps
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    W: { type: Task }
+    C: { type: Task }
+    B: { type: Task }
+    A: { type: Task }
+    Done: { type: EndEvent }
+    F1: Start -> W
+    F2: W -> A
+    F3: A -> B
+    F4: B -> C
+    F5: C -> Done
+`);
+    const repo = path.join(dir, 'run');
+    const archived = path.join(repo, 'steps.studyflow.yaml');
+    const run = (plan: string) => execFileSync(process.execPath, [BIN, 'run', plan, '--repo', repo, '--quiet'], { cwd: dir, stdio: 'pipe', env: ENV });
+    const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+    run(path.join(dir, 'steps.studyflow.yaml'));
+    // A's and C's records are voided, as the modeler's provenance view voids one: a marker naming the record's `when`.
+    const study = yaml.load(fs.readFileSync(archived, 'utf8')) as any;
+    for (const id of ['A', 'C']) {
+      const timeline = study.S.flowElements[id].extensionElements;
+      timeline.push({ type: 'prov:Activity', action: 'invalidated', when: '2026-10-02T12:00:00.000+02:00', what: timeline[0].when, run: 'run' });
+    }
+    fs.writeFileSync(archived, yaml.dump(study));
+    const madeA = git('log', '--format=%H', '--grep=^executed A$');
+
+    run(archived);
+    expect(fs.readFileSync(path.join(repo, 'studyflow.log'), 'utf8')).toContain(`at the parent of ${madeA}`);
+    // The first run's branch is `main`; this one's holds only what it did.
+    expect(git('log', '--reverse', '--format=%s', 'main..HEAD').split('\n').filter((subject) => /^(executed|skipped) /.test(subject)))
+      .toEqual(['skipped W (run run)', 'executed A', 'executed B', 'executed C']);
+  });
+
   test('re-runs the step whose drawing, or whose input file, has changed since its record', () => {
     // Raw XML: this needs `studyflow:uri` on a data object and `additionalArguments` on a task.
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
