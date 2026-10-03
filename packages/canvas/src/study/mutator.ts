@@ -26,7 +26,7 @@ import {
 } from '@canvas/study/dataAssociation.ts';
 import { IdGenerator } from '@canvas/study/ids.ts';
 import { syncLabel } from '@canvas/study/labels.ts';
-import { addRef, dropRef, listOf, mint, refOf, setRef } from '@canvas/study/elements.ts';
+import { addRef, dropRef, idsIn, listOf, mint, refOf, setRef } from '@canvas/study/elements.ts';
 import { mintTyped } from '@canvas/study/prototype.ts';
 import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/study/remove.ts';
 import type {
@@ -134,6 +134,13 @@ function flowHolderOf(scene: Scene, source: SceneNode | SceneEdge | undefined, t
 /** Take `element` off every lane that lists it but those `kept`: a step is listed by the lane it is drawn in alone. */
 function unlist(model: StudyModel, element: Element, kept: ReadonlySet<Element> = new Set()): void {
   for (const lane of model.all()) if (model.host(lane) === 'bpmn:Lane' && !kept.has(lane)) dropRef(lane, 'flowNodeRef', element);
+}
+
+/** Whether `element` sees `data`: what holds the data holds it, or holds a container around it. */
+function sees(model: StudyModel, element: Element, data: Element): boolean {
+  const where = model.parentOf(data);
+  for (let at = model.parentOf(element); at; at = model.parentOf(at)) if (at === where) return true;
+  return false;
 }
 
 /** The shapes a lane holds, in it and in the lanes inside it; none for any other shape. */
@@ -497,6 +504,9 @@ export class Mutator {
       }
     }
     if (changed.length === 0) return [];
+    // Data moved, in a shape that moves or by itself, names a data object it sees where it lands.
+    const moved = withDescendants(changed.filter((el): el is SceneNode => el.kind === 'node'));
+    this.carryData(moved.filter((node) => node.type === 'bpmn:DataObjectReference').map((node) => node.element));
 
     // An edge is drawn in the container both ends share, else at the root; a sequence flow or an association is
     // filed where connecting its ends would file it, so one between two lanes of a pool stays in the pool's process.
@@ -521,6 +531,32 @@ export class Mutator {
     }
     this.finish(changed);
     return changed;
+  }
+
+  /**
+   * Let each of `references`, data object references just moved, name a data object it sees where it is now: the one
+   * it names goes along when nothing left behind names it, else it gets one of its own, a copy.
+   */
+  private carryData(references: readonly Element[]): void {
+    const { model } = this.scene;
+    const unseen = new Map<Element, Element[]>();
+    for (const reference of references) {
+      const data = refOf(model, reference, 'dataObjectRef');
+      if (data && !sees(model, reference, data)) unseen.set(data, [...(unseen.get(data) ?? []), reference]);
+    }
+    for (const [data, moved] of unseen) {
+      const holder = model.parentOf(moved[0])!;
+      const named = [...model.all()].some((other) => !moved.includes(other) && idsIn(other.dataObjectRef).includes(data.id!));
+      if (!named) {
+        model.unfile(data);
+        model.file(data, holder, 'flowElements');
+        continue;
+      }
+      const own = mint('bpmn:DataObject', { id: this.ids.next('bpmn:DataObject') });
+      for (const key of ['name', 'itemSubjectRef', 'isCollection']) if (data[key] !== undefined) own[key] = data[key];
+      model.file(own, holder, 'flowElements');
+      for (const reference of moved) setRef(model, reference, 'dataObjectRef', own);
+    }
   }
 
   // --- creation -----------------------------------------------------------------

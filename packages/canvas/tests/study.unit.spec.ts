@@ -742,6 +742,42 @@ P:
   }
 });
 
+test('data moved to another pool names a data object there: the one it named, unless one left behind names it too, then a copy', () => {
+  const DATA = (shared: boolean): string => `id: Defs_O
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Item_Rows:
+  type: ItemDefinition
+  structureRef: pandas.DataFrame
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 600 200 }
+    Home: { name: Home, processRef: Q, bounds: 100 300 600 200 }
+P:
+  type: Process
+  flowElements:
+    Rows: { type: DataObject, name: Rows, itemSubjectRef: Item_Rows, isCollection: true }
+    Table: { type: DataObjectReference, dataObjectRef: Rows, bounds: 200 100 36 50 }
+${shared ? '    Sheet: { type: DataObjectReference, dataObjectRef: Rows, bounds: 400 100 36 50 }\n' : ''}Q:
+  type: Process
+`;
+  for (const shared of [false, true]) {
+    const study = Study.of(studyModel(DATA(shared)));
+    const before = study.toYaml();
+    expect(study.move({ ids: ['Table'], by: { x: 0, y: 250 }, into: 'Home' }).ok, `shared: ${shared}`).toBe(true);
+    // Read back, the data object Table names is filed beside it.
+    const { model } = Study.of(studyModel(study.toYaml()));
+    const data = model.get(model.get('Table')!.dataObjectRef as string)!;
+    expect(model.parentOf(data)?.id, `shared: ${shared}`).toBe('Q');
+    expect(data, `shared: ${shared}`).toMatchObject({ type: 'bpmn:DataObject', name: 'Rows', itemSubjectRef: 'Item_Rows', isCollection: true });
+    expect(data.id === 'Rows', `shared: ${shared}: the data object it named`).toBe(!shared);
+    if (shared) expect(model.parentOf(model.get(model.get('Sheet')!.dataObjectRef as string)!)?.id, 'what stays names what stays').toBe('P');
+    expect(study.undo().ok, `shared: ${shared}`).toBe(true);
+    expect(study.toYaml(), `shared: ${shared}`).toBe(before);
+  }
+});
+
 const CLIPBOARD = `id: Defs_C
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
