@@ -116,13 +116,17 @@ export async function finishSession(
   const completionCode = typeof variables['end.completionCode'] === 'string'
     ? (variables['end.completionCode'] as string)
     : undefined;
-  const ok = await updateSession(config, handle, { status, variables, completionCode });
-  if (handle.online) {
-    log(ok ? 'info' : 'skip',
-      ok
-        ? `Session ${handle.sessionId} is marked ${status} on the data server.`
-        : `Could not save the final state of session. The data server still has it as started.`);
+  if (!handle.online) return;
+  // Recording switched off during the run: the end is left unsent on purpose, which is no failure.
+  if (!canConnect(config)) {
+    log('skip', `Recording is off, so session ${handle.sessionId} stays marked started on the data server.`);
+    return;
   }
+  const ok = await updateSession(config, handle, { status, variables, completionCode });
+  log(ok ? 'info' : 'skip',
+    ok
+      ? `Session ${handle.sessionId} is marked ${status} on the data server.`
+      : `Could not save the final state of session ${handle.sessionId}: the data server still has it as started.`);
 }
 
 export async function recordEvents(

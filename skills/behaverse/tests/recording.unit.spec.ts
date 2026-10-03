@@ -43,7 +43,7 @@ test('a recorded run is a session for its agent, the task\'s events in batches, 
       recording: 'switched off once the run has started',
       sent: [{ method: 'POST', url: `${STUDY}/sessions`, authorization: auth, body: { agent_id: 'agent-1' } }],
       flushed: [[64, false], [1, false]],
-      logged: ['skip: Could not save the final state of session. The data server still has it as started.'],
+      logged: ['skip: Recording is off, so session s1 stays marked started on the data server.'],
     },
   ];
 
