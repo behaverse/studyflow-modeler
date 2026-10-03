@@ -418,6 +418,18 @@ export class Study {
   }
 
   /**
+   * `revise`, as part of the step the study holds rather than a step of its own: what is written beside the edits (a
+   * save's provenance stamp), which one undo takes back with the last of them. In-process only, not a tool.
+   */
+  amend(id: string, write: (element: Element, model: StudyModel, ids: Ids) => void): StudyResult {
+    let result: StudyResult | undefined;
+    this.history.amend(() => {
+      result = this.revise(id, write);
+    });
+    return result!;
+  }
+
+  /**
    * Add `what` centred on `at` (without it, beside the shapes it joins), into the container `into` names (the root's
    * id for the top level; without one, whatever is under `at`). `id` names it, when free; a template keeps its own.
    */

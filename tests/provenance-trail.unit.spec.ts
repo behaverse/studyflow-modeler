@@ -19,16 +19,19 @@ async function untrailed(name: string): Promise<StudyModel> {
 }
 
 test.describe('provenance trail', () => {
-  test('a stamp is a commit of the study, so undo and redo keep it with the history', async () => {
+  test('a stamp joins the step it follows, so a save is no undo step of its own: one undo takes back the edit and its stamp', async () => {
     const model = await untrailed('drawn_loop');
     const study = await Study.open(studyText(model.study, model.metamodel), { metamodel: freshMetamodel() });
     const modeler = { study, revision: () => study.revision } as unknown as Editor;
+    // Saved as opened: the stamp is part of the load, nothing to undo.
     expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('created');
-    expect(readTrail(study.model)).toHaveLength(1);
+    expect([readTrail(study.model).length, study.canUndo]).toEqual([1, false]);
+    study.rename({ id: 'Say', name: 'Say it once' });
+    expect(stampTrailForExport(modeler, { tool: 'studyflow-modeler/test' })?.action).toBe('modified');
     study.undo();
-    expect(readTrail(study.model)).toHaveLength(0);
+    expect([readTrail(study.model).length, study.model.get('Say')?.name]).toEqual([1, 'Say it again']);
     study.redo();
-    expect(readTrail(study.model)).toHaveLength(1);
+    expect([readTrail(study.model).length, study.model.get('Say')?.name]).toEqual([2, 'Say it once']);
   });
 
   test('stamps once per fact, not once per download', async () => {
@@ -41,7 +44,7 @@ test.describe('provenance trail', () => {
       study: {
         root: { id: 'Root' },
         model,
-        revise: (_id: string, write: (element: unknown, model: StudyModel) => void) => { write(model.primaryRoot(), model); revision += 1; return { ok: true }; },
+        amend: (_id: string, write: (element: unknown, model: StudyModel) => void) => { write(model.primaryRoot(), model); revision += 1; return { ok: true }; },
       },
     } as unknown as Editor;
     const edit = () => { revision += 1; };

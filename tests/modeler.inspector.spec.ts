@@ -98,9 +98,9 @@ test("the code modals: a schema's columns are saved as the table is left, in the
   expect(Object.entries(schema.body.classes.TableRow.attributes)).toEqual([['acc', { range: 'number' }], ['trial', { range: 'string' }]]);
   expect(script).toMatchObject({ scriptFormat: 'python', script: 'print(42)' });
 
-  // A modal saves what it edits as one edit, the columns and their format, the code and its language. Past the stamp
-  // the save left (`provenance/trail.ts`), an undo per modal takes back each whole.
-  for (let i = 0; i < 3; i++) await pressOnCanvas(page, 'ControlOrMeta+z');
+  // A modal saves what it edits as one edit, the columns and their format, the code and its language: an undo per
+  // modal takes back each whole, the stamp the save left with the last (`provenance/trail.ts`).
+  for (let i = 0; i < 2; i++) await pressOnCanvas(page, 'ControlOrMeta+z');
   ({ schema, script } = await exported());
   expect([schema.format, schema.body, script.script, script.scriptFormat]).toEqual([undefined, undefined, undefined, undefined]);
 });

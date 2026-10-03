@@ -15,6 +15,8 @@ export class History<Snapshot> {
   /** The run the edit under way belongs to, and the run the last edit did, with when it was made. */
   private runKey?: string;
   private run?: { key: string; at: number };
+  /** Whether the edit under way joins the step the study holds rather than making one (`amend`). */
+  private amending = false;
 
   constructor(first: Snapshot) {
     this.snapshots = [first];
@@ -48,7 +50,7 @@ export class History<Snapshot> {
     const now = Date.now();
     const carriesOn = this.runKey !== undefined && this.run?.key === this.runKey && now - this.run.at <= RUN_WINDOW_MS;
     if (snapshot !== this.now) {
-      if (carriesOn && this.current > 0) this.snapshots[this.current] = snapshot;
+      if (this.amending || (carriesOn && this.current > 0)) this.snapshots[this.current] = snapshot;
       else this.push(snapshot);
     }
     this.run = this.runKey === undefined ? undefined : { key: this.runKey, at: now };
@@ -75,6 +77,17 @@ export class History<Snapshot> {
   /** Forget the steps ahead of the one held: what a refused edit wrote is no state to go forward to. */
   truncate(): void {
     this.snapshots.length = this.current + 1;
+  }
+
+  /** Make what `edit` records part of the step the study holds, so one undo takes both back; on the first step, the
+   * load, it is no step to undo at all. */
+  amend(edit: () => void): void {
+    this.amending = true;
+    try {
+      edit();
+    } finally {
+      this.amending = false;
+    }
   }
 
   /** Make the edits `edit` records part of the run `key`. */
