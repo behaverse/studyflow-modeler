@@ -94,6 +94,12 @@ export function containerFor(parent: RuleElement | undefined): RuleElement | und
   return undefined;
 }
 
+/** What changes container with `shape` when it moves: itself, and for a lane the shapes in it and in the lanes inside it. */
+function carriedBy(shape: RuleElement): RuleElement[] {
+  if (bpmnTypeOf(shape) !== 'bpmn:Lane') return [shape];
+  return [shape, ...(shape.children ?? []).flatMap((child) => carriedBy(child as RuleElement))];
+}
+
 function dropContainerOf(target: RuleElement | undefined): RuleElement | undefined {
   let current = target;
   for (let depth = 0; current && depth < MAX_DEPTH; depth += 1) {
@@ -244,18 +250,19 @@ export class Rules {
     return verdict;
   }
 
-  /** A drop must be a legal containment for every shape and must not strand a sequence flow. */
+  /** A drop must be a legal containment for every shape and strand no sequence flow: a moved shape's, nor one of the steps a moved lane carries. */
   canMove(shapes: readonly (RuleElement | undefined)[], target: RuleElement | undefined): boolean {
     const moving = new Set(shapes.filter((shape): shape is RuleElement => !!shape));
     if (![...moving].every((shape) => !!this.canCreate(shape, target))) return false;
     const to = dropContainerOf(target);
-    for (const shape of moving) {
+    const carried = new Set([...moving].flatMap(carriedBy));
+    for (const shape of carried) {
       if (ruleContainerOf(shape) === to) continue;
       for (const edge of [...(shape.incoming ?? []), ...(shape.outgoing ?? [])]) {
         const type = bpmnTypeOf(edge, this.catalog);
         if (!type || !isBpmnSubtypeOf(type, CONNECTION.sequenceFlow)) continue;
         const other = edge.source === shape ? edge.target : edge.source;
-        if (!other || moving.has(other)) continue;
+        if (!other || carried.has(other)) continue;
         if (ruleContainerOf(other) !== to) return false;
       }
     }

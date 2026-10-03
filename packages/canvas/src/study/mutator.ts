@@ -130,6 +130,12 @@ function flowHolderOf(scene: Scene, source: SceneNode | SceneEdge | undefined, t
   return flowContainerOf(scene, source?.parent ?? target?.parent).owner;
 }
 
+/** The shapes a lane holds, in it and in the lanes inside it; none for any other shape. */
+function laneContentsOf(node: SceneNode): SceneNode[] {
+  if (node.type !== 'bpmn:Lane') return [];
+  return node.children.flatMap((child) => (child.kind !== 'node' ? [] : child.type === 'bpmn:Lane' ? laneContentsOf(child) : [child]));
+}
+
 /** Shift the docking waypoints of every edge on `node` by `(dx, dy)`. */
 function dockConnectedEdges(node: SceneNode, dx: number, dy: number): SceneEdge[] {
   if (dx === 0 && dy === 0) return [];
@@ -474,6 +480,14 @@ export class Mutator {
       unlinkFromTree(scene, node);
       linkIntoTree(scene, node, parent);
       changed.push(node);
+      // A lane takes the shapes in it, and in the lanes inside it, along: filed where it goes, out of the lane it leaves.
+      if (to.owner === from.owner) continue;
+      for (const content of laneContentsOf(node)) {
+        scene.model.unfile(content.element);
+        if (from.lane) dropRef(from.lane, 'flowNodeRef', content.element);
+        this.fileElement(content.element, content.type, to.owner);
+        changed.push(content);
+      }
     }
     if (changed.length === 0) return [];
 

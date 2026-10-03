@@ -601,6 +601,69 @@ P:
   expect(study.toYaml()).toBe(before);
 });
 
+test('a lane moved into another pool takes what it holds along, filed in that pool\'s process; a flow it would strand refuses the move', () => {
+  const study = Study.of(studyModel(`id: Defs_T
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 700 450 }
+    Home: { name: Home, processRef: Q, bounds: 100 550 700 450 }
+P:
+  type: Process
+  laneSets:
+    Set_P:
+      lanes:
+        Screen:
+          name: Screen
+          flowNodeRef: [Ask, Late]
+          bounds: 130 50 670 300
+          childLaneSet:
+            lanes:
+              Voice: { name: Voice, flowNodeRef: [Tell], bounds: 160 200 640 150 }
+        Desk: { name: Desk, flowNodeRef: [File], bounds: 130 350 670 150 }
+  flowElements:
+    Ask: { type: Task, bounds: 200 80 100 80 }
+    Late:
+      type: BoundaryEvent
+      attachedToRef: Ask
+      eventDefinitions:
+        T_1: { type: TimerEventDefinition }
+      bounds: 232 142 36 36
+    Tell: { type: Task, bounds: 400 230 100 80 }
+    File: { type: Task, bounds: 600 380 100 80 }
+    Ask_Tell:
+      sourceRef: Ask
+      targetRef: Tell
+      waypoint: 300,120 450,120 450,230
+    Late_Tell:
+      sourceRef: Late
+      targetRef: Tell
+      waypoint: 250,178 250,270 400,270
+Q:
+  type: Process
+`));
+  const before = study.toYaml();
+  const { model } = study;
+  const holderOf = (id: string): string | undefined => model.parentOf(model.get(id)!)?.id;
+
+  expect(study.move({ ids: ['Screen'], by: { x: 0, y: 500 }, into: 'Home' })).toMatchObject({ ok: true });
+  // Its steps, the lane inside it and its step, the boundary event on one, the flows between them.
+  for (const id of ['Ask', 'Late', 'Tell', 'Ask_Tell', 'Late_Tell']) expect(holderOf(id), id).toBe('Q');
+  expect(holderOf('File'), 'what another lane holds stays').toBe('P');
+  // The file draws them where they were put: each in its lane, in the pool it went to.
+  const reread = Study.of(studyModel(study.toYaml()));
+  for (const id of ['Screen', 'Voice', 'Ask', 'Late', 'Tell']) expect(reread.get(id), id).toEqual(study.get(id));
+
+  expect(study.undo().ok).toBe(true);
+  expect(study.toYaml()).toBe(before);
+
+  // A sequence flow does not cross pools: one to a step left behind keeps the lane, as it would keep the step.
+  study.connect({ from: 'Tell', to: 'File', id: 'Tell_File' });
+  expect(study.move({ ids: ['Screen'], by: { x: 0, y: 500 }, into: 'Home' })).toMatchObject({ ok: false });
+});
+
 const CLIPBOARD = `id: Defs_C
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
