@@ -125,6 +125,11 @@ function collaborationOf(scene: Scene, ...ends: (SceneNode | SceneEdge)[]): Elem
   return undefined;
 }
 
+/** Where a sequence flow or an association from `source` to `target` is filed: with its source, or its target when the source is at the top. */
+function flowHolderOf(scene: Scene, source: SceneNode | SceneEdge | undefined, target: SceneNode | undefined): Element {
+  return flowContainerOf(scene, source?.parent ?? target?.parent).owner;
+}
+
 /** Shift the docking waypoints of every edge on `node` by `(dx, dy)`. */
 function dockConnectedEdges(node: SceneNode, dx: number, dy: number): SceneEdge[] {
   if (dx === 0 && dy === 0) return [];
@@ -472,18 +477,25 @@ export class Mutator {
     }
     if (changed.length === 0) return [];
 
-    // An edge lives in the container both ends share, else at the root.
+    // An edge is drawn in the container both ends share, else at the root; a sequence flow or an association is
+    // filed where connecting its ends would file it, so one between two lanes of a pool stays in the pool's process.
     const edges = new Set<SceneEdge>();
     for (const el of changed) if (el.kind === 'node') for (const edge of incidentEdgesOf(el)) edges.add(edge);
     for (const edge of edges) {
       const next = edge.source && edge.source.parent === edge.target?.parent ? edge.source.parent : undefined;
-      if ((edge.parent ?? undefined) === next) continue;
-      if (edge.type === 'bpmn:SequenceFlow' || edge.type === 'bpmn:Association') {
+      // A message flow stays in the collaboration, a data association on its activity.
+      const holder = edge.type === 'bpmn:SequenceFlow' || edge.type === 'bpmn:Association' ? flowHolderOf(scene, edge.source, edge.target) : undefined;
+      const refile = !!holder && scene.model.parentOf(edge.element) !== holder;
+      const relink = (edge.parent ?? undefined) !== next;
+      if (!refile && !relink) continue;
+      if (holder && refile) {
         scene.model.unfile(edge.element);
-        this.fileElement(edge.element, edge.type, flowContainerOf(scene, next).owner);
+        this.fileElement(edge.element, edge.type, holder);
       }
-      unlinkFromTree(scene, edge);
-      linkIntoTree(scene, edge, next);
+      if (relink) {
+        unlinkFromTree(scene, edge);
+        linkIntoTree(scene, edge, next);
+      }
       changed.push(edge);
     }
     this.finish(changed);
@@ -761,7 +773,6 @@ export class Mutator {
         return;
       }
     }
-    const { owner } = flowContainerOf(this.scene, source.parent ?? target.parent);
-    model.file(element, owner, containmentPropertyFor(type));
+    model.file(element, flowHolderOf(this.scene, source, target), containmentPropertyFor(type));
   }
 }

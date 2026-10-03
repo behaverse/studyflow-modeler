@@ -565,6 +565,42 @@ P:
   }
 });
 
+test('a step moved to another lane keeps its flows in the pool\'s process, wherever their other ends are', () => {
+  const study = Study.of(studyModel(`id: Defs_F
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 600 450 }
+P:
+  type: Process
+  laneSets:
+    Set_P:
+      lanes:
+        Screen: { name: Screen, flowNodeRef: [Ask], bounds: 130 50 570 150 }
+        Desk: { name: Desk, flowNodeRef: [Tell], bounds: 130 200 570 150 }
+        Phone: { name: Phone, bounds: 130 350 570 150 }
+  flowElements:
+    Ask: { type: Task, bounds: 200 80 100 80 }
+    Tell: { type: Task, bounds: 400 230 100 80 }
+    Ask_Tell:
+      sourceRef: Ask
+      targetRef: Tell
+      waypoint: 300,120 450,120 450,230
+`));
+  const before = study.toYaml();
+  const { model } = study;
+
+  expect(study.move({ ids: ['Tell'], by: { x: 0, y: 150 }, into: 'Phone' })).toMatchObject({ ok: true });
+  expect(model.holderOf(model.get('Ask_Tell')!)).toMatchObject({ parent: { id: 'P' }, key: 'flowElements' });
+  const { waypoints } = study.get('Ask_Tell')!;
+  expect(Study.of(studyModel(study.toYaml())).get('Ask_Tell'), 'read back, it is drawn where it was').toMatchObject({ source: 'Ask', target: 'Tell', waypoints });
+
+  expect(study.undo().ok).toBe(true);
+  expect(study.toYaml()).toBe(before);
+});
+
 const CLIPBOARD = `id: Defs_C
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
