@@ -11,7 +11,6 @@ import {
   YAML_DUMP_OPTIONS,
   compactDiNode,
   expandDiNode,
-  expandInline,
   expandInlineFlow,
   impliedTypeName,
   inlineYamlValue,
@@ -20,7 +19,6 @@ import {
   keyItemsById,
   keyedMapToList,
   longTypeName,
-  qualifiesAsInlineValue,
   shortTypeName,
 } from '@core/model/spelling';
 import { BUILTIN_TYPES, type Descriptor, type Metamodel, type PropertyDef } from '@core/model/metamodel';
@@ -260,9 +258,10 @@ export function elementList(metamodel: Metamodel, type: string): PropertyDef | u
   return content.length === 1 && content[0].isMany ? content[0] : undefined;
 }
 
-/** A YAML-typed attribute as the file writes it: its mapping when the text is one and may carry no comment, else its text. */
+/** A YAML-typed attribute as the file writes it: its mapping when the text is one and may carry no comment, else its
+ * text. The attribute holds text, so a value of another kind (a list, a number, a mapping with a `type`) is its text. */
 function yamlValue(raw: unknown): Value {
-  const text = isMapping(raw) && qualifiesAsInlineValue(raw) ? expandInline(raw) : raw;
+  const text = typeof raw === 'string' ? raw : yaml.dump(raw, YAML_DUMP_OPTIONS);
   return (inlineYamlValue(text, { type: 'YAMLString' }) ?? text) as Value;
 }
 

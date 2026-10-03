@@ -199,7 +199,7 @@ P:
     expect(model.get('F1')).toEqual({ type: 'bpmn:SequenceFlow', id: 'F1', sourceRef: 'A' });
   });
 
-  test('a Parameters text round-trips XML <-> YAML: markup unsafe in XML is escaped, a comment survives, and text an edit wrote is its mapping', async () => {
+  test('a Parameters text round-trips XML <-> YAML: markup unsafe in XML is escaped, a comment survives, a list is its text, and text an edit wrote is its mapping', async () => {
     const doc = (values: string) => `
 id: values_demo
 definitions:
@@ -223,6 +223,10 @@ P:
     const commented = await xmlOf(doc(`"${comment}"`));
     expect(commented).toContain(comment);
     expect((yaml.load(await yamlOf(commented)) as any).P.flowElements.C1.values).toBe(comment);
+
+    // A list is no mapping, so it is read as its text, which is all the XML holds.
+    const list = await xmlOf(doc('[1, 2]'));
+    expect((yaml.load(await yamlOf(list)) as any).P.flowElements.C1.values).toBe('- 1\n- 2\n');
 
     // Text an edit wrote is spelled as the mapping a re-read holds, in YAML and XML, so the file does not depend on
     // whether one came between.
