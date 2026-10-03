@@ -1,7 +1,7 @@
 import { looksLikeXml, xmlToStudy } from '@core/document';
 import { PLACEHOLDER, type StateTree } from '@core/model/state';
 import { BPMN } from '@core/constants';
-import { planOf, type Plan } from '@core/engine';
+import { literal, planOf, type Plan } from '@core/engine';
 import { StudyModel, idOf, isElement, type Element, type Value } from '@core/model/index';
 import { metamodelOf } from '@core/model/packages';
 import { hasPath, mergeParameters, parametersIn, splitIn } from '@core/model/parameters';
@@ -120,19 +120,9 @@ function readProperties(model: StudyModel, container: Element): PropertyDecl[] {
       name: typeof p.name === 'string' && p.name.length > 0 ? p.name : p.id!,
       itemType: text(model.get(idOf(p.itemSubjectRef) ?? undefined)?.structureRef),
       dataState: isElement(p.dataState) ? text(p.dataState.name) : undefined,
-      value: parseLiteral(model.attribute(p, 'value')),
+      value: literal(model.attribute(p, 'value')),
     }))
     .filter((decl) => Boolean(decl.name));
-}
-
-/** `studyflow:value` is JSON when it parses (`0`, `true`, `"x"`), otherwise the text itself. */
-function parseLiteral(text: unknown): unknown {
-  if (typeof text !== 'string') return undefined;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
 }
 
 export async function parseStudyflow(

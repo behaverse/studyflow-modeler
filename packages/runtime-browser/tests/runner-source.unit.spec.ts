@@ -305,10 +305,13 @@ Redirects:
   properties:
     P_Task:
       name: task
+    P_Rate:
+      name: rate
+      value: 0.2
   flowElements:
     Trial:
       type: bpmn:Task
-      name: "Trial {count}"
+      name: "Trial {count} of {rate}"
     Task:
       type: bpmn:Task
       name: "{task}"
@@ -317,9 +320,9 @@ Redirects:
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
 `, freshPackages(), {});
 
-  // A declared one nothing has bound is reported, not silently emptied.
+  // A declared one nothing has bound is reported, not silently emptied; one the file gives a number is bound to it.
   expect(study.parameters.unbound).toEqual(['task']);
-  expect(study.flowNodes.get('Trial')?.element.name).toBe('Trial {count}');
+  expect(study.flowNodes.get('Trial')?.element.name).toBe('Trial {count} of 0.2');
   expect(attributeOf(study.flowNodes.get('Done')!, 'redirectTo')).toContain('cc={COMPLETION_CODE}');
 });
 
