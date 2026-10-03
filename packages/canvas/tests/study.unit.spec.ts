@@ -524,6 +524,42 @@ Q:
   expect(study.toYaml()).toBe(before);
 });
 
+test('a lane put on a lane divides it: filed in that lane\'s own lane set, and read back from YAML or XML, drawn in it', async () => {
+  const LANES = `id: Defs_N
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 600 300 }
+P:
+  type: Process
+  laneSets:
+    Set_P:
+      lanes:
+        Screen: { name: Screen, bounds: 130 50 570 150 }
+        Desk: { name: Desk, bounds: 130 200 570 150 }
+`;
+  // [how it goes on, the edit, the lane it put there]
+  const CASES: [how: string, put: (study: Study) => StudyResult, lane: string][] = [
+    ['add', (study) => study.add({ type: 'bpmn:Lane', id: 'Voice', into: 'Screen', at: { x: 430, y: 160 } }), 'Voice'],
+    ['move', (study) => study.move({ ids: ['Desk'], by: { x: 30, y: -100 }, into: 'Screen' }), 'Desk'],
+  ];
+  for (const [how, put, lane] of CASES) {
+    const study = Study.of(studyModel(LANES));
+    const before = study.toYaml();
+    expect(put(study).ok, how).toBe(true);
+    const { model } = study;
+    expect(model.holderOf(model.parentOf(model.get(lane)!)!), how).toMatchObject({ parent: { id: 'Screen' }, key: 'childLaneSet' });
+    expect(study.get(lane), how).toMatchObject({ parent: 'Screen' });
+    expect(Study.of(studyModel(study.toYaml())).get(lane), `${how}: the YAML read back`).toEqual(study.get(lane));
+    expect((await Study.open(await study.toXml(), { metamodel: freshMetamodel() })).get(lane), `${how}: the XML read back`).toEqual(study.get(lane));
+
+    expect(study.undo().ok, how).toBe(true);
+    expect(study.toYaml(), how).toBe(before);
+  }
+});
+
 test('a step put into a pool with no process gives the pool one, a root of the study, to hold it; one undo takes both back', () => {
   const POOLS = `id: Defs_P
 definitions:

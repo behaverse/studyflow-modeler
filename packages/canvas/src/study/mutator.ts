@@ -7,7 +7,7 @@
  */
 
 import { isDataAssociationType } from '@core/element/index.ts';
-import type { Element } from '@core/model/index.ts';
+import { isElement, type Element } from '@core/model/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
 import {
@@ -473,7 +473,7 @@ export class Mutator {
       const element = node.element;
       const holder = scene.model.unfile(element)?.parent;
       if (from.lane) dropRef(from.lane, 'flowNodeRef', element);
-      this.fileElement(element, node.type, to.owner);
+      this.fileElement(element, node.type, to);
       if (to.lane && isBpmnSubtypeOf(node.type, 'bpmn:FlowNode')) addRef(to.lane, 'flowNodeRef', element);
       // A lane set left empty goes, as on a deletion (study/remove.ts).
       if (holder && scene.model.host(holder) === 'bpmn:LaneSet' && listOf(holder, 'lanes').length === 0) scene.model.unfile(holder);
@@ -485,7 +485,7 @@ export class Mutator {
       for (const content of laneContentsOf(node)) {
         scene.model.unfile(content.element);
         if (from.lane) dropRef(from.lane, 'flowNodeRef', content.element);
-        this.fileElement(content.element, content.type, to.owner);
+        this.fileElement(content.element, content.type, { owner: to.owner });
         changed.push(content);
       }
     }
@@ -504,7 +504,7 @@ export class Mutator {
       if (!refile && !relink) continue;
       if (holder && refile) {
         scene.model.unfile(edge.element);
-        this.fileElement(edge.element, edge.type, holder);
+        this.fileElement(edge.element, edge.type, { owner: holder });
       }
       if (relink) {
         unlinkFromTree(scene, edge);
@@ -544,7 +544,7 @@ export class Mutator {
     const bounds = promotion?.bounds ?? spec.bounds;
 
     const { owner, lane } = this.holderFor(parentNode);
-    this.fileElement(element, type, owner);
+    this.fileElement(element, type, { owner, lane });
     if (lane && isBpmnSubtypeOf(type, 'bpmn:FlowNode')) addRef(lane, 'flowNodeRef', element);
 
     const node: SceneNode = {
@@ -723,11 +723,10 @@ export class Mutator {
 
   // --- filing -------------------------------------------------------------------
 
-  private fileElement(element: Element, type: string, owner: Element): void {
+  private fileElement(element: Element, type: string, { owner, lane }: FlowContainer): void {
     const { model } = this.scene;
     if (type === 'bpmn:Lane') {
-      const laneSet = listOf(owner, 'laneSets')[0] ?? this.createLaneSet(owner);
-      model.file(element, laneSet, 'lanes');
+      model.file(element, this.laneSetIn(lane ?? owner), 'lanes');
       return;
     }
     if (type === 'bpmn:Participant') this.processOf(element);
@@ -772,9 +771,19 @@ export class Mutator {
     return { bounds: participantBoundsAround(dropped, adopt), adopt };
   }
 
-  private createLaneSet(owner: Element): Element {
+  /** The lane set a lane dropped on `holder` joins: a lane's own (the new one divides it), else the process's first; made when there is none. */
+  private laneSetIn(holder: Element): Element {
+    const { model } = this.scene;
+    const divided = model.host(holder) === 'bpmn:Lane';
+    const existing = divided ? holder.childLaneSet : listOf(holder, 'laneSets')[0];
+    if (isElement(existing)) return existing;
     const laneSet = mint('bpmn:LaneSet', { id: this.ids.next('bpmn:LaneSet') });
-    this.scene.model.file(laneSet, owner, 'laneSets');
+    if (divided) {
+      holder.childLaneSet = laneSet;
+      model.indexUnder(laneSet, { parent: holder, key: 'childLaneSet' });
+    } else {
+      model.file(laneSet, holder, 'laneSets');
+    }
     return laneSet;
   }
 
