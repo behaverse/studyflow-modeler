@@ -25,7 +25,12 @@ A runner-only skill. It claims three kinds of element by their `implementation`:
   `first impression`); `null` is equally accurate everywhere. Either leaves about one trial in thirty
   unanswered. A message that carries no trial is an instruction, which it confirms with `READY`. Draws are seeded
   by the study's seed and the message's id, so a run repeats exactly. The table of probabilities is `PLANTED` in
-  `local.py`: the truth a study's analysis should recover.
+  `local.py`: the truth a study's analysis should recover. It also answers the trials the Behaverse build sends,
+  which arrive as the message itself: a Simon trial by the button of the target's colour (congruent when the target
+  sits over it, incongruent over the other, neutral between them), and an N-back digit, sent alone, against the
+  digit sent just before it in the same conversation (`memory: conversation` on the pool gives one per subject). A
+  prompt the asking step sends by its id alone is written out from its `template`, as a model's runner writes it, so
+  the instruction it carries reaches the subject.
 - **A record**, `simulate://record`, on a step whose data inputs are a timeline's trials and key and the answers
   collected for it (a multi-instance pass's `loopDataOutputRef`): it scores each answer by the key and appends one row per
   trial to the data store its data output names (`.jsonl`), keyed by `subject` and `arm` from its

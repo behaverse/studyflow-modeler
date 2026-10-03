@@ -49,6 +49,45 @@ assert accuracy("planted", calm, "Incongruent") - accuracy("planted", hasty, "In
 assert abs(accuracy("null", calm, "Congruent") - accuracy("null", hasty, "Incongruent")) < 0.08
 assert simulate.answer("planted", 7, {"id": "M.1", "content": {"Check": None}}) == "READY"
 
+# The Behaverse build sends a trial as the message itself, its ResponseOptions at the top level, and the battery's
+# prompt by id alone: the subject answers with an option, telling the right one as a person would (the button of the
+# target's colour; a digit against the one sent just before it), with the planted accuracy and the prompt's instruction.
+BUTTONS = [{"position": "Left", "color": "#FFC826"}, {"position": "Right", "color": "#2D50C8"}]
+
+
+def shown(side: str, colour: str) -> dict:
+    return {"Stimulus": {"Target": {"position": side, "color": colour}, "Buttons": BUTTONS}, "ResponseOptions": ["Left", "Right"]}
+
+
+def digit(index: int, value: str) -> dict:
+    return {"TrialIndex": index, "Stimulus": {"Value": value}, "ResponseOptions": ["Match", "NonMatch"]}
+
+
+assert simulate.key_of(shown("Right", "#2D50C8")) == {"Correct": "Right", "Congruency": "Congruent"}
+assert simulate.key_of(shown("Left", "#2D50C8")) == {"Correct": "Right", "Congruency": "Incongruent"}
+assert simulate.key_of(shown("Center", "#FFC826")) == {"Correct": "Left", "Congruency": "Neutral"}
+assert simulate.key_of(digit(2, "3"), {"index": 1, "digit": "3"}) == {"Correct": "Match"}
+assert simulate.key_of(digit(1, "3"), {"index": 6, "digit": "3"}) == {"Correct": "NonMatch"}
+plan = {"elements": {"Msg_Trial": {"type": "messageFlow", "attributes": {"sourceRef": "Subjects"}},
+                     "Prompt_Battery": {"extensions": [{"type": "prompt", "attributes": {"template": "{instruction}\nAnswer."}}]}},
+        "names": {"P_Instruction": "instruction"}}
+
+
+def sent(index: int, trial: dict, instruction: str) -> dict:
+    message = {"id": f"B.{index}", "flow": "Msg_Trial", "content": {"Prompt_Battery": None, **trial, "Scene": "WO"}}
+    return simulate.written_out(message, plan, {"P_Instruction": instruction})
+
+
+assert sent(0, shown("Right", "#2D50C8"), hasty)["content"]["Prompt_Battery"] == "Go with your first impression.\nAnswer."
+replies = {(side, told): [simulate.answer("planted", 7, sent(i, shown(side, "#2D50C8"), told)) for i in range(300)]
+           for side in ("Right", "Left") for told in (calm, hasty)}
+assert {reply for answers in replies.values() for reply in answers} <= {"Left", "Right", "I am not sure."}
+assert replies[("Right", calm)].count("Right") - replies[("Left", calm)].count("Right") > 0.08 * 300
+assert replies[("Left", calm)].count("Right") - replies[("Left", hasty)].count("Right") > 0.1 * 300
+seen: dict = {}
+assert simulate.answer("null", 7, {"id": "N.1", "content": digit(1, "4")}, seen) in ("Match", "NonMatch", "I am not sure.")
+assert seen == {"index": 1, "digit": "4"}
+
 # A record scores each answer and appends to the store its output names; a second subject adds to it. An answer that
 # is not one of the options, as the study's selection left it, is no answer.
 with tempfile.TemporaryDirectory() as tmp:

@@ -23,7 +23,7 @@ from typing import Any
 import yaml
 
 sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
-from runner import Step, read, serve  # noqa: E402 - the runner SDK, beside the local runtime
+from runner import Step, fill, read, serve  # noqa: E402 - the runner SDK, beside the local runtime
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 SCHEME = "simulate://"
@@ -120,9 +120,26 @@ def nback(seed: Any, step: str, n: int = 1, trials: int = 28, blocks: list[str] 
     return {"trials": shown, "key": key}
 
 
-def key_of(trial: dict[str, Any]) -> dict[str, Any]:
+def key_of(trial: dict[str, Any], seen: dict[str, Any] | None = None) -> dict[str, Any]:
     """What a subject can tell from a trial as shown, by its rule: the right answer, and for a Simon trial whether
-    the square sits on the side of its answer. The simulated subject answers by this, never by the timeline's key."""
+    the square sits on the side of its answer. The simulated subject answers by this, never by the timeline's key.
+    A trial the Behaverse build describes carries its stimulus as a mapping: a WhichOne (Simon) trial is answered by
+    the button of the target's colour, and is congruent when the target sits over that button, incongruent over the
+    other, neutral between them; an N-back digit comes alone, so it is a match when it is the digit `seen` last, sent
+    for the trial just before it (the first digit of a block, which asks for nothing, is never sent)."""
+    stimulus = trial.get("Stimulus")
+    if isinstance(stimulus, dict):
+        options = [str(option) for option in trial.get("ResponseOptions") or []]
+        if "Target" in stimulus:
+            target = stimulus.get("Target") or {}
+            correct = next((str(button.get("position")) for button in stimulus.get("Buttons") or []
+                            if button.get("color") == target.get("color")), None)
+            side = str(target.get("position"))
+            return {"Correct": correct,
+                    "Congruency": "Congruent" if side == correct else "Incongruent" if side in options else "Neutral"}
+        before = (seen or {}).get("digit") if (seen or {}).get("index") == (trial.get("TrialIndex") or 0) - 1 else None
+        word = "match" if before is not None and before == stimulus.get("Value") else "nonmatch"
+        return {"Correct": next((option for option in options if option.lower().replace("-", "") == word), None)}
     if trial.get("Task") == "Simon":
         colour, side = re.search(r"a (\w+) square on the (\w+)", str(trial.get("Stimulus"))).groups()
         correct = "left" if colour == "red" else "right"
@@ -132,21 +149,45 @@ def key_of(trial: dict[str, Any]) -> dict[str, Any]:
     return {"Correct": "match" if len(before) >= n and before[-n] == trial.get("Digit") else "non-match"}
 
 
-def answer(profile: str, seed: Any, message: dict[str, Any]) -> str:
-    """One simulated reply: a trial answered with the planted probability of being right, or an instruction confirmed."""
+def written_out(message: dict[str, Any], plan: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
+    """The message with each prompt it names by id alone (a null value under the prompt's id, as a wired data input
+    with no value of its own travels) written out from the prompt's `template`, its placeholders filled from the
+    asking step's scope, as a model's runner writes it out: so the instruction a prompt carries reaches the subject."""
     content = message.get("content")
-    values = content.values() if isinstance(content, dict) else [content]
+    if not isinstance(content, dict):
+        return message
+    elements = plan.get("elements") or {}
+    asker = str(((elements.get(str(message.get("flow"))) or {}).get("attributes") or {}).get("sourceRef") or "")
+
+    def template(key: str) -> str | None:
+        return next((str(ext["attributes"]["template"]) for ext in (elements.get(key) or {}).get("extensions") or []
+                     if (ext.get("attributes") or {}).get("template")), None)
+    return {**message, "content": {key: fill(template(key), asker, values, plan) if value is None and template(key) else value
+                                   for key, value in content.items()}}
+
+
+def answer(profile: str, seed: Any, message: dict[str, Any], seen: dict[str, Any] | None = None) -> str:
+    """One simulated reply: a trial answered with the planted probability of being right, or an instruction confirmed.
+    The trial is the value of the message that lists `ResponseOptions`, or the message itself, as the Behaverse build
+    sends one; `seen` is what this subject was last sent, which an N-back digit sent alone is answered against."""
+    content = message.get("content")
+    values = list(content.values()) if isinstance(content, dict) else [content]
     trial = next((value for value in values if isinstance(value, dict) and value.get("ResponseOptions")), None)
+    if trial is None and isinstance(content, dict) and content.get("ResponseOptions"):
+        trial = content
     if trial is None:
         return "READY"
     instruction = " ".join(value for value in values if isinstance(value, str))
     disposition = "impulsive" if SPEED.search(instruction) else "cautious"
+    truth = key_of(trial, seen)
+    if seen is not None and isinstance(trial.get("Stimulus"), dict) and "Value" in trial["Stimulus"]:
+        seen.update(index=trial.get("TrialIndex"), digit=trial["Stimulus"]["Value"])
     draw = rng(seed, message.get("id"))
     if draw.random() < MISS_RATE:
         return "I am not sure."
     table = PLANTED[profile]
-    truth = key_of(trial)
-    p = table.get((trial.get("Task"), truth.get("Congruency"), disposition), NULL_ACCURACY) if table else NULL_ACCURACY
+    task = trial.get("Task") or ("Simon" if "Congruency" in truth else "NBack")
+    p = table.get((task, truth.get("Congruency"), disposition), NULL_ACCURACY) if table else NULL_ACCURACY
     options = [str(option) for option in trial["ResponseOptions"]]
     wrong = [option for option in options if option != truth["Correct"]]
     return truth["Correct"] if draw.random() < p or not wrong else draw.choice(wrong)
@@ -188,13 +229,19 @@ def record(element: dict[str, Any], arguments: dict[str, Any], plan: dict[str, A
     return {"trials": len(rows), "answered": answered, "failedTrialRate": (len(rows) - answered) / len(rows) if rows else 0.0}
 
 
+# What each subject was last sent, by its conversation (one per subject, when the pool remembers): an N-back digit the
+# Behaverse build sends alone is answered against it. It lasts the run, as the conversation does.
+SEEN: dict[str, dict[str, Any]] = {}
+
+
 def execute(step: Step) -> Any:
     element = step.element
     kind = implementation_of(element)[len(SCHEME):]
     arguments = yaml.safe_load(element.get("additionalArguments") or "") or {}
     if element.get("type") == "participant":
         step.note(actor=f"{SCHEME}{kind}")
-        return answer(kind, step.seed, step.message or {})
+        seen = SEEN.setdefault(str((step.conversation or {}).get("id") or ""), {})
+        return answer(kind, step.seed, written_out(step.message or {}, step.plan, step.values), seen)
     if kind == "record":
         return record(element, arguments, step.plan, step.values, step.run_dir)
     # `{"trials", "key"}`, into the data outputs each edge's transformation selects (`result.trials`, `result.key`).
