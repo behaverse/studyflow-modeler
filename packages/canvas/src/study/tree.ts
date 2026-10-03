@@ -63,13 +63,21 @@ export function zRankOf(element: SceneElement): number {
   return FRAMES.has(element.type) ? depth * 2 - 0.5 : depth * 2 + 1;
 }
 
-/** Whether `element` sits inside `node`, however deep. */
 /** The activity a boundary event sits on; none for any other shape. */
 export function hostOf(scene: Scene, node: SceneNode): SceneNode | undefined {
   const host = scene.elementsById.get(idsIn(node.element.attachedToRef)[0] ?? '');
   return host?.kind === 'node' ? host : undefined;
 }
 
+/** The shapes attached to `hosts` (boundary events) that are not among them already: wherever an activity goes, they go. */
+export function attachedTo(scene: Scene, hosts: readonly SceneNode[]): SceneNode[] {
+  const moving = new Set(hosts);
+  const ids = new Set(hosts.map((host) => host.id));
+  return [...scene.elementsById.values()].filter((element): element is SceneNode =>
+    element.kind === 'node' && !moving.has(element) && ids.has(idsIn(element.element.attachedToRef)[0] ?? ''));
+}
+
+/** Whether `element` sits inside `node`, however deep. */
 export function isDescendantOf(element: SceneElement, node: SceneNode): boolean {
   const guard = new Set<SceneNode>();
   for (let p = element.parent; p && !guard.has(p); p = p.parent) {

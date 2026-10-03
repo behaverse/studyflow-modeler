@@ -36,7 +36,7 @@ import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
 import { buildTemplate, findTemplate, layOutTemplate } from '@canvas/study/templates.ts';
 import { copyOf, fragmentOf } from '@canvas/study/clipboard.ts';
 import { ASKABLE_TOOLS, isStepTool, misfitOf, STUDY_TOOLS, type StepTool, type StudyTool, type ToolResult } from '@canvas/study/tools.ts';
-import { boundsOf, contentsOf, edgesAffectedBy, hostOf, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
+import { attachedTo, boundsOf, contentsOf, edgesAffectedBy, hostOf, isDescendantOf, planeOf } from '@canvas/study/tree.ts';
 
 /** The ids of the nodes and flows a change added, changed (the root's, when the diagram's own properties changed) and removed. */
 export interface ChangedIds {
@@ -523,14 +523,15 @@ export class Study {
     if (flow) return refused(`'${flow.id}' is a flow: it moves with its ends, and reroute moves its route`);
     const movable = found as Movable[];
     const nodes = movable.filter((element): element is SceneNode => element.kind === 'node');
-    // The shapes that move by themselves: not those inside another that moves.
+    // The shapes that move by themselves: not those inside another that moves; the boundary events on them go along.
     const roots = nodes.filter((node) => !nodes.some((other) => other !== node && isDescendantOf(node, other)));
+    const moving = [...roots, ...attachedTo(scene, roots)];
     const top = args.into === scene.rootElement.id;
     const named = args.into === undefined || top ? undefined : scene.elementsById.get(args.into);
     if (args.into !== undefined && !top && named?.kind !== 'node') return refused(`no container '${args.into}'`);
     const into = named?.kind === 'node' ? named : undefined;
     // A container named by id takes what fits in it however it is drawn, as with `add`.
-    if (args.into !== undefined && !rules.canMove(roots, into ?? scene.rootElement)) {
+    if (args.into !== undefined && !rules.canMove(moving, into ?? scene.rootElement)) {
       return refused(`${roots.map((node) => `'${node.id}'`).join(', ')} cannot go ${into ? `into '${into.id}'` : 'to the top level'}`);
     }
     const drag = new Drag({
@@ -548,7 +549,7 @@ export class Study {
     return this.commit(() => {
       if (!drag.startMove(movable, { x: 0, y: 0 }, { snapToGrid: false })) return;
       drag.end(args.by);
-      const rehomed = args.into === undefined ? [] : roots.filter((node) => node.parent !== into);
+      const rehomed = args.into === undefined ? [] : moving.filter((node) => node.parent !== into);
       if (rehomed.length > 0) mutator.reparent(rehomed, into);
     });
   }

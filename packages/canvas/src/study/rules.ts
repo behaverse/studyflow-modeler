@@ -10,6 +10,7 @@ import { bpmnFamilyOf, isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 import type { TypeCatalog } from '@core/notation/query.ts';
 import type { Element } from '@core/model/index.ts';
+import { idsIn } from '@canvas/study/elements.ts';
 
 /** The structural minimum a rule needs; a detached palette shape satisfies it. */
 export interface RuleElement {
@@ -98,6 +99,12 @@ export function containerFor(parent: RuleElement | undefined): RuleElement | und
 function carriedBy(shape: RuleElement): RuleElement[] {
   if (bpmnTypeOf(shape) !== 'bpmn:Lane') return [shape];
   return [shape, ...(shape.children ?? []).flatMap((child) => carriedBy(child as RuleElement))];
+}
+
+/** Whether `shape` is a boundary event on an activity among `moving`: it rides on it, and is never dropped on its own. */
+function ridesOn(shape: RuleElement, moving: ReadonlySet<RuleElement>): boolean {
+  const host = idsIn(shape.element?.attachedToRef)[0];
+  return !!host && [...moving].some((other) => other.element?.id === host);
 }
 
 function dropContainerOf(target: RuleElement | undefined): RuleElement | undefined {
@@ -251,14 +258,15 @@ export class Rules {
   }
 
   /**
-   * A drop must be a legal containment for every shape and strand no sequence flow: a moved shape's, nor one of the
-   * steps a moved lane carries. `target` takes what fits however it is drawn: a sub-process drawn shut is open to a
-   * view drilled into it, and to a shape moved into it by id.
+   * A drop must be a legal containment for every shape dropped (a boundary event whose activity moves too rides on
+   * it) and strand no sequence flow: a moved shape's, nor one of the steps a moved lane carries. `target` takes what
+   * fits however it is drawn: a sub-process drawn shut is open to a view drilled into it, and to a shape moved into it
+   * by id.
    */
   canMove(shapes: readonly (RuleElement | undefined)[], target: RuleElement | undefined): boolean {
     const moving = new Set(shapes.filter((shape): shape is RuleElement => !!shape));
     const open = target?.isExpanded === false ? { ...target, isExpanded: true } : target;
-    if (![...moving].every((shape) => !!this.canCreate(shape, open))) return false;
+    if (![...moving].every((shape) => ridesOn(shape, moving) || !!this.canCreate(shape, open))) return false;
     const to = dropContainerOf(target);
     const carried = new Set([...moving].flatMap(carriedBy));
     for (const shape of carried) {

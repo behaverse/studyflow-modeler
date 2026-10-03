@@ -7,8 +7,8 @@
 
 import { isContainerNode, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
-import { drawnNameOf, idsIn } from '@canvas/study/elements.ts';
-import { planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
+import { drawnNameOf } from '@canvas/study/elements.ts';
+import { attachedTo, planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/study/text.ts';
 import { cropPoint } from '@core/document/outline.ts';
 import { freeMoveEnd, moveBendpoint, moveBendpointSquare, moveTerminal, samePoints } from '@canvas/study/edit.ts';
@@ -412,14 +412,6 @@ function followOf(edge: SceneEdge, moving: { has(node: SceneNode): boolean }): E
   const source = !!edge.source && moving.has(edge.source);
   const target = !!edge.target && moving.has(edge.target);
   return source && target ? 'all' : source ? 'first' : 'last';
-}
-
-/** The shapes attached to `hosts` (boundary events) that are not among them already. */
-function attachedTo(scene: Scene, hosts: readonly SceneNode[]): SceneNode[] {
-  const moving = new Set(hosts);
-  const ids = new Set(hosts.map((host) => host.id));
-  return [...scene.elementsById.values()].filter((element): element is SceneNode =>
-    element.kind === 'node' && !moving.has(element) && ids.has(idsIn(element.element.attachedToRef)[0] ?? ''));
 }
 
 function movedFrom(state: DragState, element: SceneElement): boolean {

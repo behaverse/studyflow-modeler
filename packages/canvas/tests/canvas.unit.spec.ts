@@ -794,6 +794,53 @@ test('dropping a shape into a lane of a sub-process files it in the sub-process 
   expect(lane.element.flowNodeRef).toContain(task.id);
 });
 
+test('an activity moves into another pool with the boundary event on it, dragged or moved by id: both filed and drawn there', async () => {
+  const POOLS = `id: Defs_B
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 600 200 }
+    Home: { name: Home, processRef: Q, bounds: 100 300 600 200 }
+P:
+  type: Process
+  flowElements:
+    Host: { type: Task, bounds: 200 80 100 80 }
+    Timer:
+      type: BoundaryEvent
+      attachedToRef: Host
+      eventDefinitions:
+        T_1: { type: TimerEventDefinition }
+      bounds: 232 142 36 36
+Q:
+  type: Process
+`;
+  // [how it goes, the edit]
+  const CASES: [how: string, edit: (canvas: Canvas) => void][] = [
+    ['a drag', (canvas) => {
+      const host = node(canvas, 'Host');
+      click(canvas, centre(host));
+      dragBy(canvas, centre(host), { x: centre(host).x, y: centre(host).y + 250 });
+    }],
+    ['move', (canvas) => canvas.study.move({ ids: ['Host'], by: { x: 0, y: 250 }, into: 'Home' })],
+  ];
+  for (const [how, edit] of CASES) {
+    const { canvas } = loadYaml(POOLS);
+    const { study } = canvas;
+    const before = study.toYaml();
+    edit(canvas);
+    for (const id of ['Host', 'Timer']) {
+      expect(study.model.parentOf(study.model.get(id)!)?.id, `${how}: ${id}`).toBe('Q');
+      expect(study.get(id), `${how}: ${id}`).toMatchObject({ parent: 'Home' });
+      expect(loadYaml(study.toYaml()).canvas.study.get(id), `${how}: ${id} read back`).toEqual(study.get(id));
+    }
+    expect(study.get('Timer')!.bounds, how).toMatchObject({ x: 232, y: 392 });
+    expect(study.undo().ok, how).toBe(true);
+    expect(study.toYaml(), how).toBe(before);
+  }
+});
+
 // --- keyboard, colour, font -------------------------------------------------------------
 
 test('Ctrl+A selects everything on screen, A asks for the append menu, the arrows nudge the selection, Ctrl+Z undoes and Shift+Ctrl+Z redoes', async () => {
