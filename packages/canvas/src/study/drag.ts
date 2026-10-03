@@ -264,7 +264,7 @@ export class Drag {
     const parent = container?.kind === 'node' ? container : undefined;
     const roots = nodes.filter((node) => !(node.parent && moving.has(node.parent.id)));
     const scope = this.getScope();
-    const allowed = this.rules.canMove(roots, parent ?? (scope ? { ...scope, isExpanded: true } : scene.rootElement));
+    const allowed = this.rules.canMove(roots, parent ?? scope ?? scene.rootElement);
     const home = parent ?? scope;
     const rehomed = roots.filter((node) => node !== home && (node.parent ?? undefined) !== home);
     return { ...(over ? { over } : {}), ...(parent ? { parent } : {}), allowed, rehomed };

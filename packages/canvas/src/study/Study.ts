@@ -530,7 +530,7 @@ export class Study {
     if (args.into !== undefined && !top && named?.kind !== 'node') return refused(`no container '${args.into}'`);
     const into = named?.kind === 'node' ? named : undefined;
     // A container named by id takes what fits in it however it is drawn, as with `add`.
-    if (args.into !== undefined && !rules.canMove(roots, into ? { ...into, isExpanded: true } : scene.rootElement)) {
+    if (args.into !== undefined && !rules.canMove(roots, into ?? scene.rootElement)) {
       return refused(`${roots.map((node) => `'${node.id}'`).join(', ')} cannot go ${into ? `into '${into.id}'` : 'to the top level'}`);
     }
     const drag = new Drag({

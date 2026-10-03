@@ -667,6 +667,13 @@ test('drilling into a container shows only its contents until the trail leads ba
   const dropped = node(canvas, canvas.selection[0]);
   expect(dropped.parent).toBe(sub);
   expect(sub.element.flowElements).toContain(dropped.element);
+  // Joined by a flow to a shape beside it, it moves within the container: dragged there, or moved into it by id.
+  canvas.study.connect({ from: 'Task_In', to: dropped.id });
+  const at = { x: dropped.x, y: dropped.y };
+  click(canvas, centre(dropped));
+  dragBy(canvas, centre(dropped), { x: centre(dropped).x, y: centre(dropped).y + 100 });
+  expect({ x: dropped.x, y: dropped.y }).toEqual({ x: at.x, y: at.y + 100 });
+  expect(canvas.study.move({ ids: [dropped.id], by: { x: 100, y: 0 }, into: 'Sub_1' })).toMatchObject({ ok: true });
   expect(canvas.setScope(undefined)).toBe(true);
   expect(canvas.scopePath).toEqual(['Process_1']);
   expect(isHiddenGraphics(canvas, 'Task_1')).toBe(false);

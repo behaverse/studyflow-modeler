@@ -250,10 +250,15 @@ export class Rules {
     return verdict;
   }
 
-  /** A drop must be a legal containment for every shape and strand no sequence flow: a moved shape's, nor one of the steps a moved lane carries. */
+  /**
+   * A drop must be a legal containment for every shape and strand no sequence flow: a moved shape's, nor one of the
+   * steps a moved lane carries. `target` takes what fits however it is drawn: a sub-process drawn shut is open to a
+   * view drilled into it, and to a shape moved into it by id.
+   */
   canMove(shapes: readonly (RuleElement | undefined)[], target: RuleElement | undefined): boolean {
     const moving = new Set(shapes.filter((shape): shape is RuleElement => !!shape));
-    if (![...moving].every((shape) => !!this.canCreate(shape, target))) return false;
+    const open = target?.isExpanded === false ? { ...target, isExpanded: true } : target;
+    if (![...moving].every((shape) => !!this.canCreate(shape, open))) return false;
     const to = dropContainerOf(target);
     const carried = new Set([...moving].flatMap(carriedBy));
     for (const shape of carried) {
