@@ -3,9 +3,11 @@
  * reads the tree back. Each element is created as its type (a mapping without one as the type its property declares),
  * a schema's typed element as the BPMN element it attaches to, with its schema's entry first among its extension
  * elements; a list holder from its list, an expression or documentation from its text, a YAML attribute's mapping as
- * its text; a reference as the element it names; the layout as diagram interchange.
+ * its text, a property's value as the text that reads back as it; a reference as the element it names; the layout as
+ * diagram interchange.
  */
 import { isModdleElement, type Moddle } from '@core/document/moddle';
+import { literalText, PROPERTY_VALUE } from '@core/engine/graph';
 import type { Metamodel } from '@core/model/metamodel';
 import { BPMN_FORMAL_EXPRESSION, DI_NODE_TYPES, expandDiNode, expandInline, isExpressionType, isYamlValueProperty, qualifiesAsInlineValue } from '@core/model/spelling';
 import type { Element, Study } from '@core/model/types';
@@ -76,6 +78,8 @@ class ModdleBuilder {
         this.set(el, p.name, (Array.isArray(raw) ? raw : []).map((item) => this.value(item, p.type)));
       } else if (isYamlValueProperty(p) && isMapping(raw) && qualifiesAsInlineValue(raw)) {
         el.set(p.name, expandInline(raw));
+      } else if (p.ns.name === PROPERTY_VALUE) {
+        el.set(p.name, literalText(raw));
       } else {
         this.set(el, p.name, this.value(raw, p.type));
       }

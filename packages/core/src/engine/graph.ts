@@ -21,6 +21,13 @@ export function literal(text: unknown): unknown {
   }
 }
 
+/** How the XML holds a property's value, the text {@link literal} reads back as it: a text JSON does not parse as it is,
+ * anything else as its JSON (a number, a truth value, a list, a mapping, and a text such as `"0.2"` that JSON would read
+ * as a number). */
+export function literalText(value: unknown): string {
+  return typeof value === 'string' && literal(value) === value ? value : JSON.stringify(value);
+}
+
 /** A property a scope declares: its initial value (`undefined` when it declares none), and its element's id. */
 export type Declared = { value: unknown; id?: string };
 

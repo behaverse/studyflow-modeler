@@ -34,7 +34,7 @@ Example_Study:
       properties:
         P_Failed:
           name: failed_trials
-          value: "0"
+          value: 0
       flowElements:
         Trial:
           type: bpmn:Task
@@ -44,7 +44,7 @@ Example_Study:
       properties:
         P_Count:
           name: count
-          value: "0"
+          value: 0
     F1:
       type: bpmn:SequenceFlow
       sourceRef: Battery

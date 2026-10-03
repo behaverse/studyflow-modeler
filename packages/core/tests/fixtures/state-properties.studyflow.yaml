@@ -25,6 +25,7 @@ Probe:
         Failed_Trials:
           name: failed_trials
           itemSubjectRef: Item_Count
+          value: 0
       flowElements:
         Trial_Start:
           type: StartEvent

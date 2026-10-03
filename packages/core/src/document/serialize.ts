@@ -1,11 +1,13 @@
 import { isModdleElement } from '@core/document/moddle';
+import { literal, PROPERTY_VALUE } from '@core/engine/graph';
 import type { YamlDoc } from '@core/model/yaml';
 
 /*
  * moddle's tree as the long form of a `.studyflow.yaml` document, for the study model's reader (`readStudy`), whose
  * every short form, drawing and root rule then applies as it does to a file: each element its type (left out where the
  * property holding it declares that type), each property under its local name, a list as a list, a reference as the id
- * it names, the drawing as the diagram it is, and the run state as the XML keeps it, a JSON text on the Study.
+ * it names, a property's value as the literal its text is, the drawing as the diagram it is, and the run state as the
+ * XML keeps it, a JSON text on the Study.
  */
 
 /** Recorded by moddle's reader on an `xsi:type`d element, whose type already says it; moddle's writer writes it again. */
@@ -39,7 +41,7 @@ function element(el: any, declaredType?: string): Record<string, unknown> {
       continue;
     }
     const item = (child: unknown): unknown => (isModdleElement(child) ? element(child, p.type) : child);
-    out[key] = p.isMany ? value.map(item) : item(value);
+    out[key] = p.ns?.name === PROPERTY_VALUE ? literal(value) : p.isMany ? value.map(item) : item(value);
   }
   for (const [name, value] of Object.entries(el.$attrs ?? {})) if (name !== XSI_TYPE && !(name in out)) out[name] = value;
   return out;
