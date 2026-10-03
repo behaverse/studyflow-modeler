@@ -5,13 +5,14 @@ import { expect, test } from '@playwright/test';
 
 import { Study, type Bounds, type ElementRecord, type Point } from '@canvas/index.ts';
 
+import { studyText } from '@core/model/yaml';
 import { freshMetamodel, studyModel } from '@tests/schemas';
 import { exampleXml, withoutDiagramInterchange } from '@tests/utils';
 
 /**
  * Tidy: the study's `layout` verb lays the whole diagram out afresh, as one edit; and a document read with no
  * drawing is drawn and laid out the same way as it opens, as is what a sub-process drawn closed holds when the
- * document draws none of it.
+ * document leaves it out, which stays out of the file until an edit touches it.
  */
 
 const open = (yaml: string): Study => Study.of(studyModel(yaml));
@@ -649,8 +650,8 @@ layout:
   expect(looked.toYaml()).toContain('  F:\n    waypoint: 200,140 300,140\n    stroke: "#5c8a55"\n');
 });
 
-test('what a sub-process drawn closed holds is drawn as the document opens when the file draws none of it: laid out on its plane, the rest as drawn', () => {
-  const study = open(`id: D
+/** A study that draws `Analysis` closed and nothing it holds but the look of one step. */
+const CLOSED = `id: D
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 P:
@@ -712,7 +713,10 @@ P:
 layout:
   Read:
     fill: "#dcebd6"
-`);
+`;
+
+test('what a sub-process drawn closed holds is drawn as the document opens when the file places none of it: laid out on its plane, the rest as drawn', () => {
+  const study = open(CLOSED);
   expect([box(study, 'Start'), box(study, 'Analysis'), study.get('F_2')!.waypoints]).toEqual([
     { x: 100, y: 122, width: 36, height: 36 }, { x: 200, y: 100, width: 100, height: 80 }, [{ x: 300, y: 140 }, { x: 360, y: 140 }],
   ]);
@@ -725,8 +729,6 @@ layout:
   const shapes = inside.slice(0, 6).map((id) => box(study, id));
   for (const [i, a] of shapes.entries()) for (const b of shapes.slice(i + 1)) expect(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y).toBe(true);
   expect(study.get('Read')!.fill, 'the look the file gives a shape it does not place is kept').toBe('#dcebd6');
-  const where = (drawn: Study): Record<string, Bounds | undefined> => Object.fromEntries(drawn.list({ kind: 'node' }).map((r) => [r.id, r.bounds]));
-  expect(where(open(study.toYaml())), 'the drawing is the study\'s from the start').toEqual(where(study));
 
   study.expand({ id: 'Analysis' });
   for (const id of inside.slice(0, 6)) expect(holds(box(study, 'Analysis'), box(study, id))).toBe(true);
@@ -735,4 +737,29 @@ layout:
   const reach = (r: ElementRecord, axis: 'x' | 'y'): number => (r.bounds ? r.bounds[axis] + r.bounds[axis === 'x' ? 'width' : 'height'] : Math.max(...r.waypoints!.map((p) => p[axis])));
   const frame = box(study, 'Analysis');
   expect([frame.x + frame.width, bottom(frame)]).toEqual([Math.max(...shown.map((r) => reach(r, 'x'))) + 30, Math.max(...shown.map((r) => reach(r, 'y'))) + 30]);
+});
+
+test('what a draft drew is left out of the file until an edit touches it: a save gives the file back, a moved step is written, and undo or the next open drafts it again where it was', () => {
+  const study = open(CLOSED);
+  const file = studyModel(CLOSED);
+  const layoutOf = (yaml: string): Record<string, unknown> => studyModel(yaml).study.layout;
+  const where = (drawn: Study): Record<string, Bounds | undefined> => Object.fromEntries(drawn.list({ kind: 'node' }).map((r) => [r.id, r.bounds]));
+  const drafted = where(study);
+  const saved = study.toYaml();
+  expect(saved, 'the file as written, the look of a step it does not place kept').toBe(studyText(file.study, file.metamodel));
+
+  study.move({ ids: ['Read'], by: { x: 0, y: 40 } });
+  const moved = layoutOf(study.toYaml());
+  expect(moved.Read).toMatchObject({ bounds: `${drafted.Read!.x} ${drafted.Read!.y + 40} 100 80`, fill: '#dcebd6' });
+  expect(['AF_1', 'AF_2', 'Out_Table'].map((id) => id in moved), 'its flows, rerouted').toEqual([true, true, true]);
+  expect(['A_Start', 'Enough', 'Test', 'T_Run', 'AF_3'].some((id) => id in moved), 'what it did not touch').toBe(false);
+  expect(where(open(study.toYaml()))).toEqual({ ...drafted, Read: { ...drafted.Read, y: drafted.Read!.y + 40 } });
+
+  study.undo();
+  expect([study.toYaml(), where(study)]).toEqual([saved, drafted]);
+  study.redo();
+  expect(layoutOf(study.toYaml()).Read).toEqual(moved.Read);
+
+  study.expand({ id: 'Analysis' });
+  expect(Object.keys(layoutOf(study.toYaml())), 'opened, Analysis draws what it holds').toEqual(expect.arrayContaining(['A_Start', 'Enough', 'Test', 'Not_Testable', 'Table', 'AF_3']));
 });

@@ -3,16 +3,17 @@
  * drawing at all gets one, for the study to lay out as it reads it: each shape at its default size at the origin, a
  * boundary event on its activity's lower edge, a note above and right of what it annotates, a sub-process closed over
  * its contents, a group empty (the layout draws it round the shapes its category names), and each flow. A drawn
- * study gets the same for what a sub-process it draws closed holds, when it draws none of that, for the study to lay
- * out on that sub-process's own plane; and a route for each flow it leaves out both of whose ends are drawn, in the
- * look the study gives it.
+ * study gets the same for what a sub-process it draws closed holds, when it leaves any of that out, for the study to
+ * lay out on that sub-process's own plane; and a route for each flow it leaves out both of whose ends are drawn, in
+ * the look the study gives it.
  */
 
 import { isDataAssociationType } from '@core/element/index.ts';
-import type { Element, StudyModel } from '@core/model/index.ts';
+import type { Drawing, Element, StudyModel } from '@core/model/index.ts';
 import { boxToText, pointsToText } from '@core/model/spelling.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
+import { lookOf } from '@canvas/study/di.ts';
 import { listOf, refOf } from '@canvas/study/elements.ts';
 import { boxOf } from '@canvas/study/import.ts';
 import { routeFor } from '@canvas/study/orthogonal.ts';
@@ -56,24 +57,37 @@ export function draftDrawing(model: StudyModel): boolean {
 }
 
 /**
- * Draft what each sub-process the drawing draws closed holds, when it draws none of that and no further diagram draws
- * its plane (as another tool draws a closed sub-process's contents); the ids of those sub-processes.
+ * Draft what each sub-process the drawing draws closed holds, when it leaves any of that out and no further diagram
+ * draws its plane (as another tool draws a closed sub-process's contents). All of it is drafted, as if the drawing
+ * placed none of it, so what the drawing leaves out is drafted where it was the last time; what it places is set
+ * aside, for the study to put back. A sub-process inside one drafted is drafted with it. Answers the sub-processes
+ * drafted, and what was set aside.
  */
-export function draftClosedContents(model: StudyModel): string[] {
+export function draftClosedContents(model: StudyModel): { planes: string[]; placed: Record<string, Drawing> } {
   const { layout } = model.study;
   const drawn = (element: Element): boolean => ['bounds', 'waypoint'].some((key) => key in (layout[element.id!] ?? {}));
-  const planes = new Set((model.study.diagram ?? []).map((diagram) => ((diagram as Element).plane as Element | undefined)?.bpmnElement));
-  const drafted: string[] = [];
+  const further = new Set((model.study.diagram ?? []).map((diagram) => ((diagram as Element).plane as Element | undefined)?.bpmnElement));
+  const drafts = new Map<string, Draft>();
   for (const [id, drawing] of Object.entries(layout)) {
     const closed = model.get(id);
-    if (!closed || drawing.isExpanded !== false || planes.has(id)) continue;
+    if (!closed || drawing.isExpanded !== false || further.has(id)) continue;
     const draft: Draft = { shapes: [], edges: [] };
     drawContents(model, closed, draft);
-    if (draft.shapes.length === 0 || [...draft.shapes, ...draft.edges].some(drawn)) continue;
-    place(model, draft);
-    drafted.push(id);
+    if (![...draft.shapes, ...draft.edges].every(drawn)) drafts.set(id, draft);
   }
-  return drafted;
+  const inside = new Set([...drafts.values()].flatMap((draft) => draft.shapes.map((shape) => shape.id)));
+  const planes = [...drafts.keys()].filter((id) => !inside.has(id));
+  const placed: Record<string, Drawing> = {};
+  for (const draft of planes.map((id) => drafts.get(id)!)) {
+    for (const element of [...draft.shapes, ...draft.edges].filter(drawn)) {
+      placed[element.id!] = layout[element.id!];
+      const look = lookOf(layout[element.id!]);
+      if (look) layout[element.id!] = look;
+      else delete layout[element.id!];
+    }
+    place(model, draft);
+  }
+  return { planes, placed };
 }
 
 /** Add what `container` holds to `draft`, however deep: its flow, the data it reads and writes, its notes and lanes. */
@@ -99,7 +113,10 @@ function drawArtifacts(model: StudyModel, container: Element, draft: Draft): voi
   for (const artifact of listOf(container, 'artifacts')) (isBpmnSubtypeOf(model.host(artifact), 'bpmn:Association') ? draft.edges : draft.shapes).push(artifact);
 }
 
-/** Write `draft` into the layout, over the look the layout gives any of it: each shape at the origin, each flow a stub. */
+/**
+ * Write `draft` into the layout, with the look the layout gives any of it: each shape at the origin, each flow a stub,
+ * in the order drafted, so the same draft is laid out the same way.
+ */
 function place(model: StudyModel, { shapes, edges }: Draft): void {
   const typeOf = (element: Element): string => model.host(element);
   const boxes = new Map<Element, Bounds>(shapes.map((shape) => [shape, { x: 0, y: 0, ...(typeOf(shape) === 'bpmn:Group' ? { width: 0, height: 0 } : defaultSizeFor(typeOf(shape))) }] as const));
@@ -124,10 +141,13 @@ function place(model: StudyModel, { shapes, edges }: Draft): void {
     });
   }
   const { layout } = model.study;
-  for (const shape of shapes) {
-    layout[shape.id!] = { bounds: boxToText(boxes.get(shape)!), ...(listOf(shape, 'flowElements').length > 0 ? { isExpanded: false } : {}), ...layout[shape.id!] };
-  }
-  for (const edge of edges) layout[edge.id!] = { waypoint: pointsToText([{ x: 0, y: 0 }, { x: 0, y: 0 }]), ...layout[edge.id!] };
+  const write = (element: Element, drawing: Drawing): void => {
+    const look = layout[element.id!];
+    delete layout[element.id!];
+    layout[element.id!] = { ...drawing, ...look };
+  };
+  for (const shape of shapes) write(shape, { bounds: boxToText(boxes.get(shape)!), ...(listOf(shape, 'flowElements').length > 0 ? { isExpanded: false } : {}) });
+  for (const edge of edges) write(edge, { waypoint: pointsToText([{ x: 0, y: 0 }, { x: 0, y: 0 }]) });
 }
 
 /** The flows a route is drawn for: what a study's sequence and message flows, notes' links and data run along. */

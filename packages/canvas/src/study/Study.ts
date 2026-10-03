@@ -17,7 +17,7 @@ import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { declares, describeType, extensionMisfit, NOTHING, refused, runRead, runStep, shapeFor } from '@canvas/study/calls.ts';
 import { installedCatalog, type Catalog } from '@canvas/study/catalog.ts';
 import { tasksReferencing } from '@canvas/study/choreography.ts';
-import { drawingOf, writeLayout } from '@canvas/study/di.ts';
+import { drawingOf, lookOf, writeLayout } from '@canvas/study/di.ts';
 import { draftClosedContents, draftDrawing, drawFlows } from '@canvas/study/draft.ts';
 import { Drag, type Movable } from '@canvas/study/drag.ts';
 import { idsIn, listOf } from '@canvas/study/elements.ts';
@@ -102,9 +102,10 @@ export interface StudyInternals {
 /** How far right and down a paste with no place lands from where its document draws it: beside what it copied. */
 const PASTE_STEP = 20;
 
-/** The study's own: its internals, and the mutator behind every write. */
+/** The study's own: its internals, the mutator behind every write, and what a draft placed that no edit has touched. */
 interface Own extends StudyInternals {
   readonly mutator: Mutator;
+  readonly drafted: Set<string>;
 }
 
 const internals = new WeakMap<Study, Own>();
@@ -706,25 +707,29 @@ export class Study {
 
   /** Edit `model` from here on, and return its scene. */
   private read(model: StudyModel, revision: number): Scene {
-    // A study with no drawing is drawn as it is read, and laid out; a drawn one gets the data flow it leaves out, and
-    // what a sub-process it draws closed holds when it draws none of that, laid out on that sub-process's plane.
-    const drafted = draftDrawing(model);
-    const closed = drafted ? [] : draftClosedContents(model);
-    if (!drafted) drawFlows(model);
+    // A study with no drawing is drawn as it is read, laid out, and its drawing is the study's. A drawn one gets the
+    // data flow it leaves out, and what a sub-process it draws closed holds when it leaves that out, laid out on that
+    // sub-process's plane: drawn, but kept out of the layout (its look aside) until an edit touches it.
+    const whole = draftDrawing(model);
+    const drafted = new Set(whole ? [] : draftPlanes(model, this.options));
+    if (!whole) drawFlows(model);
     const scene = importStudy(model, this.options);
-    if (drafted) {
+    if (whole) {
       for (const element of layOut(scene)) if (element.kind !== 'label') syncLabel(scene, element);
       writeLayout(scene);
-    } else if (closed.length > 0) {
-      const planes = closed.map((id) => scene.elementsById.get(id) as SceneNode);
-      for (const element of layOut(scene, planes)) if (element.kind !== 'label') syncLabel(scene, element);
-      for (const element of planes.flatMap(contentsOf)) if (element.kind !== 'label') model.study.layout[element.id] = drawingOf(scene, element);
+    }
+    const { layout } = model.study;
+    for (const id of drafted) {
+      const look = lookOf(layout[id]);
+      if (look) layout[id] = look;
+      else delete layout[id];
     }
     scene.revision = revision;
     const mutator = new Mutator(scene, (commit) => this.edited(commit));
     internals.set(this, {
       scene,
       mutator,
+      drafted,
       rules: this.rules,
       runAs: (key, edit) => this.history.runAs(key, edit),
       settle: (changed, rehome) => this.commit(() => {
@@ -896,11 +901,12 @@ export class Study {
     return result!;
   }
 
-  /** A commit: the document as it now stands goes into the history. */
+  /** A commit: the document as it now stands goes into the history; what it touched of a draft is drawn as it stands. */
   private edited(commit: Commit): void {
     this.committed = commit;
-    const { scene } = own(this);
-    writeLayout(scene);
+    const { scene, drafted } = own(this);
+    for (const element of [...commit.added, ...commit.changed, ...commit.removed]) drafted.delete('owner' in element ? element.owner.id : element.id);
+    writeLayout(scene, drafted);
     this.history.record(snapshotOf(scene.model));
     this.announce({ cause: 'edit', ...idsOf(commit) });
   }
@@ -979,6 +985,26 @@ function layOut(scene: Scene, planes?: readonly SceneNode[]): SceneElement[] {
     here.forEach((flow, i) => { flow.waypoints = spread[i]; });
   }
   return [...moved, ...flows];
+}
+
+/**
+ * Draft what closed sub-processes hold and the drawing leaves out (`draftClosedContents`), lay out their planes as if
+ * the drawing placed none of it, and write the layout that draft gives what the drawing leaves out beside what it
+ * places, for the study to read; the ids of what it drafted.
+ */
+function draftPlanes(model: StudyModel, options: ImportOptions): string[] {
+  const { planes, placed } = draftClosedContents(model);
+  if (planes.length === 0) return [];
+  const scene = importStudy(model, options);
+  const nodes = planes.map((id) => scene.elementsById.get(id) as SceneNode);
+  for (const element of layOut(scene, nodes)) if (element.kind !== 'label') syncLabel(scene, element);
+  const drafted: string[] = [];
+  for (const element of nodes.flatMap(contentsOf)) {
+    if (element.kind === 'label') continue;
+    if (!(element.id in placed)) drafted.push(element.id);
+    model.study.layout[element.id] = placed[element.id] ?? drawingOf(scene, element);
+  }
+  return drafted;
 }
 
 /** What a revision did, by id: the elements only `after` holds, those it holds otherwise, and those it no longer holds. */

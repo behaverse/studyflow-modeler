@@ -1,6 +1,7 @@
 /**
  * {@link Scene} → the study's drawing. Rewrites the layout map from the scene: an entry per shape and per edge, its
- * box or route, colours, caption style, the box of a pinned caption, and what a shape shows (expanded, a marker).
+ * box or route, colours, caption style, the box of a pinned caption, and what a shape shows (expanded, a marker). What
+ * a draft placed and no edit has touched keeps only its look.
  */
 
 import { formatFont } from '@canvas/study/font.ts';
@@ -11,12 +12,21 @@ import { boxToText, pointsToText } from '@core/model/spelling.ts';
 import { canonicalDrawing, inferredRoot } from '@core/model/yaml.ts';
 import { drawablesOf } from '@canvas/study/tree.ts';
 
-export function writeLayout(scene: Scene): void {
+export function writeLayout(scene: Scene, drafted: ReadonlySet<string> = new Set()): void {
   const { model } = scene;
   const layout: Record<string, Drawing> = {};
-  for (const element of drawablesOf(scene)) layout[element.id] = drawingOf(scene, element);
+  for (const element of drawablesOf(scene)) {
+    const drawing = drafted.has(element.id) ? lookOf(drawingOf(scene, element)) : drawingOf(scene, element);
+    if (drawing) layout[element.id] = drawing;
+  }
   model.study.layout = layout;
   nameRoot(scene);
+}
+
+/** What `drawing` says of an element's look (its colours and its caption's), when it says any of it. */
+export function lookOf(drawing: Drawing | undefined): Drawing | undefined {
+  const look = Object.entries(drawing ?? {}).filter(([key]) => key === 'fill' || key === 'stroke' || key === 'font');
+  return look.length > 0 ? Object.fromEntries(look) : undefined;
 }
 
 /** The diagram names the root it draws, unless the reader infers that root anyway. */
