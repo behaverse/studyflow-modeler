@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { Study, studyInternals, studyMutator, type StudyChange } from '@canvas/study/Study.ts';
+import { Study, studyInternals, studyMutator, type StudyChange, type StudyResult } from '@canvas/study/Study.ts';
 import type { StudyTool } from '@canvas/study/tools.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
 import type { Bounds, SceneNode } from '@canvas/study/scene.ts';
@@ -522,6 +522,47 @@ Q:
   study.redo();
   study.move({ ids: ['Model'], by: { x: 0, y: -350 }, into: 'Lab' });
   expect(study.toYaml()).toBe(before);
+});
+
+test('a step put into a pool with no process gives the pool one, a root of the study, to hold it; one undo takes both back', () => {
+  const POOLS = `id: Defs_P
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 600 200 }
+    Model: { name: Model, bounds: 100 300 600 200 }
+P:
+  type: Process
+  flowElements:
+    Ask: { type: Task, bounds: 200 100 100 80 }
+`;
+  const at = { x: 300, y: 400 };
+  // [how the step goes in, the edit, the step it put there]
+  const CASES: [how: string, put: (study: Study) => StudyResult, step: (done: StudyResult) => string][] = [
+    ['add', (study) => study.add({ type: 'bpmn:Task', id: 'Tell', into: 'Model', at }), () => 'Tell'],
+    ['move', (study) => study.move({ ids: ['Ask'], by: { x: 0, y: 250 }, into: 'Model' }), () => 'Ask'],
+    ['paste', (study) => study.paste({ yaml: (study.copy({ ids: ['Ask'] }) as { yaml: string }).yaml, into: 'Model', at }), (done) => done.added[0]],
+  ];
+  for (const [how, put, stepOf] of CASES) {
+    const study = Study.of(studyModel(POOLS));
+    const before = study.toYaml();
+    const done = put(study);
+    expect(done.ok, how).toBe(true);
+    const { model } = study;
+    expect(rootTypes(study), how).toEqual(['bpmn:Collaboration', 'bpmn:Process', 'bpmn:Process']);
+    const process = model.study.roots[2];
+    expect(model.get('Model')!.processRef, how).toBe(process.id);
+    const step = stepOf(done);
+    expect(model.holderOf(model.get(step)!), how).toMatchObject({ parent: process, key: 'flowElements' });
+    // The file holds the step and its drawing: read back, it is drawn where it was put.
+    expect(Study.of(studyModel(study.toYaml())).get(step), how).toEqual(study.get(step));
+    expect(study.get(step), how).toMatchObject({ parent: 'Model' });
+
+    expect(study.undo().ok, how).toBe(true);
+    expect(study.toYaml(), how).toBe(before);
+  }
 });
 
 const CLIPBOARD = `id: Defs_C

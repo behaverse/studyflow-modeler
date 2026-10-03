@@ -285,6 +285,8 @@ export class Rules {
     if (shapeType === 'bpmn:Participant' && containerType === 'bpmn:Process' && container !== undefined && container === options.root) {
       return true;
     }
+    // A lane divides a process: a pool that depicts none has nothing to divide (a step dropped in gives it one).
+    if (shapeType === 'bpmn:Lane' && containerType === 'bpmn:Participant' && !container?.element?.processRef) return false;
     return canContain(shapeType, containerType);
   }
 

@@ -151,7 +151,9 @@ test('canReconnect judges the dragged end with the one left in place, and keeps 
 // --- containment, retyping, resizing ----------------------------------------------
 
 test('what may be created, or retyped, where', () => {
-  const pool = node('bpmn:Participant');
+  const pool: RuleElement = { ...node('bpmn:Participant'), element: { type: 'bpmn:Participant', processRef: 'Process_1' } };
+  // A pool that depicts no process (a model's): a step dropped in gives it one.
+  const blackBox = node('bpmn:Participant');
   const lane = node('bpmn:Lane', { parent: pool });
   const collaboration: RuleElement = { element: { type: 'bpmn:Collaboration' } };
   const expanded = node('bpmn:SubProcess', { isExpanded: true });
@@ -168,6 +170,7 @@ test('what may be created, or retyped, where', () => {
     ['a task into a collaboration', rules.canCreate(task, collaboration), false],
     ['an annotation into a collaboration', rules.canCreate(node('bpmn:TextAnnotation'), collaboration), true],
     ['a lane into a pool', rules.canCreate(node('bpmn:Lane'), pool), true],
+    ['a lane into a pool with no process, which it would divide', rules.canCreate(node('bpmn:Lane'), blackBox), false],
     ['a lane into a lane', rules.canCreate(node('bpmn:Lane'), lane), true],
     ['a lane into the process', rules.canCreate(node('bpmn:Lane')), false],
     // BPMN puts lane sets on any FlowElementsContainer, so an expanded sub-process may be divided too.

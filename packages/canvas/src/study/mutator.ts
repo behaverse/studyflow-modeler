@@ -76,7 +76,8 @@ export interface FlowContainer {
 /**
  * Where a shape dropped on `parent` is filed: a group hands over to its own
  * container, a lane claims by reference and hands over to the pool, a pool files
- * into its process, and nothing at all means the diagram root.
+ * into its process (the pool itself when it depicts none, which a drop gives one:
+ * `Mutator.holderFor`), and nothing at all means the diagram root.
  */
 function flowContainerOf(scene: Scene, parent: SceneNode | undefined): FlowContainer {
   let lane: Element | undefined;
@@ -457,7 +458,7 @@ export class Mutator {
     for (const node of nodes) {
       if (node === parent || (node.parent ?? undefined) === parent) continue;
       const from = flowContainerOf(scene, node.parent);
-      const to = flowContainerOf(scene, parent);
+      const to = this.holderFor(parent);
       const element = node.element;
       const holder = scene.model.unfile(element)?.parent;
       if (from.lane) dropRef(from.lane, 'flowNodeRef', element);
@@ -516,7 +517,7 @@ export class Mutator {
       : undefined;
     const bounds = promotion?.bounds ?? spec.bounds;
 
-    const { owner, lane } = flowContainerOf(scene, parentNode);
+    const { owner, lane } = this.holderFor(parentNode);
     this.fileElement(element, type, owner);
     if (lane && isBpmnSubtypeOf(type, 'bpmn:FlowNode')) addRef(lane, 'flowNodeRef', element);
 
@@ -555,7 +556,7 @@ export class Mutator {
   graft(fragment: Scene, parent: SceneNode | undefined, by: Point): void {
     const scene = this.scene;
     const { model } = scene;
-    const { owner, lane } = flowContainerOf(scene, parent);
+    const { owner, lane } = this.holderFor(parent);
     const added: Drawable[] = [];
     const collect = (element: SceneElement): void => {
       if (element.kind === 'label') return;
@@ -703,12 +704,26 @@ export class Mutator {
       model.file(element, laneSet, 'lanes');
       return;
     }
-    if (type === 'bpmn:Participant' && !refOf(model, element, 'processRef')) {
-      const process = mint('bpmn:Process', { id: this.ids.next('bpmn:Process'), isExecutable: false });
-      model.file(process, undefined);
-      setRef(model, element, 'processRef', process);
-    }
+    if (type === 'bpmn:Participant') this.processOf(element);
     model.file(element, owner, containmentPropertyFor(type));
+  }
+
+  /** The process `pool` depicts: a new one, a root of the study, when it depicts none. */
+  private processOf(pool: Element): Element {
+    const { model } = this.scene;
+    const depicted = refOf(model, pool, 'processRef');
+    if (depicted) return depicted;
+    const process = mint('bpmn:Process', { id: this.ids.next('bpmn:Process'), isExecutable: false });
+    model.file(process, undefined);
+    setRef(model, pool, 'processRef', process);
+    return process;
+  }
+
+  /** Where a shape dropped on `parent` is filed ({@link flowContainerOf}): a pool that depicts no process is given one to hold it. */
+  private holderFor(parent: SceneNode | undefined): FlowContainer {
+    const container = flowContainerOf(this.scene, parent);
+    if (this.scene.model.host(container.owner) !== 'bpmn:Participant') return container;
+    return { ...container, owner: this.processOf(container.owner) };
   }
 
   /**
