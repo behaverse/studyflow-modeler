@@ -556,13 +556,13 @@ for (const [label, marker] of COHORT_MARKERS) {
 test('a multi-instance marker over a list runs once per item, binds each in its scope, and collects the outputs', async () => {
   // BPMN's `loopDataInputRef`/`inputDataItem` and `loopDataOutputRef`/`outputDataItem`: the list decides the passes,
   // not `loopCardinality`. A condition reads the item as `word`, and the pass that writes no `shout` leaves a gap in
-  // the list rather than the pass before's value.
+  // the list rather than the pass before's value. A list the file writes as YAML reaches the walk as that list.
   const { state, reached } = await walked(`S:
   type: Process
   properties:
     P_Words:
       name: words
-      value: '["a", "b", "c"]'
+      value: [a, b, c]
     P_Loud:
       name: loud
   flowElements:

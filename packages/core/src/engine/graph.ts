@@ -8,6 +8,9 @@ export const PASSTHROUGH_TYPES = new Set(['startEvent', 'intermediateCatchEvent'
 /** What a container holds that no sequence flow leads to. */
 export const NOT_FLOW_NODES = new Set([...DATA_TYPES, 'sequenceFlow', 'boundaryEvent', 'textAnnotation', 'association', 'group']);
 
+/** A property's initial value, which the walk reads as a {@link literal}. */
+export const PROPERTY_VALUE = 'studyflow:value';
+
 /** A `value` or `seed` attribute: JSON when it parses, else the text as written. */
 export function literal(text: unknown): unknown {
   if (typeof text !== 'string') return text;

@@ -1,4 +1,5 @@
 import { getCatalog, hasCatalog } from '@core/notation';
+import { PROPERTY_VALUE } from '@core/engine/graph';
 import type { Timer } from '@core/engine/timer';
 import { expressionOf as modelExpression, idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import { wiredIn } from '@core/model/parameters';
@@ -121,7 +122,9 @@ function attributesIn(model: StudyModel, element: Element, type: string, skip: R
     const local = property.ns.localName;
     if (!property.isAttr || skip.has(local) || !(local in element)) continue;
     const value = element[local];
-    if (value !== undefined && value !== null) out[local] = textIn(value);
+    if (value === undefined || value === null) continue;
+    // A property's value is read as a literal, so one that is not a text goes as its JSON, which reads back as it.
+    out[local] = property.ns.name === PROPERTY_VALUE && typeof value !== 'string' ? JSON.stringify(value) : textIn(value);
   }
   // A key no schema declares stays an attribute of the element, as the XML keeps it.
   for (const [key, value] of Object.entries(element)) {
