@@ -7,7 +7,7 @@
  */
 
 import { isDataAssociationType } from '@core/element/index.ts';
-import { isElement, type Element } from '@core/model/index.ts';
+import { isElement, type Element, type StudyModel } from '@core/model/index.ts';
 import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 
 import {
@@ -52,6 +52,7 @@ import {
   frameAround,
   incidentEdgesOf,
   isHidden,
+  withDescendants,
 } from '@canvas/study/tree.ts';
 import { cropPoint, isExpandable } from '@core/document/outline.ts';
 import { samePoints } from '@canvas/study/edit.ts';
@@ -128,6 +129,11 @@ function collaborationOf(scene: Scene, ...ends: (SceneNode | SceneEdge)[]): Elem
 /** Where a sequence flow or an association from `source` to `target` is filed: with its source, or its target when the source is at the top. */
 function flowHolderOf(scene: Scene, source: SceneNode | SceneEdge | undefined, target: SceneNode | undefined): Element {
   return flowContainerOf(scene, source?.parent ?? target?.parent).owner;
+}
+
+/** Take `element` off every lane that lists it but those `kept`: a step is listed by the lane it is drawn in alone. */
+function unlist(model: StudyModel, element: Element, kept: ReadonlySet<Element> = new Set()): void {
+  for (const lane of model.all()) if (model.host(lane) === 'bpmn:Lane' && !kept.has(lane)) dropRef(lane, 'flowNodeRef', element);
 }
 
 /** The shapes a lane holds, in it and in the lanes inside it; none for any other shape. */
@@ -472,7 +478,7 @@ export class Mutator {
       const to = this.holderFor(parent);
       const element = node.element;
       const holder = scene.model.unfile(element)?.parent;
-      if (from.lane) dropRef(from.lane, 'flowNodeRef', element);
+      unlist(scene.model, element);
       this.fileElement(element, node.type, to);
       if (to.lane && isBpmnSubtypeOf(node.type, 'bpmn:FlowNode')) addRef(to.lane, 'flowNodeRef', element);
       // A lane set left empty goes, as on a deletion (study/remove.ts).
@@ -480,11 +486,12 @@ export class Mutator {
       unlinkFromTree(scene, node);
       linkIntoTree(scene, node, parent);
       changed.push(node);
-      // A lane takes the shapes in it, and in the lanes inside it, along: filed where it goes, out of the lane it leaves.
-      if (to.owner === from.owner) continue;
+      // A lane takes the shapes in it, and in the lanes inside it, along: listed by those lanes alone, and filed where it goes.
+      const lanes = new Set(withDescendants([node]).filter((inner) => inner.type === 'bpmn:Lane').map((inner) => inner.element));
       for (const content of laneContentsOf(node)) {
+        unlist(scene.model, content.element, lanes);
+        if (to.owner === from.owner) continue;
         scene.model.unfile(content.element);
-        if (from.lane) dropRef(from.lane, 'flowNodeRef', content.element);
         this.fileElement(content.element, content.type, { owner: to.owner });
         changed.push(content);
       }

@@ -700,6 +700,48 @@ Q:
   expect(study.move({ ids: ['Screen'], by: { x: 0, y: 500 }, into: 'Home' })).toMatchObject({ ok: false });
 });
 
+test('a step that leaves a lane, by itself or in a lane that moves, leaves every lane that listed it; the lane it is in lists it', () => {
+  // Another tool lists a step on each lane around it too.
+  const LANES = `id: Defs_R
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Lab: { name: Lab, processRef: P, bounds: 100 50 700 450 }
+P:
+  type: Process
+  laneSets:
+    Set_P:
+      lanes:
+        Screen:
+          name: Screen
+          flowNodeRef: [Ask, Tell]
+          bounds: 130 50 670 300
+          childLaneSet:
+            lanes:
+              Voice: { name: Voice, flowNodeRef: [Tell], bounds: 160 200 640 150 }
+        Desk: { name: Desk, bounds: 130 350 670 150 }
+  flowElements:
+    Ask: { type: Task, bounds: 200 80 100 80 }
+    Tell: { type: Task, bounds: 400 230 100 80 }
+`;
+  const listing = (study: Study, id: string): string[] => [...study.model.elements()]
+    .filter((element) => study.model.host(element) === 'bpmn:Lane' && (element.flowNodeRef as string[] | undefined)?.includes(id))
+    .map((lane) => lane.id!);
+  // [what moves, the lanes that list Tell then]
+  const CASES: [what: string, lanes: string[]][] = [['Tell', ['Desk']], ['Voice', ['Voice']]];
+  for (const [what, lanes] of CASES) {
+    const study = Study.of(studyModel(LANES));
+    const before = study.toYaml();
+    expect(study.move({ ids: [what], by: { x: 0, y: 150 }, into: 'Desk' }).ok, what).toBe(true);
+    expect(listing(study, 'Tell'), what).toEqual(lanes);
+    expect(listing(study, 'Ask'), `${what}: what stays is listed as it was`).toEqual(['Screen']);
+    expect(study.undo().ok, what).toBe(true);
+    expect(study.toYaml(), what).toBe(before);
+  }
+});
+
 const CLIPBOARD = `id: Defs_C
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
