@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 import { Study, studyInternals, studyMutator, type StudyChange } from '@canvas/study/Study.ts';
 import type { StudyTool } from '@canvas/study/tools.ts';
 import type { Mutator } from '@canvas/study/mutator.ts';
-import type { SceneNode } from '@canvas/study/scene.ts';
+import type { Bounds, SceneNode } from '@canvas/study/scene.ts';
 
 import { freshMetamodel, studyModel } from '@tests/schemas';
 
@@ -640,6 +640,34 @@ test('a caption keeps up with what it names, in a study no view draws', () => {
   const was = study.get('Go_label')!.bounds!;
   study.move({ ids: ['Go'], by: { x: 40, y: 10 } });
   expect(study.get('Go_label')!.bounds).toMatchObject({ x: was.x + 40, y: was.y + 10 });
+});
+
+test('a caption is sized from its name as drawn, its placeholders resolved, pinned or not', () => {
+  const drawn = (name: string): (Bounds | undefined)[] => {
+    const study = Study.of(studyModel(`id: Defs_3
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_1:
+  type: Process
+  properties:
+    Max:
+      name: max_unanswered
+      value: 0.2
+  flowElements:
+    Derived:
+      type: EndEvent
+      name: ${JSON.stringify(name)}
+      bounds: 200 80 36 36
+    Pinned:
+      type: EndEvent
+      name: ${JSON.stringify(name)}
+      bounds: 400 80 36 36
+      label: 340 122 184 15
+`));
+    return [study.get('Derived_label')?.bounds, study.get('Pinned_label')?.bounds];
+  };
+  // The name as written wraps to more lines than the text drawn, which would leave the box taller than its text.
+  expect(drawn('> {max_unanswered:%} unanswered')).toEqual(drawn('> 20% unanswered'));
 });
 
 test('a reconnected data association is filed on its new activity, the one that reads or writes the data', () => {

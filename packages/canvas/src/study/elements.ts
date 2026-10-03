@@ -4,9 +4,16 @@
  */
 
 import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index.ts';
+import { resolvePlaceholdersIn } from '@core/model/state.ts';
 
 export function nameOf(element: Element | undefined): string {
   return typeof element?.name === 'string' ? element.name : '';
+}
+
+/** The name as the canvas draws it, `{placeholders}` resolved (`> {max_unanswered:%}` as `> 20%`): what a caption is
+ * sized, wrapped and drawn from, so its box fits the text it shows. The element keeps the name as written. */
+export function drawnNameOf(model: StudyModel, element: Element | undefined): string {
+  return resolvePlaceholdersIn(model, nameOf(element), typeof element?.id === 'string' ? element.id : '');
 }
 
 /** The elements `element` holds under `key`. */

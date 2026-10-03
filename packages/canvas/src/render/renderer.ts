@@ -8,14 +8,13 @@ import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore, PARTICIP
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@core/element/index.ts';
 import { readAttribute, type Element, type StudyModel } from '@core/model/index.ts';
 import { attributeOverridesIn } from '@core/model/parameters.ts';
-import { resolvePlaceholdersIn } from '@core/model/state.ts';
 import { toLocalName } from '@core/naming.ts';
 import { getCatalog, hasCatalog } from '@core/notation/index.ts';
 
 import { bandsOf, isTypedChoreography } from '@canvas/study/choreography.ts';
 import { normalizeColor } from '@canvas/study/color.ts';
 
-import { idsIn, listOf, nameOf } from '@canvas/study/elements.ts';
+import { drawnNameOf, idsIn, listOf, nameOf } from '@canvas/study/elements.ts';
 import type { Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { drawIcon, drawIconText, drawImageIcon, type IconResolver } from '@canvas/render/icons.ts';
@@ -167,10 +166,9 @@ export class Renderer {
     this.iconResolver = options.iconResolver;
   }
 
-  /** The name drawn for `element`: `{count}` shows its run-state value; the model keeps the raw name. */
+  /** The name drawn for `element` ({@link drawnNameOf}); the model keeps the raw name. */
   private nameOf(element: Element): string {
-    const name = nameOf(element);
-    return this.scene ? resolvePlaceholdersIn(this.scene.model, name, element.id ?? '') : name;
+    return this.scene ? drawnNameOf(this.scene.model, element) : nameOf(element);
   }
 
   /** The study model drawn from. */

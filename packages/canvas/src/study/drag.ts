@@ -7,7 +7,7 @@
 
 import { isContainerNode, obstaclesIn, type HitOptions } from '@canvas/study/hit.ts';
 import type { Bounds, Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
-import { idsIn, nameOf } from '@canvas/study/elements.ts';
+import { drawnNameOf, idsIn } from '@canvas/study/elements.ts';
 import { planeOf, visibleEndpointOf, withDescendants } from '@canvas/study/tree.ts';
 import { labelHeightFor, labelMinSize } from '@canvas/study/text.ts';
 import { cropPoint } from '@core/document/outline.ts';
@@ -187,7 +187,7 @@ export class Drag {
       for (const edge of [...target.outgoing, ...target.incoming]) edges.set(edge, edge.waypoints.map((p) => ({ x: p.x, y: p.y })));
     }
     const min = target.kind === 'label'
-      ? labelMinSize(nameOf(target.element))
+      ? labelMinSize(drawnNameOf(this.getScene().model, target.element))
       : this.rules.minSizeFor(target);
     const labelOrigin = target.kind === 'node' && target.label?.pinned ? { x: target.label.x, y: target.label.y } : undefined;
     this.state = {
@@ -362,7 +362,7 @@ export class Drag {
       else right = left + min.width;
     }
     let minHeight = min.height;
-    if (target.kind === 'label') minHeight = Math.max(minHeight, labelHeightFor(nameOf(target.element), right - left));
+    if (target.kind === 'label') minHeight = Math.max(minHeight, labelHeightFor(drawnNameOf(this.getScene().model, target.element), right - left));
     if (bottom - top < minHeight) {
       if (handle.includes('n')) top = bottom - minHeight;
       else bottom = top + minHeight;

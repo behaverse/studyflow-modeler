@@ -9,7 +9,7 @@ import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType 
 import type { Drawing, Element, StudyModel, Value } from '@core/model/index.ts';
 import { textToBox, textToPoints } from '@core/model/spelling.ts';
 import { parseFont } from '@canvas/study/font.ts';
-import { idsIn, refOf } from '@canvas/study/elements.ts';
+import { drawnNameOf, idsIn, refOf } from '@canvas/study/elements.ts';
 import { mintLabel, syncLabel } from '@canvas/study/labels.ts';
 import type {
   Bounds,
@@ -157,8 +157,8 @@ function buildEdge(model: StudyModel, element: Element, drawing: Drawing): Scene
 
 /** A caption box the drawing gives pins the caption where the document put it. */
 function attachLabel(scene: Scene, owner: Drawable, box: Partial<Bounds> | undefined): void {
-  const name = owner.element.name;
-  if (box && isFiniteNumber(box.x) && isFiniteNumber(box.y) && typeof name === 'string' && name) {
+  const name = drawnNameOf(scene.model, owner.element);
+  if (box && isFiniteNumber(box.x) && isFiniteNumber(box.y) && name) {
     const width = box.width ?? (owner.kind === 'node' ? nodeLabelBox(owner, name).width : 90);
     const height = box.height ?? labelHeightFor(name, width);
     const label = mintLabel(owner, { x: box.x, y: box.y, width, height }, true);

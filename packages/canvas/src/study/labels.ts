@@ -5,7 +5,7 @@
 
 import { BPMN } from '@core/constants.ts';
 
-import { nameOf } from '@canvas/study/elements.ts';
+import { drawnNameOf } from '@canvas/study/elements.ts';
 import type { Bounds, Scene, SceneEdge, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
 import { edgeLabelBox, labelHeightFor, nodeLabelBox } from '@canvas/study/text.ts';
 import { DATA_TYPES } from '@core/document/outline.ts';
@@ -35,7 +35,7 @@ function derivedBox(owner: SceneNode | SceneEdge, name: string): Bounds {
  * Returns the label, or `undefined` when the owner draws none.
  */
 export function syncLabel(scene: Scene, owner: SceneNode | SceneEdge): SceneLabel | undefined {
-  const name = nameOf(owner.element);
+  const name = drawnNameOf(scene.model, owner.element);
   if (!name || !hasExternalLabel(owner)) {
     dropLabel(scene, owner);
     return undefined;
