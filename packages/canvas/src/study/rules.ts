@@ -259,9 +259,10 @@ export class Rules {
 
   /**
    * A drop must be a legal containment for every shape dropped (a boundary event whose activity moves too rides on
-   * it) and strand no sequence flow: a moved shape's, nor one of the steps a moved lane carries. `target` takes what
-   * fits however it is drawn: a sub-process drawn shut is open to a view drilled into it, and to a shape moved into it
-   * by id.
+   * it), and leave each flow on what changes container (a moved shape, or one a moved lane carries) one the rules
+   * would draw between its ends where they land: a sequence flow within one container, a message flow between two
+   * pools. `target` takes what fits however it is drawn: a sub-process drawn shut is open to a view drilled into it,
+   * and to a shape moved into it by id.
    */
   canMove(shapes: readonly (RuleElement | undefined)[], target: RuleElement | undefined): boolean {
     const moving = new Set(shapes.filter((shape): shape is RuleElement => !!shape));
@@ -269,14 +270,12 @@ export class Rules {
     if (![...moving].every((shape) => ridesOn(shape, moving) || !!this.canCreate(shape, open))) return false;
     const to = dropContainerOf(target);
     const carried = new Set([...moving].flatMap(carriedBy));
+    // What moves lands in the target's container: a lane on the way there changes neither its pool nor its container.
+    const landed = (end: RuleElement): RuleElement => (carried.has(end) ? { ...end, parent: to } : end);
     for (const shape of carried) {
       if (ruleContainerOf(shape) === to) continue;
       for (const edge of [...(shape.incoming ?? []), ...(shape.outgoing ?? [])]) {
-        const type = bpmnTypeOf(edge, this.catalog);
-        if (!type || !isBpmnSubtypeOf(type, CONNECTION.sequenceFlow)) continue;
-        const other = edge.source === shape ? edge.target : edge.source;
-        if (!other || carried.has(other)) continue;
-        if (ruleContainerOf(other) !== to) return false;
+        if (edge.source && edge.target && !this.canReconnect(edge, landed(edge.source), landed(edge.target))) return false;
       }
     }
     return true;

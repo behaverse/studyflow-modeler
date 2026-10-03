@@ -236,10 +236,14 @@ test('what a successor may follow, and where any edge may start', () => {
   for (const [label, actual, expected] of CASES) expect(actual, label).toBe(expected);
 });
 
-test('a move fits every shape to the drop target and strands no sequence flow across a container', () => {
+test('a move fits every shape to the drop target and leaves every flow on it one the rules would draw', () => {
   // A sequence flow lives in one container and may not cross a sub-process boundary,
   // so a drop that would drag one across is refused, as drawing it would be.
   const pool = node('bpmn:Participant');
+  // A message flow runs between two pools, so a drop that would put both its ends in one is refused too.
+  const sender = node('bpmn:Task', { parent: node('bpmn:Participant') });
+  const listener = node('bpmn:Participant');
+  link('bpmn:MessageFlow', sender, node('bpmn:Task', { parent: listener }));
   const sub = node('bpmn:SubProcess');
   const outside = node('bpmn:Task');
   const moving = node('bpmn:Task');
@@ -261,6 +265,8 @@ test('a move fits every shape to the drop target and strands no sequence flow ac
     ['to the other end, already inside', rules.canMove([joining], sub), true],
     ['within the sub-process it already lives in', rules.canMove([stranded], sub), true],
     ['an annotation with its association', rules.canMove([note], sub), true],
+    ['a step into the pool its message flow reaches', rules.canMove([sender], listener), false],
+    ['a step into a third pool, its message flow still between two', rules.canMove([sender], pool), true],
   ];
   for (const [label, actual, expected] of CASES) expect(actual, label).toBe(expected);
 });
