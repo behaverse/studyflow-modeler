@@ -129,3 +129,58 @@ test('the drawing, the run state and the run records leave the digest alone; the
   // Read from BPMN XML as `studyflow` reads it, with the data associations compacted: the same protocol.
   expect(await protocolDigest(await xmlToStudy(await xmlOf(PLAN), freshMetamodel()))).toBe(base);
 });
+
+/** A study an actor takes: the actor pool's kind and implementation say who answers. */
+const TAKEN = `id: actor_probe
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Taken:
+  type: Collaboration
+  participants:
+    Model:
+      type: studyflow:Actor
+      name: Actor
+      actorType: software
+      implementation: ollama://gemma4:e2b-mlx
+      memory: conversation
+    Subjects:
+      name: Each subject
+      processRef: Study
+Study:
+  type: Process
+  flowElements:
+    Start:
+      type: StartEvent
+    Play:
+      type: Task
+      name: Play the task
+    Done:
+      type: EndEvent
+    F1: Start -> Play
+    F2: Play -> Done
+`;
+
+test('the digest for any actor leaves out who answers, and only that', async () => {
+  const forAnyActor = async (text: string): Promise<string> => protocolDigest(studyModel(text), { anyActor: true });
+  const full = await digest(TAKEN);
+  const any = await forAnyActor(TAKEN);
+  expect(any).not.toBe(full);
+  // A study no actor takes has one digest.
+  expect(await forAnyActor(PLAN)).toBe(await digest(PLAN));
+
+  const CASES: [label: string, edit: (text: string) => string, changes: boolean, changesForAnyActor: boolean][] = [
+    ['another model', swap('ollama://gemma4:e2b-mlx', 'ollama://llama3.1:8b'), true, false],
+    ['a person instead', swap('      actorType: software\n      implementation: ollama://gemma4:e2b-mlx\n', '      actorType: human\n'), true, false],
+    ['what the actor remembers', swap('memory: conversation', 'memory: none'), true, true],
+    ['the pool renamed', swap('name: Actor', 'name: Model'), true, true],
+    ['a step renamed', swap('name: Play the task', 'name: Play the other task'), true, true],
+  ];
+  for (const [label, edit, changes, changesForAnyActor] of CASES) {
+    const edited = edit(TAKEN);
+    expect(await digest(edited) !== full, label).toBe(changes);
+    expect(await forAnyActor(edited) !== any, label).toBe(changesForAnyActor);
+  }
+
+  // Read from BPMN XML as `studyflow` reads it: the same.
+  expect(await protocolDigest(await xmlToStudy(await xmlOf(TAKEN), freshMetamodel()), { anyActor: true })).toBe(any);
+});

@@ -19,6 +19,10 @@ const RECORDED = new Set(['progress']);
 const unticked = (markdown: string): string =>
   serializeChecklistLines(parseChecklistLines(markdown).map((line) => (line.kind === 'task' ? { ...line, checked: false } : line)));
 
+/** Who answers an actor pool: its kind and the program, model, or device that plays it, left out of a digest for any actor. */
+const ACTOR = 'studyflow:Actor';
+const BINDING = new Set(['actorType', 'implementation']);
+
 /** Where a run puts what it adds to a study that had neither: the Study extension for its `state`, and its holder. */
 const HOLDERS = new Set([STUDY_EXTENSION_TYPE, 'bpmn:ExtensionElements']);
 
@@ -44,32 +48,34 @@ function addChecklistEntry(entries: [string, unknown][], checklist: string): voi
  * element's attributes in a wrapper entry under `extensionElements`, expressions and documentation as elements, a
  * YAML-typed value as its mapping. So a protocol hashes the same, whichever holds the study.
  */
-function canonicalIn(model: StudyModel, value: Value | undefined, declared: string | undefined): unknown {
-  if (Array.isArray(value)) return value.map((item) => canonicalIn(model, item, declared));
+function canonicalIn(model: StudyModel, value: Value | undefined, declared: string | undefined, anyActor: boolean): unknown {
+  if (Array.isArray(value)) return value.map((item) => canonicalIn(model, item, declared, anyActor));
   if (typeof value === 'string' && declared && model.metamodel.has(declared)) {
-    if (isExpressionType(declared)) return canonicalElementIn(model, { type: 'bpmn:FormalExpression', body: value });
-    if (declared === 'bpmn:Documentation') return canonicalElementIn(model, { type: declared, text: value });
+    if (isExpressionType(declared)) return canonicalElementIn(model, { type: 'bpmn:FormalExpression', body: value }, false, anyActor);
+    if (declared === 'bpmn:Documentation') return canonicalElementIn(model, { type: declared, text: value }, false, anyActor);
   }
   // Where BPMN expects an element, a schema's typed element is that BPMN element; anywhere else (an extension entry) an
   // element is its own type.
-  if (isElement(value)) return canonicalElementIn(model, value, !declared?.startsWith('bpmn:'));
+  if (isElement(value)) return canonicalElementIn(model, value, !declared?.startsWith('bpmn:'), anyActor);
   if (!value || typeof value !== 'object') return value;
-  return sorted(Object.entries(value).map(([key, item]) => [key, canonicalIn(model, item as Value, undefined)]));
+  return sorted(Object.entries(value).map(([key, item]) => [key, canonicalIn(model, item as Value, undefined, anyActor)]));
 }
 
-function canonicalElementIn(model: StudyModel, element: Element, entry = false): unknown {
+function canonicalElementIn(model: StudyModel, element: Element, entry: boolean, anyActor: boolean): unknown {
   const host = entry ? element.type : model.host(element);
   if (!model.metamodel.has(host)) return sorted([['$type', element.type]]);
+  const unbound = anyActor && model.metamodel.isA(host, ACTOR);
   const typed = entry ? undefined : model.typedEntry(element);
   const entries: [string, unknown][] = [['$type', host]];
   let checklist: string | undefined;
   for (const p of model.metamodel.descriptor(host).properties) {
     const key = p.ns.localName;
     if (p.isVirtual || DRAWING.has(key) || RECORDED.has(key) || (key === 'state' && host === STUDY_EXTENSION_TYPE)) continue;
+    if (unbound && BINDING.has(key)) continue;
     let v: unknown = element[key];
     if (key === 'extensionElements') {
       const listed = [...(typed ? [typed] : []), ...(Array.isArray(v) ? v : isElement(v) && Array.isArray(v.values) ? v.values : [])];
-      v = listed.length === 0 ? undefined : canonicalElementIn(model, { type: 'bpmn:ExtensionElements', values: listed });
+      v = listed.length === 0 ? undefined : canonicalElementIn(model, { type: 'bpmn:ExtensionElements', values: listed }, false, anyActor);
       if (v !== undefined) entries.push([key, v]);
       continue;
     }
@@ -83,10 +89,10 @@ function canonicalElementIn(model: StudyModel, element: Element, entry = false):
     if (p.isReference) v = p.isMany ? (v as Value[]).map((ref) => idOf(ref) ?? ref) : idOf(v as Value) ?? v;
     else if (p.isMany) {
       v = (v as Value[]).filter((item) => !(isElement(item) && item.type === RUN_RECORD))
-        .map((item) => canonicalIn(model, item, p.type)).filter((item) => item !== undefined);
+        .map((item) => canonicalIn(model, item, p.type, anyActor)).filter((item) => item !== undefined);
     } else if (isYamlValueProperty(p) && typeof v === 'string') {
-      v = canonicalIn(model, (inlineYamlValue(v, p) ?? v) as Value, undefined);
-    } else v = canonicalIn(model, v as Value, p.type);
+      v = canonicalIn(model, (inlineYamlValue(v, p) ?? v) as Value, undefined, anyActor);
+    } else v = canonicalIn(model, v as Value, p.type, anyActor);
     if (v !== undefined && !(Array.isArray(v) && v.length === 0)) entries.push([key, v]);
   }
   if (checklist !== undefined) addChecklistEntry(entries, checklist);
@@ -109,10 +115,11 @@ function flowsAt(model: StudyModel, element: Element, key: 'incoming' | 'outgoin
  * drawing, not the run `state`, not the per-element run records, not the drawing on semantic elements ({@link DRAWING}),
  * not what a run or an audit fills in ({@link RECORDED}, checklist ticks). `studyflow run` hands it to the run, which
  * records it as its `plan`, and `studyflow validate` recomputes it, so an executed copy whose protocol was edited after
- * the run no longer matches.
+ * the run no longer matches. With `anyActor`, it also leaves out who answers each actor pool ({@link BINDING}), so
+ * copies of one study that differ only in the actor that takes it share that digest.
  */
-export async function protocolDigest(model: StudyModel): Promise<string> {
-  const json = JSON.stringify(model.study.roots.map((root) => canonicalElementIn(model, root)));
+export async function protocolDigest(model: StudyModel, options: { anyActor?: boolean } = {}): Promise<string> {
+  const json = JSON.stringify(model.study.roots.map((root) => canonicalElementIn(model, root, false, options.anyActor ?? false)));
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json)));
   return `sha256:${Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }

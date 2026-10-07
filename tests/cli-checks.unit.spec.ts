@@ -78,6 +78,8 @@ test('validate says the protocol matches the run that recorded it, and warns onc
   const plan = study('ExclusiveGateway');
   const protocol = JSON.parse(studyflow(['info', '--json', write('plan.studyflow.yaml', plan)]).stdout).protocol;
   expect(studyflow(['info', path.join(dir, 'plan.studyflow.yaml')]).stdout).toContain(`  protocol: ${protocol}\n`);
+  // No actor takes it, so its digest for any actor is the protocol's.
+  expect(JSON.parse(studyflow(['info', '--json', path.join(dir, 'plan.studyflow.yaml')]).stdout).protocolForAnyActor).toBe(protocol);
   // A study of several pools counts the elements of every pool's process.
   const pools = write('pools.studyflow.yaml', `id: pools\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nC:\n  type: Collaboration\n  participants:\n    P1: { processRef: S1 }\n    P2: { processRef: S2 }\n${
     ['S1', 'S2'].map((pool) => `${pool}:\n  type: Process\n  flowElements:\n    ${pool}_Start: { type: StartEvent }\n    ${pool}_End: { type: EndEvent }\n    ${pool}_F: ${pool}_Start -> ${pool}_End\n`).join('')}`);

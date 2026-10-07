@@ -84,7 +84,7 @@ construct otherwise than the specification does, it says so here, and `studyflow
   boundary event to end it (a conditional one is read once the loop is done), stops the run after a thousand passes,
   where BPMN would repeat it for ever; `studyflow validate` refuses it.
 - **A gateway's fallback.** When no condition holds, an exclusive gateway takes its default flow, else its one flow
-  without a condition; BPMN would take every unconditioned flow.
+  without a condition; BPMN would take its default flow, and with none throw an exception.
 - **Repeats run in order.** A multi-instance marker's instances, parallel or not, run one after another, and so do
   the instances of a pool with a `participantMultiplicity`, which share the study's counts and meet the pools they
   talk to in turn. A random gateway draws for each instance on its own (its participant number and its visit), so the

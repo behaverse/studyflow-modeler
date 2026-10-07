@@ -150,10 +150,11 @@ program
       console.log(JSON.stringify(report, null, 2));
       return;
     }
-    const { study, file, protocol, elements, warnings } = report;
+    const { study, file, protocol, protocolForAnyActor, elements, warnings } = report;
     console.log(`${study.name ?? study.id ?? '(unnamed study)'}${study.version ? ` v${study.version}` : ''}`);
     if (study.id) console.log(`  id: ${study.id}`);
     console.log(`  protocol: ${protocol}`);
+    console.log(`  protocol for any actor: ${protocolForAnyActor}`);
     if (study.documentation) console.log(`  ${study.documentation.split('\n')[0]}`);
     console.log(`  source: ${file.kind}${file.container === 'text' ? '' : ` (embedded in ${file.container.toUpperCase()})`}`);
     const total = Object.values(elements).reduce((sum, n) => sum + n, 0);

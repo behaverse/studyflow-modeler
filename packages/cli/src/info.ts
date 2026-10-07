@@ -7,6 +7,8 @@ export type StudyInfo = {
   study: { id?: string; name?: string; version?: string; documentation?: string };
   /** The protocol digest a run records as its `plan` (`sha256:…`). */
   protocol: string;
+  /** The protocol digest without who answers each actor pool: the same for copies that differ only in their actor. */
+  protocolForAnyActor: string;
   /** Flow element counts by the BPMN element each is, subprocesses' included. */
   elements: Record<string, number>;
   warnings: string[];
@@ -40,6 +42,7 @@ export async function info(input: string): Promise<StudyInfo> {
       documentation: documentationOf(root),
     },
     protocol: await protocolDigest(model),
+    protocolForAnyActor: await protocolDigest(model, { anyActor: true }),
     elements,
     warnings,
   };
