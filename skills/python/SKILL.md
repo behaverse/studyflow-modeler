@@ -31,6 +31,8 @@ with a message naming both. A step that runs hands back what provided its implem
 ([the contract](../../packages/runtime-local/CONTRACT.md)): `record: {"version": "scikit-learn 1.7.2"}`, null when no metadata names one. A call that
 raises `KeyError` for a column the step names and a DataFrame it received lacks fails with
 `reads column 'X', which the table does not have (closest: 'Y')`.
+A NaN or infinite number in what a call hands back (the p-value of a test that could not run) reaches the walk as
+null, since JSON has neither: the step's answer reaches the walk, and a decision that reads that number finds no value.
 An output edge's `transformation` reads a table's column by name before an attribute, so
 `{statistic: result.T[1], pvalue: result.p_unc[1]}` takes the numbers a decision reads from the one-row table a test
 returns; `examples/within_subject_tests.studyflow.yaml` decides one question by p and one by a Bayes factor this way.

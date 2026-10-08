@@ -78,4 +78,20 @@ except subprocess.TimeoutExpired:
     raise AssertionError("shutdown waited for the hand-off") from None
 answers = [json.loads(line) for line in out.splitlines()]
 assert served.returncode == 0 and [a["id"] for a in answers] == [1, 2] and answers[0]["error"]["code"] == 2, answers
+
+# JSON has no NaN or Infinity, and the walk's parser refuses a line that holds one, which would lose the hand-back: a
+# non-finite number a step hands back (the p-value of a test that could not run) travels as null.
+served = subprocess.Popen(
+    [sys.executable, "-c", "import runner; runner.serve(lambda plan: [], lambda step: {'p': float('nan'), 't': [float('inf'), -float('inf'), 1.5]})"],
+    cwd=Path(__file__).parent, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+out, _ = served.communicate('{"jsonrpc":"2.0","id":1,"method":"execute","params":{"element":"Test"}}\n'
+                            '{"jsonrpc":"2.0","id":2,"method":"shutdown"}\n', timeout=5)
+
+
+def refuse(constant: str) -> None:
+    raise ValueError(f"{constant} is not JSON")  # as JavaScript's JSON.parse, which the walk reads the line with
+
+
+strict = json.loads(out.splitlines()[0], parse_constant=refuse)
+assert strict["result"]["result"] == {"p": None, "t": [None, None, 1.5]}, strict
 print("ok")

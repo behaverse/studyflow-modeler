@@ -25,6 +25,7 @@ how to bind a value, write a property, exchange messages, and say what it ran wi
 from __future__ import annotations
 
 import json
+import math
 import os
 import queue
 import sys
@@ -240,6 +241,18 @@ class Step:
         return out
 
 
+def finite(value: Any) -> Any:
+    """`value` with every NaN or infinite number in it as None. Python's `json` writes them as `NaN` and `Infinity`,
+    which are not JSON: the walk's parser refuses the line, and the hand-back it carries is lost."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {key: finite(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [finite(item) for item in value]
+    return value
+
+
 class _Wire:
     """JSON-RPC 2.0, one message a line: requests in, responses and notifications out, and requests of its own."""
 
@@ -251,8 +264,13 @@ class _Wire:
         self.ending: Any = None  # the `shutdown` request, answered once the runner has closed
 
     def send(self, message: dict[str, Any]) -> None:
+        payload = {"jsonrpc": "2.0", **message}
+        try:
+            line = json.dumps(payload, default=str, separators=(",", ":"), allow_nan=False)
+        except ValueError:  # a NaN or an infinity, which JSON has no word for: it travels as null
+            line = json.dumps(finite(payload), default=str, separators=(",", ":"))
         with self.lock:
-            self.writer.write(json.dumps({"jsonrpc": "2.0", **message}, default=str, separators=(",", ":")) + "\n")
+            self.writer.write(line + "\n")
             self.writer.flush()
 
     def notify(self, method: str, params: dict[str, Any]) -> None:
