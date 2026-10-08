@@ -26,11 +26,17 @@ A model answers each message on its own, unless its pool's `memory` is `conversa
 conversation the walk names (one per instance of the pool asking, for the run) and sends it along, turn by turn,
 before the new message, so a model answering one subject sees that subject's earlier trials, as sent, and its own
 answers to them. A runner started again mid-run has lost them, and fails the message rather than ask without them.
+Ollama keeps only the last `num_ctx` tokens of what it is sent, and drops the rest without saying so, so the runner
+sends `num_ctx` sized to the conversation: at least 8,192 tokens, in powers of two, estimated generously from the
+characters sent, never shrinking for a model within a run (a new size reloads the model), and never past the model's
+own context length (`/api/show`), where it fails the message rather than let an earlier turn be dropped. A
+conversation that keeps every trial of a long session can need a window of 10^5 tokens, and the memory to hold it.
 
 Each answer comes back with a `record`, which joins the step's record and is never a value a step reads
 (`../../packages/runtime-local/CONTRACT.md`, "What comes back"). From Ollama: the model, its digest and quantization level (`/api/tags`),
-its default sampling parameters (`/api/show`), Ollama's version (`/api/version`), and the options this runner sends
-(`think: false`, `stream: false`). From Claude: the model asked for, the model the response names, and
+its default sampling parameters and context length (`/api/show`), Ollama's version (`/api/version`), the options this
+runner sends (`think: false`, `stream: false`, and `num_ctx`), the tokens the request was estimated to need
+(`contextEstimate`) and those Ollama evaluated for it (`promptTokens`). From Claude: the model asked for, the model the response names, and
 `max_tokens`. From both, `sent`: the request's text as sent, up to 4,000 characters, how many images went with it, and
 in a conversation its `turn`. The lookups are best effort: one that fails is noted under `unrecorded`, and the answer stands.
 `test_local.py` is its self-check.

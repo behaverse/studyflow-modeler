@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import mimetypes
 import os
 import sys
@@ -29,6 +30,16 @@ STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 AGENTIC = "https://w3id.org/studyflow/agentic"
 OLLAMA = "http://localhost:11434"
 MAX_TOKENS = 1024
+# Ollama keeps the last `num_ctx` tokens of a conversation and drops the earlier ones without saying so, and its default
+# window is far shorter than a session of trials. The runner sizes the window to the conversation instead: at least
+# MIN_CONTEXT, in powers of two, never shrinking for a model within a run (a new size reloads the model), and never past
+# the model's own context length, where it fails the message rather than let a turn be dropped. Tokens are estimated
+# from characters, generously (CHARS_PER_TOKEN, plus REPLY_TOKENS for the answer), since a window too large costs
+# memory and one too small loses the history.
+MIN_CONTEXT = 8192
+CHARS_PER_TOKEN = 2.5
+REPLY_TOKENS = 256
+CONTEXT: dict[str, int] = {}
 
 
 def extension(element: dict[str, Any], namespace: str, kind: str) -> dict[str, Any] | None:
@@ -136,6 +147,23 @@ def listed(model: str) -> dict[str, Any]:
 DESCRIBED: dict[str, dict[str, Any]] = {}
 
 
+def shown(show: dict[str, Any]) -> dict[str, Any]:
+    """What `/api/show` says that the record keeps: the default sampling parameters, and the model's context length."""
+    lengths = [value for key, value in (show.get("model_info") or {}).items() if key.endswith(".context_length")]
+    return {"parameters": show.get("parameters"), **({"contextLength": int(lengths[0])} if lengths else {})}
+
+
+def context_window(model: str, messages: list[dict[str, Any]], limit: int | None) -> tuple[int, int]:
+    """The `num_ctx` to send with these messages, and the tokens they are estimated to need with the reply."""
+    estimate = math.ceil(sum(len(m["content"]) for m in messages) / CHARS_PER_TOKEN) + REPLY_TOKENS
+    if limit and estimate > limit:
+        raise RuntimeError(f"the conversation with {model} needs about {estimate} tokens, past the {limit} the model holds: "
+                           "its earlier turns would be dropped")
+    needed = max(MIN_CONTEXT, 2 ** math.ceil(math.log2(estimate * 1.25)))
+    CONTEXT[model] = max(CONTEXT.get(model, 0), min(needed, limit) if limit else needed)
+    return CONTEXT[model], estimate
+
+
 def described(model: str) -> dict[str, Any]:
     """For the record, the model's digest and quantization (`/api/tags`), its default sampling parameters
     (`/api/show`) and Ollama's version (`/api/version`), looked up once a run. The lookups are best effort: one that
@@ -145,7 +173,7 @@ def described(model: str) -> dict[str, Any]:
     record: dict[str, Any] = {}
     for path, look in (
         ("/api/tags", lambda: listed(model)),
-        ("/api/show", lambda: {"parameters": post(f"{OLLAMA}/api/show", {"model": model}, {}, timeout=5).get("parameters")}),
+        ("/api/show", lambda: shown(post(f"{OLLAMA}/api/show", {"model": model}, {}, timeout=5))),
         ("/api/version", lambda: {"version": f"ollama {get(f'{OLLAMA}/api/version', timeout=5)['version']}"}),
     ):
         try:
@@ -165,10 +193,14 @@ def ask_ollama(model: str, parts: list[dict[str, Any]], history: list[dict[str, 
         "content": "\n\n".join(part["text"] for part in turn["parts"] if "text" in part),
         "images": [part["image"][1] for part in turn["parts"] if "image" in part],
     } for turn in [*history, {"role": "user", "parts": parts}]]
-    # `think: false` keeps a thinking model to its answer: a trial window is seconds long.
-    options = {"stream": False, "think": False}
+    # `think: false` keeps a thinking model to its answer: a trial window is seconds long. `num_ctx` keeps the whole
+    # conversation in the model's window (`context_window`).
+    about = described(model)
+    window, estimate = context_window(model, messages, about.get("contextLength"))
+    options = {"stream": False, "think": False, "options": {"num_ctx": window}}
     data = post(f"{OLLAMA}/api/chat", {"model": model, **options, "messages": messages}, {}, timeout=120)
-    return data["message"]["content"], {"model": model, "options": options, **described(model)}
+    tokens = {"contextEstimate": estimate, **({"promptTokens": data["prompt_eval_count"]} if "prompt_eval_count" in data else {})}
+    return data["message"]["content"], {"model": model, "options": options, **tokens, **about}
 
 
 CLIENTS = {"claude": ask_claude, "ollama": ask_ollama}

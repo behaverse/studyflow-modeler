@@ -82,7 +82,7 @@ def post(url, body, headers, timeout):
     if url.endswith("/api/chat"):
         return {"message": {"content": "Left"}}
     if url.endswith("/api/show"):
-        return {"parameters": "temperature 1\ntop_k 64"}
+        return {"parameters": "temperature 1\ntop_k 64", "model_info": {"gemma4.context_length": 131072}}
     return {"model": "claude-haiku-4-5-20251001", "content": [{"type": "text", "text": "Right"}]}
 
 
@@ -95,8 +95,9 @@ asked = {"elements": {"Model": elements["Model"], "M_Ask": {"type": "messageFlow
 content = {"Note": "left is yellow", "Frame": "data:image/png;base64,AAAA", "Trial": {"n": 1}}
 step = agentic.Step("Model", asked, {}, {"id": "m1", "flow": "M_Ask", "content": content})
 assert agentic.execute(step) == "Left" and step.record == {
-    "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False}, "digest": "ab12", "quantization": "Q4_0",
-    "parameters": "temperature 1\ntop_k 64", "version": "ollama 0.12.3",
+    "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False, "options": {"num_ctx": 8192}},
+    "contextEstimate": 271, "digest": "ab12", "quantization": "Q4_0",
+    "parameters": "temperature 1\ntop_k 64", "contextLength": 131072, "version": "ollama 0.12.3",
     "sent": {"text": 'Note: left is yellow\n\nTrial: {"n": 1}', "images": 1},
 }, step.record
 
@@ -148,6 +149,18 @@ again = agentic.Step("Model", asked, {}, {"id": "t2", "flow": "M_Ask", "content"
 assert agentic.execute(again) == "Left"
 assert [m["content"] for m in chats[-1] if m["role"] == "user"] == ["Note: trial 0", "Note: trial 1", "Note: trial 2"], chats[-1]
 agentic.post = post
+
+# The window holds the whole conversation: it grows in powers of two as the conversation does, never shrinks within a
+# run, and a conversation past the model's own context length fails rather than lose its earliest turns.
+agentic.CONTEXT.clear()
+assert agentic.context_window("m", [{"content": "x" * 25_000}], 131072) == (16384, 10256)
+assert agentic.context_window("m", [{"content": "x"}], 131072) == (16384, 257)
+assert agentic.context_window("m", [{"content": "x" * 300_000}], 131072)[0] == 131072
+try:
+    agentic.context_window("m", [{"content": "x" * 400_000}], 131072)
+    raise AssertionError("a conversation past the model's context length is refused")
+except RuntimeError as error:
+    assert "would be dropped" in str(error), error
 
 # A lookup that fails is noted, and the answer stands; a model is described once a run, so this is another one.
 def unreachable(url, timeout):
