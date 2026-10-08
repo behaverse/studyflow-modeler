@@ -42,7 +42,7 @@ def plan_of(instrument, parameters, timeline="T"):
         "Msg_Trial": {"id": "Msg_Trial", "type": "messageFlow", "attributes": {"sourceRef": "Subjects", "targetRef": "Actor"}},
         "Msg_Response": {"id": "Msg_Response", "type": "messageFlow", "attributes": {"sourceRef": "Actor", "targetRef": "Subjects"}},
     }
-    return {"study": {"seed": 7}, "elements": elements}
+    return {"study": {"seed": "7"}, "elements": elements}  # as the plan holds it, in text
 
 
 def played(instrument, parameters, reply, timeline="T"):

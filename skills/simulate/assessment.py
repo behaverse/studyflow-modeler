@@ -359,7 +359,9 @@ def play(step: Any) -> dict[str, Any]:
     if not behaverse.opened_this_run(step.cache, events):
         events.unlink(missing_ok=True)
     with events.open("a") as file:
-        session = Session(step, scene, {"id": scene, "timelineName": name, "seed": step.seed}, exchange, file,
+        # The plan holds the study's seed as text; the build records a task's seed as a number.
+        seed = int(step.seed) if str(step.seed).lstrip("-").isdigit() else 0
+        session = Session(step, scene, {"id": scene, "timelineName": name, "seed": seed}, exchange, file,
                           behaverse.trial_context(element, plan, state))
         session.write("TaskStart", types=["TaskEvent", "TaskStart"])
         for block, trials in zip(blocks, first):
