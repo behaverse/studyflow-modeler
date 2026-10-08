@@ -6,8 +6,9 @@
 """Simulated tasks and participants with a planted truth (SKILL.md beside this file).
 
 A partial runner (packages/runtime-local/CONTRACT.md): it claims every step whose `implementation` is `simulate://simon`,
-`simulate://nback` or `simulate://record`, and every pool without a process whose actor's `implementation` is
-`simulate://planted` or `simulate://null`.
+`simulate://nback` or `simulate://record`, every `behaverse:Task` whose `implementation` is
+`simulate://assessment-unity` (the simulated Behaverse build, assessment.py beside this file), and every pool without
+a process whose actor's `implementation` is `simulate://planted` or `simulate://null`.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ from runner import Step, fill, read, serve  # noqa: E402 - the runner SDK, besid
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 SCHEME = "simulate://"
-STEPS = ("simon", "nback", "record")
+STEPS = ("simon", "nback", "record", "assessment-unity")
 ACTORS = ("planted", "null")
 
 # The planted truth: the probability of a correct answer, by task, by condition, by disposition. A study built to
@@ -47,21 +48,30 @@ SPEED = re.compile(r"\b(fast|first impression)", re.IGNORECASE)
 
 
 def implementation_of(element: dict[str, Any]) -> str:
-    """The step's `implementation`, or for a pool its actor's."""
+    """The step's `implementation` (its own, or its extension's, as a `behaverse:Task` holds it), or for a pool its
+    actor's."""
     if element.get("type") == "participant":
         actor = next((ext for ext in element.get("extensions") or []
                       if ext.get("namespace") == STUDYFLOW and ext.get("type") == "actor"), None)
         return str(((actor or {}).get("attributes") or {}).get("implementation") or "")
-    return str((element.get("attributes") or {}).get("implementation") or "")
+    held = [(element.get("attributes") or {}).get("implementation"),
+            *((ext.get("attributes") or {}).get("implementation") for ext in element.get("extensions") or [])]
+    return str(next((ref for ref in held if ref), ""))
+
+
+def kind_of(element: dict[str, Any]) -> str:
+    """What the `simulate://` reference names, less a version after `@` (`simulate://assessment-unity@26.10`, so a
+    study's copy differs from the one on the Unity build in the scheme alone), or '' for another scheme."""
+    ref = implementation_of(element)
+    return ref[len(SCHEME):].split("@")[0] if ref.startswith(SCHEME) else ""
 
 
 def claims(plan: dict[str, Any]) -> list[str]:
     claimed = []
     for element_id, element in (plan.get("elements") or {}).items():
-        ref = implementation_of(element)
-        if not ref.startswith(SCHEME):
+        kind = kind_of(element)
+        if not kind:
             continue
-        kind = ref[len(SCHEME):]
         if element.get("type") == "participant":
             if kind in ACTORS and not (element.get("attributes") or {}).get("processRef"):
                 claimed.append(element_id)
@@ -236,7 +246,7 @@ SEEN: dict[str, dict[str, Any]] = {}
 
 def execute(step: Step) -> Any:
     element = step.element
-    kind = implementation_of(element)[len(SCHEME):]
+    kind = kind_of(element)
     arguments = yaml.safe_load(element.get("additionalArguments") or "") or {}
     if element.get("type") == "participant":
         step.note(actor=f"{SCHEME}{kind}")
@@ -244,6 +254,9 @@ def execute(step: Step) -> Any:
         return answer(kind, step.seed, written_out(step.message or {}, step.plan, step.values), seen)
     if kind == "record":
         return record(element, arguments, step.plan, step.values, step.run_dir)
+    if kind == "assessment-unity":
+        import assessment  # beside this file; it loads the behaverse skill's runner, whose exchange and records it shares
+        return assessment.play(step)
     # `{"trials", "key"}`, into the data outputs each edge's transformation selects (`result.trials`, `result.key`).
     result = (simon if kind == "simon" else nback)(step.seed, step.id, **arguments)
     step.outputs(result)
