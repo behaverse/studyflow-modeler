@@ -31,20 +31,20 @@ SCHEME = "simulate://"
 STEPS = ("simon", "nback", "record", "assessment-unity")
 ACTORS = ("planted", "null")
 
-# The planted truth: the probability of a correct answer, by task, by condition, by disposition. A study built to
-# find a congruency cost and a difference between a cautious and an impulsive instruction should recover both
-# from `planted` and neither from `null`.
-PLANTED = {
-    "planted": {
-        ("Simon", "Congruent", "cautious"): 0.95, ("Simon", "Incongruent", "cautious"): 0.80,
-        ("Simon", "Congruent", "impulsive"): 0.85, ("Simon", "Incongruent", "impulsive"): 0.60,
-        ("NBack", None, "cautious"): 0.90, ("NBack", None, "impulsive"): 0.70,
-    },
-    "null": {},
+# The planted truth: the probability of a correct answer, by task and condition, and for the AX-CPT's BX probes by
+# arm. A study built to find a goal-support benefit on BX probes, a Simon congruency cost and an N-back load cost
+# should recover all three from `planted` and none from `null`, which answers every trial at NULL_ACCURACY.
+PLANTED: dict[tuple[str, str], float | dict[str, float]] = {
+    ("AX-CPT", "Cue"): 0.97, ("AX-CPT", "AX"): 0.95, ("AX-CPT", "AY"): 0.85, ("AX-CPT", "BY"): 0.95,
+    ("AX-CPT", "BX"): {"standard": 0.70, "goal support": 0.88}, ("AX-CPT", "Distractor"): 0.97,
+    ("Simon", "Congruent"): 0.95, ("Simon", "Incongruent"): 0.80,
+    ("N-back", "1-back"): 0.92, ("N-back", "2-back"): 0.78, ("N-back", "BurnIn"): 0.97,
 }
-NULL_ACCURACY = 0.85
+NULL_ACCURACY = 0.85  # `null` everywhere, and `planted` on a condition the table does not list
 MISS_RATE = 1 / 30
-SPEED = re.compile(r"\b(fast|first impression)", re.IGNORECASE)
+# The goal-support arm's mark: a text the asking step sends (a reminder prompt wired into the task) that begins so.
+# The standard arm's reminder is empty, or absent.
+REMINDER = "Reminder:"
 
 
 def implementation_of(element: dict[str, Any]) -> str:
@@ -130,33 +130,68 @@ def nback(seed: Any, step: str, n: int = 1, trials: int = 28, blocks: list[str] 
     return {"trials": shown, "key": key}
 
 
-def key_of(trial: dict[str, Any], seen: dict[str, Any] | None = None) -> dict[str, Any]:
-    """What a subject can tell from a trial as shown, by its rule: the right answer, and for a Simon trial whether
-    the square sits on the side of its answer. The simulated subject answers by this, never by the timeline's key.
-    A trial the Behaverse build describes carries its stimulus as a mapping: a WhichOne (Simon) trial is answered by
-    the button of the target's colour, and is congruent when the target sits over that button, incongruent over the
-    other, neutral between them; an N-back digit comes alone, so it is a match when it is the digit `seen` last, sent
-    for the trial just before it (the first digit of a block, which asks for nothing, is never sent)."""
+def perceived(trial: dict[str, Any], memory: dict[str, Any]) -> dict[str, Any]:
+    """What a subject tells from a trial as shown, by the task's rule, as a person would: the task, the trial's condition
+    and the right answer. The simulated subject answers by this, never by the build's or the timeline's key.
+
+    The Behaverse build sends the stimulus as a mapping, one trial per message, so the subject keeps in `memory` (one
+    per conversation) what the block has shown so far: a trial whose `TrialIndex` does not follow the last one starts a
+    block. A Simon trial (`Target`) is answered by the button of the target's colour, and is congruent when the target
+    sits over that button, incongruent over the other, neutral between them. An AX-CPT letter (`Letter`) is Match when
+    it is an X right after an A, distractors aside; the letters alternate cue and probe, so a probe's condition is its
+    cue and itself (AX, AY, BX, BY). An N-back digit (`Value`) is Match when it is the digit `Load` before it; before
+    there is one, it is the burn-in. A trial a timeline step sends (`simulate://simon`, `nback`) carries its rule."""
     stimulus = trial.get("Stimulus")
-    if isinstance(stimulus, dict):
-        options = [str(option) for option in trial.get("ResponseOptions") or []]
-        if "Target" in stimulus:
-            target = stimulus.get("Target") or {}
-            correct = next((str(button.get("position")) for button in stimulus.get("Buttons") or []
-                            if button.get("color") == target.get("color")), None)
-            side = str(target.get("position"))
-            return {"Correct": correct,
-                    "Congruency": "Congruent" if side == correct else "Incongruent" if side in options else "Neutral"}
-        before = (seen or {}).get("digit") if (seen or {}).get("index") == (trial.get("TrialIndex") or 0) - 1 else None
-        word = "match" if before is not None and before == stimulus.get("Value") else "nonmatch"
-        return {"Correct": next((option for option in options if option.lower().replace("-", "") == word), None)}
+    if not isinstance(stimulus, dict):
+        return described(trial)
+    options = [str(option) for option in trial.get("ResponseOptions") or []]
+    index = int(trial.get("TrialIndex") or 0)
+    if memory.get("index") is None or index != memory["index"] + 1:
+        memory["stream"] = []
+    memory["index"], stream = index, memory.setdefault("stream", [])
+
+    def option(word: str) -> str | None:
+        return next((choice for choice in options if choice.lower().replace("-", "") == word), None)
+
+    if "Target" in stimulus:
+        target = stimulus.get("Target") or {}
+        correct = next((str(button.get("position")) for button in stimulus.get("Buttons") or []
+                        if button.get("color") == target.get("color")), None)
+        side = str(target.get("position"))
+        return {"task": "Simon", "correct": correct,
+                "condition": "Congruent" if side == correct else "Incongruent" if side in options else "Neutral"}
+    if "Letter" in stimulus:
+        if stimulus.get("IsDistractor"):
+            return {"task": "AX-CPT", "condition": "Distractor", "correct": option("nonmatch")}
+        stream.append(str(stimulus["Letter"]).upper())
+        condition = "Cue" if len(stream) % 2 else ("A" if stream[-2] == "A" else "B") + ("X" if stream[-1] == "X" else "Y")
+        return {"task": "AX-CPT", "condition": condition, "correct": option("match" if stream[-2:] == ["A", "X"] else "nonmatch")}
+    load = int(stimulus.get("Load") or 1)
+    before = stream[-load] if len(stream) >= load else None
+    stream.append(stimulus.get("Value"))
+    return {"task": "N-back", "condition": "BurnIn" if before is None else f"{load}-back",
+            "correct": option("match" if before is not None and before == stimulus.get("Value") else "nonmatch")}
+
+
+def described(trial: dict[str, Any]) -> dict[str, Any]:
+    """A trial a timeline step of this skill sends: a Simon square described in words, or an N-back digit with the
+    digits before it, each with the rule that maps it to the right option."""
     if trial.get("Task") == "Simon":
         colour, side = re.search(r"a (\w+) square on the (\w+)", str(trial.get("Stimulus"))).groups()
         correct = "left" if colour == "red" else "right"
-        return {"Correct": correct, "Congruency": "Congruent" if side == correct else "Incongruent"}
+        return {"task": "Simon", "condition": "Congruent" if side == correct else "Incongruent", "correct": correct}
     n = int(re.search(r"shown (\d+) before", str(trial.get("Rule"))).group(1))
     before = trial.get("Before") or []
-    return {"Correct": "match" if len(before) >= n and before[-n] == trial.get("Digit") else "non-match"}
+    return {"task": "N-back", "condition": f"{n}-back",
+            "correct": "match" if len(before) >= n and before[-n] == trial.get("Digit") else "non-match"}
+
+
+def accuracy(profile: str, task: str, condition: str, arm: str) -> float:
+    """The planted probability of a correct answer: the table's, by task and condition (and arm, where it differs)."""
+    if profile == "null":
+        return NULL_ACCURACY
+    p = PLANTED.get((task, condition), NULL_ACCURACY)
+    return p[arm] if isinstance(p, dict) else p
 
 
 def written_out(message: dict[str, Any], plan: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
@@ -176,10 +211,11 @@ def written_out(message: dict[str, Any], plan: dict[str, Any], values: dict[str,
                                    for key, value in content.items()}}
 
 
-def answer(profile: str, seed: Any, message: dict[str, Any], seen: dict[str, Any] | None = None) -> str:
+def answer(profile: str, seed: Any, message: dict[str, Any], memory: dict[str, Any] | None = None) -> str:
     """One simulated reply: a trial answered with the planted probability of being right, or an instruction confirmed.
     The trial is the value of the message that lists `ResponseOptions`, or the message itself, as the Behaverse build
-    sends one; `seen` is what this subject was last sent, which an N-back digit sent alone is answered against."""
+    sends one; `memory` is what this subject's conversation has shown of the block so far. The subject is in the
+    goal-support arm when a text sent with the trial begins with REMINDER."""
     content = message.get("content")
     values = list(content.values()) if isinstance(content, dict) else [content]
     trial = next((value for value in values if isinstance(value, dict) and value.get("ResponseOptions")), None)
@@ -187,20 +223,15 @@ def answer(profile: str, seed: Any, message: dict[str, Any], seen: dict[str, Any
         trial = content
     if trial is None:
         return "READY"
-    instruction = " ".join(value for value in values if isinstance(value, str))
-    disposition = "impulsive" if SPEED.search(instruction) else "cautious"
-    truth = key_of(trial, seen)
-    if seen is not None and isinstance(trial.get("Stimulus"), dict) and "Value" in trial["Stimulus"]:
-        seen.update(index=trial.get("TrialIndex"), digit=trial["Stimulus"]["Value"])
+    arm = "goal support" if any(isinstance(value, str) and value.lstrip().startswith(REMINDER) for value in values) else "standard"
+    truth = perceived(trial, memory if memory is not None else {})
     draw = rng(seed, message.get("id"))
     if draw.random() < MISS_RATE:
         return "I am not sure."
-    table = PLANTED[profile]
-    task = trial.get("Task") or ("Simon" if "Congruency" in truth else "NBack")
-    p = table.get((task, truth.get("Congruency"), disposition), NULL_ACCURACY) if table else NULL_ACCURACY
     options = [str(option) for option in trial["ResponseOptions"]]
-    wrong = [option for option in options if option != truth["Correct"]]
-    return truth["Correct"] if draw.random() < p or not wrong else draw.choice(wrong)
+    wrong = [option for option in options if option != truth["correct"]]
+    right = draw.random() < accuracy(profile, truth["task"], truth["condition"], arm)
+    return truth["correct"] if right or not wrong else draw.choice(wrong)
 
 
 def record(element: dict[str, Any], arguments: dict[str, Any], plan: dict[str, Any],
@@ -239,9 +270,10 @@ def record(element: dict[str, Any], arguments: dict[str, Any], plan: dict[str, A
     return {"trials": len(rows), "answered": answered, "failedTrialRate": (len(rows) - answered) / len(rows) if rows else 0.0}
 
 
-# What each subject was last sent, by its conversation (one per subject, when the pool remembers): an N-back digit the
-# Behaverse build sends alone is answered against it. It lasts the run, as the conversation does.
-SEEN: dict[str, dict[str, Any]] = {}
+# What each subject's conversation (one per subject, when the pool remembers) has shown of the block so far: the
+# Behaverse build sends a letter or a digit alone, and it is answered against those before it. It lasts the run, as
+# the conversation does.
+MEMORY: dict[str, dict[str, Any]] = {}
 
 
 def execute(step: Step) -> Any:
@@ -250,8 +282,8 @@ def execute(step: Step) -> Any:
     arguments = yaml.safe_load(element.get("additionalArguments") or "") or {}
     if element.get("type") == "participant":
         step.note(actor=f"{SCHEME}{kind}")
-        seen = SEEN.setdefault(str((step.conversation or {}).get("id") or ""), {})
-        return answer(kind, step.seed, written_out(step.message or {}, step.plan, step.values), seen)
+        memory = MEMORY.setdefault(str((step.conversation or {}).get("id") or ""), {})
+        return answer(kind, step.seed, written_out(step.message or {}, step.plan, step.values), memory)
     if kind == "record":
         return record(element, arguments, step.plan, step.values, step.run_dir)
     if kind == "assessment-unity":

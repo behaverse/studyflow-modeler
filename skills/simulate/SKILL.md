@@ -65,17 +65,49 @@ A runner-only skill. It claims four kinds of element by their `implementation`:
   (`Task_AXCPT.3.2.17`), so a simulated participant, which draws by it, draws afresh for every subject.
 - **A participant**, a pool with no process whose `studyflow:Actor` `implementation` is `simulate://planted` or
   `simulate://null`. It answers each trial it is sent with one of the trial's `ResponseOptions`, telling the right
-  one from the stimulus and the rule as a person would, and gives it with a planted probability: `planted` is less accurate on incongruent Simon trials than on congruent ones, and less
-  accurate throughout when the instruction wired into the asking step asks for speed (its text names `fast` or
-  `first impression`); `null` is equally accurate everywhere. Either leaves about one trial in thirty
-  unanswered. A message that carries no trial is an instruction, which it confirms with `READY`. Draws are seeded
-  by the study's seed and the message's id, so a run repeats exactly. The table of probabilities is `PLANTED` in
-  `local.py`: the truth a study's analysis should recover. It also answers the trials the Behaverse build sends,
-  which arrive as the message itself: a Simon trial by the button of the target's colour (congruent when the target
-  sits over it, incongruent over the other, neutral between them), and an N-back digit, sent alone, against the
-  digit sent just before it in the same conversation (`memory: conversation` on the pool gives one per subject). A
-  prompt the asking step sends by its id alone is written out from its `template`, as a model's runner writes it, so
-  the instruction it carries reaches the subject.
+  one and the trial's condition from the stimulus as a person would, and gives the right one with a planted
+  probability; either profile leaves about one trial in thirty unanswered (`MISS_RATE`). A message that carries no
+  trial is an instruction, which it confirms with `READY`. Draws are seeded by the study's seed and the message's id,
+  so a run repeats exactly, and a build that gives each subject's trials ids of their own draws afresh per subject. A
+  prompt the asking step sends by its id alone is written out from its `template`, its placeholders filled from the
+  step's scope, as a model's runner writes it. The trials of the Behaverse build (or of the simulated build above)
+  arrive as the message itself, one letter or digit at a time, so the subject keeps, per conversation
+  (`memory: conversation` on the pool gives one per subject), what the block has shown so far; a `TrialIndex` that
+  does not follow the last one starts a block afresh:
+  - a Simon trial (`Target`) by the button of the target's colour: congruent when the target sits over it,
+    incongruent over the other, neutral between them;
+  - an AX-CPT letter (`Letter`): Match only on an X right after an A, the letters before it remembered with the
+    distractors aside; those letters alternate cue and probe, so a probe's condition is its cue and itself (AX, AY,
+    BX, BY), and a distractor is `Distractor`;
+  - an N-back digit (`Value`) at its `Load` (1 without one): Match when it is the digit that many before it, the
+    burn-in digits remembered too; before there is one, it is the burn-in (`BurnIn`), answered NonMatch.
+
+  `null` answers every trial with one probability, 0.85. `planted` answers by the table `PLANTED` in `local.py`, the
+  truth a study's analysis should recover:
+
+  | Task | Condition | P(correct) |
+  | --- | --- | --- |
+  | AX-CPT | Cue | .97 |
+  | AX-CPT | AX | .95 |
+  | AX-CPT | AY | .85 |
+  | AX-CPT | BX | .70 standard, .88 goal support |
+  | AX-CPT | BY | .95 |
+  | AX-CPT | Distractor | .97 |
+  | Simon | Congruent | .95 |
+  | Simon | Incongruent | .80 |
+  | N-back | 1-back | .92 |
+  | N-back | 2-back | .78 |
+  | N-back | BurnIn | .97 |
+
+  and 0.85 on any other condition. The subject is in the goal-support arm when a text sent with the trial (a reminder
+  prompt wired into the task, its template a property such as `{reminder_axcpt}`) begins with `Reminder:`, and in the
+  standard arm otherwise (an empty reminder, or none); only the BX probes differ between the arms. At about 20
+  completers per arm, each taking the AX-CPT's four test blocks of `XCIT_RE_02` (16 BX and 64 BY probes), 80 Simon
+  trials, and the 1-back's two and the 2-back's four test blocks, the three effects reach one-sided p < .05/9
+  (Welch's t between arms on the BX minus BY error cost; one-sample t on the Simon incongruent minus congruent error
+  cost and on 1-back minus 2-back accuracy), and none of them does under `null`: `test_local.py` checks it on one
+  seeded cohort. Trials a timeline step of this skill sends (above) carry their rule in words, and take the same
+  table (Simon by congruency, the N-back by its `n`).
 - **A record**, `simulate://record`, on a step whose data inputs are a timeline's trials and key and the answers
   collected for it (a multi-instance pass's `loopDataOutputRef`): it scores each answer by the key and appends one row per
   trial to the data store its data output names (`.jsonl`), keyed by `subject` and `arm` from its
