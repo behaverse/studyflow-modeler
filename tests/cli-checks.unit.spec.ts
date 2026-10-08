@@ -20,7 +20,7 @@ const VERSION = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json')
 
 // The CLI reads its schemas through Vite (`import.meta.glob`), so it is built here rather than imported.
 test.beforeAll(() => {
-  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.dirname(bin), '--logLevel', 'error']);
+  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.dirname(bin), '--logLevel', 'error'], { stdio: 'pipe' });
 });
 
 const studyflow = (args: string[], env: Record<string, string> = {}) =>

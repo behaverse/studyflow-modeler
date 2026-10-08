@@ -15,7 +15,7 @@ let bin: string | undefined;
 function convert(...args: string[]) {
   if (!bin) {
     const out = mkdtempSync(path.join(tmpdir(), 'studyflow-cli-'));
-    execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', out, '--logLevel', 'error']);
+    execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', out, '--logLevel', 'error'], { stdio: 'pipe' });
     bin = path.join(out, 'studyflow.mjs');
   }
   return spawnSync(process.execPath, [bin, 'convert', ...args], { encoding: 'utf8' });

@@ -11,7 +11,6 @@ export default {
     mimeType: 'application/json',
     toStudyflow(text, { name, metamodel, warn }) {
       const study = importJsPsychTimeline(text, { name });
-      for (const warning of study.warnings) console.warn(`jsPsych import: ${warning}`);
       if (study.warnings.length > 0) {
         warn(`The jsPsych import made ${study.warnings.length} adjustment${study.warnings.length === 1 ? '' : 's'}. `
           + `Check in the inspector:\n• ${study.warnings.join('\n• ')}`);

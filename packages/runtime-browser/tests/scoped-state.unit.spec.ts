@@ -155,9 +155,10 @@ ${boundary}    Play: { type: Task }
     F2: Consent -> Play
     F3: Play -> Done
 `;
-  /** The steps shown, refusing `Consent`. */
+  /** The steps shown, refusing `Consent`; what the run says goes to `said`, as it goes to the page's log. */
+  const said: string[] = [];
   const refusing = async (study: string): Promise<string[]> => {
-    const session = new Session(await load(study));
+    const session = new Session(await load(study), { onDiagnostic: (message) => said.push(message) });
     const shown: string[] = [];
     for await (const job of session.traverse()) {
       shown.push(job.node.id);
@@ -175,6 +176,8 @@ ${boundary}    Play: { type: Task }
 `;
   expect(await refusing(consent(declined))).toEqual(['Start', 'Consent', 'Excluded']);
   await expect(refusing(consent(''))).rejects.toThrow(Aborted);
+  // Caught or not, the refusal is said.
+  expect(said).toEqual(['Consent: Aborted: consent-declined', 'Consent: Aborted: consent-declined']);
 });
 
 test('a screen whose step a timer ends is dropped: the page is told, and the next job is the timer\'s way on', async () => {

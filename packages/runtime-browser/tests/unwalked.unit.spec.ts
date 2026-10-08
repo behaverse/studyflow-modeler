@@ -20,6 +20,16 @@ const REST = `type: cognitive:Rest
       eventDefinitions:
         Practice_Timer: { type: TimerEventDefinition, timeDuration: PT1M }`;
 
+/** A step's loop and its data edge out: an activity carries both, an event only the edge, a gateway neither. */
+const LOOP = `
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+        loopMaximum: 3`;
+const WRITES = `
+      dataOutputAssociations:
+        Out_Score:
+          targetRef: Score`;
+
 const study = (model: string, sender: string) => Studyflow.parse(`id: unwalked
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -38,12 +48,6 @@ Study:
     Practice:
       ${sender}
       name: Practice
-      loopCharacteristics:
-        type: StandardLoopCharacteristics
-        loopMaximum: 3
-      dataOutputAssociations:
-        Out_Score:
-          targetRef: Score
     Score:
       type: DataObjectReference
     Timeout:
@@ -66,14 +70,14 @@ test('a message flow the page carries runs; one to a pool no one in the page pla
   const CASES: [string, string, string, string[]][] = [
     // A pool with no process and a human actor (none said is human) is the person at the page.
     // The asking task has no screen: the walk sends for it and fills its data edges.
-    ['to the person at the page', '{ name: Model }', 'type: Task', []],
-    ['to a model', '{ type: studyflow:Actor, name: Model, actorType: llm, implementation: "ollama://gemma4" }', 'type: Task', ['error M_Ask']],
+    ['to the person at the page', '{ name: Model }', `type: Task${LOOP}${WRITES}`, []],
+    ['to a model', '{ type: studyflow:Actor, name: Model, actorType: llm, implementation: "ollama://gemma4" }', `type: Task${LOOP}${WRITES}`, ['error M_Ask']],
     // A screen neither talks nor fills a data edge.
-    ['from a screen', '{ name: Model }', 'type: cognitive:Instruction', ['error M_Ask', 'warning Practice']],
+    ['from a screen', '{ name: Model }', `type: cognitive:Instruction${LOOP}${WRITES}`, ['error M_Ask', 'warning Practice']],
     // A timer event is the walk's, as in a local run: its screen only shows the wait, and the walk sends for it.
-    ['from a timer event', '{ name: Model }', REST, []],
+    ['from a timer event', '{ name: Model }', `${REST}${WRITES}`, []],
     // No screen takes a rest that says no time, which waits for nothing.
-    ['from a step no screen takes', '{ name: Model }', 'type: cognitive:Rest', ['warning Practice']],
+    ['from a step no screen takes', '{ name: Model }', `type: cognitive:Rest${WRITES}`, ['warning Practice']],
     // The walk decides every gateway, whatever its type: by a draw, or by its flows' conditions.
     ['from a gateway that draws', '{ name: Model }', 'type: cognitive:RandomGateway', []],
     ['from a gateway that weighs its conditions', '{ name: Model }', 'type: cognitive:EligibilityGateway', []],

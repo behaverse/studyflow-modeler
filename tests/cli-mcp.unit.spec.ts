@@ -10,7 +10,7 @@ import { examplePath } from './utils';
 /** `studyflow mcp`: an MCP client lists the study's tools, edits through one, checks, and saves back to the file. */
 test('mcp serves the study tools on stdio, and save writes the edit back', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'studyflow-mcp-'));
-  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.join(dir, 'bin'), '--logLevel', 'error']);
+  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.join(dir, 'bin'), '--logLevel', 'error'], { stdio: 'pipe' });
   const file = path.join(dir, 'loop.studyflow.yaml');
   copyFileSync(examplePath('drawn_loop'), file);
   const messages = [

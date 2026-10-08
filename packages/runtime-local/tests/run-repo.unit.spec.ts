@@ -29,7 +29,7 @@ test('a checkpoint starts no housekeeping, which is done once the run has ended'
   repo.open();
   // A repository that repacks after any commit that leaves two objects in the folder it counts, and waits for it.
   // Git's own does so in the background, at 6,700 objects, and loses commits made while it runs.
-  for (const [key, value] of [['gc.auto', '1'], ['gc.autoDetach', 'false']]) execFileSync('git', ['-C', dir, 'config', key, value]);
+  for (const [key, value] of [['gc.auto', '1'], ['gc.autoDetach', 'false']]) execFileSync('git', ['-C', dir, 'config', key, value], { stdio: 'pipe' });
   const packs = (): string[] => fs.readdirSync(path.join(dir, '.git', 'objects', 'pack')).filter((name) => name.endsWith('.pack'));
   const [first, second] = countedBlobs();
   for (const [step, text] of [['a', first], ['b', second], ['c', 'c']]) {

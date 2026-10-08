@@ -19,7 +19,7 @@ import { freshMetamodel, xmlOf } from '@tests/schemas';
  * a test names the runners it needs (`--runner`, `STUDYFLOW_<NAME>_PY`). */
 const BIN = (() => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-cli-'));
-  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', out, '--logLevel', 'error']);
+  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', out, '--logLevel', 'error'], { stdio: 'pipe' });
   return path.join(out, 'studyflow.mjs');
 })();
 // No skill is beside the built copy either, so a runner is told where the SDK is.
@@ -164,7 +164,7 @@ S:
     const archived = path.join(dir, 'run', 'split.bpmn');
     const { reached } = archivedState(archived)._meta;
     expect([reached.Split, reached.A, reached.B, reached.Join, reached.End]).toEqual([1, 1, 1, 2, 1]);
-    expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV }).toString()).toContain(': OK');
+    expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV, stdio: 'pipe' }).toString()).toContain(': OK');
   });
 
   test('a re-run of several subjects draws the arms the run it redoes drew', () => {
@@ -249,7 +249,7 @@ P:
     expect(first).toHaveLength(4);
     const archived = path.join(dir, 'run', 'arms.studyflow.yaml');
     expect(fs.readFileSync(archived, 'utf8')).toMatch(new RegExp(`allocationSeed: "?${seed}"?`));
-    expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV }).toString()).toContain("allocation seed of 'Arm' matches its registered digest");
+    expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV, stdio: 'pipe' }).toString()).toContain("allocation seed of 'Arm' matches its registered digest");
     // The executed copy carries the seed, so a re-run of it draws the same arms without being given it again.
     expect(run(archived).status).toBe(0);
     expect(arms()).toEqual(first);
@@ -999,7 +999,7 @@ P:
     expect(fs.existsSync(path.join(repo, 'out.json'))).toBe(false);
 
     // A clone holds no record: prov says where it is.
-    execFileSync('git', ['clone', '-q', repo, path.join(dir, 'clone')]);
+    execFileSync('git', ['clone', '-q', repo, path.join(dir, 'clone')], { stdio: 'pipe' });
     expect(studyflow('prov', path.join(dir, 'clone')).stderr).toContain("was kept out of its run repository's history (data.sha256 holds its SHA-256)");
   });
 });

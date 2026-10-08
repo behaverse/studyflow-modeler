@@ -14,7 +14,7 @@ test('convert --modeler draws a .studyflow.png or .studyflow.svg that carries it
   // The CLI reads its schemas through Vite (`import.meta.glob`), so it is built here, inside the
   // repo, where it finds @playwright/test to drive the modeler with.
   const bin = testInfo.outputPath('bin');
-  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', bin, '--logLevel', 'error']);
+  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', bin, '--logLevel', 'error'], { stdio: 'pipe' });
 
   for (const format of ['png', 'svg']) {
     const output = testInfo.outputPath(`drawn_loop.studyflow.${format}`);

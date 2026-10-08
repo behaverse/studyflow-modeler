@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
 /** `studyflow skill add`: a skill from outside the repository joins the CLI, its schema read as a shipped one's is. */
 test('an installed skill\'s vocabulary is read by validate, and removing it takes it away', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'studyflow-skill-'));
-  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.join(dir, 'bin'), '--logLevel', 'error']);
+  execFileSync(process.execPath, [path.join(process.cwd(), 'node_modules/vite/bin/vite.js'), 'build', 'packages/cli', '--outDir', path.join(dir, 'bin'), '--logLevel', 'error'], { stdio: 'pipe' });
   const env = { ...process.env, STUDYFLOW_HOME: path.join(dir, 'home') };
   const studyflow = (...args: string[]) => spawnSync(process.execPath, [path.join(dir, 'bin', 'studyflow.mjs'), ...args], { encoding: 'utf8', env });
 
