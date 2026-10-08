@@ -97,6 +97,8 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
     # The task's GameConfig is what the Parameters wired into it say, merged, less the keys that set its attributes
     # (the plan's `parameters`).
     parameters = dict(element.get("parameters") or {})
+    # `ScoredBlocks:` is not GameConfig either: which blocks the failed-trial rate counts, read here (`scored_blocks`).
+    parameters.pop("ScoredBlocks", None)
     # `Bot:` is not GameConfig: how the build's bot plays the task, sent to Unity as the payload's own `bot`.
     bot_settings = parameters.pop("Bot", None)
     bot_settings = bot_settings if isinstance(bot_settings, dict) else {}
@@ -301,13 +303,60 @@ def opened_this_run(cache: Path, events: Path) -> bool:
     return False
 
 
-def failed_trial_rate(shown: set, answered: set, unanswerable: set) -> float:
-    """The share of the trials the build showed, and took a response in, that it recorded no valid response for. Data,
-    not policy: what a study does about it is a condition it draws. The build is the authority, not the reply: an
-    answer this runner injected too late for the window is a trial the build recorded without a response, and a trial
-    that took none (the N-back's burn-in) is no trial here. A build that reports no trial at all reports no failure."""
-    trials = (shown | answered) - unanswerable
-    return len(trials - answered) / len(trials) if trials else 0.0
+def scored_blocks(element: dict[str, Any]) -> list[str] | None:
+    """The blocks whose trials the failed-trial rate counts: `ScoredBlocks`, a list of block names, at the top of the
+    Parameters wired into the task (never sent to the build); None, every block, without one."""
+    scored = (element.get("parameters") or {}).get("ScoredBlocks")
+    if scored is None:
+        return None
+    if not isinstance(scored, list) or not scored or not all(isinstance(name, str) and name for name in scored):
+        raise ValueError(f"behaverse:Task {element.get('id')!r}: ScoredBlocks lists the names of the blocks whose trials "
+                         f"the failed-trial rate counts, as [Test_A, Test_B]; got {scored!r}")
+    return scored
+
+
+def timeline_blocks(parameters: dict[str, Any], timeline: str) -> list[str] | None:
+    """The names of the blocks `timeline` plays, in order, when the Parameters define it under `Timelines`; None when
+    it is one the build ships, whose blocks only the build knows. An entry with no `Name` is a page of instructions."""
+    definition = (parameters.get("Timelines") or {}).get(timeline)
+    if not isinstance(definition, dict):
+        return None
+    return [str(entry["Name"]) for entry in definition.get("Blocks") or [] if isinstance(entry, dict) and entry.get("Name")]
+
+
+def unplayed(scored: list[str] | None, played: list[str] | None) -> list[str]:
+    """The `ScoredBlocks` names the timeline does not play, when it is known: a misspelt one would never count a trial."""
+    return [name for name in scored or [] if played is not None and name not in played]
+
+
+class Trials:
+    """The task's trials as the build's own records describe them, which the failed-trial rate counts (`tally`)."""
+
+    def __init__(self) -> None:
+        self.shown: set[tuple] = set()         # the trials the build started
+        self.answered: set[tuple] = set()      # those it recorded a response for
+        self.unanswerable: set[tuple] = set()  # those that took none
+        self.blocks: dict[tuple, str] = {}     # each trial's block, by name, when the build names it
+        self.ended: dict[tuple, tuple[bool, str]] = {}  # each `<TASK>.TrialEnd` record's `isAnswered` and `condition`
+
+
+def failed_trial_rate(trials: Trials, scored: list[str] | None = None) -> float:
+    """The share of the scored trials the build presented that it recorded no valid response for. Data, not policy:
+    what a study does about it is a condition it draws. The scored trials are those of the blocks `scored` names (the
+    task's `ScoredBlocks`), else of every block, tutorials and practice included. A build that writes a
+    `<TASK>.TrialEnd` record per trial (`result.isAnswered`, `trialContext.condition`) says which it presented and which
+    were answered, and a `BurnIn` trial, which the N-back sends only so the responder sees every digit, is never
+    scored. Without those records, the trials it started or took a response in, less those that took none (the
+    N-back's burn-in, whose every stream it records as `BurnInDisabled`), answered by a `Click` or a `TrialEnd` with a
+    `responseTime`. The build is the authority, not the reply: an answer this runner injected too late for the window
+    is a trial the build recorded without a response. A build that reports no scored trial reports no failure."""
+    if trials.ended:
+        answered = {trial: was for trial, (was, condition) in trials.ended.items() if condition != "BurnIn"}
+    else:
+        answered = {trial: trial in trials.answered for trial in (trials.shown | trials.answered) - trials.unanswerable}
+    if scored is not None:
+        answered = {trial: was for trial, was in answered.items() if trials.blocks.get(trial) in scored}
+    return sum(not was for was in answered.values()) / len(answered) if answered else 0.0
 
 
 def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
@@ -493,33 +542,38 @@ class Stage(ThreadingHTTPServer):
         self.events = events
         self.exchange = exchange
         self.context = context or {}
-        self.shown: set[tuple] = set()         # the trials the build started
-        self.answered: set[tuple] = set()      # those it recorded a response for
-        self.unanswerable: set[tuple] = set()  # those that took none
+        self.recorded = Trials()
         self.trials = 0
         self.completion: dict[str, Any] = {}
         self.done = threading.Event()
         self.lock = threading.Lock()
 
 
-def tally(stage: Stage, event: dict[str, Any]) -> None:
+def tally(trials: Trials, event: dict[str, Any]) -> None:
     """One event, as the build's own record of a trial: `TrialStart` shows one, and a `Click` or a `TrialEnd` with a
     `responseTime` answers it. Both markers are the BDM envelope's (`trialContext.types`, `result`), not an
     instrument's own event names. A `TrialEnd` whose every stream's response was `BurnInDisabled` took none: the
-    N-back's first trials of a block, which show a stimulus before there is one to compare it with and never ask."""
+    N-back's first trials of a block, which show a stimulus before there is one to compare it with and never ask. A
+    `<TASK>.TrialEnd` with `result.isAnswered` is the build's one record of the trial (the battery contract): whether
+    it was answered, and its `condition`."""
     context = event.get("trialContext") or {}
     kinds = context.get("types") or []
     trial = ((context.get("block") or {}).get("id"), (context.get("trial") or {}).get("id"))
     if trial[1] is None:
         return
+    result = event.get("result") or {}
+    if (context.get("block") or {}).get("name"):
+        trials.blocks[trial] = str(context["block"]["name"])
+    if str((event.get("object") or {}).get("name") or "").endswith(".TrialEnd") and isinstance(result.get("isAnswered"), bool):
+        trials.ended[trial] = (result["isAnswered"], str(context.get("condition") or ""))
     if "TrialStart" in kinds:
-        stage.shown.add(trial)
-    if "Click" in kinds or ("TrialEnd" in kinds and (event.get("result") or {}).get("responseTime") is not None):
-        stage.answered.add(trial)
-    streams = (event.get("result") or {}).get("streamResults") or []
+        trials.shown.add(trial)
+    if "Click" in kinds or ("TrialEnd" in kinds and result.get("responseTime") is not None):
+        trials.answered.add(trial)
+    streams = result.get("streamResults") or []
     disabled = [isinstance(stream, dict) and stream.get("userResponseType") == "BurnInDisabled" for stream in streams]
     if "TrialEnd" in kinds and disabled and all(disabled):
-        stage.unanswerable.add(trial)
+        trials.unanswerable.add(trial)
 
 
 class StageHandler(BaseHTTPRequestHandler):
@@ -576,7 +630,7 @@ class StageHandler(BaseHTTPRequestHandler):
             line = {**body, "context": server.context} if isinstance(body, dict) else body
             with server.lock:
                 if isinstance(body, dict):
-                    tally(server, body)
+                    tally(server.recorded, body)
                 with server.events.open("a") as file:
                     file.write(json.dumps(line, separators=(",", ":")) + "\n")
         elif self.path == "/trial":
@@ -664,6 +718,11 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     """One task: serve, open, wait for the completion, which is its result."""
     element, plan, state = step.element, step.elements, step.values
     payload = task_payload(element, auto=args.auto or bool(step.options.get("auto")), plan=plan)
+    scored = scored_blocks(element)
+    missing = unplayed(scored, timeline_blocks(element.get("parameters") or {}, payload["timeline"]))
+    if missing:
+        raise ValueError(f"behaverse:Task {element['id']!r}: ScoredBlocks names {', '.join(missing)}, which timeline "
+                         f"{payload['timeline']} does not play")
     build = checked_build(args.build)
     # The run directory, not its `.cache`: the local runtime sweeps the cache when the run ends.
     step.run_dir.mkdir(parents=True, exist_ok=True)
@@ -706,7 +765,7 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     print(f"    completed {completion.get('TaskId')} / {completion.get('TimelineId')} after {stage.trials} answered trials", flush=True)
     result = {**completion, "trials": stage.trials}
     if exchange is not None:
-        result["failedTrialRate"] = failed_trial_rate(stage.shown, stage.answered, stage.unanswerable)
+        result["failedTrialRate"] = failed_trial_rate(stage.recorded, scored)
     if events.exists():
         result["events"] = str(events)
     return result  # under the task's id, so a later step can cite it (`{Play.trials}`)

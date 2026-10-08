@@ -52,6 +52,8 @@ export function getBehaverseTaskPayload(node: FlowNode): BehaverseTaskPayload | 
 
   // The task's GameConfig is what the Parameters wired into it say, merged.
   const parameters = { ...node.parameters };
+  // `ScoredBlocks:` is not GameConfig either: the blocks a local run's failed-trial rate counts, never the build's.
+  delete parameters.ScoredBlocks;
   // `Bot:` is not GameConfig: it says how a bot plays the task, and goes to Unity as the payload's own `bot`.
   const authoredBot = parameters.Bot;
   delete parameters.Bot;

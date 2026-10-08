@@ -17,16 +17,11 @@ def task(**attributes):
 
 # The share of the trials the build showed that it recorded no response for. A `Click` answers a trial, and so does
 # a `TrialEnd` with a `responseTime`; the reply this runner sent does not, since the build may have stopped waiting.
-class Stage:
-    def __init__(self):
-        self.shown, self.answered, self.unanswerable = set(), set(), set()
-
-
 def record(*events):
-    stage = Stage()
+    trials = behaverse.Trials()
     for event in events:
-        behaverse.tally(stage, event)
-    return stage
+        behaverse.tally(trials, event)
+    return trials
 
 
 def trial(n, types, **rest):
@@ -37,12 +32,12 @@ def trial(n, types, **rest):
 simon = record(*[trial(n, ["TrialStart"]) for n in range(1, 16)],
                *[trial(n, ["Click"]) for n in range(6, 16)])
 assert (len(simon.shown), len(simon.answered)) == (15, 10)
-assert round(behaverse.failed_trial_rate(simon.shown, simon.answered, simon.unanswerable), 3) == 0.333
+assert round(behaverse.failed_trial_rate(simon), 3) == 0.333
 # N-back: the trial ends with a `responseTime`, or with none, which is the miss.
 nback = record(*[trial(n, ["TrialStart"]) for n in range(1, 5)],
                trial(1, ["TrialEnd"], result={"responseTime": 9.66}), trial(2, ["TrialEnd"], result={"responseTime": None}),
                trial(3, ["TrialEnd"], result={"responseTime": 5.5}), trial(4, ["TrialEnd"], result={}))
-assert behaverse.failed_trial_rate(nback.shown, nback.answered, nback.unanswerable) == 0.5
+assert behaverse.failed_trial_rate(nback) == 0.5
 # The N-back's first trial of a block is a burn-in, which takes no response: every stream of its `TrialEnd` says
 # `BurnInDisabled`. It is no trial the rate counts, so of the two that took a response, one failed.
 def ended(n, response_time, *responses):
@@ -52,10 +47,45 @@ def ended(n, response_time, *responses):
 
 burn_in = record(*[trial(n, ["TrialStart"]) for n in range(1, 4)], ended(1, None, "BurnInDisabled", "BurnInDisabled"),
                  ended(2, 1.2, "Hit", "TimeOut"), ended(3, None, "TimeOut", "TimeOut"))
-assert behaverse.failed_trial_rate(burn_in.shown, burn_in.answered, burn_in.unanswerable) == 0.5
+assert behaverse.failed_trial_rate(burn_in) == 0.5
 # A build that reports no trial reports no failure; an event with no trial of its own is not one.
-assert behaverse.failed_trial_rate(set(), set(), set()) == 0.0
+assert behaverse.failed_trial_rate(behaverse.Trials()) == 0.0
 assert record({"trialContext": {"types": ["AppStarted"]}}).shown == set()
+
+
+# `ScoredBlocks` counts the trials of those blocks alone. A build that writes the battery's `<TASK>.TrialEnd` says
+# itself whether each trial it presented was answered, and its condition: the N-back's burn-in is presented (so the
+# responder sees every digit) but never scored. Here the practice block's misses and the burn-in's do not count: of
+# the four scored test trials, one went unanswered.
+def ends(block, n, answered, condition):
+    return {"object": {"name": "NB.TrialEnd"}, "result": {"isAnswered": answered},
+            "trialContext": {"block": {"id": block, "name": ["Practice", "Test_A"][block]}, "trial": {"id": n}, "condition": condition}}
+
+
+battery = record(ends(0, 0, False, "BurnIn"), ends(0, 1, False, "Match"), ends(0, 2, False, "NonMatch"),
+                 ends(1, 0, False, "BurnIn"), ends(1, 1, True, "Match"), ends(1, 2, True, "NonMatch"),
+                 ends(1, 3, False, "NonMatch"), ends(1, 4, True, "Match"))
+assert behaverse.failed_trial_rate(battery, ["Test_A"]) == 0.25
+assert behaverse.failed_trial_rate(battery) == 3 / 6  # every block, the burn-in still aside
+# An older build's records name their blocks too: the same rule restricts them to the scored ones.
+older = record(*[{"trialContext": {"block": {"id": b, "name": ["Practice", "Test_A"][b]}, "trial": {"id": n}, "types": ["TrialStart"]}}
+                 for b in (0, 1) for n in (1, 2)],
+               {"trialContext": {"block": {"id": 1, "name": "Test_A"}, "trial": {"id": 1}, "types": ["Click"]}})
+assert behaverse.failed_trial_rate(older, ["Test_A"]) == 0.5 and behaverse.failed_trial_rate(older) == 0.75
+# The runner reads `ScoredBlocks` and never sends it to the build; it is a list of block names, and one the task's
+# inline timeline does not play is named before the task starts.
+scoring = {**task(timeline="T"), "parameters": {"ScoredBlocks": ["Test_A"], "Timelines": {"T": {"Blocks": [
+    {"Instructions": []}, {"Name": "Practice"}, {"Name": "Test_A"}]}}}}
+assert behaverse.scored_blocks(scoring) == ["Test_A"] and behaverse.scored_blocks(task()) is None
+assert "ScoredBlocks" not in behaverse.task_payload(scoring, auto=True)["parameters"]
+assert behaverse.timeline_blocks(scoring["parameters"], "T") == ["Practice", "Test_A"]
+assert behaverse.timeline_blocks(scoring["parameters"], "XCIT_NB_01") is None  # the build's own: only it knows
+assert behaverse.unplayed(["Test_A", "Test_Z"], ["Practice", "Test_A"]) == ["Test_Z"] and behaverse.unplayed(["X"], None) == []
+try:
+    behaverse.scored_blocks({**task(), "parameters": {"ScoredBlocks": "Test_A"}})
+    raise AssertionError("a ScoredBlocks that is no list was read")
+except ValueError as error:
+    assert "ScoredBlocks lists the names" in str(error), error
 
 # Every trial line says whose it is: the task's visit count (kept in the study's state, so a loop's iterations number the
 # subjects) and the properties in scope at the hand-off, an inner scope shadowing an outer one.

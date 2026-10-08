@@ -139,6 +139,11 @@ test('what Unity receives: the payload a task builds, its bot less the keys only
       payload: { scene: 'WO', agentType: 'human', configMode: 'builtin', timeline: 'SimonTask' },
     },
     {
+      label: 'ScoredBlocks is the runner\'s, which blocks its failed-trial rate counts, and never reaches the build',
+      xml: taskXml('timeline: XCIT_NB_01\nScoredBlocks: [XCIT_NB_01_Test_A]\n'),
+      payload: { agentType: 'human', configMode: 'builtin' },
+    },
+    {
       label: 'a task naming no timeline has no trials to run, and is refused',
       xml: taskXml('Blocks:\n  B1:\n    Name: B1\n'),
       error: /timeline/,
