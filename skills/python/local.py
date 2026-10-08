@@ -1,10 +1,11 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["pyyaml>=6.0"]
+# dependencies = ["pyyaml>=6.0", "joblib>=1.3"]
 # ///
-# What the implementations need (pandas, scikit-learn, joblib, matplotlib, pyarrow for parquet) is the
-# study's business: its `dependencies` entries, which the local runtime installs here with `uv run --with`.
+# What the implementations need (pandas, scikit-learn, matplotlib, pyarrow for parquet) is the study's business: its
+# `dependencies` entries, which the local runtime installs here with `uv run --with`. joblib is the runner's own: it
+# keeps a value that is not JSON (a table, a test result) between two steps.
 """Run the `python://` elements of a studyflow.
 
 The partial runner for plain computation: it claims every element whose
