@@ -121,7 +121,7 @@ types:
           order: 0
           pinned: true
       - name: implementation
-        description: Unused; the instrument says what runs.
+        description: 'Unused by the Unity build''s runner, which the instrument tells what runs; one naming another skill''s scheme hands the task to that skill (`simulate://assessment-unity`, the simulate skill''s stand-in for the build).'
         isAttr: true
         type: String
         redefines: cognitive:CognitiveTask#implementation

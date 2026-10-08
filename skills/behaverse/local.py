@@ -67,11 +67,20 @@ def build_of(element: dict[str, Any]) -> str:
     return str(((behaverse_extension(element) or {}).get("attributes") or {}).get("runtime") or "unity")
 
 
+def implementation_of(element: dict[str, Any]) -> str:
+    """The task's `implementation`: unused by this runner, except that one naming another skill's scheme
+    (`simulate://assessment-unity`) hands the task to that skill's runner."""
+    attributes = (behaverse_extension(element) or {}).get("attributes") or {}
+    return str(attributes.get("implementation") or (element.get("attributes") or {}).get("implementation") or "")
+
+
 def claimed_tasks(plan: dict[str, Any], check_build: Callable[[], Any]) -> list[str]:
     """The `behaverse:Task`s this runner plays: those set to the Unity build, whose build is checked here, so a run
     fails before the walk starts rather than after another pool's robot has greeted. A task set to the Godot build
-    stops the run here too: no runner plays that build yet, and a task nothing runs would only be skipped."""
-    tasks = {eid: element for eid, element in (plan.get("elements") or {}).items() if behaverse_extension(element) is not None}
+    stops the run here too: no runner plays that build yet, and a task nothing runs would only be skipped. A task whose
+    `implementation` names another scheme than `behaverse://` is that skill's to play."""
+    tasks = {eid: element for eid, element in (plan.get("elements") or {}).items() if behaverse_extension(element) is not None
+             and implementation_of(element).split("://")[0] in ("", "behaverse")}
     godot = sorted(eid for eid, element in tasks.items() if build_of(element) == "godot")
     if godot:
         raise ValueError(f"{', '.join(godot)} {'is' if len(godot) == 1 else 'are'} set to the Godot build (runtime: godot), "

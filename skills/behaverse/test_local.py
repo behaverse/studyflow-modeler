@@ -179,6 +179,15 @@ checked = []
 unity_plan = {"elements": {"Play": task(), "Other": {"id": "Other", "type": "task"}}}
 assert behaverse.claimed_tasks(unity_plan, lambda: checked.append(True)) == ["Play"] and checked == [True]
 assert behaverse.claimed_tasks({"elements": {"Play": task(runtime="unity")}}, lambda: None) == ["Play"]
+# A task another skill's scheme implements is that skill's to play (the simulate skill's simulated build), and a study
+# of such tasks alone needs no build.
+assert behaverse.claimed_tasks({"elements": {"Play": task(implementation="behaverse://assessment-unity@26.10")}}, lambda: None) == ["Play"]
+
+def unchecked():
+    raise AssertionError("the build was checked")
+
+
+assert behaverse.claimed_tasks({"elements": {"Play": task(implementation="simulate://assessment-unity")}}, unchecked) == []
 try:
     behaverse.claimed_tasks({"elements": {"Play": task(runtime="godot")}}, lambda: None)
     raise AssertionError("a Godot task was claimed")
