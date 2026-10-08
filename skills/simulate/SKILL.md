@@ -100,7 +100,8 @@ A runner-only skill. It claims four kinds of element by their `implementation`:
   | N-back | BurnIn | .97 |
 
   and 0.85 on any other condition. The subject is in the goal-support arm when a text sent with the trial (a reminder
-  prompt wired into the task, its template a property such as `{reminder_axcpt}`) begins with `Reminder:`, and in the
+  prompt wired into the task, its template a property such as `{reminder_axcpt}`, or the task's instructions ending
+  with it) has a line beginning with `Reminder:`, and in the
   standard arm otherwise (an empty reminder, or none); only the BX probes differ between the arms. At about 20
   completers per arm, each taking the AX-CPT's four test blocks of `XCIT_RE_02` (16 BX and 64 BY probes), 80 Simon
   trials, and the 1-back's two and the 2-back's four test blocks, the three effects reach one-sided p < .05/9

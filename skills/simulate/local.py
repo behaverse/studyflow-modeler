@@ -42,9 +42,9 @@ PLANTED: dict[tuple[str, str], float | dict[str, float]] = {
 }
 NULL_ACCURACY = 0.85  # `null` everywhere, and `planted` on a condition the table does not list
 MISS_RATE = 1 / 30
-# The goal-support arm's mark: a text the asking step sends (a reminder prompt wired into the task) that begins so.
-# The standard arm's reminder is empty, or absent.
-REMINDER = "Reminder:"
+# The goal-support arm's mark: a line beginning so in a text the asking step sends (a reminder prompt wired into the
+# task, or the task's instructions ending with the reminder). The standard arm's reminder is empty, or absent.
+REMINDER = re.compile(r"^\s*Reminder:", re.MULTILINE)
 
 
 def implementation_of(element: dict[str, Any]) -> str:
@@ -215,7 +215,7 @@ def answer(profile: str, seed: Any, message: dict[str, Any], memory: dict[str, A
     """One simulated reply: a trial answered with the planted probability of being right, or an instruction confirmed.
     The trial is the value of the message that lists `ResponseOptions`, or the message itself, as the Behaverse build
     sends one; `memory` is what this subject's conversation has shown of the block so far. The subject is in the
-    goal-support arm when a text sent with the trial begins with REMINDER."""
+    goal-support arm when a line of a text sent with the trial begins with REMINDER."""
     content = message.get("content")
     values = list(content.values()) if isinstance(content, dict) else [content]
     trial = next((value for value in values if isinstance(value, dict) and value.get("ResponseOptions")), None)
@@ -223,7 +223,7 @@ def answer(profile: str, seed: Any, message: dict[str, Any], memory: dict[str, A
         trial = content
     if trial is None:
         return "READY"
-    arm = "goal support" if any(isinstance(value, str) and value.lstrip().startswith(REMINDER) for value in values) else "standard"
+    arm = "goal support" if any(isinstance(value, str) and REMINDER.search(value) for value in values) else "standard"
     truth = perceived(trial, memory if memory is not None else {})
     draw = rng(seed, message.get("id"))
     if draw.random() < MISS_RATE:

@@ -113,6 +113,9 @@ def sent(index: int, trial: dict, reminder: str, subject: int = 1) -> dict:
 
 assert sent(0, letters("A")[0], REMIND)["content"]["Prompt_Reminder"] == REMIND
 assert sent(0, letters("A")[0], "")["content"]["Prompt_Reminder"] == ""
+# The reminder may close the task's instructions rather than stand alone: a line beginning "Reminder:" marks the arm.
+assert simulate.REMINDER.search("Answer Match on an X after an A.\n\n" + REMIND)
+assert not simulate.REMINDER.search("Answer Match on an X after an A.\n\n")
 
 
 def replies(reminder: str) -> list[str]:
