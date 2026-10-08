@@ -139,9 +139,13 @@ export class Walk {
     const early = this.early ?? [];
     this.early = undefined;
     for (const happened of early) host.record?.(happened);
+    // A name several elements share cites nothing, which matters only where a placeholder cites it: three questions
+    // may each end at `Supported` and answer `yes` without a warning, as long as no `{Supported.…}` is written.
+    const cited = citedNames(Object.values(graph.elements));
     const ambiguous = new Set(Object.values(graph.elements)
       .filter((element) => graph.walked.has(element.id) && element.name && /^[A-Za-z_]\w*$/.test(element.name) && !graph.plan.names[element.id])
-      .map((element) => element.name!));
+      .map((element) => element.name!)
+      .filter((name) => cited.has(name)));
     for (const name of [...ambiguous].sort()) {
       host.log('name.ambiguous', `  ${name} names more than one element, or is also an id: \`{${name}.…}\` cites nothing until it is unique`, { level: 'warning' });
     }
@@ -935,4 +939,24 @@ export class Walk {
   inScope(id: string): Record<string, unknown> {
     return this.memory.inScope(id);
   }
+}
+
+/** The first segment of every `{placeholder}` the elements write, in their names, attributes, arguments, extensions
+ * and conditions: the names a study cites. */
+function citedNames(elements: PlanElement[]): Set<string> {
+  const cited = new Set<string>();
+  const read = (text: unknown): void => {
+    for (const value of Array.isArray(text) ? text : [text]) {
+      if (typeof value !== 'string') continue;
+      for (const match of value.matchAll(PLACEHOLDER)) cited.add(match[1].split('.')[0]);
+    }
+  };
+  for (const element of elements) {
+    read(element.name);
+    Object.values(element.attributes).forEach(read);
+    read(element.additionalArguments);
+    for (const extension of element.extensions) Object.values(extension.attributes).forEach(read);
+    read(element.condition?.body);
+  }
+  return cited;
 }

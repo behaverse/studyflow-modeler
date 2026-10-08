@@ -113,6 +113,28 @@ test('a path that fails stops the paths beside it, its hand-offs too, and a term
   expect([terminated.error, terminated.stopped, terminated.reached.End_A, terminated.reached.End_Slow]).toEqual([undefined, ['Slow'], 1, undefined]);
 });
 
+test('a name several elements share is warned about only where a placeholder cites it', async () => {
+  const study = (label: string) => `S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Ask: { type: Task, name: "${label}" }
+    Yes_A: { type: EndEvent, name: Supported }
+    Yes_B: { type: EndEvent, name: Supported }
+    G: { type: ExclusiveGateway, default: F3 }
+    F1: Start -> Ask
+    F2: Ask -> G
+    F3: { name: "yes", sourceRef: G, targetRef: Yes_A }
+    F4: { name: "yes", sourceRef: G, targetRef: Yes_B, conditionExpression: "false" }
+`;
+  const quiet = await walked(study('Ask'));
+  expect(quiet.log.filter((line) => line.startsWith('name.ambiguous'))).toEqual([]);
+  const cites = await walked(study('Ask {Supported.reached}'));
+  expect(cites.log.filter((line) => line.startsWith('name.ambiguous'))).toEqual([
+    'name.ambiguous Supported names more than one element, or is also an id: `{Supported.…}` cites nothing until it is unique',
+  ]);
+});
+
 test('the plan spells a compact data association as the BPMN XML does: a data input its slot names, the selection alone', () => {
   const plan = planOf(studyModel(`id: study
 ${HEAD}S:
