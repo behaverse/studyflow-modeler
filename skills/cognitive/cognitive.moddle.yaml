@@ -27,7 +27,7 @@ enumerations:
         description: Each participant is drawn independently.
       - name: Block randomization
         value: block
-        description: Permuted blocks keep arm sizes balanced over time; with stratifyBy, within each stratum.
+        description: Permuted blocks, dealt in the order participants reach the gateway, keep arm sizes balanced over time; with stratifyBy, within each stratum.
       - name: Minimization
         value: minimization
         description: >-
@@ -35,7 +35,7 @@ enumerations:
           names with probability 0.8, else another arm. Equal arms only.
       - name: Alternation
         value: alternation
-        description: Arms taken in turn, by participant number; predictable, so rarely acceptable.
+        description: Arms taken in turn, in the order participants reach the gateway; predictable, so rarely acceptable.
   - name: ExperimentSoftwareEnum
     description: Software that delivers a task.
     literalValues:

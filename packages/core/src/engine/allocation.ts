@@ -151,7 +151,7 @@ export function withoutCohort(gateway: PlanElement, allocation: Allocation): str
   const how = allocation.algorithm === 'minimization' ? `minimizes imbalance on ${factors}` : `deals its arms within each stratum of ${factors}`;
   return `'${gateway.name || gateway.id}' ${how}, so a participant's arm depends on the participants before it, which a `
     + 'session of one participant does not know. Run the cohort in the local runtime, which walks every participant in '
-    + 'turn, or allocate by participant number (block or alternation, without stratifyBy).';
+    + 'turn, or allocate in blocks or by alternation without stratifyBy, which a session deals by its participant number.';
 }
 
 /** The fewest characters a concealed seed may have: 32 hex digits are 128 bits, too many seeds to try one by one

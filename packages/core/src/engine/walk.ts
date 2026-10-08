@@ -766,12 +766,16 @@ export class Walk {
       thread.visits.set(id, visit);
       const seed = this.concealed.get(id) ?? this.seed;
       const u = (): number => (seed === undefined ? Math.random() : draw(seed, id, thread.participant, visit));
-      // The sequence the gateway deals along, and this participant's place n in it: the participants, by number, and a
-      // gateway a participant passes again (along a cycle) deals each visit along a sequence of its own; inside a loop,
-      // one participant's visits.
+      // The sequence the gateway deals along, and this participant's place n in it: the participants, in the order they
+      // arrive at the gateway, so one that left before it (excluded at screening) takes no place and those allocated
+      // fill whole blocks; a gateway a participant passes again (along a cycle) deals each visit along a sequence of its
+      // own; inside a loop, one participant's visits. A session of one participant (a browser's) sees no arrival but its
+      // own, so its participant number stands in: its place when every participant before it reached the gateway.
       const visits = this.alongVisits(id);
       const along = visits ? `${id}#${thread.participant}` : `${id}@${visit}`;
-      let [sequence, n] = [along, visits ? visit : thread.participant];
+      const dealt = this.dealt.get(along) ?? [];
+      this.dealt.set(along, dealt);
+      let [sequence, n] = [along, visits ? visit : this.oneInstance ? thread.participant : dealt.length + 1];
       // The participant's level of each factor it is stratified or minimized on, as it has them on reaching the gateway.
       let levels: string[];
       try {
@@ -783,8 +787,6 @@ export class Walk {
         this.steps.fail(entry, error);
         throw error;
       }
-      const dealt = this.dealt.get(along) ?? [];
-      this.dealt.set(along, dealt);
       if (levels.length > 0 && allocation.algorithm !== 'minimization') {
         // Within strata: the k-th participant of a stratum takes place k of the stratum's own sequence.
         n = dealt.filter((past) => past.levels.every((level, f) => level === levels[f])).length + 1;

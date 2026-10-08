@@ -262,6 +262,62 @@ S:
   });
 }
 
+// Blocks and alternation deal by arrival at the gateway: a participant excluded before it takes no place, so those
+// allocated still fill whole blocks, each in the ratio. Eleven subjects, of whom the 2nd, 5th and 7th are excluded at
+// screening: the eight allocated take two complete blocks of four, in the order they arrive.
+for (const algorithm of ['block', 'alternation']) {
+  test(`a participant excluded before the gateway takes no place in its sequence (${algorithm})`, async () => {
+    const excluded = [2, 5, 7];
+    const cohort = `C:
+  type: Collaboration
+  extensionElements:
+    - type: studyflow:Study
+      seed: 3
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 11
+      processRef: S
+S:
+  type: Process
+  properties:
+    P_Eligible: { name: eligible }
+  flowElements:
+    S0: { type: StartEvent }
+    Screen: { type: Task }
+    Eligible: { type: ExclusiveGateway, default: F_Out }
+    Out: { type: EndEvent }
+    Allocate:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+          algorithm: ${algorithm}
+          blockSize: 4
+    A: { type: Task }
+    B: { type: Task }
+    S9: { type: EndEvent }
+    SF0: S0 -> Screen
+    SF1: Screen -> Eligible
+    F_In: { sourceRef: Eligible, targetRef: Allocate, conditionExpression: eligible }
+    F_Out: Eligible -> Out
+    F_A: Allocate -> A
+    F_B: Allocate -> B
+    SF2: A -> S9
+    SF3: B -> S9
+`;
+    const screen = (values: Record<string, any>): Handback => ({ values: { P_Eligible: !excluded.includes(values.state._meta.instance.Subjects) } });
+    const arms = (log: string[]): string[] => log.flatMap((line) => line.match(/drawn → F_([AB])/)?.[1] ?? []);
+    const { log, reached } = await walked(cohort, { Screen: screen });
+    expect(reached).toMatchObject({ Out: 3, Allocate: 8 });
+    const expected = algorithm === 'block'
+      ? [0, 1].flatMap((block) => permutedBlock(3, 'Allocate@1', block, [1, 1], 4))
+      : Array.from({ length: 8 }, (_, k) => alternated(k + 1, [1, 1]));
+    expect(arms(log)).toEqual(expected.map((arm) => 'AB'[arm]));
+    for (const block of [arms(log).slice(0, 4), arms(log).slice(4)]) expect(block.sort()).toEqual(['A', 'A', 'B', 'B']);
+  });
+}
+
 // Strata and minimization deal by the participants before: eight subjects, screened into a band and a sex, reach the
 // gateway in turn. Within strata, the k-th subject of a stratum takes place k of the stratum's own sequence
 // (`Allocate@1/band=young,sex=f`); minimization takes the counts of the subjects before at each of its levels, and its
