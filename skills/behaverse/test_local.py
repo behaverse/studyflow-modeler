@@ -153,6 +153,10 @@ assert behaverse.events_uri({**task(), "outputs": [{"target": "Own"}]}, own_data
 # Every trial carries the task's data inputs too, so the prompt wired into it reaches whoever answers.
 assert behaverse.data_inputs({"inputs": [{"source": "Instructions"}, {"source": "Knobs"}]}, {"Knobs": {"n": 1}}) == {
     "Instructions": None, "Knobs": {"n": 1}}
+# ...but not the Parameters wired in: they configure the build, and would reach the actor as noise.
+configured = {"Protocol": {"id": "Protocol", "type": "dataObjectReference",
+                           "extensions": [{"namespace": "x", "type": "Parameters", "attributes": {}}]}}
+assert behaverse.data_inputs({"inputs": [{"source": "Instructions"}, {"source": "Protocol"}]}, {}, configured) == {"Instructions": None}
 # One drawn dataset, two tasks, four subjects: the first write of a run starts the file, the rest append, and a
 # later run starts it again.
 import os  # noqa: E402

@@ -403,7 +403,7 @@ def play(step: Any) -> dict[str, Any]:
 
     flow, _ = behaverse.trial_flows(element, plan)
     partner = ", ".join((plan.get(p) or {}).get("name") or p for p in behaverse.message_partners(element, plan))
-    exchange = behaverse.Exchange(step, flow, partner, behaverse.data_inputs(element, state))
+    exchange = behaverse.Exchange(step, flow, partner, behaverse.data_inputs(element, state, plan))
     step.run_dir.mkdir(parents=True, exist_ok=True)
     events = step.run_dir / behaverse.events_uri(element, plan)
     events.parent.mkdir(parents=True, exist_ok=True)

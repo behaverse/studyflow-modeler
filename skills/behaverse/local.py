@@ -401,11 +401,18 @@ def option_named(content: Any, options: list[str]) -> str | None:
     return next((option for option in options if option.lower() == text), None)
 
 
-def data_inputs(element: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+def data_inputs(element: dict[str, Any], state: dict[str, Any], plan: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
     """What rides with every trial beside the trial itself: the task's data inputs by source id, each with the value
     this run bound for it, else null — as an unclaimed activity sends its own (packages/runtime-local/CONTRACT.md, "Messages").
-    That is how the `agentic:Prompt` wired into the task reaches the pool that answers."""
-    return {source: state.get(source) for binding in element.get("inputs") or [] if (source := binding.get("source"))}
+    That is how the `agentic:Prompt` wired into the task reaches the pool that answers. A `studyflow:Parameters` wired in
+    is left out: it configures the build, which the payload already carries, and says nothing to whoever answers."""
+    elements = plan or {}
+
+    def configures(source: str) -> bool:
+        return any(str(ext.get("type") or "").lower() == "parameters" for ext in (elements.get(source) or {}).get("extensions") or [])
+
+    return {source: state.get(source) for binding in element.get("inputs") or []
+            if (source := binding.get("source")) and not configures(source)}
 
 
 class Exchange:
@@ -743,7 +750,7 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     if along_messages(payload):
         trials, _ = trial_flows(element, plan) or ("", "")
         partner = ", ".join((plan.get(p) or {}).get("name") or p for p in message_partners(element, plan))
-        exchange = Exchange(step, trials, partner, data_inputs(element, state))
+        exchange = Exchange(step, trials, partner, data_inputs(element, state, plan))
     stage = Stage(args.port, build, stage_page(payload), events, exchange, trial_context(element, plan, state))
     threading.Thread(target=stage.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{stage.server_port}/"
