@@ -105,7 +105,13 @@ assert sent[12]["content"]["Stimulus"] == {"Letter": "A", "Color": "#618DA6", "I
 # Each record carries the contract's fields and the runner's own stamp, the subject and the properties in scope.
 first = ends[4]
 assert first["trialContext"]["task"] == {"id": "RE", "timelineName": "T", "seed": 7}
-assert first["trialContext"]["block"] == {"id": 2, "name": "Test"} and first["trialContext"]["trial"] == {"id": 0, "indexInBlock": 0}
+# The build's ids: the page of instructions takes block id 1, so the test block, the second block of trials, is 3; a
+# trial's id counts the timeline's trials from 1, its index in the block from 1 again in each block.
+assert first["trialContext"]["block"] == {"id": 3, "name": "Test", "gameBlockIndex": 2}
+assert first["trialContext"]["trial"] == {"id": 5, "indexInBlock": 1}
+assert [record["trialContext"]["trial"]["id"] for record in ends] == list(range(1, 16))
+assert [record["trialContext"]["trial"]["indexInBlock"] for record in ends] == [1, 2, 3, 4] + list(range(1, 12))
+assert all(record["trialContext"]["types"] == ["TaskEvent", "BlockEvent", "TrialEvent", "TrialEnd"] for record in ends)
 assert first["context"] == {"subject": 3, "state": {"arm": "standard"}}
 assert set(first["result"]) == {"isAnswered", "isCorrect", "response", "responseTime"}
 assert ends[0]["result"] == {"isAnswered": False, "isCorrect": False, "response": None, "responseTime": None}
@@ -113,8 +119,10 @@ assert ends[0]["result"] == {"isAnswered": False, "isCorrect": False, "response"
 assert result == {"TaskId": "RE", "TimelineId": "T", "IsCompleted": True, "trials": 11, "failedTrialRate": 0.0, "events": result["events"]}
 unscored = {key: value for key, value in RE.items() if key != "ScoredBlocks"}
 assert played("RE", unscored, after(4, "Match"))[0]["failedTrialRate"] == 4 / 15
-# Each request is the subject's own, so two subjects' trials never share an id (which a simulated actor draws by).
-assert [message["id"] for message in sent[:2]] == ["Task.3.1.0", "Task.3.1.1"]
+# Each request is the subject's own, so two subjects' trials never share an id (which a simulated actor draws by). Its
+# block is the block of trials played (1 for the practice, the page before it aside) and its trial the 0-based
+# `TrialIndex`, as they always were, so a study run again draws the same answers.
+assert [message["id"] for message in sent[:2]] == ["Task.3.1.0", "Task.3.1.1"] and sent[4]["id"] == "Task.3.2.0"
 # A responder given a window of its own (the build's `Bot.MaxExternalResponseTime`) is sent it in every trial.
 patient = {**RE, "Bot": {"MaxExternalResponseTime": 30, "Speed": 4}}
 assert {message["content"]["MaxResponseTime"] for message in played("RE", patient, lambda content: "Match")[1]} == {30.0}
@@ -149,8 +157,16 @@ ends = trial_ends(records)
 assert [record["trialContext"]["condition"] for record in ends] == ["BurnIn", "BurnIn", "Match", "Match", "NonMatch", "Match"]
 assert all(record["trialContext"]["load"] == 2 for record in ends)
 assert sent[0]["content"]["Stimulus"] == {"Value": "4", "Load": 2} and sent[0]["content"]["MaxResponseTime"] == 2.7
-assert [record["result"]["isCorrect"] for record in ends] == [False, False, False, False, True, False]
+# A burn-in digit is never scored: its isCorrect is null, answered or not.
+assert [record["result"]["isCorrect"] for record in ends] == [None, None, False, False, True, False]
 assert result["failedTrialRate"] == 0.0  # the burn-in went unanswered, and is never scored
+# Answered, a burn-in digit keeps its answer and response time, and still counts neither way: the four scored digits
+# went unanswered, so all of the scored trials failed.
+result, sent, records = played("NB", NB, lambda content: "Match" if content["TrialIndex"] < 2 else None)
+burn_in = trial_ends(records)[:2]
+assert all(record["result"]["isAnswered"] and record["result"]["isCorrect"] is None and record["result"]["response"] == "Match"
+           and record["result"]["responseTime"] is not None for record in burn_in)
+assert result["failedTrialRate"] == 1.0
 # A generated stream holds exactly MatchCount matches, at the seed's places.
 generated = {**DIGITS, "PlayerPaced": True, "MaxResponseTime": 3, "StreamSize": 20,
              "Streams": [{"Feature": "Digits", "StimulusValue": {"Generate": "OncePerBlock", "Sequence": {
@@ -163,11 +179,31 @@ assert len(conditions) == 20 and conditions.count("Match") == 6 and sent[5]["con
 # --- a block's course: an exit rule ends it, and a failed block is played again, up to its repeats ---
 TUTORIAL = {**NB, "Blocks": {"Two": {"Parameters": DIGITS, "ExitRules": [{"Trials": 2, "Type": "Failures", "Action": "FailBlock"}, {"Time": 300}]}}}
 records = trial_ends(played("NB", TUTORIAL, lambda content: "Match" if content["TrialIndex"] < 2 else "NonMatch")[2])
-# Two burn-in digits, then a Match it answers NonMatch, twice: failed, and played again twice more.
+# Two burn-in digits, then a Match it answers NonMatch, twice: failed, and played again twice more. A replay is a block
+# of its own (a new id) under the same name and the same place among the blocks; the burn-in's wrong answers never fail it.
 assert [record["trialContext"]["block"]["id"] for record in records] == [1] * 4 + [2] * 4 + [3] * 4
+assert {record["trialContext"]["block"]["gameBlockIndex"] for record in records} == {1}
+assert [record["trialContext"]["trial"]["id"] for record in records] == list(range(1, 13))
+assert [record["trialContext"]["trial"]["indexInBlock"] for record in records] == [1, 2, 3, 4] * 3
 assert len(trial_ends(played("NB", TUTORIAL, lambda content: "Match")[2])) == 6  # right throughout: once, to its end
 counted = {**NB, "Blocks": {"Two": {"Parameters": DIGITS, "ExitRules": [{"Trials": 4}]}}}
 assert len(trial_ends(played("NB", counted, lambda content: "Match")[2])) == 4
+# Every entry the timeline plays takes a block id, as in the build: a page of instructions, a break, and, before a failed
+# block is played again, the pages right before it marked ShowAgainOnNextBlockFailure. A group's blocks and another
+# timeline's are played in its place.
+PAGE = {"Instructions": [{"Content": [{"Text": "Read me"}]}]}
+paged = {**TUTORIAL, "Timelines": {
+    "T": {"Blocks": [PAGE, {**PAGE, "ShowAgainOnNextBlockFailure": True}, {"Name": "Two"},
+                     {"Name": "Group", "Blocks": [{"WaitMessage": "Pause", "Duration": 5}, {"Timeline": "Other"}]}]},
+    "Other": {"Blocks": [{"Name": "Two"}]}}}
+result, sent, records = played("NB", paged, lambda content: "Match" if content["TrialIndex"] < 2 else "NonMatch")
+records = trial_ends(records)
+# Pages 1 and 2, the block 3, failed: page 2 again as 4, the block 5, failed: 6 and 7, failed, no repeat left; the
+# break 8, then the other timeline's block 9, played again as 10 and 11 (no page before it says to show it again).
+assert [record["trialContext"]["block"]["id"] for record in records] == [3] * 4 + [5] * 4 + [7] * 4 + [9] * 4 + [10] * 4 + [11] * 4
+assert [record["trialContext"]["block"]["gameBlockIndex"] for record in records] == [1] * 12 + [2] * 12
+assert [record["trialContext"]["trial"]["id"] for record in records] == list(range(1, 25))
+assert [message["id"] for message in sent[::4]] == [f"Task.3.{n}.0" for n in range(1, 7)]  # the request ids, as before
 
 # --- what it cannot play as written it refuses, naming the key ---
 refused("RE", {**RE, "Blocks": {**RE["Blocks"], "Test": {"Parameters": LETTERS}}}, "ItemSequence")
@@ -179,4 +215,6 @@ random_digits = {**DIGITS, "Streams": [{"Feature": "Digits", "StimulusValue": {"
 refused("NB", {**NB, "Blocks": {"Two": {"Parameters": random_digits}}}, "Ordered")
 refused("NB", NB, "XCIT_NB_01 is not one", timeline="XCIT_NB_01")
 refused("NB", {**NB, "ScoredBlocks": ["Twoo"]}, "ScoredBlocks names Twoo")
+refused("NB", {**NB, "Timelines": {"T": {"Blocks": [{"Name": "Two"}, {"Pause": 3}]}}}, "none of the entries the build plays")
+refused("NB", {**NB, "Timelines": {"T": {"Blocks": [{"Name": "Two"}, {"Timeline": "T"}]}}}, "timeline T plays itself")
 print("simulated build: ok")

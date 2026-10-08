@@ -22,15 +22,23 @@ A runner-only skill. It claims four kinds of element by their `implementation`:
   `@` is allowed and ignored, so a study's copy for the Unity build, `behaverse://assessment-unity@26.10`, differs from
   it in the scheme alone): the task is played without Unity, by `assessment.py`, which the Unity build's runner
   (`skills/behaverse/local.py`) then leaves alone. It plays the task's `timeline`, which the Parameters wired into the
-  task must define under `Timelines`, block by block (an entry with a `Name`, merged over that block's definition
-  under `Blocks`; one without is a page of instructions), and sends each trial along the task's message flows as the
-  Unity build's runner relays the build's: the task's data inputs (a wired `agentic:Prompt` by its id), then
-  `TrialIndex`, `Stimulus`, `ResponseOptions` (`Match`/`NonMatch`, `Left`/`Right`), `MaxResponseTime` and `Scene`.
-  It scores the answer as the build does and writes the battery contract's records to the task's dataset with the
-  runner's `context` stamp: a `<TASK>.TaskStart`, one `<TASK>.TrialEnd` per trial presented (`trialContext.condition`,
-  `load` for the N-back, `result.isAnswered`, `isCorrect`, `response`, `responseTime`), and a `<TASK>.TaskEnd`. Its
-  result is the Unity runner's, `{TaskId, TimelineId, IsCompleted, trials, failedTrialRate, events}`, the rate by the
-  task's `ScoredBlocks` and the same rule. Three instruments, read as the build's config shape:
+  task must define under `Timelines`, entry by entry, each read as the build reads it, by its first key: `Instructions`,
+  a page of instructions; `Blocks`, a group, its entries played in its place; `Name`, a block, merged over that
+  block's definition under `Blocks`; `WaitMessage`, a break; `Timeline`, another timeline, its entries played in its
+  place. It sends each trial along the task's message flows as the Unity build's runner relays the build's: the task's
+  data inputs (a wired `agentic:Prompt` by its id), then `TrialIndex` (from 0 in each block), `Stimulus`,
+  `ResponseOptions` (`Match`/`NonMatch`, `Left`/`Right`), `MaxResponseTime` and `Scene`. It scores the answer as the
+  build does and writes the battery contract's records to the task's dataset with the runner's `context` stamp: a
+  `<TASK>.TaskStart`, one `<TASK>.TrialEnd` per trial presented, and a `<TASK>.TaskEnd`. A `TrialEnd` carries the
+  build's ids (`trialContext.block` `{id, name, gameBlockIndex}`, `trialContext.trial` `{id, indexInBlock}`),
+  `trialContext.condition`, `load` for the N-back, `types` (`TaskEvent`, `BlockEvent`, `TrialEvent`, `TrialEnd`),
+  and `result.isAnswered`, `isCorrect`, `response` and `responseTime` (seconds from the message to the answer, about
+  0 here). The ids are counted as the build counts them: `block.id` every entry the timeline plays, a page of
+  instructions, a break and a block played again included, so a repeat takes a new id under the same name;
+  `gameBlockIndex` the block's place among the timeline's blocks of trials, from 1, which a repeat keeps; `trial.id`
+  the timeline's trials from 1, and `indexInBlock` from 1 again in each block played. Its result is the Unity
+  runner's, `{TaskId, TimelineId, IsCompleted, trials, failedTrialRate, events}`, the rate by the task's `ScoredBlocks`
+  and the same rule. Three instruments, read as the build's config shape:
   - `RE`, the AX-CPT: a trial per letter of `ItemSequence` (`{Sequence: {Type: Ordered, Values: [...]}}`, 0 for A, a
     negative value `v` a distractor of letter `-v - 1`; `SequenceLength` letters), `StimulusType: UpperCaseLetters`,
     one two-letter `ResponsePatterns` (`[AX]`), `UseNonMatchButton: true`, `StimulusColor`, `DistractorColor`. The
@@ -47,22 +55,27 @@ A runner-only skill. It claims four kinds of element by their `implementation`:
     build generates (`Type: NBack`: `StreamSize` digits from 1 to `FeatureValuesCount`, exactly `MatchCount`
     matches, at places drawn from the run's seed; the lure counts are not reproduced). The stimulus is
     `{Value, Load}`; the first `NValue` digits are the burn-in (`BurnIn`), sent so the responder sees every digit and
-    never scored (NonMatch is right, there being nothing to match); then `Match` or `NonMatch`. The window is
-    `StimulusDisplayDuration` plus `InterStimulusInterval`, or `MaxResponseTime` when `PlayerPaced`.
+    never scored: their answer and response time are recorded, `isCorrect` is null, and neither an exit rule nor the
+    failed-trial rate counts them; then `Match` or `NonMatch`. The window is `StimulusDisplayDuration` plus
+    `InterStimulusInterval`, or `MaxResponseTime` when `PlayerPaced`.
 
   `{Reference: Name}` reads the block's parameter of that name. A block's `Trials` exit rules end it (after so many
   trials, successes or failures, in all or `Consecutive`), and one with `Action: FailBlock`, or an accuracy below its
   `MinAccuracyRequired`, plays it again, freshly drawn, up to `MaxRepeats` times (2 by default), each play a block of
-  its own in the records; a `Time` rule never ends one, nothing here taking time. What is drawn (a Simon order, an
-  N-back stream) comes from the study's seed, the task's id and the block, so every subject meets the same. `Bot:` in
-  the Parameters says how the Unity build's bot plays and is ignored, but for `MaxExternalResponseTime`: when it is
-  above 0 it is the `MaxResponseTime` of every trial, as the Unity build sends it to an external responder; otherwise
-  the protocol's window above is. Every block is read before the first trial is sent, so what the build cannot play as
-  written stops the task with an error naming the key: a timeline the Parameters do not define, a block key it does
-  not apply (`RepeatTrials`, `Adapt` with steps), a sequence other than Ordered, another stimulus type or feature, a
-  parameter it needs that is not written inline (it has no copy of the build's own), or a `ScoredBlocks` name the
-  timeline does not play. Each trial's request id is the task's, the subject's, the block's and the trial's
-  (`Task_AXCPT.3.2.17`), so a simulated participant, which draws by it, draws afresh for every subject.
+  its own in the records, after the pages of instructions right before it that say `ShowAgainOnNextBlockFailure`; a
+  `Time` rule never ends one, nothing here taking time. What is drawn (a Simon order, an N-back stream) comes from the
+  study's seed, the task's id and the block, so every subject meets the same. `Bot:` in the Parameters says how the
+  Unity build's bot plays and is ignored, but for `MaxExternalResponseTime`: when it is above 0 it is the
+  `MaxResponseTime` of every trial, as the Unity build sends it to an external responder; otherwise the protocol's
+  window above is. Every block is read before the first trial is sent, so what the build cannot play as written stops
+  the task with an error naming the key: a timeline the Parameters do not define, an entry with none of the keys
+  above, a timeline that plays itself, a block key it does not apply (`RepeatTrials`, `Adapt` with steps), a sequence
+  other than Ordered, another stimulus type or feature, a parameter it needs that is not written inline (it has no
+  copy of the build's own), or a `ScoredBlocks` name the timeline does not play. Each trial's request id is the
+  task's, the subject's, the block's and the trial's (`Task_AXCPT.3.2.17`): the block is counted among the blocks of
+  trials played, from 1, a repeat included and the pages not, and the trial is its `TrialIndex`. So a simulated
+  participant, which draws by it, draws afresh for every subject, and draws the same answers when the study is run
+  again, the records' ids being counted apart.
 - **A participant**, a pool with no process whose `studyflow:Actor` `implementation` is `simulate://planted` or
   `simulate://null`. It answers each trial it is sent with one of the trial's `ResponseOptions`, telling the right
   one and the trial's condition from the stimulus as a person would, and gives the right one with a planted

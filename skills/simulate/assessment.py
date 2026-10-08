@@ -3,9 +3,10 @@ without Unity (SKILL.md beside this file).
 
 It plays the timeline the Parameters wired into the task define, block by block, sends each trial along the task's
 message flows as the Unity build's runner relays the build's, scores the answer as the build does, and writes the
-battery contract's records: one `<TASK>.TrialEnd` per trial presented, between a `<TASK>.TaskStart` and a
-`<TASK>.TaskEnd`. What it shares with that runner (the payload checks, the exchange, the records' file and stamp, the
-failed-trial rate) it takes from it, `skills/behaverse/local.py`, so both builds are run and scored by one rule.
+battery contract's records: one `<TASK>.TrialEnd` per trial presented, its block and trial ids counted as the build
+counts them, between a `<TASK>.TaskStart` and a `<TASK>.TaskEnd`. What it shares with that runner (the payload checks,
+the exchange, the records' file and stamp, the failed-trial rate) it takes from it, `skills/behaverse/local.py`, so
+both builds are run and scored by one rule.
 Three instruments are played: the AX-CPT (`RE`), the Simon task (`WO`) and the N-back (`NB`).
 """
 
@@ -45,6 +46,7 @@ class Block:
             raise ValueError(f"block {name}: the simulated build does not adapt a block (Adapt)")
         self.name, self.definition = name, definition
         self.parameters: dict[str, Any] = definition.get("Parameters") or {}
+        self.index = 0  # its place among the timeline's blocks of trials, from 1 (the build's `gameBlockIndex`)
 
     def need(self, key: str, parameters: dict[str, Any] | None = None) -> Any:
         """A parameter the build cannot play the block without, written inline in the study's Parameters."""
@@ -77,16 +79,51 @@ def merged(base: dict[str, Any], over: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-def blocks_of(parameters: dict[str, Any], timeline: str) -> list[Block]:
-    """The blocks the timeline plays, in order: each entry of `Timelines.<timeline>.Blocks` that names one, merged over
-    its definition under `Blocks`. A page of instructions (an entry with no `Name`) shows nothing to answer."""
+class Page:
+    """An entry of the timeline with nothing to answer: a page of instructions (`Instructions`) or a break
+    (`WaitMessage`). The build counts it among the blocks it plays, so it takes a block id in the records; a page of
+    instructions with `ShowAgainOnNextBlockFailure` is shown again, and takes another, before a failed block after it is
+    played again."""
+
+    def __init__(self, entry: dict[str, Any]) -> None:
+        self.again = "Instructions" in entry and bool(entry.get("ShowAgainOnNextBlockFailure"))
+
+
+# What a timeline's entry is, by the first of these keys it has, as the build reads it.
+ENTRY_KEYS = ("Instructions", "Blocks", "Name", "WaitMessage", "Timeline")
+
+
+def timeline_of(parameters: dict[str, Any], timeline: str, within: tuple[str, ...] = ()) -> list[Block | Page]:
+    """The entries the timeline plays, in order, each read by its first key in `ENTRY_KEYS`: a page of instructions; a
+    group, whose `Blocks` are played in its place; a block (`Name`), merged over its definition under `Blocks`; a break;
+    another timeline, whose entries are played in its place. Each block gets its place among the blocks, from 1."""
     definition = (parameters.get("Timelines") or {}).get(timeline)
     if not isinstance(definition, dict):
         raise ValueError(f"the simulated build plays a timeline the Parameters wired into the task define under Timelines, "
                          f"and {timeline} is not one: it has no copy of the build's own")
-    named = parameters.get("Blocks") or {}
-    return [Block(str(entry["Name"]), merged(named.get(entry["Name"]) or {}, entry))
-            for entry in definition.get("Blocks") or [] if isinstance(entry, dict) and entry.get("Name")]
+    if timeline in within:
+        raise ValueError(f"timeline {timeline} plays itself, through {' > '.join(within)}")
+    named, entries = parameters.get("Blocks") or {}, []
+
+    def read(items: list[Any]) -> None:
+        for entry in items:
+            kind = next((key for key in ENTRY_KEYS if isinstance(entry, dict) and key in entry), None)
+            if kind == "Blocks":
+                read(entry["Blocks"] or [])
+            elif kind == "Timeline":
+                entries.extend(timeline_of(parameters, str(entry["Timeline"]), (*within, timeline)))
+            elif kind == "Name":
+                entries.append(Block(str(entry["Name"]), merged(named.get(entry["Name"]) or {}, entry)))
+            elif kind:
+                entries.append(Page(entry))
+            else:
+                raise ValueError(f"timeline {timeline}: {entry!r} is none of the entries the build plays "
+                                 f"({', '.join(ENTRY_KEYS)})")
+
+    read(definition.get("Blocks") or [])
+    for index, block in enumerate((entry for entry in entries if isinstance(entry, Block)), 1):
+        block.index = index
+    return entries
 
 
 def ordered(value: Any, key: str) -> list[Any]:
@@ -289,7 +326,11 @@ class Session:
     def __init__(self, step: Any, scene: str, task: dict[str, Any], exchange: Any, file: Any, context: dict[str, Any]) -> None:
         self.step, self.scene, self.task, self.exchange, self.file, self.context = step, scene, task, exchange, file, context
         self.recorded = behaverse.Trials()
-        self.played = 0  # blocks played, a repeat too, each a block of its own in the records
+        # The build's ids: every entry of the timeline played, a page and a repeat too (`block.id`), every trial (`trial.id`).
+        self.block_id = self.trial_id = 0
+        # The blocks of trials played, a repeat too: the block in each trial's request id, which a simulated participant
+        # draws by, so it is counted as it always was and the same study draws the same answers.
+        self.played = 0
 
     def write(self, name: str, **trial_context: Any) -> None:
         """A record, as the build sends one to the runner: its own fields, and the runner's stamp (`context`)."""
@@ -299,10 +340,16 @@ class Session:
         behaverse.tally(self.recorded, event)
         self.file.write(json.dumps({**event, "context": self.context}, separators=(",", ":")) + "\n")
 
+    def page(self) -> None:
+        """A page of instructions or a break, shown: nothing to answer, nothing recorded, but a block id taken."""
+        self.block_id += 1
+
     def block(self, block: Block, trials: list[Trial]) -> bool:
         """The block's trials, one message each, until they run out or an exit rule ends it; whether it failed (an exit
-        rule's FailBlock, or less accuracy than its MinAccuracyRequired)."""
+        rule's FailBlock, or less accuracy than its MinAccuracyRequired). A burn-in trial is recorded with its answer and
+        never scored: `isCorrect` null, and no outcome for the exit rules."""
         self.played += 1
+        self.block_id += 1
         rules, outcomes = exit_rules(block), []
         for index, trial in enumerate(trials):
             if self.step.cancelled:
@@ -313,13 +360,16 @@ class Session:
                                        "ResponseOptions": trial["ResponseOptions"],
                                        "MaxResponseTime": trial["MaxResponseTime"], "Scene": self.scene})
             response = reply.get("Response")
+            scored = trial["condition"] != "BurnIn"
             correct = response is not None and response == trial["correct"]
-            self.write("TrialEnd", block={"id": self.played, "name": block.name}, trial={"id": index, "indexInBlock": index},
+            self.trial_id += 1
+            self.write("TrialEnd", block={"id": self.block_id, "name": block.name, "gameBlockIndex": block.index},
+                       trial={"id": self.trial_id, "indexInBlock": index + 1},
                        condition=trial["condition"], **({"load": trial["load"]} if "load" in trial else {}),
                        types=["TaskEvent", "BlockEvent", "TrialEvent", "TrialEnd"],
-                       result={"isAnswered": response is not None, "isCorrect": correct, "response": response,
+                       result={"isAnswered": response is not None, "isCorrect": correct if scored else None, "response": response,
                                "responseTime": round(time.monotonic() - started, 3) if response is not None else None})
-            if trial["condition"] != "BurnIn":
+            if scored:
                 outcomes.append(correct)
             held = [rule for rule in rules if fired(rule, outcomes)]
             if held:
@@ -341,14 +391,15 @@ def play(step: Any) -> dict[str, Any]:
         raise ValueError(f"behaverse:Task {element['id']!r}: the simulated build has no screen, so its trials are answered "
                          "along message flows: draw one carrying each trial out of the task and one bringing the answer back")
     parameters = element.get("parameters") or {}
-    blocks = blocks_of(parameters, name)
+    entries = timeline_of(parameters, name)
+    blocks = [entry for entry in entries if isinstance(entry, Block)]
     scored = behaverse.scored_blocks(element)
     missing = behaverse.unplayed(scored, [block.name for block in blocks])
     if missing:
         raise ValueError(f"behaverse:Task {element['id']!r}: ScoredBlocks names {', '.join(missing)}, which timeline {name} does not play")
     # `Bot:` is how the Unity build's bot plays; of it, only the window an external responder is given applies here.
     external = float(((parameters.get("Bot") or {}).get("MaxExternalResponseTime")) or 0)
-    first = [trials_of(scene, block, step, 0, external) for block in blocks]
+    first = iter([trials_of(scene, block, step, 0, external) for block in blocks])
 
     flow, _ = behaverse.trial_flows(element, plan)
     partner = ", ".join((plan.get(p) or {}).get("name") or p for p in behaverse.message_partners(element, plan))
@@ -364,10 +415,22 @@ def play(step: Any) -> dict[str, Any]:
         session = Session(step, scene, {"id": scene, "timelineName": name, "seed": seed}, exchange, file,
                           behaverse.trial_context(element, plan, state))
         session.write("TaskStart", types=["TaskEvent", "TaskStart"])
-        for block, trials in zip(blocks, first):
-            # A failed block is played again, freshly drawn, up to its repeats.
-            for attempt in range(1 + int(block.definition.get("MaxRepeats", MAX_REPEATS))):
-                if not session.block(block, trials if attempt == 0 else trials_of(scene, block, step, attempt, external)):
+        for place, entry in enumerate(entries):
+            if isinstance(entry, Page):
+                session.page()
+                continue
+            # A failed block is played again, freshly drawn, up to its repeats, after the pages right before it that
+            # say to show them again.
+            again = 0
+            while again < place and isinstance(entries[place - again - 1], Page) and entries[place - again - 1].again:
+                again += 1
+            trials = next(first)
+            for attempt in range(1 + int(entry.definition.get("MaxRepeats", MAX_REPEATS))):
+                if attempt:
+                    for _ in range(again):
+                        session.page()
+                    trials = trials_of(scene, entry, step, attempt, external)
+                if not session.block(entry, trials):
                     break
         session.write("TaskEnd", types=["TaskEvent", "TaskEnd"])
     answered = sum(was for was, _condition in session.recorded.ended.values())
