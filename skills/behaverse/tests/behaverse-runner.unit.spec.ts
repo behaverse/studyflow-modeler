@@ -156,7 +156,7 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   // An answer that names no option, or none within the trial's window, is no answer: a miss, never a stand-in.
   expect(await ask('r2', 5, 'Up')).toEqual({});
   expect(await ask('r3', 1)).toEqual({});
-  // The build's own record of each trial is what the failed-trial rate counts: three shown, one answered with a
+  // The build's own record of each trial is what the block counts hold: three shown, one answered with a
   // click, one with a response time, one that ended without one — however well the replies above named an option.
   const shown = (n: number) => ({ trialContext: { block: { id: 1 }, trial: { id: n }, types: ['TrialStart'] } });
   expect((await post('/event', shown(1))).status).toBe(204);
@@ -169,8 +169,8 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
 
   const { result, durationMs } = (await handed).result;
   expect(result).toMatchObject({ TaskId: 'WO', TimelineId: 'SimonTask', IsCompleted: true, trials: 1 });
-  // One of the three trials the build showed ended with no response, and the share rides with the result.
-  expect(result.failedTrialRate).toBeCloseTo(1 / 3);
+  // One of the three trials the build showed ended with no response, and the counts ride with the result.
+  expect(result.blocks).toEqual([{ block: null, trials: 3, answered: 2, unanswered: 1, correct: null }]);
   expect(durationMs).toBeGreaterThan(0);
   await walk.request('shutdown', {});
   expect(await exited, stderr).toBe(0);

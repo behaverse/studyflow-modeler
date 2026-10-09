@@ -12,7 +12,7 @@ metadata:
 
 A model is a pool of its own: a `studyflow:Actor` with no process, named by its `implementation`
 (`ollama://gemma4:12b-it-qat`, `claude://claude-haiku-4-5`); the scheme is what makes it this runner's, so the same
-pool played by another runner (`simulate://planted`) is a one-line change. A step asks it with a message flow to
+pool played by another runner (`simulate://random`) is a one-line change. A step asks it with a message flow to
 the pool and one back, and nothing else names a model. `local.py` plays such a pool in a local run: each message
 sent to it is one request, and the reply goes back along the pool's flow (`../../packages/runtime-local/CONTRACT.md`, "Messages").
 

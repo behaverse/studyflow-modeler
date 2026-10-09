@@ -65,13 +65,16 @@ function canonicalElementIn(model: StudyModel, element: Element, entry: boolean,
   const host = entry ? element.type : model.host(element);
   if (!model.metamodel.has(host)) return sorted([['$type', element.type]]);
   const unbound = anyActor && model.metamodel.isA(host, ACTOR);
+  // What a kind of actor a skill declares adds to the actor (a simulated taker's planted accuracies) is who answers too.
+  const actorOwn = unbound ? new Set(model.metamodel.descriptor(ACTOR).properties.map((p) => p.ns.localName)) : undefined;
   const typed = entry ? undefined : model.typedEntry(element);
-  const entries: [string, unknown][] = [['$type', host]];
+  // For any actor, an actor is an actor, whatever kind a skill makes it.
+  const entries: [string, unknown][] = [['$type', unbound ? ACTOR : host]];
   let checklist: string | undefined;
   for (const p of model.metamodel.descriptor(host).properties) {
     const key = p.ns.localName;
     if (p.isVirtual || DRAWING.has(key) || RECORDED.has(key) || (key === 'state' && host === STUDY_EXTENSION_TYPE)) continue;
-    if (unbound && BINDING.has(key)) continue;
+    if (unbound && (BINDING.has(key) || !actorOwn!.has(key))) continue;
     let v: unknown = element[key];
     if (key === 'extensionElements') {
       const listed = [...(typed ? [typed] : []), ...(Array.isArray(v) ? v : isElement(v) && Array.isArray(v.values) ? v.values : [])];

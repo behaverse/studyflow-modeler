@@ -11,6 +11,8 @@ import {
   type Manifest,
 } from '@skills/behaverse/browser/types';
 import { runOnUnity, waitForReady } from '@skills/behaverse/browser/unityRuntime';
+import { TrialTally } from '@skills/behaverse/browser/blocks';
+import { EVENT } from '@skills/behaverse/browser/events';
 import { getBehaverseTaskPayload, withRunIdentity } from '@skills/behaverse/browser/parser';
 import { fetchManifest, validateBehaverseNode } from '@skills/behaverse/browser/validation';
 import { registerNode } from '@runner/nodes/registry';
@@ -52,6 +54,13 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
 
   useEffect(() => {
     let cancelled = false;
+    // The build's records of its trials, tallied as they arrive, so the result carries what each block came to.
+    const tally = new TrialTally();
+    const onEvent = (event: MessageEvent): void => {
+      const data = event.data as { type?: string; detail?: unknown } | undefined;
+      if (data?.type === EVENT) tally.record(data.detail);
+    };
+    window.addEventListener('message', onEvent);
     const src = buildBehaverseIframeSrc();
     if (iframeRef.current) {
       // Fresh Unity instance per task: Application.Quit tears down the AssessmentRuntime.
@@ -80,7 +89,11 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
           result.IsCompleted ? 'ok' : 'error',
           `${result.IsCompleted ? 'Completed' : 'Stopped before the end:'} ${result.TaskId} / ${result.TimelineId}.`,
         );
-        if (result.IsCompleted) complete();
+        if (result.IsCompleted) {
+          const blocks = tally.counts();
+          session.answer({ ...result, trials: blocks.reduce((sum, block) => sum + block.answered, 0), blocks });
+          complete();
+        }
         else abort(`task-aborted:${result.TaskId}`);
       } catch (err) {
         if (cancelled) return;
@@ -92,6 +105,7 @@ function Behaverse({ job, session, log, complete, abort }: NodeProps<BehaverseJo
 
     return () => {
       cancelled = true;
+      window.removeEventListener('message', onEvent);
     };
     // Each is fixed for the node's mount: the runner keys a node by its job and hands it stable callbacks.
   }, [job, session, log, complete, abort]);

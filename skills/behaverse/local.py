@@ -1,15 +1,16 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = []
+# dependencies = ["pyyaml>=6.0"]
 # ///
-"""Run the Behaverse (Unity WebGL) tasks of a studyflow in this machine's browser.
+"""Run the Behaverse tasks of a studyflow: on the Unity WebGL build in this machine's browser, or on the simulated build.
 
 Usage:
     studyflow run <diagram> --runtime local [--option auto]   # the local runtime walks, this runner performs
 
-A partial runner (packages/runtime-local/CONTRACT.md): it claims every `behaverse:Task`, and per hand-off serves the
-Unity WebGL build and a small stage page from a local port, opens the page in the default
+A partial runner (packages/runtime-local/CONTRACT.md): it claims every `behaverse:Task` and every pool typed
+`behaverse:SimulatedTaker`. A task set to the simulated build (`runtime: simulated`) and such a pool are played by
+`simulated.py` beside this file; for any other task, per hand-off, it serves the Unity WebGL build and a small stage page from a local port, opens the page in the default
 browser, starts the task through the build's `RunCognitiveTask` entry point, and waits for
 `studyflow:TaskCompleted`. The page relays what the build reports back to this process:
 every `studyflow:Event` to the task's events file in the run directory, each answered trial to the
@@ -68,33 +69,42 @@ def build_of(element: dict[str, Any]) -> str:
 
 
 def implementation_of(element: dict[str, Any]) -> str:
-    """The task's `implementation`: unused by this runner, except that one naming another skill's scheme
-    (`simulate://assessment-unity`) hands the task to that skill's runner."""
+    """The task's `implementation`: the release it names is for the record, but one naming another skill's scheme
+    hands the task to that skill's runner."""
     attributes = (behaverse_extension(element) or {}).get("attributes") or {}
     return str(attributes.get("implementation") or (element.get("attributes") or {}).get("implementation") or "")
 
 
 def claimed_tasks(plan: dict[str, Any], check_build: Callable[[], Any]) -> list[str]:
-    """The `behaverse:Task`s this runner plays: those set to the Unity build, whose build is checked here, so a run
-    fails before the walk starts rather than after another pool's robot has greeted. A task set to the Godot build
-    stops the run here too: no runner plays that build yet, and a task nothing runs would only be skipped. A task whose
+    """What this runner plays: the `behaverse:Task`s and the pools typed `behaverse:SimulatedTaker`. The Unity build is
+    checked here when a task is set to it, so a run fails before the walk starts rather than after another pool's robot
+    has greeted; a study whose tasks are all on the simulated build needs none. A task set to the Godot build stops the
+    run here too: no runner plays that build yet, and a task nothing runs would only be skipped. A task whose
     `implementation` names another scheme than `behaverse://` is that skill's to play."""
-    tasks = {eid: element for eid, element in (plan.get("elements") or {}).items() if behaverse_extension(element) is not None
+    elements = plan.get("elements") or {}
+    tasks = {eid: element for eid, element in elements.items() if behaverse_extension(element) is not None
              and implementation_of(element).split("://")[0] in ("", "behaverse")}
     godot = sorted(eid for eid, element in tasks.items() if build_of(element) == "godot")
     if godot:
         raise ValueError(f"{', '.join(godot)} {'is' if len(godot) == 1 else 'are'} set to the Godot build (runtime: godot), "
                          "which no runner plays yet; set runtime: unity to play it on the Unity build")
-    if tasks:
+    if any(build_of(element) == "unity" for element in tasks.values()):
         check_build()
-    return list(tasks)
+    takers = [eid for eid, element in elements.items() if element.get("type") == "participant"
+              and not (element.get("attributes") or {}).get("processRef") and any(
+                  ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "simulatedtaker"
+                  for ext in element.get("extensions") or [])]
+    return [*tasks, *takers]
 
 
-def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, dict[str, Any]] | None = None,
+                 resolved: dict[str, Any] | None = None) -> dict[str, Any]:
     """The `RunCognitiveTask` payload, built as the browser runner's parser.ts builds it; `plan` is every element
-    of the digest, for what the diagram draws around this task."""
+    of the digest, for what the diagram draws around this task, and `resolved` the attributes the walk hands over with
+    their placeholders resolved (`timeline: "{nback_order}"` as the property the run wrote)."""
     element_id = str(element.get("id"))
-    attrs = (behaverse_extension(element) or {}).get("attributes") or {}
+    written = (behaverse_extension(element) or {}).get("attributes") or {}
+    attrs = {key: (resolved or {}).get(key, value) for key, value in written.items()}
     instrument = str(attrs.get("instrument") or "")
     if not instrument:
         raise ValueError(f"behaverse:Task {element_id!r} has no instrument; set it to a task the Unity build ships")
@@ -106,8 +116,6 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
     # The task's GameConfig is what the Parameters wired into it say, merged, less the keys that set its attributes
     # (the plan's `parameters`).
     parameters = dict(element.get("parameters") or {})
-    # `ScoredBlocks:` is not GameConfig either: which blocks the failed-trial rate counts, read here (`scored_blocks`).
-    parameters.pop("ScoredBlocks", None)
     # `Bot:` is not GameConfig: how the build's bot plays the task, sent to Unity as the payload's own `bot`.
     bot_settings = parameters.pop("Bot", None)
     bot_settings = bot_settings if isinstance(bot_settings, dict) else {}
@@ -312,65 +320,78 @@ def opened_this_run(cache: Path, events: Path) -> bool:
     return False
 
 
-def scored_blocks(element: dict[str, Any]) -> list[str] | None:
-    """The blocks whose trials the failed-trial rate counts: `ScoredBlocks`, a list of block names, at the top of the
-    Parameters wired into the task (never sent to the build); None, every block, without one."""
-    scored = (element.get("parameters") or {}).get("ScoredBlocks")
-    if scored is None:
-        return None
-    if not isinstance(scored, list) or not scored or not all(isinstance(name, str) and name for name in scored):
-        raise ValueError(f"behaverse:Task {element.get('id')!r}: ScoredBlocks lists the names of the blocks whose trials "
-                         f"the failed-trial rate counts, as [Test_A, Test_B]; got {scored!r}")
-    return scored
-
-
-def timeline_blocks(parameters: dict[str, Any], timeline: str) -> list[str] | None:
-    """The names of the blocks `timeline` plays, in order, when the Parameters define it under `Timelines`; None when
-    it is one the build ships, whose blocks only the build knows. An entry with no `Name` is a page of instructions."""
-    definition = (parameters.get("Timelines") or {}).get(timeline)
-    if not isinstance(definition, dict):
-        return None
-    return [str(entry["Name"]) for entry in definition.get("Blocks") or [] if isinstance(entry, dict) and entry.get("Name")]
-
-
-def unplayed(scored: list[str] | None, played: list[str] | None) -> list[str]:
-    """The `ScoredBlocks` names the timeline does not play, when it is known: a misspelt one would never count a trial."""
-    return [name for name in scored or [] if played is not None and name not in played]
-
-
 class Trials:
-    """The task's trials as the build's own records describe them, which the failed-trial rate counts (`tally`)."""
+    """The task's trials as the build's own records describe them, which `block_counts` counts (`tally`)."""
 
     def __init__(self) -> None:
         self.shown: set[tuple] = set()         # the trials the build started
         self.answered: set[tuple] = set()      # those it recorded a response for
         self.unanswerable: set[tuple] = set()  # those that took none
         self.blocks: dict[tuple, str] = {}     # each trial's block, by name, when the build names it
-        self.ended: dict[tuple, tuple[bool, str]] = {}  # each `<TASK>.TrialEnd` record's `isAnswered` and `condition`
+        # each `<TASK>.TrialEnd` record's `isAnswered`, `condition` and `isCorrect` (None when it says nothing)
+        self.ended: dict[tuple, tuple[bool, str, bool | None]] = {}
 
 
-def failed_trial_rate(trials: Trials, scored: list[str] | None = None) -> float:
-    """The share of the scored trials the build presented that it recorded no valid response for. Data, not policy:
-    what a study does about it is a condition it draws. The scored trials are those of the blocks `scored` names (the
-    task's `ScoredBlocks`), else of every block, tutorials and practice included. A build that writes a
-    `<TASK>.TrialEnd` record per trial (`result.isAnswered`, `trialContext.condition`) says which it presented and which
-    were answered, and a `BurnIn` trial, which the N-back sends only so the responder sees every digit, is never
-    scored. Without those records, the trials it started or took a response in, less those that took none (the
-    N-back's burn-in, whose every stream it records as `BurnInDisabled`), answered by a `Click` or a `TrialEnd` with a
+def block_counts(trials: Trials) -> list[dict[str, Any]]:
+    """What the task's trials came to, block by block in the order the build played them: `{block, trials, answered,
+    unanswered, correct}`, the block's name and how many of its trials the build presented, recorded a valid response
+    for, recorded none for, and scored correct (None when its records say nothing of correctness). Data, not policy:
+    which blocks count, and what a study does about them, it writes in FEEL over this list, reading the properties it
+    keeps (`sum(result.blocks[block in scored_blocks].unanswered)`). A build that writes a `<TASK>.TrialEnd` record per
+    trial (`result.isAnswered`, `result.isCorrect`, `trialContext.condition`) says which it presented and which were
+    answered, and a `BurnIn` trial, which the N-back sends only so the responder sees every digit, is never counted.
+    Without those records, the trials it started or took a response in, less those that took none (the N-back's
+    burn-in, whose every stream it records as `BurnInDisabled`), answered by a `Click` or a `TrialEnd` with a
     `responseTime`. The build is the authority, not the reply: an answer this runner injected too late for the window
-    is a trial the build recorded without a response. A build that reports no scored trial reports no failure."""
+    is a trial the build recorded without a response."""
     if trials.ended:
-        answered = {trial: was for trial, (was, condition) in trials.ended.items() if condition != "BurnIn"}
+        counted = {trial: (was, correct) for trial, (was, condition, correct) in trials.ended.items() if condition != "BurnIn"}
     else:
-        answered = {trial: trial in trials.answered for trial in (trials.shown | trials.answered) - trials.unanswerable}
-    if scored is not None:
-        answered = {trial: was for trial, was in answered.items() if trials.blocks.get(trial) in scored}
-    return sum(not was for was in answered.values()) / len(answered) if answered else 0.0
+        counted = {trial: (trial in trials.answered, None)
+                   for trial in sorted((trials.shown | trials.answered) - trials.unanswerable, key=str)}
+    order = {name: place for place, name in enumerate(dict.fromkeys(trials.blocks.values()))}
+    blocks: dict[str | None, dict[str, Any]] = {}
+    for trial in sorted(counted, key=lambda trial: order.get(trials.blocks.get(trial), len(order))):
+        was, correct = counted[trial]
+        name = trials.blocks.get(trial)
+        block = blocks.setdefault(name, {"block": name, "trials": 0, "answered": 0, "unanswered": 0, "correct": 0})
+        block["trials"] += 1
+        block["answered" if was else "unanswered"] += 1
+        if block["correct"] is not None:
+            block["correct"] = None if correct is None else block["correct"] + bool(correct)
+    return list(blocks.values())
+
+
+def attributes_of(element: dict[str, Any]) -> dict[str, Any]:
+    """An element's attributes and those of its extension entries (a dataset's `schema`, a schema's `body`)."""
+    held: dict[str, Any] = {}
+    for ext in element.get("extensions") or []:
+        held.update(ext.get("attributes") or {})
+    return {**held, **(element.get("attributes") or {})}
+
+
+def recorded_state(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> set[str] | None:
+    """The properties the task's records keep under `context.state`: those the schema of a dataset the task writes
+    names as `context.state.<name>` columns, so what a trial carries is the study's to say. None when no dataset the
+    task writes has a schema."""
+    names: set[str] | None = None
+    for binding in element.get("outputs") or []:
+        dataset = plan.get(str(binding.get("target"))) or {}
+        schema = plan.get(str(attributes_of(dataset).get("schema") or "")) or {}
+        body = attributes_of(schema).get("body")
+        if not isinstance(body, str) or not body.strip():
+            continue
+        import yaml  # the schema is a YAML (CSVW) text
+        columns = ((yaml.safe_load(body) or {}).get("tableSchema") or {}).get("columns") or []
+        names = (names or set()) | {str(column.get("name"))[len("context.state."):] for column in columns
+                                    if isinstance(column, dict) and str(column.get("name", "")).startswith("context.state.")}
+    return names
 
 
 def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
     """What this run knows about the task's trials beside what the build records: which subject, and the properties in
-    scope at the hand-off, innermost last. The subject is the instance the nearest repeating scope around the task is on
+    scope at the hand-off, innermost last, as many of them as the schema of the dataset the task writes names under
+    `context.state` (`recorded_state`), or all of them when it has none. The subject is the instance the nearest repeating scope around the task is on
     (`state._meta.instance`, 1-based): an enclosing activity, else the pool of several instances whose process holds it
     (kept under its participant's id). So every task of one subject stamps the same number, whichever subjects left
     before reaching it, and a task played twice per subject stamps it twice; with no repeating scope around it, the
@@ -385,6 +406,9 @@ def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], stat
     held: dict[str, Any] = {}
     for scope in reversed(scopes):  # outward in, so an inner scope shadows an outer one
         held.update(tree.get(scope) or {})
+    kept = recorded_state(element, plan)
+    if kept is not None:
+        held = {name: value for name, value in held.items() if name in kept}
     instances = meta.get("instance") or {}
     around = [*scopes[1:], *pool_participants(scopes[-1], plan)]  # the process's pool is the outermost
     subject = next((instances[scope] for scope in around if scope in instances),
@@ -581,7 +605,8 @@ def tally(trials: Trials, event: dict[str, Any]) -> None:
     if (context.get("block") or {}).get("name"):
         trials.blocks[trial] = str(context["block"]["name"])
     if str((event.get("object") or {}).get("name") or "").endswith(".TrialEnd") and isinstance(result.get("isAnswered"), bool):
-        trials.ended[trial] = (result["isAnswered"], str(context.get("condition") or ""))
+        correct = result.get("isCorrect")
+        trials.ended[trial] = (result["isAnswered"], str(context.get("condition") or ""), correct if isinstance(correct, bool) else None)
     if "TrialStart" in kinds:
         trials.shown.add(trial)
     if "Click" in kinds or ("TrialEnd" in kinds and result.get("responseTime") is not None):
@@ -733,12 +758,7 @@ def checked_build(explicit: Path | None) -> Path:
 def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     """One task: serve, open, wait for the completion, which is its result."""
     element, plan, state = step.element, step.elements, step.values
-    payload = task_payload(element, auto=args.auto or bool(step.options.get("auto")), plan=plan)
-    scored = scored_blocks(element)
-    missing = unplayed(scored, timeline_blocks(element.get("parameters") or {}, payload["timeline"]))
-    if missing:
-        raise ValueError(f"behaverse:Task {element['id']!r}: ScoredBlocks names {', '.join(missing)}, which timeline "
-                         f"{payload['timeline']} does not play")
+    payload = task_payload(element, auto=args.auto or bool(step.options.get("auto")), plan=plan, resolved=step.attributes)
     build = checked_build(args.build)
     # The run directory, not its `.cache`: the local runtime sweeps the cache when the run ends.
     step.run_dir.mkdir(parents=True, exist_ok=True)
@@ -779,9 +799,7 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     if not completion.get("IsCompleted"):
         raise RuntimeError(f"the task stopped before the end: {completion or 'no detail'}")
     print(f"    completed {completion.get('TaskId')} / {completion.get('TimelineId')} after {stage.trials} answered trials", flush=True)
-    result = {**completion, "trials": stage.trials}
-    if exchange is not None:
-        result["failedTrialRate"] = failed_trial_rate(stage.recorded, scored)
+    result = {**completion, "trials": stage.trials, "blocks": block_counts(stage.recorded)}
     if events.exists():
         result["events"] = str(events)
     return result  # under the task's id, so a later step can cite it (`{Play.trials}`)
@@ -799,8 +817,16 @@ def main() -> int:
     def claims(plan: dict[str, Any]) -> list[str]:
         return claimed_tasks(plan, lambda: checked_build(args.build))
 
+    def execute(step: Step) -> Any:
+        """A task on the simulated build, and a simulated taker's message, go to simulated.py; any other task to the
+        Unity build."""
+        if step.element.get("type") == "participant" or build_of(step.element) == "simulated":
+            import simulated  # beside this file
+            return simulated.take(step) if step.element.get("type") == "participant" else simulated.play(step)
+        return perform(step, args)
+
     # The person is at the screen and the terminal: what this prints is for them, not the run log.
-    return serve(claims, lambda step: perform(step, args), terminal=True)
+    return serve(claims, execute, terminal=True)
 
 
 if __name__ == "__main__":

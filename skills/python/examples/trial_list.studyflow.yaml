@@ -18,7 +18,7 @@ registered_trials:
     hands its trial to the participant pool and keeps the answer, and the marker collects the answers, in the
     order of the list, into the session's `answers` property.
 
-    The pool is a simulated participant (`simulate://planted`), so the study runs on this machine; with
+    The pool is a simulated participant (`simulate://random`), so the study runs on this machine; with
     `ollama://<model>` in its place a language model plays the same list.
   extensionElements:
     - type: studyflow:Study
@@ -32,7 +32,7 @@ registered_trials:
     Pool_Participant:
       type: studyflow:Actor
       name: Simulated participant
-      implementation: simulate://planted
+      implementation: simulate://random
   messageFlows:
     Msg_Trial:
       name: the trial

@@ -101,6 +101,9 @@ enumerations:
         value: unity
       - name: Godot (task_builder)
         value: godot
+      - name: Simulated
+        value: simulated
+        description: A stand-in for the Unity build that plays the battery's AX-CPT (RE), Which One (WO) and N-back (NB) from the timelines the Parameters wired into the task define, without Unity, so a study's pipeline can be checked where the truth is known. It has no screen, so its trials go along the task's message flows.
 
 types:
   - name: Task
@@ -111,6 +114,8 @@ types:
       icon: iconify bi--hexagon
       presenter: "Behaverse - <instrument>"
       glyph: instrument
+      # What a played task hands back, which a data edge's `transformation` reads as `result`.
+      result: TaskResult
     properties:
       - name: platform
         default: behaverse
@@ -121,7 +126,7 @@ types:
           order: 0
           pinned: true
       - name: implementation
-        description: 'Unused by the Unity build''s runner, which the instrument tells what runs; one naming another skill''s scheme hands the task to that skill (`simulate://assessment-unity`, the simulate skill''s stand-in for the build).'
+        description: 'The build a release of the battery is (`behaverse://assessment-unity@26.10.1`), for the record: the instrument and the timeline say what runs, and `runtime` which build plays it. One naming another skill''s scheme hands the task to that skill.'
         isAttr: true
         type: String
         redefines: cognitive:CognitiveTask#implementation
@@ -144,7 +149,7 @@ types:
           categories:
             - Execution
       - name: runtime
-        description: 'Which build plays the task: the Unity build, or the Godot one (task_builder). No runner plays the Godot build yet, so a study with a task set to it stops before its first step.'
+        description: 'Which build plays the task: the Unity build, the Godot one (task_builder), or the simulated build, which plays the battery''s timelines without Unity to check a study''s pipeline. No runner plays the Godot build yet, so a study with a task set to it stops before its first step.'
         isAttr: true
         type: BehaverseRuntimeEnum
         default: unity
@@ -152,6 +157,74 @@ types:
           order: 3
           categories:
             - Execution
+
+  - name: TaskResult
+    description: What a played task hands back, which a data edge's `transformation` reads as `result`.
+    properties:
+      - name: TaskId
+        description: The instrument that ran (`NB`).
+        type: String
+      - name: TimelineId
+        description: The timeline that ran.
+        type: String
+      - name: IsCompleted
+        description: Whether the task ran to its end.
+        type: Boolean
+      - name: trials
+        description: How many trials were answered.
+        type: Integer
+      - name: blocks
+        description: What the task's trials came to, block by block in the order played.
+        type: BlockCounts
+        isMany: true
+      - name: events
+        description: The file the task's records went to.
+        type: String
+  - name: BlockCounts
+    description: 'One block''s trials, as the build recorded them: how many it presented, recorded a valid response for, recorded none for, and scored correct (null when its records say nothing of correctness). A trial the build presents only so the responder sees every stimulus (an N-back burn-in digit) is not counted.'
+    properties:
+      - name: block
+        description: The block's name (`XCIT_NB_02_Test_A`).
+        type: String
+      - name: trials
+        type: Integer
+      - name: answered
+        type: Integer
+      - name: unanswered
+        type: Integer
+      - name: correct
+        type: Integer
+
+  - name: SimulatedTaker
+    description: 'A simulated taker of the battery''s tasks: a pool that answers each trial it is sent as a person would read it, right with the probability the study plants, so a pipeline check knows the truth its analysis should recover.'
+    superClass:
+      - studyflow:Actor
+    meta:
+      icon: iconify bi--hexagon
+    properties:
+      - name: actorType
+        default: software
+        type: studyflow:ActorTypeEnum
+        isAttr: true
+        redefines: studyflow:Actor#actorType
+      - name: implementation
+        default: behaverse://simulated-taker
+        type: String
+        isAttr: true
+        redefines: studyflow:Actor#implementation
+      - name: accuracy
+        description: 'The planted probability of a right answer, by instrument and condition (`RE: {BX: 0.70}`), with `default` for any other; a condition is the one the taker reads from the trial (AX-CPT `Cue`, `AX`, `AY`, `BX`, `BY`, `Distractor`; Which One `Congruent`, `Incongruent`, `Neutral`; N-back `1-back`, `2-back`, `BurnIn`).'
+        isAttr: false
+        type: studyflow:YAMLString
+      - name: prompted
+        description: 'Accuracies that hold instead when a text sent with the trial has a line beginning with the key (`"Reminder:": {RE: {BX: 0.88}}`): how the taker plants an effect of what the study tells it.'
+        isAttr: false
+        type: studyflow:YAMLString
+      - name: missRate
+        description: The share of trials it leaves unanswered.
+        isAttr: true
+        type: Real
+        default: 0
 
   - name: BDMDataset
     description: A dataset in the Behaverse Data Model (BDM).
