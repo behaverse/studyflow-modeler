@@ -62,5 +62,16 @@
   ["'READY' in Screening", {"Screening": "x"}, {"error": true}],
   ["result.count()", {"result": [1]}, {"error": true}],
   ["result[0]", {"result": [1]}, {"error": true}],
-  ["result[n > 1]", {"result": [1, 2], "n": 2}, {"error": true}]
+  ["result[n > 1]", {"result": [1, 2], "n": 2}, [1, 2]],
+  ["xs[missing > 1]", {"xs": [1]}, {"error": true}],
+  ["bs[contains(block, \"Test\")].block", {"bs": [{"block": "Test_A"}]}, {"error": true}],
+  ["count(xs[item > 1]) > 1", {"xs": [1, 2, 3]}, true],
+  ["xs[item > 1]", {"xs": [1, 2, 3]}, [2, 3]],
+  ["xs[item > 5]", {"xs": [1, 2, 3]}, []],
+  ["count(xs[item > 1])", {"xs": []}, 0],
+  ["result.blocks[block in scored_blocks].block", {"result": {"blocks": [{"block": "Practice", "trials": 4, "unanswered": 4}, {"block": "Test_A", "trials": 10, "unanswered": 1}, {"block": "Test_B", "trials": 10, "unanswered": 2}]}, "scored_blocks": ["Test_A", "Test_B"]}, ["Test_A", "Test_B"]],
+  ["sum(result.blocks[block in scored_blocks].unanswered) / sum(result.blocks[block in scored_blocks].trials)", {"result": {"blocks": [{"block": "Practice", "trials": 4, "unanswered": 4}, {"block": "Test_A", "trials": 10, "unanswered": 1}, {"block": "Test_B", "trials": 10, "unanswered": 2}]}, "scored_blocks": ["Test_A", "Test_B"]}, 0.15],
+  ["result.blocks[block = \"Practice\"].trials", {"result": {"blocks": [{"block": "Practice", "trials": 4, "unanswered": 4}, {"block": "Test_A", "trials": 10, "unanswered": 1}, {"block": "Test_B", "trials": 10, "unanswered": 2}]}, "scored_blocks": ["Test_A", "Test_B"]}, [4]],
+  ["result.blocks[unanswered > 1 and block != \"Practice\"].block", {"result": {"blocks": [{"block": "Practice", "trials": 4, "unanswered": 4}, {"block": "Test_A", "trials": 10, "unanswered": 1}, {"block": "Test_B", "trials": 10, "unanswered": 2}]}, "scored_blocks": ["Test_A", "Test_B"]}, ["Test_B"]],
+  ["result.blocks[2].block", {"result": {"blocks": [{"block": "Practice", "trials": 4, "unanswered": 4}, {"block": "Test_A", "trials": 10, "unanswered": 1}, {"block": "Test_B", "trials": 10, "unanswered": 2}]}, "scored_blocks": ["Test_A", "Test_B"]}, "Test_A"]
 ]

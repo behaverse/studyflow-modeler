@@ -7,7 +7,8 @@ edge's `transformation`) is FEEL, in both runtimes: the browser runtime and the 
 tests/fixtures/feel.json, pins the two against each other row by row.
 
 The subset: literals (numbers, "strings", true, false, null, [lists], {"key": value} contexts); names and paths
-(`a.b.c`, a missing key is null); 1-based indexing (`list[1]`); `+ - * /`, unary minus; `= != < <= > >=`;
+(`a.b.c`, a missing key is null; over a list, the field of each item); 1-based indexing (`list[1]`) and filtering
+(`list[condition]`, each item's fields and the item itself, `item`, in scope); `+ - * /`, unary minus; `= != < <= > >=`;
 `and`, `or` (three-valued), `not(x)`; `x in [a, b]`; `if c then a else b`; and the functions `contains`,
 `starts with`, `ends with`, `substring after`, `substring before`, `upper case`, `lower case`, `string length`, `count`, `sum`, `min`, `max`, `mean`, `abs`,
 `is defined`. As in FEEL, an operation on a value of the wrong type is null rather than an error, and null
@@ -297,6 +298,16 @@ def _call(name: str, args: list[Any]) -> Any:
     raise FeelError(f"FEEL function {name!r} is not in the subset Studyflow runs")
 
 
+def _calls(node: Any) -> bool:
+    """Whether a syntax tree calls a function anywhere in it."""
+    if not isinstance(node, tuple) or not node:
+        return False
+    if node[0] == "call":
+        return True
+    return any(_calls(part) for part in node[1:] if isinstance(part, (tuple, list))) or \
+        any(_calls(item) for part in node[1:] if isinstance(part, list) for item in part)
+
+
 def _eval(node: tuple, scope: dict[str, Any]) -> Any:
     kind = node[0]
     if kind == "lit":
@@ -320,14 +331,32 @@ def _eval(node: tuple, scope: dict[str, Any]) -> Any:
                 return _host(getattr(base, node[2], None))
         return None
     if kind == "index":
-        base, index = _eval(node[1], scope), _eval(node[2], scope)
+        base = _host(_eval(node[1], scope))
         base = list(base) if isinstance(base, tuple) else base
-        if isinstance(base, list) and isinstance(index, int) and not isinstance(index, bool):
-            at = index - 1 if index > 0 else len(base) + index
-            return base[at] if 0 <= at < len(base) else None
-        if isinstance(index, bool) or not isinstance(base, list):
-            raise FeelError("a filter (`list[condition]`) is not in the subset Studyflow runs")
-        return None
+        if not isinstance(base, list):
+            return None
+        # A number picks an item, 1-based (negative from the end); a condition keeps the items it holds for, read with
+        # each item's fields, and the item itself as `item`, in scope over the names around it. It calls no function,
+        # as feelin cannot read an item's fields inside one: filter first, then call it on the list.
+        if _calls(node[2]):
+            raise FeelError("a function inside a filter's condition is not in the subset Studyflow runs")
+        kept = []
+        for item in base or [None]:
+            inner = {**scope, **(item if isinstance(item, dict) else {}), "item": item}
+            try:
+                verdict = _eval(node[2], inner)
+            except FeelError:
+                if base:
+                    raise
+                return []  # an empty list's filter reads no item, so its condition may name a field none has
+            if _number(verdict) and float(verdict).is_integer():
+                at = int(verdict) - 1 if verdict > 0 else len(base) + int(verdict)
+                return base[at] if 0 <= at < len(base) else None
+            if not base:
+                return []
+            if verdict is True:
+                kept.append(item)
+        return kept
     if kind == "list":
         return [_eval(item, scope) for item in node[1]]
     if kind == "context":

@@ -46,6 +46,15 @@ const BEYOND: Record<string, string> = {
   between: 'between',
 };
 
+/** Whether a node sits in the condition of a filter (`xs[...]`), past its opening bracket. */
+function insideFilter(node: { node: SyntaxNode; from: number }): boolean {
+  for (let up = node.node.parent; up; up = up.parent) {
+    const bracket = up.type.name === 'FilterExpression' ? up.getChild('[') : null;
+    if (bracket && node.from >= bracket.to) return true;
+  }
+  return false;
+}
+
 /** Why the expression is not FEEL, or not the FEEL both runtimes run, or undefined when it is. */
 export function feelSyntaxError(written: string): string | undefined {
   const expression = cited(written);
@@ -67,15 +76,11 @@ export function feelSyntaxError(written: string): string | undefined {
         error = `uses ${BEYOND[node.type.name]}, which the FEEL a study runs everywhere leaves out`;
       } else if (node.type.name === 'ArithOp' && text(node) === '**') {
         error = 'uses x ** y, which the FEEL a study runs everywhere leaves out';
+      } else if (node.type.name === 'FunctionInvocation' && insideFilter(node)) {
+        error = 'calls a function inside a filter\'s condition, which the FEEL a study runs everywhere leaves out: filter first, then call it on the list (count(xs[item > 1]))';
       } else if (node.type.name === 'FunctionInvocation') {
         const name = text(node.node.firstChild ?? node);
         if (!FUNCTIONS.has(name)) error = `calls the function ${JSON.stringify(name)}, which the FEEL a study runs everywhere leaves out (it has ${[...FUNCTIONS].join(', ')})`;
-      } else if (node.type.name === 'FilterExpression') {
-        // `list[1]` picks an item; `list[item > 2]` filters, which the subset does not.
-        const inside = node.node.getChild('[')?.nextSibling;
-        if (inside && (['Comparison', 'Conjunction', 'Disjunction'].includes(inside.type.name) || /\bitem\b/.test(text(inside)))) {
-          error = 'uses a filter (list[condition]), which the FEEL a study runs everywhere leaves out';
-        }
       }
       return undefined;
     },
@@ -111,6 +116,11 @@ function rootName(node: SyntaxNode, expression: string): string | undefined {
  * feelin lacks, read as feel.py reads it: a name is defined when a scope declares it, a path when it reaches a value. */
 function forFeelin(expression: string, declared: Set<string>): string {
   const spell = (node: SyntaxNode): string => {
+    // A filter's condition stays as written: feelin loses the item's scope inside a call it would become, and a filter
+    // keeps an item only where its condition is true, so a comparison DMN reads as null drops it as false does.
+    if (node.type.name === 'FilterExpression' && node.firstChild) {
+      return spell(node.firstChild) + expression.slice(node.firstChild.to, node.to);
+    }
     const [left, operator, right] = [node.firstChild, node.firstChild?.nextSibling, node.lastChild];
     const relation = operator && expression.slice(operator.from, operator.to);
     if (node.type.name === 'Comparison' && operator?.type.name === 'CompareOp' && left && right && RELATIONS.has(relation!)) {
