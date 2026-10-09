@@ -22,7 +22,7 @@ What the walk sends:
 | Method | Params | Answer |
 | --- | --- | --- |
 | `initialize` | `protocol` (2), `plan` (the path of `plan.json`), `run`: `dir` (the run directory) and `cache` (its `.cache/`) | `protocol`, `elements` (the ids it will run), `live` (default true). An error stops the run before its first step: what the runner lacks (a build, a device), in its own words; so does no answer within `--start-timeout SECONDS` (600 by default, as a first `uv run` installs the runner's packages). |
-| `execute` | `element`, `values` (the run's values: each element's by its id, the state tree under `state`), `attributes` (the element's attributes with their placeholders resolved), and `message` when the element is a pool the runner plays, with `conversation` when that pool remembers | What it hands back (below). An error (`code` 1, or 2 when it was cancelled; `message`) fails the step; its `data` is what it had handed back by then, which is kept. |
+| `execute` | `element`, `values` (the run's values: each element's by its id, the state tree under `state`), `attributes` (the element's attributes, and those of the type that types it, with their placeholders resolved), and `message` when the element is a pool the runner plays, with `conversation` when that pool remembers | What it hands back (below). An error (`code` 1, or 2 when it was cancelled; `message`) fails the step; its `data` is what it had handed back by then, which is kept. |
 | `message` | `element`, `message` | None (a notification): a message along a flow into an element it is running. |
 | `cancel` | `element` | None: stop this hand-off, and answer its `execute` with an error. |
 | `shutdown` | | `{}`, then it exits. |
@@ -44,7 +44,7 @@ What a runner leaves in the run directory is committed at the next checkpoint (i
 **What comes back.** A runner says what it binds; nothing is read off a changed copy of the values.
 
 - `result`: the step's result, bound under its element's id, so `{Play.trials}` reads it. For a pool, it is the answer to the message. At a gateway the runner samples for, it is the bindings its conditions read.
-- `values`: values later steps read, by the id each is bound under, usually a data edge's target. One bound under a declared property's id lands in that property (`state.<scope>.<name>`).
+- `values`: values later steps read, by the id each is bound under, usually a data edge's target. One bound under a declared property's id lands in that property (`state.<scope>.<name>`). A data edge into a property the runner binds nothing under, the walk writes from `result` itself, narrowed by the edge's `transformation` (FEEL over `result` and the properties in scope), so a property is set the same way whichever runner ran the step; a data object or store stays the runner's to fill.
 - `state`: properties it wrote, scope by scope (`{"Session": {"count": 3}}`); `_meta` is the walk's.
 - `record`: what it ran with (a package version, a model digest, the request as sent). It is merged into the step's record entry, the walk's own keys standing, and is never a value later steps read.
 - `durationMs`.

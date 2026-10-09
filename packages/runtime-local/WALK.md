@@ -52,7 +52,7 @@ Pools talk only along message flows, and the walk carries every message: `{"id",
 - A message at a boundary event ends the activity it sits on at that pool's next step, and the walk goes on from the event.
 - A timer event (`timeDuration`, `timeDate`, ISO 8601) waits for its time. At a boundary event the timer runs from the moment its activity is entered; when it runs out the activity ends there, the walk goes on from the event, and a hand-off in progress is stopped (its runner is told `cancel`), whatever it had done.
 - A step that fails ends the same way when it carries an error boundary event (one with an `errorEventDefinition`): the record keeps the error, the run is not failed, and the walk goes on from the event; without one the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event.
-- A step that finishes takes that path too when it carries a conditional boundary event (one with a `conditionalEventDefinition`) whose `condition` holds. It is read once the step's result and bindings are adopted, by the evaluator and `language` rule a sequence flow's `conditionExpression` gets, with `{placeholders}` resolved as everywhere else, so `{Play.failedTrialRate} > 0.2` reads the step's own result.
+- A step that finishes takes that path too when it carries a conditional boundary event (one with a `conditionalEventDefinition`) whose `condition` holds. It is read once the step's result and bindings are adopted, by the evaluator and `language` rule a sequence flow's `conditionExpression` gets, with `{placeholders}` resolved as everywhere else, so `unanswered > max_unanswered` reads the property the step's data edge has just written.
 
 ## State
 

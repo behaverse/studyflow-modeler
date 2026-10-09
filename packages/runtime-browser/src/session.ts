@@ -167,7 +167,8 @@ export class Session {
         values[target] = result;
         continue;
       }
-      const { value, error } = evaluateFeel(transformation, { result });
+      // FEEL over `result` and the properties in scope, as the walk narrows what a step it runs itself makes.
+      const { value, error } = evaluateFeel(transformation, { ...this.walk.inScope(element.id), result });
       if (error) throw new Error(`${element.id}: ${error}`);
       values[target] = value;
     }

@@ -189,7 +189,7 @@ A runner is one process for the whole run, and the walk speaks to it in JSON-RPC
 5. **Messages.** A step with message flows sends a `message` notification naming the flow, and each message along a flow into it arrives as one; the walk carries each along its flow.
 6. **Stopping.** A timer at a boundary event, or `--step-timeout`, sends `cancel` for the hand-off in progress. A runner that has not answered a second later has its process ended, and is started again for its next hand-off; so a runner answers at once, and work that cannot stop midway (a robot's move, a model's request) finishes behind the answer.
 
-What a runner returns is what the rest of the study reads. A runner that claims a gateway returns, as its `result`, the bindings the gateway's conditions read (`{"canRun": false}`). A conditional boundary event reads a step's result, so `{Play.failedTrialRate} > 0.2` leaves a task when too many of its trials failed; a condition that cites a name the result does not carry fails the run, rather than reading as false.
+What a runner returns is what the rest of the study reads. A runner that claims a gateway returns, as its `result`, the bindings the gateway's conditions read (`{"canRun": false}`). A study keeps what it reuses in properties: a step's data edges write its result into them, narrowed by FEEL (`transformation`), and conditions read them by name. So a task whose data edge writes `unanswered` from its result leaves on `unanswered > max_unanswered`; a condition that cites a name no scope declares fails the run, rather than reading as false. A runner returns data, not policy: counts, never a threshold or a choice of which trials matter.
 
 ### What a runner gets, and what it does not yet
 

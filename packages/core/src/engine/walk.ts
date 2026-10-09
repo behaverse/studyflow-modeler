@@ -435,8 +435,8 @@ export class Walk {
   }
 
   /** The first conditional boundary event of a finished activity whose `condition` holds, with the activity's result
-   * and bindings already adopted; its `{placeholders}` read as FEEL paths, so `{Play.failedTrialRate} > 0.2` reads the
-   * element's own result. */
+   * and bindings already adopted; its `{placeholders}` read as FEEL paths, so `unanswered > max_unanswered` reads the
+   * property the activity's data edge has just written. */
   private conditionalBoundary(element: PlanElement, thread: Thread): PlanElement | undefined {
     const conditional = (this.graph.boundaries.get(element.id) ?? []).filter((boundary) => has(boundary, 'conditionalEventDefinition') && boundary.condition);
     if (this.host.choose && conditional.length > 0) {
@@ -641,7 +641,12 @@ export class Walk {
       for (const [name, value] of Object.entries(written)) this.memory.set(scope, name, value);
     }
     for (const [key, value] of Object.entries(handed.values ?? {})) this.memory.store(key, value);
-    if (handed.result !== undefined) this.memory.store(id, handed.result);
+    if (handed.result !== undefined) {
+      this.memory.store(id, handed.result);
+      // The properties its data edges target, which its runner left to the walk.
+      const element = this.graph.get(id);
+      if (element) this.memory.bindProperties(element, handed.result, new Set(Object.keys(handed.values ?? {})));
+    }
   }
 
   /** One hand-off to the host, which a timer at a boundary event of an activity around it may stop, and so may a

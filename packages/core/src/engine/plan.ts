@@ -21,7 +21,8 @@ export type Expression = { body: string; language: string | null };
 
 export type Binding = { target: string | null; transformation: string | null; language: string | null };
 
-export type Extension = { namespace: string; type: string; attributes: Record<string, string | string[]> };
+/** An extension entry; `typed` marks the one that types the element (a `behaverse:Task`'s own attributes). */
+export type Extension = { namespace: string; type: string; attributes: Record<string, string | string[]>; typed?: true };
 
 /** A loop or multi-instance marker, as the walk reads it. */
 export type Loop =
@@ -239,7 +240,8 @@ function dataAssociationsIn(model: StudyModel, element: Element): Pick<PlanEleme
 export function planElement(model: StudyModel, element: Element): PlanElement {
   const host = model.host(element);
   const { ioSlots, inputs, outputs } = dataAssociationsIn(model, element);
-  const extensions = [model.typedEntry(element), ...model.entries(element)]
+  const typedEntry = model.typedEntry(element);
+  const extensions = [typedEntry, ...model.entries(element)]
     .filter((entry): entry is Element => !!entry && entry.type !== PROV_ACTIVITY);
   const args = element.additionalArguments;
   const digest: PlanElement = {
@@ -247,7 +249,7 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
     type: tagIn(model, host),
     name: typeof element.name === 'string' ? element.name : null,
     attributes: attributesIn(model, element, host, new Set(['id', 'name'])),
-    extensions: extensions.map((entry) => extensionIn(model, entry)),
+    extensions: extensions.map((entry) => (entry === typedEntry ? { ...extensionIn(model, entry), typed: true } : extensionIn(model, entry))),
     additionalArguments: args === undefined || args === null ? null : textIn(args).trim() || null,
     ioSlots,
     inputs,
@@ -268,7 +270,9 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
   }
   const multiplicity = element.participantMultiplicity;
   if (isElement(multiplicity) && typeof multiplicity.maximum === 'number') digest.multiplicity = multiplicity.maximum;
-  const actor = element.type === 'studyflow:Actor' ? element : model.entries(element).find((entry) => entry.type === 'studyflow:Actor');
+  // An actor pool, or one of a kind a skill declares on it (`behaverse:SimulatedTaker`).
+  const actorOf = (entry: Element): boolean => typeof entry.type === 'string' && model.metamodel.has(entry.type) && model.metamodel.isA(entry.type, 'studyflow:Actor');
+  const actor = actorOf(element) ? element : model.entries(element).find(actorOf);
   if (actor?.memory === 'conversation') digest.memory = 'conversation';
   const extensionType = model.extensionType(element);
   const branching = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.branching : undefined;

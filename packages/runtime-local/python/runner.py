@@ -134,11 +134,26 @@ class Step:
 
     def outputs(self, result: Any) -> None:
         """Bind `result` into each of the element's data outputs, narrowed by that edge's `transformation` (FEEL over
-        `result`: `result.trials`), as the walk binds what a step it runs itself makes."""
+        `result` and the properties in scope: `result.trials`), as the walk binds what a step it runs itself makes. A
+        runner that binds none leaves the properties they target to the walk, which writes them the same way."""
         for binding in self.element.get("outputs") or []:
             if binding.get("target"):
-                narrowed = evaluate(binding["transformation"], {"result": result}) if binding.get("transformation") else result
+                narrowed = evaluate(binding["transformation"], {**self.in_scope(), "result": result}) \
+                    if binding.get("transformation") else result
                 self.bind(binding["target"], narrowed)
+
+    def in_scope(self) -> dict[str, Any]:
+        """The properties in scope of the step, by name, an inner scope shadowing an outer one: what its expressions read."""
+        tree = self.values.get("state") or {}
+        chain: list[str] = []
+        scope = self.id
+        while scope:
+            chain.append(scope)
+            scope = str((self.elements.get(scope) or {}).get("parent") or "")
+        held: dict[str, Any] = {}
+        for each in reversed(chain):
+            held.update(tree.get(each) or {})
+        return held
 
     def write(self, scope: str, name: str, value: Any) -> None:
         """A property of a scope: `state.<scope>.<name>`."""

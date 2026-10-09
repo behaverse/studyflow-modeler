@@ -534,6 +534,82 @@ for (const [label, rate, expected] of RATES) {
   });
 }
 
+// What a study reuses is a property. The walk writes a claimed step's result into the properties its data edges
+// target, narrowed by FEEL over `result` and the properties in scope, whichever runner ran it (this one binds nothing);
+// a condition reads them by name. The scored blocks are named once, and the practice block's misses never count.
+const UNANSWERED: [label: string, missed: number, reached: Record<string, number>][] = [
+  ['too many scored trials unanswered, the boundary takes the walk on', 3, { Start: 1, F1: 1, Play: 1, Quit: 1, F3: 1, Excluded: 1 }],
+  ['few enough, the step\'s own flow carries on', 2, { Start: 1, F1: 1, Play: 1, F2: 1, Completed: 1 }],
+];
+for (const [label, missed, expected] of UNANSWERED) {
+  test(`a step's data edge writes a property its boundary event reads: ${label}`, async () => {
+    const { reached, state } = await walked(`S:
+  type: Process
+  properties:
+    P_Scored: { name: scored_blocks, value: ["Test_A", "Test_B"] }
+    P_Max: { name: max_unanswered, value: 0.2 }
+    P_Unanswered: { name: unanswered }
+  flowElements:
+    Start: { type: StartEvent }
+    Play:
+      type: ServiceTask
+      dataOutputAssociations:
+        Out_Unanswered:
+          targetRef: P_Unanswered
+          transformation: sum(result.blocks[block in scored_blocks].unanswered) / sum(result.blocks[block in scored_blocks].trials)
+    Quit:
+      type: BoundaryEvent
+      attachedToRef: Play
+      eventDefinitions:
+        Cond_Quit:
+          type: ConditionalEventDefinition
+          condition: unanswered > max_unanswered
+    Excluded: { type: EndEvent }
+    Completed: { type: EndEvent }
+    F1: Start -> Play
+    F2: Play -> Completed
+    F3: Quit -> Excluded
+`, { Play: () => ({ result: { blocks: [{ block: 'Practice', trials: 4, unanswered: 4 }, { block: 'Test_A', trials: 5, unanswered: 1 },
+      { block: 'Test_B', trials: 5, unanswered: missed - 1 }] } }) });
+    expect(reached).toEqual(expected);
+    expect(state.S.unanswered).toBe(missed / 10);
+  });
+}
+
+test('a property a sub-process declares with no initial value starts each pass unset, so a pass never reads the one before', async () => {
+  const { reached } = await walked(`S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Pass:
+      type: SubProcess
+      loopCharacteristics: { type: StandardLoopCharacteristics, loopMaximum: 2 }
+      properties:
+        P_Seen: { name: seen }
+      flowElements:
+        In: { type: StartEvent }
+        Check: { type: ExclusiveGateway, default: F_Write }
+        Leaked: { type: EndEvent }
+        Write:
+          type: ServiceTask
+          dataOutputAssociations:
+            Out_Seen: { targetRef: P_Seen }
+        Out: { type: EndEvent }
+        F_In: In -> Check
+        F_Leak:
+          sourceRef: Check
+          targetRef: Leaked
+          conditionExpression: seen = 1
+        F_Write: Check -> Write
+        F_Out: Write -> Out
+    Done: { type: EndEvent }
+    F1: Start -> Pass
+    F2: Pass -> Done
+`, { Write: () => ({ result: 1 }) });
+  expect(reached.Write).toBe(2);
+  expect(reached.Leaked).toBeUndefined();
+});
+
 test('a gateway a runner claims decides on what the runner samples, and its record keeps the sample as bindings', async () => {
   // A robot looks before it greets: the conditions read the face count it samples, which no step binds.
   const study = `S:

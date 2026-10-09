@@ -108,7 +108,8 @@ export class Values {
     if (expression.language && !expression.language.toLowerCase().includes('feel')) {
       throw new Error(`a ${expression.language} expression — every Studyflow expression is FEEL`);
     }
-    const { value, error } = evaluateFeel(expression.body, { ...this.namespace(), ...(scope ? this.scopeValues(scope) : {}), ...extra });
+    // Every property declared in scope is bound, one not written yet as null, so a condition may test it before a pass sets it.
+    const { value, error } = evaluateFeel(expression.body, { ...this.namespace(), ...(scope ? this.inScope(scope) : {}), ...extra });
     if (error) throw new Error(error);
     return value;
   }
@@ -116,7 +117,17 @@ export class Values {
   /** Initialise the scope's properties from `value`; `reset` re-initialises ones the tree already holds. */
   startScope(id: string, reset: boolean, note: Note): void {
     for (const [name, declared] of this.graph.properties.get(id) ?? []) {
-      if (declared.value === undefined) continue;
+      if (declared.value === undefined) {
+        // A property with no initial value starts each pass of its scope unset, so nothing a pass before wrote leaks
+        // in; a list pass's item and output, which the loop sets before the pass, are the loop's.
+        const loop = this.graph.get(id)?.loop;
+        const bound = loop?.kind === 'multiInstance' && (name === loop.inputItem || name === loop.outputItem);
+        if (reset && declared.id && !bound && name in (this.state[id] ?? {})) {
+          delete this.state[id][name];
+          this.held.delete(declared.id);
+        }
+        continue;
+      }
       if (name.startsWith('_')) {
         note('state.reserved', `    ${id}.${name}: names starting with _ are reserved`, { level: 'warning' });
         continue;
@@ -148,12 +159,15 @@ export class Values {
     return found ?? undefined;
   }
 
-  /** An element's attributes with its placeholders resolved, as a runner is handed them beside the plan's: an
+  /** An element's attributes with its placeholders resolved, as a runner is handed them beside the plan's: its own,
+   * and those of the type that types it (a `behaverse:Task`'s `timeline`), the element's winning a name both hold. An
    * attribute that is one placeholder alone is what it cites, as held (a number stays a number), any other has each
    * placeholder that resolves filled in, and one that resolves to nothing stays as written. */
   resolved(element: PlanElement): Record<string, unknown> {
     const cited = (path: string): unknown => this.cite(path, element.id);
-    return Object.fromEntries(Object.entries(element.attributes).map(([name, text]) => {
+    const typed = Object.entries(element.extensions.find((extension) => extension.typed)?.attributes ?? {})
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string');
+    return Object.fromEntries(Object.entries({ ...Object.fromEntries(typed), ...element.attributes }).map(([name, text]) => {
       const whole = new RegExp(`^${PLACEHOLDER.source}$`, 'u').exec(text.trim());
       if (whole) return [name, cited(whole[1]) ?? text];
       return [name, text.replace(PLACEHOLDER, (written, path: string) => {
@@ -189,6 +203,19 @@ export class Values {
     const declared = this.graph.propertyScope(source);
     if (declared && !this.held.has(source)) return this.state[declared.scope]?.[declared.name] ?? null;
     return this.held.has(source) ? this.held.get(source) : this.graph.uriOf(source) ?? null;
+  }
+
+  /** A claimed step's result into the properties its data edges target, narrowed by each edge's `transformation`
+   * (FEEL over `result` and the properties in scope), where its runner bound none itself: a property is the study's
+   * state, written the same way whichever runner ran the step. Data objects and stores stay the runner's to fill. */
+  bindProperties(element: PlanElement, value: unknown, bound: ReadonlySet<string>): void {
+    for (const { target, transformation, language } of element.outputs) {
+      if (!target || bound.has(target) || !this.graph.propertyScope(target)) continue;
+      const narrowed = value !== null && value !== undefined && transformation
+        ? this.evaluate({ body: transformation, language }, element.id, { result: value })
+        : value;
+      this.store(target, narrowed);
+    }
   }
 
   /** A result the walk took itself (a message's content): under the element's id, and into each data output,
