@@ -81,5 +81,23 @@ export async function studyToXml(model: StudyModel): Promise<string> {
   exchangesToTasks(definitions);
   expandIoSpecification(definitions);
   const { xml } = await moddle.toXML(definitions, { format: true });
-  return xml;
+  return declareStructurePrefixes(xml, written);
+}
+
+/** The XML with the namespace declared of each skill an item definition's `structureRef` names by its prefix
+ * (`cognitive:Trial`), when nothing else the study writes uses that skill. moddle declares only the packages whose
+ * elements or attributes it writes, and a QName in an attribute's value is neither, so without this a study that names
+ * a skill's message, and no element of that skill, would not be BPMN 2.0 (`structureRef` is an `xs:QName`). */
+function declareStructurePrefixes(xml: string, model: StudyModel): string {
+  const root = /<([\w.-]+:)?definitions\b[^>]*>/.exec(xml);
+  if (!root) return xml;
+  const declarations = new Set<string>();
+  for (const element of model.study.roots) {
+    if (model.host(element) !== 'bpmn:ItemDefinition' || typeof element.structureRef !== 'string') continue;
+    const prefix = /^([A-Za-z_][\w.-]*):/.exec(element.structureRef)?.[1];
+    const pkg = prefix ? model.metamodel.package(prefix) : undefined;
+    if (prefix && pkg?.uri && !root[0].includes(`xmlns:${prefix}=`)) declarations.add(` xmlns:${prefix}="${pkg.uri}"`);
+  }
+  const end = root.index + root[0].length - 1; // the root tag's closing `>`
+  return declarations.size ? xml.slice(0, end) + [...declarations].join('') + xml.slice(end) : xml;
 }

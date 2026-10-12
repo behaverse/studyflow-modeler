@@ -274,6 +274,8 @@ R:
     expect(xml).toContain('messageRef="Trial"');
     expect(xml).toContain('<bpmn:message id="Trial" itemRef="Trial_Item" />');
     expect(xml).toContain('<bpmn:itemDefinition id="Trial_Item" structureRef="behaverse:Trial" />');
+    // No element of the Behaverse skill is written, so only its message names the prefix, which the XML still declares.
+    expect(xml).toContain('xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse"');
     const back = await yamlOf(xml);
     expect(back).toContain('messageRef: Trial\n');
     expect(back).toContain('Trial:\n  type: Message\n  itemRef: Trial_Item\n');
