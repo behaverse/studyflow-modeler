@@ -458,9 +458,14 @@ def perceived(trial: dict[str, Any], memory: dict[str, Any]) -> dict[str, Any]:
     trial whose `TrialIndex` does not follow the last one starts a block. A Which One trial (`Target`) is answered by
     the button of the target's colour, and is congruent when the target sits over that button, incongruent over the
     other, neutral between them. An AX-CPT letter (`Letter`) is Match when it is an X right after an A, distractors
-    aside; the letters alternate cue and probe, so a probe's condition is its cue and itself (AX, AY, BX, BY). An
-    N-back digit (`Value`) is Match when it is the digit `Load` before it; before there is one, it is the burn-in."""
-    stimulus = trial.get("Stimulus") if isinstance(trial.get("Stimulus"), dict) else {}
+    aside; the letters alternate cue and probe, so a probe's condition is its cue and itself (AX, AY, BX, BY). A
+    stimulus that is one letter of text is the same AX-CPT letter, as the jspsych skill's local runner sends a jsPsych
+    trial's screen. An N-back digit (`Value`) is Match when it is the digit `Load` before it; before there is one, it is
+    the burn-in."""
+    stimulus = trial.get("Stimulus")
+    if isinstance(stimulus, str) and len(stimulus.strip()) == 1 and stimulus.strip().isalpha():
+        stimulus = {"Letter": stimulus.strip()}
+    stimulus = stimulus if isinstance(stimulus, dict) else {}
     options = [str(option) for option in trial.get("ResponseOptions") or []]
     index = int(trial.get("TrialIndex") or 0)
     if memory.get("index") is None or index != memory["index"] + 1:

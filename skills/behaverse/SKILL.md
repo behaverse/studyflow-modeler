@@ -72,7 +72,8 @@ refuses it; the instrument, the timeline and the Parameters wired in mean the sa
 The truth a pipeline check knows is planted on its taker, a pool typed `behaverse:SimulatedTaker` (its
 `implementation` `behaverse://simulated-taker`), which reads each trial as a person would (the button of a Which One
 target's colour, Match on an AX-CPT X right after an A, an N-back digit against the one `Load` before it, the
-letters and digits remembered per conversation) and answers right with the probability the study writes on it:
+letters and digits remembered per conversation; a stimulus of one letter as text is an AX-CPT letter too, as the
+jspsych skill's local runner sends a jsPsych AX-CPT's) and answers right with the probability the study writes on it:
 `accuracy`, by instrument and condition (AX-CPT `Cue`, `AX`, `AY`, `BX`, `BY`, `Distractor`; Which One `Congruent`,
 `Incongruent`, `Neutral`; N-back `1-back`, `2-back`, `BurnIn`), with `default` for any other; `prompted`, what holds
 instead when a text sent with the trial (a prompt the task reads, written out from its template) has a line

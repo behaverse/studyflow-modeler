@@ -255,6 +255,9 @@ assert seen_as(letters("AXBXaAYBY")) == [("Cue", "NonMatch"), ("AX", "Match"), (
 memory = {}
 seen_as(letters("AXA"), memory)
 assert seen_as(letters("X"), memory) == [("Cue", "NonMatch")]
+# A jsPsych AX-CPT, as the jspsych skill's local runner sends its trials, shows each letter as text: the same letter.
+assert seen_as([{"TrialIndex": i, "Stimulus": c, "ResponseOptions": MATCH} for i, c in enumerate("AXBXAYBY")]) == seen_as(letters("AXBXAYBY"))
+assert assessment.perceived({"TrialIndex": 0, "Stimulus": "A", "ResponseOptions": MATCH}, {})["instrument"] == "RE"
 # N-back: the digit `Load` before it, the burn-in remembered too; before there is one, the burn-in.
 assert seen_as(digits("47471", 2)) == [("BurnIn", "NonMatch"), ("BurnIn", "NonMatch"), ("2-back", "Match"),
                                        ("2-back", "Match"), ("2-back", "NonMatch")]
