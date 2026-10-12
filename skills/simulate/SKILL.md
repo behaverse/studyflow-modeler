@@ -16,7 +16,7 @@ and the message's id, so a run repeats exactly. A message that lists no options 
 with `READY`.
 
 It knows no task, so it plants no effect, and it never fails to answer. A study that needs answers whose truth it knows,
-to check that its analysis recovers an effect, draws a taker of its tasks' own skill instead (for the Behaverse
-battery, a pool typed `behaverse:SimulatedTaker`, its planted accuracies written in the study). Swap the pool's
+to check that its analysis recovers an effect, draws a simulated actor of its tasks' own skill instead (for the
+Behaverse battery, a pool typed `behaverse:SimulatedActor`, its planted accuracies written in the study). Swap the pool's
 `implementation` for `ollama://<model>` and the same file asks a language model instead. `test_local.py` is its
 self-check.

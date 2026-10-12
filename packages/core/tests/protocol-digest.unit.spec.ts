@@ -172,8 +172,8 @@ test('the digest for any actor leaves out who answers, and only that', async () 
     ['another model', swap('ollama://gemma4:e2b-mlx', 'ollama://llama3.1:8b'), true, false],
     ['a person instead', swap('      actorType: software\n      implementation: ollama://gemma4:e2b-mlx\n', '      actorType: human\n'), true, false],
     // A kind of actor a skill declares: what it plants on the pool is who answers too.
-    ['a simulated taker instead', swap('      type: studyflow:Actor\n      name: Actor\n      actorType: software\n      implementation: ollama://gemma4:e2b-mlx\n',
-      '      type: behaverse:SimulatedTaker\n      name: Actor\n      implementation: behaverse://simulated-taker\n      missRate: 0.05\n      accuracy: "default: 0.85"\n'), true, false],
+    ['a simulated actor instead', swap('      type: studyflow:Actor\n      name: Actor\n      actorType: software\n      implementation: ollama://gemma4:e2b-mlx\n',
+      '      type: behaverse:SimulatedActor\n      name: Actor\n      implementation: behaverse://simulated-actor\n      missRate: 0.05\n      accuracy: "default: 0.85"\n'), true, false],
     ['what the actor remembers', swap('memory: conversation', 'memory: none'), true, true],
     ['the pool renamed', swap('name: Actor', 'name: Model'), true, true],
     ['a step renamed', swap('name: Play the task', 'name: Play the other task'), true, true],

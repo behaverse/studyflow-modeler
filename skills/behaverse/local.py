@@ -9,7 +9,7 @@ Usage:
     studyflow run <diagram> --runtime local [--option auto]   # the local runtime walks, this runner performs
 
 A partial runner (packages/runtime-local/CONTRACT.md): it claims every `behaverse:Task` and every pool typed
-`behaverse:SimulatedTaker`. A task set to the simulated build (`runtime: simulated`) and such a pool are played by
+`behaverse:SimulatedActor`. A task set to the simulated build (`runtime: simulated`) and such a pool are played by
 `simulated.py` beside this file; for any other task, per hand-off, it serves the Unity WebGL build and a small stage page from a local port, opens the page in the default
 browser, starts the task through the build's `RunCognitiveTask` entry point, and waits for
 `studyflow:TaskCompleted`. The page relays what the build reports back to this process:
@@ -18,7 +18,7 @@ terminal, and the completion, which becomes the element's `result`. Who answers 
 diagram draws. A task with message flows sends each awaiting trial along the one out of it and
 takes the answer back from the one into it (packages/runtime-local/CONTRACT.md, "Messages"); an answer that
 names no option in time is no answer, and the trial's own window makes it a miss. Without flows,
-a person plays the task, or the build's own random bot does for a `software` taker whose
+a person plays the task, or the build's own random bot does for a `software` actor whose
 `implementation` is `behaverse://bot`. `--option auto` gives every person's task to that bot, so a run needs
 nobody at the screen.
 
@@ -76,7 +76,7 @@ def implementation_of(element: dict[str, Any]) -> str:
 
 
 def claimed_tasks(plan: dict[str, Any], check_build: Callable[[], Any]) -> list[str]:
-    """What this runner plays: the `behaverse:Task`s and the pools typed `behaverse:SimulatedTaker`. The Unity build is
+    """What this runner plays: the `behaverse:Task`s and the pools typed `behaverse:SimulatedActor`. The Unity build is
     checked here when a task is set to it, so a run fails before the walk starts rather than after another pool's robot
     has greeted; a study whose tasks are all on the simulated build needs none. A task set to the Godot build stops the
     run here too: no runner plays that build yet, and a task nothing runs would only be skipped. A task whose
@@ -90,11 +90,11 @@ def claimed_tasks(plan: dict[str, Any], check_build: Callable[[], Any]) -> list[
                          "which no runner plays yet; set runtime: unity to play it on the Unity build")
     if any(build_of(element) == "unity" for element in tasks.values()):
         check_build()
-    takers = [eid for eid, element in elements.items() if element.get("type") == "participant"
+    actors = [eid for eid, element in elements.items() if element.get("type") == "participant"
               and not (element.get("attributes") or {}).get("processRef") and any(
-                  ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "simulatedtaker"
+                  ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "simulatedactor"
                   for ext in element.get("extensions") or [])]
-    return [*tasks, *takers]
+    return [*tasks, *actors]
 
 
 def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, dict[str, Any]] | None = None,
@@ -146,7 +146,7 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
 
 def answered_by(element: dict[str, Any], plan: dict[str, dict[str, Any]], auto: bool) -> str:
     """How the task's trials get answered here: `messages` along its message flows, `internal` by the build's own
-    random bot, or `human`. Any other taker answers only along message flows, so drawing none of them is an error."""
+    random bot, or `human`. Any other actor answers only along message flows, so drawing none of them is an error."""
     if trial_flows(element, plan):
         return "messages"
     actor = actor_of(element, plan)
@@ -818,7 +818,7 @@ def main() -> int:
         return claimed_tasks(plan, lambda: checked_build(args.build))
 
     def execute(step: Step) -> Any:
-        """A task on the simulated build, and a simulated taker's message, go to simulated.py; any other task to the
+        """A task on the simulated build, and a simulated actor's message, go to simulated.py; any other task to the
         Unity build."""
         if step.element.get("type") == "participant" or build_of(step.element) == "simulated":
             import simulated  # beside this file

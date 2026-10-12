@@ -195,8 +195,8 @@ types:
       - name: correct
         type: Integer
 
-  - name: SimulatedTaker
-    description: 'A simulated taker of the battery''s tasks: a pool that answers each trial it is sent as a person would read it, right with the probability the study plants, so a pipeline check knows the truth its analysis should recover.'
+  - name: SimulatedActor
+    description: 'A simulated actor for the battery''s tasks: a pool that answers each trial it is sent as a person would read it, right with the probability the study plants, so a pipeline check knows the truth its analysis should recover.'
     superClass:
       - studyflow:Actor
     meta:
@@ -208,16 +208,16 @@ types:
         isAttr: true
         redefines: studyflow:Actor#actorType
       - name: implementation
-        default: behaverse://simulated-taker
+        default: behaverse://simulated-actor
         type: String
         isAttr: true
         redefines: studyflow:Actor#implementation
       - name: accuracy
-        description: 'The planted probability of a right answer, by instrument and condition (`RE: {BX: 0.70}`), with `default` for any other; a condition is the one the taker reads from the trial (AX-CPT `Cue`, `AX`, `AY`, `BX`, `BY`, `Distractor`; Which One `Congruent`, `Incongruent`, `Neutral`; N-back `1-back`, `2-back`, `BurnIn`).'
+        description: 'The planted probability of a right answer, by instrument and condition (`RE: {BX: 0.70}`), with `default` for any other; a condition is the one the actor reads from the trial (AX-CPT `Cue`, `AX`, `AY`, `BX`, `BY`, `Distractor`; Which One `Congruent`, `Incongruent`, `Neutral`; N-back `1-back`, `2-back`, `BurnIn`).'
         isAttr: false
         type: studyflow:YAMLString
       - name: prompted
-        description: 'Accuracies that hold instead when a text sent with the trial has a line beginning with the key (`"Reminder:": {RE: {BX: 0.88}}`): how the taker plants an effect of what the study tells it.'
+        description: 'Accuracies that hold instead when a text sent with the trial has a line beginning with the key (`"Reminder:": {RE: {BX: 0.88}}`): how the actor plants an effect of what the study tells it.'
         isAttr: false
         type: studyflow:YAMLString
       - name: missRate

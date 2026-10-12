@@ -188,7 +188,7 @@ unity_plan = {"elements": {"Play": task(), "Other": {"id": "Other", "type": "tas
 assert behaverse.claimed_tasks(unity_plan, lambda: checked.append(True)) == ["Play"] and checked == [True]
 assert behaverse.claimed_tasks({"elements": {"Play": task(runtime="unity")}}, lambda: None) == ["Play"]
 # A task on the simulated build is this runner's too, and a study of such tasks alone needs no Unity build; so is a pool
-# typed `behaverse:SimulatedTaker`, which simulated.py answers for. A task another skill's scheme implements is that
+# typed `behaverse:SimulatedActor`, which simulated.py answers for. A task another skill's scheme implements is that
 # skill's to play.
 assert behaverse.claimed_tasks({"elements": {"Play": task(implementation="behaverse://assessment-unity@26.10")}}, lambda: None) == ["Play"]
 
@@ -197,9 +197,9 @@ def unchecked():
 
 
 assert behaverse.claimed_tasks({"elements": {"Play": task(runtime="simulated")}}, unchecked) == ["Play"]
-taker = {"id": "Taker", "type": "participant", "attributes": {},
-         "extensions": [{"namespace": behaverse.BEHAVERSE, "type": "simulatedTaker", "attributes": {"accuracy": "default: 0.9"}}]}
-assert behaverse.claimed_tasks({"elements": {"Taker": taker, "Play": task(runtime="simulated")}}, unchecked) == ["Play", "Taker"]
+actor = {"id": "Actor", "type": "participant", "attributes": {},
+         "extensions": [{"namespace": behaverse.BEHAVERSE, "type": "simulatedActor", "attributes": {"accuracy": "default: 0.9"}}]}
+assert behaverse.claimed_tasks({"elements": {"Actor": actor, "Play": task(runtime="simulated")}}, unchecked) == ["Play", "Actor"]
 assert behaverse.claimed_tasks({"elements": {"Play": task(implementation="other://assessment")}}, unchecked) == []
 try:
     behaverse.claimed_tasks({"elements": {"Play": task(runtime="godot")}}, lambda: None)

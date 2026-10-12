@@ -270,7 +270,7 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
   }
   const multiplicity = element.participantMultiplicity;
   if (isElement(multiplicity) && typeof multiplicity.maximum === 'number') digest.multiplicity = multiplicity.maximum;
-  // An actor pool, or one of a kind a skill declares on it (`behaverse:SimulatedTaker`).
+  // An actor pool, or one of a kind a skill declares on it (`behaverse:SimulatedActor`).
   const actorOf = (entry: Element): boolean => typeof entry.type === 'string' && model.metamodel.has(entry.type) && model.metamodel.isA(entry.type, 'studyflow:Actor');
   const actor = actorOf(element) ? element : model.entries(element).find(actorOf);
   if (actor?.memory === 'conversation') digest.memory = 'conversation';

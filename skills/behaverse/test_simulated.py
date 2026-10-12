@@ -1,6 +1,6 @@
-"""Self-check of the simulated Behaverse build and the simulated taker (simulated.py): the trials the build presents, as
+"""Self-check of the simulated Behaverse build and the simulated actor (simulated.py): the trials the build presents, as
 the message the Unity build's runner sends, how it scores them, the records it writes and its block counts; and how the
-taker reads a trial and answers it by what the study plants. Run it with `python3 skills/behaverse/test_simulated.py`;
+actor reads a trial and answers it by what the study plants. Run it with `python3 skills/behaverse/test_simulated.py`;
 a scripted responder stands in for the pool that answers the build."""
 
 import json
@@ -39,7 +39,7 @@ def plan_of(instrument, parameters, timeline="T"):
         "Task": task, "Trials": {"id": "Trials", "attributes": {"uri": "data/trials.jsonl"}},
         "Subjects": {"id": "Subjects", "type": "participant", "attributes": {"processRef": "S"}},
         "Actor": {"id": "Actor", "type": "participant", "name": "Simulated", "attributes": {},
-                  "extensions": [{"namespace": BEHAVERSE, "type": "simulatedTaker", "attributes": {}}]},
+                  "extensions": [{"namespace": BEHAVERSE, "type": "simulatedActor", "attributes": {}}]},
         "Msg_Trial": {"id": "Msg_Trial", "type": "messageFlow", "attributes": {"sourceRef": "Subjects", "targetRef": "Actor"}},
         "Msg_Response": {"id": "Msg_Response", "type": "messageFlow", "attributes": {"sourceRef": "Actor", "targetRef": "Subjects"}},
     }
@@ -220,7 +220,7 @@ refused("NB", {**NB, "Timelines": {"T": {"Blocks": [{"Name": "Two"}, {"Pause": 3
 refused("NB", {**NB, "Timelines": {"T": {"Blocks": [{"Name": "Two"}, {"Timeline": "T"}]}}}, "timeline T plays itself")
 
 
-# --- the simulated taker: it reads a trial as a person would, and answers by what the study plants ---
+# --- the simulated actor: it reads a trial as a person would, and answers by what the study plants ---
 BUTTONS = [{"position": "Left", "color": "#FFC826"}, {"position": "Right", "color": "#2D50C8"}]
 MATCH = ["Match", "NonMatch"]
 
@@ -262,19 +262,19 @@ assert assessment.perceived({"TrialIndex": 0, "Stimulus": "A", "ResponseOptions"
 assert seen_as(digits("47471", 2)) == [("BurnIn", "NonMatch"), ("BurnIn", "NonMatch"), ("2-back", "Match"),
                                        ("2-back", "Match"), ("2-back", "NonMatch")]
 assert seen_as(digits("33", 1, start=1)) == [("BurnIn", "NonMatch"), ("1-back", "Match")]
-# What a taker plants is the study's: a table by instrument and condition, a default, and what a prompt calls up.
-taker = assessment.Taker({"accuracy": "default: 0.5\nWO: {Congruent: 0.95, Incongruent: 0.6}",
+# What a simulated actor plants is the study's: a table by instrument and condition, a default, and what a prompt calls up.
+actor = assessment.SimulatedActor({"accuracy": "default: 0.5\nWO: {Congruent: 0.95, Incongruent: 0.6}",
                           "prompted": '"Remember:": {WO: {Incongruent: 0.95}}', "missRate": "0"})
-assert taker.probability("WO", "Congruent", []) == 0.95 and taker.probability("RE", "AX", []) == 0.5
-assert taker.probability("WO", "Incongruent", ["Answer by colour.\nRemember: the colour, not the side."]) == 0.95
-assert taker.probability("WO", "Incongruent", ["Remember nothing"]) == 0.6  # a line must begin with the key
-assert assessment.answer(taker, 7, {"id": "M.1", "content": {"Check": None}}) == "READY"
+assert actor.probability("WO", "Congruent", []) == 0.95 and actor.probability("RE", "AX", []) == 0.5
+assert actor.probability("WO", "Incongruent", ["Answer by colour.\nRemember: the colour, not the side."]) == 0.95
+assert actor.probability("WO", "Incongruent", ["Remember nothing"]) == 0.6  # a line must begin with the key
+assert assessment.answer(actor, 7, {"id": "M.1", "content": {"Check": None}}) == "READY"
 
 
 def rate(condition, texts=()):
-    """The share of 400 Which One trials of `condition` the taker answers right."""
+    """The share of 400 Which One trials of `condition` the actor answers right."""
     side = {"Congruent": "Right", "Incongruent": "Left"}[condition]
-    replies = [assessment.answer(taker, 7, {"id": f"M.{condition}.{bool(texts)}.{i}", "content": {
+    replies = [assessment.answer(actor, 7, {"id": f"M.{condition}.{bool(texts)}.{i}", "content": {
         **{f"Prompt_{k}": text for k, text in enumerate(texts)}, **shown(side, "#2D50C8", i)}}, {}) for i in range(400)]
     return replies.count("Right") / 400
 
@@ -282,14 +282,14 @@ def rate(condition, texts=()):
 assert rate("Congruent") - rate("Incongruent") > 0.25            # the planted congruency cost
 assert abs(rate("Congruent") - rate("Incongruent", ["Remember: colour."])) < 0.08  # a prompt that calls it off
 # It misses its `missRate` of the trials, whatever it would have answered.
-missing = assessment.Taker({"accuracy": "default: 1", "missRate": "0.5"})
+missing = assessment.SimulatedActor({"accuracy": "default: 1", "missRate": "0.5"})
 replies = [assessment.answer(missing, 7, {"id": f"X.{i}", "content": shown("Right", "#2D50C8", i)}, {}) for i in range(400)]
 assert 0.4 < replies.count("I am not sure.") / 400 < 0.6
 # The prompt a task sends by id alone is written out from its template, its placeholders filled from the asking step's
-# scope, as a model's runner writes it out, so what it tells reaches the taker.
+# scope, as a model's runner writes it out, so what it tells reaches the actor.
 plan = {"elements": {"Msg_Trial": {"type": "messageFlow", "attributes": {"sourceRef": "Subjects"}},
                      "Prompt_Reminder": {"extensions": [{"type": "prompt", "attributes": {"template": "{reminder}"}}]}},
         "names": {"P_Reminder": "reminder"}}
 message = {"id": "T.1.0", "flow": "Msg_Trial", "content": {"Prompt_Reminder": None, **letters("A")[0]}}
 assert assessment.written_out(message, plan, {"P_Reminder": "Remember: X after A."})["content"]["Prompt_Reminder"] == "Remember: X after A."
-print("simulated build and taker: ok")
+print("simulated build and actor: ok")

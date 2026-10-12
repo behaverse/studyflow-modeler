@@ -41,7 +41,7 @@ when that sub-process is collapsed — sends each awaiting trial as the build de
 `ResponseOptions`, `MaxResponseTime`, the instrument as `Scene`, and a `Screenshot` when the build takes one), and with
 it the task's data inputs (the `agentic:Prompt` wired into it, above all), along the one out of it, and injects the answer that comes back naming one of the trial's options; any other answer, or none in time, is a miss, and nothing stands in for it.
 The browser runner plays a person, a model on the task's band (its `implementation` names it), or the build's random
-bot (a `software` taker whose `implementation` is `behaverse://bot`); any other taker answers along message flows, locally.
+bot (a `software` actor whose `implementation` is `behaverse://bot`); any other actor answers along message flows, locally.
 Its result is a `behaverse:TaskResult` (the schema declares it, as the task type's `meta.result`, and `studyflow
 validate` checks the fields a data edge's `transformation` reads of it): the build's completion (`TaskId`,
 `TimelineId`, `IsCompleted`), `trials` answered, `events`, the records' file in a local run, and `blocks`, what the
@@ -69,8 +69,8 @@ known. A task whose `implementation` names another skill's scheme is that skill'
 build yet, so a local study with a task set to it stops before its first step, saying so, and the browser runner
 refuses it; the instrument, the timeline and the Parameters wired in mean the same whichever build plays the task.
 
-The truth a pipeline check knows is planted on its taker, a pool typed `behaverse:SimulatedTaker` (its
-`implementation` `behaverse://simulated-taker`), which reads each trial as a person would (the button of a Which One
+The truth a pipeline check knows is planted on its actor, a pool typed `behaverse:SimulatedActor` (its
+`implementation` `behaverse://simulated-actor`), which reads each trial as a person would (the button of a Which One
 target's colour, Match on an AX-CPT X right after an A, an N-back digit against the one `Load` before it, the
 letters and digits remembered per conversation; a stimulus of one letter as text is an AX-CPT letter too, as the
 jspsych skill's local runner sends a jsPsych AX-CPT's) and answers right with the probability the study writes on it:

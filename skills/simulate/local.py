@@ -8,8 +8,8 @@
 A partial runner (packages/runtime-local/CONTRACT.md): it claims every pool without a process whose actor's
 `implementation` is `simulate://random`, and answers each message sent to it with one of the options the message lists
 (`ResponseOptions`), drawn by the run's seed and the message's id; a message that lists none is an instruction, which
-it confirms with `READY`. It knows no task, so it plants no effect: a study that needs a known truth draws a taker of
-the task's own skill (a Behaverse task's `behaverse:SimulatedTaker`).
+it confirms with `READY`. It knows no task, so it plants no effect: a study that needs a known truth draws a
+simulated actor of the task's own skill (a Behaverse task's `behaverse:SimulatedActor`).
 """
 
 from __future__ import annotations

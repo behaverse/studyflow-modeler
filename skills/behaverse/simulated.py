@@ -1,4 +1,4 @@
-"""The simulated Behaverse build and the simulated taker (SKILL.md beside this file), which `local.py` hands to.
+"""The simulated Behaverse build and the simulated actor (SKILL.md beside this file), which `local.py` hands to.
 
 The simulated build plays a `behaverse:Task` whose `runtime` is `simulated`, without Unity: the timeline the Parameters
 wired into the task define, block by block. It sends each trial along the task's message flows as the Unity build's
@@ -8,7 +8,7 @@ runner relays the build's, scores the answer as the build does, and writes the b
 records' file and stamp, the block counts) it takes from `local.py`, so both builds are run and scored by one rule.
 Three instruments are played: the AX-CPT (`RE`), Which One (`WO`, a Simon task) and the N-back (`NB`).
 
-The simulated taker is a pool typed `behaverse:SimulatedTaker`. It answers each trial it is sent as a person reads it,
+The simulated actor is a pool typed `behaverse:SimulatedActor`. It answers each trial it is sent as a person reads it,
 right with the probability the study plants on the pool (`accuracy`, and `prompted` for what a text sent with the
 trial changes), and leaves `missRate` of them unanswered.
 """
@@ -439,7 +439,7 @@ def play(step: Any) -> dict[str, Any]:
             "blocks": behaverse.block_counts(session.recorded), "events": str(events)}
 
 
-# --- the simulated taker ---
+# --- the simulated actor ---
 
 # What each conversation (one per subject, when the pool remembers) has shown of the block so far: the build sends a
 # letter or a digit alone, and it is answered against those before it. It lasts the run, as the conversation does.
@@ -451,10 +451,10 @@ def rng(*key: Any) -> random.Random:
 
 
 def perceived(trial: dict[str, Any], memory: dict[str, Any]) -> dict[str, Any]:
-    """What a taker tells from a trial as the build sends it, by the task's rule, as a person would: the instrument,
+    """What a simulated actor tells from a trial as the build sends it, by the task's rule, as a person would: the instrument,
     the trial's condition and the right answer; never the build's own key.
 
-    One trial is one message, so the taker keeps in `memory` (one per conversation) what the block has shown so far: a
+    One trial is one message, so the actor keeps in `memory` (one per conversation) what the block has shown so far: a
     trial whose `TrialIndex` does not follow the last one starts a block. A Which One trial (`Target`) is answered by
     the button of the target's colour, and is congruent when the target sits over that button, incongruent over the
     other, neutral between them. An AX-CPT letter (`Letter`) is Match when it is an X right after an A, distractors
@@ -498,7 +498,7 @@ def perceived(trial: dict[str, Any], memory: dict[str, Any]) -> dict[str, Any]:
 def written_out(message: dict[str, Any], plan: dict[str, Any], values: dict[str, Any]) -> dict[str, Any]:
     """The message with each prompt it names by id alone (a null value under the prompt's id, as a wired data input
     with no value of its own travels) written out from the prompt's `template`, its placeholders filled from the
-    asking step's scope, as a model's runner writes it out: so what a prompt tells reaches the taker."""
+    asking step's scope, as a model's runner writes it out: so what a prompt tells reaches the actor."""
     content = message.get("content")
     if not isinstance(content, dict):
         return message
@@ -512,8 +512,8 @@ def written_out(message: dict[str, Any], plan: dict[str, Any], values: dict[str,
                                    for key, value in content.items()}}
 
 
-class Taker:
-    """What the study plants on a `behaverse:SimulatedTaker` pool: the probability of a right answer by instrument and
+class SimulatedActor:
+    """What the study plants on a `behaverse:SimulatedActor` pool: the probability of a right answer by instrument and
     condition (`accuracy`, `default` for any other), what holds instead when a text sent with the trial has a line
     beginning with a key of `prompted`, and the share of trials left unanswered (`missRate`)."""
 
@@ -535,13 +535,13 @@ class Taker:
         return float(held if held is not None else self.accuracy.get("default", 0))
 
 
-def taker_of(element: dict[str, Any]) -> dict[str, Any] | None:
-    """A pool's `behaverse:SimulatedTaker` entry, when it is one."""
+def simulated_actor_of(element: dict[str, Any]) -> dict[str, Any] | None:
+    """A pool's `behaverse:SimulatedActor` entry, when it is one."""
     return next((ext for ext in element.get("extensions") or []
-                 if ext.get("namespace") == behaverse.BEHAVERSE and str(ext.get("type", "")).lower() == "simulatedtaker"), None)
+                 if ext.get("namespace") == behaverse.BEHAVERSE and str(ext.get("type", "")).lower() == "simulatedactor"), None)
 
 
-def answer(taker: Taker, seed: Any, message: dict[str, Any], memory: dict[str, Any] | None = None) -> str:
+def answer(actor: SimulatedActor, seed: Any, message: dict[str, Any], memory: dict[str, Any] | None = None) -> str:
     """One reply: a trial answered right with the planted probability, or an instruction confirmed (`READY`). The trial
     is the value of the message that lists `ResponseOptions`, or the message itself, as the build sends one; `memory` is
     what this subject's conversation has shown of the block so far. Draws are seeded by the run's seed and the
@@ -555,19 +555,19 @@ def answer(taker: Taker, seed: Any, message: dict[str, Any], memory: dict[str, A
         return "READY"
     truth = perceived(trial, memory if memory is not None else {})
     draw = rng(seed, message.get("id"))
-    if draw.random() < taker.miss_rate:
+    if draw.random() < actor.miss_rate:
         return "I am not sure."
     options = [str(option) for option in trial["ResponseOptions"]]
     wrong = [option for option in options if option != truth["correct"]]
     texts = [value for value in values if isinstance(value, str)]
-    right = draw.random() < taker.probability(truth["instrument"], truth["condition"], texts)
+    right = draw.random() < actor.probability(truth["instrument"], truth["condition"], texts)
     return truth["correct"] if right or not wrong else draw.choice(wrong)
 
 
 def take(step: Any) -> str:
-    """One message to a simulated taker's pool, answered."""
+    """One message to a simulated actor's pool, answered."""
     element = step.element
-    step.note(actor=str(((taker_of(element) or {}).get("attributes") or {}).get("implementation") or "behaverse://simulated-taker"))
+    step.note(actor=str(((simulated_actor_of(element) or {}).get("attributes") or {}).get("implementation") or "behaverse://simulated-actor"))
     memory = MEMORY.setdefault(str((step.conversation or {}).get("id") or ""), {})
-    return answer(Taker((taker_of(element) or {}).get("attributes") or {}), step.seed,
+    return answer(SimulatedActor((simulated_actor_of(element) or {}).get("attributes") or {}), step.seed,
                   written_out(step.message or {}, step.plan, step.values), memory)

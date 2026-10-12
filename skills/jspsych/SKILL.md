@@ -1,6 +1,6 @@
 ---
 name: jspsych
-description: "Opens a jsPsych timeline (a .json export of its trials) in the modeler as a studyflow of cognitive tasks, one per plugin node, with its consent form detected, and plays a `jspsych://` step: in the browser runtime for a person, and in a local run for whoever its message flows reach, a model or a simulated taker answering every trial. Use when a study already exists as a jsPsych experiment, or runs jsPsych plugins."
+description: "Opens a jsPsych timeline (a .json export of its trials) in the modeler as a studyflow of cognitive tasks, one per plugin node, with its consent form detected, and plays a `jspsych://` step: in the browser runtime for a person, and in a local run for whoever its message flows reach, a model or a simulated actor answering every trial. Use when a study already exists as a jsPsych experiment, or runs jsPsych plugins."
 license: MIT
 compatibility: "The browser runtime; the local runtime with uv and a Chromium (Chrome, Chromium, Brave or Edge), which it runs headless. The jsPsych builds load from unpkg, or in a local run from a node_modules folder that holds them."
 metadata:
@@ -26,7 +26,7 @@ result is jsPsych's data, one row a trial, so `{Flanker}` reads them.
 
 In a local run, `local.py` plays the same steps, every trial answered by the actor the step's message flows reach, as
 the Behaverse runner plays a task on its build (`../behaverse/SKILL.md`); so a study can run its AX-CPT as a jsPsych
-timeline and its other tasks on the Behaverse build, one model or one simulated taker answering them all. It claims
+timeline and its other tasks on the Behaverse build, one model or one simulated actor answering them all. It claims
 every step whose `implementation` is a `jspsych://` reference, for jsPsych 8 (its 2.x plugins) alone; a reference it
 cannot play stops the run before its first step. It serves a stage page (`stage.html`) and the two builds from a local
 port and opens the page in a headless Chromium, where jsPsych plays the step's timeline, made by the browser runtime's
@@ -34,7 +34,7 @@ rule (`timelines.json` in `tests/` holds both to it), in its own data-only simul
 to run (its variables, order, repetitions, sampling), and each trial's data are the plugin's own, made by its
 `simulate` hook from the response the runner brings back from the actor, after the plugin's defaults and checks. That
 is the choice: real jsPsych code, with nothing drawn and no clock running. A model slower than a person is not cut off
-by a timer that runs while it thinks, a simulated taker's whole session takes seconds, and the trial's window is still
+by a timer that runs while it thinks, a simulated actor's whole session takes seconds, and the trial's window is still
 jsPsych's, whose own check drops a response later than its `trial_duration`, unless the task settings give the actor
 longer (below). Driving a page's keys in real time (through Playwright, say) would time the actor against the
 protocol's display clock and add a Node and browser download to a runner that is a uv script; the Chromium is the one
