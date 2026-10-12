@@ -256,6 +256,65 @@ P:
   });
 });
 
+test.describe('the executed copy', () => {
+  test('of a YAML study is its text, every line, with the run\'s records and state added, and a re-run of it replaces only those', () => {
+    const registered = `# Registered before the run. This comment, the folded text and the mapping in braces stay in the executed copy.
+id: copy
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+S:
+  type: Process
+  name: Two steps
+  documentation: >-
+    A description folded where its author broke the line,
+    not where the writer would.
+  flowElements:
+    Start:
+      type: StartEvent
+    W:
+      type: Task
+      name: Work  # a comment on its line
+      additionalArguments: {arm: standard, n: 2}
+    Done:
+      type: EndEvent
+    F1: Start -> W
+    F2: W -> Done
+`;
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-copy-'));
+    fs.writeFileSync(path.join(dir, 'copy.studyflow.yaml'), registered);
+    const repo = path.join(dir, 'run');
+    const archived = path.join(repo, 'copy.studyflow.yaml');
+    const run = (file: string) => execFileSync(process.execPath, [BIN, 'run', file, '--repo', repo, '--quiet'], { cwd: dir, stdio: 'pipe', env: ENV });
+    /** The lines of the registered text a line diff to `text` removes: none when the run only added lines. */
+    const removed = (text: string): string[] => {
+      const lines = text.split('\n');
+      let at = 0;
+      return registered.split('\n').filter((line) => {
+        while (at < lines.length && lines[at] !== line) at += 1;
+        return at++ >= lines.length;
+      });
+    };
+
+    run('copy.studyflow.yaml');
+    expect(removed(fs.readFileSync(archived, 'utf8'))).toEqual([]);
+    // The run's first commit holds the registered text, and after it the state the run starts from.
+    const first = execFileSync('git', ['-C', repo, 'rev-list', '--max-parents=0', 'HEAD'], { encoding: 'utf8' }).trim();
+    const started = execFileSync('git', ['-C', repo, 'show', `${first}:copy.studyflow.yaml`], { encoding: 'utf8' });
+    expect(started.slice(0, registered.length)).toBe(registered);
+    expect(started.slice(registered.length)).toMatch(/^state:\n {2}_meta:\n {4}prov:\n/);
+    expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV, stdio: 'pipe' }).toString())
+      .toMatch(/protocol matches run run \(.*\); its state is its record's/);
+
+    // A re-run of the copy replaces what the run before it added, so no record is there twice.
+    run(archived);
+    const again = fs.readFileSync(archived, 'utf8');
+    expect(removed(again)).toEqual([]);
+    const { S, state } = yaml.load(again) as any;
+    expect(S.flowElements.Start.extensionElements.map((entry: { action: string }) => entry.action)).toEqual(['executed']);
+    expect(state._meta.prov).toHaveLength(2);
+  });
+});
+
 test.describe('a re-run', () => {
   test('counts each sequence flow it takes, so a node is reached as often as its flows bring it in and take it out', async () => {
     // A gateway that loops back twice, a step that leaves at its boundary event the second time, and a default flow

@@ -3,7 +3,8 @@
  * itself: each skill's `runtimes.local` command is started once, asked for its claims and then handed one element at
  * a time (SKILL.md, beside this folder, is that contract). What a run leaves is a run directory, `--repo DIR` or else
  * `~/.studyflow/runs/<id>/` (YYMMDD plus a codename, `260821heron/`), or the one the study handed to it already
- * lives in: the artifacts the `uri`s name, a copy of the study stamped `executed`, `studyflow.log` and the journal,
+ * lives in: the artifacts the `uri`s name, a copy of the study stamped `executed` (of a `.studyflow.yaml`, the file's
+ * own text with the run's state and records added), `studyflow.log` and the journal,
  * all in a git repository whose commit bodies hold the step records (packages/runtime-local/src/prov.ts); with
  * `--data-outside-history`, its commits hold the study and the SHA-256 of the rest, which stays in the directory alone.
  */
@@ -23,8 +24,9 @@ export type LocalRun = {
   /** The study file as given. */
   input: string;
   model: StudyModel;
-  /** Writes the study to `target`, in the format the original is spelled in. */
-  write(model: StudyModel, target: string): Promise<void>;
+  /** Writes the study to `target`, in the format the original is spelled in; `warn` hears what of the original it
+   * could not keep. */
+  write(model: StudyModel, target: string, warn: (message: string) => void): Promise<void>;
   /** Reads a study back from the bytes a commit holds under the archive's name; undefined when it will not read. */
   read(bytes: Uint8Array): Promise<StudyModel | undefined>;
   /** Where the shipped skills are: the checkout's `skills/`, or `libexec/skills` as installed. */
@@ -222,7 +224,8 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
 
   // Archived before the first step, so a killed run still leaves a readable study behind.
   mkdirSync(dir, { recursive: true });
-  await run.write(model, archive);
+  const respelled = (message: string): void => log.event('diagram.respelled', `  ${message}`, { level: 'warning' });
+  await run.write(model, archive, respelled);
   log.event('diagram.archived', `  → ${archive}`, { level: 'debug' });
 
   // Partial runners never open the study: they read `.cache/plan.json`. Each is started once, and asked which ids it
@@ -396,7 +399,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     const element = walked.get(id)?.element;
     if (element) stampElement(element, { action, when: moments.get(id), run: runId, ...extra }, replaces(action, id));
   }
-  await run.write(model, archive);
+  await run.write(model, archive, respelled);
   log.event('diagram.archived', `  → ${archive}`, { level: 'debug' });
 
   if (!run.debug) rmSync(cache, { recursive: true, force: true });

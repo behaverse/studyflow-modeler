@@ -358,9 +358,7 @@ function readDiagrams(raws: unknown[], reader: Reader, metamodel: Metamodel, nam
   const kept: Value[] = [];
   raws.forEach((raw, index) => {
     if (!isMapping(raw)) return;
-    // Spelled as an element is, by a writer of its own that keeps every reference.
-    const read = diagramElement(raw, metamodel, namespaces);
-    const diagram = new Speller(metamodel).element(new Writer(metamodel, { has: () => true }).element(read), 'bpmndi:BPMNDiagram');
+    const diagram = spelledElement(metamodel, diagramElement(raw, metamodel, namespaces), 'bpmndi:BPMNDiagram');
     const plane = isMapping(diagram.plane) ? { ...diagram.plane } : undefined;
     if (plane && index === 0) {
       const elements = Array.isArray(plane.planeElement) ? plane.planeElement : keyedMapToList(plane.planeElement);
@@ -540,6 +538,12 @@ class Speller {
     if (isElement(value)) return this.element(value, declared);
     return value;
   }
+}
+
+/** `element` as the file spells it where a `declared` element is expected, by a writer of its own that keeps every
+ * reference. */
+export function spelledElement(metamodel: Metamodel, element: Element, declared?: string): Record<string, unknown> {
+  return new Speller(metamodel).element(new Writer(metamodel, { has: () => true }).element(element), declared);
 }
 
 /** Every id the study's elements hold. */

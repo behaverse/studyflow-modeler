@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg } from '@core/document';
 import { planChecks } from '@core/checks';
 import { checkMaterials } from '@core/checks/materials';
+import { executedText } from '@core/model/executed';
 import type { StudyModel } from '@core/model/index';
 import { materialReader } from '@cli/materials';
 import { parseSource, readSource, sourceOf, studySource } from '@cli/studyfile';
@@ -43,9 +44,18 @@ function skillRoots(): string[] {
 }
 
 async function runLocally(input: string, source: Awaited<ReturnType<typeof readSource>>, model: StudyModel, digest: string, options: RunOptions): Promise<number> {
-  // The run repository keeps the study as the original is named and spelled: YAML as YAML, XML as XML, an image with
-  // the study inside.
-  const write = async (study: StudyModel, target: string): Promise<void> => {
+  // The run repository keeps the study as the original is named and spelled: YAML as the original's own text with the
+  // run's state and records added, XML as XML, an image with the study inside.
+  let respelled = false;
+  const write = async (study: StudyModel, target: string, warn: (message: string) => void): Promise<void> => {
+    if (source.container === 'text' && source.kind === 'yaml') {
+      const kept = executedText(source.text, study);
+      if (kept === undefined && !respelled) {
+        respelled = true;
+        warn(`the run's state and records could not be added to the text of ${path.basename(input)}, so ${path.basename(target)} is the study as the tools write it`);
+      }
+      return writeFile(target, kept ?? await studySource(study, 'yaml'), 'utf8');
+    }
     if (source.container === 'text') return writeFile(target, await studySource(study, source.kind), 'utf8');
     const base = existsSync(target) ? target : input;
     await writeFile(target, source.container === 'png'
