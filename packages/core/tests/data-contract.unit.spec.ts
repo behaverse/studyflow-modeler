@@ -68,6 +68,12 @@ test('the columns a step names must be the ones the schema of the data it reads 
       study('{ dv: response_time, within: correct, between: [group], subject: subjct, alternative: greater }'),
       [UNDEFINED('group'), UNDEFINED('subjct', 'subject')],
     ],
+    [
+      'the columns a query or eval expression names in backticks, each once; an unquoted name, an @variable or a string is not a column',
+      study('{ expr: "`subject` != \'`pilot`\' and `corect` == True and `response_tme` >= @rt_min and `response_tme` <= rt_max" }'),
+      [UNDEFINED('corect', 'correct'), UNDEFINED('response_tme', 'response_time')],
+    ],
+    ['a column an eval assigns is one the step derives', study('{ expr: "`rt_ms` = `response_time` * 1000" }'), []],
     ['a {placeholder} is filled in at run time', study('{ index: "{grouping}" }'), []],
     ['data no schema is bound to', study('{ index: participant }', { bound: false }), []],
     ['a LinkML schema', study('{ values: [correct, response_time] }', { body: LINKML }), [UNDEFINED('response_time')]],

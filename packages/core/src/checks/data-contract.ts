@@ -9,6 +9,10 @@ import { idOf, isElement, yamlText, type Element, type StudyModel } from '@core/
  * and as statistics libraries name a test's variables in a long table (pingouin's `dv`, `within`, `between`, `subject`). */
 const COLUMN_ARGUMENTS = ['index', 'columns', 'values', 'subset', 'by', 'key', 'column', 'on', 'usecols', 'dv', 'within', 'between', 'subject'];
 
+/** A name in backticks, as the expression pandas's `query` and `eval` take (`expr`) quotes a column, with the `=` that
+ * assigns it when one follows; a string in quotes is matched only so that a backtick inside it starts no name. */
+const BACKTICKED = /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`([^`]+)`(\s*=(?!=))?/g;
+
 /** Levenshtein distance, one row at a time. */
 function distance(a: string, b: string): number {
   let row = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -39,7 +43,17 @@ function schemaOf(model: StudyModel, source: Element): { name: string; columns: 
   return columns.length > 0 ? { name: String(schema.name || schema.id), columns } : undefined;
 }
 
-/** The column names a step's arguments pass under {@link COLUMN_ARGUMENTS}: a string, or a list of strings. */
+/** The names an expression quotes in backticks, each once, but for one it assigns, which is a column the step derives.
+ * An unquoted name may be Python's, and one after `@` is a local variable, so neither is read as a column. */
+function expressionColumns(expr: unknown): string[] {
+  if (typeof expr !== 'string') return [];
+  const matches = [...expr.matchAll(BACKTICKED)].filter((match) => match[1] !== undefined);
+  const assigned = new Set(matches.filter((match) => match[2] !== undefined).map((match) => match[1]));
+  return [...new Set(matches.map((match) => match[1]))].filter((name) => !assigned.has(name));
+}
+
+/** The column names a step's arguments pass under {@link COLUMN_ARGUMENTS}, each a string or a list of strings, and in
+ * backticks in its `expr`. */
 function columnArguments(step: Element): string[] {
   const text = yamlText(step.additionalArguments);
   let args: any;
@@ -49,7 +63,10 @@ function columnArguments(step: Element): string[] {
     return [];
   }
   if (!args || typeof args !== 'object' || Array.isArray(args)) return [];
-  return COLUMN_ARGUMENTS.flatMap((key) => [args[key]].flat()).filter((name): name is string => typeof name === 'string');
+  return [
+    ...COLUMN_ARGUMENTS.flatMap((key) => [args[key]].flat()).filter((name): name is string => typeof name === 'string'),
+    ...expressionColumns(args.expr),
+  ];
 }
 
 /**
