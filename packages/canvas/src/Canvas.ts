@@ -614,6 +614,9 @@ export class Canvas {
       const g = this.renderer.graphicsById.get(element.id);
       if (g) follow(g);
     }
+    for (const g of this.layers.getLayer('elements').querySelectorAll('.sf-implied')) {
+      if (travelled.has(g.getAttribute('data-source') ?? '') || travelled.has(g.getAttribute('data-target') ?? '')) follow(g);
+    }
   }
 
   /** Erase what a commit removed, and let go of it: the label editor, the hover, the markers, the selection. */
@@ -633,20 +636,27 @@ export class Canvas {
     if (keep.length < selected.length) this.selectionSet.select(keep.length > 0 ? keep : null);
   }
 
-  /** Keep the elements layer in paint order (`zRankOf`): a commit that moves shapes into or out of a container re-sorts it. */
+  /**
+   * Keep the elements layer in paint order (`zRankOf`): a commit that moves shapes into or out of a container re-sorts
+   * it, and the links the file does not hold go back in among them.
+   */
   private restack(): void {
     const scene = this.scene;
     const layer = this.layers.getLayer('elements');
-    const entries = Array.from(layer.children).map((g, index) => {
+    const entries = Array.from(layer.children).flatMap((g, index) => {
       const element = scene.elementsById.get(g.getAttribute('data-element-id') ?? '');
-      return { g, index, rank: element ? zRankOf(element) : 0 };
+      return g.classList.contains('sf-implied') ? [] : [{ g, index, rank: element ? zRankOf(element) : 0 }];
     });
     if (entries.every((entry, i) => i === 0 || entries[i - 1].rank <= entry.rank)) return;
     entries.sort((a, b) => a.rank - b.rank || a.index - b.index);
     for (const { g } of entries) layer.appendChild(g);
+    this.renderer.drawImplied(layer);
   }
 
-  /** Re-draw `elements` (and their captions) from the scene, then refresh the selection chrome. */
+  /**
+   * Re-draw `elements` (and their captions) from the scene, and the links the file does not hold, which may run to any
+   * of them; then refresh the selection chrome.
+   */
   private redrawElements(elements: readonly SceneElement[]): void {
     const scene = this.scene;
     const seen = new Set<string>();
@@ -675,6 +685,7 @@ export class Canvas {
       }
     }
     this.renderer.refreshJumps(elements);
+    this.renderer.drawImplied(this.layers.getLayer('elements'));
     this.selectionSet.refresh();
   }
 

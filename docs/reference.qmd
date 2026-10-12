@@ -30,6 +30,8 @@ A studyflow is a graph. The nodes are events, tasks, gateways, and data, and the
 
 A data edge can also describe a binding, written as `slot = selection`. The slot names which argument of the step's call the value fills, and the selection names which value arrives. Two slot names are positional: `self` binds a method's receiver, and `*` appends the value positionally.
 
+The canvas, and the pictures it exports, also draw two lines that the file does not hold. A data edge between a data element and a step inside a sub-process drawn closed is drawn to that sub-process instead. It is drawn once for each data element and direction, however many steps inside read or write the element, and not at all when the sub-process has a data edge of its own with that element; once the sub-process is opened, the steps' own data edges are drawn. An element whose `schema` names a schema drawn on the same plane, such as a dataset or a table, is joined to that schema by a dotted line with no arrow. Both lines run straight between their ends and carry no label. Neither is an element, so nothing selects, moves, saves or checks them.
+
 ## Shape and behavior
 
 Every element is a standard BPMN element, which gives it a shape and a flow behavior, and carries a research type, which gives it its meaning and its own attributes.

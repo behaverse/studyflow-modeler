@@ -1,6 +1,7 @@
 /**
  * Draws the scene: one `<g>` per node, edge and label in the elements layer, in
- * z-rank order. Icons come from the host's resolver.
+ * z-rank order, and among them the links the file does not hold (`study/implied.ts`).
+ * Icons come from the host's resolver.
  */
 
 import { BPMN } from '@core/constants.ts';
@@ -15,8 +16,9 @@ import { bandsOf, isTypedChoreography } from '@canvas/study/choreography.ts';
 import { normalizeColor } from '@canvas/study/color.ts';
 
 import { drawnNameOf, idsIn, listOf, nameOf } from '@canvas/study/elements.ts';
+import { impliedLinks, type ImpliedLink } from '@canvas/study/implied.ts';
 import type { Point, Scene, SceneEdge, SceneElement, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
-import { isHidden, zRankOf } from '@canvas/study/tree.ts';
+import { depthOf, isHidden, zRankOf } from '@canvas/study/tree.ts';
 import { drawIcon, drawIconText, drawImageIcon, type IconResolver } from '@canvas/render/icons.ts';
 import { boxesMeet, boxOf, EDGE_CORNER_RADIUS, lineJumps, type Box, type Span } from '@canvas/render/jumps.ts';
 import {
@@ -161,6 +163,8 @@ export class Renderer {
   private readonly vacated: Box[] = [];
   /** While a whole scene is drawn, the jumps wait for one pass at the end. */
   private drawingScene = false;
+  /** The groups of the links drawn last that the file does not hold. */
+  private implied: SVGGElement[] = [];
 
   constructor(options: RendererOptions = {}) {
     this.iconResolver = options.iconResolver;
@@ -181,11 +185,12 @@ export class Renderer {
     return this.scene;
   }
 
-  /** Draw `scene` into `layer` in paint order: every element, or those `shows` keeps. */
+  /** Draw `scene` into `layer` in paint order: every element, or those `shows` keeps, and the links the file does not hold. */
   renderScene(scene: Scene, layer: SVGElement, shows: (element: SceneElement) => boolean = () => true): void {
     this.graphicsById.clear();
     this.jumpBoxes.clear();
     this.vacated.length = 0;
+    this.implied = [];
     this.scene = scene;
     const elements = [...scene.elementsById.values()].filter(shows).sort((a, b) => zRankOf(a) - zRankOf(b));
     // The jumps are cut once, over the whole scene, when everything is drawn.
@@ -200,6 +205,29 @@ export class Renderer {
       this.drawingScene = false;
     }
     this.refreshJumps();
+    this.drawImplied(layer);
+  }
+
+  /**
+   * Draw afresh the links the view draws that the file does not hold (`study/implied.ts`), into `layer` where a flow
+   * between the same ends would paint (`zRankOf`): over the lanes they cross, under the shapes they join.
+   */
+  drawImplied(layer: SVGElement): void {
+    for (const g of this.implied) remove(g);
+    const ranked = (this.scene ? impliedLinks(this.scene, this.scope) : [])
+      .map((link) => ({ g: drawImpliedLink(link), rank: 2 * Math.max(depthOf(link.source), depthOf(link.target)) }))
+      .sort((a, b) => a.rank - b.rank);
+    // The layer is in paint order, so one pass puts each link before the first group that paints above it.
+    let next = 0;
+    for (const child of Array.from(layer.children)) {
+      if (next === ranked.length) break;
+      const element = this.scene?.elementsById.get(child.getAttribute('data-element-id') ?? '');
+      if (!element) continue;
+      const rank = zRankOf(element);
+      for (; next < ranked.length && ranked[next].rank < rank; next += 1) layer.insertBefore(ranked[next].g, child);
+    }
+    for (; next < ranked.length; next += 1) append(layer, ranked[next].g);
+    this.implied = ranked.map(({ g }) => g);
   }
 
   /** Draw from `scene` from now on, the groups already drawn kept by id: another scene after an undo or a redo. */
@@ -329,18 +357,8 @@ export class Renderer {
       'data-element-type': edge.type,
       display: isHidden(edge, this.scope) ? 'none' : null,
     });
-    append(g, create('path', {
-      class: 'sf-connection-line',
-      d: roundedPathData(edge.waypoints, EDGE_CORNER_RADIUS, this.drawingScene ? [] : this.jumpsOf(edge)),
-      'data-waypoints': edge.waypoints.map((p) => `${p.x},${p.y}`).join(' '),
-      fill: 'none',
-      stroke: edge.stroke ?? INK.stroke,
-      'stroke-width': STROKE_WIDTH,
-      'stroke-linejoin': 'round',
-      'stroke-linecap': 'round',
-      'stroke-dasharray': edgeDashArray(edge.type),
-      'marker-end': markerEndFor(edge.type, edge.element),
-      'marker-start': markerStartFor(edge.type, isDefaultFlow(edge)),
+    append(g, linePath('sf-connection-line', edge.type, edge.waypoints, edge.stroke, {
+      jumps: this.drawingScene ? [] : this.jumpsOf(edge), element: edge.element, isDefault: isDefaultFlow(edge),
     }));
     return g;
   }
@@ -586,6 +604,36 @@ export class Renderer {
       drawInternalLabel(inner, { ...node, height: height - 2 * bandHeight } as SceneNode, name, INK.text);
     }
   }
+}
+
+/** The line a flow of `type` is drawn as along `waypoints`: its dashes and markers, hopping `jumps`. */
+function linePath(
+  cssClass: string, type: string, waypoints: readonly Point[], stroke: string | undefined,
+  { jumps = [], element, isDefault = false }: { jumps?: readonly (readonly Span[])[]; element?: Element; isDefault?: boolean } = {},
+): SVGPathElement {
+  return create('path', {
+    class: cssClass,
+    d: roundedPathData(waypoints, EDGE_CORNER_RADIUS, jumps),
+    'data-waypoints': waypoints.map((p) => `${p.x},${p.y}`).join(' '),
+    fill: 'none',
+    stroke: stroke ?? INK.stroke,
+    'stroke-width': STROKE_WIDTH,
+    'stroke-linejoin': 'round',
+    'stroke-linecap': 'round',
+    'stroke-dasharray': edgeDashArray(type),
+    'marker-end': markerEndFor(type, element),
+    'marker-start': markerStartFor(type, isDefault),
+  });
+}
+
+/**
+ * A link the file does not hold: the line of the flow it stands for, joining the ends it names, with no id and out of
+ * the pointer's way.
+ */
+function drawImpliedLink(link: ImpliedLink): SVGGElement {
+  const g = group(0, 0, { class: 'sf-implied', 'data-source': link.source.id, 'data-target': link.target.id, 'pointer-events': 'none' });
+  append(g, linePath('sf-implied-line', link.type, link.waypoints, link.stroke));
+  return g;
 }
 
 /**

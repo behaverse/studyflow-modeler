@@ -2,12 +2,14 @@ import { expect, test } from '@playwright/test';
 
 import { renderSvg, type Canvas } from '@canvas/index.ts';
 import { INK } from '@canvas/view/theme.ts';
+import { BPMN } from '@core/constants.ts';
 import { xmlToStudy } from '@core/document';
 import { CHROME } from '@canvas/render/labels.ts';
+import { edgeDashArray } from '@canvas/render/renderer.ts';
 import { LINE_HEIGHT } from '@canvas/study/text.ts';
 import { choreographyBandHeight, PARTICIPANT_BAND } from '@core/document/outline.ts';
 
-import { boundsOf, canvasOn, edge, graphicsOf, installDocument, loadCanvas, loadYaml, node, svgOf, waypointsOf } from './canvasHarness';
+import { boundsOf, canvasOn, edge, graphicsOf, hitAt, installDocument, loadCanvas, loadYaml, node, svgOf, waypointsOf } from './canvasHarness';
 import { freshMetamodel, studyModel } from '@tests/schemas';
 import { exampleNames, exampleXml } from '@tests/utils';
 
@@ -793,4 +795,120 @@ test('a pool with multiplicity and no lanes marks it the same way, and a short b
   const texts = textsOf(short, 'Pool_Subjects');
   expect(texts).toContain('×4');
   expect(texts.find((t) => t !== '×4')).toMatch(/…$/);
+});
+
+// --- links the file does not hold --------------------------------------------------
+
+/** The links a view or a picture draws that the file does not hold, as `source -> target`, in a sorted list. */
+function linksIn(drawing: ParentNode | string): string[] {
+  const links = typeof drawing === 'string'
+    ? [...drawing.matchAll(/class="sf-implied" data-source="([^"]+)" data-target="([^"]+)"/g)].map(([, from, to]) => [from, to])
+    : [...drawing.querySelectorAll('.sf-implied')].map((g) => [g.getAttribute('data-source'), g.getAttribute('data-target')]);
+  return links.map(([from, to]) => `${from} -> ${to}`).sort();
+}
+
+/** The line of the link from `from` to `to`, as the view draws it. */
+function linkLine(canvas: Canvas, from: string, to: string): SVGPathElement {
+  const line = svgOf(canvas).querySelector(`.sf-implied[data-source="${from}"][data-target="${to}"] > path`);
+  if (!line) throw new Error(`no link ${from} -> ${to} (the view draws ${JSON.stringify(linksIn(svgOf(canvas)))})`);
+  return line as SVGPathElement;
+}
+
+/**
+ * Settings at the process, read by both steps of a battery drawn closed, and the trials one of them writes. The view
+ * draws neither step, so it draws their associations to the battery: one in, however many steps read, and one out.
+ */
+const CLOSED_YAML = `id: Defs_Closed
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_Closed:
+  type: Process
+  flowElements:
+    Settings:
+      type: studyflow:Parameters
+      name: Settings
+      bounds: 100 60 36 50
+    Trials:
+      type: DataStoreReference
+      name: Trials
+      bounds: 400 60 50 50
+    Battery:
+      type: SubProcess
+      name: Battery
+      flowElements:
+        First:
+          type: Task
+          name: First
+          dataInputAssociations:
+            First_Reads:
+              sourceRef:
+                - Settings
+          bounds: 230 400 100 80
+        Second:
+          type: Task
+          name: Second
+          dataInputAssociations:
+            Second_Reads:
+              sourceRef:
+                - Settings
+          dataOutputAssociations:
+            Second_Writes:
+              targetRef: Trials
+          bounds: 400 400 100 80
+      bounds: 200 200 100 80
+      isExpanded: false
+`;
+
+test('an association to a step inside a closed sub-process is drawn to the sub-process, once each way, while it is closed', async () => {
+  const { canvas } = loadYaml(CLOSED_YAML);
+  const drawn = ['Battery -> Trials', 'Settings -> Battery'];
+  expect(linksIn(svgOf(canvas))).toEqual(drawn);
+  expect(linksIn(renderSvg(canvas.study)), 'a picture draws them too').toEqual(drawn);
+  // Nothing the study holds: its flows are the file's, and the pointer finds nothing on a link.
+  expect(canvas.study.list({ kind: 'edge' }).map(({ id }) => id).sort()).toEqual(['First_Reads', 'Second_Reads', 'Second_Writes']);
+  const [from, to] = linkLine(canvas, 'Settings', 'Battery').getAttribute('data-waypoints')!.split(' ').map((point) => point.split(',').map(Number));
+  expect(hitAt(canvas, { x: (from[0] + to[0]) / 2, y: (from[1] + to[1]) / 2 })).toBeUndefined();
+  const look = (line: Element): (string | null)[] => ['stroke', 'stroke-dasharray', 'marker-end'].map((name) => line.getAttribute(name));
+  const linked = { in: look(linkLine(canvas, 'Settings', 'Battery')), out: look(linkLine(canvas, 'Battery', 'Trials')) };
+
+  // Open, the battery draws its steps and their own associations, in the look the links had; closed, the links again.
+  canvas.study.expand({ id: 'Battery' });
+  expect(linksIn(svgOf(canvas))).toEqual([]);
+  const line = (id: string): Element => graphicsOf(canvas, id)!.querySelector('.sf-connection-line')!;
+  expect(graphicsOf(canvas, 'First_Reads')!.getAttribute('display')).toBeNull();
+  expect(look(line('First_Reads'))).toEqual(linked.in);
+  expect(look(line('Second_Writes'))).toEqual(linked.out);
+  canvas.study.collapse({ id: 'Battery' });
+  expect(linksIn(svgOf(canvas))).toEqual(drawn);
+  // Drilled into the battery, the view draws the steps and not the settings: nothing stands in for anything.
+  canvas.setScope('Battery');
+  expect(linksIn(svgOf(canvas))).toEqual([]);
+});
+
+/** A dataset and the schema its `schema` names, side by side. */
+const SCHEMA_YAML = `id: Defs_Schema
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_Schema:
+  type: Process
+  flowElements:
+    Trials:
+      type: studyflow:Dataset
+      name: Trials
+      schema: Trial_Schema
+      bounds: 100 100 50 50
+    Trial_Schema:
+      type: studyflow:Schema
+      name: Trial schema
+      bounds: 200 100 36 50
+`;
+
+test('a dataset is joined to the schema it names by one dotted line that points nowhere', async () => {
+  const { canvas } = loadYaml(SCHEMA_YAML);
+  expect(linksIn(svgOf(canvas))).toEqual(['Trials -> Trial_Schema']);
+  const line = linkLine(canvas, 'Trials', 'Trial_Schema');
+  expect(line.getAttribute('stroke-dasharray')).toBe(edgeDashArray(BPMN.Association));
+  expect(line.getAttribute('marker-end')).toBeNull();
+  // Straight across the gap, as a link with no route of its own is drawn.
+  expect(line.getAttribute('data-waypoints')).toBe('150,125 200,125');
 });
