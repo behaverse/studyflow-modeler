@@ -280,7 +280,7 @@ test('the build is ready once its frame has an instance and says so; a build tha
 /** The task in a pool, with a trial flowing into it from a model rather than out to one. */
 const TRIAL_INTO_TASK_XML = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" id="trial_fixture" targetNamespace="http://bpmn.io/schema/bpmn">
-  <bpmn2:itemDefinition id="Trial_Item" structureRef="behaverse:Trial" />
+  <bpmn2:itemDefinition id="Trial_Item" structureRef="cognitive:Trial" />
   <bpmn2:message id="Trial" itemRef="Trial_Item" />
   <bpmn2:collaboration id="C">
     <bpmn2:participant id="Lab" name="Lab" processRef="P" />
@@ -305,7 +305,7 @@ test('against the build\'s manifest, an instrument or timeline it does not ship,
     ['a timeline of an instrument the build ships none for', taskXml('instrument: WO\ntimeline: SimonTask\n'), /'WO' has no timeline called 'SimonTask'.*define it under Timelines/],
     ['a Bot that is a list', taskXml('timeline: XCIT_NB_01\nBot: [20]\n'), /Bot.*must be a mapping.*got a list/],
     ['a nested Bot setting', taskXml('timeline: XCIT_NB_01\nBot:\n  Speed: {Fast: 20}\n'), /'Speed' holds a nested mapping.*Move its entries up/],
-    ['a trial flowing into the task', TRIAL_INTO_TASK_XML, /M_Trial.*behaverse:Trial the wrong way: trials leave the task/],
+    ['a trial flowing into the task', TRIAL_INTO_TASK_XML, /M_Trial.*cognitive:Trial the wrong way: trials leave the task/],
   ];
   for (const [label, xml, refusal] of CASES) {
     const { flowNodes } = await parseStudyflow(xml, freshPackages());

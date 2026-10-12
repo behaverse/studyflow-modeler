@@ -634,7 +634,7 @@ P:
     <bpmn:messageFlow id="M1" sourceRef="T" targetRef="Screen" messageRef="Trial"/>
   </bpmn:collaboration>
   <bpmn:message id="Trial" itemRef="Trial_Item"/>
-  <bpmn:itemDefinition id="Trial_Item" structureRef="behaverse:Trial"/>
+  <bpmn:itemDefinition id="Trial_Item" structureRef="cognitive:Trial"/>
   <bpmn:process id="P">
     <bpmn:startEvent id="Start"><bpmn:outgoing>F1</bpmn:outgoing></bpmn:startEvent>
     <bpmn:task id="T" name="fit" implementation="python://m.f" studyflow:additionalArguments="k: 1">
@@ -685,7 +685,7 @@ P:
     // A message flow names its message, and the message and its item definition ride along, so a runner can follow the chain.
     expect(digest.elements.M1.attributes).toEqual({ sourceRef: 'T', targetRef: 'Screen', messageRef: 'Trial' });
     expect(digest.elements.Trial).toMatchObject({ type: 'message', attributes: { itemRef: 'Trial_Item' } });
-    expect(digest.elements.Trial_Item).toMatchObject({ type: 'itemDefinition', attributes: { structureRef: 'behaverse:Trial' } });
+    expect(digest.elements.Trial_Item).toMatchObject({ type: 'itemDefinition', attributes: { structureRef: 'cognitive:Trial' } });
     // `names` binds a name to one element: `model` names two, and `Done` is another element's id, so neither is offered.
     expect(digest.names).toEqual({ T: 'fit', Dat: 'digits' });
     // What the runner ran with joins its step's record, and is no value a later step reads.

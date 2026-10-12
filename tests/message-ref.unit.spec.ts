@@ -39,13 +39,13 @@ test('the Message field makes one message per structure, shares it, and drops it
 
   expect(messageStructureOf(study.model, flow('Msg_Trial'))).toBe('');
 
-  carry('Msg_Trial', 'behaverse:Trial');
-  expect(messageStructureOf(study.model, flow('Msg_Trial'))).toBe('behaverse:Trial');
+  carry('Msg_Trial', 'cognitive:Trial');
+  expect(messageStructureOf(study.model, flow('Msg_Trial'))).toBe('cognitive:Trial');
   expect(roots('bpmn:Message')).toHaveLength(1);
-  expect(roots('bpmn:ItemDefinition').map((root) => root.structureRef)).toEqual(['behaverse:Trial']);
+  expect(roots('bpmn:ItemDefinition').map((root) => root.structureRef)).toEqual(['cognitive:Trial']);
 
   // A second flow with the same structure shares the message; another structure gets one of its own.
-  carry('Msg_Answer', 'behaverse:Trial');
+  carry('Msg_Answer', 'cognitive:Trial');
   expect(flow('Msg_Answer').messageRef).toBe(flow('Msg_Trial').messageRef);
   carry('Msg_Answer', 'lab:Ping');
   expect(roots('bpmn:Message')).toHaveLength(2);
@@ -57,7 +57,7 @@ test('the Message field makes one message per structure, shares it, and drops it
   expect(roots('bpmn:ItemDefinition')).toHaveLength(2);
 
   const doc = yaml.load(study.toYaml()) as Record<string, any>;
-  expect(doc.C.messageFlows.Msg_Trial.messageRef).toBe('Message_behaverse_Trial');
-  expect(doc.Message_behaverse_Trial).toMatchObject({ type: 'Message', itemRef: 'ItemDefinition_behaverse_Trial' });
-  expect(doc.ItemDefinition_behaverse_Trial).toMatchObject({ type: 'ItemDefinition', structureRef: 'behaverse:Trial' });
+  expect(doc.C.messageFlows.Msg_Trial.messageRef).toBe('Message_cognitive_Trial');
+  expect(doc.Message_cognitive_Trial).toMatchObject({ type: 'Message', itemRef: 'ItemDefinition_cognitive_Trial' });
+  expect(doc.ItemDefinition_cognitive_Trial).toMatchObject({ type: 'ItemDefinition', structureRef: 'cognitive:Trial' });
 });

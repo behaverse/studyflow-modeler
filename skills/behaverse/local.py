@@ -60,7 +60,7 @@ BUILD_MOUNT = "/assessment-unity"
 WHO_ANSWERS_KEYS = ("ResponseSource", "LLM", "Prompt")
 # The messages this runner's task exchanges, as a message flow's `messageRef` → `itemRef` → `structureRef` names them:
 # a trial out of the task, and its response back.
-TRIAL, RESPONSE = "behaverse:Trial", "behaverse:Response"
+TRIAL, RESPONSE = "cognitive:Trial", "cognitive:Response"
 STRUCTURES = (TRIAL, RESPONSE)
 MIME ={".wasm": "application/wasm", ".data": "application/octet-stream", ".unityweb": "application/octet-stream",
         ".js": "application/javascript", ".json": "application/json"}

@@ -48,10 +48,10 @@ Response:
   itemRef: Response_Item
 Trial_Item:
   type: ItemDefinition
-  structureRef: behaverse:Trial
+  structureRef: cognitive:Trial
 Response_Item:
   type: ItemDefinition
-  structureRef: behaverse:Response
+  structureRef: cognitive:Response
 Demo5_OllamaBot:
   type: Process
   name: LLM bot (Ollama)

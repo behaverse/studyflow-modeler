@@ -258,7 +258,7 @@ Trial:
   itemRef: Trial_Item
 Trial_Item:
   type: ItemDefinition
-  structureRef: behaverse:Trial
+  structureRef: cognitive:Trial
 S:
   type: Process
   flowElements:
@@ -273,13 +273,13 @@ R:
     const xml = await xmlOf(text);
     expect(xml).toContain('messageRef="Trial"');
     expect(xml).toContain('<bpmn:message id="Trial" itemRef="Trial_Item" />');
-    expect(xml).toContain('<bpmn:itemDefinition id="Trial_Item" structureRef="behaverse:Trial" />');
-    // No element of the Behaverse skill is written, so only its message names the prefix, which the XML still declares.
-    expect(xml).toContain('xmlns:behaverse="http://behaverse.org/schemas/studyflow/behaverse"');
+    expect(xml).toContain('<bpmn:itemDefinition id="Trial_Item" structureRef="cognitive:Trial" />');
+    // No element of the cognitive skill is written, so only its message names the prefix, which the XML still declares.
+    expect(xml).toContain('xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"');
     const back = await yamlOf(xml);
     expect(back).toContain('messageRef: Trial\n');
     expect(back).toContain('Trial:\n  type: Message\n  itemRef: Trial_Item\n');
-    expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: behaverse:Trial\n');
+    expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: cognitive:Trial\n');
   });
 
   test('a conditional boundary event and a multi-instance marker keep their spelling through a round trip', async () => {

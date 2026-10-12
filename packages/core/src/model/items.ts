@@ -1,5 +1,5 @@
 /**
- * What a property, a data object or a message flow holds: an item definition (`behaverse:Trial`, `xsd:integer`), a
+ * What a property, a data object or a message flow holds: an item definition (`cognitive:Trial`, `xsd:integer`), a
  * root of the study made on first use, which a message flow carries through a `bpmn:Message` of its own.
  */
 import { idOf, isElement, type Element, type StudyModel } from '@core/model/index';

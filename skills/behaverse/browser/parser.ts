@@ -164,8 +164,8 @@ function poolsOf(model: StudyModel, element: Element): Element[] {
 }
 
 // The messages a task exchanges, as a message flow's `messageRef` → `itemRef` → `structureRef` names them.
-const TRIAL = 'behaverse:Trial';
-const RESPONSE = 'behaverse:Response';
+const TRIAL = 'cognitive:Trial';
+const RESPONSE = 'cognitive:Response';
 
 /** What a message flow carries: its message's item definition (`structureRef`), '' when it names none. */
 function messageStructureOf(model: StudyModel, flow: Element): string {

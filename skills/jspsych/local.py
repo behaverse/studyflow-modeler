@@ -45,7 +45,7 @@ from exchange import Exchange, data_inputs, exchange_flows, message_partners, op
 
 SCHEME = "jspsych://"
 # The messages a trial goes out as and its response comes back as, a message flow's `structureRef`.
-STRUCTURES = ("behaverse:Trial", "behaverse:Response")
+STRUCTURES = ("cognitive:Trial", "cognitive:Response")
 REPO = Path(__file__).resolve().parents[2]  # skills/jspsych/local.py
 PAGE = Path(__file__).with_name("stage.html")
 # Seconds a browser has to fetch the stage once it is opened: past that, it never will.

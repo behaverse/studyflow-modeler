@@ -14,7 +14,7 @@ import chromium  # noqa: E402
 import exchange  # noqa: E402
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
-STRUCTURES = ("behaverse:Trial", "behaverse:Response")
+STRUCTURES = ("cognitive:Trial", "cognitive:Response")
 
 
 def task(**element):

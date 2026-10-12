@@ -23,15 +23,6 @@ enumerations:
       - name: BDM (Behaverse Data Model)
         value: bdm
         icon: iconify bi--hexagon
-  - extends: studyflow:MessageStructureEnum
-    description: Add trial and reponse messages to the list of message structures.
-    literalValues:
-      - name: One Trial
-        value: behaverse:Trial
-        description: One awaiting trial, from the task to participants (contains stimulus, response options, response window, and screenshot).
-      - name: One Response
-        value: behaverse:Response
-        description: The response to a trial, from participant to task.
   - name: InstrumentEnum
     description: A task of the Behaverse battery, by its id (BDM `instrument_id`).
     literalValues:

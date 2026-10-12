@@ -42,7 +42,7 @@ the runner SDK finds for any runner's page (`packages/runtime-local/python/chrom
 
 A trial goes to the actor through the runner SDK's exchange (`packages/runtime-local/python/exchange.py`), as a
 Behaverse task's trial does, along the task's own message flows, else its enclosing sub-process's, else its pool's,
-carrying a `behaverse:Trial` and bringing back a `behaverse:Response` (or naming no message), so one pair of flows at
+carrying a `cognitive:Trial` and bringing back a `cognitive:Response` (or naming no message), so one pair of flows at
 pool level carries a study's jsPsych and Behaverse trials alike. The message is the task's data inputs (the
 `agentic:Prompt` wired into it), then `TrialIndex` (its place in its block, from 0), `Stimulus` (the text its markup
 shows), `ResponseOptions` and `MaxResponseTime`, the seconds it has to answer (below). What the trial is, its condition

@@ -78,10 +78,10 @@ Response:
   itemRef: Response_Item
 Trial_Item:
   type: ItemDefinition
-  structureRef: behaverse:Trial
+  structureRef: cognitive:Trial
 Response_Item:
   type: ItemDefinition
-  structureRef: behaverse:Response
+  structureRef: cognitive:Response
 Request:
   type: Message
   itemRef: Request_Item

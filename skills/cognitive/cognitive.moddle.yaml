@@ -19,6 +19,15 @@ enumerations:
       - name: Psych-DS
         value: psych-ds
         icon: iconify ph--flask
+  - extends: studyflow:MessageStructureEnum
+    description: Adds a task's trial and its response to the message structures, whichever software plays the task.
+    literalValues:
+      - name: One Trial
+        value: cognitive:Trial
+        description: One awaiting trial, from the task to whoever takes it (its stimulus, the response options, the time to answer, and a screenshot when the task takes one).
+      - name: One Response
+        value: cognitive:Response
+        description: The response to a trial, from whoever takes the task back to it.
   - name: AllocationAlgorithmEnum
     description: How participants are allocated to arms.
     literalValues:

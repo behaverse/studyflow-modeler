@@ -312,12 +312,12 @@ P:
     Ask: { type: Task, bounds: 200 80 100 80 }
 `));
   const roots = (): string[] => study.model.study.roots.map((root) => `${root.type} ${root.id}`);
-  expect(study.call('item', { id: 'M_Ask', structure: 'behaverse:Trial' }).ok).toBe(true);
-  expect(study.call('item', { id: 'M_Again', structure: 'behaverse:Trial' }).ok).toBe(true);
-  expect(study.call('item', { id: 'Seen', structure: 'behaverse:Trial' }).ok).toBe(true);
+  expect(study.call('item', { id: 'M_Ask', structure: 'cognitive:Trial' }).ok).toBe(true);
+  expect(study.call('item', { id: 'M_Again', structure: 'cognitive:Trial' }).ok).toBe(true);
+  expect(study.call('item', { id: 'Seen', structure: 'cognitive:Trial' }).ok).toBe(true);
   // One item definition, one message, shared by both flows and the property.
-  expect(roots().filter((root) => /ItemDefinition|Message /.test(root))).toEqual(['bpmn:ItemDefinition ItemDefinition_behaverse_Trial', 'bpmn:Message Message_behaverse_Trial']);
-  expect(study.toYaml()).toContain('messageRef: Message_behaverse_Trial');
+  expect(roots().filter((root) => /ItemDefinition|Message /.test(root))).toEqual(['bpmn:ItemDefinition ItemDefinition_cognitive_Trial', 'bpmn:Message Message_cognitive_Trial']);
+  expect(study.toYaml()).toContain('messageRef: Message_cognitive_Trial');
   // The message goes with its last flow; what holds no item is refused.
   study.call('item', { id: 'M_Ask', structure: '' });
   study.call('item', { id: 'M_Again', structure: '' });

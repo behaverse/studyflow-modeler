@@ -190,7 +190,7 @@ const TOOLS = [
     attribute: { type: 'string', description: "Its name, as the document spells it: 'name', 'duration', 'cognitive:instrument', 'loopCharacteristics'." },
     value: { description: 'Any JSON value the attribute takes.' },
   }, ['id', 'attribute', 'value'], write(false, true)),
-  tool('item', "Say what a message flow carries, or what a property or a data object holds: `structure` names it (a schema type such as `behaverse:Trial`, or any text), and the document keeps one definition of each, made on first use. An empty `structure` says nothing of it.", {
+  tool('item', "Say what a message flow carries, or what a property or a data object holds: `structure` names it (a schema type such as `cognitive:Trial`, or any text), and the document keeps one definition of each, made on first use. An empty `structure` says nothing of it.", {
     id: ID,
     structure: { type: 'string' },
   }, ['id', 'structure'], write(false, true)),
