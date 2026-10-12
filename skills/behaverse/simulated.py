@@ -24,7 +24,8 @@ from typing import Any, Callable
 import yaml
 
 import local as behaverse  # the Unity build's runner, beside this file
-from runner import fill  # noqa: E402 - the runner SDK, which local.py puts on the path
+from exchange import Exchange, data_inputs, exchange_flows, message_partners, opened_this_run, record_context, records_uri  # noqa: E402 - the SDK, which local.py puts on the path
+from runner import Cancelled, fill  # noqa: E402 - the runner SDK
 
 # What a block may say beside its `Parameters`; anything else would change the trials in a way this build does not.
 BLOCK_KEYS = {"Name", "Parameters", "Trials", "TrialOrder", "ExitRules", "MinAccuracyRequired", "MaxRepeats", "Adapt",
@@ -356,12 +357,12 @@ class Session:
         rules, outcomes = exit_rules(block), []
         for index, trial in enumerate(trials):
             if self.step.cancelled:
-                raise behaverse.Cancelled(f"{self.step.id} was stopped")
+                raise Cancelled(f"{self.step.id} was stopped")
             request = f"{self.step.id}.{self.context['subject']}.{self.played}.{index}"  # the subject's own: never shared
             started = time.monotonic()
-            reply = self.exchange.ask({"RequestId": request, "TrialIndex": index, "Stimulus": trial["Stimulus"],
-                                       "ResponseOptions": trial["ResponseOptions"],
-                                       "MaxResponseTime": trial["MaxResponseTime"], "Scene": self.scene})
+            reply = behaverse.answer_of(self.exchange, {"RequestId": request, "TrialIndex": index, "Stimulus": trial["Stimulus"],
+                                                        "ResponseOptions": trial["ResponseOptions"],
+                                                        "MaxResponseTime": trial["MaxResponseTime"], "Scene": self.scene})
             response = reply.get("Response")
             scored = trial["condition"] != "BurnIn"
             correct = response is not None and response == trial["correct"]
@@ -401,19 +402,19 @@ def play(step: Any) -> dict[str, Any]:
     external = float(((parameters.get("Bot") or {}).get("MaxExternalResponseTime")) or 0)
     first = iter([trials_of(scene, block, step, 0, external) for block in blocks])
 
-    flow, _ = behaverse.trial_flows(element, plan)
-    partner = ", ".join((plan.get(p) or {}).get("name") or p for p in behaverse.message_partners(element, plan))
-    exchange = behaverse.Exchange(step, flow, partner, behaverse.data_inputs(element, state, plan))
+    flow, _ = exchange_flows(element, plan, behaverse.STRUCTURES)
+    partner = ", ".join((plan.get(p) or {}).get("name") or p for p in message_partners(element, plan, behaverse.STRUCTURES))
+    exchange = Exchange(step, flow, partner, data_inputs(element, state, plan))
     step.run_dir.mkdir(parents=True, exist_ok=True)
-    events = step.run_dir / behaverse.events_uri(element, plan)
+    events = step.run_dir / records_uri(element, plan)
     events.parent.mkdir(parents=True, exist_ok=True)
-    if not behaverse.opened_this_run(step.cache, events):
+    if not opened_this_run(step.cache, events):
         events.unlink(missing_ok=True)
     with events.open("a") as file:
         # The plan holds the study's seed as text; the build records a task's seed as a number.
         seed = int(step.seed) if str(step.seed).lstrip("-").isdigit() else 0
         session = Session(step, scene, {"id": scene, "timelineName": name, "seed": seed}, exchange, file,
-                          behaverse.trial_context(element, plan, state))
+                          record_context(element, plan, state))
         session.write("TaskStart", types=["TaskEvent", "TaskStart"])
         for place, entry in enumerate(entries):
             if isinstance(entry, Page):

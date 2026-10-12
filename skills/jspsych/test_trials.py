@@ -78,27 +78,27 @@ refused(lambda: trials.external_deadline({"MaxExternalResponseTime": 30}, "T"), 
 assert trials.deadline_of({"trial_duration": 2500}, None) == 2.5 and trials.deadline_of({"trial_duration": 2500}, 30.0) == 30.0
 assert trials.deadline_of({"trial_duration": None}, None) == trials.WAIT == 30.0 and trials.deadline_of({}, 12.0) == 12.0
 
-# The message is the Behaverse runner's: request id, place in the block, stimulus, options, and the deadline in seconds
-# the actor has. What the trial is and its right answer never go with it.
+# The message holds what any task's trial message holds: its place in the block, its stimulus, its options, and the
+# deadline in seconds the actor has. What the trial is and its right answer never go with it.
 asked = {"stimulus": "<p>X</p>", "choices": ["f", "j"], "trial_duration": 2500, "prompt": "<p>Press F</p>"}
-assert trials.message_of("T.1.2.0", 0, asked, {"Match": "f", "NonMatch": "j"}, 2.5) == {
-    "RequestId": "T.1.2.0", "TrialIndex": 0, "Stimulus": "X", "ResponseOptions": ["Match", "NonMatch"], "MaxResponseTime": 2.5}
-assert trials.message_of("T.1.2.1", 1, asked, {"f": "f"}, 30.0)["MaxResponseTime"] == 30.0
+assert trials.message_of(0, asked, {"Match": "f", "NonMatch": "j"}, 2.5) == {
+    "TrialIndex": 0, "Stimulus": "X", "ResponseOptions": ["Match", "NonMatch"], "MaxResponseTime": 2.5}
+assert trials.message_of(1, asked, {"f": "f"}, 30.0)["MaxResponseTime"] == 30.0
 
-# The reply's option becomes the key it presses (or the button's place), with its time in ms; any other reply, or none
-# in time (the exchange's `{}`), is no response.
+# The option the answer names becomes the key it presses (or the button's place), with its time in ms; no option, or
+# none in time (the exchange's None), is no response.
 OFFERED = {"Match": "f", "NonMatch": "j"}
-assert trials.answer_of({"Response": "Match", "Agent": "Actor"}, OFFERED, 812.4) == {"response": "f", "rt": 812}
-assert trials.answer_of({}, OFFERED, 3000) == {"response": None, "rt": None}
-assert trials.answer_of({"Response": "Maybe"}, OFFERED, 10) == {"response": None, "rt": None}
-assert trials.answer_of({"Response": "Yes"}, {"Yes": 0, "No": 1}, 10) == {"response": 0, "rt": 10}
+assert trials.answer_of("Match", OFFERED, 812.4) == {"response": "f", "rt": 812}
+assert trials.answer_of(None, OFFERED, 3000) == {"response": None, "rt": None}
+assert trials.answer_of("Maybe", OFFERED, 10) == {"response": None, "rt": None}
+assert trials.answer_of("Yes", {"Yes": 0, "No": 1}, 10) == {"response": 0, "rt": 10}
 # Given longer by the task settings, an answer later than the trial's window reaches jsPsych at the window's end, which
 # its own check keeps; one inside the window keeps its time. Without the settings it goes as it came, and jsPsych's check
 # drops it as later than the trial's `trial_duration`.
-assert trials.answer_of({"Response": "Match"}, OFFERED, 7300.2, window=2500) == {"response": "f", "rt": 2500}
-assert trials.answer_of({"Response": "Match"}, OFFERED, 800.0, window=2500) == {"response": "f", "rt": 800}
-assert trials.answer_of({"Response": "Match"}, OFFERED, 7300.2) == {"response": "f", "rt": 7300}
-assert trials.answer_of({"Response": "Match"}, OFFERED, 7300.2, window=None) == {"response": "f", "rt": 7300}
+assert trials.answer_of("Match", OFFERED, 7300.2, window=2500) == {"response": "f", "rt": 2500}
+assert trials.answer_of("Match", OFFERED, 800.0, window=2500) == {"response": "f", "rt": 800}
+assert trials.answer_of("Match", OFFERED, 7300.2) == {"response": "f", "rt": 7300}
+assert trials.answer_of("Match", OFFERED, 7300.2, window=None) == {"response": "f", "rt": 7300}
 
 # The record is the battery's: jsPsych's data say what was answered (a response it dropped as later than the trial's
 # window is none), the option names the response, the right answer is compared as jsPsych compares keys, and the time is

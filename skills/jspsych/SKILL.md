@@ -38,21 +38,22 @@ by a timer that runs while it thinks, a simulated actor's whole session takes se
 jsPsych's, whose own check drops a response later than its `trial_duration`, unless the task settings give the actor
 longer (below). Driving a page's keys in real time (through Playwright, say) would time the actor against the
 protocol's display clock and add a Node and browser download to a runner that is a uv script; the Chromium is the one
-the Behaverse runner already opens.
+the runner SDK finds for any runner's page (`packages/runtime-local/python/chromium.py`).
 
-A trial goes to the actor as the Behaverse runner sends one, along the task's own message flows, else its enclosing
-sub-process's, else its pool's, carrying a `behaverse:Trial` and bringing back a `behaverse:Response` (or naming no
-message), so one pair of flows at pool level carries a study's jsPsych and Behaverse trials alike. The message is the
-task's data inputs (the `agentic:Prompt` wired into it), then `TrialIndex` (its place in its block, from 0),
-`Stimulus` (the text its markup shows), `ResponseOptions` and `MaxResponseTime`, the seconds it has to answer (below).
-What the trial is, its condition and its right answer never go with it, as they never show on the screen; neither does
-the plugin's `prompt`, which names keys: what a trial asks for is the prompt wired into the task. The options are
-those `ResponseOptions` names, a mapping at the top of the Parameters from each option to the key it presses (`{Match:
-f, NonMatch: j}`), which the runner reads and never hands jsPsych; without it, the trial's `choices` themselves, keys
-or a button plugin's labels. A reply that names one, whole and in any case, as the Behaverse runner reads a reply, is
-the trial's response: that key, or that button's place, at the time it took. Any other reply, or none in time, leaves
-the trial unanswered, and nothing stands in for it. A trial that lists no choices (`NO_KEYS`, `ALL_KEYS`, a plugin
-with none) offers nothing: jsPsych records it with no response, and the actor never sees it.
+A trial goes to the actor through the runner SDK's exchange (`packages/runtime-local/python/exchange.py`), as a
+Behaverse task's trial does, along the task's own message flows, else its enclosing sub-process's, else its pool's,
+carrying a `behaverse:Trial` and bringing back a `behaverse:Response` (or naming no message), so one pair of flows at
+pool level carries a study's jsPsych and Behaverse trials alike. The message is the task's data inputs (the
+`agentic:Prompt` wired into it), then `TrialIndex` (its place in its block, from 0), `Stimulus` (the text its markup
+shows), `ResponseOptions` and `MaxResponseTime`, the seconds it has to answer (below). What the trial is, its condition
+and its right answer never go with it, as they never show on the screen; neither does the plugin's `prompt`, which names
+keys: what a trial asks for is the prompt wired into the task. The options are those `ResponseOptions` names, a mapping
+at the top of the Parameters from each option to the key it presses (`{Match: f, NonMatch: j}`), which the runner reads
+and never hands jsPsych; without it, the trial's `choices` themselves, keys or a button plugin's labels. A reply that
+names one, whole and in any case, as the SDK reads a reply (`option_named`), is the trial's response: that key, or that
+button's place, at the time it took. Any other reply, or none in time, leaves the trial unanswered, and nothing stands
+in for it. A trial that lists no choices (`NO_KEYS`, `ALL_KEYS`, a plugin with none) offers nothing: jsPsych records it
+with no response, and the actor never sees it.
 
 The task settings say how a task plays for an actor that is not a person, while the protocol keeps its human timing,
 as they do for a Behaverse task. The plan hands a runner the Parameters wired into a step merged into one
@@ -65,31 +66,32 @@ seconds the actor has for every trial, in place of the trial's `trial_duration`;
 Written at the top of the Parameters, `MaxExternalResponseTime` would reach jsPsych as a trial parameter and change no
 deadline, so it stops the task before it starts. A trial is sent, as its `MaxResponseTime`, that setting, else its
 `trial_duration`, else 30 s (for a trial that waits however long it takes), and its answer counts when it comes in
-that time, as the Behaverse runner's exchange times it (a quarter of a second short of it, and never under a second).
+that time, as the SDK's exchange times it (a quarter of a second short of it, and never under a second).
 An answer later than the trial's `trial_duration` but within the setting reaches jsPsych at the end of the trial's
 window, its `rt` the `trial_duration`: the plugin's own check keeps it, the timing jsPsych plays and records stays the
 protocol's, and its data say what that protocol can say, a response within the window. The record keeps the actor's
 real latency in `result.responseTime`, which is when the answer came, beside jsPsych's row under `data`, whose `rt` is
 the window's end. Without the settings, the deadline is the trial's window, and jsPsych drops a later answer itself.
 
-Each trial the actor was sent becomes one `<task>.TrialEnd` record in the battery's shape, so one trial schema reads
-both tools, appended to the dataset the step's data output names (else `<id>.events.jsonl`; the first write of a run
-starts it): `trialContext.task.id`, the trial's `task`; `block`, `{id, name}`, the trial's `block` and the place of
-that run of trials among the blocks played, from 1; `trial`, `{id, indexInBlock}`, from 1; `condition`, the trial's
-`condition`; and `result`, `{isAnswered, isCorrect, response, responseTime}`, from jsPsych's own data, the authority
-on whether it was answered, with the option the response was and the actor's latency in seconds (above), `isCorrect`
-against the trial's `correct_response` as jsPsych compares keys (null without one, false when unanswered). A trial's
-`task`, `block`, `condition` and `correct_response` are its timeline variables, else the fields of its `data` (`data:
-{task: AXCPT}`); the task is the step's id when neither names one. The record keeps jsPsych's row under `data`, and
-the Behaverse runner's `context` stamp: the subject and the properties the dataset's schema names. The step's result
-is the Behaverse runner's, counted by its rule: `trials` answered, `events`, and `blocks`, `{block, trials, answered,
-unanswered, correct}`, block by block in the order played. Data, not policy: a study writes what it keeps of them into
-a property through the task's data edge (`unanswered`, from `sum(result.blocks[block in scored_blocks].unanswered) /
+Each trial the actor was sent becomes one `<task>.TrialEnd` record in the shape of the Behaverse Data Model, so one
+trial schema reads a study's jsPsych and Behaverse tasks alike, appended to the dataset the step's data output names
+(else `<id>.events.jsonl`; the first write of a run starts it, `records_uri` and `opened_this_run` in the SDK):
+`trialContext.task.id`, the trial's `task`; `block`, `{id, name}`, the trial's `block` and the place of that run of
+trials among the blocks played, from 1; `trial`, `{id, indexInBlock}`, from 1; `condition`, the trial's `condition`; and
+`result`, `{isAnswered, isCorrect, response, responseTime}`, from jsPsych's own data, the authority on whether it was
+answered, with the option the response was and the actor's latency in seconds (above), `isCorrect` against the trial's
+`correct_response` as jsPsych compares keys (null without one, false when unanswered). A trial's `task`, `block`,
+`condition` and `correct_response` are its timeline variables, else the fields of its `data` (`data: {task: AXCPT}`);
+the task is the step's id when neither names one. The record keeps jsPsych's row under `data`, and the SDK's `context`
+stamp (`record_context`): the subject and the properties the dataset's schema names. The step's result has the shape a
+Behaverse task's has, counted from its records: `trials` answered, `events`, and `blocks`, `{block, trials, answered,
+unanswered, correct}`, block by block in the order played. Data, not policy: a study writes what it keeps of them into a
+property through the task's data edge (`unanswered`, from `sum(result.blocks[block in scored_blocks].unanswered) /
 sum(result.blocks[block in scored_blocks].trials)`) and leaves the task on a conditional boundary event (`unanswered >
-max_unanswered`), as it does for a Behaverse task. jsPsych's draws (an order, a sample) are seeded by the study's
-seed, the step and the subject, and the step's record notes the jsPsych and plugin versions that played, where their
-builds came from (`--modules`, `$JSPSYCH_MODULES`, else this checkout's `node_modules`, when it holds them at the
-reference's versions; else unpkg, which serves the latest of a major), and that seed.
+max_unanswered`), as it does for a Behaverse task. jsPsych's draws (an order, a sample) are seeded by the study's seed,
+the step and the subject, and the step's record notes the jsPsych and plugin versions that played, where their builds
+came from (`--modules`, `$JSPSYCH_MODULES`, else this checkout's `node_modules`, when it holds them at the reference's
+versions; else unpkg, which serves the latest of a major), and that seed.
 
 `trials.py` is what a trial is to the actor and to the record; `test_trials.py` and `test_local.py` are the runner's
 self-checks, and `tests/jspsych-local.unit.spec.ts` plays an AX-CPT through it, its page in jsdom.

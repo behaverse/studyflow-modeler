@@ -1,8 +1,8 @@
-"""One check for the block counts, the context stamped on trials and the option a reply names; run it with
-`python3 skills/behaverse/test_local.py`."""
+"""One check for the block counts, the payload, who answers a task, what the runner claims, the stage's command line
+and a stopped task; run it with `python3 skills/behaverse/test_local.py`. The exchange along message flows and the
+records' file and stamp are the runner SDK's, checked by packages/runtime-local/python/test_exchange.py."""
 
 import importlib.util
-import json
 from pathlib import Path
 
 spec = importlib.util.spec_from_file_location("behaverse", Path(__file__).with_name("local.py"))
@@ -84,32 +84,8 @@ assert behaverse.block_counts(older) == [counts("Practice", 2, 0), counts("Test_
 assert behaverse.task_payload(task(timeline="{nback_order}"), auto=True, resolved={"timeline": "NBack_2back_first"})["timeline"] == "NBack_2back_first"
 assert behaverse.task_payload(task(timeline="{unset}"), auto=True, resolved={"timeline": "{unset}"})["timeline"] == "{unset}"
 
-# Every trial line says whose it is: the task's visit count (kept in the study's state, so a loop's iterations number the
-# subjects) and the properties in scope at the hand-off, an inner scope shadowing an outer one.
-plan = {"Play": task(), "Subject": {"type": "subProcess", "parent": "Study"}}
-state = {"state": {"Study": {"arm": "none", "site": "lux"}, "Subject": {"arm": "cautious"},
-                   "_meta": {"reached": {"Play": 3}}}}
-assert behaverse.trial_context(task(), plan, state) == {"subject": 3, "state": {"arm": "cautious", "site": "lux"}}
-assert behaverse.trial_context(task(), plan, {}) == {"subject": 1, "state": {}}
-# With a repeating activity around it, the subject is the instance that activity is on, not the task's own count:
-# both tasks of one subject stamp the same number, and a task played twice per subject stamps it twice.
-subjects = {"state": {"_meta": {"reached": {"Play": 7}, "instance": {"Subject": 2}}}}
-assert behaverse.trial_context(task(), plan, subjects)["subject"] == 2
-# A pool of several instances is the subject when nothing inside it repeats: the walk keeps its instance under the
-# participant's id. The fourth subject plays this task as the third to reach it, the first having left before it.
-in_pool = {"Play": task(), "Subject": {"type": "subProcess", "parent": "Study"},
-           "Participant_Subject": {"type": "participant", "attributes": {"processRef": "Study"}}}
-fourth = {"state": {"_meta": {"reached": {"Play": 3}, "instance": {"Participant_Subject": 4}}}}
-assert behaverse.trial_context(task(), in_pool, fourth)["subject"] == 4
-# What a trial carries under `context.state` is the study's to say: the properties the schema of the dataset the task
-# writes names as `context.state.<name>` columns; all of them in scope when no dataset it writes has a schema.
-SCHEMA = "tableSchema:\n  columns:\n    - {name: context.subject}\n    - {name: context.state.arm}\n"
-declared = {"Play": {**task(), "outputs": [{"target": "Trials"}]}, "Subject": {"type": "subProcess", "parent": "Study"},
-            "Trials": {"attributes": {}, "extensions": [{"type": "bdmDataset", "attributes": {"schema": "Trial_Schema"}}]},
-            "Trial_Schema": {"attributes": {}, "extensions": [{"type": "schema", "attributes": {"body": SCHEMA}}]}}
-assert behaverse.trial_context(declared["Play"], declared, state) == {"subject": 3, "state": {"arm": "cautious"}}
-
-# A task inside a sub-process talks along the sub-process's message flows when it draws none of its own.
+# A task inside a sub-process is answered along the sub-process's message flows when it draws none of its own: the
+# SDK finds them (`exchange_flows`, held to its rules in packages/runtime-local/python/test_exchange.py).
 def flow(fid, source, target):
     return (fid, {"id": fid, "type": "messageFlow", "attributes": {"sourceRef": source, "targetRef": target}})
 
@@ -118,67 +94,12 @@ nested = {"Play": task(), "Subject": {"id": "Subject", "type": "subProcess", "pa
           "Model": {"id": "Model", "type": "participant", "extensions": [
               {"namespace": behaverse.STUDYFLOW, "type": "actor", "attributes": {"actorType": "llm", "implementation": "ollama://gemma4"}}]},
           **dict([flow("M_Trial", "Subject", "Model"), flow("M_Answer", "Model", "Subject")])}
-assert behaverse.talking_scope(task(), nested) == "Subject"
-assert behaverse.trial_flows(task(), nested) == ("M_Trial", "M_Answer")
 assert behaverse.answered_by(task(), nested, auto=False) == "messages"
-# Its own flows win: nothing is inherited then.
-own = {**nested, **dict([flow("M_Own", "Play", "Model"), flow("M_Back", "Model", "Play")])}
-assert behaverse.talking_scope(task(), own) == "Play"
-assert behaverse.trial_flows(task(), own) == ("M_Own", "M_Back")
-
-# A task drawn straight in a pool, lane or no lane, talks along the pool's own message flows.
-pooled = {"Play": {**task(), "parent": "Example_Study"}, "Model": nested["Model"],
-          "Study": {"id": "Study", "type": "participant", "attributes": {"processRef": "Example_Study"}},
-          **dict([flow("M_Trial", "Study", "Model"), flow("M_Answer", "Model", "Study")])}
-assert behaverse.talking_scope(pooled["Play"], pooled) == "Study"
-assert behaverse.trial_flows(pooled["Play"], pooled) == ("M_Trial", "M_Answer")
-# The pool also sends the cohort's once-only message to a step in another pool ("all subjects complete"). It names no
-# message, so the flows that carry a trial and a response outrank it, as they do in `message_partners`.
-def typed(fid, source, target, message):
-    return (fid, {"id": fid, "type": "messageFlow", "attributes": {"sourceRef": source, "targetRef": target, "messageRef": message}})
-
-
-cohort = {**pooled, "A0": {"id": "A0", "type": "startEvent", "parent": "Analysis_Report"},
-          "Trial": {"type": "message", "attributes": {"itemRef": "Trial_Item"}},
-          "Trial_Item": {"type": "itemDefinition", "attributes": {"structureRef": behaverse.TRIAL}},
-          "Response": {"type": "message", "attributes": {"itemRef": "Response_Item"}},
-          "Response_Item": {"type": "itemDefinition", "attributes": {"structureRef": behaverse.RESPONSE}},
-          **dict([typed("M_Trial", "Study", "Model", "Trial"), typed("M_Answer", "Model", "Study", "Response"),
-                  flow("M_Done", "Study", "A0")])}
-assert behaverse.trial_flows(cohort["Play"], cohort) == ("M_Trial", "M_Answer")
-
-# Its dataset the same way: one edge on the sub-process is where every task inside it deposits its trials.
-trials = {**nested, "Dataset": {"id": "Dataset", "attributes": {"uri": "data/trials.jsonl"}}}
-trials["Subject"] = {**trials["Subject"], "outputs": [{"target": "Dataset"}]}
-assert behaverse.events_uri(task(), trials) == "data/trials.jsonl"
-assert behaverse.events_uri(task(), nested) == "Play.events.jsonl"  # nobody draws one
-own_dataset = {**trials, "Own": {"id": "Own", "attributes": {"uri": "play.jsonl"}}}
-assert behaverse.events_uri({**task(), "outputs": [{"target": "Own"}]}, own_dataset) == "play.jsonl"
-# Every trial carries the task's data inputs too, so the prompt wired into it reaches whoever answers.
-assert behaverse.data_inputs({"inputs": [{"source": "Instructions"}, {"source": "Knobs"}]}, {"Knobs": {"n": 1}}) == {
-    "Instructions": None, "Knobs": {"n": 1}}
-# ...but not the Parameters wired in: they configure the build, and would reach the actor as noise.
-configured = {"Protocol": {"id": "Protocol", "type": "dataObjectReference",
-                           "extensions": [{"namespace": "x", "type": "Parameters", "attributes": {}}]}}
-assert behaverse.data_inputs({"inputs": [{"source": "Instructions"}, {"source": "Protocol"}]}, {}, configured) == {"Instructions": None}
-# One drawn dataset, two tasks, four subjects: the first write of a run starts the file, the rest append, and a
-# later run starts it again.
-import os  # noqa: E402
-import tempfile  # noqa: E402
-
-with tempfile.TemporaryDirectory() as folder:
-    cache, events = Path(folder), Path(folder) / "data" / "trials.jsonl"
-    os.environ["STUDYFLOW_RUN_PID"] = "111"
-    assert behaverse.opened_this_run(cache, events) is False  # the first task truncates
-    assert behaverse.opened_this_run(cache, events) is True   # the second appends, and so does every later subject
-    assert behaverse.opened_this_run(cache, Path(folder) / "Other.events.jsonl") is False  # its own file, its own start
-    os.environ["STUDYFLOW_RUN_PID"] = "222"
-    assert behaverse.opened_this_run(cache, events) is False  # the next run starts it again
+assert behaverse.actor_of(task(), nested) == {"kind": "llm", "model": "ollama://gemma4"}
 # The stage window runs at full speed even when it is occluded or on another Space.
 argv = behaverse.stage_argv("chrome", "http://127.0.0.1:1/", "/tmp/profile")
 assert argv[:2] == ["chrome", "--app=http://127.0.0.1:1/"], argv
-assert {"--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
-        "--disable-background-timer-throttling"} <= set(argv), argv
+assert set(behaverse.chromium.UNTHROTTLED) <= set(argv), argv
 print("ok")
 
 # The Unity runner plays the tasks set to the Unity build, checking the build first; one set to the Godot build stops
@@ -207,17 +128,12 @@ try:
 except ValueError as error:
     assert "Play is set to the Godot build" in str(error), error
 
-# The option a reply names, read as the browser's model bot reads one (tests/replies.json holds both to it); a send
-# task's one data input arrives as a mapping of one value.
-for reply, options, named in json.loads((Path(__file__).parent / "tests" / "replies.json").read_text(encoding="utf-8")):
-    assert behaverse.option_named(reply, options) == named, (reply, named)
-assert behaverse.option_named({"Answer": " match."}, ["Match", "NonMatch"]) == "Match"
-
 # A task the walk stops answers at once, so the walk never has to end this runner, and its window closes behind the
 # answer. A sleeping process stands in for the browser, and an empty folder for the build.
 import argparse  # noqa: E402
 import subprocess  # noqa: E402
 import sys  # noqa: E402
+import tempfile  # noqa: E402
 import threading  # noqa: E402
 import time  # noqa: E402
 

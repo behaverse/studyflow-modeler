@@ -16,7 +16,8 @@ browser, starts the task through the build's `RunCognitiveTask` entry point, and
 every `studyflow:Event` to the task's events file in the run directory, each answered trial to the
 terminal, and the completion, which becomes the element's `result`. Who answers is what the
 diagram draws. A task with message flows sends each awaiting trial along the one out of it and
-takes the answer back from the one into it (packages/runtime-local/CONTRACT.md, "Messages"); an answer that
+takes the answer back from the one into it (packages/runtime-local/CONTRACT.md, "Messages", through the SDK's
+`exchange.py`); an answer that
 names no option in time is no answer, and the trial's own window makes it a miss. Without flows,
 a person plays the task, or the build's own random bot does for a `software` actor whose
 `implementation` is `behaverse://bot`. `--option auto` gives every person's task to that bot, so a run needs
@@ -34,7 +35,6 @@ import json
 import mimetypes
 import os
 import shutil
-import string
 import subprocess
 import sys
 import tempfile
@@ -48,12 +48,20 @@ from urllib.parse import unquote
 
 sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
 from runner import Cancelled, Step, serve  # noqa: E402 - the runner SDK, beside the local runtime
+import chromium  # noqa: E402 - the SDK's Chromium, for the stage
+from exchange import (  # noqa: E402 - the SDK's exchange along message flows, and the records it stamps
+    Exchange, data_inputs, element_process, exchange_flows, message_partners, opened_this_run, pool_participants,
+    record_context, records_uri)
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 BEHAVERSE = "http://behaverse.org/schemas/studyflow/behaverse"
 BUILD_MOUNT = "/assessment-unity"
 # Who answers a task is the drawing's to say, never `Bot:`'s (the browser runner's types.ts `WHO_ANSWERS_KEYS`).
 WHO_ANSWERS_KEYS = ("ResponseSource", "LLM", "Prompt")
+# The messages this runner's task exchanges, as a message flow's `messageRef` → `itemRef` → `structureRef` names them:
+# a trial out of the task, and its response back.
+TRIAL, RESPONSE = "behaverse:Trial", "behaverse:Response"
+STRUCTURES = (TRIAL, RESPONSE)
 MIME ={".wasm": "application/wasm", ".data": "application/octet-stream", ".unityweb": "application/octet-stream",
         ".js": "application/javascript", ".json": "application/json"}
 
@@ -147,7 +155,7 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
 def answered_by(element: dict[str, Any], plan: dict[str, dict[str, Any]], auto: bool) -> str:
     """How the task's trials get answered here: `messages` along its message flows, `internal` by the build's own
     random bot, or `human`. Any other actor answers only along message flows, so drawing none of them is an error."""
-    if trial_flows(element, plan):
+    if exchange_flows(element, plan, STRUCTURES):
         return "messages"
     actor = actor_of(element, plan)
     if actor["kind"] in ("", "human"):
@@ -156,26 +164,6 @@ def answered_by(element: dict[str, Any], plan: dict[str, dict[str, Any]], auto: 
         return "internal"
     raise ValueError(f"{element.get('id')} is taken by a {actor['kind']} participant, which answers along message flows "
                      "in a local run: draw one carrying each trial out of the task and one bringing the answer back")
-
-
-def trial_flows(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> tuple[str, str] | None:
-    """The message flow the task sends its trials along and the one it takes the answers back from, when it has
-    them; `message_partners` has checked the directions and that there is one partner."""
-    if not message_partners(element, plan):
-        return None
-    element_id = talking_scope(element, plan)
-    ends = [(flow_id, (flow.get("attributes") or {}), message_structure(flow, plan)) for flow_id, flow in plan.items()
-            if flow.get("type") == "messageFlow"]
-    out = [(flow_id, structure) for flow_id, attrs, structure in ends if attrs.get("sourceRef") == element_id and structure in ("", TRIAL)]
-    back = [(flow_id, structure) for flow_id, attrs, structure in ends if attrs.get("targetRef") == element_id and structure in ("", RESPONSE)]
-    # A flow that names its message outranks one that does not, as in `message_partners`, so a pool's once-only untyped
-    # message to a step in another pool ("all subjects complete") is not the task's talk.
-    out = [flow_id for flow_id, structure in out if structure] or [flow_id for flow_id, _ in out]
-    back = [flow_id for flow_id, structure in back if structure] or [flow_id for flow_id, _ in back]
-    if len(out) != 1 or len(back) != 1:
-        raise ValueError(f"{element_id} sends its trials along one message flow and takes the answers back along one; "
-                         f"it has {len(out)} out and {len(back)} back")
-    return out[0], back[0]
 
 
 REACHY = "https://w3id.org/studyflow/reachy"
@@ -190,7 +178,7 @@ def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[s
     initiating = (element.get("attributes") or {}).get("initiatingParticipantRef")
     candidates = [p for p in element.get("participants") or [] if p != initiating]
     if not candidates:
-        candidates = message_partners(element, plan)
+        candidates = message_partners(element, plan, STRUCTURES)
     if not candidates:
         candidates = pool_participants(element_process(element, plan), plan)
     for participant_id in candidates:
@@ -201,123 +189,6 @@ def actor_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[s
             if ext.get("namespace") == STUDYFLOW and str(ext.get("type", "")).lower() == "actor":
                 return {"kind": str(attributes.get("actorType") or "human"), "model": str(attributes.get("implementation") or "")}
     return dict(EMPTY_ACTOR)
-
-
-def element_process(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
-    """The process the element belongs to: its `parent`, followed outward while the parent is itself an element."""
-    current = str(element.get("parent") or "")
-    while current in plan and plan[current].get("parent"):
-        current = str(plan[current]["parent"])
-    return current
-
-
-def pool_participants(process_id: str, plan: dict[str, dict[str, Any]]) -> list[str]:
-    """The participants whose pool holds the process."""
-    return [pid for pid, p in plan.items()
-            if p.get("type") == "participant" and (p.get("attributes") or {}).get("processRef") == process_id]
-
-
-# The messages this runner's task exchanges, as a message flow's `messageRef` → `itemRef` → `structureRef` names them.
-TRIAL, RESPONSE = "behaverse:Trial", "behaverse:Response"
-
-
-def message_structure(flow: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
-    """What a message flow carries: its message's item definition (`structureRef`), '' when it names none."""
-    message = plan.get(str((flow.get("attributes") or {}).get("messageRef") or "")) or {}
-    item = plan.get(str((message.get("attributes") or {}).get("itemRef") or "")) or {}
-    return str((item.get("attributes") or {}).get("structureRef") or "")
-
-
-CONTAINERS = {"subprocess", "adhocsubprocess", "transaction"}
-
-
-def talking_scope(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
-    """Whose message flows the task exchanges along: its own, else the nearest enclosing sub-process that has some,
-    else its pool's. A collapsed sub-process is the only place BPMN can draw a message flow to a task inside it, and
-    a pool's flows are the whole pool's, lanes and all (the walk routes them the same way, packages/core/src/engine
-    `messageScope`). A task with flows of its own inherits none."""
-    ends = {end for flow in plan.values() if flow.get("type") == "messageFlow"
-            for end in ((flow.get("attributes") or {}).get("sourceRef"), (flow.get("attributes") or {}).get("targetRef"))}
-    scope = str(element.get("id") or "")
-    while scope not in ends:
-        parent = str((plan.get(scope) or {}).get("parent") or "")
-        if str((plan.get(parent) or {}).get("type") or "").lower() not in CONTAINERS:
-            pool = next((pid for pid in pool_participants(element_process(element, plan), plan) if pid in ends), "")
-            return pool or str(element.get("id") or "")
-        scope = parent
-    return scope
-
-
-def message_partners(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> list[str]:
-    """The participants at the other end of the message flows touching the element: a pool itself, or the
-    pool of the step the flow ends at. A flow that names its message outranks one that does not, and counts
-    only when it carries a trial out of the task or a response back into it; more than one partner left is
-    an ambiguity to fix in the diagram, not an order to guess."""
-    typed: list[str] = []
-    untyped: list[str] = []
-    talking = talking_scope(element, plan)
-    for flow_id, flow in plan.items():
-        attrs = flow.get("attributes") or {}
-        if flow.get("type") != "messageFlow" or talking not in (attrs.get("sourceRef"), attrs.get("targetRef")):
-            continue
-        outgoing = attrs.get("sourceRef") == talking
-        structure = message_structure(flow, plan)
-        if structure and structure not in (TRIAL, RESPONSE):
-            continue  # another skill's exchange (a marker to an EEG pool, say)
-        if structure and (structure == TRIAL) != outgoing:
-            raise ValueError(f"message flow {flow_id!r} carries {structure} the wrong way: trials leave the task, responses come back")
-        other = attrs["targetRef"] if outgoing else attrs.get("sourceRef")
-        end = plan.get(str(other)) or {}
-        found = [str(other)] if end.get("type") == "participant" else pool_participants(element_process(end, plan), plan)
-        into = typed if structure else untyped
-        into += [pid for pid in found if pid not in into]
-    partners = typed or untyped
-    if len(partners) > 1:
-        raise ValueError(f"{element.get('id')} exchanges messages with {', '.join(partners)}: name the message each flow "
-                         f"carries (messageRef, {TRIAL} or {RESPONSE}), or keep one partner")
-    return partners
-
-
-def output_scope(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    """Whose data output associations the task writes through: its own, else the nearest enclosing sub-process that
-    has some — the climb `talking_scope` makes, for the same reason. One edge on a collapsed sub-process is where a
-    study draws the dataset every task inside it fills. A task with outputs of its own inherits none."""
-    current = element
-    while not (current.get("outputs") or []):
-        parent = plan.get(str(current.get("parent") or ""))
-        if str((parent or {}).get("type") or "").lower() not in CONTAINERS:
-            return element
-        current = parent
-    return current
-
-
-def events_uri(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
-    """Where the task's events go: the `uri` of a data element its output edge targets, its enclosing sub-process's
-    when it draws none of its own, else `<id>.events.jsonl`."""
-    for binding in output_scope(element, plan).get("outputs") or []:
-        uri = ((plan.get(str(binding.get("target"))) or {}).get("attributes") or {}).get("uri")
-        if uri and not str(uri).endswith("/"):
-            return str(uri)
-    return f"{element['id']}.events.jsonl"
-
-
-def opened_this_run(cache: Path, events: Path) -> bool:
-    """Whether this run has already written this events file. Several tasks may deposit their trials in one drawn
-    dataset, and a task may play once per subject in a loop: the first to write it in a run starts it empty, the
-    rest append. The run is the walk's pid (`STUDYFLOW_RUN_PID`, packages/runtime-local/CONTRACT.md), so a later run truncates
-    again. ponytail: two pools writing one dataset at the same instant may both think they are first."""
-    marker = cache / "events.written.json"
-    run = os.environ.get("STUDYFLOW_RUN_PID", "")
-    try:
-        written = json.loads(marker.read_text())
-    except (OSError, ValueError):
-        written = {}
-    if written.get(str(events)) == run:
-        return True
-    written[str(events)] = run
-    cache.mkdir(parents=True, exist_ok=True)
-    marker.write_text(json.dumps(written))
-    return False
 
 
 class Trials:
@@ -360,108 +231,6 @@ def block_counts(trials: Trials) -> list[dict[str, Any]]:
         if block["correct"] is not None:
             block["correct"] = None if correct is None else block["correct"] + bool(correct)
     return list(blocks.values())
-
-
-def attributes_of(element: dict[str, Any]) -> dict[str, Any]:
-    """An element's attributes and those of its extension entries (a dataset's `schema`, a schema's `body`)."""
-    held: dict[str, Any] = {}
-    for ext in element.get("extensions") or []:
-        held.update(ext.get("attributes") or {})
-    return {**held, **(element.get("attributes") or {})}
-
-
-def recorded_state(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> set[str] | None:
-    """The properties the task's records keep under `context.state`: those the schema of a dataset the task writes
-    names as `context.state.<name>` columns, so what a trial carries is the study's to say. None when no dataset the
-    task writes has a schema."""
-    names: set[str] | None = None
-    for binding in element.get("outputs") or []:
-        dataset = plan.get(str(binding.get("target"))) or {}
-        schema = plan.get(str(attributes_of(dataset).get("schema") or "")) or {}
-        body = attributes_of(schema).get("body")
-        if not isinstance(body, str) or not body.strip():
-            continue
-        import yaml  # the schema is a YAML (CSVW) text
-        columns = ((yaml.safe_load(body) or {}).get("tableSchema") or {}).get("columns") or []
-        names = (names or set()) | {str(column.get("name"))[len("context.state."):] for column in columns
-                                    if isinstance(column, dict) and str(column.get("name", "")).startswith("context.state.")}
-    return names
-
-
-def trial_context(element: dict[str, Any], plan: dict[str, dict[str, Any]], state: dict[str, Any]) -> dict[str, Any]:
-    """What this run knows about the task's trials beside what the build records: which subject, and the properties in
-    scope at the hand-off, innermost last, as many of them as the schema of the dataset the task writes names under
-    `context.state` (`recorded_state`), or all of them when it has none. The subject is the instance the nearest repeating scope around the task is on
-    (`state._meta.instance`, 1-based): an enclosing activity, else the pool of several instances whose process holds it
-    (kept under its participant's id). So every task of one subject stamps the same number, whichever subjects left
-    before reaching it, and a task played twice per subject stamps it twice; with no repeating scope around it, the
-    task's own visit count, which the study's state keeps."""
-    tree = state.get("state") or {}
-    meta = tree.get("_meta") or {}
-    scopes: list[str] = []
-    scope = str(element.get("id") or "")
-    while scope:
-        scopes.append(scope)
-        scope = str((plan.get(scope) or {}).get("parent") or "")
-    held: dict[str, Any] = {}
-    for scope in reversed(scopes):  # outward in, so an inner scope shadows an outer one
-        held.update(tree.get(scope) or {})
-    kept = recorded_state(element, plan)
-    if kept is not None:
-        held = {name: value for name, value in held.items() if name in kept}
-    instances = meta.get("instance") or {}
-    around = [*scopes[1:], *pool_participants(scopes[-1], plan)]  # the process's pool is the outermost
-    subject = next((instances[scope] for scope in around if scope in instances),
-                   (meta.get("reached") or {}).get(element.get("id"), 1))
-    return {"subject": subject, "state": held}
-
-
-def option_named(content: Any, options: list[str]) -> str | None:
-    """The option an answer is: its text, or the one value of a mapping (a send task's one data input), matched
-    whole and without case. An answer that only mentions an option names none ("NonMatch" holds "Match")."""
-    if isinstance(content, dict) and len(content) == 1:
-        content = next(iter(content.values()))
-    text = str(content or "").strip(string.whitespace + "`\"'.").lower()
-    return next((option for option in options if option.lower() == text), None)
-
-
-def data_inputs(element: dict[str, Any], state: dict[str, Any], plan: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
-    """What rides with every trial beside the trial itself: the task's data inputs by source id, each with the value
-    this run bound for it, else null — as an unclaimed activity sends its own (packages/runtime-local/CONTRACT.md, "Messages").
-    That is how the `agentic:Prompt` wired into the task reaches the pool that answers. A `studyflow:Parameters` wired in
-    is left out: it configures the build, which the payload already carries, and says nothing to whoever answers."""
-    elements = plan or {}
-
-    def configures(source: str) -> bool:
-        return any(str(ext.get("type") or "").lower() == "parameters" for ext in (elements.get(source) or {}).get("extensions") or [])
-
-    return {source: state.get(source) for binding in element.get("inputs") or []
-            if (source := binding.get("source")) and not configures(source)}
-
-
-class Exchange:
-    """The task's end of its message flows (packages/runtime-local/CONTRACT.md, "Messages"): each awaiting trial goes out along
-    the trial flow, and the answer that names it (`inReplyTo`) comes back."""
-
-    def __init__(self, step: Step, flow: str, agent: str, inputs: dict[str, Any] | None = None) -> None:
-        self.step, self.flow, self.agent, self.lock = step, flow, agent, threading.Lock()
-        self.inputs = inputs or {}
-
-    def ask(self, trial: dict[str, Any]) -> dict[str, Any]:
-        """The trial's answer as the page injects it, or {} when none names an option within the response window. The
-        message carries the task's data inputs, then the trial as the page relays it (its stimulus, options and window),
-        less the build's request id, which only the page needs."""
-        request = str(trial.get("RequestId") or "")
-        options = [str(option) for option in trial.get("ResponseOptions") or []]
-        content = {**self.inputs, **{key: value for key, value in trial.items() if key != "RequestId" and value is not None}}
-        window = float(trial.get("MaxResponseTime") or 0)
-        with self.lock:  # one trial awaits its answer at a time
-            try:
-                message = self.step.ask(self.flow, content, id=request, timeout=max(1.0, window - 0.25) if window > 0 else 30.0)
-            except Cancelled:
-                return {}
-        choice = option_named(message.get("content"), options) if message else None
-        return {"Response": choice, "Agent": self.agent} if choice else {}
 
 
 # The stage: the build in a frame, exactly as the browser runner embeds it, and the template's
@@ -589,6 +358,17 @@ class Stage(ThreadingHTTPServer):
         self.lock = threading.Lock()
 
 
+def answer_of(exchange: Exchange, trial: dict[str, Any]) -> dict[str, Any]:
+    """The trial's answer as the page injects it, `{Response, Agent}`, or {} when none names one of its options within
+    its window. The message is the trial as the page relays it (its stimulus, options and window), less the build's
+    request id, which is the message's own id."""
+    request = str(trial.get("RequestId") or "")
+    options = [str(option) for option in trial.get("ResponseOptions") or []]
+    content = {key: value for key, value in trial.items() if key != "RequestId" and value is not None}
+    choice = exchange.ask(content, request, options, float(trial.get("MaxResponseTime") or 0))
+    return {"Response": choice, "Agent": exchange.partner} if choice else {}
+
+
 def tally(trials: Trials, event: dict[str, Any]) -> None:
     """One event, as the build's own record of a trial: `TrialStart` shows one, and a `Click` or a `TrialEnd` with a
     `responseTime` answers it. Both markers are the BDM envelope's (`trialContext.types`, `result`), not an
@@ -664,7 +444,7 @@ class StageHandler(BaseHTTPRequestHandler):
             return self.reply(400, b"invalid JSON")
         server = self.server
         if self.path == "/respond":
-            answer = server.exchange.ask(body) if server.exchange and isinstance(body, dict) else {}
+            answer = answer_of(server.exchange, body) if server.exchange and isinstance(body, dict) else {}
             return self.reply(200, json.dumps(answer).encode(), "application/json")
         if self.path == "/event":
             # The run's own context rides on every event: the build records the trial, this says whose it is.
@@ -686,19 +466,10 @@ class StageHandler(BaseHTTPRequestHandler):
         self.reply(204)
 
 
-CHROMIUM_APPS = (
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
-    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-    "google-chrome", "chromium", "chromium-browser",
-)
-
-
 def open_stage(url: str) -> subprocess.Popen | None:
     """Open the stage in a browser of its own: a Chromium in app mode with a throwaway profile, full screen,
     that this runner can close when the task is done. Without one, the default browser opens a tab."""
-    binary = next((app for app in CHROMIUM_APPS if Path(app).is_file() or shutil.which(app)), None)
+    binary = chromium.find()
     if binary is None:
         webbrowser.open(url)
         return None
@@ -709,31 +480,11 @@ def open_stage(url: str) -> subprocess.Popen | None:
 
 
 def stage_argv(binary: str, url: str, profile: str) -> list[str]:
-    """The browser's command line. The three `--disable-*` flags keep the task at full speed when its window is
-    occluded or on another Space: Chrome throttles such a window to 1 fps while Unity keeps stepping, so every
-    timed phase stretches to a second of wall clock whatever `Bot.Speed` says."""
+    """The browser's command line. `chromium.UNTHROTTLED` keeps the task at full speed when its window is occluded or
+    on another Space: Chrome throttles such a window to 1 fps while Unity keeps stepping, so every timed phase would
+    stretch to a second of wall clock whatever `Bot.Speed` says."""
     return [binary, f"--app={url}", f"--user-data-dir={profile}", "--start-fullscreen", "--no-first-run",
-            "--no-default-browser-check", "--autoplay-policy=no-user-gesture-required",
-            "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding",
-            "--disable-background-timer-throttling"]
-
-
-def profile_of(browser: subprocess.Popen) -> str:
-    return next(arg.split("=", 1)[1] for arg in browser.args if str(arg).startswith("--user-data-dir="))
-
-
-def close_stage(stage: Stage, browser: subprocess.Popen | None) -> None:
-    """Close the task's window, stop serving it, and throw the window's profile away."""
-    if browser is not None:
-        browser.terminate()
-    stage.shutdown()
-    if browser is None:
-        return
-    try:
-        browser.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        browser.kill()
-    shutil.rmtree(profile_of(browser), ignore_errors=True)
+            "--no-default-browser-check", "--autoplay-policy=no-user-gesture-required", *chromium.UNTHROTTLED]
 
 
 REPO = Path(__file__).resolve().parents[2]  # skills/behaverse/local.py
@@ -762,21 +513,21 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     build = checked_build(args.build)
     # The run directory, not its `.cache`: the local runtime sweeps the cache when the run ends.
     step.run_dir.mkdir(parents=True, exist_ok=True)
-    events = step.run_dir / events_uri(element, plan)
+    events = step.run_dir / records_uri(element, plan)
     events.parent.mkdir(parents=True, exist_ok=True)
     if not opened_this_run(step.cache, events):
         events.unlink(missing_ok=True)
     exchange = None
     if along_messages(payload):
-        trials, _ = trial_flows(element, plan) or ("", "")
-        partner = ", ".join((plan.get(p) or {}).get("name") or p for p in message_partners(element, plan))
-        exchange = Exchange(step, trials, partner, data_inputs(element, state, plan))
-    stage = Stage(args.port, build, stage_page(payload), events, exchange, trial_context(element, plan, state))
+        flow, _ = exchange_flows(element, plan, STRUCTURES) or ("", "")
+        partner = ", ".join((plan.get(p) or {}).get("name") or p for p in message_partners(element, plan, STRUCTURES))
+        exchange = Exchange(step, flow, partner, data_inputs(element, state, plan))
+    stage = Stage(args.port, build, stage_page(payload), events, exchange, record_context(element, plan, state))
     threading.Thread(target=stage.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{stage.server_port}/"
     print(f"□ {element.get('name') or element['id']}: {payload['scene']} / {payload['timeline']} ({payload['agentType']}) — {url}", flush=True)
     if exchange:
-        print(f"    each trial goes along {exchange.flow} to {exchange.agent}, and its answer comes back", flush=True)
+        print(f"    each trial goes along {exchange.flow} to {exchange.partner}, and its answer comes back", flush=True)
     browser = None if args.no_browser else open_stage(url)
     deadline = time.monotonic() + args.timeout if args.timeout else None
     try:
@@ -788,13 +539,13 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     except BaseException:
         # Stopped or failed: the walk hears at once, and the window closes behind the answer, on a thread the process
         # does not exit before.
-        threading.Thread(target=close_stage, args=(stage, browser)).start()
+        threading.Thread(target=chromium.close, args=(stage, browser)).start()
         raise
     # The completion notice stays up for a moment before the window goes, unless the walk stops the step meanwhile.
     shown = time.monotonic() + 1.0
     while browser is not None and time.monotonic() < shown and not step.cancelled:
         time.sleep(0.1)
-    close_stage(stage, browser)
+    chromium.close(stage, browser)
     completion = stage.completion
     if not completion.get("IsCompleted"):
         raise RuntimeError(f"the task stopped before the end: {completion or 'no detail'}")

@@ -63,7 +63,8 @@ function normalizeReply(raw: string): string {
 }
 
 /** The option the reply is, whole and without case; a reply that only mentions one names none ("NonMatch" holds "Match").
- * The local runner reads a reply the same way (skills/behaverse/local.py's option_named, held to tests/replies.json). */
+ * The local runners read a reply the same way (the runner SDK's `option_named`, held to
+ * packages/runtime-local/python/replies.json). */
 export function matchResponseOption(raw: string, options: string[]): string | undefined {
   const reply = normalizeReply(raw).toLowerCase();
   return options.find((option) => option.toLowerCase() === reply);

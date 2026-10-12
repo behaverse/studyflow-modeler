@@ -90,20 +90,22 @@ refused(lambda: performed({"choices": ["f", "j"], "MaxExternalResponseTime": 30}
 # data jsPsych keeps for it. The request id is the step's, the subject's, the block's (from 1) and the trial's (from 0);
 # a new `block` starts the count again. A trial that offers nothing (a fixation) is neither asked nor recorded.
 class Asking:
+    """The SDK's exchange, as a session uses it: the message's content, its id, its options and its window go out, and
+    the option the answer names comes back (None for none)."""
     flow = "Msg_Trial"
 
     def __init__(self, replies, wait=0.0):
         self.replies, self.asked, self.wait = replies, [], wait
 
-    def ask(self, trial):
-        self.asked.append(trial)
+    def ask(self, content, id, options, window):  # noqa: A002 - the SDK's own field
+        self.asked.append({**content, "id": id, "options": options, "window": window})
         time.sleep(self.wait)  # the actor takes its time
         return self.replies.pop(0)
 
 
 with tempfile.TemporaryDirectory() as folder:
     events = Path(folder) / "trials.jsonl"
-    exchange = Asking([{"Response": "Match"}, {}, {"Response": "NonMatch"}])
+    exchange = Asking(["Match", None, "NonMatch"])
     session = local.Session(local.Step("AXCPT", {"elements": {}}, {}), exchange, {"Match": "f", "NonMatch": "j"},
                             {"subject": 2, "state": {"arm": "standard"}}, events)
 
@@ -116,8 +118,9 @@ with tempfile.TemporaryDirectory() as folder:
     assert session.respond(trial(2, "Test", "A", condition="Cue", correct_response="j")) == {"response": None, "rt": None}
     assert session.respond(trial(3, "Test", "X", condition="AX", correct_response="f"))["response"] == "j"
     # Without task settings, each is sent its own window, its `trial_duration`, as the deadline.
-    assert [(message["RequestId"], message["TrialIndex"], message["Stimulus"], message["MaxResponseTime"]) for message in exchange.asked] == [
-        ("AXCPT.2.1.0", 0, "A", 2.0), ("AXCPT.2.2.0", 0, "A", 2.0), ("AXCPT.2.2.1", 1, "X", 2.0)]
+    assert [(message["id"], message["TrialIndex"], message["Stimulus"], message["MaxResponseTime"], message["window"])
+            for message in exchange.asked] == [
+        ("AXCPT.2.1.0", 0, "A", 2.0, 2.0), ("AXCPT.2.2.0", 0, "A", 2.0, 2.0), ("AXCPT.2.2.1", 1, "X", 2.0, 2.0)]
     for index, response in ((0, "f"), (1, None), (2, None), (3, "j")):
         session.recorded({"index": index, "row": {"response": response, "rt": 5 if response else None}})
     lines = [json.loads(line) for line in events.read_text().splitlines()]
@@ -127,7 +130,7 @@ with tempfile.TemporaryDirectory() as folder:
     assert [line["result"]["isCorrect"] for line in lines] == [False, False, False]
     assert lines[0]["object"]["name"] == "AXCPT.TrialEnd" and lines[0]["context"] == {"subject": 2, "state": {"arm": "standard"}}
 
-    # What the trials came to, as the Behaverse runner counts its own: those answered, and each block's counts.
+    # What the trials came to: those answered, and each block's counts, in the shape a Behaverse task's result has.
     assert local.counts(session.records) == {"trials": 2, "blocks": [
         {"block": "Practice", "trials": 1, "answered": 1, "unanswered": 0, "correct": 0},
         {"block": "Test", "trials": 2, "answered": 1, "unanswered": 1, "correct": 0}]}
@@ -137,7 +140,7 @@ with tempfile.TemporaryDirectory() as folder:
 # keeps the time it took. Without the settings, the same answer goes as late as it came, for jsPsych to drop.
 with tempfile.TemporaryDirectory() as folder:
     def slow(external):
-        exchange = Asking([{"Response": "Match"}], wait=0.05)
+        exchange = Asking(["Match"], wait=0.05)
         session = local.Session(local.Step("AXCPT", {"elements": {}}, {}), exchange, {"Match": "f", "NonMatch": "j"},
                                 {"subject": 1, "state": {}}, Path(folder) / "slow.jsonl", external)
         answer = session.respond({"index": 0, "keys": True, "data": {}, "variables": {"block": "Test", "correct_response": "f"},

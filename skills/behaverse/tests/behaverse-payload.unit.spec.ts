@@ -321,6 +321,6 @@ test('against the build\'s manifest, an instrument or timeline it does not ship,
 
 test('a model\'s reply names an option whole and without case, the quotes and full stops around it aside, as the local runner reads it', () => {
   // [reply, options, the option it names]: the rows skills/behaverse/test_local.py holds option_named to as well.
-  const rows: [string, string[], string | null][] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'skills/behaverse/tests/replies.json'), 'utf8'));
+  const rows: [string, string[], string | null][] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'packages/runtime-local/python/replies.json'), 'utf8'));
   for (const [reply, options, named] of rows) expect(matchResponseOption(reply, options) ?? null, JSON.stringify(reply)).toBe(named);
 });

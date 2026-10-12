@@ -22,9 +22,9 @@ TIMELINE_KEYS = frozenset({"timeline_variables", "randomize_order", "repetitions
 # task settings for an actor that is not a person (`external_deadline`).
 RUNNER_KEYS = ("ResponseOptions", "Bot")
 # Seconds the actor has for a trial that waits however long it takes (no `trial_duration`) when the task settings give
-# it no deadline: as long as the Behaverse runner's exchange waits for such a trial.
+# it no deadline: as long as the SDK's exchange waits for a message that gives no time (`exchange.WAIT`).
 WAIT = 30.0
-# What a trial's record says it is, as the battery's records do (`skills/behaverse/simulated.py`).
+# What a trial's record says it is, as a record of the Behaverse Data Model says (`record_of`).
 TYPES = ["TaskEvent", "BlockEvent", "TrialEvent", "TrialEnd"]
 
 
@@ -66,9 +66,9 @@ def played(parameters: dict[str, Any]) -> dict[str, Any]:
 
 def external_deadline(parameters: dict[str, Any], element_id: str) -> float | None:
     """The seconds the actor has for every trial when the task settings give it a deadline of their own: the
-    `MaxExternalResponseTime` of the Parameters' `Bot` entry, above 0, as the Behaverse builds give an external responder
-    (`skills/behaverse/simulated.py`); None otherwise. The rest of `Bot` (`Speed`, `SkipInstructions`, ...) is the
-    Behaverse build's and means nothing to jsPsych. Written at the top of the Parameters instead, it would reach jsPsych
+    `MaxExternalResponseTime` of the Parameters' `Bot` entry, above 0, the setting the Behaverse build reads too, so
+    one settings object serves a study's tasks in both; None otherwise. The rest of `Bot` (`Speed`, `SkipInstructions`,
+    ...) is the Behaverse build's and means nothing to jsPsych. Written at the top of the Parameters instead, it would reach jsPsych
     as a trial parameter and leave every deadline the protocol's, so it is refused."""
     if "MaxExternalResponseTime" in parameters:
         raise ValueError(f"{element_id}: MaxExternalResponseTime is a task setting, not jsPsych's: write it under Bot:, as "
@@ -202,23 +202,22 @@ def text_of(markup: Any) -> Any:
     return "\n".join(line for line in lines if line)
 
 
-def message_of(request: str, index: int, parameters: dict[str, Any], options: dict[str, Any], deadline: float) -> dict[str, Any]:
-    """The trial as the actor is sent it, as the Behaverse runner sends one (`skills/behaverse/local.py`, `Exchange`):
-    its request id, its place in its block (`TrialIndex`, from 0), its stimulus as text, the options it offers, and the
-    seconds it has to answer (`MaxResponseTime`, `deadline_of`). What the trial is (its condition, its block) and its
-    right answer stay out of it, as they stay off the screen."""
-    return {"RequestId": request, "TrialIndex": index, "Stimulus": text_of(parameters.get("stimulus")),
-            "ResponseOptions": list(options), "MaxResponseTime": deadline}
+def message_of(index: int, parameters: dict[str, Any], options: dict[str, Any], deadline: float) -> dict[str, Any]:
+    """The trial as the actor is sent it, with the fields any task's trial message has: its place in its block
+    (`TrialIndex`, from 0), its stimulus as text, the options it offers, and the seconds it has to answer
+    (`MaxResponseTime`, `deadline_of`). What the trial is (its condition, its block) and its right answer stay out of
+    it, as they stay off the screen. The message's id is the session's (`local.py`)."""
+    return {"TrialIndex": index, "Stimulus": text_of(parameters.get("stimulus")), "ResponseOptions": list(options),
+            "MaxResponseTime": deadline}
 
 
-def answer_of(reply: dict[str, Any], options: dict[str, Any], latency: float, window: Any = None) -> dict[str, Any]:
-    """What jsPsych is told the participant did: the response the option the reply names makes (a key, or a button's
-    place) and its time in ms, from the message to the answer. A reply that names no option, or none in time (the
-    exchange's `{}`), is no response: both null. jsPsych's own check drops a response later than the trial's
+def answer_of(label: str | None, options: dict[str, Any], latency: float, window: Any = None) -> dict[str, Any]:
+    """What jsPsych is told the participant did: the response the option the actor's answer names makes (a key, or a
+    button's place) and its time in ms, from the message to the answer. An answer that names no option, or none in time
+    (the exchange's None), is no response: both null. jsPsych's own check drops a response later than the trial's
     `trial_duration`, which is the actor's deadline unless the task settings give it longer; then `window` is that
     `trial_duration`, and an answer later than it reaches jsPsych at the window's end, so the plugin keeps it while its
     data stay inside the trial's window. The real time is the record's (`record_of`)."""
-    label = reply.get("Response")
     if label not in options:
         return {"response": None, "rt": None}
     rt = round(latency)
@@ -233,8 +232,8 @@ def same(response: Any, correct: Any) -> bool:
 
 
 def record_of(trial: dict[str, Any], row: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
-    """A trial's record, in the battery's shape (`<TASK>.TrialEnd`, as `skills/behaverse/simulated.py` writes one), so
-    one trial schema reads both tools and the Behaverse runner's tally counts it: `trial` is what the runner knows of it
+    """A trial's record, in the shape of a record of the Behaverse Data Model (`<TASK>.TrialEnd`), so one trial schema
+    reads a study's jsPsych and Behaverse tasks alike: `trial` is what the runner knows of it
     (its task, block, numbering, condition, right answer, the options it offered and the actor's latency in ms), `row` is
     jsPsych's data for it, the authority on whether it was answered, and `context` the runner's stamp. The row rides
     along under `data`. `responseTime` is the actor's real latency in seconds, which may pass the trial's window when

@@ -12,9 +12,9 @@ A partial runner (packages/runtime-local/CONTRACT.md): it claims every step whos
 `jspsych://<plugin>@<version>`, and per hand-off serves a stage page (`stage.html`) and the jsPsych builds from a local
 port and opens the page in a headless Chromium, where jsPsych plays the step's timeline in its data-only simulation
 mode. The page asks this process for each trial's response: the trial goes along the task's message flow to the actor
-and the answer comes back (CONTRACT.md, "Messages"), through the Behaverse runner's exchange, records' file and stamp
-and block counts (`skills/behaverse/local.py`), so one actor, one trial schema and one result serve both. What a trial
-is to the actor and to the record is `trials.py`, beside this file.
+and the answer comes back (CONTRACT.md, "Messages"), through the runner SDK's exchange (`exchange.py`, which also says
+where the records go and stamps them), so a study's jsPsych and Behaverse tasks have one actor, one trial schema and
+one shape of result. What a trial is to the actor and to the record is `trials.py`, beside this file.
 
 The builds come from the `node_modules` folder `--modules` names (by default `$JSPSYCH_MODULES`, else this checkout's
 own) when it holds them at the reference's versions, else from unpkg, as in the browser runtime.
@@ -24,10 +24,8 @@ from __future__ import annotations
 
 import argparse
 import html
-import importlib.util
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -42,13 +40,12 @@ import trials  # beside this file: a jsPsych trial as the actor is sent it and a
 
 sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
 from runner import Cancelled, Step, serve  # noqa: E402 - the runner SDK, beside the local runtime
-
-# The Behaverse runner, whose exchange, records and block counts this one shares, as the simulated build does.
-_spec = importlib.util.spec_from_file_location("behaverse_local", Path(__file__).resolve().parents[1] / "behaverse" / "local.py")
-behaverse = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(behaverse)
+import chromium  # noqa: E402 - the SDK's Chromium, headless here
+from exchange import Exchange, data_inputs, exchange_flows, message_partners, opened_this_run, record_context, records_uri  # noqa: E402 - the SDK's exchange and records
 
 SCHEME = "jspsych://"
+# The messages a trial goes out as and its response comes back as, a message flow's `structureRef`.
+STRUCTURES = ("behaverse:Trial", "behaverse:Response")
 REPO = Path(__file__).resolve().parents[2]  # skills/jspsych/local.py
 PAGE = Path(__file__).with_name("stage.html")
 # Seconds a browser has to fetch the stage once it is opened: past that, it never will.
@@ -103,7 +100,7 @@ class Session:
     the trial's record, appended to the task's file. `external` is the seconds the task settings give the actor for
     every trial (`trials.external_deadline`), None when they give none."""
 
-    def __init__(self, step: Step, exchange: Any, options: dict[str, str] | None, context: dict[str, Any], events: Path,
+    def __init__(self, step: Step, exchange: Exchange, options: dict[str, str] | None, context: dict[str, Any], events: Path,
                  external: float | None = None) -> None:
         self.step, self.exchange, self.options, self.context, self.events = step, exchange, options, context, events
         self.external = external
@@ -133,7 +130,7 @@ class Session:
         request = f"{self.step.id}.{self.context['subject']}.{self.blocks}.{self.index}"
         deadline = trials.deadline_of(parameters, self.external)
         sent = time.monotonic()
-        reply = self.exchange.ask(trials.message_of(request, self.index, parameters, options, deadline))
+        label = self.exchange.ask(trials.message_of(self.index, parameters, options, deadline), request, list(options), deadline)
         latency = (time.monotonic() - sent) * 1000
         self.asked[body.get("index")] = {
             "task": trials.field("task", variables, data) or self.step.id, "block": block, "blockId": self.blocks,
@@ -141,7 +138,7 @@ class Session:
             "correct": trials.field("correct_response", variables, data), "options": options, "latency": latency,
         }
         # With the settings' deadline, an answer later than the trial's window reaches jsPsych at the window's end.
-        return trials.answer_of(reply, options, latency, parameters.get("trial_duration") if self.external else None)
+        return trials.answer_of(label, options, latency, parameters.get("trial_duration") if self.external else None)
 
     def recorded(self, body: dict[str, Any]) -> None:
         """The data jsPsych recorded for a trial the actor was asked: the trial's record. A trial that offered nothing
@@ -156,14 +153,20 @@ class Session:
 
 
 def counts(records: list[dict[str, Any]]) -> dict[str, Any]:
-    """What the task's trials came to, as the Behaverse runner counts its own (`skills/behaverse/local.py`,
-    `block_counts`): `trials`, those answered, and `blocks`, block by block in the order played, `{block, trials,
-    answered, unanswered, correct}`. Data, not policy: which blocks count, and what a study does about them, it writes in
-    FEEL over this list (`sum(result.blocks[block in scored_blocks].unanswered)`)."""
-    counted = behaverse.Trials()
+    """What the task's trials came to: `trials`, those answered, and `blocks`, block by block in the order played,
+    `{block, trials, answered, unanswered, correct}`, the block's name and how many of its trials the actor was sent,
+    answered, left unanswered and got right (null once a trial of it has no right answer). A Behaverse task's result
+    has the same shape, so a study reads both alike. Data, not policy: which blocks count, and what a study does about
+    them, it writes in FEEL over this list (`sum(result.blocks[block in scored_blocks].unanswered)`)."""
+    blocks: dict[Any, dict[str, Any]] = {}
     for record in records:
-        behaverse.tally(counted, record)
-    return {"trials": sum(record["result"]["isAnswered"] for record in records), "blocks": behaverse.block_counts(counted)}
+        name, result = record["trialContext"]["block"]["name"], record["result"]
+        block = blocks.setdefault(name, {"block": name, "trials": 0, "answered": 0, "unanswered": 0, "correct": 0})
+        block["trials"] += 1
+        block["answered" if result["isAnswered"] else "unanswered"] += 1
+        if block["correct"] is not None:
+            block["correct"] = None if result["isCorrect"] is None else block["correct"] + bool(result["isCorrect"])
+    return {"trials": sum(record["result"]["isAnswered"] for record in records), "blocks": list(blocks.values())}
 
 
 def stage_page(title: str, stage: dict[str, Any], sources: list[str]) -> bytes:
@@ -240,14 +243,13 @@ def headless_argv(binary: str, url: str, profile: str) -> list[str]:
     """The browser's command line: no window, a throwaway profile, and none of the throttling a page nobody looks at
     would otherwise get."""
     return [binary, "--headless=new", f"--user-data-dir={profile}", "--no-first-run", "--no-default-browser-check",
-            "--disable-background-timer-throttling", "--disable-renderer-backgrounding",
-            "--disable-backgrounding-occluded-windows", url]
+            *chromium.UNTHROTTLED, url]
 
 
 def open_stage(url: str) -> subprocess.Popen | None:
-    """The stage in a headless Chromium, found where the Behaverse runner looks for one; without one, in a tab of the
-    default browser, which any browser jsPsych runs in can play."""
-    binary = next((app for app in behaverse.CHROMIUM_APPS if Path(app).is_file() or shutil.which(app)), None)
+    """The stage in a headless Chromium (`chromium.find`); without one, in a tab of the default browser, which any
+    browser jsPsych runs in can play."""
+    binary = chromium.find()
     if binary is None:
         webbrowser.open(url)
         return None
@@ -263,14 +265,14 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
     parameters = dict(element.get("parameters") or {})
     options = trials.response_options(parameters, element["id"])
     external = trials.external_deadline(parameters, element["id"])
-    flows = behaverse.trial_flows(element, plan)
+    flows = exchange_flows(element, plan, STRUCTURES)
     if flows is None:
         raise ValueError(f"{element['id']} plays jsPsych trials, which a local run sends along message flows: draw one "
                          "carrying each trial out of the task and one bringing the answer back (a person plays it in the "
                          "browser runtime)")
-    partner = ", ".join((plan.get(p) or {}).get("name") or p for p in behaverse.message_partners(element, plan))
-    exchange = behaverse.Exchange(step, flows[0], partner, behaverse.data_inputs(element, state, plan))
-    context = behaverse.trial_context(element, plan, state)
+    partner = ", ".join((plan.get(p) or {}).get("name") or p for p in message_partners(element, plan, STRUCTURES))
+    exchange = Exchange(step, flows[0], partner, data_inputs(element, state, plan))
+    context = record_context(element, plan, state)
 
     played = trials.played(parameters)
     # jsPsych draws (an order, a sample) from the study's seed, the step and the subject: a re-run draws them again.
@@ -289,9 +291,9 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
 
     # The run directory, not its `.cache`: the local runtime sweeps the cache when the run ends.
     step.run_dir.mkdir(parents=True, exist_ok=True)
-    events = step.run_dir / behaverse.events_uri(element, plan)
+    events = step.run_dir / records_uri(element, plan)
     events.parent.mkdir(parents=True, exist_ok=True)
-    if not behaverse.opened_this_run(step.cache, events):
+    if not opened_this_run(step.cache, events):
         events.unlink(missing_ok=True)
     session = Session(step, exchange, options, context, events, external)
     server = Stage(args.port, stage_page(element.get("name") or element["id"], stage, sources), files, session)
@@ -315,9 +317,9 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
                 raise RuntimeError(f"no browser opened the stage within {LOAD_TIMEOUT:.0f}s ({url})")
     except BaseException:
         # Stopped or failed: the walk hears at once, and the browser closes behind the answer.
-        threading.Thread(target=behaverse.close_stage, args=(server, browser)).start()
+        threading.Thread(target=chromium.close, args=(server, browser)).start()
         raise
-    behaverse.close_stage(server, browser)
+    chromium.close(server, browser)
     if server.failure:
         raise RuntimeError(f"jsPsych stopped: {server.failure}")
     # What played: jsPsych's and the plugin's versions as the builds report them (unpkg serves the latest of a major), where
