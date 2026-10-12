@@ -1,0 +1,23 @@
+[
+  [
+    "the Parameters are the plugin's",
+    { "stimulus": "+", "choices": "NO_KEYS" },
+    { "type": "P", "stimulus": "+", "choices": "NO_KEYS" }
+  ],
+  [
+    "timeline variables make a timeline over them, each a trial parameter the Parameters do not set",
+    {
+      "timeline_variables": [{ "stimulus": "<<<<<", "correct_response": "f" }],
+      "randomize_order": true,
+      "repetitions": 2,
+      "choices": ["f", "j"],
+      "correct_response": "j"
+    },
+    {
+      "timeline_variables": [{ "stimulus": "<<<<<", "correct_response": "f" }],
+      "randomize_order": true,
+      "repetitions": 2,
+      "timeline": [{ "type": "P", "choices": ["f", "j"], "correct_response": "j", "stimulus": { "timelineVariable": "stimulus" } }]
+    }
+  ]
+]

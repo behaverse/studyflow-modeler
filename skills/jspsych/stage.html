@@ -1,0 +1,88 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>jsPsych · __TITLE__</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { display: grid; place-items: center; background: #fafaf9; color: #57534e; font: 15px system-ui, sans-serif; }
+</style>
+<p id="status">Loading jsPsych…</p>
+<div id="jspsych" hidden></div>
+<script>
+// The stage of one jspsych:// step in a local run (skills/jspsych/local.py fills in STAGE and the two builds below).
+// jsPsych plays the step's timeline in its data-only simulation mode: it runs the timeline (its variables, order,
+// repetitions, sampling), and each trial's plugin makes the trial's data from the response the runner brings back from
+// the study's actor. Nothing is drawn, and nothing waits but the actor.
+const STAGE = __STAGE__;
+const status = document.getElementById('status');
+const post = (route, body) => fetch(route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+let stopped = false;
+function fail(error) {
+  if (stopped) return;
+  stopped = true;
+  const message = String((error && error.message) || error);
+  status.textContent = `jsPsych stopped: ${message}`;
+  post('/failed', { message });
+}
+addEventListener('error', (event) => fail(event.error || event.message));
+addEventListener('unhandledrejection', (event) => fail(event.reason));
+</script>
+<script src="__CORE__" onerror="fail(`could not load ${this.src}`)"></script>
+<script src="__PLUGIN__" onerror="fail(`could not load ${this.src}`)"></script>
+<script>
+async function play() {
+  const { initJsPsych, ParameterType } = window.jsPsychModule;
+  const Plugin = window[STAGE.global];
+  if (!Plugin) throw new Error(`the ${STAGE.plugin} plugin set no ${STAGE.global}`);
+  if (typeof Plugin.prototype.simulate !== 'function') throw new Error(`the ${STAGE.plugin} plugin has no simulation mode, so no actor can answer its trials`);
+  const declared = Object.keys(Plugin.info.parameters);
+  // A plugin of keys takes a key; any other with choices, a button by its place.
+  const keys = Plugin.info.parameters.choices?.type === ParameterType.KEYS;
+  let current = -1;
+  // Each trial's data reach the runner before the next trial is asked about.
+  let reported = Promise.resolve();
+  const jsPsych = initJsPsych({
+    display_element: document.getElementById('jspsych'),
+    on_data_update: (row) => { const index = current; reported = reported.then(() => post('/data', { index, row })); },
+  });
+  const variable = (name) => { try { return jsPsych.evaluateTimelineVariable(name); } catch { return undefined; } };
+
+  // The step's plugin, each trial's response the actor's: what the trial shows and takes goes to the runner, which asks
+  // the actor and brings back the response and its time; the plugin's own simulation makes the trial's data from them.
+  class Answered {
+    static info = Plugin.info;
+
+    constructor(instance) { this.plugin = new Plugin(instance); }
+
+    trial() { throw new Error('a trial kept out of simulation (simulation_options: {simulate: false}) waits for a person, and no one is at this page'); }
+
+    async simulate(trial, mode, options, loaded) {
+      current += 1;
+      await reported;
+      const asked = {
+        index: current,
+        keys,
+        parameters: Object.fromEntries(declared.map((name) => [name, trial[name]])),
+        variables: Object.fromEntries(STAGE.variables.map((name) => [name, variable(name)])),
+        data: trial.data ?? null,
+      };
+      const answer = await (await post('/respond', asked)).json();
+      status.textContent = `${STAGE.plugin}: trial ${current + 1}`;
+      return this.plugin.simulate(trial, mode, { ...options, data: { ...(options && options.data), ...answer } }, loaded);
+    }
+  }
+
+  // The timeline as the runner wrote it, its trial's variables and plugin made jsPsych's own.
+  const node = STAGE.timeline.timeline ? STAGE.timeline.timeline[0] : STAGE.timeline;
+  for (const [name, value] of Object.entries(node)) {
+    if (value && typeof value === 'object' && Object.keys(value).join() === 'timelineVariable') node[name] = jsPsych.timelineVariable(value.timelineVariable);
+  }
+  node.type = Answered;
+  jsPsych.randomization.setSeed(STAGE.seed);
+  await post('/started', { jspsych: jsPsych.version(), plugin: Plugin.info.version });
+  await jsPsych.simulate([STAGE.timeline], 'data-only');
+  await reported;
+  status.textContent = 'Done: this page can be closed.';
+  await post('/finished', {});
+}
+if (!stopped) play().catch(fail);
+</script>

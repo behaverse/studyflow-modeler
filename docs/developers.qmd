@@ -83,6 +83,7 @@ Gateways decide which branch a run takes, and each kind decides differently:
 | `bpmn:StartEvent`, `bpmn:EndEvent` | consent link shape; completion-code coherence | consent screen; completion screen, code, redirect | reached and recorded, no screen |
 | `cognitive:Instruction`, `cognitive:Questionnaire` | empty content or instrument blocks the run | renders; writes the answer into scope | - |
 | `behaverse:Task` | checked against the assessment build's manifest | runs the assessment in the page | claimed by the `behaverse` skill's partial runner, which plays it in the Unity build |
+| An activity whose `implementation` is `jspsych://<plugin>@<version>` | a reference naming a jsPsych the runtime does not play stops the run before its first step | plays the plugin with the Parameters wired into it, a person answering | claimed by the `jspsych` skill's partial runner, which plays its timeline in jsPsych, headless, every trial answered along its message flows |
 | `cognitive:CognitiveTask`, plain `bpmn:Task` | - | generic screen, and a way forward; one that exchanges messages has none, and the walk sends and receives for it | - |
 | Any activity carrying `implementation` | reference grammar; literal arguments must be a mapping | shows the call it names | imports and calls it, binding the drawn data associations |
 | `bpmn:SubProcess` | - | walked one level in, its properties a scope of its own, re-entered on each pass | the same |

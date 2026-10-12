@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { expect, test } from '@playwright/test';
 
 import { timelineOf, trialOf } from '@skills/jspsych/browser/trial';
@@ -21,18 +24,8 @@ test('a reference names the plugin, and its version jsPsych\'s, which picks the 
 });
 
 test('the Parameters are the plugin\'s, and timeline variables a timeline over them', () => {
-  const variable = (name: string) => `<${name}>`;
-  expect(timelineOf('P', { stimulus: '+', choices: 'NO_KEYS' }, variable)).toEqual({ type: 'P', stimulus: '+', choices: 'NO_KEYS' });
-  expect(timelineOf('P', {
-    timeline_variables: [{ stimulus: '<<<<<', correct_response: 'f' }],
-    randomize_order: true,
-    repetitions: 2,
-    choices: ['f', 'j'],
-    correct_response: 'j',
-  }, variable)).toEqual({
-    timeline_variables: [{ stimulus: '<<<<<', correct_response: 'f' }],
-    randomize_order: true,
-    repetitions: 2,
-    timeline: [{ type: 'P', choices: ['f', 'j'], correct_response: 'j', stimulus: '<stimulus>' }],
-  });
+  // [label, Parameters, timeline]: the rows the local runner's timeline_of (skills/jspsych/test_trials.py) is held to too.
+  const rows: [string, Record<string, unknown>, unknown][] = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'skills/jspsych/tests/timelines.json'), 'utf8'));
+  const variable = (name: string) => ({ timelineVariable: name });
+  for (const [label, parameters, timeline] of rows) expect(timelineOf('P', parameters, variable), label).toEqual(timeline);
 });
