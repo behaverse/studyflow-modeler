@@ -31,12 +31,12 @@ A studyflow diagram replaces all these copies with one file. Each document you n
 
 You build a study (the main container of an experiment) in the [*modeler*](https://behaverse.org/studyflow-modeler/app) (open source, works offline in browser) or any other compatible app (e.g., BPMN editors). The elements you can use are the same as in BPMN: tasks, events, gateways, and flows. You can also add your own domain-specific elements (e.g., for cognitive scientists: questionnaire, cognitive tasks, brain imaging sessions, data analysis functions in Python). Then you describe each element using their metadata (e.g., a script to run, a data file to read, or a figure to produce).
 
-The file saves as a YAML file or an image with embedded metadata. From here, downstream *runners* can read the file and execute it in many environments, e.g., a web browser, a local Python env, on HPC, or a container. Or *projections* can read the file and produce a protocol document, a Gantt chart, a figure, or a checklist. Additionally, the file can be versioned in Git and all the provenance of the runs can be stored in the file itself, so you can see what ran, when, and by whom.
+The file saves as a YAML file or an image with embedded metadata. From here, downstream *runners* can read the file and execute it in many environments, e.g., a web browser, a local Python env, on HPC, or a container. Or *projections* can read the file and produce a protocol document, a schedule, a figure, or a checklist. Additionally, the file can be versioned in Git and all the provenance of the runs can be stored in the file itself, so you can see what ran, when, and by whom.
 
 Here is the same diagram as above, projected into three different views: a timeline, a checklist, and a provenance log.
 
 ::: {layout-ncol=3}
-![Timeline: when each part happens](assets/img/views/gantt.png){#figs-timeline fig-alt="A Gantt View dialog with rows grouped under Enrolment, Post-allocation, and Close-out, each a labelled bar on a shared horizontal time axis."}
+![Timeline: when each part happens](assets/img/views/schedule.png){#figs-timeline fig-alt="A Schedule View dialog with rows grouped under Enrolment, Post-allocation, and Close-out, each a labelled bar on a shared horizontal time axis."}
 
 ![Checklist: what is reported, and what is still open](assets/img/views/checklist.png){#figs-checklist fig-alt="A dialog titled Checklist View reading 0 of 52 items complete, with one card per element listing unticked SPIRIT reporting items."}
 

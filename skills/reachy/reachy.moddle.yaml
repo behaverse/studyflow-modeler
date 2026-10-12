@@ -333,7 +333,7 @@ types:
           order: 9
           unit: rad
       # Timing.
-      # Not `duration`: the Scheduling trait already puts a Gantt `duration` on every activity.
+      # Not `duration`: the Scheduling trait already puts a schedule `duration` on every activity.
       - name: motionDuration
         description: How long the motion takes.
         isAttr: true

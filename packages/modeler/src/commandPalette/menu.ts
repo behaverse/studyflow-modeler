@@ -143,11 +143,11 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       action: () => openDialog('checklist'),
     },
     {
-      id: 'view-gantt',
+      id: 'view-schedule',
       group: 'View',
-      label: 'View as Gantt...',
-      icon: ICONS.gantt,
-      action: () => openDialog('gantt'),
+      label: 'View as Schedule...',
+      icon: ICONS.schedule,
+      action: () => openDialog('schedule'),
     },
     {
       id: 'view-manuscript',

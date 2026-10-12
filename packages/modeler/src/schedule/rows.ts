@@ -145,7 +145,7 @@ function checklistProgress(model: StudyModel, element: Element): { pct: number; 
  * The row for `record`, whose element `model` holds, or null when it schedules nothing; `always` gives a container
  * one for the rows inside it. `external`: its caption sits beside it.
  */
-function buildGanttRow(record: ElementRecord, model: StudyModel, anchor: number, external: boolean, always = false): Row | null {
+function buildScheduleRow(record: ElementRecord, model: StudyModel, anchor: number, external: boolean, always = false): Row | null {
   const element = model.get(record.id) ?? { type: record.type, id: record.id };
   const attrs = readTimingAttrs(model, element);
   if (!always && !ATTR_NAMES.some((k) => attrs[k] !== undefined)) return null;
@@ -210,7 +210,7 @@ function summarize(group: Row, children: Row[]): void {
  * One row per element carrying a timing attribute, and one per container (sub-process, lane, pool) holding
  * any, in tree order: a container's rows follow it. Onsets are relative to a single shared anchor.
  */
-export function collectGanttRows(modeler: Editor): Row[] {
+export function collectScheduleRows(modeler: Editor): Row[] {
   const { study } = modeler;
   const records = study.list();
   const { model } = study;
@@ -220,7 +220,7 @@ export function collectGanttRows(modeler: Editor): Row[] {
   const anchor = Date.now();
   const add = (record: ElementRecord, always: boolean): Row | null => {
     const row = rows.get(record.id)
-      ?? buildGanttRow(record, model, anchor, captioned.has(record.id), always);
+      ?? buildScheduleRow(record, model, anchor, captioned.has(record.id), always);
     if (!row) return null;
     // The enclosing container (and its own) is a row too, so this one has a parent to fold under.
     const container = groupOf(record, byId);
@@ -330,7 +330,7 @@ export function ancestorsOf(rows: readonly Row[]): Map<string, string[]> {
   return of;
 }
 
-export type GanttLayout = {
+export type ScheduleLayout = {
   /** The rows drawn: none under a folded group. */
   visible: Row[];
   /** The earliest onset and the latest end, in minutes; none when no row has an onset, and bars then start at the axis. */
@@ -351,7 +351,7 @@ export type GanttLayout = {
  * axis under them all: the rows `collapsed` leaves drawn, a bar each on one scale after a label column `labelW` wide,
  * across an axis `chartW` wide.
  */
-export function layoutGantt(rows: readonly Row[], ancestors: ReadonlyMap<string, string[]>, collapsed: ReadonlySet<string>, labelW: number, chartW: number): GanttLayout {
+export function layoutSchedule(rows: readonly Row[], ancestors: ReadonlyMap<string, string[]>, collapsed: ReadonlySet<string>, labelW: number, chartW: number): ScheduleLayout {
   const visible = rows.filter((r) => !ancestors.get(r.id)!.some((id) => collapsed.has(id)));
   const onsets = rows.map((r) => r.onsetMin).filter((v): v is number => v !== undefined);
   const ends = rows.map((r) => (r.onsetMin !== undefined ? r.onsetMin + (r.durationMin ?? 0) : undefined)).filter((v): v is number => v !== undefined);

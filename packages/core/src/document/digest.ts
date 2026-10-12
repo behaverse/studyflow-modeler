@@ -12,7 +12,7 @@ const RUN_RECORD = 'prov:Activity';
  */
 const DRAWING = new Set(['icon', 'laneSets']);
 
-/** What a run or an audit fills in on a plan rather than plans: a Gantt `progress`; a checklist's ticks, below. */
+/** What a run or an audit fills in on a plan rather than plans: a Schedule view's `progress`; a checklist's ticks, below. */
 const RECORDED = new Set(['progress']);
 
 /** A checklist as planned: its items, every tick cleared, so ticking one off after the run is not a new protocol. */

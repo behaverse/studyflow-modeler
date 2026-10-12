@@ -40,7 +40,7 @@ checklist
 : Todo items carried on any element. The Checklist view shows what is done (e.g., reported) and what is still to be done (e.g., missing data). The checklist is a *projection* of the diagram. The main use case is to keep track of what is done and what is still to be done, and to make sure that the study is complete and reproducible.
 
 projection (or view)
-: A different representation of the diagram. Projections are not a new diagram, but a different way to look at the same diagram. They are codes that visualize some aspects of the studyflow diagram by keeping some elements/attributes of the diagram. A projection never adds or renames, so it cannot modify the study. Currently, five projections are supported: Study, Gantt, Checklist, Provenance, and Figure.
+: A different representation of the diagram. Projections are not a new diagram, but a different way to look at the same diagram. They are codes that visualize some aspects of the studyflow diagram by keeping some elements/attributes of the diagram. A projection never adds or renames, so it cannot modify the study. Currently, five projections are supported: Study, Schedule, Checklist, Provenance, and Figure.
 
 ## Running a study
 

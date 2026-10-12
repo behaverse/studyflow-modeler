@@ -18,7 +18,7 @@ export type PaletteDialogId =
   | 'open'
   | 'save'
   | 'checklist'
-  | 'gantt'
+  | 'schedule'
   | 'manuscript'
   | 'provenance';
 

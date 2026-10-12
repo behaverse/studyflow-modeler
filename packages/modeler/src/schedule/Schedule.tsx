@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
-import { OPEN_H, PITCH, ROW_H, ROW_PAD, ancestorsOf, axisTicks, collectGanttRows, dependencyPath, layoutGantt, tickLabel } from '@modeler/gantt/rows';
+import { OPEN_H, PITCH, ROW_H, ROW_PAD, ancestorsOf, axisTicks, collectScheduleRows, dependencyPath, layoutSchedule, tickLabel } from '@modeler/schedule/rows';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
 import { ICONS } from '@modeler/icons';
@@ -32,9 +32,9 @@ function textWidth(text: string, font: string): number {
   return measurer.measureText(text).width;
 }
 
-export function GanttDialog({ isOpen, onClose }: Props) {
+export function ScheduleDialog({ isOpen, onClose }: Props) {
   const modeler = useModeler();
-  const rows = useMemo(() => (isOpen ? collectGanttRows(modeler) : []), [isOpen, modeler]);
+  const rows = useMemo(() => (isOpen ? collectScheduleRows(modeler) : []), [isOpen, modeler]);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const toggle = (id: string) => setCollapsed((prev) => {
     const next = new Set(prev);
@@ -62,7 +62,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
   // Half a tick label past the axis end, so the last label is whole.
   const chartW = Math.max(MIN_CHART_W, bodyW - labelW - TICK_W / 2);
 
-  const { visible, scale, at, bars, axisY, height, bands, edges } = layoutGantt(rows, ancestors, collapsed, labelW, chartW);
+  const { visible, scale, at, bars, axisY, height, bands, edges } = layoutSchedule(rows, ancestors, collapsed, labelW, chartW);
   const ticks = scale ? axisTicks(scale.min, scale.max, Math.max(2, Math.floor(chartW / TICK_W))) : [];
   const labelOf = new Map(rows.map((r) => [r.id, r.label]));
 
@@ -70,7 +70,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Gantt View"
+      title="Schedule View"
       size="lg"
       help={<DialogHelp>
                 Every element carrying an <code>onset</code>, <code>duration</code>, or <code>progress</code>, laid out on one schedule.
@@ -85,10 +85,10 @@ export function GanttDialog({ isOpen, onClose }: Props) {
             ) : (
               <div ref={bodyRef} className={`${d.panelBody} pr-2`}>
                 <div className="overflow-x-auto">
-                  <svg width={labelW + chartW + TICK_W / 2} height={height} role="img" aria-label="Gantt chart">
+                  <svg width={labelW + chartW + TICK_W / 2} height={height} role="img" aria-label="Schedule chart">
                     <defs>
                       {/* The canvas's directed-association head, in the stroke of the path that carries it, small enough to sit in the gap between two rows. */}
-                      <marker id="gantt-arrow" markerWidth={7} markerHeight={7} refX={6} refY={3.5} orient="auto" markerUnits="userSpaceOnUse">
+                      <marker id="schedule-arrow" markerWidth={7} markerHeight={7} refX={6} refY={3.5} orient="auto" markerUnits="userSpaceOnUse">
                         <path d="M1,1 L6,3.5 L1,6" fill="none" stroke="context-stroke" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
                       </marker>
                     </defs>
@@ -108,7 +108,7 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                     ))}
                     {/* An arrow in its source's colour but lighter, so it reads as that bar's continuation without competing with it. */}
                     {edges.map((e) => (
-                      <path key={e.key} d={dependencyPath(e.a, e.b)} fill="none" stroke={e.a.stroke} strokeWidth={1.5} opacity={0.55} markerEnd="url(#gantt-arrow)">
+                      <path key={e.key} d={dependencyPath(e.a, e.b)} fill="none" stroke={e.a.stroke} strokeWidth={1.5} opacity={0.55} markerEnd="url(#schedule-arrow)">
                         <title>{labelOf.get(e.to)} after {labelOf.get(e.from)}</title>
                       </path>
                     ))}
@@ -156,13 +156,13 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                           {outline ? (
                             <>
                               <path d={outline} fill={fill} stroke={stroke} strokeWidth={1.5} strokeLinejoin="round" />
-                              <clipPath id={`gantt-bar-${r.id}`}><path d={outline} /></clipPath>
+                              <clipPath id={`schedule-bar-${r.id}`}><path d={outline} /></clipPath>
                             </>
                           ) : (
                             <rect x={x} y={y} width={w} height={ROW_H} fill={fill} stroke={stroke} strokeWidth={1.5} rx={3} />
                           )}
                           {progressW > 0 && (
-                            <rect x={x} y={y} width={progressW} height={h + (outline ? 6 : 0)} fill={stroke} rx={outline ? 0 : 3} clipPath={outline ? `url(#gantt-bar-${r.id})` : undefined} />
+                            <rect x={x} y={y} width={progressW} height={h + (outline ? 6 : 0)} fill={stroke} rx={outline ? 0 : 3} clipPath={outline ? `url(#schedule-bar-${r.id})` : undefined} />
                           )}
                           {/* The figure, when the bar has room for it: in the bar's ink, and in its paper where it crosses the filled part. */}
                           {r.progressText && w >= textWidth(r.progressText, `10px ${fontFamily}`) + 8 && (
@@ -170,10 +170,10 @@ export function GanttDialog({ isOpen, onClose }: Props) {
                               <text {...figureAt(x + w / 2, y + h / 2)} fill={stroke}>{r.progressText}</text>
                               {progressW > 0 && (
                                 <>
-                                  <clipPath id={`gantt-done-${r.id}`}>
+                                  <clipPath id={`schedule-done-${r.id}`}>
                                     <rect x={x} y={y} width={progressW} height={h} />
                                   </clipPath>
-                                  <text {...figureAt(x + w / 2, y + h / 2)} fill={fill} clipPath={`url(#gantt-done-${r.id})`}>
+                                  <text {...figureAt(x + w / 2, y + h / 2)} fill={fill} clipPath={`url(#schedule-done-${r.id})`}>
                                     {r.progressText}
                                   </text>
                                 </>

@@ -6,7 +6,7 @@ import { SCHEMAS } from './schemas';
 import { addPaletteElement, gotoModeler, openCommandPalette, runPaletteCommand } from './utils';
 
 test.describe('Studyflow modeler smoke', () => {
-  test('loads the modeler shell, whose Gantt view opens from the command palette', async ({ page }) => {
+  test('loads the modeler shell, whose Schedule view opens from the command palette', async ({ page }) => {
     await gotoModeler(page);
 
     await expect(page.getByRole('button', { name: /command palette/i })).toBeVisible();
@@ -25,11 +25,11 @@ test.describe('Studyflow modeler smoke', () => {
     await expect(page.getByTestId('inspector-root')).toBeVisible();
     await expect(page.getByTestId('modeler-loading')).toHaveCount(0);
 
-    await runPaletteCommand(page, /gantt/i);
-    const gantt = page.getByRole('heading', { name: /gantt/i });
-    await expect(gantt).toBeVisible();
+    await runPaletteCommand(page, /schedule/i);
+    const schedule = page.getByRole('heading', { name: /schedule/i });
+    await expect(schedule).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(gantt).toBeHidden();
+    await expect(schedule).toBeHidden();
   });
 
   test('Settings: Auto-save off drops the kept copy, a skill switched off leaves the palette on reload, and a reset or a clear the browser cannot store still applies, with one warning', async ({ page }) => {

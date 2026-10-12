@@ -107,7 +107,7 @@ test('the drawing, the run state and the run records leave the digest alone; the
     // The canvas files a shape into the lane it is dropped in.
     ['a shape moves into another lane', (text) => swap('[Gate, Done, Retry]', '[Play, Gate, Done, Retry]')(swap('[Start, Play]', '[Start]')(text)), false],
     ['a run stamps state and per-element records', RUN, false],
-    // An audit after the run: a checklist item ticked off, a Gantt progress filled in.
+    // An audit after the run: a checklist item ticked off, a Schedule view progress filled in.
     ['a checklist item ticked', swap('- [ ] Settings wired in', '- [x] Settings wired in'), false],
     ['a progress', swap('name: Play the task', 'name: Play the task\n      progress: done'), false],
     // How `studyflow run` keeps the executed copy: through BPMN XML and back, which respells the schema's JSON as YAML.

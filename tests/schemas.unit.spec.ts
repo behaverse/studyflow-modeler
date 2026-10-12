@@ -118,7 +118,7 @@ test('every template reads as studyflow with no warnings, is rooted on a BPMN el
     .toMatchObject({ bpmnType: 'bpmn:Participant', extensionType: 'eeg:Session', iconClass: expect.stringMatching(/^iconify \S+--/) });
 });
 
-// A cognitive task is a choreography task, not a bpmn:Activity, and a battery still puts each on the Gantt.
+// A cognitive task is a choreography task, not a bpmn:Activity, and a battery still puts each on the Schedule view.
 test('a cognitive task takes an onset and a duration like any activity', () => {
   const warnings: string[] = [];
   const elements = {
@@ -128,10 +128,10 @@ test('a cognitive task takes an onset and a duration like any activity', () => {
   expect(warnings).toEqual([]);
 });
 
-test('the inspector tabs are General, one per other schema, Documentation, Gantt, Data and Execution', () => {
+test('the inspector tabs are General, one per other schema, Documentation, Schedule, Data and Execution', () => {
   const others = catalog.schemas.filter((schema) => schema.prefix !== 'studyflow').map((schema) => schema.name);
   const categories = catalog.categories();
-  expect(categories.map((category) => category.name)).toEqual(['General', ...others, 'Documentation', 'Gantt', 'Data', 'Execution']);
+  expect(categories.map((category) => category.name)).toEqual(['General', ...others, 'Documentation', 'Schedule', 'Data', 'Execution']);
   expect(categories.filter((category) => category.synthetic).map((category) => category.name), 'drawn by a section of its own')
     .toEqual(['Execution']);
   // An attribute that names no tab files under its schema's own; studyflow's and BPMN's under General.

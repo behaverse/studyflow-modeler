@@ -85,7 +85,7 @@ A view is a projection. It keeps some of the elements of the diagram and drops t
 | View | Keeps | Answers |
 |:--|:--|:--|
 | **Study** | everything | what happens, in what order, where the path splits |
-| **Gantt** | elements with `onset`, `duration`, or `progress` | when each part happens, and how long it takes |
+| **Schedule** | elements with `onset`, `duration`, or `progress` | when each part happens, and how long it takes |
 | **Checklist** | elements with a checklist entry | what has been reported, and what is still open |
 | **Provenance** | the `prov:Activity` entries | what ran, when, by whom, with which seed |
 | **Figure** | the elements marked visible | what a reader should see |

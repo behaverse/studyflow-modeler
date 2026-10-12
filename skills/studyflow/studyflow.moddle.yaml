@@ -24,7 +24,7 @@ categories:
   - name: Documentation
     order: 20
     description: Notes, checklist, tags, and registration records.
-  - name: Gantt
+  - name: Schedule
     order: 30
     description: Where the element sits on the schedule.
   - name: Data
@@ -399,21 +399,21 @@ types:
         type: String
         meta:
           categories:
-            - Gantt
+            - Schedule
       - name: duration
         description: How long it lasts (`30min`, `PT1H`).
         isAttr: true
         type: String
         meta:
           categories:
-            - Gantt
+            - Schedule
       - name: progress
         description: 'How far along it is: a percentage or a label (`done`).'
         isAttr: true
         type: String
         meta:
           categories:
-            - Gantt
+            - Schedule
   - name: ChoreographyTask
     description: One interaction between two participants.
     extends:

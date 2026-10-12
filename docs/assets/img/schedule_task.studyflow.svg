@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="sf-canvas" viewBox="368 216 296 148" width="296" height="148"><metadata><bpmn:definitions xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:studyflow="http://behaverse.org/schemas/studyflow/v1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="schedule-task" targetNamespace="http://bpmn.io/schema/bpmn" xsi:schemaLocation="http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd">
+  <bpmn:process id="Study_1" name="schedule_task" isExecutable="false">
+    <bpmn:extensionElements>
+      <studyflow:study>
+        <studyflow:state>{"_meta":{"prov":[{"action":"created","when":"2026-10-12T12:13:06+02:00","with":"studyflow-modeler/26.10.2"}]}}</studyflow:state>
+      </studyflow:study>
+    </bpmn:extensionElements>
+    <bpmn:task id="Task_1par6fb" name="task">
+      <bpmn:incoming>Flow_0kd6150</bpmn:incoming>
+    </bpmn:task>
+    <bpmn:boundaryEvent id="Event_0by1glv" attachedToRef="Task_1par6fb">
+      <bpmn:timerEventDefinition id="TimerEventDefinition_0pbd6tu"/>
+    </bpmn:boundaryEvent>
+    <bpmn:sequenceFlow id="Flow_0kd6150" sourceRef="Event_0wgqyxm" targetRef="Task_1par6fb"/>
+    <bpmn:intermediateCatchEvent id="Event_0wgqyxm">
+      <bpmn:outgoing>Flow_0kd6150</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDefinition_0nae9zo"/>
+    </bpmn:intermediateCatchEvent>
+    <bpmn:textAnnotation id="TextAnnotation_0p02u12">
+      <bpmn:text>Start Time</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_0xra4ye" associationDirection="None" sourceRef="Event_0wgqyxm" targetRef="TextAnnotation_0p02u12"/>
+    <bpmn:textAnnotation id="TextAnnotation_18y6j0e">
+      <bpmn:text>End Time</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_12pr0gl" associationDirection="None" sourceRef="Event_0by1glv" targetRef="TextAnnotation_18y6j0e"/>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Study_1">
+      <bpmndi:BPMNShape id="Task_1par6fb_di" bpmnElement="Task_1par6fb">
+        <dc:Bounds x="440" y="280" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_0by1glv_di" bpmnElement="Event_0by1glv" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="522" y="302" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_0kd6150_di" bpmnElement="Flow_0kd6150">
+        <di:waypoint x="408" y="320"/>
+        <di:waypoint x="440" y="320"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="Event_0wgqyxm_di" bpmnElement="Event_0wgqyxm" bioc:stroke="#8cb26e" bioc:fill="#d9e7d6" color:background-color="#d9e7d6" color:border-color="#8cb26e">
+        <dc:Bounds x="372" y="302" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="TextAnnotation_0p02u12_di" bpmnElement="TextAnnotation_0p02u12" bioc:stroke="#8cb26e" bioc:fill="#d9e7d6" color:background-color="#d9e7d6" color:border-color="#8cb26e">
+        <dc:Bounds x="410" y="220" width="100" height="30"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Association_0xra4ye_di" bpmnElement="Association_0xra4ye" bioc:stroke="#8cb26e" color:border-color="#8cb26e">
+        <di:waypoint x="401" y="306"/>
+        <di:waypoint x="448" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="TextAnnotation_18y6j0e_di" bpmnElement="TextAnnotation_18y6j0e" bioc:stroke="#ac5a54" bioc:fill="#f1d0cd" color:background-color="#f1d0cd" color:border-color="#ac5a54">
+        <dc:Bounds x="560" y="220" width="100" height="30"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Association_12pr0gl_di" bpmnElement="Association_12pr0gl" bioc:stroke="#ac5a54" color:border-color="#ac5a54">
+        <di:waypoint x="551" y="306"/>
+        <di:waypoint x="598" y="250"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions></metadata><defs><marker id="sf-arrow-sequence" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="context-stroke" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-message" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-arrow-open" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,2 L9,5 L1,8 Z" fill="none" stroke="context-stroke" stroke-width="1" stroke-linejoin="round"/></marker><marker id="sf-marker-default" markerWidth="10" markerHeight="10" refX="0" refY="5" orient="auto" markerUnits="userSpaceOnUse"><path d="M3,2 L7,8" fill="none" stroke="context-stroke" stroke-width="1.5"/></marker><marker id="sf-marker-message-start" markerWidth="10" markerHeight="10" refX="1.5" refY="5" orient="auto" markerUnits="userSpaceOnUse"><circle cx="5" cy="5" r="3" fill="#ffffff" stroke="context-stroke" stroke-width="1"/></marker></defs><g data-layer="elements"><g class="sf-connection" data-element-id="Flow_0kd6150" data-element-type="bpmn:SequenceFlow"><path class="sf-connection-line" d="M 408 320 L 440 320" data-waypoints="408,320 440,320" fill="none" stroke="#44403c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#sf-arrow-sequence)"/></g><g class="sf-connection" data-element-id="Association_0xra4ye" data-element-type="bpmn:Association"><path class="sf-connection-line" d="M 401 306 L 448 250" data-waypoints="401,306 448,250" fill="none" stroke="#8cb26e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5"/></g><g class="sf-connection" data-element-id="Association_12pr0gl" data-element-type="bpmn:Association"><path class="sf-connection-line" d="M 551 306 L 598 250" data-waypoints="551,306 598,250" fill="none" stroke="#ac5a54" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2,5"/></g><g class="sf-shape" data-element-id="Task_1par6fb" data-element-type="bpmn:Task" transform="translate(440, 280)"><rect x="0" y="0" width="100" height="80" rx="12" ry="12" fill="#ffffff" stroke="#44403c" stroke-width="1.5"/><text class="sf-label" x="50" y="43.5" fill="#1c1917" font-size="12" font-weight="500" font-family="&quot;IBM Plex Sans&quot;, Helvetica, sans-serif" text-anchor="middle" dominant-baseline="middle" stroke-width="0">task</text></g><g class="sf-shape" data-element-id="Event_0by1glv" data-element-type="bpmn:BoundaryEvent" transform="translate(522, 302)"><circle cx="18" cy="18" r="18" fill="#f1d0cd" stroke="#ac5a54" stroke-width="1.5" stroke-dasharray="4,3"/><circle cx="18" cy="18" r="14" fill="none" stroke="#ac5a54" stroke-width="1.5" stroke-dasharray="4,3"/><svg x="8" y="8" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#ac5a54" data-icon-key="TimerEventDefinition"><path fill="#ac5a54" d="M128 24a104 104 0 1 0 104 104A104.11 104.11 0 0 0 128 24m0 192a88 88 0 1 1 88-88a88.1 88.1 0 0 1-88 88m64-88a8 8 0 0 1-8 8h-56a8 8 0 0 1-8-8V72a8 8 0 0 1 16 0v48h48a8 8 0 0 1 8 8"/></svg></g><g class="sf-shape" data-element-id="Event_0wgqyxm" data-element-type="bpmn:IntermediateCatchEvent" transform="translate(372, 302)"><circle cx="18" cy="18" r="18" fill="#d9e7d6" stroke="#8cb26e" stroke-width="1.5"/><circle cx="18" cy="18" r="14" fill="none" stroke="#8cb26e" stroke-width="1.5"/><svg x="8" y="8" width="20" height="20" class="sf-icon" viewBox="0 0 256 256" stroke="none" color="#8cb26e" data-icon-key="TimerEventDefinition"><path fill="#8cb26e" d="M128 24a104 104 0 1 0 104 104A104.11 104.11 0 0 0 128 24m0 192a88 88 0 1 1 88-88a88.1 88.1 0 0 1-88 88m64-88a8 8 0 0 1-8 8h-56a8 8 0 0 1-8-8V72a8 8 0 0 1 16 0v48h48a8 8 0 0 1 8 8"/></svg></g><g class="sf-shape" data-element-id="TextAnnotation_0p02u12" data-element-type="bpmn:TextAnnotation" transform="translate(410, 220)"><path d="M10,0 L0,0 L0,30 L10,30" fill="none" stroke="#8cb26e" stroke-width="1.5" stroke-linejoin="round"/><text class="sf-label" x="7" y="14.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">Start Time</text></g><g class="sf-shape" data-element-id="TextAnnotation_18y6j0e" data-element-type="bpmn:TextAnnotation" transform="translate(560, 220)"><path d="M10,0 L0,0 L0,30 L10,30" fill="none" stroke="#ac5a54" stroke-width="1.5" stroke-linejoin="round"/><text class="sf-label" x="7" y="14.5" fill="#1c1917" font-size="12" font-weight="400" font-family="&quot;IBM Plex Serif&quot;, ui-serif, Georgia, serif" text-anchor="start" dominant-baseline="middle" stroke-width="0">End Time</text></g></g></svg>

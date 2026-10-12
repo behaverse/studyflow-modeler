@@ -66,7 +66,7 @@ export const ICONS = {
   table: 'iconify bi--table',
   tableGrid: 'iconify ph--table',
   database: 'iconify fluent--database-16-regular',
-  gantt: 'iconify bi--bar-chart-steps',
+  schedule: 'iconify bi--bar-chart-steps',
   figure: 'iconify ph--image-square',
   script: 'iconify fluent--script-24-regular',
   function: 'iconify ph--function',

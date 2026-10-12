@@ -24,7 +24,7 @@ import { GalleryDialog } from '@modeler/gallery/Gallery';
 import { OpenDialog } from '@modeler/open/Open';
 import { SaveDialog } from '@modeler/export/Save';
 import { ChecklistDialog } from '@modeler/checklist/Checklist';
-import { GanttDialog } from '@modeler/gantt/Gantt';
+import { ScheduleDialog } from '@modeler/schedule/Schedule';
 import { ManuscriptDialog } from '@modeler/manuscript/Manuscript';
 import { ProvenanceDialog } from '@modeler/provenance/Provenance';
 import { buildElementEntries, buildPaletteCommands } from '@modeler/commandPalette/menu';
@@ -43,7 +43,7 @@ const SUB_DIALOGS: Record<PaletteDialogId, ComponentType<SubDialogProps>> = {
   open: OpenDialog,
   save: SaveDialog,
   checklist: ChecklistDialog,
-  gantt: GanttDialog,
+  schedule: ScheduleDialog,
   manuscript: ManuscriptDialog,
   provenance: ProvenanceDialog,
 };

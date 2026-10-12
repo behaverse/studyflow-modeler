@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-import { ancestorsOf, axisTicks, collectGanttRows, dependencyPath, layoutGantt, OPEN_H, ROW_H, ROW_PAD, tickLabel } from '@modeler/gantt/rows';
+import { ancestorsOf, axisTicks, collectScheduleRows, dependencyPath, layoutSchedule, OPEN_H, ROW_H, ROW_PAD, tickLabel } from '@modeler/schedule/rows';
 import { loadYaml } from '../packages/canvas/tests/canvasHarness';
 
 /** A timed step whose name cites the last run's state (docs/reference.qmd, "Placeholders"), then a gateway, then a timed step with a checklist. */
-const STATE_YAML = `id: Defs_Gantt
+const STATE_YAML = `id: Defs_Schedule
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
-Process_Gantt:
+Process_Schedule:
   type: Process
   extensionElements:
     - type: studyflow:Study
@@ -48,9 +48,9 @@ state:
       Screening: 96
 `;
 
-test('a Gantt row wears its element\'s colours, waits on the scheduled steps upstream through a gateway, takes its progress from its checklist when it states none, and shows the last run\'s state where its name cites it; the model keeps the placeholder', () => {
+test('a Schedule row wears its element\'s colours, waits on the scheduled steps upstream through a gateway, takes its progress from its checklist when it states none, and shows the last run\'s state where its name cites it; the model keeps the placeholder', () => {
   const { study } = loadYaml(STATE_YAML).canvas;
-  const rows = collectGanttRows({ study } as any);
+  const rows = collectScheduleRows({ study } as any);
   const [screening, baseline] = rows;
   expect(rows.map((row) => row.id)).toEqual(['Screening', 'Baseline']);
   expect(screening.label).toContain('96');
@@ -82,7 +82,7 @@ test('the time axis picks the smallest step that gives at most the ticks its wid
 });
 
 /** In one pool and lane: a sub-process stating no timing, holding two timed tasks, and a timed task outside it; a second pool whose analysis a message starts. */
-const GROUP_YAML = `id: Defs_GanttGroup
+const GROUP_YAML = `id: Defs_ScheduleGroup
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
 Collab_Group:
@@ -153,7 +153,7 @@ Process_Lab:
 `;
 
 test('a pool, lane or sub-process holding scheduled elements is a group row ahead of them, with their span and mean progress when it states none', () => {
-  const rows = collectGanttRows({ study: loadYaml(GROUP_YAML).canvas.study } as any);
+  const rows = collectScheduleRows({ study: loadYaml(GROUP_YAML).canvas.study } as any);
   expect(rows.map((row) => [row.id, row.parent, row.group])).toEqual([
     ['Pool_Site', undefined, true], ['Lane_Ops', 'Pool_Site', true],
     ['Setup', 'Lane_Ops', undefined], ['WP', 'Lane_Ops', true], ['A', 'WP', undefined], ['B', 'WP', undefined],
@@ -169,10 +169,10 @@ test('a pool, lane or sub-process holding scheduled elements is a group row ahea
 });
 
 test('the chart puts every bar on one scale and an open group\'s column down over its rows; folding a group hides them, and their arrows leave from it', () => {
-  const rows = collectGanttRows({ study: loadYaml(GROUP_YAML).canvas.study } as any);
+  const rows = collectScheduleRows({ study: loadYaml(GROUP_YAML).canvas.study } as any);
   const ancestors = ancestorsOf(rows);
 
-  const open = layoutGantt(rows, ancestors, new Set(), 100, 700);
+  const open = layoutSchedule(rows, ancestors, new Set(), 100, 700);
   expect(open.scale).toEqual({ min: 0, max: 7 * 1440 });
   // A starts one day into the seven the study spans, and lasts two.
   expect(open.bars.get('A')).toMatchObject({ x: 100 + 100, w: 200 });
@@ -180,7 +180,7 @@ test('the chart puts every bar on one scale and an open group\'s column down ove
   expect(open.bands.find((band) => band.id === 'WP')).toMatchObject({ x: wp.x, w: wp.w, y: wp.y + OPEN_H, h: b.y + ROW_H - wp.y - OPEN_H });
   expect(open.edges.map((edge) => edge.key)).toEqual(['B->Analysis']);
 
-  const folded = layoutGantt(rows, ancestors, new Set(['WP']), 100, 700);
+  const folded = layoutSchedule(rows, ancestors, new Set(['WP']), 100, 700);
   expect(folded.visible.map((row) => row.id)).toEqual(['Pool_Site', 'Lane_Ops', 'Setup', 'WP', 'Pool_Lab', 'Analysis']);
   expect(folded.bands.map((band) => band.id)).toEqual(['Pool_Site', 'Lane_Ops', 'Pool_Lab']);
   expect(folded.edges.map((edge) => edge.key)).toEqual(['WP->Analysis']);
