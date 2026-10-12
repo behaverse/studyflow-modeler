@@ -6,4 +6,4 @@ The most useful contributions may carry knowledge that AI agents do not already 
 
 Hand-written PRs are still welcome and go through the same review as the automated ones. No AI tool is required to contribute.
 
-To set up, `npm install`. Before you send a change, `npm run typecheck && npm run lint && npm run test:unit` must pass, which is what CI runs, and `npm run test:e2e` too when it touches the modeler or the canvas. [AGENTS.md](AGENTS.md) maps the repo and lists its rules.
+To set up, `npm install`; the unit lane also needs `python3`, `uv` and `xmllint` (libxml2), with which `studyflow validate` checks a study's BPMN XML against the BPMN 2.0 schema. Before you send a change, `npm run typecheck && npm run lint && npm run test:unit` must pass, which is what CI runs, and `npm run test:e2e` too when it touches the modeler or the canvas. [AGENTS.md](AGENTS.md) maps the repo and lists its rules.
