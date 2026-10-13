@@ -4,9 +4,11 @@
  * Picks the next version (`YY.M.N`: the month's counter climbs, or restarts at 1 in a new month; or pass one, e.g.
  * `npm run release -- 26.10.1`) and writes it to the root package.json (the repo's one version). Then typecheck, lint,
  * the unit tests, the CLI and the desktop app, every platform's binary, the tarballs with their checksums, and
- * Formula/studyflow.rb from that same build (so the checksums match). Only once all of that is done does it commit
- * `release YY.M.N`, tag `vYY.M.N`, push, and create the GitHub release with the tarballs. A failure anywhere before the
- * commit puts the tree back as it was. Needs a clean tree on main, `bun` (a dev dependency of the CLI), and `gh` logged in.
+ * Formula/studyflow.rb from that same build (so the checksums match). Only once all of that is done does it commit the
+ * version (amended into HEAD while origin has not seen HEAD, else as `release YY.M.N` on top, so main is never
+ * rewritten), tag `vYY.M.N`, push, and create the GitHub release with the tarballs. A failure anywhere before the commit
+ * puts the tree back as it was. Needs a clean tree on main, not behind origin, `bun` (a dev dependency of the CLI), and
+ * `gh` logged in.
  *
  * `--local`: keep the version, build the host platform only, and write a formula with file:// urls for a local
  * `brew install`; nothing touches git or GitHub.
@@ -36,6 +38,9 @@ if (!local) {
   // The binaries are built from the working tree, so anything uncommitted would ship untagged.
   if (raw('git', ['status', '--porcelain']).trim()) fail('Commit or stash first: the release commits only what it writes.');
   if (!works('gh', ['auth', 'status'])) fail('gh is not logged in (`gh auth login`).');
+  // origin/main decides below whether HEAD is still only here, so it must be fresh.
+  sh('git', ['fetch', '--quiet', 'origin', 'main']);
+  if (out('git', ['rev-list', '--count', 'HEAD..origin/main']) !== '0') fail('origin/main has commits main lacks: pull first.');
 }
 
 /* The version. YY.M.N, purely numeric: Homebrew scans it from the release url and orders it right; a suffix like
@@ -195,7 +200,9 @@ try {
 
 const assetFiles = platforms.flatMap(({ slug }) => [`studyflow-${version}-${slug}.tar.gz`, `studyflow-${version}-${slug}.tar.gz.sha256`]).map((a) => resolve(outDir, a));
 sh('git', ['add', ...RELEASE_FILES]);
-sh('git', ['commit', '-m', `release ${version}`]);
+// An unpushed HEAD takes the release files itself; amending a pushed one would rewrite main, so that gets its own commit.
+const unpushed = out('git', ['rev-list', '--count', 'origin/main..HEAD']) !== '0';
+sh('git', unpushed ? ['commit', '--amend', '--no-edit'] : ['commit', '-m', `release ${version}`]);
 sh('git', ['tag', tag]);
 sh('git', ['push', 'origin', 'main', tag]);
 sh('gh', ['release', 'create', tag, '--title', tag, '--generate-notes', '--verify-tag', ...assetFiles]);
