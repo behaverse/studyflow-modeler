@@ -76,6 +76,19 @@ const CHOICES: [label: string, study: string, runs: number][] = [
     F2: B -> Join
     F3: Join -> End
 `), 3],
+  ['its condition holding or not, beside the flow without one an inclusive split always takes', inProcess(`    Start: { type: StartEvent }
+    Split: { type: InclusiveGateway }
+    A: { type: Task }
+    B: { type: Task }
+    Join: { type: InclusiveGateway }
+    End: { type: EndEvent }
+    F0: Start -> Split
+    F_A: { sourceRef: Split, targetRef: A, conditionExpression: a }
+    F_B: Split -> B
+    F1: A -> Join
+    F2: B -> Join
+    F3: Join -> End
+`), 2],
   ['each set of conditioned flows out of a step, or none, for its default', inProcess(`    Start: { type: StartEvent }
     Step: { type: Task, default: F_Else }
     A: { type: EndEvent }

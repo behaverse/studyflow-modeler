@@ -60,14 +60,16 @@ and FEEL. A property `scored_blocks` names the study's test blocks once; a task'
 trials left unanswered into a property, `unanswered` (`sum(result.blocks[block in scored_blocks].unanswered) / sum(result.blocks[block in scored_blocks].trials)`); and a conditional boundary event on the task leaves
 on `unanswered > max_unanswered`.
 
-A task's `runtime` says which build plays it: `unity` (the default), `godot`, the Godot build task_builder makes, or
-`simulated`, a stand-in that plays the battery's AX-CPT (`RE`), Which One (`WO`) and N-back (`NB`) without Unity,
-from the timelines the Parameters wired into the task define (`simulated.py`). It has no screen, so its trials go along
-the task's message flows, as the Unity build's runner sends them, and it writes the same records and returns the same
-result; a study of such tasks alone needs no build, which is how a study's pipeline is checked where the truth is
-known. A task whose `implementation` names another skill's scheme is that skill's to play. No runner plays the Godot
-build yet, so a local study with a task set to it stops before its first step, saying so, and the browser runner
-refuses it; the instrument, the timeline and the Parameters wired in mean the same whichever build plays the task.
+A task's `runtime` says which build plays it: `unity` (the default), or `godot`, the Godot build task_builder makes.
+In a local run, a task whose trials go to a simulated actor (below), along its own message flows or those it inherits
+from a sub-process or its pool, plays on the simulated build whatever its `runtime` says: a stand-in that plays the
+battery's AX-CPT (`RE`), Which One (`WO`) and N-back (`NB`) without Unity, from the timelines the Parameters wired into
+the task define (`simulated.py`). It has no screen, so its trials go along those flows, as the Unity build's runner
+sends them, and it writes the same records and returns the same result; a study whose tasks all go to a simulated actor
+needs no build, which is how a study's pipeline is checked where the truth is known. A task whose `implementation`
+names another skill's scheme is that skill's to play. No runner plays the Godot build yet, so a local study with a task
+set to it stops before its first step, saying so, and the browser runner refuses it; the instrument, the timeline and
+the Parameters wired in mean the same whichever build plays the task.
 
 The truth a pipeline check knows is planted on its actor, a pool typed `behaverse:SimulatedActor` (its
 `implementation` `behaverse://simulated-actor`), which reads each trial as a person would (the button of a Which One
@@ -79,7 +81,9 @@ jspsych skill's local runner sends a jsPsych AX-CPT's) and answers right with th
 instead when a text sent with the trial (a prompt the task reads, written out from its template) has a line
 beginning with a key, which is how a study plants an effect of what it tells its participants; and `missRate`, the
 share of trials it leaves unanswered. Its draws are seeded by the run's seed and the message's id. Under the
-"protocol for any actor" digest, what it plants is part of the actor and left out, as a model's name is.
+"protocol for any actor" digest, what it plants and how its pool is described are part of the actor and left out, as a
+model's name is, so a pipeline check that swaps a study's actor for a simulated one, and changes nothing else, shares
+that digest with the study.
 
 This skill is the boundary between Studyflow and the builds that play Behaverse tasks, the Unity build today. To
 Studyflow it offers `behaverse:*` elements and runners that keep its contract; to a build its runners speak that

@@ -102,25 +102,27 @@ assert argv[:2] == ["chrome", "--app=http://127.0.0.1:1/"], argv
 assert set(behaverse.chromium.UNTHROTTLED) <= set(argv), argv
 print("ok")
 
-# The Unity runner plays the tasks set to the Unity build, checking the build first; one set to the Godot build stops
+# The Unity runner plays the tasks on the Unity build, checking the build first; one set to the Godot build stops
 # the run before its first step, since no runner plays that build yet.
 checked = []
 unity_plan = {"elements": {"Play": task(), "Other": {"id": "Other", "type": "task"}}}
 assert behaverse.claimed_tasks(unity_plan, lambda: checked.append(True)) == ["Play"] and checked == [True]
 assert behaverse.claimed_tasks({"elements": {"Play": task(runtime="unity")}}, lambda: None) == ["Play"]
-# A task on the simulated build is this runner's too, and a study of such tasks alone needs no Unity build; so is a pool
-# typed `behaverse:SimulatedActor`, which simulated.py answers for. A task another skill's scheme implements is that
-# skill's to play.
+# A task whose trials go to a pool typed `behaverse:SimulatedActor`, along its own flows or those it inherits, plays on
+# the simulated build whatever its `runtime` says, so a study of such tasks alone needs no Unity build; the pool is this
+# runner's too, which simulated.py answers for. The same task answered by a model plays on the Unity build. A task
+# another skill's scheme implements is that skill's to play.
 assert behaverse.claimed_tasks({"elements": {"Play": task(implementation="behaverse://assessment-unity@26.10")}}, lambda: None) == ["Play"]
 
 def unchecked():
     raise AssertionError("the build was checked")
 
 
-assert behaverse.claimed_tasks({"elements": {"Play": task(runtime="simulated")}}, unchecked) == ["Play"]
-actor = {"id": "Actor", "type": "participant", "attributes": {},
-         "extensions": [{"namespace": behaverse.BEHAVERSE, "type": "simulatedActor", "attributes": {"accuracy": "default: 0.9"}}]}
-assert behaverse.claimed_tasks({"elements": {"Actor": actor, "Play": task(runtime="simulated")}}, unchecked) == ["Play", "Actor"]
+simulated = {**nested, "Model": {"id": "Model", "type": "participant", "attributes": {}, "extensions": [
+    {"namespace": behaverse.BEHAVERSE, "type": "simulatedActor", "attributes": {"accuracy": "default: 0.9"}}]}}
+assert behaverse.build_of(task(), simulated) == "simulated" and behaverse.build_of(task(), nested) == "unity"
+assert behaverse.claimed_tasks({"elements": simulated}, unchecked) == ["Play", "Model"]
+assert behaverse.claimed_tasks({"elements": {**simulated, "Play": task(runtime="godot")}}, unchecked) == ["Play", "Model"]
 assert behaverse.claimed_tasks({"elements": {"Play": task(implementation="other://assessment")}}, unchecked) == []
 try:
     behaverse.claimed_tasks({"elements": {"Play": task(runtime="godot")}}, lambda: None)

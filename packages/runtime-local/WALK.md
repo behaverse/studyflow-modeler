@@ -67,10 +67,11 @@ and are not compared.
 
 The walk is a profile of BPMN 2.0's execution semantics. A split starts a path for each flow it takes (a parallel
 gateway, every flow; an inclusive gateway, or an activity or event with several flows out, each whose condition holds
-and each without one), and the paths walk at once; a parallel join waits for a token along each flow into it, an
-inclusive join for the tokens that can still come. A path that fails, or leaves a sub-process at a boundary event, stops
-the paths beside it, and so does a terminate end event; a scope is done when its last path ends. Where the walk reads a
-construct otherwise than the specification does, it says so here, and `studyflow validate` refuses or warns about it:
+and each without one, and its default flow when no condition holds), and the paths walk at once; a parallel join waits
+for a token along each flow into it, an inclusive join for the tokens that can still come. A path that fails, or leaves
+a sub-process at a boundary event, stops the paths beside it, and so does a terminate end event; a scope is done when
+its last path ends. Where the walk reads a construct otherwise than the specification does, it says so here, and
+`studyflow validate` refuses or warns about it:
 
 - **A complex gateway** is refused where it splits, and passes each token where it joins (a warning): the walk reads
   no activation rule. A scope with several start events starts at the first only (a warning).

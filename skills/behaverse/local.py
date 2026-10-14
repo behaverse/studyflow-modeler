@@ -9,8 +9,8 @@ Usage:
     studyflow run <diagram> --runtime local [--option auto]   # the local runtime walks, this runner performs
 
 A partial runner (packages/runtime-local/CONTRACT.md): it claims every `behaverse:Task` and every pool typed
-`behaverse:SimulatedActor`. A task set to the simulated build (`runtime: simulated`) and such a pool are played by
-`simulated.py` beside this file; for any other task, per hand-off, it serves the Unity WebGL build and a small stage page from a local port, opens the page in the default
+`behaverse:SimulatedActor`. `simulated.py` beside this file answers for such a pool, and plays a task whose trials go
+to one on the simulated build; for any other task, per hand-off, it serves the Unity WebGL build and a small stage page from a local port, opens the page in the default
 browser, starts the task through the build's `RunCognitiveTask` entry point, and waits for
 `studyflow:TaskCompleted`. The page relays what the build reports back to this process:
 every `studyflow:Event` to the task's events file in the run directory, each answered trial to the
@@ -71,9 +71,20 @@ def behaverse_extension(element: dict[str, Any]) -> dict[str, Any] | None:
                  if ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "task"), None)
 
 
-def build_of(element: dict[str, Any]) -> str:
-    """Which build plays a task: its `runtime`, the Unity build unless it says otherwise."""
-    return str(((behaverse_extension(element) or {}).get("attributes") or {}).get("runtime") or "unity")
+def simulated_actor_of(element: dict[str, Any]) -> dict[str, Any] | None:
+    """A pool's `behaverse:SimulatedActor` entry, when it is one."""
+    return next((ext for ext in element.get("extensions") or []
+                 if ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "simulatedactor"), None)
+
+
+def build_of(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str:
+    """Which build plays a task: the simulated build when the pool its trials go to is a `behaverse:SimulatedActor`
+    (`message_partners`: along its own message flows, else those it inherits from a sub-process or its pool), whatever
+    its `runtime` says; else the Godot build when its `runtime` says so; else the Unity build."""
+    if any(simulated_actor_of(plan.get(pool) or {}) for pool in message_partners(element, plan, STRUCTURES)):
+        return "simulated"
+    runtime = ((behaverse_extension(element) or {}).get("attributes") or {}).get("runtime")
+    return "godot" if runtime == "godot" else "unity"
 
 
 def implementation_of(element: dict[str, Any]) -> str:
@@ -85,23 +96,22 @@ def implementation_of(element: dict[str, Any]) -> str:
 
 def claimed_tasks(plan: dict[str, Any], check_build: Callable[[], Any]) -> list[str]:
     """What this runner plays: the `behaverse:Task`s and the pools typed `behaverse:SimulatedActor`. The Unity build is
-    checked here when a task is set to it, so a run fails before the walk starts rather than after another pool's robot
-    has greeted; a study whose tasks are all on the simulated build needs none. A task set to the Godot build stops the
+    checked here when a task plays on it, so a run fails before the walk starts rather than after another pool's robot
+    has greeted; a study whose tasks all go to a simulated actor needs none. A task set to the Godot build stops the
     run here too: no runner plays that build yet, and a task nothing runs would only be skipped. A task whose
     `implementation` names another scheme than `behaverse://` is that skill's to play."""
     elements = plan.get("elements") or {}
     tasks = {eid: element for eid, element in elements.items() if behaverse_extension(element) is not None
              and implementation_of(element).split("://")[0] in ("", "behaverse")}
-    godot = sorted(eid for eid, element in tasks.items() if build_of(element) == "godot")
+    builds = {eid: build_of(element, elements) for eid, element in tasks.items()}
+    godot = sorted(eid for eid, build in builds.items() if build == "godot")
     if godot:
         raise ValueError(f"{', '.join(godot)} {'is' if len(godot) == 1 else 'are'} set to the Godot build (runtime: godot), "
                          "which no runner plays yet; set runtime: unity to play it on the Unity build")
-    if any(build_of(element) == "unity" for element in tasks.values()):
+    if "unity" in builds.values():
         check_build()
     actors = [eid for eid, element in elements.items() if element.get("type") == "participant"
-              and not (element.get("attributes") or {}).get("processRef") and any(
-                  ext.get("namespace") == BEHAVERSE and str(ext.get("type", "")).lower() == "simulatedactor"
-                  for ext in element.get("extensions") or [])]
+              and not (element.get("attributes") or {}).get("processRef") and simulated_actor_of(element)]
     return [*tasks, *actors]
 
 
@@ -569,9 +579,9 @@ def main() -> int:
         return claimed_tasks(plan, lambda: checked_build(args.build))
 
     def execute(step: Step) -> Any:
-        """A task on the simulated build, and a simulated actor's message, go to simulated.py; any other task to the
+        """A simulated actor's message, and a task whose trials go to one, go to simulated.py; any other task to the
         Unity build."""
-        if step.element.get("type") == "participant" or build_of(step.element) == "simulated":
+        if step.element.get("type") == "participant" or build_of(step.element, step.elements) == "simulated":
             import simulated  # beside this file
             return simulated.take(step) if step.element.get("type") == "participant" else simulated.play(step)
         return perform(step, args)

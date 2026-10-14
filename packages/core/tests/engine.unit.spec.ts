@@ -66,6 +66,10 @@ test('a split walks each branch it takes as a path of its own, at once, and a jo
   const inclusive = await walked(process('InclusiveGateway', 'InclusiveGateway', "F2: { sourceRef: Split, targetRef: A, conditionExpression: 'true' }\n    F3: { sourceRef: Split, targetRef: B, conditionExpression: 'false' }"), {});
   expect(inclusive.error).toBeUndefined();
   expect([inclusive.reached.A, inclusive.reached.B, inclusive.reached.After]).toEqual([1, undefined, 1]);
+  // A flow without a condition is taken whatever else holds, the default flow only when no condition holds (BPMN 2.0).
+  const split = async (holds: string, fallback: boolean) => (await walked(process(`InclusiveGateway${fallback ? ', default: F3' : ''}`, 'InclusiveGateway', `F2: { sourceRef: Split, targetRef: A, conditionExpression: '${holds}' }\n    F3: Split -> B`), {})).reached;
+  expect([await split('true', false), await split('false', false), await split('true', true), await split('false', true)].map((reached) => [reached.A, reached.B, reached.After]))
+    .toEqual([[1, 1, 1], [undefined, 1, 1], [1, undefined, 1], [undefined, 1, 1]]);
 
   // So does an activity with several flows out and no conditions on them.
   const fanned = await walked(process('Task', 'ParallelGateway'), {});

@@ -92,9 +92,6 @@ enumerations:
         value: unity
       - name: Godot (task_builder)
         value: godot
-      - name: Simulated
-        value: simulated
-        description: A stand-in for the Unity build that plays the battery's AX-CPT (RE), Which One (WO) and N-back (NB) from the timelines the Parameters wired into the task define, without Unity, so a study's pipeline can be checked where the truth is known. It has no screen, so its trials go along the task's message flows.
 
 types:
   - name: Task
@@ -140,7 +137,7 @@ types:
           categories:
             - Execution
       - name: runtime
-        description: 'Which build plays the task: the Unity build, the Godot one (task_builder), or the simulated build, which plays the battery''s timelines without Unity to check a study''s pipeline. No runner plays the Godot build yet, so a study with a task set to it stops before its first step.'
+        description: 'Which build plays the task: the Unity build, or the Godot one (task_builder). A task whose trials go to a simulated actor plays on the simulated build whatever this says. No runner plays the Godot build yet, so a study with a task set to it stops before its first step.'
         isAttr: true
         type: BehaverseRuntimeEnum
         default: unity
@@ -187,7 +184,7 @@ types:
         type: Integer
 
   - name: SimulatedActor
-    description: 'A simulated actor for the battery''s tasks: a pool that answers each trial it is sent as a person would read it, right with the probability the study plants, so a pipeline check knows the truth its analysis should recover.'
+    description: 'A simulated actor for the battery''s tasks: a pool that answers each trial it is sent as a person would read it, right with the probability the study plants, so a pipeline check knows the truth its analysis should recover. A task whose trials go to it plays on the simulated build, a stand-in for the Unity build that plays the battery''s AX-CPT (RE), Which One (WO) and N-back (NB) from the timelines the Parameters wired into the task define, without Unity.'
     superClass:
       - studyflow:Actor
     meta:

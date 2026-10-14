@@ -33,7 +33,7 @@ def plan_of(instrument, parameters, timeline="T"):
     """One subject's pool, whose task sends its trials to an actor's pool and writes its records to a dataset."""
     task = {"id": "Task", "type": "task", "name": "Play", "parent": "S", "attributes": {},
             "extensions": [{"namespace": BEHAVERSE, "type": "task", "attributes": {
-                "instrument": instrument, "timeline": timeline, "runtime": "simulated"}}],
+                "instrument": instrument, "timeline": timeline}}],
             "inputs": [{"source": "Prompt"}], "outputs": [{"target": "Trials"}], "parameters": parameters}
     elements = {
         "Task": task, "Trials": {"id": "Trials", "attributes": {"uri": "data/trials.jsonl"}},

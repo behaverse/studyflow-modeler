@@ -221,16 +221,16 @@ const FAULTS: Fault[] = [
     into: 'plan',
     // A decision drawn as a split: both branches would run, the conditions unread.
     edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: ParallelGateway\n      name: Accurate enough?'),
-    says: ['error: "Accurate enough?" is a parallel gateway, which takes every flow out of it, so it never reads the conditions on "yes", "no": make it an exclusive or an inclusive gateway'],
+    says: ['error: "Accurate enough?" is a parallel gateway, which takes every flow out of it, so it never reads the conditions on "yes", "no": make it an exclusive gateway, or an inclusive one if several may hold at once'],
   },
   {
     fault: 'An inclusive gateway',
-    check: 'missed',
+    check: 'decisions',
     into: 'plan',
-    // Valid BPMN the walk runs as drawn: every branch whose condition holds, which here is the one an exclusive
-    // gateway would take, since the conditions exclude each other.
+    // Valid BPMN the walk runs as drawn: every branch whose condition holds, which here is never more than one, since
+    // the conditions exclude each other. A decision, which an exclusive gateway draws.
     edit: swap('      type: ExclusiveGateway\n      name: Accurate enough?', '      type: InclusiveGateway\n      name: Accurate enough?'),
-    says: [],
+    says: ['warning: "Accurate enough?" is an inclusive gateway, but no two of the conditions on "yes", "no" hold together, so it never takes more than one flow: make it an exclusive gateway'],
   },
   {
     fault: 'Two elements share an id',

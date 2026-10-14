@@ -1,8 +1,8 @@
 """The simulated Behaverse build and the simulated actor (SKILL.md beside this file), which `local.py` hands to.
 
-The simulated build plays a `behaverse:Task` whose `runtime` is `simulated`, without Unity: the timeline the Parameters
-wired into the task define, block by block. It sends each trial along the task's message flows as the Unity build's
-runner relays the build's, scores the answer as the build does, and writes the battery contract's records: one
+The simulated build plays a `behaverse:Task` whose trials go to a simulated actor, without Unity: the timeline the
+Parameters wired into the task define, block by block. It sends each trial along the task's message flows as the Unity
+build's runner relays the build's, scores the answer as the build does, and writes the battery contract's records: one
 `<TASK>.TrialEnd` per trial presented, its block and trial ids counted as the build counts them, between a
 `<TASK>.TaskStart` and a `<TASK>.TaskEnd`. What it shares with that runner (the payload checks, the exchange, the
 records' file and stamp, the block counts) it takes from `local.py`, so both builds are run and scored by one rule.
@@ -392,9 +392,6 @@ def play(step: Any) -> dict[str, Any]:
     scene, name = payload["scene"], payload["timeline"]
     if scene not in INSTRUMENTS:
         raise ValueError(f"behaverse:Task {element['id']!r}: the simulated build plays {', '.join(INSTRUMENTS)}, not {scene}")
-    if not behaverse.along_messages(payload):
-        raise ValueError(f"behaverse:Task {element['id']!r}: the simulated build has no screen, so its trials are answered "
-                         "along message flows: draw one carrying each trial out of the task and one bringing the answer back")
     parameters = element.get("parameters") or {}
     entries = timeline_of(parameters, name)
     blocks = [entry for entry in entries if isinstance(entry, Block)]
@@ -536,12 +533,6 @@ class SimulatedActor:
         return float(held if held is not None else self.accuracy.get("default", 0))
 
 
-def simulated_actor_of(element: dict[str, Any]) -> dict[str, Any] | None:
-    """A pool's `behaverse:SimulatedActor` entry, when it is one."""
-    return next((ext for ext in element.get("extensions") or []
-                 if ext.get("namespace") == behaverse.BEHAVERSE and str(ext.get("type", "")).lower() == "simulatedactor"), None)
-
-
 def answer(actor: SimulatedActor, seed: Any, message: dict[str, Any], memory: dict[str, Any] | None = None) -> str:
     """One reply: a trial answered right with the planted probability, or an instruction confirmed (`READY`). The trial
     is the value of the message that lists `ResponseOptions`, or the message itself, as the build sends one; `memory` is
@@ -568,7 +559,7 @@ def answer(actor: SimulatedActor, seed: Any, message: dict[str, Any], memory: di
 def take(step: Any) -> str:
     """One message to a simulated actor's pool, answered."""
     element = step.element
-    step.note(actor=str(((simulated_actor_of(element) or {}).get("attributes") or {}).get("implementation") or "behaverse://simulated-actor"))
+    step.note(actor=str(((behaverse.simulated_actor_of(element) or {}).get("attributes") or {}).get("implementation") or "behaverse://simulated-actor"))
     memory = MEMORY.setdefault(str((step.conversation or {}).get("id") or ""), {})
-    return answer(SimulatedActor((simulated_actor_of(element) or {}).get("attributes") or {}), step.seed,
+    return answer(SimulatedActor((behaverse.simulated_actor_of(element) or {}).get("attributes") or {}), step.seed,
                   written_out(step.message or {}, step.plan, step.values), memory)

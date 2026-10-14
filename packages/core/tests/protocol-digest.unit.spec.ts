@@ -130,7 +130,7 @@ test('the drawing, the run state and the run records leave the digest alone; the
   expect(await protocolDigest(await xmlToStudy(await xmlOf(PLAN), freshMetamodel()))).toBe(base);
 });
 
-/** A study an actor takes: the actor pool's kind and implementation say who answers. */
+/** A study an actor takes: the actor pool's kind, implementation and documentation say who answers. */
 const TAKEN = `id: actor_probe
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -143,6 +143,7 @@ Taken:
       actorType: software
       implementation: ollama://gemma4:e2b-mlx
       memory: conversation
+      documentation: A language model, one conversation per subject.
     Subjects:
       name: Each subject
       processRef: Study
@@ -174,6 +175,9 @@ test('the digest for any actor leaves out who answers, and only that', async () 
     // A kind of actor a skill declares: what it plants on the pool is who answers too.
     ['a simulated actor instead', swap('      type: studyflow:Actor\n      name: Actor\n      actorType: software\n      implementation: ollama://gemma4:e2b-mlx\n',
       '      type: behaverse:SimulatedActor\n      name: Actor\n      implementation: behaverse://simulated-actor\n      missRate: 0.05\n      accuracy: "default: 0.85"\n'), true, false],
+    // How the actor pool describes its actor is who answers too; how another pool is described is not.
+    ['the actor described otherwise', swap('A language model, one conversation per subject.', 'A simulated actor that plants no effect.'), true, false],
+    ['the subjects described', swap('      name: Each subject\n', '      name: Each subject\n      documentation: One instance per participant.\n'), true, true],
     ['what the actor remembers', swap('memory: conversation', 'memory: none'), true, true],
     ['the pool renamed', swap('name: Actor', 'name: Model'), true, true],
     ['a step renamed', swap('name: Play the task', 'name: Play the other task'), true, true],

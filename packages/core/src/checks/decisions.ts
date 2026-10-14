@@ -3,7 +3,7 @@ import { parseExpression } from 'feelin';
 import { BPMN } from '@core/constants';
 import type { Issue } from '@core/checks';
 import { containers, graphOf, quoted } from '@core/checks/graph';
-import { expressionOf, idOf, type StudyModel } from '@core/model/index';
+import { expressionOf, idOf, type Element, type StudyModel } from '@core/model/index';
 import { cited } from '@core/expression/feel';
 
 /** A set of numbers: its intervals, each open or closed at either end. */
@@ -94,10 +94,44 @@ function rangeOf(expression: string): { name: string; range: Range } | undefined
 }
 
 /**
+ * An inclusive gateway takes every flow whose condition holds and every flow without one, and its default flow when no
+ * condition holds. With a condition on every flow but the default, and either one condition and a default flow or
+ * conditions on one number no two of which hold together, it never takes two flows at once: a decision, which an
+ * exclusive gateway draws. It runs as drawn, so this is a warning.
+ */
+function singleFlow(
+  node: Element,
+  outgoing: Element[],
+  conditional: Element[],
+  fallback: string | null,
+  conditionOf: (flow: Element) => string | undefined,
+): Issue[] {
+  const decision = (why: string): Issue[] => [{
+    severity: 'warning',
+    elementId: node.id,
+    message: `${quoted(node)} is an inclusive gateway, but ${why}, so it never takes more than one flow: make it an exclusive gateway`,
+  }];
+  const otherwise = outgoing.find((flow) => flow.id === fallback);
+  if (conditional.length === 1 && otherwise) {
+    return decision(`it takes its default flow ${quoted(otherwise)} only when the condition on ${quoted(conditional[0])} fails`);
+  }
+  if (conditional.length < 2) return [];
+  const ranges = conditional.map((flow) => rangeOf(conditionOf(flow)!));
+  if (ranges.some((found) => !found) || new Set(ranges.map((found) => found!.name)).size !== 1) return [];
+  for (let i = 0; i < ranges.length; i += 1) {
+    for (let j = i + 1; j < ranges.length; j += 1) {
+      if (intersect(ranges[i]!.range, ranges[j]!.range).length > 0) return [];
+    }
+  }
+  return decision(`no two of the conditions on ${conditional.map(quoted).join(', ')} hold together`);
+}
+
+/**
  * An exclusive gateway's conditions, when each compares the same name to numbers: two that hold for the same value
  * leave the choice to the order of the flows, and a value none holds for, with no default flow, stops the walk. So a
- * criterion whose inequality was flipped, or moved in one branch only, is caught before any run. And a parallel
- * gateway with conditions on its flows, which it never reads: a decision drawn as a split.
+ * criterion whose inequality was flipped, or moved in one branch only, is caught before any run. And a decision drawn
+ * as a split: a parallel gateway with conditions on its flows, which it never reads, or an inclusive gateway that never
+ * takes two flows at once.
  */
 export function checkDecisions(model: StudyModel): Issue[] {
   const issues: Issue[] = [];
@@ -109,14 +143,20 @@ export function checkDecisions(model: StudyModel): Issue[] {
         issues.push({
           severity: 'error',
           elementId: node.id,
-          message: `${quoted(node)} is a parallel gateway, which takes every flow out of it, so it never reads the conditions on ${conditioned.map(quoted).join(', ')}: make it an exclusive or an inclusive gateway`,
+          message: `${quoted(node)} is a parallel gateway, which takes every flow out of it, so it never reads the conditions on ${conditioned.map(quoted).join(', ')}: make it an exclusive gateway, or an inclusive one if several may hold at once`,
         });
       }
-      if (!model.isA(node, BPMN.ExclusiveGateway)) continue;
+      const inclusive = model.isA(node, BPMN.InclusiveGateway);
+      if (!inclusive && !model.isA(node, BPMN.ExclusiveGateway)) continue;
       const fallback = idOf(node.default);
       const conditionOf = (flow: (typeof outgoing)[number]): string | undefined => expressionOf(flow.conditionExpression)?.body;
       const conditional = outgoing.filter((flow) => flow.id !== fallback && conditionOf(flow) !== undefined);
-      if (conditional.length < 2 || conditional.length !== outgoing.length - (fallback ? 1 : 0)) continue;
+      if (conditional.length !== outgoing.length - (fallback ? 1 : 0)) continue;
+      if (inclusive) {
+        issues.push(...singleFlow(node, outgoing, conditional, fallback, conditionOf));
+        continue;
+      }
+      if (conditional.length < 2) continue;
       const ranges = conditional.map((flow) => rangeOf(conditionOf(flow)!));
       if (ranges.some((found) => !found) || new Set(ranges.map((found) => found!.name)).size !== 1) continue;
       const name = ranges[0]!.name;

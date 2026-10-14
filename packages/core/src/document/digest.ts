@@ -19,9 +19,12 @@ const RECORDED = new Set(['progress']);
 const unticked = (markdown: string): string =>
   serializeChecklistLines(parseChecklistLines(markdown).map((line) => (line.kind === 'task' ? { ...line, checked: false } : line)));
 
-/** Who answers an actor pool: its kind and the program, model, or device that plays it, left out of a digest for any actor. */
+/**
+ * Who answers an actor pool, left out of a digest for any actor: its kind, the program, model, or device that plays
+ * it, and the pool's documentation, which describes them.
+ */
 const ACTOR = 'studyflow:Actor';
-const BINDING = new Set(['actorType', 'implementation']);
+const BINDING = new Set(['actorType', 'implementation', 'documentation']);
 
 /** Where a run puts what it adds to a study that had neither: the Study extension for its `state`, and its holder. */
 const HOLDERS = new Set([STUDY_EXTENSION_TYPE, 'bpmn:ExtensionElements']);
@@ -65,6 +68,8 @@ function canonicalElementIn(model: StudyModel, element: Element, entry: boolean,
   const host = entry ? element.type : model.host(element);
   if (!model.metamodel.has(host)) return sorted([['$type', element.type]]);
   const unbound = anyActor && model.metamodel.isA(host, ACTOR);
+  // An actor pool's documentation is the participant's, not its actor entry's, so it is left out on the pool.
+  const pool = anyActor && !entry && model.isA(element, ACTOR);
   // What a kind of actor a skill declares adds to the actor (a simulated actor's planted accuracies) is who answers too.
   const actorOwn = unbound ? new Set(model.metamodel.descriptor(ACTOR).properties.map((p) => p.ns.localName)) : undefined;
   const typed = entry ? undefined : model.typedEntry(element);
@@ -74,7 +79,8 @@ function canonicalElementIn(model: StudyModel, element: Element, entry: boolean,
   for (const p of model.metamodel.descriptor(host).properties) {
     const key = p.ns.localName;
     if (p.isVirtual || DRAWING.has(key) || RECORDED.has(key) || (key === 'state' && host === STUDY_EXTENSION_TYPE)) continue;
-    if (unbound && (BINDING.has(key) || !actorOwn!.has(key))) continue;
+    if ((unbound || pool) && BINDING.has(key)) continue;
+    if (unbound && !actorOwn!.has(key)) continue;
     let v: unknown = element[key];
     if (key === 'extensionElements') {
       const listed = [...(typed ? [typed] : []), ...(Array.isArray(v) ? v : isElement(v) && Array.isArray(v.values) ? v.values : [])];

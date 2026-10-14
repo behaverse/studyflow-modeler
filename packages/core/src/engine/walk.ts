@@ -39,11 +39,20 @@ type Scope = {
   failure?: unknown;
 };
 
-/** Every non-empty subset of `items`, smallest first: what an inclusive split may take. */
+/** Every non-empty subset of `items`, smallest first: which conditioned flows of a split may hold together. */
 function subsets<T>(items: T[]): T[][] {
   const all: T[][] = [];
   for (let mask = 1; mask < 1 << items.length; mask += 1) all.push(items.filter((_item, i) => mask & (1 << i)));
   return all.sort((a, b) => a.length - b.length);
+}
+
+/**
+ * What an inclusive gateway takes, given its conditioned flows that hold: those, each flow without a condition, and
+ * its default flow when no condition holds (BPMN 2.0), in the order of `flows`.
+ */
+function inclusiveTaken(flows: PlanElement[], held: PlanElement[], fallback: unknown): PlanElement[] {
+  return flows.filter((flow) => held.includes(flow)
+    || (!flow.condition && (flow.id !== fallback || held.length === 0)));
 }
 
 export class Walk {
@@ -761,7 +770,12 @@ export class Walk {
     }
 
     if (host.choose && flows.length > 1) {
-      if (element.type === 'inclusiveGateway') return take(this.chooseFlows(id, flows, false), 'chosen');
+      if (element.type === 'inclusiveGateway') {
+        // Any set of its conditions may hold; none too, when a flow without a condition, or the default, is then taken.
+        const conditional = flows.filter((flow) => flow.condition);
+        const held = conditional.length > 0 ? this.chooseFlows(id, conditional, conditional.length < flows.length) : [];
+        return take(inclusiveTaken(flows, held, element.attributes.default), 'chosen');
+      }
       const chosen = host.choose(id, flows.map((flow) => flow.id));
       return take([flows.find((flow) => flow.id === chosen) ?? flows[0]], 'chosen');
     }
@@ -852,13 +866,17 @@ export class Walk {
       this.steps.fail(entry, error);
       throw error;
     }
-    if (held.length > 0) return take(held, held.map((flow) => flow.condition!.body).join('; '));
-
-    // No condition held: the default flow, else the one flow without a condition.
-    const chosen = flows.find((flow) => flow.id === element.attributes.default);
-    if (chosen) return take([chosen], 'default', { default: true });
-    const bare = flows.filter((flow) => !flow.condition);
-    if (bare.length === 1) return take(bare, 'otherwise', { otherwise: true });
+    if (element.type === 'inclusiveGateway') {
+      const taken = inclusiveTaken(flows, held, element.attributes.default);
+      const how = taken.map((flow) => flow.condition?.body ?? (flow.id === element.attributes.default ? 'default' : 'no condition'));
+      if (taken.length > 0) return take(taken, how.join('; '), how.includes('default') ? { default: true } : {});
+    } else {
+      // No condition held: the default flow, else the one flow without a condition.
+      const chosen = flows.find((flow) => flow.id === element.attributes.default);
+      if (chosen) return take([chosen], 'default', { default: true });
+      const bare = flows.filter((flow) => !flow.condition);
+      if (bare.length === 1) return take(bare, 'otherwise', { otherwise: true });
+    }
     entry.status = 'stuck';
     this.steps.end(entry);
     this.steps.status = 'error';
