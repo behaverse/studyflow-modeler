@@ -50,6 +50,8 @@ export type LocalRun = {
   from?: string;
   /** Ignore the study's per-element run records and re-run every step. */
   fresh?: boolean;
+  /** How many instances of a pool of several walk at once; one after another by default. */
+  concurrency?: number;
   quiet?: boolean;
   /** `NAME=COMMAND`: override a discovered partial runner, or add one. */
   runners?: string[];
@@ -333,7 +335,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
       writeFileSync(path.join(cache, `${id}.state.json`), JSON.stringify(values));
     },
   };
-  const walk = made.walk = new Walk(plan, host, { seed, state, concealed });
+  const walk = made.walk = new Walk(plan, host, { seed, state, concealed, concurrency: run.concurrency });
   // A data store a step that never skips writes (a trial log each subject appends to) starts as it was when the run
   // this one redoes started, or goes when it did not exist then: what the redone steps appended, they append again.
   const appended = new Set([...(redone ? walk.live : [])].flatMap((id) => (plan.elements[id]?.outputs ?? [])

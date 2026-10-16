@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 
 import { convert } from '@cli/convert';
 import { validate } from '@cli/validate';
@@ -107,6 +107,11 @@ program
   .option('--from <ref>', 're-run from this point in the repository\'s history (a commit-ish), branching there')
   .option('--fresh', 'ignore the study\'s per-element run records and re-run every step')
   .option('--quiet', 'no console output; the log file is written either way')
+  .option('--concurrency <n>', 'how many instances of a pool of several (participantMultiplicity) walk at once (default: 1, one after another). The protocol is the same at any n; the order the instances reach a random gateway is the run\'s, and the record keeps each participant\'s place', (value: string) => {
+    const n = Number(value);
+    if (!Number.isInteger(n) || n < 1) throw new InvalidArgumentError('a whole number of 1 or more');
+    return n;
+  })
   .option('--runner <name=command>', 'override a discovered partial runner, or add one: COMMAND is started once, and speaks the hand-off protocol on its stdin and stdout; repeatable', collect)
   .option('--debug', 'keep the .cache folder, with the values after each element, and write the debug lines to studyflow.log')
   .option('--option <name[=value]>', 'an option for the runners, in plan.json `options` (`--option sim` drives a simulated robot, `--option auto` answers prompts with canned values); repeatable', collect)

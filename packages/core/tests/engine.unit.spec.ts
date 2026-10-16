@@ -1065,6 +1065,80 @@ S:
   expect(walk.values.get('Answer')).toBe('answer 2');
 });
 
+// `concurrency`: the instances of a pool start in order, up to that many walking at once. Each keeps its own values
+// and takes only the answers to what it sent, whichever instance asked first or reads its mail last.
+const CONCURRENT = `C:
+  type: Collaboration
+  extensionElements:
+    - type: studyflow:Study
+      seed: 3
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 4
+      processRef: S
+    Model: { name: Model }
+  messageFlows:
+    M_Trial: { sourceRef: Play, targetRef: Model }
+    M_Answer: { sourceRef: Model, targetRef: Play }
+S:
+  type: Process
+  properties:
+    P_Mine: { name: mine }
+  flowElements:
+    S0: { type: StartEvent }
+    Allocate:
+      type: ExclusiveGateway
+      extensionElements:
+        - type: cognitive:RandomGateway
+          algorithm: block
+          blockSize: 2
+    Play:
+      type: Task
+      dataOutputAssociations: { Out_Mine: { targetRef: P_Mine } }
+    Check: { type: Task }
+    S9: { type: EndEvent }
+    SF0: S0 -> Allocate
+    F_A: Allocate -> Play
+    F_B: Allocate -> Play
+    SF1: Play -> Check
+    SF2: Check -> S9
+`;
+
+for (const concurrency of [1, 2]) {
+  test(`instances walk ${concurrency === 1 ? 'one after another by default' : 'at once, up to the concurrency'}, each with its own values and answers`, async () => {
+    let walking = 0;
+    let most = 0;
+    const checked: unknown[] = [];
+    const { error, events } = await walked(CONCURRENT, {
+      // An earlier instance waits longer before it reads its answer, so a later one reads its mail first.
+      Play: async (values, talk) => {
+        const instance = values.state._meta.instance.Subjects;
+        walking += 1;
+        most = Math.max(most, walking);
+        talk!.send({ flow: 'M_Trial', id: `t${instance}`, content: { instance } });
+        await new Promise((resolve) => setTimeout(resolve, (5 - instance) * 10));
+        const taken = await answers(talk!, 1);
+        walking -= 1;
+        return { result: [instance, ...taken.map((answer) => answer.content)] };
+      },
+      Model: (values) => ({ result: `answer ${values.message.content.instance}` }),
+      Check: (values) => {
+        checked.push(values.state.S.mine);
+        return {};
+      },
+    }, { concurrency });
+    expect(error).toBeUndefined();
+    expect(most).toBe(concurrency);
+    expect(checked.sort()).toEqual([1, 2, 3, 4].map((n) => [n, `answer ${n}`]).sort());
+    // Each draw keeps which participant drew and its place: the order the instances arrived at the gateway.
+    const drawn = events.flatMap((event) => (event.event === 'executed' && event.id === 'Allocate' ? [event.entry!.taken as Record<string, unknown>] : []));
+    expect(drawn.map(({ place }) => place)).toEqual([1, 2, 3, 4]);
+    expect(drawn.map(({ participant }) => participant).sort()).toEqual([1, 2, 3, 4]);
+  });
+}
+
 // A collapsed sub-process is the only place BPMN can draw a message flow to a step inside it, and a pool's message
 // flows belong to everything drawn in it: either way the step inside is what talks, out along that flow and back in.
 // Each is divided into a lane too, which the walk reads through.

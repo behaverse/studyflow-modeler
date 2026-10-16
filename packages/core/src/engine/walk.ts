@@ -69,6 +69,8 @@ export class Walk {
   private readonly maxSteps: number;
   private readonly oneInstance: boolean;
   private readonly participant: number;
+  /** How many instances of a pool walk at once. */
+  private readonly concurrency: number;
   private readonly blocks = new Map<string, number[]>();
   /** What each allocation sequence has dealt so far, in order: each participant's levels of its factors, and its arm. */
   private readonly dealt = new Map<string, { levels: string[]; arm: number }[]>();
@@ -96,6 +98,7 @@ export class Walk {
     this.maxSteps = options.maxSteps ?? 1000;
     this.oneInstance = options.oneInstance ?? false;
     this.participant = options.participant ?? 1;
+    this.concurrency = Number.isInteger(options.concurrency) && options.concurrency! > 1 ? options.concurrency! : 1;
     const seed = Number((options.seed === undefined ? plan.study.seed : options.seed) ?? NaN);
     this.seed = Number.isInteger(seed) ? seed : undefined; // unseeded: `Math.random()`, and a re-run replays the recorded decision instead
 
@@ -175,8 +178,9 @@ export class Walk {
   }
 
   /** A pool's process, once, or `participantMultiplicity/@maximum` times when its participant carries one: the
-   * instances run one after another, as a multi-instance activity's passes do, each on a token of its own and with
-   * values of its own over the study's (`Values.forInstance`). */
+   * instances start in order, up to `concurrency` of them walking at once (one after another by default), each on a
+   * token of its own and with values of its own over the study's (`Values.forInstance`). The first that fails ends the
+   * pool once the instances walking have stopped, and no further instance starts. */
   private async runPool(pool: string): Promise<void> {
     const { graph } = this;
     const { participant, instances: drawn } = graph.instancesOf(pool);
@@ -199,7 +203,24 @@ export class Walk {
         this.instances.delete(`${pool}#${instance}`);
       }
     };
-    for (let instance = 1; instance <= instances; instance += 1) await walkInstance(instance);
+    let next = 1;
+    const failures: unknown[] = [];
+    // Each lane takes the next instance not yet started, until none is left or one has failed.
+    const lane = async (): Promise<void> => {
+      while (next <= instances && failures.length === 0 && this.post.failed === undefined) {
+        const instance = next;
+        next += 1;
+        try {
+          await walkInstance(instance);
+        } catch (error) {
+          failures.push(error);
+          this.post.failed ??= error; // the instances still walking notice at their next wait
+          this.post.notify();
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(this.concurrency, instances) }, lane));
+    if (failures.length > 0) throw failures[0];
     // The pool is one sender: a flow out of its participant to a step in another pool ("All subjects complete")
     // carries null once, when every instance has ended. A flow to another participant is the pool's talk instead,
     // which the steps inside exchange along, instance by instance.
@@ -758,7 +779,7 @@ export class Walk {
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
 
     /** Record the decision and how it was made, then follow the flows taken. */
-    const take = (taken: PlanElement[], how: string, marks: Record<string, boolean> = {}): Promise<PlanElement[]> => {
+    const take = (taken: PlanElement[], how: string, marks: Record<string, unknown> = {}): Promise<PlanElement[]> => {
       entry.taken = taken.length === 1
         ? { sequenceFlow: taken[0].id, name: taken[0].name, how, ...marks }
         : { sequenceFlows: taken.map((flow) => flow.id), how, ...marks };
@@ -842,7 +863,9 @@ export class Walk {
         arm = pick(u(), allocation.weights);
       }
       dealt.push({ levels, arm });
-      return take([flows[arm]], 'drawn', { random: true });
+      // Which participant drew, and its place in the sequence: with instances walking at once, the order they arrive
+      // in is the run's, so the record keeps it.
+      return take([flows[arm]], 'drawn', { random: true, participant: thread.participant, place: n });
     }
 
     const held: PlanElement[] = [];

@@ -43,7 +43,7 @@ Pools talk only along message flows, and the walk carries every message: `{"id",
 
 - A standard loop marker repeats its activity while `loopCondition` holds, up to `loopMaximum`, and with no condition until a boundary event ends it.
 - A multi-instance marker runs its activity `loopCardinality` times, whichever way `isSequential` reads: the instances run one after another, re-entering the activity's scope each time, so the parallel marker is honoured in order of completion only. When its `loopDataInputRef` names a list this run holds (a property, its declared `value` until a data edge writes one, or a data object's value), it runs once per item instead, and `loopCardinality` is ignored: each pass binds its item under the `inputDataItem`'s name in the activity's own scope (`state.<activity id>.<name>`, `{name}` to the steps inside, a name to its expressions), takes what that scope holds under the `outputDataItem`'s name once the pass is done, and after the last pass the list of them is stored into the `loopDataOutputRef` element. While a repeating activity runs, `state._meta.instance.<id>` is the pass it is on, 1-based, so a step inside knows which instance it is serving.
-- A pool whose participant carries a `participantMultiplicity` runs its process `maximum` times the same way: the instances run one after another, each with values of its own (the pool's scope, the sub-processes and repeating activities inside it, what its steps produced, and `state._meta.instance.<pool id>`, the instance it is on) over the study's, which every instance shares (the counts, a plain element's properties, the data elements, the other pools), and the run ends with the last instance's, and a pool it talks to along message flows answers each instance in turn; a flow from that participant to a step in another pool is the whole pool's message, sent once, carrying null, after the last instance has ended, and a wait on it holds while the instances run.
+- A pool whose participant carries a `participantMultiplicity` runs its process `maximum` times: the instances start in order, one after another unless the run is given a concurrency (`studyflow run --concurrency N`, at most N walking at once), each on a token and with values of its own (the pool's scope, the sub-processes and repeating activities inside it, what its steps produced, and `state._meta.instance.<pool id>`, the instance it is on) over the study's, which every instance shares (the counts, a plain element's properties, the data elements, the other pools), and the run ends with the last instance's, and a pool it talks to along message flows answers each instance in turn, the answer going to the instance that asked alone; a flow from that participant to a step in another pool is the whole pool's message, sent once, carrying null, after the last instance has ended, and a wait on it holds while the instances run.
 - A lane set on a process or a sub-process is a partition of the drawing: the walk reads through it.
 - What repeats never skips or replays on a re-run, whether it sits in an activity with a loop or a multi-instance marker or in a pool of several instances: a record keeps an element's last pass only, so replaying it would give every pass the last one's outcome (every subject the last subject's arm).
 
@@ -86,11 +86,13 @@ its last path ends. Where the walk reads a construct otherwise than the specific
   where BPMN would repeat it for ever; `studyflow validate` refuses it.
 - **A gateway's fallback.** When no condition holds, an exclusive gateway takes its default flow, else its one flow
   without a condition; BPMN would take its default flow, and with none throw an exception.
-- **Repeats run in order.** A multi-instance marker's instances, parallel or not, run one after another, and so do
-  the instances of a pool with a `participantMultiplicity`, which share the study's counts and meet the pools they
-  talk to in turn. A random gateway draws for each instance on its own (its participant number and its visit), so the
-  order does not change what it draws; one with `stratifyBy`, or minimizing, deals by the instances before it, in
-  their order.
+- **Repeats run in order.** A multi-instance marker's instances, parallel or not, run one after another. So do the
+  instances of a pool with a `participantMultiplicity`, unless the run is given a concurrency, which is the run's and
+  not the protocol's; they share the study's counts and meet the pools they talk to in turn. A random gateway draws for
+  each instance on its own (its participant number and its visit), so the order does not change what it draws; one
+  that deals in blocks or in turn deals by the place each instance arrives at, and one with `stratifyBy`, or
+  minimizing, by the instances before it, in their order. With instances walking at once, that order is the run's,
+  and the gateway's record entry keeps each draw's participant and place.
 - **A pool's messages.** A step with no message flow of its own exchanges along its enclosing sub-process's or its
   pool's (see [Messages](#messages)). A flow out of a pool of several instances to a step in another pool is sent once,
   after the last instance, where BPMN would send one per instance, each starting an instance of the receiver.
