@@ -303,8 +303,8 @@ const poll = setInterval(() => {
 }, 100);
 
 // Along the task's message flows: the runner sends the trial as the build describes it (its stimulus, the options it
-// takes, its window) and waits for the answer that names it. No answer, no injection: the trial's own response window
-// ends it, a miss.
+// takes, its window) and waits for the answer that names it. An answer that names none of the options is injected with
+// no Response, which ends the trial at once, unanswered; with no answer at all, the trial's own window ends it.
 async function answer(d) {
   const options = d.ResponseOptions;
   const reply = await fetch('/respond', {
@@ -312,7 +312,10 @@ async function answer(d) {
     body: JSON.stringify({ RequestId: d.RequestId, TrialIndex: d.TrialIndex, Stimulus: d.Stimulus, ResponseOptions: options,
       MaxResponseTime: d.MaxResponseTime, Scene: STAGE.scene, Screenshot: d.Screenshot || undefined }),
   }).then((r) => r.json()).catch(() => ({}));
-  if (!options.includes(reply.Response)) return;
+  if (!options.includes(reply.Response)) {
+    send('InjectResponse', JSON.stringify({ RequestId: d.RequestId, Response: null, Agent: { Id: reply.Agent } }));
+    return;
+  }
   send('InjectResponse', JSON.stringify({ RequestId: d.RequestId, Response: reply.Response, ResponseOptionIndex: options.indexOf(reply.Response), Agent: { Id: reply.Agent } }));
   post('/trial', { TrialIndex: d.TrialIndex, Response: reply.Response, Agent: reply.Agent });
 }
@@ -369,14 +372,14 @@ class Stage(ThreadingHTTPServer):
 
 
 def answer_of(exchange: Exchange, trial: dict[str, Any]) -> dict[str, Any]:
-    """The trial's answer as the page injects it, `{Response, Agent}`, or {} when none names one of its options within
-    its window. The message is the trial as the page relays it (its stimulus, options and window), less the build's
+    """The trial's answer as the page injects it, `{Response, Agent}`, its Response None when no answer names one of
+    its options within its window. The message is the trial as the page relays it (its stimulus, options and window), less the build's
     request id, which is the message's own id."""
     request = str(trial.get("RequestId") or "")
     options = [str(option) for option in trial.get("ResponseOptions") or []]
     content = {key: value for key, value in trial.items() if key != "RequestId" and value is not None}
     choice = exchange.ask(content, request, options, float(trial.get("MaxResponseTime") or 0))
-    return {"Response": choice, "Agent": exchange.partner} if choice else {}
+    return {"Response": choice, "Agent": exchange.partner}
 
 
 def tally(trials: Trials, event: dict[str, Any]) -> None:

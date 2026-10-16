@@ -153,9 +153,10 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
     return (await asked).json();
   };
   expect(await ask('r1', 5, { Choice: ' right.' })).toEqual({ Response: 'Right', Agent: 'Reachy Mini' });
-  // An answer that names no option, or none within the trial's window, is no answer: a miss, never a stand-in.
-  expect(await ask('r2', 5, 'Up')).toEqual({});
-  expect(await ask('r3', 1)).toEqual({});
+  // An answer that names no option, or none within the trial's window, is no answer: a miss, never a stand-in, which
+  // the page injects with no Response so the trial ends at once.
+  expect(await ask('r2', 5, 'Up')).toEqual({ Response: null, Agent: 'Reachy Mini' });
+  expect(await ask('r3', 1)).toEqual({ Response: null, Agent: 'Reachy Mini' });
   // The build's own record of each trial is what the block counts hold: three shown, one answered with a
   // click, one with a response time, one that ended without one — however well the replies above named an option.
   const shown = (n: number) => ({ trialContext: { block: { id: 1 }, trial: { id: n }, types: ['TrialStart'] } });
