@@ -37,7 +37,7 @@ from typing import Any, Callable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from feel import PLACEHOLDER, evaluate  # noqa: E402 - the local runtime's FEEL, and a `{name}` citation as it reads one
 
-PROTOCOL = 2
+PROTOCOL = 3
 
 
 
@@ -98,8 +98,10 @@ class Step:
 
     def __init__(self, element_id: str, plan: dict[str, Any], values: dict[str, Any], message: dict[str, Any] | None = None,
                  run_dir: Path | None = None, cache: Path | None = None, wire: "_Wire | None" = None,
-                 conversation: dict[str, Any] | None = None, attributes: dict[str, Any] | None = None) -> None:
+                 conversation: dict[str, Any] | None = None, attributes: dict[str, Any] | None = None, handoff: Any = None) -> None:
         self.id = element_id
+        # The id of the `execute` request: every message about this hand-off names it, as two may run one element at once.
+        self.handoff = handoff
         self.plan = plan
         self.elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
         self.element: dict[str, Any] = self.elements.get(element_id) or {}
@@ -178,7 +180,7 @@ class Step:
     # --- messages, along the flows of the element (or of the sub-process or pool around it) ---
 
     def send(self, flow: str, content: Any, id: str | None = None, in_reply_to: str | None = None) -> None:  # noqa: A002 - the message's own field
-        message = {"element": self.id, "flow": flow, "content": content}
+        message = {"element": self.id, "handoff": self.handoff, "flow": flow, "content": content}
         if id:
             message["id"] = id
         if in_reply_to:
@@ -323,8 +325,9 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
     """Speak the contract on stdin and stdout until the walk says `shutdown`. `claims(plan)` answers with the ids of
     the elements this runner takes (or `{"elements": [...], "live": False}` for ones a re-run may skip);
     `execute(step)` runs one and returns its result, raising on failure: what it had bound by then is still handed
-    back. One hand-off at a time runs on the main thread; one that overlaps it (two pools, or two paths of one, at once) runs on a thread of
-    its own. `close()` runs at shutdown.
+    back. One hand-off at a time runs on the main thread; one that overlaps it (two pools, two paths of one, or two
+    instances of a pool, at once) runs on a thread of its own, so `execute` must not keep one hand-off's state where
+    another's may overwrite it. `close()` runs at shutdown.
     `terminal` leaves what the runner prints on the terminal, for one a person sits at."""
     # The wire keeps the two pipes to itself: a command the runner starts reads nothing from it and writes to the
     # terminal, a `print` is a line for the run log, and `input()` finds no one (ask with `step.prompt`).
@@ -342,8 +345,8 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
         element_id = str(params.get("element"))
         step = Step(element_id, plan, params.get("values") or {}, params.get("message"),
                     Path(run.get("dir") or "."), Path(run.get("cache") or ".cache"), wire, params.get("conversation"),
-                    params.get("attributes"))
-        steps[element_id] = step
+                    params.get("attributes"), request_id)
+        steps[str(request_id)] = step
         current.element = element_id
         started = time.perf_counter()
         try:
@@ -356,7 +359,7 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
                 "data": step.handback(None, started),
             }})
         finally:
-            steps.pop(element_id, None)
+            steps.pop(str(request_id), None)
 
     # Hand-offs run here, on the main thread, where a library may insist on being (a GUI toolkit, a signal handler);
     # one that arrives while another runs gets a thread of its own. The wire is read beside them.
@@ -392,11 +395,11 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
                 else:
                     threading.Thread(target=perform, args=(request_id, params), daemon=True).start()
             elif method == "message":
-                step = steps.get(str(params.get("element")))
+                step = steps.get(str(params.get("handoff")))
                 if step:
                     step._inbox.put(params.get("message"))
             elif method == "cancel":
-                step = steps.get(str(params.get("element")))
+                step = steps.get(str(params.get("handoff")))
                 if step:
                     step._cancelled.set()
                     step._inbox.put(None)

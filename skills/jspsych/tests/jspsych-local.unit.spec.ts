@@ -106,12 +106,12 @@ test('plays an AX-CPT timeline in jsPsych, every trial answered along the pool\'
     const reply = block === '1' && index === 3 ? 'Match' : block === '2' && index === 5 ? 'Maybe' : right;
     const after = block === '2' ? { 7: 1600, 9: 3400 }[index as number] ?? 0 : 0;
     replies.push(new Promise((resolve) => setTimeout(() => {
-      walk.notify('message', { element: 'AXCPT', message: { id: `a-${params.id}`, flow: 'Msg_Response', content: reply, inReplyTo: params.id } });
+      walk.notify('message', { element: 'AXCPT', handoff: 'w2', message: { id: `a-${params.id}`, flow: 'Msg_Response', content: reply, inReplyTo: params.id } });
       resolve();
     }, after)));
   });
-  expect((await walk.request('initialize', { protocol: 2, plan, run: { dir, cache: path.join(dir, '.cache') } })).result)
-    .toMatchObject({ protocol: 2, elements: ['AXCPT'] });
+  expect((await walk.request('initialize', { protocol: 3, plan, run: { dir, cache: path.join(dir, '.cache') } })).result)
+    .toMatchObject({ protocol: 3, elements: ['AXCPT'] });
   const handed = walk.request('execute', {
     element: 'AXCPT', values: { state: { _meta: { instance: { Subjects: 3 } }, Subject: { arm: 'standard' } } },
   });
@@ -144,7 +144,7 @@ test('plays an AX-CPT timeline in jsPsych, every trial answered along the pool\'
   // the seconds it has, the settings' 3; nothing says what the letter is (a cue, a probe and its class) or which answer
   // is right.
   expect(sent).toHaveLength(24);
-  expect(sent[0]).toEqual({ element: 'AXCPT', flow: 'Msg_Trial', id: 'AXCPT.3.1.0',
+  expect(sent[0]).toEqual({ element: 'AXCPT', handoff: 'w2', flow: 'Msg_Trial', id: 'AXCPT.3.1.0',
     content: { Prompt_AXCPT: null, TrialIndex: 0, Stimulus: 'A', ResponseOptions: ['Match', 'NonMatch'], MaxResponseTime: 3 } });
   expect(new Set(sent.map((message) => message.content.MaxResponseTime))).toEqual(new Set([3]));
   expect(sent.map((message) => message.id)).toEqual([

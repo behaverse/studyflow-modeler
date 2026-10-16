@@ -21,23 +21,23 @@ What the walk sends:
 
 | Method | Params | Answer |
 | --- | --- | --- |
-| `initialize` | `protocol` (2), `plan` (the path of `plan.json`), `run`: `dir` (the run directory) and `cache` (its `.cache/`) | `protocol`, `elements` (the ids it will run), `live` (default true). An error stops the run before its first step: what the runner lacks (a build, a device), in its own words; so does no answer within `--start-timeout SECONDS` (600 by default, as a first `uv run` installs the runner's packages). |
+| `initialize` | `protocol` (3), `plan` (the path of `plan.json`), `run`: `dir` (the run directory) and `cache` (its `.cache/`) | `protocol`, `elements` (the ids it will run), `live` (default true). An error stops the run before its first step: what the runner lacks (a build, a device), in its own words; so does no answer within `--start-timeout SECONDS` (600 by default, as a first `uv run` installs the runner's packages). |
 | `execute` | `element`, `values` (the run's values: each element's by its id, the state tree under `state`), `attributes` (the element's attributes, and those of the type that types it, with their placeholders resolved), and `message` when the element is a pool the runner plays, with `conversation` when that pool remembers | What it hands back (below). An error (`code` 1, or 2 when it was cancelled; `message`) fails the step; its `data` is what it had handed back by then, which is kept. |
-| `message` | `element`, `message` | None (a notification): a message along a flow into an element it is running. |
-| `cancel` | `element` | None: stop this hand-off, and answer its `execute` with an error. |
+| `message` | `element`, `handoff`, `message` | None (a notification): a message along a flow into an element it is running; `handoff` is the id of that hand-off's `execute` request. |
+| `cancel` | `element`, `handoff` | None: stop this hand-off, and answer its `execute` with an error. |
 | `shutdown` | | `{}`, then it exits. |
 
 What a runner sends:
 
 | Method | Params | Answer |
 | --- | --- | --- |
-| `message` | `element`, `flow`, `content`, `id`?, `inReplyTo`? | None: a message along a flow of the element it is running. |
+| `message` | `element`, `handoff`, `flow`, `content`, `id`?, `inReplyTo`? | None: a message along a flow of the element it is running, from the hand-off whose `execute` request has the id `handoff`. |
 | `log` | `text`, `element`? | None: a line for the run log. |
 | `prompt` | `element`, `text`, `default` | What the person at the walk's terminal typed, or `default` when there is no terminal. |
 
 Live elements run every time and never replay. `live: false` marks them replayable, so a re-run skips or reuses them as it does the walk's own records (the python skill answers this way). End events can be claimed too, and are handed over as the walk reaches them, so a runner can fold what it started. A runner that claims nothing is shut down at once; a walk refuses a runner that speaks another `protocol`.
 
-Hand-offs may overlap: two pools walked at once, or two paths of one pool after a split, may each be in the same runner. A hand-off is cancelled when a timer at a boundary event ends its activity, when another path of its scope fails or ends the scope, or when it outlasts `--step-timeout SECONDS` (its step then fails). A runner that has not answered a second after `cancel` has its process ended, and is started again for its next hand-off; so a runner answers at once, and work that cannot stop midway finishes behind the answer (the SDK's `unless_cancelled`). After `shutdown` it has two seconds to let go of what it holds and exit, or its process is ended.
+Hand-offs may overlap: two pools walked at once, two paths of one pool after a split, or two instances of a pool walking at once (`studyflow run --concurrency`), may each be in the same runner, two of them running one element. A runner keeps each hand-off's state apart and names its messages by `handoff`; what it keeps across hand-offs (a conversation) it keys by what the walk names (`conversation.id`). A hand-off is cancelled when a timer at a boundary event ends its activity, when another path of its scope fails or ends the scope, or when it outlasts `--step-timeout SECONDS` (its step then fails). A runner that has not answered a second after `cancel` has its process ended, and is started again for its next hand-off; so a runner answers at once, and work that cannot stop midway finishes behind the answer (the SDK's `unless_cancelled`). After `shutdown` it has two seconds to let go of what it holds and exit, or its process is ended.
 
 What a runner leaves in the run directory is committed at the next checkpoint (in a run that keeps its data out of the history, `--data-outside-history`, its SHA-256 is, in `data.sha256`), while `.cache/` is never committed and is removed when the run ends (`--debug` keeps it, and leaves in it the run's values after each element, `<id>.state.json`).
 

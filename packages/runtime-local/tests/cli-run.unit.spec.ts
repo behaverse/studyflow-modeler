@@ -668,9 +668,9 @@ P:
     fs.writeFileSync(path.join(dir, 'silent.py'), 'import sys\nfor line in sys.stdin:\n    if \'"shutdown"\' in line:\n        break\n');
     const ROWS: [runner: string, said: string, ...options: string[]][] = [
       [`lacking=python3 ${path.join(dir, 'lacking.py')}`, "the lacking runner cannot run this study: FileNotFoundError: [Errno 2] No such file or directory: 'Build/Task.app'"],
-      ['mute=python3 -c "raise SystemExit(3)"', 'the mute runner did not answer initialize (its process ended with code 3): this walk speaks hand-off protocol 2'],
-      [`other=python3 ${path.join(dir, 'other.py')}`, 'other speaks hand-off protocol 1; this walk speaks 2'],
-      [`silent=python3 ${path.join(dir, 'silent.py')}`, 'the silent runner did not answer initialize (no answer within 1s, the --start-timeout): this walk speaks hand-off protocol 2', '--start-timeout', '1'],
+      ['mute=python3 -c "raise SystemExit(3)"', 'the mute runner did not answer initialize (its process ended with code 3): this walk speaks hand-off protocol 3'],
+      [`other=python3 ${path.join(dir, 'other.py')}`, 'other speaks hand-off protocol 1; this walk speaks 3'],
+      [`silent=python3 ${path.join(dir, 'silent.py')}`, 'the silent runner did not answer initialize (no answer within 1s, the --start-timeout): this walk speaks hand-off protocol 3', '--start-timeout', '1'],
     ];
     for (const [runner, said, ...options] of ROWS) {
       const repo = path.join(dir, runner.slice(0, runner.indexOf('=')));
@@ -726,7 +726,7 @@ P:
 
     const digest = JSON.parse(fs.readFileSync(path.join(dir, 'run', '.cache', 'plan.json.seen'), 'utf8'));
     // The contract's version, and the run's options for the runners that know them: no flag every runner must take.
-    expect(digest.protocol).toBe(2);
+    expect(digest.protocol).toBe(3);
     expect(digest.options).toEqual({ sim: true, speed: '2' });
     expect(digest.study).toEqual({ id: 'C', name: 'Lab', seed: '7', dependencies: ['pandas>=2.0', 'joblib'] });
     expect(digest.sources.length).toBeGreaterThan(0);

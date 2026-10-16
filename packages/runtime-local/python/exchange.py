@@ -12,6 +12,7 @@ answers it), such as a task's trial and its response.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import string
@@ -193,20 +194,27 @@ def records_uri(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> str
 def opened_this_run(cache: Path, records: Path) -> bool:
     """Whether this run has already written this records file. Several steps may deposit their records in one drawn
     dataset, and a step may run once per subject in a loop: the first to write it in a run starts it empty, the rest
-    append. The run is the walk's pid (`STUDYFLOW_RUN_PID`, CONTRACT.md), so a later run truncates again. ponytail:
-    two pools writing one dataset at the same instant may both think they are first."""
+    append. The run is the walk's pid (`STUDYFLOW_RUN_PID`, CONTRACT.md), so a later run truncates again. Steps that
+    start at once (two pools, or instances of a pool walking at once, in this runner or another) ask in turn, under a
+    lock on the marker, so one alone is first."""
     marker = cache / "events.written.json"
     run = os.environ.get("STUDYFLOW_RUN_PID", "")
-    try:
-        written = json.loads(marker.read_text())
-    except (OSError, ValueError):
-        written = {}
-    if written.get(str(records)) == run:
-        return True
-    written[str(records)] = run
     cache.mkdir(parents=True, exist_ok=True)
-    marker.write_text(json.dumps(written))
-    return False
+    with _MARKER, open(cache / "events.written.lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            written = json.loads(marker.read_text())
+        except (OSError, ValueError):
+            written = {}
+        if written.get(str(records)) == run:
+            return True
+        written[str(records)] = run
+        marker.write_text(json.dumps(written))
+        return False
+
+
+# The marker's lock within this process: `flock` orders processes, and threads of one process take turns here.
+_MARKER = threading.Lock()
 
 
 def attributes_of(element: dict[str, Any]) -> dict[str, Any]:

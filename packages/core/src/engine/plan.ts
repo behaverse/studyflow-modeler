@@ -15,7 +15,7 @@ const isMapping = (value: unknown): value is Record<string, unknown> => !!value 
  */
 
 /** The version of the hand-off contract (packages/runtime-local/CONTRACT.md) a plan is written for. */
-export const PROTOCOL = 2;
+export const PROTOCOL = 3;
 
 export type Expression = { body: string; language: string | null };
 
