@@ -18,6 +18,7 @@ import json
 import math
 import mimetypes
 import os
+import random
 import sys
 import urllib.request
 from pathlib import Path
@@ -149,9 +150,12 @@ DESCRIBED: dict[str, dict[str, Any]] = {}
 
 
 def shown(show: dict[str, Any]) -> dict[str, Any]:
-    """What `/api/show` says that the record keeps: the default sampling parameters, and the model's context length."""
+    """What `/api/show` says that the record keeps: the default sampling parameters, the model's context length, and
+    what kind of model it is: `decision` when it lists that capability (it returns a probability per option and writes
+    no text), else `chat`."""
     lengths = [value for key, value in (show.get("model_info") or {}).items() if key.endswith(".context_length")]
-    return {"parameters": show.get("parameters"), **({"contextLength": int(lengths[0])} if lengths else {})}
+    kind = "decision" if "decision" in (show.get("capabilities") or []) else "chat"
+    return {"parameters": show.get("parameters"), **({"contextLength": int(lengths[0])} if lengths else {}), "kind": kind}
 
 
 def context_window(model: str, messages: list[dict[str, Any]], limit: int | None) -> tuple[int, int]:
@@ -204,6 +208,62 @@ def ask_ollama(model: str, parts: list[dict[str, Any]], history: list[dict[str, 
     return data["message"]["content"], {"model": model, "options": options, **tokens, **about}
 
 
+def options_in(content: Any, plan: dict[str, Any]) -> list[str]:
+    """The answers a message allows: the list under `ResponseOptions`, a key of its content or the name of the
+    element that key is (a property wired into the asking step)."""
+    elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
+    for key, value in (content.items() if isinstance(content, dict) else []):
+        if "ResponseOptions" in (key, (elements.get(str(key)) or {}).get("name")) and isinstance(value, list):
+            return [str(option) for option in value]
+    return []
+
+
+def decision_request(model: str, parts: list[dict[str, Any]], history: list[dict[str, Any]], options: list[str]) -> dict[str, Any]:
+    """`/v1/systemone`'s body: the conversation so far as `state` (none when there is none), and one choice question,
+    the message's text as its instructions and the allowed answers as its criteria, with the message's images."""
+    images = [part["image"][1] for part in parts if "image" in part]
+    return {
+        "model": model,
+        **({"state": [{"role": turn["role"], "content": "\n\n".join(part["text"] for part in turn["parts"] if "text" in part)}
+                      for turn in history]} if history else {}),
+        **({"images": images} if images else {}),
+        "questions": {"response": {"type": "choice", "instructions": "\n\n".join(part["text"] for part in parts if "text" in part),
+                                   "criteria": {option: None for option in options}}},
+    }
+
+
+def drawn(probabilities: dict[str, float], options: list[str], u: float) -> str:
+    """The option `u` (in [0, 1)) falls on, the options in the message's order, each as wide as its probability."""
+    total = sum(probabilities.get(option, 0.0) for option in options)
+    if total <= 0:
+        raise ValueError(f"the model gave no probability to any of {options}")
+    edge = 0.0
+    for option in options:
+        edge += probabilities.get(option, 0.0) / total
+        if u < edge:
+            return option
+    return next(option for option in reversed(options) if probabilities.get(option, 0.0) > 0)
+
+
+def decide_ollama(model: str, parts: list[dict[str, Any]], history: list[dict[str, Any]], options: list[str], key: str) -> tuple[str, dict[str, Any]]:
+    """The answer a decision model gives: drawn from its probabilities by `key`, so the same study seed, participant
+    and trial draw the same answer, and for the record the probabilities, the model's own pick (`choice`, the most
+    probable), its `confidence`, and the draw."""
+    if not options:
+        raise ValueError(f"{model} is a decision model: it chooses among the answers a message lists under ResponseOptions, "
+                         "and this message lists none")
+    about = described(model)
+    body = decision_request(model, parts, history, options)
+    _, estimate = context_window(model, [{"content": json.dumps(body)}], about.get("contextLength"))
+    data = post(f"{OLLAMA}/v1/systemone", body, {}, timeout=120)
+    answer = data["answers"]["response"]
+    u = random.Random(key).random()
+    reply = drawn(answer["probabilities"], options, u)
+    return reply, {"model": model, **about, "contextEstimate": estimate, "promptTokens": (data.get("usage") or {}).get("input_tokens"),
+                   "probabilities": answer["probabilities"], "choice": answer.get("choice"), "confidence": answer.get("confidence"),
+                   "draw": {"key": key, "u": u}}
+
+
 CLIENTS = {"claude": ask_claude, "ollama": ask_ollama}
 
 
@@ -230,7 +290,15 @@ def execute(step: Step) -> str:
                                f"runner holds {len(history) // 2} of its exchanges: it was started again, and lost them")
     # A request the walk stops (`--step-timeout`) answers at once and is left to finish, its reply dropped: ending this
     # process would lose every conversation it holds.
-    reply, record = step.unless_cancelled(lambda: CLIENTS[provider](model, parts, history))
+    if provider == "ollama" and described(model).get("kind") == "decision":
+        # Keyed by the study's seed and, in a conversation, the participant's (its id) and the trial's (its turn); a
+        # message no conversation holds is keyed by its own id.
+        key = (f"{step.seed}:{step.conversation['id']}:{step.conversation['turn']}" if step.conversation
+               else f"{step.seed}:{message.get('id')}")
+        options = options_in(message.get("content"), step.plan)
+        reply, record = step.unless_cancelled(lambda: decide_ollama(model, parts, history, options, key))
+    else:
+        reply, record = step.unless_cancelled(lambda: CLIENTS[provider](model, parts, history))
     print(f"{provider}://{model}: {reply.strip()[:160]!r}")
     # The request as sent: its text, as far as a record needs it, how many images went with it, and after how many
     # exchanges of its conversation.

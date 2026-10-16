@@ -32,6 +32,16 @@ characters sent, never shrinking for a model within a run (a new size reloads th
 own context length (`/api/show`), where it fails the message rather than let an earlier turn be dropped. A
 conversation that keeps every trial of a long session can need a window of 10^5 tokens, and the memory to hold it.
 
+An `ollama://` model that `/api/show` lists as a `decision` model (d1) writes no text: it returns a probability for
+each answer it is offered. The runner asks it `/v1/systemone` one choice question, the message's text as the
+question's instructions and the answers the message lists under `ResponseOptions` as its criteria, with the message's
+images; a message that lists none fails, since there is nothing to choose among. In a conversation the model, which
+keeps no state between requests, receives the conversation so far as its `state` with every message. The runner draws
+the answer from the probabilities with a seed keyed by the study, the participant (the conversation) and the trial (its
+turn), or by the message's id outside a conversation, so a re-run draws the same answers, and the record keeps the
+`probabilities`, the model's own most probable `choice` and `confidence`, and the `draw` (its key and the uniform `u`).
+Every Ollama record says which `kind` the model is, `chat` or `decision`.
+
 Each answer comes back with a `record`, which joins the step's record and is never a value a step reads
 (`../../packages/runtime-local/CONTRACT.md`, "What comes back"). From Ollama: the model, its digest and quantization level (`/api/tags`),
 its default sampling parameters and context length (`/api/show`), Ollama's version (`/api/version`), the options this

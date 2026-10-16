@@ -97,7 +97,7 @@ step = agentic.Step("Model", asked, {}, {"id": "m1", "flow": "M_Ask", "content":
 assert agentic.execute(step) == "Left" and step.record == {
     "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False, "options": {"num_ctx": 32768}},
     "contextEstimate": 271, "digest": "ab12", "quantization": "Q4_0",
-    "parameters": "temperature 1\ntop_k 64", "contextLength": 131072, "version": "ollama 0.12.3",
+    "parameters": "temperature 1\ntop_k 64", "contextLength": 131072, "kind": "chat", "version": "ollama 0.12.3",
     "sent": {"text": 'Note: left is yellow\n\nTrial: {"n": 1}', "images": 1},
 }, step.record
 
@@ -172,6 +172,71 @@ agentic.get = unreachable
 reply, record = agentic.ask_ollama("gemma4:1b", [{"text": "Left or Right?"}])
 assert reply == "Left" and "digest" not in record and set(record["unrecorded"]) == {"/api/tags", "/api/version"}, record
 assert record["parameters"] == "temperature 1\ntop_k 64", record
+
+# A decision model (`/api/show` lists `decision`) writes no text: it is asked `/v1/systemone` one choice question, the
+# message's text its instructions and the answers it lists under ResponseOptions its criteria, with the conversation so
+# far as its state. The answer is drawn from its probabilities by the seed, the participant and the trial, and the record
+# keeps the probabilities and the draw.
+agentic.get = get
+TAGS["models"].append({"name": "d1:3b", "digest": "cd34", "details": {"quantization_level": "Q8_0"}})
+decisions = []
+
+
+def deciding(url, body, headers, timeout):
+    if url.endswith("/api/show"):
+        return {"capabilities": ["decision", "vision"], "model_info": {"lfm2.context_length": 128000}}
+    if url.endswith("/v1/systemone"):
+        decisions.append(body)
+        return {"answers": {"response": {"type": "choice", "choice": "NonMatch", "confidence": 0.5,
+                                         "probabilities": {"Match": 0.25, "NonMatch": 0.75}}}, "usage": {"input_tokens": 40, "output_tokens": 0}}
+    raise AssertionError(f"a decision model is never asked {url}")
+
+
+agentic.post = deciding
+d1 = {"elements": {**asked["elements"], "Model": actor(actorType="llm", implementation="ollama://d1:3b"),
+                   "P_Options": {"type": "property", "name": "ResponseOptions"}}}
+assert agentic.options_in({"Prompt_Check": None, "P_Options": ["READY", "NOT READY"]}, d1) == ["READY", "NOT READY"]
+assert agentic.options_in({"ResponseOptions": ["Match", "NonMatch"]}, d1) == ["Match", "NonMatch"]
+assert agentic.options_in({"Note": "x"}, d1) == []
+letters = []
+for turn, letter in enumerate("AX"):
+    step = agentic.Step("Model", d1, {}, {"id": f"d{turn}", "flow": "M_Ask", "content": {
+        "Stimulus": letter, "ResponseOptions": ["Match", "NonMatch"], "Frame": "data:image/png;base64,AAAA"}},
+        conversation={"id": "Model with Subjects #3", "turn": turn})
+    letters.append(agentic.execute(step))
+assert decisions[-1] == {
+    "model": "d1:3b",
+    "state": [{"role": "user", "content": 'Stimulus: A\n\nResponseOptions: ["Match", "NonMatch"]'}, {"role": "assistant", "content": letters[0]}],
+    "images": ["AAAA"],
+    "questions": {"response": {"type": "choice", "instructions": 'Stimulus: X\n\nResponseOptions: ["Match", "NonMatch"]',
+                               "criteria": {"Match": None, "NonMatch": None}}},
+}, decisions[-1]
+assert "state" not in decisions[0], decisions[0]
+record = step.record
+assert record["kind"] == "decision" and record["probabilities"] == {"Match": 0.25, "NonMatch": 0.75} and record["choice"] == "NonMatch"
+assert record["draw"]["key"] == "None:Model with Subjects #3:1" and 0 <= record["draw"]["u"] < 1, record
+assert record["digest"] == "cd34" and record["sent"]["turn"] == 1, record
+# A message that lists no answers has nothing for a decision model to choose among.
+try:
+    agentic.execute(agentic.Step("Model", d1, {}, {"id": "d9", "flow": "M_Ask", "content": {"Note": "say READY"}}))
+    raise AssertionError("a decision model answered a message that lists no options")
+except ValueError as error:
+    assert "lists none" in str(error), error
+
+# The draw: `u` falls on an option as wide as its probability, the options in the message's order; the same key draws
+# the same answer, other participants draw their own, and over many keys each answer comes up as often as its probability.
+assert [agentic.drawn({"Match": 0.25, "NonMatch": 0.75}, ["Match", "NonMatch"], u) for u in (0.0, 0.2499, 0.25, 0.9999)] == [
+    "Match", "Match", "NonMatch", "NonMatch"]
+assert agentic.drawn({"A": 0.0, "B": 1.0}, ["A", "B"], 0.0) == "B"
+probabilities = {"Match": 0.3, "NonMatch": 0.7}
+key = "42:Model with Subjects #1:13"
+assert len({agentic.drawn(probabilities, ["Match", "NonMatch"], agentic.random.Random(key).random()) for _ in range(1000)}) == 1
+us = {agentic.random.Random(f"42:Model with Subjects #{n}:13").random() for n in range(1, 49)}
+assert len(us) == 48
+share = sum(agentic.drawn(probabilities, ["Match", "NonMatch"], agentic.random.Random(f"42:Model with Subjects #{n % 48}:{n}").random()) == "Match"
+            for n in range(20_000)) / 20_000
+assert abs(share - 0.3) < 0.02, share
+agentic.post = post
 
 # Claude: the model asked for, the model the response names, and the options sent.
 os.environ.setdefault("ANTHROPIC_API_KEY", "not used: the helpers answer")
