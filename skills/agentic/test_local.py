@@ -96,7 +96,7 @@ content = {"Note": "left is yellow", "Frame": "data:image/png;base64,AAAA", "Tri
 step = agentic.Step("Model", asked, {}, {"id": "m1", "flow": "M_Ask", "content": content})
 assert agentic.execute(step) == "Left" and step.record == {
     "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False, "options": {"num_ctx": 32768}},
-    "contextEstimate": 271, "digest": "ab12", "quantization": "Q4_0",
+    "contextEstimate": 271, "digest": "ab12", "quantization": "Q4_0", "memory": "none",
     "parameters": "temperature 1\ntop_k 64", "contextLength": 131072, "kind": "chat", "version": "ollama 0.12.3",
     "sent": {"text": 'Note: left is yellow\n\nTrial: {"n": 1}', "images": 1},
 }, step.record

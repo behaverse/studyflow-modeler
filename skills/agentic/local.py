@@ -307,7 +307,8 @@ def execute(step: Step) -> str:
     if step.conversation:
         sent["turn"] = step.conversation["turn"]
         history += [{"role": "user", "parts": parts}, {"role": "assistant", "parts": [{"text": reply}]}]
-    step.note(**record, sent=sent)
+    # What the actor remembered for this message: the conversation so far, or nothing but the message itself.
+    step.note(**record, memory="conversation" if step.conversation else "none", sent=sent)
     return reply
 
 

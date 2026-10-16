@@ -146,7 +146,13 @@ class Session:
         trial = self.asked.pop(body.get("index"), None)
         if trial is None or self.step.cancelled:
             return
-        record = trials.record_of(trial, body.get("row") or {}, self.context)
+        row = body.get("row") or {}
+        # A field a trial's data names by a timeline variable reaches this page's question unevaluated (jsPsych evaluates
+        # the variables nested in `data` as it writes the trial's data, after the answer): the row holds what it was.
+        for key, column in (("task", "task"), ("block", "block"), ("condition", "condition"), ("correct", "correct_response")):
+            if isinstance(trial.get(key), dict) and column in row:
+                trial[key] = row[column]
+        record = trials.record_of(trial, row, self.context)
         self.records.append(record)
         with self.events.open("a") as file:
             file.write(json.dumps(record, separators=(",", ":")) + "\n")

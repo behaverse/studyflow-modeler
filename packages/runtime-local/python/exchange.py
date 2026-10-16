@@ -133,6 +133,21 @@ def data_inputs(element: dict[str, Any], state: dict[str, Any], plan: dict[str, 
             if (source := binding.get("source")) and not configures(source)}
 
 
+def memory_of(element: dict[str, Any], flow: str, elements: dict[str, dict[str, Any]]) -> str:
+    """What the pool at the end of `flow` remembers of the messages `element` sends it: the innermost sub-process around
+    the element that says (`memory`), else the actor's own, else `none` (CONTRACT.md, "Messages")."""
+    scope = element.get("parent")
+    while scope:
+        container = elements.get(scope) or {}
+        memory = (container.get("attributes") or {}).get("memory")
+        if memory:
+            return str(memory)
+        scope = container.get("parent")
+    pool = elements.get(str(((elements.get(flow) or {}).get("attributes") or {}).get("targetRef") or "")) or {}
+    return next((str(ext["attributes"]["memory"]) for ext in pool.get("extensions") or []
+                 if (ext.get("attributes") or {}).get("memory")), str((pool.get("attributes") or {}).get("memory") or "none"))
+
+
 def delivered_once(source: str, elements: dict[str, dict[str, Any]]) -> bool:
     """Whether a data input is a prompt that rides with a step's first message only (`delivery: once`, the task's
     instructions), rather than with each (the default, a reminder of the rule)."""
@@ -159,8 +174,11 @@ class Exchange:
     def __init__(self, step: Step, flow: str, partner: str, inputs: dict[str, Any] | None = None) -> None:
         self.step, self.flow, self.partner, self.lock = step, flow, partner, threading.Lock()
         self.inputs = inputs or {}
-        # A prompt delivered `once` rides with the step's first message only, and every other with each message.
-        self.once = {key for key in self.inputs if delivered_once(key, getattr(step, "elements", None) or {})}
+        # A prompt delivered `once` rides with the step's first message only, and every other with each message; an
+        # actor that keeps no conversation is sent every prompt with every message, since it holds none of the earlier.
+        elements = getattr(step, "elements", None) or {}
+        remembers = memory_of(getattr(step, "element", None) or {}, flow, elements) == "conversation"
+        self.once = {key for key in self.inputs if remembers and delivered_once(key, elements)}
         self.asked = False
 
     def ask(self, content: dict[str, Any], id: str, options: list[str], window: float | None = None) -> str | None:  # noqa: A002 - the message's own field

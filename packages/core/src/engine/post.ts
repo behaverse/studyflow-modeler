@@ -133,9 +133,12 @@ export class Post {
   }
 
   /** The conversation a message from `thread` to `pool` belongs to, when the pool remembers: one per instance of the
-   * asking pool, so a model answering one subject sees that subject's earlier messages and no other subject's. */
+   * asking pool, so a model answering one subject sees that subject's earlier messages and no other subject's. The
+   * innermost sub-process the asking path is inside that says what the pool remembers (`memory`) decides, else the
+   * pool's actor. */
   private conversationOf(pool: PlanElement, thread: Thread): Omit<Conversation, 'turn'> | undefined {
-    if (pool.memory !== 'conversation') return undefined;
+    const scoped = [...thread.watching].reverse().map(({ activity }) => this.graph.get(activity)?.memory).find((memory) => memory);
+    if ((scoped ?? pool.memory) !== 'conversation') return undefined;
     const { participant } = this.graph.instancesOf(thread.pool);
     const instance = (this.values.state._meta?.instance as Record<string, number> | undefined)?.[participant];
     return { id: `${pool.id} with ${participant}${instance ? ` #${instance}` : ''}` };

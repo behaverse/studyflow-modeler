@@ -48,7 +48,24 @@ const TIMELINE_KEYS = new Set(['timeline_variables', 'randomize_order', 'repetit
 export function timelineOf(plugin: unknown, parameters: Record<string, unknown>, variable: (name: string) => unknown): Record<string, unknown> {
   const trial: Record<string, unknown> = { type: plugin };
   const around: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(parameters)) (TIMELINE_KEYS.has(key) ? around : trial)[key] = value;
+  for (const [key, value] of Object.entries(parameters)) (TIMELINE_KEYS.has(key) || key === 'timeline' ? around : trial)[key] = value;
+  // A `timeline` of their own is the timeline, jsPsych's nesting as written, each trial over the other Parameters, and
+  // a `{timelineVariable: name}` wherever written (a trial's data too) the variable.
+  const { timeline: nested, ...outer } = around;
+  if (Array.isArray(nested) && nested.length > 0) {
+    const lift = (value: unknown): unknown => Array.isArray(value) ? value.map(lift)
+      : value && typeof value === 'object'
+        ? (Object.keys(value).join() === 'timelineVariable' ? variable(String((value as Record<string, unknown>).timelineVariable))
+          : Object.fromEntries(Object.entries(value).map(([name, inner]) => [name, lift(inner)])))
+        : value;
+    const nodeOf = (node: unknown): unknown => {
+      if (!node || typeof node !== 'object') return node;
+      const { timeline: children, ...rest } = node as Record<string, unknown>;
+      if (Array.isArray(children)) return { ...rest, timeline: children.map(nodeOf) };
+      return { ...trial, ...(lift(rest) as Record<string, unknown>) };
+    };
+    return { ...outer, timeline: nested.map(nodeOf) };
+  }
   const variables = around.timeline_variables;
   if (!Array.isArray(variables) || variables.length === 0) return trial;
   for (const name of Object.keys(variables[0] as Record<string, unknown>)) if (!(name in trial)) trial[name] = variable(name);

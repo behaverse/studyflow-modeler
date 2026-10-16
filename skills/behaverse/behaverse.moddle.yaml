@@ -208,6 +208,10 @@ types:
         description: 'Accuracies that hold instead when a text sent with the trial has a line beginning with the key (`"Reminder:": {RE: {BX: 0.88}}`): how the actor plants an effect of what the study tells it.'
         isAttr: false
         type: studyflow:YAMLString
+      - name: remembering
+        description: 'Accuracies that hold instead when it keeps the conversation the trial belongs to (`RE: {BX: 0.88}`), the actor''s `memory` or that of the sub-process the asking step is in: how the actor plants an effect of what it remembers.'
+        isAttr: false
+        type: studyflow:YAMLString
       - name: missRate
         description: The share of trials it leaves unanswered.
         isAttr: true

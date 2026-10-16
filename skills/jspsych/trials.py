@@ -94,12 +94,17 @@ def deadline_of(parameters: dict[str, Any], external: float | None) -> float:
 def timeline_of(plugin: Any, parameters: dict[str, Any]) -> dict[str, Any]:
     """The jsPsych timeline one step runs, by the browser runtime's rule (`browser/trial.ts`, `timelineOf`): the
     Parameters as the plugin's, and, when they carry `timeline_variables`, a timeline over them, each variable a trial
-    parameter unless the Parameters set it. A variable is `{"timelineVariable": name}`, which the stage page makes
-    jsPsych's own; `plugin` is what the trial's `type` holds."""
+    parameter unless the Parameters set it. When they carry a `timeline` of their own, that is the timeline, jsPsych's
+    nesting as written (blocks, each with its own variables and order, of trials), each trial taking the other
+    Parameters unless it sets them. A variable is `{"timelineVariable": name}`, wherever it is written (a trial's `data`
+    too), which the stage page makes jsPsych's own; `plugin` is what the trial's `type` holds."""
     trial: dict[str, Any] = {"type": plugin}
     around: dict[str, Any] = {}
     for key, value in parameters.items():
-        (around if key in TIMELINE_KEYS else trial)[key] = value
+        (around if key in TIMELINE_KEYS or key == "timeline" else trial)[key] = value
+    nested = around.pop("timeline", None)
+    if isinstance(nested, list) and nested:
+        return {**around, "timeline": [node_of(node, trial) for node in nested]}
     variables = around.get("timeline_variables")
     if not isinstance(variables, list) or not variables:
         return trial
@@ -109,11 +114,21 @@ def timeline_of(plugin: Any, parameters: dict[str, Any]) -> dict[str, Any]:
     return {**around, "timeline": [trial]}
 
 
+def node_of(node: Any, trial: dict[str, Any]) -> Any:
+    """A node of a written timeline: a timeline of its own nodes, or a trial over the Parameters' `trial`."""
+    if isinstance(node, dict) and isinstance(node.get("timeline"), list):
+        return {**node, "timeline": [node_of(child, trial) for child in node["timeline"]]}
+    return {**trial, **node} if isinstance(node, dict) else node
+
+
 def variable_names(parameters: dict[str, Any]) -> list[str]:
-    """The names of the timeline variables, every row's, in the order they first appear."""
+    """The names of the timeline variables, every row's at every level of the timeline, in the order they first appear."""
     names: list[str] = []
     for row in parameters.get("timeline_variables") or []:
         names += [name for name in (row if isinstance(row, dict) else {}) if name not in names]
+    for node in parameters.get("timeline") or []:
+        if isinstance(node, dict):
+            names += [name for name in variable_names(node) if name not in names]
     return names
 
 

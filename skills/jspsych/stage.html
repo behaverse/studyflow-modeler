@@ -71,12 +71,19 @@ async function play() {
     }
   }
 
-  // The timeline as the runner wrote it, its trial's variables and plugin made jsPsych's own.
-  const node = STAGE.timeline.timeline ? STAGE.timeline.timeline[0] : STAGE.timeline;
-  for (const [name, value] of Object.entries(node)) {
-    if (value && typeof value === 'object' && Object.keys(value).join() === 'timelineVariable') node[name] = jsPsych.timelineVariable(value.timelineVariable);
-  }
-  node.type = Answered;
+  // The timeline as the runner wrote it, its trials' variables (wherever written, a trial's data too) and plugin made
+  // jsPsych's own, at every level of it.
+  const lift = (value) => Array.isArray(value) ? value.map(lift)
+    : value && typeof value === 'object'
+      ? (Object.keys(value).join() === 'timelineVariable' ? jsPsych.timelineVariable(value.timelineVariable)
+        : Object.fromEntries(Object.entries(value).map(([name, inner]) => [name, lift(inner)])))
+      : value;
+  const trials = (node) => {
+    if (Array.isArray(node.timeline)) { node.timeline.forEach(trials); return; }
+    for (const [name, value] of Object.entries(node)) if (name !== 'type') node[name] = lift(value);
+    node.type = Answered;
+  };
+  trials(STAGE.timeline);
   jsPsych.randomization.setSeed(STAGE.seed);
   await post('/started', { jspsych: jsPsych.version(), plugin: Plugin.info.version });
   await jsPsych.simulate([STAGE.timeline], 'data-only');

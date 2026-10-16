@@ -151,17 +151,32 @@ asking.ask({}, "T.3", ["Match"], None)
 assert [timeout for *_, timeout in step.sent[1:]] == [1.0, exchange.WAIT]
 assert exchange.Exchange(Asked(None), "M_Trial", "Model").ask({}, "T.4", ["Match"], 2.0) is None  # none in time
 
-# A prompt delivered `once` (the instructions) rides with the step's first message only; one without it (a reminder)
-# with every message.
+# A prompt delivered `once` (the instructions) rides with the step's first message only when the actor keeps the
+# conversation; one without it (a reminder) with every message. A sub-process says what the actor remembers of its
+# steps' messages (`memory`), else the actor does; an actor that keeps nothing is sent every prompt every time.
 AGENTIC = "https://w3id.org/studyflow/agentic"
-step = Asked({"inReplyTo": "T.1", "content": "Match"})
-step.elements = {"Rules": {"extensions": [{"namespace": AGENTIC, "type": "prompt", "attributes": {"template": "Rules.", "delivery": "once"}}]},
-                 "Reminder": {"extensions": [{"namespace": AGENTIC, "type": "prompt", "attributes": {"template": "Reminder."}}]}}
-asking = exchange.Exchange(step, "M_Trial", "Model", {"Rules": None, "Reminder": None})
-for trial in ("T.1", "T.2", "T.3"):
-    asking.ask({"Stimulus": "X"}, trial, ["Match"], 2.0)
-assert [content for _, content, *_ in step.sent] == [{"Rules": None, "Reminder": None, "Stimulus": "X"},
-                                                       {"Reminder": None, "Stimulus": "X"}, {"Reminder": None, "Stimulus": "X"}]
+
+
+def asked_with(memory_of_battery, memory_of_actor):
+    step = Asked({"inReplyTo": "T.1", "content": "Match"})
+    step.element = {"parent": "Battery"}
+    step.elements = {
+        "Battery": {"type": "subProcess", "attributes": {"memory": memory_of_battery} if memory_of_battery else {}},
+        "M_Trial": {"type": "messageFlow", "attributes": {"sourceRef": "Subjects", "targetRef": "Model"}},
+        "Model": {"type": "participant", "extensions": [{"namespace": STUDYFLOW, "type": "actor", "attributes": {"memory": memory_of_actor}}]},
+        "Rules": {"extensions": [{"namespace": AGENTIC, "type": "prompt", "attributes": {"template": "Rules.", "delivery": "once"}}]},
+        "Reminder": {"extensions": [{"namespace": AGENTIC, "type": "prompt", "attributes": {"template": "Reminder."}}]}}
+    asking = exchange.Exchange(step, "M_Trial", "Model", {"Rules": None, "Reminder": None})
+    for trial in ("T.1", "T.2", "T.3"):
+        asking.ask({"Stimulus": "X"}, trial, ["Match"], 2.0)
+    return [content for _, content, *_ in step.sent]
+
+
+every = [{"Rules": None, "Reminder": None, "Stimulus": "X"}] * 3
+assert asked_with(None, "conversation") == [every[0], {"Reminder": None, "Stimulus": "X"}, {"Reminder": None, "Stimulus": "X"}]
+assert asked_with(None, "none") == every
+assert asked_with("none", "conversation") == every
+assert asked_with("conversation", "none")[1] == {"Reminder": None, "Stimulus": "X"}
 
 # A page's Chromium closes with its page: the process ends, the page stops being served, and its profile goes. A
 # sleeping process stands in for the browser.

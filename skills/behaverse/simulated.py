@@ -513,17 +513,23 @@ def written_out(message: dict[str, Any], plan: dict[str, Any], values: dict[str,
 class SimulatedActor:
     """What the study plants on a `behaverse:SimulatedActor` pool: the probability of a right answer by instrument and
     condition (`accuracy`, `default` for any other), what holds instead when a text sent with the trial has a line
-    beginning with a key of `prompted`, and the share of trials left unanswered (`missRate`)."""
+    beginning with a key of `prompted`, what holds instead when it keeps the conversation the trial belongs to
+    (`remembering`), and the share of trials left unanswered (`missRate`)."""
 
     def __init__(self, attributes: dict[str, Any]) -> None:
         self.accuracy = yaml.safe_load(str(attributes.get("accuracy") or "")) or {}
         self.prompted = {re.compile(rf"^\s*{re.escape(str(key))}", re.MULTILINE): table
                          for key, table in (yaml.safe_load(str(attributes.get("prompted") or "")) or {}).items()}
+        self.remembering = yaml.safe_load(str(attributes.get("remembering") or "")) or {}
         self.miss_rate = float(attributes.get("missRate") or 0)
 
-    def probability(self, instrument: str, condition: str, texts: list[str]) -> float:
-        """The planted probability of a right answer: a prompted table's, where a text sent with the trial calls it up
-        and it names the instrument and condition, else the accuracy table's, else its `default`."""
+    def probability(self, instrument: str, condition: str, texts: list[str], remembers: bool = False) -> float:
+        """The planted probability of a right answer: the remembering table's, when the actor keeps the conversation and
+        it names the instrument and condition, else a prompted table's, where a text sent with the trial calls it up and
+        it names them, else the accuracy table's, else its `default`."""
+        held = (self.remembering.get(instrument) or {}).get(condition) if remembers else None
+        if held is not None:
+            return float(held)
         for marker, table in self.prompted.items():
             if any(marker.search(text) for text in texts):
                 held = ((table or {}).get(instrument) or {}).get(condition)
@@ -533,7 +539,8 @@ class SimulatedActor:
         return float(held if held is not None else self.accuracy.get("default", 0))
 
 
-def answer(actor: SimulatedActor, seed: Any, message: dict[str, Any], memory: dict[str, Any] | None = None) -> str:
+def answer(actor: SimulatedActor, seed: Any, message: dict[str, Any], memory: dict[str, Any] | None = None,
+           remembers: bool = False) -> str:
     """One reply: a trial answered right with the planted probability, or an instruction confirmed (`READY`). The trial
     is the value of the message that lists `ResponseOptions`, or the message itself, as the build sends one; `memory` is
     what this subject's conversation has shown of the block so far. Draws are seeded by the run's seed and the
@@ -552,7 +559,7 @@ def answer(actor: SimulatedActor, seed: Any, message: dict[str, Any], memory: di
     options = [str(option) for option in trial["ResponseOptions"]]
     wrong = [option for option in options if option != truth["correct"]]
     texts = [value for value in values if isinstance(value, str)]
-    right = draw.random() < actor.probability(truth["instrument"], truth["condition"], texts)
+    right = draw.random() < actor.probability(truth["instrument"], truth["condition"], texts, remembers)
     return truth["correct"] if right or not wrong else draw.choice(wrong)
 
 
@@ -562,4 +569,4 @@ def take(step: Any) -> str:
     step.note(actor=str(((behaverse.simulated_actor_of(element) or {}).get("attributes") or {}).get("implementation") or "behaverse://simulated-actor"))
     memory = MEMORY.setdefault(str((step.conversation or {}).get("id") or ""), {})
     return answer(SimulatedActor((behaverse.simulated_actor_of(element) or {}).get("attributes") or {}), step.seed,
-                  written_out(step.message or {}, step.plan, step.values), memory)
+                  written_out(step.message or {}, step.plan, step.values), memory, bool(step.conversation))

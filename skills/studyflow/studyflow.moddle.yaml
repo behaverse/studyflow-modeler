@@ -414,6 +414,19 @@ types:
         meta:
           categories:
             - Schedule
+  - name: SubProcessMemory
+    description: What the actor remembers of the messages the steps inside a sub-process send it.
+    extends:
+      - bpmn:SubProcess
+    isAbstract: true
+    properties:
+      - name: memory
+        description: What a pool a runner plays remembers of the messages the steps inside this sub-process send it, in place of its actor's own `memory` (an arm of a study whose actor keeps the conversation, and one whose actor does not). Unset, the actor's own.
+        isAttr: true
+        type: MemoryEnum
+        meta:
+          categories:
+            - Execution
   - name: ChoreographyTask
     description: One interaction between two participants.
     extends:

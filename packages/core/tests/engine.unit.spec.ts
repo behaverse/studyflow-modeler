@@ -983,6 +983,56 @@ S:
   expect(await heard('none')).toEqual([undefined, undefined, undefined, undefined]);
 });
 
+test('a sub-process says what a pool remembers of the messages its steps send, in place of the actor', async () => {
+  // Two arms of one study: the actor keeps the conversation of the steps inside Arm_Memory, and none inside Arm_None.
+  const study = (actor: string) => `C:
+  type: Collaboration
+  participants:
+    Subjects: { name: Subjects, processRef: S }
+    Model: { type: studyflow:Actor, name: Model, actorType: llm, memory: ${actor} }
+  messageFlows:
+    M_A1: { sourceRef: A1, targetRef: Model }
+    M_A2: { sourceRef: A2, targetRef: Model }
+    M_B1: { sourceRef: B1, targetRef: Model }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Arm_Memory:
+      type: SubProcess
+      memory: conversation
+      flowElements:
+        A0: { type: StartEvent }
+        A1: { type: SendTask }
+        A2: { type: SendTask }
+        A9: { type: EndEvent }
+        AF1: A0 -> A1
+        AF2: A1 -> A2
+        AF3: A2 -> A9
+    Arm_None:
+      type: SubProcess
+      memory: none
+      flowElements:
+        B0: { type: StartEvent }
+        B1: { type: SendTask }
+        B9: { type: EndEvent }
+        BF1: B0 -> B1
+        BF2: B1 -> B9
+    S9: { type: EndEvent }
+    SF1: S0 -> Arm_Memory
+    SF2: Arm_Memory -> Arm_None
+    SF3: Arm_None -> S9
+`;
+  const heard = async (actor: string): Promise<unknown[]> => {
+    const conversations: unknown[] = [];
+    await walked(study(actor), { Model: (values) => { conversations.push(values.conversation); return {}; } });
+    return conversations;
+  };
+  const kept = [{ id: 'Model with Subjects', turn: 0 }, { id: 'Model with Subjects', turn: 1 }, undefined];
+  expect(await heard('none')).toEqual(kept);
+  expect(await heard('conversation')).toEqual(kept);
+});
+
 test('a pool of two participant instances runs its process twice, one instance after another', async () => {
   // BPMN's `participantMultiplicity`: N instances of the pool's process, run one after another, and the model pool
   // answers each instance in turn.
