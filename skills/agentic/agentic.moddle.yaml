@@ -20,6 +20,13 @@ xml:
 version: '26.9.2'
 
 enumerations:
+  - name: PromptDeliveryEnum
+    description: How often a prompt rides with the messages of a step it is wired into.
+    literalValues:
+      - name: With every message
+        value: every
+      - name: With the first message only
+        value: once
   - extends: studyflow:ActorTypeEnum
     description: Extends what a pool can be, beyond human, software, and hardware.
     literalValues:
@@ -54,3 +61,13 @@ types:
         type: studyflow:MarkdownString
         meta:
           order: 1
+      - name: delivery
+        description: |
+          How often the prompt rides with the messages of a step it is wired into: `every` message (the default; a
+          reminder of the rule before each trial), or `once`, with the step's first message only (a task's
+          instructions, which an actor that keeps the conversation still holds).
+        isAttr: true
+        type: PromptDeliveryEnum
+        default: every
+        meta:
+          order: 2

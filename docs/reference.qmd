@@ -256,7 +256,7 @@ A step that fails goes on from the error boundary event drawn on it, if it carri
 
 | Type | Drawn as | Means | Attributes |
 |:--|:--|:--|:--|
-| `Prompt` | `bpmn:DataObjectReference` | A prompt kept as data, wired into the steps that send it to a model. | `template` |
+| `Prompt` | `bpmn:DataObjectReference` | A prompt kept as data, wired into the steps that send it to a model: with each of their messages, or with the first only (`delivery: once`). | `template`, `delivery` |
 | `Session` | `bpmn:Participant` | One acquisition session, carrying the device settings every phase inside it shares. | `device`, `modalities` |
 | `Timeseries` | `bpmn:DataObjectReference` | A continuously sampled signal. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
 | `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording (BIDS `events.tsv`). | `eventTypes`, `timeUnit`, `format`, `schema` |

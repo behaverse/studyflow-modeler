@@ -151,6 +151,18 @@ asking.ask({}, "T.3", ["Match"], None)
 assert [timeout for *_, timeout in step.sent[1:]] == [1.0, exchange.WAIT]
 assert exchange.Exchange(Asked(None), "M_Trial", "Model").ask({}, "T.4", ["Match"], 2.0) is None  # none in time
 
+# A prompt delivered `once` (the instructions) rides with the step's first message only; one without it (a reminder)
+# with every message.
+AGENTIC = "https://w3id.org/studyflow/agentic"
+step = Asked({"inReplyTo": "T.1", "content": "Match"})
+step.elements = {"Rules": {"extensions": [{"namespace": AGENTIC, "type": "prompt", "attributes": {"template": "Rules.", "delivery": "once"}}]},
+                 "Reminder": {"extensions": [{"namespace": AGENTIC, "type": "prompt", "attributes": {"template": "Reminder."}}]}}
+asking = exchange.Exchange(step, "M_Trial", "Model", {"Rules": None, "Reminder": None})
+for trial in ("T.1", "T.2", "T.3"):
+    asking.ask({"Stimulus": "X"}, trial, ["Match"], 2.0)
+assert [content for _, content, *_ in step.sent] == [{"Rules": None, "Reminder": None, "Stimulus": "X"},
+                                                       {"Reminder": None, "Stimulus": "X"}, {"Reminder": None, "Stimulus": "X"}]
+
 # A page's Chromium closes with its page: the process ends, the page stops being served, and its profile goes. A
 # sleeping process stands in for the browser.
 with tempfile.TemporaryDirectory() as folder:

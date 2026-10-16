@@ -133,6 +133,13 @@ def data_inputs(element: dict[str, Any], state: dict[str, Any], plan: dict[str, 
             if (source := binding.get("source")) and not configures(source)}
 
 
+def delivered_once(source: str, elements: dict[str, dict[str, Any]]) -> bool:
+    """Whether a data input is a prompt that rides with a step's first message only (`delivery: once`, the task's
+    instructions), rather than with each (the default, a reminder of the rule)."""
+    return any(str((ext.get("attributes") or {}).get("delivery") or "") == "once"
+               for ext in (elements.get(source) or {}).get("extensions") or [])
+
+
 def option_named(content: Any, options: list[str]) -> str | None:
     """The option an answer is: its text, or the one value of a mapping (a send task's one data input), matched whole
     and without case, with blanks, quotes, backticks and full stops at either end aside. An answer that only mentions
@@ -152,6 +159,9 @@ class Exchange:
     def __init__(self, step: Step, flow: str, partner: str, inputs: dict[str, Any] | None = None) -> None:
         self.step, self.flow, self.partner, self.lock = step, flow, partner, threading.Lock()
         self.inputs = inputs or {}
+        # A prompt delivered `once` rides with the step's first message only, and every other with each message.
+        self.once = {key for key in self.inputs if delivered_once(key, getattr(step, "elements", None) or {})}
+        self.asked = False
 
     def ask(self, content: dict[str, Any], id: str, options: list[str], window: float | None = None) -> str | None:  # noqa: A002 - the message's own field
         """The option the answer to message `id` names (`option_named`), or None when it names none, or none comes in
@@ -159,8 +169,10 @@ class Exchange:
         has time to take it, and never under a second; without a window, within `WAIT` seconds. One message awaits
         its answer at a time, and a step the walk stops has none."""
         with self.lock:
+            inputs = {key: value for key, value in self.inputs.items() if not (self.asked and key in self.once)}
+            self.asked = True
             try:
-                message = self.step.ask(self.flow, {**self.inputs, **content}, id=id,
+                message = self.step.ask(self.flow, {**inputs, **content}, id=id,
                                         timeout=max(1.0, window - 0.25) if window and window > 0 else WAIT)
             except Cancelled:
                 return None
