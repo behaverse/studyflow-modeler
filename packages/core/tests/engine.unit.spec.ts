@@ -1027,6 +1027,44 @@ S:
   expect(reached).toMatchObject({ S0: 2, Ask: 2, S9: 2 });
 });
 
+test('each instance of a pool holds its own values over the study\'s, and the run ends with the last instance\'s', async () => {
+  // What a step of one instance produced is that instance's: the next instance finds none before its own step runs.
+  // A data object and the counts stay the study's, shared by every instance.
+  const seen: unknown[] = [];
+  const { state, walk } = await walked(`C:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 2
+      processRef: S
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Look: { type: Task }
+    Answer:
+      type: Task
+      dataOutputAssociations: { Out_Log: { targetRef: Log } }
+    Log: { type: DataObjectReference }
+    S9: { type: EndEvent }
+    SF1: S0 -> Look
+    SF2: Look -> Answer
+    SF3: Answer -> S9
+`, {
+    Look: (values) => {
+      seen.push([values.state._meta.instance.Subjects, values.Answer ?? null, values.Log ?? null]);
+      return {};
+    },
+    Answer: (values) => ({ result: `answer ${values.state._meta.instance.Subjects}`, values: { Log: `log ${values.state._meta.instance.Subjects}` } }),
+  });
+  expect(seen).toEqual([[1, null, null], [2, null, 'log 1']]);
+  expect(state._meta?.instance).toEqual({ Subjects: 2 });
+  expect(state._meta?.reached).toMatchObject({ Look: 2, Answer: 2 });
+  expect(walk.values.get('Answer')).toBe('answer 2');
+});
+
 // A collapsed sub-process is the only place BPMN can draw a message flow to a step inside it, and a pool's message
 // flows belong to everything drawn in it: either way the step inside is what talks, out along that flow and back in.
 // Each is divided into a lane too, which the walk reads through.

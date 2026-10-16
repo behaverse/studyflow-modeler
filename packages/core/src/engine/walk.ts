@@ -73,6 +73,8 @@ export class Walk {
   /** What each allocation sequence has dealt so far, in order: each participant's levels of its factors, and its arm. */
   private readonly dealt = new Map<string, { levels: string[]; arm: number }[]>();
   private readonly memory: Values;
+  /** The values of each pool instance walking, by `<pool>#<instance>`: a pool of one walks the study's. */
+  private readonly instances = new Map<string, Values>();
   private readonly post: Post;
   /** Tells the host what happened: the run's record. */
   private readonly record: (happened: Happening) => void;
@@ -90,7 +92,7 @@ export class Walk {
       else host.record?.(event);
     };
     this.memory = new Values(this.graph, options.state ?? {}, record);
-    this.post = new Post(this.graph, host, this.steps, this.memory, record);
+    this.post = new Post(this.graph, host, this.steps, (thread) => this.valuesOf(thread), record);
     this.maxSteps = options.maxSteps ?? 1000;
     this.oneInstance = options.oneInstance ?? false;
     this.participant = options.participant ?? 1;
@@ -173,29 +175,36 @@ export class Walk {
   }
 
   /** A pool's process, once, or `participantMultiplicity/@maximum` times when its participant carries one: the
-   * instances run one after another, as a multi-instance activity's passes do. */
+   * instances run one after another, as a multi-instance activity's passes do, each on a token of its own and with
+   * values of its own over the study's (`Values.forInstance`). */
   private async runPool(pool: string): Promise<void> {
     const { graph } = this;
-    const thread: Thread = { pool, path: '', depth: 0, watching: [], cancels: [], heard: new Map(), participant: this.participant, visits: new Map() };
     const { participant, instances: drawn } = graph.instancesOf(pool);
     const instances = this.oneInstance ? 1 : drawn;
     const start = graph.entryOf(pool);
-    for (let instance = 1; instance <= instances; instance += 1) {
-      if (!this.oneInstance) thread.participant = instance;
-      thread.visits = new Map();
-      if (instances > 1) {
+    const thread = (instance: number): Thread => ({ pool, path: '', depth: 0, watching: [], cancels: [], heard: new Map(), participant: this.oneInstance ? this.participant : instance, visits: new Map() });
+    const walkInstance = async (instance: number): Promise<void> => {
+      const own = thread(instance);
+      const values = instances > 1 ? this.memory.forInstance(pool) : undefined;
+      if (values) {
+        this.instances.set(`${pool}#${instance}`, values);
         // Which instance this is, for whatever runs inside: `state._meta.instance.<pool id>`, 1-based.
-        this.memory.instance(participant, instance);
-        this.memory.startScope(pool, true, this.note(thread));
+        values.instance(participant, instance);
+        values.startScope(pool, true, this.note(own));
       }
-      await this.host.moved?.(start.id, undefined, pool);
-      await this.walk(start, 0, thread);
-    }
+      try {
+        await this.host.moved?.(start.id, undefined, pool);
+        await this.walk(start, 0, own);
+      } finally {
+        this.instances.delete(`${pool}#${instance}`);
+      }
+    };
+    for (let instance = 1; instance <= instances; instance += 1) await walkInstance(instance);
     // The pool is one sender: a flow out of its participant to a step in another pool ("All subjects complete")
     // carries null once, when every instance has ended. A flow to another participant is the pool's talk instead,
     // which the steps inside exchange along, instance by instance.
     for (const flow of graph.flowsOut.get(participant) ?? []) {
-      if (!graph.participants.has(flow.attributes.targetRef)) await this.post.send(flow, null, thread);
+      if (!graph.participants.has(flow.attributes.targetRef)) await this.post.send(flow, null, thread(instances));
     }
   }
 
@@ -300,8 +309,8 @@ export class Walk {
       path.at = id;
       if (scope.joins.size > 0) this.settle(scope);
       if (arriving) {
-        this.memory.trace.push(id);
-        this.memory.count(id);
+        this.valuesOf(thread).trace.push(id);
+        this.valuesOf(thread).count(id);
       }
       this.post.checkInterrupt(thread);
       if (arriving && graph.joins(element) && !this.arrive(scope, element, path)) {
@@ -343,16 +352,16 @@ export class Walk {
           if (runner) {
             // An event a runner executes waits in its runner: a catch event until sensed, a start until it may begin.
             this.log(thread, 'event.waiting', `◐ ${id}  (waiting via ${runner.name})`);
-            this.adopt(id, await this.handOff(id, this.memory.json(), thread), entry);
+            this.adopt(id, await this.handOff(id, this.valuesOf(thread).json(), thread), entry, thread);
             // What it recorded meanwhile (a rest's resting state) goes out along its data outputs.
             this.noteOutputs(element, entry, thread);
           } else if (graph.flowsIn.has(id)) {
             // A catch event a message flow reaches waits for that message; its content is the result.
             this.log(thread, 'event.waiting', `◐ ${id}  (waiting for a message)`);
-            this.memory.store(id, (await this.post.receive(id, graph.flowsIn.get(id)!, thread)).content);
+            this.valuesOf(thread).store(id, (await this.post.receive(id, graph.flowsIn.get(id)!, thread)).content);
           } else if (element.timer) {
             // A timer event waits for its time: a duration from now, or a date.
-            const ms = this.timerMs(element);
+            const ms = this.timerMs(element, thread);
             this.log(thread, 'event.waiting', `◐ ${id}  (waiting ${ms}ms for its timer)`);
             await this.post.sleep(ms, id, thread);
           }
@@ -369,8 +378,8 @@ export class Walk {
         const boundary = await this.perform(element, depth, thread);
         if (boundary) {
           // The activity ended at one of its boundary events: the walk goes on from there.
-          this.memory.trace.push(boundary.id);
-          this.memory.count(boundary.id);
+          this.valuesOf(thread).trace.push(boundary.id);
+          this.valuesOf(thread).count(boundary.id);
           this.record({ event: 'executed', id: boundary.id });
           await host.moved?.(boundary.id, undefined, thread.pool);
           this.log(thread, 'event.reached', `○ ${boundary.id}  (ended ${id})`);
@@ -410,27 +419,27 @@ export class Walk {
     // A timer at a boundary event runs from the moment the activity is entered; when its time comes it ends the
     // activity, stopping every hand-off inside it.
     const timers = (graph.boundaries.get(id) ?? []).filter((boundary) => boundary.timer)
-      .map((boundary) => this.post.timer(this.timerMs(boundary), boundary.id, () => { due.push(boundary); stop.abort(); }));
+      .map((boundary) => this.post.timer(this.timerMs(boundary, thread), boundary.id, () => { due.push(boundary); stop.abort(); }));
     try {
       let passes = 0;
-      const listed = this.host.choose ? undefined : this.loopList(element);
+      const listed = this.host.choose ? undefined : this.loopList(element, thread);
       const outputs: unknown[] = [];
-      while (listed ? passes < listed.items.length : this.loopsAgain(element, passes)) {
+      while (listed ? passes < listed.items.length : this.loopsAgain(element, passes, thread)) {
         passes += 1;
         if (passes > this.maxSteps) throw new Error(`${id}: loop budget exhausted — does its loop ever end?`);
         // Which pass this is, for whatever runs inside: `state._meta.instance.<id>`, 1-based.
-        if (element.loop) this.memory.instance(id, passes);
+        if (element.loop) this.valuesOf(thread).instance(id, passes);
         if (listed) {
           // The pass's item in the activity's own scope, `{C}` to the steps inside, and no output yet.
-          if (listed.item) this.memory.set(id, listed.item, listed.items[passes - 1]);
-          if (listed.output && listed.output in (this.memory.state[id] ?? {})) this.memory.set(id, listed.output);
+          if (listed.item) this.valuesOf(thread).set(id, listed.item, listed.items[passes - 1]);
+          if (listed.output && listed.output in (this.valuesOf(thread).state[id] ?? {})) this.valuesOf(thread).set(id, listed.output);
         }
         if (CONTAINER_TYPES.has(element.type)) await this.walkContainer(element, depth, thread);
         else await this.runActivity(element, thread);
-        if (listed) outputs.push(listed.output ? this.memory.state[id]?.[listed.output] ?? null : null);
+        if (listed) outputs.push(listed.output ? this.valuesOf(thread).state[id]?.[listed.output] ?? null : null);
       }
       if (listed?.into) {
-        this.memory.store(listed.into, outputs);
+        this.valuesOf(thread).store(listed.into, outputs);
         this.host.reuse?.remade(listed.into); // re-made each run, so a recorded step that reads it runs again
       }
     } catch (error) {
@@ -455,7 +464,7 @@ export class Walk {
     for (const boundary of this.graph.boundaries.get(element.id) ?? []) {
       if (!has(boundary, 'conditionalEventDefinition') || !boundary.condition) continue;
       const { body, language } = boundary.condition;
-      const verdict = this.memory.evaluate({ body, language }, element.id) === true;
+      const verdict = this.valuesOf(thread).evaluate({ body, language }, element.id) === true;
       this.log(thread, 'conditionExpression.evaluated', `    ${body} → ${verdict}  [${boundary.id}]`, { level: 'debug' });
       if (verdict) return boundary;
     }
@@ -463,16 +472,16 @@ export class Walk {
   }
 
   /** What a multi-instance marker whose `loopDataInputRef` names a list runs over, read once as the activity starts. */
-  private loopList(element: PlanElement): { items: unknown[]; item: string | null; output: string | null; into: string | null } | undefined {
+  private loopList(element: PlanElement, thread: Thread): { items: unknown[]; item: string | null; output: string | null; into: string | null } | undefined {
     const { loop } = element;
     if (loop?.kind !== 'multiInstance' || !loop.input) return undefined;
     const declared = this.graph.propertyScope(loop.input);
     let items: unknown;
     if (declared) {
-      const held = this.memory.state[declared.scope] ?? {};
+      const held = this.valuesOf(thread).state[declared.scope] ?? {};
       items = declared.name in held ? held[declared.name] : this.graph.properties.get(declared.scope)!.get(declared.name)!.value;
     } else {
-      items = this.memory.held.get(loop.input);
+      items = this.valuesOf(thread).held.get(loop.input);
     }
     if (!Array.isArray(items)) throw new Error(`${element.id} runs once per item of ${loop.input}, which holds no list this run`);
     return { items, item: loop.inputItem, output: loop.outputItem, into: loop.output };
@@ -484,7 +493,7 @@ export class Walk {
    * a boundary event ends it; with a multi-instance marker, `loopCardinality` times, one after another whichever way
    * `isSequential` reads.
    */
-  private loopsAgain(element: PlanElement, passes: number): boolean {
+  private loopsAgain(element: PlanElement, passes: number, thread: Thread): boolean {
     const { loop } = element;
     if (!loop) return passes === 0;
     if (this.host.choose) {
@@ -494,12 +503,12 @@ export class Walk {
     }
     if (loop.kind === 'multiInstance') {
       if (!loop.cardinality) return passes === 0;
-      return passes < Math.trunc(Number(this.memory.evaluate(loop.cardinality, element.id)));
+      return passes < Math.trunc(Number(this.valuesOf(thread).evaluate(loop.cardinality, element.id)));
     }
     if (passes === 0 && !loop.testBefore) return true;
     if (loop.maximum && passes >= loop.maximum) return false;
     if (!loop.condition) return true;
-    return this.memory.evaluate(loop.condition, element.id) === true;
+    return this.valuesOf(thread).evaluate(loop.condition, element.id) === true;
   }
 
   private async walkContainer(element: PlanElement, depth: number, thread: Thread): Promise<void> {
@@ -507,7 +516,7 @@ export class Walk {
     const { id } = element;
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
     this.log(thread, 'activity.started', `⊞ ${id}`);
-    this.memory.startScope(id, true, this.note(thread));
+    this.valuesOf(thread).startScope(id, true, this.note(thread));
     const start = graph.startEvent(id);
     try {
       if (!start) {
@@ -600,8 +609,8 @@ export class Walk {
     if (outgoing.length + incoming.length > 0) {
       // Unclaimed, an activity exchanges messages itself: it sends its data inputs along each flow out of it, then
       // takes the next message along a flow into it as its result. A send, a receive, or both: a request.
-      for (const flow of outgoing) await this.post.send(flow, this.memory.inputsOf(element), thread, { inReplyTo: this.post.answering(flow, thread) });
-      if (incoming.length > 0) this.memory.bind(element, (await this.post.receive(scope, incoming, thread)).content);
+      for (const flow of outgoing) await this.post.send(flow, this.valuesOf(thread).inputsOf(element), thread, { inReplyTo: this.post.answering(flow, thread) });
+      if (incoming.length > 0) this.valuesOf(thread).bind(element, (await this.post.receive(scope, incoming, thread)).content);
       return;
     }
     if (implementation) {
@@ -624,12 +633,12 @@ export class Walk {
     const talks = graph.flowsIn.has(talking) || graph.flowsOut.has(talking);
     const talk = talks ? this.post.talk(id, talking, thread) : undefined;
     try {
-      const handed = await this.handOff(id, this.memory.json(), thread, talk);
+      const handed = await this.handOff(id, this.valuesOf(thread).json(), thread, talk);
       await talk?.delivered(); // what it sent last is answered before the walk goes on
-      this.adopt(id, handed, entry);
+      this.adopt(id, handed, entry, thread);
     } catch (error) {
       // What a failed hand-off had bound before it failed is kept: the step fails, its work is not lost.
-      if (error instanceof HandoffError && error.partial) this.adopt(id, error.partial, entry);
+      if (error instanceof HandoffError && error.partial) this.adopt(id, error.partial, entry, thread);
       throw error;
     }
     this.noteOutputs(element, entry, thread);
@@ -638,23 +647,24 @@ export class Walk {
   /** Take what a runner handed back: its record into the step's entry, the properties it wrote into their scopes
    * (`_meta` stays the walk's, and what the Parameters wired into a sub-process set stays as set), the values it
    * bound under their ids, and its result under the element's own. */
-  private adopt(id: string, handed: Handback, entry: Entry): void {
+  private adopt(id: string, handed: Handback, entry: Entry, thread: Thread): void {
+    const memory = this.valuesOf(thread);
     keepRecord(entry, handed);
     for (const [scope, written] of Object.entries(handed.state ?? {})) {
       if (scope === '_meta' || !written || typeof written !== 'object') continue;
-      const held = (this.memory.state[scope] ??= {});
+      const held = (memory.state[scope] ??= {});
       const fixed = [...(this.graph.readonly.get(scope) ?? [])].filter((name) => name in written && JSON.stringify(written[name]) !== JSON.stringify(held[name])).sort();
       if (fixed.length > 0) {
         throw new Error(`${id} writes ${fixed.join(', ')}, which the Parameters wired into ${scope} set, so nothing inside it writes them`);
       }
-      for (const [name, value] of Object.entries(written)) this.memory.set(scope, name, value);
+      for (const [name, value] of Object.entries(written)) memory.set(scope, name, value);
     }
-    for (const [key, value] of Object.entries(handed.values ?? {})) this.memory.store(key, value);
+    for (const [key, value] of Object.entries(handed.values ?? {})) memory.store(key, value);
     if (handed.result !== undefined) {
-      this.memory.store(id, handed.result);
+      memory.store(id, handed.result);
       // The properties its data edges target, which its runner left to the walk.
       const element = this.graph.get(id);
-      if (element) this.memory.bindProperties(element, handed.result, new Set(Object.keys(handed.values ?? {})));
+      if (element) memory.bindProperties(element, handed.result, new Set(Object.keys(handed.values ?? {})));
     }
   }
 
@@ -669,7 +679,7 @@ export class Walk {
       else signal.addEventListener('abort', abort, { once: true });
     }
     try {
-      const attributes = this.memory.resolved(this.graph.get(id)!);
+      const attributes = this.valuesOf(thread).resolved(this.graph.get(id)!);
       return await this.host.perform(id, values, { attributes, talk, note: this.note(thread), signal: handoff.signal });
     } finally {
       for (const signal of stops) signal.removeEventListener('abort', abort);
@@ -678,9 +688,9 @@ export class Walk {
   }
 
   /** How long a timer event waits, its `{placeholders}` read from the run's values. */
-  private timerMs(element: PlanElement): number {
+  private timerMs(element: PlanElement, thread: Thread): number {
     const read = (text: string | undefined): string | undefined =>
-      text?.replace(PLACEHOLDER, (_cited, path: string) => String(this.memory.evaluate({ body: path, language: null }, element.id)));
+      text?.replace(PLACEHOLDER, (_cited, path: string) => String(this.valuesOf(thread).evaluate({ body: path, language: null }, element.id)));
     const { duration, date, cycle } = element.timer!;
     try {
       return timerDelay({ duration: read(duration), date: read(date), cycle: read(cycle) });
@@ -702,7 +712,7 @@ export class Walk {
 
   /** Take a sequence flow: counted like a visit, so a node is reached as often as its incoming flows are taken. */
   private async follow(flow: PlanElement, thread: Thread): Promise<PlanElement | undefined> {
-    this.memory.count(flow.id);
+    this.valuesOf(thread).count(flow.id);
     const target = this.graph.get(flow.attributes.targetRef);
     if (target) await this.host.moved?.(target.id, flow.id, thread.pool);
     return target;
@@ -730,7 +740,7 @@ export class Walk {
       const conditional = flows.filter((flow) => flow.condition);
       const held = host.choose
         ? (conditional.length > 0 ? this.chooseFlows(id, conditional, true) : [])
-        : conditional.filter((flow) => this.memory.evaluate(flow.condition!, id) === true);
+        : conditional.filter((flow) => this.valuesOf(thread).evaluate(flow.condition!, id) === true);
       const bare = flows.filter((flow) => !flow.condition && flow.id !== element.attributes.default);
       const fallback = held.length === 0 ? flows.filter((flow) => flow.id === element.attributes.default) : [];
       return along([...bare, ...held, ...fallback]);
@@ -842,14 +852,14 @@ export class Walk {
       if (runner) {
         // The runner samples what the conditions read (`face_count`).
         this.log(thread, 'runner.called', `    ${runner.name} samples for ${id}`);
-        const sampled = await this.handOff(id, this.memory.json(), thread);
+        const sampled = await this.handOff(id, this.valuesOf(thread).json(), thread);
         keepRecord(entry, sampled);
         bindings = (sampled.result as Record<string, unknown>) || {};
         if (Object.keys(bindings).length > 0) entry.bindings = bindings;
       }
       for (const flow of flows) {
         if (!flow.condition) continue;
-        const verdict = this.memory.evaluate(flow.condition, id, bindings);
+        const verdict = this.valuesOf(thread).evaluate(flow.condition, id, bindings);
         ((entry.conditionExpressions ??= []) as unknown[]).push({
           sequenceFlow: flow.id, conditionExpression: flow.condition.body, held: verdict === true,
         });
@@ -890,7 +900,7 @@ export class Walk {
 
   /** A participant's level of a factor its gateway stratifies or minimizes on: what `{factor}` cites at the gateway. */
   private levelOf(factor: string, gateway: PlanElement, thread: Thread): string {
-    const value = this.memory.cite(factor, gateway.id);
+    const value = this.valuesOf(thread).cite(factor, gateway.id);
     if (value === undefined) {
       throw new Error(`'${gateway.name || gateway.id}' balances its arms on '${factor}', which participant ${thread.participant} `
         + 'does not have on reaching it: a step before the gateway (a screening) writes it.');
@@ -904,6 +914,11 @@ export class Walk {
     const options = subsets(flows).map((taken) => taken.map((flow) => flow.id).join('+'));
     const chosen = this.host.choose!(id, none ? ['none', ...options] : options);
     return chosen === 'none' ? [] : flows.filter((flow) => chosen.split('+').includes(flow.id));
+  }
+
+  /** The values a path reads and writes: its pool instance's, or the study's. */
+  private valuesOf(thread: Thread): Values {
+    return this.instances.get(`${thread.pool}#${thread.participant}`) ?? this.memory;
   }
 
   private log(thread: Thread, event: string, message: string, detail?: Parameters<Note>[2]): void {

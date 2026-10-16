@@ -27,14 +27,15 @@ export class Post {
   private readonly graph: Graph;
   private readonly host: Host;
   private readonly steps: Steps;
-  private readonly values: Values;
+  /** The values a thread reads: its pool instance's. */
+  private readonly valuesOf: (thread: Thread) => Values;
   private readonly record: (happened: Happening) => void;
 
-  constructor(graph: Graph, host: Host, steps: Steps, values: Values, record: (happened: Happening) => void = () => undefined) {
+  constructor(graph: Graph, host: Host, steps: Steps, valuesOf: (thread: Thread) => Values, record: (happened: Happening) => void = () => undefined) {
     this.graph = graph;
     this.host = host;
     this.steps = steps;
-    this.values = values;
+    this.valuesOf = valuesOf;
     this.record = record;
   }
 
@@ -106,7 +107,8 @@ export class Post {
     const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
       try {
         const asked = conversation && { ...conversation, turn: this.turns.get(conversation.id) ?? 0 };
-        const answered = await host.perform(pool.id, this.values.json(), { attributes: this.values.resolved(pool), message, conversation: asked, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
+        const values = this.valuesOf(thread);
+        const answered = await host.perform(pool.id, values.json(), { attributes: values.resolved(pool), message, conversation: asked, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
         // An exchange that failed is no part of the conversation.
         if (asked) this.turns.set(asked.id, asked.turn + 1);
         keepRecord(entry, answered);
@@ -137,7 +139,7 @@ export class Post {
   private conversationOf(pool: PlanElement, thread: Thread): Omit<Conversation, 'turn'> | undefined {
     if (pool.memory !== 'conversation') return undefined;
     const { participant } = this.graph.instancesOf(thread.pool);
-    const instance = (this.values.state._meta?.instance as Record<string, number> | undefined)?.[participant];
+    const instance = (this.valuesOf(thread).state._meta?.instance as Record<string, number> | undefined)?.[participant];
     return { id: `${pool.id} with ${participant}${instance ? ` #${instance}` : ''}` };
   }
 

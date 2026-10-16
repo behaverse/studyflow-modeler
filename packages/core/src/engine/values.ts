@@ -1,9 +1,12 @@
 import { evaluateFeel } from '@core/expression/feel';
 import { PLACEHOLDER } from '@core/model/state';
-import type { Graph } from '@core/engine/graph';
+import { CONTAINER_TYPES, DATA_TYPES, type Graph } from '@core/engine/graph';
 import type { Note, StateTree } from '@core/engine/host';
 import type { Expression, PlanElement } from '@core/engine/plan';
 import type { Happening } from '@core/engine/record';
+
+/** One pool instance's own part of the values: which pool, the study's values it sits on, and what it holds itself. */
+type Own = { pool: string; study: Values; state: StateTree; held: Map<string, unknown> };
 
 /**
  * What a run holds: the `state` tree (`state.<scope>.<property>`, and `state._meta`, the walk's own), what each
@@ -11,17 +14,58 @@ import type { Happening } from '@core/engine/record';
  */
 export class Values {
   readonly state: StateTree;
-  readonly trace: string[] = [];
+  readonly trace: string[];
   /** What each element produced this run, by id. */
-  readonly held = new Map<string, unknown>();
+  readonly held: Map<string, unknown>;
   private readonly graph: Graph;
   /** Every change to the state is an event of the run's record, which the state can be recovered from. */
   private readonly record: (happened: Happening) => void;
+  /** A pool instance's own state and values, under the study's (`forInstance`); none for the study's own. */
+  private readonly own?: Own;
 
-  constructor(graph: Graph, state: StateTree, record: (happened: Happening) => void = () => undefined) {
+  constructor(graph: Graph, state: StateTree, record: (happened: Happening) => void = () => undefined, own?: Own) {
     this.graph = graph;
-    this.state = state;
     this.record = record;
+    this.own = own;
+    if (own) {
+      this.state = overlay(own.study.state, own.state, (scope) => this.owns(scope));
+      this.held = new InstanceHeld(own.study.held, own.held, (id) => this.holds(id));
+      this.trace = own.study.trace;
+    } else {
+      this.state = state;
+      this.held = new Map();
+      this.trace = [];
+    }
+  }
+
+  /**
+   * The values one instance of a pool of several reads and writes: the pool's process, the sub-processes and
+   * repeating activities inside it, its passes (`state._meta.instance`), and what its elements produced are its own;
+   * the rest is the study's, shared with every instance (the counts a node's properties keep, the data elements, the
+   * other pools). So instances that run at once do not read each other's arm or properties. What an instance writes
+   * of its own reaches the study's too, as it is written, so the study's state is always what the record replays to.
+   */
+  forInstance(pool: string): Values {
+    return new Values(this.graph, {}, this.record, { pool, study: this, state: {}, held: new Map() });
+  }
+
+  /** Whether a scope is an instance's own: its pool's process, or a sub-process or repeating activity in it. A plain
+   * element's properties are the study's (`Excluded (n={count})` counts every participant). */
+  private owns(scope: string): boolean {
+    const { pool } = this.own!;
+    if (scope === pool) return true;
+    const element = this.graph.elements[scope];
+    if (!element || this.graph.poolOf(scope) !== pool) return false;
+    return CONTAINER_TYPES.has(element.type) || !!element.loop;
+  }
+
+  /** Whether a value under an id is an instance's own: what an element of its pool produced, or a property of a scope
+   * it owns; a data element's is the study's. */
+  private holds(id: string): boolean {
+    const declared = this.graph.propertyScope(id);
+    if (declared) return this.owns(declared.scope);
+    const element = this.graph.elements[id];
+    return !!element && !DATA_TYPES.has(element.type) && this.graph.poolOf(id) === this.own!.pool;
   }
 
   /** One more token at an element, or along a sequence flow: `state._meta.reached.<id>`, kept in the study's state. */
@@ -34,14 +78,14 @@ export class Values {
   /** The pass a pool's instance or a repeating activity is on: `state._meta.instance.<id>`, 1-based. */
   instance(id: string, pass: number): void {
     this.meta('instance')[id] = pass;
+    if (this.own) this.own.study.meta('instance')[id] = pass;
     this.record({ event: 'instance', id, instance: pass });
   }
 
   /** A property of `scope` written, or cleared with no `value`. */
   set(scope: string, name: string, ...value: [unknown?]): void {
-    const held = (this.state[scope] ??= {});
-    if (value.length > 0) held[name] = value[0];
-    else delete held[name];
+    put(this.state, scope, name, value);
+    if (this.own && this.owns(scope)) put(this.own.study.state, scope, name, value);
     this.record(value.length > 0 ? { event: 'wrote', scope, name, value: value[0] } : { event: 'wrote', scope, name });
   }
 
@@ -230,6 +274,95 @@ export class Values {
       this.store(target, narrowed);
     }
   }
+}
+
+/**
+ * A state tree that reads and writes the scopes `owns` names (and `_meta.instance`) in `own`, every other in `study`:
+ * what one pool instance sees. It reads as a plain tree, to expressions, to a spread and to JSON.
+ */
+function overlay(study: StateTree, own: StateTree, owns: (scope: string) => boolean): StateTree {
+  const passes = (): Record<string, any> => ((own._meta ??= {}).instance ??= {});
+  const meta: Record<string, any> = new Proxy({}, {
+    get: (_target, key) => (key === 'instance' ? passes() : typeof key === 'string' ? study._meta?.[key] : undefined),
+    set: (_target, key, value) => {
+      if (key === 'instance') (own._meta ??= {}).instance = value;
+      else if (typeof key === 'string') (study._meta ??= {})[key] = value;
+      return true;
+    },
+    has: (_target, key) => key === 'instance' || (typeof key === 'string' && key in (study._meta ?? {})),
+    ownKeys: () => [...new Set([...Object.keys(study._meta ?? {}), 'instance'])],
+    getOwnPropertyDescriptor: (_target, key): PropertyDescriptor | undefined =>
+      (typeof key === 'string' && key in meta ? { value: meta[key], writable: true, enumerable: true, configurable: true } : undefined),
+  });
+  // Which tree holds a top-level key: the instance's for a scope it owns, the study's for any other.
+  const at = (key: string): StateTree => (owns(key) ? own : study);
+  const tree: StateTree = new Proxy({}, {
+    get: (_target, key) => (key === '_meta' ? meta : typeof key === 'string' ? at(key)[key] : undefined),
+    set: (_target, key, value) => {
+      // `_meta` is the walk's own: changed through its quantities, never replaced.
+      if (typeof key === 'string' && key !== '_meta') at(key)[key] = value;
+      return true;
+    },
+    deleteProperty: (_target, key) => (typeof key === 'string' && key !== '_meta' ? delete at(key)[key] : true),
+    has: (_target, key) => key === '_meta' || (typeof key === 'string' && key in at(key)),
+    ownKeys: () => [...new Set(['_meta', ...Object.keys(study).filter((key) => key !== '_meta' && !owns(key)), ...Object.keys(own).filter((key) => key !== '_meta')])],
+    getOwnPropertyDescriptor: (_target, key): PropertyDescriptor | undefined =>
+      (typeof key === 'string' && key in tree ? { value: tree[key], writable: true, enumerable: true, configurable: true } : undefined),
+  });
+  return tree;
+}
+
+/** The values one pool instance holds: the ids `holds` names in `own`, every other in `study`'s. */
+class InstanceHeld extends Map<string, unknown> {
+  private readonly study: Map<string, unknown>;
+  private readonly own: Map<string, unknown>;
+  private readonly holds: (id: string) => boolean;
+
+  constructor(study: Map<string, unknown>, own: Map<string, unknown>, holds: (id: string) => boolean) {
+    super();
+    this.study = study;
+    this.own = own;
+    this.holds = holds;
+  }
+
+  override get(id: string): unknown {
+    return this.holds(id) ? this.own.get(id) : this.study.get(id);
+  }
+
+  override has(id: string): boolean {
+    return this.holds(id) ? this.own.has(id) : this.study.has(id);
+  }
+
+  /** An instance's own value reaches the study's too: what the run ends holding is the last written. */
+  override set(id: string, value: unknown): this {
+    if (this.holds(id)) this.own.set(id, value);
+    this.study.set(id, value);
+    return this;
+  }
+
+  override delete(id: string): boolean {
+    return this.holds(id) ? this.own.delete(id) : this.study.delete(id);
+  }
+
+  override get size(): number {
+    return [...this.entries()].length;
+  }
+
+  override *entries(): MapIterator<[string, unknown]> {
+    yield* this.own.entries();
+    for (const entry of this.study) if (!this.holds(entry[0])) yield entry;
+  }
+
+  override [Symbol.iterator](): MapIterator<[string, unknown]> {
+    return this.entries();
+  }
+}
+
+/** A property of `scope` in `state` written, or cleared with no `value`. */
+function put(state: StateTree, scope: string, name: string, value: [unknown?]): void {
+  const held = (state[scope] ??= {});
+  if (value.length > 0) held[name] = value[0];
+  else delete held[name];
 }
 
 /** What `fields` lead to inside `value`, undefined where one is missing. */
