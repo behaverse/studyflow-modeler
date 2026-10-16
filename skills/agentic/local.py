@@ -35,8 +35,9 @@ MAX_TOKENS = 1024
 # MIN_CONTEXT, in powers of two, never shrinking for a model within a run (a new size reloads the model), and never past
 # the model's own context length, where it fails the message rather than let a turn be dropped. Tokens are estimated
 # from characters, generously (CHARS_PER_TOKEN, plus REPLY_TOKENS for the answer), since a window too large costs
-# memory and one too small loses the history.
-MIN_CONTEXT = 8192
+# memory and one too small loses the history. A new size reloads the model, which can take longer than a trial's
+# window to answer, so the window starts large enough for a session of a few hundred short trials and rarely grows.
+MIN_CONTEXT = 32768
 CHARS_PER_TOKEN = 2.5
 REPLY_TOKENS = 256
 CONTEXT: dict[str, int] = {}

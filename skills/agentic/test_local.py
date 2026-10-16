@@ -95,7 +95,7 @@ asked = {"elements": {"Model": elements["Model"], "M_Ask": {"type": "messageFlow
 content = {"Note": "left is yellow", "Frame": "data:image/png;base64,AAAA", "Trial": {"n": 1}}
 step = agentic.Step("Model", asked, {}, {"id": "m1", "flow": "M_Ask", "content": content})
 assert agentic.execute(step) == "Left" and step.record == {
-    "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False, "options": {"num_ctx": 8192}},
+    "model": "gemma4:12b-it-qat", "options": {"stream": False, "think": False, "options": {"num_ctx": 32768}},
     "contextEstimate": 271, "digest": "ab12", "quantization": "Q4_0",
     "parameters": "temperature 1\ntop_k 64", "contextLength": 131072, "version": "ollama 0.12.3",
     "sent": {"text": 'Note: left is yellow\n\nTrial: {"n": 1}', "images": 1},
@@ -153,8 +153,9 @@ agentic.post = post
 # The window holds the whole conversation: it grows in powers of two as the conversation does, never shrinks within a
 # run, and a conversation past the model's own context length fails rather than lose its earliest turns.
 agentic.CONTEXT.clear()
-assert agentic.context_window("m", [{"content": "x" * 25_000}], 131072) == (16384, 10256)
-assert agentic.context_window("m", [{"content": "x"}], 131072) == (16384, 257)
+assert agentic.context_window("m", [{"content": "x"}], 131072) == (32768, 257)
+assert agentic.context_window("m", [{"content": "x" * 80_000}], 131072) == (65536, 32256)
+assert agentic.context_window("m", [{"content": "x"}], 131072) == (65536, 257)
 assert agentic.context_window("m", [{"content": "x" * 300_000}], 131072)[0] == 131072
 try:
     agentic.context_window("m", [{"content": "x" * 400_000}], 131072)
