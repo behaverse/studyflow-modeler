@@ -50,6 +50,8 @@ REPO = Path(__file__).resolve().parents[2]  # skills/jspsych/local.py
 PAGE = Path(__file__).with_name("stage.html")
 # Seconds a browser has to fetch the stage once it is opened: past that, it never will.
 LOAD_TIMEOUT = 60.0
+STDERR = "stderr.log"
+STDERR_LINES = 5
 
 
 def implementation_of(element: dict[str, Any]) -> str:
@@ -260,8 +262,21 @@ def open_stage(url: str) -> subprocess.Popen | None:
         webbrowser.open(url)
         return None
     profile = tempfile.mkdtemp(prefix="studyflow-jspsych-stage-")
-    return subprocess.Popen(  # noqa: S603 - a browser we picked, opening a page we serve
-        headless_argv(binary, url, profile), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Its stderr goes into its profile, so a browser that exits mid-timeline can say why (`exited_why`).
+    with open(Path(profile) / STDERR, "wb") as stderr:
+        return subprocess.Popen(  # noqa: S603 - a browser we picked, opening a page we serve
+            headless_argv(binary, url, profile), stdout=subprocess.DEVNULL, stderr=stderr)
+
+
+def exited_why(browser: subprocess.Popen) -> str:
+    """Why the stage's browser exited before its timeline ended: its exit code (a negative one is the signal that
+    ended it), and the last lines it wrote to stderr."""
+    try:
+        lines = (Path(chromium.profile_of(browser)) / STDERR).read_text(errors="replace").strip().splitlines()
+    except (OSError, StopIteration):
+        lines = []
+    told = "; ".join(lines[-STDERR_LINES:])
+    return f"the headless browser exited (code {browser.returncode}) before the timeline ended" + (f": {told}" if told else "")
 
 
 def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
@@ -318,7 +333,7 @@ def perform(step: Step, args: argparse.Namespace) -> dict[str, Any]:
             if args.timeout and waited > args.timeout:
                 raise TimeoutError(f"the timeline did not end within {args.timeout}s")
             if browser is not None and browser.poll() is not None:
-                raise RuntimeError("the headless browser exited before the timeline ended")
+                raise RuntimeError(exited_why(browser))
             if not args.no_browser and not server.loaded.is_set() and waited > LOAD_TIMEOUT:
                 raise RuntimeError(f"no browser opened the stage within {LOAD_TIMEOUT:.0f}s ({url})")
     except BaseException:

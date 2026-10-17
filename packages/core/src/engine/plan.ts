@@ -65,7 +65,10 @@ export type PlanElement = {
   /** A pool with no process that remembers the conversation of each instance of the pool asking it: its actor's
    * `memory`. On a sub-process, what that pool remembers of the messages the steps inside it send, in place of the
    * actor's own. */
-  memory?: 'conversation' | 'none';
+  memory?: 'conversation' | 'window' | 'none';
+  /** Under `memory: window`, how many of the latest exchanges the pool remembers beside the instructions: its actor's
+   * `memoryWindow`. */
+  memoryWindow?: number;
   /** How a gateway of its extension type picks its branch (the schema's `meta.branching`): `random`. */
   branching?: string;
 };
@@ -274,8 +277,9 @@ export function planElement(model: StudyModel, element: Element): PlanElement {
   // An actor pool, or one of a kind a skill declares on it (`behaverse:SimulatedActor`).
   const actorOf = (entry: Element): boolean => typeof entry.type === 'string' && model.metamodel.has(entry.type) && model.metamodel.isA(entry.type, 'studyflow:Actor');
   const actor = actorOf(element) ? element : model.entries(element).find(actorOf);
-  if (actor?.memory === 'conversation') digest.memory = 'conversation';
-  if (host === 'bpmn:SubProcess' && (element.memory === 'conversation' || element.memory === 'none')) digest.memory = element.memory;
+  if (actor?.memory === 'conversation' || actor?.memory === 'window') digest.memory = actor.memory;
+  if (actor && typeof actor.memoryWindow === 'number') digest.memoryWindow = actor.memoryWindow;
+  if (host === 'bpmn:SubProcess' && (element.memory === 'conversation' || element.memory === 'window' || element.memory === 'none')) digest.memory = element.memory;
   const extensionType = model.extensionType(element);
   const branching = extensionType && hasCatalog() ? getCatalog().getType(extensionType)?.meta?.branching : undefined;
   if (typeof branching === 'string') digest.branching = branching;

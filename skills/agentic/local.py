@@ -19,13 +19,16 @@ import math
 import mimetypes
 import os
 import random
+import re
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, os.environ.get("STUDYFLOW_LOCAL") or str(Path(__file__).resolve().parents[2] / "packages" / "runtime-local" / "python"))
 from runner import Step, fill, serve  # noqa: E402 - the runner SDK, beside the local runtime
+from exchange import delivered_once  # noqa: E402
 
 STUDYFLOW = "http://behaverse.org/schemas/studyflow/v1"
 AGENTIC = "https://w3id.org/studyflow/agentic"
@@ -106,8 +109,12 @@ def parts_of(content: Any, plan: dict[str, Any], run_dir: Path, values: dict[str
 
 def post(url: str, body: dict[str, Any], headers: dict[str, str], timeout: float) -> dict[str, Any]:
     request = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"content-type": "application/json", **headers})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.load(response)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as error:
+        # The server's own words, not just its status: Ollama says what it refused and why.
+        raise RuntimeError(f"{url} answered {error.code}: {error.read().decode(errors='replace')[:500]}") from error
 
 
 def get(url: str, timeout: float) -> dict[str, Any]:
@@ -245,6 +252,12 @@ def drawn(probabilities: dict[str, float], options: list[str], u: float) -> str:
     return next(option for option in reversed(options) if probabilities.get(option, 0.0) > 0)
 
 
+def served_window(about: dict[str, Any]) -> int | None:
+    """The window Ollama serves a model with: the `num_ctx` among its parameters, else its context length."""
+    match = re.search(r"^num_ctx\s+(\d+)", str(about.get("parameters") or ""), re.MULTILINE)
+    return int(match.group(1)) if match else about.get("contextLength")
+
+
 def decide_ollama(model: str, parts: list[dict[str, Any]], history: list[dict[str, Any]], options: list[str], key: str) -> tuple[str, dict[str, Any]]:
     """The answer a decision model gives: drawn from its probabilities by `key`, so the same study seed, participant
     and trial draw the same answer, and for the record the probabilities, the model's own pick (`choice`, the most
@@ -254,7 +267,9 @@ def decide_ollama(model: str, parts: list[dict[str, Any]], history: list[dict[st
                          "and this message lists none")
     about = described(model)
     body = decision_request(model, parts, history, options)
-    _, estimate = context_window(model, [{"content": json.dumps(body)}], about.get("contextLength"))
+    # `/v1/systemone` takes no `num_ctx`: the window is the one Ollama serves the model with, its `num_ctx` parameter
+    # (`/api/show`), else its context length. A conversation past it fails here, before Ollama refuses it.
+    _, estimate = context_window(model, [{"content": json.dumps(body)}], served_window(about))
     data = post(f"{OLLAMA}/v1/systemone", body, {}, timeout=120)
     answer = data["answers"]["response"]
     u = random.Random(key).random()
@@ -272,6 +287,16 @@ CLIENTS = {"claude": ask_claude, "ollama": ask_ollama}
 CONVERSATIONS: dict[str, list[dict[str, Any]]] = {}
 
 
+def remembered(history: list[dict[str, Any]], window: int | None) -> list[dict[str, Any]]:
+    """What a pool is sent of its conversation: all of it, or under `memory: window` the exchanges that carried the
+    instructions (`instructs`, a prompt a step sends once) and the last `window` others, in the order they were had."""
+    if window is None:
+        return history
+    exchanges = [history[i:i + 2] for i in range(0, len(history), 2)]
+    recent = len(exchanges) - window
+    return [turn for n, exchange in enumerate(exchanges) if n >= recent or exchange[0].get("instructs") for turn in exchange]
+
+
 def execute(step: Step) -> str:
     provider, model = model_of(step.id, step.element)
     if provider not in CLIENTS:
@@ -283,22 +308,24 @@ def execute(step: Step) -> str:
     if not parts:
         raise ValueError(f"the message to {step.id} carries nothing to ask")
     history: list[dict[str, Any]] = []
+    window = (step.conversation or {}).get("window")
     if step.conversation:
         history = CONVERSATIONS.setdefault(step.conversation["id"], [])
         if len(history) != 2 * step.conversation["turn"]:
             raise RuntimeError(f"{step.id}: the conversation '{step.conversation['id']}' is at turn {step.conversation['turn']}, and this "
                                f"runner holds {len(history) // 2} of its exchanges: it was started again, and lost them")
+    sent_history = remembered(history, window)
     # A request the walk stops (`--step-timeout`) answers at once and is left to finish, its reply dropped: ending this
     # process would lose every conversation it holds.
     if provider == "ollama" and described(model).get("kind") == "decision":
-        # Keyed by the study's seed and, in a conversation, the participant's (its id) and the trial's (its turn); a
-        # message no conversation holds is keyed by its own id.
-        key = (f"{step.seed}:{step.conversation['id']}:{step.conversation['turn']}" if step.conversation
-               else f"{step.seed}:{message.get('id')}")
+        # Keyed by the study's seed, the participant (who asks) and the trial (how many messages it had sent before),
+        # whatever the pool remembers, so a re-run draws the same answers whatever ids a task gives its messages; a walk
+        # that names no asker leaves the message's own id.
+        key = (f"{step.seed}:{step.asker['id']}:{step.asker['n']}" if step.asker else f"{step.seed}:{message.get('id')}")
         options = options_in(message.get("content"), step.plan)
-        reply, record = step.unless_cancelled(lambda: decide_ollama(model, parts, history, options, key))
+        reply, record = step.unless_cancelled(lambda: decide_ollama(model, parts, sent_history, options, key))
     else:
-        reply, record = step.unless_cancelled(lambda: CLIENTS[provider](model, parts, history))
+        reply, record = step.unless_cancelled(lambda: CLIENTS[provider](model, parts, sent_history))
     print(f"{provider}://{model}: {reply.strip()[:160]!r}")
     # The request as sent: its text, as far as a record needs it, how many images went with it, and after how many
     # exchanges of its conversation.
@@ -306,9 +333,13 @@ def execute(step: Step) -> str:
     sent = {"text": texts[:4000], "images": sum("image" in part for part in parts)}
     if step.conversation:
         sent["turn"] = step.conversation["turn"]
-        history += [{"role": "user", "parts": parts}, {"role": "assistant", "parts": [{"text": reply}]}]
-    # What the actor remembered for this message: the conversation so far, or nothing but the message itself.
-    step.note(**record, memory="conversation" if step.conversation else "none", sent=sent)
+        sent["remembered"] = len(sent_history) // 2
+        content = message.get("content")
+        instructs = isinstance(content, dict) and any(value is None and delivered_once(str(key), step.elements) for key, value in content.items())
+        history += [{"role": "user", "parts": parts, **({"instructs": True} if instructs else {})}, {"role": "assistant", "parts": [{"text": reply}]}]
+    # What the actor remembered for this message: the conversation so far, the window of it, or nothing but the message.
+    memory = ("window" if window is not None else "conversation") if step.conversation else "none"
+    step.note(**record, memory=memory, **({"window": window} if window is not None else {}), sent=sent)
     return reply
 
 

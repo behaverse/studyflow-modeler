@@ -177,7 +177,7 @@ class Exchange:
         # A prompt delivered `once` rides with the step's first message only, and every other with each message; an
         # actor that keeps no conversation is sent every prompt with every message, since it holds none of the earlier.
         elements = getattr(step, "elements", None) or {}
-        remembers = memory_of(getattr(step, "element", None) or {}, flow, elements) == "conversation"
+        remembers = memory_of(getattr(step, "element", None) or {}, flow, elements) in ("conversation", "window")
         self.once = {key for key in self.inputs if remembers and delivered_once(key, elements)}
         self.asked = False
 

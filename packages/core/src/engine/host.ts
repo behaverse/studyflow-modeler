@@ -11,8 +11,14 @@ export type StateTree = Record<string, any>;
 export type Message = { id: string; flow: string; content: unknown; inReplyTo?: string };
 
 /** Which conversation a message to a pool that remembers belongs to: the pool and the instance of the pool asking it,
- * and how many exchanges of it came before (`turn`, from 0). */
-export type Conversation = { id: string; turn: number };
+ * and how many exchanges of it came before (`turn`, from 0). Under `memory: window`, `window` is how many of the latest
+ * exchanges the pool remembers beside the instructions. */
+export type Conversation = { id: string; turn: number; window?: number };
+
+/** Who asks a pool a runner plays, whatever the pool remembers: the instance of the pool asking it (`id`, as its
+ * conversation would name it), and how many messages that instance had sent the pool before this one (`n`, from 0).
+ * A runner that draws keys its draw by it, so a participant's draws repeat on a re-run whatever ids its messages carry. */
+export type Asker = { id: string; n: number };
 
 /** What a claimed element's runner exchanges while it runs: a message out along one of its flows, the messages in. */
 export type Talk = {
@@ -73,7 +79,7 @@ export type Host = {
    * runner hands back out, and the element's `attributes` with their placeholders resolved. A failure rejects, with a
    * {@link HandoffError} when something had been bound first. `signal` aborts when a timer at a boundary event ends
    * the activity the hand-off is in: the host stops it. */
-  perform(id: string, values: Record<string, unknown>, step: { attributes: Record<string, unknown>; message?: Message; conversation?: Conversation; talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Handback>;
+  perform(id: string, values: Record<string, unknown>, step: { attributes: Record<string, unknown>; message?: Message; conversation?: Conversation; asker?: Asker; talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Handback>;
   /** Resolves `ms` from now, for the timer event `at`, unless `signal` aborts first; without it, the machine's clock. */
   wait?(ms: number, signal: AbortSignal, at: string): Promise<void>;
   log: Note;

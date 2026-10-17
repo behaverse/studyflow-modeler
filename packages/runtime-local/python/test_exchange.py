@@ -176,6 +176,7 @@ every = [{"Rules": None, "Reminder": None, "Stimulus": "X"}] * 3
 assert asked_with(None, "conversation") == [every[0], {"Reminder": None, "Stimulus": "X"}, {"Reminder": None, "Stimulus": "X"}]
 assert asked_with(None, "none") == every
 assert asked_with("none", "conversation") == every
+assert asked_with(None, "window") == asked_with(None, "conversation")  # a window keeps the instructions too
 assert asked_with("conversation", "none")[1] == {"Reminder": None, "Stimulus": "X"}
 
 # A page's Chromium closes with its page: the process ends, the page stops being served, and its profile goes. A

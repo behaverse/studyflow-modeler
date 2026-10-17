@@ -98,7 +98,8 @@ class Step:
 
     def __init__(self, element_id: str, plan: dict[str, Any], values: dict[str, Any], message: dict[str, Any] | None = None,
                  run_dir: Path | None = None, cache: Path | None = None, wire: "_Wire | None" = None,
-                 conversation: dict[str, Any] | None = None, attributes: dict[str, Any] | None = None) -> None:
+                 conversation: dict[str, Any] | None = None, attributes: dict[str, Any] | None = None,
+                 asker: dict[str, Any] | None = None) -> None:
         self.id = element_id
         self.plan = plan
         self.elements: dict[str, dict[str, Any]] = plan.get("elements") or {}
@@ -114,6 +115,9 @@ class Step:
         # belongs to (one per instance of the pool asking) and how many exchanges of it came before. What was said is
         # the runner's to keep; a `turn` it has no record of means it was started again, and lost the conversation.
         self.conversation = conversation
+        # Who asks that pool, whatever it remembers: `{"id", "n"}`, the instance of the pool asking (named as its
+        # conversation would be) and how many messages it had sent the pool before. A draw keyed by it repeats on a re-run.
+        self.asker = asker
         self.options: dict[str, Any] = plan.get("options") or {}
         self.seed = (plan.get("study") or {}).get("seed")
         self.run_dir = run_dir or Path.cwd()
@@ -342,7 +346,7 @@ def serve(claims: Callable[[dict[str, Any]], Any], execute: Callable[[Step], Any
         element_id = str(params.get("element"))
         step = Step(element_id, plan, params.get("values") or {}, params.get("message"),
                     Path(run.get("dir") or "."), Path(run.get("cache") or ".cache"), wire, params.get("conversation"),
-                    params.get("attributes"))
+                    params.get("attributes"), params.get("asker"))
         steps[element_id] = step
         current.element = element_id
         started = time.perf_counter()

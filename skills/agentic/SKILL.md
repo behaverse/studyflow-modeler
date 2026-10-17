@@ -31,14 +31,20 @@ sends `num_ctx` sized to the conversation: at least 8,192 tokens, in powers of t
 characters sent, never shrinking for a model within a run (a new size reloads the model), and never past the model's
 own context length (`/api/show`), where it fails the message rather than let an earlier turn be dropped. A
 conversation that keeps every trial of a long session can need a window of 10^5 tokens, and the memory to hold it.
+A pool whose `memory` is `window` is sent the conversation cut to its instructions (the exchanges a prompt delivered
+once rode with) and its last `memoryWindow` exchanges (20 unless the actor says), so what it is sent stays the same
+size however long the session. The runner keeps the whole conversation, and the record says `memory: window`, the
+`window`, and in `sent` how many exchanges it `remembered`.
 
 An `ollama://` model that `/api/show` lists as a `decision` model (d1) writes no text: it returns a probability for
 each answer it is offered. The runner asks it `/v1/systemone` one choice question, the message's text as the
 question's instructions and the answers the message lists under `ResponseOptions` as its criteria, with the message's
 images; a message that lists none fails, since there is nothing to choose among. In a conversation the model, which
-keeps no state between requests, receives the conversation so far as its `state` with every message. The runner draws
-the answer from the probabilities with a seed keyed by the study, the participant (the conversation) and the trial (its
-turn), or by the message's id outside a conversation, so a re-run draws the same answers, and the record keeps the
+keeps no state between requests, receives what its pool remembers of the conversation (all of it, or its window) as
+its `state` with every message. The runner draws
+the answer from the probabilities with a seed keyed by the study, the participant (who asks) and the trial (how many
+messages that participant had sent the pool before), whatever the pool remembers, so a re-run draws the same answers
+whatever ids a task gives its messages, and the record keeps the
 `probabilities`, the model's own most probable `choice` and `confidence`, and the `draw` (its key and the uniform `u`).
 Every Ollama record says which `kind` the model is, `chat` or `decision`.
 

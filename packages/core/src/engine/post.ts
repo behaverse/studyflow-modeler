@@ -1,9 +1,12 @@
 import type { Graph } from '@core/engine/graph';
-import { Cancelled, Interrupted, keepRecord, logAt, type Conversation, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
+import { Cancelled, Interrupted, keepRecord, logAt, type Asker, type Conversation, type Host, type Message, type Talk, type Thread } from '@core/engine/host';
 import type { PlanElement } from '@core/engine/plan';
 import type { Happening } from '@core/engine/record';
 import type { Steps } from '@core/engine/steps';
 import type { Values } from '@core/engine/values';
+
+/** The exchanges a pool under `memory: window` remembers when its actor names no `memoryWindow` (the schema's default). */
+const WINDOW = 20;
 
 /**
  * The messages between pools: the walk carries every one, along the flow it names. A message waits in its flow's
@@ -17,6 +20,8 @@ export class Post {
   private readonly serving = new Map<string, Promise<unknown>>();
   /** The exchanges each conversation with a pool that remembers has had this run. */
   private readonly turns = new Map<string, number>();
+  /** The messages each instance of a pool has sent each pool a runner plays this run, whatever it remembers. */
+  private readonly asked = new Map<string, number>();
   /** Each pool's paths walking, and those of them waiting for a message, with what each waits at: when every path of
    * every pool still walking waits, no message will come. */
   private readonly walking = new Map<string, number>();
@@ -103,10 +108,13 @@ export class Post {
     const entry = this.steps.begin(pool.id, name, 'bpmn:Participant');
     entry.message = message.id;
     const conversation = this.conversationOf(pool, thread);
+    const by = this.askerOf(pool, thread);
+    const asker: Asker = { id: by, n: this.asked.get(by) ?? 0 };
+    this.asked.set(by, asker.n + 1);
     const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
       try {
         const asked = conversation && { ...conversation, turn: this.turns.get(conversation.id) ?? 0 };
-        const answered = await host.perform(pool.id, this.values.json(), { attributes: this.values.resolved(pool), message, conversation: asked, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
+        const answered = await host.perform(pool.id, this.values.json(), { attributes: this.values.resolved(pool), message, conversation: asked, asker, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
         // An exchange that failed is no part of the conversation.
         if (asked) this.turns.set(asked.id, asked.turn + 1);
         keepRecord(entry, answered);
@@ -138,10 +146,17 @@ export class Post {
    * pool's actor. */
   private conversationOf(pool: PlanElement, thread: Thread): Omit<Conversation, 'turn'> | undefined {
     const scoped = [...thread.watching].reverse().map(({ activity }) => this.graph.get(activity)?.memory).find((memory) => memory);
-    if ((scoped ?? pool.memory) !== 'conversation') return undefined;
+    const memory = scoped ?? pool.memory;
+    if (memory !== 'conversation' && memory !== 'window') return undefined;
+    const id = this.askerOf(pool, thread);
+    return memory === 'window' ? { id, window: pool.memoryWindow ?? WINDOW } : { id };
+  }
+
+  /** Who asks `pool` from `thread`: `<pool> with <asking pool> #<instance>`, one per instance of the asking pool. */
+  private askerOf(pool: PlanElement, thread: Thread): string {
     const { participant } = this.graph.instancesOf(thread.pool);
     const instance = (this.values.state._meta?.instance as Record<string, number> | undefined)?.[participant];
-    return { id: `${pool.id} with ${participant}${instance ? ` #${instance}` : ''}` };
+    return `${pool.id} with ${participant}${instance ? ` #${instance}` : ''}`;
   }
 
   /** The next message along one of `flows`, waited for. A message at a boundary event of an activity around it ends

@@ -2,6 +2,7 @@
 `python3 skills/agentic/test_local.py`."""
 
 import importlib.util
+import io
 import os
 import tempfile
 import threading
@@ -90,6 +91,7 @@ def get(url, timeout):
     return TAGS if url.endswith("/api/tags") else {"version": "0.12.3"}
 
 
+real_post = agentic.post
 agentic.post, agentic.get = post, get
 asked = {"elements": {"Model": elements["Model"], "M_Ask": {"type": "messageFlow", "attributes": {"sourceRef": "Task", "targetRef": "Model"}}}}
 content = {"Note": "left is yellow", "Frame": "data:image/png;base64,AAAA", "Trial": {"n": 1}}
@@ -163,6 +165,25 @@ try:
 except RuntimeError as error:
     assert "would be dropped" in str(error), error
 
+# Under `memory: window` the walk says how many of the latest exchanges the pool remembers: the model is sent those,
+# and the exchanges that carried a step's instructions (a prompt delivered once), however long ago.
+elements["Rules"] = {"type": "dataObjectReference", "extensions": [
+    {"namespace": agentic.AGENTIC, "type": "prompt", "attributes": {"template": "The rules.", "delivery": "once"}}]}
+windowed = {"elements": {**asked["elements"], "Rules": elements["Rules"]}}
+chats.clear()
+agentic.post = remembering
+for turn in range(5):
+    content = {"Rules": None, "Note": f"trial {turn}"} if turn == 0 else {"Note": f"trial {turn}"}
+    step = agentic.Step("Model", windowed, {}, {"id": f"w{turn}", "flow": "M_Ask", "content": content},
+                        conversation={"id": "Model with Subjects #4", "turn": turn, "window": 2})
+    agentic.execute(step)
+assert [m["content"] for m in chats[-1] if m["role"] == "user"] == [
+    "The rules.\n\nNote: trial 0", "Note: trial 2", "Note: trial 3", "Note: trial 4"], chats[-1]
+assert step.record["memory"] == "window" and step.record["window"] == 2 and step.record["sent"]["remembered"] == 3, step.record
+assert len(agentic.CONVERSATIONS["Model with Subjects #4"]) == 10  # the runner keeps it all; the window is what it sends
+assert agentic.remembered([{"role": "user"}, {"role": "assistant"}], None) == [{"role": "user"}, {"role": "assistant"}]
+agentic.post = post
+
 # A lookup that fails is noted, and the answer stands; a model is described once a run, so this is another one.
 def unreachable(url, timeout):
     raise urllib.error.URLError("connection refused")
@@ -202,7 +223,7 @@ letters = []
 for turn, letter in enumerate("AX"):
     step = agentic.Step("Model", d1, {}, {"id": f"d{turn}", "flow": "M_Ask", "content": {
         "Stimulus": letter, "ResponseOptions": ["Match", "NonMatch"], "Frame": "data:image/png;base64,AAAA"}},
-        conversation={"id": "Model with Subjects #3", "turn": turn})
+        conversation={"id": "Model with Subjects #3", "turn": turn}, asker={"id": "Model with Subjects #3", "n": turn})
     letters.append(agentic.execute(step))
 assert decisions[-1] == {
     "model": "d1:3b",
@@ -216,12 +237,47 @@ record = step.record
 assert record["kind"] == "decision" and record["probabilities"] == {"Match": 0.25, "NonMatch": 0.75} and record["choice"] == "NonMatch"
 assert record["draw"]["key"] == "None:Model with Subjects #3:1" and 0 <= record["draw"]["u"] < 1, record
 assert record["digest"] == "cd34" and record["sent"]["turn"] == 1, record
+# A pool that remembers nothing draws by who asks and how often too, not by the message's id, which a task may mint at
+# random (a Unity build's RequestId): the same participant and trial draw the same answer under any id.
+draws = []
+for message_id in ("a1b2-random", "c3d4-other"):
+    step = agentic.Step("Model", d1, {}, {"id": message_id, "flow": "M_Ask", "content": {"Stimulus": "X", "ResponseOptions": ["Match", "NonMatch"]}},
+                        asker={"id": "Model with Subjects #5", "n": 7})
+    agentic.execute(step)
+    draws.append(step.record["draw"])
+assert draws[0] == draws[1] and draws[0]["key"] == "None:Model with Subjects #5:7", draws
 # A message that lists no answers has nothing for a decision model to choose among.
 try:
     agentic.execute(agentic.Step("Model", d1, {}, {"id": "d9", "flow": "M_Ask", "content": {"Note": "say READY"}}))
     raise AssertionError("a decision model answered a message that lists no options")
 except ValueError as error:
     assert "lists none" in str(error), error
+
+# Ollama serves a decision model with its own `num_ctx`, which a request cannot raise: a conversation past that window
+# fails before it is sent, and a refusal from Ollama says what it refused, not just its status.
+assert agentic.served_window({"parameters": "num_ctx                        16384", "contextLength": 32768}) == 16384
+assert agentic.served_window({"parameters": "temperature 1", "contextLength": 32768}) == 32768
+long = {"Stimulus": "X", "ResponseOptions": ["Match", "NonMatch"], "Note": "x" * 50_000}
+agentic.DESCRIBED["d1:3b"]["parameters"] = "num_ctx 16384"
+try:
+    agentic.execute(agentic.Step("Model", d1, {}, {"id": "d10", "flow": "M_Ask", "content": long}))
+    raise AssertionError("a conversation past the served window was sent")
+except RuntimeError as error:
+    assert "past the 16384 the model holds" in str(error), error
+
+
+def refused(url, timeout):
+    raise urllib.error.HTTPError(url, 400, "Bad Request", {}, io.BytesIO(b'{"error":"request exceeds the available context size"}'))
+
+
+real_urlopen = agentic.urllib.request.urlopen
+agentic.urllib.request.urlopen = refused
+try:
+    real_post("http://localhost:11434/v1/systemone", {}, {}, timeout=1)
+    raise AssertionError("a refusal passed")
+except RuntimeError as error:
+    assert str(error) == 'http://localhost:11434/v1/systemone answered 400: {"error":"request exceeds the available context size"}', error
+agentic.urllib.request.urlopen = real_urlopen
 
 # The draw: `u` falls on an option as wide as its probability, the options in the message's order; the same key draws
 # the same answer, other participants draw their own, and over many keys each answer comes up as often as its probability.

@@ -22,7 +22,7 @@ async function walked(study: string, runners: Record<string, Runner> = {}, optio
   const host: Host = {
     record: (event) => events.push(event),
     claim: (id) => (runners[id] ? { name: 'test', live: true } : undefined),
-    perform: async (id, values, { talk, message, conversation }) => runners[id]({ ...values, message, conversation }, talk),
+    perform: async (id, values, { talk, message, conversation, asker }) => runners[id]({ ...values, message, conversation, asker }, talk),
     log: (event, message) => log.push(`${event} ${message.trim()}`),
     now: () => new Date().toISOString(),
   };
@@ -981,6 +981,17 @@ S:
     { id: 'Model with Subjects #2', turn: 0 }, { id: 'Model with Subjects #2', turn: 1 },
   ]);
   expect(await heard('none')).toEqual([undefined, undefined, undefined, undefined]);
+  // Whatever it remembers, a pool hears who asks and how many messages that instance had sent it before.
+  const askers: unknown[] = [];
+  await walked(study('none'), { Model: (values) => { askers.push(values.asker); return {}; } });
+  expect(askers).toEqual([
+    { id: 'Model with Subjects #1', n: 0 }, { id: 'Model with Subjects #1', n: 1 },
+    { id: 'Model with Subjects #2', n: 0 }, { id: 'Model with Subjects #2', n: 1 },
+  ]);
+  // A window is the same conversation, with how many of its latest exchanges the pool remembers: the actor's
+  // `memoryWindow`, else 20.
+  expect((await heard('window, memoryWindow: 5'))[1]).toEqual({ id: 'Model with Subjects #1', turn: 1, window: 5 });
+  expect((await heard('window'))[3]).toEqual({ id: 'Model with Subjects #2', turn: 1, window: 20 });
 });
 
 test('a sub-process says what a pool remembers of the messages its steps send, in place of the actor', async () => {

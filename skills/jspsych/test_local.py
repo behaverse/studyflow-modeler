@@ -6,6 +6,7 @@ through it."""
 import argparse
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import time
@@ -63,6 +64,16 @@ assert local.modules_of(Path("/x")) == Path("/x")
 argv = local.headless_argv("chrome", "http://127.0.0.1:1/", "/tmp/profile")
 assert argv[:2] == ["chrome", "--headless=new"] and argv[-1] == "http://127.0.0.1:1/", argv
 assert {"--user-data-dir=/tmp/profile", "--disable-background-timer-throttling", "--disable-renderer-backgrounding"} <= set(argv)
+
+# A browser that exits before its timeline ends says why: its exit code, and the last of what it wrote to stderr.
+with tempfile.TemporaryDirectory() as profile:
+    (Path(profile) / local.STDERR).write_text("starting\n" + "".join(f"line {n}\n" for n in range(9)))
+    gone = subprocess.Popen([sys.executable, "-c", "raise SystemExit(3)", f"--user-data-dir={profile}"])
+    gone.wait()
+    assert local.exited_why(gone) == ("the headless browser exited (code 3) before the timeline ended: "
+                                      "line 4; line 5; line 6; line 7; line 8"), local.exited_why(gone)
+    (Path(profile) / local.STDERR).unlink()
+    assert local.exited_why(gone) == "the headless browser exited (code 3) before the timeline ended"
 
 # What a timeline cannot play as written it refuses before it starts: an actor answers along message flows only,
 # ResponseOptions names keys its choices list, and the actor's deadline is a task setting, under Bot:.
