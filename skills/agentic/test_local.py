@@ -265,6 +265,56 @@ try:
 except RuntimeError as error:
     assert "past the 16384 the model holds" in str(error), error
 
+# Under `memory: window` a decision model is sent as its state the exchanges that carried the instructions and the last
+# `window` others of this participant's session, never another's; under `memory: none` the message alone. A state past
+# the served window loses its oldest exchanges first, never the instructions nor the message, and the record says how
+# many it kept and that it was cut.
+d1_rules = {"elements": {**d1["elements"], "Rules": elements["Rules"]}}
+agentic.DESCRIBED["d1:3b"]["parameters"] = "num_ctx 16384"
+
+
+def decided(pool, turn, note="", window=3, remembers=True):
+    content = {**({"Rules": None} if turn == 0 else {}), "Stimulus": f"{pool}-{turn}", "ResponseOptions": ["Match", "NonMatch"],
+               **({"Note": note} if note else {})}
+    step = agentic.Step("Model", d1_rules, {}, {"id": f"{pool}{turn}", "flow": "M_Ask", "content": content},
+                        conversation={"id": f"Model with Subjects #{pool}", "turn": turn, "window": window} if remembers else None,
+                        asker={"id": f"Model with Subjects #{pool}", "n": turn})
+    agentic.execute(step)
+    return step.record, decisions[-1]
+
+
+for turn in range(6):
+    decided(10, turn)
+    decided(11, turn)
+record, body = decided(10, 6)
+states = [m["content"] for m in body["state"] if m["role"] == "user"]
+assert states[0].startswith("The rules.") and [s.split("\n\n")[-2] for s in states] == [
+    "Stimulus: 10-0", "Stimulus: 10-3", "Stimulus: 10-4", "Stimulus: 10-5"], states
+assert not any("11-" in m["content"] for m in body["state"]), body["state"]
+assert record["memory"] == "window" and record["window"] == 3 and record["kept"] == 4 and "truncated" not in record, record
+record, body = decided(12, 0, remembers=False)
+assert "state" not in body and record["memory"] == "none" and record["kept"] == 0, record
+# Each trial about 1600 tokens: at the sixth, the instructions' exchange, the last three and the message would need
+# about 8400 tokens, past a window of 7000, so the oldest of the three is dropped.
+agentic.DESCRIBED["d1:3b"]["parameters"] = "num_ctx 7000"
+for turn in range(6):
+    record, body = decided(13, turn, note="x" * 4000)
+assert record["kept"] == 3 and record["truncated"] is True and record["sent"]["remembered"] == 3, record
+assert body["state"][0]["content"].startswith("The rules.") and "13-5" in body["questions"]["response"]["instructions"], body
+assert [m["content"].split("\n\n")[-3] for m in body["state"] if m["role"] == "user"] == [
+    "Stimulus: 13-0", "Stimulus: 13-3", "Stimulus: 13-4"], body["state"]
+agentic.DESCRIBED["d1:3b"]["parameters"] = "num_ctx 16384"
+# A chat model under the same window is sent the same exchanges, and its record keeps no draw and no cut.
+agentic.post = remembering
+chats.clear()
+for turn in range(5):
+    content = {"Rules": None, "Note": f"trial {turn}"} if turn == 0 else {"Note": f"trial {turn}"}
+    step = agentic.Step("Model", windowed, {}, {"id": f"c{turn}", "flow": "M_Ask", "content": content},
+                        conversation={"id": "Model with Subjects #14", "turn": turn, "window": 3})
+    agentic.execute(step)
+assert step.record["kind"] == "chat" and step.record["sent"]["remembered"] == 4 and "draw" not in step.record and "truncated" not in step.record
+agentic.post = deciding
+
 
 def refused(url, timeout):
     raise urllib.error.HTTPError(url, 400, "Bad Request", {}, io.BytesIO(b'{"error":"request exceeds the available context size"}'))

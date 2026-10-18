@@ -165,9 +165,14 @@ def shown(show: dict[str, Any]) -> dict[str, Any]:
     return {"parameters": show.get("parameters"), **({"contextLength": int(lengths[0])} if lengths else {}), "kind": kind}
 
 
+def tokens_of(messages: list[dict[str, Any]]) -> int:
+    """The tokens these messages are estimated to need with the reply, from their characters (`CHARS_PER_TOKEN`)."""
+    return math.ceil(sum(len(m["content"]) for m in messages) / CHARS_PER_TOKEN) + REPLY_TOKENS
+
+
 def context_window(model: str, messages: list[dict[str, Any]], limit: int | None) -> tuple[int, int]:
     """The `num_ctx` to send with these messages, and the tokens they are estimated to need with the reply."""
-    estimate = math.ceil(sum(len(m["content"]) for m in messages) / CHARS_PER_TOKEN) + REPLY_TOKENS
+    estimate = tokens_of(messages)
     if limit and estimate > limit:
         raise RuntimeError(f"the conversation with {model} needs about {estimate} tokens, past the {limit} the model holds: "
                            "its earlier turns would be dropped")
@@ -266,9 +271,12 @@ def decide_ollama(model: str, parts: list[dict[str, Any]], history: list[dict[st
         raise ValueError(f"{model} is a decision model: it chooses among the answers a message lists under ResponseOptions, "
                          "and this message lists none")
     about = described(model)
-    body = decision_request(model, parts, history, options)
     # `/v1/systemone` takes no `num_ctx`: the window is the one Ollama serves the model with, its `num_ctx` parameter
-    # (`/api/show`), else its context length. A conversation past it fails here, before Ollama refuses it.
+    # (`/api/show`), else its context length. A state past it loses its oldest exchanges first, never the ones that
+    # carried the instructions nor the message itself, and the record says how many were kept and that some were not;
+    # a message that does not fit with the instructions alone fails here, before Ollama refuses it.
+    history, truncated = fitted(model, parts, history, options, served_window(about))
+    body = decision_request(model, parts, history, options)
     _, estimate = context_window(model, [{"content": json.dumps(body)}], served_window(about))
     data = post(f"{OLLAMA}/v1/systemone", body, {}, timeout=120)
     answer = data["answers"]["response"]
@@ -276,7 +284,19 @@ def decide_ollama(model: str, parts: list[dict[str, Any]], history: list[dict[st
     reply = drawn(answer["probabilities"], options, u)
     return reply, {"model": model, **about, "contextEstimate": estimate, "promptTokens": (data.get("usage") or {}).get("input_tokens"),
                    "probabilities": answer["probabilities"], "choice": answer.get("choice"), "confidence": answer.get("confidence"),
-                   "draw": {"key": key, "u": u}}
+                   "draw": {"key": key, "u": u}, "kept": len(history) // 2, **({"truncated": True} if truncated else {})}
+
+
+def fitted(model: str, parts: list[dict[str, Any]], history: list[dict[str, Any]], options: list[str], limit: int | None) -> tuple[list[dict[str, Any]], bool]:
+    """The state a decision model is sent, cut to its window: the oldest exchanges dropped first, one at a time, until
+    the request fits, those that carried the instructions (`instructs`) kept; and whether any was dropped."""
+    kept = list(history)
+    while limit and tokens_of([{"content": json.dumps(decision_request(model, parts, kept, options))}]) > limit:
+        oldest = next((n for n in range(0, len(kept), 2) if not kept[n].get("instructs")), None)
+        if oldest is None:
+            break
+        del kept[oldest:oldest + 2]
+    return kept, len(kept) < len(history)
 
 
 CLIENTS = {"claude": ask_claude, "ollama": ask_ollama}
@@ -333,7 +353,7 @@ def execute(step: Step) -> str:
     sent = {"text": texts[:4000], "images": sum("image" in part for part in parts)}
     if step.conversation:
         sent["turn"] = step.conversation["turn"]
-        sent["remembered"] = len(sent_history) // 2
+        sent["remembered"] = record.get("kept", len(sent_history) // 2)
         content = message.get("content")
         instructs = isinstance(content, dict) and any(value is None and delivered_once(str(key), step.elements) for key, value in content.items())
         history += [{"role": "user", "parts": parts, **({"instructs": True} if instructs else {})}, {"role": "assistant", "parts": [{"text": reply}]}]

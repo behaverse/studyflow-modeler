@@ -41,7 +41,10 @@ each answer it is offered. The runner asks it `/v1/systemone` one choice questio
 question's instructions and the answers the message lists under `ResponseOptions` as its criteria, with the message's
 images; a message that lists none fails, since there is nothing to choose among. In a conversation the model, which
 keeps no state between requests, receives what its pool remembers of the conversation (all of it, or its window) as
-its `state` with every message. The runner draws
+its `state` with every message. Ollama serves the model with a window of its own (its `num_ctx`, else its context
+length) that a request cannot raise, so a state past it loses its oldest exchanges first, never the instructions' nor
+the message itself, and the record says how many exchanges it `kept` and, when it dropped one, `truncated: true`; a
+message that does not fit with its instructions alone fails. The runner draws
 the answer from the probabilities with a seed keyed by the study, the participant (who asks) and the trial (how many
 messages that participant had sent the pool before), whatever the pool remembers, so a re-run draws the same answers
 whatever ids a task gives its messages, and the record keeps the
