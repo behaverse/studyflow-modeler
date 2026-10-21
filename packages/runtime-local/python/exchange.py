@@ -52,7 +52,9 @@ def talking_scope(element: dict[str, Any], plan: dict[str, dict[str, Any]]) -> s
     """Whose message flows the step exchanges along: its own, else the nearest enclosing sub-process that has some,
     else its pool's. A collapsed sub-process is the only place BPMN can draw a message flow to a step inside it, and
     a pool's flows are the whole pool's, lanes and all (the walk routes them the same way, packages/core/src/engine
-    `messageScope`). A step with flows of its own inherits none."""
+    `messageScope`). A step with flows of its own inherits none, and a choreography task whose band names the pool
+    that answers it has its own: the plan holds the exchange its band stands for as two message flows of the task's,
+    marked `band` (CONTRACT.md, "The plan")."""
     ends = {end for flow in plan.values() if flow.get("type") == "messageFlow"
             for end in ((flow.get("attributes") or {}).get("sourceRef"), (flow.get("attributes") or {}).get("targetRef"))}
     scope = str(element.get("id") or "")

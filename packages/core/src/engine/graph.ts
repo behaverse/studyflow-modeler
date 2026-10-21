@@ -210,14 +210,17 @@ export class Graph {
   }
 
   /**
-   * Where an activity no runner claims talks, and along which flows out and in: its own; else, when it has data
-   * inputs to send, its sub-process's or pool's ({@link messageScope}), but only their talk with other pools, never
-   * a pool's once-only message to a step elsewhere. A step with nothing to send asks nothing.
+   * Where an activity no runner claims talks, and along which flows out and in: its own drawn ones; else, when it has
+   * data inputs to send, those its band stands for (plan.ts, `bandExchanges`), or its sub-process's or pool's
+   * ({@link messageScope}), but only their talk with other pools, never a pool's once-only message to a step
+   * elsewhere. A step with nothing to send asks nothing.
    */
   exchange(element: PlanElement): { scope: string; outgoing: PlanElement[]; incoming: PlanElement[] } {
     const scope = this.messageScope(element.id);
     const outgoing = this.flowsOut.get(scope) ?? [];
     const incoming = this.flowsIn.get(scope) ?? [];
+    const banded = [...outgoing, ...incoming].every((flow) => flow.attributes.band === element.id);
+    if (scope === element.id && banded && element.inputs.length === 0) return { scope, outgoing: [], incoming: [] };
     if (scope === element.id) return { scope, outgoing, incoming };
     if (element.inputs.length === 0) return { scope, outgoing: [], incoming: [] };
     return {

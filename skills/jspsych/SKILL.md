@@ -24,7 +24,8 @@ result is jsPsych's data, one row a trial, so `{Flanker}` reads them.
 
 ## Local runs
 
-In a local run, `local.py` plays the same steps, every trial answered by the actor the step's message flows reach, as
+In a local run, `local.py` plays the same steps, every trial answered by the actor the step's band names or its message
+flows reach, as
 the Behaverse runner plays a task on its build (`../behaverse/SKILL.md`); so a study can run its AX-CPT as a jsPsych
 timeline and its other tasks on the Behaverse build, one model or one simulated actor answering them all. It claims
 every step whose `implementation` is a `jspsych://` reference, for jsPsych 8 (its 2.x plugins) alone; a reference it

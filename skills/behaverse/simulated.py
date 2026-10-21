@@ -10,7 +10,9 @@ Three instruments are played: the AX-CPT (`RE`), Which One (`WO`, a Simon task) 
 
 The simulated actor is a pool typed `behaverse:SimulatedActor`. It answers each trial it is sent as a person reads it,
 right with the probability the study plants on the pool (`accuracy`, and `prompted` for what a text sent with the
-trial changes), and leaves `missRate` of them unanswered.
+trial changes), and leaves `missRate` of them unanswered. It reads the build's three instruments, and a jsPsych trial
+whose screen is one AX-CPT letter or a flanker's five arrows (`FL`). A subject it is `absent` for never answers what a
+given step asks: drawn once per subject and step from the run's seed, so the step waits until its timer runs out.
 """
 
 from __future__ import annotations
@@ -448,6 +450,18 @@ def rng(*key: Any) -> random.Random:
     return random.Random(":".join(str(part) for part in key))
 
 
+# The arrows a flanker trial shows, by the side each points to: as text, and as the unicode arrows a screen may use.
+ARROWS = {"<": "left", ">": "right", "\u2190": "left", "\u2192": "right"}
+
+
+def flanker_arrows(stimulus: Any) -> list[str] | None:
+    """The sides five arrows of text point to, left to right, when the stimulus is that and nothing else."""
+    if not isinstance(stimulus, str):
+        return None
+    text = "".join(stimulus.split())
+    return [ARROWS[c] for c in text] if len(text) == 5 and all(c in ARROWS for c in text) else None
+
+
 def perceived(trial: dict[str, Any], memory: dict[str, Any]) -> dict[str, Any]:
     """What a simulated actor tells from a trial as the build sends it, by the task's rule, as a person would: the instrument,
     the trial's condition and the right answer; never the build's own key.
@@ -459,12 +473,19 @@ def perceived(trial: dict[str, Any], memory: dict[str, Any]) -> dict[str, Any]:
     aside; the letters alternate cue and probe, so a probe's condition is its cue and itself (AX, AY, BX, BY). A
     stimulus that is one letter of text is the same AX-CPT letter, as the jspsych skill's local runner sends a jsPsych
     trial's screen. An N-back digit (`Value`) is Match when it is the digit `Load` before it; before there is one, it is
-    the burn-in."""
+    the burn-in. A stimulus that is five arrows of text (`<<><<`, as a jsPsych flanker trial's screen shows them) is a
+    flanker trial (`FL`): Congruent when all five point the same way, Incongruent otherwise, answered by the option
+    named for the side the middle arrow points to (`Left`, `Right`)."""
     stimulus = trial.get("Stimulus")
+    options = [str(option) for option in trial.get("ResponseOptions") or []]
+    arrows = flanker_arrows(stimulus)
+    if arrows:
+        middle = arrows[2]
+        return {"instrument": "FL", "condition": "Congruent" if len(set(arrows)) == 1 else "Incongruent",
+                "correct": next((choice for choice in options if choice.lower() == middle), None)}
     if isinstance(stimulus, str) and len(stimulus.strip()) == 1 and stimulus.strip().isalpha():
         stimulus = {"Letter": stimulus.strip()}
     stimulus = stimulus if isinstance(stimulus, dict) else {}
-    options = [str(option) for option in trial.get("ResponseOptions") or []]
     index = int(trial.get("TrialIndex") or 0)
     if memory.get("index") is None or index != memory["index"] + 1:
         memory["stream"] = []
@@ -514,10 +535,12 @@ class SimulatedActor:
     """What the study plants on a `behaverse:SimulatedActor` pool: the probability of a right answer by instrument and
     condition (`accuracy`, `default` for any other), what holds instead when a text sent with the trial has a line
     beginning with a key of `prompted`, what holds instead when it keeps the conversation the trial belongs to
-    (`remembering`), and the share of trials left unanswered (`missRate`)."""
+    (`remembering`), the share of trials left unanswered (`missRate`), and, by step, the share of subjects who never
+    answer what that step asks (`absent`)."""
 
     def __init__(self, attributes: dict[str, Any]) -> None:
         self.accuracy = yaml.safe_load(str(attributes.get("accuracy") or "")) or {}
+        self.absent = {str(step): float(share) for step, share in (yaml.safe_load(str(attributes.get("absent") or "")) or {}).items()}
         self.prompted = {re.compile(rf"^\s*{re.escape(str(key))}", re.MULTILINE): table
                          for key, table in (yaml.safe_load(str(attributes.get("prompted") or "")) or {}).items()}
         self.remembering = yaml.safe_load(str(attributes.get("remembering") or "")) or {}
@@ -537,6 +560,15 @@ class SimulatedActor:
                     return float(held)
         held = (self.accuracy.get(instrument) or {}).get(condition)
         return float(held if held is not None else self.accuracy.get("default", 0))
+
+
+def absent(actor: SimulatedActor, seed: Any, asker: dict[str, Any] | None) -> bool:
+    """Whether the subject asking is one the actor is absent for at the step asking (`absent`): drawn once per subject
+    and step, from the run's seed, the subject (the instance of the pool asking, as `asker` names it) and the step, so a
+    re-run draws the same subjects, and every message the step sends that subject goes unanswered alike."""
+    asker = asker or {}
+    share = actor.absent.get(str(asker.get("step") or ""), 0.0)
+    return share > 0 and rng(seed, "absent", asker.get("id"), asker.get("step")).random() < share
 
 
 def answer(actor: SimulatedActor, seed: Any, message: dict[str, Any], memory: dict[str, Any] | None = None,
@@ -563,10 +595,16 @@ def answer(actor: SimulatedActor, seed: Any, message: dict[str, Any], memory: di
     return truth["correct"] if right or not wrong else draw.choice(wrong)
 
 
-def take(step: Any) -> str:
-    """One message to a simulated actor's pool, answered."""
+def take(step: Any) -> str | None:
+    """One message to a simulated actor's pool, answered, or left unanswered when the actor is absent for the subject
+    at the step asking."""
     element = step.element
-    step.note(actor=str(((behaverse.simulated_actor_of(element) or {}).get("attributes") or {}).get("implementation") or "behaverse://simulated-actor"))
+    attributes = (behaverse.simulated_actor_of(element) or {}).get("attributes") or {}
+    step.note(actor=str(attributes.get("implementation") or "behaverse://simulated-actor"))
+    actor = SimulatedActor(attributes)
+    if absent(actor, step.seed, step.asker):
+        step.note(absent=True)
+        step.no_reply()
+        return None
     memory = MEMORY.setdefault(str((step.conversation or {}).get("id") or ""), {})
-    return answer(SimulatedActor((behaverse.simulated_actor_of(element) or {}).get("attributes") or {}), step.seed,
-                  written_out(step.message or {}, step.plan, step.values), memory, bool(step.conversation))
+    return answer(actor, step.seed, written_out(step.message or {}, step.plan, step.values), memory, bool(step.conversation))

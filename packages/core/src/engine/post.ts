@@ -8,6 +8,9 @@ import type { Values } from '@core/engine/values';
 /** The exchanges a pool under `memory: window` remembers when its actor names no `memoryWindow` (the schema's default). */
 const WINDOW = 20;
 
+/** What a pool's turn comes to when its runner left the message unanswered. */
+const WITHHELD = Symbol('withheld');
+
 /**
  * The messages between pools: the walk carries every one, along the flow it names. A message waits in its flow's
  * mailbox for the step that takes it; one sent to a pool a runner plays is that runner's to answer. A wait ends when
@@ -26,6 +29,11 @@ export class Post {
    * every pool still walking waits, no message will come. */
   private readonly walking = new Map<string, number>();
   private readonly blocked = new Map<string, Map<string, string>>();
+  /** The flows back from a pool whose runner left a message unanswered (`noReply`), by the path that sent it: a wait
+   * along one holds, though the pool has nothing more to send, until something around the waiting step ends it. */
+  private readonly withheld = new Map<string, Set<string>>();
+  /** Timers running: a wait none of them ends is stuck only once they have all run out or stopped. */
+  private timers = 0;
   private sent = 0;
   /** Why the run is ending, once a pool failed or the run was stopped: every wait fails with it. */
   failed: unknown;
@@ -61,11 +69,12 @@ export class Post {
   }
 
   /** When every path of every pool still walking waits for a message, none will come: the run fails, saying what each
-   * waits at. A pool between its instances, with no path walking, is not waiting. */
+   * waits at. A pool between its instances, with no path walking, is not waiting, and while a timer runs, its event
+   * may yet end a wait. */
   private checkStuck(): void {
     const pools = this.graph.plan.processes.filter((pool) => !this.poolsDone.has(pool));
     const stuck = (pool: string): boolean => (this.walking.get(pool) ?? 0) > 0 && (this.blocked.get(pool)?.size ?? 0) >= this.walking.get(pool)!;
-    if (this.failed !== undefined || pools.length === 0 || !pools.every(stuck)) return;
+    if (this.failed !== undefined || this.timers > 0 || pools.length === 0 || !pools.every(stuck)) return;
     this.failed = new Error(`the pools wait for each other: ${pools.flatMap((pool) => [...this.blocked.get(pool)!.values()]).join('; ')}`);
     this.notify();
   }
@@ -83,8 +92,8 @@ export class Post {
   }
 
   /** A message along a flow: into the flow's mailbox, or, when a runner plays the pool it ends at, to that runner,
-   * whose answer goes back along the pool's flow to the sender. */
-  async send(flow: PlanElement, content: unknown, thread: Thread, options: { id?: string; inReplyTo?: string } = {}): Promise<void> {
+   * whose answer goes back along the pool's flow to the sender. `step` is the element whose exchange sends it. */
+  async send(flow: PlanElement, content: unknown, thread: Thread, options: { id?: string; inReplyTo?: string; step?: string } = {}): Promise<void> {
     const { graph, host } = this;
     const target = flow.attributes.targetRef ?? '';
     const message: Message = { id: options.id ?? `${flow.id}.${this.sent += 1}`, flow: flow.id, content };
@@ -92,7 +101,7 @@ export class Post {
     logAt(this.host, thread, 'message.sent', `    ✉ ${flow.attributes.sourceRef} → ${target}  [${message.id}]`, { level: 'debug' });
     this.record({ event: 'sent', message });
     const pool = graph.participants.get(target);
-    if (pool && host.claim(target)) return this.serve(pool, flow, message, thread);
+    if (pool && host.claim(target)) return this.serve(pool, flow, message, thread, options.step);
     if (pool && !pool.attributes.processRef) {
       logAt(this.host, thread, 'message.unplayed', `    ✉ no runner plays ${pool.name || target}, so ${message.id} goes unanswered`, { level: 'warning' });
     }
@@ -101,15 +110,16 @@ export class Post {
   }
 
   /** One message to a pool a runner plays, recorded as a step of its own, one at a time to each pool. A pool that
-   * fails answers null, so the sender goes on and the record keeps the error. */
-  private async serve(pool: PlanElement, flow: PlanElement, message: Message, thread: Thread): Promise<void> {
+   * fails answers null, so the sender goes on and the record keeps the error. A pool whose runner leaves it
+   * unanswered (`noReply`) sends nothing back: the sender waits on. */
+  private async serve(pool: PlanElement, flow: PlanElement, message: Message, thread: Thread, step?: string): Promise<void> {
     const { graph, host } = this;
     const name = pool.name || pool.id;
     const entry = this.steps.begin(pool.id, name, 'bpmn:Participant');
     entry.message = message.id;
     const conversation = this.conversationOf(pool, thread);
     const by = this.askerOf(pool, thread);
-    const asker: Asker = { id: by, n: this.asked.get(by) ?? 0 };
+    const asker: Asker = { id: by, n: this.asked.get(by) ?? 0, ...(step ? { step } : {}) };
     this.asked.set(by, asker.n + 1);
     const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
       try {
@@ -118,6 +128,11 @@ export class Post {
         // An exchange that failed is no part of the conversation.
         if (asked) this.turns.set(asked.id, asked.turn + 1);
         keepRecord(entry, answered);
+        if (answered.noReply) {
+          entry.unanswered = true;
+          logAt(this.host, thread, 'message.withheld', `    ${name} leaves ${message.id} unanswered`);
+          return WITHHELD;
+        }
         const reply = answered.result ?? null;
         if (typeof reply === 'string') entry.reply = reply.slice(0, 2000); // what the pool said, kept with the run's records
         logAt(this.host, thread, 'message.answered', `    ✉ ${name} answered ${message.id}`);
@@ -137,6 +152,11 @@ export class Post {
     const sender = flow.attributes.sourceRef ?? '';
     const back = flows.find((candidate) => candidate.attributes.targetRef === sender)
       ?? flows.find((candidate) => graph.poolOf(candidate.attributes.targetRef ?? '') === graph.poolOf(sender));
+    if (reply === WITHHELD) {
+      if (back) this.withheld.set(thread.path, new Set([...(this.withheld.get(thread.path) ?? []), back.id]));
+      this.notify();
+      return;
+    }
     if (back) await this.send(back, reply, thread, { inReplyTo: message.id });
   }
 
@@ -162,18 +182,23 @@ export class Post {
   /** The next message along one of `flows`, waited for. A message at a boundary event of an activity around it ends
    * the wait, and so does a failed pool, or senders that have nothing left to send. */
   async receive(id: string, flows: PlanElement[], thread: Thread): Promise<Message> {
-    for (;;) {
-      this.checkInterrupt(thread);
-      for (const flow of flows) {
-        const message = this.mail.get(flow.id)?.shift();
-        if (message) {
-          // What this pool sends back to the sender's pool answers this message.
-          thread.heard.set(this.graph.poolOf(flow.attributes.sourceRef ?? ''), message.id);
-          return message;
+    try {
+      for (;;) {
+        this.checkInterrupt(thread);
+        for (const flow of flows) {
+          const message = this.mail.get(flow.id)?.shift();
+          if (message) {
+            // What this pool sends back to the sender's pool answers this message.
+            thread.heard.set(this.graph.poolOf(flow.attributes.sourceRef ?? ''), message.id);
+            return message;
+          }
         }
+        this.expectMore(id, flows, thread);
+        await this.waitFor(thread, `${id} waits along ${flows.map((flow) => flow.id).join(', ')}`);
       }
-      this.expectMore(id, flows);
-      await this.waitFor(thread, `${id} waits along ${flows.map((flow) => flow.id).join(', ')}`);
+    } finally {
+      // Whatever the path waited for along a flow its message was left unanswered on, it waits no more.
+      this.withheld.delete(thread.path);
     }
   }
 
@@ -183,12 +208,19 @@ export class Post {
     const blocked = this.blocked.get(thread.pool) ?? new Map<string, string>();
     this.blocked.set(thread.pool, blocked);
     blocked.set(thread.path, what);
+    // Heard before the check, so a run this very wait leaves stuck wakes it too, when it is the only one waiting.
+    const changed = this.changed();
     this.checkStuck();
     try {
-      await this.changed();
+      await changed;
     } finally {
       blocked.delete(thread.path);
     }
+  }
+
+  /** An activity was left at a boundary event: the messages waiting along its own flows into it go unread. */
+  discard(activity: string): void {
+    for (const flow of this.graph.flowsIn.get(activity) ?? []) this.mail.delete(flow.id);
   }
 
   /** The flows whose messages were sent and never taken. */
@@ -213,19 +245,23 @@ export class Post {
       this.checkInterrupt(thread);
       const first = branches.find(({ into }) => into.some((flow) => this.mail.get(flow.id)?.length));
       if (first) return first.flow;
-      this.expectMore(gateway, branches.flatMap(({ into }) => into));
+      this.expectMore(gateway, branches.flatMap(({ into }) => into), thread);
       await this.waitFor(thread, `${gateway} waits for a message along ${branches.flatMap(({ into }) => into).map((flow) => flow.id).join(', ')}`);
     }
   }
 
   /** Throws when no message will come along `flows`: a pool failed, or every sender has nothing left to send. */
-  private expectMore(id: string, flows: PlanElement[]): void {
+  private expectMore(id: string, flows: PlanElement[], thread: Thread): void {
     if (this.failed !== undefined) throw new Error(`${id}: no message will come, another pool failed`);
     // A pool no process depicts only answers what is sent to it, and that answer is already here. A pool with a
-    // process still has its own message to send until its walk ends, so a wait on it holds while it runs.
+    // process still has its own message to send until its walk ends, so a wait on it holds while it runs. So does a
+    // wait for the answer a pool's runner left unanswered: a participant who never replies is waited for, until a
+    // boundary event (a timer) ends the wait, or nothing else can happen and the run is stuck.
+    const withheld = this.withheld.get(thread.path);
     const spent = (flow: PlanElement): boolean => {
       const source = flow.attributes.sourceRef ?? '';
       const pool = this.graph.poolOf(source);
+      if (withheld?.has(flow.id)) return false;
       return this.poolsDone.has(pool) || (pool === source && this.graph.participants.has(source));
     };
     if (flows.every(spent)) throw new Error(`${id} waits along ${flows.map((flow) => flow.id).join(', ')}, and nothing is left to send`);
@@ -247,9 +283,18 @@ export class Post {
   /** A timer: `then` once `ms` have passed, unless the returned controller aborts first. */
   timer(ms: number, at: string, then: () => void): AbortController {
     const stop = new AbortController();
+    let running = true;
+    const done = (): void => {
+      if (running) this.timers -= 1;
+      running = false;
+    };
+    this.timers += 1;
+    stop.signal.addEventListener('abort', done, { once: true });
     void this.wait(ms, stop.signal, at).then(() => {
       if (stop.signal.aborted) return;
+      done();
       then();
+      // Every wait wakes, and one that still waits asks again whether the run is stuck.
       this.notify();
     });
     return stop;
@@ -289,7 +334,7 @@ export class Post {
   /** A throw or end event sends a message along each flow out of it, carrying nothing but its arrival. */
   async throwFrom(element: PlanElement, thread: Thread): Promise<void> {
     for (const flow of this.graph.flowsOut.get(element.id) ?? []) {
-      await this.send(flow, null, thread, { inReplyTo: this.answering(flow, thread) });
+      await this.send(flow, null, thread, { inReplyTo: this.answering(flow, thread), step: element.id });
     }
   }
 
@@ -306,7 +351,7 @@ export class Post {
           logAt(this.host, thread, 'message.misrouted', `    ✉ ${id} sent ${JSON.stringify(line).slice(0, 80)} along none of its flows`, { level: 'warning' });
           return;
         }
-        const delivery = this.send(flow, line.content ?? null, thread, { id: line.id, inReplyTo: line.inReplyTo });
+        const delivery = this.send(flow, line.content ?? null, thread, { id: line.id, inReplyTo: line.inReplyTo, step: id });
         delivery.catch(() => undefined); // heard in `delivered`, when the runner's own failure does not come first
         sending.push(delivery);
       },

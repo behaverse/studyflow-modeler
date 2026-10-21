@@ -16,9 +16,10 @@ export type Message = { id: string; flow: string; content: unknown; inReplyTo?: 
 export type Conversation = { id: string; turn: number; window?: number };
 
 /** Who asks a pool a runner plays, whatever the pool remembers: the instance of the pool asking it (`id`, as its
- * conversation would name it), and how many messages that instance had sent the pool before this one (`n`, from 0).
- * A runner that draws keys its draw by it, so a participant's draws repeat on a re-run whatever ids its messages carry. */
-export type Asker = { id: string; n: number };
+ * conversation would name it), how many messages that instance had sent the pool before this one (`n`, from 0), and
+ * the step whose exchange sent it (`step`, the element's id). A runner that draws keys its draw by it, so a
+ * participant's draws repeat on a re-run whatever ids its messages carry. */
+export type Asker = { id: string; n: number; step?: string };
 
 /** What a claimed element's runner exchanges while it runs: a message out along one of its flows, the messages in. */
 export type Talk = {
@@ -40,6 +41,9 @@ export type Handback = {
   /** What it ran with (a package version, a model digest, the request as sent): for the record, never read as a value. */
   record?: Record<string, unknown>;
   durationMs?: number;
+  /** A pool's runner leaves the message unanswered: nothing goes back, and the step that asked waits on, as it would
+   * for a participant who never replies, until a boundary event of an activity around it ends the wait (its timer). */
+  noReply?: boolean;
 };
 
 /** A hand-off that failed after binding something: what it had bound is kept, and the step still fails. */
@@ -82,6 +86,10 @@ export type Host = {
   perform(id: string, values: Record<string, unknown>, step: { attributes: Record<string, unknown>; message?: Message; conversation?: Conversation; asker?: Asker; talk?: Talk; note: Note; signal?: AbortSignal }): Promise<Handback>;
   /** Resolves `ms` from now, for the timer event `at`, unless `signal` aborts first; without it, the machine's clock. */
   wait?(ms: number, signal: AbortSignal, at: string): Promise<void>;
+  /** The time by the host's clock, in milliseconds since the epoch: what a timer's date is read against, and what a
+   * step's record is timed by. Without it, the machine's clock. A host whose `wait` runs ahead of the machine's clock
+   * (a virtual one) says its time here, so the two agree. */
+  clock?(): number;
   log: Note;
   /** A timestamp for a record, as the host writes them. */
   now(): string;

@@ -50,6 +50,21 @@ export function presenterIn(model: StudyModel, task: Element): string {
   return label || DEFAULT_PRESENTER;
 }
 
+/**
+ * Whether a participant is a pool a program answers: one with no process, typed as an actor (`studyflow:Actor`, or a
+ * kind a skill declares on it, such as `behaverse:SimulatedActor`) that is no human (its `actorType`, or the default
+ * its type declares) or names the program that plays it (`implementation`). A runner plays such a pool: each message
+ * sent to it is one hand-off, and its answer comes back.
+ */
+export function isAnsweringPool(model: StudyModel, participant: Element | undefined): boolean {
+  if (!participant || !model.isA(participant, 'bpmn:Participant') || participant.processRef !== undefined) return false;
+  const type = model.extensionType(participant);
+  if (!type || !model.metamodel.has(type) || !model.metamodel.isA(type, 'studyflow:Actor')) return false;
+  const kind = model.attributeOrDefault(participant, 'actorType');
+  const implementation = model.attribute(participant, 'implementation');
+  return (typeof kind === 'string' && kind !== 'human') || (typeof implementation === 'string' && implementation.trim() !== '');
+}
+
 /** The task's bands: the top and bottom labels, and which side initiates. */
 export function bandsOf(model: StudyModel, task: Element): { top: string; bottom: string; initiator: 'top' | 'bottom' } {
   const name = (participant: Element | undefined): string | undefined => (typeof participant?.name === 'string' && participant.name ? participant.name : undefined);

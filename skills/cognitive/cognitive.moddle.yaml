@@ -201,14 +201,18 @@ types:
         meta:
           order: 2
 
+  # A questionnaire is an exchange too, as a cognitive task is: the form, presented, and the actor who answers it,
+  # named on its receiving band. One naming no one on its bands is drawn as a plain task, as before.
   - name: Questionnaire
     description: A self-report form the participant fills in.
     superClass:
-      - bpmn:Task
+      - bpmn:ChoreographyTask
     meta:
       icon: iconify ph--clipboard-text
       roles:
         - instrument
+      # The upper band of the task: a template over its attributes, read raw.
+      presenter: "<instrument>"
     properties:
       - name: instrument
         description: A standard questionnaire, or a name of your own.

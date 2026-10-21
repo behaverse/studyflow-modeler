@@ -83,6 +83,12 @@ cohort = {**pooled, "A0": {"id": "A0", "type": "startEvent", "parent": "Analysis
           **dict([flow("M_Trial", "Study", "Model", "Trial"), flow("M_Answer", "Model", "Study", "Response"),
                   flow("M_Done", "Study", "A0")])}
 assert exchange.exchange_flows(cohort["Play"], cohort, STRUCTURES) == ("M_Trial", "M_Answer")
+# A band naming the model stands for the exchange with it: the plan holds it as two message flows of the task's own,
+# marked `band` (packages/core/src/engine/plan.ts, `bandExchanges`), which outrank the pool's as any of its own do.
+banded = {**cohort, **dict([flow("Play_to_Model", "Play", "Model"), flow("Model_to_Play", "Model", "Play")])}
+assert exchange.talking_scope(banded["Play"], banded) == "Play"
+assert exchange.exchange_flows(banded["Play"], banded, STRUCTURES) == ("Play_to_Model", "Model_to_Play")
+assert exchange.message_partners(banded["Play"], banded, STRUCTURES) == ["Model"]
 # A flow naming another message is another skill's exchange (a marker to an EEG pool), and one carrying the step's
 # message the wrong way is a fault of the diagram.
 marked = {**cohort, "EEG": {"id": "EEG", "type": "participant", "attributes": {}},

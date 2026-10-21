@@ -217,6 +217,10 @@ types:
         isAttr: true
         type: Real
         default: 0
+      - name: absent
+        description: 'The share of subjects who never answer what a step asks, by step id (`Return: 0.25`): drawn once per subject and step from the run''s seed, so a re-run draws the same subjects. Every message that step sends such a subject goes unanswered, and the step waits until a boundary event ends it (a timer: the subject who never came back); what other steps ask is answered as usual.'
+        isAttr: false
+        type: studyflow:YAMLString
 
   - name: BDMDataset
     description: A dataset in the Behaverse Data Model (BDM).

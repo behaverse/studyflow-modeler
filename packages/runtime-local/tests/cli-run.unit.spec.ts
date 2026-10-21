@@ -645,6 +645,78 @@ P:
     expect(kept.state._meta.reached.Done).toBeUndefined();
   });
 
+  test('under --clock virtual, weeks between sessions pass at once, and a subject who never replies leaves by the timer at the boundary', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-virtual-'));
+    fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), `id: retest
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 3
+      processRef: S
+    Actor: { type: studyflow:Actor, name: Actor, actorType: software }
+S:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Weeks:
+      type: cognitive:Rest
+      name: Three weeks
+      eventDefinitions:
+        Weeks_Timer: { type: TimerEventDefinition, timeDuration: P21D }
+    Check: { type: DataObjectReference }
+    Return:
+      type: cognitive:Questionnaire
+      name: Returns for session 2
+      instrument: comprehension-check
+      participantRef: [Actor]
+      dataInputAssociations:
+        In_Check: { sourceRef: [Check] }
+    Late:
+      type: BoundaryEvent
+      attachedToRef: Return
+      eventDefinitions:
+        Late_Timer: { type: TimerEventDefinition, timeDuration: P7D }
+    Back: { type: EndEvent }
+    Gone: { type: EndEvent }
+    F1: Start -> Weeks
+    F2: Weeks -> Return
+    F3: Return -> Back
+    F4: Late -> Gone
+`);
+    // The actor the band names: the second subject never replies, and the first takes a while to.
+    writeRunner(path.join(dir, 'actor.py'), "['Actor']", [
+      "subject = step.asker['id'].rsplit('#', 1)[-1]",
+      "if subject == '2':",
+      '    step.no_reply()',
+      '    return None',
+      "time.sleep(1.5 if subject == '1' else 0)",
+      "return 'READY'",
+    ]);
+    const started = Date.now();
+    execFileSync(process.execPath, [BIN, 'run', 'plan.studyflow.yaml', '--repo', 'run', '--quiet', '--clock', 'virtual',
+      '--runner', `actor=python3 ${path.join(dir, 'actor.py')}`], { cwd: dir, stdio: 'pipe', env: ENV });
+    expect(Date.now() - started).toBeLessThan(20_000);
+    const kept = yaml.load(fs.readFileSync(path.join(dir, 'run', 'plan.studyflow.yaml'), 'utf8')) as any;
+    // The slow answer came before the clock could run ahead of it; the subject who never replied left by the boundary.
+    expect(kept.state._meta.reached).toMatchObject({ Weeks: 3, Return: 3, Back: 2, Late: 1, Gone: 1 });
+    // The run says it ran on the virtual clock, in its timeline entry and its log, and its record is timed by it: each
+    // subject's three weeks, and the week the second waited, in virtual time.
+    expect(kept.state._meta.prov.at(-1)).toMatchObject({ action: 'executed', clock: 'virtual' });
+    expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/clock\.virtual/);
+    const events = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    const DAY = 86_400_000;
+    const days = (id: string): number[] => events.filter((event) => event.event === 'executed' && event.id === id && event.entry)
+      .map((event) => Math.round(event.entry.durationMs / DAY));
+    expect(days('Weeks')).toEqual([21, 21, 21]);
+    const span = Date.parse(events.at(-1).at) - Date.parse(events[0].at);
+    expect(Math.round(span / DAY)).toBe(3 * 21 + 7);
+  });
+
   test('a runner whose command is not on this machine claims nothing, and the run goes on without it', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-absent-'));
     fs.writeFileSync(path.join(dir, 'plan.studyflow.yaml'), 'id: plain\ndefinitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\nS:\n  type: Process\n  flowElements:\n    Start: { type: StartEvent }\n    Done: { type: EndEvent }\n    F1: Start -> Done\n');

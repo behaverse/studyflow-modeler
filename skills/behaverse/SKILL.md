@@ -75,12 +75,21 @@ The truth a pipeline check knows is planted on its actor, a pool typed `behavers
 `implementation` `behaverse://simulated-actor`), which reads each trial as a person would (the button of a Which One
 target's colour, Match on an AX-CPT X right after an A, an N-back digit against the one `Load` before it, the
 letters and digits remembered per conversation; a stimulus of one letter as text is an AX-CPT letter too, as the
-jspsych skill's local runner sends a jsPsych AX-CPT's) and answers right with the probability the study writes on it:
+jspsych skill's local runner sends a jsPsych AX-CPT's, and one of five arrows as text, `<<><<`, is a flanker trial,
+`FL`, answered by the side the middle arrow points to, as the jspsych skill's local runner sends a jsPsych flanker's)
+and answers right with the probability the study writes on it:
 `accuracy`, by instrument and condition (AX-CPT `Cue`, `AX`, `AY`, `BX`, `BY`, `Distractor`; Which One `Congruent`,
-`Incongruent`, `Neutral`; N-back `1-back`, `2-back`, `BurnIn`), with `default` for any other; `prompted`, what holds
+`Incongruent`, `Neutral`; N-back `1-back`, `2-back`, `BurnIn`; flanker `Congruent` when the five arrows point one way,
+`Incongruent` otherwise), with `default` for any other; `prompted`, what holds
 instead when a text sent with the trial (a prompt the task reads, written out from its template) has a line
-beginning with a key, which is how a study plants an effect of what it tells its participants; and `missRate`, the
-share of trials it leaves unanswered. Its draws are seeded by the run's seed and the message's id. Under the
+beginning with a key, which is how a study plants an effect of what it tells its participants; `missRate`, the
+share of trials it leaves unanswered; and `absent`, by step id, the share of subjects who never answer what that step
+asks (`absent: {Return: 0.25}`, the subjects who do not come back for a second session). Its draws are seeded by the
+run's seed and the message's id; whether it is absent for a subject is drawn once per subject and step, from the run's
+seed, the subject (the instance of the pool asking) and the step, so a re-run draws the same subjects. A message it
+leaves unanswered gets no answer at all (the SDK's `no_reply`), so the step that asked waits until a boundary event ends
+it, a timer for a subject who never returned, and goes on from there; with `studyflow run --clock virtual` that wait
+takes no time. Every other step is answered as usual. Under the
 "protocol for any actor" digest, what it plants and how its pool is described are part of the actor and left out, as a
 model's name is, so a pipeline check that swaps a study's actor for a simulated one, and changes nothing else, shares
 that digest with the study.

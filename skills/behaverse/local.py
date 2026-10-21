@@ -163,14 +163,19 @@ def task_payload(element: dict[str, Any], auto: bool = False, plan: dict[str, di
 
 
 def answered_by(element: dict[str, Any], plan: dict[str, dict[str, Any]], auto: bool) -> str:
-    """How the task's trials get answered here: `messages` along its message flows, `internal` by the build's own
-    random bot, or `human`. Any other actor answers only along message flows, so drawing none of them is an error."""
-    if exchange_flows(element, plan, STRUCTURES):
-        return "messages"
+    """How the task's trials get answered here: `messages` along its message flows (drawn, or those its band stands
+    for), `internal` by the build's own random bot, or `human`. The bot on the task's band plays inside the build, so
+    the exchange the band stands for is not its; any other actor answers only along message flows, so a task that
+    names none on its band and draws none is an error."""
+    flows = exchange_flows(element, plan, STRUCTURES)
     actor = actor_of(element, plan)
+    bot = actor["kind"] == "software" and actor["model"] == "behaverse://bot"
+    banded = bool(flows) and all(((plan.get(flow) or {}).get("attributes") or {}).get("band") for flow in flows)
+    if flows and not (bot and banded):
+        return "messages"
     if actor["kind"] in ("", "human"):
         return "internal" if auto else "human"
-    if actor["kind"] == "software" and actor["model"] == "behaverse://bot":
+    if bot:
         return "internal"
     raise ValueError(f"{element.get('id')} is taken by a {actor['kind']} participant, which answers along message flows "
                      "in a local run: draw one carrying each trial out of the task and one bringing the answer back")

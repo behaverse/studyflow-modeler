@@ -12,9 +12,10 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, wri
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import { CONTAINER_TYPES, Walk, concealedSeeds, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Host, type Note, type RunEvent } from '@core/engine';
+import { CONTAINER_TYPES, Walk, concealedSeeds, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Handback, type Host, type Note, type RunEvent } from '@core/engine';
 import { revealedSeed } from '@core/checks/concealed';
 import type { Element, StudyModel } from '@core/model/index';
+import { VirtualClock } from '@runtime-local/clock';
 import { RunLog, timelineTimestamp } from '@runtime-local/log';
 import { Records, humanBytes } from '@runtime-local/reuse';
 import { PartialRunner, discoverRunners, type RunnerCommand } from '@runtime-local/runners';
@@ -64,6 +65,9 @@ export type LocalRun = {
   stepTimeout?: number;
   /** Seconds a runner has to answer `initialize` before the run stops (600 by default). */
   startTimeout?: number;
+  /** The clock the study's timers wait on: the machine's (`real`, the default), or a `virtual` one that jumps ahead to
+   * the next timer whenever the walk is idle (src/clock.ts). */
+  clock?: 'real' | 'virtual';
 };
 
 /** Short words for a run id's codename tail, drawn from the run's exact start moment. */
@@ -217,7 +221,8 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     log.event('state.restored', `  from ${redone!.slice(0, 8)}, where the run this one redoes started`, { level: 'debug' });
   }
   const numeric = seed !== null && seed.trim() !== '' && Number.isFinite(Number(seed));
-  const document: Stamp = { action: 'executed', when: startedAt, who, with: run.tool, run: runId, seed: numeric ? Number(seed) : seed ?? undefined, plan: run.digest };
+  const virtual = run.clock === 'virtual';
+  const document: Stamp = { action: 'executed', when: startedAt, who, with: run.tool, run: runId, seed: numeric ? Number(seed) : seed ?? undefined, plan: run.digest, clock: virtual ? 'virtual' : undefined };
   const timeline = Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (document[name] ? [[name, document[name]]] : [])));
   ((state._meta ??= {}).prov ??= []).push(timeline);
   setState(model, state);
@@ -271,6 +276,11 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   }
   const { walked } = index;
 
+  // Under `--clock virtual` the timers wait on a clock that jumps ahead whenever the walk is idle, and what the run
+  // records is timed by it: when each step began, how long a rest lasted, when each event happened.
+  const clock = virtual ? new VirtualClock((at, by) => log.event('clock.advanced', `  the virtual clock moves ${humanSpan(by)} ahead, to ${timelineTimestamp(new Date(clock!.now()))}, for ${at}`, { level: 'debug' })) : undefined;
+  const stamped = (): string => timelineTimestamp(clock ? new Date(clock.now()) : new Date());
+
   // The walk and what it may reuse are made below, from the host that serves them.
   const made = {} as { walk: Walk; records: Records };
   /** The run's record (packages/core/src/engine/record.ts): each event appended to `events.jsonl` as it happens. A step
@@ -297,23 +307,25 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
       // A runner stages the boundary inputs it reads: one the repository lacks before the hand-off and holds after it
       // was imported by this run.
       const absent = made.walk.graph.walked.has(id) ? made.records.absentInputs(id) : new Map<string, string>();
-      const handed = await claimed.get(id)!.runner.element(id, values, { attributes, message, conversation, asker, talk, signal });
+      const hand = (): Promise<Handback> => claimed.get(id)!.runner.element(id, values, { attributes, message, conversation, asker, talk, signal });
+      const handed = clock ? await clock.during(hand) : await hand();
       for (const [data, uri] of absent) {
         if (!existsSync(path.join(dir, uri))) continue;
-        keep({ event: 'imported', id: data, uri, at: timelineTimestamp() });
+        keep({ event: 'imported', id: data, uri, at: stamped() });
         note('artifact.staged', `    ▤ stage ${uri}  ${humanBytes(statSync(path.join(dir, uri)).size)}`);
       }
       return handed;
     },
     log: log.event,
-    now: () => timelineTimestamp(),
+    now: stamped,
+    ...(clock ? { wait: (ms: number, signal: AbortSignal, at: string) => clock.wait(ms, signal, at), clock: () => clock.now() } : {}),
     get reuse() { return made.records; },
     record: keep,
     outputs: (_id, targets, _entry, note: Note) => {
       for (const target of targets) {
         const uri = made.walk.graph.uriOf(target);
         if (!uri || !existsSync(path.join(dir, uri))) continue;
-        keep({ event: 'created', id: target, uri, at: timelineTimestamp() });
+        keep({ event: 'created', id: target, uri, at: stamped() });
         note('artifact.saved', `    ▤ save ${uri}  ${humanBytes(statSync(path.join(dir, uri)).size)}`);
       }
     },
@@ -348,13 +360,14 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   });
 
   // The trailers of a commit that stamps no element are the document stamp's own attributes.
-  const trailers = { 'Prov-Action': 'executed', 'Prov-When': startedAt, 'Prov-Who': who, 'Prov-With': run.tool, 'Prov-Run': runId, 'Prov-Seed': seed };
+  const trailers = { 'Prov-Action': 'executed', 'Prov-When': startedAt, 'Prov-Who': who, 'Prov-With': run.tool, 'Prov-Run': runId, 'Prov-Seed': seed, ...(virtual ? { 'Prov-Clock': 'virtual' } : {}) };
   const studyId = index.root.id ?? '';
   keep({ event: 'started', at: startedAt, run: runId, state: structuredClone(state), stamp: timeline });
   repo.commit(`started ${studyId} (${stamp})`, trailers, startedAt);
   const begun = repo.head();
   log.event('run.started', plan.study.name ?? studyId);
   log.event('run.started', `  [${studyId}]  plan ${run.digest}  rootSeed ${seed}  repo ${dir}`, { level: 'debug' });
+  if (virtual) log.event('clock.virtual', '  the timers run on a virtual clock: it jumps ahead to the next one whenever the walk is idle');
 
   const stop = (): void => walk.abort(new Error('stopped by the person running it'));
   process.once('SIGINT', stop);
@@ -365,6 +378,7 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
     walk.steps.status = 'error';
   } finally {
     process.off('SIGINT', stop);
+    clock?.stop();
   }
   // The runners end before the cache they were given goes.
   await Promise.all(runners.map((runner) => runner.shutdown()));
@@ -405,8 +419,22 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   if (!run.debug) rmSync(cache, { recursive: true, force: true });
   const { status } = walk.steps;
   log.event('run.finished', `  → ${dir}/ (${status}) in ${(Date.now() - started.getTime()).toFixed(1)}ms`, { level: status === 'ok' ? 'info' : 'error' });
-  keep({ event: 'finished', at: timelineTimestamp(), status });
-  repo.commit(`finished ${studyId} (${status})`, trailers, timelineTimestamp());
+  const ended = stamped();
+  keep({ event: 'finished', at: ended, status });
+  repo.commit(`finished ${studyId} (${status})`, trailers, ended);
   repo.tidy();
   return status === 'ok' ? 0 : 1;
+}
+
+/** A span of time as a person reads it: `21d`, `3h 20m`, `45s`. */
+function humanSpan(ms: number): string {
+  const units: [string, number][] = [['d', 86_400_000], ['h', 3_600_000], ['m', 60_000], ['s', 1000]];
+  const parts: string[] = [];
+  let left = Math.round(ms);
+  for (const [unit, size] of units) {
+    const count = Math.floor(left / size);
+    if (count > 0 && parts.length < 2) parts.push(`${count}${unit}`);
+    left -= count * size;
+  }
+  return parts.join(' ') || `${Math.round(ms)}ms`;
 }

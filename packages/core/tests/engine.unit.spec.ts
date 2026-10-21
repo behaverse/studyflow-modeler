@@ -14,7 +14,7 @@ type Runner = (values: Record<string, any>, talk?: Talk) => Handback | Promise<H
 
 const HEAD = 'definitions:\n  targetNamespace: http://bpmn.io/schema/bpmn\n';
 
-async function walked(study: string, runners: Record<string, Runner> = {}, options: WalkOptions = {}) {
+async function walked(study: string, runners: Record<string, Runner> = {}, options: WalkOptions = {}, hosted: Partial<Host> = {}) {
   const plan = planOf(studyModel(`id: study\n${HEAD}${study}`));
   const log: string[] = [];
   const events: RunEvent[] = [];
@@ -25,6 +25,7 @@ async function walked(study: string, runners: Record<string, Runner> = {}, optio
     perform: async (id, values, { talk, message, conversation, asker }) => runners[id]({ ...values, message, conversation, asker }, talk),
     log: (event, message) => log.push(`${event} ${message.trim()}`),
     now: () => new Date().toISOString(),
+    ...hosted,
   };
   const walk = new Walk(plan, host, options);
   let error: Error | undefined;
@@ -985,8 +986,8 @@ S:
   const askers: unknown[] = [];
   await walked(study('none'), { Model: (values) => { askers.push(values.asker); return {}; } });
   expect(askers).toEqual([
-    { id: 'Model with Subjects #1', n: 0 }, { id: 'Model with Subjects #1', n: 1 },
-    { id: 'Model with Subjects #2', n: 0 }, { id: 'Model with Subjects #2', n: 1 },
+    { id: 'Model with Subjects #1', n: 0, step: 'First' }, { id: 'Model with Subjects #1', n: 1, step: 'Then' },
+    { id: 'Model with Subjects #2', n: 0, step: 'First' }, { id: 'Model with Subjects #2', n: 1, step: 'Then' },
   ]);
   // A window is the same conversation, with how many of its latest exchanges the pool remembers: the actor's
   // `memoryWindow`, else 20.
@@ -1192,6 +1193,92 @@ A:
   expect(reached).toMatchObject({ Screen: 1, F_In: 1, Debrief: 1, S9: 1, A0: 1, A9: 1 });
   expect(reached.Out).toBeUndefined();
   expect(log.filter((line) => /\[M_Done\.\d+\]/.test(line))).toHaveLength(1);
+});
+
+/** Two subjects, each screened by a questionnaire whose band names who answers it; `boundary` is drawn on it. */
+const BANDED = (actor: string, boundary = '') => `C:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 2
+      processRef: S
+    Model: { type: studyflow:Actor, name: Model, ${actor} }
+S:
+  type: Process
+  flowElements:
+    S0: { type: StartEvent }
+    Check: { type: DataObjectReference }
+    Screen:
+      type: cognitive:Questionnaire
+      instrument: comprehension-check
+      participantRef: [Model]
+      dataInputAssociations:
+        In_Check: { sourceRef: [Check] }
+    Back: { type: EndEvent }
+    SF1: S0 -> Screen
+    SF2: Screen -> Back
+${boundary}`;
+
+const LATE = `    Late:
+      type: BoundaryEvent
+      attachedToRef: Screen
+      eventDefinitions:
+        Late_Timer: { type: TimerEventDefinition, timeDuration: P7D }
+    Gone: { type: EndEvent }
+    SF3: Late -> Gone
+`;
+
+test('a typed choreography task exchanges with the pool its band names, as a pair of message flows would carry it', async () => {
+  // A pool a program answers on the band: the plan carries the exchange as two message flows, out of the task and back.
+  const plan = planOf(studyModel(`id: study\n${HEAD}${BANDED('actorType: software')}`));
+  expect([plan.elements.Screen_to_Model?.attributes, plan.elements.Model_to_Screen?.attributes]).toEqual([
+    { sourceRef: 'Screen', targetRef: 'Model', band: 'Screen' }, { sourceRef: 'Model', targetRef: 'Screen', band: 'Screen' }]);
+  // Each subject's questionnaire asks the model along it and takes the answer as its result, the step that asks named.
+  const asked: unknown[] = [];
+  const { reached, error, walk } = await walked(BANDED('actorType: software'), {
+    Model: (values) => { asked.push([values.message.flow, values.asker.step, values.asker.id]); return { result: 'READY' }; },
+  });
+  expect(error).toBeUndefined();
+  expect(asked).toEqual([['Screen_to_Model', 'Screen', 'Model with Subjects #1'], ['Screen_to_Model', 'Screen', 'Model with Subjects #2']]);
+  expect([reached.Screen, reached.Back, walk.values.get('Screen')]).toEqual([2, 2, 'READY']);
+  // A step with nothing to send asks nothing, as along the flows it would inherit.
+  const silent = await walked(BANDED('actorType: software').replace(/      dataInputAssociations:\n        In_Check: \{ sourceRef: \[Check\] \}\n/, ''), {
+    Model: () => { throw new Error('asked'); },
+  });
+  expect([silent.error, silent.reached.Back]).toEqual([undefined, 2]);
+  // A pool that names the program playing it is one too, whatever its kind; a person on the band is no such pool, and
+  // neither is a task with message flows of its own, which it exchanges along whatever its band says.
+  expect(planOf(studyModel(`id: study\n${HEAD}${BANDED('implementation: ollama://some-model')}`)).elements.Screen_to_Model).toBeDefined();
+  expect(planOf(studyModel(`id: study\n${HEAD}${BANDED('actorType: human')}`)).elements.Screen_to_Model).toBeUndefined();
+  const own = BANDED('actorType: software').replace('    Model: { type: studyflow:Actor', '    Other: { name: Other }\n    Model: { type: studyflow:Actor')
+    .replace('S:\n  type: Process', '  messageFlows:\n    M_Own: { sourceRef: Screen, targetRef: Other }\nS:\n  type: Process');
+  expect(planOf(studyModel(`id: study\n${HEAD}${own}`)).elements.Screen_to_Model).toBeUndefined();
+});
+
+test('a message a pool\'s runner leaves unanswered is waited for, until a timer at a boundary event ends the wait', async () => {
+  // The second subject never replies: its questionnaire waits until its timer runs out, and it leaves by the boundary
+  // event; the first, answered, goes on. Neither fails, and the run is not stuck while the timer runs.
+  const model: Runner = (values) => (values.asker.id.endsWith('#2') ? { noReply: true } : { result: 'READY' });
+  const timers: string[] = [];
+  const wait = (_ms: number, signal: AbortSignal, at: string): Promise<void> => new Promise((resolve) => {
+    timers.push(at);
+    const timer = setTimeout(resolve, 20);
+    signal.addEventListener('abort', () => clearTimeout(timer));
+  });
+  const { reached, error, walk } = await walked(BANDED('actorType: software', LATE), { Model: model }, {}, { wait });
+  expect(error).toBeUndefined();
+  expect(timers).toEqual(['Late', 'Late']);
+  expect([reached.Back, reached.Late, reached.Gone]).toEqual([1, 1, 1]);
+  expect(walk.steps.status).toBe('ok');
+  expect(walk.steps.entries.filter((entry) => entry.node === 'Screen').map((entry) => entry.interruptedBy ?? entry.status)).toEqual(['ok', 'Late']);
+  expect(walk.steps.entries.filter((entry) => entry.node === 'Model').map((entry) => entry.unanswered ?? false)).toEqual([false, true]);
+  // Every way it can go ends properly: an answer that comes for a step its timer has ended is not left untaken.
+  expect((await explore(planOf(studyModel(`id: study\n${HEAD}${BANDED('actorType: software', LATE)}`)))).findings).toEqual([]);
+  // With no timer to end the wait, nothing else can happen: the run fails as stuck rather than wait forever.
+  const stuck = await walked(BANDED('actorType: software'), { Model: model });
+  expect(stuck.error?.message).toBe('the pools wait for each other: Screen waits along Model_to_Screen');
 });
 
 test('a pool of many instances sends its outgoing message once, after the last instance', async () => {

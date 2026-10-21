@@ -115,8 +115,9 @@ class Step:
         # belongs to (one per instance of the pool asking) and how many exchanges of it came before. What was said is
         # the runner's to keep; a `turn` it has no record of means it was started again, and lost the conversation.
         self.conversation = conversation
-        # Who asks that pool, whatever it remembers: `{"id", "n"}`, the instance of the pool asking (named as its
-        # conversation would be) and how many messages it had sent the pool before. A draw keyed by it repeats on a re-run.
+        # Who asks that pool, whatever it remembers: `{"id", "n", "step"}`, the instance of the pool asking (named as its
+        # conversation would be), how many messages it had sent the pool before, and the step whose exchange sent it. A
+        # draw keyed by it repeats on a re-run.
         self.asker = asker
         self.options: dict[str, Any] = plan.get("options") or {}
         self.seed = (plan.get("study") or {}).get("seed")
@@ -125,6 +126,7 @@ class Step:
         self.bound: dict[str, Any] = {}
         self.written: dict[str, dict[str, Any]] = {}
         self.record: dict[str, Any] = {}
+        self.unanswered = False
         self._wire = wire
         self._inbox: "queue.Queue[dict[str, Any] | None]" = queue.Queue()
         self._cancelled = threading.Event()
@@ -162,6 +164,11 @@ class Step:
     def write(self, scope: str, name: str, value: Any) -> None:
         """A property of a scope: `state.<scope>.<name>`."""
         self.written.setdefault(scope, {})[name] = value
+
+    def no_reply(self) -> None:
+        """Leave the message to the pool unanswered: nothing goes back, and the step that asked waits on, as for a
+        participant who never replies, until a boundary event around it ends the wait (its timer)."""
+        self.unanswered = True
 
     def note(self, **record: Any) -> None:
         """What the step ran with (a package version, a model digest, the request as sent): kept in its record, never
@@ -257,6 +264,8 @@ class Step:
         for key, held in (("values", self.bound), ("state", self.written), ("record", self.record)):
             if held:
                 out[key] = held
+        if self.unanswered:
+            out["noReply"] = True
         return out
 
 

@@ -292,4 +292,59 @@ plan = {"elements": {"Msg_Trial": {"type": "messageFlow", "attributes": {"source
         "names": {"P_Reminder": "reminder"}}
 message = {"id": "T.1.0", "flow": "Msg_Trial", "content": {"Prompt_Reminder": None, **letters("A")[0]}}
 assert assessment.written_out(message, plan, {"P_Reminder": "Remember: X after A."})["content"]["Prompt_Reminder"] == "Remember: X after A."
+
+# A jsPsych flanker trial reaches the actor as its screen's text, five arrows: Congruent when all point one way,
+# Incongruent otherwise, and its right answer is the option named for the middle arrow's side, whatever the case.
+flanker = {"Left": "f", "Right": "j"}
+for screen, condition, correct in (("<<<<<", "Congruent", "Left"), (">>>>>", "Congruent", "Right"),
+                                   ("<<><<", "Incongruent", "Right"), (">><>>", "Incongruent", "Left"),
+                                   ("\u2190\u2190\u2192\u2190\u2190", "Incongruent", "Right")):
+    assert assessment.perceived({"Stimulus": screen, "ResponseOptions": list(flanker)}, {}) == \
+        {"instrument": "FL", "condition": condition, "correct": correct}, screen
+assert assessment.perceived({"Stimulus": "<<>", "ResponseOptions": ["Left", "Right"]}, {})["instrument"] != "FL"
+assert assessment.perceived({"Stimulus": ">>>>>", "ResponseOptions": ["left", "right"]}, {})["correct"] == "right"
+# The planted accuracy is keyed by FL and its conditions, as for the build's instruments.
+arrows = assessment.SimulatedActor({"accuracy": "FL: {Congruent: 0.95, Incongruent: 0.55}"})
+
+
+def flanker_rate(screen, right):
+    replies = [assessment.answer(arrows, 7, {"id": f"F.{screen}.{i}", "content": {"TrialIndex": i, "Stimulus": screen,
+                                                                               "ResponseOptions": list(flanker)}}, {})
+               for i in range(600)]
+    return replies.count(right) / 600
+
+
+assert abs(flanker_rate("<<<<<", "Left") - 0.95) < 0.04 and abs(flanker_rate(">><>>", "Left") - 0.55) < 0.06
+
+# A subject the actor is absent for at a step never answers that step: drawn once per subject and step from the run's
+# seed, the same on a re-run, and every other step is answered as usual.
+away = assessment.SimulatedActor({"absent": "Return: 0.5"})
+subjects = [{"id": f"Actor with Subjects #{n}", "n": 0, "step": "Return"} for n in range(1, 201)]
+drawn = [assessment.absent(away, 7, asker) for asker in subjects]
+assert 0.4 < sum(drawn) / 200 < 0.6
+assert drawn == [assessment.absent(away, 7, asker) for asker in subjects]  # seeded: a re-run draws alike
+assert drawn != [assessment.absent(away, 8, asker) for asker in subjects]  # by the run's seed
+assert all(assessment.absent(away, 7, {**asker, "n": 5}) == was for asker, was in zip(subjects, drawn))  # once per subject
+assert not any(assessment.absent(away, 7, {**asker, "step": "Screening"}) for asker in subjects)
+assert not assessment.absent(away, 7, None)
+
+
+class Asked(behaverse.Step):
+    """One message to the actor's pool, from `step` for subject `n`."""
+
+    def __init__(self, n, step):
+        plan = {"study": {"seed": "7"}, "elements": {"Actor": {"id": "Actor", "type": "participant", "attributes": {},
+                "extensions": [{"namespace": BEHAVERSE, "type": "simulatedactor", "attributes": {"absent": "Return: 0.5"}}]}}}
+        super().__init__("Actor", plan, {}, message={"id": f"m{n}", "flow": "Out", "content": {"Check": None}},
+                         asker={"id": f"Actor with Subjects #{n}", "n": 0, "step": step})
+
+
+left = [n for n in range(1, 41) if assessment.absent(away, "7", {"id": f"Actor with Subjects #{n}", "step": "Return"})]
+assert left and len(left) < 40
+for n in range(1, 41):
+    asked = Asked(n, "Return")
+    reply = assessment.take(asked)
+    handed = asked.handback(reply, 0.0)
+    assert (n in left) == handed.get("noReply", False) == ("result" not in handed), n
+    assert assessment.take(Asked(n, "Screening")) == "READY"
 print("simulated build and actor: ok")

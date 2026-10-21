@@ -14,10 +14,20 @@ const clocks = new WeakMap<Entry, number>();
 export class Steps {
   status: 'ok' | 'error' = 'ok';
   entries: Entry[] = [];
+  /** The host's clock (`Host.clock`), when it keeps one of its own; else the machine's. */
+  private readonly clock: (() => number) | undefined;
+
+  constructor(clock?: () => number) {
+    this.clock = clock;
+  }
+
+  private now(): number {
+    return this.clock ? this.clock() : performance.now();
+  }
 
   begin(node: string, name: string, type: string): Entry {
-    const entry: Entry = { node, name, type, startedAt: new Date().toISOString(), status: 'ok' };
-    clocks.set(entry, performance.now());
+    const entry: Entry = { node, name, type, startedAt: new Date(this.clock ? this.clock() : Date.now()).toISOString(), status: 'ok' };
+    clocks.set(entry, this.now());
     this.entries.push(entry);
     return entry;
   }
@@ -25,7 +35,7 @@ export class Steps {
   /** Closes the entry; a duration its runner reported replaces the walk's own, which includes the hand-off. */
   end(entry: Entry): void {
     const started = clocks.get(entry);
-    if (started !== undefined) entry.durationMs = Math.round((performance.now() - started) * 10) / 10;
+    if (started !== undefined) entry.durationMs = Math.round((this.now() - started) * 10) / 10;
     clocks.delete(entry);
     const reported = entry._runnerMs;
     delete entry._runnerMs;

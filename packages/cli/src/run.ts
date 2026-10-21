@@ -19,6 +19,8 @@ const TOOL = `studyflow-cli/${import.meta.env?.APP_VERSION ?? 'dev'}`;
 
 export type RunOptions = Pick<LocalRun, 'author' | 'repo' | 'dataOutsideHistory' | 'inputs' | 'from' | 'fresh' | 'quiet' | 'debug' | 'stepTimeout' | 'startTimeout'> & {
   runtime?: string;
+  /** `real` (the default) or `virtual`. */
+  clock?: string;
   runner?: string[];
   option?: string[];
   allocationSeed?: string[];
@@ -81,6 +83,7 @@ async function runLocally(input: string, source: Awaited<ReturnType<typeof readS
     debug: options.debug,
     stepTimeout: options.stepTimeout,
     startTimeout: options.startTimeout,
+    clock: options.clock === 'virtual' ? 'virtual' : 'real',
     runners: options.runner,
     options: options.option,
     allocationSeeds: options.allocationSeed,
@@ -93,6 +96,10 @@ export async function run(input: string, options: RunOptions): Promise<void> {
 
   // No list of runtimes here: a skill may add one to `RuntimeEnum`, and one this CLI cannot run is refused below.
   const runtime = options.runtime ?? model.runtime();
+
+  if (options.clock !== undefined && options.clock !== 'real' && options.clock !== 'virtual') {
+    throw new Error(`--clock is real or virtual, not ${options.clock}`);
+  }
 
   if (runtime === 'local') {
     // The checks `studyflow validate` applies to the plan, and the content of what it registers (a trial list that

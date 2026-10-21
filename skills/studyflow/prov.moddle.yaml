@@ -84,6 +84,15 @@ types:
         type: String
         meta:
           optional: true
+      - name: clock
+        description: >-
+          For `executed`, the clock the run's timers waited on, when it was not the machine's: `virtual`, a clock
+          that jumps ahead to the next timer whenever the run is idle (`studyflow run --clock virtual`), so the
+          times the run recorded are virtual ones.
+        isAttr: true
+        type: String
+        meta:
+          optional: true
       - name: commit
         description: >-
           For `executed`, the commit of the run repository that holds the step as it ran: its own

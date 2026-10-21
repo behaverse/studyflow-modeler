@@ -96,6 +96,20 @@ nested = {"Play": task(), "Subject": {"id": "Subject", "type": "subProcess", "pa
           **dict([flow("M_Trial", "Subject", "Model"), flow("M_Answer", "Model", "Subject")])}
 assert behaverse.answered_by(task(), nested, auto=False) == "messages"
 assert behaverse.actor_of(task(), nested) == {"kind": "llm", "model": "ollama://gemma4"}
+# A band naming an actor stands for the exchange with it (the plan's message flows marked `band`): a model answers
+# along them, and the build's own bot on the band still plays inside the build.
+def banded(model):
+    actor = {"id": "Actor", "type": "participant", "extensions": [
+        {"namespace": behaverse.STUDYFLOW, "type": "actor", "attributes": {"actorType": model[0], "implementation": model[1]}}]}
+    play = {**task(), "participants": ["Actor"]}
+    out, back = flow("Play_to_Actor", "Play", "Actor"), flow("Actor_to_Play", "Actor", "Play")
+    for _fid, drawn in (out, back):
+        drawn["attributes"]["band"] = "Play"
+    return play, {"Play": play, "Actor": actor, **dict([out, back])}
+
+
+assert behaverse.answered_by(*banded(("llm", "ollama://gemma4")), auto=False) == "messages"
+assert behaverse.answered_by(*banded(("software", "behaverse://bot")), auto=False) == "internal"
 # The stage window runs at full speed even when it is occluded or on another Space.
 argv = behaverse.stage_argv("chrome", "http://127.0.0.1:1/", "/tmp/profile")
 assert argv[:2] == ["chrome", "--app=http://127.0.0.1:1/"], argv

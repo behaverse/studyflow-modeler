@@ -57,7 +57,7 @@ function inclusiveTaken(flows: PlanElement[], held: PlanElement[], fallback: unk
 
 export class Walk {
   readonly graph: Graph;
-  readonly steps = new Steps();
+  readonly steps: Steps;
   /** Every element that never skips or replays: a live runner's, one that exchanges messages, one that repeats. */
   readonly live = new Set<string>();
   readonly allocations = new Map<string, Allocation>();
@@ -82,6 +82,7 @@ export class Walk {
   constructor(plan: Plan, host: Host, options: WalkOptions = {}) {
     this.host = host;
     this.graph = new Graph(plan);
+    this.steps = new Steps(host.clock ? () => host.clock!() : undefined);
     // What happens goes to the host as it happens: the run's record (packages/core/src/engine/record.ts). What happens
     // before the run begins waits for it, so the record starts where the host says the run started.
     const record = this.record = (happened: Happening): void => {
@@ -434,7 +435,11 @@ export class Walk {
         this.host.reuse?.remade(listed.into); // re-made each run, so a recorded step that reads it runs again
       }
     } catch (error) {
-      if (error instanceof Interrupted && error.activity === id) return error.boundary;
+      if (error instanceof Interrupted && error.activity === id) {
+        // What answers the activity along its own flows answers what it no longer asks.
+        this.post.discard(id);
+        return error.boundary;
+      }
       throw error;
     } finally {
       timers.forEach((timer) => timer.abort());
@@ -600,7 +605,7 @@ export class Walk {
     if (outgoing.length + incoming.length > 0) {
       // Unclaimed, an activity exchanges messages itself: it sends its data inputs along each flow out of it, then
       // takes the next message along a flow into it as its result. A send, a receive, or both: a request.
-      for (const flow of outgoing) await this.post.send(flow, this.memory.inputsOf(element), thread, { inReplyTo: this.post.answering(flow, thread) });
+      for (const flow of outgoing) await this.post.send(flow, this.memory.inputsOf(element), thread, { inReplyTo: this.post.answering(flow, thread), step: element.id });
       if (incoming.length > 0) this.memory.bind(element, (await this.post.receive(scope, incoming, thread)).content);
       return;
     }
@@ -683,7 +688,7 @@ export class Walk {
       text?.replace(PLACEHOLDER, (_cited, path: string) => String(this.memory.evaluate({ body: path, language: null }, element.id)));
     const { duration, date, cycle } = element.timer!;
     try {
-      return timerDelay({ duration: read(duration), date: read(date), cycle: read(cycle) });
+      return timerDelay({ duration: read(duration), date: read(date), cycle: read(cycle) }, this.host.clock?.());
     } catch (error) {
       throw new Error(`${element.id}: ${(error as Error).message}`);
     }

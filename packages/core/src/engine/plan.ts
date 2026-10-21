@@ -2,6 +2,7 @@ import { getCatalog, hasCatalog } from '@core/notation';
 import { PROPERTY_VALUE } from '@core/engine/graph';
 import type { Timer } from '@core/engine/timer';
 import { expressionOf as modelExpression, idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { actorIn, isAnsweringPool, isTypedChoreography } from '@core/model/choreography';
 import { wiredIn } from '@core/model/parameters';
 import { expandInline, splitBinding } from '@core/model/spelling';
 
@@ -328,7 +329,38 @@ export function modelIndexOf(model: StudyModel): ModelIndex {
   return { processes, root, study: model.studyOf(root) ?? model.studyOf(process), walked, others };
 }
 
-/** The plan of a study model. */
+/**
+ * The exchange a choreography task's band stands for. A task a skill types (a cognitive task, a questionnaire) whose
+ * band names a pool a program answers ({@link isAnsweringPool}), and that has no message flow of its own, exchanges
+ * with that pool as a pair of message flows would carry it: one from the task to the pool, which each message it sends
+ * goes along, and one back, which each answer comes along. They are written into the plan as message flows
+ * (`<task>_to_<pool>` and `<pool>_to_<task>`, their `band` attribute naming the task), so the walk and every runner
+ * route the exchange as they route any other, and a band outranks the message flows a step would inherit from its
+ * sub-process or pool. A task with message flows of its own exchanges along those, whatever its band says.
+ */
+function bandExchanges(model: StudyModel, walked: ModelIndex['walked'], elements: Record<string, PlanElement>): void {
+  const ends = new Set(Object.values(elements).filter((element) => element.type === 'messageFlow')
+    .flatMap((flow) => [flow.attributes.sourceRef, flow.attributes.targetRef]));
+  const free = (id: string): string => {
+    let candidate = id;
+    for (let n = 2; candidate in elements; n += 1) candidate = `${id}_${n}`;
+    return candidate;
+  };
+  const flow = (id: string, source: string, target: string, task: string): PlanElement => ({
+    id, type: 'messageFlow', name: null, attributes: { sourceRef: source, targetRef: target, band: task },
+    extensions: [], additionalArguments: null, ioSlots: {}, inputs: [], outputs: [], participants: [],
+  });
+  for (const [id, { element }] of walked) {
+    if (ends.has(id) || model.host(element) !== 'bpmn:ChoreographyTask' || !isTypedChoreography(model, element)) continue;
+    const actor = actorIn(model, element);
+    if (!actor?.id || !isAnsweringPool(model, actor)) continue;
+    const out = flow(free(`${id}_to_${actor.id}`), id, actor.id, id);
+    elements[out.id] = out;
+    const back = flow(free(`${actor.id}_to_${id}`), actor.id, id, id);
+    elements[back.id] = back;
+  }
+}
+
 /** The plan of a study: every element by id (pool participants, message flows, messages and item definitions
  * included), the study, and the processes to walk. */
 export function planOf(model: StudyModel, { options = {}, sources = [] }: PlanOptions = {}): Plan {
@@ -347,6 +379,7 @@ export function planOf(model: StudyModel, { options = {}, sources = [] }: PlanOp
   }
   const names = boundNames(elements);
   for (const other of others) elements[other.id!] = planElement(model, other);
+  bandExchanges(model, walked, elements);
 
   const pool = others.find((other) => model.host(other) === 'bpmn:Participant' && other.processRef === processes[0].id);
   const seed = study?.seed;
