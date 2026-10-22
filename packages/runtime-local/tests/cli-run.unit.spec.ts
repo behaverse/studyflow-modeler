@@ -301,7 +301,7 @@ S:
     const first = execFileSync('git', ['-C', repo, 'rev-list', '--max-parents=0', 'HEAD'], { encoding: 'utf8' }).trim();
     const started = execFileSync('git', ['-C', repo, 'show', `${first}:copy.studyflow.yaml`], { encoding: 'utf8' });
     expect(started.slice(0, registered.length)).toBe(registered);
-    expect(started.slice(registered.length)).toMatch(/^state:\n {2}_meta:\n {4}prov:\n/);
+    expect(started.slice(registered.length)).toMatch(/^\nstate:\n {2}_meta:\n {4}prov:\n/);
     expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV, stdio: 'pipe' }).toString())
       .toMatch(/protocol matches run run \(.*\); its state is its record's/);
 
@@ -310,7 +310,7 @@ S:
     const again = fs.readFileSync(archived, 'utf8');
     expect(removed(again)).toEqual([]);
     const { S, state } = yaml.load(again) as any;
-    expect(S.flowElements.Start.extensionElements.map((entry: { action: string }) => entry.action)).toEqual(['executed']);
+    expect(S.flowElements.Start['prov:Activity'].map((entry: { action: string }) => entry.action)).toEqual(['executed']);
     expect(state._meta.prov).toHaveLength(2);
   });
 });
@@ -440,8 +440,8 @@ S:
     // A's and C's records are voided, as the modeler's provenance view voids one: a marker naming the record's `when`.
     const study = yaml.load(fs.readFileSync(archived, 'utf8')) as any;
     for (const id of ['A', 'C']) {
-      const timeline = study.S.flowElements[id].extensionElements;
-      timeline.push({ type: 'prov:Activity', action: 'invalidated', when: '2026-10-02T12:00:00.000+02:00', what: timeline[0].when, run: 'run' });
+      const records = study.S.flowElements[id]['prov:Activity'];
+      records.push({ action: 'invalidated', when: '2026-10-02T12:00:00.000+02:00', what: records[0].when, run: 'run' });
     }
     fs.writeFileSync(archived, yaml.dump(study));
     const madeA = git('log', '--format=%H', '--grep=^executed A$');
@@ -1182,7 +1182,7 @@ S:
     const kept = path.join(dir, 'run', 'dump.studyflow.yaml');
     const counts = (yaml.load(fs.readFileSync(kept, 'utf8')) as any).S.flowElements.counts;
     expect(counts.type).toBe('DataObjectReference');
-    expect(counts.extensionElements).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'prov:Activity', action: 'imported' })]));
+    expect(counts['prov:Activity']).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'imported' })]));
     // Run again from there, the study runs on in that repository.
     studyflow(kept);
     const log = execFileSync('git', ['-C', path.join(dir, 'run'), 'log', '--format=%s'], { encoding: 'utf8' });
