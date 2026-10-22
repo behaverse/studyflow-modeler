@@ -1,5 +1,5 @@
 import { parseChecklistLines } from '@core/document';
-import type { Element, StudyModel } from '@core/model/index';
+import { isElement, type Element, type StudyModel } from '@core/model/index';
 import { resolvePlaceholdersIn } from '@core/model/state';
 import { isExpandable } from '@core/document/outline';
 import type { ElementRecord, Font } from '@canvas/index.ts';
@@ -49,12 +49,24 @@ function groupOf(record: ElementRecord, byId: ReadonlyMap<string, ElementRecord>
   return lane;
 }
 
+/** The delay of the timer `element` waits on, the text of its `timeDuration`. */
+function timerDelay(element: Element): string | undefined {
+  const definitions = Array.isArray(element.eventDefinitions) ? element.eventDefinitions : [];
+  const timer = definitions.find((definition) => isElement(definition) && definition.type === 'bpmn:TimerEventDefinition');
+  const delay = isElement(timer) ? timer.timeDuration : undefined;
+  const text = isElement(delay) ? delay.body : delay;
+  return typeof text === 'string' && text.trim() ? text.trim() : undefined;
+}
+
 function readTimingAttrs(model: StudyModel, element: Element): TimingAttrs {
   const out: TimingAttrs = {};
   for (const k of ATTR_NAMES) {
     const value = model.attributeOrDefault(element, k);
     if (typeof value === 'string' && value.trim()) out[k] = value.trim();
   }
+  // A timer event lasts its delay: the file writes it once, on the timer.
+  const delay = timerDelay(element);
+  if (!out.duration && delay) out.duration = delay;
   return out;
 }
 

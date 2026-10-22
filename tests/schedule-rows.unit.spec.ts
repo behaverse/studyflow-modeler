@@ -62,6 +62,25 @@ test('a Schedule row wears its element\'s colours, waits on the scheduled steps 
   expect(study.get('Screening')?.name).toContain('{reached}');
 });
 
+test('a timer event lasts its delay, which the file writes once, on the timer', () => {
+  const { study } = loadYaml(`id: Defs_Timer
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+Process_Timer:
+  type: Process
+  studyflow:Study: {}
+  elements:
+    Rest:
+      type: IntermediateCatchEvent
+      name: Three weeks
+      onset: T0
+      timer: P21D
+layout:
+  Rest: 100 100 36 36
+`).canvas;
+  expect(collectScheduleRows({ study } as any)).toMatchObject([{ id: 'Rest', duration: 'P21D', durationMin: 21 * 24 * 60 }]);
+});
+
 test('the time axis picks the smallest step that gives at most the ticks its width holds, labelled from T0', () => {
   const evenlySpaced = (ticks: number[]) => new Set(ticks.slice(1).map((t, i) => t - ticks[i])).size === 1;
   for (const [max, maxTicks] of [[51, undefined], [51, 3], [7, undefined], [7 * 24 * 60, undefined], [26 * 7 * 24 * 60, undefined]] as const) {
