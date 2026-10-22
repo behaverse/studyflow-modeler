@@ -1,5 +1,4 @@
 import type { StudyModel } from '@core/model/index';
-import { META_KEY } from '@core/model/state';
 import type { Editor } from '@modeler/editor/port';
 
 export type TrailStamp = {
@@ -13,7 +12,7 @@ export type TrailStamp = {
   note?: string;
 };
 
-/** One run record in `state._meta.prov`: the fields of `prov:Activity`, as a plain object. */
+/** One record of the study's own, on its root: the fields of `prov:Activity`. */
 export type TrailRecord = TrailStamp;
 
 const RECORD_FIELDS = ['action', 'when', 'who', 'with', 'what', 'run', 'seed', 'note'] as const;
@@ -29,10 +28,12 @@ function toRecord(source: TrailStamp): TrailRecord {
   return record as TrailRecord;
 }
 
-/** The study's run records, oldest first: `state._meta.prov`. */
+const ACTIVITY = 'prov:Activity';
+
+/** The study's own records, oldest first: the `prov:Activity` entries of its root, the runs' and the modeler's. */
 export function readTrail(model: StudyModel): TrailRecord[] {
-  const prov = (model.study.state?.[META_KEY] as { prov?: unknown } | undefined)?.prov;
-  return Array.isArray(prov) ? prov : [];
+  const root = model.primaryRoot();
+  return (root ? model.entries(root) : []).filter((entry) => entry.type === ACTIVITY) as unknown as TrailRecord[];
 }
 
 /** ISO 8601 at second precision, in this machine's timezone. */
@@ -48,14 +49,12 @@ export function trailTimestamp(date: Date = new Date()): string {
   );
 }
 
-/** Appends to `state._meta.prov`. Returns the record. */
+/** Adds a record of the study's own to its root, after its other entries. Returns the record. */
 export function appendTrailEntry(model: StudyModel, stamp: TrailStamp): TrailRecord | undefined {
-  if (!model.primaryRoot()) return undefined;
-  const tree = (model.study.state ??= {}) as Record<string, any>;
-  const meta = tree[META_KEY] && typeof tree[META_KEY] === 'object' ? tree[META_KEY] : (tree[META_KEY] = {});
-  const prov: TrailRecord[] = Array.isArray(meta.prov) ? meta.prov : (meta.prov = []);
+  const root = model.primaryRoot();
+  if (!root) return undefined;
   const record = toRecord(stamp);
-  prov.push(record);
+  root.extensionElements = [...(Array.isArray(root.extensionElements) ? root.extensionElements : []), { type: ACTIVITY, ...record }];
   return record;
 }
 

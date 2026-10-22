@@ -10,7 +10,6 @@ import { freshMetamodel, studyModel, xmlOf, yamlOf } from '@tests/schemas';
 
 const STATE = {
   _meta: {
-    prov: [{ action: 'executed', when: '2026-09-04T10:00:00Z', who: 'alice' }],
     reached: { Battery: 1, F1: 1, Excluded_Pre: 4 },
   },
   Example_Study: { arm: 'A' },
@@ -83,7 +82,6 @@ test.describe('state in the document', () => {
       ['Trial', 'state.Excluded_Pre.count', 3],
       ['Trial', 'state.Example_Study.arm', 'A'],
       ['Trial', 'state._meta.reached.Excluded_Pre', 4],
-      ['Trial', 'state._meta.prov.0.who', 'alice'],
     ];
     for (const [elementId, path, expected] of CASES) {
       expect(resolveStateIn(model, elementId, path), `${elementId}: ${path}`).toBe(expected);

@@ -8,7 +8,7 @@ import type { Entry } from '@core/engine/steps';
  * elements ({@link recordOf}), a run repository's commits.
  */
 export type RunEvent = { at: string } & (
-  /** A run began, from `state`; `stamp` is the entry it adds to the study's timeline (`_meta.prov`). The host's. */
+  /** A run began, from `state`; `stamp` is the record it adds to the study's root, the run's own. The host's. */
   | { event: 'started'; run: string; state: StateTree; stamp: Record<string, unknown> }
   /** A token reached a node, or took a sequence flow: one more in `_meta.reached.<id>`. */
   | { event: 'reached'; id: string }

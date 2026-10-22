@@ -35,6 +35,12 @@ function hasUv(): boolean {
   }
 }
 
+/** The records on the root of the study archived as `file`: the runs' own. */
+async function runRecords(file: string): Promise<Element[]> {
+  const model = await xmlToStudy(fs.readFileSync(file, 'utf8'), freshMetamodel());
+  return model.entries(model.primaryRoot()!).filter((entry) => entry.type === 'prov:Activity');
+}
+
 function archivedState(file: string): any {
   const xml = fs.readFileSync(file, 'utf8');
   const body = xml.match(/<studyflow:state>(.*?)<\/studyflow:state>/s)?.[1] ?? '{}';
@@ -70,7 +76,7 @@ async function unconserved(xml: string, reached: Record<string, number>): Promis
 }
 
 test.describe('the state a run keeps', () => {
-  test('appends _meta.prov and counts reaches; a re-run counts again from where the run it redoes started', async () => {
+  test('stamps the run on the study\'s root and counts reaches; a re-run counts again from where the run it redoes started', async () => {
     const xml = await xmlOf(`id: reach
 definitions:
   targetNamespace: http://bpmn.io/schema/bpmn
@@ -103,8 +109,7 @@ S:
     run(plan);
     const archived = path.join(dir, 'run', 'reach.bpmn');
     const first = archivedState(archived);
-    expect(first._meta.prov).toHaveLength(1);
-    expect(first._meta.prov[0]).toMatchObject({ action: 'executed', run: 'run', with: expect.stringMatching(/^studyflow-cli\//) });
+    expect(await runRecords(archived)).toEqual([expect.objectContaining({ action: 'executed', run: 'run', with: expect.stringMatching(/^studyflow-cli\//) })]);
     // A sequence flow counts as it is taken, the way a node counts its visits.
     expect(first._meta.reached).toEqual({ Start: 1, F1: 1, Done: 1 });
     expect(first.S.runs).toBe(0);
@@ -112,7 +117,7 @@ S:
 
     run(archived);
     const second = archivedState(archived);
-    expect(second._meta.prov).toHaveLength(2);
+    expect(await runRecords(archived)).toHaveLength(2);
     expect(second._meta.reached).toEqual({ Start: 1, F1: 1, Done: 1 });
     // `events.jsonl`, the record, holds both runs' events, and the state the study keeps is read off them.
     const events = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
@@ -133,7 +138,7 @@ S:
     expect(named()).toBe('studyflow-runner <studyflow-runner@studyflow.invalid>|studyflow-runner <studyflow-runner@studyflow.invalid>|');
     run(archived, '--author', 'Ada Lovelace <ada@example.org>');
     expect(named()).toBe('Ada Lovelace <ada@example.org>|Ada Lovelace <ada@example.org>|Ada Lovelace <ada@example.org>');
-    expect((yaml.load(fs.readFileSync(archived, 'utf8')) as any).state._meta.prov.map((entry: { who?: string }) => entry.who)).toEqual([undefined, 'Ada Lovelace <ada@example.org>']);
+    expect((yaml.load(fs.readFileSync(archived, 'utf8')) as any).S['prov:Activity'].map((entry: { who?: string }) => entry.who)).toEqual([undefined, 'Ada Lovelace <ada@example.org>']);
     // Nor does the repository's own config name anyone, for a commit made there by hand.
     expect(spawnSync('git', ['-C', repo, 'config', '--local', 'user.name']).status).toBe(1);
   });
@@ -297,11 +302,10 @@ S:
 
     run('copy.studyflow.yaml');
     expect(removed(fs.readFileSync(archived, 'utf8'))).toEqual([]);
-    // The run's first commit holds the registered text, and after it the state the run starts from.
+    // The run's first commit holds the registered text, with the run's own record on the study's root.
     const first = execFileSync('git', ['-C', repo, 'rev-list', '--max-parents=0', 'HEAD'], { encoding: 'utf8' }).trim();
     const started = execFileSync('git', ['-C', repo, 'show', `${first}:copy.studyflow.yaml`], { encoding: 'utf8' });
-    expect(started.slice(0, registered.length)).toBe(registered);
-    expect(started.slice(registered.length)).toMatch(/^\nstate:\n {2}_meta:\n {4}prov:\n/);
+    expect(started.replace(/^ {2}prov:Activity:\n {4}- \{action: executed, .*\}\n/m, '')).toBe(registered);
     expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV, stdio: 'pipe' }).toString())
       .toMatch(/protocol matches run run \(.*\); its state is its record's/);
 
@@ -309,9 +313,9 @@ S:
     run(archived);
     const again = fs.readFileSync(archived, 'utf8');
     expect(removed(again)).toEqual([]);
-    const { S, state } = yaml.load(again) as any;
+    const { S } = yaml.load(again) as any;
     expect(S.flowElements.Start['prov:Activity'].map((entry: { action: string }) => entry.action)).toEqual(['executed']);
-    expect(state._meta.prov).toHaveLength(2);
+    expect(S['prov:Activity']).toHaveLength(2);
   });
 });
 
@@ -704,9 +708,9 @@ S:
     const kept = yaml.load(fs.readFileSync(path.join(dir, 'run', 'plan.studyflow.yaml'), 'utf8')) as any;
     // The slow answer came before the clock could run ahead of it; the subject who never replied left by the boundary.
     expect(kept.state._meta.reached).toMatchObject({ Weeks: 3, Return: 3, Back: 2, Late: 1, Gone: 1 });
-    // The run says it ran on the virtual clock, in its timeline entry and its log, and its record is timed by it: each
+    // The run says it ran on the virtual clock, in its own record and its log, and its record is timed by it: each
     // subject's three weeks, and the week the second waited, in virtual time.
-    expect(kept.state._meta.prov.at(-1)).toMatchObject({ action: 'executed', clock: 'virtual' });
+    expect(kept.C['prov:Activity'].at(-1)).toMatchObject({ action: 'executed', clock: 'virtual' });
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/clock\.virtual/);
     const events = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     const DAY = 86_400_000;

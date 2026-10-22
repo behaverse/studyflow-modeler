@@ -11,6 +11,11 @@ Run_Stamped:
   name: run stamped
   extensionElements:
     - type: studyflow:Study
+    - type: prov:Activity
+      action: executed
+      when: "2026-09-01T10:00:00Z"
+      run: demo
+      seed: 42
   flowElements:
     Fit:
       type: Task
@@ -31,13 +36,6 @@ Run_Stamped:
           run: demo
       bounds: 300 100 100 80
     Flow_Fit_Score: Fit -> Score
-state:
-  _meta:
-    prov:
-      - action: executed
-        when: "2026-09-01T10:00:00Z"
-        run: demo
-        seed: 42
 `;
 
 test('the provenance view lists a run\'s records, `p` filters it to the selection, and invalidating a record marks it and undoes', async ({ page }) => {

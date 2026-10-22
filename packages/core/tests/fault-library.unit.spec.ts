@@ -132,15 +132,11 @@ const REACHED = {
   Summarize: 7, F_Summarized: 7, Accurate: 7, F_Pass: 5, F_Below: 2, Below: 2, Compare: 5, F_Compared: 5, Done: 5,
 };
 
-/** The plan as the run left it: its record, naming the protocol it walked, and its counts. */
-const executed = async (): Promise<string> => PLAN + yaml.dump({
-  state: {
-    _meta: {
-      prov: [{ action: 'executed', when: '2026-09-21T10:00:00Z', with: 'studyflow-cli/26.9', run: 'r1', seed: 7, plan: await digest(PLAN) }],
-      reached: REACHED,
-    },
-  },
-}, YAML_DUMP_OPTIONS);
+/** The plan as the run left it: its record on the study's root, naming the protocol it walked, and its counts. */
+const executed = async (): Promise<string> => {
+  const record = { type: 'prov:Activity', action: 'executed', when: '2026-09-21T10:00:00Z', with: 'studyflow-cli/26.9', run: 'r1', seed: 7, plan: await digest(PLAN) };
+  return swap('      seed: 7\n', `      seed: 7\n    - ${JSON.stringify(record)}\n`)(PLAN) + yaml.dump({ state: { _meta: { reached: REACHED } } }, YAML_DUMP_OPTIONS);
+};
 
 const digest = async (text: string): Promise<string> => protocolDigest(studyModel(text));
 

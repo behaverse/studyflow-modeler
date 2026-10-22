@@ -325,8 +325,8 @@ test.describe('the state a session keeps', () => {
     expect(session.getUndeclaredVariables()).toEqual([]);
   });
 
-  test('a deposited state tree seeds the scopes and keeps accumulating its counters and prov', async () => {
-    const studyflow = await load(`${REACH}state:\n  _meta: { prov: [{ action: executed }], reached: { Gate: 2 } }\n  Study: { total: 10 }\n`);
+  test('a deposited state tree seeds the scopes and keeps accumulating its counters', async () => {
+    const studyflow = await load(`${REACH}state:\n  _meta: { reached: { Gate: 2 } }\n  Study: { total: 10 }\n`);
     expect(studyflow.state._meta.reached).toEqual({ Gate: 2 });
 
     const session = new Session(studyflow);
@@ -336,7 +336,6 @@ test.describe('the state a session keeps', () => {
     // Gate was reached twice before this run, so its first visit here is the third: no loop.
     expect(visited.filter((id) => id === 'Trial')).toHaveLength(1);
     expect(session.getState().Study).toEqual({ total: 10 });
-    expect(session.getState()._meta.prov).toEqual([{ action: 'executed' }]);
     expect(session.getState()._meta.reached.Gate).toBe(3);
   });
 });

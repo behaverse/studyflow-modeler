@@ -88,14 +88,14 @@ test('validate says the protocol matches the run that recorded it, and warns onc
   const versioned = write('versioned.studyflow.yaml', plan.replace('  type: Process\n', '  type: Process\n  extensionElements:\n    - { type: studyflow:Study, version: "1.2" }\n'));
   expect(JSON.parse(studyflow(['info', '--json', versioned]).stdout).study).toMatchObject({ id: 'Study', version: '1.2' });
 
-  const state = `state:\n  _meta:\n    prov:\n      - { action: executed, run: r1, plan: "${protocol}" }\n`;
-  const sealed = write('sealed.studyflow.yaml', plan + state);
+  const sealedBy = (text: string): string => text.replace('  type: Process\n', `  type: Process\n  prov:Activity:\n    - { action: executed, run: r1, plan: "${protocol}" }\n`);
+  const sealed = write('sealed.studyflow.yaml', sealedBy(plan));
   const matched = studyflow(['validate', sealed]);
   expect(matched.status).toBe(0);
   // Its two ways, one a branch, explored and sound.
   expect(matched.stdout).toBe(`${sealed}: OK, sound over the 2 ways it can go, protocol matches run r1 (${protocol.slice(0, 19)}…)\n`);
 
-  const edited = write('edited.studyflow.yaml', plan.replace('Play 30 trials', 'Play 20 trials') + state);
+  const edited = write('edited.studyflow.yaml', sealedBy(plan.replace('Play 30 trials', 'Play 20 trials')));
   const changed = studyflow(['validate', edited]);
   expect(changed.status).toBe(0);
   expect(changed.stderr).toMatch(/^warning: protocol changed since run r1: recorded sha256:[0-9a-f]{12}…, now sha256:[0-9a-f]{12}…\n$/);

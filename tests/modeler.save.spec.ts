@@ -92,8 +92,8 @@ const disk = async (page: Page) => {
 };
 
 
-// Document stamps live in the `_meta.prov` list of the run state (JSON in `<studyflow:state>`), one `action` per record.
-const stamps = (xml: string): number => (xml.match(/(?:&quot;|")action(?:&quot;|"):/g) ?? []).length;
+// Document stamps are `prov:Activity` records on the study's root, one element each in the XML.
+const stamps = (xml: string): number => (xml.match(/<prov:activity\b/g) ?? []).length;
 
 async function renameDiagram(page: Page, name: string): Promise<void> {
   await diagramTitle(page).click();

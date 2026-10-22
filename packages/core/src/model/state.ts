@@ -11,7 +11,7 @@ import { wiredPropertiesIn } from '@core/model/parameters';
 /** The run state: what each element's entry holds, by its id, and the runner's own under {@link META_KEY}. */
 export type StateTree = Record<string, any>;
 
-/** The one runner-owned key: `state._meta.prov` (run records) and `state._meta.<quantity>.<element_id>` (e.g. `reached`). */
+/** The one runner-owned key: `state._meta.<quantity>.<element_id>` (`reached`, `instance`). */
 export const META_KEY = '_meta';
 
 /** Keys starting with `_` are the runner's own; authors cannot declare properties with such names. */

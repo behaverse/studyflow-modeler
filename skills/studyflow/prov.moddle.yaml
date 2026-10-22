@@ -5,8 +5,8 @@ prefix: prov
 description: >-
   The provenance timeline: who acted on this studyflow, with what tool, and when. Studyflow's own vocabulary,
   not W3C PROV; `studyflow prov` writes a run's record as W3C PROV-O.
-  The document-level timeline lives in `state._meta.prov` as plain records with these
-  fields; `prov:Activity` elements remain the per-element records.
+  Each record is a `prov:Activity` entry on the element it is about; the study's own (created, modified, and one
+  `executed` per run) are on its root.
 uri: https://w3id.org/studyflow/prov
 icon: iconify tabler--history
 order: 2
@@ -18,13 +18,10 @@ version: '26.9.2'
 enumerations: []
 
 types:
-  # Entries run oldest first. The document-level timeline (created, modified,
-  # imported, and one `executed` per run) is the `state._meta.prov` list of the
-  # `state` tree, each item a plain record with the fields below.
-  # `prov:Activity` elements are the per-element records a runner stamps on
-  # flow elements (`executed`, `invalidated`, `reused`).
+  # Records run oldest first. The study's own (created, modified, and one `executed` per run) are on its root;
+  # a runner stamps the rest on the elements they are about (`executed`, `invalidated`, `reused`).
   - name: Activity
-    description: 'One per-element record: what a run did to this element, and when.'
+    description: 'One record: what was done to this element, by whom, and when.'
     superClass:
       - Element
     properties:

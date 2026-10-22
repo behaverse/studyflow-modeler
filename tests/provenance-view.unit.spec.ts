@@ -29,7 +29,6 @@ function stripTrail(model: StudyModel): StudyModel {
   for (const el of model.all()) {
     if (Array.isArray(el.extensionElements)) el.extensionElements = activitiesOf(el).filter((value) => value.type !== 'prov:Activity');
   }
-  delete (model.study.state?._meta as { prov?: unknown } | undefined)?.prov;
   return model;
 }
 
@@ -97,8 +96,8 @@ test.describe('provenance view model', () => {
       ['run', 'run-001'],
       ['seed', '42'],
     ]);
-    // Document rows project plain `_meta.prov` records, not `prov:Activity` entries, and an empty fact (`who`) is left out.
-    expect(records[2].entry).toEqual({ action: 'executed', when: '2026-07-31T10:00:00Z', run: 'run-001', seed: 42 });
+    // Document rows are the `prov:Activity` entries on the study's root, and an empty fact (`who`) is left out.
+    expect(records[2].entry).toEqual({ type: 'prov:Activity', action: 'executed', when: '2026-07-31T10:00:00Z', run: 'run-001', seed: 42 });
   });
 
   test('sorts undated entries last and keeps document order among them', async () => {

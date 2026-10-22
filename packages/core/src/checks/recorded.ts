@@ -1,4 +1,3 @@
-import { META_KEY } from '@core/model/state';
 import type { StudyModel } from '@core/model/index';
 import type { Issue } from '@core/checks';
 import { stateOf, type RunEvent } from '@core/engine/record';
@@ -18,13 +17,9 @@ function differs(a: unknown, b: unknown, at: string): string | undefined {
 
 /**
  * An executed copy against its run's record (`events.jsonl`, packages/core/src/engine/record.ts): the counts, passes and
- * properties the file keeps are the ones its events say. The timeline (`_meta.prov`) is left out, since the modeler
- * adds to it when the file is edited and saved.
+ * properties the file keeps are the ones its events say.
  */
 export function checkRecorded(model: StudyModel, events: readonly RunEvent[]): Issue[] {
-  const kept = structuredClone(model.study.state ?? {}) as Record<string, any>;
-  const recorded = stateOf(events);
-  for (const state of [kept, recorded]) delete state[META_KEY]?.prov;
-  const at = differs(kept, recorded, '');
+  const at = differs(model.study.state ?? {}, stateOf(events), '');
   return at ? [{ severity: 'error', message: `the state this file keeps is not what its run's record says, from state.${at} on: it was changed after the run` }] : [];
 }

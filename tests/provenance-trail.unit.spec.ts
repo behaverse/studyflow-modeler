@@ -9,12 +9,15 @@ import { readTrail, resetTrailStamping, stampTrailForExport, trailTimestamp } fr
 import { freshMetamodel } from './schemas';
 import { exampleXml } from './utils';
 
-/** Run records in `state._meta.prov`, stamped once per *fact* so re-rendering stays byte-stable. */
+/** The study's own records, on its root, stamped once per *fact* so re-rendering stays byte-stable. */
 
 /** Shipped examples may already carry a trail (rendering stamps them); build premises from one with none. */
 async function untrailed(name: string): Promise<StudyModel> {
   const model = await xmlToStudy(await exampleXml(name), freshMetamodel());
-  delete (model.study.state?._meta as { prov?: unknown } | undefined)?.prov;
+  const root = model.primaryRoot()!;
+  const kept = model.entries(root).filter((entry) => entry.type !== 'prov:Activity');
+  if (kept.length > 0) root.extensionElements = kept;
+  else delete root.extensionElements;
   return model;
 }
 

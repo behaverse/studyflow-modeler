@@ -45,7 +45,7 @@ export type ProvenanceRecord = {
   scopeLabel: string;
   isDocument: boolean;
   icon?: string;
-  /** The element's `prov:Activity` entry as the study model held it, or the plain `_meta.prov` record for document rows. */
+  /** The `prov:Activity` entry as the study model holds it, on its element or, for a document row, on the study's root. */
   entry: any;
   invalidated?: boolean;
   /** An `invalidated` marker whose named record no longer stands: inert history, never voids or branches again. */

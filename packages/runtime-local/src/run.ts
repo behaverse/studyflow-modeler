@@ -209,24 +209,22 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
 
   // A run in a history redoes the run before it: it walks the study from its start again, reusing what still
   // stands. So it starts from the state that run started from, as the study archived at that run's start holds it,
-  // and what it walks again counts, and draws, as it did then. The timeline of runs (`_meta.prov`) is history, and
-  // keeps growing.
+  // and what it walks again counts, and draws, as it did then. The runs' own records, on the study's root, are history,
+  // and keep growing.
   let state: Record<string, any> = stateIn(model);
   const redone = repo.lastStarted();
   const then = redone ? repo.fileAt(redone, path.basename(archive)) : undefined;
   const earlier = then && await run.read(then).catch(() => undefined);
   if (earlier) {
-    const { prov } = state._meta ?? {};
     state = stateIn(earlier);
-    if (prov) (state._meta ??= {}).prov = prov;
-    else delete state._meta?.prov;
     log.event('state.restored', `  from ${redone!.slice(0, 8)}, where the run this one redoes started`, { level: 'debug' });
   }
   const numeric = seed !== null && seed.trim() !== '' && Number.isFinite(Number(seed));
   const virtual = run.clock === 'virtual';
   const document: Stamp = { action: 'executed', when: startedAt, who, with: run.tool, run: runId, seed: numeric ? Number(seed) : seed ?? undefined, plan: run.digest, clock: virtual ? 'virtual' : undefined };
   const timeline = Object.fromEntries(TIMELINE_FIELDS.flatMap((name) => (document[name] ? [[name, document[name]]] : [])));
-  ((state._meta ??= {}).prov ??= []).push(timeline);
+  const root = model.primaryRoot();
+  if (root) stampElement(root, timeline);
   setState(model, state);
 
   // Archived before the first step, so a killed run still leaves a readable study behind.

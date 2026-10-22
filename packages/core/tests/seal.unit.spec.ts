@@ -1,8 +1,5 @@
 import { expect, test } from '@playwright/test';
-import * as yaml from 'js-yaml';
-
 import { protocolDigest } from '@core/document';
-import { YAML_DUMP_OPTIONS } from '@core/model/spelling';
 import { checkSeal } from '@core/checks/seal';
 import { studyModel } from '@tests/schemas';
 
@@ -25,7 +22,9 @@ Study:
     F2: Play -> Done
 `;
 
-const stamped = (plan: string, prov: object[]): string => plan + yaml.dump({ state: { _meta: { prov } } }, YAML_DUMP_OPTIONS);
+/** `plan` with `records` on its root, as the runs and the modeler leave them. */
+const stamped = (plan: string, records: object[]): string =>
+  plan.replace('  type: Process\n', `  type: Process\n  prov:Activity:\n${records.map((record) => `    - ${JSON.stringify(record)}\n`).join('')}`);
 
 const short = (digest: string): string => `${digest.slice(0, 19)}…`;
 
