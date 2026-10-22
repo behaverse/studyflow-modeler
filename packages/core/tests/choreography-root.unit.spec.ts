@@ -55,7 +55,7 @@ test('a choreography is read as a process of exchanges, keeps what its root carr
   // Saved, it stays a process, and its exchange is the BPMN task it is.
   const saved = await studyToXml(model);
   expect(saved).not.toMatch(/<bpmn2?:choreography/);
-  expect(saved).toMatch(/<bpmn2?:task id="Consent" name="Give consent" studyflow:exchange="true" studyflow:participants="P_Sub P_Exp" studyflow:initiator="P_Exp">/);
+  expect(saved).toMatch(/<bpmn2?:task id="Consent" name="Give consent" studyflow:exchange="true" studyflow:pools="P_Sub P_Exp" studyflow:initiator="P_Exp">/);
 });
 
 test('a choreography task\'s participant pair is minted, into a headless collaboration, on first need only', () => {
@@ -130,7 +130,7 @@ S:
           source: $Settings
 `;
   const xml = await xmlOf(study);
-  expect(xml).toMatch(/<bpmn:task id="Play" name="Play" studyflow:exchange="true" studyflow:participants="Robot">/);
+  expect(xml).toMatch(/<bpmn:task id="Play" name="Play" studyflow:exchange="true" studyflow:pools="Robot">/);
   expect(xml).not.toContain('choreographyTask');
   expect(await yamlOf(xml)).toBe(study);
 });

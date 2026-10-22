@@ -105,7 +105,7 @@ its last path ends. Where the walk reads a construct otherwise than the specific
 - **A timer cycle** waits for its first firing only (a warning).
 - **Exchanges in a process.** A task drawn as a choreography task with bands (a cognitive task) sits in a process's
   flow, where BPMN defines choreography tasks only in a choreography. The BPMN XML writes it as the `bpmn:task` it is,
-  marked `studyflow:exchange`, its bands as `studyflow:participants` and `studyflow:initiator`, so the XML stays valid
+  marked `studyflow:exchange`, its bands as `studyflow:pools` and `studyflow:initiator`, so the XML stays valid
   BPMN (`validate` checks it against the OMG's schema); reading the XML draws it back.
 - **Data elements are the study's.** A step in one pool may read or write a data object or data store reference drawn
   in another; BPMN scopes a data object to its process, and shares a store through a `dataStore` root element that

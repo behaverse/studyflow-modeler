@@ -451,8 +451,8 @@ types:
         type: Boolean
         meta:
           pinned: true
-      - name: participants
-        description: Who the task's bands name, top first.
+      - name: pools
+        description: The pools the task's bands name, top first.
         isAttr: true
         isMany: true
         isReference: true

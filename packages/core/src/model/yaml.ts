@@ -40,6 +40,8 @@ const STUDY = 'studyflow:Study';
 const CHOREOGRAPHIES = new Set(['bpmn:Choreography', 'bpmn:SubChoreography']);
 const CHOREOGRAPHY_TASK = 'bpmn:ChoreographyTask';
 const TASK = 'bpmn:Task';
+/** The core's attributes a task drawn as an exchange carries, its mark and its bands. */
+const EXCHANGE_KEYS = new Set(['exchange', 'pools', 'initiator']);
 const RUN_RECORD = 'prov:Activity';
 /** The target namespace BPMN requires of every document, which a file leaves out unless it names another. */
 const TARGET_NAMESPACE = 'http://bpmn.io/schema/bpmn';
@@ -100,11 +102,12 @@ export function foldTyped(metamodel: Metamodel, element: Element): Element {
 /** A task the file marks as an exchange, as the choreography task the study model holds, its bands and its initiator
  * the choreography task's own. */
 function exchangeOf(raw: Record<string, unknown>): Record<string, unknown> {
-  if (raw.exchange !== true || typeof raw.type !== 'string' || longTypeName(raw.type) !== TASK) return raw;
-  const { exchange: _exchange, pools, participants, initiator, ...rest } = raw;
-  const out: Record<string, unknown> = { ...rest, type: CHOREOGRAPHY_TASK };
-  if ((pools ?? participants) !== undefined) out.participantRef = pools ?? participants;
-  if (initiator !== undefined) out.initiatingParticipantRef = initiator;
+  const core = (name: string): unknown => raw[name] ?? raw[`studyflow:${name}`];
+  if (core('exchange') !== true || typeof raw.type !== 'string' || longTypeName(raw.type) !== TASK) return raw;
+  const out = Object.fromEntries(Object.entries(raw).filter(([key]) => !EXCHANGE_KEYS.has(key.replace(/^studyflow:/, ''))));
+  out.type = CHOREOGRAPHY_TASK;
+  if (core('pools') !== undefined) out.participantRef = core('pools');
+  if (core('initiator') !== undefined) out.initiatingParticipantRef = core('initiator');
   return out;
 }
 
@@ -646,7 +649,7 @@ class Speller {
     if (el.type === CHOREOGRAPHY_TASK && container !== undefined && !CHOREOGRAPHIES.has(container)) {
       const { participantRef, initiatingParticipantRef, ...rest } = el;
       el = { ...rest, type: TASK, exchange: true };
-      if (participantRef !== undefined) el.participants = participantRef;
+      if (participantRef !== undefined) el.pools = participantRef;
       if (initiatingParticipantRef !== undefined) el.initiator = initiatingParticipantRef;
     }
     return el;
