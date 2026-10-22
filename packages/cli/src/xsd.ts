@@ -24,9 +24,10 @@ export function xsdViolations(xml: string): string[] | undefined {
     writeFileSync(path.join(dir, 'study.bpmn'), xml);
     const checked = spawnSync('xmllint', ['--noout', '--schema', 'BPMN20.xsd', 'study.bpmn'], { cwd: dir, encoding: 'utf8' });
     if (checked.error) return undefined;
-    // `study.bpmn:12: element task: Schemas validity error : Element '{…}task', attribute …: …`
+    // `study.bpmn:12: element task: Schemas validity error : Element '{…}task', attribute …: …`; newer libxml2 leaves
+    // out `element task: `.
     return checked.stderr.split('\n').filter((line) => line.includes('validity error'))
-      .map((line) => line.replace(/^study\.bpmn:(\d+): element \S+: Schemas validity error : /, 'line $1: ')
+      .map((line) => line.replace(/^study\.bpmn:(\d+): (?:element \S+: )?Schemas validity error : /, 'line $1: ')
         .replace(/\{http:\/\/www\.omg\.org\/spec\/BPMN\/20100524\/MODEL\}/g, 'bpmn:').replace(/\{[^}]*\}/g, ''));
   } finally {
     rmSync(dir, { recursive: true, force: true });
