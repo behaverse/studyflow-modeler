@@ -10,7 +10,7 @@ import * as yaml from 'js-yaml';
 import { xmlToStudy } from '@core/document';
 import { stateOf } from '@core/engine';
 import type { Element } from '@core/model/index';
-import { freshMetamodel, xmlOf } from '@tests/schemas';
+import { freshMetamodel, studyModel, xmlOf } from '@tests/schemas';
 
 /** The local runtime (packages/runtime-local): what a run leaves in its repository, what a re-run reuses of it, and the
  * hand-off to partial runners. How the study is walked is pinned by packages/core/tests/engine.unit.spec.ts. */
@@ -500,7 +500,7 @@ S:
     expect(since(mark)).toEqual(expect.arrayContaining(['executed Tune', 'skipped Read (run run)']));
   });
 
-  test('a re-run redoes, transitively, every step that reads what it re-made, and the step whose in-memory value one of them reads; the rest is reused', () => {
+  test('a re-run redoes, transitively, every step that reads what it re-made, and the step whose in-memory value one of them reads; the rest is reused, and each data edge names the commit its step read or wrote at', () => {
     test.skip(!hasPython(), 'python3 is not on PATH');
     // Make writes a.json, Scale reads it into b.json, and Report reads b.json and the count Count holds in memory
     // only, which Note reads too.
@@ -566,6 +566,14 @@ P:
     expect(git('log', '--reverse', '--format=%s', `${mark}..HEAD`).split('\n').filter((subject) => /^(executed|skipped) /.test(subject)))
       .toEqual(['executed Count', 'skipped Note (run run)', 'executed Make', 'executed Scale', 'executed Report']);
     expect(JSON.parse(fs.readFileSync(path.join(repo, 'r.json'), 'utf8'))).toEqual([20, 2]);
+    // A data edge's record names the commit its step's record points at, the data as read and as written; a reused
+    // step's edges keep the record of the run that did the work.
+    const kept = studyModel(fs.readFileSync(archived, 'utf8'));
+    const records = (id: string) => kept.entries(kept.get(id)!).filter((entry) => entry.type === 'prov:Activity');
+    const commit = (step: string) => records(step).findLast((entry) => entry.action === 'executed')?.commit;
+    const edges = (...ids: string[]) => ids.map((id) => records(id).map(({ action, what }) => [action, what]));
+    expect(edges('In_A', 'Out_B', 'In_N')).toEqual([[['read', commit('Scale')]], [['wrote', commit('Scale')]], [['read', commit('Note')]]]);
+    expect(commit('Scale')).not.toBe(commit('Note'));
   });
 });
 

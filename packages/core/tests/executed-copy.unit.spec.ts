@@ -32,6 +32,12 @@ P:
       implementation: python://builtins.dict
       additionalArguments: {arm: standard, n: 2}
       documentation: Runs once.
+      inputs:
+        In_Work:
+          source: $Settings
+
+    Settings:
+      type: DataObjectReference
 
     Sub:
       type: SubProcess
@@ -68,9 +74,11 @@ function ran(text: string, state: Record<string, unknown>, stamps: Record<string
   return model;
 }
 
-/** A record as the file writes it, on one line `indent` spaces in, under its own `prov:Activity` key when `keyed`. */
+/** A record as the file writes it, on one line `indent` spaces in, under its own `prov:Activity` key when `keyed`: a
+ * moment quoted, as YAML would take it for a date. */
 function record(indent: number, { action, when, what, seed, commit }: Stamp, keyed = true): string {
-  const fields = [`action: ${action}`, `when: "${when}"`, ...(what ? [`what: "${what}"`] : []), 'run: r1', ...(seed ? [`seed: ${seed}`] : []), ...(commit ? [`commit: ${commit}`] : [])];
+  const text = (value: string | number): string => (/^\d{4}-\d{2}-\d{2}T/.test(String(value)) ? `"${value}"` : String(value));
+  const fields = [`action: ${action}`, `when: ${text(when)}`, ...(what ? [`what: ${text(what)}`] : []), 'run: r1', ...(seed ? [`seed: ${seed}`] : []), ...(commit ? [`commit: ${commit}`] : [])];
   const line = `${' '.repeat(keyed ? indent + 2 : indent)}- {${fields.join(', ')}}\n`;
   return keyed ? `${' '.repeat(indent)}prov:Activity:\n${line}` : line;
 }
@@ -101,6 +109,7 @@ const FIRST: Record<string, Stamp> = {
   P: RUN_1,
   Start: { action: 'executed', when: '2026-10-12T10:00:01.000+02:00', commit: 'c1' },
   Work: { action: 'executed', when: '2026-10-12T10:00:02.000+02:00', commit: 'c2' },
+  In_Work: { action: 'read', when: '2026-10-12T10:00:02.000+02:00', what: 'c2' },
   Sub: { action: 'executed', when: '2026-10-12T10:00:04.000+02:00', commit: 'c3' },
   Sub_Start: { action: 'executed', when: '2026-10-12T10:00:03.000+02:00', commit: 'c3' },
 };
@@ -109,11 +118,13 @@ const stateOf = (work: number): Record<string, unknown> => ({ _meta: { reached: 
 const stateText = (work: number): string => `\nstate:\n  _meta:\n    reached:\n      Start: 1\n      Work: ${work}\n`;
 
 /** What the first run leaves: each element's records after its other keys, before its documentation and the elements
- * it holds, in either spelling of a list; the run's own on the study's root; and the state at the end. */
+ * it holds, in either spelling of a list, a step's data edge among them; the run's own on the study's root; and the
+ * state at the end. */
 const EXECUTED = ([
   [before, '  documentation: >-\n', record(2, FIRST.P)],
   [after, '      name: Begin  # a comment on its line\n', record(6, FIRST.Start)],
   [before, '      documentation: Runs once.\n', record(6, FIRST.Work)],
+  [after, '          source: $Settings\n', record(10, FIRST.In_Work)],
   [before, '      elements:\n', record(6, FIRST.Sub)],
   [after, '        - id: Sub_Start\n          type: StartEvent\n', record(10, FIRST.Sub_Start)],
 ] as const).reduce((text, [place, anchor, inserted]) => place(text, anchor, inserted), REGISTERED) + stateText(1);

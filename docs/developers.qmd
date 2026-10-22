@@ -117,8 +117,8 @@ The retrospective part has two places. The records are `prov:Activity` entries o
 | `when` | an ISO 8601 timestamp; ties break by position | | `imported` | an artifact was staged in from outside |
 | `who` | a name, an email, or an ORCID | | `executed` | the document ran, or one element did |
 | `with` | the tool that acted, as `name/version` | | `invalidated` | a marker voiding a named execution record |
-| `what` | element ids, or the `when` of the entry referred to | | `reused` | a step was skipped and an earlier record trusted |
-| `run`, `seed` | the run's identifier, and its root seed | | | |
+| `what` | element ids, the `when` of the entry referred to, or a data edge's commit | | `reused` | a step was skipped and an earlier record trusted |
+| `run`, `seed` | the run's identifier, and its root seed | | `read`, `wrote` | a step's data edge, `what` the commit holding the data as the step read or wrote it |
 | `plan` | for `executed`, the digest of the protocol the run walked, which `studyflow validate` recomputes | | | |
 | `commit` | the commit an `executed` step's state is in | | | |
 

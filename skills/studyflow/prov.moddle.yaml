@@ -26,7 +26,7 @@ types:
       - Element
     properties:
       - name: action
-        description: What happened (`created`, `modified`, `imported`, `executed`, `invalidated`, `reused`).
+        description: What happened (`created`, `modified`, `imported`, `executed`, `invalidated`, `reused`; on a data edge, `read` or `wrote`).
         isAttr: true
         type: String
       - name: when
@@ -46,8 +46,8 @@ types:
         meta:
           optional: true
       - name: what
-        # For `invalidated` and `reused`, the `when` of the entry it refers to.
-        description: Element ids the action touched, space-separated.
+        # For `invalidated` and `reused`, the `when` of the entry it refers to; for `read` and `wrote`, the commit.
+        description: Element ids the action touched, space-separated; on a data edge, the commit holding the data as read or written.
         isAttr: true
         type: String
         meta:

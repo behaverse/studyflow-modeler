@@ -14,7 +14,7 @@ import path from 'node:path';
 
 import { CONTAINER_TYPES, Walk, concealedSeeds, modelIndexOf, planElement, planOf, recordOf, stateOf, type Entry, type Handback, type Host, type Note, type RunEvent } from '@core/engine';
 import { revealedSeed } from '@core/checks/concealed';
-import type { Element, StudyModel } from '@core/model/index';
+import { isElement, type Element, type StudyModel } from '@core/model/index';
 import { VirtualClock } from '@runtime-local/clock';
 import { RunLog, timelineTimestamp } from '@runtime-local/log';
 import { Records, humanBytes } from '@runtime-local/reuse';
@@ -390,13 +390,14 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   const replaces = (action: string, id: string): string | undefined =>
     (!branched || action === 'reused' || CONTAINER_TYPES.has(plan.elements[id]?.type) ? action : undefined);
   const head = repo.head();
-  // The commit a step's record points at: what it ran with, and what it made, as git holds them.
+  // The commit a step's record points at: what it ran with, and what it made, as git holds them. An event leaves no
+  // commit of its own: its record points at where the run had reached by the end.
   const commits = repo.executedSince(begun);
+  const commitOf = (id: string): string | undefined => commits.get(id) || head;
   // What the study keeps of the run is read off its record: the state it leaves, and each element's record.
   const { executed, decided, created, imported, reused } = recordOf(events);
   const stamps: [id: string, action: string, extra: Stamp][] = [
-    // An event leaves no commit of its own: its record points at where the run had reached by the end.
-    ...[...executed.keys()].sort().map((id): [string, string, Stamp] => [id, 'executed', { commit: commits.get(id) || head }]),
+    ...[...executed.keys()].sort().map((id): [string, string, Stamp] => [id, 'executed', { commit: commitOf(id) }]),
     // A gateway that conceals its allocation reveals its seed here, once its run has drawn, so anyone can redo its draws.
     ...[...decided].sort().map(([id, { flow }]): [string, string, Stamp] => [id, 'executed', { what: flow, allocationSeed: concealed[id], commit: commits.get(id) }]),
     ...[...created.keys()].sort().map((id): [string, string, Stamp] => [id, 'created', {}]),
@@ -412,6 +413,16 @@ async function hostRun(run: LocalRun, runners: PartialRunner[]): Promise<number>
   for (const [id, action, extra] of stamps) {
     const element = walked.get(id)?.element;
     if (element) stampElement(element, { action, when: moments.get(id), run: runId, ...extra }, replaces(action, id));
+  }
+  // A step's data edges say what it read and what it wrote, `what` the commit holding that data as it read and wrote
+  // it, the one its own record points at.
+  for (const id of [...executed.keys()].sort()) {
+    const step = walked.get(id)?.element;
+    for (const [edges, action] of [[step?.dataInputAssociations, 'read'], [step?.dataOutputAssociations, 'wrote']] as const) {
+      for (const edge of Array.isArray(edges) ? edges : []) {
+        if (isElement(edge) && edge.id) stampElement(edge, { action, when: moments.get(id), run: runId, what: commitOf(id) }, replaces(action, id));
+      }
+    }
   }
   await run.write(model, archive, respelled);
   log.event('diagram.archived', `  → ${archive}`, { level: 'debug' });

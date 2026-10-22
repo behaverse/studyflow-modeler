@@ -526,7 +526,7 @@ state:
 | the study's root | the run itself: `executed`, `who`, `with`, `seed`, `plan`, `clock`; beside it, the modeler's `created` and `modified` |
 | an activity or an event | that it was `executed` or `reused`, or failed, `when`, the `commit` holding what it ran with and made |
 | a gateway | the same, and `what`, the flow it took last; `allocationSeed` when it conceals its allocation |
-| a data edge | `read` or `wrote`, and `what`, the commit or digest of what it read or wrote |
+| a data edge | `read` or `wrote`, and `what`, the commit holding the data as its step read or wrote it, the one the step's own record names |
 | a data object or store | `created` or `imported` |
 
 A run adds its `prov:Activity` records and its `state` and changes nothing else in the file, so those two keys alone tell what a run left from the plan; the protocol digest leaves both out, and the drawing. The state is the tree [Run state](#run-state) describes, as the run left it: counts, instances and values, which describe a moment rather than where they came from. A re-run adds its records beside the earlier ones and writes the state anew.
