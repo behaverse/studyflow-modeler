@@ -468,7 +468,7 @@ types:
           pinned: true
 
   - name: Actor
-    description: 'A pool of participants: who or what takes part in the study.'
+    description: 'A pool of actors: who or what takes part in the study.'
     superClass:
       - bpmn:Participant
     meta:

@@ -31,10 +31,10 @@ event
 : A node that marks something happening: start, end, a moment, a condition becoming true.
 
 gateway
-: A node where a decision is made about which path to take next. Each kind decides differently: by conditions on the edges, by a random sample (`RandomGateway`), or by criteria (`EligibilityGateway`). Gateway in studyflow is different from BPMN, which is only a visual metaphor for a decision. In studyflow, a gateway is a *decision making* of the next step, and it can be a random generator or a deterministic generator.
+: A node where a decision is made about which path to take next. Each kind decides differently: by conditions on the edges, by a random sample (`RandomGateway`), or by criteria (`EligibilityGateway`). As in BPMN, a gateway routes the flow when the study runs; the research gateways add ways to decide, a seeded draw or a screening rule.
 
 pool
-: Represents a type of actors (a group of humans, software agents, robots, models, or instruments). A pool is a group, not one actor. Two pools that deal with each other make the diagram a collaboration. One member of a pool is called participant, going through the session whether it's a person or a computational agent.
+: Represents a type of actors (a group of humans, software agents, robots, models, or instruments). A pool is a group, not one actor. Two pools that deal with each other make the diagram a collaboration. One member of a pool is an actor, a person or a computational agent going through the session; the pool itself is what BPMN calls a participant.
 
 checklist
 : Todo items carried on any element. The Checklist view shows what is done (e.g., reported) and what is still to be done (e.g., missing data). The checklist is a *projection* of the diagram. The main use case is to keep track of what is done and what is still to be done, and to make sure that the study is complete and reproducible.
