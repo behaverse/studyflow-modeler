@@ -193,11 +193,12 @@ test('a gateway draws the glyph the resolver names, else its own marker, never a
   expect(iconKeys(own.canvas, 'Gateway_1')).toEqual([]);
 });
 
-test('an event\'s centre takes its definition\'s symbol, else its own type\'s, and a badge then moves to the rim', async () => {
+test('an event\'s centre takes its own type\'s glyph, else its definition\'s symbol, and a badge then moves to the rim', async () => {
   // `End_1` is an end event with an error definition.
   const CASES: [label: string, resolver: Resolver, centre: string[]][] = [
     ['the resolver knows the definition', (key) => (key === 'ErrorEventDefinition' ? GLYPH_DEF : undefined), ['ErrorEventDefinition']],
     ['it knows only the event type (a schema event type\'s icon)', (key) => (key === 'EndEvent' ? GLYPH_DEF : undefined), ['EndEvent']],
+    ['it knows both: the type wins (a rest, not its timer)', () => GLYPH_DEF, ['EndEvent']],
     ['it knows neither: the circle stays bare', () => undefined, []],
   ];
   for (const [label, resolver, centre] of CASES) {
@@ -207,7 +208,7 @@ test('an event\'s centre takes its definition\'s symbol, else its own type\'s, a
 
   // An attribute badge (`studyflow:redirectTo`) takes a bare event's centre; with a symbol there it sits top-right.
   const redirecting = GATEWAY_EVENT_YAML.replace('type: EndEvent', 'type: EndEvent\n      redirectTo: https://example.org/done');
-  const { canvas } = loadYaml(redirecting, { iconResolver: () => GLYPH_DEF });
+  const { canvas } = loadYaml(redirecting, { iconResolver: (key) => (key === 'EndEvent' ? undefined : GLYPH_DEF) });
   const g = graphics(canvas, 'End_1');
   // `^=`: an end event takes the filled `ErrorEventDefinition:end` variant when the host names one.
   const symbol = g.querySelector('svg.sf-icon[data-icon-key^="ErrorEventDefinition"]')!;

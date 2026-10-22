@@ -12,13 +12,13 @@ import { activityMarkers } from '@canvas/render/shapes.ts';
 import { append, create } from '@canvas/render/svg.ts';
 
 export const LABEL_FONT = '"IBM Plex Sans", Helvetica, sans-serif';
-/** The face for text that reads as prose beside the diagram: a note, and the name a pool runs up its band. */
+/** The face for text that reads as prose beside the diagram: a note (a BPMN text annotation), and nothing else. */
 export const NOTE_FONT = '"IBM Plex Serif", ui-serif, Georgia, serif';
 
 /** The face the text an element of `type` holds is set in. */
 export function familyOf(type: string): string {
   const category = categoryOf(type);
-  return category === 'annotation' || category === 'participant' ? NOTE_FONT : LABEL_FONT;
+  return category === 'annotation' ? NOTE_FONT : LABEL_FONT;
 }
 export const WEIGHT = { internal: '500', external: '400' } as const;
 

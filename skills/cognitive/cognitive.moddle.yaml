@@ -188,7 +188,7 @@ types:
     superClass:
       - bpmn:IntermediateCatchEvent
     meta:
-      icon: iconify ph--coffee
+      icon: iconify ph--armchair
       eventDefinition:
         type: bpmn:TimerEventDefinition
         timeDuration: PT1M

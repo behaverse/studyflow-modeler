@@ -437,17 +437,16 @@ export class Renderer {
     // BPMN draws a throwing (end) event's symbol filled: the host may name that variant under `<definition>:end`.
     if (defKey && kind === 'end' && resolver(`${defKey}:end`, def)) defKey = `${defKey}:end`;
     let centreTaken = false;
-    if (defKey && resolver(defKey, def)) {
+    // A glyph the host names for the element itself — a schema event type's icon (`meta.icon` on an
+    // `IntermediateCatchEvent` wrapper, such as a rest's) — says more than its definition's, so it wins:
+    // a rest is drawn as a rest, not as the timer that says how long it lasts.
+    const typeKey = toLocalName(node.type);
+    if (typeKey && resolver(typeKey, node.element)) {
+      drawIcon(g, typeKey, x, y, EVENT_ICON_SIZE, color, resolver, node.element);
+      centreTaken = true;
+    } else if (defKey && resolver(defKey, def)) {
       drawIcon(g, defKey, x, y, EVENT_ICON_SIZE, color, resolver, def);
       centreTaken = true;
-    } else {
-      // No definition: the host may still name a glyph for the element itself — a
-      // schema event type's icon (`meta.icon` on an `IntermediateCatchEvent` wrapper).
-      const typeKey = toLocalName(node.type);
-      if (typeKey && resolver(typeKey, node.element)) {
-        drawIcon(g, typeKey, x, y, EVENT_ICON_SIZE, color, resolver, node.element);
-        centreTaken = true;
-      }
     }
     // Attribute badges (consent form, redirect) take the centre of a plain event;
     // once a glyph sits there they move to the top-right rim, like on other shapes.
@@ -573,7 +572,7 @@ export class Renderer {
     const room = node.height - markerRoom;
     const y = room / 2;
     const text = textLine(markerRoom > 0 ? fit(name, room, FONT.internal) : name, x, y,
-      styled({ fontSize: FONT.internal, color, weight: WEIGHT.internal, family: NOTE_FONT }, node.font));
+      styled({ fontSize: FONT.internal, color, weight: WEIGHT.internal }, node.font));
     attr(text, { transform: `rotate(-90, ${x}, ${y})`, 'dominant-baseline': 'central' });
     append(g, text);
   }
