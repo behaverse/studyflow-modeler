@@ -20,7 +20,7 @@ Dyadic_Study:
       type: Task
       name: Give consent
       exchange: true
-      pools:
+      participants:
         - $Participant_Subject
         - $Participant_Experimenter
       initiator: $Participant_Subject
@@ -29,7 +29,7 @@ Dyadic_Study:
       type: Task
       name: First decision round
       exchange: true
-      pools:
+      participants:
         - $Participant_Subject
         - $Participant_Experimenter
       initiator: $Participant_Experimenter
@@ -38,7 +38,7 @@ Dyadic_Study:
       type: Task
       name: Second decision round
       exchange: true
-      pools:
+      participants:
         - $Participant_Subject
         - $Participant_Experimenter
       initiator: $Participant_Subject
@@ -65,7 +65,7 @@ Dyadic_Study:
 
 Dyadic_Study_participants:
   type: Collaboration
-  pools:
+  participants:
     Participant_Subject:
       name: Subject
 

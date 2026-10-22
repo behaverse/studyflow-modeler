@@ -10,8 +10,7 @@ import { BUILTIN_TYPES, type Metamodel, type PropertyDef } from '@core/model/met
 /** Keys named for what they hold in a study. */
 const OWN: Readonly<Record<string, string>> = {
   flowElements: 'elements',
-  participants: 'pools',
-  participantRef: 'pools',
+  participantRef: 'participants',
   initiatingParticipantRef: 'initiator',
   flowNodeRef: 'nodes',
   itemRef: 'item',

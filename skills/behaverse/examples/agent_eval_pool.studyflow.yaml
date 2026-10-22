@@ -8,7 +8,7 @@ schemas:
 Agent_Eval_Pool_Actors:
   type: Collaboration
   name: LLM evaluation — agent actor pool
-  pools:
+  participants:
     Actor_Random_bot:
       name: Random bot
       studyflow:Actor:
@@ -48,7 +48,7 @@ Agent_Eval_Pool:
       type: Task
       name: Random baseline agent
       exchange: true
-      pools: $Actor_Random_bot
+      participants: $Actor_Random_bot
       behaverse:Task:
         instrument: NB
         timeline: Eval_2Back
@@ -112,7 +112,7 @@ Agent_Eval_Pool:
       type: Task
       name: Claude LLM agent
       exchange: true
-      pools: $Actor_Claude__claude_haiku_4_5
+      participants: $Actor_Claude__claude_haiku_4_5
       behaverse:Task:
         instrument: NB
         timeline: Eval_2Back
@@ -193,7 +193,7 @@ Agent_Eval_Pool:
       type: Task
       name: Ollama LLM agent (local)
       exchange: true
-      pools: $Actor_Ollama__gemma4_e2b_mlx
+      participants: $Actor_Ollama__gemma4_e2b_mlx
       behaverse:Task:
         instrument: NB
         timeline: Eval_2Back

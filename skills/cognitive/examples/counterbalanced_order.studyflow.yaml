@@ -6,7 +6,7 @@ schemas:
 Counterbalanced_Order_Collaboration:
   type: Collaboration
   name: Counterbalanced task order
-  pools:
+  participants:
     Participants:
       name: Participants
       multiplicity:

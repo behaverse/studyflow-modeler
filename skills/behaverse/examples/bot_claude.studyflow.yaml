@@ -8,7 +8,7 @@ schemas:
 Demo4_LLMBot_Actors:
   type: Collaboration
   name: LLM bot (Claude Code)
-  pools:
+  participants:
     Claude:
       name: Claude
       studyflow:Actor:
@@ -31,7 +31,7 @@ Demo4_LLMBot:
       type: Task
       name: 1-Back warm-up (tired)
       exchange: true
-      pools: $Claude
+      participants: $Claude
       behaverse:Task:
         instrument: NB
         timeline: Demo4_Warmup
@@ -107,7 +107,7 @@ Demo4_LLMBot:
       type: Task
       name: 2-Back main (expert)
       exchange: true
-      pools: $Claude
+      participants: $Claude
       behaverse:Task:
         instrument: NB
         timeline: Demo4_Main
@@ -188,7 +188,7 @@ Demo4_LLMBot:
       type: Task
       name: WhichOne (vision)
       exchange: true
-      pools: $Claude
+      participants: $Claude
       behaverse:Task:
         instrument: WO
         timeline: SimonTask

@@ -8,7 +8,7 @@ schemas:
 LabLink_Demo_Actors:
   type: Collaboration
   name: EPSYLON LabLink - Study orchestration
-  pools:
+  participants:
     Actor_Random_bot:
       name: Random bot
       studyflow:Actor:
@@ -63,7 +63,7 @@ LabLink_Demo:
         1-Back
         (warm-up)
       exchange: true
-      pools: $Actor_Random_bot
+      participants: $Actor_Random_bot
       behaverse:Task:
         instrument: NB
         timeline: LabLink_Inline
@@ -121,7 +121,7 @@ LabLink_Demo:
         2-Back
         (Symbols)
       exchange: true
-      pools: $Actor_Random_bot
+      participants: $Actor_Random_bot
       behaverse:Task:
         instrument: NB
       inputs:
@@ -157,7 +157,7 @@ LabLink_Demo:
       type: Task
       name: 1-Back
       exchange: true
-      pools: $Actor_Random_bot
+      participants: $Actor_Random_bot
       behaverse:Task:
         instrument: NB
         timeline: LabLink_Inline

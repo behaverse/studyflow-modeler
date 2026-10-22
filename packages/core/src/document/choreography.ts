@@ -60,12 +60,12 @@ function retype(definitions: any, from: any, type: string, skip: Set<string>): a
   return to;
 }
 
-const EXCHANGE_OWN = new Set(['participantRef', 'initiatingParticipantRef', 'messageFlowRef', 'exchange', 'pools', 'initiator']);
+const EXCHANGE_OWN = new Set(['participantRef', 'initiatingParticipantRef', 'messageFlowRef', 'exchange', 'participants', 'initiator']);
 
 /**
  * The BPMN XML of a choreography task inside a process: BPMN defines choreography tasks only in a choreography, and
  * gives them no data. So the XML writes one as a `bpmn:task`, which may read and write data, marked
- * `studyflow:exchange`, with its bands as `studyflow:pools` and `studyflow:initiator`; {@link tasksToExchanges}
+ * `studyflow:exchange`, with its bands as `studyflow:participants` and `studyflow:initiator`; {@link tasksToExchanges}
  * draws it back. Whether it changed any.
  */
 export function exchangesToTasks(definitions: any): boolean {
@@ -73,8 +73,8 @@ export function exchangesToTasks(definitions: any): boolean {
   for (const exchange of exchanges) {
     const task = retype(definitions, exchange, 'bpmn:Task', EXCHANGE_OWN);
     task.set('exchange', true);
-    const pools = exchange.get('participantRef') ?? [];
-    if (pools.length > 0) task.set('pools', pools);
+    const participants = exchange.get('participantRef') ?? [];
+    if (participants.length > 0) task.set('participants', participants);
     if (exchange.get('initiatingParticipantRef')) task.set('initiator', exchange.get('initiatingParticipantRef'));
   }
   return exchanges.length > 0;
@@ -86,8 +86,8 @@ export function tasksToExchanges(definitions: any): boolean {
   const tasks = [...contained(definitions)].filter((el) => el.$type === 'bpmn:Task' && el.get('exchange') === true);
   for (const task of tasks) {
     const exchange = retype(definitions, task, CHOREOGRAPHY_TASK, EXCHANGE_OWN);
-    const pools = task.get('pools') ?? [];
-    if (pools.length > 0) exchange.set('participantRef', pools);
+    const participants = task.get('participants') ?? [];
+    if (participants.length > 0) exchange.set('participantRef', participants);
     if (task.get('initiator')) exchange.set('initiatingParticipantRef', task.get('initiator'));
   }
   return tasks.length > 0;

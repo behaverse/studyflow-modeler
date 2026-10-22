@@ -25,7 +25,7 @@ registered_trials:
 
     The pool is a simulated participant (`simulate://random`), so the study runs on this machine; with
     `ollama://<model>` in its place a language model plays the same list.
-  pools:
+  participants:
     Pool_Session:
       name: Session
       process: $Session

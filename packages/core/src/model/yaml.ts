@@ -41,7 +41,7 @@ const CHOREOGRAPHIES = new Set(['bpmn:Choreography', 'bpmn:SubChoreography']);
 const CHOREOGRAPHY_TASK = 'bpmn:ChoreographyTask';
 const TASK = 'bpmn:Task';
 /** The core's attributes a task drawn as an exchange carries, its mark and its bands. */
-const EXCHANGE_KEYS = new Set(['exchange', 'pools', 'initiator']);
+const EXCHANGE_KEYS = new Set(['exchange', 'participants', 'initiator']);
 const RUN_RECORD = 'prov:Activity';
 /** The target namespace BPMN requires of every document, which a file leaves out unless it names another. */
 const TARGET_NAMESPACE = 'http://bpmn.io/schema/bpmn';
@@ -106,7 +106,7 @@ function exchangeOf(raw: Record<string, unknown>): Record<string, unknown> {
   if (core('exchange') !== true || typeof raw.type !== 'string' || longTypeName(raw.type) !== TASK) return raw;
   const out = Object.fromEntries(Object.entries(raw).filter(([key]) => !EXCHANGE_KEYS.has(key.replace(/^studyflow:/, ''))));
   out.type = CHOREOGRAPHY_TASK;
-  if (core('pools') !== undefined) out.participantRef = core('pools');
+  if (core('participants') !== undefined) out.participantRef = core('participants');
   if (core('initiator') !== undefined) out.initiatingParticipantRef = core('initiator');
   return out;
 }
@@ -649,7 +649,7 @@ class Speller {
     if (el.type === CHOREOGRAPHY_TASK && container !== undefined && !CHOREOGRAPHIES.has(container)) {
       const { participantRef, initiatingParticipantRef, ...rest } = el;
       el = { ...rest, type: TASK, exchange: true };
-      if (participantRef !== undefined) el.pools = participantRef;
+      if (participantRef !== undefined) el.participants = participantRef;
       if (initiatingParticipantRef !== undefined) el.initiator = initiatingParticipantRef;
     }
     return el;
@@ -892,7 +892,7 @@ export function writeStudy(study: Study, metamodel: Metamodel, warn?: Warn): Yam
 }
 
 /** The keys whose mapping lists elements keyed by id, which the text separates by a blank line. */
-const ELEMENT_LISTS = new Set(['elements', 'pools', 'messageFlows', 'artifacts', 'properties', 'inputs', 'outputs', 'laneSets', 'lanes',
+const ELEMENT_LISTS = new Set(['elements', 'messageFlows', 'artifacts', 'properties', 'inputs', 'outputs', 'laneSets', 'lanes',
   'eventDefinitions', 'categoryValue', 'flowElements', 'participants', 'dataInputAssociations', 'dataOutputAssociations']);
 
 /** The head of the file, which no blank line divides. */

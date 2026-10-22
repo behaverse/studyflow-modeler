@@ -19,7 +19,7 @@ Collab_Pools:
     is over. Every exchange is a message flow, and no step or pool names a model but the model's own pool. The robot's
     lines name their renderer, this machine's `say`, as `shell://say` with the sentence as its argument; the sound plays
     on the unit.
-  pools:
+  participants:
     Pool_Behaverse:
       name: Behaverse (WhichOne on the screen)
       process: $WhichOne_Task

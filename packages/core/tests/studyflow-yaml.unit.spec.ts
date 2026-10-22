@@ -246,7 +246,7 @@ schemas:
   studyflow: http://behaverse.org/schemas/studyflow/v1
 C:
   type: Collaboration
-  pools:
+  participants:
     Screen:
       process: $S
     Robot:
@@ -337,7 +337,7 @@ schemas:
 
 C:
   type: Collaboration
-  pools:
+  participants:
     Pool_Subjects:
       name: Subjects
       multiplicity:

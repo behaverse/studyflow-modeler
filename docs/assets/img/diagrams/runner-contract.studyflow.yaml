@@ -11,7 +11,7 @@ Runner_Contract:
     step, and a runner that refuses stops the run. It then hands each claimed element to its runner with the run's
     values, adopts what the runner hands back, and commits the run directory. The runner speaks the walk's contract on
     one side and its tool's own protocol on the other. Drawn for docs/developers.qmd.
-  pools:
+  participants:
     Pool_Walk:
       name: Local runtime, the walk
       process: $Walk

@@ -7,7 +7,7 @@ schemas:
 Demo3_ExternalBot_Actors:
   type: Collaboration
   name: Random bot
-  pools:
+  participants:
     Actor_Random_bot:
       name: Random bot
       studyflow:Actor:
@@ -30,7 +30,7 @@ Demo3_ExternalBot:
       type: Task
       name: 1-Back warm-up
       exchange: true
-      pools: $Actor_Random_bot
+      participants: $Actor_Random_bot
       behaverse:Task:
         instrument: NB
         timeline: Demo3_Warmup
@@ -90,7 +90,7 @@ Demo3_ExternalBot:
       type: Task
       name: 2-Back main
       exchange: true
-      pools: $Actor_Random_bot
+      participants: $Actor_Random_bot
       behaverse:Task:
         instrument: NB
         timeline: Demo3_Main

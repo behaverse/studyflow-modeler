@@ -174,7 +174,7 @@ A pool may also stand for several instances of itself. `multiplicity` on the poo
 ```yaml
 Cohort:
   type: Collaboration
-  pools:
+  participants:
     Subjects:
       name: Subjects
       multiplicity:
@@ -351,7 +351,7 @@ A document with neither `schemas` nor `definitions` is not read as a studyflow. 
 
 ## Elements and their keys
 
-An element sits where BPMN nests it, under the key of the property that holds it, keyed by its id, in BPMN's order, with a blank line between elements. Its first key is its BPMN `type`, without the `bpmn:` prefix (`Task`, `StartEvent`, `SubProcess`), left out where the key holding it already says what it is: a pool under `pools`, an edge among the elements ([Edges](#edges)). Then come its `name`, its other attributes, its extension entries, its `documentation`, and last what it holds (`properties`, `inputs`, `outputs`, `elements`). A value BPMN keeps as an element of its own is written as its text: an expression (`condition: score > 0.9`), a documentation. A YAML-valued attribute (`values`, `additionalArguments`) is written as the mapping it holds, unless its text carries a comment, which a mapping would drop. Defaults are left out, and so is a value a type fixes when it redefines an attribute it inherits (a Behaverse task's `platform`).
+An element sits where BPMN nests it, under the key of the property that holds it, keyed by its id, in BPMN's order, with a blank line between elements. Its first key is its BPMN `type`, without the `bpmn:` prefix (`Task`, `StartEvent`, `SubProcess`), left out where the key holding it already says what it is: a pool under `participants`, an edge among the elements ([Edges](#edges)). Then come its `name`, its other attributes, its extension entries, its `documentation`, and last what it holds (`properties`, `inputs`, `outputs`, `elements`). A value BPMN keeps as an element of its own is written as its text: an expression (`condition: score > 0.9`), a documentation. A YAML-valued attribute (`values`, `additionalArguments`) is written as the mapping it holds, unless its text carries a comment, which a mapping would drop. Defaults are left out, and so is a value a type fixes when it redefines an attribute it inherits (a Behaverse task's `platform`).
 
 Keys are BPMN's property names, shortened by three rules:
 
@@ -375,7 +375,7 @@ A few keys are named for what they hold in a study:
 | In the file | In BPMN | Holds |
 |:--|:--|:--|
 | `elements` | `flowElements` | what a process or a sub-process contains: its events, activities, gateways, data, and the sequence flows between them |
-| `pools` | a collaboration's `participants`; a choreography task's `participantRef` | the parties of the study; "participant" means the experimental unit everywhere else in a study |
+| `participants` | a choreography task's `participantRef` | the participants its bands name, under the name the collaboration lists them by |
 | `initiator` | `initiatingParticipantRef` | the band that starts an exchange |
 | `nodes` | a lane's `flowNodeRef` | the steps that sit in the lane |
 | `item` | a message's `itemRef`; a data element's `itemSubjectRef` | the item definition saying what it carries |
@@ -387,14 +387,14 @@ A few keys are named for what they hold in a study:
 
 What Studyflow and its skills add is an extension, as it is in the XML, and its prefix marks it. A skill's element is written on the element it extends, under its prefixed type and holding its own attributes, while that element keeps its BPMN type, so a reader without the skill still sees a task (the `Survey` in [Shape and behavior](#shape-and-behavior)). An entry that holds nothing is `{}`, and several entries of one type are a list. The study is the `studyflow:Study` entry of its root process, or of its collaboration when it has pools, and the run records are the `prov:Activity` list ([What a run adds](#what-a-run-adds)). Where entries of different types interleave, so that keying them by type would reorder them, the element keeps BPMN's one list under `extensions`, each entry with its `type`; no shipped example needs it.
 
-A choreography task in a process, which BPMN defines only in a choreography, is written as the task it is: `type: Task`, `exchange: true`, its bands under the core's `pools`, and the initiating one as `initiator`. So every file the tools write is valid against the OMG's BPMN 2.0 schema.
+A choreography task in a process, which BPMN defines only in a choreography, is written as the task it is: `type: Task`, `exchange: true`, its bands under the core's `participants`, and the initiating one as `initiator`. So every file the tools write is valid against the OMG's BPMN 2.0 schema.
 
 ```yaml
     S1_FF_Flanker:
       type: Task
       name: Flanker task
       exchange: true
-      pools: $Pool_Agent
+      participants: $Pool_Agent
       cognitive:CognitiveTask:
         platform: jspsych
         implementation: jspsych://html-keyboard-response@8
@@ -549,7 +549,7 @@ The tools write every element in the form above. When reading they also take the
 | You may write | The tools write |
 |:--|:--|
 | `Flow_1: Enrolled -> Flanker`, for an edge with nothing but its two ends | its `source` and `target` |
-| BPMN's own name for any key: `sourceRef`, `extensionElements`, `flowElements`, `participants`, `dataInputAssociations`, `conditionExpression`, `loopCharacteristics`, `eventDefinitions`, `isExpanded` | the short names above |
+| BPMN's own name for any key: `sourceRef`, `extensionElements`, `flowElements`, `participantRef`, `dataInputAssociations`, `conditionExpression`, `loopCharacteristics`, `eventDefinitions`, `isExpanded` | the short names above |
 | a reference list of one id as a list | the id |
 | a prefix on a key that needs none (`studyflow:onset`) | the bare key |
 | an id under a key that holds a reference, without `$` | the id with `$` |
