@@ -83,6 +83,19 @@ except subprocess.TimeoutExpired:
 answers = [json.loads(line) for line in out.splitlines()]
 assert served.returncode == 0 and [a["id"] for a in answers] == [1, 2] and answers[0]["error"]["code"] == 2, answers
 
+# Two hand-offs of one element at once (two instances of a pool walking at once): each message reaches the hand-off its
+# `handoff` names, and each answers with its own.
+served = subprocess.Popen(
+    [sys.executable, "-c", "import runner; runner.serve(lambda plan: [], lambda step: step.receive(5)['content'])"],
+    cwd=Path(__file__).parent, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+out, _ = served.communicate('{"jsonrpc":"2.0","id":"w1","method":"execute","params":{"element":"Play"}}\n'
+                            '{"jsonrpc":"2.0","id":"w2","method":"execute","params":{"element":"Play"}}\n'
+                            '{"jsonrpc":"2.0","method":"message","params":{"element":"Play","handoff":"w2","message":{"content":"two"}}}\n'
+                            '{"jsonrpc":"2.0","method":"message","params":{"element":"Play","handoff":"w1","message":{"content":"one"}}}\n'
+                            '{"jsonrpc":"2.0","id":"w3","method":"shutdown"}\n', timeout=10)
+answered = {a["id"]: a.get("result", {}).get("result") for a in map(json.loads, out.splitlines()) if a.get("id") in ("w1", "w2")}
+assert answered == {"w1": "one", "w2": "two"}, out
+
 # JSON has no NaN or Infinity, and the walk's parser refuses a line that holds one, which would lose the hand-back: a
 # non-finite number a step hands back (the p-value of a test that could not run) travels as null.
 served = subprocess.Popen(

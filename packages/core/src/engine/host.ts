@@ -123,6 +123,10 @@ export type WalkOptions = {
   oneInstance?: boolean;
   /** Which instance of its pool that one is, 1-based (the browser's `?participant=`): a random gateway draws for it. */
   participant?: number;
+  /** How many instances of a pool of several walk at once (1, one after another, by default). A run option, not the
+   * protocol's: the instances, their draws and what each is sent are the same at any concurrency; the order they
+   * arrive at a gateway, and so a block's places, is the run's, and its record keeps it. */
+  concurrency?: number;
   /** The seeds of the random gateways that conceal their allocation (`seedDigest`), by gateway id, checked against
    * their digests beforehand (`concealedSeeds`). Such a gateway draws from its own seed instead of the run's. */
   concealed?: Record<string, string>;

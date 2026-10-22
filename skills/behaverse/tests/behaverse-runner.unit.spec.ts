@@ -70,7 +70,7 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
 
   // Without a build it says so when asked what it takes, before any other pool's runner starts its work.
   const lacking = start('--build', path.join(dir, 'none'));
-  expect((await walkOf(lacking).request('initialize', { protocol: 2, plan, run })).error.message).toMatch(/build/);
+  expect((await walkOf(lacking).request('initialize', { protocol: 3, plan, run })).error.message).toMatch(/build/);
   lacking.kill();
 
   const context = { subject: 1, state: {} };
@@ -81,7 +81,7 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   const exited = new Promise<number>((resolve) => child.on('exit', (code) => resolve(code ?? -1)));
   const walk = walkOf(child);
   // Every BehaverseTask, and only those.
-  expect((await walk.request('initialize', { protocol: 2, plan, run })).result).toMatchObject({ protocol: 2, elements: ['T'] });
+  expect((await walk.request('initialize', { protocol: 3, plan, run })).result).toMatchObject({ protocol: 3, elements: ['T'] });
   const handed = walk.request('execute', { element: 'T', values: { S: { seed: 1 } } });
 
   const base = `http://127.0.0.1:${port}`;
@@ -134,10 +134,10 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
   }));
   await until(() => sent('r0'));
   expect(sent('r0').params).toEqual({
-    element: 'T', flow: 'M_Trial', id: 'r0',
+    element: 'T', handoff: 'w2', flow: 'M_Trial', id: 'r0',
     content: { TrialIndex: 0, Stimulus: stimulus, ResponseOptions: ['Left', 'Right'], MaxResponseTime: 5, Scene: 'WO' },
   });
-  walk.notify('message', { element: 'T', message: { id: 'a-r0', flow: 'M_Answer', content: 'Right', inReplyTo: 'r0' } });
+  walk.notify('message', { element: 'T', handoff: 'w2', message: { id: 'a-r0', flow: 'M_Answer', content: 'Right', inReplyTo: 'r0' } });
   await until(() => injected.length > 0);
   expect(injected[0]).toEqual({ RequestId: 'r0', Response: 'Right', ResponseOptionIndex: 1, Agent: { Id: 'Reachy Mini' } });
   await Promise.all(relayed); // the answered trial the page reports, among them
@@ -148,7 +148,7 @@ test('claims its tasks, serves the build and the stage, relays what the page rep
     const asked = post('/respond', { RequestId: request, TrialIndex: 0, ResponseOptions: ['Left', 'Right'], MaxResponseTime: window, Scene: 'WO' });
     await until(() => sent(request));
     if (answer !== undefined) {
-      walk.notify('message', { element: 'T', message: { id: `a-${request}`, flow: 'M_Answer', content: answer, inReplyTo: request } });
+      walk.notify('message', { element: 'T', handoff: 'w2', message: { id: `a-${request}`, flow: 'M_Answer', content: answer, inReplyTo: request } });
     }
     return (await asked).json();
   };

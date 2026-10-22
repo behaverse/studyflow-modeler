@@ -40,14 +40,15 @@ export class Post {
   private readonly graph: Graph;
   private readonly host: Host;
   private readonly steps: Steps;
-  private readonly values: Values;
+  /** The values a thread reads: its pool instance's. */
+  private readonly valuesOf: (thread: Thread) => Values;
   private readonly record: (happened: Happening) => void;
 
-  constructor(graph: Graph, host: Host, steps: Steps, values: Values, record: (happened: Happening) => void = () => undefined) {
+  constructor(graph: Graph, host: Host, steps: Steps, valuesOf: (thread: Thread) => Values, record: (happened: Happening) => void = () => undefined) {
     this.graph = graph;
     this.host = host;
     this.steps = steps;
-    this.values = values;
+    this.valuesOf = valuesOf;
     this.record = record;
   }
 
@@ -105,13 +106,16 @@ export class Post {
     if (pool && !pool.attributes.processRef) {
       logAt(this.host, thread, 'message.unplayed', `    ✉ no runner plays ${pool.name || target}, so ${message.id} goes unanswered`, { level: 'warning' });
     }
-    this.mail.set(flow.id, [...(this.mail.get(flow.id) ?? []), message]);
+    const box = this.addressed(flow, thread);
+    this.mail.set(box, [...(this.mail.get(box) ?? []), message]);
     this.notify();
   }
 
-  /** One message to a pool a runner plays, recorded as a step of its own, one at a time to each pool. A pool that
-   * fails answers null, so the sender goes on and the record keeps the error. A pool whose runner leaves it
-   * unanswered (`noReply`) sends nothing back: the sender waits on. */
+  /** One message to a pool a runner plays, recorded as a step of its own, one at a time to each pool (a robot does one
+   * thing at a time); the instances of a pool of several asking it are each answered on a line of their own, in the
+   * order each asked, so instances walking at once are answered side by side. A pool that fails answers null, so the
+   * sender goes on and the record keeps the error. A pool whose runner leaves it unanswered (`noReply`) sends nothing
+   * back: the sender waits on. */
   private async serve(pool: PlanElement, flow: PlanElement, message: Message, thread: Thread, step?: string): Promise<void> {
     const { graph, host } = this;
     const name = pool.name || pool.id;
@@ -121,10 +125,12 @@ export class Post {
     const by = this.askerOf(pool, thread);
     const asker: Asker = { id: by, n: this.asked.get(by) ?? 0, ...(step ? { step } : {}) };
     this.asked.set(by, asker.n + 1);
-    const turn = (this.serving.get(pool.id) ?? Promise.resolve()).then(async () => {
+    const line = this.graph.instancesOf(thread.pool).instances > 1 ? `${pool.id}#${thread.participant}` : pool.id;
+    const turn = (this.serving.get(line) ?? Promise.resolve()).then(async () => {
       try {
         const asked = conversation && { ...conversation, turn: this.turns.get(conversation.id) ?? 0 };
-        const answered = await host.perform(pool.id, this.values.json(), { attributes: this.values.resolved(pool), message, conversation: asked, asker, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
+        const values = this.valuesOf(thread);
+        const answered = await host.perform(pool.id, values.json(), { attributes: values.resolved(pool), message, conversation: asked, asker, note: (event, text, detail) => logAt(this.host, thread, event, text, detail) });
         // An exchange that failed is no part of the conversation.
         if (asked) this.turns.set(asked.id, asked.turn + 1);
         keepRecord(entry, answered);
@@ -144,7 +150,7 @@ export class Post {
         return null;
       }
     });
-    this.serving.set(pool.id, turn);
+    this.serving.set(line, turn);
     const reply = await turn;
     this.steps.end(entry);
     this.record({ event: 'answered', id: pool.id, entry });
@@ -175,7 +181,7 @@ export class Post {
   /** Who asks `pool` from `thread`: `<pool> with <asking pool> #<instance>`, one per instance of the asking pool. */
   private askerOf(pool: PlanElement, thread: Thread): string {
     const { participant } = this.graph.instancesOf(thread.pool);
-    const instance = (this.values.state._meta?.instance as Record<string, number> | undefined)?.[participant];
+    const instance = (this.valuesOf(thread).state._meta?.instance as Record<string, number> | undefined)?.[participant];
     return `${pool.id} with ${participant}${instance ? ` #${instance}` : ''}`;
   }
 
@@ -186,7 +192,7 @@ export class Post {
       for (;;) {
         this.checkInterrupt(thread);
         for (const flow of flows) {
-          const message = this.mail.get(flow.id)?.shift();
+          const message = this.next(flow.id, thread, (messages) => messages.shift());
           if (message) {
             // What this pool sends back to the sender's pool answers this message.
             thread.heard.set(this.graph.poolOf(flow.attributes.sourceRef ?? ''), message.id);
@@ -218,14 +224,38 @@ export class Post {
     }
   }
 
-  /** An activity was left at a boundary event: the messages waiting along its own flows into it go unread. */
+  /** An activity was left at a boundary event: the messages waiting along its own flows into it go unread, its
+   * instances' own mailboxes too. */
   discard(activity: string): void {
-    for (const flow of this.graph.flowsIn.get(activity) ?? []) this.mail.delete(flow.id);
+    for (const flow of this.graph.flowsIn.get(activity) ?? []) {
+      for (const box of [...this.mail.keys()]) if (box === flow.id || box.startsWith(`${flow.id}@`)) this.mail.delete(box);
+    }
+  }
+
+  /**
+   * The mailbox a message along `flow` goes to. An answer to a pool of several instances, sent on the thread of the
+   * instance that asked, is that instance's alone (`<flow>@<instance>`), so instances walking at once never take each
+   * other's answers; any other message is the flow's, for whichever instance takes it first.
+   */
+  private addressed(flow: PlanElement, thread: Thread): string {
+    const target = this.graph.poolOf(flow.attributes.targetRef ?? '');
+    return target === thread.pool && this.graph.instancesOf(target).instances > 1 ? `${flow.id}@${thread.participant}` : flow.id;
+  }
+
+  /** The mailboxes a thread takes from along a flow: its instance's own first, then the flow's. */
+  private boxes(flow: string, thread: Thread): string[] {
+    return this.graph.instancesOf(thread.pool).instances > 1 ? [`${flow}@${thread.participant}`, flow] : [flow];
+  }
+
+  /** What `pick` takes from the first of a thread's mailboxes along a flow that holds a message. */
+  private next(flow: string, thread: Thread, pick: (messages: Message[]) => Message | undefined): Message | undefined {
+    const box = this.boxes(flow, thread).find((candidate) => this.mail.get(candidate)?.length);
+    return box === undefined ? undefined : pick(this.mail.get(box)!);
   }
 
   /** The flows whose messages were sent and never taken. */
   untaken(): string[] {
-    return [...this.mail].filter(([, messages]) => messages.length > 0).map(([flow]) => flow);
+    return [...new Set([...this.mail].filter(([, messages]) => messages.length > 0).map(([box]) => box.split('@')[0]))];
   }
 
   /** An event-based gateway's branch: the one whose event happens first. Each branch starts at a catch event or a
@@ -243,7 +273,7 @@ export class Post {
     });
     for (;;) {
       this.checkInterrupt(thread);
-      const first = branches.find(({ into }) => into.some((flow) => this.mail.get(flow.id)?.length));
+      const first = branches.find(({ into }) => into.some((flow) => this.next(flow.id, thread, (messages) => messages[0])));
       if (first) return first.flow;
       this.expectMore(gateway, branches.flatMap(({ into }) => into), thread);
       await this.waitFor(thread, `${gateway} waits for a message along ${branches.flatMap(({ into }) => into).map((flow) => flow.id).join(', ')}`);
@@ -323,8 +353,7 @@ export class Post {
       if (due.length > 0) throw new Interrupted(activity, due[0]);
       if (timersOnly) continue;
       for (const [flow, boundary] of flows) {
-        if (this.mail.get(flow)?.length) {
-          this.mail.get(flow)!.shift();
+        if (this.next(flow, thread, (messages) => messages.shift())) {
           throw new Interrupted(activity, boundary);
         }
       }
@@ -355,7 +384,7 @@ export class Post {
         delivery.catch(() => undefined); // heard in `delivered`, when the runner's own failure does not come first
         sending.push(delivery);
       },
-      take: () => into.flatMap((flow) => this.mail.get(flow)?.splice(0) ?? []),
+      take: () => into.flatMap((flow) => this.boxes(flow, thread).flatMap((box) => this.mail.get(box)?.splice(0) ?? [])),
       arrived: () => this.changed(),
       delivered: () => Promise.all(sending),
     };

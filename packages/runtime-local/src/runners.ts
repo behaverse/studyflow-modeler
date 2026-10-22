@@ -160,7 +160,8 @@ export class PartialRunner {
   private child: Process | undefined;
   private asked = 0;
   private readonly waiting = new Map<string, { resolve(result: any): void; reject(error: Error): void }>();
-  /** The hand-offs that exchange messages while they run, by element. */
+  /** The hand-offs that exchange messages while they run, by the id of their `execute` request: two instances of a
+   * pool may run one element at once. */
   private readonly talks = new Map<string, Talk>();
   private prompting: Promise<unknown> = Promise.resolve();
 
@@ -228,12 +229,15 @@ export class PartialRunner {
     this.child?.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', ...message })}\n`);
   }
 
-  private request(method: string, params: Record<string, unknown>): Promise<any> {
-    const id = `w${this.asked += 1}`;
+  private request(method: string, params: Record<string, unknown>, id = this.nextId()): Promise<any> {
     return new Promise((resolve, reject) => {
       this.waiting.set(id, { resolve, reject });
       this.write({ id, method, params });
     });
+  }
+
+  private nextId(): string {
+    return `w${this.asked += 1}`;
   }
 
   /** One line from the runner: an answer, a message along a flow, a line for the log, a question for the person. */
@@ -255,7 +259,7 @@ export class PartialRunner {
     } else if (method === 'log') {
       this.log.event('runner.stdout', `    ${String(params.text ?? '').trimEnd()}`);
     } else if (method === 'message') {
-      const talk = this.talks.get(params.element);
+      const talk = this.talks.get(String(params.handoff));
       if (talk) talk.send({ flow: params.flow, content: params.content, id: params.id, inReplyTo: params.inReplyTo });
       else this.log.event('message.misrouted', `    ✉ the ${this.name} runner sent a message for ${params.element}, which exchanges none now`, { level: 'warning' });
     } else if (method === 'prompt') {
@@ -284,14 +288,16 @@ export class PartialRunner {
   async element(id: string, values: Record<string, unknown>, { attributes, message, conversation, asker, talk, signal }: { attributes?: Record<string, unknown>; message?: Message; conversation?: Conversation; asker?: Asker; talk?: Talk; signal?: AbortSignal } = {}): Promise<Handback> {
     if (!this.child) await this.open();
     const child = this.child!;
+    // The hand-off's name in every message about it, both ways: its `execute` request's id.
+    const handoff = this.nextId();
     let over = false;
     let finish = (): void => undefined;
     const finished = new Promise<void>((resolve) => { finish = resolve; });
     if (talk) {
-      this.talks.set(id, talk);
+      this.talks.set(handoff, talk);
       void (async () => {
         while (!over) {
-          for (const due of talk.take()) this.write({ method: 'message', params: { element: id, message: due } });
+          for (const due of talk.take()) this.write({ method: 'message', params: { element: id, handoff, message: due } });
           await Promise.race([talk.arrived(), finished]);
         }
       })();
@@ -301,14 +307,14 @@ export class PartialRunner {
     const cancel = (why: string): void => {
       if (stopped) return;
       stopped = why;
-      this.write({ method: 'cancel', params: { element: id } });
+      this.write({ method: 'cancel', params: { element: id, handoff } });
       grace = setTimeout(() => end(child), CANCEL_MS);
     };
     const timer = this.timeout ? setTimeout(() => cancel(`took longer than ${this.timeout}s, and was stopped`), this.timeout * 1000) : undefined;
     const aborted = (): void => cancel('was stopped');
     signal?.addEventListener('abort', aborted);
     try {
-      return await this.request('execute', { element: id, values, attributes: attributes ?? {}, ...(message ? { message } : {}), ...(conversation ? { conversation } : {}), ...(asker ? { asker } : {}) });
+      return await this.request('execute', { element: id, values, attributes: attributes ?? {}, ...(message ? { message } : {}), ...(conversation ? { conversation } : {}), ...(asker ? { asker } : {}) }, handoff);
     } catch (error) {
       // What it had bound before it failed comes back with the failure.
       const partial = error instanceof Refused && error.data && typeof error.data === 'object' ? error.data as Handback : undefined;
@@ -319,7 +325,7 @@ export class PartialRunner {
       signal?.removeEventListener('abort', aborted);
       over = true;
       finish();
-      this.talks.delete(id);
+      this.talks.delete(handoff);
     }
   }
 
