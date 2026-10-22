@@ -13,6 +13,7 @@ import { attachAutosave } from '@modeler/diagram/autosave';
 import { restoreLink } from '@modeler/diagram/fileHandle';
 import { notify } from '@modeler/app/noticeStore';
 import { openDiagramFile } from '@modeler/open/openFile';
+import { servedFile, servedFileHandle } from '@modeler/diagram/servedFile';
 import { surface, text } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
 import type { Editor } from '@modeler/editor/port';
@@ -27,15 +28,20 @@ const s = {
   canvas: `grow ${surface.canvas}`,
 } as const;
 
-/** `?open=<url>` (what `studyflow edit <file>` passes) fetches that diagram onto the canvas, over any restored draft. */
+const openParam = (): string | null => new URLSearchParams(window.location.search).get('open');
+
+/** `?open=<url>` (what `studyflow edit <file>` passes) fetches that diagram onto the canvas, over any restored draft.
+ * A file the server writes back is linked, so Save goes into it, in its own format. */
 async function openFromUrl(editor: Editor): Promise<void> {
-  const url = new URLSearchParams(window.location.search).get('open');
+  const url = openParam();
   if (!url) return;
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     const name = decodeURIComponent(new URL(url, window.location.href).pathname.split('/').pop() ?? '');
-    await openDiagramFile(editor, new File([await response.blob()], name));
+    const served = await servedFile(response.clone(), name);
+    if (served) await openDiagramFile(editor, served, servedFileHandle(url, name));
+    else await openDiagramFile(editor, new File([await response.blob()], name));
   } catch (err) {
     notify('error', `Could not open ${url}: ${err instanceof Error ? err.message : String(err)}`);
   }
@@ -90,7 +96,8 @@ export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
         // with it. Without the restored diagram this is a fresh blank canvas, and a link would
         // point saving at a file this diagram never came from. Permission has reset to `prompt`
         // unless the app is installed, so a restored link usually waits for a click to write.
-        if (initialXml) {
+        // `?open=` replaces the canvas and links its own file, so nothing earlier is picked back up.
+        if (initialXml && !openParam()) {
           restoreLink().catch((err) => console.warn('Could not restore the linked file.', err));
         }
         // One facade per editor (so its revision counter spans the editor's whole

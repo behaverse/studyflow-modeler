@@ -120,12 +120,30 @@ export function markOpened(): void {
   writtenSeq = editSeq;
 }
 
+/**
+ * The file the canvas came from when the browser handed over no handle to write it with (Firefox's and Safari's file
+ * input, a drop without one): its name and format, so a save still writes that file's name in that file's format,
+ * as a download or the picker's suggestion. A link supersedes it, and the next open or New forgets it.
+ */
+export type OpenedFile = { name: string; format: ExportFormat };
+
+let opened: OpenedFile | undefined;
+
+export const getOpenedFile = (): OpenedFile | undefined => opened;
+
+/** Remembers the file an open just read without a handle; an extension with no encoder is not remembered. */
+export function rememberOpenedFile(name: string): void {
+  const format = importableFormatFor(name);
+  opened = format && { name, format };
+}
+
 export function linkFile(
   handle: FileSystemFileHandle,
   format: ExportFormat,
   { seenModified = 0, state = 'dirty', message }: { seenModified?: number; state?: LinkState; message?: string } = {},
 ): LinkedFile {
   const file: LinkedFile = { handle, name: handle.name, format, seenModified };
+  opened = undefined;
   // Clean is a claim about the canvas, so it only holds while nothing is waiting to be written.
   setSnapshot({ file, state: state === 'clean' ? settledState() : state, message });
   void rememberLink();
@@ -133,6 +151,7 @@ export function linkFile(
 }
 
 export function unlinkFile(): void {
+  opened = undefined;
   setSnapshot(NO_LINK);
   void forgetLink();
 }
@@ -325,8 +344,10 @@ async function rememberLink(): Promise<void> {
     formatId: file.format.id,
     seenModified: file.seenModified,
   };
-  // A handle is structured-cloneable, which is the only reason this survives a reload at all.
-  await runTransaction('readwrite', (store) => store.put(stored, LINK_KEY));
+  // A handle is structured-cloneable, which is the only reason this survives a reload at all. One that is not (the
+  // file `studyflow edit` serves) is not remembered, nor is an earlier link left to stand in for it.
+  const remembered = await runTransaction('readwrite', (store) => store.put(stored, LINK_KEY));
+  if (remembered === undefined) await forgetLink();
 }
 
 async function forgetLink(): Promise<void> {

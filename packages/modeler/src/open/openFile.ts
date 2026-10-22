@@ -5,7 +5,13 @@
 import { useCallback, useRef, type ChangeEvent } from 'react';
 import { notify } from '@modeler/app/noticeStore';
 import { executeCommand } from '@modeler/commandBus';
-import { DIAGRAM_OPEN_ACCEPT, linkOpenedFile, pickFileToOpen, supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
+import {
+  DIAGRAM_OPEN_ACCEPT,
+  linkOpenedFile,
+  pickFileToOpen,
+  rememberOpenedFile,
+  supportsFileSystemAccess,
+} from '@modeler/diagram/fileHandle';
 import { IMPORTABLE_FORMATS, OPENABLE_EXTENSIONS, OPENERS } from '@modeler/diagram/formats';
 import type { Editor } from '@modeler/editor/port';
 
@@ -25,7 +31,8 @@ const isBinaryDiagram = (filename: string): boolean => filename.toLowerCase().en
 
 /**
  * Reads one file onto the canvas. A `handle` — which a pick or a drop can carry, but the
- * `<input>` never does — links the file, so later saves write back into it.
+ * `<input>` never does — links the file, so later saves write back into it. Without one, a save
+ * still writes the file's name in its format.
  */
 export async function openDiagramFile(
   modeler: Editor,
@@ -40,6 +47,7 @@ export async function openDiagramFile(
     const content = isBinaryDiagram(file.name) ? await file.arrayBuffer() : await file.text();
     await executeCommand(modeler, { type: 'OpenDiagram', filename: file.name, content });
     if (handle) linkOpenedFile(handle, file);
+    else rememberOpenedFile(file.name);
     return true;
   } catch (err: any) {
     notify('error', err?.message || OPEN_FAILURE_MESSAGE);

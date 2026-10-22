@@ -5,9 +5,9 @@ import { useModeler } from '@modeler/app/useModeler';
 import { useDiagramName } from '@modeler/navBar/useDiagramName';
 import { executeCommand } from '@modeler/commandBus';
 import { supportsFileSystemAccess } from '@modeler/diagram/fileHandle';
+import { defaultSaveFormat, saveFilename } from '@modeler/diagram/save';
 import {
   EXPORT_FORMAT_GROUPS,
-  exportFilename,
   getExportFormat,
   type ExportFormatId,
 } from '@modeler/diagram/formats';
@@ -35,7 +35,7 @@ export function SaveDialog({ isOpen, onClose }: Props) {
   // No picker means no choosing where the file lands, so a download is the only local destination.
   const canSaveToFile = supportsFileSystemAccess();
   const [destination, setDestination] = useState('local');
-  const [formatId, setFormatId] = useState<ExportFormatId>('studyflow');
+  const [formatId, setFormatId] = useState<ExportFormatId>(() => defaultSaveFormat().id);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +47,7 @@ export function SaveDialog({ isOpen, onClose }: Props) {
     : 'This browser can only put files in the downloads folder';
 
   const format = getExportFormat(formatId);
-  const filename = exportFilename(diagramName, format);
+  const filename = saveFilename(diagramName, format);
   // A skill's destination asks what it needs and sends the study itself.
   const Panel = SKILL_SAVE_DESTINATIONS.find((option) => option.id === destination)?.Panel;
 

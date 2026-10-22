@@ -62,9 +62,9 @@ async function withoutFileSystemAccess(page: Page): Promise<void> {
 }
 
 /** `pickers: true` keeps the File System Access pickers, for tests that stub them themselves. */
-export async function gotoModeler(page: Page, { pickers = false } = {}): Promise<void> {
+export async function gotoModeler(page: Page, { pickers = false, url = '/app' } = {}): Promise<void> {
   if (!pickers) await withoutFileSystemAccess(page);
-  await page.goto('/app');
+  await page.goto(url);
   await expect(page.getByTestId('modeler-app')).toBeAttached();
   await expect(page.getByTestId('modeler-ready')).toBeAttached({ timeout: 30_000 });
   await expect(page.getByTestId('modeler-canvas')).toBeVisible();

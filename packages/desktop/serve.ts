@@ -1,5 +1,5 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
-import { createServer, type Server } from 'node:http';
+import { createReadStream, existsSync, statSync, writeFileSync } from 'node:fs';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import path from 'node:path';
 
 /* The static server behind `studyflow edit`. Apart for the tests: `edit.ts` reads `import.meta`, which they cannot load. */
@@ -59,8 +59,38 @@ export function resolveFile(root: string, urlPath: string): { file: string } | {
 /** What a served path holds besides `root`'s files: a file anywhere on disk, read afresh per request, or text. */
 export type Served = string | { text: string; type: string };
 
+/** The served file's mtime in ms, on every read and write of it: the modeler links the file it opened when it sees
+ * this, saves back with a PUT, and compares it to tell a change made elsewhere. */
+export const MODIFIED_HEADER = 'x-studyflow-modified';
+
+/** A write comes from this server's own page: its Host is the address it listens on, and its Origin (which a browser
+ * always sends with a PUT) is that same host. A page elsewhere, or one on a rebound DNS name, cannot write. */
+function fromOwnPage(request: IncomingMessage, server: Server): boolean {
+  const address = server.address();
+  if (typeof address !== 'object' || !address) return false;
+  const host = address.family === 'IPv6' ? `[${address.address}]` : address.address;
+  const own = [`${host}:${address.port}`, `localhost:${address.port}`];
+  const origin = request.headers.origin;
+  return own.includes(request.headers.host ?? '') && (origin === undefined || origin === `http://${request.headers.host}`);
+}
+
+/** Overwrite the served file with the request's body, in place, so it keeps its name, its format and its inode. */
+function writeServed(file: string, request: IncomingMessage, response: ServerResponse): void {
+  const chunks: Buffer[] = [];
+  request.on('data', (chunk: Buffer) => chunks.push(chunk));
+  request.on('end', () => {
+    try {
+      writeFileSync(file, Buffer.concat(chunks));
+      response.writeHead(204, { [MODIFIED_HEADER]: String(statSync(file).mtimeMs) }).end();
+    } catch (err) {
+      response.writeHead(500, { 'content-type': 'text/plain' }).end(err instanceof Error ? err.message : String(err));
+    }
+  });
+}
+
 /** A static server over `root`, listening on `host:port` (port 0 picks a free one). `files` maps extra URL paths
- * to files anywhere on disk (the study `studyflow edit <file>` opens), or to text (the skills installed beside it). */
+ * to files anywhere on disk (the study `studyflow edit <file>` opens, which a PUT from the page writes back), or to text
+ * (the skills installed beside it). */
 export function serveUi(root: string, host = '127.0.0.1', port = 0, files: Record<string, Served> = {}): Promise<Server> {
   root = path.resolve(root);
   const server = createServer((request, response) => {
@@ -68,6 +98,11 @@ export function serveUi(root: string, host = '127.0.0.1', port = 0, files: Recor
     const extra = files[urlPath];
     if (extra !== undefined && typeof extra !== 'string') {
       response.writeHead(200, { 'content-type': extra.type }).end(extra.text);
+      return;
+    }
+    if (request.method === 'PUT') {
+      if (typeof extra === 'string' && fromOwnPage(request, server)) writeServed(extra, request, response);
+      else response.writeHead(403, { 'content-type': 'text/plain' }).end('Not writable');
       return;
     }
     const hit = extra !== undefined ? { file: extra } : resolveFile(root, urlPath);
@@ -80,6 +115,12 @@ export function serveUi(root: string, host = '127.0.0.1', port = 0, files: Recor
       return;
     }
     response.setHeader('content-type', MIME[path.extname(hit.file)] ?? 'application/octet-stream');
+    if (extra !== undefined) {
+      try {
+        response.setHeader(MODIFIED_HEADER, String(statSync(hit.file).mtimeMs));
+        response.setHeader('cache-control', 'no-store');
+      } catch { /* gone: the read below answers 404 */ }
+    }
     createReadStream(hit.file)
       .on('error', () => {
         // Gone since it was found (the study renamed in Finder, dist/ rebuilt under the app): not found, rather than

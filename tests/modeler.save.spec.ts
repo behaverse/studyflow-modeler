@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './e2e';
 
-import { embedStudyflowIntoPng } from '@core/document/png';
+import { embedStudyflowIntoPng, extractStudyflowFromPng } from '@core/document/png';
 
 import { browseForDiagram, diagramTitle, exampleText, gotoModeler, runPaletteCommand } from './utils';
 
@@ -191,7 +191,25 @@ test.describe('Saving back into the opened file', () => {
     await expect.poll(async () => (await disk(page)).writes).toBe(1);
   });
 
-  test('without a picker the modeler falls back to the file input and downloads', async ({ page }) => {
+  test('the file `studyflow edit` opens is saved back into, as the format it is, with no picker', async ({ page }) => {
+    // The desktop app's server (packages/desktop/serve.ts): the file with its mtime, and a PUT that writes it.
+    const writes: Buffer[] = [];
+    await page.route('**/open/served.studyflow.png', async (route) => {
+      if (route.request().method() === 'PUT') writes.push(route.request().postDataBuffer()!);
+      await route.fulfill(route.request().method() === 'PUT'
+        ? { status: 204, headers: { 'x-studyflow-modified': '2000' } }
+        : { body: Buffer.from(DIAGRAM_PNG_B64, 'base64'), contentType: 'image/png', headers: { 'x-studyflow-modified': '1000' } });
+    });
+    await gotoModeler(page, { url: `/app?open=${encodeURIComponent('/open/served.studyflow.png')}` });
+    await expect(page.getByTestId('file-status')).toContainText('served.studyflow.png');
+
+    await renameDiagram(page, 'edited');
+    await page.keyboard.press('ControlOrMeta+s');
+    await expect.poll(() => writes.length).toBe(1);
+    expect(extractStudyflowFromPng(writes[0])).toContain('edited');
+  });
+
+  test('without a picker the modeler falls back to the file input and downloads, as the file it opened', async ({ page }) => {
     await gotoModeler(page);
 
     await runPaletteCommand(page, /^Save As/);
@@ -208,7 +226,11 @@ test.describe('Saving back into the opened file', () => {
     });
 
     await expect(diagramTitle(page)).toHaveText('fallback');
-    // An `<input type=file>` yields bytes, never a handle, so there is nothing to save back into.
+    // An `<input type=file>` yields bytes, never a handle, so there is nothing to save back into,
+    // but a save still lands as that file: its name, its format.
     await expect(page.getByTestId('file-status')).toHaveCount(0);
+    const download = page.waitForEvent('download');
+    await page.keyboard.press('ControlOrMeta+s');
+    expect((await download).suggestedFilename()).toBe('fallback.bpmn');
   });
 });

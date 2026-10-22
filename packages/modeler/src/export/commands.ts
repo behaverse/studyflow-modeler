@@ -10,6 +10,8 @@ import type { Editor } from '@modeler/editor/port';
 export type ExportDiagramCommand = {
   type: 'ExportDiagram';
   format?: ExportFormatId;
+  /** The download's name. Defaults to the diagram's name with the format's extension. */
+  filename?: string;
 };
 
 // The study's XML writes each data association in the standard `ioSpecification` form, so other BPMN tooling sees ordinary BPMN.
@@ -89,7 +91,7 @@ export async function runExportDiagram(modeler: Editor, command: ExportDiagramCo
 
   stampProvenance(modeler, format);
 
-  const filename = exportFilename(exportDiagramName(modeler), format);
+  const filename = command.filename ?? exportFilename(exportDiagramName(modeler), format);
   const payload = await encodeDiagram(modeler, format);
   saveBlob(new Blob([payload], { type: format.mimeType }), filename);
 }

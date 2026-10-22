@@ -10,6 +10,7 @@ import {
   changedOnDisk,
   ensureWritePermission,
   getLink,
+  getOpenedFile,
   linkFile,
   markBlocked,
   markConflict,
@@ -39,7 +40,7 @@ export type SaveDiagramCommand = {
   type: 'SaveDiagram';
   /** Always opens the picker, then links whatever the user chose. The Export dialog's other half. */
   saveAs?: boolean;
-  /** What to write. Defaults to the linked file's own format, and to studyflow when nothing is linked. */
+  /** What to write. Defaults to the linked file's own format, then the opened file's, then studyflow. */
   format?: ExportFormatId;
   /** The auto-save write-through: never prompts, never opens a picker, gives up quietly. */
   auto?: boolean;
@@ -67,23 +68,33 @@ export async function runSaveDiagram(modeler: Editor, command: SaveDiagramComman
   if (command.saveAs || !file) {
     // Auto-save never opens a picker: a dialog nobody asked for is worse than not saving.
     if (command.auto) return 'skipped';
-    const format = command.format
-      ? getExportFormat(command.format)
-      : file?.format ?? getExportFormat('studyflow');
-    return saveToNewFile(modeler, format);
+    return saveToNewFile(modeler, command.format ? getExportFormat(command.format) : defaultSaveFormat());
   }
 
   return saveInPlace(modeler, file, command.auto === true);
 }
 
+/** The format a save writes when none is asked for: the linked file's, then the opened file's, then studyflow. */
+export function defaultSaveFormat(): ExportFormat {
+  return getLink().file?.format ?? getOpenedFile()?.format ?? getExportFormat('studyflow');
+}
+
+/** The name a new file in `format` takes: the opened file's own when it is that format, so it lands as that same file. */
+export function saveFilename(diagramName: string, format: ExportFormat): string {
+  const opened = getOpenedFile();
+  return opened?.format.id === format.id ? opened.name : exportFilename(diagramName, format);
+}
+
 async function saveToNewFile(modeler: Editor, format: ExportFormat): Promise<SaveOutcome> {
+  const filename = saveFilename(exportDiagramName(modeler), format);
+
   // No picker in this browser: the downloads folder is the only place a page may put a file.
   if (!supportsFileSystemAccess()) {
-    await runExportDiagram(modeler, { type: 'ExportDiagram', format: format.id });
+    await runExportDiagram(modeler, { type: 'ExportDiagram', format: format.id, filename });
     return 'downloaded';
   }
 
-  const handle = await pickSaveTarget(exportFilename(exportDiagramName(modeler), format), format);
+  const handle = await pickSaveTarget(filename, format);
   if (!handle) return 'skipped';
 
   // A derived document is written once and let go; only a format we can read back is worth linking.
@@ -153,11 +164,16 @@ async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean): Pr
 
 /**
  * The one save gesture behind the title-bar chip, ⌘S, and the palette's Save: write straight back
- * into the linked file. Reports `false` when nothing is linked, so callers open the dialog instead.
+ * into the linked file, or, opened without a handle, as that file again. Reports `false` when the
+ * canvas came from no file, so callers open the dialog instead.
  */
 export async function saveLinkedFile(modeler: Editor): Promise<boolean> {
   const { file, state } = getLink();
-  if (!file) return false;
+  if (!file) {
+    if (!getOpenedFile()) return false;
+    await runSaveDiagram(modeler, { type: 'SaveDiagram' });
+    return true;
+  }
   // Permission has to be re-granted from inside the gesture; `SaveDiagram` alone cannot ask.
   if (state === 'blocked' && !(await reconnectLink())) return true;
   await runSaveDiagram(modeler, { type: 'SaveDiagram' });

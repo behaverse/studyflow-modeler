@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { mkdtempSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { resolveFile, serveUi } from '../serve';
+import { MODIFIED_HEADER, resolveFile, serveUi } from '../serve';
 
 /** `studyflow edit` (and `ui`) serves dist/ the way a static host does: `/app` is app.html, `/run/` is run/index.html,
  * `/run` redirects to it (its relative assets need the slash), and nothing outside the root is reachable. */
@@ -73,6 +74,43 @@ test('serves over http, and serves the file `studyflow edit <file>` opens, readi
     const installed = await fetch(`${origin}/installed-skills.json`);
     expect(installed.headers.get('content-type')).toBe('application/json');
     expect(await installed.json()).toEqual([{ skill: 'lab' }]);
+  } finally {
+    server.close();
+  }
+});
+
+/** A PUT as a page on a DNS name rebound to this machine sends it: its own Host and Origin. `fetch` sets no Host. */
+const rebound = (origin: string, path: string): Promise<number | undefined> => new Promise((resolve, reject) => {
+  const headers = { host: 'evil.com', origin: 'http://evil.com' };
+  request(`${origin}${path}`, { method: 'PUT', headers }, (response) => resolve(response.resume().statusCode))
+    .on('error', reject)
+    .end('id: two');
+});
+
+test('takes a write of the file it opens from its own page, and from nowhere else', async () => {
+  const study = join(root, 'saved.studyflow.yaml');
+  writeFileSync(study, 'id: one');
+  const server = await serveUi(root, '127.0.0.1', 0, { '/open/saved.studyflow.yaml': study });
+  const address = server.address();
+  const origin = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
+  const put = (path: string, headers: Record<string, string> = {}) =>
+    fetch(`${origin}${path}`, { method: 'PUT', body: 'id: two', headers: { origin, ...headers } });
+  try {
+    const read = await fetch(`${origin}/open/saved.studyflow.yaml`);
+    expect(Number(read.headers.get(MODIFIED_HEADER))).toBeGreaterThan(0);
+
+    const written = await put('/open/saved.studyflow.yaml');
+    expect(written.status).toBe(204);
+    expect(readFileSync(study, 'utf8')).toBe('id: two');
+    expect(written.headers.get(MODIFIED_HEADER)).toBeTruthy();
+
+    writeFileSync(study, 'id: one');
+    // Another site's page, a rebound DNS name, and anything but the opened file are refused.
+    expect((await put('/open/saved.studyflow.yaml', { origin: 'http://evil.com' })).status).toBe(403);
+    expect(await rebound(origin, '/open/saved.studyflow.yaml')).toBe(403);
+    expect((await put('/app.html')).status).toBe(403);
+    expect(readFileSync(study, 'utf8')).toBe('id: one');
+    expect(readFileSync(join(root, 'app.html'), 'utf8')).toBe('<title>modeler</title>');
   } finally {
     server.close();
   }
