@@ -6,9 +6,9 @@
  * the unit tests, the CLI and the desktop app, every platform's binary, the tarballs with their checksums, and
  * Formula/studyflow.rb from that same build (so the checksums match). Only once all of that is done does it commit the
  * version (amended into HEAD while origin has not seen HEAD, else as `release YY.M.N` on top, so main is never
- * rewritten), tag `vYY.M.N`, push, and create the GitHub release with the tarballs. A failure anywhere before the commit
- * puts the tree back as it was. Needs a clean tree on main, not behind origin, `bun` (a dev dependency of the CLI), and
- * `gh` logged in.
+ * rewritten), tag `vYY.M.N`, push, and create the GitHub release with the tarballs and, as its notes, the subjects of
+ * the commits since the last release. A failure anywhere before the commit puts the tree back as it was. Needs a clean
+ * tree on main, not behind origin, `bun` (a dev dependency of the CLI), and `gh` logged in.
  *
  * `--local`: keep the version, build the host platform only, and write a formula with file:// urls for a local
  * `brew install`; nothing touches git or GitHub.
@@ -205,5 +205,13 @@ const unpushed = out('git', ['rev-list', '--count', 'origin/main..HEAD']) !== '0
 sh('git', unpushed ? ['commit', '--amend', '--no-edit'] : ['commit', '-m', `release ${version}`]);
 sh('git', ['tag', tag]);
 sh('git', ['push', 'origin', 'main', tag]);
-sh('gh', ['release', 'create', tag, '--title', tag, '--generate-notes', '--verify-tag', ...assetFiles]);
+// The notes: a line per commit since the last release, leaving out the `release YY.M.N` ones that say only the version.
+// GitHub drops a `<name>` outside backticks as an HTML tag, so those `<` are escaped; the blank line after the list
+// keeps the compare link --generate-notes appends out of its last item.
+const previous = out('git', ['describe', '--tags', '--abbrev=0', `${tag}^`]);
+const shown = (subject) => subject.split('`').map((part, i) => (i % 2 ? part : part.replaceAll('<', '&lt;'))).join('`');
+const notes = out('git', ['log', '--format=%s', `${previous}..${tag}`]).split('\n')
+  .filter((subject) => subject && !/^release \d+\.\d+\.\d+$/.test(subject))
+  .map((subject) => `- ${shown(subject)}\n`).join('');
+sh('gh', ['release', 'create', tag, '--title', tag, '--notes', notes, '--generate-notes', '--verify-tag', ...assetFiles]);
 console.log(`\n${tag} is out. Users: brew upgrade studyflow (or the install lines in the README).`);
