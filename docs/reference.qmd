@@ -8,7 +8,7 @@ description: "Every element you can put in a studyflow, the attributes each one 
 | Set | Declares | Loaded |
 |:--|:--|:--|
 | `studyflow` | the study itself, its data elements, scheduling and classification attributes | always |
-| `prov` | `Activity`, one record of what ran; the document-level list lives in `state._meta.prov` | always |
+| `prov` | `Activity`, one record of what a run or the modeler did to an element, kept on that element; the run's own records sit on the study's root | always |
 | `cognitive` | what a participant meets, and the research gateways | always |
 | `agentic` | models as actors, and prompts | on request |
 | `eeg` | biosignal sessions and recordings | on request |
@@ -24,11 +24,11 @@ A studyflow is a graph. The nodes are events, tasks, gateways, and data, and the
 
 | Edge | Joins | Meaning |
 |:--|:--|:--|
-| `bpmn:SequenceFlow` | activity <-> activity | order; optionally a `conditionExpression` deciding whether this branch is taken |
+| `bpmn:SequenceFlow` | activity <-> activity | order; optionally a `condition` (BPMN's `conditionExpression`) deciding whether this branch is taken |
 | `bpmn:DataInputAssociation`, `bpmn:DataOutputAssociation` | data <-> step | one value in or out of the activity |
-| `bpmn:MessageFlow` | step <-> step, or a pool | an exchange of messages between two parties; `messageRef` names the `Message` it carries, whose `itemRef` names the `ItemDefinition` saying what that message is (`structureRef`) |
+| `bpmn:MessageFlow` | step <-> step, or a pool | an exchange of messages between two parties; `message` names the `Message` it carries, whose `item` names the `ItemDefinition` saying what that message is (`structure`) |
 
-A data edge can also describe a binding, written as `slot = selection`. The slot names which argument of the step's call the value fills, and the selection names which value arrives. Two slot names are positional: `self` binds a method's receiver, and `*` appends the value positionally.
+An input edge can also say which argument of the step's call the value fills, its `parameter`, and narrow the value it carries with a `transformation`. Two parameters are positional: `self` binds a method's receiver, and `*` appends the value positionally. BPMN XML holds both halves in the edge's one `transformation`, as `parameter = selection`.
 
 The canvas, and the pictures it exports, also draw two lines that the file does not hold. A data edge between a data element and a step inside a sub-process drawn closed is drawn to that sub-process instead. It is drawn once for each data element and direction, however many steps inside read or write the element, and not at all when the sub-process has a data edge of its own with that element; once the sub-process is opened, the steps' own data edges are drawn. An element whose `schema` names a schema drawn on the same plane, such as a dataset or a table, is joined to that schema by a dotted line with no arrow. Both lines run straight between their ends and carry no label. Neither is an element, so nothing selects, moves, saves or checks them.
 
@@ -40,9 +40,8 @@ Every element is a standard BPMN element, which gives it a shape and a flow beha
 Survey:
   type: Task                            # the standard element: shape, and flow behaviour
   name: Post-battery survey
-  extensionElements:
-    - type: cognitive:Questionnaire     # the research type: meaning, and its own attributes
-      instrument: phq-9
+  cognitive:Questionnaire:              # the research type: meaning, and its own attributes
+    instrument: phq-9
 
 Done:
   type: EndEvent
@@ -53,7 +52,7 @@ Done:
 
 You declare a value as a `bpmn:Property` on a container element, and where you declare it decides how long it lives: on the study, it lasts for the whole diagram; on a sub-process, for one pass through that sub-process. A `Parameters` object wired into a sub-process declares its keys the same way, as properties of that sub-process, except that they are read-only: nothing inside the sub-process writes them, and a name it also declares itself is an error. Activities set these values, and gateways and other activities read them. A step sets one through a data edge that targets it, narrowed by FEEL over its `result` and the properties in scope (the edge's `transformation`, `result.arm`), whichever runner ran the step; conditions and placeholders read it by name in every scope inside the one that declares it, so a value a study reuses (a threshold, the blocks it scores, the arm a participant drew) is written once, as a property, and never copied into the steps that read it. The run state is the set of values at one moment in a run, and the run history is the sequence of those states across the run.
 
-A property may carry an initial `value`; after that only a data edge targeting it changes it. One declared on a sub-process or a pool of several instances takes its initial value again at each pass or instance, and one with none starts each pass unset, so nothing a pass before wrote reaches the next. After a run the file holds the values under `state`, keyed by element id. The runner keeps its own entries under `state._meta`: `_meta.prov`, the run records, `_meta.reached.<element_id>`, how many times a token reached each element or followed each sequence flow, never reset, and `_meta.instance.<element_id>`, which pass a repeating activity is on while it runs, 1-based, so a step inside a cohort of four subjects knows which subject it is serving (`{state._meta.instance.Subject}`). Names starting with `_` cannot be declared. Conditions test these values directly, as `state._meta.reached.Gate < 4`; text cites them with placeholders.
+A property may carry an initial `value`; after that only a data edge targeting it changes it. One declared on a sub-process or a pool of several instances takes its initial value again at each pass or instance, and one with none starts each pass unset, so nothing a pass before wrote reaches the next. The diagram holds the definitions, and a run never changes one: a property's `value` stays the initial value written. What a run leaves comes in two parts. Its provenance, what ran, when, and from what, is a record on each element it is about ([What a run adds](#what-a-run-adds)). Its state, the values at one moment, is one tree under `state`, keyed by element id: each property's value under the id of the scope that declares it, and the runner's own entries under `state._meta`: `_meta.reached.<element_id>`, how many times a token reached each element or followed each sequence flow, never reset, and `_meta.instance.<element_id>`, which pass a repeating activity is on while it runs, 1-based, so a step inside a cohort of four subjects knows which subject it is serving (`{state._meta.instance.Subject}`). The file keeps the tree as the run left it, and the run's own record, `events.jsonl`, keeps every state the run passed through, from which placeholders are filled as the run goes; should that record move into the file one day, the tree stays as it is. Names starting with `_` cannot be declared. Conditions test these values directly, as `state._meta.reached.Gate < 4`; text cites them with placeholders.
 
 ## Placeholders
 
@@ -76,9 +75,9 @@ Every expression a study writes is FEEL, the Friendly Enough Expression Language
 
 ## Well-formed diagrams
 
-A studyflow has to satisfy the usual rules of a BPMN diagram before anything can run it: every `sourceRef` and `targetRef` names an element that exists in the file, every path leaves a start event and reaches an end event, an exclusive gateway covers every case in its conditions, marks one outgoing edge `default`, or leaves exactly one outgoing edge without a condition, and every value a condition or a step reads is declared on the study or on a sub-process containing it.
+A studyflow has to satisfy the usual rules of a BPMN diagram before anything can run it: every `source` and `target` names an element that exists in the file, every path leaves a start event and reaches an end event, an exclusive gateway covers every case in its conditions, marks one outgoing edge `default`, or leaves exactly one outgoing edge without a condition, and every value a condition or a step reads is declared on the study or on a sub-process containing it.
 
-`studyflow validate` reports what can be checked without running. For any file: whether it parses, whether the sets it depends on loaded, and any name that no loaded set declares; that every id names one element, even across scopes; that every sequence flow joins two flow nodes of the process or sub-process holding it, every data association joins a data element to its step, and a step reads or writes a property only inside the scope that declares it; that every process and sub-process with sequence flows has a start and an end event, and every flow node lies on a path from one to the other; that no complex gateway splits, whose activation rule the walk does not read, no parallel gateway carries conditions on its flows, which it never reads, and no event is a signal, escalation, compensation, link or cancel event, which it does not read either; that a standard loop has a `loopCondition`, a `loopMaximum` or a boundary event to end it; that no two steps on paths that run at once write one property or data element (a warning: the one that finishes last sets it); that every expression is the FEEL both runtimes run; that an exclusive gateway's conditions on one number neither overlap (a warning: the file's order would choose) nor leave a value no flow takes when there is no default flow; that an attribute holds a value of the type its schema gives it: one of an enumeration's values (unless the attribute also takes free text), a whole number, a number, or true or false; that a start event's `consentFormUri` is an address or a path from the site's root, which a page can fetch, and that an end event has a code to hand: a `completionCode` when its `completionCodeType` is `static`, and a type other than `none` when its `redirectTo` carries `{COMPLETION_CODE}`; that every `implementation` names a scheme some loaded skill runs (a warning); that no label writes as a number a value the file declares and its element's conditions read, or, for a gateway, the conditions on the flows out of it (a warning naming the placeholder to write: `> {max_unanswered:%} unanswered` for `> 20% unanswered`); that each material the study registers by its content (a `digest`, a `consentFormDigest`) still holds that content ([Data](#data)); and that every column an operation reading a schema-bound dataset names under `index`, `columns`, `values`, `subset`, `by`, `key`, `column`, `on` or `usecols`, as a test's variables under `dv`, `within`, `between` or `subject`, or in backticks in a `query` or `eval` expression (`expr`), is a column of that schema, but for one an `eval` assigns, which the step derives; and that the study, written as BPMN XML, is valid against the OMG's BPMN 2.0 schema (checked with libxml2's `xmllint`, a warning when the machine has none). It then explores every way the study can go, each decision a gateway, a loop or a boundary event makes taken as a free choice, walked dry, and warns about a pool left waiting for a message none will send (the pools waiting for each other, or the sender ended), a parallel join one of whose tokens can never come, and a message sent that nothing takes, naming the choices that lead there; the OK line says how many ways it explored. This is soundness in the sense of workflow nets, for the study's control flow: a condition that never holds is still the data's to show. For an executed copy it also checks the record: that the counts balance, every node reached as often as its flows brought tokens in, and as often as its flows and boundary events took them out; and that the protocol still matches the digest its last run recorded as `plan` (the study without its state, its provenance, its drawing, and its checklist ticks). When its run's record, `events.jsonl`, sits beside it (an executed copy in its run repository), the state the file keeps is also checked against the state the record says, the timeline aside, so a count or a property changed after the run is found. `studyflow run` applies the checks that need no run before it starts, registered materials included, and refuses a study that fails one. The command reports warnings but does not fail on them unless you pass `--strict`. The rest shows up when the study runs: a condition that can never hold, a data edge that arrives too late.
+`studyflow validate` reports what can be checked without running. For any file: whether it parses, whether the sets it depends on loaded, and any name that no loaded set declares; that every id names one element, even across scopes; that every sequence flow joins two flow nodes of the process or sub-process holding it, every data association joins a data element to its step, and a step reads or writes a property only inside the scope that declares it; that every process and sub-process with sequence flows has a start and an end event, and every flow node lies on a path from one to the other; that no complex gateway splits, whose activation rule the walk does not read, no parallel gateway carries conditions on its flows, which it never reads, and no event is a signal, escalation, compensation, link or cancel event, which it does not read either; that a `loop` has a `while`, a `maximum` or a boundary event to end it; that no two steps on paths that run at once write one property or data element (a warning: the one that finishes last sets it); that every expression is the FEEL both runtimes run; that an exclusive gateway's conditions on one number neither overlap (a warning: the file's order would choose) nor leave a value no flow takes when there is no default flow; that an attribute holds a value of the type its schema gives it: one of an enumeration's values (unless the attribute also takes free text), a whole number, a number, or true or false; that a start event's `consentFormUri` is an address or a path from the site's root, which a page can fetch, and that an end event has a code to hand: a `completionCode` when its `completionCodeType` is `static`, and a type other than `none` when its `redirectTo` carries `{COMPLETION_CODE}`; that every `implementation` names a scheme some loaded skill runs (a warning); that no label writes as a number a value the file declares and its element's conditions read, or, for a gateway, the conditions on the flows out of it (a warning naming the placeholder to write: `> {max_unanswered:%} unanswered` for `> 20% unanswered`); that each material the study registers by its content (a `digest`, a `consentFormDigest`) still holds that content ([Data](#data)); and that every column an operation reading a schema-bound dataset names under `index`, `columns`, `values`, `subset`, `by`, `key`, `column`, `on` or `usecols`, as a test's variables under `dv`, `within`, `between` or `subject`, or in backticks in a `query` or `eval` expression (`expr`), is a column of that schema, but for one an `eval` assigns, which the step derives; and that the study, written as BPMN XML, is valid against the OMG's BPMN 2.0 schema (checked with libxml2's `xmllint`, a warning when the machine has none). It then explores every way the study can go, each decision a gateway, a loop or a boundary event makes taken as a free choice, walked dry, and warns about a pool left waiting for a message none will send (the pools waiting for each other, or the sender ended), a parallel join one of whose tokens can never come, and a message sent that nothing takes, naming the choices that lead there; the OK line says how many ways it explored. This is soundness in the sense of workflow nets, for the study's control flow: a condition that never holds is still the data's to show. For an executed copy it also checks the record: that the counts balance, every node reached as often as its flows brought tokens in, and as often as its flows and boundary events took them out; and that the protocol still matches the digest its last run recorded as `plan` (the study without its state, its provenance, its drawing, and its checklist ticks). When its run's record, `events.jsonl`, sits beside it (an executed copy in its run repository), the state the file keeps is also checked against the state the record says, the timeline aside, so a count or a property changed after the run is found. `studyflow run` applies the checks that need no run before it starts, registered materials included, and refuses a study that fails one. The command reports warnings but does not fail on them unless you pass `--strict`. The rest shows up when the study runs: a condition that can never hold, a data edge that arrives too late.
 
 ## Views
 
@@ -148,7 +147,7 @@ A cognitive task's `platform` names the experiment package that delivers it (Psy
 |:--|:--|:--|:--|
 | `RandomGateway` | `bpmn:ExclusiveGateway` | Allocation: each participant takes one outgoing edge at random, one arm per edge. | `algorithm` (`simple`, `block`, `minimization`, `alternation`), `allocationRatio` (`1:1`, `2:1`), `blockSize`, `stratifyBy`, `strata`, `seedDigest` |
 | `EligibilityGateway` | `bpmn:ExclusiveGateway` | Screening: criteria stated on the gateway, in readable sentences. | `inclusionCriteria`, `exclusionCriteria` |
-| A plain gateway | `bpmn:ExclusiveGateway` | A decision written out as one condition per outgoing edge. | `conditionExpression`, on each edge |
+| A plain gateway | `bpmn:ExclusiveGateway` | A decision written out as one condition per outgoing edge. | `condition`, on each edge |
 
 Screening and allocation are separate types because they answer to different standards: a reviewer has to be able to read the eligibility criteria, and nobody should be able to predict an allocation draw.
 
@@ -168,40 +167,54 @@ What a hidden seed conceals depends on the algorithm. Under `simple`, every draw
 
 A pool stands for a group, not for one person. If you draw two pools that deal with each other, the file becomes a collaboration, with one choreography task per exchange. That is how you describe a dyadic experiment, or a study where a person and a model work together.
 
-Lanes divide a container into roles. A `laneSets` mapping on a process gives its pool the bands you know from a protocol figure, and the same mapping on an expanded sub-process divides that sub-process instead, since BPMN puts lane sets on any container of flow elements. Each lane has a `name`, its own bounds, and a `flowNodeRef` list naming the steps that sit in it; a step drawn inside a lane's bounds joins it on its own. A lane is a partition of the drawing, not a step: nothing waits on it, and a run walks straight through it.
+Lanes divide a container into roles. A `laneSets` mapping on a process gives its pool the bands you know from a protocol figure, and the same mapping on an expanded sub-process divides that sub-process instead, since BPMN puts lane sets on any container of flow elements. Each lane has a `name`, its own bounds, and a `nodes` list naming the steps that sit in it; a step drawn inside a lane's bounds joins it on its own. A lane is a partition of the drawing, not a step: nothing waits on it, and a run walks straight through it.
 
-A pool may also stand for several instances of itself. `participantMultiplicity` on the participant — `minimum` and `maximum` — says how many instances of its process take part, and the pool draws BPMN's three-bar parallel marker, the one a multi-instance step carries, at the foot of its own title band — the strip the rotated name runs up — rather than at the bottom centre BPMN names, where it sits under the bottom lane and reads as that lane's: the band is the pool's and no lane reaches into it, so the marker is unmistakably the pool's. Under the bars it writes the count, `×4`, so the drawing says how many instances without a word of the name; that count is `maximum`, which is what a run takes, so a pool whose `minimum` is lower still reads as its fullest. A run takes `maximum` instances, one after another, re-entering the pool's scope each time; `state._meta.instance.<pool id>` is the instance it is on, so the steps inside, and the pools they talk to, know which subject they are serving. A message flow drawn on the participant belongs to the whole pool, not to any one instance: a step inside with no flow of its own exchanges along it, instance by instance, while a flow to a step in another pool is the pool's own message, sent once, carrying null, when the last instance has ended — which is how a message start event named "All subjects complete" starts a pool that must wait for the cohort.
+A pool may also stand for several instances of itself. `multiplicity` on the pool (BPMN's `participantMultiplicity`) — `minimum` and `maximum` — says how many instances of its process take part, and the pool draws BPMN's three-bar parallel marker, the one a multi-instance step carries, at the foot of its own title band — the strip the rotated name runs up — rather than at the bottom centre BPMN names, where it sits under the bottom lane and reads as that lane's: the band is the pool's and no lane reaches into it, so the marker is unmistakably the pool's. Under the bars it writes the count, `×4`, so the drawing says how many instances without a word of the name; that count is `maximum`, which is what a run takes, so a pool whose `minimum` is lower still reads as its fullest. A run takes `maximum` instances, one after another, re-entering the pool's scope each time; `state._meta.instance.<pool id>` is the instance it is on, so the steps inside, and the pools they talk to, know which subject they are serving. A message flow drawn on the participant belongs to the whole pool, not to any one instance: a step inside with no flow of its own exchanges along it, instance by instance, while a flow to a step in another pool is the pool's own message, sent once, carrying null, when the last instance has ended — which is how a message start event named "All subjects complete" starts a pool that must wait for the cohort.
 
 ```yaml
 Cohort:
   type: Collaboration
-  participants:
+  pools:
     Subjects:
       name: Subjects
-      participantMultiplicity: { minimum: 4, maximum: 4 }
-      processRef: Session
+      multiplicity:
+        minimum: 4
+        maximum: 4
+      process: $Session
+
 Session:
   type: Process
   laneSets:
     LaneSet_1:
       lanes:
-        Lane_Screen: { name: Screen, flowNodeRef: [Play] }
+        Lane_Screen:
+          name: Screen
+          nodes: $Play
 ```
 
-When the pools have processes of their own, a run walks them all at once, each on its own token, and they talk only along message flows. The run carries each message. A send task sends its data inputs, a receive task waits for the next message, and a task with flows both ways to one pool asks it and takes the answer as its result. A catch event waits for its message and a throw or end event sends one, which is how a pool waits until another is ready. A pool with no process of its own, a model for instance, answers through the skill that plays it. A message at a boundary event ends the step it sits on, so a looping step can repeat until another pool says it is over; an event-based gateway waits for whichever message comes first, a branch starting at each catch event or receive task, so a cycle drawn back to it can take trials until the task's end arrives instead. A message flow drawn on a sub-process is the one inside it that talks: a step with no message flow of its own exchanges along the nearest enclosing sub-process's, else along its pool's, which is what lets a collapsed sub-process, or a pool, carry the exchange its steps make. The runners read the edges, so no step carries a setting for the exchange. What a flow carries is its `messageRef`: a `Message` whose `itemRef` names an `ItemDefinition`, and that item's `structureRef` is the name a runner recognises (`cognitive:Trial` out of a Behaverse task, `cognitive:Response` back into it; `agentic:Request` to a model's pool, `agentic:Reply` back). A flow that names no message is taken for either, which is enough with one partner; with several, name the messages. In the inspector a message flow has one field, "Message", offering the structures the loaded schemas declare.
+When the pools have processes of their own, a run walks them all at once, each on its own token, and they talk only along message flows. The run carries each message. A send task sends its data inputs, a receive task waits for the next message, and a task with flows both ways to one pool asks it and takes the answer as its result. A catch event waits for its message and a throw or end event sends one, which is how a pool waits until another is ready. A pool with no process of its own, a model for instance, answers through the skill that plays it. A message at a boundary event ends the step it sits on, so a looping step can repeat until another pool says it is over; an event-based gateway waits for whichever message comes first, a branch starting at each catch event or receive task, so a cycle drawn back to it can take trials until the task's end arrives instead. A message flow drawn on a sub-process is the one inside it that talks: a step with no message flow of its own exchanges along the nearest enclosing sub-process's, else along its pool's, which is what lets a collapsed sub-process, or a pool, carry the exchange its steps make. The runners read the edges, so no step carries a setting for the exchange. What a flow carries is its `message`: a `Message` whose `item` names an `ItemDefinition`, and that item's `structure` is the name a runner recognises (`cognitive:Trial` out of a Behaverse task, `cognitive:Response` back into it; `agentic:Request` to a model's pool, `agentic:Reply` back). A flow that names no message is taken for either, which is enough with one partner; with several, name the messages. In the inspector a message flow has one field, "Message", offering the structures the loaded schemas declare.
 
 ```yaml
 Collab:
   type: Collaboration
   messageFlows:
-    Msg_Trial: { sourceRef: Play, targetRef: Receive, messageRef: Trial }
-    Msg_Answer: { sourceRef: Answer, targetRef: Play, messageRef: Response }
+    Msg_Trial:
+      source: $Play
+      target: $Receive
+      message: $Trial
+
+    Msg_Answer:
+      source: $Answer
+      target: $Play
+      message: $Response
+
 Trial:
   type: Message
-  itemRef: Trial_Item
+  item: $Trial_Item
+
 Trial_Item:
   type: ItemDefinition
-  structureRef: cognitive:Trial
+  structure: cognitive:Trial
 ```
 
 ## When each step happens
@@ -209,15 +222,15 @@ Trial_Item:
 | Attribute | On | Values |
 |:--|:--|:--|
 | `onset` | any activity or event | a timestamp, an offset such as `T0+30min`, or a label |
-| `duration` | any activity or event | `30min`, or an ISO 8601 duration |
+| `duration` | any activity or event | `30min`, or an ISO 8601 duration; on a timer event, the timer's own delay is its duration, which the Schedule view reads there, so the two are never written twice |
 | `progress` | any activity or event | a percentage, or `done`, `blocked`, `in progress` |
-| `timeCycle` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval (`R3/PT10M`); a run waits for an interval's first firing, and passes a cron schedule at once |
-| `timeDuration`, `timeDate` | a timer start, catch or boundary event | an ISO 8601 delay (`PT5M`, `P21D`), or a fixed moment; a run waits for it, and at a boundary event it ends the step it sits on when it runs out |
+| `timeCycle`, under `timer` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval (`R3/PT10M`); a run waits for an interval's first firing, and passes a cron schedule at once |
+| `timer` (its `timeDuration`), or `timeDate` under it | a timer start, catch or boundary event | an ISO 8601 delay (`timer: PT5M`, `timer: P21D`), or a fixed moment; a run waits for it, and at a boundary event it ends the step it sits on when it runs out |
 | `condition` | a conditional catch or boundary event | wait until this becomes true; on a boundary event, leave the step when it does |
-| `loopCondition` | the repeat marker on a step | repeat while this holds |
-| `loopCardinality` | the multi-instance marker on a step | run this many instances of the step |
-| `loopDataInputRef`, `inputDataItem` | the multi-instance marker on a step | run one instance per item of this list, the item bound under the input's name; `loopDataOutputRef` and `outputDataItem` collect what each instance leaves under the output's name into a list |
-| `participantMultiplicity` | a pool | run this many instances of the pool's process, one after another |
+| `while`, under `loop` | the repeat marker on a step | repeat while this holds |
+| `cardinality`, under `multiInstance` | the multi-instance marker on a step | run this many instances of the step |
+| `dataInput` and `inputDataItem`, under `multiInstance` | the multi-instance marker on a step | run one instance per item of this list, the item bound under the input's name; `dataOutput` and `outputDataItem` collect what each instance leaves under the output's name into a list |
+| `multiplicity` | a pool | run this many instances of the pool's process, one after another |
 | `completionCondition` | an ad-hoc sub-process | stop when this holds |
 
 These attributes describe the study's schedule in visits and days, which is what the Timeline view shows. The millisecond clock inside a recording is a different thing, and it lives with the recording.
@@ -250,7 +263,7 @@ The scheme says how the software is found: `python://` is an importable callable
 
 A data step is a plain service task: `implementation` names what runs, and the drawn data edges say what it reads and writes. A step that drops rows drops *data*, while a gateway changes the *path* a run takes, so the two are not interchangeable.
 
-A step that fails goes on from the error boundary event drawn on it, if it carries one, with the failure kept in its record and the run itself not failed; without one, the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event the same way, so a participant who cannot go on leaves the loop instead of stopping the study. A step that finishes takes the same path out when a conditional boundary event drawn on it holds: its `condition` is read once the step's result is in, written like a `conditionExpression` and read once the step's result is in and its data edges have written the properties they target, and the walk goes on from that event instead of from the step. What a condition reuses is a property: a task's data edge writes what it needs from the task's result into one (`unanswered`, from `result.missed / result.trials`), and `unanswered > max_unanswered` on the task's boundary event reads it; which fields a result carries is its skill's to say. That is how a run leaves a task on a quality threshold the study itself sets, rather than on one the notation or a runner invents.
+A step that fails goes on from the error boundary event drawn on it, if it carries one, with the failure kept in its record and the run itself not failed; without one, the failure ends the run. An error end event inside a sub-process ends that sub-process at its own error boundary event the same way, so a participant who cannot go on leaves the loop instead of stopping the study. A step that finishes takes the same path out when a conditional boundary event drawn on it holds: its `condition` is read once the step's result is in, written like a flow's `condition` and read once the step's result is in and its data edges have written the properties they target, and the walk goes on from that event instead of from the step. What a condition reuses is a property: a task's data edge writes what it needs from the task's result into one (`unanswered`, from `result.missed / result.trials`), and `unanswered > max_unanswered` on the task's boundary event reads it; which fields a result carries is its skill's to say. That is how a run leaves a task on a quality threshold the study itself sets, rather than on one the notation or a runner invents.
 
 ## Models, biosignals, and the trail
 
@@ -261,7 +274,7 @@ A step that fails goes on from the error boundary event drawn on it, if it carri
 | `Timeseries` | `bpmn:DataObjectReference` | A continuously sampled signal. | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
 | `EventMarker` | `bpmn:DataObjectReference` | Time-stamped occurrences inside a recording (BIDS `events.tsv`). | `eventTypes`, `timeUnit`, `format`, `schema` |
 | `Recording` | `bpmn:DataObjectReference` | The biosignal recording a session produces. A narrower `Timeseries`. | `modalities`, `eventChannel`, plus `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` from `Timeseries` |
-| `Activity` | not drawn | One entry of the record of what ran. | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `plan`, `commit`, `note` |
+| `Activity` | not drawn | One record of what ran, on the element it is about ([What a run adds](#what-a-run-adds)). | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `allocationSeed`, `plan`, `clock`, `commit`, `note` |
 
 A model takes part as an actor, never as a setting on a step. It is a pool of its own, an `Actor` whose `actorType` is `llm` and which has no process, and the study's steps ask it along message flows; or it is the band of a task it takes. A model call is a task with a message flow to the model's pool and one back, and a guardrail or a judge is such a call with a strict prompt. A tool is a service task with an `implementation`, an agent loop an ad-hoc sub-process that stops at its `completionCondition`, and a person's sign-off a user task with a timer on it (no runtime executes a `completionCondition` yet). A model answers each message on its own unless its actor's `memory` is `conversation`: then it sees the earlier messages from the same instance of the pool asking it, and its answers, so a model answering one subject remembers that subject's earlier trials and no other subject's. Every exchange with a model is recorded with the run: the model's digest and quantization level, its default sampling parameters and the options sent, the server's version, and the request as sent, beside the reply. An eval harness needs nothing beyond these and the ordinary elements, gateways for the conditions and data elements for the results. It is the same graph that carries a human experiment, with models in the actor seats. When each `Activity` entry gets written is described on the [Developers](developers.qmd#what-a-run-leaves-behind) page.
 
@@ -279,20 +292,19 @@ A model takes part as an actor, never as a setting on a step. It is a pool of it
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
 | `.json` (jsPsych timeline) | an existing timeline, on import only | read only |
 
-The YAML and the XML convert into each other losslessly: a round trip returns the same document, and a version-control diff shows your edits and nothing else. Here is a complete, runnable study:
+The YAML is the BPMN XML's tree, spelled in YAML: every element keeps its BPMN type, its place, its order and its id, and what Studyflow and its skills add sits where BPMN keeps extensions. The two convert into each other without loss, so a round trip returns the same document. Four things follow from it. A file stays BPMN when the skills it uses are not installed. A version-control diff shows your edits and nothing else. A run of the file only adds lines to it. And the protocol digest is the same whichever form holds the study. Here is a complete, runnable study:
 
 ```yaml
 id: minimal_study
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
 
 Minimal_Study:
   type: Process
   name: Minimal study
-  extensionElements:
-    - type: studyflow:Study
-  flowElements:
-
+  studyflow:Study: {}
+  elements:
     Enrolled:
       type: StartEvent
       name: Enrolled and consented
@@ -301,10 +313,9 @@ Minimal_Study:
     Flanker:
       type: Task
       name: Flanker
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          platform: jspsych
-          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+      cognitive:CognitiveTask:
+        platform: jspsych
+        implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
 
     Done:
       type: EndEvent
@@ -312,21 +323,239 @@ Minimal_Study:
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
       completionCodeType: dynamic
 
-    Flow_Enrolled_Flanker: Enrolled -> Flanker
-    Flow_Flanker_Done: Flanker -> Done
+    Flow_Enrolled_Flanker:
+      source: $Enrolled
+      target: $Flanker
+
+    Flow_Flanker_Done:
+      source: $Flanker
+      target: $Done
 ```
 
-That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. It contains no geometry. The layout follows from `sourceRef` and `targetRef`, and the modeler only saves geometry once you rearrange things by hand.
+That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. It contains no geometry. The layout follows from each edge's `source` and `target`, and the modeler only saves geometry once you rearrange things by hand.
 
-| Rule | In the file |
+## The document
+
+The top level is the document, BPMN's `definitions`:
+
+| Key | Holds |
 |:--|:--|
-| containment becomes nesting | a study's steps are written inside the study |
-| references are written as ids | `sourceRef: Enrolled`, not a second copy of the element |
-| anything unrecognized is kept | a key no loaded set declares is preserved and reported, never dropped |
-| defaults and inferable types are omitted | restored on read; `type:` appears only where the element is not already expected there, and a BPMN type is spelled without its prefix: `Task`, `StartEvent`, `SubProcess` (`cognitive:Questionnaire` keeps its prefix); a sequence flow under `flowElements`, an association or a text annotation under `artifacts`, a message flow under `messageFlows` and a data association under its activity need no `type:` at all, because where they sit and what keys they carry already say what they are |
-| what the flows already say is omitted | `incoming` and `outgoing` are rebuilt from the sequence flows, and namespace declarations from the element sets in use |
-| `id`, `definitions`, then one key per root element | a file with no `definitions` is not read as a studyflow; the format version is the version segment of the core namespace |
+| `id` | the document's id |
+| `schemas` | each namespace the file uses besides BPMN's, its prefix to its URI: the XML's `xmlns:` declarations, written for every schema in use, the core's included. The version segment of the core's URI is the format version |
+| `definitions` | the document's other attributes, only those that differ from their defaults (`targetNamespace` is `http://bpmn.io/schema/bpmn` unless written) |
+| one key per root element | each process, collaboration, message and item definition, keyed by its id, in document order |
+| `layout` | the drawing ([The drawing](#the-drawing)) |
+| `state` | the run state as the last run left it, last ([Run state](#run-state)); a file no run has touched has none |
 
-Short forms collapse the long structure where nothing is lost, and the long form is always still accepted: a YAML mapping instead of a quoted string under `additionalArguments` or `values`; a typed element named by its schema type, with that type's attributes beside its own (`Survey: {type: cognitive:Questionnaire, instrument: phq-9}` is a `bpmn:Task` carrying a `cognitive:Questionnaire` entry, and the study's process reads `type: studyflow:Study`), whenever the element is the BPMN type the schema attaches it to and no key could belong to both; a plain list under `extensionElements` otherwise; the drawing as one `layout:` map at the end of the file, keyed by element id, one line per value (`bounds: 100 80 100 80` is x, y, width, height; `waypoint: 200,118 260,118` is the route; `label: 90 170 120 14` is the box of a caption placed by hand; one `fill` and one `stroke` for an element's colours, and one `font` for its caption's look: `bold`, `italic`, `left`/`center`/`right`, a `#rrggbb` ink, in any mix), so an edit to the protocol and an edit to its drawing are diffs of different parts of the file (the same keys written on the element they position still load); elements keyed by id under `flowElements`; a flow of any kind with nothing but its two ends written as `Flow_1: Enrolled -> Flanker`; and an expression written as a plain string. Its BPMN XML differs in one place: a choreography task in a process, which BPMN defines only in a choreography, is written as the `bpmn:task` it is, marked `studyflow:exchange`, with its bands as `studyflow:participants` and `studyflow:initiator`, so every file the tools write is valid against the OMG's BPMN 2.0 schema.
+A document with neither `schemas` nor `definitions` is not read as a studyflow. A schema's URI names its namespace in the XML and leads to the skill that declares it, so a tool that lacks the skill can say where to get it. The tools declare every prefix they write. A prefix written without a declaration names the installed schema of that prefix, and is an error when none is installed. One the file declares whose skill is not installed is still read: its entries are kept as written and written back unchanged.
+
+## Elements and their keys
+
+An element sits where BPMN nests it, under the key of the property that holds it, keyed by its id, in BPMN's order, with a blank line between elements. Its first key is its BPMN `type`, without the `bpmn:` prefix (`Task`, `StartEvent`, `SubProcess`), left out where the key holding it already says what it is: a pool under `pools`, an edge among the elements ([Edges](#edges)). Then come its `name`, its other attributes, its extension entries, its `documentation`, and last what it holds (`properties`, `inputs`, `outputs`, `elements`). A value BPMN keeps as an element of its own is written as its text: an expression (`condition: score > 0.9`), a documentation. A YAML-valued attribute (`values`, `additionalArguments`) is written as the mapping it holds, unless its text carries a comment, which a mapping would drop. Defaults are left out, and so is a value a type fixes when it redefines an attribute it inherits (a Behaverse task's `platform`).
+
+Keys are BPMN's property names, shortened by three rules:
+
+- A reference drops BPMN's `Ref`: `source`, `target`, `attachedTo`, `process`, `message`, `structure`, `dataObject`, `categoryValue`.
+- A true-or-false drops BPMN's `is`: `executable`, `interrupting`, `sequential`, and in the drawing `expanded`, `markerVisible`, `horizontal`.
+- A key drops what the element holding it already says: in a loop marker `maximum`, `cardinality`, `dataInput`, `dataOutput`, with a standard loop's `loopCondition` written `while`, which says which way it reads; on a pool `multiplicity`. A timer keeps BPMN's `timeDuration`, `timeDate` and `timeCycle`, since `duration` already means a step's planned length.
+
+A rule never gives a key a name its element already has for another (a lane's `partitionElementRef` keeps its `Ref`, since a lane also holds a `partitionElement`), so each short name stands for one BPMN property on each type. A value is one of four kinds, each written its own way:
+
+| You see | It is |
+|:--|:--|
+| `$Exit` | an element of this file, by its id; BPMN XML writes the bare id |
+| `{max_unanswered}` inside text | a placeholder ([Placeholders](#placeholders)) |
+| a value under a key that holds FEEL (`condition`, `while`, `transformation`) | an expression ([Expressions](#expressions)) |
+| anything else | a plain value: text, a number, an address, another tool's code (`NB`), a schema type (`cognitive:Trial`) |
+
+The schemas say which keys hold references (BPMN's own, and an attribute typed by an element, such as a dataset's `schema`) and which hold FEEL (the core marks BPMN's conditions as FEEL where it redefines them). An id can never contain `$`, so `$` is never part of one; under a key that holds no reference, a value starting with `$` is plain text.
+
+A few keys are named for what they hold in a study:
+
+| In the file | In BPMN | Holds |
+|:--|:--|:--|
+| `elements` | `flowElements` | what a process or a sub-process contains: its events, activities, gateways, data, and the sequence flows between them |
+| `pools` | a collaboration's `participants`; a choreography task's `participantRef` | the parties of the study; "participant" means the experimental unit everywhere else in a study |
+| `initiator` | `initiatingParticipantRef` | the band that starts an exchange |
+| `nodes` | a lane's `flowNodeRef` | the steps that sit in the lane |
+| `item` | a message's `itemRef`; a data element's `itemSubjectRef` | the item definition saying what it carries |
+| `inputs`, `outputs` | `dataInputAssociations`, `dataOutputAssociations` | an activity's data edges: what it reads and what it writes |
+| `extensions` | `extensionElements` | the element's extension entries as one list, written only where entries of different types interleave (below) |
+| `condition` | a sequence flow's `conditionExpression` | the FEEL condition on a branch |
+| `timer`, `message`, `condition`, `error`, `signal`, `escalation`, `link`, `compensation`, `cancel`, `terminate` | an event's one `eventDefinitions` entry | what triggers the event ([Events and loops](#events-and-loops)) |
+| `loop`, `multiInstance` | `loopCharacteristics`, standard or multi-instance | an activity's loop marker or multi-instance marker |
+
+What Studyflow and its skills add is an extension, as it is in the XML, and its prefix marks it. A skill's element is written on the element it extends, under its prefixed type and holding its own attributes, while that element keeps its BPMN type, so a reader without the skill still sees a task (the `Survey` in [Shape and behavior](#shape-and-behavior)). An entry that holds nothing is `{}`, and several entries of one type are a list. The study is the `studyflow:Study` entry of its root process, or of its collaboration when it has pools, and the run records are the `prov:Activity` list ([What a run adds](#what-a-run-adds)). Where entries of different types interleave, so that keying them by type would reorder them, the element keeps BPMN's one list under `extensions`, each entry with its `type`; no shipped example needs it.
+
+A choreography task in a process, which BPMN defines only in a choreography, is written as the task it is: `type: Task`, `exchange: true`, its bands under the core's `pools`, and the initiating one as `initiator`. So every file the tools write is valid against the OMG's BPMN 2.0 schema.
+
+```yaml
+    S1_FF_Flanker:
+      type: Task
+      name: Flanker task
+      exchange: true
+      pools: $Pool_Agent
+      cognitive:CognitiveTask:
+        platform: jspsych
+        implementation: jspsych://html-keyboard-response@8
+```
+
+A key's prefix says whose it is, and is written only where the bare name could mean two things:
+
+- A bare key is BPMN's, by its short name, or else the core schema's (`onset`, `consentFormUri`, `redirectTo`), the one schema every studyflow loads.
+- A core attribute whose name is also a BPMN key, or one of the file's own keys (`type`, `timer`, `loop`), on the same element is written with its prefix, `studyflow:`. None is today.
+- A skill's attribute on a BPMN element always carries the skill's prefix, so a reader without the skill can still tell whose it is. Skills add element types only, so none does today.
+- Inside an extension entry, the entry's own attributes are bare, since its `type` says whose they are; another schema's attribute there carries its prefix.
+- A prefixed key holding a mapping, or a list of them, is an extension entry of that type; holding a single value, it is an attribute. It is never an id, since an id has no colon.
+- A key from a namespace no loaded schema declares keeps its prefix.
+
+Whether a name is ambiguous is decided against BPMN and the core alone, never against the skills that happen to be installed, so a file is spelled the same wherever it is written. The prefixed form of any key is always read, so `studyflow:onset` typed by hand is the same as `onset`.
+
+Anything the reader does not recognize is kept, never dropped: an entry from a namespace no loaded schema declares is written back as it was, and a key no schema declares is reported as well.
+
+## Edges
+
+Every edge is written out, one reference to a line, so a run can add its records beneath it without changing a line:
+
+```yaml
+    Flow_Enrolled_Flanker:
+      source: $Enrolled
+      target: $Flanker
+
+    Again:
+      name: again
+      source: $Gate
+      target: $Say
+      condition: state._meta.reached.Gate < 8
+```
+
+A sequence flow among the elements, a message flow under `messageFlows` and an association under `artifacts` need no `type`: where they sit and their `source` and `target` say what they are. A data edge names only its data, since the activity it belongs to is its other end: an input its `source`, an output its `target`. An input that fills a named argument of the step's call says which, as its `parameter`. A `transformation` narrows the value: FEEL over the source on an input, over `result` on an output. A reference list holding one id, an input's `source` among them, is written as that id.
+
+```yaml
+    Play:
+      type: Task
+      name: WhichOne, 5 Simon trials
+      inputs:
+        In_Play_Parameters:
+          source: $Play_Parameters
+
+      outputs:
+        Out_Trials:
+          target: $Trials
+
+        Out_Unanswered:
+          target: $P_Unanswered
+          transformation: result.missed / result.trials
+
+    Fit:
+      type: ServiceTask
+      name: Fit the classifier
+      implementation: python://sklearn.svm.SVC.fit
+      inputs:
+        In_Fit_X:
+          source: $x_train
+          parameter: X
+
+        In_Fit_y:
+          source: $y_train
+          parameter: y
+```
+
+What the edges imply is left out and rebuilt on read: a node's `incoming` and `outgoing` lists, and the `ioSpecification` of a step's data edges (`Play_io`, `Play_in_Parameters`, `Play_result`).
+
+## Events and loops
+
+An event with one definition writes it under the key of its kind, holding its main value: a timer's `timeDuration`, a message's `message`, a condition's FEEL, the `error`, `signal` or `escalation` of an error, a signal or an escalation, a link's `name`, a compensation's `activity`. The value is `true` for a definition that holds nothing (`terminate: true`), and a mapping for anything else (`timer:` with `timeCycle: R3/PT10M` under it). The definition's id is the event's followed by `_Def` (`Wait_Def`) and is left out; any other id is written in the mapping as `id`. An event with several definitions keeps BPMN's `eventDefinitions`.
+
+An activity's marker is written the same way, under `loop` for BPMN's standard loop or `multiInstance`, holding its settings (`while`, `maximum`, `cardinality`), or `true` for a marker that holds none.
+
+```yaml
+    Wait:
+      type: IntermediateCatchEvent
+      name: 3 weeks
+      timer: P21D
+
+    Exit_S1:
+      type: BoundaryEvent
+      attachedTo: $S1
+      condition: unanswered > max_unanswered
+
+    Retry:
+      type: Task
+      name: Retry until good
+      loop:
+        while: score < 0.9
+        maximum: 5
+```
+
+## What a run adds
+
+A run writes what it did onto the elements it did it to, as records in a `prov:Activity` list on each, one record per line however long, and the state it left at the end of the file. The list is a list even with one record, so the next run appends a line to it. The executed copy is the registered file with lines added and none changed:
+
+```yaml
+Drawn_Loop:
+  type: Process
+  name: drawn loop (eight turns, edges only)
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:24:02Z", with: studyflow-modeler/26.0615}
+    - {action: executed, when: "2026-10-22T11:26:43.818+02:00", with: studyflow-cli/26.10.13, run: repo, plan: "sha256:ddb256bda7250a847ee1fc4739fc2b9678f885d1cef115ca49286c72345908e9"}
+  elements:
+    Gate:
+      type: ExclusiveGateway
+      name: eight times yet?
+      default: $Exit
+      prov:Activity:
+        - {action: executed, when: "2026-10-22T11:26:44.745+02:00", what: Exit, run: repo, commit: c1e5d863a5de656c98999a1ab191992220272e04}
+
+state:
+  _meta:
+    reached:
+      Start: 1
+      F1: 1
+      Say: 8
+      F2: 8
+      Gate: 8
+      Again: 7
+      Exit: 1
+      End: 1
+```
+
+| On | A record says |
+|:--|:--|
+| the study's root | the run itself: `executed`, `who`, `with`, `seed`, `plan`, `clock`; beside it, the modeler's `created` and `modified` |
+| an activity or an event | that it was `executed` or `reused`, or failed, `when`, the `commit` holding what it ran with and made |
+| a gateway | the same, and `what`, the flow it took last; `allocationSeed` when it conceals its allocation |
+| a data edge | `read` or `wrote`, and `what`, the commit or digest of what it read or wrote |
+| a data object or store | `created` or `imported` |
+
+A run adds its `prov:Activity` records and its `state` and changes nothing else in the file, so those two keys alone tell what a run left from the plan; the protocol digest leaves both out, and the drawing. The state is the tree [Run state](#run-state) describes, as the run left it: counts, instances and values, which describe a moment rather than where they came from. A re-run adds its records beside the earlier ones and writes the state anew.
+
+## The drawing
+
+The drawing is one `layout:` map at the end of the file, keyed by element id, one line per element, so an edit to the protocol and an edit to its drawing are diffs of different parts of the file. A shape's line is its box, `x y width height`, and an edge's is its route, `x,y x,y …`. A line that says more is a mapping: `bounds`, `waypoint`, `label` (the box of a caption placed by hand), one `fill` and one `stroke` for its colours, one `font` for its caption's look (`bold`, `italic`, `left`/`center`/`right`, a `#rrggbb` ink, in any mix), and `expanded`, `markerVisible` and `horizontal`. A document with several diagrams, or a diagram that says more than which root it draws, keeps BPMN's `diagram` list.
+
+```yaml
+layout:
+  Enrolled: {bounds: 160 180 36 36, label: 146 223 66 30}
+  Flanker: 250 158 120 80
+  Flow_Enrolled_Flanker: 196,198 250,198
+```
+
+## Shorthands
+
+The tools write every element in the form above. When reading they also take these, which you may type by hand, and write them back in that form:
+
+| You may write | The tools write |
+|:--|:--|
+| `Flow_1: Enrolled -> Flanker`, for an edge with nothing but its two ends | its `source` and `target` |
+| BPMN's own name for any key: `sourceRef`, `extensionElements`, `flowElements`, `participants`, `dataInputAssociations`, `conditionExpression`, `loopCharacteristics`, `eventDefinitions`, `isExpanded` | the short names above |
+| a reference list of one id as a list | the id |
+| a prefix on a key that needs none (`studyflow:onset`) | the bare key |
+| an id under a key that holds a reference, without `$` | the id with `$` |
+| BPMN's one list of entries, under `extensions` or `extensionElements`, whose types do not interleave | each entry under its prefixed type |
+| the drawing on the element it positions (`bounds`, `waypoint`, `fill`) | its line in `layout` |
+| a YAML value as quoted text, under `values` or `additionalArguments` | the mapping it holds, unless the text carries a comment |
+| a schema's type as the element's own (`type: cognitive:Questionnaire`), its attributes beside BPMN's | the BPMN type, and the schema's type as an entry holding its attributes |
 
 Two things to keep in mind about images. An exported image carries the whole study, but not the element sets it depends on, and not any data the study produced. And an image that has been through a screenshot tool or a vector editor keeps its pixels and loses the study inside it, so always keep the `.studyflow.yaml` as well.
