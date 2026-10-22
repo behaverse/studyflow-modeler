@@ -1,9 +1,19 @@
 id: kitchensink
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  agentic: https://w3id.org/studyflow/agentic
+  behaverse: http://behaverse.org/schemas/studyflow/behaverse
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  eeg: https://w3id.org/studyflow/eeg
+  prov: https://w3id.org/studyflow/prov
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Kitchen_Sink:
-  type: studyflow:Study
+  type: Process
   name: Studyflow element catalog (kitchen sink)
+  executable: false
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:34Z", with: studyflow-modeler/26.0615}
   documentation: >-
     Element catalog: one live instance of every palette-visible element type, one labelled band per schema. Read top to
     bottom: the BPMN 2.0 base that Studyflow inherits (events, gateways, activities, data), then the studyflow core and
@@ -13,183 +23,227 @@ Kitchen_Sink:
     are plain service tasks whose implementation names what runs. Pool/choreography types (studyflow:Actor, eeg:Session,
     studyflow:ChoreographyTask) and the template presets (cognitive/eeg) are covered in kitchensink.md; the
     sklearn_pipeline example shows an analysis pipeline live.
-  extensionElements:
-    - type: prov:Activity
-      action: created
-      when: "2026-07-30T22:51:34Z"
-      with: studyflow-modeler/26.0615
-  flowElements:
+  elements:
     Ev_Start:
       type: StartEvent
       name: Start
       consentFormUri: https://example.org/protocols/kitchensink/consent.md
+
     Ev_End:
       type: EndEvent
       name: End
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
       completionCodeType: dynamic
+
     Ev_Throw:
       type: IntermediateThrowEvent
       name: Intermediate throw
+
     Ev_Catch:
       type: IntermediateCatchEvent
       name: Intermediate catch
+
     Ev_Boundary:
       type: BoundaryEvent
       name: Boundary
-      attachedToRef: Act_Task
+      attachedTo: $Act_Task
+
     Gw_Exclusive:
       type: ExclusiveGateway
       name: Exclusive
+
     Gw_Parallel:
       type: ParallelGateway
       name: Parallel
+
     Gw_Inclusive:
       type: InclusiveGateway
       name: Inclusive
+
     Gw_EventBased:
       type: EventBasedGateway
       name: Event-based
+
     Gw_Complex:
       type: ComplexGateway
       name: Complex
+
     Act_Task:
       type: Task
       name: Task
+
     Act_UserTask:
       type: UserTask
       name: User task
+
     Act_ServiceTask:
       type: ServiceTask
       name: Service task
+
     Act_ScriptTask:
       type: ScriptTask
       name: Script task
+
     Act_ManualTask:
       type: ManualTask
       name: Manual task
+
     Act_SendTask:
       type: SendTask
       name: Send task
+
     Act_ReceiveTask:
       type: ReceiveTask
       name: Receive task
+
     Act_BusinessRuleTask:
       type: BusinessRuleTask
       name: Business rule task
+
     Act_CallActivity:
       type: CallActivity
       name: Call activity
+
     Act_SubProcess:
       type: SubProcess
       name: Sub-process
+
     Act_Transaction:
       type: Transaction
       name: Transaction
+
     Act_AdHoc:
       type: AdHocSubProcess
       name: Ad-hoc sub-process
+
     Bd_DataObject:
       type: DataObjectReference
       name: Data object
+
     Bd_DataStore:
       type: DataStoreReference
       name: Data store
+
     Sf_Dataset:
-      type: behaverse:BDMDataset
+      type: DataStoreReference
       name: Dataset
-      dataLevel: trials
+      behaverse:BDMDataset:
+        dataLevel: trials
+
     Sf_Schema:
-      type: studyflow:Schema
+      type: DataObjectReference
       name: Schema
+      studyflow:Schema: {}
+
     Sf_Table:
-      type: studyflow:Table
+      type: DataObjectReference
       name: Table
-      format: parquet
+      studyflow:Table:
+        format: parquet
+
     Sf_Timeseries:
-      type: eeg:Timeseries
+      type: DataObjectReference
       name: Timeseries
-      format: edf
+      eeg:Timeseries:
+        format: edf
+
     Sf_EventMarker:
-      type: eeg:EventMarker
+      type: DataObjectReference
       name: Event marker
-      eventTypes:
-        - stimulus
+      eeg:EventMarker:
+        eventTypes:
+          - stimulus
+
     Ex_Parameters:
-      type: studyflow:Parameters
+      type: DataObjectReference
       name: Parameters
+      studyflow:Parameters: {}
+
     Fn_ForEach:
       type: SubProcess
       name: For-each (fan-out)
-      loopCharacteristics:
-        type: MultiInstanceLoopCharacteristics
+      multiInstance: true
+
     Fn_Retry:
       type: Task
       name: Retry-until-good (loop)
-      loopCharacteristics:
-        type: StandardLoopCharacteristics
-        loopCondition: score < 0.9
-        loopMaximum: 5
+      loop:
+        while: score < 0.9
+        maximum: 5
+
     Cg_CognitiveTask:
       type: Task
       name: Cognitive task
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          platform: jspsych
-          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+      cognitive:CognitiveTask:
+        platform: jspsych
+        implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+
     Cg_Rest:
-      type: cognitive:Rest
+      type: IntermediateCatchEvent
       name: Rest
-      eventDefinitions:
-        Cg_Rest_Timer:
-          type: TimerEventDefinition
-          timeDuration: PT1M
+      timer: PT1M
+      cognitive:Rest: {}
+
     Cg_Questionnaire:
-      type: cognitive:Questionnaire
+      type: Task
       name: Questionnaire
-      instrument: phq-9
+      exchange: true
+      cognitive:Questionnaire:
+        instrument: phq-9
+
     Cg_Instruction:
-      type: cognitive:Instruction
+      type: Task
       name: Instruction
+      cognitive:Instruction: {}
+
     Cg_Behaverse:
       type: Task
       name: Behaverse task
-      extensionElements:
-        - type: behaverse:Task
-          instrument: NB
-          timeline: XCIT_NB_01
+      behaverse:Task:
+        instrument: NB
+        timeline: XCIT_NB_01
+
     Cg_Random:
-      type: cognitive:RandomGateway
+      type: ExclusiveGateway
       name: Random gateway
+      cognitive:RandomGateway: {}
+
     Cg_Stratified:
-      type: cognitive:RandomGateway
+      type: ExclusiveGateway
       name: Stratified allocation
-      algorithm: block
-      stratifyBy: age_band
+      cognitive:RandomGateway:
+        algorithm: block
+        stratifyBy: age_band
+
     Cg_Eligibility:
-      type: cognitive:EligibilityGateway
+      type: ExclusiveGateway
       name: Eligibility gateway
-      inclusionCriteria:
-        - Aged 18 to 65 years
-        - Normal or corrected-to-normal vision
-      exclusionCriteria:
-        - Prior exposure to the battery
-        - Failed comprehension check
+      cognitive:EligibilityGateway:
+        inclusionCriteria:
+          - Aged 18 to 65 years
+          - Normal or corrected-to-normal vision
+        exclusionCriteria:
+          - Prior exposure to the battery
+          - Failed comprehension check
+
     Ob_Recording:
       type: DataStoreReference
       name: EEG recording
-      extensionElements:
-        - type: eeg:Recording
-          format: edf
+      eeg:Recording:
+        format: edf
+
     Ag_Prompt:
-      type: agentic:Prompt
+      type: DataObjectReference
       name: Prompt
+      agentic:Prompt: {}
+
     Dt_Reader:
       type: ServiceTask
       name: Read data
       additionalArguments:
         data_folder: data/raw/
       implementation: python://datatrove.pipeline.readers.CsvReader
+
     Dt_Writer:
       type: ServiceTask
       name: Write data
@@ -199,214 +253,171 @@ Kitchen_Sink:
   artifacts:
     Bd_Annotation:
       text: A free-form note. Groups (these labelled bands) are artifacts too.
+
     Group_BpmnEvents:
       type: Group
-      categoryValueRef: CategoryValue_BpmnEvents
+      categoryValue: $CategoryValue_BpmnEvents
+
     Group_BpmnGateways:
       type: Group
-      categoryValueRef: CategoryValue_BpmnGateways
+      categoryValue: $CategoryValue_BpmnGateways
+
     Group_BpmnActivities:
       type: Group
-      categoryValueRef: CategoryValue_BpmnActivities
+      categoryValue: $CategoryValue_BpmnActivities
+
     Group_BpmnData:
       type: Group
-      categoryValueRef: CategoryValue_BpmnData
+      categoryValue: $CategoryValue_BpmnData
+
     Group_Studyflow:
       type: Group
-      categoryValueRef: CategoryValue_Studyflow
+      categoryValue: $CategoryValue_Studyflow
+
     Group_Exec:
       type: Group
-      categoryValueRef: CategoryValue_Exec
+      categoryValue: $CategoryValue_Exec
+
     Group_Cognitive:
       type: Group
-      categoryValueRef: CategoryValue_Cognitive
+      categoryValue: $CategoryValue_Cognitive
+
     Group_OpenBCI:
       type: Group
-      categoryValueRef: CategoryValue_OpenBCI
+      categoryValue: $CategoryValue_OpenBCI
+
     Group_Agentic:
       type: Group
-      categoryValueRef: CategoryValue_Agentic
+      categoryValue: $CategoryValue_Agentic
+
     Group_Functional:
       type: Group
-      categoryValueRef: CategoryValue_Functional
+      categoryValue: $CategoryValue_Functional
+
     Group_Datatrove:
       type: Group
-      categoryValueRef: CategoryValue_Datatrove
-  isExecutable: false
+      categoryValue: $CategoryValue_Datatrove
+
 Category_BpmnEvents:
   type: Category
   categoryValue:
     CategoryValue_BpmnEvents:
       value: BPMN · Events
+
 Category_BpmnGateways:
   type: Category
   categoryValue:
     CategoryValue_BpmnGateways:
       value: BPMN · Gateways
+
 Category_BpmnActivities:
   type: Category
   categoryValue:
     CategoryValue_BpmnActivities:
       value: BPMN · Activities
+
 Category_BpmnData:
   type: Category
   categoryValue:
     CategoryValue_BpmnData:
       value: BPMN · Data & artifacts
+
 Category_Studyflow:
   type: Category
   categoryValue:
     CategoryValue_Studyflow:
       value: studyflow · Core data elements (BDM, BIDS, Psych-DS, CSVW)
+
 Category_Exec:
   type: Category
   categoryValue:
     CategoryValue_Exec:
       value: exec · Execution & scope
+
 Category_Cognitive:
   type: Category
   categoryValue:
     CategoryValue_Cognitive:
       value: cognitive · Domain activities & research gateways (incl. Behaverse)
+
 Category_OpenBCI:
   type: Category
   categoryValue:
     CategoryValue_OpenBCI:
       value: eeg · EEG biosignals
+
 Category_Agentic:
   type: Category
   categoryValue:
     CategoryValue_Agentic:
       value: agentic · Prompts
+
 Category_Functional:
   type: Category
   categoryValue:
     CategoryValue_Functional:
       value: bpmn · loops
+
 Category_Datatrove:
   type: Category
   categoryValue:
     CategoryValue_Datatrove:
       value: bpmn · data IO
+
 layout:
-  Ev_Start:
-    bounds: 167 121 36 36
-  Ev_End:
-    bounds: 347 121 36 36
-  Ev_Throw:
-    bounds: 527 121 36 36
-  Ev_Catch:
-    bounds: 707 121 36 36
-  Ev_Boundary:
-    bounds: 887 121 36 36
-  Gw_Exclusive:
-    bounds: 160 294 50 50
-    isMarkerVisible: true
-  Gw_Parallel:
-    bounds: 340 294 50 50
-  Gw_Inclusive:
-    bounds: 520 294 50 50
-  Gw_EventBased:
-    bounds: 700 294 50 50
-  Gw_Complex:
-    bounds: 880 294 50 50
-  Act_Task:
-    bounds: 125 459 120 80
-  Act_UserTask:
-    bounds: 305 459 120 80
-  Act_ServiceTask:
-    bounds: 485 459 120 80
-  Act_ScriptTask:
-    bounds: 665 459 120 80
-  Act_ManualTask:
-    bounds: 845 459 120 80
-  Act_SendTask:
-    bounds: 1025 459 120 80
-  Act_ReceiveTask:
-    bounds: 1205 459 120 80
-  Act_BusinessRuleTask:
-    bounds: 125 569 120 80
-  Act_CallActivity:
-    bounds: 305 569 120 80
-  Act_SubProcess:
-    bounds: 485 569 120 80
-    isExpanded: false
-  Act_Transaction:
-    bounds: 665 569 120 80
-    isExpanded: false
-  Act_AdHoc:
-    bounds: 845 569 120 80
-    isExpanded: false
-  Bd_DataObject:
-    bounds: 160 764 50 50
-  Bd_DataStore:
-    bounds: 340 764 50 50
-  Sf_Dataset:
-    bounds: 160 944 50 50
-  Sf_Schema:
-    bounds: 340 944 50 50
-  Sf_Table:
-    bounds: 520 944 50 50
-  Sf_Timeseries:
-    bounds: 700 944 50 50
-  Sf_EventMarker:
-    bounds: 880 944 50 50
-  Ex_Parameters:
-    bounds: 160 1124 50 50
-  Fn_ForEach:
-    bounds: 125 1939 120 80
-    isExpanded: false
-  Fn_Retry:
-    bounds: 305 1939 120 80
-  Cg_CognitiveTask:
-    bounds: 125 1289 120 80
-  Cg_Rest:
-    bounds: 347 1311 36 36
-    label: 325 1352 80 14
-  Cg_Questionnaire:
-    bounds: 485 1289 120 80
-  Cg_Instruction:
-    bounds: 665 1289 120 80
-  Cg_Behaverse:
-    bounds: 845 1289 120 80
-  Cg_Random:
-    bounds: 160 1414 50 50
-    isMarkerVisible: true
-  Cg_Stratified:
-    bounds: 340 1414 50 50
-    isMarkerVisible: true
-  Cg_Eligibility:
-    bounds: 520 1414 50 50
-    isMarkerVisible: true
-  Ob_Recording:
-    bounds: 160 1594 50 50
-  Ag_Prompt:
-    bounds: 160 1774 50 50
-  Dt_Reader:
-    bounds: 1045 1939 120 80
-  Dt_Writer:
-    bounds: 1205 1939 120 80
-  Bd_Annotation:
-    bounds: 485 764 120 50
-  Group_BpmnEvents:
-    bounds: 60 60 1300 154
-  Group_BpmnGateways:
-    bounds: 60 240 1300 154
-  Group_BpmnActivities:
-    bounds: 60 420 1300 264
-  Group_BpmnData:
-    bounds: 60 710 1300 154
-  Group_Studyflow:
-    bounds: 60 890 1300 154
-  Group_Exec:
-    bounds: 60 1070 1300 154
-  Group_Cognitive:
-    bounds: 60 1250 1300 264
-  Group_OpenBCI:
-    bounds: 60 1540 250 154
-  Group_Agentic:
-    bounds: 60 1720 250 154
-  Group_Functional:
-    bounds: 60 1900 940 154
-  Group_Datatrove:
-    bounds: 1020 1900 340 154
+  Ev_Start: 167 121 36 36
+  Ev_End: 347 121 36 36
+  Ev_Throw: 527 121 36 36
+  Ev_Catch: 707 121 36 36
+  Ev_Boundary: 887 121 36 36
+  Gw_Exclusive: {bounds: 160 294 50 50, markerVisible: true}
+  Gw_Parallel: 340 294 50 50
+  Gw_Inclusive: 520 294 50 50
+  Gw_EventBased: 700 294 50 50
+  Gw_Complex: 880 294 50 50
+  Act_Task: 125 459 120 80
+  Act_UserTask: 305 459 120 80
+  Act_ServiceTask: 485 459 120 80
+  Act_ScriptTask: 665 459 120 80
+  Act_ManualTask: 845 459 120 80
+  Act_SendTask: 1025 459 120 80
+  Act_ReceiveTask: 1205 459 120 80
+  Act_BusinessRuleTask: 125 569 120 80
+  Act_CallActivity: 305 569 120 80
+  Act_SubProcess: {bounds: 485 569 120 80, expanded: false}
+  Act_Transaction: {bounds: 665 569 120 80, expanded: false}
+  Act_AdHoc: {bounds: 845 569 120 80, expanded: false}
+  Bd_DataObject: 160 764 50 50
+  Bd_DataStore: 340 764 50 50
+  Sf_Dataset: 160 944 50 50
+  Sf_Schema: 340 944 50 50
+  Sf_Table: 520 944 50 50
+  Sf_Timeseries: 700 944 50 50
+  Sf_EventMarker: 880 944 50 50
+  Ex_Parameters: 160 1124 50 50
+  Fn_ForEach: {bounds: 125 1939 120 80, expanded: false}
+  Fn_Retry: 305 1939 120 80
+  Cg_CognitiveTask: 125 1289 120 80
+  Cg_Rest: {bounds: 347 1311 36 36, label: 325 1352 80 14}
+  Cg_Questionnaire: 485 1289 120 80
+  Cg_Instruction: 665 1289 120 80
+  Cg_Behaverse: 845 1289 120 80
+  Cg_Random: {bounds: 160 1414 50 50, markerVisible: true}
+  Cg_Stratified: {bounds: 340 1414 50 50, markerVisible: true}
+  Cg_Eligibility: {bounds: 520 1414 50 50, markerVisible: true}
+  Ob_Recording: 160 1594 50 50
+  Ag_Prompt: 160 1774 50 50
+  Dt_Reader: 1045 1939 120 80
+  Dt_Writer: 1205 1939 120 80
+  Bd_Annotation: 485 764 120 50
+  Group_BpmnEvents: 60 60 1300 154
+  Group_BpmnGateways: 60 240 1300 154
+  Group_BpmnActivities: 60 420 1300 264
+  Group_BpmnData: 60 710 1300 154
+  Group_Studyflow: 60 890 1300 154
+  Group_Exec: 60 1070 1300 154
+  Group_Cognitive: 60 1250 1300 264
+  Group_OpenBCI: 60 1540 250 154
+  Group_Agentic: 60 1720 250 154
+  Group_Functional: 60 1900 940 154
+  Group_Datatrove: 1020 1900 340 154

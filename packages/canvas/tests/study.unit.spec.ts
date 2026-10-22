@@ -240,16 +240,15 @@ test('set takes a structured attribute as the file spells it: a loop, a timer, t
   const study = open();
   const task = (): any => study.element('Task_1');
 
-  // A loop marker, polymorphic, so it names its type as the file does.
-  expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: { type: 'StandardLoopCharacteristics', loopMaximum: 3, loopCondition: 'count < 3' } }))
-    .toMatchObject({ ok: true, changed: ['Task_1'] });
+  // A loop marker under the key of its kind, as the file writes it.
+  expect(study.set({ id: 'Task_1', attribute: 'loop', value: { while: 'count < 3', maximum: 3 } })).toMatchObject({ ok: true, changed: ['Task_1'] });
   expect(task().loopCharacteristics).toMatchObject({ type: 'bpmn:StandardLoopCharacteristics', loopMaximum: 3, loopCondition: 'count < 3' });
 
-  // What a step reads, by the id of what it reads: a reference the document resolves.
-  expect(study.set({ id: 'Task_1', attribute: 'dataInputAssociations', value: { In_Count: { sourceRef: ['Count'] } } }).ok).toBe(true);
+  // What a step reads, by the `$id` of what it reads: a reference the document resolves.
+  expect(study.set({ id: 'Task_1', attribute: 'inputs', value: { In_Count: { source: '$Count' } } }).ok).toBe(true);
   expect(task().dataInputAssociations[0].sourceRef).toEqual(['Count']);
 
-  // A name the document does not hold is refused, and nothing is written.
+  // A name the document does not hold is refused, and nothing is written; BPMN's own names are read too.
   const before = study.toYaml();
   expect(study.set({ id: 'Task_1', attribute: 'dataInputAssociations', value: { In_Gone: { sourceRef: ['Gone'] } } }))
     .toMatchObject({ ok: false, reason: expect.stringContaining("names 'Gone', which no element is") });
@@ -257,8 +256,8 @@ test('set takes a structured attribute as the file spells it: a loop, a timer, t
   expect(study.toYaml()).toBe(before);
 
   // The file holds what was set, and each set undoes on its own; null clears.
-  expect(before).toContain('loopMaximum: 3');
-  expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: null }).ok).toBe(true);
+  expect(before).toContain('loop:\n        while: count < 3\n        maximum: 3\n');
+  expect(study.set({ id: 'Task_1', attribute: 'loop', value: null }).ok).toBe(true);
   expect(task().loopCharacteristics).toBeUndefined();
   study.undo();
   expect(task().loopCharacteristics.loopMaximum).toBe(3);
@@ -317,7 +316,7 @@ P:
   expect(study.call('item', { id: 'Seen', structure: 'cognitive:Trial' }).ok).toBe(true);
   // One item definition, one message, shared by both flows and the property.
   expect(roots().filter((root) => /ItemDefinition|Message /.test(root))).toEqual(['bpmn:ItemDefinition ItemDefinition_cognitive_Trial', 'bpmn:Message Message_cognitive_Trial']);
-  expect(study.toYaml()).toContain('messageRef: Message_cognitive_Trial');
+  expect(study.toYaml()).toContain('message: $Message_cognitive_Trial');
   // The message goes with its last flow; what holds no item is refused.
   study.call('item', { id: 'M_Ask', structure: '' });
   study.call('item', { id: 'M_Again', structure: '' });
@@ -853,7 +852,7 @@ test('copy writes shapes as a document of their own: what they hold, what sits o
   const yaml = (copied as { yaml: string }).yaml;
   for (const id of ['Ask', 'Late', 'Form', 'In_1', 'Gate', 'F1', 'Sub', 'Inner', 'Around', 'Phase one']) expect(yaml, id).toContain(id);
   for (const id of ['Other', 'To_Other']) expect(yaml, id).not.toContain(id);
-  expect(study.toYaml(), 'a copy is a read').toContain('default: To_Other');
+  expect(study.toYaml(), 'a copy is a read').toContain('default: $To_Other');
 
   expect(study.copy({ ids: ['Late'] }), 'what sits on an activity goes only with it').toMatchObject({ ok: false });
   expect(study.copy({ ids: ['F1'] })).toMatchObject({ ok: false });

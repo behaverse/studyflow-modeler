@@ -647,7 +647,7 @@ layout:
     stroke: "#5c8a55"
 `, { metamodel: freshMetamodel() });
   expect(looked.get('F')).toMatchObject({ kind: 'edge', source: 'A', target: 'B' });
-  expect(looked.toYaml()).toContain('  F:\n    waypoint: 200,140 300,140\n    stroke: "#5c8a55"\n');
+  expect(looked.toYaml()).toContain('  F: {waypoint: "200,140 300,140", stroke: "#5c8a55"}\n');
 });
 
 /** A study that draws `Analysis` closed and nothing it holds but the look of one step. */

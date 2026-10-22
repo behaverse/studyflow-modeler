@@ -1,24 +1,26 @@
 id: drawn_loop
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  prov: https://w3id.org/studyflow/prov
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Drawn_Loop:
-  type: studyflow:Study
+  type: Process
   name: drawn loop (eight turns, edges only)
+  executable: true
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:24:02Z", with: studyflow-modeler/26.0615}
   documentation: >-
     The smallest cycle the notation can draw — one step, one gateway, a conditioned back-edge, and nothing that is not a
     visible edge. The loop is bounded by the engine's own run state: `state._meta.reached.Gate` counts how often the
     walk has reached the gateway, so `state._meta.reached.Gate < 8` takes the back-edge seven times, the step runs
     eight, and the default edge exits. Runs as it stands: `studyflow run drawn_loop.studyflow.png` prints eight times
     and `state._meta.reached` in the run's copy shows the count.
-  extensionElements:
-    - type: prov:Activity
-      action: created
-      when: "2026-07-30T22:24:02Z"
-      with: studyflow-modeler/26.0615
-  flowElements:
+  elements:
     Start:
       type: StartEvent
       name: go
+
     Say:
       type: ServiceTask
       name: Say it again
@@ -26,43 +28,44 @@ Drawn_Loop:
         args:
           - around we go
       implementation: python://builtins.print
+
     Gate:
       type: ExclusiveGateway
       name: eight times yet?
+      default: $Exit
       documentation: >-
         The exit rule is on the edges, where a reader can see it: the back-edge holds while the engine's visit count is
         under eight, and the exit is the gateway's native default.
-      default: Exit
+
     End:
       type: EndEvent
       name: done
-    F1: Start -> Say
-    F2: Say -> Gate
+
+    F1:
+      source: $Start
+      target: $Say
+
+    F2:
+      source: $Say
+      target: $Gate
+
     Again:
       name: again
-      conditionExpression: state._meta.reached.Gate < 8
-      sourceRef: Gate
-      targetRef: Say
+      condition: state._meta.reached.Gate < 8
+      source: $Gate
+      target: $Say
+
     Exit:
       name: enough
-      sourceRef: Gate
-      targetRef: End
-  isExecutable: true
+      source: $Gate
+      target: $End
+
 layout:
-  Start:
-    bounds: 57 52 36 36
-  Say:
-    bounds: 175 30 100 80
-  Gate:
-    bounds: 350 45 50 50
-    isMarkerVisible: true
-  End:
-    bounds: 507 52 36 36
-  F1:
-    waypoint: 93,70 175,70
-  F2:
-    waypoint: 275,70 350,70
-  Again:
-    waypoint: 375,95 375,140 225,140 225,110
-  Exit:
-    waypoint: 400,70 507,70
+  Start: 57 52 36 36
+  Say: 175 30 100 80
+  Gate: {bounds: 350 45 50 50, markerVisible: true}
+  End: 507 52 36 36
+  F1: 93,70 175,70
+  F2: 275,70 350,70
+  Again: 375,95 375,140 225,140 225,110
+  Exit: 400,70 507,70

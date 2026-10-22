@@ -1,9 +1,14 @@
 id: multiverse_doc
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 multiverse:
-  type: studyflow:Study
+  type: Process
   name: multiverse
+  studyflow:Study:
+    seed: 42
+    dependencies:
+      - scikit-learn>=1.4
   documentation: |
     A specification curve in its smallest form: one estimator, one data set,
     one analytic choice left open, and every value of that choice scored.
@@ -20,82 +25,69 @@ multiverse:
     Nothing is computed by code of the study's own: loading the data,
     building the estimator and scoring it are library calls, named by their
     `python://` paths.
-  seed: 42
-  dependencies:
-    - scikit-learn>=1.4
   properties:
     cs:
       name: cs
       value: "[0.1, 1, 10]"
+
     features:
       name: features
       uri: features.joblib
+
     labels:
       name: labels
       uri: labels.joblib
+
     scores:
       name: scores
-  flowElements:
+  elements:
     start:
       type: StartEvent
       name: start
+
     load_digits:
       type: ServiceTask
       name: load_digits
-      documentation: >-
-        `load_digits(return_X_y=True)`: the 8x8 images as 64 features, and the digit each shows. One call fills both
-        properties, each output taking its half of the pair.
-      dataOutputAssociations:
-        Out_Features:
-          targetRef: features
-          transformation: result[1]
-        Out_Labels:
-          targetRef: labels
-          transformation: result[2]
       additionalArguments:
         return_X_y: true
       implementation: python://sklearn.datasets.load_digits
+      documentation: >-
+        `load_digits(return_X_y=True)`: the 8x8 images as 64 features, and the digit each shows. One call fills both
+        properties, each output taking its half of the pair.
+      outputs:
+        Out_Features:
+          target: $features
+          transformation: result[1]
+
+        Out_Labels:
+          target: $labels
+          transformation: result[2]
+
     each_c:
       type: SubProcess
       name: each_c
+      multiInstance:
+        dataInput: $cs
+        dataOutput: $scores
+        inputDataItem:
+          id: each_c_C
+          name: C
+        outputDataItem:
+          id: each_c_score
+          name: score
       documentation: >-
         One universe per value of `cs`: the value is this sub-process's `C` while a pass runs, and the pass's `score`
         joins `scores` when it ends.
       properties:
         score:
           name: score
-      loopCharacteristics:
-        type: MultiInstanceLoopCharacteristics
-        loopDataInputRef: cs
-        loopDataOutputRef: scores
-        inputDataItem:
-          name: C
-          id: each_c_C
-        outputDataItem:
-          name: score
-          id: each_c_score
-      flowElements:
+      elements:
         universe_start:
           type: StartEvent
+
         score_svc:
           type: ServiceTask
           name: score_svc
-          documentation: >-
-            `cross_val_score(SVC(C=C), features, labels, cv=5)`: the mean of its five fold accuracies is the universe's
-            `score`.
-          dataInputAssociations:
-            In_Features:
-              sourceRef:
-                - features
-              transformation: X
-            In_Labels:
-              sourceRef:
-                - labels
-              transformation: "y"
-          dataOutputAssociations:
-            Out_Score:
-              targetRef: score
-              transformation: mean(result)
           additionalArguments:
             estimator:
               implementation: python://sklearn.svm.SVC
@@ -103,39 +95,59 @@ multiverse:
                 C: "{C}"
             cv: 5
           implementation: python://sklearn.model_selection.cross_val_score
+          documentation: >-
+            `cross_val_score(SVC(C=C), features, labels, cv=5)`: the mean of its five fold accuracies is the universe's
+            `score`.
+          inputs:
+            In_Features:
+              source: $features
+              parameter: X
+
+            In_Labels:
+              source: $labels
+              parameter: "y"
+          outputs:
+            Out_Score:
+              target: $score
+              transformation: mean(result)
+
         universe_end:
           type: EndEvent
-        flow_universe_score: universe_start -> score_svc
-        flow_universe_end: score_svc -> universe_end
+
+        flow_universe_score:
+          source: $universe_start
+          target: $score_svc
+
+        flow_universe_end:
+          source: $score_svc
+          target: $universe_end
+
     done:
       type: EndEvent
       name: done
-    flow_load: start -> load_digits
-    flow_each: load_digits -> each_c
-    flow_done: each_c -> done
+
+    flow_load:
+      source: $start
+      target: $load_digits
+
+    flow_each:
+      source: $load_digits
+      target: $each_c
+
+    flow_done:
+      source: $each_c
+      target: $done
+
 layout:
-  start:
-    bounds: 80 252 36 36
-  load_digits:
-    bounds: 156 230 120 80
-  each_c:
-    bounds: 316 190 320 160
-    isExpanded: true
-  universe_start:
-    bounds: 346 252 36 36
-  score_svc:
-    bounds: 422 230 120 80
-  universe_end:
-    bounds: 582 252 36 36
-  flow_universe_score:
-    waypoint: 382,270 422,270
-  flow_universe_end:
-    waypoint: 542,270 582,270
-  done:
-    bounds: 676 252 36 36
-  flow_load:
-    waypoint: 116,270 156,270
-  flow_each:
-    waypoint: 276,270 316,270
-  flow_done:
-    waypoint: 636,270 676,270
+  start: 80 252 36 36
+  load_digits: 156 230 120 80
+  each_c: {bounds: 316 190 320 160, expanded: true}
+  universe_start: 346 252 36 36
+  score_svc: 422 230 120 80
+  universe_end: 582 252 36 36
+  flow_universe_score: 382,270 422,270
+  flow_universe_end: 542,270 582,270
+  done: 676 252 36 36
+  flow_load: 116,270 156,270
+  flow_each: 276,270 316,270
+  flow_done: 636,270 676,270

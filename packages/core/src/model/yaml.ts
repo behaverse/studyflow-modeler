@@ -5,6 +5,7 @@
  * packages/core/tests/studyflow-yaml.unit.spec.ts.
  */
 import * as yaml from 'js-yaml';
+import { Document as YAMLDocument, isMap, isPair, isScalar, isSeq, visit, type Scalar, type YAMLMap, type YAMLSeq } from 'yaml';
 
 import {
   DI_NODE_TYPES,
@@ -20,19 +21,28 @@ import {
   keyedMapToList,
   longTypeName,
   shortTypeName,
+  splitBinding,
 } from '@core/model/spelling';
+import { EVENT_KINDS, LOOP_KINDS, definitionId, fileKey, isRefLike, modelKey, refId, refValue } from '@core/model/names';
 import { BUILTIN_TYPES, type Descriptor, type Metamodel, type PropertyDef } from '@core/model/metamodel';
 import { isElement, type Drawing, type Element, type State, type Study, type Value } from '@core/model/types';
 
 type Warn = (message: string) => void;
 
 /** The keys of a file's top level that are not root elements. */
-export const RESERVED_DOC_KEYS = new Set(['id', 'definitions', 'elements', 'layout', 'diagram', 'state']);
+export const RESERVED_DOC_KEYS = new Set(['id', 'schemas', 'definitions', 'elements', 'layout', 'diagram', 'state']);
 
 export type YamlDoc = Record<string, unknown>;
 
 const DOCUMENTATION = 'bpmn:Documentation';
 const STUDY = 'studyflow:Study';
+/** Where a choreography task is BPMN's own; anywhere else (a process, a sub-process) the file writes it as a task. */
+const CHOREOGRAPHIES = new Set(['bpmn:Choreography', 'bpmn:SubChoreography']);
+const CHOREOGRAPHY_TASK = 'bpmn:ChoreographyTask';
+const TASK = 'bpmn:Task';
+const RUN_RECORD = 'prov:Activity';
+/** The target namespace BPMN requires of every document, which a file leaves out unless it names another. */
+const TARGET_NAMESPACE = 'http://bpmn.io/schema/bpmn';
 
 /** Where a schema's typed element attaches (`cognitive:Questionnaire` → `bpmn:Task`): its own, or a type it inherits from. */
 export function attachOf(metamodel: Metamodel, type: string, seen = new Set<string>()): string | undefined {
@@ -87,6 +97,42 @@ export function foldTyped(metamodel: Metamodel, element: Element): Element {
 
 /* --- reading --- */
 
+/** A task the file marks as an exchange, as the choreography task the study model holds, its bands and its initiator
+ * the choreography task's own. */
+function exchangeOf(raw: Record<string, unknown>): Record<string, unknown> {
+  if (raw.exchange !== true || typeof raw.type !== 'string' || longTypeName(raw.type) !== TASK) return raw;
+  const { exchange: _exchange, pools, participants, initiator, ...rest } = raw;
+  const out: Record<string, unknown> = { ...rest, type: CHOREOGRAPHY_TASK };
+  if ((pools ?? participants) !== undefined) out.participantRef = pools ?? participants;
+  if (initiator !== undefined) out.initiatingParticipantRef = initiator;
+  return out;
+}
+
+/** The definition an event's `key` names, when it is the key of a kind: its id the event's with `_Def`, unless the
+ * mapping names another; `true` holding nothing; a value the kind's main attribute. */
+function definitionOf(key: string, value: unknown, eventId: unknown): Record<string, unknown> | undefined {
+  const type = Object.keys(EVENT_KINDS).find((candidate) => EVENT_KINDS[candidate].key === key);
+  if (!type) return undefined;
+  const id = typeof eventId === 'string' ? { id: definitionId(eventId) } : {};
+  const { main } = EVENT_KINDS[type];
+  if (value === true) return { type, ...id };
+  if (isMapping(value)) return { type, ...id, ...value };
+  return main ? { type, ...id, [main]: value } : undefined;
+}
+
+/** Whether `value`, under a prefixed key, is an entry of that type, or several: a mapping, or a list of mappings. */
+function isEntryValue(value: unknown): value is Record<string, unknown> | Record<string, unknown>[] {
+  return isMapping(value) || (Array.isArray(value) && value.length > 0 && value.every(isMapping));
+}
+
+/** A line of the file's layout as the drawing it is: a box or a route alone as its text, a mapping's keys BPMN's. */
+function layoutDrawing(metamodel: Metamodel, line: unknown): Record<string, unknown> | undefined {
+  if (typeof line === 'string') return { [line.includes(',') ? 'waypoint' : 'bounds']: line };
+  if (!isMapping(line)) return undefined;
+  const diType = 'waypoint' in line ? 'bpmndi:BPMNEdge' : 'bpmndi:BPMNShape';
+  return Object.fromEntries(Object.entries(line).map(([key, value]) => [modelKey(metamodel, diType, key), value]));
+}
+
 class Reader {
   readonly layout: Record<string, Drawing> = {};
   private readonly ids = new Map<string, Element>();
@@ -108,7 +154,7 @@ class Reader {
 
   /** `raw`, a file's node, where `declared` is expected. */
   element(raw: Record<string, unknown>, declared: string | undefined): Element {
-    let node = raw;
+    let node = exchangeOf(raw);
     let type: string;
     let typed: string | undefined;
     const spelled = typeof node.type === 'string' ? node.type : undefined;
@@ -133,6 +179,7 @@ class Reader {
     const wrapper = typed ? this.metamodel.descriptor(typed) : undefined;
     node = { ...node };
     delete node.type;
+    node = this.longForm(node, host);
     if (DI_NODE_TYPES.has(type)) expandDiNode(node);
 
     const element: Element = { type };
@@ -157,14 +204,41 @@ class Reader {
     return typed ? element : foldTyped(this.metamodel, element);
   }
 
-  /** `raw`, the file's value of `element`'s property `p`, read onto `element` under the property's local name. */
+  /** A node in the file's spelling as BPMN spells it: each key under its property's name, the entries written under
+   * their types back in the one list, an event's kind as its definition, an activity's marker as the marker, an input's
+   * parameter back in its transformation. A key no property of `host` holds stays as it is. */
+  private longForm(node: Record<string, unknown>, host: string): Record<string, unknown> {
+    const own = this.metamodel.descriptor(host).propertiesByName;
+    const out: Record<string, unknown> = {};
+    const entries: unknown[] = [];
+    for (const [key, value] of Object.entries(node)) {
+      const name = modelKey(this.metamodel, host, key);
+      const definition = own.eventDefinitions && !own[name] ? definitionOf(key, value, node.id) : undefined;
+      const marker = own.loopCharacteristics && !own[name] ? Object.keys(LOOP_KINDS).find((type) => LOOP_KINDS[type] === key) : undefined;
+      if (own[name]) out[name] = value;
+      else if (definition) out.eventDefinitions = [definition];
+      else if (marker) out.loopCharacteristics = { type: marker, ...(isMapping(value) ? value : {}) };
+      else if (key.includes(':') && isEntryValue(value)) entries.push(...(Array.isArray(value) ? value : [value]).map((body) => ({ type: key, ...body })));
+      else out[key] = value;
+    }
+    if (entries.length > 0) out.extensionElements = [...entries, ...(Array.isArray(out.extensionElements) ? out.extensionElements : [])];
+    if (host === 'bpmn:DataInputAssociation' && typeof out.parameter === 'string') {
+      out.transformation = typeof out.transformation === 'string' ? `${out.parameter} = ${out.transformation}` : out.parameter;
+      delete out.parameter;
+    }
+    return out;
+  }
+
+  /** `raw`, the file's value of `element`'s property `p`, read onto `element` under the property's local name: a
+   * reference without the `$` it is written with. */
   property(element: Element, p: PropertyDef, raw: unknown): void {
     const name = p.ns.localName;
     if (p.isReference) {
-      element[name] = (p.isMany ? (Array.isArray(raw) ? raw : [raw]).map(String) : String(raw)) as Value;
+      element[name] = (p.isMany ? (Array.isArray(raw) ? raw : [raw]).map((id) => String(refId(id))) : String(refId(raw))) as Value;
       this.references.push({ element, key: name, many: !!p.isMany, context: element.type });
       return;
     }
+    if (isRefLike(this.metamodel, p)) raw = refId(raw);
     if (p.isMany) {
       const list = Array.isArray(raw) ? raw as unknown[]
         : typeof raw === 'string' && p.type === DOCUMENTATION ? [raw]
@@ -293,8 +367,13 @@ function diTypeOf(metamodel: Metamodel, host: string): string {
 /** A study from its file: the text, or a document already parsed (a schema template's elements). */
 export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: Warn = (message) => console.warn(`[studyflow read] ${message}`)): Study {
   const doc = (typeof source === 'string' ? yaml.load(source) : source) as YamlDoc;
-  if (!isMapping(doc) || !('definitions' in doc)) throw new Error("Not a studyflow YAML document (missing 'definitions').");
+  if (!isMapping(doc) || !('schemas' in doc || 'definitions' in doc)) throw new Error("Not a studyflow YAML document (missing 'schemas').");
   const definitions: Record<string, Value> = { ...(doc.definitions as Record<string, Value> ?? {}) };
+  // A schema a loaded package declares is the package's; any other the definitions declare, so its elements are kept.
+  for (const [prefix, uri] of Object.entries(isMapping(doc.schemas) ? doc.schemas : {})) {
+    if (typeof uri === 'string' && metamodel.package(prefix)?.uri !== uri) definitions[`xmlns:${prefix}`] = uri;
+  }
+  definitions.targetNamespace ??= TARGET_NAMESPACE;
   const reader = new Reader(metamodel, warn, definitions);
   const id = doc.id ?? definitions.id;
   delete definitions.id;
@@ -326,9 +405,10 @@ export function readStudy(source: string | YamlDoc, metamodel: Metamodel, warn: 
     }
   }
   if (isMapping(doc.layout)) {
-    for (const [elementId, drawing] of Object.entries(doc.layout)) {
+    for (const [elementId, line] of Object.entries(doc.layout)) {
       const type = reader.typeOf(elementId);
-      if (!type || !isMapping(drawing)) {
+      const drawing = layoutDrawing(metamodel, line);
+      if (!type || !drawing) {
         warn(`layout draws '${elementId}', which no element is; left out`);
         continue;
       }
@@ -352,33 +432,42 @@ export function diagramElement(raw: Record<string, unknown>, metamodel: Metamode
   return new Reader(metamodel, () => {}, namespaces, false).element(raw, 'bpmndi:BPMNDiagram');
 }
 
-/** A diagram section, in the file's spelling: each plane element the layout can spell moves to it; the rest, and a
- * diagram that says more than which root it draws, stay. */
+/** A diagram section as the study holds it, each diagram an element: each plane element of the first that the layout
+ * can hold moves to it, read off the diagram as the file spells it; the rest, and a diagram that says more than which
+ * root it draws, stay. */
 function readDiagrams(raws: unknown[], reader: Reader, metamodel: Metamodel, namespaces: Record<string, unknown>): Value[] {
   const kept: Value[] = [];
   raws.forEach((raw, index) => {
     if (!isMapping(raw)) return;
-    const diagram = spelledElement(metamodel, diagramElement(raw, metamodel, namespaces), 'bpmndi:BPMNDiagram');
-    const plane = isMapping(diagram.plane) ? { ...diagram.plane } : undefined;
+    const diagram = diagramElement(raw, metamodel, namespaces);
+    const plane = isElement(diagram.plane) ? diagram.plane : undefined;
     if (plane && index === 0) {
-      const elements = Array.isArray(plane.planeElement) ? plane.planeElement : keyedMapToList(plane.planeElement);
+      const spelled = spelledElement(metamodel, diagram, 'bpmndi:BPMNDiagram').plane as Record<string, unknown> | undefined;
+      const elements = keyedMapToList(spelled?.planeElement);
+      const targetOf = (pe: Record<string, unknown>): unknown => refId(pe.bpmnElement);
       const counts = new Map<string, number>();
-      for (const pe of elements) if (isMapping(pe) && typeof pe.bpmnElement === 'string') counts.set(pe.bpmnElement, (counts.get(pe.bpmnElement) ?? 0) + 1);
-      const rest = elements.filter((pe) => {
-        if (!isMapping(pe)) return true;
+      for (const pe of elements) {
+        const target = isMapping(pe) ? targetOf(pe) : undefined;
+        if (typeof target === 'string') counts.set(target, (counts.get(target) ?? 0) + 1);
+      }
+      const moved = new Set<unknown>();
+      for (const pe of elements) {
+        if (!isMapping(pe)) continue;
         const type = typeof pe.type === 'string' ? longTypeName(pe.type) : undefined;
-        const target = pe.bpmnElement;
-        if (!type || !DI_NODE_TYPES.has(type) || typeof target !== 'string' || counts.get(target) !== 1 || !reader.has(target)) return true;
-        const { type: _type, id: _id, bpmnElement: _ref, ...drawing } = pe;
-        if (Object.keys(drawing).some((key) => ['sourceElement', 'targetElement', 'choreographyActivityShape'].includes(key))) return true;
+        const target = targetOf(pe);
+        if (!type || !DI_NODE_TYPES.has(type) || typeof target !== 'string' || counts.get(target) !== 1 || !reader.has(target)) continue;
+        const { type: _type, id, bpmnElement: _ref, ...written } = pe;
+        // The drawing under BPMN's keys, as the layout holds it.
+        const drawing = Object.fromEntries(Object.entries(written).map(([key, value]) => [modelKey(metamodel, type, key), value]));
+        if (Object.keys(drawing).some((key) => ['sourceElement', 'targetElement', 'choreographyActivityShape'].includes(key))) continue;
         reader.drawn(target, type, drawing);
-        return false;
-      });
+        moved.add(id);
+      }
+      const rest = (Array.isArray(plane.planeElement) ? plane.planeElement : []).filter((pe) => !(isElement(pe) && moved.has(pe.id)));
       if (rest.length > 0) plane.planeElement = rest;
       else delete plane.planeElement;
-      diagram.plane = plane;
     }
-    kept.push(diagram as Value);
+    kept.push(diagram);
   });
   return kept;
 }
@@ -489,9 +578,15 @@ class Writer {
   }
 }
 
-/** An element the {@link Writer} keeps, in the file's spelling: its type left out where its place or its keys say it, a
- * BPMN type without its prefix, its name first, a list of elements keyed by id (a flow as an arrow), documentation as
- * its text, a drawing's values on one line each. */
+
+/**
+ * An element the {@link Writer} keeps, in the file's spelling (docs/reference.qmd, "The file"). It is written as BPMN
+ * holds it: a schema's typed element as its BPMN type with an entry of the schema's type, a choreography task in a
+ * process as the task the BPMN XML writes, marked an exchange. Each key is its file name ({@link fileKey}), a reference
+ * `$id`, each entry under its prefixed type, an event's one definition and an activity's marker under their kinds, an
+ * edge's two ends as two keys. Its type is left out where the key holding it says it, then come its name, its
+ * attributes, its entries, its documentation, and last the lists of elements it holds, keyed by id.
+ */
 class Speller {
   private readonly metamodel: Metamodel;
 
@@ -499,45 +594,150 @@ class Speller {
     this.metamodel = metamodel;
   }
 
-  element(element: Element, declared: string | undefined): Record<string, unknown> {
-    const { type: elementType, ...properties } = element;
-    const out: Record<string, unknown> = {};
-    if (elementType !== declared) out.type = shortTypeName(elementType);
-    Object.assign(out, this.properties(elementType, properties));
-    if (DI_NODE_TYPES.has(elementType)) compactDiNode(out);
-    if (out.type !== undefined && impliedTypeName(out, declared) === elementType) delete out.type;
-    if (!('name' in out)) return out;
-    const { type, name, ...rest } = out;
-    return { ...(type === undefined ? {} : { type }), name, ...rest };
-  }
-
-  /** The properties of an element of `type`, each in the file's spelling; a key no schema declares as it is. */
-  properties(type: string, properties: Record<string, Value | undefined>): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(properties)) {
-      const p = propertyOf(this.metamodel, type, key);
-      out[key] = p?.ns.localName === key ? this.property(p, value!) : value;
+  /** `element` where a `declared` element is expected, inside a `container` element of that type; an `entry` among an
+   * element's extension entries, which is no BPMN element, as it is. */
+  element(element: Element, declared: string | undefined, container?: string, entry = false): Record<string, unknown> {
+    const el = entry ? element : this.asBpmn(element, container);
+    const type = el.type;
+    const own = this.metamodel.has(type) ? this.metamodel.descriptor(type).propertiesByName : undefined;
+    const head: Record<string, unknown> = {};
+    const attributes: Record<string, unknown> = {};
+    const prose: Record<string, unknown> = {};
+    const held: Record<string, unknown> = {};
+    let entries: Value[] | undefined;
+    if (type !== declared) head.type = shortTypeName(type);
+    for (const [key, value] of Object.entries(el)) {
+      const p = own?.[key];
+      if (key === 'type' || value === undefined) continue;
+      if (!p) attributes[key] = value;
+      else if (key === 'id' || key === 'name') head[key] = value;
+      else if (key === 'extensionElements' && Array.isArray(value)) entries = value;
+      else if (key === 'documentation' && Array.isArray(value)) prose.documentation = this.documentation(value);
+      else if (!this.kind(el, key, value, attributes)) this.property(type, p, value, isListOfElements(p, value) ? held : attributes);
     }
+    if (type === 'bpmn:DataInputAssociation') splitParameter(attributes);
+    let spelledEntries = entries ? this.entries(entries, type) : {};
+    if (Object.keys(spelledEntries).some((key) => key in attributes)) spelledEntries = this.entryList(entries!, type);
+    const out = { ...head, ...attributes, ...spelledEntries, ...prose, ...held };
+    if (DI_NODE_TYPES.has(type)) compactDiNode(out);
+    if (out.type !== undefined && impliedTypeName(out, declared) === type) delete out.type;
     return out;
   }
 
-  private property(p: PropertyDef, value: Value): unknown {
-    if (p.isReference) return value;
-    if (!p.isMany) return this.value(value, p.type);
-    const list = value as Value[];
-    if (p.type === DOCUMENTATION && list.every((item) => typeof item === 'string')) return list.length === 1 ? list[0] : list;
-    const items = list.map((item) => (typeof item === 'string' && p.type === DOCUMENTATION ? { text: item } : this.value(item, p.type)));
-    return keyItemsById(items) ?? items;
+  /** `element` as BPMN holds it: a schema's typed element as its BPMN type, an entry of the schema's type first among
+   * its entries; a choreography task outside a choreography as the task the BPMN XML writes, marked an exchange, its
+   * bands and its initiator as the core's attributes. */
+  private asBpmn(element: Element, container: string | undefined): Element {
+    let el = element;
+    const host = hostOf(this.metamodel, el.type);
+    if (host !== el.type && this.metamodel.has(el.type)) {
+      const hostOwn = this.metamodel.descriptor(host).propertiesByName;
+      const typedOwn = this.metamodel.descriptor(el.type).propertiesByName;
+      const bpmn: Element = { type: host };
+      const entry: Element = { type: el.type };
+      for (const [key, value] of Object.entries(el)) {
+        if (key === 'type') continue;
+        if (!hostOwn[key] && typedOwn[key]) entry[key] = value;
+        else bpmn[key] = value;
+      }
+      bpmn.extensionElements = [entry, ...(Array.isArray(el.extensionElements) ? el.extensionElements : [])];
+      el = bpmn;
+    }
+    if (el.type === CHOREOGRAPHY_TASK && container !== undefined && !CHOREOGRAPHIES.has(container)) {
+      const { participantRef, initiatingParticipantRef, ...rest } = el;
+      el = { ...rest, type: TASK, exchange: true };
+      if (participantRef !== undefined) el.participants = participantRef;
+      if (initiatingParticipantRef !== undefined) el.initiator = initiatingParticipantRef;
+    }
+    return el;
   }
 
-  private value(value: Value, declared: string | undefined): unknown {
+  /** `value`, `element`'s property `p`, under its file key in `out`. */
+  private property(type: string, p: PropertyDef, value: Value, out: Record<string, unknown>): void {
+    const key = fileKey(this.metamodel, type, p.ns.localName);
+    if (isRefLike(this.metamodel, p)) out[key] = refValue(value);
+    else if (isListOfElements(p, value)) {
+      const items = (value as Value[]).map((item) => this.value(item, p.type, type));
+      out[key] = keyItemsById(items) ?? items;
+    } else out[key] = this.value(value, p.type, type);
+  }
+
+  /** An event's one definition, or an activity's marker, under the key of its kind in `out`; whether it was one. */
+  private kind(el: Element, key: string, value: Value, out: Record<string, unknown>): boolean {
+    const own = this.metamodel.descriptor(el.type).propertiesByName;
+    if (key === 'eventDefinitions' && Array.isArray(value) && value.length === 1 && isElement(value[0]) && typeof value[0].id === 'string') {
+      const definition = value[0];
+      const kind = EVENT_KINDS[definition.type];
+      if (!kind || own[kind.key]) return false;
+      const body = this.element(definition, definition.type);
+      if (typeof el.id === 'string' && body.id === definitionId(el.id)) delete body.id;
+      const main = kind.main && fileKey(this.metamodel, definition.type, kind.main);
+      const keys = Object.keys(body);
+      if (keys.length === 0) out[kind.key] = true;
+      else if (keys.length === 1 && keys[0] === main && ['string', 'number'].includes(typeof body[main])) out[kind.key] = body[main];
+      else out[kind.key] = body;
+      return true;
+    }
+    if (key === 'loopCharacteristics' && isElement(value) && LOOP_KINDS[value.type] && !own[LOOP_KINDS[value.type]]) {
+      const body = this.element(value, value.type);
+      out[LOOP_KINDS[value.type]] = Object.keys(body).length === 0 ? true : body;
+      return true;
+    }
+    return false;
+  }
+
+  /** An element's entries, each under its type: one as its mapping, `{}` when it holds nothing, several of one type as
+   * a list; the run records always a list, so the next run adds a line. */
+  private entries(values: Value[], holder: string): Record<string, unknown> {
+    const types = values.map((value) => (isElement(value) ? value.type : undefined));
+    const runs = types.filter((type, index) => index === 0 || types[index - 1] !== type);
+    if (types.some((type) => type === undefined) || new Set(runs).size !== runs.length) return this.entryList(values, holder);
+    const out: Record<string, unknown> = {};
+    values.forEach((value, index) => {
+      const type = types[index]!;
+      const body = this.element(value as Element, type, undefined, true);
+      if (type === RUN_RECORD) ((out[type] ??= []) as unknown[]).push(body);
+      else if (!(type in out)) out[type] = body;
+      else out[type] = [...(Array.isArray(out[type]) ? out[type] as unknown[] : [out[type]]), body];
+    });
+    return out;
+  }
+
+  /** Entries whose types interleave, as BPMN lists them, each with its type. */
+  private entryList(values: Value[], holder: string): Record<string, unknown> {
+    return { [fileKey(this.metamodel, holder, 'extensionElements')]: values.map((value) => (isElement(value) ? this.element(value, undefined, undefined, true) : value)) };
+  }
+
+  private documentation(list: Value[]): unknown {
+    if (list.every((item) => typeof item === 'string')) return list.length === 1 ? list[0] : list;
+    return list.map((item) => (typeof item === 'string' ? { text: item } : this.value(item, DOCUMENTATION)));
+  }
+
+  private value(value: Value, declared: string | undefined, container?: string): unknown {
     if (Array.isArray(value)) {
       const list = declared && elementList(this.metamodel, declared);
-      return list ? value.map((item) => this.value(item, list.type)) : value;
+      return list ? value.map((item) => this.value(item, list.type, container)) : value.map((item) => (isElement(item) ? this.element(item, declared, container) : item));
     }
-    if (isElement(value)) return this.element(value, declared);
+    if (isElement(value)) return this.element(value, declared, container);
     return value;
   }
+}
+
+/** Whether `value`, a property's, is a list of elements, which the file writes keyed by id. */
+function isListOfElements(p: PropertyDef, value: Value): boolean {
+  return !!p.isMany && !p.isReference && p.type !== DOCUMENTATION && Array.isArray(value) && value.some(isElement);
+}
+
+/** An input's transformation, `parameter = selection`, as its two keys, where the text is just that. */
+function splitParameter(attributes: Record<string, unknown>): void {
+  const text = attributes.transformation;
+  if (typeof text !== 'string') return;
+  const { slot, selection } = splitBinding(text);
+  if (!slot || (selection === undefined ? slot : `${slot} = ${selection}`) !== text) return;
+  const entries = Object.entries(attributes).flatMap(([key, value]): [string, unknown][] => (key !== 'transformation' ? [[key, value]]
+    : [['parameter', slot], ...(selection === undefined ? [] : [['transformation', selection] as [string, unknown]])]));
+  for (const key of Object.keys(attributes)) delete attributes[key];
+  Object.assign(attributes, Object.fromEntries(entries));
 }
 
 /** `element` as the file spells it where a `declared` element is expected, by a writer of its own that keeps every
@@ -587,11 +787,11 @@ export function inferredRoot(study: Study, metamodel: Metamodel): Element | unde
 /** A diagram that only says which root it draws, when that is the root the reader infers, or a collaboration with no
  * pool (which draws that same root): the file leaves it out. */
 function redundantDiagram(node: Value, study: Study, metamodel: Metamodel): boolean {
-  if (!isMapping(node) || Object.keys(node).some((key) => key !== 'id' && key !== 'plane')) return false;
+  if (!isMapping(node) || Object.keys(node).some((key) => !['type', 'id', 'plane'].includes(key))) return false;
   const plane = node.plane;
   if (!isMapping(plane)) return true;
-  if (Object.keys(plane).some((key) => key !== 'id' && key !== 'bpmnElement')) return false;
-  const named = plane.bpmnElement;
+  if (Object.keys(plane).some((key) => !['type', 'id', 'bpmnElement'].includes(key))) return false;
+  const named = refId(plane.bpmnElement);
   return named === undefined || named === inferredRoot(study, metamodel)?.id
     || study.roots.some((root) => root.id === named && isHeadlessCollaboration(root));
 }
@@ -619,13 +819,54 @@ export function writtenStudy(study: Study, metamodel: Metamodel, warn?: Warn): S
   return written;
 }
 
-/** The study as its file's document: the structure `js-yaml` dumps to the text the tools write. */
+
+/** Each namespace the written study uses besides BPMN's, prefix to URI: the types of its elements and entries, its
+ * prefixed keys, a schema type an item definition names, and the core's, which every study uses; then the namespaces
+ * the definitions declare for elements no loaded schema knows. */
+function schemasOf(metamodel: Metamodel, written: Study): Record<string, string> {
+  const prefixes = new Set(['studyflow']);
+  const visit = (value: unknown): void => {
+    if (Array.isArray(value)) value.forEach(visit);
+    else if (isElement(value)) {
+      for (const [key, item] of Object.entries(value)) {
+        if (key.includes(':')) prefixes.add(key.split(':')[0]);
+        if ((key === 'type' || key === 'structureRef') && typeof item === 'string' && item.includes(':') && !item.includes('://')) prefixes.add(item.split(':')[0]);
+        visit(item);
+      }
+    }
+  };
+  written.roots.forEach(visit);
+  const out: Record<string, string> = {};
+  for (const prefix of [...prefixes].sort()) {
+    const uri = metamodel.package(prefix)?.uri ?? written.definitions[`xmlns:${prefix}`];
+    if (prefix !== 'bpmn' && typeof uri === 'string') out[prefix] = uri;
+  }
+  for (const [key, uri] of Object.entries(written.definitions)) {
+    if (key.startsWith('xmlns:') && typeof uri === 'string') out[key.slice('xmlns:'.length)] = uri;
+  }
+  return Object.fromEntries(Object.entries(out).sort(([a], [b]) => (a < b ? -1 : 1)));
+}
+
+/** A drawing as the file's layout writes it, one line: a shape's box or an edge's route alone as its text, anything
+ * more as a mapping under the file's keys. */
+function layoutLine(metamodel: Metamodel, drawing: Drawing): unknown {
+  const keys = Object.keys(drawing);
+  if (keys.length === 1 && (keys[0] === 'bounds' || keys[0] === 'waypoint') && typeof drawing[keys[0]] === 'string') return drawing[keys[0]];
+  const diType = 'waypoint' in drawing ? 'bpmndi:BPMNEdge' : 'bpmndi:BPMNShape';
+  return Object.fromEntries(Object.entries(drawing).map(([key, value]) => [fileKey(metamodel, diType, key), value]));
+}
+
+/** The study as its file's document: the structure the text the tools write holds ({@link studyText}). */
 export function writeStudy(study: Study, metamodel: Metamodel, warn?: Warn): YamlDoc {
   const written = writtenStudy(study, metamodel, warn);
   const speller = new Speller(metamodel);
   const doc: YamlDoc = {};
   if (written.id !== undefined) doc.id = written.id;
-  doc.definitions = speller.properties('bpmn:Definitions', written.definitions);
+  doc.schemas = schemasOf(metamodel, written);
+  const { type: _type, ...definitions } = speller.element({ ...written.definitions, type: 'bpmn:Definitions' }, 'bpmn:Definitions');
+  for (const key of Object.keys(definitions)) if (key.startsWith('xmlns:')) delete definitions[key];
+  if (definitions.targetNamespace === TARGET_NAMESPACE) delete definitions.targetNamespace;
+  if (Object.keys(definitions).length > 0) doc.definitions = definitions;
   const unkeyable: unknown[] = [];
   const roots = written.roots.map((root) => speller.element(root, 'bpmn:RootElement'));
   const keyed = keyItemsById(roots);
@@ -637,13 +878,73 @@ export function writeStudy(study: Study, metamodel: Metamodel, warn?: Warn): Yam
     }
   }
   if (unkeyable.length > 0) doc.elements = unkeyable;
-  if (Object.keys(written.layout).length > 0) doc.layout = written.layout;
-  if (written.diagram) doc.diagram = written.diagram;
+  if (Object.keys(written.layout).length > 0) {
+    doc.layout = Object.fromEntries(Object.entries(written.layout).map(([id, drawing]) => [id, layoutLine(metamodel, drawing)]));
+  }
+  if (written.diagram) {
+    doc.diagram = written.diagram.map((node) => speller.element(diagramElement(node as Record<string, unknown>, metamodel, written.definitions), 'bpmndi:BPMNDiagram'));
+  }
   if (written.state) doc.state = written.state;
   return doc;
 }
 
-/** The study as the text of its `.studyflow.yaml` file. */
+/** The keys whose mapping lists elements keyed by id, which the text separates by a blank line. */
+const ELEMENT_LISTS = new Set(['elements', 'pools', 'messageFlows', 'artifacts', 'properties', 'inputs', 'outputs', 'laneSets', 'lanes',
+  'eventDefinitions', 'categoryValue', 'flowElements', 'participants', 'dataInputAssociations', 'dataOutputAssociations']);
+
+/** The head of the file, which no blank line divides. */
+const HEAD_KEYS = new Set(['id', 'schemas', 'definitions']);
+
+const TEXT_OPTIONS = { lineWidth: 120, minContentWidth: 0, flowCollectionPadding: false } as const;
+
+/** `node` written as if lines had no width, so nothing in it breaks across lines however long. */
+function unbounded(node: YAMLMap | YAMLSeq): void {
+  const write = node.toString.bind(node) as YAMLMap['toString'];
+  (node as { toString: YAMLMap['toString'] }).toString = (ctx, ...rest) => write(ctx && { ...ctx, options: { ...ctx.options, lineWidth: 0 } }, ...rest);
+}
+
+/** The study as the text of its `.studyflow.yaml` file ({@link documentText}). */
 export function studyText(study: Study, metamodel: Metamodel, warn?: Warn): string {
-  return yaml.dump(writeStudy(study, metamodel, warn), YAML_DUMP_OPTIONS);
+  return documentText(writeStudy(study, metamodel, warn));
+}
+
+/** `doc`, the document of a `.studyflow.yaml` file or a part of one, as its text: a blank line before each part of the
+ * file after its head and between the elements of each list, each drawing and each run record on one line however
+ * long, and prose too long for its line folded. YAML 1.1 quotes what any YAML reader could take for another type (a
+ * date, `1:1`, `yes`). */
+export function documentText(doc: YamlDoc): string {
+  const document = new YAMLDocument(doc, { version: '1.1' });
+  visit(document, {
+    Pair(_, pair, path) {
+      const map = path[path.length - 1];
+      const holder = path[path.length - 2];
+      if (!isMap(map) || !isScalar(pair.key)) return;
+      const key = String(pair.key.value);
+      const part = path.length === 2 ? pair : path[2];
+      const drawing = isPair(part) && isScalar(part.key) && part.key.value === 'layout';
+      if (path.length === 2 && drawing && isMap(pair.value)) unbounded(pair.value);
+      // Prose too long for its line folds into a block, as a paragraph reads.
+      const indent = 2 * (path.filter((node) => isMap(node) || isSeq(node)).length - 1);
+      const text = isScalar(pair.value) ? pair.value.value : undefined;
+      if (!map.flow && !drawing && typeof text === 'string' && !text.includes('\n') && indent + key.length + 2 + text.length > TEXT_OPTIONS.lineWidth) {
+        (pair.value as Scalar).type = 'BLOCK_FOLDED';
+      }
+      if (map.items.indexOf(pair as never) === 0) return;
+      const topLevel = path.length === 2 && !HEAD_KEYS.has(key);
+      const listed = isPair(holder) && isScalar(holder.key) && ELEMENT_LISTS.has(String(holder.key.value)) && isMap(pair.value);
+      if (topLevel || listed) pair.key.spaceBefore = true;
+    },
+    Map(_, map, path) {
+      const holder = path[path.length - 1];
+      const layout = path[path.length - 3];
+      if (isPair(holder) && isPair(layout) && isScalar(layout.key) && layout.key.value === 'layout' && path.length === 5) map.flow = true;
+    },
+    Seq(_, seq, path) {
+      const holder = path[path.length - 1];
+      if (!isPair(holder) || !isScalar(holder.key) || holder.key.value !== RUN_RECORD) return;
+      unbounded(seq);
+      for (const item of seq.items) if (isMap(item)) item.flow = true;
+    },
+  });
+  return document.toString(TEXT_OPTIONS);
 }

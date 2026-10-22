@@ -1,27 +1,46 @@
 id: sklearn_pipeline_doc
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  prov: https://w3id.org/studyflow/prov
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Item_Table:
   type: ItemDefinition
-  structureRef: pandas.DataFrame
+  structure: pandas.DataFrame
+
 Item_Series:
   type: ItemDefinition
-  structureRef: pandas.Series
+  structure: pandas.Series
+
 Item_Estimator:
   type: ItemDefinition
-  structureRef: sklearn.pipeline.Pipeline
+  structure: sklearn.pipeline.Pipeline
+
 Item_Scores:
   type: ItemDefinition
-  structureRef: dict
+  structure: dict
+
 Item_Number:
   type: ItemDefinition
-  structureRef: number
+  structure: number
+
 Item_Labels:
   type: ItemDefinition
-  structureRef: numpy.ndarray
+  structure: numpy.ndarray
+
 sklearn_pipeline:
-  type: studyflow:Study
+  type: Process
   name: sklearn_pipeline
+  studyflow:Study:
+    seed: 42
+    dependencies:
+      - scikit-learn>=1.4
+      - pandas>=2.0
+      - joblib>=1.3
+      - matplotlib>=3.8
+  prov:Activity:
+    - {action: executed, when: "2026-08-20T12:28:24.591+02:00", who: morteza, with: studyflow_run.py, run: sklearn-demo, seed: 42}
+    - {action: executed, when: "2026-08-20T12:28:40.659+02:00", who: morteza, with: studyflow_run.py, run: sklearn-demo, seed: 42}
+    - {action: executed, when: "2026-08-20T12:28:56.471+02:00", who: morteza, with: studyflow_run.py, run: sklearn-demo, seed: 42}
   documentation: |
     A runnable scikit-learn classification workflow, drawn the way the
     method is actually done: split first, report last.
@@ -68,75 +87,48 @@ sklearn_pipeline:
     value to the wired outputs - narrowed by a `transformation` over `result`
     where one is declared, which is how one call fills four properties - and
     persists any output that declares a `uri` through its `codec`.
-  seed: 42
-  dependencies:
-    - scikit-learn>=1.4
-    - pandas>=2.0
-    - joblib>=1.3
-    - matplotlib>=3.8
-  extensionElements:
-    - type: prov:Activity
-      action: executed
-      when: "2026-08-20T12:28:24.591+02:00"
-      who: morteza
-      with: studyflow_run.py
-      run: sklearn-demo
-      seed: 42
-    - type: prov:Activity
-      action: executed
-      when: "2026-08-20T12:28:40.659+02:00"
-      who: morteza
-      with: studyflow_run.py
-      run: sklearn-demo
-      seed: 42
-    - type: prov:Activity
-      action: executed
-      when: "2026-08-20T12:28:56.471+02:00"
-      who: morteza
-      with: studyflow_run.py
-      run: sklearn-demo
-      seed: 42
   properties:
     x_train:
       name: x_train
-      itemSubjectRef: Item_Table
+      item: $Item_Table
+
     x_test:
       name: x_test
-      itemSubjectRef: Item_Table
+      item: $Item_Table
       uri: x_test.joblib
+
     y_train:
       name: y_train
-      itemSubjectRef: Item_Series
+      item: $Item_Series
+
     y_test:
       name: y_test
-      itemSubjectRef: Item_Series
+      item: $Item_Series
       uri: y_test.joblib
+
     estimator:
       name: estimator
-      itemSubjectRef: Item_Estimator
+      item: $Item_Estimator
+
     mean_cv_accuracy:
       name: mean_cv_accuracy
-      itemSubjectRef: Item_Number
-  flowElements:
+      item: $Item_Number
+  elements:
     start_analysis:
       type: StartEvent
       name: start_analysis
-      extensionElements:
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:25.275+02:00"
-          run: sklearn-demo
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:41.267+02:00"
-          run: sklearn-demo
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:56.906+02:00"
-          run: sklearn-demo
+      prov:Activity:
+        - {action: executed, when: "2026-08-20T12:28:25.275+02:00", run: sklearn-demo}
+        - {action: executed, when: "2026-08-20T12:28:41.267+02:00", run: sklearn-demo}
+        - {action: executed, when: "2026-08-20T12:28:56.906+02:00", run: sklearn-demo}
+
     is_good_enough:
       type: ExclusiveGateway
       name: is_good_enough
+      default: $needs_work
+      prov:Activity:
+        - {action: executed, when: "2026-08-20T12:28:28.520+02:00", what: report, run: sklearn-demo}
+        - {action: reused, when: "2026-08-20T12:28:57.771+02:00", what: "2026-08-20T12:28:28.520+02:00", run: sklearn-demo}
       documentation: |
         The promotion criterion, as BPMN's own branch rule: the pass flow
         carries the `conditionExpression` and the reject flow is the gateway's
@@ -148,34 +140,15 @@ sklearn_pipeline:
         to spend the held-out quarter. Spending it is the point - the test set
         can only be read once to mean anything, so the gate decides whether
         this run is worth reading it for.
-      extensionElements:
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:28.520+02:00"
-          what: report
-          run: sklearn-demo
-        - type: prov:Activity
-          action: reused
-          when: "2026-08-20T12:28:57.771+02:00"
-          what: "2026-08-20T12:28:28.520+02:00"
-          run: sklearn-demo
-      default: needs_work
+
     done:
       type: EndEvent
       name: done
-      extensionElements:
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:30.069+02:00"
-          run: sklearn-demo
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:44.110+02:00"
-          run: sklearn-demo
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:59.170+02:00"
-          run: sklearn-demo
+      prov:Activity:
+        - {action: executed, when: "2026-08-20T12:28:30.069+02:00", run: sklearn-demo}
+        - {action: executed, when: "2026-08-20T12:28:44.110+02:00", run: sklearn-demo}
+        - {action: executed, when: "2026-08-20T12:28:59.170+02:00", run: sklearn-demo}
+
     failed_to_fit:
       type: EndEvent
       name: failed_to_fit
@@ -183,101 +156,85 @@ sklearn_pipeline:
         The run stops before the split's test half is read at all, so nothing
         has been spent: fix the estimator and run again against the same
         held-out data.
+
     prepare_data:
       type: SubProcess
       name: prepare_data
+      prov:Activity:
+        - {action: executed, when: "2026-08-20T12:28:57.314+02:00", run: sklearn-demo}
       documentation: >-
         Everything that happens before a model sees anything: pull the feature matrix and the label vector out of the
         input table, then split off a quarter of the rows and set them aside.
-      extensionElements:
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:57.314+02:00"
-          run: sklearn-demo
       properties:
         features:
           name: features
-          itemSubjectRef: Item_Table
+          item: $Item_Table
+
         target:
           name: target
-          itemSubjectRef: Item_Series
-      flowElements:
+          item: $Item_Series
+      elements:
         prepare_start:
           type: StartEvent
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:25.275+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:41.267+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:56.906+02:00"
-              run: sklearn-demo
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:25.275+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:41.267+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:56.906+02:00", run: sklearn-demo}
+
         select_features:
           type: ServiceTask
           name: select_features
+          additionalArguments:
+            columns:
+              - target
+          implementation: python://pandas.DataFrame.drop
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:27.082+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:56.906+02:00", what: "2026-08-20T12:28:27.082+02:00", run: sklearn-demo}
           documentation: |
             `DataFrame.drop(input_dataset, columns=["target"])` - the input
             association names the unbound method's receiver with `parameter: self`,
             so the value binds positionally and the diagram does not depend on what
             pandas calls that parameter. The result lands on the `features`
             property: a value this run carries, not a file anyone reads.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:27.082+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:56.906+02:00"
-              what: "2026-08-20T12:28:27.082+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_Input_Features:
-              sourceRef:
-                - input_dataset
-              transformation: self
-          dataOutputAssociations:
+              source: $input_dataset
+              parameter: self
+          outputs:
             DataOutput_Features:
-              targetRef: features
-          additionalArguments:
-            columns:
-              - target
-          implementation: python://pandas.DataFrame.drop
+              target: $features
+
         select_target:
           type: ServiceTask
           name: select_target
-          documentation: |
-            `DataFrame.get(input_dataset, key="target")` - the one-dimensional
-            label vector the estimator is trained against.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:27.183+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:57.060+02:00"
-              what: "2026-08-20T12:28:27.183+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
-            DataInput_Input_Target:
-              sourceRef:
-                - input_dataset
-              transformation: self
-          dataOutputAssociations:
-            DataOutput_Target:
-              targetRef: target
           additionalArguments:
             key: target
           implementation: python://pandas.DataFrame.get
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:27.183+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:57.060+02:00", what: "2026-08-20T12:28:27.183+02:00", run: sklearn-demo}
+          documentation: |
+            `DataFrame.get(input_dataset, key="target")` - the one-dimensional
+            label vector the estimator is trained against.
+          inputs:
+            DataInput_Input_Target:
+              source: $input_dataset
+              parameter: self
+          outputs:
+            DataOutput_Target:
+              target: $target
+
         split_train_test:
           type: ServiceTask
           name: split_train_test
+          additionalArguments:
+            test_size: 0.25
+            random_state: 42
+          implementation: python://sklearn.model_selection.train_test_split
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:27.430+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:57.235+02:00", what: "2026-08-20T12:28:27.430+02:00", run: sklearn-demo}
           documentation: |
             `train_test_split(features, target, test_size=0.25, stratify=target,
             random_state=42)`. This is the first thing that touches the data, and
@@ -293,136 +250,94 @@ sklearn_pipeline:
             `transformation` that indexes it. `stratify` keeps the class balance of
             the whole set in both halves, and `random_state` makes the partition
             reproducible - the study's own `seed`, written where the call reads it.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:27.430+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:57.235+02:00"
-              what: "2026-08-20T12:28:27.430+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_Features_Split:
-              sourceRef:
-                - features
-              transformation: "*"
+              source: $features
+              parameter: "*"
+
             DataInput_Target_Split:
-              sourceRef:
-                - target
-              transformation: "*"
+              source: $target
+              parameter: "*"
+
             DataInput_Stratify:
-              sourceRef:
-                - target
-              transformation: stratify
-          dataOutputAssociations:
+              source: $target
+              parameter: stratify
+          outputs:
             DataOutput_X_Train:
-              targetRef: x_train
+              target: $x_train
               transformation: result[1]
+
             DataOutput_X_Test:
-              targetRef: x_test
+              target: $x_test
               transformation: result[2]
+
             DataOutput_Y_Train:
-              targetRef: y_train
+              target: $y_train
               transformation: result[3]
+
             DataOutput_Y_Test:
-              targetRef: y_test
+              target: $y_test
               transformation: result[4]
-          additionalArguments:
-            test_size: 0.25
-            random_state: 42
-          implementation: python://sklearn.model_selection.train_test_split
+
         prepare_end:
           type: EndEvent
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:27.599+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:41.891+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:57.314+02:00"
-              run: sklearn-demo
-        Flow_Prepare_Start_Select_Features: prepare_start -> select_features
-        Flow_Select_Features_Select_Target: select_features -> select_target
-        Flow_Select_Target_Split: select_target -> split_train_test
-        Flow_Split_Prepare_End: split_train_test -> prepare_end
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:27.599+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:41.891+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:57.314+02:00", run: sklearn-demo}
+
+        Flow_Prepare_Start_Select_Features:
+          source: $prepare_start
+          target: $select_features
+
+        Flow_Select_Features_Select_Target:
+          source: $select_features
+          target: $select_target
+
+        Flow_Select_Target_Split:
+          source: $select_target
+          target: $split_train_test
+
+        Flow_Split_Prepare_End:
+          source: $split_train_test
+          target: $prepare_end
+
         input_dataset:
-          type: studyflow:Table
+          type: DataObjectReference
           name: input_dataset
+          uri: digits.csv
+          studyflow:Table: {}
+          prov:Activity:
+            - {action: imported, when: "2026-08-20T12:28:27.077+02:00", run: sklearn-demo}
           documentation: |
             Required input. A CSV table with one numeric feature column per
             predictor and one label column named `target`. The engine loads it from
             `uri`; this is a boundary artifact, not an output created by the
             workflow.
-          extensionElements:
-            - type: prov:Activity
-              action: imported
-              when: "2026-08-20T12:28:27.077+02:00"
-              run: sklearn-demo
-          uri: digits.csv
+
     select_model:
       type: SubProcess
       name: select_model
+      prov:Activity:
+        - {action: executed, when: "2026-08-20T12:28:57.696+02:00", run: sklearn-demo}
       documentation: >-
         Model selection, on the training half only. The cross-validated mean is what the gate reads; it is not the
         result of the workflow, and nothing here touches the held-out quarter.
-      extensionElements:
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:57.696+02:00"
-          run: sklearn-demo
       properties:
         cv_scores:
           name: cv_scores
-          itemSubjectRef: Item_Scores
-      flowElements:
+          item: $Item_Scores
+      elements:
         select_start:
           type: StartEvent
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:27.767+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:42.058+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:57.391+02:00"
-              run: sklearn-demo
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:27.767+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:42.058+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:57.391+02:00", run: sklearn-demo}
+
         build_pipeline:
           type: ServiceTask
           name: build_pipeline
-          documentation: |
-            `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1))`. The two
-            estimators are nested calls inside `arguments`: a mapping carrying its
-            own `implementation` is resolved before the outer call, so the whole
-            estimator is declared here rather than hidden in a script.
-
-            PCA is built *inside* the pipeline on purpose. `cross_validate` clones
-            the complete estimator and fits PCA separately in every training fold,
-            so the projection cannot leak information from the fold it is scored on
-            - the same reason the split above comes first.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:27.923+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:57.391+02:00"
-              what: "2026-08-20T12:28:27.923+02:00"
-              run: sklearn-demo
-          dataOutputAssociations:
-            DataOutput_Estimator:
-              targetRef: estimator
           additionalArguments:
             args:
               - implementation: python://sklearn.decomposition.PCA
@@ -433,38 +348,26 @@ sklearn_pipeline:
                   kernel: rbf
                   C: 1
           implementation: python://sklearn.pipeline.make_pipeline
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:27.923+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:57.391+02:00", what: "2026-08-20T12:28:27.923+02:00", run: sklearn-demo}
+          documentation: |
+            `make_pipeline(PCA(n_components=16), SVC(kernel="rbf", C=1))`. The two
+            estimators are nested calls inside `arguments`: a mapping carrying its
+            own `implementation` is resolved before the outer call, so the whole
+            estimator is declared here rather than hidden in a script.
+
+            PCA is built *inside* the pipeline on purpose. `cross_validate` clones
+            the complete estimator and fits PCA separately in every training fold,
+            so the projection cannot leak information from the fold it is scored on
+            - the same reason the split above comes first.
+          outputs:
+            DataOutput_Estimator:
+              target: $estimator
+
         cross_validate:
           type: ServiceTask
           name: cross_validate
-          documentation: |
-            `cross_validate(estimator, X=x_train, y=y_train, cv=5, scoring=[...])`
-            - five folds over the training half only. This is model selection, so
-            it is the number the gate reads; it is not the reported result.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:28.180+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:57.468+02:00"
-              what: "2026-08-20T12:28:28.180+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
-            DataInput_Estimator_CV:
-              sourceRef:
-                - estimator
-            DataInput_X_Train_CV:
-              sourceRef:
-                - x_train
-              transformation: X
-            DataInput_Y_Train_CV:
-              sourceRef:
-                - y_train
-              transformation: "y"
-          dataOutputAssociations:
-            DataOutput_CV_Result:
-              targetRef: cv_scores
           additionalArguments:
             cv: 5
             scoring:
@@ -474,35 +377,54 @@ sklearn_pipeline:
               - f1_macro
             return_train_score: false
           implementation: python://sklearn.model_selection.cross_validate
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:28.180+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:57.468+02:00", what: "2026-08-20T12:28:28.180+02:00", run: sklearn-demo}
+          documentation: |
+            `cross_validate(estimator, X=x_train, y=y_train, cv=5, scoring=[...])`
+            - five folds over the training half only. This is model selection, so
+            it is the number the gate reads; it is not the reported result.
+          inputs:
+            DataInput_Estimator_CV:
+              source: $estimator
+
+            DataInput_X_Train_CV:
+              source: $x_train
+              parameter: X
+
+            DataInput_Y_Train_CV:
+              source: $y_train
+              parameter: "y"
+          outputs:
+            DataOutput_CV_Result:
+              target: $cv_scores
+
         build_fold_report:
           type: ServiceTask
           name: build_fold_report
+          implementation: python://pandas.DataFrame
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:28.264+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:57.546+02:00", what: "2026-08-20T12:28:28.264+02:00", run: sklearn-demo}
           documentation: |
             `DataFrame(data=cv_scores)` - one row per fold, one column per
             requested metric. The CSV output is a durable record of the selection
             step, not of the model's performance.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:28.264+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:57.546+02:00"
-              what: "2026-08-20T12:28:28.264+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_CV_Result_Report:
-              sourceRef:
-                - cv_scores
-              transformation: data
-          dataOutputAssociations:
+              source: $cv_scores
+              parameter: data
+          outputs:
             DataOutput_Fold_Report:
-              targetRef: cv_fold_report
-          implementation: python://pandas.DataFrame
+              target: $cv_fold_report
+
         summarize_cv:
           type: ServiceTask
           name: summarize_cv
+          implementation: python://pandas.DataFrame.describe
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:28.346+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:57.620+02:00", what: "2026-08-20T12:28:28.346+02:00", run: sklearn-demo}
           documentation: |
             `DataFrame.describe(cv_fold_report)`: count, mean, standard deviation,
             quantiles, and extrema per metric. It writes twice from one return
@@ -515,248 +437,202 @@ sklearn_pipeline:
             indexes that axis - `result.test_accuracy['mean']`, the mean of the
             `test_accuracy` column over the folds. Reaching for `.mean` instead
             would name the method, not the number.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:28.346+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:57.620+02:00"
-              what: "2026-08-20T12:28:28.346+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_Fold_Report_Summary:
-              sourceRef:
-                - cv_fold_report
-              transformation: self
-          dataOutputAssociations:
+              source: $cv_fold_report
+              parameter: self
+          outputs:
             DataOutput_CV_Summary:
-              targetRef: cv_summary
+              target: $cv_summary
+
             DataOutput_Mean_CV_Accuracy:
-              targetRef: mean_cv_accuracy
+              target: $mean_cv_accuracy
               transformation: result.test_accuracy.mean
-          implementation: python://pandas.DataFrame.describe
+
         select_end:
           type: EndEvent
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:28.440+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:42.431+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:57.695+02:00"
-              run: sklearn-demo
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:28.440+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:42.431+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:57.695+02:00", run: sklearn-demo}
+
         cv_fold_report:
-          type: studyflow:Table
+          type: DataObjectReference
           name: cv_fold_report
-          documentation: Per-fold metrics from the training-set cross-validation, persisted as CSV.
-          extensionElements:
-            - type: prov:Activity
-              action: created
-              when: "2026-08-20T12:28:28.264+02:00"
-              run: sklearn-demo
           uri: cv_fold_metrics.csv
+          studyflow:Table: {}
+          prov:Activity:
+            - {action: created, when: "2026-08-20T12:28:28.264+02:00", run: sklearn-demo}
+          documentation: Per-fold metrics from the training-set cross-validation, persisted as CSV.
+
         cv_summary:
-          type: studyflow:Table
+          type: DataObjectReference
           name: cv_summary
-          documentation: Descriptive summary of the cross-validation metrics, persisted for review.
-          extensionElements:
-            - type: prov:Activity
-              action: created
-              when: "2026-08-20T12:28:28.346+02:00"
-              run: sklearn-demo
           uri: cv_metric_summary.csv
-        Flow_Select_Start_Build_Pipeline: select_start -> build_pipeline
-        Flow_Build_Pipeline_Cross_Validate: build_pipeline -> cross_validate
-        Flow_Cross_Validate_Build_Fold_Report: cross_validate -> build_fold_report
-        Flow_Build_Fold_Report_Summarize_CV: build_fold_report -> summarize_cv
-        Flow_Summarize_CV_Select_End: summarize_cv -> select_end
+          studyflow:Table: {}
+          prov:Activity:
+            - {action: created, when: "2026-08-20T12:28:28.346+02:00", run: sklearn-demo}
+          documentation: Descriptive summary of the cross-validation metrics, persisted for review.
+
+        Flow_Select_Start_Build_Pipeline:
+          source: $select_start
+          target: $build_pipeline
+
+        Flow_Build_Pipeline_Cross_Validate:
+          source: $build_pipeline
+          target: $cross_validate
+
+        Flow_Cross_Validate_Build_Fold_Report:
+          source: $cross_validate
+          target: $build_fold_report
+
+        Flow_Build_Fold_Report_Summarize_CV:
+          source: $build_fold_report
+          target: $summarize_cv
+
+        Flow_Summarize_CV_Select_End:
+          source: $summarize_cv
+          target: $select_end
+
     evaluate_and_report:
       type: SubProcess
       name: evaluate_and_report
+      prov:Activity:
+        - {action: executed, when: "2026-08-20T12:28:59.091+02:00", run: sklearn-demo}
       documentation: >-
         The single pass over the held-out quarter: fit on the training half, predict the test half once, and report what
         came out — as numbers and as a figure. Every number a reader quotes comes from here.
-      extensionElements:
-        - type: prov:Activity
-          action: executed
-          when: "2026-08-20T12:28:59.091+02:00"
-          run: sklearn-demo
       properties:
         predictions:
           name: predictions
-          itemSubjectRef: Item_Labels
+          item: $Item_Labels
           uri: predictions.joblib
+
         test_metrics:
           name: test_metrics
-          itemSubjectRef: Item_Scores
-      flowElements:
+          item: $Item_Scores
+      elements:
         report_start:
           type: StartEvent
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:28.598+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:42.599+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:57.847+02:00"
-              run: sklearn-demo
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:28.598+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:42.599+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:57.847+02:00", run: sklearn-demo}
+
         fit_model:
           type: ServiceTask
           name: fit_model
+          implementation: python://sklearn.pipeline.Pipeline.fit
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:28.610+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:58.295+02:00", what: "2026-08-20T12:28:28.610+02:00", run: sklearn-demo}
           documentation: |
             `Pipeline.fit(estimator, X=x_train, y=y_train)` - the selected
             estimator fitted on the training half, and only that half. The fitted
             pipeline is persisted with joblib: the artifact a later run loads to
             predict, and the one the held-out numbers below describe.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:28.610+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:58.295+02:00"
-              what: "2026-08-20T12:28:28.610+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_Estimator_Fit:
-              sourceRef:
-                - estimator
-              transformation: self
+              source: $estimator
+              parameter: self
+
             DataInput_X_Train_Fit:
-              sourceRef:
-                - x_train
-              transformation: X
+              source: $x_train
+              parameter: X
+
             DataInput_Y_Train_Fit:
-              sourceRef:
-                - y_train
-              transformation: "y"
-          dataOutputAssociations:
+              source: $y_train
+              parameter: "y"
+          outputs:
             DataOutput_Fitted_Model:
-              targetRef: fitted_model
-          implementation: python://sklearn.pipeline.Pipeline.fit
+              target: $fitted_model
+
         predict_test:
           type: ServiceTask
           name: predict_test
+          implementation: python://sklearn.pipeline.Pipeline.predict
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:28.777+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:58.377+02:00", what: "2026-08-20T12:28:28.777+02:00", run: sklearn-demo}
           documentation: |
             `Pipeline.predict(fitted_model, X=x_test)` - the single pass over the
             test quarter. Its predictions feed both of the reports below, so the
             held-out data is read once and everything reported about the model
             comes from that one read.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:28.777+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:58.377+02:00"
-              what: "2026-08-20T12:28:28.777+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_Model_Predict:
-              sourceRef:
-                - fitted_model
-              transformation: self
+              source: $fitted_model
+              parameter: self
+
             DataInput_X_Test_Predict:
-              sourceRef:
-                - x_test
-              transformation: X
-          dataOutputAssociations:
+              source: $x_test
+              parameter: X
+          outputs:
             DataOutput_Predictions:
-              targetRef: predictions
-          implementation: python://sklearn.pipeline.Pipeline.predict
+              target: $predictions
+
         score_test:
           type: ServiceTask
           name: score_test
+          additionalArguments:
+            output_dict: true
+            zero_division: 0
+          implementation: python://sklearn.metrics.classification_report
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:28.938+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:43.292+02:00", what: "2026-08-20T12:28:28.938+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:58.462+02:00", run: sklearn-demo}
           documentation: |
             `classification_report(y_true=y_test, y_pred=predictions,
             output_dict=True)` - per-class precision, recall, and F1 on data the
             estimator never saw, plus the macro and weighted averages. Returned as
             a mapping so the next step can shape it into a table.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:28.938+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:43.292+02:00"
-              what: "2026-08-20T12:28:28.938+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:58.462+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_Y_Test_Score:
-              sourceRef:
-                - y_test
-              transformation: y_true
+              source: $y_test
+              parameter: y_true
+
             DataInput_Predictions_Score:
-              sourceRef:
-                - predictions
-              transformation: y_pred
-          dataOutputAssociations:
+              source: $predictions
+              parameter: y_pred
+          outputs:
             DataOutput_Test_Metrics:
-              targetRef: test_metrics
-          additionalArguments:
-            output_dict: true
-            zero_division: 0
-          implementation: python://sklearn.metrics.classification_report
+              target: $test_metrics
+
         write_test_report:
           type: ServiceTask
           name: write_test_report
+          implementation: python://pandas.DataFrame
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:29.096+02:00", run: sklearn-demo}
+            - {action: reused, when: "2026-08-20T12:28:43.375+02:00", what: "2026-08-20T12:28:29.096+02:00", run: sklearn-demo}
+            - {action: invalidated, when: "2026-08-20T12:28:54.375+02:00", who: morteza, with: studyflow-modeler/26.0615, what: "2026-08-20T12:28:29.096+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:58.542+02:00", run: sklearn-demo}
           documentation: |
             `DataFrame(data=test_metrics)` - the held-out report as a table, one
             column per class and per average, one row per metric. This is the
             result of the workflow: the numbers that describe the persisted model
             on data that had no part in producing it.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:29.096+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: reused
-              when: "2026-08-20T12:28:43.375+02:00"
-              what: "2026-08-20T12:28:29.096+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: invalidated
-              when: "2026-08-20T12:28:54.375+02:00"
-              who: morteza
-              with: studyflow-modeler/26.0615
-              what: "2026-08-20T12:28:29.096+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:58.542+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_Test_Metrics_Report:
-              sourceRef:
-                - test_metrics
-              transformation: data
-          dataOutputAssociations:
+              source: $test_metrics
+              parameter: data
+          outputs:
             DataOutput_Test_Report:
-              targetRef: test_report
-          implementation: python://pandas.DataFrame
+              target: $test_report
+
         plot_confusion:
           type: ServiceTask
           name: plot_confusion
+          additionalArguments:
+            cmap: Blues
+            colorbar: false
+          implementation: python://sklearn.metrics.ConfusionMatrixDisplay.from_predictions
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:29.730+02:00", run: sklearn-demo}
+            - {action: invalidated, when: "2026-08-20T12:28:38.564+02:00", who: morteza, with: studyflow-modeler/26.0615, what: "2026-08-20T12:28:29.730+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:43.797+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:58.931+02:00", run: sklearn-demo}
           documentation: |
             `ConfusionMatrixDisplay.from_predictions(y_true=y_test,
             y_pred=predictions)` - the held-out errors as a figure, from the same
@@ -764,268 +640,171 @@ sklearn_pipeline:
             the step returns scikit-learn's display object, the output wire narrows
             it to the matplotlib figure with `result.figure_`, and the `png` codec
             writes it. Nothing about plotting is a studyflow concept.
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:29.730+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: invalidated
-              when: "2026-08-20T12:28:38.564+02:00"
-              who: morteza
-              with: studyflow-modeler/26.0615
-              what: "2026-08-20T12:28:29.730+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:43.797+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:58.931+02:00"
-              run: sklearn-demo
-          dataInputAssociations:
+          inputs:
             DataInput_Y_Test_Plot:
-              sourceRef:
-                - y_test
-              transformation: y_true
+              source: $y_test
+              parameter: y_true
+
             DataInput_Predictions_Plot:
-              sourceRef:
-                - predictions
-              transformation: y_pred
-          dataOutputAssociations:
+              source: $predictions
+              parameter: y_pred
+          outputs:
             DataOutput_Confusion_Matrix:
-              targetRef: confusion_matrix
+              target: $confusion_matrix
               transformation: result.figure_
-          additionalArguments:
-            cmap: Blues
-            colorbar: false
-          implementation: python://sklearn.metrics.ConfusionMatrixDisplay.from_predictions
+
         report_end:
           type: EndEvent
-          extensionElements:
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:29.890+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:43.974+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: executed
-              when: "2026-08-20T12:28:59.091+02:00"
-              run: sklearn-demo
+          prov:Activity:
+            - {action: executed, when: "2026-08-20T12:28:29.890+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:43.974+02:00", run: sklearn-demo}
+            - {action: executed, when: "2026-08-20T12:28:59.091+02:00", run: sklearn-demo}
+
         fitted_model:
           type: DataObjectReference
           name: fitted_model
+          uri: digits_pca_svc.joblib
+          prov:Activity:
+            - {action: created, when: "2026-08-20T12:28:28.609+02:00", run: sklearn-demo}
           documentation: |
             The fitted estimator, persisted with joblib. Fitted on the training
             half, so the held-out report describes this exact artifact.
-          extensionElements:
-            - type: prov:Activity
-              action: created
-              when: "2026-08-20T12:28:28.609+02:00"
-              run: sklearn-demo
-          uri: digits_pca_svc.joblib
+
         test_report:
-          type: studyflow:Table
+          type: DataObjectReference
           name: test_report
+          uri: holdout_metrics.csv
+          studyflow:Table: {}
+          prov:Activity:
+            - {action: created, when: "2026-08-20T12:28:29.096+02:00", run: sklearn-demo}
+            - {action: created, when: "2026-08-20T12:28:58.542+02:00", run: sklearn-demo}
           documentation: |
             Precision, recall, and F1 per class on the held-out test set, with the
             macro and weighted averages. Persisted as CSV; the metric names are the
             rows.
-          extensionElements:
-            - type: prov:Activity
-              action: created
-              when: "2026-08-20T12:28:29.096+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: created
-              when: "2026-08-20T12:28:58.542+02:00"
-              run: sklearn-demo
-          uri: holdout_metrics.csv
+
         confusion_matrix:
           type: DataObjectReference
           name: confusion_matrix
+          uri: confusion_matrix.png
+          prov:Activity:
+            - {action: created, when: "2026-08-20T12:28:29.730+02:00", run: sklearn-demo}
+            - {action: created, when: "2026-08-20T12:28:43.797+02:00", run: sklearn-demo}
+            - {action: created, when: "2026-08-20T12:28:58.931+02:00", run: sklearn-demo}
           documentation: |
             The held-out confusion matrix as a PNG, written by the `png` codec from
             the figure the plotting step returned.
-          extensionElements:
-            - type: prov:Activity
-              action: created
-              when: "2026-08-20T12:28:29.730+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: created
-              when: "2026-08-20T12:28:43.797+02:00"
-              run: sklearn-demo
-            - type: prov:Activity
-              action: created
-              when: "2026-08-20T12:28:58.931+02:00"
-              run: sklearn-demo
-          uri: confusion_matrix.png
-        Flow_Report_Start_Fit_Model: report_start -> fit_model
-        Flow_Fit_Model_Predict_Test: fit_model -> predict_test
-        Flow_Predict_Test_Score_Test: predict_test -> score_test
-        Flow_Score_Test_Write_Test_Report: score_test -> write_test_report
-        Flow_Write_Test_Report_Plot_Confusion: write_test_report -> plot_confusion
-        Flow_Plot_Confusion_Report_End: plot_confusion -> report_end
-    flow_start: start_analysis -> prepare_data
-    flow_prepare_done: prepare_data -> select_model
-    flow_select_done: select_model -> is_good_enough
+
+        Flow_Report_Start_Fit_Model:
+          source: $report_start
+          target: $fit_model
+
+        Flow_Fit_Model_Predict_Test:
+          source: $fit_model
+          target: $predict_test
+
+        Flow_Predict_Test_Score_Test:
+          source: $predict_test
+          target: $score_test
+
+        Flow_Score_Test_Write_Test_Report:
+          source: $score_test
+          target: $write_test_report
+
+        Flow_Write_Test_Report_Plot_Confusion:
+          source: $write_test_report
+          target: $plot_confusion
+
+        Flow_Plot_Confusion_Report_End:
+          source: $plot_confusion
+          target: $report_end
+
+    flow_start:
+      source: $start_analysis
+      target: $prepare_data
+
+    flow_prepare_done:
+      source: $prepare_data
+      target: $select_model
+
+    flow_select_done:
+      source: $select_model
+      target: $is_good_enough
+
     report:
       name: report
-      conditionExpression: mean_cv_accuracy >= 0.90
-      sourceRef: is_good_enough
-      targetRef: evaluate_and_report
+      condition: mean_cv_accuracy >= 0.90
+      source: $is_good_enough
+      target: $evaluate_and_report
+
     needs_work:
       name: needs_work
-      sourceRef: is_good_enough
-      targetRef: failed_to_fit
-    flow_report_done: evaluate_and_report -> done
+      source: $is_good_enough
+      target: $failed_to_fit
+
+    flow_report_done:
+      source: $evaluate_and_report
+      target: $done
+
 layout:
-  start_analysis:
-    bounds: 80 252 36 36
-    label: 64 295 67 15
-  is_good_enough:
-    bounds: 1700 245 50 50
-    isMarkerVisible: true
-    label: 1680 221 89 15
-  done:
-    bounds: 2832 252 36 36
-    label: 2835 303 29 15
-  failed_to_fit:
-    bounds: 1707 480 36 36
-    label: 1697 530 57 15
-  prepare_data:
-    bounds: 160 170 650 290
-    isExpanded: true
-    fill: "#dbe8f5"
-    stroke: "#4a6f9c"
-  prepare_start:
-    bounds: 186 252 36 36
-  select_features:
-    bounds: 262 230 120 80
-  DataInput_Input_Features:
-    waypoint: 322,365 322,310
-  select_target:
-    bounds: 422 230 120 80
-  DataInput_Input_Target:
-    waypoint: 340,390 482,390 482,310
-  split_train_test:
-    bounds: 582 230 120 80
-  prepare_end:
-    bounds: 742 252 36 36
-  Flow_Prepare_Start_Select_Features:
-    waypoint: 222,270 262,270
-  Flow_Select_Features_Select_Target:
-    waypoint: 382,270 422,270
-  Flow_Select_Target_Split:
-    waypoint: 542,270 582,270
-  Flow_Split_Prepare_End:
-    waypoint: 702,270 742,270
-  input_dataset:
-    bounds: 304 365 36 50
-    label: 300 421 46 15
-  select_model:
-    bounds: 1204 230 100 80
-    isExpanded: false
-    fill: "#f6e7c8"
-    stroke: "#a8791f"
-  select_start:
-    bounds: 180 182 36 36
-  build_pipeline:
-    bounds: 256 160 120 80
-  cross_validate:
-    bounds: 416 160 120 80
-  build_fold_report:
-    bounds: 576 160 120 80
-  DataOutput_Fold_Report:
-    waypoint: 636,240 636,327 704,327
-  summarize_cv:
-    bounds: 736 160 120 80
-  DataInput_Fold_Report_Summary:
-    waypoint: 740,327 796,327 796,240
-  DataOutput_CV_Summary:
-    waypoint: 822,240 822,327 896,327
-  select_end:
-    bounds: 896 182 36 36
-  cv_fold_report:
-    bounds: 704 302 36 50
-    label: 685 359 75 15
-  cv_summary:
-    bounds: 896 302 36 50
-    label: 883 356 63 15
-  Flow_Select_Start_Build_Pipeline:
-    waypoint: 216,200 256,200
-  Flow_Build_Pipeline_Cross_Validate:
-    waypoint: 376,200 416,200
-  Flow_Cross_Validate_Build_Fold_Report:
-    waypoint: 536,200 576,200
-  Flow_Build_Fold_Report_Summarize_CV:
-    waypoint: 696,200 736,200
-  Flow_Summarize_CV_Select_End:
-    waypoint: 856,200 896,200
-  evaluate_and_report:
-    bounds: 2246 230 100 80
-    isExpanded: false
-    fill: "#d9ecdc"
-    stroke: "#3f7a4a"
-  report_start:
-    bounds: 180 182 36 36
-  fit_model:
-    bounds: 256 160 120 80
-  DataOutput_Fitted_Model:
-    waypoint: 316,240 316,327 382,327
-  predict_test:
-    bounds: 416 160 120 80
-  DataInput_Model_Predict:
-    waypoint: 418,327 476,327 476,240
-  score_test:
-    bounds: 576 160 120 80
-  write_test_report:
-    bounds: 736 160 120 80
-  DataOutput_Test_Report:
-    waypoint: 796,240 796,282 796,302
-  plot_confusion:
-    bounds: 896 160 120 80
-  DataOutput_Confusion_Matrix:
-    waypoint: 956,240 956,302
-  report_end:
-    bounds: 1056 182 36 36
-  fitted_model:
-    bounds: 382 302 36 50
-    label: 364 352 72 15
-  test_report:
-    bounds: 778 302 36 50
-    label: 754 352 84 15
-  confusion_matrix:
-    bounds: 938 302 36 50
-    label: 914 356 84 15
-  Flow_Report_Start_Fit_Model:
-    waypoint: 216,200 256,200
-  Flow_Fit_Model_Predict_Test:
-    waypoint: 376,200 416,200
-  Flow_Predict_Test_Score_Test:
-    waypoint: 536,200 576,200
-  Flow_Score_Test_Write_Test_Report:
-    waypoint: 696,200 736,200
-  Flow_Write_Test_Report_Plot_Confusion:
-    waypoint: 856,200 896,200
-  Flow_Plot_Confusion_Report_End:
-    waypoint: 1016,200 1056,200
-  flow_start:
-    waypoint: 116,270 160,270
-  flow_prepare_done:
-    waypoint: 810,270 1204,270
-  flow_select_done:
-    waypoint: 1304,270 1700,270
-  report:
-    waypoint: 1750,270 2246,270
-    label: 1932 273 31 15
-  needs_work:
-    waypoint: 1725,295 1725,480
-    label: 1731 443 58 15
-  flow_report_done:
-    waypoint: 2346,270 2832,270
+  start_analysis: {bounds: 80 252 36 36, label: 64 295 67 15}
+  is_good_enough: {bounds: 1700 245 50 50, markerVisible: true, label: 1680 221 89 15}
+  done: {bounds: 2832 252 36 36, label: 2835 303 29 15}
+  failed_to_fit: {bounds: 1707 480 36 36, label: 1697 530 57 15}
+  prepare_data: {bounds: 160 170 650 290, expanded: true, fill: "#dbe8f5", stroke: "#4a6f9c"}
+  prepare_start: 186 252 36 36
+  select_features: 262 230 120 80
+  DataInput_Input_Features: 322,365 322,310
+  select_target: 422 230 120 80
+  DataInput_Input_Target: 340,390 482,390 482,310
+  split_train_test: 582 230 120 80
+  prepare_end: 742 252 36 36
+  Flow_Prepare_Start_Select_Features: 222,270 262,270
+  Flow_Select_Features_Select_Target: 382,270 422,270
+  Flow_Select_Target_Split: 542,270 582,270
+  Flow_Split_Prepare_End: 702,270 742,270
+  input_dataset: {bounds: 304 365 36 50, label: 300 421 46 15}
+  select_model: {bounds: 1204 230 100 80, expanded: false, fill: "#f6e7c8", stroke: "#a8791f"}
+  select_start: 180 182 36 36
+  build_pipeline: 256 160 120 80
+  cross_validate: 416 160 120 80
+  build_fold_report: 576 160 120 80
+  DataOutput_Fold_Report: 636,240 636,327 704,327
+  summarize_cv: 736 160 120 80
+  DataInput_Fold_Report_Summary: 740,327 796,327 796,240
+  DataOutput_CV_Summary: 822,240 822,327 896,327
+  select_end: 896 182 36 36
+  cv_fold_report: {bounds: 704 302 36 50, label: 685 359 75 15}
+  cv_summary: {bounds: 896 302 36 50, label: 883 356 63 15}
+  Flow_Select_Start_Build_Pipeline: 216,200 256,200
+  Flow_Build_Pipeline_Cross_Validate: 376,200 416,200
+  Flow_Cross_Validate_Build_Fold_Report: 536,200 576,200
+  Flow_Build_Fold_Report_Summarize_CV: 696,200 736,200
+  Flow_Summarize_CV_Select_End: 856,200 896,200
+  evaluate_and_report: {bounds: 2246 230 100 80, expanded: false, fill: "#d9ecdc", stroke: "#3f7a4a"}
+  report_start: 180 182 36 36
+  fit_model: 256 160 120 80
+  DataOutput_Fitted_Model: 316,240 316,327 382,327
+  predict_test: 416 160 120 80
+  DataInput_Model_Predict: 418,327 476,327 476,240
+  score_test: 576 160 120 80
+  write_test_report: 736 160 120 80
+  DataOutput_Test_Report: 796,240 796,282 796,302
+  plot_confusion: 896 160 120 80
+  DataOutput_Confusion_Matrix: 956,240 956,302
+  report_end: 1056 182 36 36
+  fitted_model: {bounds: 382 302 36 50, label: 364 352 72 15}
+  test_report: {bounds: 778 302 36 50, label: 754 352 84 15}
+  confusion_matrix: {bounds: 938 302 36 50, label: 914 356 84 15}
+  Flow_Report_Start_Fit_Model: 216,200 256,200
+  Flow_Fit_Model_Predict_Test: 376,200 416,200
+  Flow_Predict_Test_Score_Test: 536,200 576,200
+  Flow_Score_Test_Write_Test_Report: 696,200 736,200
+  Flow_Write_Test_Report_Plot_Confusion: 856,200 896,200
+  Flow_Plot_Confusion_Report_End: 1016,200 1056,200
+  flow_start: 116,270 160,270
+  flow_prepare_done: 810,270 1204,270
+  flow_select_done: 1304,270 1700,270
+  report: {waypoint: "1750,270 2246,270", label: 1932 273 31 15}
+  needs_work: {waypoint: "1725,295 1725,480", label: 1731 443 58 15}
+  flow_report_done: 2346,270 2832,270

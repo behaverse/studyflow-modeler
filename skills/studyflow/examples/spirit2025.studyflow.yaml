@@ -1,57 +1,66 @@
 id: spirit2025-example
+schemas:
+  behaverse: http://behaverse.org/schemas/studyflow/behaverse
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  prov: https://w3id.org/studyflow/prov
+  studyflow: http://behaverse.org/schemas/studyflow/v1
 definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
   xsi:schemaLocation: http://www.omg.org/spec/BPMN/20100524/MODEL BPMN20.xsd
+
 SPIRIT_2025_Collaboration:
   type: Collaboration
   name: SPIRIT 2025 trial protocol
-  extensionElements:
-    - type: prov:Activity
-      action: created
-      when: "2026-07-30T22:51:40Z"
-      with: studyflow-modeler/26.0615
-  participants:
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:40Z", with: studyflow-modeler/26.0615}
+  pools:
     Participant_SPIRIT:
       name: SPIRIT 2025 trial protocol
-      processRef: SPIRIT_2025
+      process: $SPIRIT_2025
+
 SPIRIT_2025:
-  type: studyflow:Study
+  type: Process
   name: SPIRIT 2025 trial protocol
-  documentation: A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
+  executable: false
+  studyflow:Study: {}
+  documentation: >-
+    A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
   laneSets:
     LaneSet_SPIRIT:
       lanes:
         Lane_Enrolment:
           name: Enrolment
-          flowNodeRef:
-            - Protocol_Start
-            - Visit_Screening
-            - Eligibility_Gate
-            - ScreenFail
-            - Visit_Baseline
+          nodes:
+            - $Protocol_Start
+            - $Visit_Screening
+            - $Eligibility_Gate
+            - $ScreenFail
+            - $Visit_Baseline
+
         Lane_Allocation:
           name: Allocation
-          flowNodeRef:
-            - Allocate_Gate
+          nodes: $Allocate_Gate
+
         Lane_PostAllocation:
           name: Post-allocation
-          flowNodeRef:
-            - Activity_Intervention
-            - Activity_Control
-            - Visit_T1
-            - Visit_T2
+          nodes:
+            - $Activity_Intervention
+            - $Activity_Control
+            - $Visit_T1
+            - $Visit_T2
+
         Lane_Closeout:
           name: Close-out
-          flowNodeRef:
-            - Visit_Closeout
-            - Protocol_End
-  flowElements:
+          nodes:
+            - $Visit_Closeout
+            - $Protocol_End
+  elements:
     Protocol_Start:
       type: StartEvent
       name: Recruitment
       onset: T0
       progress: done
       consentFormUri: https://example.org/protocols/spirit2025/consent.pdf
+
     Visit_Screening:
       type: SubProcess
       name: Screening visit (t = -t1)
@@ -64,24 +73,26 @@ SPIRIT_2025:
       onset: T0
       duration: 1 week
       progress: done
+
     Eligibility_Gate:
-      type: cognitive:EligibilityGateway
+      type: ExclusiveGateway
       name: Eligible?
-      inclusionCriteria:
-        - Adults aged 18 to 65 years
-        - DSM-5 diagnosis of attentional disorder
-        - Stable medication regimen for 3 months
-      exclusionCriteria:
-        - Comorbid neurological condition
-        - Pregnancy or lactation
-        - Participation in another interventional trial within 30 days
-      default: Flow_Eligible_Yes
+      default: $Flow_Eligible_Yes
+      cognitive:EligibilityGateway:
+        inclusionCriteria:
+          - Adults aged 18 to 65 years
+          - DSM-5 diagnosis of attentional disorder
+          - Stable medication regimen for 3 months
+        exclusionCriteria:
+          - Comorbid neurological condition
+          - Pregnancy or lactation
+          - Participation in another interventional trial within 30 days
+
     ScreenFail:
       type: EndEvent
       name: Screen failure
-      eventDefinitions:
-        ErrorDef_ScreenFail:
-          type: ErrorEventDefinition
+      error: true
+
     Visit_Baseline:
       type: SubProcess
       name: Baseline visit (t = 0)
@@ -94,21 +105,21 @@ SPIRIT_2025:
       onset: T0+2 weeks
       duration: 1 week
       progress: done
+
     Allocate_Gate:
-      type: cognitive:RandomGateway
+      type: ExclusiveGateway
       name: Stratified allocation
-      algorithm: block
-      stratifyBy: age_band
-      strata:
-        - "age_band: 18-29"
-        - "age_band: 30-44"
-        - "age_band: 45-65"
+      cognitive:RandomGateway:
+        algorithm: block
+        stratifyBy: age_band
+        strata:
+          - "age_band: 18-29"
+          - "age_band: 30-44"
+          - "age_band: 45-65"
+
     Activity_Intervention:
       type: Task
       name: "Intervention: cognitive training"
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          platform: jspsych
       checklist: |-
         - [ ] SPIRIT 17a: intervention dose & schedule
         - [ ] SPIRIT 17b: criteria for modification
@@ -116,6 +127,9 @@ SPIRIT_2025:
       onset: T0+3 weeks
       duration: 4 weeks
       progress: 60%
+      cognitive:CognitiveTask:
+        platform: jspsych
+
     Activity_Control:
       type: Task
       name: "Control: active sham"
@@ -126,15 +140,17 @@ SPIRIT_2025:
       onset: T0+3 weeks
       duration: 4 weeks
       progress: 60%
+
     Visit_T1:
       type: SubProcess
       name: Follow-up visit (t = t1, week 4)
-      dataOutputAssociations:
+      outputs:
         DataOutput_T1_AE:
-          targetRef: Dataset_AE
-      flowElements:
+          target: $Dataset_AE
+      elements:
         T1_Start:
           type: StartEvent
+
         T1_Outcomes:
           type: Task
           name: Outcome assessment
@@ -143,6 +159,7 @@ SPIRIT_2025:
             - [x] SPIRIT 18b: secondary outcomes reassessed
           onset: T0+6 weeks
           duration: 3 days
+
         T1_AE_Review:
           type: Task
           name: Adverse-event review
@@ -151,18 +168,33 @@ SPIRIT_2025:
             - [ ] SPIRIT 22: serious AE reporting
           onset: T0+6 weeks+3 days
           duration: 2 days
+
         T1_Adherence:
           type: Task
           name: Adherence check
           checklist: "- [ ] SPIRIT 19: adherence check"
           onset: T0+6 weeks+4 days
           duration: 3 days
+
         T1_End:
           type: EndEvent
-        Flow_T1_Start_Outcomes: T1_Start -> T1_Outcomes
-        Flow_T1_Outcomes_AE: T1_Outcomes -> T1_AE_Review
-        Flow_T1_AE_Adherence: T1_AE_Review -> T1_Adherence
-        Flow_T1_Adherence_End: T1_Adherence -> T1_End
+
+        Flow_T1_Start_Outcomes:
+          source: $T1_Start
+          target: $T1_Outcomes
+
+        Flow_T1_Outcomes_AE:
+          source: $T1_Outcomes
+          target: $T1_AE_Review
+
+        Flow_T1_AE_Adherence:
+          source: $T1_AE_Review
+          target: $T1_Adherence
+
+        Flow_T1_Adherence_End:
+          source: $T1_Adherence
+          target: $T1_End
+
     Visit_T2:
       type: SubProcess
       name: Primary endpoint visit (t = t2, week 12)
@@ -171,14 +203,16 @@ SPIRIT_2025:
         - [ ] SPIRIT 18b: secondary outcomes
         - [ ] SPIRIT 22: adverse events
         - [ ] SPIRIT 27: data lock for primary analysis
-      dataOutputAssociations:
-        DataOutput_T2_Primary:
-          targetRef: Dataset_Primary
-        DataOutput_T2_AE:
-          targetRef: Dataset_AE
       onset: T0+14 weeks
       duration: 1 week
       progress: todo
+      outputs:
+        DataOutput_T2_Primary:
+          target: $Dataset_Primary
+
+        DataOutput_T2_AE:
+          target: $Dataset_AE
+
     Visit_Closeout:
       type: SubProcess
       name: Close-out (t = tx, week 24)
@@ -188,183 +222,143 @@ SPIRIT_2025:
         - [ ] SPIRIT 22: adverse events final review
         - [ ] SPIRIT 31: results dissemination plan
         - [ ] SPIRIT 32: data sharing per plan
-      dataOutputAssociations:
-        DataOutput_Closeout_Primary:
-          targetRef: Dataset_Primary
-        DataOutput_Closeout_AE:
-          targetRef: Dataset_AE
       onset: T0+26 weeks
       duration: 1 week
       progress: todo
+      outputs:
+        DataOutput_Closeout_Primary:
+          target: $Dataset_Primary
+
+        DataOutput_Closeout_AE:
+          target: $Dataset_AE
+
     Schema_Outcomes:
-      type: studyflow:Schema
+      type: DataObjectReference
       name: Outcome data dictionary
-      dataObjectRef: DataObject_Outcomes
+      dataObject: $DataObject_Outcomes
+      studyflow:Schema: {}
+
     DataObject_Outcomes:
       type: DataObject
+
     Dataset_Primary:
-      type: behaverse:BDMDataset
+      type: DataStoreReference
       name: Primary & secondary outcomes
-      dataLevel: trials
+      behaverse:BDMDataset:
+        dataLevel: trials
+
     Dataset_AE:
-      type: studyflow:Dataset
+      type: DataStoreReference
       name: Adverse events register
-      format: psych-ds
+      studyflow:Dataset:
+        format: psych-ds
+
     Protocol_End:
       type: EndEvent
       name: Trial complete
-    Flow_Start_Screen: Protocol_Start -> Visit_Screening
-    Flow_Screen_Eligibility: Visit_Screening -> Eligibility_Gate
+
+    Flow_Start_Screen:
+      source: $Protocol_Start
+      target: $Visit_Screening
+
+    Flow_Screen_Eligibility:
+      source: $Visit_Screening
+      target: $Eligibility_Gate
+
     Flow_Eligible_Yes:
       name: eligible
-      sourceRef: Eligibility_Gate
-      targetRef: Visit_Baseline
+      source: $Eligibility_Gate
+      target: $Visit_Baseline
+
     Flow_Eligible_No:
       name: not eligible
-      sourceRef: Eligibility_Gate
-      targetRef: ScreenFail
-    Flow_Baseline_Allocate: Visit_Baseline -> Allocate_Gate
+      source: $Eligibility_Gate
+      target: $ScreenFail
+
+    Flow_Baseline_Allocate:
+      source: $Visit_Baseline
+      target: $Allocate_Gate
+
     Flow_Arm_Treatment:
       name: treatment
-      sourceRef: Allocate_Gate
-      targetRef: Activity_Intervention
+      source: $Allocate_Gate
+      target: $Activity_Intervention
+
     Flow_Arm_Control:
       name: control
-      sourceRef: Allocate_Gate
-      targetRef: Activity_Control
-    Flow_Treatment_Visit1: Activity_Intervention -> Visit_T1
-    Flow_Control_Visit1: Activity_Control -> Visit_T1
-    Flow_Visit1_Visit2: Visit_T1 -> Visit_T2
-    Flow_Visit2_Closeout: Visit_T2 -> Visit_Closeout
-    Flow_Closeout_End: Visit_Closeout -> Protocol_End
+      source: $Allocate_Gate
+      target: $Activity_Control
+
+    Flow_Treatment_Visit1:
+      source: $Activity_Intervention
+      target: $Visit_T1
+
+    Flow_Control_Visit1:
+      source: $Activity_Control
+      target: $Visit_T1
+
+    Flow_Visit1_Visit2:
+      source: $Visit_T1
+      target: $Visit_T2
+
+    Flow_Visit2_Closeout:
+      source: $Visit_T2
+      target: $Visit_Closeout
+
+    Flow_Closeout_End:
+      source: $Visit_Closeout
+      target: $Protocol_End
   artifacts:
     Assoc_Schema_Primary:
       associationDirection: One
-      sourceRef: Schema_Outcomes
-      targetRef: Dataset_Primary
-  isExecutable: false
+      source: $Schema_Outcomes
+      target: $Dataset_Primary
+
 layout:
-  Participant_SPIRIT:
-    bounds: 140 60 810 1040
-  Lane_Enrolment:
-    bounds: 170 60 780 230
-  Lane_Allocation:
-    bounds: 170 290 780 100
-  Lane_PostAllocation:
-    bounds: 170 390 780 510
-  Lane_Closeout:
-    bounds: 170 900 780 200
-  Protocol_Start:
-    bounds: 214 92 36 36
-    label: 204 73 56 15
-  Visit_Screening:
-    bounds: 260 70 200 80
-    isExpanded: false
-  Eligibility_Gate:
-    bounds: 515 85 50 50
-    isMarkerVisible: true
-    label: 520 142 40 15
-  ScreenFail:
-    bounds: 622 92 36 36
-    label: 600 135 80 30
-    fill: "#f1d0cd"
-    stroke: "#ac5a54"
-  Visit_Baseline:
-    bounds: 440 200 200 80
-    isExpanded: false
-  Allocate_Gate:
-    bounds: 515 320 50 50
-    isMarkerVisible: true
-    label: 492 377 96 30
-  Activity_Intervention:
-    bounds: 290 420 180 80
-    fill: "#d9e7d6"
-    stroke: "#8cb26e"
-  Activity_Control:
-    bounds: 610 420 180 80
-    fill: "#fbe7cf"
-    stroke: "#ce9d35"
-  Visit_T1:
-    bounds: 290 550 500 120
-    isExpanded: true
-    fill: "#dde8fa"
-    stroke: "#728cb9"
-  DataOutput_T1_AE:
-    waypoint: 790,640 817,820
-  T1_Start:
-    bounds: 302 602 36 36
-  T1_Outcomes:
-    bounds: 356 590 110 60
-  T1_AE_Review:
-    bounds: 484 590 110 60
-  T1_Adherence:
-    bounds: 612 590 110 60
-  T1_End:
-    bounds: 740 602 36 36
-  Flow_T1_Start_Outcomes:
-    waypoint: 338,620 356,620
-  Flow_T1_Outcomes_AE:
-    waypoint: 466,620 484,620
-  Flow_T1_AE_Adherence:
-    waypoint: 594,620 612,620
-  Flow_T1_Adherence_End:
-    waypoint: 722,620 740,620
-  Visit_T2:
-    bounds: 440 740 200 80
-    isExpanded: false
-    fill: "#dfd5e6"
-    stroke: "#9174a3"
-  DataOutput_T2_Primary:
-    waypoint: 640,770 817,700
-  DataOutput_T2_AE:
-    waypoint: 640,790 817,820
-  Visit_Closeout:
-    bounds: 440 930 200 80
-    isExpanded: false
-  DataOutput_Closeout_Primary:
-    waypoint: 640,960 780,960 817,710
-  DataOutput_Closeout_AE:
-    waypoint: 640,970 780,970 817,830
-  Schema_Outcomes:
-    bounds: 822 555 36 50
-    label: 780 610 120 30
-  Dataset_Primary:
-    bounds: 817 675 50 50
-    label: 780 730 124 30
-  Dataset_AE:
-    bounds: 817 795 50 50
-    label: 780 850 124 30
-  Protocol_End:
-    bounds: 522 1050 36 36
-    label: 500 1093 80 30
-  Flow_Start_Screen:
-    waypoint: 250,110 260,110
-  Flow_Screen_Eligibility:
-    waypoint: 460,110 515,110
-  Flow_Eligible_Yes:
-    waypoint: 540,135 540,200
-    label: 546 160 38 15
-  Flow_Eligible_No:
-    waypoint: 565,110 622,110
-    label: 568 92 60 30
-    stroke: "#ac5a54"
-  Flow_Baseline_Allocate:
-    waypoint: 540,280 540,320
-  Flow_Arm_Treatment:
-    waypoint: 515,345 380,345 380,420
-    label: 408 327 56 15
-  Flow_Arm_Control:
-    waypoint: 565,345 700,345 700,420
-    label: 610 327 40 15
-  Flow_Treatment_Visit1:
-    waypoint: 380,500 380,550
-  Flow_Control_Visit1:
-    waypoint: 700,500 700,550
-  Flow_Visit1_Visit2:
-    waypoint: 540,670 540,740
-  Flow_Visit2_Closeout:
-    waypoint: 540,820 540,930
-  Flow_Closeout_End:
-    waypoint: 540,1010 540,1050
-  Assoc_Schema_Primary:
-    waypoint: 840,605 840,675
+  Participant_SPIRIT: 140 60 810 1040
+  Lane_Enrolment: 170 60 780 230
+  Lane_Allocation: 170 290 780 100
+  Lane_PostAllocation: 170 390 780 510
+  Lane_Closeout: 170 900 780 200
+  Protocol_Start: {bounds: 214 92 36 36, label: 204 73 56 15}
+  Visit_Screening: {bounds: 260 70 200 80, expanded: false}
+  Eligibility_Gate: {bounds: 515 85 50 50, markerVisible: true, label: 520 142 40 15}
+  ScreenFail: {bounds: 622 92 36 36, label: 600 135 80 30, fill: "#f1d0cd", stroke: "#ac5a54"}
+  Visit_Baseline: {bounds: 440 200 200 80, expanded: false}
+  Allocate_Gate: {bounds: 515 320 50 50, markerVisible: true, label: 492 377 96 30}
+  Activity_Intervention: {bounds: 290 420 180 80, fill: "#d9e7d6", stroke: "#8cb26e"}
+  Activity_Control: {bounds: 610 420 180 80, fill: "#fbe7cf", stroke: "#ce9d35"}
+  Visit_T1: {bounds: 290 550 500 120, expanded: true, fill: "#dde8fa", stroke: "#728cb9"}
+  DataOutput_T1_AE: 790,640 817,820
+  T1_Start: 302 602 36 36
+  T1_Outcomes: 356 590 110 60
+  T1_AE_Review: 484 590 110 60
+  T1_Adherence: 612 590 110 60
+  T1_End: 740 602 36 36
+  Flow_T1_Start_Outcomes: 338,620 356,620
+  Flow_T1_Outcomes_AE: 466,620 484,620
+  Flow_T1_AE_Adherence: 594,620 612,620
+  Flow_T1_Adherence_End: 722,620 740,620
+  Visit_T2: {bounds: 440 740 200 80, expanded: false, fill: "#dfd5e6", stroke: "#9174a3"}
+  DataOutput_T2_Primary: 640,770 817,700
+  DataOutput_T2_AE: 640,790 817,820
+  Visit_Closeout: {bounds: 440 930 200 80, expanded: false}
+  DataOutput_Closeout_Primary: 640,960 780,960 817,710
+  DataOutput_Closeout_AE: 640,970 780,970 817,830
+  Schema_Outcomes: {bounds: 822 555 36 50, label: 780 610 120 30}
+  Dataset_Primary: {bounds: 817 675 50 50, label: 780 730 124 30}
+  Dataset_AE: {bounds: 817 795 50 50, label: 780 850 124 30}
+  Protocol_End: {bounds: 522 1050 36 36, label: 500 1093 80 30}
+  Flow_Start_Screen: 250,110 260,110
+  Flow_Screen_Eligibility: 460,110 515,110
+  Flow_Eligible_Yes: {waypoint: "540,135 540,200", label: 546 160 38 15}
+  Flow_Eligible_No: {waypoint: "565,110 622,110", label: 568 92 60 30, stroke: "#ac5a54"}
+  Flow_Baseline_Allocate: 540,280 540,320
+  Flow_Arm_Treatment: {waypoint: "515,345 380,345 380,420", label: 408 327 56 15}
+  Flow_Arm_Control: {waypoint: "565,345 700,345 700,420", label: 610 327 40 15}
+  Flow_Treatment_Visit1: 380,500 380,550
+  Flow_Control_Visit1: 700,500 700,550
+  Flow_Visit1_Visit2: 540,670 540,740
+  Flow_Visit2_Closeout: 540,820 540,930
+  Flow_Closeout_End: 540,1010 540,1050
+  Assoc_Schema_Primary: 840,605 840,675

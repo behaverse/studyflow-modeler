@@ -1,9 +1,14 @@
 id: trial_list_doc
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 registered_trials:
   type: Collaboration
   name: Registered trial list
+  studyflow:Study:
+    seed: 42
+    dependencies:
+      - pandas>=2.0
   documentation: |
     A trial list made outside Studyflow, registered by its content and played one trial at a time.
 
@@ -20,158 +25,161 @@ registered_trials:
 
     The pool is a simulated participant (`simulate://random`), so the study runs on this machine; with
     `ollama://<model>` in its place a language model plays the same list.
-  extensionElements:
-    - type: studyflow:Study
-      seed: 42
-      dependencies:
-        - pandas>=2.0
-  participants:
+  pools:
     Pool_Session:
       name: Session
-      processRef: Session
+      process: $Session
+
     Pool_Participant:
-      type: studyflow:Actor
       name: Simulated participant
-      implementation: simulate://random
+      studyflow:Actor:
+        implementation: simulate://random
   messageFlows:
     Msg_Trial:
       name: the trial
-      sourceRef: answer_trial
-      targetRef: Pool_Participant
+      source: $answer_trial
+      target: $Pool_Participant
+
     Msg_Answer:
       name: the answer
-      sourceRef: Pool_Participant
-      targetRef: answer_trial
+      source: $Pool_Participant
+      target: $answer_trial
+
 Session:
   type: Process
   name: Session
   properties:
     trials:
       name: trials
+
     answers:
       name: answers
-  flowElements:
+  elements:
     start:
       type: StartEvent
+
     read_trials:
       type: ServiceTask
       name: Read the trial list
-      documentation: >-
-        `DataFrame.to_dict` with `orient: records`: the registered list, one record per trial, into the session's
-        `trials`.
-      dataInputAssociations:
-        In_Trial_List:
-          sourceRef:
-            - trial_list
-          transformation: self
-      dataOutputAssociations:
-        Out_Trials:
-          targetRef: trials
       additionalArguments:
         orient: records
       implementation: python://pandas.DataFrame.to_dict
+      documentation: >-
+        `DataFrame.to_dict` with `orient: records`: the registered list, one record per trial, into the session's
+        `trials`.
+      inputs:
+        In_Trial_List:
+          source: $trial_list
+          parameter: self
+      outputs:
+        Out_Trials:
+          target: $trials
+
     trial_list:
-      type: studyflow:Table
+      type: DataObjectReference
       name: Trial list
-      schema: trial_schema
       uri: trials.csv
       digest: sha256:4dd32eb0c384de2e69e1b15cf6b1f59b19914ea765f3e685990b5e0992bf47b0
+      studyflow:Table:
+        schema: $trial_schema
+
     trial_schema:
-      type: studyflow:Schema
+      type: DataObjectReference
       name: Trial schema
-      body:
-        "@context": http://www.w3.org/ns/csvw
-        tableSchema:
-          columns:
-            - name: Task
-              datatype: string
-            - name: Trial
-              datatype: integer
-            - name: Colour
-              datatype: string
-            - name: Side
-              datatype: string
-            - name: Stimulus
-              datatype: string
-            - name: ResponseOptions
-              datatype: string
-              separator: " "
+      studyflow:Schema:
+        body:
+          "@context": http://www.w3.org/ns/csvw
+          tableSchema:
+            columns:
+              - name: Task
+                datatype: string
+              - name: Trial
+                datatype: integer
+              - name: Colour
+                datatype: string
+              - name: Side
+                datatype: string
+              - name: Stimulus
+                datatype: string
+              - name: ResponseOptions
+                datatype: string
+                separator: " "
+
     each_trial:
       type: SubProcess
       name: Each trial
+      multiInstance:
+        sequential: true
+        dataInput: $trials
+        dataOutput: $answers
+        inputDataItem:
+          id: each_trial_item
+          name: trial
+        outputDataItem:
+          id: each_trial_answer
+          name: answer
       properties:
         trial:
           name: trial
+
         answer:
           name: answer
-      loopCharacteristics:
-        type: MultiInstanceLoopCharacteristics
-        isSequential: true
-        loopDataInputRef: trials
-        loopDataOutputRef: answers
-        inputDataItem:
-          name: trial
-          id: each_trial_item
-        outputDataItem:
-          name: answer
-          id: each_trial_answer
-      flowElements:
+      elements:
         trial_start:
           type: StartEvent
+
         answer_trial:
           type: Task
           name: Answer the trial
-          dataInputAssociations:
+          inputs:
             In_Trial:
-              sourceRef:
-                - trial
-          dataOutputAssociations:
+              source: $trial
+          outputs:
             Out_Answer:
-              targetRef: answer
+              target: $answer
+
         trial_end:
           type: EndEvent
-        flow_trial_answer: trial_start -> answer_trial
-        flow_trial_end: answer_trial -> trial_end
+
+        flow_trial_answer:
+          source: $trial_start
+          target: $answer_trial
+
+        flow_trial_end:
+          source: $answer_trial
+          target: $trial_end
+
     done:
       type: EndEvent
-    flow_read: start -> read_trials
-    flow_each: read_trials -> each_trial
-    flow_done: each_trial -> done
+
+    flow_read:
+      source: $start
+      target: $read_trials
+
+    flow_each:
+      source: $read_trials
+      target: $each_trial
+
+    flow_done:
+      source: $each_trial
+      target: $done
+
 layout:
-  Pool_Session:
-    bounds: 120 80 800 330
-  Pool_Participant:
-    bounds: 120 450 800 100
-  Msg_Trial:
-    waypoint: 580,240 580,450
-  Msg_Answer:
-    waypoint: 600,450 600,240
-  start:
-    bounds: 170 182 36 36
-  read_trials:
-    bounds: 250 160 120 80
-  In_Trial_List:
-    waypoint: 310,300 310,240
-  trial_list:
-    bounds: 292 300 36 50
-  each_trial:
-    bounds: 420 120 340 160
-    isExpanded: true
-  trial_start:
-    bounds: 450 182 36 36
-  answer_trial:
-    bounds: 530 160 120 80
-  trial_end:
-    bounds: 694 182 36 36
-  flow_trial_answer:
-    waypoint: 486,200 530,200
-  flow_trial_end:
-    waypoint: 650,200 694,200
-  done:
-    bounds: 830 182 36 36
-  flow_read:
-    waypoint: 206,200 250,200
-  flow_each:
-    waypoint: 370,200 420,200
-  flow_done:
-    waypoint: 760,200 830,200
+  Pool_Session: 120 80 800 330
+  Pool_Participant: 120 450 800 100
+  Msg_Trial: 580,240 580,450
+  Msg_Answer: 600,450 600,240
+  start: 170 182 36 36
+  read_trials: 250 160 120 80
+  In_Trial_List: 310,300 310,240
+  trial_list: 292 300 36 50
+  each_trial: {bounds: 420 120 340 160, expanded: true}
+  trial_start: 450 182 36 36
+  answer_trial: 530 160 120 80
+  trial_end: 694 182 36 36
+  flow_trial_answer: 486,200 530,200
+  flow_trial_end: 650,200 694,200
+  done: 830 182 36 36
+  flow_read: 206,200 250,200
+  flow_each: 370,200 420,200
+  flow_done: 760,200 830,200

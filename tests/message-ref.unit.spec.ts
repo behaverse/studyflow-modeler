@@ -57,7 +57,7 @@ test('the Message field makes one message per structure, shares it, and drops it
   expect(roots('bpmn:ItemDefinition')).toHaveLength(2);
 
   const doc = yaml.load(study.toYaml()) as Record<string, any>;
-  expect(doc.C.messageFlows.Msg_Trial.messageRef).toBe('Message_cognitive_Trial');
-  expect(doc.Message_cognitive_Trial).toMatchObject({ type: 'Message', itemRef: 'ItemDefinition_cognitive_Trial' });
-  expect(doc.ItemDefinition_cognitive_Trial).toMatchObject({ type: 'ItemDefinition', structureRef: 'cognitive:Trial' });
+  expect(doc.C.messageFlows.Msg_Trial.message).toBe('$Message_cognitive_Trial');
+  expect(doc.Message_cognitive_Trial).toMatchObject({ type: 'Message', item: '$ItemDefinition_cognitive_Trial' });
+  expect(doc.ItemDefinition_cognitive_Trial).toMatchObject({ type: 'ItemDefinition', structure: 'cognitive:Trial' });
 });

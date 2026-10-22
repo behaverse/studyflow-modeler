@@ -1,29 +1,29 @@
 id: demo0
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  prov: https://w3id.org/studyflow/prov
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Demo0_FromScratch:
-  type: studyflow:Study
+  type: Process
   name: EPSYLON LabLink - Build a study from scratch
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:35Z", with: studyflow-modeler/26.0615}
   documentation: A minimal start-to-end skeleton for building a LabLink study from scratch.
-  extensionElements:
-    - type: prov:Activity
-      action: created
-      when: "2026-07-30T22:51:35Z"
-      with: studyflow-modeler/26.0615
-  flowElements:
+  elements:
     Start:
       type: StartEvent
       name: Participant arrives
+
     End:
       type: EndEvent
       name: Done
-    Flow_Start_End: Start -> End
+
+    Flow_Start_End:
+      source: $Start
+      target: $End
+
 layout:
-  Start:
-    bounds: 200 200 36 36
-    label: 178 243 82 30
-  End:
-    bounds: 600 200 36 36
-    label: 608 243 22 15
-  Flow_Start_End:
-    waypoint: 236,218 600,218
+  Start: {bounds: 200 200 36 36, label: 178 243 82 30}
+  End: {bounds: 600 200 36 36, label: 608 243 22 15}
+  Flow_Start_End: 236,218 600,218

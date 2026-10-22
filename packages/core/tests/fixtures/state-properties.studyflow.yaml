@@ -1,50 +1,69 @@
 id: state_probe
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Item_Arm:
   type: ItemDefinition
-  structureRef: string
+  structure: string
+
 Item_Count:
   type: ItemDefinition
-  structureRef: integer
+  structure: integer
+
 Probe:
-  type: studyflow:Study
+  type: Process
+  studyflow:Study: {}
   properties:
     Arm:
       name: arm
-      itemSubjectRef: Item_Arm
+      item: $Item_Arm
       dataState:
         name: allocated
-  flowElements:
+  elements:
     Start:
       type: StartEvent
+
     Battery:
       type: SubProcess
       name: Cognitive battery
       properties:
         Failed_Trials:
           name: failed_trials
-          itemSubjectRef: Item_Count
+          item: $Item_Count
           value: 0
-      flowElements:
+      elements:
         Trial_Start:
           type: StartEvent
+
         Run_Trial:
           type: ServiceTask
           name: Administer one trial
-          dataInputAssociations:
-            Wire_Arm_In:
-              sourceRef:
-                - Arm
-          dataOutputAssociations:
-            Wire_Failed_Out:
-              targetRef: Failed_Trials
           implementation: python://battery.run_trial@1.0
+          inputs:
+            Wire_Arm_In:
+              source: $Arm
+          outputs:
+            Wire_Failed_Out:
+              target: $Failed_Trials
+
         Trial_End:
           type: EndEvent
-        Flow_Trial: Trial_Start -> Run_Trial
-        Flow_Trial_End: Run_Trial -> Trial_End
+
+        Flow_Trial:
+          source: $Trial_Start
+          target: $Run_Trial
+
+        Flow_Trial_End:
+          source: $Run_Trial
+          target: $Trial_End
+
     End:
       type: EndEvent
-    Flow_Start_Battery: Start -> Battery
-    Flow_Battery_End: Battery -> End
+
+    Flow_Start_Battery:
+      source: $Start
+      target: $Battery
+
+    Flow_Battery_End:
+      source: $Battery
+      target: $End

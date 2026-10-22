@@ -98,31 +98,36 @@ test('a choreography task in a process is written as the BPMN task it is, marked
   // BPMN defines choreography tasks only in a choreography, and gives them no data: a typed one in a process, with an
   // actor on its bands and a data edge in, is a task.
   const study = `id: exchange
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 C:
   type: Collaboration
-  participants:
+  pools:
     Subjects:
       name: Subjects
-      processRef: S
+      process: $S
+
     Robot:
       name: Robot
+
 S:
   type: Process
-  flowElements:
+  elements:
     Settings:
       type: DataObjectReference
+
     Play:
-      type: cognitive:CognitiveTask
+      type: Task
       name: Play
-      platform: jsPsych
-      participantRef:
-        - Robot
-      dataInputAssociations:
+      exchange: true
+      pools: $Robot
+      cognitive:CognitiveTask:
+        platform: jsPsych
+      inputs:
         In_Play:
-          sourceRef:
-            - Settings
+          source: $Settings
 `;
   const xml = await xmlOf(study);
   expect(xml).toMatch(/<bpmn:task id="Play" name="Play" studyflow:exchange="true" studyflow:participants="Robot">/);

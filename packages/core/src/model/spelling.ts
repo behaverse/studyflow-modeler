@@ -60,14 +60,14 @@ const FONT_KEY = 'font';
 
 /* 4. id-keyed */
 
-/** A list of elements with distinct ids as the file writes it: keyed by id, a flow that only joins two ends as an arrow. */
+/** A list of elements with distinct ids as the file writes it: keyed by id. */
 export function keyItemsById(items: unknown[]): Record<string, unknown> | undefined {
   const out: Record<string, unknown> = {};
   for (const item of items) {
     if (!item || typeof item !== 'object' || Array.isArray(item)) return undefined;
     const { id, ...body } = item as Record<string, unknown>;
     if (typeof id !== 'string' || id === '' || id in out) return undefined;
-    out[id] = inlineFlow(item) ?? body;
+    out[id] = body;
   }
   return out;
 }
@@ -205,21 +205,12 @@ export function expandDiNode(props: Record<string, unknown>): void {
   }
 }
 
-/* 10. a bare flow of any kind: `Flow_1: A -> B` (what kind it is, its place in the file already says) */
+/* 10. a bare flow of any kind typed by hand as `Flow_1: A -> B`, which the tools read and write as its two references */
 
 const ARROW = /^\s*(\S+)\s*->\s*(\S+)\s*$/;
 
 /** The key a keyed list item carries its string body under, until {@link expandInlineFlow} reads it. */
 export const INLINE_BODY = '$inline';
-
-export function inlineFlow(item: unknown): string | undefined {
-  if (!item || typeof item !== 'object' || Array.isArray(item)) return undefined;
-  const { id, sourceRef, targetRef, ...rest } = item as Record<string, unknown>;
-  if (Object.keys(rest).length > 0 || typeof id !== 'string' || typeof targetRef !== 'string') return undefined;
-  // A data association lists its sources; one source still reads as an arrow.
-  const source = Array.isArray(sourceRef) && sourceRef.length === 1 ? sourceRef[0] : sourceRef;
-  return typeof source === 'string' ? `${source} -> ${targetRef}` : undefined;
-}
 
 export function expandInlineFlow(item: unknown): unknown {
   if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
@@ -232,10 +223,13 @@ export function expandInlineFlow(item: unknown): unknown {
 
 /* 12. types the container and the keys already imply */
 
-/** Under an abstract list type, these keys settle the concrete type, so `type:` is not written. */
+/** Under an abstract list type, these keys settle the concrete type, so `type:` is not written: an edge's two ends, by
+ * the file's names or BPMN's. */
 const IMPLIED_TYPES: Record<string, ReadonlyArray<readonly [readonly string[], string]>> = {
-  'bpmn:FlowElement': [[['sourceRef', 'targetRef'], 'bpmn:SequenceFlow']],
-  'bpmn:Artifact': [[['sourceRef', 'targetRef'], 'bpmn:Association'], [['text'], 'bpmn:TextAnnotation']],
+  'bpmn:FlowElement': [[['source', 'target'], 'bpmn:SequenceFlow'], [['sourceRef', 'targetRef'], 'bpmn:SequenceFlow']],
+  'bpmn:Artifact': [
+    [['source', 'target'], 'bpmn:Association'], [['sourceRef', 'targetRef'], 'bpmn:Association'], [['text'], 'bpmn:TextAnnotation'],
+  ],
 };
 
 export function impliedTypeName(node: Record<string, unknown>, declaredType: string | undefined): string | undefined {

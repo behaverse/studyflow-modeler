@@ -75,6 +75,6 @@ test('a choreography task names its two participants; a cognitive task names who
   await expect(taker).toHaveValue('Model, gemma4 on Ollama');
   await expect(shape).toContainText('Behaverse');
   studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-  expect(studyflowText).toContain('- Pool_Model');
+  expect(studyflowText).toContain('pools: $Pool_Model');
   expect(studyflowText).not.toContain('name: Subject');
 });

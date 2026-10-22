@@ -1,90 +1,99 @@
 id: schema_map
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Schema_Map:
   type: Process
+  name: Loading the vocabulary
+  studyflow:Study: {}
   documentation: >-
     The element sets that ship with Studyflow. The four required sets always load; the rest, one per skill, load when
     switched on in Settings, Extensions. The catalog compiles every loaded set into the palette, the inspector tabs, and
     the namespaces the XML may use. Drawn for docs/developers.qmd.
-  extensionElements:
-    - type: studyflow:Study
-  name: Loading the vocabulary
-  flowElements:
+  elements:
     Opens:
       type: StartEvent
       name: The modeler opens
-      bounds: 60 132 36 36
+
     Load_Required:
       type: Task
       name: Load the required sets
-      dataInputAssociations:
+      inputs:
         In_Required:
-          sourceRef:
-            - Required_Sets
-          waypoint: 215,230 215,190
-      bounds: 140 110 150 80
+          source: $Required_Sets
+
     Load_Skills:
       type: Task
       name: Load the skill sets switched on
-      dataInputAssociations:
+      inputs:
         In_Settings:
-          sourceRef:
-            - Settings
-          waypoint: 425,60 425,110
+          source: $Settings
+
         In_Skills:
-          sourceRef:
-            - Skill_Sets
-          waypoint: 425,230 425,190
-      bounds: 340 110 170 80
+          source: $Skill_Sets
+
     Compile:
       type: Task
       name: Compile the catalog
-      dataOutputAssociations:
+      outputs:
         Out_Catalog:
-          targetRef: Catalog
-          waypoint: 635,190 635,230
-      bounds: 560 110 150 80
+          target: $Catalog
+
     Ready:
       type: EndEvent
       name: Ready
-      bounds: 770 132 36 36
+
     Required_Sets:
       type: DataObjectReference
       name: "Required, always loaded: studyflow, prov"
-      bounds: 197 230 36 50
-      label: 125 285 180 45
+
     Skill_Sets:
       type: DataObjectReference
       name: "One per skill: cognitive, behaverse, eeg, agentic, reachy"
-      bounds: 407 230 36 50
-      label: 335 285 180 45
+
     Settings:
       type: DataStoreReference
       name: Settings › Extensions
-      bounds: 400 10 50 50
-      label: 458 27 150 15
+
     Catalog:
       type: DataObjectReference
       name: "The catalog: palette, inspector tabs, XML namespaces"
-      bounds: 617 230 36 50
-      label: 555 285 160 45
+
     Flow_Opened:
-      sourceRef: Opens
-      targetRef: Load_Required
-      waypoint: 96,150 140,150
+      source: $Opens
+      target: $Load_Required
+
     Flow_Required:
-      sourceRef: Load_Required
-      targetRef: Load_Skills
-      waypoint: 290,150 340,150
+      source: $Load_Required
+      target: $Load_Skills
+
     Flow_Skills:
-      sourceRef: Load_Skills
-      targetRef: Compile
-      waypoint: 510,150 560,150
+      source: $Load_Skills
+      target: $Compile
+
     Flow_Compiled:
-      sourceRef: Compile
-      targetRef: Ready
-      waypoint: 710,150 770,150
+      source: $Compile
+      target: $Ready
+
+layout:
+  Opens: 60 132 36 36
+  Load_Required: 140 110 150 80
+  In_Required: 215,230 215,190
+  Load_Skills: 340 110 170 80
+  In_Settings: 425,60 425,110
+  In_Skills: 425,230 425,190
+  Compile: 560 110 150 80
+  Out_Catalog: 635,190 635,230
+  Ready: 770 132 36 36
+  Required_Sets: {bounds: 197 230 36 50, label: 125 285 180 45}
+  Skill_Sets: {bounds: 407 230 36 50, label: 335 285 180 45}
+  Settings: {bounds: 400 10 50 50, label: 458 27 150 15}
+  Catalog: {bounds: 617 230 36 50, label: 555 285 160 45}
+  Flow_Opened: 96,150 140,150
+  Flow_Required: 290,150 340,150
+  Flow_Skills: 510,150 560,150
+  Flow_Compiled: 710,150 770,150
+
 state:
   _meta:
     prov:

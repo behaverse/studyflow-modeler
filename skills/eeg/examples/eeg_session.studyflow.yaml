@@ -1,86 +1,95 @@
 id: eeg_session
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 EEG_Session:
-  type: studyflow:Study
+  type: Process
   name: EEG session
+  studyflow:Study: {}
   documentation: An EEG session covering cap fitting through data export.
-  flowElements:
+  elements:
     Start:
       type: StartEvent
       name: Start
+
     Mount_Cap:
       type: ManualTask
       name: Mount cap & check impedance
       documentation: |
         Fit the cap, place the electrodes, and check that every one of them
         makes good contact before recording starts.
+
     Baseline:
-      type: cognitive:Rest
+      type: IntermediateCatchEvent
       name: Resting baseline
-      eyes: closed
-      eventDefinitions:
-        Baseline_Timer:
-          type: TimerEventDefinition
-          timeDuration: PT2M
+      timer: PT2M
+      cognitive:Rest:
+        eyes: closed
+
     Cognitive_Task:
       type: Task
       name: Cognitive task
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          platform: psychopy
-      dataInputAssociations:
+      cognitive:CognitiveTask:
+        platform: psychopy
+      inputs:
         In_Cognitive_Task_Parameters:
-          sourceRef:
-            - Cognitive_Task_Parameters
+          source: $Cognitive_Task_Parameters
+
     Cognitive_Task_Parameters:
-      type: studyflow:Parameters
+      type: DataObjectReference
       name: Parameters
-      values: |
-        triggerChannel: markers  # stimulus marker stream sent with biosignals
+      studyflow:Parameters:
+        values: |
+          triggerChannel: markers  # stimulus marker stream sent with biosignals
+
     Export_Recording:
       type: ServiceTask
       name: Export recording
-      documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
       additionalArguments:
         output_folder: bids/
       implementation: python://datatrove.pipeline.writers.ParquetWriter
+      documentation: Persist the recording to a structured dataset (BIDS, BDM, or custom).
+
     End:
       type: EndEvent
       name: End
-    Flow_Start_Mount: Start -> Mount_Cap
-    Flow_Mount_Baseline: Mount_Cap -> Baseline
-    Flow_Baseline_Task: Baseline -> Cognitive_Task
-    Flow_Task_Export: Cognitive_Task -> Export_Recording
-    Flow_Export_End: Export_Recording -> End
+
+    Flow_Start_Mount:
+      source: $Start
+      target: $Mount_Cap
+
+    Flow_Mount_Baseline:
+      source: $Mount_Cap
+      target: $Baseline
+
+    Flow_Baseline_Task:
+      source: $Baseline
+      target: $Cognitive_Task
+
+    Flow_Task_Export:
+      source: $Cognitive_Task
+      target: $Export_Recording
+
+    Flow_Export_End:
+      source: $Export_Recording
+      target: $End
+
 layout:
-  Start:
-    bounds: 57 52 36 36
-  Mount_Cap:
-    bounds: 175 30 100 80
-  Baseline:
-    bounds: 357 52 36 36
-    label: 330 94 90 28
-  Cognitive_Task:
-    bounds: 475 30 100 80
-  In_Cognitive_Task_Parameters:
-    waypoint: 525,160 525,110
-  Cognitive_Task_Parameters:
-    bounds: 507 160 36 50
-  Export_Recording:
-    bounds: 625 30 100 80
-  End:
-    bounds: 807 52 36 36
-  Flow_Start_Mount:
-    waypoint: 93,70 175,70
-  Flow_Mount_Baseline:
-    waypoint: 275,70 357,70
-  Flow_Baseline_Task:
-    waypoint: 393,70 475,70
-  Flow_Task_Export:
-    waypoint: 575,70 625,70
-  Flow_Export_End:
-    waypoint: 725,70 807,70
+  Start: 57 52 36 36
+  Mount_Cap: 175 30 100 80
+  Baseline: {bounds: 357 52 36 36, label: 330 94 90 28}
+  Cognitive_Task: 475 30 100 80
+  In_Cognitive_Task_Parameters: 525,160 525,110
+  Cognitive_Task_Parameters: 507 160 36 50
+  Export_Recording: 625 30 100 80
+  End: 807 52 36 36
+  Flow_Start_Mount: 93,70 175,70
+  Flow_Mount_Baseline: 275,70 357,70
+  Flow_Baseline_Task: 393,70 475,70
+  Flow_Task_Export: 575,70 625,70
+  Flow_Export_End: 725,70 807,70
+
 state:
   _meta:
     prov:

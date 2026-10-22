@@ -79,29 +79,31 @@ diagram:
 
     const doc: any = yaml.load(await yamlOf(xml));
     expect(doc.id).toBe('legacy_demo');
-    expect(doc.definitions['xmlns:studyflow']).toBeUndefined();
+    // The namespaces are the schemas the study uses, and BPMN's default target namespace goes without saying.
+    expect(doc.schemas).toEqual({ cognitive: 'http://behaverse.org/schemas/studyflow/cognitive', studyflow: 'http://behaverse.org/schemas/studyflow/v1' });
+    expect(doc.definitions).toBeUndefined();
     expect(doc.diagram).toBeUndefined();
     const process = doc.P;
-    // A typed element names its schema type as its own: the study its process, the Parameters its object.
-    expect(process.type).toBe('studyflow:Study');
-    // On a host other than the one its schema attaches it to, a typed element keeps its wrapper spelled out.
-    expect(process.flowElements.T1).toMatchObject({ type: 'Task', extensionElements: [{ type: 'cognitive:CognitiveTask', platform: 'jspsych' }] });
-    expect(process.flowElements.C1.values).toEqual({ Timelines: { XCIT_NB_01: null } });
+    // An extension entry is keyed by its type on the BPMN element that holds it: the study on its process, the
+    // Parameters on its object, the task's type on its task.
+    expect(process).toMatchObject({ type: 'Process', 'studyflow:Study': {} });
+    expect(process.elements.T1).toMatchObject({ type: 'Task', 'cognitive:CognitiveTask': { platform: 'jspsych' } });
+    expect(process.elements.C1['studyflow:Parameters'].values).toEqual({ Timelines: { XCIT_NB_01: null } });
     // Wherever the drawing was written, on an element or in a diagram section, it is written back as the one layout map.
-    expect(process.flowElements.T1.bounds).toBeUndefined();
-    expect(doc.layout.Start.bounds).toBe('160 180 36 36');
-    expect(doc.layout.T1.bounds).toBe('100 0 100 80');
-    expect(doc.layout.F1.waypoint).toBe('36,18 100,18');
+    expect(process.elements.T1.bounds).toBeUndefined();
+    expect(doc.layout.Start).toBe('160 180 36 36');
+    expect(doc.layout.T1).toBe('100 0 100 80');
+    expect(doc.layout.F1).toBe('36,18 100,18');
   });
 
-  test('the short spellings: bare types, implied flow types, one-line geometry, arrows, one key per colour', async () => {
+  test('the short spellings: bare types, implied flow types, one-line geometry, an arrow, one key per colour', async () => {
     const doc = `
 id: short_demo
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
 P:
   type: Process
-  flowElements:
+  elements:
     Start:
       type: StartEvent
       bounds: 0 0 36 36
@@ -119,8 +121,8 @@ P:
     F1: Start -> T1
     F2:
       name: done
-      sourceRef: T1
-      targetRef: End
+      source: $T1
+      target: $End
       waypoint: 200,40 300,40
   artifacts:
     Note_1:
@@ -148,8 +150,9 @@ P:
 
     const back: any = yaml.load(await yamlOf(xml));
     expect(back.layout.T1).toEqual({ bounds: '100 0 100 80', fill: '#dbe8f5', stroke: '#4a6f9c', font: 'bold right #4a6f9c' });
-    expect(back.P.flowElements.F1).toBe('Start -> T1');
-    expect(back.P.artifacts.Assoc_1).toBe('Note_1 -> T1');
+    // An arrow reads as the edge it draws, which is written as its two ends.
+    expect(back.P.elements.F1).toEqual({ source: '$Start', target: '$T1' });
+    expect(back.P.artifacts.Assoc_1).toEqual({ source: '$Note_1', target: '$T1' });
   });
 
   test('a look written on an element whose geometry is the layout\'s, or not drawn yet, is its drawing\'s', () => {
@@ -202,71 +205,71 @@ P:
   test('a Parameters text round-trips XML <-> YAML: markup unsafe in XML is escaped, a comment survives, a list is its text, and text an edit wrote is its mapping', async () => {
     const doc = (values: string) => `
 id: values_demo
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
 P:
   type: Process
-  flowElements:
+  elements:
     C1:
       type: DataObjectReference
-      extensionElements:
-        - type: studyflow:Parameters
-          values: ${values}
+      studyflow:Parameters:
+        values: ${values}
 `;
+    const valuesOf = (text: string): unknown => (yaml.load(text) as any).P.elements.C1['studyflow:Parameters'].values;
     // Raw `<`/`&` in the text would break the export.
-    const markup = await xmlOf(doc('\n            stimulus: "<p>&lt; L &amp; R <<< </p>"'));
+    const markup = await xmlOf(doc('\n          stimulus: "<p>&lt; L &amp; R <<< </p>"'));
     expect(markup).not.toContain('<<<');
-    expect((yaml.load(await yamlOf(markup)) as any).P.flowElements.C1.values.stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
+    expect((valuesOf(await yamlOf(markup)) as any).stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
 
     // YAML with a comment stays text: folded into a mapping, it would come back without its comment.
     const comment = 'triggerChannel: markers  # sent with the biosignals';
     const commented = await xmlOf(doc(`"${comment}"`));
     expect(commented).toContain(comment);
-    expect((yaml.load(await yamlOf(commented)) as any).P.flowElements.C1.values).toBe(comment);
+    expect(valuesOf(await yamlOf(commented))).toBe(comment);
 
     // A list is no mapping, so it is read as its text, which is all the XML holds.
     const list = await xmlOf(doc('[1, 2]'));
-    expect((yaml.load(await yamlOf(list)) as any).P.flowElements.C1.values).toBe('- 1\n- 2\n');
+    expect(valuesOf(await yamlOf(list))).toBe('- 1\n- 2\n');
 
     // Text an edit wrote is spelled as the mapping a re-read holds, in YAML and XML, so the file does not depend on
     // whether one came between.
     const edited = studyModel(doc('{ seed: 1 }'));
     edited.setAttribute(edited.get('C1')!, 'values', '{ seed: 2 }');
     const text = studyText(edited.study, edited.metamodel);
-    expect((yaml.load(text) as any).P.flowElements.C1.values).toEqual({ seed: 2 });
+    expect(valuesOf(text)).toEqual({ seed: 2 });
     expect(await studyToXml(edited)).toBe(await xmlOf(text));
   });
 
   test('a message flow names its message, and the message its item definition, through a round trip', async () => {
     const text = `id: msg
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
 C:
   type: Collaboration
-  participants:
+  pools:
     Screen:
-      processRef: S
+      process: $S
     Robot:
-      processRef: R
+      process: $R
   messageFlows:
     Msg_Trial:
-      sourceRef: Play
-      targetRef: Answer
-      messageRef: Trial
+      source: $Play
+      target: $Answer
+      message: $Trial
 Trial:
   type: Message
-  itemRef: Trial_Item
+  item: $Trial_Item
 Trial_Item:
   type: ItemDefinition
-  structureRef: cognitive:Trial
+  structure: cognitive:Trial
 S:
   type: Process
-  flowElements:
+  elements:
     Play:
       type: Task
 R:
   type: Process
-  flowElements:
+  elements:
     Answer:
       type: ReceiveTask
 `;
@@ -277,45 +280,44 @@ R:
     // No element of the cognitive skill is written, so only its message names the prefix, which the XML still declares.
     expect(xml).toContain('xmlns:cognitive="http://behaverse.org/schemas/studyflow/cognitive"');
     const back = await yamlOf(xml);
-    expect(back).toContain('messageRef: Trial\n');
-    expect(back).toContain('Trial:\n  type: Message\n  itemRef: Trial_Item\n');
-    expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structureRef: cognitive:Trial\n');
+    expect(back).toContain('schemas:\n  cognitive: http://behaverse.org/schemas/studyflow/cognitive\n');
+    expect(back).toContain('      message: $Trial\n');
+    expect(back).toContain('Trial:\n  type: Message\n  item: $Trial_Item\n');
+    expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structure: cognitive:Trial\n');
   });
 
   test('a conditional boundary event and a multi-instance marker keep their spelling through a round trip', async () => {
     // Both are BPMN's own: the boundary's `condition` says when the walk leaves a finished step, and the marker's
-    // `loopCardinality` how many instances of it run. An expression is a string, so an integer cardinality is quoted;
+    // `cardinality` how many instances of it run. An expression is a string, so an integer cardinality is quoted;
     // one that names its language is an element, which its XML types with an `xsi:type` the YAML leaves to moddle.
     const text = `id: cohort
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 S:
   type: Process
-  flowElements:
+  elements:
     Subject:
       type: SubProcess
-      loopCharacteristics:
-        type: MultiInstanceLoopCharacteristics
-        loopCardinality: "4"
-      flowElements:
+      multiInstance:
+        cardinality: "4"
+      elements:
         S0:
           type: StartEvent
+
     Play:
       type: Task
-      loopCharacteristics:
-        type: MultiInstanceLoopCharacteristics
-        isSequential: true
-        loopCardinality:
+      multiInstance:
+        sequential: true
+        cardinality:
           type: FormalExpression
           body: "3"
           language: feel
+
     Noisy:
       type: BoundaryEvent
-      eventDefinitions:
-        Cond_Noisy:
-          type: ConditionalEventDefinition
-          condition: "{Play.failedTrialRate} > 0.2"
-      attachedToRef: Play
+      condition: "{Play.failedTrialRate} > 0.2"
+      attachedTo: $Play
 `;
     const xml = await xmlOf(text);
     expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics>');
@@ -330,20 +332,22 @@ S:
     // Both are BPMN's own: `laneSets` sit on any FlowElementsContainer, so an expanded sub-process may be divided
     // into lanes like a pool, and a participant's `participantMultiplicity` says how many instances of its process run.
     const text = `id: divided
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 C:
   type: Collaboration
-  participants:
+  pools:
     Pool_Subjects:
       name: Subjects
-      participantMultiplicity:
+      multiplicity:
         minimum: 4
         maximum: 4
-      processRef: P
+      process: $P
+
 P:
   type: Process
-  flowElements:
+  elements:
     Session:
       type: SubProcess
       laneSets:
@@ -351,24 +355,20 @@ P:
           lanes:
             Lane_Screen:
               name: Screen
-              flowNodeRef:
-                - S0
+              nodes: $S0
+
             Lane_Model:
               name: Model
-      flowElements:
+      elements:
         S0:
           type: StartEvent
+
 layout:
-  Pool_Subjects:
-    bounds: 40 40 800 400
-  Session:
-    bounds: 100 100 600 260
-  Lane_Screen:
-    bounds: 130 100 570 130
-  Lane_Model:
-    bounds: 130 230 570 130
-  S0:
-    bounds: 200 140 36 36
+  Pool_Subjects: 40 40 800 400
+  Session: 100 100 600 260
+  Lane_Screen: 130 100 570 130
+  Lane_Model: 130 230 570 130
+  S0: 200 140 36 36
 `;
     const xml = await xmlOf(text);
     expect(xml).toContain('<bpmn:participantMultiplicity minimum="4" maximum="4" />');
@@ -483,7 +483,7 @@ P:
     expect(opened).toEqual([expect.stringMatching(/^T: <camunda:inputOutput> is from a namespace no loaded schema declares/)]);
     expect(studyModel(text).get('T')).not.toHaveProperty('extensionElements');
     // A child's text is a list even when it is one, so it is written back as a child, not as an attribute.
-    expect(text).toContain('- type: lab:rig\n          platform: x\n          note:\n            - a\n');
+    expect(text).toContain('    R:\n      type: Task\n      lab:rig:\n        platform: x\n        note:\n          - a\n');
     expect(await xmlOf(text)).toContain('<lab:rig platform="x">\n          <lab:note>a</lab:note>\n        </lab:rig>');
   });
 

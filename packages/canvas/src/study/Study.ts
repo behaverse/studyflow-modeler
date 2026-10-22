@@ -10,7 +10,7 @@ import { isElement, StudyModel, type Element, type Value } from '@core/model/ind
 import { participantKinds, setBandsIn, type BandChange } from '@core/model/choreography.ts';
 import { setItemSubjectIn, setMessageItemIn, type Ids } from '@core/model/items.ts';
 import type { Metamodel } from '@core/model/metamodel.ts';
-import { patchDoc } from '@core/model/patch.ts';
+import { attributeOf, patchDoc } from '@core/model/patch.ts';
 import { readStudy, studyText, writeStudy, type YamlDoc } from '@core/model/yaml.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
@@ -327,8 +327,12 @@ export class Study {
     if (!found) return refused(`no element '${id}'`);
     const { model } = this;
     const { element } = found;
-    if (!declares(model, element, attribute)) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
-    const local = attribute.includes(':') ? attribute.slice(attribute.indexOf(':') + 1) : attribute;
+    // A key as the file writes it (`loop`, `timer`, `inputs`) names the property BPMN calls by its own name.
+    const named = attributeOf(model, element, attribute);
+    const given = declares(model, element, attribute);
+    if (!given && !(named && declares(model, element, named.name))) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
+    const local = !given && named ? named.name : attribute.includes(':') ? attribute.slice(attribute.indexOf(':') + 1) : attribute;
+    const kind = !!named && named.key !== named.name && ['eventDefinitions', 'loopCharacteristics'].includes(named.name);
     const property = model.property(element, local);
     // What BPMN keeps as an element or a reference is written as the file spells it, and cleared by taking it out;
     // text kept in an element of its own (an expression, the documentation) is written in place, as it is typed.
@@ -340,7 +344,9 @@ export class Study {
     const extension = model.extensionType(element);
     const declared = property ?? (extension ? model.metamodel.property(extension, local) : undefined);
     const plainList = Array.isArray(value) && value.every((item) => typeof item !== 'object') && !model.metamodel.has(declared?.type ?? '');
-    if (value === null ? structured : (typeof value === 'object' && !plainList) || property?.isReference) return this.spell(element, local, value, found.drawn?.id ?? this.root.id);
+    if (kind || (value === null ? structured : (typeof value === 'object' && !plainList) || property?.isReference)) {
+      return this.spell(element, named && !given ? named.key : local, value, found.drawn?.id ?? this.root.id);
+    }
     // Typing into one attribute is one undo step, however many keystrokes wrote it.
     return this.within(`set:${id}:${attribute}`, () => this.commit(() => {
       const written = value === '' || value === null || value === undefined || (Array.isArray(value) && value.length === 0) ? undefined

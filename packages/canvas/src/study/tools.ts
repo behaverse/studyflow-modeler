@@ -185,9 +185,9 @@ const TOOLS = [
     into: ID,
   }, ['yaml'], write(false, false)),
   tool('layout', 'Lay the whole diagram out afresh: each flow left to right, lanes as bands, pools stacked, data under its steps, groups round what they hold; shapes keep their sizes, and every flow is routed anew.', {}, [], write(false, true)),
-  tool('set', "Set an attribute of an element, or of the root, where its schema keeps it (`attributes` lists them); 'name' renames, and null clears. What BPMN gives an element is set the same way, spelled as the document spells it (`describe` lists it): `loopCharacteristics: { type: StandardLoopCharacteristics, loopMaximum: 3 }`, `eventDefinitions: [{ type: TimerEventDefinition, timeDuration: PT5M }]`, `conditionExpression: \"score > 0.9\"`, `default: Flow_No`, `properties: { P_Count: { name: count, value: \"0\" } }`, `dataInputAssociations: { In_Trials: { sourceRef: [Trials] } }`. Such a value replaces what was there whole, and names other elements by id.", {
+  tool('set', "Set an attribute of an element, or of the root, where its schema keeps it (`attributes` lists them); 'name' renames, and null clears. What BPMN gives an element is set the same way, spelled as the document spells it (`describe` lists it): `loop: { while: \"count < 3\", maximum: 3 }`, `timer: PT5M`, `condition: \"score > 0.9\"`, `default: $Flow_No`, `properties: { P_Count: { name: count, value: \"0\" } }`, `inputs: { In_Trials: { source: $Trials } }`. Such a value replaces what was there whole, and names other elements as `$` and their id.", {
     id: ID,
-    attribute: { type: 'string', description: "Its name, as the document spells it: 'name', 'duration', 'cognitive:instrument', 'loopCharacteristics'." },
+    attribute: { type: 'string', description: "Its name, as the document spells it: 'name', 'duration', 'cognitive:instrument', 'loop', 'timer'." },
     value: { description: 'Any JSON value the attribute takes.' },
   }, ['id', 'attribute', 'value'], write(false, true)),
   tool('item', "Say what a message flow carries, or what a property or a data object holds: `structure` names it (a schema type such as `cognitive:Trial`, or any text), and the document keeps one definition of each, made on first use. An empty `structure` says nothing of it.", {

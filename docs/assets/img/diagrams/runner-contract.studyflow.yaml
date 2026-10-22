@@ -1,233 +1,250 @@
 id: runner_contract
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Runner_Contract:
   type: Collaboration
+  name: A run, from the runner's side
+  studyflow:Study: {}
   documentation: >-
     A local run, from a partial runner's side. The walk starts every runner and asks for its claims before the first
     step, and a runner that refuses stops the run. It then hands each claimed element to its runner with the run's
-    values, adopts what the runner hands back, and commits the run directory. The runner speaks the walk's contract
-    on one side and its tool's own protocol on the other. Drawn for docs/developers.qmd.
-  extensionElements:
-    - type: studyflow:Study
-  name: A run, from the runner's side
-  participants:
+    values, adopts what the runner hands back, and commits the run directory. The runner speaks the walk's contract on
+    one side and its tool's own protocol on the other. Drawn for docs/developers.qmd.
+  pools:
     Pool_Walk:
       name: Local runtime, the walk
-      processRef: Walk
-      bounds: 40 20 1040 230
+      process: $Walk
+
     Pool_Runner:
       name: Partial runner, in its skill
-      processRef: Runner
-      bounds: 40 290 1040 200
+      process: $Runner
+
     Pool_Tool:
       name: The tool
-      bounds: 40 540 1040 80
   messageFlows:
     Msg_Claims:
       name: initialize
-      sourceRef: Ask_Claims
-      targetRef: Claims_Start
-      waypoint: 190,190 190,392
-      label: 197 262 70 15
+      source: $Ask_Claims
+      target: $Claims_Start
+
     Msg_Claimed:
       name: claimed ids
-      sourceRef: Claims_End
-      targetRef: Ask_Claims
-      waypoint: 416,392 416,270 280,270 280,190
-      label: 423 300 75 15
+      source: $Claims_End
+      target: $Ask_Claims
+
     Msg_Element:
       name: execute
-      sourceRef: Hand_Over
-      targetRef: Element_Start
-      waypoint: 490,190 490,392
-      label: 497 330 100 15
+      source: $Hand_Over
+      target: $Element_Start
+
     Msg_State:
       name: what it binds
-      sourceRef: Element_End
-      targetRef: Hand_Over
-      waypoint: 1008,392 1008,270 545,270 545,190
-      label: 915 300 88 15
+      source: $Element_End
+      target: $Hand_Over
+
     Msg_Protocol:
       name: its own protocol
-      sourceRef: Run_Tool
-      targetRef: Pool_Tool
-      waypoint: 730,450 730,540
-      label: 620 505 105 15
+      source: $Run_Tool
+      target: $Pool_Tool
+
     Msg_Report:
       name: what it reports
-      sourceRef: Pool_Tool
-      targetRef: Run_Tool
-      waypoint: 770,540 770,450
-      label: 777 505 100 15
+      source: $Pool_Tool
+      target: $Run_Tool
+
 Walk:
   type: Process
   name: Local runtime, the walk
-  flowElements:
+  elements:
     Walk_Start:
       type: StartEvent
       name: studyflow run
-      bounds: 100 132 36 36
+
     Ask_Claims:
       type: Task
       name: Ask every runner for its claims
-      bounds: 176 110 130 80
+
     Claims_Gate:
       type: ExclusiveGateway
       name: Every runner answered?
-      bounds: 346 125 50 50
-      label: 326 180 90 30
+
     Stop:
       type: EndEvent
       name: The run stops before any step
-      eventDefinitions:
-        Stop_Error:
-          type: ErrorEventDefinition
-      bounds: 353 35 36 36
-      label: 395 45 205 15
+      error:
+        id: Stop_Error
+
     Hand_Over:
       type: Task
       name: Hand over the next claimed element
-      bounds: 436 110 130 80
+
     Adopt:
       type: Task
       name: Adopt what it binds, commit the run directory
-      dataOutputAssociations:
+      outputs:
         Out_Commit:
-          targetRef: Run_Dir
-          waypoint: 681,190 681,197
-      bounds: 606 110 150 80
+          target: $Run_Dir
+
     Run_Dir:
       type: DataStoreReference
       name: Run directory (git)
-      bounds: 656 197 50 50
-      label: 712 214 135 15
+
     More_Gate:
       type: ExclusiveGateway
       name: Another element?
-      bounds: 796 125 50 50
-      label: 786 180 80 30
+
     Walk_End:
       type: EndEvent
       name: Run finished, .cache/ removed
-      bounds: 906 132 36 36
-      label: 874 172 100 30
+
     Flow_Start:
-      sourceRef: Walk_Start
-      targetRef: Ask_Claims
-      waypoint: 136,150 176,150
+      source: $Walk_Start
+      target: $Ask_Claims
+
     Flow_Claims:
-      sourceRef: Ask_Claims
-      targetRef: Claims_Gate
-      waypoint: 306,150 346,150
+      source: $Ask_Claims
+      target: $Claims_Gate
+
     Flow_Refused:
       name: "no"
-      sourceRef: Claims_Gate
-      targetRef: Stop
-      waypoint: 371,125 371,71
-      label: 377 92 20 15
+      source: $Claims_Gate
+      target: $Stop
+
     Flow_Answered:
       name: "yes"
-      sourceRef: Claims_Gate
-      targetRef: Hand_Over
-      waypoint: 396,150 436,150
-      label: 402 133 25 15
+      source: $Claims_Gate
+      target: $Hand_Over
+
     Flow_Handed:
-      sourceRef: Hand_Over
-      targetRef: Adopt
-      waypoint: 566,150 606,150
+      source: $Hand_Over
+      target: $Adopt
+
     Flow_Adopted:
-      sourceRef: Adopt
-      targetRef: More_Gate
-      waypoint: 756,150 796,150
+      source: $Adopt
+      target: $More_Gate
+
     Flow_Again:
       name: "yes"
-      sourceRef: More_Gate
-      targetRef: Hand_Over
-      waypoint: 821,125 821,85 501,85 501,110
-      label: 828 95 25 15
+      source: $More_Gate
+      target: $Hand_Over
+
     Flow_Done:
       name: "no"
-      sourceRef: More_Gate
-      targetRef: Walk_End
-      waypoint: 846,150 906,150
-      label: 862 133 20 15
+      source: $More_Gate
+      target: $Walk_End
+
 Runner:
   type: Process
   name: Partial runner, in its skill
-  flowElements:
+  elements:
     Claims_Start:
       type: StartEvent
       name: Asked for claims
-      eventDefinitions:
-        Claims_Start_Message:
-          type: MessageEventDefinition
-      bounds: 172 392 36 36
-      label: 145 432 90 30
+      message:
+        id: Claims_Start_Message
+
     Print_Ids:
       type: Task
       name: Answer with the ids it takes
-      bounds: 238 370 120 80
+
     Claims_End:
       type: EndEvent
       name: Answered
-      eventDefinitions:
-        Claims_End_Message:
-          type: MessageEventDefinition
-      bounds: 398 392 36 36
-      label: 386 432 60 15
+      message:
+        id: Claims_End_Message
+
     Element_Start:
       type: StartEvent
       name: Handed an element
-      eventDefinitions:
-        Element_Start_Message:
-          type: MessageEventDefinition
-      bounds: 472 392 36 36
-      label: 450 432 80 30
+      message:
+        id: Element_Start_Message
+
     Read_Plan:
       type: Task
       name: Read the plan and the values
-      bounds: 540 370 120 80
+
     Run_Tool:
       type: Task
       name: Run the element with the tool
-      bounds: 690 370 120 80
+
     Write_Back:
       type: Task
       name: Hand back result, record, files
-      bounds: 840 370 120 80
+
     Element_End:
       type: EndEvent
       name: Done
-      eventDefinitions:
-        Element_End_Message:
-          type: MessageEventDefinition
-      bounds: 990 392 36 36
-      label: 986 432 44 15
+      message:
+        id: Element_End_Message
+
     Flow_Asked:
-      sourceRef: Claims_Start
-      targetRef: Print_Ids
-      waypoint: 208,410 238,410
+      source: $Claims_Start
+      target: $Print_Ids
+
     Flow_Printed:
-      sourceRef: Print_Ids
-      targetRef: Claims_End
-      waypoint: 358,410 398,410
+      source: $Print_Ids
+      target: $Claims_End
+
     Flow_Handed_In:
-      sourceRef: Element_Start
-      targetRef: Read_Plan
-      waypoint: 508,410 540,410
+      source: $Element_Start
+      target: $Read_Plan
+
     Flow_Read:
-      sourceRef: Read_Plan
-      targetRef: Run_Tool
-      waypoint: 660,410 690,410
+      source: $Read_Plan
+      target: $Run_Tool
+
     Flow_Ran:
-      sourceRef: Run_Tool
-      targetRef: Write_Back
-      waypoint: 810,410 840,410
+      source: $Run_Tool
+      target: $Write_Back
+
     Flow_Written:
-      sourceRef: Write_Back
-      targetRef: Element_End
-      waypoint: 960,410 990,410
+      source: $Write_Back
+      target: $Element_End
+
+layout:
+  Pool_Walk: 40 20 1040 230
+  Pool_Runner: 40 290 1040 200
+  Pool_Tool: 40 540 1040 80
+  Msg_Claims: {waypoint: "190,190 190,392", label: 197 262 70 15}
+  Msg_Claimed: {waypoint: "416,392 416,270 280,270 280,190", label: 423 300 75 15}
+  Msg_Element: {waypoint: "490,190 490,392", label: 497 330 100 15}
+  Msg_State: {waypoint: "1008,392 1008,270 545,270 545,190", label: 915 300 88 15}
+  Msg_Protocol: {waypoint: "730,450 730,540", label: 620 505 105 15}
+  Msg_Report: {waypoint: "770,540 770,450", label: 777 505 100 15}
+  Walk_Start: 100 132 36 36
+  Ask_Claims: 176 110 130 80
+  Claims_Gate: {bounds: 346 125 50 50, label: 326 180 90 30}
+  Stop: {bounds: 353 35 36 36, label: 395 45 205 15}
+  Hand_Over: 436 110 130 80
+  Adopt: 606 110 150 80
+  Out_Commit: 681,190 681,197
+  Run_Dir: {bounds: 656 197 50 50, label: 712 214 135 15}
+  More_Gate: {bounds: 796 125 50 50, label: 786 180 80 30}
+  Walk_End: {bounds: 906 132 36 36, label: 874 172 100 30}
+  Flow_Start: 136,150 176,150
+  Flow_Claims: 306,150 346,150
+  Flow_Refused: {waypoint: "371,125 371,71", label: 377 92 20 15}
+  Flow_Answered: {waypoint: "396,150 436,150", label: 402 133 25 15}
+  Flow_Handed: 566,150 606,150
+  Flow_Adopted: 756,150 796,150
+  Flow_Again: {waypoint: "821,125 821,85 501,85 501,110", label: 828 95 25 15}
+  Flow_Done: {waypoint: "846,150 906,150", label: 862 133 20 15}
+  Claims_Start: {bounds: 172 392 36 36, label: 145 432 90 30}
+  Print_Ids: 238 370 120 80
+  Claims_End: {bounds: 398 392 36 36, label: 386 432 60 15}
+  Element_Start: {bounds: 472 392 36 36, label: 450 432 80 30}
+  Read_Plan: 540 370 120 80
+  Run_Tool: 690 370 120 80
+  Write_Back: 840 370 120 80
+  Element_End: {bounds: 990 392 36 36, label: 986 432 44 15}
+  Flow_Asked: 208,410 238,410
+  Flow_Printed: 358,410 398,410
+  Flow_Handed_In: 508,410 540,410
+  Flow_Read: 660,410 690,410
+  Flow_Ran: 810,410 840,410
+  Flow_Written: 960,410 990,410
+
 state:
   _meta:
     prov:

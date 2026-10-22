@@ -1,20 +1,24 @@
 id: cognitive_battery
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  behaverse: http://behaverse.org/schemas/studyflow/behaverse
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  prov: https://w3id.org/studyflow/prov
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Cognitive_Battery:
-  type: studyflow:Study
+  type: Process
   name: Within-subject cognitive battery
+  executable: false
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:29Z", with: studyflow-modeler/26.0615}
   documentation: Chains N-Back, Digit Span, SART, and Which One tasks with a timed break and a NASA-TLX survey.
-  extensionElements:
-    - type: prov:Activity
-      action: created
-      when: "2026-07-30T22:51:29Z"
-      with: studyflow-modeler/26.0615
-  flowElements:
+  elements:
     Start:
       type: StartEvent
       name: Participant arrives
       consentFormUri: https://example.org/protocols/cognitive-battery/consent.pdf
+
     Instructions:
       type: Task
       name: Instructions & practice
@@ -22,109 +26,113 @@ Cognitive_Battery:
         - [ ] Informed consent signed
         - [ ] Task instructions shown
         - [ ] Practice trials passed
+
     Task_NBack:
       type: Task
       name: Working memory (N-Back)
-      extensionElements:
-        - type: behaverse:Task
-          instrument: NB
-          timeline: XCIT_NB_01
+      behaverse:Task:
+        instrument: NB
+        timeline: XCIT_NB_01
+
     Task_DigitSpan:
       type: Task
       name: Verbal span (Digit Span)
-      extensionElements:
-        - type: behaverse:Task
-          instrument: DS
-          timeline: XCIT_DS_01
+      behaverse:Task:
+        instrument: DS
+        timeline: XCIT_DS_01
+
     Break:
       type: IntermediateCatchEvent
       name: Two-minute break
-      eventDefinitions:
-        TimerDef_Break:
-          type: TimerEventDefinition
-          timeDuration: PT2M
+      timer: PT2M
+
     Task_SART:
       type: Task
       name: Sustained attention (SART)
-      extensionElements:
-        - type: behaverse:Task
-          instrument: SART
-          timeline: XCIT_SART_01
+      behaverse:Task:
+        instrument: SART
+        timeline: XCIT_SART_01
+
     Task_WhichOne:
       type: Task
       name: Visual WM (Which One)
-      extensionElements:
-        - type: behaverse:Task
-          instrument: WO
-          timeline: XCIT_WO_01
-      dataOutputAssociations:
+      behaverse:Task:
+        instrument: WO
+        timeline: XCIT_WO_01
+      outputs:
         DataOutput_WhichOne_Data:
-          targetRef: Dataset_Battery
+          target: $Dataset_Battery
+
     Survey:
-      type: cognitive:Questionnaire
+      type: Task
       name: Post-battery survey
-      instrument: nasa-tlx
-      dataOutputAssociations:
+      exchange: true
+      cognitive:Questionnaire:
+        instrument: nasa-tlx
+      outputs:
         DataOutput_Survey_Data:
-          targetRef: Dataset_Battery
+          target: $Dataset_Battery
+
     Dataset_Battery:
-      type: behaverse:BDMDataset
+      type: DataStoreReference
       name: Battery trial data
-      dataLevel: trials
+      behaverse:BDMDataset:
+        dataLevel: trials
+
     End:
       type: EndEvent
       name: Session complete
-    Flow_Start_Instructions: Start -> Instructions
-    Flow_Instructions_NB: Instructions -> Task_NBack
-    Flow_NB_DS: Task_NBack -> Task_DigitSpan
-    Flow_DS_Break: Task_DigitSpan -> Break
-    Flow_Break_SART: Break -> Task_SART
-    Flow_SART_WO: Task_SART -> Task_WhichOne
-    Flow_WO_Survey: Task_WhichOne -> Survey
-    Flow_Survey_End: Survey -> End
-  isExecutable: false
+
+    Flow_Start_Instructions:
+      source: $Start
+      target: $Instructions
+
+    Flow_Instructions_NB:
+      source: $Instructions
+      target: $Task_NBack
+
+    Flow_NB_DS:
+      source: $Task_NBack
+      target: $Task_DigitSpan
+
+    Flow_DS_Break:
+      source: $Task_DigitSpan
+      target: $Break
+
+    Flow_Break_SART:
+      source: $Break
+      target: $Task_SART
+
+    Flow_SART_WO:
+      source: $Task_SART
+      target: $Task_WhichOne
+
+    Flow_WO_Survey:
+      source: $Task_WhichOne
+      target: $Survey
+
+    Flow_Survey_End:
+      source: $Survey
+      target: $End
+
 layout:
-  Start:
-    bounds: 160 180 36 36
-    label: 146 223 66 30
-  Instructions:
-    bounds: 250 158 120 80
-  Task_NBack:
-    bounds: 420 158 120 80
-  Task_DigitSpan:
-    bounds: 590 158 120 80
-  Break:
-    bounds: 762 180 36 36
-    label: 741 223 78 30
-  Task_SART:
-    bounds: 850 158 120 80
-  Task_WhichOne:
-    bounds: 1020 158 120 80
-  DataOutput_WhichOne_Data:
-    waypoint: 1080,238 1200,345
-  Survey:
-    bounds: 1190 158 120 80
-  DataOutput_Survey_Data:
-    waypoint: 1240,238 1226,330
-  Dataset_Battery:
-    bounds: 1195 330 50 50
-    label: 1180 385 80 30
-  End:
-    bounds: 1360 180 36 36
-    label: 1338 223 82 30
-  Flow_Start_Instructions:
-    waypoint: 196,198 250,198
-  Flow_Instructions_NB:
-    waypoint: 370,198 420,198
-  Flow_NB_DS:
-    waypoint: 540,198 590,198
-  Flow_DS_Break:
-    waypoint: 710,198 762,198
-  Flow_Break_SART:
-    waypoint: 798,198 850,198
-  Flow_SART_WO:
-    waypoint: 970,198 1020,198
-  Flow_WO_Survey:
-    waypoint: 1140,198 1190,198
-  Flow_Survey_End:
-    waypoint: 1310,198 1360,198
+  Start: {bounds: 160 180 36 36, label: 146 223 66 30}
+  Instructions: 250 158 120 80
+  Task_NBack: 420 158 120 80
+  Task_DigitSpan: 590 158 120 80
+  Break: {bounds: 762 180 36 36, label: 741 223 78 30}
+  Task_SART: 850 158 120 80
+  Task_WhichOne: 1020 158 120 80
+  DataOutput_WhichOne_Data: 1080,238 1200,345
+  Survey: 1190 158 120 80
+  DataOutput_Survey_Data: 1240,238 1226,330
+  Dataset_Battery: {bounds: 1195 330 50 50, label: 1180 385 80 30}
+  End: {bounds: 1360 180 36 36, label: 1338 223 82 30}
+  Flow_Start_Instructions: 196,198 250,198
+  Flow_Instructions_NB: 370,198 420,198
+  Flow_NB_DS: 540,198 590,198
+  Flow_DS_Break: 710,198 762,198
+  Flow_Break_SART: 798,198 850,198
+  Flow_SART_WO: 970,198 1020,198
+  Flow_WO_Survey: 1140,198 1190,198
+  Flow_Survey_End: 1310,198 1360,198

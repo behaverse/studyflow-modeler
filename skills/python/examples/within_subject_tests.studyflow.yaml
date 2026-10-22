@@ -1,9 +1,13 @@
 id: within_subject_tests_doc
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 within_subject_tests:
-  type: studyflow:Study
+  type: Process
   name: within_subject_tests
+  studyflow:Study:
+    dependencies:
+      - pingouin==0.7.0
   documentation: |
     Two within-subject questions asked of one table as it loads, one decided
     by p and the other by a Bayes factor. A gateway asks the question, its
@@ -22,56 +26,62 @@ within_subject_tests:
     supported when BF10 is above `evidence`, not supported when it is below
     its inverse, and inconclusive in between. Both thresholds are the decision
     rules, fixed before the run.
-  dependencies:
-    - pingouin==0.7.0
-  flowElements:
+  elements:
     Start:
       type: StartEvent
+
     Load_Ratings:
       type: ServiceTask
       name: Load the ratings
-      dataOutputAssociations:
-        Out_Ratings:
-          targetRef: Ratings
       additionalArguments:
         dname: rm_anova
       implementation: python://pingouin.read_dataset@0.7
+      outputs:
+        Out_Ratings:
+          target: $Ratings
+
     Ratings:
-      type: studyflow:Table
+      type: DataObjectReference
       name: Ratings
+      uri: data/ratings.csv
+      studyflow:Table:
+        schema: $Ratings_Schema
       documentation: >-
         One row per participant and insect, as pingouin ships it; `validate` checks every column a test names against
         its schema.
-      schema: Ratings_Schema
-      uri: data/ratings.csv
+
     Ratings_Schema:
-      type: studyflow:Schema
+      type: DataObjectReference
       name: Ratings schema
-      body:
-        "@context": http://www.w3.org/ns/csvw
-        tableSchema:
-          columns:
-            - name: Subject
-              datatype: integer
-            - name: Gender
-              datatype: string
-            - name: Region
-              datatype: string
-            - name: Education
-              datatype: string
-            - name: DesireToKill
-              datatype: number
-            - name: Disgustingness
-              datatype: string
-            - name: Frighteningness
-              datatype: string
+      studyflow:Schema:
+        body:
+          "@context": http://www.w3.org/ns/csvw
+          tableSchema:
+            columns:
+              - name: Subject
+                datatype: integer
+              - name: Gender
+                datatype: string
+              - name: Region
+                datatype: string
+              - name: Education
+                datatype: string
+              - name: DesireToKill
+                datatype: number
+              - name: Disgustingness
+                datatype: string
+              - name: Frighteningness
+                datatype: string
+
     Decision_Rules:
-      type: studyflow:Parameters
+      type: DataObjectReference
       name: Decision rules
+      studyflow:Parameters:
+        values:
+          alpha: 0.05
+          evidence: 3
       documentation: The alpha of the t test, and the Bayes factor beyond which, either way, the data count as evidence.
-      values:
-        alpha: 0.05
-        evidence: 3
+
     Disgust:
       type: SubProcess
       name: Disgust
@@ -79,55 +89,66 @@ within_subject_tests:
       properties:
         disgust_test:
           name: disgust_test
-      dataInputAssociations:
+      inputs:
         In_Rules_Disgust:
-          sourceRef:
-            - Decision_Rules
-      flowElements:
+          source: $Decision_Rules
+      elements:
         Disgust_Start:
           type: StartEvent
+
         Disgust_Test:
           type: ServiceTask
           name: One-sided paired t test
-          documentation: >-
-            Each participant's mean rating of the high and of the low level, compared across participants, high above
-            low.
-          dataInputAssociations:
-            In_Ratings_Disgust:
-              sourceRef:
-                - Ratings
-              transformation: data
-          dataOutputAssociations:
-            Out_Disgust_Test:
-              targetRef: disgust_test
-              transformation: "{statistic: result.T[1], pvalue: result.p_unc[1], subjects: result.dof[1] + 1}"
           additionalArguments:
             dv: DesireToKill
             within: Disgustingness
             subject: Subject
             alternative: greater
           implementation: python://pingouin.pairwise_tests@0.7
+          documentation: >-
+            Each participant's mean rating of the high and of the low level, compared across participants, high above
+            low.
+          inputs:
+            In_Ratings_Disgust:
+              source: $Ratings
+              parameter: data
+          outputs:
+            Out_Disgust_Test:
+              target: $disgust_test
+              transformation: "{statistic: result.T[1], pvalue: result.p_unc[1], subjects: result.dof[1] + 1}"
+
         Disgust_Decision:
           type: ExclusiveGateway
           name: Wanted dead more when disgusting?
-          default: Disgust_No
+          default: $Disgust_No
+
         Disgust_Supported:
           type: EndEvent
           name: Supported
+
         Disgust_Not_Supported:
           type: EndEvent
           name: Not supported
-        DF_0: Disgust_Start -> Disgust_Test
-        DF_1: Disgust_Test -> Disgust_Decision
+
+        DF_0:
+          source: $Disgust_Start
+          target: $Disgust_Test
+
+        DF_1:
+          source: $Disgust_Test
+          target: $Disgust_Decision
+
         Disgust_Yes:
           name: "yes"
-          conditionExpression: disgust_test.pvalue < alpha
-          sourceRef: Disgust_Decision
-          targetRef: Disgust_Supported
+          condition: disgust_test.pvalue < alpha
+          source: $Disgust_Decision
+          target: $Disgust_Supported
+
         Disgust_No:
           name: "no"
-          sourceRef: Disgust_Decision
-          targetRef: Disgust_Not_Supported
+          source: $Disgust_Decision
+          target: $Disgust_Not_Supported
+
     Fear:
       type: SubProcess
       name: Fear
@@ -135,160 +156,151 @@ within_subject_tests:
       properties:
         fear_test:
           name: fear_test
+
         bf10:
           name: bf10
-      dataInputAssociations:
+      inputs:
         In_Rules_Fear:
-          sourceRef:
-            - Decision_Rules
-      flowElements:
+          source: $Decision_Rules
+      elements:
         Fear_Start:
           type: StartEvent
+
         Fear_Test:
           type: ServiceTask
           name: Paired t test
-          documentation: The same test, two-sided, for the t and the number of participants the Bayes factor reads.
-          dataInputAssociations:
-            In_Ratings_Fear:
-              sourceRef:
-                - Ratings
-              transformation: data
-          dataOutputAssociations:
-            Out_Fear_Test:
-              targetRef: fear_test
-              transformation: "{statistic: result.T[1], subjects: result.dof[1] + 1}"
           additionalArguments:
             dv: DesireToKill
             within: Frighteningness
             subject: Subject
           implementation: python://pingouin.pairwise_tests@0.7
+          documentation: The same test, two-sided, for the t and the number of participants the Bayes factor reads.
+          inputs:
+            In_Ratings_Fear:
+              source: $Ratings
+              parameter: data
+          outputs:
+            Out_Fear_Test:
+              target: $fear_test
+              transformation: "{statistic: result.T[1], subjects: result.dof[1] + 1}"
+
         Fear_Bayes_Factor:
           type: ServiceTask
           name: Bayes factor
-          documentation: >-
-            The JZS Bayes factor of that t for a paired design, BF10: how much more likely the data are if the levels
-            differ than if they do not. The test's own table carries it as text, so it is computed here as a number.
-          dataOutputAssociations:
-            Out_BF10:
-              targetRef: bf10
           additionalArguments:
             t: "{fear_test.statistic}"
             nx: "{fear_test.subjects}"
             paired: true
           implementation: python://pingouin.bayesfactor_ttest@0.7
+          documentation: >-
+            The JZS Bayes factor of that t for a paired design, BF10: how much more likely the data are if the levels
+            differ than if they do not. The test's own table carries it as text, so it is computed here as a number.
+          outputs:
+            Out_BF10:
+              target: $bf10
+
         Fear_Decision:
           type: ExclusiveGateway
           name: Evidence either way?
-          default: Fear_Neither
+          default: $Fear_Neither
+
         Fear_Supported:
           type: EndEvent
           name: Supported
+
         Fear_Inconclusive:
           type: EndEvent
           name: Inconclusive
+
         Fear_Not_Supported:
           type: EndEvent
           name: Not supported
-        FF_0: Fear_Start -> Fear_Test
-        FF_1: Fear_Test -> Fear_Bayes_Factor
-        FF_2: Fear_Bayes_Factor -> Fear_Decision
+
+        FF_0:
+          source: $Fear_Start
+          target: $Fear_Test
+
+        FF_1:
+          source: $Fear_Test
+          target: $Fear_Bayes_Factor
+
+        FF_2:
+          source: $Fear_Bayes_Factor
+          target: $Fear_Decision
+
         Fear_For:
           name: for a difference
-          conditionExpression: bf10 > evidence
-          sourceRef: Fear_Decision
-          targetRef: Fear_Supported
+          condition: bf10 > evidence
+          source: $Fear_Decision
+          target: $Fear_Supported
+
         Fear_Against:
           name: for none
-          conditionExpression: bf10 < 1 / evidence
-          sourceRef: Fear_Decision
-          targetRef: Fear_Not_Supported
+          condition: bf10 < 1 / evidence
+          source: $Fear_Decision
+          target: $Fear_Not_Supported
+
         Fear_Neither:
           name: neither
-          sourceRef: Fear_Decision
-          targetRef: Fear_Inconclusive
+          source: $Fear_Decision
+          target: $Fear_Inconclusive
+
     Done:
       type: EndEvent
       name: Done
-    F_Start_Load: Start -> Load_Ratings
-    F_Load_Disgust: Load_Ratings -> Disgust
-    F_Disgust_Fear: Disgust -> Fear
-    F_Fear_Done: Fear -> Done
+
+    F_Start_Load:
+      source: $Start
+      target: $Load_Ratings
+
+    F_Load_Disgust:
+      source: $Load_Ratings
+      target: $Disgust
+
+    F_Disgust_Fear:
+      source: $Disgust
+      target: $Fear
+
+    F_Fear_Done:
+      source: $Fear
+      target: $Done
+
 layout:
-  Start:
-    bounds: 80 252 36 36
-  Load_Ratings:
-    bounds: 156 230 120 80
-  Out_Ratings:
-    waypoint: 216,310 216,440
-  Ratings:
-    bounds: 198 440 36 50
-  Decision_Rules:
-    bounds: 738 60 36 50
-  Disgust:
-    bounds: 316 150 420 240
-    isExpanded: true
-  In_Rules_Disgust:
-    waypoint: 738,85 526,85 526,150
-  Disgust_Start:
-    bounds: 346 252 36 36
-  Disgust_Test:
-    bounds: 412 230 120 80
-  In_Ratings_Disgust:
-    waypoint: 234,455 472,455 472,310
-  Disgust_Decision:
-    bounds: 572 245 50 50
-  Disgust_Supported:
-    bounds: 672 192 36 36
-  Disgust_Not_Supported:
-    bounds: 672 312 36 36
-  DF_0:
-    waypoint: 382,270 412,270
-  DF_1:
-    waypoint: 532,270 572,270
-  Disgust_Yes:
-    waypoint: 597,245 597,210 672,210
-  Disgust_No:
-    waypoint: 597,295 597,330 672,330
-  Fear:
-    bounds: 776 150 580 240
-    isExpanded: true
-  In_Rules_Fear:
-    waypoint: 774,85 1066,85 1066,150
-  Fear_Start:
-    bounds: 806 252 36 36
-  Fear_Test:
-    bounds: 872 230 120 80
-  In_Ratings_Fear:
-    waypoint: 234,475 932,475 932,310
-  Fear_Bayes_Factor:
-    bounds: 1032 230 120 80
-  Fear_Decision:
-    bounds: 1192 245 50 50
-  Fear_Supported:
-    bounds: 1292 182 36 36
-  Fear_Inconclusive:
-    bounds: 1292 252 36 36
-  Fear_Not_Supported:
-    bounds: 1292 322 36 36
-  FF_0:
-    waypoint: 842,270 872,270
-  FF_1:
-    waypoint: 992,270 1032,270
-  FF_2:
-    waypoint: 1152,270 1192,270
-  Fear_For:
-    waypoint: 1217,245 1217,200 1292,200
-  Fear_Against:
-    waypoint: 1217,295 1217,340 1292,340
-  Fear_Neither:
-    waypoint: 1242,270 1292,270
-  Done:
-    bounds: 1396 252 36 36
-  F_Start_Load:
-    waypoint: 116,270 156,270
-  F_Load_Disgust:
-    waypoint: 276,270 316,270
-  F_Disgust_Fear:
-    waypoint: 736,270 776,270
-  F_Fear_Done:
-    waypoint: 1356,270 1396,270
+  Start: 80 252 36 36
+  Load_Ratings: 156 230 120 80
+  Out_Ratings: 216,310 216,440
+  Ratings: 198 440 36 50
+  Decision_Rules: 738 60 36 50
+  Disgust: {bounds: 316 150 420 240, expanded: true}
+  In_Rules_Disgust: 738,85 526,85 526,150
+  Disgust_Start: 346 252 36 36
+  Disgust_Test: 412 230 120 80
+  In_Ratings_Disgust: 234,455 472,455 472,310
+  Disgust_Decision: 572 245 50 50
+  Disgust_Supported: 672 192 36 36
+  Disgust_Not_Supported: 672 312 36 36
+  DF_0: 382,270 412,270
+  DF_1: 532,270 572,270
+  Disgust_Yes: 597,245 597,210 672,210
+  Disgust_No: 597,295 597,330 672,330
+  Fear: {bounds: 776 150 580 240, expanded: true}
+  In_Rules_Fear: 774,85 1066,85 1066,150
+  Fear_Start: 806 252 36 36
+  Fear_Test: 872 230 120 80
+  In_Ratings_Fear: 234,475 932,475 932,310
+  Fear_Bayes_Factor: 1032 230 120 80
+  Fear_Decision: 1192 245 50 50
+  Fear_Supported: 1292 182 36 36
+  Fear_Inconclusive: 1292 252 36 36
+  Fear_Not_Supported: 1292 322 36 36
+  FF_0: 842,270 872,270
+  FF_1: 992,270 1032,270
+  FF_2: 1152,270 1192,270
+  Fear_For: 1217,245 1217,200 1292,200
+  Fear_Against: 1217,295 1217,340 1292,340
+  Fear_Neither: 1242,270 1292,270
+  Done: 1396 252 36 36
+  F_Start_Load: 116,270 156,270
+  F_Load_Disgust: 276,270 316,270
+  F_Disgust_Fear: 736,270 776,270
+  F_Fear_Done: 1356,270 1396,270

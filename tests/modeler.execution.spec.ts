@@ -61,9 +61,9 @@ test('the study declares typed properties, a step binds one from the picker, and
   await expect(trialIndex).toHaveValue('trial_index');
 
   const studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
-  expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_string');
-  expect(studyflowText).toContain('itemSubjectRef: ItemDefinition_torch.Tensor');
-  expect(studyflowText).toMatch(/DataInput_Property_1:\n\s+sourceRef:\n\s+- Property_1\n/);
+  expect(studyflowText).toContain('item: $ItemDefinition_string');
+  expect(studyflowText).toContain('item: $ItemDefinition_torch.Tensor');
+  expect(studyflowText).toMatch(/DataInput_Property_1:\n\s+source: \$Property_1\n/);
   expect(studyflowText).toContain('transformation: lower case(arm)');
 });
 

@@ -1,258 +1,264 @@
 id: demo4_llm_bot
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  agentic: https://w3id.org/studyflow/agentic
+  behaverse: http://behaverse.org/schemas/studyflow/behaverse
+  prov: https://w3id.org/studyflow/prov
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Demo4_LLMBot_Actors:
   type: Collaboration
   name: LLM bot (Claude Code)
-  participants:
+  pools:
     Claude:
-      type: studyflow:Actor
       name: Claude
-      actorType: llm
-      implementation: claude://claude-haiku-4-5
+      studyflow:Actor:
+        actorType: llm
+        implementation: claude://claude-haiku-4-5
+
 Demo4_LLMBot:
-  type: studyflow:Study
+  type: Process
   name: LLM bot (Claude Code)
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:25Z", with: studyflow-modeler/26.0615}
   documentation: A Claude bot plays a tired 1-back warm-up, an expert 2-back block, and a vision-based WhichOne task.
-  extensionElements:
-    - type: prov:Activity
-      action: created
-      when: "2026-07-30T22:51:25Z"
-      with: studyflow-modeler/26.0615
-  flowElements:
+  elements:
     Start:
       type: StartEvent
       name: Start
+
     Warmup_1Back:
-      type: behaverse:Task
+      type: Task
       name: 1-Back warm-up (tired)
-      instrument: NB
-      timeline: Demo4_Warmup
-      participantRef:
-        - Claude
-      dataInputAssociations:
+      exchange: true
+      pools: $Claude
+      behaverse:Task:
+        instrument: NB
+        timeline: Demo4_Warmup
+      inputs:
         In_Warmup_1Back:
-          sourceRef:
-            - Instructions_Warmup_1Back
+          source: $Instructions_Warmup_1Back
+
         In_Warmup_1Back_Parameters:
-          sourceRef:
-            - Warmup_1Back_Parameters
+          source: $Warmup_1Back_Parameters
+
     Warmup_1Back_Parameters:
-      type: studyflow:Parameters
+      type: DataObjectReference
       name: Parameters
-      values:
-        Blocks:
-          Demo4_Warmup:
-            Name: Demo4_Warmup
-            Inherits: Default
-            Parameters:
-              NValue: 1
-              Feature: Letters
-              Streams:
-                - Feature:
-                    Reference: Feature
-                  StimulusValue:
-                    Generate: OncePerBlock
-                    Sequence:
-                      Type: Ordered
-                      Values:
-                        - 3
-                        - 1
-                        - 2
-                        - 1
-                        - 3
-                        - 2
-                        - 3
-                        - 2
-              StreamSize: 8
-              FeatureValuesCount: 3
-              MaxResponseTime: 30
-              StimulusDisplayDuration: 0.5
-              InterStimulusInterval: 1.5
-        Timelines:
-          Demo4_Warmup:
-            Name: Demo4_Warmup
-            blocks:
-              - name: Demo4_Warmup
-        Bot:
-          Speed: 20
-          SkipInstructions: true
-          AutoClickInstructions: true
-          SkipFocusArea: true
-          OverrideTemporalParameters: true
-          StimulusDisplayDuration: 0.3
-          InterStimulusInterval: 0.3
-          TrialForeperiod: 0.1
-          overrideUserInputParameters: true
-          playerPaced: true
-          useNonMatchButton: true
-          maxResponseTime: 120
+      studyflow:Parameters:
+        values:
+          Blocks:
+            Demo4_Warmup:
+              Name: Demo4_Warmup
+              Inherits: Default
+              Parameters:
+                NValue: 1
+                Feature: Letters
+                Streams:
+                  - Feature:
+                      Reference: Feature
+                    StimulusValue:
+                      Generate: OncePerBlock
+                      Sequence:
+                        Type: Ordered
+                        Values:
+                          - 3
+                          - 1
+                          - 2
+                          - 1
+                          - 3
+                          - 2
+                          - 3
+                          - 2
+                StreamSize: 8
+                FeatureValuesCount: 3
+                MaxResponseTime: 30
+                StimulusDisplayDuration: 0.5
+                InterStimulusInterval: 1.5
+          Timelines:
+            Demo4_Warmup:
+              Name: Demo4_Warmup
+              blocks:
+                - name: Demo4_Warmup
+          Bot:
+            Speed: 20
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+            OverrideTemporalParameters: true
+            StimulusDisplayDuration: 0.3
+            InterStimulusInterval: 0.3
+            TrialForeperiod: 0.1
+            overrideUserInputParameters: true
+            playerPaced: true
+            useNonMatchButton: true
+            maxResponseTime: 120
+
     Instructions_Warmup_1Back:
-      type: agentic:Prompt
+      type: DataObjectReference
       name: Instructions
-      template: |
-        You are a tired participant near the end of a long 1-back session.
-        Aim for about 80% accuracy. Occasionally miss matches when your
-        attention drifts. Never explain; reply with exactly Match or NonMatch.
+      agentic:Prompt:
+        template: |
+          You are a tired participant near the end of a long 1-back session.
+          Aim for about 80% accuracy. Occasionally miss matches when your
+          attention drifts. Never explain; reply with exactly Match or NonMatch.
+
     Main_2Back:
-      type: behaverse:Task
+      type: Task
       name: 2-Back main (expert)
-      instrument: NB
-      timeline: Demo4_Main
-      participantRef:
-        - Claude
-      dataInputAssociations:
+      exchange: true
+      pools: $Claude
+      behaverse:Task:
+        instrument: NB
+        timeline: Demo4_Main
+      inputs:
         In_Main_2Back:
-          sourceRef:
-            - Instructions_Main_2Back
+          source: $Instructions_Main_2Back
+
         In_Main_2Back_Parameters:
-          sourceRef:
-            - Main_2Back_Parameters
+          source: $Main_2Back_Parameters
+
     Main_2Back_Parameters:
-      type: studyflow:Parameters
+      type: DataObjectReference
       name: Parameters
-      values:
-        Blocks:
-          Demo4_Main:
-            Name: Demo4_Main
-            Inherits: Default
-            Parameters:
-              NValue: 2
-              Feature: Letters
-              Streams:
-                - Feature:
-                    Reference: Feature
-                  StimulusValue:
-                    Generate: OncePerBlock
-                    Sequence:
-                      Type: Ordered
-                      Values:
-                        - 3
-                        - 1
-                        - 2
-                        - 1
-                        - 3
-                        - 2
-                        - 3
-                        - 2
-                        - 1
-                        - 2
-                        - 3
-                        - 1
-              StreamSize: 12
-              FeatureValuesCount: 3
-              MaxResponseTime: 30
-              StimulusDisplayDuration: 0.5
-              InterStimulusInterval: 1.5
-        Timelines:
-          Demo4_Main:
-            Name: Demo4_Main
-            blocks:
-              - name: Demo4_Main
-        Bot:
-          Speed: 20
-          SkipInstructions: true
-          AutoClickInstructions: true
-          SkipFocusArea: true
-          OverrideTemporalParameters: true
-          StimulusDisplayDuration: 0.3
-          InterStimulusInterval: 0.3
-          TrialForeperiod: 0.1
-          overrideUserInputParameters: true
-          playerPaced: true
-          useNonMatchButton: true
-          maxResponseTime: 120
+      studyflow:Parameters:
+        values:
+          Blocks:
+            Demo4_Main:
+              Name: Demo4_Main
+              Inherits: Default
+              Parameters:
+                NValue: 2
+                Feature: Letters
+                Streams:
+                  - Feature:
+                      Reference: Feature
+                    StimulusValue:
+                      Generate: OncePerBlock
+                      Sequence:
+                        Type: Ordered
+                        Values:
+                          - 3
+                          - 1
+                          - 2
+                          - 1
+                          - 3
+                          - 2
+                          - 3
+                          - 2
+                          - 1
+                          - 2
+                          - 3
+                          - 1
+                StreamSize: 12
+                FeatureValuesCount: 3
+                MaxResponseTime: 30
+                StimulusDisplayDuration: 0.5
+                InterStimulusInterval: 1.5
+          Timelines:
+            Demo4_Main:
+              Name: Demo4_Main
+              blocks:
+                - name: Demo4_Main
+          Bot:
+            Speed: 20
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+            OverrideTemporalParameters: true
+            StimulusDisplayDuration: 0.3
+            InterStimulusInterval: 0.3
+            TrialForeperiod: 0.1
+            overrideUserInputParameters: true
+            playerPaced: true
+            useNonMatchButton: true
+            maxResponseTime: 120
+
     Instructions_Main_2Back:
-      type: agentic:Prompt
+      type: DataObjectReference
       name: Instructions
-      template: |
-        You are an attentive, expert participant in a 2-back task.
-        Respond Match if the current letter is identical to the letter shown
-        exactly two trials ago, otherwise NonMatch. Aim for near-perfect
-        accuracy. Reply with exactly Match or NonMatch; no explanation.
+      agentic:Prompt:
+        template: |
+          You are an attentive, expert participant in a 2-back task.
+          Respond Match if the current letter is identical to the letter shown
+          exactly two trials ago, otherwise NonMatch. Aim for near-perfect
+          accuracy. Reply with exactly Match or NonMatch; no explanation.
+
     Visual_WhichOne:
-      type: behaverse:Task
+      type: Task
       name: WhichOne (vision)
-      instrument: WO
-      timeline: SimonTask
-      participantRef:
-        - Claude
-      dataInputAssociations:
+      exchange: true
+      pools: $Claude
+      behaverse:Task:
+        instrument: WO
+        timeline: SimonTask
+      inputs:
         In_Visual_WhichOne:
-          sourceRef:
-            - Instructions_Visual_WhichOne
+          source: $Instructions_Visual_WhichOne
+
         In_Visual_WhichOne_Parameters:
-          sourceRef:
-            - Visual_WhichOne_Parameters
+          source: $Visual_WhichOne_Parameters
+
     Visual_WhichOne_Parameters:
-      type: studyflow:Parameters
+      type: DataObjectReference
       name: Parameters
-      values:
-        Bot:
-          IncludeScreenshot: true
-          Speed: 5
-          SkipInstructions: true
-          AutoClickInstructions: true
-          SkipFocusArea: true
+      studyflow:Parameters:
+        values:
+          Bot:
+            IncludeScreenshot: true
+            Speed: 5
+            SkipInstructions: true
+            AutoClickInstructions: true
+            SkipFocusArea: true
+
     Instructions_Visual_WhichOne:
-      type: agentic:Prompt
+      type: DataObjectReference
       name: Instructions
-      template: |
-        You will see a screenshot from the WhichOne task. Two stimuli appear
-        on the left and right of the screen; one matches a target shown above.
-        Reply with exactly `Left` or `Right`; nothing else.
+      agentic:Prompt:
+        template: |
+          You will see a screenshot from the WhichOne task. Two stimuli appear
+          on the left and right of the screen; one matches a target shown above.
+          Reply with exactly `Left` or `Right`; nothing else.
+
     End:
       type: EndEvent
       name: Done
-    Flow_Start_Warmup: Start -> Warmup_1Back
-    Flow_Warmup_Main: Warmup_1Back -> Main_2Back
-    Flow_Main_Visual: Main_2Back -> Visual_WhichOne
-    Flow_Visual_End: Visual_WhichOne -> End
+
+    Flow_Start_Warmup:
+      source: $Start
+      target: $Warmup_1Back
+
+    Flow_Warmup_Main:
+      source: $Warmup_1Back
+      target: $Main_2Back
+
+    Flow_Main_Visual:
+      source: $Main_2Back
+      target: $Visual_WhichOne
+
+    Flow_Visual_End:
+      source: $Visual_WhichOne
+      target: $End
+
 layout:
-  Start:
-    bounds: 160 180 36 36
-    label: 154 223 48 15
-  Warmup_1Back:
-    bounds: 260 138 120 120
-  In_Warmup_1Back:
-    waypoint: 290,308 290,258
-  In_Warmup_1Back_Parameters:
-    waypoint: 358,308 358,258
-  Warmup_1Back_Parameters:
-    bounds: 340 308 36 50
-  Instructions_Warmup_1Back:
-    bounds: 272 308 36 50
-    label: 250 363 80 15
-  Main_2Back:
-    bounds: 450 138 120 120
-  In_Main_2Back:
-    waypoint: 480,308 480,258
-  In_Main_2Back_Parameters:
-    waypoint: 548,308 548,258
-  Main_2Back_Parameters:
-    bounds: 530 308 36 50
-  Instructions_Main_2Back:
-    bounds: 462 308 36 50
-    label: 440 363 80 15
-  Visual_WhichOne:
-    bounds: 640 138 120 120
-  In_Visual_WhichOne:
-    waypoint: 670,308 670,258
-  In_Visual_WhichOne_Parameters:
-    waypoint: 738,308 738,258
-  Visual_WhichOne_Parameters:
-    bounds: 720 308 36 50
-  Instructions_Visual_WhichOne:
-    bounds: 652 308 36 50
-    label: 630 363 80 15
-  End:
-    bounds: 830 180 36 36
-    label: 825 223 46 15
-  Flow_Start_Warmup:
-    waypoint: 196,198 260,198
-  Flow_Warmup_Main:
-    waypoint: 380,198 450,198
-  Flow_Main_Visual:
-    waypoint: 570,198 640,198
-  Flow_Visual_End:
-    waypoint: 760,198 830,198
+  Start: {bounds: 160 180 36 36, label: 154 223 48 15}
+  Warmup_1Back: 260 138 120 120
+  In_Warmup_1Back: 290,308 290,258
+  In_Warmup_1Back_Parameters: 358,308 358,258
+  Warmup_1Back_Parameters: 340 308 36 50
+  Instructions_Warmup_1Back: {bounds: 272 308 36 50, label: 250 363 80 15}
+  Main_2Back: 450 138 120 120
+  In_Main_2Back: 480,308 480,258
+  In_Main_2Back_Parameters: 548,308 548,258
+  Main_2Back_Parameters: 530 308 36 50
+  Instructions_Main_2Back: {bounds: 462 308 36 50, label: 440 363 80 15}
+  Visual_WhichOne: 640 138 120 120
+  In_Visual_WhichOne: 670,308 670,258
+  In_Visual_WhichOne_Parameters: 738,308 738,258
+  Visual_WhichOne_Parameters: 720 308 36 50
+  Instructions_Visual_WhichOne: {bounds: 652 308 36 50, label: 630 363 80 15}
+  End: {bounds: 830 180 36 36, label: 825 223 46 15}
+  Flow_Start_Warmup: 196,198 260,198
+  Flow_Warmup_Main: 380,198 450,198
+  Flow_Main_Visual: 570,198 640,198
+  Flow_Visual_End: 760,198 830,198

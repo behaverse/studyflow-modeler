@@ -29,5 +29,5 @@ test('the Manuscript view writes the figure: an editable SVG draw.io reopens, an
   const bytes = await readDownload(png);
   expect(bytes.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   // The study rides along, in the chunk a `.studyflow.png` keeps it in, so the figure reopens.
-  expect(extractStudyflowFromPng(new Uint8Array(bytes))).toContain('definitions:');
+  expect(extractStudyflowFromPng(new Uint8Array(bytes))).toContain('schemas:');
 });

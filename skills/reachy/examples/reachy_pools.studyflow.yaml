@@ -1,9 +1,15 @@
 id: reachy_pools
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  agentic: https://w3id.org/studyflow/agentic
+  behaverse: http://behaverse.org/schemas/studyflow/behaverse
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  reachy: https://w3id.org/studyflow/reachy
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Collab_Pools:
   type: Collaboration
   name: Reachy plays WhichOne, a model deciding
+  studyflow:Study: {}
   documentation: >-
     Three actors. Behaverse presents the WhichOne task and records the trials, the Reachy Mini looks, speaks, and moves,
     and a vision-language model decides. Run `studyflow run --runtime local` on this diagram: the robot finds the
@@ -13,436 +19,460 @@ Collab_Pools:
     is over. Every exchange is a message flow, and no step or pool names a model but the model's own pool. The robot's
     lines name their renderer, this machine's `say`, as `shell://say` with the sentence as its argument; the sound plays
     on the unit.
-  extensionElements:
-    - type: studyflow:Study
-  participants:
+  pools:
     Pool_Behaverse:
-      type: studyflow:Actor
       name: Behaverse (WhichOne on the screen)
-      actorType: software
-      processRef: WhichOne_Task
+      process: $WhichOne_Task
+      studyflow:Actor:
+        actorType: software
+
     Pool_Reachy:
-      type: reachy:Robot
       name: Reachy Mini
-      volume: 10
-      processRef: Reachy_Participant
+      process: $Reachy_Participant
+      reachy:Robot:
+        volume: 10
+
     Pool_Model:
-      type: studyflow:Actor
       name: Model, gemma4 on Ollama
-      actorType: llm
-      implementation: ollama://gemma4:12b-it-qat
+      studyflow:Actor:
+        actorType: llm
+        implementation: ollama://gemma4:12b-it-qat
   messageFlows:
     Msg_Ready:
       name: ready
-      sourceRef: Ready_Sent
-      targetRef: Participant_Ready
+      source: $Ready_Sent
+      target: $Participant_Ready
+
     Msg_Trial:
       name: one trial
-      sourceRef: Play
-      targetRef: Receive
-      messageRef: Trial
+      source: $Play
+      target: $Receive
+      message: $Trial
+
     Msg_Answer:
       name: the response
-      sourceRef: Answer
-      targetRef: Play
-      messageRef: Response
+      source: $Answer
+      target: $Play
+      message: $Response
+
     Msg_Over:
       name: task over
-      sourceRef: Task_Done
-      targetRef: Over
+      source: $Task_Done
+      target: $Over
+
     Msg_Look_Frame:
       name: a view
-      sourceRef: Look
-      targetRef: Pool_Model
-      messageRef: Request
+      source: $Look
+      target: $Pool_Model
+      message: $Request
+
     Msg_Look_Where:
       name: where the screen is
-      sourceRef: Pool_Model
-      targetRef: Look
-      messageRef: Reply
+      source: $Pool_Model
+      target: $Look
+      message: $Reply
+
     Msg_Ask:
       name: frame and instructions
-      sourceRef: Ask
-      targetRef: Pool_Model
-      messageRef: Request
+      source: $Ask
+      target: $Pool_Model
+      message: $Request
+
     Msg_Reply:
       name: seen, rule, answer
-      sourceRef: Pool_Model
-      targetRef: Ask
-      messageRef: Reply
+      source: $Pool_Model
+      target: $Ask
+      message: $Reply
+
 Trial:
   type: Message
-  itemRef: Trial_Item
+  item: $Trial_Item
+
 Response:
   type: Message
-  itemRef: Response_Item
+  item: $Response_Item
+
 Trial_Item:
   type: ItemDefinition
-  structureRef: cognitive:Trial
+  structure: cognitive:Trial
+
 Response_Item:
   type: ItemDefinition
-  structureRef: cognitive:Response
+  structure: cognitive:Response
+
 Request:
   type: Message
-  itemRef: Request_Item
+  item: $Request_Item
+
 Reply:
   type: Message
-  itemRef: Reply_Item
+  item: $Reply_Item
+
 Request_Item:
   type: ItemDefinition
-  structureRef: agentic:Request
+  structure: agentic:Request
+
 Reply_Item:
   type: ItemDefinition
-  structureRef: agentic:Reply
+  structure: agentic:Reply
+
 Reachy_Participant:
   type: Process
   name: Reachy plays WhichOne, a model deciding
-  flowElements:
+  elements:
     Seated:
       type: StartEvent
       name: Seated at the screen
+
     Look:
-      type: reachy:LookAt
+      type: ServiceTask
       name: Find the screen
-      target: screen
+      reachy:LookAt:
+        target: screen
+
     Greet:
-      type: reachy:Interact
+      type: ServiceTask
       name: Greet
       additionalArguments:
         args:
           - Hello! I am Reachy. I will be your participant today.
       implementation: shell://say
+      reachy:Interact: {}
+
     Wave:
-      type: reachy:Interact
+      type: ServiceTask
       name: Welcome
-      move: welcoming1
+      reachy:Interact:
+        move: welcoming1
+
     Announce:
-      type: reachy:Interact
+      type: ServiceTask
       name: Announce readiness
       additionalArguments:
         args:
           - Ready when you are — I'll play this one.
       implementation: shell://say
+      reachy:Interact: {}
+
     Ready_Sent:
       type: IntermediateThrowEvent
       name: Ready
-      eventDefinitions:
-        Ready_Message:
-          type: MessageEventDefinition
+      message: true
+
     Next_Trial:
       type: EventBasedGateway
       name: Next trial, or task over?
       documentation: >-
         Waits for whichever message comes first: the task's next trial goes on to Receive the trial, its "task over" to
         the finale. A trial answered, the robot is back here.
+
     Receive:
       type: ReceiveTask
       name: Receive the trial
+
     Take:
-      type: reachy:Snapshot
+      type: ServiceTask
       name: Take a camera frame
-      dataOutputAssociations:
+      reachy:Snapshot: {}
+      outputs:
         Out_Frame:
-          targetRef: Frame
+          target: $Frame
+
     Frame:
       type: DataObjectReference
       name: Frame
       uri: reachy/frames/
+
     Ask:
       type: ServiceTask
       name: Ask the model
-      dataInputAssociations:
+      inputs:
         In_Frame:
-          sourceRef:
-            - Frame
-        In_Instructions:
-          sourceRef:
-            - Instructions
-      dataOutputAssociations:
-        Out_Choice:
-          targetRef: Choice
-          transformation: substring after(result, "Answer:")
-    Instructions:
-      type: agentic:Prompt
-      name: Instructions
-      template: |
-        You are a Reachy Mini robot seated in front of the WhichOne task
-        screen, playing a Simon task. The attached image is your view of
-        the screen. On each trial one coloured disk appears on the left or
-        the right inside the dark panel at the top of the game; the two
-        large circles below it are the response buttons (yellow on the
-        left, blue on the right), not the stimulus. Answer by the disk's
-        colour, not its position: Left when the disk is yellow, Right
-        when it is blue.
+          source: $Frame
 
-        Reply with exactly three lines:
-        Seen: <the stimulus you see on the screen>
-        Rule: <what the instructions say that stimulus calls for>
-        Answer: <Left or Right>
+        In_Instructions:
+          source: $Instructions
+      outputs:
+        Out_Choice:
+          target: $Choice
+          transformation: substring after(result, "Answer:")
+
+    Instructions:
+      type: DataObjectReference
+      name: Instructions
+      agentic:Prompt:
+        template: |
+          You are a Reachy Mini robot seated in front of the WhichOne task
+          screen, playing a Simon task. The attached image is your view of
+          the screen. On each trial one coloured disk appears on the left or
+          the right inside the dark panel at the top of the game; the two
+          large circles below it are the response buttons (yellow on the
+          left, blue on the right), not the stimulus. Answer by the disk's
+          colour, not its position: Left when the disk is yellow, Right
+          when it is blue.
+
+          Reply with exactly three lines:
+          Seen: <the stimulus you see on the screen>
+          Rule: <what the instructions say that stimulus calls for>
+          Answer: <Left or Right>
+
     Choice:
       type: DataObjectReference
       name: Choice
+
     Answer:
       type: SendTask
       name: Answer the task
-      dataInputAssociations:
+      inputs:
         In_Choice:
-          sourceRef:
-            - Choice
+          source: $Choice
+
     Show:
-      type: reachy:Interact
+      type: ServiceTask
       name: Show it with the antennas
-      side: "{Choice}"
+      reachy:Interact:
+        side: "{Choice}"
+
     Over:
       type: IntermediateCatchEvent
       name: Task over
-      eventDefinitions:
-        Over_Message:
-          type: MessageEventDefinition
-    Flow_Next_Receive: Next_Trial -> Receive
-    Flow_Receive_Take: Receive -> Take
-    Flow_Take_Ask: Take -> Ask
-    Flow_Ask_Answer: Ask -> Answer
-    Flow_Answer_Show: Answer -> Show
-    Flow_Show_Next: Show -> Next_Trial
-    Flow_Next_Over: Next_Trial -> Over
+      message: true
+
+    Flow_Next_Receive:
+      source: $Next_Trial
+      target: $Receive
+
+    Flow_Receive_Take:
+      source: $Receive
+      target: $Take
+
+    Flow_Take_Ask:
+      source: $Take
+      target: $Ask
+
+    Flow_Ask_Answer:
+      source: $Ask
+      target: $Answer
+
+    Flow_Answer_Show:
+      source: $Answer
+      target: $Show
+
+    Flow_Show_Next:
+      source: $Show
+      target: $Next_Trial
+
+    Flow_Next_Over:
+      source: $Next_Trial
+      target: $Over
+
     Proud:
-      type: reachy:Interact
+      type: ServiceTask
       name: Proud of it
-      move: proud1
+      reachy:Interact:
+        move: proud1
+
     Thanks:
-      type: reachy:Interact
+      type: ServiceTask
       name: Ask for feedback
       additionalArguments:
         args:
           - That was fun. How did I do?
       implementation: shell://say
+      reachy:Interact: {}
+
     Celebrate:
-      type: reachy:Interact
+      type: ServiceTask
       name: Celebrate
-      move: cheerful1
+      reachy:Interact:
+        move: cheerful1
+
     LookBack:
-      type: reachy:LookAt
+      type: ServiceTask
       name: Back to the screen
-      target: screen
+      reachy:LookAt:
+        target: screen
+
     Done:
       type: EndEvent
       name: Done
-    Flow_Seated_Look: Seated -> Look
-    Flow_Look_Greet: Look -> Greet
-    Flow_Greet_Wave: Greet -> Wave
-    Flow_Wave_Announce: Wave -> Announce
-    Flow_Announce_Sent: Announce -> Ready_Sent
-    Flow_Sent_Trials: Ready_Sent -> Next_Trial
-    Flow_Over_Proud: Over -> Proud
-    Flow_Proud_Thanks: Proud -> Thanks
-    Flow_Thanks_Celebrate: Thanks -> Celebrate
-    Flow_Celebrate_LookBack: Celebrate -> LookBack
-    Flow_LookBack_Done: LookBack -> Done
+
+    Flow_Seated_Look:
+      source: $Seated
+      target: $Look
+
+    Flow_Look_Greet:
+      source: $Look
+      target: $Greet
+
+    Flow_Greet_Wave:
+      source: $Greet
+      target: $Wave
+
+    Flow_Wave_Announce:
+      source: $Wave
+      target: $Announce
+
+    Flow_Announce_Sent:
+      source: $Announce
+      target: $Ready_Sent
+
+    Flow_Sent_Trials:
+      source: $Ready_Sent
+      target: $Next_Trial
+
+    Flow_Over_Proud:
+      source: $Over
+      target: $Proud
+
+    Flow_Proud_Thanks:
+      source: $Proud
+      target: $Thanks
+
+    Flow_Thanks_Celebrate:
+      source: $Thanks
+      target: $Celebrate
+
+    Flow_Celebrate_LookBack:
+      source: $Celebrate
+      target: $LookBack
+
+    Flow_LookBack_Done:
+      source: $LookBack
+      target: $Done
+
 WhichOne_Task:
   type: Process
   name: WhichOne on the screen
-  flowElements:
+  elements:
     Task_Start:
       type: StartEvent
       name: Task loaded
+
     Participant_Ready:
       type: IntermediateCatchEvent
       name: Participant ready
-      eventDefinitions:
-        Participant_Ready_Message:
-          type: MessageEventDefinition
+      message: true
+
     Play:
-      type: behaverse:Task
+      type: Task
       name: WhichOne, 5 Simon trials
-      instrument: WO
-      timeline: SimonTask
-      dataInputAssociations:
+      exchange: true
+      behaverse:Task:
+        instrument: WO
+        timeline: SimonTask
+      inputs:
         In_Play_Parameters:
-          sourceRef:
-            - Play_Parameters
-      dataOutputAssociations:
+          source: $Play_Parameters
+      outputs:
         Out_Trials:
-          targetRef: Trials
+          target: $Trials
+
     Play_Parameters:
-      type: studyflow:Parameters
+      type: DataObjectReference
       name: Parameters
-      values:
-        Timelines:
-          SimonTask:
-            Blocks:
-              - Name: Simon
-                ExitRules:
-                  - Trials: 5
-        Blocks:
-          Simon:
-            Parameters:
-              StimulusDisplayDuration: 5
-              MaxResponseTime: 8
+      studyflow:Parameters:
+        values:
+          Timelines:
+            SimonTask:
+              Blocks:
+                - Name: Simon
+                  ExitRules:
+                    - Trials: 5
+          Blocks:
+            Simon:
+              Parameters:
+                StimulusDisplayDuration: 5
+                MaxResponseTime: 8
+
     Trials:
-      type: behaverse:BDMDataset
+      type: DataStoreReference
       name: Trial records
-      dataLevel: trials
       uri: Play.events.jsonl
+      behaverse:BDMDataset:
+        dataLevel: trials
+
     Task_Done:
       type: EndEvent
       name: Task over
-      eventDefinitions:
-        Done_Message:
-          type: MessageEventDefinition
-    Flow_Start_Ready: Task_Start -> Participant_Ready
-    Flow_Ready_Play: Participant_Ready -> Play
-    Flow_Play_Done: Play -> Task_Done
+      message: true
+
+    Flow_Start_Ready:
+      source: $Task_Start
+      target: $Participant_Ready
+
+    Flow_Ready_Play:
+      source: $Participant_Ready
+      target: $Play
+
+    Flow_Play_Done:
+      source: $Play
+      target: $Task_Done
+
 layout:
-  Pool_Behaverse:
-    bounds: 156 40 2724 210
-  Pool_Reachy:
-    bounds: 156 290 2724 360
-  Pool_Model:
-    bounds: 156 690 2724 170
-  Msg_Ready:
-    waypoint: 998,452 998,138
-    label: 1006 262 40 15
-  Msg_Trial:
-    waypoint: 1201,160 1201,430
-    label: 1136 262 60 15
-  Msg_Answer:
-    waypoint: 1681,430 1681,160
-    label: 1688 262 70 15
-  Msg_Over:
-    waypoint: 2010,138 2010,297
-    label: 2018 262 60 15
-  Msg_Look_Frame:
-    waypoint: 350,510 350,690
-    label: 300 662 44 15
-  Msg_Look_Where:
-    waypoint: 390,690 390,510
-    label: 398 662 110 15
-  Msg_Ask:
-    waypoint: 1500,510 1500,690
-    label: 1360 662 134 15
-  Msg_Reply:
-    waypoint: 1540,690 1540,510
-    label: 1548 662 110 15
-  Seated:
-    bounds: 222 452 36 36
-    label: 204 495 72 30
-  Look:
-    bounds: 310 430 120 80
-  Greet:
-    bounds: 480 430 120 80
-  Wave:
-    bounds: 650 430 120 80
-  Announce:
-    bounds: 820 430 120 80
-  Ready_Sent:
-    bounds: 980 452 36 36
-    label: 980 495 36 15
-  Next_Trial:
-    bounds: 1070 445 50 50
-    label: 1008 404 84 30
-  Receive:
-    bounds: 1146 430 110 80
-  Take:
-    bounds: 1306 430 110 80
-  Out_Frame:
-    waypoint: 1396,430 1426,394
-  Frame:
-    bounds: 1415 344 36 50
-    label: 1405 327 56 15
-  Ask:
-    bounds: 1466 430 110 80
-  In_Frame:
-    waypoint: 1442,394 1480,430
-  In_Instructions:
-    waypoint: 1521,394 1521,430
-  Out_Choice:
-    waypoint: 1562,430 1602,394
-  Instructions:
-    bounds: 1503 344 36 50
-    label: 1481 327 80 15
-  Choice:
-    bounds: 1595 344 36 50
-    label: 1588 327 50 15
-  Answer:
-    bounds: 1626 430 110 80
-  In_Choice:
-    waypoint: 1618,394 1652,430
-  Show:
-    bounds: 1786 430 110 80
-  Over:
-    bounds: 1992 297 36 36
-    label: 2032 307 60 15
-  Flow_Next_Receive:
-    waypoint: 1120,470 1146,470
-  Flow_Receive_Take:
-    waypoint: 1256,470 1306,470
-  Flow_Take_Ask:
-    waypoint: 1416,470 1466,470
-  Flow_Ask_Answer:
-    waypoint: 1576,470 1626,470
-  Flow_Answer_Show:
-    waypoint: 1736,470 1786,470
-  Flow_Show_Next:
-    waypoint: 1841,510 1841,570 1095,570 1095,495
-  Flow_Next_Over:
-    waypoint: 1095,445 1095,315 1992,315
-  Proud:
-    bounds: 2110 430 120 80
-  Thanks:
-    bounds: 2280 430 120 80
-  Celebrate:
-    bounds: 2450 430 120 80
-  LookBack:
-    bounds: 2620 430 120 80
-  Done:
-    bounds: 2792 452 36 36
-    label: 2796 495 28 15
-  Flow_Seated_Look:
-    waypoint: 258,470 310,470
-  Flow_Look_Greet:
-    waypoint: 430,470 480,470
-  Flow_Greet_Wave:
-    waypoint: 600,470 650,470
-  Flow_Wave_Announce:
-    waypoint: 770,470 820,470
-  Flow_Announce_Sent:
-    waypoint: 940,470 980,470
-  Flow_Sent_Trials:
-    waypoint: 1016,470 1070,470
-  Flow_Over_Proud:
-    waypoint: 2010,333 2010,470 2110,470
-  Flow_Proud_Thanks:
-    waypoint: 2230,470 2280,470
-  Flow_Thanks_Celebrate:
-    waypoint: 2400,470 2450,470
-  Flow_Celebrate_LookBack:
-    waypoint: 2570,470 2620,470
-  Flow_LookBack_Done:
-    waypoint: 2740,470 2792,470
-  Task_Start:
-    bounds: 900 102 36 36
-    label: 878 145 80 15
-  Participant_Ready:
-    bounds: 980 102 36 36
-    label: 958 60 80 30
-  Play:
-    bounds: 1060 80 700 80
-  In_Play_Parameters:
-    waypoint: 1410,176 1410,160
-  Out_Trials:
-    waypoint: 1470,160 1470,180
-  Play_Parameters:
-    bounds: 1392 176 36 50
-  Trials:
-    bounds: 1445 180 50 50
-    label: 1505 198 80 15
-  Task_Done:
-    bounds: 1992 102 36 36
-    label: 2036 112 56 15
-  Flow_Start_Ready:
-    waypoint: 936,120 980,120
-  Flow_Ready_Play:
-    waypoint: 1016,120 1060,120
-  Flow_Play_Done:
-    waypoint: 1760,120 1992,120
+  Pool_Behaverse: 156 40 2724 210
+  Pool_Reachy: 156 290 2724 360
+  Pool_Model: 156 690 2724 170
+  Msg_Ready: {waypoint: "998,452 998,138", label: 1006 262 40 15}
+  Msg_Trial: {waypoint: "1201,160 1201,430", label: 1136 262 60 15}
+  Msg_Answer: {waypoint: "1681,430 1681,160", label: 1688 262 70 15}
+  Msg_Over: {waypoint: "2010,138 2010,297", label: 2018 262 60 15}
+  Msg_Look_Frame: {waypoint: "350,510 350,690", label: 300 662 44 15}
+  Msg_Look_Where: {waypoint: "390,690 390,510", label: 398 662 110 15}
+  Msg_Ask: {waypoint: "1500,510 1500,690", label: 1360 662 134 15}
+  Msg_Reply: {waypoint: "1540,690 1540,510", label: 1548 662 110 15}
+  Seated: {bounds: 222 452 36 36, label: 204 495 72 30}
+  Look: 310 430 120 80
+  Greet: 480 430 120 80
+  Wave: 650 430 120 80
+  Announce: 820 430 120 80
+  Ready_Sent: {bounds: 980 452 36 36, label: 980 495 36 15}
+  Next_Trial: {bounds: 1070 445 50 50, label: 1008 404 84 30}
+  Receive: 1146 430 110 80
+  Take: 1306 430 110 80
+  Out_Frame: 1396,430 1426,394
+  Frame: {bounds: 1415 344 36 50, label: 1405 327 56 15}
+  Ask: 1466 430 110 80
+  In_Frame: 1442,394 1480,430
+  In_Instructions: 1521,394 1521,430
+  Out_Choice: 1562,430 1602,394
+  Instructions: {bounds: 1503 344 36 50, label: 1481 327 80 15}
+  Choice: {bounds: 1595 344 36 50, label: 1588 327 50 15}
+  Answer: 1626 430 110 80
+  In_Choice: 1618,394 1652,430
+  Show: 1786 430 110 80
+  Over: {bounds: 1992 297 36 36, label: 2032 307 60 15}
+  Flow_Next_Receive: 1120,470 1146,470
+  Flow_Receive_Take: 1256,470 1306,470
+  Flow_Take_Ask: 1416,470 1466,470
+  Flow_Ask_Answer: 1576,470 1626,470
+  Flow_Answer_Show: 1736,470 1786,470
+  Flow_Show_Next: 1841,510 1841,570 1095,570 1095,495
+  Flow_Next_Over: 1095,445 1095,315 1992,315
+  Proud: 2110 430 120 80
+  Thanks: 2280 430 120 80
+  Celebrate: 2450 430 120 80
+  LookBack: 2620 430 120 80
+  Done: {bounds: 2792 452 36 36, label: 2796 495 28 15}
+  Flow_Seated_Look: 258,470 310,470
+  Flow_Look_Greet: 430,470 480,470
+  Flow_Greet_Wave: 600,470 650,470
+  Flow_Wave_Announce: 770,470 820,470
+  Flow_Announce_Sent: 940,470 980,470
+  Flow_Sent_Trials: 1016,470 1070,470
+  Flow_Over_Proud: 2010,333 2010,470 2110,470
+  Flow_Proud_Thanks: 2230,470 2280,470
+  Flow_Thanks_Celebrate: 2400,470 2450,470
+  Flow_Celebrate_LookBack: 2570,470 2620,470
+  Flow_LookBack_Done: 2740,470 2792,470
+  Task_Start: {bounds: 900 102 36 36, label: 878 145 80 15}
+  Participant_Ready: {bounds: 980 102 36 36, label: 958 60 80 30}
+  Play: 1060 80 700 80
+  In_Play_Parameters: 1410,176 1410,160
+  Out_Trials: 1470,160 1470,180
+  Play_Parameters: 1392 176 36 50
+  Trials: {bounds: 1445 180 50 50, label: 1505 198 80 15}
+  Task_Done: {bounds: 1992 102 36 36, label: 2036 112 56 15}
+  Flow_Start_Ready: 936,120 980,120
+  Flow_Ready_Play: 1016,120 1060,120
+  Flow_Play_Done: 1760,120 1992,120

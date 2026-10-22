@@ -6,17 +6,18 @@ import { xmlOf, yamlOf } from '@tests/schemas';
 /** The checklist is an attribute of its element, `studyflow:checklist`, beside the prose of its documentation. */
 
 const DOC = `id: checklist_probe
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 P:
   type: Process
-  flowElements:
+  elements:
     T1:
       type: Task
-      documentation: Prose about the step.
       checklist: |-
         - [x] consent approved
         - [ ] pilot reviewed
+      documentation: Prose about the step.
 `;
 
 test('a checklist is written as an attribute of its element, which BPMN\'s schema allows, and reads back as the YAML pair', async () => {

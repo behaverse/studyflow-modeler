@@ -168,7 +168,7 @@ test.describe('Saving back into the opened file', () => {
     await page.getByTestId('save-submit').click();
     await expect(status).toContainText('diagram.studyflow.yaml');
     await expect.poll(writes).toBe(5);
-    expect((await disk(page)).text).toContain('definitions:');
+    expect((await disk(page)).text).toContain('schemas:');
     await renameDiagram(page, 'placed');
     await expect.poll(writes).toBe(6);
     expect((await disk(page)).text).toContain('placed');

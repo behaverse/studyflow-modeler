@@ -1,12 +1,14 @@
 id: sample-diagram
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
 Study_1:
-  type: studyflow:Study
-  flowElements:
+  type: Process
+  executable: true
+  studyflow:Study: {}
+  elements:
     StartEvent_1:
       type: StartEvent
-  isExecutable: true
+
 layout:
-  StartEvent_1:
-    bounds: 412 240 36 36
+  StartEvent_1: 412 240 36 36

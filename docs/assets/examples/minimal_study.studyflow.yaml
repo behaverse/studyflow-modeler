@@ -1,14 +1,13 @@
 id: minimal_study
-definitions:
-  targetNamespace: http://bpmn.io/schema/bpmn
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
 
 Minimal_Study:
   type: Process
   name: Minimal study
-  extensionElements:
-    - type: studyflow:Study
-  flowElements:
-
+  studyflow:Study: {}
+  elements:
     Enrolled:
       type: StartEvent
       name: Enrolled and consented
@@ -17,10 +16,9 @@ Minimal_Study:
     Flanker:
       type: Task
       name: Flanker
-      extensionElements:
-        - type: cognitive:CognitiveTask
-          platform: jspsych
-          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+      cognitive:CognitiveTask:
+        platform: jspsych
+        implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
 
     Done:
       type: EndEvent
@@ -28,5 +26,10 @@ Minimal_Study:
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
       completionCodeType: dynamic
 
-    Flow_Enrolled_Flanker: Enrolled -> Flanker
-    Flow_Flanker_Done: Flanker -> Done
+    Flow_Enrolled_Flanker:
+      source: $Enrolled
+      target: $Flanker
+
+    Flow_Flanker_Done:
+      source: $Flanker
+      target: $Done
