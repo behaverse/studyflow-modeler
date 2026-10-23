@@ -65,6 +65,11 @@ function typeRefOf(element: RuleElement | undefined): string | undefined {
 
 const MAX_DEPTH = 64;
 
+/** `target` as a drop by id sees it: a sub-process drawn shut is open to one; a pool drawn shut, a black box, is not. */
+export function openForDrop<T extends RuleElement>(target: T | undefined): T | undefined {
+  return target?.isExpanded === false && bpmnTypeOf(target) !== 'bpmn:Participant' ? { ...target, isExpanded: true } : target;
+}
+
 function participantOf(element: RuleElement | undefined): RuleElement | undefined {
   let current = element;
   for (let depth = 0; current && depth < MAX_DEPTH; depth += 1) {
@@ -266,7 +271,7 @@ export class Rules {
    */
   canMove(shapes: readonly (RuleElement | undefined)[], target: RuleElement | undefined): boolean {
     const moving = new Set(shapes.filter((shape): shape is RuleElement => !!shape));
-    const open = target?.isExpanded === false ? { ...target, isExpanded: true } : target;
+    const open = openForDrop(target);
     if (![...moving].every((shape) => ridesOn(shape, moving) || !!this.canCreate(shape, open))) return false;
     const to = dropContainerOf(target);
     const carried = new Set([...moving].flatMap(carriedBy));
@@ -300,6 +305,8 @@ export class Rules {
     if (container && container === shape) return false;
     const containerType = container ? bpmnTypeOf(container, this.catalog) : 'bpmn:Process';
     if (container && isBpmnSubtypeOf(containerType, 'bpmn:SubProcess') && container.isExpanded === false) return false;
+    // A pool drawn closed is BPMN's black box: it holds no flow until it is drawn open.
+    if (container && containerType === 'bpmn:Participant' && container.isExpanded === false) return false;
     const shapeType = bpmnTypeOf(shape, this.catalog);
     if (shapeType === 'bpmn:Participant' && containerType === 'bpmn:Process' && container !== undefined && container === options.root) {
       return true;

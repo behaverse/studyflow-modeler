@@ -7,6 +7,10 @@ schemas:
 Demo3_ExternalBot_Actors:
   type: Collaboration
   name: Random bot
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:26Z", with: studyflow-modeler/26.0615}
+  documentation: A 1-back warm-up and a 2-back block played by the Behaverse build's own random bot.
   participants:
     Actor_Random_bot:
       name: Random bot
@@ -14,13 +18,12 @@ Demo3_ExternalBot_Actors:
         actorType: software
         implementation: behaverse://bot
 
+    Pool_Session:
+      name: N-Back session
+      process: $Demo3_ExternalBot
+
 Demo3_ExternalBot:
   type: Process
-  name: Random bot
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:26Z", with: studyflow-modeler/26.0615}
-  documentation: A 1-back warm-up and a 2-back block played by the Behaverse build's own random bot.
   elements:
     Start:
       type: StartEvent
@@ -167,6 +170,8 @@ Demo3_ExternalBot:
       target: $End
 
 layout:
+  Actor_Random_bot: {bounds: 110 418 600 60, expanded: false}
+  Pool_Session: 110 118 600 260
   Start: {bounds: 160 180 36 36, label: 166 223 24 15}
   Warmup_1Back: 260 138 120 120
   In_Warmup_1Back_Parameters: 320,308 320,258

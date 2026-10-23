@@ -25,7 +25,7 @@ export interface ElementRecord {
   readonly plane?: string;
   /** A shape's or a caption's box. */
   readonly bounds?: Bounds;
-  /** A container's: drawn open. */
+  /** A container's, a pool's too: drawn open. */
   readonly expanded?: boolean;
   /** A boundary event's: the activity it sits on. */
   readonly attachedTo?: string;
@@ -79,7 +79,7 @@ export function recordOf(model: StudyModel, element: SceneElement | RootElement)
     ...placed,
     kind: 'node',
     bounds: box(element),
-    ...(isExpandable(element.type) ? { expanded: element.isExpanded !== false } : {}),
+    ...(isExpandable(element.type) || element.type === 'bpmn:Participant' ? { expanded: element.isExpanded !== false } : {}),
     ...(host ? { attachedTo: host } : {}),
     incoming: element.incoming.map((edge) => edge.id),
     outgoing: element.outgoing.map((edge) => edge.id),

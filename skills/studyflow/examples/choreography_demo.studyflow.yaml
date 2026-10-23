@@ -3,14 +3,27 @@ schemas:
   prov: https://w3id.org/studyflow/prov
   studyflow: http://behaverse.org/schemas/studyflow/v1
 
-Dyadic_Study:
-  type: Process
+Dyadic_Study_Actors:
+  type: Collaboration
   name: Dyadic decision study
-  executable: false
   studyflow:Study: {}
   prov:Activity:
     - {action: created, when: "2026-07-30T22:51:28Z", with: studyflow-modeler/26.0615}
   documentation: A two-participant choreography where subject and experimenter exchange consent and two decision rounds.
+  participants:
+    Participant_Subject:
+      name: Subject
+
+    Participant_Experimenter:
+      name: Experimenter
+
+    Pool_Session:
+      name: Dyadic session
+      process: $Dyadic_Study
+
+Dyadic_Study:
+  type: Process
+  executable: false
   elements:
     Start:
       type: StartEvent
@@ -63,16 +76,10 @@ Dyadic_Study:
       source: $Round2
       target: $End
 
-Dyadic_Study_participants:
-  type: Collaboration
-  participants:
-    Participant_Subject:
-      name: Subject
-
-    Participant_Experimenter:
-      name: Experimenter
-
 layout:
+  Participant_Subject: {bounds: 110 385 866 60, expanded: false}
+  Participant_Experimenter: {bounds: 110 485 866 60, expanded: false}
+  Pool_Session: 110 95 866 250
   Start: {bounds: 160 202 36 36, label: 150 245 56 30}
   Consent: 260 175 150 90
   Round: 480 175 150 90

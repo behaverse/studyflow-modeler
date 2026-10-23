@@ -154,6 +154,8 @@ test('what may be created, or retyped, where', () => {
   const pool: RuleElement = { ...node('bpmn:Participant'), element: { type: 'bpmn:Participant', processRef: 'Process_1' } };
   // A pool that depicts no process (a model's): a step dropped in gives it one.
   const blackBox = node('bpmn:Participant');
+  // A pool drawn closed is BPMN's black box: nothing goes in until it is drawn open.
+  const closedPool = node('bpmn:Participant', { isExpanded: false });
   const lane = node('bpmn:Lane', { parent: pool });
   const collaboration: RuleElement = { element: { type: 'bpmn:Collaboration' } };
   const expanded = node('bpmn:SubProcess', { isExpanded: true });
@@ -171,6 +173,8 @@ test('what may be created, or retyped, where', () => {
     ['an annotation into a collaboration', rules.canCreate(node('bpmn:TextAnnotation'), collaboration), true],
     ['a lane into a pool', rules.canCreate(node('bpmn:Lane'), pool), true],
     ['a lane into a pool with no process, which it would divide', rules.canCreate(node('bpmn:Lane'), blackBox), false],
+    ['a task into a pool with no process, which it would give one', rules.canCreate(task, blackBox), true],
+    ['a task into a pool drawn closed', rules.canCreate(task, closedPool), false],
     ['a lane into a lane', rules.canCreate(node('bpmn:Lane'), lane), true],
     ['a lane into the process', rules.canCreate(node('bpmn:Lane')), false],
     // BPMN puts lane sets on any FlowElementsContainer, so an expanded sub-process may be divided too.

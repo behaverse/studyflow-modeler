@@ -8,6 +8,10 @@ schemas:
 Demo4_LLMBot_Actors:
   type: Collaboration
   name: LLM bot (Claude Code)
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:25Z", with: studyflow-modeler/26.0615}
+  documentation: A Claude bot plays a tired 1-back warm-up, an expert 2-back block, and a vision-based WhichOne task.
   participants:
     Claude:
       name: Claude
@@ -15,13 +19,12 @@ Demo4_LLMBot_Actors:
         actorType: llm
         implementation: claude://claude-haiku-4-5
 
+    Pool_Session:
+      name: Task session
+      process: $Demo4_LLMBot
+
 Demo4_LLMBot:
   type: Process
-  name: LLM bot (Claude Code)
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:25Z", with: studyflow-modeler/26.0615}
-  documentation: A Claude bot plays a tired 1-back warm-up, an expert 2-back block, and a vision-based WhichOne task.
   elements:
     Start:
       type: StartEvent
@@ -241,6 +244,8 @@ Demo4_LLMBot:
       target: $End
 
 layout:
+  Claude: {bounds: 110 418 776 60, expanded: false}
+  Pool_Session: 110 118 776 260
   Start: {bounds: 160 180 36 36, label: 154 223 48 15}
   Warmup_1Back: 260 138 120 120
   In_Warmup_1Back: 290,308 290,258

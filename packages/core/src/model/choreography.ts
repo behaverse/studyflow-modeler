@@ -80,8 +80,8 @@ export function bandsOf(model: StudyModel, task: Element): { top: string; bottom
 
 /**
  * The element that holds a choreography task's participants: its enclosing `bpmn:Choreography` or, in a study rooted
- * on a process, a `bpmn:Collaboration` among its roots. One is made (with no drawing, so its participants live in the
- * file without being drawn) when neither is there.
+ * on a process, a `bpmn:Collaboration` among its roots. One is made, with no drawing, when neither is there: the
+ * canvas draws its actors as collapsed pools, the process in a pool of it, once it reads the study.
  */
 function participantHolderIn(model: StudyModel, task: Element, ids: Ids): Element {
   for (let at = model.parentOf(task); at; at = model.parentOf(at)) if (model.isA(at, 'bpmn:Collaboration')) return at;
@@ -179,8 +179,9 @@ const isMapping = (value: unknown): value is Record<string, Value> => !!value &&
 
 /* --- Who takes a band, and what kind of actor that is --- */
 
-/** A pool on the canvas, as against an actor that only takes bands: one with a process, or one the study draws
- * (a model's pool has no process of its own). */
+/** A pool on the canvas: a participant with a process, or one the study draws (a black box, a model's say, has no
+ * process of its own). Every actor the canvas has read is one; an actor only a band names, in a file the canvas has
+ * not drawn yet, is not. */
 export function isPool(model: StudyModel, participant: Element | undefined): boolean {
   return Boolean(participant?.processRef) || Boolean(participant?.id && participant.id in model.study.layout);
 }
@@ -192,7 +193,8 @@ export function nameNewActor(model: StudyModel, task: Element, ids: Ids, name: s
 
 const refsOf = (element: Element): string[] => (Array.isArray(element.participantRef) ? element.participantRef.map(idOf).filter((id): id is string => !!id) : []);
 
-/** Drop a participant that only ever took bands and takes none any more; a pool on the canvas stays. */
+/** Drop a participant the canvas never drew that takes no band any more; a drawn pool is the canvas's to keep or
+ * take away (packages/canvas/src/study/actors.ts). */
 function dropIfOrphan(model: StudyModel, task: Element, participant: Element | undefined): void {
   if (!participant || isPool(model, participant)) return;
   if ([...model.all()].some((element) => element !== task && refsOf(element).includes(participant.id!))) return;
@@ -239,7 +241,8 @@ export function participantKinds(): ParticipantKind[] {
   });
 }
 
-/** Every participant the study declares: the pools drawn on the canvas and the actors that only take bands. */
+/** Every actor the study declares: its pools, drawn open round a flow or closed as a black box, and any a band names
+ * that the canvas has not drawn yet. */
 export function listParticipants(model: StudyModel): Element[] {
   return model.study.roots
     .filter((root) => model.isA(root, 'bpmn:Collaboration'))
@@ -275,10 +278,7 @@ function untype(model: StudyModel, participant: Element): void {
   delete participant.extensionElements;
 }
 
-/**
- * Type a participant that only takes bands as the kind `id` names, or untype it (`''`). The participant has no
- * shape, so the edit is about the task whose band shows it.
- */
+/** Type a participant as the kind `id` names, or untype it (`''`): a pool's kind, edited on the pool or by a band's `kinds`. */
 export function setParticipantKind(model: StudyModel, participant: Element | undefined, id: string): void {
   if (!participant || (participantKind(model, participant)?.id ?? '') === id) return;
   if (!id) {

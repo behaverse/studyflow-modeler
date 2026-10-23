@@ -119,6 +119,8 @@ export function obstaclesIn(scene: Scene, scope: SceneNode | undefined, exclude:
 
 export function isContainerNode(node: SceneNode): boolean {
   if (SUBPROCESS_TYPES.has(node.type)) return node.isExpanded !== false;
+  // A pool drawn closed is BPMN's black box: hit as a whole, and a flow routes round it.
+  if (node.type === 'bpmn:Participant') return node.isExpanded !== false;
   if (FRAME_TYPES.has(node.type)) return true;
   return node.children.length > 0;
 }

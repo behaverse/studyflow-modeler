@@ -133,10 +133,12 @@ export function drawTextAnnotation(parent: SVGElement, w: number, h: number, sty
   }));
 }
 
-export function drawParticipant(parent: SVGElement, w: number, h: number, style: ShapeStyle): SVGElement {
+/** A pool: its frame and the band its name runs up; drawn `collapsed`, BPMN's black box, the frame alone. */
+export function drawParticipant(parent: SVGElement, w: number, h: number, style: ShapeStyle, collapsed = false): SVGElement {
   const rect = append(parent, create('rect', {
     x: 0, y: 0, width: w, height: h, rx: 4, ry: 4, fill: style.fill, stroke: style.stroke, 'stroke-width': STROKE_WIDTH,
   }));
+  if (collapsed) return rect;
   const band = Math.min(PARTICIPANT_BAND, w);
   append(parent, create('line', { x1: band, y1: 0, x2: band, y2: h, stroke: style.stroke, 'stroke-width': STROKE_WIDTH }));
   return rect;

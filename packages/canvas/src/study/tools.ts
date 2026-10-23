@@ -194,7 +194,7 @@ const TOOLS = [
     id: ID,
     structure: { type: 'string' },
   }, ['id', 'structure'], write(false, true)),
-  tool('bands', "Say who takes a choreography task's two bands, and which starts the exchange. A band takes an actor the study declares, a `bpmn:Participant`, by id (`{ participant: Robot }`), or a name its actor takes (`{ name: Experimenter }`; a typed task's drawn pool keeps its own, and a new actor of that name takes the band), or none (null). `kinds` types the actor on a band as one of the kinds the schemas declare (`''` for none). Actors the task lacks are made.", {
+  tool('bands', "Say who takes a choreography task's two bands, and which starts the exchange. A band takes an actor the study declares, a `bpmn:Participant`, by id (`{ participant: Robot }`), or a name its actor takes (`{ name: Experimenter }`; a typed task's drawn pool keeps its own, and a new actor of that name takes the band), or none (null). `kinds` types the actor on a band as one of the kinds the schemas declare (`''` for none). Actors the task lacks are made, and each one a band names anew is drawn as a collapsed pool under the rest, the study's own flow in a pool of the collaboration first; one no band names any more goes with its pool, unless the pool holds a flow or a message flow reaches it.", {
     id: ID,
     top: BAND,
     bottom: BAND,
@@ -217,8 +217,8 @@ const TOOLS = [
       additionalProperties: false,
     },
   }, ['ids'], write(false, true)),
-  tool('expand', 'Draw a container open, its contents framed inside it.', { id: ID }, ['id'], write(false, true)),
-  tool('collapse', 'Draw a container closed, its contents hidden until a view drills in.', { id: ID }, ['id'], write(false, true)),
+  tool('expand', "Draw a container open, its contents framed inside it. A pool drawn open holds its actor's flow, and is given a process when it depicts none.", { id: ID }, ['id'], write(false, true)),
+  tool('collapse', "Draw a container closed, its contents hidden until a view drills in. A pool with no flow drawn closed is BPMN's black box, a strip for its name, and an empty process goes with it.", { id: ID }, ['id'], write(false, true)),
   tool('batch', 'Run write tools as one edit and one undo step, all or nothing: when a step is refused, none is kept, and the reason names the step. Name what you add, to connect it in a later step.', {
     steps: {
       type: 'array',

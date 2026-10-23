@@ -8,6 +8,11 @@ schemas:
 LabLink_Demo_Actors:
   type: Collaboration
   name: EPSYLON LabLink - Study orchestration
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:37Z", with: studyflow-modeler/26.0615}
+  documentation: >-
+    A LabLink session with questionnaires, a 1-back warm-up, and random allocation across three N-back arms.
   participants:
     Actor_Random_bot:
       name: Random bot
@@ -15,14 +20,12 @@ LabLink_Demo_Actors:
         actorType: software
         implementation: behaverse://bot
 
+    Pool_Session:
+      name: LabLink session
+      process: $LabLink_Demo
+
 LabLink_Demo:
   type: Process
-  name: EPSYLON LabLink - Study orchestration
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:37Z", with: studyflow-modeler/26.0615}
-  documentation: >-
-    A LabLink session with questionnaires, a 1-back warm-up, and random allocation across three N-back arms.
   elements:
     Start:
       type: StartEvent
@@ -288,6 +291,8 @@ LabLink_Demo:
       target: $End
 
 layout:
+  Actor_Random_bot: {bounds: 130 775 1498 60, expanded: false}
+  Pool_Session: 130 20 1498 715
   Start: {bounds: 180 310 36 36, label: 186 353 24 15}
   Welcome_Instruction: 270 288 120 80
   PHQ_9_baseline: 420 288 120 80

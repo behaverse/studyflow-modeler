@@ -3,8 +3,9 @@ import { expect, test } from './e2e';
 import { addPaletteElement, examplePath, exportDiagram, gotoModeler, labelEditor, readDownloadText } from './utils';
 
 /**
- * Choreography tasks: who takes their bands, named in the inspector. A double click on a band edits it in place
- * (`packages/canvas/tests/choreography-bands.unit.spec.ts`), and the initiator's shading is canvas-render's.
+ * Choreography tasks: who takes their bands, named in the inspector, and the pool the canvas draws for an actor a band
+ * declares, where its kind is set. A double click on a band edits it in place, and a pool is drawn and taken away
+ * (`packages/canvas/tests/choreography-bands.unit.spec.ts`); the initiator's shading is canvas-render's.
  */
 test('a choreography task names its two participants; a cognitive task names who takes it: a declared pool, a new actor, or no one', async ({ page }) => {
   await gotoModeler(page);
@@ -27,6 +28,9 @@ test('a choreography task names its two participants; a cognitive task names who
   await bottomInput.fill('Tutor');
   await bottomInput.press('Enter');
   await expect(banded).toContainText('Tutor');
+  // Each actor named is drawn, a collapsed pool, and the flow sits in a pool of the collaboration: three pools.
+  await expect(page.locator('[data-element-type="bpmn:Participant"]')).toHaveCount(3);
+  await expect(page.locator('[data-element-type="bpmn:Participant"]', { hasText: 'Tutor' })).toHaveCount(1);
 
   // A cognitive task presents itself; its one participant is an editable select, and a band-only actor is typed from there.
   // Its task draws plain: it answers along message flows. Its model's pool is a participant the band can name.
@@ -45,29 +49,36 @@ test('a choreography task names its two participants; a cognitive task names who
   await expect(inspector.getByRole('button', { name: /initiator/i })).toHaveCount(0);
   await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/language model/i);
 
-  // Typing a new name makes an actor for this task; untyped, it reads as such.
+  // Typing a new name declares an actor for this task, drawn as a collapsed pool under the rest; untyped, it reads as such.
   await taker.fill('Subject');
   await taker.press('Enter');
   await expect(shape).toContainText('Subject');
   await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/untyped/i);
+  const subjectPool = page.locator('[data-element-type="bpmn:Participant"]', { hasText: 'Subject' });
+  await expect(subjectPool).toHaveCount(1);
 
-  // A band-only actor has no shape to select: its kind and that kind's settings are set here and reach the file.
-  await inspector.getByRole('button', { name: /bottom band kind/i }).click();
+  // The actor's kind, and that kind's settings, are set on its pool, which the band's kind line selects; they reach the file.
+  await inspector.getByRole('button', { name: /select the pool/i }).click();
+  await expect(inspector.getByTestId('participant-kind')).toBeVisible();
+  await inspector.getByRole('button', { name: /actor kind/i }).click();
   await page.getByRole('option', { name: /^Software$/i }).click();
-  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/software/i);
   const identifier = inspector.locator('input[name="studyflow:implementation"]');
   await identifier.fill('python://lab.bots.random');
   await identifier.blur();
   let studyflowText = await readDownloadText(await exportDiagram(page, 'studyflow'));
   expect(studyflowText).toContain('actorType: software');
   expect(studyflowText).toContain('implementation: python://lab.bots.random');
+  expect(studyflowText).toContain('expanded: false');
+  await shape.click();
+  await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/software/i);
 
-  // None clears the band: the task draws plain and the pool it sits in takes it.
+  // None clears the band: the task draws plain and the pool it sits in takes it, and the actor's pool goes with its last band.
   await inspector.locator('button[aria-label="bottom band choices"]').click();
   await page.getByRole('option', { name: /^None$/i }).click();
   await expect(taker).toHaveValue('');
   await expect(shape).not.toContainText('Subject');
   await expect(shape).not.toContainText('Behaverse');
+  await expect(subjectPool).toHaveCount(0);
 
   // And back to the pool from the dropdown; the actor no band names any more has left the file.
   await inspector.locator('button[aria-label="bottom band choices"]').click();

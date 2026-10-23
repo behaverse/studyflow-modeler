@@ -133,7 +133,9 @@ export function ContextPad() {
     const single = element;
     // A container that can be expanded: both container entries are gated on the one
     // answer, so no subclass can get the toggle without the drill-down or the other way round.
+    // A pool is drawn open or closed too (closed, BPMN's black box, when it holds no flow), but has no plane to open.
     const expandable = single?.kind === 'node' && isExpandable(single.type) ? single : undefined;
+    const pool = single?.kind === 'node' && single.type === 'bpmn:Participant' && (single.expanded === false || study.list({ within: single.id }).length === 0) ? single : undefined;
     // A sequence flow leaving a source BPMN gives a `default` (an exclusive, inclusive or complex gateway, an
     // activity) gets the toggle-default entry: the metamodel says which, not a list here.
     const flow = single?.kind === 'edge' && single.type === 'bpmn:SequenceFlow' ? single : undefined;
@@ -154,8 +156,9 @@ export function ContextPad() {
       canToggleDefault,
       isDefault,
       isChoreographyTask: single?.type === 'bpmn:ChoreographyTask',
-      isExpandable: !!expandable,
-      isExpanded: !!expandable && expandable.expanded !== false,
+      isExpandable: !!expandable || !!pool,
+      isExpanded: (expandable ?? pool)?.expanded !== false,
+      hasPlane: !!expandable,
     });
   }, [modeler, visible, element, records]);
 

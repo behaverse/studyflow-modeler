@@ -60,7 +60,9 @@ test('the entries a selection gets, in the order they wrap into rows', () => {
     ['several connections: no re-route, which acts on one', context({ count: 2, isShape: false, isConnection: true }), ['delete', 'set-color']],
     ['a choreography task: the swap, last', context({ canAppend: true, canAnnotate: true, canReplace: true, isChoreographyTask: true }), [...task, 'choreography.swap-initiator']],
     ['several choreography tasks: no swap, which acts on one', context({ count: 3, isChoreographyTask: true }), ['delete', 'set-color']],
-    ['an expandable container: the toggle and the trip in, last', context({ canAppend: true, canAnnotate: true, canReplace: true, isExpandable: true }), [...task, 'expand.toggle', 'drilldown']],
+    ['an expandable container: the toggle and the trip in, last', context({ canAppend: true, canAnnotate: true, canReplace: true, isExpandable: true, hasPlane: true }), [...task, 'expand.toggle', 'drilldown']],
+    // A pool is drawn open or closed, but has no plane of its own to open.
+    ['a pool: the toggle, no trip in', context({ canConnect: true, isExpandable: true }), ['delete', 'set-color', 'connect', 'expand.toggle']],
     ['a plain task: no toggle', context({ canAppend: true }), ['append.end-event', 'append', 'delete', 'set-color', 'connect']],
     ['several containers: no toggle', context({ count: 2, isExpandable: true }), ['delete', 'set-color']],
     // A caption is neither a shape nor a connection: nothing can hang off it, so the append

@@ -95,8 +95,9 @@ test('a load replaces the document, read as a file opens, in one change, and the
 
   await study.load(CHOREOGRAPHY);
 
+  // The choreography's participants are drawn as it loads (study/actors.ts): the exchanges in a pool, each party a closed one.
   expect(heard.map(({ cause, added, removed }) => [cause, added, removed]))
-    .toEqual([['load', ['Consent'], ['Task_1', 'Sub_1', 'Task_In']]]);
+    .toEqual([['load', ['Consent', 'Participant_0001', 'Subject', 'Experimenter'], ['Task_1', 'Sub_1', 'Task_In']]]);
   expect(rootTypes(study), 'the choreography is read as a process').toContain('bpmn:Process');
   expect([study.canUndo, study.canRedo]).toEqual([false, false]);
   expect(study.revision, 'the revision carries on').toBe(2);
@@ -108,11 +109,13 @@ test('a study writes its file as a file holds it, XML or YAML, without touching 
   const xml = await study.toXml();
   const yaml = study.toYaml();
 
-  // A choreography is read as the process a study is, and written as one: its exchange is a task in the XML.
-  expect(xml).toContain('<bpmn:process id="Dyad"');
+  // A choreography is read as the process a study is, and written as one: its exchange is a task in the XML. Its
+  // participants are drawn as pools, so the process sits in a pool of their collaboration, which keeps the study's id.
+  expect(xml).toContain('<bpmn:collaboration id="Dyad"');
   expect(xml).toContain('<bpmn:task id="Consent" name="Give consent" studyflow:exchange="true"');
-  expect(yaml).toContain('Dyad:\n  type: Process');
-  expect(rootTypes(study)).toContain('bpmn:Process');
+  expect(xml).toContain('<bpmn:participant id="Subject" name="Subject" />');
+  expect(yaml).toContain('Dyad:\n  type: Collaboration');
+  expect(rootTypes(study)).toEqual(expect.arrayContaining(['bpmn:Process', 'bpmn:Collaboration']));
   expect(await (await Study.open(xml, { metamodel: freshMetamodel() })).toXml()).toBe(xml);
   expect((await Study.open(yaml, { metamodel: freshMetamodel() })).toYaml()).toBe(yaml);
   expect(open().toYaml(), 'a process is written as it is edited').toContain('Process_1:\n  type: Process');

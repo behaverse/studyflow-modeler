@@ -58,6 +58,8 @@ export type ContextPadContext = {
   isChoreographyTask: boolean;
   isExpandable?: boolean;
   isExpanded?: boolean;
+  /** A container with a plane of its own to drill into (a sub-process; a pool has none). */
+  hasPlane?: boolean;
 };
 
 export const END_EVENT_APPEND: ContextPadAppend = { bpmnType: BPMN.EndEvent, extensionType: 'studyflow:EndEvent' };
@@ -94,7 +96,7 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
   }
   if (shape && context.isExpandable) {
     entries.push({ action: 'expand.toggle', title: context.isExpanded ? 'Collapse' : 'Expand', icon: 'subprocess' });
-    entries.push({ action: 'drilldown', title: 'Open contents', icon: 'open' });
+    if (context.hasPlane) entries.push({ action: 'drilldown', title: 'Open contents', icon: 'open' });
   }
   return entries;
 }

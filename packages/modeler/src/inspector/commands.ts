@@ -68,15 +68,14 @@ export function runUpdateChoreographyParticipants(
 
 export type UpdateParticipantKindCommand = {
   type: 'UpdateParticipantKind';
-  /** The choreography task whose band shows the participant; the edit is reported on it. */
+  /** The pool, a `bpmn:Participant`, whose kind is set. */
   element: Element;
-  participant: Element;
   /** A kind's id, or `''` to untype. */
   kind: string;
 };
 
 export function runUpdateParticipantKind(modeler: Editor, command: UpdateParticipantKindCommand): void {
-  modeler.study.revise(String(command.element.id), (_task, model) => setParticipantKind(model, model.get(String(command.participant.id)), command.kind));
+  modeler.study.revise(String(command.element.id), (pool, model) => setParticipantKind(model, pool, command.kind));
 }
 
 

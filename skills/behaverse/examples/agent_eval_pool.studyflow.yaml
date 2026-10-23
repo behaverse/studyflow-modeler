@@ -8,6 +8,10 @@ schemas:
 Agent_Eval_Pool_Actors:
   type: Collaboration
   name: LLM evaluation — agent actor pool
+  studyflow:Study: {}
+  prov:Activity:
+    - {action: created, when: "2026-07-30T22:51:23Z", with: studyflow-modeler/26.0615}
+  documentation: Runs one 2-back protocol on random, Claude, and Ollama agents in parallel and compares their accuracy.
   participants:
     Actor_Random_bot:
       name: Random bot
@@ -27,14 +31,13 @@ Agent_Eval_Pool_Actors:
         actorType: llm
         implementation: ollama://gemma4:e2b-mlx
 
+    Pool_Session:
+      name: Evaluation session
+      process: $Agent_Eval_Pool
+
 Agent_Eval_Pool:
   type: Process
-  name: LLM evaluation — agent actor pool
   executable: false
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:23Z", with: studyflow-modeler/26.0615}
-  documentation: Runs one 2-back protocol on random, Claude, and Ollama agents in parallel and compares their accuracy.
   elements:
     Start:
       type: StartEvent
@@ -333,6 +336,10 @@ Agent_Eval_Pool:
       target: $End
 
 layout:
+  Actor_Random_bot: {bounds: 110 860 806 60, expanded: false}
+  Actor_Claude__claude_haiku_4_5: {bounds: 110 960 806 60, expanded: false}
+  Actor_Ollama__gemma4_e2b_mlx: {bounds: 110 1060 806 60, expanded: false}
+  Pool_Session: 110 60 806 760
   Start: {bounds: 160 372 36 36, label: 140 415 78 30}
   Fork: {bounds: 250 365 50 50, label: 236 422 80 30}
   Agent_Random: 380 80 120 120

@@ -7,7 +7,7 @@ import type { ComponentType } from 'react';
 import { DataFlowSection } from '@modeler/inspector/dataFlow';
 import { LoopSection } from '@modeler/inspector/loop';
 import { MessageSection } from '@modeler/inspector/message';
-import { ChoreographyParticipantsSection } from '@modeler/inspector/participants';
+import { ActorKindSection, ChoreographyParticipantsSection } from '@modeler/inspector/participants';
 import { StateSection } from '@modeler/inspector/state';
 import { WireTransformationSection } from '@modeler/inspector/transformation';
 import { SKILL_INSPECTOR_SECTIONS } from '@modeler/skillModules';
@@ -26,6 +26,7 @@ const OWN: InspectorSection[] = [
   { name: 'outputs', tab: 'Execution', Section: () => <DataFlowSection direction="output" /> },
   { name: 'loop', tab: 'Execution', Section: LoopSection },
   { name: 'participants', tab: 'General', Section: ChoreographyParticipantsSection },
+  { name: 'actorKind', tab: 'General', Section: ActorKindSection },
   { name: 'transformation', tab: 'General', Section: WireTransformationSection },
   { name: 'message', tab: 'General', Section: MessageSection },
 ];

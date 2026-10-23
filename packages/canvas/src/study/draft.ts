@@ -52,6 +52,10 @@ export function draftDrawing(model: StudyModel): boolean {
     drawContents(model, root, draft);
   }
   place(model, draft);
+  // A pool with no process is BPMN's black box: drawn closed, a strip for its name.
+  for (const pool of listOf(root, 'participants')) {
+    if (!pool.processRef && pool.id) model.study.layout[pool.id] = { ...model.study.layout[pool.id], isExpanded: false };
+  }
   if (root !== model.primaryRoot()) model.study.diagram = [{ plane: { bpmnElement: root.id! } }];
   return true;
 }

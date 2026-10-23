@@ -12,6 +12,7 @@ import { setItemSubjectIn, setMessageItemIn, type Ids } from '@core/model/items.
 import type { Metamodel } from '@core/model/metamodel.ts';
 import { attributeOf, patchDoc } from '@core/model/patch.ts';
 import { readStudy, studyText, writeStudy, type YamlDoc } from '@core/model/yaml.ts';
+import { drawActors, namedActors, settleActors } from '@canvas/study/actors.ts';
 import { attributesOf, type AttributeRecord } from '@canvas/study/attributes.ts';
 import { appendSpot, freeSpot } from '@canvas/study/autoplace.ts';
 import { declares, describeType, extensionMisfit, NOTHING, refused, runRead, runStep, shapeFor } from '@canvas/study/calls.ts';
@@ -29,7 +30,7 @@ import { Mutator, type AddShapeSpec, type Commit } from '@canvas/study/mutator.t
 import { layoutScene } from '@canvas/study/layout.ts';
 import { rerouteEdge, rerouteEdges, routableEnd, routeFor } from '@canvas/study/orthogonal.ts';
 import { defaultSizeFor, prototypeOf, shapeSpec, type CreatePrototype, type NewElement, type NewShape } from '@canvas/study/prototype.ts';
-import { Rules } from '@canvas/study/rules.ts';
+import { openForDrop, Rules } from '@canvas/study/rules.ts';
 import { spreadEdges } from '@canvas/study/spread.ts';
 import type { Bounds, Drawable, ElementColors, FontPatch, Point, Scene, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { recordOf, type ElementRecord } from '@canvas/study/records.ts';
@@ -276,9 +277,11 @@ export class Study {
   }
 
   /**
-   * Say who takes the choreography task `id`'s bands (core's `setBandsIn`): a band's participant by its id, a name its
-   * participant takes, or `null` for none; `initiator`, the band that starts the exchange; `kinds`, the kind of actor
-   * on a band (`''` for none). Participants the task lacks are minted.
+   * Say who takes the choreography task `id`'s bands (core's `setBandsIn`): a band's actor by its id, a name its actor
+   * takes, or `null` for none; `initiator`, the band that starts the exchange; `kinds`, the kind of actor on a band
+   * (`''` for none). Actors the task lacks are minted, and each one a band names anew is drawn as a collapsed pool
+   * under the rest, the study's own flow in a pool of the collaboration first; one no band names any more goes with
+   * its pool, unless the pool holds a flow or a message flow reaches it (`study/actors.ts`).
    */
   bands({ id, ...change }: { id: string } & BandsChange): StudyResult {
     const found = this.find(id);
@@ -449,8 +452,9 @@ export class Study {
     if (!top && named?.kind !== 'node') return refused(`no container '${args.into}'`);
     const container = named?.kind === 'node' ? named : args.into === undefined && args.at ? containerOf(hitTest(scene, args.at)) : undefined;
     const prototype = prototypeOf(shape);
-    // A container named by id takes what fits in it however it is drawn; one found under `at` only when drawn open.
-    const context = named?.kind === 'node' ? { ...named, isExpanded: true } : container ?? scene.rootElement;
+    // A container named by id takes what fits in it however it is drawn (a pool drawn closed, a black box, takes
+    // nothing); one found under `at` only when drawn open.
+    const context = named?.kind === 'node' ? openForDrop(named) : container ?? scene.rootElement;
     const verdict = rules.canCreate(prototype, context, { root: scene.rootElement });
     if (!verdict) return refused(`a ${shape.type} cannot go ${container ? `into '${container.id}'` : 'at the top level'}`);
     const at = args.at ?? freeSpot(scene, container, prototype, prototype.type);
@@ -635,7 +639,7 @@ export class Study {
     const fragment = fragmentOf(args.yaml, scene.model, mutator.ids);
     if (typeof fragment === 'string') return refused(fragment);
     const shapes = fragment.rootElement.children.filter((element): element is SceneNode => element.kind === 'node');
-    const context = named?.kind === 'node' ? { ...named, isExpanded: true } : container ?? scene.rootElement;
+    const context = named?.kind === 'node' ? openForDrop(named) : container ?? scene.rootElement;
     const misfit = shapes.find((shape) => !hostOf(fragment, shape) && !rules.canCreate(shape, context, { root: scene.rootElement }));
     if (misfit) return refused(`a ${misfit.type} cannot go ${container ? `into '${container.id}'` : 'at the top level'}`);
     const box = boundsOf(shapes)!;
@@ -676,12 +680,14 @@ export class Study {
     });
   }
 
-  /** Draw the container `id` open, its contents framed inside it, as one edit. */
+  /** Draw the container `id` open, its contents framed inside it, as one edit; a pool drawn open holds its actor's
+   * flow, and is given a process when it depicts none. */
   expand(args: { id: string }): StudyResult {
     return this.open(args.id, true);
   }
 
-  /** Draw the container `id` closed, its contents hidden until a view drills in, as one edit. */
+  /** Draw the container `id` closed, its contents hidden until a view drills in, as one edit; a pool with no flow
+   * drawn closed is BPMN's black box, and an empty process goes with it. */
   collapse(args: { id: string }): StudyResult {
     return this.open(args.id, false);
   }
@@ -732,7 +738,15 @@ export class Study {
     const whole = draftDrawing(model);
     const drafted = new Set(whole ? [] : draftPlanes(model, this.options));
     if (!whole) drawFlows(model);
-    const scene = importStudy(model, this.options);
+    let scene = importStudy(model, this.options);
+    // An actor the drawing leaves out (a band named it in a file saved before the canvas drew one) is drawn as the
+    // study is read, a collapsed pool, the flow in a pool first (`study/actors.ts`); the flows that reach it can then
+    // be routed, and the study is read again with all of it.
+    if (drawActors(new Mutator(scene, () => {}), scene).length > 0) {
+      writeLayout(scene);
+      drawFlows(model);
+      scene = importStudy(model, this.options);
+    }
     if (whole) {
       for (const element of layOut(scene)) if (element.kind !== 'label') syncLabel(scene, element);
       writeLayout(scene);
@@ -789,11 +803,20 @@ export class Study {
     else mutator.record(scene.rootElement);
   }
 
-  /** Run `edit` as one commit, and say what it did by id: `id` is the element it made, when it returns one. */
+  /**
+   * Run `edit` as one commit, and say what it did by id: `id` is the element it made, when it returns one. The commit
+   * leaves every actor drawn: what the edit declared and drew nowhere gets its collapsed pool, and a black box it left
+   * no band naming goes (`study/actors.ts`).
+   */
   private commit(edit: () => Drawable | undefined | void): StudyResult {
-    const { mutator } = own(this);
+    const { mutator, scene } = own(this);
     this.takeCommitted();
-    const made = mutator.batch(edit);
+    const made = mutator.batch(() => {
+      const named = namedActors(scene);
+      const result = edit();
+      settleActors(mutator, scene, named);
+      return result;
+    });
     const commit = this.takeCommitted();
     return { ok: true, ...(made ? { id: made.id } : {}), ...(commit ? idsOf(commit) : NOTHING) };
   }
@@ -813,7 +836,9 @@ export class Study {
   private open(id: string, expanded: boolean): StudyResult {
     const { scene, mutator } = own(this);
     const node = scene.elementsById.get(id);
-    if (node?.kind !== 'node' || !isExpandable(node.type)) return refused(`'${id}' holds no contents to ${expanded ? 'show' : 'hide'}`);
+    if (node?.kind !== 'node' || !(isExpandable(node.type) || node.type === 'bpmn:Participant')) return refused(`'${id}' holds no contents to ${expanded ? 'show' : 'hide'}`);
+    // A pool drawn closed is a black box: one with a flow inside stays open.
+    if (node.type === 'bpmn:Participant' && !expanded && node.children.some((child) => child.kind === 'node')) return refused(`'${id}' holds a flow: a pool with steps stays open`);
     return this.commit(() => {
       mutator.setExpanded(node, expanded);
     });

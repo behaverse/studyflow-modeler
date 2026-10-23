@@ -32,7 +32,7 @@ import {
   textLine,
   WEIGHT,
 } from '@canvas/render/labels.ts';
-import { fit, FONT, LINE_HEIGHT, wrap } from '@canvas/study/text.ts';
+import { fit, FONT, LINE_HEIGHT, textWidth, wrap } from '@canvas/study/text.ts';
 import {
   activityMarkers,
   bandPath,
@@ -337,6 +337,13 @@ export class Renderer {
         break;
       }
       case 'participant': {
+        if (node.type === BPMN.Participant && node.isExpanded === false) {
+          // A pool drawn closed is BPMN's black box: a strip with the name across it, no band, nothing inside.
+          drawParticipant(g, node.width, node.height, style, true);
+          this.drawPoolMarker(g, node, iconColor);
+          drawInternalLabel(g, node, name, INK.text);
+          break;
+        }
         // A lane is painted after the container it divides, so it stops above that container's marker row.
         drawParticipant(g, node.width, node.height - footRoom(node), style);
         this.drawParticipantLabel(g, node, name, INK.text, this.drawBandMarker(g, node, iconColor));
@@ -547,6 +554,19 @@ export class Renderer {
     append(g, textLine(`×${instances}`, centre, y + MARKER_SIZE + LINE_HEIGHT / 2,
       { fontSize: FONT.band, color: INK.text, weight: WEIGHT.internal }));
     return MARKER_SIZE + LINE_HEIGHT + 2 * BAND_MARKER_GAP;
+  }
+
+  /** A pool drawn closed has no band: its multiplicity marker sits at the bottom centre, where BPMN puts it, the count beside it. */
+  private drawPoolMarker(g: SVGGElement, node: SceneNode, color: string): void {
+    const instances = participantInstances(node.element);
+    if (instances < 2) return;
+    const count = `×${instances}`;
+    const width = MARKER_SIZE + BAND_MARKER_GAP + textWidth(count, FONT.band);
+    const x = (node.width - width) / 2;
+    const y = node.height - MARKER_SIZE - BAND_MARKER_GAP;
+    drawIcon(g, 'parallel', x, y, MARKER_SIZE, color, this.iconResolver, node.element);
+    append(g, textLine(count, x + width - textWidth(count, FONT.band) / 2, y + MARKER_SIZE / 2,
+      { fontSize: FONT.band, color: INK.text, weight: WEIGHT.internal }));
   }
 
   /** A group's caption lives on its `bpmn:CategoryValue`, centred on the top edge. */

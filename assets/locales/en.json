@@ -151,6 +151,8 @@
   "participantNone": "None",
   "participantFromPool": "the pool it sits in",
   "participantKind": "Kind",
+  "participantPool": "Select the pool",
+  "actorType": "Kind",
   "initiatingParticipant": "Initiator",
   "messageRef": "Message",
   "kindUntyped": "Untyped"

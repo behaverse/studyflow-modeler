@@ -1,4 +1,4 @@
-/** The choreography-task section: who takes each band, and what kind of actor that is. The edits are core's (`@core/model/choreography`), through the study's `bands`. */
+/** The choreography-task section: who takes each band; and the pool's section: what kind of actor it is. The edits are core's (`@core/model/choreography`), through the study's `bands` and `revise`. */
 import {
   Combobox,
   ComboboxButton,
@@ -15,23 +15,20 @@ import {
 import { useState } from 'react';
 import { t } from '@modeler/i18n';
 import { actorIn, bandsOf, isTypedChoreography } from '@core/model/choreography';
-import { idOf, isExtensionPrefix, type Value } from '@core/model/index';
-import { getCatalog } from '@core/notation';
-import { isPool, listParticipants, participantKind, participantKinds, type ParticipantKind } from '@core/model/choreography';
+import { idOf, type Value } from '@core/model/index';
+import { listParticipants, participantKind, participantKinds, type ParticipantKind } from '@core/model/choreography';
 import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
-import { InspectorContext, useInspectedModel } from '@modeler/inspector/hooks';
-import { AttributeInput } from '@modeler/inspector/registry';
-import { categoriesOf, isAttributeVisible } from '@modeler/inspector/categories';
+import { useInspectedModel } from '@modeler/inspector/hooks';
 import { HelpTooltip } from '@modeler/inspector/widgets';
 import { PlainEnumSelect } from '@modeler/inspector/inputs';
 import { field as s } from '@modeler/inspector/styles';
 
-const TOP_HELP = 'The actor on the top band';
-const BOTTOM_HELP = 'The actor on the bottom band';
-const TAKER_HELP = 'The actor who takes this task: a drawn pool, or one named only here. Empty, whoever walks the pool the task sits in takes it.';
+const TOP_HELP = 'The actor on the top band: a pool the study draws, or a name, which draws a new one.';
+const BOTTOM_HELP = 'The actor on the bottom band: a pool the study draws, or a name, which draws a new one.';
+const TAKER_HELP = 'The actor who takes this task: a pool the study draws, or a name, which draws a new one as a collapsed pool. Empty, whoever walks the pool the task sits in takes it.';
 const INITIATOR_HELP = 'Which band starts the exchange; it is drawn light, the other shaded.';
-const KIND_HELP = 'What kind of actor takes this band, among the kinds the loaded extensions declare; the settings of that kind follow.';
+const KIND_HELP = 'What kind of actor this pool is, among the kinds the loaded extensions declare; the settings of that kind follow.';
 
 export function ChoreographyParticipantsSection({ element }: { element: any }) {
   const model = useInspectedModel();
@@ -39,15 +36,16 @@ export function ChoreographyParticipantsSection({ element }: { element: any }) {
   return <ParticipantFields key={element.id} element={element} />;
 }
 
-/** How a participant's kind reads: a drawn pool's is set on the pool, a band-only actor's on the band. */
+/** How an actor's kind reads: its pool's. */
 function kindLabel(kind: ParticipantKind | undefined): string {
   return kind?.label ?? t('kindUntyped');
 }
 
 /**
  * One band of a choreography-shaped task, the same for a plain choreography task and a typed one (a cognitive
- * task): an editable select over every participant the file declares, text that names one or renames the band's
- * own, and "None" to clear it. A typed task has one such band, who takes it; empty, the pool it sits in does.
+ * task): an editable select over every actor the file declares, text that names one or renames the band's own, and
+ * "None" to clear it. A typed task has one such band, who takes it; empty, the pool it sits in does. The actor's kind
+ * reads under the field; it is set on the pool, which the line selects.
  */
 function ParticipantField({ element, field, participant, label, help, declared, typed, fallback = '' }: {
   element: any; field: 'top' | 'bottom'; participant: any; label: string; help: string; declared: any[]; typed: boolean; fallback?: string;
@@ -70,89 +68,86 @@ function ParticipantField({ element, field, participant, label, help, declared, 
     else executeCommand(modeler, { type: 'UpdateChoreographyParticipants', element, field, value: typedText });
   };
   return (
-    <>
-      <Field className={s.field}>
-        <Label className={s.label}>
-          {label}
-          <HelpTooltip name="participantRef" description={help} />
-        </Label>
-        <div className={s.selectWrapper}>
-          <Combobox
-            value={participant?.id ?? ''}
-            onChange={(id: string | null) => {
-              if (id === '') pick(null);
-              else if (id) pick(declared.find((p: any) => p.id === id) ?? null);
-            }}
+    <Field className={s.field}>
+      <Label className={s.label}>
+        {label}
+        <HelpTooltip name="participantRef" description={help} />
+      </Label>
+      <div className={s.selectWrapper}>
+        <Combobox
+          value={participant?.id ?? ''}
+          onChange={(id: string | null) => {
+            if (id === '') pick(null);
+            else if (id) pick(declared.find((p: any) => p.id === id) ?? null);
+          }}
+        >
+          <ComboboxInput
+            name={`choreography:${field}`}
+            aria-label={`${field} band`}
+            className={s.comboInput}
+            placeholder={typed ? t('participantFromPool') : undefined}
+            displayValue={() => name}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setQuery(''); commitText(e.currentTarget.value); } }}
+            onBlur={(e) => { setQuery(''); commitText(e.currentTarget.value); }}
+          />
+          <ComboboxButton className={s.comboChevronBtn} aria-label={`${field} band choices`}>
+            <i className={s.comboChevronIcon} aria-hidden="true"></i>
+          </ComboboxButton>
+          <ComboboxOptions anchor="bottom start" className={s.comboOptions}>
+            {!q && <ComboboxOption value="" className={s.comboOption}>{t('participantNone')}</ComboboxOption>}
+            {options.map((p: any) => (
+              <ComboboxOption key={p.id} value={p.id} className={s.comboOption}>
+                {p.name || p.id}{participantKind(model, p) ? ` (${kindLabel(participantKind(model, p))})` : ''}
+              </ComboboxOption>
+            ))}
+          </ComboboxOptions>
+        </Combobox>
+      </div>
+      {participant && (
+        <div className="mt-1 text-xs text-stone-500" data-testid={`choreography-${field}-kind`}>
+          {t('participantKind')}: {kindLabel(kind)}
+          {' · '}
+          <button
+            type="button"
+            className={s.overriddenSource}
+            title={t('participantPool')}
+            onClick={() => executeCommand(modeler, { type: 'SelectElement', id: String(participant.id) })}
           >
-            <ComboboxInput
-              name={`choreography:${field}`}
-              aria-label={`${field} band`}
-              className={s.comboInput}
-              placeholder={typed ? t('participantFromPool') : undefined}
-              displayValue={() => name}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { setQuery(''); commitText(e.currentTarget.value); } }}
-              onBlur={(e) => { setQuery(''); commitText(e.currentTarget.value); }}
-            />
-            <ComboboxButton className={s.comboChevronBtn} aria-label={`${field} band choices`}>
-              <i className={s.comboChevronIcon} aria-hidden="true"></i>
-            </ComboboxButton>
-            <ComboboxOptions anchor="bottom start" className={s.comboOptions}>
-              {!q && <ComboboxOption value="" className={s.comboOption}>{t('participantNone')}</ComboboxOption>}
-              {options.map((p: any) => (
-                <ComboboxOption key={p.id} value={p.id} className={s.comboOption}>
-                  {p.name || p.id}{participantKind(model, p) ? ` (${kindLabel(participantKind(model, p))})` : ''}
-                </ComboboxOption>
-              ))}
-            </ComboboxOptions>
-          </Combobox>
+            {t('participantPool')}
+          </button>
         </div>
-        {isPool(model, participant) && (
-          <div className="mt-1 text-xs text-stone-500" data-testid={`choreography-${field}-kind`}>
-            {t('participantKind')}: {kindLabel(kind)}
-          </div>
-        )}
-      </Field>
-      {participant && !isPool(model, participant)
-        && <ActorFields key={participant.id} element={element} field={field} participant={participant} kind={kind} />}
-    </>
+      )}
+    </Field>
   );
 }
 
-/** An actor that only takes bands has no shape to select: its kind, and the settings of that kind, are edited on the band. */
-function ActorFields({ element, field, participant, kind }: {
-  element: any; field: 'top' | 'bottom'; participant: any; kind: ParticipantKind | undefined;
-}) {
+/**
+ * A pool's kind, on the pool: a person, a program, a device, a model, among the kinds the loaded extensions declare,
+ * for a pool no schema types yet. Typed, the kind is the type's own attribute (`actorType`), and the settings of that
+ * kind, which the tab lists with the rest.
+ */
+export function ActorKindSection({ element }: { element: any }) {
   const modeler = useModeler();
   const model = useInspectedModel();
+  if (!element || model.host(element) !== 'bpmn:Participant' || model.extensionType(element)) return null;
   const kinds = [{ name: kindLabel(undefined), value: '' }, ...participantKinds().map((k) => ({ name: k.label, value: k.id }))];
-  // Kind stands for the attribute that picks it; the rest of the extension's default-tab settings render as they would on a pool.
-  const extensionType = model.extensionType(participant);
-  const attrDefs = (extensionType ? getCatalog().instanceAttributesOf(extensionType) : [])
-    .filter((d) => (isExtensionPrefix(d.ns?.prefix) || !!d.redefines) && d.ns?.localName !== kind?.attribute)
-    .filter((d) => categoriesOf(d).includes(getCatalog().defaultCategoryOf(d.ns?.prefix)))
-    .sort((a, b) => (a.meta?.order ?? Infinity) - (b.meta?.order ?? Infinity));
   return (
-    <InspectorContext.Provider value={{ element: participant, model }}>
-      <Field className={s.field}>
-        <Label className={s.label}>
-          {t('participantKind')}
-          <HelpTooltip name="participantKind" description={KIND_HELP} />
-        </Label>
-        <div data-testid={`choreography-${field}-kind`}>
-          <PlainEnumSelect
-            name={`choreography:${field}-kind`}
-            ariaLabel={`${field} band kind`}
-            value={kind?.id ?? ''}
-            literalValues={kinds}
-            onCommit={(next) => executeCommand(modeler, { type: 'UpdateParticipantKind', element, participant, kind: next })}
-          />
-        </div>
-      </Field>
-      {attrDefs.filter((d) => isAttributeVisible(model, d, participant)).map((d) => (
-        <Field key={d.ns.name} className={s.field}><AttributeInput attrDef={d} /></Field>
-      ))}
-    </InspectorContext.Provider>
+    <Field className={s.field}>
+      <Label className={s.label}>
+        {t('participantKind')}
+        <HelpTooltip name="participantKind" description={KIND_HELP} />
+      </Label>
+      <div data-testid="participant-kind">
+        <PlainEnumSelect
+          name="participant:kind"
+          ariaLabel="Actor kind"
+          value={participantKind(model, element)?.id ?? ''}
+          literalValues={kinds}
+          onCommit={(next) => executeCommand(modeler, { type: 'UpdateParticipantKind', element, kind: next })}
+        />
+      </div>
+    </Field>
   );
 }
 

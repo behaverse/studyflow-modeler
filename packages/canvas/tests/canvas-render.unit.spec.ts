@@ -859,6 +859,41 @@ Process_Closed:
       isExpanded: false
 `;
 
+/** A pool drawn closed beside one drawn open: BPMN's black box, a strip with the name across it. */
+const CLOSED_POOL_YAML = `id: Defs_Closed
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Pool_Session:
+      name: Session
+      processRef: P
+      bounds: 40 40 600 200
+    Model:
+      name: Model
+      participantMultiplicity:
+        maximum: 3
+      bounds: 40 280 600 60
+      isExpanded: false
+P:
+  type: Process
+`;
+
+test('a pool drawn closed is a black box: its frame alone, no title band, the name across the middle, the multiplicity at the foot', () => {
+  const { canvas } = loadYaml(CLOSED_POOL_YAML);
+  expect(graphicsOf(canvas, 'Pool_Session')!.querySelector('line'), 'an open pool draws the band its name runs up').not.toBeNull();
+  expect(graphicsOf(canvas, 'Model')!.querySelector('line'), 'a closed one has no band').toBeNull();
+  const name = textAt(canvas, 'Model', 'Model');
+  expect(name.getAttribute('transform'), 'the name is not turned up a band').toBeNull();
+  expect(Number(name.getAttribute('x'))).toBeCloseTo(node(canvas, 'Model').width / 2, 6);
+  expect(name.getAttribute('text-anchor')).toBe('middle');
+  expect(textsOf(canvas, 'Model')).toContain('×3');
+  // Nothing goes in: a closed pool is hit as a whole, and a step dropped on it is refused.
+  expect(hitAt(canvas, { x: 340, y: 310 })?.id).toBe('Model');
+  expect(canvas.study.add({ type: 'bpmn:Task', at: { x: 340, y: 310 } })).toMatchObject({ ok: false, reason: "a bpmn:Task cannot go into 'Model'" });
+});
+
 test('an association to a step inside a closed sub-process is drawn to the sub-process, once each way, while it is closed', async () => {
   const { canvas } = loadYaml(CLOSED_YAML);
   const drawn = ['Battery -> Trials', 'Settings -> Battery'];

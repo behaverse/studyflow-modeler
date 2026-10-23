@@ -7,6 +7,8 @@ import { idsIn } from '@canvas/study/elements.ts';
 
 export const COLLAPSED_SIZE = { width: 100, height: 80 } as const;
 export const EXPANDED_SIZE = { width: 350, height: 200 } as const;
+/** How low a pool drawn closed is, BPMN's black box: a strip with its name across it. */
+export const COLLAPSED_POOL_HEIGHT = 60;
 /** Inset of a container's contents inside its frame; the top leaves room for the name. */
 export const CONTENT_PADDING = { top: 40, right: 30, bottom: 30, left: 30 } as const;
 

@@ -295,6 +295,32 @@ P2:
   expect(middle(study, 'Wait').x).toBe(middle(study, 'Prepare').x);
 });
 
+test('a pool drawn closed, a black box, lays out as a strip under the others, as wide as they are', () => {
+  const study = open(`id: Defs_Closed
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Collab:
+  type: Collaboration
+  participants:
+    Session:
+      processRef: P
+      bounds: 0 0 600 150
+    Model:
+      bounds: 700 0 200 100
+      isExpanded: false
+P:
+  type: Process
+  flowElements:
+    Ask:
+      type: Task
+      bounds: 120 35 100 80
+`);
+  study.layout();
+  const [session, model] = ['Session', 'Model'].map((id) => box(study, id));
+  expect(model).toMatchObject({ x: session.x, width: session.width, height: 60 });
+  expect(model.y).toBeGreaterThan(bottom(session));
+});
+
 test('a shape much wider than most spans the layers it covers: what another pool does meanwhile stands under it', () => {
   const study = open(`id: Defs_Wide
 definitions:

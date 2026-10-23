@@ -27,7 +27,7 @@ import {
 import { IdGenerator } from '@canvas/study/ids.ts';
 import { syncLabel } from '@canvas/study/labels.ts';
 import { addRef, dropRef, idsIn, listOf, mint, refOf, setRef } from '@canvas/study/elements.ts';
-import { mintTyped } from '@canvas/study/prototype.ts';
+import { defaultSizeFor, mintTyped } from '@canvas/study/prototype.ts';
 import { deleteElements as removeFromScene, type DeleteResult } from '@canvas/study/remove.ts';
 import type {
   Bounds,
@@ -44,6 +44,7 @@ import { isRootElement } from '@canvas/study/scene.ts';
 import { changeRoot } from '@canvas/study/root.ts';
 import {
   boundsOf,
+  COLLAPSED_POOL_HEIGHT,
   COLLAPSED_SIZE,
   CONTENT_PADDING,
   contentsOf,
@@ -228,6 +229,7 @@ export interface AddShapeSpec {
   attrs?: Record<string, unknown>;
   extensionType?: string;
   parent?: SceneNode;
+  /** A container drawn open or closed; a pool drawn closed is BPMN's black box, and depicts no process. */
   isExpanded?: boolean;
   /** Host activity for a boundary event. */
   attachTo?: SceneNode;
@@ -363,6 +365,7 @@ export class Mutator {
    * Incident and crossing edges re-dock to the new outline.
    */
   setExpanded(node: SceneNode, expanded: boolean): { changed: SceneElement[]; contents: SceneElement[] } {
+    if (node.type === 'bpmn:Participant') return this.setPoolExpanded(node, expanded);
     if (!isExpandable(node.type) || (node.isExpanded !== false) === expanded) return { changed: [], contents: [] };
     node.isExpanded = expanded;
     const contents = contentsOf(node);
@@ -390,6 +393,37 @@ export class Mutator {
     // The contents change too: they are shown or hidden, and may have moved into the frame.
     this.finish([...changed, ...contents]);
     return { changed, contents };
+  }
+
+  /**
+   * A pool drawn open holds its actor's flow, so it is given a process when it depicts none and grows to a pool's
+   * size; drawn closed it is BPMN's black box, a strip for its name, and an empty process goes with it (study/actors.ts
+   * keeps every actor drawn one way or the other). Incident flows re-dock to the new outline.
+   */
+  private setPoolExpanded(node: SceneNode, expanded: boolean): { changed: SceneElement[]; contents: SceneElement[] } {
+    if ((node.isExpanded !== false) === expanded) return { changed: [], contents: [] };
+    node.isExpanded = expanded;
+    if (expanded) this.processOf(node.element);
+    else this.releaseEmptyProcess(node.element);
+    const size = defaultSizeFor('bpmn:Participant');
+    const bounds = expanded
+      ? { x: node.x, y: node.y, width: Math.max(node.width, size.width), height: size.height }
+      : { x: node.x, y: node.y, width: node.width, height: COLLAPSED_POOL_HEIGHT };
+    const edges = [...new Set([...this.applyBounds(node, bounds), ...redockToOutline(node)])];
+    const changed: SceneElement[] = [node, ...edges];
+    this.finish(changed);
+    return { changed, contents: [] };
+  }
+
+  /** Stop `pool` depicting its process when that holds nothing; the process goes too unless another pool depicts it. */
+  private releaseEmptyProcess(pool: Element): void {
+    const { model } = this.scene;
+    const process = refOf(model, pool, 'processRef');
+    if (!process || process === this.scene.root) return;
+    if (['flowElements', 'laneSets', 'artifacts', 'properties'].some((key) => listOf(process, key).length > 0)) return;
+    delete pool.processRef;
+    const depicted = [...model.all()].some((other) => model.host(other) === 'bpmn:Participant' && idsIn(other.processRef)[0] === process.id);
+    if (!depicted) model.unfile(process);
   }
 
   // --- names and choreography bands -------------------------------------------
@@ -586,8 +620,9 @@ export class Mutator {
       : undefined;
     const bounds = promotion?.bounds ?? spec.bounds;
 
+    // An element the study files already (an actor a band declared) stays where it is; a pool drawn closed depicts no process.
     const { owner, lane } = this.holderFor(parentNode);
-    this.fileElement(element, type, { owner, lane });
+    if (!scene.model.holderOf(element)) this.fileElement(element, type, { owner, lane }, spec.isExpanded === false);
     if (lane && isBpmnSubtypeOf(type, 'bpmn:FlowNode')) addRef(lane, 'flowNodeRef', element);
 
     const node: SceneNode = {
@@ -766,13 +801,13 @@ export class Mutator {
 
   // --- filing -------------------------------------------------------------------
 
-  private fileElement(element: Element, type: string, { owner, lane }: FlowContainer): void {
+  private fileElement(element: Element, type: string, { owner, lane }: FlowContainer, blackBox = false): void {
     const { model } = this.scene;
     if (type === 'bpmn:Lane') {
       model.file(element, this.laneSetIn(lane ?? owner), 'lanes');
       return;
     }
-    if (type === 'bpmn:Participant') this.processOf(element);
+    if (type === 'bpmn:Participant' && !blackBox) this.processOf(element);
     model.file(element, owner, containmentPropertyFor(type));
   }
 
@@ -795,22 +830,24 @@ export class Mutator {
   }
 
   /**
-   * Turn a process root into a collaboration so a pool can hold it: the collaboration
-   * becomes the root and takes the study over (`study/root.ts`), the process stays a
-   * root element under a fresh id, and the new pool depicts it and adopts what is
-   * drawn. Deleting the last pool undoes it (`study/remove.ts`).
+   * Turn a process root into a collaboration so a pool can hold it: the collaboration (the one holding the study's
+   * actors, when a band declared some before any pool was drawn, else a new one) becomes the root and takes the study
+   * over (`study/root.ts`), the process stays a root element under a fresh id, and the new pool depicts it and adopts
+   * what is drawn of its flow; a pool drawn beside it (an actor's) stays at the top level. Deleting the last pool
+   * undoes it (`study/remove.ts`).
    */
   private promoteRootToCollaboration(participant: Element, dropped: Bounds): { bounds: Bounds; adopt: Drawable[] } | undefined {
     const scene = this.scene;
     const { model } = scene;
     const process = scene.root;
     if (model.host(process) !== 'bpmn:Process') return undefined;
-    const collaboration = mint('bpmn:Collaboration');
-    model.file(collaboration, undefined);
+    const held = model.study.roots.find((root) => model.host(root) === 'bpmn:Collaboration');
+    const collaboration = held ?? mint('bpmn:Collaboration');
+    if (!held) model.file(collaboration, undefined);
     // The pool names the process by the id it has once the collaboration takes the study's.
     changeRoot(scene, process, collaboration, this.ids);
     setRef(model, participant, 'processRef', process);
-    const adopt = scene.children.filter((child): child is Drawable => child.kind !== 'label');
+    const adopt = scene.children.filter((child): child is Drawable => child.kind !== 'label' && !(child.kind === 'node' && child.type === 'bpmn:Participant'));
     return { bounds: participantBoundsAround(dropped, adopt), adopt };
   }
 

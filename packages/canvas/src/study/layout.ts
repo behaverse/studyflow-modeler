@@ -28,7 +28,8 @@ import { isBpmnSubtypeOf } from '@core/notation/bpmn.ts';
 import { idsIn } from '@canvas/study/elements.ts';
 import type { Bounds, Point, RootElement, Scene, SceneElement, SceneNode } from '@canvas/study/scene.ts';
 import { isRootElement } from '@canvas/study/scene.ts';
-import { hostOf, isCollapsed, isDescendantOf, isExpanded } from '@canvas/study/tree.ts';
+import { boundsOf, COLLAPSED_POOL_HEIGHT, hostOf, isCollapsed, isDescendantOf, isExpanded } from '@canvas/study/tree.ts';
+import { defaultSizeFor } from '@canvas/study/prototype.ts';
 
 /** Room between layers and between rows, round what a container holds, between pools and round a group's shapes. */
 const GAP_X = 60;
@@ -74,6 +75,24 @@ interface Laid {
   width: number;
   height: number;
   place(x: number, y: number): void;
+}
+
+/**
+ * Where a pool drawn closed goes when nothing places it (an actor a band names, study/actors.ts): under everything at
+ * the top level, a pool's gap below, from the left edge of the pools there to their right edge, else as wide as a new
+ * pool.
+ */
+export function collapsedPoolBelow(scene: Scene): Bounds {
+  const top = scene.rootElement.children.filter((child) => child.kind !== 'label');
+  const all = boundsOf(top);
+  const span = boundsOf(top.filter((child) => child.kind === 'node' && child.type === 'bpmn:Participant')) ?? all;
+  const { width } = defaultSizeFor('bpmn:Participant');
+  return {
+    x: span?.x ?? 100,
+    y: all ? all.y + all.height + POOL_GAP : 100,
+    width: span ? Math.max(span.width, width) : width,
+    height: COLLAPSED_POOL_HEIGHT,
+  };
 }
 
 /**
@@ -211,7 +230,7 @@ function layoutFlow(holders: readonly Container[], reach: (node: SceneNode) => R
     const parts = [rowsHeight, dataHeight, keptBox?.height ?? 0].filter((height) => height > 0);
     const content = parts.reduce((sum, height) => sum + height + GAP_Y, -GAP_Y);
     const pad = framed(b) ? PAD : 0;
-    const least = b.lane || isPool(b.holder) ? EMPTY_BAND : 0;
+    const least = b.lane ? EMPTY_BAND : isPool(b.holder) ? (isCollapsedPool(b.holder) ? COLLAPSED_POOL_HEIGHT : EMPTY_BAND) : 0;
     const height = parts.length > 0 ? Math.max(least, pad + content + pad) : least;
     const dataWidth = Math.max(0, ...dataRooms.map((room, i) => dataAt[i] + room.width));
     return { members, line, rowsHeight, dataRow, dataRooms, dataAt, dataHeight, keep, keptBox, pad, height, width: Math.max(dataWidth, keptBox?.width ?? 0) };
@@ -716,6 +735,11 @@ function isLane(element: SceneElement): element is SceneNode {
 
 function isPool(container: Container): boolean {
   return !isRootElement(container) && container.type === 'bpmn:Participant';
+}
+
+/** A pool drawn closed, BPMN's black box: a strip for its name, nothing laid out inside. */
+function isCollapsedPool(container: Container): boolean {
+  return isPool(container) && (container as SceneNode).isExpanded === false;
 }
 
 // --- geometry -------------------------------------------------------------------
