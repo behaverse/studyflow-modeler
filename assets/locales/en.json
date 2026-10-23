@@ -145,13 +145,13 @@
   "scope": "Scope",
   "backend": "Backend",
   "maxItems": "Max items",
-  "participant": "Participant",
-  "participantTop": "Participant (top)",
-  "participantBottom": "Participant (bottom)",
+  "participant": "Taken by",
+  "participantTop": "Top band",
+  "participantBottom": "Bottom band",
   "participantNone": "None",
   "participantFromPool": "the pool it sits in",
   "participantKind": "Kind",
-  "initiatingParticipant": "Initiating participant",
+  "initiatingParticipant": "Initiator",
   "messageRef": "Message",
   "kindUntyped": "Untyped"
 }

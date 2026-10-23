@@ -27,11 +27,11 @@ import { HelpTooltip } from '@modeler/inspector/widgets';
 import { PlainEnumSelect } from '@modeler/inspector/inputs';
 import { field as s } from '@modeler/inspector/styles';
 
-const TOP_HELP = 'Who takes the top band';
-const BOTTOM_HELP = 'Who takes the bottom band';
-const TAKER_HELP = 'Who takes this task: a drawn pool, or an actor declared for it. Empty, the pool the task sits in takes it.';
-const INITIATOR_HELP = 'Which participant starts the interaction; its band is drawn light, the other shaded.';
-const KIND_HELP = 'What takes this band, among the kinds the loaded extensions declare; the settings of that kind follow.';
+const TOP_HELP = 'The actor on the top band';
+const BOTTOM_HELP = 'The actor on the bottom band';
+const TAKER_HELP = 'The actor who takes this task: a drawn pool, or one named only here. Empty, whoever walks the pool the task sits in takes it.';
+const INITIATOR_HELP = 'Which band starts the exchange; it is drawn light, the other shaded.';
+const KIND_HELP = 'What kind of actor takes this band, among the kinds the loaded extensions declare; the settings of that kind follow.';
 
 export function ChoreographyParticipantsSection({ element }: { element: any }) {
   const model = useInspectedModel();
@@ -86,7 +86,7 @@ function ParticipantField({ element, field, participant, label, help, declared, 
           >
             <ComboboxInput
               name={`choreography:${field}`}
-              aria-label={`${field} participant`}
+              aria-label={`${field} band`}
               className={s.comboInput}
               placeholder={typed ? t('participantFromPool') : undefined}
               displayValue={() => name}
@@ -94,7 +94,7 @@ function ParticipantField({ element, field, participant, label, help, declared, 
               onKeyDown={(e) => { if (e.key === 'Enter') { setQuery(''); commitText(e.currentTarget.value); } }}
               onBlur={(e) => { setQuery(''); commitText(e.currentTarget.value); }}
             />
-            <ComboboxButton className={s.comboChevronBtn} aria-label={`${field} participant choices`}>
+            <ComboboxButton className={s.comboChevronBtn} aria-label={`${field} band choices`}>
               <i className={s.comboChevronIcon} aria-hidden="true"></i>
             </ComboboxButton>
             <ComboboxOptions anchor="bottom start" className={s.comboOptions}>
@@ -142,7 +142,7 @@ function ActorFields({ element, field, participant, kind }: {
         <div data-testid={`choreography-${field}-kind`}>
           <PlainEnumSelect
             name={`choreography:${field}-kind`}
-            ariaLabel={`${field} participant kind`}
+            ariaLabel={`${field} band kind`}
             value={kind?.id ?? ''}
             literalValues={kinds}
             onCommit={(next) => executeCommand(modeler, { type: 'UpdateParticipantKind', element, participant, kind: next })}
@@ -182,7 +182,7 @@ function ParticipantFields({ element }: { element: any }) {
         </Label>
         <div className={s.selectWrapper}>
           <Listbox value={bands.initiator} onChange={commitInitiator}>
-            <ListboxButton aria-label="Initiating participant" className={s.listboxBtn}>
+            <ListboxButton aria-label="Initiator" className={s.listboxBtn}>
               {bands.initiator === 'top' ? bands.top : bands.bottom}
             </ListboxButton>
             <span className={s.comboChevronIndicator} aria-hidden="true">

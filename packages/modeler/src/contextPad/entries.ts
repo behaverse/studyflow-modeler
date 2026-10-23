@@ -90,7 +90,7 @@ export function contextPadEntries(context: ContextPadContext): ContextPadEntry[]
   if (single && context.isConnection) entries.push({ action: 'flow.reroute', title: 'Re-route', icon: 'reroute' });
   if (shape && context.canConnect) entries.push({ action: 'connect', title: 'Connect to other element', icon: 'connect' });
   if (single && context.isChoreographyTask) {
-    entries.push({ action: 'choreography.swap-initiator', title: 'Switch initiating participant', icon: 'swap' });
+    entries.push({ action: 'choreography.swap-initiator', title: 'Switch initiator', icon: 'swap' });
   }
   if (shape && context.isExpandable) {
     entries.push({ action: 'expand.toggle', title: context.isExpanded ? 'Collapse' : 'Expand', icon: 'subprocess' });

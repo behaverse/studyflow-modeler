@@ -194,7 +194,7 @@ const TOOLS = [
     id: ID,
     structure: { type: 'string' },
   }, ['id', 'structure'], write(false, true)),
-  tool('bands', "Say who takes a choreography task's two bands, and which starts the exchange. A band takes a participant the study declares, by id (`{ participant: Robot }`), or a name its participant takes (`{ name: Experimenter }`; a typed task's drawn pool keeps its own, and a new actor of that name takes the band), or none (null). `kinds` types the actor on a band as one of the kinds the schemas declare (`''` for none). Participants the task lacks are made.", {
+  tool('bands', "Say who takes a choreography task's two bands, and which starts the exchange. A band takes an actor the study declares, a `bpmn:Participant`, by id (`{ participant: Robot }`), or a name its actor takes (`{ name: Experimenter }`; a typed task's drawn pool keeps its own, and a new actor of that name takes the band), or none (null). `kinds` types the actor on a band as one of the kinds the schemas declare (`''` for none). Actors the task lacks are made.", {
     id: ID,
     top: BAND,
     bottom: BAND,

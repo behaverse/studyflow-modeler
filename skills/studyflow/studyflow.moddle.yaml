@@ -113,7 +113,7 @@ enumerations:
         description: The conversation, as `conversation` keeps it, cut to the instructions (the prompts a step sends once) and the last `memoryWindow` exchanges.
   # Coarse on purpose: a skill adds the kinds it knows with `extends: studyflow:ActorTypeEnum` (agentic adds `llm`).
   - name: ActorTypeEnum
-    description: What a participant pool stands for.
+    description: What kind of actor a pool is.
     literalValues:
       - name: Human
         value: human
@@ -431,7 +431,7 @@ types:
           categories:
             - Execution
   - name: ChoreographyTask
-    description: One interaction between two participants.
+    description: One exchange between two actors, one on each band.
     extends:
       - bpmn:ChoreographyTask
     isAbstract: true
@@ -468,7 +468,7 @@ types:
           pinned: true
 
   - name: Actor
-    description: 'A pool of actors: who or what takes part in the study.'
+    description: 'One actor, who or what takes part in the study: a person, a program, or a device, drawn as a pool or named on a band.'
     superClass:
       - bpmn:Participant
     meta:
@@ -477,7 +477,7 @@ types:
       participantKind: actorType
     properties:
       - name: actorType
-        description: Kind of actor this pool represents.
+        description: What kind of actor this is.
         isAttr: true
         type: ActorTypeEnum
         default: human
@@ -490,7 +490,7 @@ types:
             actorType:
               $not: human
       - name: memory
-        description: What a pool with no process remembers between the messages it is sent, when a runner plays it (a model). `none`, each message on its own. `conversation`, the earlier messages from the same instance of the pool that asks, with its answers to them, so a model answering one subject sees that subject's earlier trials and no other subject's. `window`, that conversation cut to the instructions and the last `memoryWindow` exchanges, so what it is sent stays the same size however long the session.
+        description: What a pool with no process remembers between the messages it is sent, when a runner plays it (a model). `none`, each message on its own. `conversation`, the earlier messages from the same instance of the pool that asks, with its answers to them, so a model answering one participant sees that participant's earlier trials and no other's. `window`, that conversation cut to the instructions and the last `memoryWindow` exchanges, so what it is sent stays the same size however long the session.
         isAttr: true
         type: MemoryEnum
         default: none

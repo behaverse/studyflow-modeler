@@ -96,8 +96,8 @@ test('a double click edits the band under it, or the name between them, one undo
     return initial;
   };
 
-  expect(edit(task.y + band / 2, 'Subject'), 'the top band').toBe('Participant A');
-  expect(edit(task.y + task.height - band / 2, 'Experimenter'), 'the bottom band').toBe('Participant B');
+  expect(edit(task.y + band / 2, 'Subject'), 'the top band').toBe('Actor A');
+  expect(edit(task.y + task.height - band / 2, 'Experimenter'), 'the bottom band').toBe('Actor B');
   expect(edit(centre(task).y, 'Give consent'), 'the name').toBe('');
   expect(labelEditingOf(canvas).isActive()).toBe(false);
   expect(installDocument().activeElement).toBe(svgOf(canvas));

@@ -10,8 +10,8 @@ import type { Ids } from '@core/model/items';
 import { wiredIn } from '@core/model/parameters';
 import { foldTyped, isHeadlessCollaboration } from '@core/model/yaml';
 
-export const DEFAULT_TOP = 'Participant A';
-export const DEFAULT_BOTTOM = 'Participant B';
+export const DEFAULT_TOP = 'Actor A';
+export const DEFAULT_BOTTOM = 'Actor B';
 const DEFAULT_PRESENTER = 'Task software';
 
 /** A typed choreography task presents itself; its one participant reference is the actor. */

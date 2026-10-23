@@ -19,8 +19,8 @@ test('a choreography task names its two participants; a cognitive task names who
   const banded = page.locator('[data-element-id^="ChoreographyTask_"]').first();
   const topInput = inspector.locator('input[name="choreography:top"]');
   const bottomInput = inspector.locator('input[name="choreography:bottom"]');
-  await expect(topInput).toHaveValue('Participant A');
-  await expect(bottomInput).toHaveValue('Participant B');
+  await expect(topInput).toHaveValue('Actor A');
+  await expect(bottomInput).toHaveValue('Actor B');
   await topInput.fill('Learner');
   await topInput.press('Enter'); // the field is an editable select: text commits on Enter or blur
   await expect(banded).toContainText('Learner');
@@ -36,13 +36,13 @@ test('a choreography task names its two participants; a cognitive task names who
   await shape.click();
   const taker = inspector.locator('input[name="choreography:bottom"]');
   await expect(taker).toHaveValue('');
-  await inspector.locator('button[aria-label="bottom participant choices"]').click();
+  await inspector.locator('button[aria-label="bottom band choices"]').click();
   await page.getByRole('option', { name: /Model, gemma4 on Ollama/ }).click();
   await expect(taker).toHaveValue('Model, gemma4 on Ollama');
   await expect(shape).toContainText('Behaverse');
   // The presenting side is the task itself: no top band, no initiator to pick; the kind is the pool's.
   await expect(inspector.locator('input[name="choreography:top"]')).toHaveCount(0);
-  await expect(inspector.getByRole('button', { name: /initiating participant/i })).toHaveCount(0);
+  await expect(inspector.getByRole('button', { name: /initiator/i })).toHaveCount(0);
   await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/language model/i);
 
   // Typing a new name makes an actor for this task; untyped, it reads as such.
@@ -52,7 +52,7 @@ test('a choreography task names its two participants; a cognitive task names who
   await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/untyped/i);
 
   // A band-only actor has no shape to select: its kind and that kind's settings are set here and reach the file.
-  await inspector.getByRole('button', { name: /bottom participant kind/i }).click();
+  await inspector.getByRole('button', { name: /bottom band kind/i }).click();
   await page.getByRole('option', { name: /^Software$/i }).click();
   await expect(inspector.getByTestId('choreography-bottom-kind')).toContainText(/software/i);
   const identifier = inspector.locator('input[name="studyflow:implementation"]');
@@ -63,14 +63,14 @@ test('a choreography task names its two participants; a cognitive task names who
   expect(studyflowText).toContain('implementation: python://lab.bots.random');
 
   // None clears the band: the task draws plain and the pool it sits in takes it.
-  await inspector.locator('button[aria-label="bottom participant choices"]').click();
+  await inspector.locator('button[aria-label="bottom band choices"]').click();
   await page.getByRole('option', { name: /^None$/i }).click();
   await expect(taker).toHaveValue('');
   await expect(shape).not.toContainText('Subject');
   await expect(shape).not.toContainText('Behaverse');
 
   // And back to the pool from the dropdown; the actor no band names any more has left the file.
-  await inspector.locator('button[aria-label="bottom participant choices"]').click();
+  await inspector.locator('button[aria-label="bottom band choices"]').click();
   await page.getByRole('option', { name: /Model, gemma4 on Ollama/ }).click();
   await expect(taker).toHaveValue('Model, gemma4 on Ollama');
   await expect(shape).toContainText('Behaverse');

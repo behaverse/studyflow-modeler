@@ -1,6 +1,6 @@
 ---
 name: agentic
-description: "Models as actors: a language model as a participant the study's steps ask along message flows, prompts kept as data, and the runner that plays a model's pool. Use when a study asks a model, or evaluates one."
+description: "Models as actors: a language model as an actor the study's steps ask along message flows, prompts kept as data, and the runner that plays a model's pool. Use when a study asks a model, or evaluates one."
 license: MIT
 compatibility: "Local runtime with uv; Ollama on this machine for ollama:// models, ANTHROPIC_API_KEY for claude:// ones."
 metadata:
