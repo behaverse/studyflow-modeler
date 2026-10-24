@@ -194,9 +194,8 @@ Kitchen_Sink:
         cognitive:Rest: {}
 
     Cg_Questionnaire:
-      type: Task
+      type: ChoreographyTask
       name: Questionnaire
-      exchange: true
       extensions:
         cognitive:Questionnaire:
           instrument: phq-9

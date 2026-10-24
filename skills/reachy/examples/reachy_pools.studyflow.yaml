@@ -370,9 +370,8 @@ WhichOne_Task:
       message: true
 
     Play:
-      type: Task
+      type: ChoreographyTask
       name: WhichOne, 5 Simon trials
-      exchange: true
       extensions:
         behaverse:Task:
           instrument: WO

@@ -36,12 +36,6 @@ export type YamlDoc = Record<string, unknown>;
 
 const DOCUMENTATION = 'bpmn:Documentation';
 const STUDY = 'studyflow:Study';
-/** Where a choreography task is BPMN's own; anywhere else (a process, a sub-process) the file writes it as a task. */
-const CHOREOGRAPHIES = new Set(['bpmn:Choreography', 'bpmn:SubChoreography']);
-const CHOREOGRAPHY_TASK = 'bpmn:ChoreographyTask';
-const TASK = 'bpmn:Task';
-/** The core's attributes a task drawn as an exchange carries, its mark and its bands. */
-const EXCHANGE_KEYS = new Set(['exchange', 'participants', 'initiator']);
 const RUN_RECORD = 'prov:Activity';
 /** The target namespace BPMN requires of every document, which a file leaves out unless it names another. */
 const TARGET_NAMESPACE = 'http://bpmn.io/schema/bpmn';
@@ -98,18 +92,6 @@ export function foldTyped(metamodel: Metamodel, element: Element): Element {
 }
 
 /* --- reading --- */
-
-/** A task the file marks as an exchange, as the choreography task the study model holds, its bands and its initiator
- * the choreography task's own. */
-function exchangeOf(raw: Record<string, unknown>): Record<string, unknown> {
-  const core = (name: string): unknown => raw[name] ?? raw[`studyflow:${name}`];
-  if (core('exchange') !== true || typeof raw.type !== 'string' || longTypeName(raw.type) !== TASK) return raw;
-  const out = Object.fromEntries(Object.entries(raw).filter(([key]) => !EXCHANGE_KEYS.has(key.replace(/^studyflow:/, ''))));
-  out.type = CHOREOGRAPHY_TASK;
-  if (core('participants') !== undefined) out.participantRef = core('participants');
-  if (core('initiator') !== undefined) out.initiatingParticipantRef = core('initiator');
-  return out;
-}
 
 /** The definition an event's `key` names, when it is the key of a kind: its id the event's with `_Def`, unless the
  * mapping names another; `true` holding nothing; a value the kind's main attribute. */
@@ -173,7 +155,7 @@ class Reader {
 
   /** `raw`, a file's node, where `declared` is expected. */
   element(raw: Record<string, unknown>, declared: string | undefined): Element {
-    let node = exchangeOf(raw);
+    let node = raw;
     let type: string;
     let typed: string | undefined;
     const spelled = typeof node.type === 'string' ? node.type : undefined;
@@ -602,9 +584,10 @@ class Writer {
 
 /**
  * An element the {@link Writer} keeps, in the file's spelling (docs/reference.qmd, "The file"). It is written as BPMN
- * holds it: a schema's typed element as its BPMN type with an entry of the schema's type, a choreography task in a
- * process as the task the BPMN XML writes, marked an exchange. Each key is its file name ({@link fileKey}), a reference
- * `$id`, its entries under `extensions`, each under its prefixed type, an event's one definition and an activity's
+ * holds it: a schema's typed element as its BPMN type with an entry of the schema's type (a choreography task in a
+ * process keeps its type and its bands; the BPMN XML alone writes it as a task marked an exchange, `@core/document`).
+ * Each key is its file name ({@link fileKey}), a reference `$id`, its entries under `extensions`, each under its
+ * prefixed type, an event's one definition and an activity's
  * marker under their kinds, an edge's two ends as two keys. Its type is left out where the key holding it says it, then
  * come its name, its attributes, its `extensions`, its documentation, and last the lists of elements it holds, keyed by id.
  */
@@ -615,10 +598,10 @@ class Speller {
     this.metamodel = metamodel;
   }
 
-  /** `element` where a `declared` element is expected, inside a `container` element of that type; an `entry` among an
-   * element's extension entries, which is no BPMN element, as it is. */
-  element(element: Element, declared: string | undefined, container?: string, entry = false): Record<string, unknown> {
-    const el = entry ? element : this.asBpmn(element, container);
+  /** `element` where a `declared` element is expected; an `entry` among an element's extension entries, which is no
+   * BPMN element, as it is. */
+  element(element: Element, declared: string | undefined, entry = false): Record<string, unknown> {
+    const el = entry ? element : this.asBpmn(element);
     const type = el.type;
     const own = this.metamodel.has(type) ? this.metamodel.descriptor(type).propertiesByName : undefined;
     const head: Record<string, unknown> = {};
@@ -645,31 +628,21 @@ class Speller {
   }
 
   /** `element` as BPMN holds it: a schema's typed element as its BPMN type, an entry of the schema's type first among
-   * its entries; a choreography task outside a choreography as the task the BPMN XML writes, marked an exchange, its
-   * bands and its initiator as the core's attributes. */
-  private asBpmn(element: Element, container: string | undefined): Element {
-    let el = element;
-    const host = hostOf(this.metamodel, el.type);
-    if (host !== el.type && this.metamodel.has(el.type)) {
-      const hostOwn = this.metamodel.descriptor(host).propertiesByName;
-      const typedOwn = this.metamodel.descriptor(el.type).propertiesByName;
-      const bpmn: Element = { type: host };
-      const entry: Element = { type: el.type };
-      for (const [key, value] of Object.entries(el)) {
-        if (key === 'type') continue;
-        if (!hostOwn[key] && typedOwn[key]) entry[key] = value;
-        else bpmn[key] = value;
-      }
-      bpmn.extensionElements = [entry, ...(Array.isArray(el.extensionElements) ? el.extensionElements : [])];
-      el = bpmn;
+   * its entries. */
+  private asBpmn(element: Element): Element {
+    const host = hostOf(this.metamodel, element.type);
+    if (host === element.type || !this.metamodel.has(element.type)) return element;
+    const hostOwn = this.metamodel.descriptor(host).propertiesByName;
+    const typedOwn = this.metamodel.descriptor(element.type).propertiesByName;
+    const bpmn: Element = { type: host };
+    const entry: Element = { type: element.type };
+    for (const [key, value] of Object.entries(element)) {
+      if (key === 'type') continue;
+      if (!hostOwn[key] && typedOwn[key]) entry[key] = value;
+      else bpmn[key] = value;
     }
-    if (el.type === CHOREOGRAPHY_TASK && container !== undefined && !CHOREOGRAPHIES.has(container)) {
-      const { participantRef, initiatingParticipantRef, ...rest } = el;
-      el = { ...rest, type: TASK, exchange: true };
-      if (participantRef !== undefined) el.participants = participantRef;
-      if (initiatingParticipantRef !== undefined) el.initiator = initiatingParticipantRef;
-    }
-    return el;
+    bpmn.extensionElements = [entry, ...(Array.isArray(element.extensionElements) ? element.extensionElements : [])];
+    return bpmn;
   }
 
   /** `value`, `element`'s property `p`, under its file key in `out`. */
@@ -677,9 +650,9 @@ class Speller {
     const key = fileKey(this.metamodel, type, p.ns.localName);
     if (isRefLike(this.metamodel, p)) out[key] = refValue(value);
     else if (isListOfElements(p, value)) {
-      const items = (value as Value[]).map((item) => this.value(item, p.type, type));
+      const items = (value as Value[]).map((item) => this.value(item, p.type));
       out[key] = keyItemsById(items) ?? items;
-    } else out[key] = this.value(value, p.type, type);
+    } else out[key] = this.value(value, p.type);
   }
 
   /** An event's one definition, or an activity's marker, under the key of its kind in `out`; whether it was one. */
@@ -713,12 +686,12 @@ class Speller {
     const types = values.map((value) => (isElement(value) ? value.type : undefined));
     const runs = types.filter((type, index) => index === 0 || types[index - 1] !== type);
     if (types.some((type) => type === undefined) || new Set(runs).size !== runs.length) {
-      return values.map((value) => (isElement(value) ? this.element(value, undefined, undefined, true) : value));
+      return values.map((value) => (isElement(value) ? this.element(value, undefined, true) : value));
     }
     const out: Record<string, unknown> = {};
     values.forEach((value, index) => {
       const type = types[index]!;
-      const body = this.element(value as Element, type, undefined, true);
+      const body = this.element(value as Element, type, true);
       if (type === RUN_RECORD) ((out[type] ??= []) as unknown[]).push(body);
       else if (!(type in out)) out[type] = body;
       else out[type] = [...(Array.isArray(out[type]) ? out[type] as unknown[] : [out[type]]), body];
@@ -731,12 +704,12 @@ class Speller {
     return list.map((item) => (typeof item === 'string' ? { text: item } : this.value(item, DOCUMENTATION)));
   }
 
-  private value(value: Value, declared: string | undefined, container?: string): unknown {
+  private value(value: Value, declared: string | undefined): unknown {
     if (Array.isArray(value)) {
       const list = declared && elementList(this.metamodel, declared);
-      return list ? value.map((item) => this.value(item, list.type, container)) : value.map((item) => (isElement(item) ? this.element(item, declared, container) : item));
+      return list ? value.map((item) => this.value(item, list.type)) : value.map((item) => (isElement(item) ? this.element(item, declared) : item));
     }
-    if (isElement(value)) return this.element(value, declared, container);
+    if (isElement(value)) return this.element(value, declared);
     return value;
   }
 }

@@ -75,9 +75,8 @@ Demo5_OllamaBot:
       name: Start
 
     Warmup_1Back:
-      type: Task
+      type: ChoreographyTask
       name: 1-Back warm-up (tired)
-      exchange: true
       extensions:
         behaverse:Task:
           instrument: NB
@@ -152,9 +151,8 @@ Demo5_OllamaBot:
             attention drifts. Never explain; reply with exactly Match or NonMatch.
 
     Main_2Back:
-      type: Task
+      type: ChoreographyTask
       name: 2-Back main (expert)
-      exchange: true
       extensions:
         behaverse:Task:
           instrument: NB

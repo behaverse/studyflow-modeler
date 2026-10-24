@@ -31,31 +31,28 @@ Dyadic_Study:
       name: Both arrive
 
     Consent:
-      type: Task
+      type: ChoreographyTask
       name: Give consent
-      exchange: true
-      participants:
+      participant:
         - $Participant_Subject
         - $Participant_Experimenter
-      initiator: $Participant_Subject
+      initiatingParticipant: $Participant_Subject
 
     Round:
-      type: Task
+      type: ChoreographyTask
       name: First decision round
-      exchange: true
-      participants:
+      participant:
         - $Participant_Subject
         - $Participant_Experimenter
-      initiator: $Participant_Experimenter
+      initiatingParticipant: $Participant_Experimenter
 
     Round2:
-      type: Task
+      type: ChoreographyTask
       name: Second decision round
-      exchange: true
-      participants:
+      participant:
         - $Participant_Subject
         - $Participant_Experimenter
-      initiator: $Participant_Subject
+      initiatingParticipant: $Participant_Subject
 
     End:
       type: EndEvent

@@ -94,9 +94,9 @@ test('a plane naming a collaboration with no pool is pointed at the process on l
   expect(await planeRoot(xml('<bpmn2:participant id="Pool" name="Lab" processRef="Process_1" />'))).toBe('Actors');
 });
 
-test('a choreography task in a process is written as the BPMN task it is, marked, with its bands and data, and reads back', async () => {
+test('a choreography task in a process keeps its type and its bands in the file, and its BPMN XML is the task it is, marked, with its bands and data', async () => {
   // BPMN defines choreography tasks only in a choreography, and gives them no data: a typed one in a process, with an
-  // actor on its bands and a data edge in, is a task.
+  // actor on its bands and a data edge in, is a task in the XML, so the XML stays valid BPMN; the file keeps the type.
   const study = `id: exchange
 schemas:
   cognitive: http://behaverse.org/schemas/studyflow/cognitive
@@ -119,10 +119,9 @@ S:
       type: DataObjectReference
 
     Play:
-      type: Task
+      type: ChoreographyTask
       name: Play
-      exchange: true
-      participants: $Robot
+      participant: $Robot
       extensions:
         cognitive:CognitiveTask:
           platform: jsPsych

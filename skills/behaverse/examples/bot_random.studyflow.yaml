@@ -32,10 +32,9 @@ Demo3_ExternalBot:
       name: Start
 
     Warmup_1Back:
-      type: Task
+      type: ChoreographyTask
       name: 1-Back warm-up
-      exchange: true
-      participants: $Actor_Random_bot
+      participant: $Actor_Random_bot
       extensions:
         behaverse:Task:
           instrument: NB
@@ -94,10 +93,9 @@ Demo3_ExternalBot:
               TrialForeperiod: 0.1
 
     Main_2Back:
-      type: Task
+      type: ChoreographyTask
       name: 2-Back main
-      exchange: true
-      participants: $Actor_Random_bot
+      participant: $Actor_Random_bot
       extensions:
         behaverse:Task:
           instrument: NB

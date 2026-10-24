@@ -22,14 +22,13 @@ CONSORT_2025:
       consentFormUri: https://example.org/protocols/consort2025/consent.pdf
 
     Activity_Screening:
-      type: Task
+      type: ChoreographyTask
       name: Screening assessment
       checklist: |-
         - [ ] Demographic intake
         - [ ] Medical history
         - [ ] Vital signs
         - [ ] Baseline cognitive screen
-      exchange: true
       extensions:
         cognitive:Questionnaire:
           instrument: screening

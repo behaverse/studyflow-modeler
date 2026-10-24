@@ -52,10 +52,9 @@ Agent_Eval_Pool:
       name: Dispatch to agent pool
 
     Agent_Random:
-      type: Task
+      type: ChoreographyTask
       name: Random baseline agent
-      exchange: true
-      participants: $Actor_Random_bot
+      participant: $Actor_Random_bot
       extensions:
         behaverse:Task:
           instrument: NB
@@ -118,10 +117,9 @@ Agent_Eval_Pool:
               TrialForeperiod: 0.1
 
     Agent_Claude:
-      type: Task
+      type: ChoreographyTask
       name: Claude LLM agent
-      exchange: true
-      participants: $Actor_Claude__claude_haiku_4_5
+      participant: $Actor_Claude__claude_haiku_4_5
       extensions:
         behaverse:Task:
           instrument: NB
@@ -202,10 +200,9 @@ Agent_Eval_Pool:
             accuracy. Reply with exactly Match or NonMatch; no explanation.
 
     Agent_Ollama:
-      type: Task
+      type: ChoreographyTask
       name: Ollama LLM agent (local)
-      exchange: true
-      participants: $Actor_Ollama__gemma4_e2b_mlx
+      participant: $Actor_Ollama__gemma4_e2b_mlx
       extensions:
         behaverse:Task:
           instrument: NB

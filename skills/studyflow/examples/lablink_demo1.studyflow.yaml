@@ -50,28 +50,25 @@ LabLink_Demo:
             Press **Continue** when you are ready.
 
     PHQ_9_baseline:
-      type: Task
+      type: ChoreographyTask
       name: PHQ-9
-      exchange: true
       extensions:
         cognitive:Questionnaire:
           instrument: phq-9
 
     GAD_7_baseline:
-      type: Task
+      type: ChoreographyTask
       name: GAD-7
-      exchange: true
       extensions:
         cognitive:Questionnaire:
           instrument: gad-7
 
     Warmup_1Back:
-      type: Task
+      type: ChoreographyTask
       name: |-
         1-Back
         (warm-up)
-      exchange: true
-      participants: $Actor_Random_bot
+      participant: $Actor_Random_bot
       extensions:
         behaverse:Task:
           instrument: NB
@@ -127,12 +124,11 @@ LabLink_Demo:
         cognitive:RandomGateway: {}
 
     Arm_Dual2Back:
-      type: Task
+      type: ChoreographyTask
       name: |-
         2-Back
         (Symbols)
-      exchange: true
-      participants: $Actor_Random_bot
+      participant: $Actor_Random_bot
       extensions:
         behaverse:Task:
           instrument: NB
@@ -169,10 +165,9 @@ LabLink_Demo:
             timeline: XCIT_NB_02
 
     Arm_Demo:
-      type: Task
+      type: ChoreographyTask
       name: 1-Back
-      exchange: true
-      participants: $Actor_Random_bot
+      participant: $Actor_Random_bot
       extensions:
         behaverse:Task:
           instrument: NB
@@ -222,17 +217,15 @@ LabLink_Demo:
                   - name: LabLink_InlineBlock
 
     BDI_II:
-      type: Task
+      type: ChoreographyTask
       name: BDI-II
-      exchange: true
       extensions:
         cognitive:Questionnaire:
           instrument: bdi-ii
 
     PHQ_9_followup:
-      type: Task
+      type: ChoreographyTask
       name: PHQ-9
-      exchange: true
       extensions:
         cognitive:Questionnaire:
           instrument: phq-9

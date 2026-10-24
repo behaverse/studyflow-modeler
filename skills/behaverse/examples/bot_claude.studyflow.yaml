@@ -33,10 +33,9 @@ Demo4_LLMBot:
       name: Start
 
     Warmup_1Back:
-      type: Task
+      type: ChoreographyTask
       name: 1-Back warm-up (tired)
-      exchange: true
-      participants: $Claude
+      participant: $Claude
       extensions:
         behaverse:Task:
           instrument: NB
@@ -112,10 +111,9 @@ Demo4_LLMBot:
             attention drifts. Never explain; reply with exactly Match or NonMatch.
 
     Main_2Back:
-      type: Task
+      type: ChoreographyTask
       name: 2-Back main (expert)
-      exchange: true
-      participants: $Claude
+      participant: $Claude
       extensions:
         behaverse:Task:
           instrument: NB
@@ -196,10 +194,9 @@ Demo4_LLMBot:
             accuracy. Reply with exactly Match or NonMatch; no explanation.
 
     Visual_WhichOne:
-      type: Task
+      type: ChoreographyTask
       name: WhichOne (vision)
-      exchange: true
-      participants: $Claude
+      participant: $Claude
       extensions:
         behaverse:Task:
           instrument: WO

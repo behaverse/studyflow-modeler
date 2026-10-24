@@ -69,9 +69,8 @@ Cognitive_Battery:
           target: $Dataset_Battery
 
     Survey:
-      type: Task
+      type: ChoreographyTask
       name: Post-battery survey
-      exchange: true
       extensions:
         cognitive:Questionnaire:
           instrument: nasa-tlx
