@@ -5,10 +5,11 @@ schemas:
 registered_trials:
   type: Collaboration
   name: Registered trial list
-  studyflow:Study:
-    seed: 42
-    dependencies:
-      - pandas>=2.0
+  extensions:
+    studyflow:Study:
+      seed: 42
+      dependencies:
+        - pandas>=2.0
   documentation: |
     A trial list made outside Studyflow, registered by its content and played one trial at a time.
 
@@ -32,8 +33,9 @@ registered_trials:
 
     Pool_Participant:
       name: Simulated participant
-      studyflow:Actor:
-        implementation: simulate://random
+      extensions:
+        studyflow:Actor:
+          implementation: simulate://random
   messageFlows:
     Msg_Trial:
       name: the trial
@@ -80,30 +82,32 @@ Session:
       name: Trial list
       uri: trials.csv
       digest: sha256:4dd32eb0c384de2e69e1b15cf6b1f59b19914ea765f3e685990b5e0992bf47b0
-      studyflow:Table:
-        schema: $trial_schema
+      extensions:
+        studyflow:Table:
+          schema: $trial_schema
 
     trial_schema:
       type: DataObjectReference
       name: Trial schema
-      studyflow:Schema:
-        body:
-          "@context": http://www.w3.org/ns/csvw
-          tableSchema:
-            columns:
-              - name: Task
-                datatype: string
-              - name: Trial
-                datatype: integer
-              - name: Colour
-                datatype: string
-              - name: Side
-                datatype: string
-              - name: Stimulus
-                datatype: string
-              - name: ResponseOptions
-                datatype: string
-                separator: " "
+      extensions:
+        studyflow:Schema:
+          body:
+            "@context": http://www.w3.org/ns/csvw
+            tableSchema:
+              columns:
+                - name: Task
+                  datatype: string
+                - name: Trial
+                  datatype: integer
+                - name: Colour
+                  datatype: string
+                - name: Side
+                  datatype: string
+                - name: Stimulus
+                  datatype: string
+                - name: ResponseOptions
+                  datatype: string
+                  separator: " "
 
     each_trial:
       type: SubProcess

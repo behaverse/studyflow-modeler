@@ -17,7 +17,8 @@ schemas:
 P:
   type: Process
   name: Steps
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     A description folded where its author broke it,
     not where the writer would.
@@ -74,13 +75,19 @@ function ran(text: string, state: Record<string, unknown>, stamps: Record<string
   return model;
 }
 
-/** A record as the file writes it, on one line `indent` spaces in, under its own `prov:Activity` key when `keyed`: a
- * moment quoted, as YAML would take it for a date. */
-function record(indent: number, { action, when, what, seed, commit }: Stamp, keyed = true): string {
+/** How a record is placed: in `extensions` of its own, under a `prov:Activity` key added to the element's `extensions`,
+ * or as a line added to its `prov:Activity` list. */
+type Placed = 'extensions' | 'keyed' | 'line';
+
+/** A record as the file writes it, on one line, `placed` at `indent` spaces in: a moment quoted, as YAML would take it
+ * for a date. */
+function record(indent: number, { action, when, what, seed, commit }: Stamp, placed: Placed = 'extensions'): string {
   const text = (value: string | number): string => (/^\d{4}-\d{2}-\d{2}T/.test(String(value)) ? `"${value}"` : String(value));
   const fields = [`action: ${action}`, `when: ${text(when)}`, ...(what ? [`what: ${text(what)}`] : []), 'run: r1', ...(seed ? [`seed: ${seed}`] : []), ...(commit ? [`commit: ${commit}`] : [])];
-  const line = `${' '.repeat(keyed ? indent + 2 : indent)}- {${fields.join(', ')}}\n`;
-  return keyed ? `${' '.repeat(indent)}prov:Activity:\n${line}` : line;
+  const depth = { extensions: 4, keyed: 2, line: 0 }[placed];
+  const line = `${' '.repeat(indent + depth)}- {${fields.join(', ')}}\n`;
+  const keyed = placed === 'line' ? line : `${' '.repeat(indent + depth - 2)}prov:Activity:\n${line}`;
+  return placed === 'extensions' ? `${' '.repeat(indent)}extensions:\n${keyed}` : keyed;
 }
 
 /** `text` with `inserted` after the first `anchor`. */
@@ -117,11 +124,11 @@ const FIRST: Record<string, Stamp> = {
 const stateOf = (work: number): Record<string, unknown> => ({ _meta: { reached: { Start: 1, Work: work } } });
 const stateText = (work: number): string => `\nstate:\n  _meta:\n    reached:\n      Start: 1\n      Work: ${work}\n`;
 
-/** What the first run leaves: each element's records after its other keys, before its documentation and the elements
- * it holds, in either spelling of a list, a step's data edge among them; the run's own on the study's root; and the
- * state at the end. */
+/** What the first run leaves: each element's records in `extensions` after its other keys, before its documentation
+ * and the elements it holds, in either spelling of a list, a step's data edge among them; the run's own added to the
+ * `extensions` the study's root has; and the state at the end. */
 const EXECUTED = ([
-  [before, '  documentation: >-\n', record(2, FIRST.P)],
+  [after, '  extensions:\n    studyflow:Study: {}\n', record(4, FIRST.P, 'keyed')],
   [after, '      name: Begin  # a comment on its line\n', record(6, FIRST.Start)],
   [before, '      documentation: Runs once.\n', record(6, FIRST.Work)],
   [after, '          source: $Settings\n', record(10, FIRST.In_Work)],
@@ -147,7 +154,7 @@ test('a re-run of an executed copy replaces the records it replaces and the stat
   };
   const executed = ran(EXECUTED, stateOf(2), again, ['Start']);
   const text = executedText(EXECUTED, executed);
-  const added = after(after(EXECUTED, record(2, FIRST.P), record(4, again.P, false)), record(6, FIRST.Work), record(8, again.Work, false));
+  const added = after(after(EXECUTED, record(4, FIRST.P, 'keyed'), record(6, again.P, 'line')), record(6, FIRST.Work), record(10, again.Work, 'line'));
   expect(text).toBe(added.replace(record(6, FIRST.Start), record(6, again.Start)).replace(stateText(1), stateText(2)));
   // What the run added is all it takes out: every line registered is still there.
   expect(removed(REGISTERED, text!)).toEqual([]);

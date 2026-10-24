@@ -128,6 +128,22 @@ function isEntryValue(value: unknown): value is Record<string, unknown> | Record
   return isMapping(value) || (Array.isArray(value) && value.length > 0 && value.every(isMapping));
 }
 
+/** The entries written under `type`, their prefixed key: one as its mapping, several as a list, each with its type. */
+function entriesOf(type: string, value: unknown): Record<string, unknown>[] {
+  return (Array.isArray(value) ? value : [value]).filter(isMapping).map((body) => ({ type, ...body }));
+}
+
+/** Whether `value`, an element's `extensions`, keys its entries by their prefixed types, as the file writes them. */
+function isKeyedEntries(value: unknown): value is Record<string, unknown> {
+  return isMapping(value) && Object.keys(value).every((key) => key.includes(':'));
+}
+
+/** The entries of an element's `extensions`, in the order written: BPMN's one list as it is, each with its `type`, or
+ * each under its type. */
+function entriesIn(value: unknown[] | Record<string, unknown>): unknown[] {
+  return Array.isArray(value) ? value : Object.entries(value).flatMap(([type, body]) => entriesOf(type, body));
+}
+
 /** A line of the file's layout as the drawing it is: a box or a route alone as its text, a mapping's keys BPMN's. */
 function layoutDrawing(metamodel: Metamodel, line: unknown): Record<string, unknown> | undefined {
   if (typeof line === 'string') return { [line.includes(',') ? 'waypoint' : 'bounds']: line };
@@ -208,8 +224,9 @@ class Reader {
   }
 
   /** A node in the file's spelling as BPMN spells it: each key under its property's name, the entries written under
-   * their types back in the one list, an event's kind as its definition, an activity's marker as the marker, an input's
-   * parameter back in its transformation. A key no property of `host` holds stays as it is. */
+   * their types in `extensions` (or straight on the element) back in the one list, in the order written, an event's
+   * kind as its definition, an activity's marker as the marker, an input's parameter back in its transformation. A key
+   * no property of `host` holds stays as it is. */
   private longForm(node: Record<string, unknown>, host: string): Record<string, unknown> {
     const own = this.metamodel.descriptor(host).propertiesByName;
     const out: Record<string, unknown> = {};
@@ -218,13 +235,14 @@ class Reader {
       const name = modelKey(this.metamodel, host, key);
       const definition = own.eventDefinitions && !own[name] ? definitionOf(key, value, node.id) : undefined;
       const marker = own.loopCharacteristics && !own[name] ? Object.keys(LOOP_KINDS).find((type) => LOOP_KINDS[type] === key) : undefined;
-      if (own[name]) out[name] = value;
+      if (name === 'extensionElements' && own[name] && (Array.isArray(value) || isKeyedEntries(value))) entries.push(...entriesIn(value));
+      else if (own[name]) out[name] = value;
       else if (definition) out.eventDefinitions = [definition];
       else if (marker) out.loopCharacteristics = { type: marker, ...(isMapping(value) ? value : {}) };
-      else if (key.includes(':') && isEntryValue(value)) entries.push(...(Array.isArray(value) ? value : [value]).map((body) => ({ type: key, ...body })));
+      else if (key.includes(':') && isEntryValue(value)) entries.push(...entriesOf(key, value));
       else out[key] = value;
     }
-    if (entries.length > 0) out.extensionElements = [...entries, ...(Array.isArray(out.extensionElements) ? out.extensionElements : [])];
+    if (entries.length > 0) out.extensionElements = entries;
     if (host === 'bpmn:DataInputAssociation' && typeof out.parameter === 'string') {
       out.transformation = typeof out.transformation === 'string' ? `${out.parameter} = ${out.transformation}` : out.parameter;
       delete out.parameter;
@@ -586,9 +604,9 @@ class Writer {
  * An element the {@link Writer} keeps, in the file's spelling (docs/reference.qmd, "The file"). It is written as BPMN
  * holds it: a schema's typed element as its BPMN type with an entry of the schema's type, a choreography task in a
  * process as the task the BPMN XML writes, marked an exchange. Each key is its file name ({@link fileKey}), a reference
- * `$id`, each entry under its prefixed type, an event's one definition and an activity's marker under their kinds, an
- * edge's two ends as two keys. Its type is left out where the key holding it says it, then come its name, its
- * attributes, its entries, its documentation, and last the lists of elements it holds, keyed by id.
+ * `$id`, its entries under `extensions`, each under its prefixed type, an event's one definition and an activity's
+ * marker under their kinds, an edge's two ends as two keys. Its type is left out where the key holding it says it, then
+ * come its name, its attributes, its `extensions`, its documentation, and last the lists of elements it holds, keyed by id.
  */
 class Speller {
   private readonly metamodel: Metamodel;
@@ -619,9 +637,8 @@ class Speller {
       else if (!this.kind(el, key, value, attributes)) this.property(type, p, value, isListOfElements(p, value) ? held : attributes);
     }
     if (type === 'bpmn:DataInputAssociation') splitParameter(attributes);
-    let spelledEntries = entries ? this.entries(entries, type) : {};
-    if (Object.keys(spelledEntries).some((key) => key in attributes)) spelledEntries = this.entryList(entries!, type);
-    const out = { ...head, ...attributes, ...spelledEntries, ...prose, ...held };
+    const extensions = entries && entries.length > 0 ? { [fileKey(this.metamodel, type, 'extensionElements')]: this.entries(entries) } : {};
+    const out = { ...head, ...attributes, ...extensions, ...prose, ...held };
     if (DI_NODE_TYPES.has(type)) compactDiNode(out);
     if (out.type !== undefined && impliedTypeName(out, declared) === type) delete out.type;
     return out;
@@ -689,12 +706,15 @@ class Speller {
     return false;
   }
 
-  /** An element's entries, each under its type: one as its mapping, `{}` when it holds nothing, several of one type as
-   * a list; the run records always a list, so the next run adds a line. */
-  private entries(values: Value[], holder: string): Record<string, unknown> {
+  /** An element's entries, what its `extensions` hold: each under its type, one as its mapping, `{}` when it holds
+   * nothing, several of one type as a list, the run records always a list so the next run adds a line. Where types
+   * interleave, which keying by type would reorder, or an entry has none, BPMN's one list, each entry with its type. */
+  private entries(values: Value[]): Record<string, unknown> | unknown[] {
     const types = values.map((value) => (isElement(value) ? value.type : undefined));
     const runs = types.filter((type, index) => index === 0 || types[index - 1] !== type);
-    if (types.some((type) => type === undefined) || new Set(runs).size !== runs.length) return this.entryList(values, holder);
+    if (types.some((type) => type === undefined) || new Set(runs).size !== runs.length) {
+      return values.map((value) => (isElement(value) ? this.element(value, undefined, undefined, true) : value));
+    }
     const out: Record<string, unknown> = {};
     values.forEach((value, index) => {
       const type = types[index]!;
@@ -704,11 +724,6 @@ class Speller {
       else out[type] = [...(Array.isArray(out[type]) ? out[type] as unknown[] : [out[type]]), body];
     });
     return out;
-  }
-
-  /** Entries whose types interleave, as BPMN lists them, each with its type. */
-  private entryList(values: Value[], holder: string): Record<string, unknown> {
-    return { [fileKey(this.metamodel, holder, 'extensionElements')]: values.map((value) => (isElement(value) ? this.element(value, undefined, undefined, true) : value)) };
   }
 
   private documentation(list: Value[]): unknown {

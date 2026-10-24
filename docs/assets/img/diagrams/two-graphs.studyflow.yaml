@@ -6,7 +6,8 @@ schemas:
 Two_Graphs:
   type: Process
   name: Two graphs in one file
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     A studyflow is a graph with two kinds of edges: solid sequence flows carry the session a participant goes through,
     and dotted data associations carry the data. Drawn for docs/reference.qmd.
@@ -18,7 +19,8 @@ Two_Graphs:
     Pre:
       type: Task
       name: 2-Back, pre-test
-      cognitive:CognitiveTask: {}
+      extensions:
+        cognitive:CognitiveTask: {}
       outputs:
         Out_Pre:
           target: $Responses
@@ -26,7 +28,8 @@ Two_Graphs:
     Allocation:
       type: ExclusiveGateway
       name: Allocation
-      cognitive:RandomGateway: {}
+      extensions:
+        cognitive:RandomGateway: {}
 
     Training:
       type: Task
@@ -39,7 +42,8 @@ Two_Graphs:
     Post:
       type: Task
       name: 2-Back, post-test
-      cognitive:CognitiveTask: {}
+      extensions:
+        cognitive:CognitiveTask: {}
       outputs:
         Out_Post:
           target: $Responses

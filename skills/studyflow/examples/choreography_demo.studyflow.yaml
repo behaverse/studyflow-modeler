@@ -6,9 +6,10 @@ schemas:
 Dyadic_Study_Actors:
   type: Collaboration
   name: Dyadic decision study
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:28Z", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:51:28Z", with: studyflow-modeler/26.0615}
   documentation: A two-participant choreography where subject and experimenter exchange consent and two decision rounds.
   participants:
     Participant_Subject:

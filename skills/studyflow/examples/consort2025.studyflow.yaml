@@ -10,9 +10,10 @@ CONSORT_2025:
   type: Process
   name: CONSORT 2025
   executable: false
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:30Z", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:51:30Z", with: studyflow-modeler/26.0615}
   documentation: A CONSORT 2025 participant flow from enrollment to analysis, with attrition as boundary error events.
   elements:
     Enrollment_Start:
@@ -29,14 +30,16 @@ CONSORT_2025:
         - [ ] Vital signs
         - [ ] Baseline cognitive screen
       exchange: true
-      cognitive:Questionnaire:
-        instrument: screening
+      extensions:
+        cognitive:Questionnaire:
+          instrument: screening
 
     Eligibility_Gateway:
       type: ExclusiveGateway
       name: Assessed for eligibility
       default: $Flow_Eligible
-      cognitive:EligibilityGateway: {}
+      extensions:
+        cognitive:EligibilityGateway: {}
 
     Excluded_Pre:
       type: EndEvent
@@ -46,7 +49,8 @@ CONSORT_2025:
     Randomize_Gateway:
       type: ExclusiveGateway
       name: Randomization
-      cognitive:RandomGateway: {}
+      extensions:
+        cognitive:RandomGateway: {}
 
     Activity_Allocation_A:
       type: Task
@@ -70,8 +74,9 @@ CONSORT_2025:
         - [ ] Outcome assessment 1
         - [ ] Outcome assessment 2
         - [ ] Adverse events review
-      cognitive:CognitiveTask:
-        platform: jspsych
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
 
     LostFollowup_A:
       type: BoundaryEvent

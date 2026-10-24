@@ -6,7 +6,8 @@ schemas:
 EEG_Session:
   type: Process
   name: EEG session
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: An EEG session covering cap fitting through data export.
   elements:
     Start:
@@ -24,14 +25,16 @@ EEG_Session:
       type: IntermediateCatchEvent
       name: Resting baseline
       timer: PT2M
-      cognitive:Rest:
-        eyes: closed
+      extensions:
+        cognitive:Rest:
+          eyes: closed
 
     Cognitive_Task:
       type: Task
       name: Cognitive task
-      cognitive:CognitiveTask:
-        platform: psychopy
+      extensions:
+        cognitive:CognitiveTask:
+          platform: psychopy
       inputs:
         In_Cognitive_Task_Parameters:
           source: $Cognitive_Task_Parameters
@@ -39,9 +42,10 @@ EEG_Session:
     Cognitive_Task_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values: |
-          triggerChannel: markers  # stimulus marker stream sent with biosignals
+      extensions:
+        studyflow:Parameters:
+          values: |
+            triggerChannel: markers  # stimulus marker stream sent with biosignals
 
     Export_Recording:
       type: ServiceTask

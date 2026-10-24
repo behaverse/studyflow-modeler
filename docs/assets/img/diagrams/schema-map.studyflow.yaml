@@ -5,7 +5,8 @@ schemas:
 Schema_Map:
   type: Process
   name: Loading the vocabulary
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     The element sets that ship with Studyflow. The four required sets always load; the rest, one per skill, load when
     switched on in Settings, Extensions. The catalog compiles every loaded set into the palette, the inspector tabs, and

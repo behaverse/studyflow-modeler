@@ -6,7 +6,8 @@ schemas:
 Minimal_Study:
   type: Process
   name: Minimal study
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   elements:
     Enrolled:
       type: StartEvent
@@ -16,9 +17,10 @@ Minimal_Study:
     Flanker:
       type: Task
       name: Flanker
-      cognitive:CognitiveTask:
-        platform: jspsych
-        implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
+          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
 
     Done:
       type: EndEvent

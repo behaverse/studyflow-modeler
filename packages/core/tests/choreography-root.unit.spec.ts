@@ -123,8 +123,9 @@ S:
       name: Play
       exchange: true
       participants: $Robot
-      cognitive:CognitiveTask:
-        platform: jsPsych
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jsPsych
       inputs:
         In_Play:
           source: $Settings

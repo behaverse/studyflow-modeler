@@ -5,10 +5,11 @@ schemas:
 multiverse:
   type: Process
   name: multiverse
-  studyflow:Study:
-    seed: 42
-    dependencies:
-      - scikit-learn>=1.4
+  extensions:
+    studyflow:Study:
+      seed: 42
+      dependencies:
+        - scikit-learn>=1.4
   documentation: |
     A specification curve in its smallest form: one estimator, one data set,
     one analytic choice left open, and every value of that choice scored.

@@ -10,8 +10,9 @@ definitions:
 SPIRIT_2025_Collaboration:
   type: Collaboration
   name: SPIRIT 2025 trial protocol
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:40Z", with: studyflow-modeler/26.0615}
+  extensions:
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:51:40Z", with: studyflow-modeler/26.0615}
   participants:
     Participant_SPIRIT:
       name: SPIRIT 2025 trial protocol
@@ -21,7 +22,8 @@ SPIRIT_2025:
   type: Process
   name: SPIRIT 2025 trial protocol
   executable: false
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     A SPIRIT 2025 trial protocol in lanes from enrolment to close-out, with per-visit SPIRIT item checklists.
   laneSets:
@@ -78,15 +80,16 @@ SPIRIT_2025:
       type: ExclusiveGateway
       name: Eligible?
       default: $Flow_Eligible_Yes
-      cognitive:EligibilityGateway:
-        inclusionCriteria:
-          - Adults aged 18 to 65 years
-          - DSM-5 diagnosis of attentional disorder
-          - Stable medication regimen for 3 months
-        exclusionCriteria:
-          - Comorbid neurological condition
-          - Pregnancy or lactation
-          - Participation in another interventional trial within 30 days
+      extensions:
+        cognitive:EligibilityGateway:
+          inclusionCriteria:
+            - Adults aged 18 to 65 years
+            - DSM-5 diagnosis of attentional disorder
+            - Stable medication regimen for 3 months
+          exclusionCriteria:
+            - Comorbid neurological condition
+            - Pregnancy or lactation
+            - Participation in another interventional trial within 30 days
 
     ScreenFail:
       type: EndEvent
@@ -109,13 +112,14 @@ SPIRIT_2025:
     Allocate_Gate:
       type: ExclusiveGateway
       name: Stratified allocation
-      cognitive:RandomGateway:
-        algorithm: block
-        stratifyBy: age_band
-        strata:
-          - "age_band: 18-29"
-          - "age_band: 30-44"
-          - "age_band: 45-65"
+      extensions:
+        cognitive:RandomGateway:
+          algorithm: block
+          stratifyBy: age_band
+          strata:
+            - "age_band: 18-29"
+            - "age_band: 30-44"
+            - "age_band: 45-65"
 
     Activity_Intervention:
       type: Task
@@ -127,8 +131,9 @@ SPIRIT_2025:
       onset: T0+3 weeks
       duration: 4 weeks
       progress: 60%
-      cognitive:CognitiveTask:
-        platform: jspsych
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
 
     Activity_Control:
       type: Task
@@ -236,7 +241,8 @@ SPIRIT_2025:
       type: DataObjectReference
       name: Outcome data dictionary
       dataObject: $DataObject_Outcomes
-      studyflow:Schema: {}
+      extensions:
+        studyflow:Schema: {}
 
     DataObject_Outcomes:
       type: DataObject
@@ -244,14 +250,16 @@ SPIRIT_2025:
     Dataset_Primary:
       type: DataStoreReference
       name: Primary & secondary outcomes
-      behaverse:BDMDataset:
-        dataLevel: trials
+      extensions:
+        behaverse:BDMDataset:
+          dataLevel: trials
 
     Dataset_AE:
       type: DataStoreReference
       name: Adverse events register
-      studyflow:Dataset:
-        format: psych-ds
+      extensions:
+        studyflow:Dataset:
+          format: psych-ds
 
     Protocol_End:
       type: EndEvent

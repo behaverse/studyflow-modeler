@@ -9,9 +9,10 @@ Cognitive_Battery:
   type: Process
   name: Within-subject cognitive battery
   executable: false
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:29Z", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:51:29Z", with: studyflow-modeler/26.0615}
   documentation: Chains N-Back, Digit Span, SART, and Which One tasks with a timed break and a NASA-TLX survey.
   elements:
     Start:
@@ -30,16 +31,18 @@ Cognitive_Battery:
     Task_NBack:
       type: Task
       name: Working memory (N-Back)
-      behaverse:Task:
-        instrument: NB
-        timeline: XCIT_NB_01
+      extensions:
+        behaverse:Task:
+          instrument: NB
+          timeline: XCIT_NB_01
 
     Task_DigitSpan:
       type: Task
       name: Verbal span (Digit Span)
-      behaverse:Task:
-        instrument: DS
-        timeline: XCIT_DS_01
+      extensions:
+        behaverse:Task:
+          instrument: DS
+          timeline: XCIT_DS_01
 
     Break:
       type: IntermediateCatchEvent
@@ -49,16 +52,18 @@ Cognitive_Battery:
     Task_SART:
       type: Task
       name: Sustained attention (SART)
-      behaverse:Task:
-        instrument: SART
-        timeline: XCIT_SART_01
+      extensions:
+        behaverse:Task:
+          instrument: SART
+          timeline: XCIT_SART_01
 
     Task_WhichOne:
       type: Task
       name: Visual WM (Which One)
-      behaverse:Task:
-        instrument: WO
-        timeline: XCIT_WO_01
+      extensions:
+        behaverse:Task:
+          instrument: WO
+          timeline: XCIT_WO_01
       outputs:
         DataOutput_WhichOne_Data:
           target: $Dataset_Battery
@@ -67,8 +72,9 @@ Cognitive_Battery:
       type: Task
       name: Post-battery survey
       exchange: true
-      cognitive:Questionnaire:
-        instrument: nasa-tlx
+      extensions:
+        cognitive:Questionnaire:
+          instrument: nasa-tlx
       outputs:
         DataOutput_Survey_Data:
           target: $Dataset_Battery
@@ -76,8 +82,9 @@ Cognitive_Battery:
     Dataset_Battery:
       type: DataStoreReference
       name: Battery trial data
-      behaverse:BDMDataset:
-        dataLevel: trials
+      extensions:
+        behaverse:BDMDataset:
+          dataLevel: trials
 
     End:
       type: EndEvent

@@ -7,9 +7,10 @@ Drawn_Loop:
   type: Process
   name: drawn loop (eight turns, edges only)
   executable: true
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:24:02Z", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:24:02Z", with: studyflow-modeler/26.0615}
   documentation: >-
     The smallest cycle the notation can draw — one step, one gateway, a conditioned back-edge, and nothing that is not a
     visible edge. The loop is bounded by the engine's own run state: `state._meta.reached.Gate` counts how often the

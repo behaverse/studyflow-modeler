@@ -11,9 +11,10 @@ Kitchen_Sink:
   type: Process
   name: Studyflow element catalog (kitchen sink)
   executable: false
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:34Z", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:51:34Z", with: studyflow-modeler/26.0615}
   documentation: >-
     Element catalog: one live instance of every palette-visible element type, one labelled band per schema. Read top to
     bottom: the BPMN 2.0 base that Studyflow inherits (events, gateways, activities, data), then the studyflow core and
@@ -127,37 +128,43 @@ Kitchen_Sink:
     Sf_Dataset:
       type: DataStoreReference
       name: Dataset
-      behaverse:BDMDataset:
-        dataLevel: trials
+      extensions:
+        behaverse:BDMDataset:
+          dataLevel: trials
 
     Sf_Schema:
       type: DataObjectReference
       name: Schema
-      studyflow:Schema: {}
+      extensions:
+        studyflow:Schema: {}
 
     Sf_Table:
       type: DataObjectReference
       name: Table
-      studyflow:Table:
-        format: parquet
+      extensions:
+        studyflow:Table:
+          format: parquet
 
     Sf_Timeseries:
       type: DataObjectReference
       name: Timeseries
-      eeg:Timeseries:
-        format: edf
+      extensions:
+        eeg:Timeseries:
+          format: edf
 
     Sf_EventMarker:
       type: DataObjectReference
       name: Event marker
-      eeg:EventMarker:
-        eventTypes:
-          - stimulus
+      extensions:
+        eeg:EventMarker:
+          eventTypes:
+            - stimulus
 
     Ex_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters: {}
+      extensions:
+        studyflow:Parameters: {}
 
     Fn_ForEach:
       type: SubProcess
@@ -174,68 +181,78 @@ Kitchen_Sink:
     Cg_CognitiveTask:
       type: Task
       name: Cognitive task
-      cognitive:CognitiveTask:
-        platform: jspsych
-        implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
+          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
 
     Cg_Rest:
       type: IntermediateCatchEvent
       name: Rest
       timer: PT1M
-      cognitive:Rest: {}
+      extensions:
+        cognitive:Rest: {}
 
     Cg_Questionnaire:
       type: Task
       name: Questionnaire
       exchange: true
-      cognitive:Questionnaire:
-        instrument: phq-9
+      extensions:
+        cognitive:Questionnaire:
+          instrument: phq-9
 
     Cg_Instruction:
       type: Task
       name: Instruction
-      cognitive:Instruction: {}
+      extensions:
+        cognitive:Instruction: {}
 
     Cg_Behaverse:
       type: Task
       name: Behaverse task
-      behaverse:Task:
-        instrument: NB
-        timeline: XCIT_NB_01
+      extensions:
+        behaverse:Task:
+          instrument: NB
+          timeline: XCIT_NB_01
 
     Cg_Random:
       type: ExclusiveGateway
       name: Random gateway
-      cognitive:RandomGateway: {}
+      extensions:
+        cognitive:RandomGateway: {}
 
     Cg_Stratified:
       type: ExclusiveGateway
       name: Stratified allocation
-      cognitive:RandomGateway:
-        algorithm: block
-        stratifyBy: age_band
+      extensions:
+        cognitive:RandomGateway:
+          algorithm: block
+          stratifyBy: age_band
 
     Cg_Eligibility:
       type: ExclusiveGateway
       name: Eligibility gateway
-      cognitive:EligibilityGateway:
-        inclusionCriteria:
-          - Aged 18 to 65 years
-          - Normal or corrected-to-normal vision
-        exclusionCriteria:
-          - Prior exposure to the battery
-          - Failed comprehension check
+      extensions:
+        cognitive:EligibilityGateway:
+          inclusionCriteria:
+            - Aged 18 to 65 years
+            - Normal or corrected-to-normal vision
+          exclusionCriteria:
+            - Prior exposure to the battery
+            - Failed comprehension check
 
     Ob_Recording:
       type: DataStoreReference
       name: EEG recording
-      eeg:Recording:
-        format: edf
+      extensions:
+        eeg:Recording:
+          format: edf
 
     Ag_Prompt:
       type: DataObjectReference
       name: Prompt
-      agentic:Prompt: {}
+      extensions:
+        agentic:Prompt: {}
 
     Dt_Reader:
       type: ServiceTask

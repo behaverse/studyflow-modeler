@@ -5,7 +5,8 @@ schemas:
 File_Format:
   type: Process
   name: What converts into what
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     The files that carry a study, and what converts into what. Inside the group, every conversion can be undone without
     loss: YAML and BPMN XML expand and project into each other, and a picture carries its source and reopens from it. A

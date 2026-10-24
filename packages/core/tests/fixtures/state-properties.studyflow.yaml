@@ -12,7 +12,8 @@ Item_Count:
 
 Probe:
   type: Process
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   properties:
     Arm:
       name: arm

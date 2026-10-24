@@ -5,7 +5,8 @@ schemas:
 Run_Lifecycle:
   type: Process
   name: One run
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     What happens in one run. The study is validated first, and its runtime attribute decides who runs it: the browser
     runner, which can post sessions and events to a data server, or the local runtime, which archives the plan into a

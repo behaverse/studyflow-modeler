@@ -7,16 +7,18 @@ schemas:
 Demo3_ExternalBot_Actors:
   type: Collaboration
   name: Random bot
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:26Z", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:51:26Z", with: studyflow-modeler/26.0615}
   documentation: A 1-back warm-up and a 2-back block played by the Behaverse build's own random bot.
   participants:
     Actor_Random_bot:
       name: Random bot
-      studyflow:Actor:
-        actorType: software
-        implementation: behaverse://bot
+      extensions:
+        studyflow:Actor:
+          actorType: software
+          implementation: behaverse://bot
 
     Pool_Session:
       name: N-Back session
@@ -34,9 +36,10 @@ Demo3_ExternalBot:
       name: 1-Back warm-up
       exchange: true
       participants: $Actor_Random_bot
-      behaverse:Task:
-        instrument: NB
-        timeline: Demo3_Warmup
+      extensions:
+        behaverse:Task:
+          instrument: NB
+          timeline: Demo3_Warmup
       inputs:
         In_Warmup_1Back_Parameters:
           source: $Warmup_1Back_Parameters
@@ -44,59 +47,61 @@ Demo3_ExternalBot:
     Warmup_1Back_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values:
-          Blocks:
-            Demo3_Warmup:
-              Name: Demo3_Warmup
-              Inherits: Default
-              Parameters:
-                NValue: 1
-                Feature: Letters
-                Streams:
-                  - Feature:
-                      Reference: Feature
-                    StimulusValue:
-                      Generate: OncePerBlock
-                      Sequence:
-                        Type: Ordered
-                        Values:
-                          - 3
-                          - 1
-                          - 2
-                          - 1
-                          - 3
-                          - 2
-                          - 3
-                          - 2
-                StreamSize: 8
-                FeatureValuesCount: 3
-                MaxResponseTime: 2
-                StimulusDisplayDuration: 0.5
-                InterStimulusInterval: 1.5
-          Timelines:
-            Demo3_Warmup:
-              Name: Demo3_Warmup
-              blocks:
-                - name: Demo3_Warmup
-          Bot:
-            Speed: 20
-            SkipInstructions: true
-            AutoClickInstructions: true
-            SkipFocusArea: true
-            OverrideTemporalParameters: true
-            StimulusDisplayDuration: 0.3
-            InterStimulusInterval: 0.3
-            TrialForeperiod: 0.1
+      extensions:
+        studyflow:Parameters:
+          values:
+            Blocks:
+              Demo3_Warmup:
+                Name: Demo3_Warmup
+                Inherits: Default
+                Parameters:
+                  NValue: 1
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                  StreamSize: 8
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 2
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 1.5
+            Timelines:
+              Demo3_Warmup:
+                Name: Demo3_Warmup
+                blocks:
+                  - name: Demo3_Warmup
+            Bot:
+              Speed: 20
+              SkipInstructions: true
+              AutoClickInstructions: true
+              SkipFocusArea: true
+              OverrideTemporalParameters: true
+              StimulusDisplayDuration: 0.3
+              InterStimulusInterval: 0.3
+              TrialForeperiod: 0.1
 
     Main_2Back:
       type: Task
       name: 2-Back main
       exchange: true
       participants: $Actor_Random_bot
-      behaverse:Task:
-        instrument: NB
-        timeline: Demo3_Main
+      extensions:
+        behaverse:Task:
+          instrument: NB
+          timeline: Demo3_Main
       inputs:
         In_Main_2Back_Parameters:
           source: $Main_2Back_Parameters
@@ -104,54 +109,55 @@ Demo3_ExternalBot:
     Main_2Back_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values:
-          Blocks:
-            Demo3_Main:
-              Name: Demo3_Main
-              Inherits: Default
-              Parameters:
-                NValue: 2
-                Feature: Letters
-                Streams:
-                  - Feature:
-                      Reference: Feature
-                    StimulusValue:
-                      Generate: OncePerBlock
-                      Sequence:
-                        Type: Ordered
-                        Values:
-                          - 3
-                          - 1
-                          - 2
-                          - 1
-                          - 3
-                          - 2
-                          - 3
-                          - 2
-                          - 1
-                          - 2
-                          - 3
-                          - 1
-                StreamSize: 12
-                FeatureValuesCount: 3
-                MaxResponseTime: 2
-                StimulusDisplayDuration: 0.5
-                InterStimulusInterval: 1.5
-          Timelines:
-            Demo3_Main:
-              Name: Demo3_Main
-              blocks:
-                - name: Demo3_Main
-          Bot:
-            Speed: 20
-            SkipInstructions: true
-            AutoClickInstructions: true
-            SkipFocusArea: true
-            OverrideTemporalParameters: true
-            StimulusDisplayDuration: 0.3
-            InterStimulusInterval: 0.3
-            TrialForeperiod: 0.1
+      extensions:
+        studyflow:Parameters:
+          values:
+            Blocks:
+              Demo3_Main:
+                Name: Demo3_Main
+                Inherits: Default
+                Parameters:
+                  NValue: 2
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                            - 1
+                            - 2
+                            - 3
+                            - 1
+                  StreamSize: 12
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 2
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 1.5
+            Timelines:
+              Demo3_Main:
+                Name: Demo3_Main
+                blocks:
+                  - name: Demo3_Main
+            Bot:
+              Speed: 20
+              SkipInstructions: true
+              AutoClickInstructions: true
+              SkipFocusArea: true
+              OverrideTemporalParameters: true
+              StimulusDisplayDuration: 0.3
+              InterStimulusInterval: 0.3
+              TrialForeperiod: 0.1
 
     End:
       type: EndEvent

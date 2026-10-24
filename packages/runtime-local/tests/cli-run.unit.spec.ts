@@ -138,7 +138,7 @@ S:
     expect(named()).toBe('studyflow-runner <studyflow-runner@studyflow.invalid>|studyflow-runner <studyflow-runner@studyflow.invalid>|');
     run(archived, '--author', 'Ada Lovelace <ada@example.org>');
     expect(named()).toBe('Ada Lovelace <ada@example.org>|Ada Lovelace <ada@example.org>|Ada Lovelace <ada@example.org>');
-    expect((yaml.load(fs.readFileSync(archived, 'utf8')) as any).S['prov:Activity'].map((entry: { who?: string }) => entry.who)).toEqual([undefined, 'Ada Lovelace <ada@example.org>']);
+    expect((yaml.load(fs.readFileSync(archived, 'utf8')) as any).S.extensions['prov:Activity'].map((entry: { who?: string }) => entry.who)).toEqual([undefined, 'Ada Lovelace <ada@example.org>']);
     // Nor does the repository's own config name anyone, for a commit made there by hand.
     expect(spawnSync('git', ['-C', repo, 'config', '--local', 'user.name']).status).toBe(1);
   });
@@ -305,7 +305,7 @@ S:
     // The run's first commit holds the registered text, with the run's own record on the study's root.
     const first = execFileSync('git', ['-C', repo, 'rev-list', '--max-parents=0', 'HEAD'], { encoding: 'utf8' }).trim();
     const started = execFileSync('git', ['-C', repo, 'show', `${first}:copy.studyflow.yaml`], { encoding: 'utf8' });
-    expect(started.replace(/^ {2}prov:Activity:\n {4}- \{action: executed, .*\}\n/m, '')).toBe(registered);
+    expect(started.replace(/^ {2}extensions:\n {4}prov:Activity:\n {6}- \{action: executed, .*\}\n/m, '')).toBe(registered);
     expect(execFileSync(process.execPath, [BIN, 'validate', archived], { cwd: dir, env: ENV, stdio: 'pipe' }).toString())
       .toMatch(/protocol matches run run \(.*\); its state is its record's/);
 
@@ -314,8 +314,8 @@ S:
     const again = fs.readFileSync(archived, 'utf8');
     expect(removed(again)).toEqual([]);
     const { S } = yaml.load(again) as any;
-    expect(S.flowElements.Start['prov:Activity'].map((entry: { action: string }) => entry.action)).toEqual(['executed']);
-    expect(S['prov:Activity']).toHaveLength(2);
+    expect(S.flowElements.Start.extensions['prov:Activity'].map((entry: { action: string }) => entry.action)).toEqual(['executed']);
+    expect(S.extensions['prov:Activity']).toHaveLength(2);
   });
 });
 
@@ -444,7 +444,7 @@ S:
     // A's and C's records are voided, as the modeler's provenance view voids one: a marker naming the record's `when`.
     const study = yaml.load(fs.readFileSync(archived, 'utf8')) as any;
     for (const id of ['A', 'C']) {
-      const records = study.S.flowElements[id]['prov:Activity'];
+      const records = study.S.flowElements[id].extensions['prov:Activity'];
       records.push({ action: 'invalidated', when: '2026-10-02T12:00:00.000+02:00', what: records[0].when, run: 'run' });
     }
     fs.writeFileSync(archived, yaml.dump(study));
@@ -718,7 +718,7 @@ S:
     expect(kept.state._meta.reached).toMatchObject({ Weeks: 3, Return: 3, Back: 2, Late: 1, Gone: 1 });
     // The run says it ran on the virtual clock, in its own record and its log, and its record is timed by it: each
     // subject's three weeks, and the week the second waited, in virtual time.
-    expect(kept.C['prov:Activity'].at(-1)).toMatchObject({ action: 'executed', clock: 'virtual' });
+    expect(kept.C.extensions['prov:Activity'].at(-1)).toMatchObject({ action: 'executed', clock: 'virtual' });
     expect(fs.readFileSync(path.join(dir, 'run', 'studyflow.log'), 'utf8')).toMatch(/clock\.virtual/);
     const events = fs.readFileSync(path.join(dir, 'run', 'events.jsonl'), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
     const DAY = 86_400_000;
@@ -1194,7 +1194,7 @@ S:
     const kept = path.join(dir, 'run', 'dump.studyflow.yaml');
     const counts = (yaml.load(fs.readFileSync(kept, 'utf8')) as any).S.flowElements.counts;
     expect(counts.type).toBe('DataObjectReference');
-    expect(counts['prov:Activity']).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'imported' })]));
+    expect(counts.extensions['prov:Activity']).toEqual(expect.arrayContaining([expect.objectContaining({ action: 'imported' })]));
     // Run again from there, the study runs on in that repository.
     studyflow(kept);
     const log = execFileSync('git', ['-C', path.join(dir, 'run'), 'log', '--format=%s'], { encoding: 'utf8' });

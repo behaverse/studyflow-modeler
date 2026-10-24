@@ -5,7 +5,8 @@ schemas:
 Runner_Contract:
   type: Collaboration
   name: A run, from the runner's side
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     A local run, from a partial runner's side. The walk starts every runner and asks for its claims before the first
     step, and a runner that refuses stops the run. It then hands each claimed element to its runner with the run's

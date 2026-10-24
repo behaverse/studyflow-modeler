@@ -8,10 +8,11 @@ schemas:
 Reachy_Session:
   type: Process
   name: Reachy Researcher
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-08-21T15:27:59+02:00", with: studyflow-modeler/26.0615}
-    - {action: modified, when: "2026-08-21T15:29:15+02:00", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-08-21T15:27:59+02:00", with: studyflow-modeler/26.0615}
+      - {action: modified, when: "2026-08-21T15:29:15+02:00", with: studyflow-modeler/26.0615}
   documentation: >-
     A Reachy Mini collects data from a human participant. The participant's verbal feedback stores as the interaction
     recording.
@@ -24,39 +25,45 @@ Reachy_Session:
     Wake:
       type: IntermediateCatchEvent
       name: Wake word
-      reachy:SenseEvent:
-        wakeWord: Hey Reachy
+      extensions:
+        reachy:SenseEvent:
+          wakeWord: Hey Reachy
 
     Seated:
       type: ExclusiveGateway
       name: Anyone there?
       default: $Flow_Seated_Greet
-      reachy:PerceptionGateway: {}
+      extensions:
+        reachy:PerceptionGateway: {}
 
     Ask_To_Sit:
       type: ServiceTask
       name: Ask them to sit down
-      reachy:Interact:
-        text: Please take a seat in front of me and say my wake word again.
+      extensions:
+        reachy:Interact:
+          text: Please take a seat in front of me and say my wake word again.
 
     Greet:
       type: ServiceTask
       name: Greet & instruct
-      reachy:Interact:
-        text: >-
-          Hello! I'm Reachy. You'll now see a short memory task on the screen; press the key whenever the current letter
-          matches the one before it.
+      extensions:
+        reachy:Interact:
+          text: >-
+            Hello! I'm Reachy. You'll now see a short memory task on the screen; press the key whenever the current
+            letter matches the one before it.
 
     Watch:
       type: ServiceTask
       name: Face the participant
-      reachy:LookAt: {}
+      extensions:
+        reachy:LookAt: {}
 
     NBack:
       type: Task
       name: N-Back
-      behaverse:Task:
-        instrument: NB
+      extensions:
+        behaverse:Task:
+          instrument: NB
       inputs:
         In_NBack_Parameters:
           source: $NBack_Parameters
@@ -64,21 +71,24 @@ Reachy_Session:
     NBack_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values:
-          timeline: XCIT_NB_01
+      extensions:
+        studyflow:Parameters:
+          values:
+            timeline: XCIT_NB_01
 
     Celebrate:
       type: ServiceTask
       name: Celebrate completion
-      reachy:Interact:
-        move: cheerful1
+      extensions:
+        reachy:Interact:
+          move: cheerful1
 
     Feedback:
       type: ReceiveTask
       name: Verbal feedback
-      reachy:Listen:
-        timeout: 20
+      extensions:
+        reachy:Listen:
+          timeout: 20
       outputs:
         Feedback_To_Recording:
           target: $Recording
@@ -86,10 +96,11 @@ Reachy_Session:
     Recording:
       type: DataStoreReference
       name: Interaction recording
-      reachy:InteractionRecording:
-        streams:
-          - audio
-          - transcript
+      extensions:
+        reachy:InteractionRecording:
+          streams:
+            - audio
+            - transcript
 
     Done:
       type: EndEvent

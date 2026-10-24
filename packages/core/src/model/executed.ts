@@ -7,7 +7,7 @@
  * here for the one thing js-yaml does not give, which is where in the text each node is. What the text says is still
  * read by js-yaml, the study's own reader, and the copy is kept only when it reads back as the study the run left.
  */
-import { isMap, isScalar, isSeq, parseDocument, type Document, type Node, type Pair, type Scalar, type YAMLMap } from 'yaml';
+import { isMap, isScalar, isSeq, parseDocument, type Document, type Node, type Pair, type Scalar, type YAMLMap, type YAMLSeq } from 'yaml';
 
 import { choreographyToProcessIn } from '@core/model/choreography';
 import { StudyModel, isElement, type Element, type State, type Value } from '@core/model/index';
@@ -17,8 +17,10 @@ import { RESERVED_DOC_KEYS, documentText, readStudy, spelledElement, writeStudy 
 
 const ACTIVITY = 'prov:Activity';
 
-/** The keys an element may list its entries under, in the file's spelling and in BPMN's, where their types interleave. */
-const ENTRY_LISTS = ['extensions', 'extensionElements'];
+/** The key an element's entries sit under, each under its type; BPMN's one list of them where their types interleave. */
+const EXTENSIONS = 'extensions';
+/** The keys an element may hold its entries under, the file's and BPMN's. */
+const ENTRY_LISTS = [EXTENSIONS, 'extensionElements'];
 
 /** A stretch of the text, from `start` to `end`, and what replaces it. */
 type Edit = { start: number; end: number; text: string };
@@ -34,6 +36,8 @@ type Change = { dropped: number[]; added: Element[] };
 type Trailing = (key: string) => boolean;
 
 const isRecord = (entry: unknown): boolean => isElement(entry) && entry.type === ACTIVITY;
+/** Whether `item`, of BPMN's one list of entries in the text, is a record. */
+const isRecordMap = (item: unknown): boolean => isMap(item) && item.get('type') === ACTIVITY;
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 const entriesOf = (element: Element): Value[] => (Array.isArray(element.extensionElements) ? element.extensionElements : []);
 const keyIs = (pair: Pair, name: string): boolean => isScalar(pair.key) && String(pair.key.value) === name;
@@ -58,10 +62,11 @@ function studyOf(text: string, metamodel: Metamodel): StudyModel {
 /**
  * The text of the executed copy of `source`, the text of the `.studyflow.yaml` file a run was given, once the run has
  * left `executed`: the source with the run state written in place of its own, or at its end, and each element's new
- * records added to its `prov:Activity` list (a key of its own before the element's documentation and the elements it
- * holds, where it has none), the records a re-run replaced taken out. An element written in braces on one line is
- * rewritten as a block to take its records. Undefined when the run changed more of the study than that, or the text
- * spells an element the run stamped in a way no record can be added to.
+ * records added to the `prov:Activity` list of its `extensions` (added to them, or `extensions` of its own before the
+ * element's documentation and the elements it holds, where it has none), the records a re-run replaced taken out. An
+ * element written in braces on one line, or whose `extensions` are, is rewritten as a block to take its records.
+ * Undefined when the run changed more of the study than that, or the text spells an element the run stamped in a way
+ * no record can be added to.
  */
 export function executedText(source: string, executed: StudyModel): string | undefined {
   const { metamodel } = executed;
@@ -158,30 +163,47 @@ function heldIn(list: unknown, id: string | undefined): Found | undefined {
 const endOf = (pair: Pair): number => ((pair.value as Node | null) ?? (pair.key as Node)).range![2];
 
 /** The edits that take the records `dropped` names out of `found`, an element's mapping, and add `added` after its
- * records: to its `prov:Activity` list, to its one list of entries where it keeps one, or as a list of their own before
- * its `trailing` keys. Undefined when the list they go to is not in block style. */
+ * records: to the `prov:Activity` list of its `extensions`, or to the one straight on the element or BPMN's one list
+ * of entries where the text keeps one of those, or under `extensions` of their own before its `trailing` keys.
+ * Undefined when the list they go to is not in block style. */
 function recordEdits(text: string, doc: Document, { map, key }: Found, dropped: number[], added: Record<string, unknown>[], trailing: Trailing): Edit[] | undefined {
-  if (map.flow) return [respelled(text, doc, map, key, dropped, added, trailing)];
-  const listed = map.items.find((item) => keyIs(item, ACTIVITY));
   const entries = map.items.find((item) => ENTRY_LISTS.some((name) => keyIs(item, name)));
-  if (!listed && !entries) {
-    if (dropped.length > 0) return undefined;
-    const before = map.items.find((item) => isScalar(item.key) && trailing(String(item.key.value)));
-    const start = before ? lineStart(text, (before.key as Node).range![0]) : lineAfter(text, endOf(map.items[map.items.length - 1]));
-    return [{ start, end: start, text: indented(`${ACTIVITY}:\n${indented(heldText(ACTIVITY, added), 2)}`, columnOf(text, (map.items[0].key as Node).range![0])) }];
+  const held = entries?.value;
+  // An element written in braces, or one whose entries are, is respelled as a block.
+  if (map.flow || ((isMap(held) || isSeq(held)) && held.flow)) return [respelled(text, doc, map, key, dropped, added, trailing)];
+  // BPMN's one list of entries takes the records among them, each with its type.
+  if (isSeq(held)) return listEdits(text, held, held.items.filter(isRecordMap), dropped, added.map((record) => ({ type: ACTIVITY, ...record })), String((entries!.key as Scalar).value));
+  const holder = isMap(held) ? held : map;
+  const listed = map.items.find((item) => keyIs(item, ACTIVITY)) ?? holder.items.find((item) => keyIs(item, ACTIVITY));
+  if (listed) {
+    const list = listed.value;
+    if (!isSeq(list) || list.flow) return undefined;
+    if (added.length === 0 && dropped.length === list.items.length) {
+      // Its last record gone, the list goes, and the `extensions` that held nothing else.
+      const gone = holder !== map && holder.items.length === 1 && holder.items[0] === listed ? entries! : listed;
+      return [{ start: lineStart(text, (gone.key as Node).range![0]), end: lineAfter(text, endOf(gone)), text: '' }];
+    }
+    return listEdits(text, list, list.items, dropped, added, ACTIVITY);
   }
-  const pair = (listed ?? entries)!;
-  const list = pair.value;
-  if (!isSeq(list) || list.flow) return undefined;
-  const records = listed ? list.items : list.items.filter((item) => isMap(item) && item.get('type') === ACTIVITY);
+  if (dropped.length > 0) return undefined;
+  if (holder !== map) {
+    // The element's `extensions` take a `prov:Activity` list after their last entry.
+    const start = lineAfter(text, endOf(holder.items[holder.items.length - 1]));
+    return [{ start, end: start, text: indented(heldText(EXTENSIONS, { [ACTIVITY]: added }), columnOf(text, (holder.items[0].key as Node).range![0])) }];
+  }
+  const before = map.items.find((item) => isScalar(item.key) && trailing(String(item.key.value)));
+  const start = before ? lineStart(text, (before.key as Node).range![0]) : lineAfter(text, endOf(map.items[map.items.length - 1]));
+  return [{ start, end: start, text: indented(documentText({ [EXTENSIONS]: { [ACTIVITY]: added } }), columnOf(text, (map.items[0].key as Node).range![0])) }];
+}
+
+/** The edits that take out the lines of the records `dropped` names among `records`, the records `list` holds, and add
+ * `added` after `list`'s last item, written as under `key`. Undefined when a record `dropped` names is not there. */
+function listEdits(text: string, list: YAMLSeq, records: unknown[], dropped: number[], added: Record<string, unknown>[], key: string): Edit[] | undefined {
   if (dropped.some((index) => !records[index])) return undefined;
-  if (listed && added.length === 0 && dropped.length === records.length) {
-    return [{ start: lineStart(text, (pair.key as Node).range![0]), end: lineAfter(text, endOf(pair)), text: '' }];
-  }
   const edits = dropped.map((index): Edit => ({ start: lineStart(text, (records[index] as Node).range![0]), end: lineAfter(text, (records[index] as Node).range![2]), text: '' }));
   if (added.length > 0) {
     const start = lineAfter(text, list.range![2]);
-    edits.push({ start, end: start, text: indented(listed ? heldText(ACTIVITY, added) : heldText(String((pair.key as Scalar).value), added.map((record) => ({ type: ACTIVITY, ...record }))), columnOf(text, list.range![0])) });
+    edits.push({ start, end: start, text: indented(heldText(key, added), columnOf(text, list.range![0])) });
   }
   return edits;
 }
@@ -204,11 +226,17 @@ function withRecords(body: Record<string, unknown>, dropped: number[], added: Re
     return list.filter((entry) => !(counted(entry) && dropped.includes(++record)));
   };
   if (Array.isArray(body[ACTIVITY])) return { ...body, [ACTIVITY]: [...kept(body[ACTIVITY], () => true), ...added] };
-  const listName = ENTRY_LISTS.find((name) => Array.isArray(body[name]));
-  if (listName) return { ...body, [listName]: [...kept(body[listName] as unknown[], isRecord), ...added.map((record) => ({ type: ACTIVITY, ...record }))] };
+  const name = ENTRY_LISTS.find((candidate) => candidate in body);
+  const held = name === undefined ? undefined : body[name];
+  if (Array.isArray(held)) return { ...body, [name!]: [...kept(held, isRecord), ...added.map((record) => ({ type: ACTIVITY, ...record }))] };
+  if (held && typeof held === 'object') {
+    const records = (held as Record<string, unknown>)[ACTIVITY];
+    const listed = Array.isArray(records) ? records : records === undefined ? [] : [records];
+    return { ...body, [name!]: { ...(held as Record<string, unknown>), [ACTIVITY]: [...kept(listed, () => true), ...added] } };
+  }
   const entries = Object.entries(body);
-  const at = entries.findIndex(([name]) => trailing(name));
-  entries.splice(at < 0 ? entries.length : at, 0, [ACTIVITY, added]);
+  const at = entries.findIndex(([key]) => trailing(key));
+  entries.splice(at < 0 ? entries.length : at, 0, [EXTENSIONS, { [ACTIVITY]: added }]);
   return Object.fromEntries(entries);
 }
 

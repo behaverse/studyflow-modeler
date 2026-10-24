@@ -8,17 +8,19 @@ schemas:
 LabLink_Demo_Actors:
   type: Collaboration
   name: EPSYLON LabLink - Study orchestration
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:37Z", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:51:37Z", with: studyflow-modeler/26.0615}
   documentation: >-
     A LabLink session with questionnaires, a 1-back warm-up, and random allocation across three N-back arms.
   participants:
     Actor_Random_bot:
       name: Random bot
-      studyflow:Actor:
-        actorType: software
-        implementation: behaverse://bot
+      extensions:
+        studyflow:Actor:
+          actorType: software
+          implementation: behaverse://bot
 
     Pool_Session:
       name: LabLink session
@@ -35,30 +37,33 @@ LabLink_Demo:
     Welcome_Instruction:
       type: Task
       name: Welcome
-      cognitive:Instruction:
-        content: >-
-          $# Welcome to the LabLink demo
+      extensions:
+        cognitive:Instruction:
+          content: >-
+            $# Welcome to the LabLink demo
 
 
-          You will complete two short questionnaires (PHQ-9 and GAD-7), a 1-back warm-up, and one randomly-assigned
-          N-back arm. The session takes about 15 minutes.
+            You will complete two short questionnaires (PHQ-9 and GAD-7), a 1-back warm-up, and one randomly-assigned
+            N-back arm. The session takes about 15 minutes.
 
 
-          Press **Continue** when you are ready.
+            Press **Continue** when you are ready.
 
     PHQ_9_baseline:
       type: Task
       name: PHQ-9
       exchange: true
-      cognitive:Questionnaire:
-        instrument: phq-9
+      extensions:
+        cognitive:Questionnaire:
+          instrument: phq-9
 
     GAD_7_baseline:
       type: Task
       name: GAD-7
       exchange: true
-      cognitive:Questionnaire:
-        instrument: gad-7
+      extensions:
+        cognitive:Questionnaire:
+          instrument: gad-7
 
     Warmup_1Back:
       type: Task
@@ -67,9 +72,10 @@ LabLink_Demo:
         (warm-up)
       exchange: true
       participants: $Actor_Random_bot
-      behaverse:Task:
-        instrument: NB
-        timeline: LabLink_Inline
+      extensions:
+        behaverse:Task:
+          instrument: NB
+          timeline: LabLink_Inline
       inputs:
         In_Warmup_1Back_Parameters:
           source: $Warmup_1Back_Parameters
@@ -77,46 +83,48 @@ LabLink_Demo:
     Warmup_1Back_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values:
-          Blocks:
-            LabLink_InlineBlock:
-              Name: LabLink_InlineBlock
-              Inherits: Default
-              Parameters:
-                NValue: 1
-                Feature: Letters
-                Streams:
-                  - Feature:
-                      Reference: Feature
-                    StimulusValue:
-                      Generate: OncePerBlock
-                      Sequence:
-                        Type: Ordered
-                        Values:
-                          - 3
-                          - 1
-                          - 2
-                          - 1
-                          - 3
-                          - 2
-                          - 3
-                          - 2
-                StreamSize: 8
-                FeatureValuesCount: 3
-                MaxResponseTime: 3
-                StimulusDisplayDuration: 0.5
-                InterStimulusInterval: 2.2
-          Timelines:
-            LabLink_Inline:
-              Name: LabLink_Inline
-              blocks:
-                - name: LabLink_InlineBlock
+      extensions:
+        studyflow:Parameters:
+          values:
+            Blocks:
+              LabLink_InlineBlock:
+                Name: LabLink_InlineBlock
+                Inherits: Default
+                Parameters:
+                  NValue: 1
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                  StreamSize: 8
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 3
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 2.2
+            Timelines:
+              LabLink_Inline:
+                Name: LabLink_Inline
+                blocks:
+                  - name: LabLink_InlineBlock
 
     Allocate:
       type: ExclusiveGateway
       name: Random allocation
-      cognitive:RandomGateway: {}
+      extensions:
+        cognitive:RandomGateway: {}
 
     Arm_Dual2Back:
       type: Task
@@ -125,8 +133,9 @@ LabLink_Demo:
         (Symbols)
       exchange: true
       participants: $Actor_Random_bot
-      behaverse:Task:
-        instrument: NB
+      extensions:
+        behaverse:Task:
+          instrument: NB
       inputs:
         In_Arm_Dual2Back_Parameters:
           source: $Arm_Dual2Back_Parameters
@@ -134,17 +143,19 @@ LabLink_Demo:
     Arm_Dual2Back_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values:
-          timeline: XCIT_NB_05
+      extensions:
+        studyflow:Parameters:
+          values:
+            timeline: XCIT_NB_05
 
     Arm_XCIT_NB_03:
       type: Task
       name: |-
         2-Back
         (Digits, human)
-      behaverse:Task:
-        instrument: NB
+      extensions:
+        behaverse:Task:
+          instrument: NB
       inputs:
         In_Arm_XCIT_NB_03_Parameters:
           source: $Arm_XCIT_NB_03_Parameters
@@ -152,18 +163,20 @@ LabLink_Demo:
     Arm_XCIT_NB_03_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values:
-          timeline: XCIT_NB_02
+      extensions:
+        studyflow:Parameters:
+          values:
+            timeline: XCIT_NB_02
 
     Arm_Demo:
       type: Task
       name: 1-Back
       exchange: true
       participants: $Actor_Random_bot
-      behaverse:Task:
-        instrument: NB
-        timeline: LabLink_Inline
+      extensions:
+        behaverse:Task:
+          instrument: NB
+          timeline: LabLink_Inline
       inputs:
         In_Arm_Demo_Parameters:
           source: $Arm_Demo_Parameters
@@ -171,55 +184,58 @@ LabLink_Demo:
     Arm_Demo_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values:
-          Blocks:
-            LabLink_InlineBlock:
-              Name: LabLink_InlineBlock
-              Inherits: Default
-              Parameters:
-                NValue: 1
-                Feature: Letters
-                Streams:
-                  - Feature:
-                      Reference: Feature
-                    StimulusValue:
-                      Generate: OncePerBlock
-                      Sequence:
-                        Type: Ordered
-                        Values:
-                          - 3
-                          - 1
-                          - 2
-                          - 1
-                          - 3
-                          - 2
-                          - 3
-                          - 2
-                StreamSize: 8
-                FeatureValuesCount: 3
-                MaxResponseTime: 3
-                StimulusDisplayDuration: 0.5
-                InterStimulusInterval: 2.2
-          Timelines:
-            LabLink_Inline:
-              Name: LabLink_Inline
-              blocks:
-                - name: LabLink_InlineBlock
+      extensions:
+        studyflow:Parameters:
+          values:
+            Blocks:
+              LabLink_InlineBlock:
+                Name: LabLink_InlineBlock
+                Inherits: Default
+                Parameters:
+                  NValue: 1
+                  Feature: Letters
+                  Streams:
+                    - Feature:
+                        Reference: Feature
+                      StimulusValue:
+                        Generate: OncePerBlock
+                        Sequence:
+                          Type: Ordered
+                          Values:
+                            - 3
+                            - 1
+                            - 2
+                            - 1
+                            - 3
+                            - 2
+                            - 3
+                            - 2
+                  StreamSize: 8
+                  FeatureValuesCount: 3
+                  MaxResponseTime: 3
+                  StimulusDisplayDuration: 0.5
+                  InterStimulusInterval: 2.2
+            Timelines:
+              LabLink_Inline:
+                Name: LabLink_Inline
+                blocks:
+                  - name: LabLink_InlineBlock
 
     BDI_II:
       type: Task
       name: BDI-II
       exchange: true
-      cognitive:Questionnaire:
-        instrument: bdi-ii
+      extensions:
+        cognitive:Questionnaire:
+          instrument: bdi-ii
 
     PHQ_9_followup:
       type: Task
       name: PHQ-9
       exchange: true
-      cognitive:Questionnaire:
-        instrument: phq-9
+      extensions:
+        cognitive:Questionnaire:
+          instrument: phq-9
       outputs:
         DataOutput_Session:
           target: $SessionData
@@ -233,7 +249,8 @@ LabLink_Demo:
     SessionData:
       type: DataStoreReference
       name: Session data
-      behaverse:BDMDataset: {}
+      extensions:
+        behaverse:BDMDataset: {}
 
     Flow_Start_Welcome:
       source: $Start

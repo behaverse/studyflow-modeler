@@ -84,11 +84,11 @@ diagram:
     expect(doc.definitions).toBeUndefined();
     expect(doc.diagram).toBeUndefined();
     const process = doc.P;
-    // An extension entry is keyed by its type on the BPMN element that holds it: the study on its process, the
-    // Parameters on its object, the task's type on its task.
-    expect(process).toMatchObject({ type: 'Process', 'studyflow:Study': {} });
-    expect(process.elements.T1).toMatchObject({ type: 'Task', 'cognitive:CognitiveTask': { platform: 'jspsych' } });
-    expect(process.elements.C1['studyflow:Parameters'].values).toEqual({ Timelines: { XCIT_NB_01: null } });
+    // An extension entry is keyed by its type in the `extensions` of the BPMN element that holds it: the study on its
+    // process, the Parameters on its object, the task's type on its task.
+    expect(process).toMatchObject({ type: 'Process', extensions: { 'studyflow:Study': {} } });
+    expect(process.elements.T1).toMatchObject({ type: 'Task', extensions: { 'cognitive:CognitiveTask': { platform: 'jspsych' } } });
+    expect(process.elements.C1.extensions['studyflow:Parameters'].values).toEqual({ Timelines: { XCIT_NB_01: null } });
     // Wherever the drawing was written, on an element or in a diagram section, it is written back as the one layout map.
     expect(process.elements.T1.bounds).toBeUndefined();
     expect(doc.layout.Start).toBe('160 180 36 36');
@@ -212,12 +212,13 @@ P:
   elements:
     C1:
       type: DataObjectReference
-      studyflow:Parameters:
-        values: ${values}
+      extensions:
+        studyflow:Parameters:
+          values: ${values}
 `;
-    const valuesOf = (text: string): unknown => (yaml.load(text) as any).P.elements.C1['studyflow:Parameters'].values;
+    const valuesOf = (text: string): unknown => (yaml.load(text) as any).P.elements.C1.extensions['studyflow:Parameters'].values;
     // Raw `<`/`&` in the text would break the export.
-    const markup = await xmlOf(doc('\n          stimulus: "<p>&lt; L &amp; R <<< </p>"'));
+    const markup = await xmlOf(doc('\n            stimulus: "<p>&lt; L &amp; R <<< </p>"'));
     expect(markup).not.toContain('<<<');
     expect((valuesOf(await yamlOf(markup)) as any).stimulus).toBe('<p>&lt; L &amp; R <<< </p>');
 
@@ -238,6 +239,58 @@ P:
     const text = studyText(edited.study, edited.metamodel);
     expect(valuesOf(text)).toEqual({ seed: 2 });
     expect(await studyToXml(edited)).toBe(await xmlOf(text));
+  });
+
+  test('extension entries nest under `extensions`, each under its type; typed straight on the element or as BPMN\'s one list, they read the same; interleaving types keep the list', () => {
+    const study = (entries: string): string => `id: entries
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  prov: https://w3id.org/studyflow/prov
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+P:
+  type: Process
+  extensions:
+    studyflow:Study: {}
+  elements:
+    T:
+      type: Task
+${entries}`;
+    const written = study(`      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
+        prov:Activity:
+          - {action: executed, run: r1}
+          - {action: executed, run: r2}
+`);
+    const metamodel = freshMetamodel();
+    const spelled = (text: string): string => studyText(readStudy(text, metamodel), metamodel);
+    expect(spelled(written)).toBe(written);
+    // The shorthands: each entry as a prefixed key straight on its element, and BPMN's one list, each entry with its type.
+    expect(spelled(study(`      cognitive:CognitiveTask:
+        platform: jspsych
+      prov:Activity:
+        - {action: executed, run: r1}
+        - {action: executed, run: r2}
+`))).toBe(written);
+    expect(spelled(study(`      extensions:
+        - type: cognitive:CognitiveTask
+          platform: jspsych
+        - {type: prov:Activity, action: executed, run: r1}
+        - {type: prov:Activity, action: executed, run: r2}
+`))).toBe(written);
+    // Keying by type would reorder entries whose types interleave, so they stay BPMN's one list.
+    const interleaved = study(`      extensions:
+        - type: prov:Activity
+          action: executed
+          run: r1
+        - type: cognitive:CognitiveTask
+          platform: jspsych
+        - type: prov:Activity
+          action: executed
+          run: r2
+`);
+    expect(spelled(interleaved)).toBe(interleaved);
   });
 
   test('a message flow names its message, and the message its item definition, through a round trip', async () => {
@@ -483,7 +536,7 @@ P:
     expect(opened).toEqual([expect.stringMatching(/^T: <camunda:inputOutput> is from a namespace no loaded schema declares/)]);
     expect(studyModel(text).get('T')).not.toHaveProperty('extensionElements');
     // A child's text is a list even when it is one, so it is written back as a child, not as an attribute.
-    expect(text).toContain('    R:\n      type: Task\n      lab:rig:\n        platform: x\n        note:\n          - a\n');
+    expect(text).toContain('    R:\n      type: Task\n      extensions:\n        lab:rig:\n          platform: x\n          note:\n            - a\n');
     expect(await xmlOf(text)).toContain('<lab:rig platform="x">\n          <lab:note>a</lab:note>\n        </lab:rig>');
   });
 

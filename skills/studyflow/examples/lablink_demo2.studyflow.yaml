@@ -8,9 +8,10 @@ OmniProcessLabLinkDemo:
   type: Process
   name: EPSYLON LabLink - Modeling pipeline
   executable: true
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:51:38Z", with: studyflow-modeler/26.0615}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:51:38Z", with: studyflow-modeler/26.0615}
   documentation: Reads BIDS data, preprocesses fMRI and EEG in parallel, fits a model, and renders manuscript outputs.
   elements:
     Start:
@@ -175,13 +176,15 @@ OmniProcessLabLinkDemo:
     RawBIDSDataset:
       type: DataStoreReference
       name: Raw BIDS data
-      studyflow:Dataset:
-        format: bids
+      extensions:
+        studyflow:Dataset:
+          format: bids
 
     ManuscriptArtifacts:
       type: DataStoreReference
       name: Manuscript artifacts (figures, tables)
-      behaverse:BDMDataset: {}
+      extensions:
+        behaverse:BDMDataset: {}
 
 layout:
   Start: {bounds: 162 382 36 36, label: 138 425 86 30}

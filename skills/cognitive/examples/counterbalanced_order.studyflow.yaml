@@ -16,8 +16,9 @@ Counterbalanced_Order_Collaboration:
 Counterbalanced_Order:
   type: Process
   name: Counterbalanced task order
-  studyflow:Study:
-    seed: 7
+  extensions:
+    studyflow:Study:
+      seed: 7
   documentation: >-
     Two tasks in both orders, one order per arm of a random gateway that deals permuted blocks of two. Every two
     participants take both orders, so the cohort of four takes each order twice, whatever the seed.
@@ -29,34 +30,39 @@ Counterbalanced_Order:
     Allocate_Order:
       type: ExclusiveGateway
       name: Which order?
-      cognitive:RandomGateway:
-        algorithm: block
-        allocationRatio: "1:1"
-        blockSize: 2
+      extensions:
+        cognitive:RandomGateway:
+          algorithm: block
+          allocationRatio: "1:1"
+          blockSize: 2
 
     Stroop_First:
       type: Task
       name: Stroop task
-      cognitive:CognitiveTask:
-        platform: jspsych
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
 
     Flanker_Second:
       type: Task
       name: Flanker task
-      cognitive:CognitiveTask:
-        platform: jspsych
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
 
     Flanker_First:
       type: Task
       name: Flanker task
-      cognitive:CognitiveTask:
-        platform: jspsych
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
 
     Stroop_Second:
       type: Task
       name: Stroop task
-      cognitive:CognitiveTask:
-        platform: jspsych
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
 
     Merge_Order:
       type: ExclusiveGateway

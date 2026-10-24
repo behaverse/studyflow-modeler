@@ -9,7 +9,8 @@ schemas:
 Collab_Pools:
   type: Collaboration
   name: Reachy plays WhichOne, a model deciding
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     Three actors. Behaverse presents the WhichOne task and records the trials, the Reachy Mini looks, speaks, and moves,
     and a vision-language model decides. Run `studyflow run --runtime local` on this diagram: the robot finds the
@@ -23,20 +24,23 @@ Collab_Pools:
     Pool_Behaverse:
       name: Behaverse (WhichOne on the screen)
       process: $WhichOne_Task
-      studyflow:Actor:
-        actorType: software
+      extensions:
+        studyflow:Actor:
+          actorType: software
 
     Pool_Reachy:
       name: Reachy Mini
       process: $Reachy_Participant
-      reachy:Robot:
-        volume: 10
+      extensions:
+        reachy:Robot:
+          volume: 10
 
     Pool_Model:
       name: Model, gemma4 on Ollama
-      studyflow:Actor:
-        actorType: llm
-        implementation: ollama://gemma4:12b-it-qat
+      extensions:
+        studyflow:Actor:
+          actorType: llm
+          implementation: ollama://gemma4:12b-it-qat
   messageFlows:
     Msg_Ready:
       name: ready
@@ -127,8 +131,9 @@ Reachy_Participant:
     Look:
       type: ServiceTask
       name: Find the screen
-      reachy:LookAt:
-        target: screen
+      extensions:
+        reachy:LookAt:
+          target: screen
 
     Greet:
       type: ServiceTask
@@ -137,13 +142,15 @@ Reachy_Participant:
         args:
           - Hello! I am Reachy. I will be your participant today.
       implementation: shell://say
-      reachy:Interact: {}
+      extensions:
+        reachy:Interact: {}
 
     Wave:
       type: ServiceTask
       name: Welcome
-      reachy:Interact:
-        move: welcoming1
+      extensions:
+        reachy:Interact:
+          move: welcoming1
 
     Announce:
       type: ServiceTask
@@ -152,7 +159,8 @@ Reachy_Participant:
         args:
           - Ready when you are — I'll play this one.
       implementation: shell://say
-      reachy:Interact: {}
+      extensions:
+        reachy:Interact: {}
 
     Ready_Sent:
       type: IntermediateThrowEvent
@@ -173,7 +181,8 @@ Reachy_Participant:
     Take:
       type: ServiceTask
       name: Take a camera frame
-      reachy:Snapshot: {}
+      extensions:
+        reachy:Snapshot: {}
       outputs:
         Out_Frame:
           target: $Frame
@@ -200,21 +209,22 @@ Reachy_Participant:
     Instructions:
       type: DataObjectReference
       name: Instructions
-      agentic:Prompt:
-        template: |
-          You are a Reachy Mini robot seated in front of the WhichOne task
-          screen, playing a Simon task. The attached image is your view of
-          the screen. On each trial one coloured disk appears on the left or
-          the right inside the dark panel at the top of the game; the two
-          large circles below it are the response buttons (yellow on the
-          left, blue on the right), not the stimulus. Answer by the disk's
-          colour, not its position: Left when the disk is yellow, Right
-          when it is blue.
+      extensions:
+        agentic:Prompt:
+          template: |
+            You are a Reachy Mini robot seated in front of the WhichOne task
+            screen, playing a Simon task. The attached image is your view of
+            the screen. On each trial one coloured disk appears on the left or
+            the right inside the dark panel at the top of the game; the two
+            large circles below it are the response buttons (yellow on the
+            left, blue on the right), not the stimulus. Answer by the disk's
+            colour, not its position: Left when the disk is yellow, Right
+            when it is blue.
 
-          Reply with exactly three lines:
-          Seen: <the stimulus you see on the screen>
-          Rule: <what the instructions say that stimulus calls for>
-          Answer: <Left or Right>
+            Reply with exactly three lines:
+            Seen: <the stimulus you see on the screen>
+            Rule: <what the instructions say that stimulus calls for>
+            Answer: <Left or Right>
 
     Choice:
       type: DataObjectReference
@@ -230,8 +240,9 @@ Reachy_Participant:
     Show:
       type: ServiceTask
       name: Show it with the antennas
-      reachy:Interact:
-        side: "{Choice}"
+      extensions:
+        reachy:Interact:
+          side: "{Choice}"
 
     Over:
       type: IntermediateCatchEvent
@@ -269,8 +280,9 @@ Reachy_Participant:
     Proud:
       type: ServiceTask
       name: Proud of it
-      reachy:Interact:
-        move: proud1
+      extensions:
+        reachy:Interact:
+          move: proud1
 
     Thanks:
       type: ServiceTask
@@ -279,19 +291,22 @@ Reachy_Participant:
         args:
           - That was fun. How did I do?
       implementation: shell://say
-      reachy:Interact: {}
+      extensions:
+        reachy:Interact: {}
 
     Celebrate:
       type: ServiceTask
       name: Celebrate
-      reachy:Interact:
-        move: cheerful1
+      extensions:
+        reachy:Interact:
+          move: cheerful1
 
     LookBack:
       type: ServiceTask
       name: Back to the screen
-      reachy:LookAt:
-        target: screen
+      extensions:
+        reachy:LookAt:
+          target: screen
 
     Done:
       type: EndEvent
@@ -358,9 +373,10 @@ WhichOne_Task:
       type: Task
       name: WhichOne, 5 Simon trials
       exchange: true
-      behaverse:Task:
-        instrument: WO
-        timeline: SimonTask
+      extensions:
+        behaverse:Task:
+          instrument: WO
+          timeline: SimonTask
       inputs:
         In_Play_Parameters:
           source: $Play_Parameters
@@ -371,26 +387,28 @@ WhichOne_Task:
     Play_Parameters:
       type: DataObjectReference
       name: Parameters
-      studyflow:Parameters:
-        values:
-          Timelines:
-            SimonTask:
-              Blocks:
-                - Name: Simon
-                  ExitRules:
-                    - Trials: 5
-          Blocks:
-            Simon:
-              Parameters:
-                StimulusDisplayDuration: 5
-                MaxResponseTime: 8
+      extensions:
+        studyflow:Parameters:
+          values:
+            Timelines:
+              SimonTask:
+                Blocks:
+                  - Name: Simon
+                    ExitRules:
+                      - Trials: 5
+            Blocks:
+              Simon:
+                Parameters:
+                  StimulusDisplayDuration: 5
+                  MaxResponseTime: 8
 
     Trials:
       type: DataStoreReference
       name: Trial records
       uri: Play.events.jsonl
-      behaverse:BDMDataset:
-        dataLevel: trials
+      extensions:
+        behaverse:BDMDataset:
+          dataLevel: trials
 
     Task_Done:
       type: EndEvent

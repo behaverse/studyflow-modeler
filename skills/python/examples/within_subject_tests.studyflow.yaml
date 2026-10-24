@@ -5,9 +5,10 @@ schemas:
 within_subject_tests:
   type: Process
   name: within_subject_tests
-  studyflow:Study:
-    dependencies:
-      - pingouin==0.7.0
+  extensions:
+    studyflow:Study:
+      dependencies:
+        - pingouin==0.7.0
   documentation: |
     Two within-subject questions asked of one table as it loads, one decided
     by p and the other by a Bayes factor. A gateway asks the question, its
@@ -44,8 +45,9 @@ within_subject_tests:
       type: DataObjectReference
       name: Ratings
       uri: data/ratings.csv
-      studyflow:Table:
-        schema: $Ratings_Schema
+      extensions:
+        studyflow:Table:
+          schema: $Ratings_Schema
       documentation: >-
         One row per participant and insect, as pingouin ships it; `validate` checks every column a test names against
         its schema.
@@ -53,33 +55,35 @@ within_subject_tests:
     Ratings_Schema:
       type: DataObjectReference
       name: Ratings schema
-      studyflow:Schema:
-        body:
-          "@context": http://www.w3.org/ns/csvw
-          tableSchema:
-            columns:
-              - name: Subject
-                datatype: integer
-              - name: Gender
-                datatype: string
-              - name: Region
-                datatype: string
-              - name: Education
-                datatype: string
-              - name: DesireToKill
-                datatype: number
-              - name: Disgustingness
-                datatype: string
-              - name: Frighteningness
-                datatype: string
+      extensions:
+        studyflow:Schema:
+          body:
+            "@context": http://www.w3.org/ns/csvw
+            tableSchema:
+              columns:
+                - name: Subject
+                  datatype: integer
+                - name: Gender
+                  datatype: string
+                - name: Region
+                  datatype: string
+                - name: Education
+                  datatype: string
+                - name: DesireToKill
+                  datatype: number
+                - name: Disgustingness
+                  datatype: string
+                - name: Frighteningness
+                  datatype: string
 
     Decision_Rules:
       type: DataObjectReference
       name: Decision rules
-      studyflow:Parameters:
-        values:
-          alpha: 0.05
-          evidence: 3
+      extensions:
+        studyflow:Parameters:
+          values:
+            alpha: 0.05
+            evidence: 3
       documentation: The alpha of the t test, and the Bayes factor beyond which, either way, the data count as evidence.
 
     Disgust:

@@ -5,7 +5,8 @@ schemas:
 Provenance_Model:
   type: Process
   name: Where the record is kept
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   documentation: >-
     Where the record of a run is kept. The studyflow document holds the plan and what its runs left: a trail of entries
     on its root, one record per element, and the state. The modeler appends to the trail and voids records. The local
