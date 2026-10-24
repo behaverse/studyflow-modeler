@@ -52,8 +52,8 @@ test("inspector fields: an optional one opens when ticked and clears unticked, a
   await inspector.getByRole('tab', { name: 'Reachy Mini' }).click();
   await inspector.getByRole('checkbox', { name: 'Audio' }).check();
   const study = yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as any;
-  const recording = Object.values<any>(study.Study_1.elements).find((element) => element['reachy:InteractionRecording']);
-  expect(recording['reachy:InteractionRecording'].streams).toEqual(['audio']);
+  const recording = Object.values<any>(study.Study_1.elements).find((element) => element.extensions?.['reachy:InteractionRecording']);
+  expect(recording.extensions['reachy:InteractionRecording'].streams).toEqual(['audio']);
 });
 
 test("the code modals: a schema's columns are saved as the table is left, in the format picked, which the schema then names, and a script's code in the language picked; each modal's save is one undo step", async ({ page }) => {
@@ -90,7 +90,7 @@ test("the code modals: a schema's columns are saved as the table is left, in the
 
   const exported = async () => {
     const elements = Object.values<any>((yaml.load(await readDownloadText(await exportDiagram(page, 'studyflow'))) as any).Study_1.elements);
-    return { schema: elements.find((element) => element['studyflow:Schema'])['studyflow:Schema'], script: elements.find((element) => element.type === 'ScriptTask') };
+    return { schema: elements.find((element) => element.extensions?.['studyflow:Schema']).extensions['studyflow:Schema'], script: elements.find((element) => element.type === 'ScriptTask') };
   };
   let { schema, script } = await exported();
   expect(schema.format).toBe('linkml');
