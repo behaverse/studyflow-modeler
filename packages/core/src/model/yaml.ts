@@ -23,7 +23,7 @@ import {
   shortTypeName,
   splitBinding,
 } from '@core/model/spelling';
-import { EVENT_KINDS, LOOP_KINDS, definitionId, fileKey, isRefLike, modelKey, refId, refValue } from '@core/model/names';
+import { EVENT_KINDS, LOOP_MARKERS, STANDARD_LOOP, definitionId, fileKey, isRefLike, modelKey, refId, refValue } from '@core/model/names';
 import { BUILTIN_TYPES, type Descriptor, type Metamodel, type PropertyDef } from '@core/model/metamodel';
 import { isElement, type Drawing, type Element, type State, type Study, type Value } from '@core/model/types';
 
@@ -103,6 +103,13 @@ function definitionOf(key: string, value: unknown, eventId: unknown): Record<str
   if (value === true) return { type, ...id };
   if (isMapping(value)) return { type, ...id, ...value };
   return main ? { type, ...id, [main]: value } : undefined;
+}
+
+/** An activity's marker as BPMN holds it, from what the file writes under `loopCharacteristics`: `true` a standard
+ * loop holding nothing, a mapping naming no type a standard loop's settings, one naming its type as it is. */
+function markerOf(value: unknown): unknown {
+  if (value === true) return { type: STANDARD_LOOP };
+  return isMapping(value) && !('type' in value) ? { type: STANDARD_LOOP, ...value } : value;
 }
 
 /** Whether `value`, under a prefixed key, is an entry of that type, or several: a mapping, or a list of mappings. */
@@ -216,11 +223,10 @@ class Reader {
     for (const [key, value] of Object.entries(node)) {
       const name = modelKey(this.metamodel, host, key);
       const definition = own.eventDefinitions && !own[name] ? definitionOf(key, value, node.id) : undefined;
-      const marker = own.loopCharacteristics && !own[name] ? Object.keys(LOOP_KINDS).find((type) => LOOP_KINDS[type] === key) : undefined;
       if (name === 'extensionElements' && own[name] && (Array.isArray(value) || isKeyedEntries(value))) entries.push(...entriesIn(value));
+      else if (name === 'loopCharacteristics' && own[name]) out[name] = markerOf(value);
       else if (own[name]) out[name] = value;
       else if (definition) out.eventDefinitions = [definition];
-      else if (marker) out.loopCharacteristics = { type: marker, ...(isMapping(value) ? value : {}) };
       else if (key.includes(':') && isEntryValue(value)) entries.push(...entriesOf(key, value));
       else out[key] = value;
     }
@@ -671,9 +677,10 @@ class Speller {
       else out[kind.key] = body;
       return true;
     }
-    if (key === 'loopCharacteristics' && isElement(value) && LOOP_KINDS[value.type] && !own[LOOP_KINDS[value.type]]) {
-      const body = this.element(value, value.type);
-      out[LOOP_KINDS[value.type]] = Object.keys(body).length === 0 ? true : body;
+    if (key === 'loopCharacteristics' && isElement(value) && LOOP_MARKERS.has(value.type)) {
+      // A standard loop names no type, so a multi-instance marker names its own.
+      const body = this.element(value, STANDARD_LOOP);
+      out[fileKey(this.metamodel, el.type, key)] = Object.keys(body).length === 0 ? true : body;
       return true;
     }
     return false;

@@ -339,10 +339,11 @@ R:
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structure: cognitive:Trial\n');
   });
 
-  test('a conditional boundary event and a multi-instance marker keep their spelling through a round trip', async () => {
-    // Both are BPMN's own: the boundary's `condition` says when the walk leaves a finished step, and the marker's
+  test('a conditional boundary event and the loop markers keep their spelling through a round trip', async () => {
+    // All are BPMN's own: the boundary's `condition` says when the walk leaves a finished step, and a marker's
     // `cardinality` how many instances of it run. An expression is a string, so an integer cardinality is quoted;
     // one that names its language is an element, which its XML types with an `xsi:type` the YAML leaves to moddle.
+    // A standard loop names no type, `true` when it holds nothing; a multi-instance marker names its own.
     const text = `id: cohort
 schemas:
   studyflow: http://behaverse.org/schemas/studyflow/v1
@@ -352,7 +353,8 @@ S:
   elements:
     Subject:
       type: SubProcess
-      multiInstance:
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
         cardinality: "4"
       elements:
         S0:
@@ -360,12 +362,17 @@ S:
 
     Play:
       type: Task
-      multiInstance:
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
         sequential: true
         cardinality:
           type: FormalExpression
           body: "3"
           language: feel
+
+    Again:
+      type: Task
+      loopCharacteristics: true
 
     Noisy:
       type: BoundaryEvent
@@ -375,6 +382,7 @@ S:
     const xml = await xmlOf(text);
     expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics>');
     expect(xml).toContain('<bpmn:multiInstanceLoopCharacteristics isSequential="true">');
+    expect(xml).toContain('<bpmn:standardLoopCharacteristics />');
     expect(xml).toContain('<bpmn:loopCardinality xsi:type="bpmn:tFormalExpression" language="feel">3</bpmn:loopCardinality>');
     expect(xml).toMatch(/<bpmn:loopCardinality xsi:type="bpmn:tFormalExpression">4<\/bpmn:loopCardinality>/);
     expect(xml).toMatch(/<bpmn:condition xsi:type="bpmn:tFormalExpression">\{Play.failedTrialRate\} &gt; 0.2<\/bpmn:condition>/);

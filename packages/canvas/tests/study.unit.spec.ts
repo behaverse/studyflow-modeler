@@ -243,8 +243,10 @@ test('set takes a structured attribute as the file spells it: a loop, a timer, t
   const study = open();
   const task = (): any => study.element('Task_1');
 
-  // A loop marker under the key of its kind, as the file writes it.
-  expect(study.set({ id: 'Task_1', attribute: 'loop', value: { while: 'count < 3', maximum: 3 } })).toMatchObject({ ok: true, changed: ['Task_1'] });
+  // A loop marker as the file writes it: `true` a bare standard loop, then its settings, which replace it whole.
+  expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: true })).toMatchObject({ ok: true, changed: ['Task_1'] });
+  expect(task().loopCharacteristics).toEqual({ type: 'bpmn:StandardLoopCharacteristics' });
+  expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: { while: 'count < 3', maximum: 3 } })).toMatchObject({ ok: true, changed: ['Task_1'] });
   expect(task().loopCharacteristics).toMatchObject({ type: 'bpmn:StandardLoopCharacteristics', loopMaximum: 3, loopCondition: 'count < 3' });
 
   // What a step reads, by the `$id` of what it reads: a reference the document resolves.
@@ -259,8 +261,8 @@ test('set takes a structured attribute as the file spells it: a loop, a timer, t
   expect(study.toYaml()).toBe(before);
 
   // The file holds what was set, and each set undoes on its own; null clears.
-  expect(before).toContain('loop:\n        while: count < 3\n        maximum: 3\n');
-  expect(study.set({ id: 'Task_1', attribute: 'loop', value: null }).ok).toBe(true);
+  expect(before).toContain('loopCharacteristics:\n        while: count < 3\n        maximum: 3\n');
+  expect(study.set({ id: 'Task_1', attribute: 'loopCharacteristics', value: null }).ok).toBe(true);
   expect(task().loopCharacteristics).toBeUndefined();
   study.undo();
   expect(task().loopCharacteristics.loopMaximum).toBe(3);

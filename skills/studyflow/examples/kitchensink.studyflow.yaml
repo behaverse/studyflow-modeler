@@ -169,12 +169,13 @@ Kitchen_Sink:
     Fn_ForEach:
       type: SubProcess
       name: For-each (fan-out)
-      multiInstance: true
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
 
     Fn_Retry:
       type: Task
       name: Retry-until-good (loop)
-      loop:
+      loopCharacteristics:
         while: score < 0.9
         maximum: 5
 

@@ -330,12 +330,13 @@ export class Study {
     if (!found) return refused(`no element '${id}'`);
     const { model } = this;
     const { element } = found;
-    // A key as the file writes it (`loop`, `timer`, `inputs`) names the property BPMN calls by its own name.
+    // A key as the file writes it (`timer`, `inputs`) names the property BPMN calls by its own name.
     const named = attributeOf(model, element, attribute);
     const given = declares(model, element, attribute);
     if (!given && !(named && declares(model, element, named.name))) return refused(`no schema gives '${id}' an attribute '${attribute}'`);
     const local = !given && named ? named.name : attribute.includes(':') ? attribute.slice(attribute.indexOf(':') + 1) : attribute;
-    const kind = !!named && named.key !== named.name && ['eventDefinitions', 'loopCharacteristics'].includes(named.name);
+    // An event's kind, and the loop marker (`true` a bare standard loop), are written as the file spells them.
+    const kind = !!named && (named.name === 'loopCharacteristics' || (named.name === 'eventDefinitions' && named.key !== named.name));
     const property = model.property(element, local);
     // What BPMN keeps as an element or a reference is written as the file spells it, and cleared by taking it out;
     // text kept in an element of its own (an expression, the documentation) is written in place, as it is typed.

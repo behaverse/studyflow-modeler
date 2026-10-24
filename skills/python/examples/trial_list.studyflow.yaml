@@ -112,7 +112,8 @@ Session:
     each_trial:
       type: SubProcess
       name: Each trial
-      multiInstance:
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
         sequential: true
         dataInput: $trials
         dataOutput: $answers

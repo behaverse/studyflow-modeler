@@ -1,6 +1,6 @@
 /**
- * The names a `.studyflow.yaml` file gives BPMN's keys, per element type, and the kinds an event's definition and an
- * activity's marker are written under (docs/reference.qmd, "Elements and their keys"). A file's key is the BPMN
+ * The names a `.studyflow.yaml` file gives BPMN's keys, per element type, the kinds an event's definition is written
+ * under, and how an activity's marker is (docs/reference.qmd, "Elements and their keys"). A file's key is the BPMN
  * property's name made shorter by three rules (a reference drops its `Ref`, a true-or-false its `is`, a key what the
  * element holding it already says), or a name of its own; a rule never gives a key a name its element already holds for
  * another property, so each key stands for one property of each type and reads back as it.
@@ -20,8 +20,12 @@ const OWN: Readonly<Record<string, string>> = {
   participantMultiplicity: 'multiplicity',
 };
 
+/** An activity's marker, written under `loopCharacteristics` holding its settings: a standard loop names no type
+ * (`true` when it holds nothing), a multi-instance marker names its own. */
+export const STANDARD_LOOP = 'bpmn:StandardLoopCharacteristics';
+export const MULTI_INSTANCE_LOOP = 'bpmn:MultiInstanceLoopCharacteristics';
 /** The loop markers, whose keys drop the `loop` their holder already says; a standard loop's condition reads `while`. */
-const LOOPS = new Set(['bpmn:StandardLoopCharacteristics', 'bpmn:MultiInstanceLoopCharacteristics']);
+export const LOOP_MARKERS: ReadonlySet<string> = new Set([STANDARD_LOOP, MULTI_INSTANCE_LOOP]);
 
 /** An event's one definition, written under the key of its kind, holding its main attribute. */
 export const EVENT_KINDS: Readonly<Record<string, { key: string; main?: string }>> = {
@@ -37,12 +41,6 @@ export const EVENT_KINDS: Readonly<Record<string, { key: string; main?: string }
   'bpmn:TerminateEventDefinition': { key: 'terminate' },
 };
 
-/** An activity's marker, written under the key of its kind. */
-export const LOOP_KINDS: Readonly<Record<string, string>> = {
-  'bpmn:StandardLoopCharacteristics': 'loop',
-  'bpmn:MultiInstanceLoopCharacteristics': 'multiInstance',
-};
-
 /** The id an event's one definition takes when the file leaves it out. */
 export const definitionId = (eventId: string): string => `${eventId}_Def`;
 
@@ -51,9 +49,9 @@ const lower = (text: string): string => text.charAt(0).toLowerCase() + text.slic
 function shortened(type: string, p: PropertyDef): string {
   const name = p.ns.localName;
   if (name in OWN) return OWN[name];
-  if (type === 'bpmn:StandardLoopCharacteristics' && name === 'loopCondition') return 'while';
+  if (type === STANDARD_LOOP && name === 'loopCondition') return 'while';
   let key = name;
-  if (LOOPS.has(type) && /^loop[A-Z]/.test(key)) key = lower(key.slice(4));
+  if (LOOP_MARKERS.has(type) && /^loop[A-Z]/.test(key)) key = lower(key.slice(4));
   if (/.Ref$/.test(key)) key = key.slice(0, -3);
   if (p.type === 'Boolean' && /^is[A-Z]/.test(key)) key = lower(key.slice(2));
   return key;

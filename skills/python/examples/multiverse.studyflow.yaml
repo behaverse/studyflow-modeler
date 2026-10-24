@@ -67,7 +67,8 @@ multiverse:
     each_c:
       type: SubProcess
       name: each_c
-      multiInstance:
+      loopCharacteristics:
+        type: MultiInstanceLoopCharacteristics
         dataInput: $cs
         dataOutput: $scores
         inputDataItem:

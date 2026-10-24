@@ -1,6 +1,6 @@
 import { RESERVED_DOC_KEYS, type YamlDoc } from '@core/model/yaml';
 import type { Element, StudyModel } from '@core/model/index';
-import { EVENT_KINDS, LOOP_KINDS, fileKey, modelKey } from '@core/model/names';
+import { EVENT_KINDS, fileKey, modelKey } from '@core/model/names';
 import { expandInlineFlow, keyedMapToList } from '@core/model/spelling';
 
 type Node = Record<string, unknown>;
@@ -37,7 +37,7 @@ function nodeOf(doc: YamlDoc, model: StudyModel, element: Element): Node | undef
 
 /**
  * The property `key` names on `element`, a key as the file writes it or by BPMN's name, and the key itself: an event's
- * kind names its definitions, an activity's marker kind its loop characteristics. Undefined for a key it names none by.
+ * kind names its definitions. Undefined for a key it names none by.
  */
 export function attributeOf(model: StudyModel, element: Element, key: string): { name: string; key: string } | undefined {
   const host = model.host(element);
@@ -46,14 +46,12 @@ export function attributeOf(model: StudyModel, element: Element, key: string): {
   const name = modelKey(model.metamodel, host, key);
   if (name !== key && model.property(element, name)) return { name, key };
   if (model.property(element, 'eventDefinitions') && Object.values(EVENT_KINDS).some((kind) => kind.key === key)) return { name: 'eventDefinitions', key };
-  if (model.property(element, 'loopCharacteristics') && Object.values(LOOP_KINDS).includes(key)) return { name: 'loopCharacteristics', key };
   return undefined;
 }
 
-/** Every key the file may write `element`'s property `name` under: BPMN's name, the file's, and its kinds. */
+/** Every key the file may write `element`'s property `name` under: BPMN's name, the file's, and an event's kinds. */
 function spellingsOf(model: StudyModel, element: Element, name: string): string[] {
-  const kinds = name === 'eventDefinitions' ? Object.values(EVENT_KINDS).map((kind) => kind.key)
-    : name === 'loopCharacteristics' ? Object.values(LOOP_KINDS) : [];
+  const kinds = name === 'eventDefinitions' ? Object.values(EVENT_KINDS).map((kind) => kind.key) : [];
   return [name, fileKey(model.metamodel, model.host(element), name), ...kinds];
 }
 
