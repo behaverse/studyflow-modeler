@@ -1,6 +1,6 @@
 ---
 title: "Reference"
-description: "Every element you can put in a studyflow, the attributes each one takes, and the files a study is stored in."
+description: "Elements, attributes, and storage format"
 ---
 
 ![One live instance of every element the shipped sets declare, in a labelled band per set.](assets/img/examples/kitchensink.studyflow.png){#fig-catalog fig-alt="A tall diagram of dashed labelled bands, read top to bottom: BPMN events, BPMN gateways, BPMN activities, BPMN data and artifacts, studyflow core data elements, exec execution and scope, cognitive domain activities and research gateways, eeg biosignals, agentic prompts, and BPMN loops beside a smaller band of data IO service tasks. Each band holds one instance of every element it contributes, drawn with its own shape and icon and labelled underneath." .fig-l}
@@ -40,12 +40,13 @@ Every element is a standard BPMN element, which gives it a shape and a flow beha
 Survey:
   type: Task                            # the standard element: shape, and flow behaviour
   name: Post-battery survey
-  cognitive:Questionnaire:              # the research type: meaning, and its own attributes
-    instrument: phq-9
+  extensions:
+    cognitive:Questionnaire:            # the research type: meaning, and its own attributes
+      instrument: phq-9
 
 Done:
   type: EndEvent
-  redirectTo: https://example.org/thanks   # a namespaced attribute, straight on the element
+  redirectTo: https://example.org/thanks   # a core attribute, straight on the element
 ```
 
 ## Run state
@@ -77,7 +78,7 @@ Every expression a study writes is FEEL, the Friendly Enough Expression Language
 
 A studyflow has to satisfy the usual rules of a BPMN diagram before anything can run it: every `source` and `target` names an element that exists in the file, every path leaves a start event and reaches an end event, an exclusive gateway covers every case in its conditions, marks one outgoing edge `default`, or leaves exactly one outgoing edge without a condition, and every value a condition or a step reads is declared on the study or on a sub-process containing it.
 
-`studyflow validate` reports what can be checked without running. For any file: whether it parses, whether the sets it depends on loaded, and any name that no loaded set declares; that every id names one element, even across scopes; that every sequence flow joins two flow nodes of the process or sub-process holding it, every data association joins a data element to its step, and a step reads or writes a property only inside the scope that declares it; that every process and sub-process with sequence flows has a start and an end event, and every flow node lies on a path from one to the other; that no complex gateway splits, whose activation rule the walk does not read, no parallel gateway carries conditions on its flows, which it never reads, and no event is a signal, escalation, compensation, link or cancel event, which it does not read either; that a `loop` has a `while`, a `maximum` or a boundary event to end it; that no two steps on paths that run at once write one property or data element (a warning: the one that finishes last sets it); that every expression is the FEEL both runtimes run; that an exclusive gateway's conditions on one number neither overlap (a warning: the file's order would choose) nor leave a value no flow takes when there is no default flow; that an attribute holds a value of the type its schema gives it: one of an enumeration's values (unless the attribute also takes free text), a whole number, a number, or true or false; that a start event's `consentFormUri` is an address or a path from the site's root, which a page can fetch, and that an end event has a code to hand: a `completionCode` when its `completionCodeType` is `static`, and a type other than `none` when its `redirectTo` carries `{COMPLETION_CODE}`; that every `implementation` names a scheme some loaded skill runs (a warning); that no label writes as a number a value the file declares and its element's conditions read, or, for a gateway, the conditions on the flows out of it (a warning naming the placeholder to write: `> {max_unanswered:%} unanswered` for `> 20% unanswered`); that each material the study registers by its content (a `digest`, a `consentFormDigest`) still holds that content ([Data](#data)); and that every column an operation reading a schema-bound dataset names under `index`, `columns`, `values`, `subset`, `by`, `key`, `column`, `on` or `usecols`, as a test's variables under `dv`, `within`, `between` or `subject`, or in backticks in a `query` or `eval` expression (`expr`), is a column of that schema, but for one an `eval` assigns, which the step derives; and that the study, written as BPMN XML, is valid against the OMG's BPMN 2.0 schema (checked with libxml2's `xmllint`, a warning when the machine has none). It then explores every way the study can go, each decision a gateway, a loop or a boundary event makes taken as a free choice, walked dry, and warns about a pool left waiting for a message none will send (the pools waiting for each other, or the sender ended), a parallel join one of whose tokens can never come, and a message sent that nothing takes, naming the choices that lead there; the OK line says how many ways it explored. This is soundness in the sense of workflow nets, for the study's control flow: a condition that never holds is still the data's to show. For an executed copy it also checks the record: that the counts balance, every node reached as often as its flows brought tokens in, and as often as its flows and boundary events took them out; and that the protocol still matches the digest its last run recorded as `plan` (the study without its state, its provenance, its drawing, and its checklist ticks). When its run's record, `events.jsonl`, sits beside it (an executed copy in its run repository), the state the file keeps is also checked against the state the record says, the timeline aside, so a count or a property changed after the run is found. `studyflow run` applies the checks that need no run before it starts, registered materials included, and refuses a study that fails one. The command reports warnings but does not fail on them unless you pass `--strict`. The rest shows up when the study runs: a condition that can never hold, a data edge that arrives too late.
+`studyflow validate` reports what can be checked without running. For any file: whether it parses, whether the sets it depends on loaded, and any name that no loaded set declares; that every id names one element, even across scopes; that every sequence flow joins two flow nodes of the process or sub-process holding it, every data association joins a data element to its step, and a step reads or writes a property only inside the scope that declares it; that every process and sub-process with sequence flows has a start and an end event, and every flow node lies on a path from one to the other; that no complex gateway splits, whose activation rule the walk does not read, no parallel gateway carries conditions on its flows, which it never reads, and no event is a signal, escalation, compensation, link or cancel event, which it does not read either; that a loop has a `while`, a `maximum` or a boundary event to end it; that no two steps on paths that run at once write one property or data element (a warning: the one that finishes last sets it); that every expression is the FEEL both runtimes run; that an exclusive gateway's conditions on one number neither overlap (a warning: the file's order would choose) nor leave a value no flow takes when there is no default flow; that an attribute holds a value of the type its schema gives it: one of an enumeration's values (unless the attribute also takes free text), a whole number, a number, or true or false; that a start event's `consentFormUri` is an address or a path from the site's root, which a page can fetch, and that an end event has a code to hand: a `completionCode` when its `completionCodeType` is `static`, and a type other than `none` when its `redirectTo` carries `{COMPLETION_CODE}`; that every `implementation` names a scheme some loaded skill runs (a warning); that no label writes as a number a value the file declares and its element's conditions read, or, for a gateway, the conditions on the flows out of it (a warning naming the placeholder to write: `> {max_unanswered:%} unanswered` for `> 20% unanswered`); that each material the study registers by its content (a `digest`, a `consentFormDigest`) still holds that content ([Data](#data)); and that every column an operation reading a schema-bound dataset names under `index`, `columns`, `values`, `subset`, `by`, `key`, `column`, `on` or `usecols`, as a test's variables under `dv`, `within`, `between` or `subject`, or in backticks in a `query` or `eval` expression (`expr`), is a column of that schema, but for one an `eval` assigns, which the step derives; and that the study, written as BPMN XML, is valid against the OMG's BPMN 2.0 schema (checked with libxml2's `xmllint`, a warning when the machine has none). It then explores every way the study can go, each decision a gateway, a loop or a boundary event makes taken as a free choice, walked dry, and warns about a pool left waiting for a message none will send (the pools waiting for each other, or the sender ended), a parallel join one of whose tokens can never come, and a message sent that nothing takes, naming the choices that lead there; the OK line says how many ways it explored. This is soundness in the sense of workflow nets, for the study's control flow: a condition that never holds is still the data's to show. For an executed copy it also checks the record: that the counts balance, every node reached as often as its flows brought tokens in, and as often as its flows and boundary events took them out; and that the protocol still matches the digest its last run recorded as `plan` (the study without its state, its provenance, its drawing, and its checklist ticks). When its run's record, `events.jsonl`, sits beside it (an executed copy in its run repository), the state the file keeps is also checked against the state the record says, the timeline aside, so a count or a property changed after the run is found. `studyflow run` applies the checks that need no run before it starts, registered materials included, and refuses a study that fails one. The command reports warnings but does not fail on them unless you pass `--strict`. The rest shows up when the study runs: a condition that can never hold, a data edge that arrives too late.
 
 ## Views
 
@@ -229,9 +230,9 @@ Trial_Item:
 | `timeCycle`, under `timer` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval (`R3/PT10M`); a run waits for an interval's first firing, and passes a cron schedule at once |
 | `timer` (its `timeDuration`), or `timeDate` under it | a timer start, catch or boundary event | an ISO 8601 delay (`timer: PT5M`, `timer: P21D`), or a fixed moment; a run waits for it, and at a boundary event it ends the step it sits on when it runs out |
 | `condition` | a conditional catch or boundary event | wait until this becomes true; on a boundary event, leave the step when it does |
-| `while`, under `loop` | the repeat marker on a step | repeat while this holds |
-| `cardinality`, under `multiInstance` | the multi-instance marker on a step | run this many instances of the step |
-| `dataInput` and `inputDataItem`, under `multiInstance` | the multi-instance marker on a step | run one instance per item of this list, the item bound under the input's name; `dataOutput` and `outputDataItem` collect what each instance leaves under the output's name into a list |
+| `while`, under `loopCharacteristics` | the repeat marker on a step | repeat while this holds |
+| `cardinality`, under `loopCharacteristics` | the multi-instance marker on a step | run this many instances of the step |
+| `dataInput` and `inputDataItem`, under `loopCharacteristics` | the multi-instance marker on a step | run one instance per item of this list, the item bound under the input's name; `dataOutput` and `outputDataItem` collect what each instance leaves under the output's name into a list |
 | `multiplicity` | a pool | run this many instances of the pool's process, one after another |
 | `completionCondition` | an ad-hoc sub-process | stop when this holds |
 
@@ -280,24 +281,22 @@ A step that fails goes on from the error boundary event drawn on it, if it carri
 
 A model takes part as an actor, never as a setting on a step. It is a pool of its own, an `Actor` whose `actorType` is `llm` and which has no process, and the study's steps ask it along message flows; or it is the band of a task it takes. A model call is a task with a message flow to the model's pool and one back, and a guardrail or a judge is such a call with a strict prompt. A tool is a service task with an `implementation`, an agent loop an ad-hoc sub-process that stops at its `completionCondition`, and a person's sign-off a user task with a timer on it (no runtime executes a `completionCondition` yet). A model answers each message on its own unless its actor's `memory` is `conversation`: then it sees the earlier messages from the same instance of the pool asking it, and its answers, so a model answering one participant remembers that participant's earlier trials and no other's. Every exchange with a model is recorded with the run: the model's digest and quantization level, its default sampling parameters and the options sent, the server's version, and the request as sent, beside the reply. An eval harness needs nothing beyond these and the ordinary elements, gateways for the conditions and data elements for the results. It is the same graph that carries a human experiment, with models in the actor seats. When each `Activity` entry gets written is described on the [Developers](developers.qmd#what-a-run-leaves-behind) page.
 
-# The file
+# The storage format
 
 ![The files that carry a study, and what converts into what. Everything inside the dashed group converts back without loss; a derived view is exported one way.](assets/img/diagrams/file-format.studyflow.svg){#fig-round-trip fig-alt="A Studyflow diagram of files and conversions. Inside a dashed group labelled converts both ways, losing nothing: .studyflow.yaml, the canonical file, expands to .bpmn BPMN 2.0 XML, which projects back to YAML; rendering the picture writes .studyflow.png, carrying the YAML, and .studyflow.svg, carrying the BPMN XML; and reopening from the source inside, never the pixels, gives the YAML back. Outside the group, exporting a derived view writes .drawio, LinkML, NIDM-Results and ARTEM-IS, one way."}
 
-| File | Carries | Reopens as a studyflow |
-|:--|:--|:--|
-| `.studyflow.yaml` | the study itself, in full. **The canonical form. Keep this one in version control.** | yes, also `.studyflow` |
-| `.bpmn` | the same study, as standard BPMN 2.0 XML | yes, also `.xml` |
-| `.studyflow.png` | a picture, and the study's `.studyflow.yaml` inside it | yes |
-| `.studyflow.svg` | a picture, and the study's BPMN XML nested in its metadata | yes |
-| `.svg`, `.png` (Manuscript view) | the figure, carrying the study it shows (the `.png` its YAML, the `.svg` its BPMN), and the `.svg` also the draw.io file that redraws it | yes |
-| `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json` | a document derived for another tool | no |
-| `.json` (jsPsych timeline) | an existing timeline, on import only | read only |
+| File format | Description |
+|:--|:--|
+| `.studyflow.yaml` | the study itself, in canonical form |
+| `.bpmn`, `.xml` | the same study, as standard BPMN 2.0 XML |
+| `.studyflow.png` | the full image, and the study's `.studyflow.yaml` embedded in it |
+| `.studyflow.svg` | a picture, and the study's BPMN XML nested in its metadata |
+| `.svg`, `.png` (Manuscript view) | the figure, carrying the `.studyflow.yaml` and editable draw.io image |
+| `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json`, `.json` (jsPsych timeline) | exported formats, non-reversible, for the tools that read them |
 
-The YAML is the BPMN XML's tree, spelled in YAML: every element keeps its BPMN type, its place, its order and its id, and what Studyflow and its skills add sits where BPMN keeps extensions. The two convert into each other without loss, so a round trip returns the same document. Four things follow from it. A file stays BPMN when the skills it uses are not installed. A version-control diff shows your edits and nothing else. A run of the file only adds lines to it. And the protocol digest is the same whichever form holds the study. Here is a complete, runnable study:
+The YAML format is the canonical one, and can be losslessly converted into BPMN XML and back. Here is a complete, runnable study:
 
 ```yaml
-id: minimal_study
 schemas:
   cognitive: http://behaverse.org/schemas/studyflow/cognitive
   studyflow: http://behaverse.org/schemas/studyflow/v1
@@ -305,19 +304,21 @@ schemas:
 Minimal_Study:
   type: Process
   name: Minimal study
-  studyflow:Study: {}
+  extensions:
+    studyflow:Study: {}
   elements:
     Enrolled:
       type: StartEvent
       name: Enrolled and consented
-      consentFormUri: https://example.org/protocols/minimal-study/consent.md
+      consentFormUri: https://example.org/consent.md
 
     Flanker:
       type: Task
       name: Flanker
-      cognitive:CognitiveTask:
-        platform: jspsych
-        implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
+          implementation: https://github.com/jspsych/jspsych-contrib@v0.4.0#flanker
 
     Done:
       type: EndEvent
@@ -325,6 +326,7 @@ Minimal_Study:
       redirectTo: https://app.prolific.com/submissions/complete?cc={COMPLETION_CODE}
       completionCodeType: dynamic
 
+    # the edges
     Flow_Enrolled_Flanker:
       source: $Enrolled
       target: $Flanker
@@ -334,26 +336,27 @@ Minimal_Study:
       target: $Done
 ```
 
-That is [`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) in full. It contains no geometry. The layout follows from each edge's `source` and `target`, and the modeler only saves geometry once you rearrange things by hand.
+It contains no layout or geometry. The modeler lays it out when it opens the file, and saves the geometry, under `layout`, once things are rearranged by hand ([The drawing](#the-drawing)).
 
 ## The document
 
 The top level is the document, BPMN's `definitions`:
 
-| Key | Holds |
+[TODO: combine definitions and schemas into one, follow BPMN XML naming for extra schemas]
+[TODO: use BPMN bpmndi:BPMNDiagram for the layout, e.g., diagram instead of layout; also use the term diagram for the view that shows the drawing]
+
+| Key | Description |
 |:--|:--|
-| `id` | the document's id |
+| `id` | the document's id, when it has one |
 | `schemas` | each namespace the file uses besides BPMN's, its prefix to its URI: the XML's `xmlns:` declarations, written for every schema in use, the core's included. The version segment of the core's URI is the format version |
-| `definitions` | the document's other attributes, only those that differ from their defaults (`targetNamespace` is `http://bpmn.io/schema/bpmn` unless written) |
+| `definitions` | the document's other attributes, only those that differ from their defaults. `targetNamespace` is the XML namespace the file's own ids and names belong to, which BPMN's schema requires of every `definitions` and nothing in Studyflow reads; it is `http://bpmn.io/schema/bpmn` unless written |
 | one key per root element | each process, collaboration, message and item definition, keyed by its id, in document order |
 | `layout` | the drawing ([The drawing](#the-drawing)) |
 | `state` | the run state as the last run left it, last ([Run state](#run-state)); a file no run has touched has none |
 
-A document with neither `schemas` nor `definitions` is not read as a studyflow. A schema's URI names its namespace in the XML and leads to the skill that declares it, so a tool that lacks the skill can say where to get it. The tools declare every prefix they write. A prefix written without a declaration names the installed schema of that prefix, and is an error when none is installed. One the file declares whose skill is not installed is still read: its entries are kept as written and written back unchanged.
-
 ## Elements and their keys
 
-An element sits where BPMN nests it, under the key of the property that holds it, keyed by its id, in BPMN's order, with a blank line between elements. Its first key is its BPMN `type`, without the `bpmn:` prefix (`Task`, `StartEvent`, `SubProcess`), left out where the key holding it already says what it is: a pool under `participants`, an edge among the elements ([Edges](#edges)). Then come its `name`, its other attributes, its extension entries, its `documentation`, and last what it holds (`properties`, `inputs`, `outputs`, `elements`). A value BPMN keeps as an element of its own is written as its text: an expression (`condition: score > 0.9`), a documentation. A YAML-valued attribute (`values`, `additionalArguments`) is written as the mapping it holds, unless its text carries a comment, which a mapping would drop. Defaults are left out, and so is a value a type fixes when it redefines an attribute it inherits (a Behaverse task's `platform`).
+An element sits where BPMN nests it, under the key of the property that holds it, keyed by its id, in BPMN's order, with a blank line between elements. Its first key is its BPMN `type`, without the `bpmn:` prefix (`Task`, `StartEvent`, `SubProcess`), left out where the key holding it already says what it is: a pool under `participants`, an edge among the elements ([Edges](#edges)). Then come its `name`, its other attributes, its `extensions`, its `documentation`, and last what it holds (`properties`, `inputs`, `outputs`, `elements`). A value BPMN keeps as an element of its own is written as its text: an expression (`condition: score > 0.9`), a documentation. A YAML-valued attribute (`values`, `additionalArguments`) is written as the mapping it holds, unless its text carries a comment, which a mapping would drop. Defaults are left out, and so is a value a type fixes when it redefines an attribute it inherits (a Behaverse task's `platform`).
 
 Keys are BPMN's property names, shortened by three rules:
 
@@ -361,63 +364,55 @@ Keys are BPMN's property names, shortened by three rules:
 - A true-or-false drops BPMN's `is`: `executable`, `interrupting`, `sequential`, and in the drawing `expanded`, `markerVisible`, `horizontal`.
 - A key drops what the element holding it already says: in a loop marker `maximum`, `cardinality`, `dataInput`, `dataOutput`, with a standard loop's `loopCondition` written `while`, which says which way it reads; on a pool `multiplicity`. A timer keeps BPMN's `timeDuration`, `timeDate` and `timeCycle`, since `duration` already means a step's planned length.
 
-A rule never gives a key a name its element already has for another (a lane's `partitionElementRef` keeps its `Ref`, since a lane also holds a `partitionElement`), so each short name stands for one BPMN property on each type. A value is one of four kinds, each written its own way:
+[TODO: use duration, progress, and onset for all elements including events and task as a super class that both can extend, replace timeCycle, timeDate, etc in events]
 
-| You see | It is |
+| Shortcode | Description |
 |:--|:--|
-| `$Exit` | an element of this file, by its id; BPMN XML writes the bare id |
+| `$Exit` | an element in this file |
 | `{max_unanswered}` inside text | a placeholder ([Placeholders](#placeholders)) |
-| a value under a key that holds FEEL (`condition`, `while`, `transformation`) | an expression ([Expressions](#expressions)) |
-| anything else | a plain value: text, a number, an address, another tool's code (`NB`), a schema type (`cognitive:Trial`) |
+| a value under a key that holds expressions (`condition`, `while`, `transformation`) | an expression ([Expressions](#expressions)) |
 
-The schemas say which keys hold references (BPMN's own, and an attribute typed by an element, such as a dataset's `schema`) and which hold FEEL (the core marks BPMN's conditions as FEEL where it redefines them). An id can never contain `$`, so `$` is never part of one; under a key that holds no reference, a value starting with `$` is plain text.
+An id can never contain `$`; under a key that holds no reference, a value starting with `$` is plain text.
 
 A few keys are named for what they hold in a study:
 
-| In the file | In BPMN | Holds |
+[TODO: simplify the nodes, as it may be better to call it flowNode or just elements like the root study]
+
+| In Studyflow | In BPMN | Description |
 |:--|:--|:--|
 | `elements` | `flowElements` | what a process or a sub-process contains: its events, activities, gateways, data, and the sequence flows between them |
-| `participants` | a choreography task's `participantRef` | the actors its bands name, under the name the collaboration lists them by |
-| `initiator` | `initiatingParticipantRef` | the band that starts an exchange |
+| `participant` | a choreography task's `participantRef` | the actors its bands name, under the name the collaboration lists them by: two on a plain exchange, one on a cognitive task, its taker |
+| `initiatingParticipant` | `initiatingParticipantRef` | the band that starts an exchange |
 | `nodes` | a lane's `flowNodeRef` | the steps that sit in the lane |
 | `item` | a message's `itemRef`; a data element's `itemSubjectRef` | the item definition saying what it carries |
 | `inputs`, `outputs` | `dataInputAssociations`, `dataOutputAssociations` | an activity's data edges: what it reads and what it writes |
-| `extensions` | `extensionElements` | the element's extension entries as one list, written only where entries of different types interleave (below) |
-| `condition` | a sequence flow's `conditionExpression` | the FEEL condition on a branch |
+| `extensions` | `extensionElements` | the element's extension entries, each under its prefixed type (below) |
+| `condition` | a flow's `conditionExpression` | the FEEL condition |
 | `timer`, `message`, `condition`, `error`, `signal`, `escalation`, `link`, `compensation`, `cancel`, `terminate` | an event's one `eventDefinitions` entry | what triggers the event ([Events and loops](#events-and-loops)) |
-| `loop`, `multiInstance` | `loopCharacteristics`, standard or multi-instance | an activity's loop marker or multi-instance marker |
+| `loopCharacteristics` | `loopCharacteristics`, standard or multi-instance | an activity's loop marker or multi-instance marker ([Events and loops](#events-and-loops)) |
 
-What Studyflow and its skills add is an extension, as it is in the XML, and its prefix marks it. A skill's element is written on the element it extends, under its prefixed type and holding its own attributes, while that element keeps its BPMN type, so a reader without the skill still sees a task (the `Survey` in [Shape and behavior](#shape-and-behavior)). An entry that holds nothing is `{}`, and several entries of one type are a list. The study is the `studyflow:Study` entry of its root process, or of its collaboration when it has pools, and the run records are the `prov:Activity` list ([What a run adds](#what-a-run-adds)). Where entries of different types interleave, so that keying them by type would reorder them, the element keeps BPMN's one list under `extensions`, each entry with its `type`; no shipped example needs it.
+What Studyflow and its skills add is an extension, as it is in the XML, and its prefix says whose it is. An element's extension entries sit under its `extensions`, each under its prefixed type and holding its own attributes, while the element keeps its BPMN type, so a reader without the skill still sees a task (the `Survey` in [Shape and behavior](#shape-and-behavior)). An entry that holds nothing is `{}`, and several entries of one type are a list. The study is the `studyflow:Study` entry of its root process, or of its collaboration when it has pools, and the run records are its `prov:Activity` list ([What a run adds](#what-a-run-adds)).
 
-A choreography task in a process, which BPMN defines only in a choreography, is written as the task it is: `type: Task`, `exchange: true`, its bands under the core's `participants`, and the initiating one as `initiator`. So every file the tools write is valid against the OMG's BPMN 2.0 schema.
+A choreography task in a process, which BPMN defines only in a choreography, keeps its type, `ChoreographyTask`, with its bands as `participant` and the one that starts the exchange as `initiatingParticipant`; a cognitive task names only its taker, since it presents itself. The BPMN XML writes it as a task marked an exchange, so every file the tools write is valid against the OMG's BPMN 2.0 schema.
 
 ```yaml
     S1_FF_Flanker:
-      type: Task
+      type: ChoreographyTask
       name: Flanker task
-      exchange: true
-      participants: $Pool_Agent
-      cognitive:CognitiveTask:
-        platform: jspsych
-        implementation: jspsych://html-keyboard-response@8
+      participant: $Pool_Agent
+      extensions:
+        cognitive:CognitiveTask:
+          platform: jspsych
+          implementation: jspsych://html-keyboard-response@8
 ```
 
-A key's prefix says whose it is, and is written only where the bare name could mean two things:
-
-- A bare key is BPMN's, by its short name, or else the core schema's (`onset`, `consentFormUri`, `redirectTo`), the one schema every studyflow loads.
-- A core attribute whose name is also a BPMN key, or one of the file's own keys (`type`, `timer`, `loop`), on the same element is written with its prefix, `studyflow:`. None is today.
-- A skill's attribute on a BPMN element always carries the skill's prefix, so a reader without the skill can still tell whose it is. Skills add element types only, so none does today.
-- Inside an extension entry, the entry's own attributes are bare, since its `type` says whose they are; another schema's attribute there carries its prefix.
-- A prefixed key holding a mapping, or a list of them, is an extension entry of that type; holding a single value, it is an attribute. It is never an id, since an id has no colon.
-- A key from a namespace no loaded schema declares keeps its prefix.
-
-Whether a name is ambiguous is decided against BPMN and the core alone, never against the skills that happen to be installed, so a file is spelled the same wherever it is written. The prefixed form of any key is always read, so `studyflow:onset` typed by hand is the same as `onset`.
+A core attribute is written bare on its element (`onset`, `consentFormUri`, `redirectTo`), and the prefixed form of any key is always read, so `studyflow:onset` typed by hand is the same as `onset`.
 
 Anything the reader does not recognize is kept, never dropped: an entry from a namespace no loaded schema declares is written back as it was, and a key no schema declares is reported as well.
 
 ## Edges
 
-Every edge is written out, one reference to a line, so a run can add its records beneath it without changing a line:
+An edge is written where it sits, one reference to a line:
 
 ```yaml
     Flow_Enrolled_Flanker:
@@ -431,7 +426,9 @@ Every edge is written out, one reference to a line, so a run can add its records
       condition: state._meta.reached.Gate < 8
 ```
 
-A sequence flow among the elements, a message flow under `messageFlows` and an association under `artifacts` need no `type`: where they sit and their `source` and `target` say what they are. A data edge names only its data, since the activity it belongs to is its other end: an input its `source`, an output its `target`. An input that fills a named argument of the step's call says which, as its `parameter`. A `transformation` narrows the value: FEEL over the source on an input, over `result` on an output. A reference list holding one id, an input's `source` among them, is written as that id.
+A sequence flow among the elements, a message flow under `messageFlows` and a data association need no `type`: where they sit and their `source` and `target` say what they are. A data edge names only its data, since the activity it sits on is its other end: an input its `source`, an output its `target`. An input that fills a named argument of the step's call says which, as its `parameter`. A `transformation` narrows the value: FEEL over the source on an input, over `result` on an output.
+
+[TODO: use incoming and outgoing terms]
 
 ```yaml
     Play:
@@ -463,13 +460,11 @@ A sequence flow among the elements, a message flow under `messageFlows` and an a
           parameter: y
 ```
 
-What the edges imply is left out and rebuilt on read: a node's `incoming` and `outgoing` lists, and the `ioSpecification` of a step's data edges (`Play_io`, `Play_in_Parameters`, `Play_result`).
-
 ## Events and loops
 
 An event with one definition writes it under the key of its kind, holding its main value: a timer's `timeDuration`, a message's `message`, a condition's FEEL, the `error`, `signal` or `escalation` of an error, a signal or an escalation, a link's `name`, a compensation's `activity`. The value is `true` for a definition that holds nothing (`terminate: true`), and a mapping for anything else (`timer:` with `timeCycle: R3/PT10M` under it). The definition's id is the event's followed by `_Def` (`Wait_Def`) and is left out; any other id is written in the mapping as `id`. An event with several definitions keeps BPMN's `eventDefinitions`.
 
-An activity's marker is written the same way, under `loop` for BPMN's standard loop or `multiInstance`, holding its settings (`while`, `maximum`, `cardinality`), or `true` for a marker that holds none.
+An activity's marker is written the same way, under `loopCharacteristics`, holding its settings (`while` and `maximum`; `cardinality`, `sequential`, `dataInput` and `dataOutput`), or `true` for a standard loop that holds none. A multi-instance marker names its `type`, `MultiInstanceLoopCharacteristics`, since the key alone means BPMN's standard loop.
 
 ```yaml
     Wait:
@@ -485,30 +480,32 @@ An activity's marker is written the same way, under `loop` for BPMN's standard l
     Retry:
       type: Task
       name: Retry until good
-      loop:
+      loopCharacteristics:
         while: score < 0.9
         maximum: 5
 ```
 
 ## What a run adds
 
-A run writes what it did onto the elements it did it to, as records in a `prov:Activity` list on each, one record per line however long, and the state it left at the end of the file. The list is a list even with one record, so the next run appends a line to it. The executed copy is the registered file with lines added and none changed:
+A run writes what it did onto the elements it did it to, as records in the `prov:Activity` list of each one's `extensions`, one record per line however long, and the state it left at the end of the file. The list is a list even with one record, so the next run appends a line to it. The executed copy is the registered file with lines added and none changed:
 
 ```yaml
 Drawn_Loop:
   type: Process
   name: drawn loop (eight turns, edges only)
-  studyflow:Study: {}
-  prov:Activity:
-    - {action: created, when: "2026-07-30T22:24:02Z", with: studyflow-modeler/26.0615}
-    - {action: executed, when: "2026-10-22T11:26:43.818+02:00", with: studyflow-cli/26.10.13, run: repo, plan: "sha256:ddb256bda7250a847ee1fc4739fc2b9678f885d1cef115ca49286c72345908e9"}
+  extensions:
+    studyflow:Study: {}
+    prov:Activity:
+      - {action: created, when: "2026-07-30T22:24:02Z", with: studyflow-modeler/26.0615}
+      - {action: executed, when: "2026-10-22T11:26:43.818+02:00", with: studyflow-cli/26.10.13, run: repo, plan: "sha256:ddb256bda7250a847ee1fc4739fc2b9678f885d1cef115ca49286c72345908e9"}
   elements:
     Gate:
       type: ExclusiveGateway
       name: eight times yet?
       default: $Exit
-      prov:Activity:
-        - {action: executed, when: "2026-10-22T11:26:44.745+02:00", what: Exit, run: repo, commit: c1e5d863a5de656c98999a1ab191992220272e04}
+      extensions:
+        prov:Activity:
+          - {action: executed, when: "2026-10-22T11:26:44.745+02:00", what: Exit, run: repo, commit: c1e5d863a5de656c98999a1ab191992220272e04}
 
 state:
   _meta:
@@ -551,13 +548,13 @@ The tools write every element in the form above. When reading they also take the
 | You may write | The tools write |
 |:--|:--|
 | `Flow_1: Enrolled -> Flanker`, for an edge with nothing but its two ends | its `source` and `target` |
-| BPMN's own name for any key: `sourceRef`, `extensionElements`, `flowElements`, `participantRef`, `dataInputAssociations`, `conditionExpression`, `loopCharacteristics`, `eventDefinitions`, `isExpanded` | the short names above |
+| BPMN's own name for any key: `sourceRef`, `extensionElements`, `flowElements`, `participantRef`, `dataInputAssociations`, `conditionExpression`, `eventDefinitions`, `isExpanded` | the short names above |
 | a reference list of one id as a list | the id |
 | a prefix on a key that needs none (`studyflow:onset`) | the bare key |
 | an id under a key that holds a reference, without `$` | the id with `$` |
-| BPMN's one list of entries, under `extensions` or `extensionElements`, whose types do not interleave | each entry under its prefixed type |
+| an extension entry as a prefixed key straight on its element (`cognitive:Questionnaire:` beside `type`), or BPMN's one list of entries under `extensions` or `extensionElements` | the entry under its prefixed type in `extensions` |
 | the drawing on the element it positions (`bounds`, `waypoint`, `fill`) | its line in `layout` |
 | a YAML value as quoted text, under `values` or `additionalArguments` | the mapping it holds, unless the text carries a comment |
-| a schema's type as the element's own (`type: cognitive:Questionnaire`), its attributes beside BPMN's | the BPMN type, and the schema's type as an entry holding its attributes |
+| a schema's type as the element's own (`type: cognitive:Questionnaire`), its attributes beside BPMN's | the BPMN type, and the schema's type as an entry in `extensions` holding its attributes |
 
 Two things to keep in mind about images. An exported image carries the whole study, but not the element sets it depends on, and not any data the study produced. And an image that has been through a screenshot tool or a vector editor keeps its pixels and loses the study inside it, so always keep the `.studyflow.yaml` as well.

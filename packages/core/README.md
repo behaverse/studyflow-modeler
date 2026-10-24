@@ -17,4 +17,4 @@ npm run typecheck -w @behaverse/studyflow-core
 npx playwright test --config playwright.unit.config.ts packages/core
 ```
 
-The schemas it compiles are the skills' `*.moddle.yaml` files ([skills/SCHEMAS.md](../../skills/SCHEMAS.md)). The file format is specified in [docs/reference.qmd](../../docs/reference.qmd#the-file), and `tests/studyflow-yaml.unit.spec.ts` here pins its spelling.
+The schemas it compiles are the skills' `*.moddle.yaml` files ([skills/SCHEMAS.md](../../skills/SCHEMAS.md)). The file format is specified in [docs/reference.qmd](../../docs/reference.qmd#the-storage-format), and `tests/studyflow-yaml.unit.spec.ts` here pins its spelling.
