@@ -616,8 +616,9 @@ export class Renderer {
     append(g, create('rect', {
       x: 0, y: 0, rx: CORNER_RADIUS, ry: CORNER_RADIUS, width, height, fill: 'none', stroke, 'stroke-width': STROKE_WIDTH,
     }));
-    drawBandText(g, bands.top, width / 2, bandHeight / 2, width, INK.text);
-    drawBandText(g, bands.bottom, width / 2, height - bandHeight / 2, width, INK.text);
+    // The names on the bands are the task's text too, so its font paints them as it paints its name.
+    drawBandText(g, bands.top, width / 2, bandHeight / 2, width, INK.text, FONT.band, WEIGHT.external, node.font);
+    drawBandText(g, bands.bottom, width / 2, height - bandHeight / 2, width, INK.text, FONT.band, WEIGHT.external, node.font);
     if (name) {
       const inner = append(g, group(0, bandHeight));
       drawInternalLabel(inner, { ...node, height: height - 2 * bandHeight } as SceneNode, name, INK.text);

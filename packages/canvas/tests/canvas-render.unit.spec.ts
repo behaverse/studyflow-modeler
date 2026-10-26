@@ -245,6 +245,14 @@ test('a choreography task draws its name in the MIDDLE band, and shades the band
   expect(bandFills('Round'), 'Experimenter, below, initiates').toEqual([INK.band, INK.fill]);
 });
 
+test('a choreography task\'s font colours the names on its bands as it does its own', async () => {
+  const canvas = await render('choreography_demo');
+  canvas.study.style({ ids: ['Consent'], font: { color: '#4a6f9c' } });
+  for (const text of ['Subject', 'Give consent', 'Experimenter']) {
+    expect(textAt(canvas, 'Consent', text).getAttribute('fill'), text).toBe('#4a6f9c');
+  }
+});
+
 // --- edges ---------------------------------------------------------------------
 
 /** `Start_1 → Task_1 → End_1`: Flow_1 keeps a hand-drawn kink, Flow_2 is straight. */
