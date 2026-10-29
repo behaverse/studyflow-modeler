@@ -79,7 +79,7 @@ export class Walk {
   private readonly instances = new Map<string, Values>();
   private readonly post: Post;
   /** Tells the host what happened: the run's record. */
-  private readonly record: (happened: Happening) => void;
+  private readonly record: (happened: Happening, thread?: Thread) => void;
   private early: RunEvent[] | undefined = [];
   private paths = 0;
 
@@ -88,9 +88,11 @@ export class Walk {
     this.graph = new Graph(plan);
     this.steps = new Steps(host.clock ? () => host.clock!() : undefined);
     // What happens goes to the host as it happens: the run's record (packages/core/src/engine/record.ts). What happens
-    // before the run begins waits for it, so the record starts where the host says the run started.
-    const record = this.record = (happened: Happening): void => {
-      const event = { ...happened, at: host.now() } as RunEvent;
+    // before the run begins waits for it, so the record starts where the host says the run started. What a thread
+    // records names the participant it walks for.
+    const record = this.record = (happened: Happening, thread?: Thread): void => {
+      const participant = thread && this.participantOf(thread);
+      const event = { ...happened, ...(participant ? { participant } : {}), at: host.now() } as RunEvent;
       if (this.early) this.early.push(event);
       else host.record?.(event);
     };
@@ -348,7 +350,7 @@ export class Walk {
         if (host.claim(id)) await this.executeViaRunner(element, entry, thread);
         await this.post.throwFrom(element, thread);
         this.steps.end(entry);
-        this.record({ event: 'executed', id, entry });
+        this.record({ event: 'executed', id, entry }, thread);
         this.log(thread, 'event.reached', `● ${id}`);
         host.passed?.(id);
         const container = graph.get(element.parent);
@@ -394,7 +396,7 @@ export class Walk {
         }
         await this.post.throwFrom(element, thread);
         this.steps.end(entry);
-        this.record({ event: 'executed', id, entry });
+        this.record({ event: 'executed', id, entry }, thread);
         this.log(thread, 'event.reached', `○ ${id}`);
       } else {
         const boundary = await this.perform(element, depth, thread);
@@ -402,7 +404,7 @@ export class Walk {
           // The activity ended at one of its boundary events: the walk goes on from there.
           this.valuesOf(thread).trace.push(boundary.id);
           this.valuesOf(thread).count(boundary.id);
-          this.record({ event: 'executed', id: boundary.id });
+          this.record({ event: 'executed', id: boundary.id }, thread);
           await host.moved?.(boundary.id, undefined, thread.pool);
           this.log(thread, 'event.reached', `○ ${boundary.id}  (ended ${id})`);
           from = boundary;
@@ -569,7 +571,7 @@ export class Walk {
     this.noteOutputs(element, entry, thread);
     this.steps.end(entry);
     this.log(thread, 'activity.finished', `  ${id} done in ${entry.durationMs}ms`, { level: 'debug' });
-    this.record({ event: 'executed', id, entry });
+    this.record({ event: 'executed', id, entry }, thread);
   }
 
   private async runActivity(element: PlanElement, thread: Thread): Promise<void> {
@@ -582,7 +584,7 @@ export class Walk {
     if (verdict?.skipped) {
       this.log(thread, 'activity.skipped', `↻ ${id}  (outputs from run ${verdict.run})`);
       replay();
-      this.record({ event: 'reused', id, run: verdict.run ?? '' });
+      this.record({ event: 'reused', id, run: verdict.run ?? '' }, thread);
       return;
     }
     this.log(thread, 'activity.started', `□ ${id}`);
@@ -605,7 +607,7 @@ export class Walk {
       const { status } = this.steps;
       this.steps.fail(entry, error);
       this.log(thread, 'activity.failed', `    ${id}: ${(error as Error)?.name ?? 'Error'}: ${(error as Error)?.message ?? error}`, { level: 'error' });
-      this.record({ event: 'failed', id, entry });
+      this.record({ event: 'failed', id, entry }, thread);
       if (!boundary) throw error;
       // An error boundary event catches the failure: the record keeps the error, the run is not failed, and the walk
       // goes on from the event, as a message at a boundary event ends an activity.
@@ -616,7 +618,7 @@ export class Walk {
     this.steps.end(entry);
     host.reuse?.ran(id);
     this.log(thread, 'activity.finished', `    ${id} done in ${entry.durationMs}ms`, { level: 'debug' });
-    this.record({ event: 'executed', id, entry });
+    this.record({ event: 'executed', id, entry }, thread);
   }
 
   /** The error boundary event an activity carries, if any: where a failure inside it goes on from. */
@@ -778,7 +780,7 @@ export class Walk {
     const replayed = prior && flows.find((flow) => flow.id === prior.flow);
     if (prior && replayed) {
       this.log(thread, 'gateway.replayed', `↻ ${id} → ${prior.flow}  (decision from run ${prior.run})`);
-      this.record({ event: 'reused', id, run: prior.run, flow: prior.flow });
+      this.record({ event: 'reused', id, run: prior.run, flow: prior.flow }, thread);
       return along([replayed]);
     }
     const entry = this.steps.begin(id, graph.nameOf(id), bpmnType(element));
@@ -790,7 +792,7 @@ export class Walk {
         : { sequenceFlows: taken.map((flow) => flow.id), how, ...marks };
       this.steps.end(entry);
       this.log(thread, 'sequenceFlow.taken', `    ${how} → ${taken.map((flow) => flow.id).join(', ')}`);
-      this.record({ event: 'executed', id, ...(taken.length === 1 ? { flow: taken[0].id } : {}), entry });
+      this.record({ event: 'executed', id, ...(taken.length === 1 ? { flow: taken[0].id } : {}), entry }, thread);
       return along(taken);
     };
 
@@ -947,6 +949,13 @@ export class Walk {
   /** The values a path reads and writes: its pool instance's, or the study's. */
   private valuesOf(thread: Thread): Values {
     return this.instances.get(`${thread.pool}#${thread.participant}`) ?? this.memory;
+  }
+
+  /** The participant a path walks for, as the record names it, `<pool>#<instance>`: one instance of a pool of several,
+   * while it walks. A pool of one, and the pool's own message once its instances have ended, name none. */
+  private participantOf(thread: Thread): string | undefined {
+    if (!this.instances.has(`${thread.pool}#${thread.participant}`)) return undefined;
+    return `${this.graph.instancesOf(thread.pool).participant}#${thread.participant}`;
   }
 
   private log(thread: Thread, event: string, message: string, detail?: Parameters<Note>[2]): void {

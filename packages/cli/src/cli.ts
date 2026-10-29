@@ -107,7 +107,7 @@ program
   .option('--from <ref>', 're-run from this point in the repository\'s history (a commit-ish), branching there')
   .option('--fresh', 'ignore the study\'s per-element run records and re-run every step')
   .option('--quiet', 'no console output; the log file is written either way')
-  .option('--concurrency <n>', 'how many instances of a pool of several (participantMultiplicity) walk at once (default: 1, one after another). The protocol is the same at any n; the order the instances reach a random gateway is the run\'s, and the record keeps each participant\'s place', (value: string) => {
+  .option('--concurrency <n>', 'how many instances of a pool of several (participantMultiplicity) walk at once (default: 1, one after another). The protocol is the same at any n; the order the instances reach a random gateway is the run\'s, and the record keeps each participant\'s place and names the participant on each of its events', (value: string) => {
     const n = Number(value);
     if (!Number.isInteger(n) || n < 1) throw new InvalidArgumentError('a whole number of 1 or more');
     return n;

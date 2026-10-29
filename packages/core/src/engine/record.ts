@@ -7,7 +7,12 @@ import type { Entry } from '@core/engine/steps';
  * off them: the counts and the properties in the state the study keeps ({@link stateOf}), the records stamped on its
  * elements ({@link recordOf}), a run repository's commits.
  */
-export type RunEvent = { at: string } & (
+export type RunEvent = {
+  at: string;
+  /** The participant it happened for, `<pool>#<instance>`, when a step, message or answer of one instance of a pool of
+   * several recorded it: instances that walk at once interleave their events, and each still names its own. */
+  participant?: string;
+} & (
   /** A run began, from `state`; `stamp` is the record it adds to the study's root, the run's own. The host's. */
   | { event: 'started'; run: string; state: StateTree; stamp: Record<string, unknown> }
   /** A token reached a node, or took a sequence flow: one more in `_meta.reached.<id>`. */

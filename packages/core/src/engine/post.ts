@@ -42,9 +42,10 @@ export class Post {
   private readonly steps: Steps;
   /** The values a thread reads: its pool instance's. */
   private readonly valuesOf: (thread: Thread) => Values;
-  private readonly record: (happened: Happening) => void;
+  /** Tells the host what happened, on the thread it happened on. */
+  private readonly record: (happened: Happening, thread?: Thread) => void;
 
-  constructor(graph: Graph, host: Host, steps: Steps, valuesOf: (thread: Thread) => Values, record: (happened: Happening) => void = () => undefined) {
+  constructor(graph: Graph, host: Host, steps: Steps, valuesOf: (thread: Thread) => Values, record: (happened: Happening, thread?: Thread) => void = () => undefined) {
     this.graph = graph;
     this.host = host;
     this.steps = steps;
@@ -100,7 +101,7 @@ export class Post {
     const message: Message = { id: options.id ?? `${flow.id}.${this.sent += 1}`, flow: flow.id, content };
     if (options.inReplyTo) message.inReplyTo = options.inReplyTo;
     logAt(this.host, thread, 'message.sent', `    ✉ ${flow.attributes.sourceRef} → ${target}  [${message.id}]`, { level: 'debug' });
-    this.record({ event: 'sent', message });
+    this.record({ event: 'sent', message }, thread);
     const pool = graph.participants.get(target);
     if (pool && host.claim(target)) return this.serve(pool, flow, message, thread, options.step);
     if (pool && !pool.attributes.processRef) {
@@ -153,7 +154,7 @@ export class Post {
     this.serving.set(line, turn);
     const reply = await turn;
     this.steps.end(entry);
-    this.record({ event: 'answered', id: pool.id, entry });
+    this.record({ event: 'answered', id: pool.id, entry }, thread);
     const flows = graph.flowsOut.get(pool.id) ?? [];
     const sender = flow.attributes.sourceRef ?? '';
     const back = flows.find((candidate) => candidate.attributes.targetRef === sender)

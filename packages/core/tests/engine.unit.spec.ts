@@ -1198,6 +1198,14 @@ for (const concurrency of [1, 2]) {
     const drawn = events.flatMap((event) => (event.event === 'executed' && event.id === 'Allocate' ? [event.entry!.taken as Record<string, unknown>] : []));
     expect(drawn.map(({ place }) => place)).toEqual([1, 2, 3, 4]);
     expect(drawn.map(({ participant }) => participant).sort()).toEqual([1, 2, 3, 4]);
+    // Every event an instance's steps record names it, however the instances interleave: each step and decision, the
+    // trial it sent, the model's answer and the answer's message back.
+    const named = (n: number): RunEvent[] => events.filter((event) => event.participant === `Subjects#${n}`);
+    for (const n of [1, 2, 3, 4]) {
+      expect(named(n).map((event) => (event.event === 'sent' ? `sent ${event.message.inReplyTo ?? event.message.id}` : `${event.event} ${'id' in event ? event.id : ''}`)))
+        .toEqual(['executed S0', 'executed Allocate', `sent t${n}`, 'answered Model', `sent t${n}`, 'executed Play', 'executed Check', 'executed S9']);
+    }
+    expect(events.filter((event) => event.participant === undefined).map((event) => event.event)).not.toContain('executed');
   });
 }
 
@@ -1397,7 +1405,7 @@ test('a pool of many instances sends its outgoing message once, after the last i
   // The whole pool is one sender: the flow out of the participant is the cohort's own, not each instance's, so the
   // analysis pool's message start event ("All subjects complete") starts once, when the third subject is done.
   const analysed: unknown[] = [];
-  const { reached } = await walked(`C:
+  const { reached, events } = await walked(`C:
   type: Collaboration
   participants:
     Subjects:
@@ -1429,6 +1437,10 @@ A:
   // of failing as a wait with nothing left to send it while the sender's instances were still running.
   expect(analysed).toEqual([[3, { S0: 3, SF1: 3, Play: 3, SF2: 3, S9: 3, A0: 1, AF1: 1, Analyze: 1 }]]);
   expect(reached).toEqual({ S0: 3, SF1: 3, Play: 3, SF2: 3, S9: 3, A0: 1, AF1: 1, Analyze: 1, AF2: 1, A9: 1 });
+  // The message is the pool's, and the analysis pool is one: neither names a participant.
+  const pools = events.filter((event) => event.event === 'sent' || (event.event === 'executed' && ['A0', 'Analyze'].includes(event.id)));
+  expect(pools.map((event) => [event.event, event.participant])).toEqual([['sent', undefined], ['executed', undefined], ['executed', undefined]]);
+  expect(events.filter((event) => event.event === 'executed' && event.id === 'Play').map((event) => event.participant)).toEqual(['Subjects#1', 'Subjects#2', 'Subjects#3']);
 });
 
 /** Two pools, each catching the other's message before it sends its own. */
