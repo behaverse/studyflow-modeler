@@ -24,6 +24,8 @@ website:
         href: glossary.qmd
       - text: Reference
         href: reference.qmd
+      - text: What each release implements
+        href: implemented.qmd
       - text: Developers
         href: developers.qmd
       - "---"

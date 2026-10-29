@@ -1,0 +1,98 @@
+---
+title: "What each release implements"
+description: "The abilities of the notation that the reference tools of a release provide, each pinned by an automated test, and the element types its schemas declare."
+---
+
+This page lists what release 26.10 of the reference tools provides: the abilities of the notation, each pinned by an
+automated test in this repository, and the element types that the schemas declare.
+
+## Abilities
+
+| Ability | In the reference tools (studyflow 26.10) |
+|:----|:----|
+| The same diagram is taken by a person, a language, vision, or decision model, or a simulated participant, with only the line that names the actor changed | implemented for a person in the browser runtime, and for models served by Ollama or the Claude API and for simulated participants in the local runtime |
+| An end event issues the completion code that a recruitment platform requires | implemented in the browser runtime |
+| The file validates against the language schema, with unknown keys and duplicate ids reported | implemented |
+| Every edge joins elements of the kinds and scope it may join (well-formedness, second condition) | implemented; a study that fails it is not run |
+| Every flow node lies on a path from a start to an end event (well-formedness, third condition) | implemented; a study that fails it is not run |
+| The BPMN XML export is valid BPMN 2.0 (well-formedness, fourth condition) | implemented in the validator, against the OMG schema; a run does not require it |
+| A file converts to BPMN 2.0 XML and back without changing its protocol | implemented; values keep their types through the XML, so the protocol fingerprint is unchanged |
+| The counts balance at every node of an executed diagram | implemented; the runtimes count sequence flows as well as nodes |
+| A column an operation reads exists in the schema of its dataset | implemented before the run for schema-bound datasets, the columns a pandas `query` or `eval` expression names in backticks included, and when the step runs for derived tables |
+| A protocol edited after a run is detected | implemented; each run records a protocol fingerprint, and the validator recomputes it |
+| Variants of a study that differ only in their actor share a fingerprint for any actor | implemented; a second fingerprint leaves out each actor pool's kind, implementation, and documentation, and the settings its actor type adds |
+| Paths the reference runtimes do not take are reported before the run | implemented; a complex gateway that splits, and an event of a kind the walk does not read, are errors |
+| Every run can end, and ends properly (soundness), over the runs the validator explores | implemented as warnings, over a bounded number of runs, with each decision a free choice and the paths of a split in one order |
+| Two steps on paths that run at once and write one value are reported before the run | implemented as a warning |
+| A split runs each branch it takes as a path of its own, and a join waits for the paths it joins | implemented in the walk both runtimes host |
+| The same seed selects the same branches in both runtimes | implemented; both runtimes host one walk |
+| Allocation in permuted blocks, at the ratio the gateway declares | implemented in the walk; a browser session is the participant its link names |
+| An allocation sequence is concealed until data collection finishes and can be checked after it | implemented in the local runtime |
+| Every question ends in a claim statement its registered rule decides | implemented with standard gateways and end events, and the run records the end it reached (as in runs on simulated data whose outcome is known in advance) |
+| A question can be decided by a rule on a Bayes factor as well as on a $p$ value | implemented; a shipped example decides one question by a $p$ value and one by a Bayes factor |
+| A participant who completes the study is appended to a dataset, as the example study's completion line is, and a schema-bound dataset not yet written reads as an empty table | implemented in the Python extension |
+| A label shows the value the file declares, and a label that copies a value its element reads is reported | implemented; a placeholder reads the declared value before any run, and the validator warns of the copy |
+| A registered material, such as a trial list or the consent form, still holds the content its digest names | implemented; the digest enters the protocol fingerprint, the validator checks the content, and a run refuses a changed material |
+| Allocation by alternation, in permuted blocks within strata, and by minimization | implemented in the walk |
+| A run can keep its data out of its repository's history, and names only the author it is given | implemented in the local runtime |
+| The actor's configuration is recorded with every model exchange | implemented for a local Ollama server and for the Claude API |
+| A version pinned in a `python://` reference is enforced | implemented |
+| A multi-instance activity over a list runs a multiverse | implemented in the walk both runtimes host |
+| A step inherits its pool's message flows, as the screening does | implemented |
+| A re-run resumes from the last completed step | implemented in the local runtime for replayable steps; tasks, model exchanges, and repeated steps run again |
+| The counts and the provenance are written into the executed diagram, kept in the run repository | implemented in the local runtime |
+| The executed diagram of a YAML study is the file's own text with the run's records and state added, so a line diff against the registered file shows only additions | implemented in the local runtime |
+| Guideline items are attributes of the elements they concern | implemented as checklists, whose items the author writes, and the flow consistency of CONSORT is checked automatically |
+| A task from another toolkit is named the same way | implemented for jsPsych tasks, which the browser runtime plays for a person and the local runtime for an artificial actor |
+| The run record exports as W3C PROV-O | implemented |
+| EEG acquisition is described in the diagram | implemented as elements of an extension |
+| The text of every exchange with a model is recorded, turn by turn | implemented |
+
+## Element types
+
+| Element | Extends (BPMN type) | Key attributes |
+|:----|:----|:----|
+| studyflow:Study | `bpmn:Process`, written as an entry on the root process, or on the `bpmn:Collaboration` when the study has pools | `seed`, `runtime`, `dependencies`, `authors`, `version`, `registration`, `ethicsApproval`; `state`, which the runtimes write |
+| Start event | bpmn:StartEvent | consentFormUri |
+| End event | bpmn:EndEvent | `redirectTo`, `completionCodeType` (none, static, dynamic), `completionCode` |
+| Sequence flow | bpmn:SequenceFlow | `condition` (BPMN's `conditionExpression`) |
+| Service task | `bpmn:ServiceTask` (also user, send, receive, and business-rule tasks) | `implementation` (`python://pkg.fn@version`), `additionalArguments` |
+| Script task | bpmn:ScriptTask | script |
+| Property | bpmn:Property | `value`, the initial value of the state a scope declares |
+| Conditional and timer events | `bpmn:ConditionalEventDefinition`, `bpmn:TimerEventDefinition` | `condition`; `timeDuration`, `timeDate`, `timeCycle` (a cycle is waited for its first firing only) |
+| Loop marker | bpmn:StandardLoopCharacteristics | `while` (BPMN's `loopCondition`) |
+| studyflow:Actor | bpmn:Participant | `actorType` (human, software, hardware; llm from the agentic extension), `implementation`, `memory (none, conversation, window), memoryWindow (the exchanges a window keeps, 20 by default)` |
+| studyflow:Parameters | bpmn:DataObjectReference | `values`, read by the steps it is wired into |
+| studyflow:Schema | bpmn:DataObjectReference | `format` (`csvw` by default), `body` |
+| studyflow:Dataset | bpmn:DataStoreReference | `format` (psych-ds; bids and nwb from the eeg extension, bdm from the behaverse extension), `schema`, `catalog` |
+| studyflow:DataCatalog | `bpmn:BaseElement`, not drawn | uri |
+| studyflow:Table | bpmn:DataObjectReference | `format` (csv, tsv, parquet, arrow, jsonl, xlsx), `schema` |
+| prov:Activity | none (a record among the extension elements of the element it describes) | `action`, `when`, `who`, `with`, `what`, `run`, `seed`, `plan`, `commit`, `note` |
+| cognitive:CognitiveTask | bpmn:ChoreographyTask | `platform`, `construct`, `implementation`; its settings are the Parameters wired into it |
+| cognitive:Questionnaire | bpmn:Task | instrument |
+| cognitive:Instruction | bpmn:Task | content |
+| cognitive:Rest | bpmn:IntermediateCatchEvent | `eyes`; a timer event, its timer how long the rest lasts (a minute when it is made) |
+| cognitive:RandomGateway | bpmn:ExclusiveGateway | `algorithm` (simple, block, minimization, alternation), `allocationRatio`, `blockSize`, `stratifyBy`, `strata` |
+| cognitive:EligibilityGateway | bpmn:ExclusiveGateway | `inclusionCriteria`, `exclusionCriteria` |
+| behaverse:Task | `bpmn:ChoreographyTask`, through `cognitive:CognitiveTask` | `instrument`, `timeline`, `runtime` (unity, godot: the build that plays it); `platform` is behaverse |
+| behaverse:BDMDataset | `bpmn:DataStoreReference`, through `studyflow:Dataset` | `dataLevel` (events, trials, models); `format` is bdm |
+| agentic:Prompt | bpmn:DataObjectReference | template |
+| eeg:Session | bpmn:Participant | `device`, `modalities`, `montage`, `reference`, `ground`, `lineFrequency`, `impedanceThreshold` |
+| eeg:Timeseries | bpmn:DataObjectReference | `samplingRate`, `channelCount`, `units`, `recordingDuration`, `format` |
+| eeg:EventMarker | bpmn:DataObjectReference | `eventTypes`, `timeUnit`, `format`, `schema` |
+| eeg:BIDSDataset | `bpmn:DataStoreReference`, through `studyflow:Dataset` | `dataType`; `format` is bids |
+| eeg:Recording | `bpmn:DataObjectReference`, through `eeg:Timeseries` | `modalities`, `eventChannel` |
+| reachy:Robot | bpmn:Participant | `variant`, `host`, `voice`, `language`, `volume` |
+| `reachy:Interact`, `reachy:Goto`, `reachy:LookAt`, `reachy:Snapshot` | bpmn:ServiceTask | `text`, `move`, `sound`; a pose of head, antennas, and body; `target`; none (the camera's picture) |
+| `reachy:Listen`, `reachy:Teleoperation` | `bpmn:ReceiveTask`, `bpmn:UserTask` | `timeout`; `instructions` |
+| `reachy:PerceptionGateway`, `reachy:SenseEvent` | `bpmn:ExclusiveGateway`, `bpmn:IntermediateCatchEvent` | `channel`; `trigger`, `wakeWord` |
+| reachy:InteractionRecording | `bpmn:DataStoreReference`, through `studyflow:Dataset` | streams |
+
+The element types the schemas declare, grouped by extension, with the BPMN type each extends and its key attributes; the versioned schemas remain the authoritative list. The rows without a prefix are BPMN elements to which the core schema adds attributes. Every element also carries documentation and a checklist; activities and events carry `onset`, `duration`, and `progress`, which the *Schedule* view reads, and data elements a `uri`. The palette's templates are not types of their own. A video game, for example, is a `cognitive:CognitiveTask` whose `platform` is a game engine, and stratified allocation is a `cognitive:RandomGateway` with `stratifyBy` set.
+
+## A minimal study
+
+[`minimal_study.studyflow.yaml`](assets/examples/minimal_study.studyflow.yaml) is a complete minimal study, with a start
+event, one task, and an end event. The start event binds the consent form. The task is a Flanker task on the jsPsych
+platform, written as a cognitive task that names the jsPsych plugin it runs as its implementation. The end event issues
+a completion code to the recruitment platform.
