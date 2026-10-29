@@ -31,6 +31,13 @@ const iri = (text: string): string => `<${encodeURI(text).replace(/[<>"{}|\\^`]/
 const json = (value: unknown): string => (typeof value === 'number' && Number.isFinite(value)) || typeof value === 'boolean'
   ? String(value) : literal(typeof value === 'string' ? value : JSON.stringify(value) ?? 'null');
 
+/** A run's name in every export of its record (this one, rocrate.ts, ocel.ts): its id and when it started, as a
+ * repository's record redoes a run under one id. */
+export const runIri = (started: { run: string; at: string }): string => `urn:studyflow:run:${started.run}:${started.at}`;
+
+/** The study's name as the plan a run walked: the protocol digest its record stamped. An element is `<plan>#<id>`. */
+export const planIri = (stamp: Record<string, unknown>): string => `urn:studyflow:plan:${stamp.plan ?? 'unsealed'}`;
+
 /** The PROV-O, in Turtle, of every run in `events` (a repository's record holds each run it redid, in order). */
 export function provOf(events: readonly RunEvent[]): string {
   const out: string[] = [PREFIXES];
@@ -57,8 +64,8 @@ export function provOf(events: readonly RunEvent[]): string {
     switch (happened.event) {
       case 'started': {
         const stamp = happened.stamp as Record<string, string>;
-        run = `urn:studyflow:run:${happened.run}:${happened.at}`;
-        plan = `urn:studyflow:plan:${stamp.plan ?? 'unsealed'}`;
+        run = runIri(happened);
+        plan = planIri(stamp);
         n = 0;
         const who = stamp.who ? agent('Person', stamp.who) : undefined;
         const tool = stamp.with ? agent('SoftwareAgent', stamp.with) : undefined;

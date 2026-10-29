@@ -29,6 +29,9 @@ studyflow run ~/.studyflow/runs/*/sklearn_pipeline.studyflow.yaml --from <ref>  
 studyflow run study.studyflow.yaml --author 'Ada Lovelace <ada@example.org>'   # the run's commits and record name her; without it, no one
 studyflow run study.studyflow.yaml --data-outside-history   # the run's history holds the study and each data file's SHA-256, not the data
 studyflow run skills/reachy/examples/reachy_session.studyflow.yaml --option auto   # every task answered by a bot
+studyflow prov ~/.studyflow/runs/<run> run.ttl   # the run's record as W3C PROV-O
+studyflow crate ~/.studyflow/runs/<run> crate/ --license CC-BY-4.0   # the run and its files as a Workflow Run RO-Crate, to deposit
+studyflow ocel ~/.studyflow/runs/<run> run.ocel.json   # the record as an OCEL 2.0 event log, for process mining
 ```
 
 `validate` checks the plan: its edges join what they may (sequence flows between the steps of one process or sub-process, data associations between data and a step, a property used only inside the scope declaring it), it is sound (each step on a path from a start event to an end event), no complex gateway splits (the walk reads no activation rule), and a step reading data bound to a schema names only that schema's columns; and a material the study registers by its content (a trial list's `digest`, the consent form's `consentFormDigest`) still holds it, read beside the study or fetched, the error naming the content's digest to register. In a file a run has stamped, it also checks that the counts balance at every node that the protocol is still the one the run recorded (the digest `studyflow info` shows), and that a concealed allocation's revealed seed is the one its `seedDigest` registered. `run` does not start a study that fails a plan check or whose registered material changed; a local study it walks itself (the local runtime is part of this CLI), recording the digest and `studyflow-cli/<version>` with the run.

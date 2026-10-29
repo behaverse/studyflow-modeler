@@ -1147,6 +1147,68 @@ P:
   });
 });
 
+/** The shapes of the crate and the log are pinned by rocrate.unit.spec.ts and ocel.unit.spec.ts; this, what the two
+ * commands read in a run repository and write. */
+test.describe('a run\'s record in other standards', () => {
+  test.skip(!hasPython(), 'python3 is not on PATH');
+
+  test('crate copies the study, the record, the log and what the steps made beside their metadata; ocel gives each participant its own events', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'studyflow-exports-'));
+    fs.writeFileSync(path.join(dir, 'p.studyflow.yaml'), `id: exports
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+C:
+  type: Collaboration
+  participants:
+    Subjects:
+      name: Subjects
+      participantMultiplicity:
+        maximum: 2
+      processRef: P
+P:
+  type: Process
+  flowElements:
+    Start: { type: StartEvent }
+    Make:
+      type: Task
+      name: Make the table
+      dataOutputAssociations: { Out_Y: { targetRef: Y } }
+    Y: { type: DataObjectReference, uri: data/out.json }
+    Done: { type: EndEvent }
+    F1: Start -> Make
+    F2: Make -> Done
+`);
+    writeRunner(path.join(dir, 'fake.py'), "{'elements': ['Make'], 'live': False}", [
+      "(step.run_dir / 'data').mkdir(exist_ok=True)",
+      "open(step.run_dir / 'data' / 'out.json', 'w').write('{\"made\": 1}')",
+      'return 1',
+    ]);
+    const repo = path.join(dir, 'run');
+    const studyflow = (...args: string[]) => spawnSync(process.execPath, [BIN, ...args], { cwd: dir, env: ENV, encoding: 'utf8' });
+    expect(studyflow('run', 'p.studyflow.yaml', '--repo', repo, '--quiet', '--concurrency', '2', '--runner', `fake=python3 ${path.join(dir, 'fake.py')}`).status).toBe(0);
+
+    const crate = path.join(dir, 'crate');
+    expect(studyflow('crate', repo, crate).stderr).toContain("required option '--license <license>'");
+    expect(studyflow('crate', repo, crate, '--license', 'CC0-1.0').status).toBe(0);
+    expect(fs.readdirSync(crate, { recursive: true }).sort()).toEqual(['data', 'data/out.json', 'events.jsonl', 'p.studyflow.yaml', 'ro-crate-metadata.json', 'studyflow.log']);
+    const graph: Record<string, any>[] = JSON.parse(fs.readFileSync(path.join(crate, 'ro-crate-metadata.json'), 'utf8'))['@graph'];
+    expect(graph.find((entity) => entity['@type'] === 'CreateAction')).toMatchObject({ instrument: { '@id': 'p.studyflow.yaml' }, result: [{ '@id': 'data/out.json' }] });
+    expect(graph.find((entity) => entity['@id'] === 'data/out.json')!.sha256).toBe(createHash('sha256').update('{"made": 1}').digest('hex'));
+    // The study as run names the run as well as its repository does, and a folder with files in it is left alone.
+    expect(studyflow('crate', path.join(repo, 'p.studyflow.yaml'), path.join(dir, 'again'), '--license', 'CC0-1.0').status).toBe(0);
+    expect(studyflow('crate', repo, crate, '--license', 'CC0-1.0').stderr).toContain('holds files already');
+
+    // The two participants walked at once, and each still has its own events.
+    const log = JSON.parse(studyflow('ocel', repo).stdout) as { events: { type: string; relationships: { objectId: string; qualifier: string }[] }[] };
+    const traces: Record<string, string[]> = {};
+    for (const { type, relationships } of log.events) {
+      const participant = relationships.find(({ qualifier }) => qualifier === 'participant')?.objectId.split('/participant/')[1];
+      if (participant) (traces[participant] ??= []).push(type);
+    }
+    expect(traces).toEqual({ 'Subjects#1': ['Start', 'Make the table', 'Done'], 'Subjects#2': ['Start', 'Make the table', 'Done'] });
+  });
+});
+
 /** `studyflow run` on a YAML study keeps it as YAML in the run repository, and stages from beside the original. */
 
 test.describe('studyflow run on a converted study', () => {

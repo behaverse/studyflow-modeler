@@ -5,6 +5,8 @@ import { validate } from '@cli/validate';
 import { info } from '@cli/info';
 import { mcp } from '@cli/mcp';
 import { prov } from '@cli/prov';
+import { crate } from '@cli/crate';
+import { ocel } from '@cli/ocel';
 import { addSkill, installedSchemas, installedSkills, removeSkill, skillsHome } from '@cli/skills';
 import { edit } from '@desktop/edit';
 import type { RunOptions } from '@cli/run';
@@ -91,6 +93,25 @@ program
   .argument('[output]', 'the Turtle file to write (default: standard output)')
   .action((record: string, output?: string) => {
     console.log(prov(record, output));
+  });
+
+program
+  .command('crate')
+  .description('Package a run as a Workflow Run RO-Crate (https://w3id.org/ro/wfrun/workflow/0.6), to deposit in an archive: the study as run, its record and log, and the files its steps made and were given, copied into a folder beside ro-crate-metadata.json, which makes the study the workflow and each run a CreateAction with those files as its object and result.')
+  .argument('<run>', 'the run repository, or the study as run in it')
+  .argument('<output>', 'the folder to write the crate into: a new one, or an empty one')
+  .requiredOption('--license <license>', 'what the crate is shared under, which RO-Crate requires: an SPDX license id (CC-BY-4.0), or a license\'s URL')
+  .action(async (run: string, output: string, options: { license: string }) => {
+    console.log(await crate(run, output, options));
+  });
+
+program
+  .command('ocel')
+  .description('Write a run\'s record as an object-centric event log, OCEL 2.0 in JSON, for process mining (PM4Py\'s read_ocel2_json): each step, gateway decision, message and answer an event, a step\'s typed by its element\'s name, concerning the run, its participants, tasks, actors and datasets as objects. Flattened on participant, it replays on the study as BPMN XML.')
+  .argument('<record>', 'the run\'s events.jsonl, or the run repository holding it')
+  .argument('[output]', 'the JSON file to write (default: standard output)')
+  .action((record: string, output?: string) => {
+    console.log(ocel(record, output));
   });
 
 const collect = (value: string, all: string[] = []): string[] => [...all, value];

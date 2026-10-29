@@ -13,7 +13,9 @@ authoring reference is [../SCHEMAS.md](../SCHEMAS.md). Its elements are executed
 
 `prov.moddle.yaml` is the vocabulary a run writes back into the diagram: the records it stamps on what it ran
 (`prov:Activity`) and the state tree's `_meta`. The `prov:` prefix is Studyflow's own, not W3C PROV; a run's record
-is written as W3C PROV-O by `studyflow prov <run>`. The local runtime keeps the run repository the records point at.
+is written as W3C PROV-O by `studyflow prov <run>`, packaged with its files as a Workflow Run RO-Crate by
+`studyflow crate`, and written as an OCEL 2.0 event log by `studyflow ocel`. The local runtime keeps the run
+repository the records point at.
 
 `examples/` holds the demos every shelf of the gallery starts from (LabLink, CONSORT and SPIRIT
 protocols, the kitchen sink).
