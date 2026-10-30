@@ -3,8 +3,11 @@
  * of each change. It needs no DOM: a canvas is one view of a study, and several views may share one.
  */
 
+import { BPMN } from '@core/constants.ts';
 import { parseStudy, studyToXml } from '@core/document/index.ts';
 import { categoryOf, isDataShape, isExpandable } from '@core/document/outline.ts';
+import { isPastedImage, pastedImageAttributes, pastedImageId, pastedImageIds, withoutPastedImages } from '@core/model/pastedImages.ts';
+import { dataUrlToBytes, isPng, pngSize, pngToDataUrl } from '@core/document/png.ts';
 import { eventDefinitionTypeOf } from '@core/element/index.ts';
 import { isElement, StudyModel, type Element, type Value } from '@core/model/index.ts';
 import { participantKinds, setBandsIn, type BandChange } from '@core/model/choreography.ts';
@@ -133,6 +136,9 @@ function snapshotOf(model: StudyModel): string {
   return JSON.stringify(writeStudy(model.study, model.metamodel));
 }
 
+/** The longest side a pasted image takes, in the drawing's units: a screenshot comes in smaller than the diagram. */
+const PASTED_IMAGE_SIDE = 640;
+
 /** A study model of a snapshot. */
 function modelOfSnapshot(snapshot: string, metamodel: Metamodel, onWarning: (message: string) => void = () => {}): StudyModel {
   return new StudyModel(readStudy(JSON.parse(snapshot) as YamlDoc, metamodel, onWarning), metamodel);
@@ -151,6 +157,11 @@ export class Study {
   private readonly history: History<string>;
   /** The last commit, for the verb that made it to report. */
   private committed?: Commit;
+  /**
+   * The images pasted on the study, by the id each names, as data URLs: beside the document rather than in it, so
+   * neither its file's text nor each undo step holds an image. Undoing a paste leaves its image here for a redo.
+   */
+  private readonly imageUrls = new Map<string, string>();
 
   private constructor(model: StudyModel, options: ImportOptions) {
     this.options = options;
@@ -169,21 +180,37 @@ export class Study {
     return new Study(model, options);
   }
 
-  /** Replace the study with `source`, file text or a study model, as one change: a 'load', which the history starts over from. */
-  async load(source: string | StudyModel): Promise<void> {
+  /**
+   * Replace the study with `source`, file text or a study model, as one change: a 'load', which the history starts
+   * over from. `pastedImages` are the bytes of the images it names, which a `.studyflow.png` keeps beside its text.
+   */
+  async load(source: string | StudyModel, pastedImages: ReadonlyMap<string, Uint8Array> = new Map()): Promise<void> {
     const model = typeof source === 'string' ? await parseStudy(source, this.model.metamodel, this.options) : source;
+    this.imageUrls.clear();
+    for (const [id, png] of pastedImages) this.imageUrls.set(id, pngToDataUrl(png));
     this.swap(model, 'load');
   }
 
-  /** The study as a `.studyflow.yaml` file holds it. */
-  toYaml(): string {
+  /** The study as a `.studyflow.yaml` file holds it, without its pasted images but for the text a `.studyflow.png` keeps. */
+  toYaml({ pastedImages = false }: { pastedImages?: boolean } = {}): string {
     const { model } = own(this).scene;
-    return studyText(model.study, model.metamodel);
+    const { study, metamodel } = pastedImages ? model : withoutPastedImages(model);
+    return studyText(study, metamodel);
   }
 
-  /** The study as a BPMN XML file holds it: an exchange as the BPMN task it is. */
+  /** The study as a BPMN XML file holds it: an exchange as the BPMN task it is, and no pasted image. */
   toXml(): Promise<string> {
-    return studyToXml(own(this).scene.model);
+    return studyToXml(withoutPastedImages(own(this).scene.model));
+  }
+
+  /** The bytes of the images the study still draws, by the id each names: what a `.studyflow.png` keeps. */
+  pastedImages(): Map<string, Uint8Array> {
+    const images = new Map<string, Uint8Array>();
+    for (const id of pastedImageIds(this.model)) {
+      const url = this.imageUrls.get(id);
+      if (url) images.set(id, dataUrlToBytes(url));
+    }
+    return images;
   }
 
   /**
@@ -398,6 +425,7 @@ export class Study {
     const { scene, mutator } = own(this);
     const element = scene.elementsById.get(args.id);
     if (!element || element.kind === 'label') return refused(`no shape or flow '${args.id}'`);
+    if (isPastedImage(element.element)) return refused(`'${args.id}' is a pasted image: it has no text`);
     if (args.band && element.kind !== 'node') return refused(`'${args.id}' is a flow: it has no bands`);
     return this.commit(() => {
       if (args.band && element.kind === 'node') mutator.setBandName(element, args.band, args.name.trim());
@@ -650,6 +678,30 @@ export class Study {
     return this.commit(() => mutator.graft(fragment, container, by));
   }
 
+  /**
+   * Draw `png`, a PNG file's bytes, as a pasted image, as one edit: centred on `at`, into what `add` would put it in or
+   * else at the top level, a unit for each of its pixels but no side over {@link PASTED_IMAGE_SIDE}. In-process only, not a tool.
+   */
+  async pasteImage({ png, ...place }: { png: Uint8Array; at?: Point; into?: string }): Promise<StudyResult> {
+    if (!isPng(png)) return refused('not a PNG');
+    const image = await pastedImageId(png);
+    this.imageUrls.set(image, pngToDataUrl(png));
+    const size = pngSize(png);
+    const scale = Math.min(1, PASTED_IMAGE_SIDE / Math.max(size.width, size.height));
+    const width = Math.max(1, Math.round(size.width * scale));
+    const height = Math.max(1, Math.round(size.height * scale));
+    return this.atomic(() => {
+      const what = { type: BPMN.TextAnnotation, attributes: pastedImageAttributes(image), ...place };
+      // Over what holds no annotation (a task, another image), it still lands where it was pasted.
+      const placed = this.add(what);
+      const added = placed.ok || place.into !== undefined ? placed : this.add({ ...what, into: this.root.id });
+      if (!added.ok) return added;
+      const node = own(this).scene.elementsById.get(added.id!) as SceneNode;
+      const bounds = { x: Math.round(node.x + node.width / 2 - width / 2), y: Math.round(node.y + node.height / 2 - height / 2), width, height };
+      return { ...this.resize({ id: node.id, bounds }), id: node.id };
+    });
+  }
+
   /** Remove `ids` and all that goes with them (contents, flows), as one edit; a caption's id clears the name it shows. */
   remove(args: { ids: string[] }): StudyResult {
     const { mutator } = own(this);
@@ -759,6 +811,7 @@ export class Study {
       else delete layout[id];
     }
     scene.revision = revision;
+    scene.pastedImages = this.imageUrls;
     const mutator = new Mutator(scene, (commit) => this.edited(commit));
     internals.set(this, {
       scene,

@@ -10,6 +10,7 @@ import { mountEditor } from '@modeler/editor/mount';
 import { connectCommandBus } from '@modeler/commandBus';
 import { clearAutosavedDiagram, getSettings, loadAutosavedDiagram } from '@modeler/settings/store';
 import { attachAutosave } from '@modeler/diagram/autosave';
+import { attachPastedImageNotice } from '@modeler/diagram/pastedImageNotice';
 import { restoreLink } from '@modeler/diagram/fileHandle';
 import { notify } from '@modeler/app/noticeStore';
 import { openDiagramFile } from '@modeler/open/openFile';
@@ -91,7 +92,12 @@ export function Modeler({ onReady }: { onReady: (editor: Editor) => void }) {
         }
         created = editor;
         connectCommandBus(editor);
-        detach = attachAutosave(editor);
+        const stopAutosave = attachAutosave(editor);
+        const stopNotice = attachPastedImageNotice(editor);
+        detach = () => {
+          stopAutosave();
+          stopNotice();
+        };
         // Picks the previous session's file back up, but only when the canvas was restored along
         // with it. Without the restored diagram this is a fresh blank canvas, and a link would
         // point saving at a file this diagram never came from. Permission has reset to `prompt`

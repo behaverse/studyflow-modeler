@@ -1,6 +1,12 @@
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 /** A PNG carries the `.studyflow.yaml` text, in the iTXt chunk its MIME type keys. */
 const KEYWORD = 'application/vnd.studyflow+yaml';
+/**
+ * And each image pasted on its canvas in a chunk of its own, the image's id, a NUL, then the bytes of its PNG. The
+ * letters of the name say the chunk is ancillary, private and safe to copy, so a tool that keeps what it cannot read
+ * keeps it.
+ */
+const IMAGE_CHUNK = 'stIm';
 
 function crc32(bytes: Uint8Array): number {
   let crc = 0xffffffff;
@@ -26,11 +32,33 @@ function* pngChunks(png: Uint8Array): Generator<PngChunk> {
   }
 }
 
+/** The bytes a PNG takes to say what it is and its size. */
+const PNG_HEAD = 24;
+
+/** Whether `bytes` start as a PNG file does, as far as saying what it is and its size. */
+export function isPng(bytes: Uint8Array): boolean {
+  return bytes.length >= PNG_HEAD && PNG_SIGNATURE.every((byte, i) => bytes[i] === byte);
+}
+
 function assertPngSignature(png: Uint8Array): void {
-  const isPng = png.length > PNG_SIGNATURE.length && PNG_SIGNATURE.every((byte, i) => png[i] === byte);
-  if (!isPng) {
+  if (!isPng(png)) {
     throw new Error('The selected file is not a valid PNG.');
   }
+}
+
+/** A PNG's size in pixels, from its header, the first chunk of every PNG. */
+export function pngSize(png: Uint8Array): { width: number; height: number } {
+  assertPngSignature(png);
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  return { width: view.getUint32(16), height: view.getUint32(20) };
+}
+
+/** A PNG's bytes as a data URL, a stretch at a time: an argument list cannot hold a whole image. */
+export function pngToDataUrl(png: Uint8Array): string {
+  const STRETCH = 0x8000;
+  let binary = '';
+  for (let i = 0; i < png.length; i += STRETCH) binary += String.fromCharCode(...png.subarray(i, i + STRETCH));
+  return `data:image/png;base64,${btoa(binary)}`;
 }
 
 export function dataUrlToBytes(dataUrl: string): Uint8Array {
@@ -58,8 +86,8 @@ function chunkKeyword(png: Uint8Array, chunk: PngChunk): string | undefined {
   return end < 0 ? undefined : new TextDecoder().decode(data.subarray(0, end));
 }
 
-function withoutPayloadChunks(png: Uint8Array): Uint8Array {
-  const drop = [...pngChunks(png)].filter((chunk) => chunkKeyword(png, chunk) === KEYWORD);
+function withoutChunks(png: Uint8Array, drops: (chunk: PngChunk) => boolean): Uint8Array {
+  const drop = [...pngChunks(png)].filter(drops);
   if (drop.length === 0) return png;
 
   const removed = drop.reduce((total, chunk) => total + chunk.dataLength + 12, 0);
@@ -75,10 +103,7 @@ function withoutPayloadChunks(png: Uint8Array): Uint8Array {
   return out;
 }
 
-function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string): Uint8Array {
-  assertPngSignature(png);
-  const base = withoutPayloadChunks(png);
-
+function insertChunkBefore(base: Uint8Array, chunk: Uint8Array, before: string): Uint8Array {
   let offset = -1;
   for (const existing of pngChunks(base)) {
     if (existing.type === before) {
@@ -99,6 +124,7 @@ function insertChunkBefore(png: Uint8Array, chunk: Uint8Array, before: string): 
 
 /** `png` carrying `studyflow`, the text of a `.studyflow.yaml`, in an iTXt chunk keyed by its MIME type. */
 export function embedStudyflowIntoPng(png: Uint8Array, studyflow: string): Uint8Array {
+  assertPngSignature(png);
   const encoder = new TextEncoder();
   const keyword = encoder.encode(KEYWORD);
   const text = encoder.encode(studyflow);
@@ -107,7 +133,7 @@ export function embedStudyflowIntoPng(png: Uint8Array, studyflow: string): Uint8
   data.set(keyword, 0);
   data.set(text, keyword.length + 5);
 
-  return insertChunkBefore(png, buildChunk('iTXt', data), 'IEND');
+  return insertChunkBefore(withoutChunks(png, (chunk) => chunkKeyword(png, chunk) === KEYWORD), buildChunk('iTXt', data), 'IEND');
 }
 
 /** The text {@link embedStudyflowIntoPng} put in the PNG. */
@@ -131,4 +157,33 @@ export function extractStudyflowFromPng(content: ArrayBuffer | Uint8Array): stri
   }
 
   throw new Error('The selected PNG file does not contain embedded Studyflow.');
+}
+
+/** `png` carrying exactly `images`, each a PNG's bytes by the id its pasted image names; whatever it carried goes. */
+export function embedPastedImagesIntoPng(png: Uint8Array, images: ReadonlyMap<string, Uint8Array>): Uint8Array {
+  assertPngSignature(png);
+  let out = withoutChunks(png, ({ type }) => type === IMAGE_CHUNK);
+  for (const [id, bytes] of images) {
+    const name = new TextEncoder().encode(id);
+    const data = new Uint8Array(name.length + 1 + bytes.length);
+    data.set(name, 0);
+    data.set(bytes, name.length + 1);
+    out = insertChunkBefore(out, buildChunk(IMAGE_CHUNK, data), 'IEND');
+  }
+  return out;
+}
+
+/** The images {@link embedPastedImagesIntoPng} put in the PNG, by id; a chunk that does not hold a PNG is passed over. */
+export function extractPastedImagesFromPng(content: ArrayBuffer | Uint8Array): Map<string, Uint8Array> {
+  const png = content instanceof Uint8Array ? content : new Uint8Array(content);
+  assertPngSignature(png);
+  const images = new Map<string, Uint8Array>();
+  for (const { type, offset, dataLength } of pngChunks(png)) {
+    if (type !== IMAGE_CHUNK) continue;
+    const data = png.subarray(offset + 8, offset + 8 + dataLength);
+    const idEnd = data.indexOf(0);
+    const bytes = data.slice(idEnd + 1);
+    if (idEnd > 0 && isPng(bytes)) images.set(new TextDecoder().decode(data.subarray(0, idEnd)), bytes);
+  }
+  return images;
 }

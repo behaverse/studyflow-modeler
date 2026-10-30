@@ -21,7 +21,9 @@ export {
 } from '@core/document/schema-body';
 export {
   dataUrlToBytes,
+  embedPastedImagesIntoPng,
   embedStudyflowIntoPng,
+  extractPastedImagesFromPng,
   extractStudyflowFromPng,
 } from '@core/document/png';
 export { extractStudyflowFromSvg, replaceStudyflowInSvg } from '@core/document/svg';

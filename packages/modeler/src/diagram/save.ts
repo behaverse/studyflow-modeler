@@ -25,7 +25,7 @@ import {
   type LinkedFile,
 } from '@modeler/diagram/fileHandle';
 import { exportDiagramName } from '@modeler/diagram/name';
-import { encodeDiagram, runExportDiagram, stampProvenance } from '@modeler/export/commands';
+import { encodeDiagram, runExportDiagram, sayPastedImagesLeftOut, stampProvenance } from '@modeler/export/commands';
 import {
   autoSavable,
   carriesDiagram,
@@ -110,6 +110,7 @@ async function writeOnce(
   format: ExportFormat,
 ): Promise<SaveOutcome> {
   try {
+    sayPastedImagesLeftOut(modeler, format);
     await writeToFile(handle, await encodeDiagram(modeler, format));
     return 'saved';
   } catch (err) {
@@ -151,7 +152,10 @@ async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean): Pr
     // Auto-save deliberately leaves no stamp. `stampTrailForExport` appends once per edit burst,
     // which at this cadence would turn the provenance trail into a keystroke log; an explicit
     // save, an export, or a publish is what records that a person changed this studyflow.
-    if (!auto) stampProvenance(modeler, file.format);
+    if (!auto) {
+      stampProvenance(modeler, file.format);
+      sayPastedImagesLeftOut(modeler, file.format);
+    }
     const payload = await encodeDiagram(modeler, file.format);
     markSaved(await writeToFile(file.handle, payload));
     reportedConflictFor = undefined;

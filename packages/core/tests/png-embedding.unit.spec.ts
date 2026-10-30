@@ -1,8 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 import {
+  embedPastedImagesIntoPng,
   embedStudyflowIntoPng,
+  extractPastedImagesFromPng,
   extractStudyflowFromPng,
+  isPng,
+  pngSize,
+  pngToDataUrl,
+  dataUrlToBytes,
 } from '@core/document/png';
 
 /** Pure chunk-level coverage of the PNG round-trip contract. */
@@ -66,5 +72,44 @@ test.describe('PNG studyflow embedding', () => {
     const notPng = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
     expect(() => extractStudyflowFromPng(notPng)).toThrow(/PNG/);
     expect(() => embedStudyflowIntoPng(notPng, 'id: x\n')).toThrow(/PNG/);
+  });
+
+  test('pasted images ride in chunks of their own: a new study leaves them, a new set replaces them, and junk is passed over', () => {
+    const first = minimalPng();
+    const second = concat([minimalPng(), new Uint8Array([1, 2, 3])]);
+    const images = new Map([['one', first], ['two', second]]);
+
+    const png = embedStudyflowIntoPng(embedPastedImagesIntoPng(embedStudyflowIntoPng(minimalPng(), 'id: old\n'), images), 'id: new\n');
+    expect(extractStudyflowFromPng(png)).toBe('id: new\n');
+    expect(extractPastedImagesFromPng(png)).toEqual(images);
+    expect(extractPastedImagesFromPng(png.slice().buffer)).toEqual(images);
+
+    const replaced = embedPastedImagesIntoPng(png, new Map([['two', second]]));
+    expect([...extractPastedImagesFromPng(replaced).keys()]).toEqual(['two']);
+    expect(extractStudyflowFromPng(replaced)).toBe('id: new\n');
+    expect(extractPastedImagesFromPng(embedPastedImagesIntoPng(png, new Map())).size).toBe(0);
+
+    const name = new TextEncoder().encode('junk');
+    const notAnImage = concat([name, new Uint8Array(1), new TextEncoder().encode('<svg onload="alert(1)"/>')]);
+    const end = minimalPng().length - 12;
+    const forged = concat([minimalPng().subarray(0, end), pngChunk('stIm', notAnImage), minimalPng().subarray(end)]);
+    expect(extractPastedImagesFromPng(forged).size).toBe(0);
+  });
+
+  test('reads a PNG as a pasted image needs: whether it is one, its size, and its bytes as a data URL', () => {
+    const header = new Uint8Array(13);
+    new DataView(header.buffer).setUint32(0, 1200);
+    new DataView(header.buffer).setUint32(4, 300);
+    const png = concat([new Uint8Array(PNG_SIGNATURE), pngChunk('IHDR', header), pngChunk('IEND', new Uint8Array(0))]);
+
+    expect(isPng(png)).toBe(true);
+    expect(isPng(new TextEncoder().encode('not a png at all'))).toBe(false);
+    expect(pngSize(png)).toEqual({ width: 1200, height: 300 });
+
+    // More bytes than an argument list holds, as a screenshot has.
+    const large = concat([png, new Uint8Array(300_000).fill(7)]);
+    const url = pngToDataUrl(large);
+    expect(url.startsWith('data:image/png;base64,')).toBe(true);
+    expect(dataUrlToBytes(url)).toEqual(large);
   });
 });

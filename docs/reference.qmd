@@ -289,10 +289,12 @@ A model takes part as an actor, never as a setting on a step. It is a pool of it
 |:--|:--|
 | `.studyflow.yaml` | the study itself, in canonical form |
 | `.bpmn`, `.xml` | the same study, as standard BPMN 2.0 XML |
-| `.studyflow.png` | the full image, and the study's `.studyflow.yaml` embedded in it |
+| `.studyflow.png` | the full image, the study's `.studyflow.yaml` embedded in it, and any image pasted on the canvas |
 | `.studyflow.svg` | a picture, and the study's BPMN XML nested in its metadata |
 | `.svg`, `.png` (Manuscript view) | the figure, carrying the `.studyflow.yaml` and editable draw.io image |
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json`, `.json` (jsPsych timeline) | exported formats, non-reversible, for the tools that read them |
+
+A PNG pasted on the canvas is part of the drawing, not of the study. Only a `.studyflow.png` (and the Manuscript view's `.png`) keeps it: the image shows in the picture, its YAML holds a `TextAnnotation` with `textFormat: image/png` whose `text` names the image, and the image's own bytes ride in a PNG chunk of their own, so it comes back as it was pasted however many times the file is saved. Every other format leaves it out and says so, and the protocol digest does not read it.
 
 The YAML format is the canonical one, and can be losslessly converted into BPMN XML and back. Here is a complete, runnable study:
 

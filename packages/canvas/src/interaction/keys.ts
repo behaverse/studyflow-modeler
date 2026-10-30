@@ -72,7 +72,7 @@ export class Keys {
 
   /**
    * Copy and cut put the selection on the clipboard as `.studyflow.yaml` text (`study.copy`); paste draws what the
-   * clipboard holds under the pointer, or in the middle of the view, and selects it.
+   * clipboard holds under the pointer, or in the middle of the view, and selects it: that text, or else a PNG.
    */
   clipboard(ev: ClipboardEvent, pointer: Point | undefined): void {
     const data = ev.clipboardData;
@@ -81,7 +81,11 @@ export class Keys {
     if (ev.type === 'paste') {
       if (!this.tools.editable()) return;
       const at = pointer ? this.tools.viewport.toDiagram(pointer) : this.tools.viewportCentre();
-      if (!this.selectPasted(study.paste({ yaml: data.getData('text/plain'), at }))) return;
+      if (!this.selectPasted(study.paste({ yaml: data.getData('text/plain'), at }))) {
+        const png = [...data.files].find((file) => file.type === 'image/png');
+        if (!png) return;
+        void this.pasteImage(png, at);
+      }
     } else {
       const copied = study.copy({ ids: this.tools.selection.get().map((element) => element.id) });
       if (!copied.ok) return;
@@ -89,6 +93,11 @@ export class Keys {
       if (ev.type === 'cut' && this.tools.editable()) this.canvas.deleteSelection();
     }
     ev.preventDefault();
+  }
+
+  /** Draw the PNG `file` holds, a paste's own edit once its bytes are read, and select it. */
+  private async pasteImage(file: File, at: Point): Promise<void> {
+    this.selectPasted(await this.canvas.study.pasteImage({ png: new Uint8Array(await file.arrayBuffer()), at }));
   }
 
   /** `Ctrl`/`Cmd`+D: a copy of the selection a step right of and below it, in what holds it, selected. */

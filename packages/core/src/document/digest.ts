@@ -2,6 +2,7 @@ import { STUDY_EXTENSION_TYPE } from '@core/document/format';
 import { inlineYamlValue, isExpressionType, isYamlValueProperty } from '@core/model/spelling';
 import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import { parseChecklistLines, serializeChecklistLines } from '@core/document/checklist';
+import { withoutPastedImages } from '@core/model/pastedImages';
 
 /** The per-element run records a run stamps on the elements it touched. */
 const RUN_RECORD = 'prov:Activity';
@@ -121,14 +122,15 @@ function flowsAt(model: StudyModel, element: Element, key: 'incoming' | 'outgoin
 /**
  * The protocol a study describes, as `sha256:<hex>` over a canonical JSON of every root element and everything under
  * it, each element as BPMN holds it (a schema's typed element as its BPMN element and its schema's entry): not the
- * drawing, not the run `state`, not the per-element run records, not the drawing on semantic elements ({@link DRAWING}),
- * not what a run or an audit fills in ({@link RECORDED}, checklist ticks). `studyflow run` hands it to the run, which
+ * drawing, not the images pasted on it, not the run `state`, not the per-element run records, not the drawing on
+ * semantic elements ({@link DRAWING}), not what a run or an audit fills in ({@link RECORDED}, checklist ticks). `studyflow run` hands it to the run, which
  * records it as its `plan`, and `studyflow validate` recomputes it, so an executed copy whose protocol was edited after
  * the run no longer matches. With `anyActor`, it also leaves out who answers each actor pool ({@link BINDING}), so
  * copies of one study that differ only in the actor that takes it share that digest.
  */
 export async function protocolDigest(model: StudyModel, options: { anyActor?: boolean } = {}): Promise<string> {
-  const json = JSON.stringify(model.study.roots.map((root) => canonicalElementIn(model, root, false, options.anyActor ?? false)));
+  const protocol = withoutPastedImages(model);
+  const json = JSON.stringify(protocol.study.roots.map((root) => canonicalElementIn(protocol, root, false, options.anyActor ?? false)));
   const hash = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json)));
   return `sha256:${Array.from(hash, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
 }

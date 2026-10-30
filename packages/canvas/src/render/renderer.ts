@@ -6,6 +6,7 @@
 
 import { BPMN } from '@core/constants.ts';
 import { categoryOf, choreographyBandHeight, dataStoreRim, isDataStore, PARTICIPANT_BAND } from '@core/document/outline.ts';
+import { isPastedImage } from '@core/model/pastedImages.ts';
 import { DATA_INPUT_ASSOCIATION, DATA_OUTPUT_ASSOCIATION, isDataAssociationType } from '@core/element/index.ts';
 import { readAttribute, type Element, type StudyModel } from '@core/model/index.ts';
 import { attributeOverridesIn } from '@core/model/parameters.ts';
@@ -44,6 +45,7 @@ import {
   drawGroup,
   drawParticipant,
   drawTask,
+  drawPastedImage,
   drawTextAnnotation,
   participantInstances,
   STROKE_WIDTH,
@@ -331,8 +333,14 @@ export class Renderer {
         this.drawGroupLabel(g, node, INK.muted);
         break;
       case 'annotation': {
+        const pasted = isPastedImage(node.element);
+        const href = pasted ? this.scene?.pastedImages?.get(String(node.element.text)) : undefined;
+        if (href) {
+          drawPastedImage(g, node.width, node.height, href);
+          break;
+        }
         drawTextAnnotation(g, node.width, node.height, style);
-        const text = node.element.text;
+        const text = pasted ? 'an image this file does not hold' : node.element.text;
         this.drawAnnotationText(g, node, (typeof text === 'string' && text) || name, INK.text);
         break;
       }

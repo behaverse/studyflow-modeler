@@ -30,13 +30,13 @@ export interface Editor {
   canRedo(): boolean;
   /**
    * Put the study `text` spells, a `.studyflow.yaml` or BPMN XML, in place of this one; the history starts over.
-   * `onWarning` hears what reading it could not place.
+   * `onWarning` hears what reading it could not place; `pastedImages` are the bytes of the images it names.
    */
-  open(text: string, onWarning?: (message: string) => void): Promise<void>;
+  open(text: string, onWarning?: (message: string) => void, pastedImages?: ReadonlyMap<string, Uint8Array>): Promise<void>;
   /** The document as a BPMN XML file holds it (the study's `toXml`). */
   saveXML(): Promise<{ xml: string }>;
-  /** What the canvas shows, as a standalone SVG drawn afresh, without the editor's chrome. */
-  toSvg(): string;
+  /** What the canvas shows, as a standalone SVG drawn afresh, without the editor's chrome; its pasted images when asked. */
+  toSvg(options?: { pastedImages?: boolean }): string;
   /** The document, and every write on it: one command, one `edit`, one undo step. */
   study: Study;
   /** The view: its selection, scope and camera, by id. */

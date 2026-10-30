@@ -18,7 +18,7 @@ A view changes the document by sending a command: `executeCommand(editor, { type
 | --- | --- |
 | `app/` | Boot, the top-level layout, the editor context, notices. |
 | `editor/` | The `Editor` type (`port.ts`), `mountEditor`, the snapshot history, the popup-menu registry. |
-| `diagram/` | The file formats (`formats.ts`: what opens, what saves, what a skill adds), importing (`commands.ts`), layout for files without DI, autosave, the linked file (`fileHandle.ts`) and saving back into it (`save.ts`). |
+| `diagram/` | The file formats (`formats.ts`: what opens, what saves, what a skill adds), importing (`commands.ts`), layout for files without DI, autosave, the linked file (`fileHandle.ts`) and saving back into it (`save.ts`), and the notice that only a PNG keeps a pasted image (`pastedImageNotice.ts`). |
 | `open/`, `export/` | The Open dialog and the picker; the encoders (`commands.ts`), the Save dialog and the export model the projections read. |
 | `inspector/` | The side panel. `Panel.tsx` follows the selection, `categories.ts` files attributes under tabs, `registry.tsx` picks an input per attribute (`inputs.tsx`, `editors.tsx`). A section a tab shows beyond attributes is its own file (`state.tsx`, `dataFlow.tsx`, `loop.tsx`, `participants.tsx`, `message.tsx`), each over a pure helper module the unit specs pin. |
 | `palette/`, `popup/`, `contextPad/`, `commandPalette/`, `navBar/`, `drilldown/` | The chrome around the canvas. The ⌘K palette also hosts the dialogs and the hidden `open-file-input` the CLI and the e2e specs drive. |

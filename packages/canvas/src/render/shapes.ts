@@ -133,6 +133,11 @@ export function drawTextAnnotation(parent: SVGElement, w: number, h: number, sty
   }));
 }
 
+/** A pasted image, whole and in its own shape however its box is drawn. */
+export function drawPastedImage(parent: SVGElement, w: number, h: number, href: string): SVGElement {
+  return append(parent, create('image', { x: 0, y: 0, width: w, height: h, href, preserveAspectRatio: 'xMidYMid meet' }));
+}
+
 /** A pool: its frame and the band its name runs up; drawn `collapsed`, BPMN's black box, the frame alone. */
 export function drawParticipant(parent: SVGElement, w: number, h: number, style: ShapeStyle, collapsed = false): SVGElement {
   const rect = append(parent, create('rect', {

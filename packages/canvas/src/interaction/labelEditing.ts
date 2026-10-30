@@ -4,6 +4,7 @@
  * choreography band. Enter commits, Escape abandons.
  */
 
+import { isPastedImage } from '@core/model/pastedImages.ts';
 import { extensionTypeOf } from '@core/model/index.ts';
 import { bandsOf, isChoreographyTask, participantRefs } from '@canvas/study/choreography.ts';
 import type { StudyModel } from '@core/model/index.ts';
@@ -128,6 +129,7 @@ export class LabelEditing {
   activate(target: SceneElement, options: { band?: LabelBand; at?: Point } = {}): boolean {
     if (this.session) this.complete();
     const element = target.kind === 'label' ? target.owner : target;
+    if (isPastedImage(element.element)) return false;
     const band: LabelBand = element.kind === 'node' && isChoreographyTask(element)
       ? (options.band ?? (options.at ? choreographyBandAt(element, options.at) : 'name'))
       : 'name';

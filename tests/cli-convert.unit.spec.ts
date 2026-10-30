@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { extractStudyflowFromPng, extractStudyflowFromSvg } from '@core/document';
+import { embedPastedImagesIntoPng, embedStudyflowIntoPng, extractPastedImagesFromPng, extractStudyflowFromPng, extractStudyflowFromSvg } from '@core/document';
 
 /** `studyflow convert`, between the formats a study is spelled in. */
 
@@ -51,6 +51,47 @@ test('convert warns about what reading drops; with --strict it writes nothing', 
   expect(strict.stderr).toMatch(/warning[^\n]*<behaverse:dataset>/i);
   expect(strict.status).toBe(1);
   expect(existsSync(strictYaml)).toBe(false);
+});
+
+test('convert carries the images pasted on a study from PNG to PNG, says it leaves them out of anything else, and leaves them in the PNG', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'studyflow-images-'));
+  const at = (name: string) => path.join(dir, name);
+  const favicon = new Uint8Array(readFileSync(path.join(process.cwd(), 'assets/img/favicon.png')));
+  const study = `id: tiny
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+P:
+  type: Process
+  flowElements:
+    S:
+      type: StartEvent
+      bounds: 10 10 36 36
+  artifacts:
+    Panel:
+      type: TextAnnotation
+      textFormat: image/png
+      text: sha256-0123456789abcdef
+      bounds: 100 10 80 40
+`;
+  const images = new Map([['sha256-0123456789abcdef', favicon]]);
+  writeFileSync(at('in.studyflow.png'), embedPastedImagesIntoPng(embedStudyflowIntoPng(favicon, study), images));
+
+  for (const [target, says] of [['out.studyflow.yaml', 'studyflow YAML'], ['out.bpmn', 'BPMN XML']]) {
+    const done = convert(at('in.studyflow.png'), at(target));
+    expect(done.status).toBe(0);
+    expect(done.stdout).toContain(says);
+    expect(done.stdout).toContain(`The 1 image(s) pasted on it stay in ${at('in.studyflow.png')}.`);
+    const text = readFileSync(at(target), 'utf8');
+    expect(text).not.toMatch(/Panel|image\/png|sha256-/);
+    expect(text).toMatch(/StartEvent|startEvent/);
+  }
+
+  const kept = convert(at('in.studyflow.png'), at('out.studyflow.png'), '--into', path.join(process.cwd(), 'assets/img/favicon.png'));
+  expect(kept.status).toBe(0);
+  expect(kept.stdout).not.toContain('stay in');
+  const out = new Uint8Array(readFileSync(at('out.studyflow.png')));
+  expect(extractStudyflowFromPng(out)).toContain('textFormat: image/png');
+  expect(extractPastedImagesFromPng(out)).toEqual(images);
 });
 
 test('convert writes BPMN XML, embeds the study into the image --into names or the target already is, and refuses an image target it has no image for', () => {

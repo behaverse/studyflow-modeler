@@ -33,7 +33,10 @@ export function attachAutosave(modeler: Editor): () => void {
   let timer: number | undefined;
 
   const flush = () => {
-    if (localIsOn()) {
+    // The copy in this browser holds the study's text alone. Restored with its linked file, a save would write that file
+    // without the pasted images, so a study holding any keeps no copy here.
+    if (localIsOn() && modeler.study.pastedImages().size > 0) clearAutosavedDiagram();
+    else if (localIsOn()) {
       modeler.saveXML()
         .then(({ xml }: { xml: string }) => {
           if (xml) saveAutosavedDiagram(xml);

@@ -1,7 +1,5 @@
 import type { Editor } from '@modeler/editor/port';
 import type { ExportModel } from '@modeler/export/model';
-import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
-import { exportToPng } from '@modeler/export/svgEmbedding';
 import { SKILL_EXPORT_FORMATS, SKILL_OPENERS, type Opener } from '@modeler/skillModules';
 import { DRAWIO_FORMATS } from '@modeler/formats/drawio';
 import { LINKML_FORMATS } from '@modeler/formats/linkml';
@@ -15,6 +13,8 @@ export type ExportFormatId = DiagramFormatId | (string & {});
 export type EncodeContext = {
   modeler: Editor;
   renderSvg: () => Promise<{ svg: string; studyflow: string }>;
+  /** The diagram as an image that carries it: the study, and the bytes of the images pasted on it. */
+  png: () => Promise<Uint8Array>;
   /** The diagram as standard BPMN XML, for a projection that carries its source. */
   bpmn: () => Promise<string>;
   /** The semantic view of the diagram, built on demand; only projections read it. */
@@ -87,10 +87,7 @@ const EXPORT_FORMATS: ExportFormat[] = [
     mimeType: 'image/png',
     embeddable: true,
     // The figure carries its study, as the `.studyflow.png` in Save does: a reader holding the figure can reopen it.
-    encode: async ({ renderSvg }) => {
-      const { svg, studyflow } = await renderSvg();
-      return embedStudyflowIntoPng(dataUrlToBytes(await exportToPng(svg)), studyflow) as BlobPart;
-    },
+    encode: async ({ png }) => await png() as BlobPart,
   },
   // A projection, a document derived for another tool, carries its descriptor and its encoder: the modeler's own
   // (formats/), then a skill's `modeler.ts`.
@@ -143,6 +140,9 @@ export function openerFor(filename: string): Opener | undefined {
   const lower = filename.toLowerCase();
   return OPENERS.find((opener) => lower.endsWith(opener.extension.toLowerCase()));
 }
+
+/** Whether the file keeps the images pasted on the canvas: only a PNG can hold them. */
+export const keepsPastedImages = (format: ExportFormat): boolean => format.mimeType === 'image/png';
 
 /** Whether the file carries the diagram itself, rather than being a document derived from it. */
 export const carriesDiagram = (format: ExportFormat): boolean =>

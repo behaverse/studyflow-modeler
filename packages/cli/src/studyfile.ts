@@ -3,10 +3,11 @@ import { extname } from 'node:path';
 
 import { installedSkills } from '@cli/skills';
 
-import { looksLikeXml, extractStudyflowFromPng, extractStudyflowFromSvg, parseStudy, studyToXml } from '@core/document';
+import { looksLikeXml, extractPastedImagesFromPng, extractStudyflowFromPng, extractStudyflowFromSvg, parseStudy, studyToXml } from '@core/document';
 import type { StudyModel } from '@core/model/index';
 import type { Metamodel } from '@core/model/metamodel';
 import { metamodelOf } from '@core/model/packages';
+import { withoutPastedImages } from '@core/model/pastedImages';
 import { studyText } from '@core/model/yaml';
 import { loadAllSchemas } from '@core/notation/loader';
 
@@ -18,6 +19,8 @@ export type StudyflowSource = {
   kind: SourceKind;
   /** Where the text came from; `png` and `svg` mean it was extracted from an image. */
   container: 'text' | 'png' | 'svg';
+  /** The bytes of the images pasted on the study, by the id each names, which only a PNG holds. */
+  pastedImages: ReadonlyMap<string, Uint8Array>;
 };
 
 let metamodelPromise: Promise<Metamodel> | undefined;
@@ -40,19 +43,20 @@ export function sourceOf(bytes: Uint8Array, container: StudyflowSource['containe
     : container === 'svg'
       ? extractStudyflowFromSvg(new TextDecoder().decode(bytes))
       : new TextDecoder().decode(bytes);
-  return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container };
+  return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container, pastedImages: container === 'png' ? extractPastedImagesFromPng(bytes) : new Map() };
 }
 
 /** The source as BPMN XML, whatever it arrived as. XML is passed through unread, so only YAML can warn. */
 export async function asXml(source: StudyflowSource, onWarning?: (message: string) => void): Promise<string> {
   if (source.kind === 'xml') return source.text;
-  return studyToXml(await parseStudy(source.text, await schemaMetamodel(), { onWarning }));
+  return studyToXml(withoutPastedImages(await parseStudy(source.text, await schemaMetamodel(), { onWarning })));
 }
 
-/** The source as `.studyflow` YAML, whatever it arrived as. */
-export async function asYaml(source: StudyflowSource, onWarning?: (message: string) => void): Promise<string> {
+/** The source as `.studyflow` YAML, whatever it arrived as, and without its pasted images unless they are kept beside it. */
+export async function asYaml(source: StudyflowSource, onWarning?: (message: string) => void, { pastedImages = false } = {}): Promise<string> {
   const model = await parseStudy(source.text, await schemaMetamodel(), { onWarning });
-  return studyText(model.study, model.metamodel);
+  const { study, metamodel } = pastedImages ? model : withoutPastedImages(model);
+  return studyText(study, metamodel);
 }
 
 export type ParseResult = {

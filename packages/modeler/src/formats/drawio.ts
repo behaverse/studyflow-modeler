@@ -9,6 +9,7 @@ import { embedBpmnIntoSvg } from '@modeler/export/svgEmbedding';
 import { exportDiagramName } from '@modeler/diagram/name';
 import { bandsOf } from '@core/model/choreography';
 import { choreographyBandHeight } from '@core/document/outline';
+import { isPastedImage } from '@core/model/pastedImages';
 import type { ElementRecord } from '@canvas/index.ts';
 import type { Editor } from '@modeler/editor/port';
 
@@ -304,6 +305,8 @@ export function exportToDrawio(modeler: Editor): string {
   for (const record of records) {
     // Only what is on screen: the drilled-into container's contents, and nothing folded inside a collapsed one.
     if (!canvas.draws(record.id)) continue;
+    // A pasted image stays out of every file but a `.studyflow.png`, and so does what links to it.
+    if ([record.id, record.source, record.target].some((id) => isPastedImage(study.element(id ?? '')))) continue;
     // A record, its box spread flat, and the elements the styles read.
     const element = { ...record, ...record.bounds, bo: study.element(record.id), model: study.model };
     if (record.kind === 'edge') connections.push({ ...element, sourceObject: record.source && study.element(record.source) });

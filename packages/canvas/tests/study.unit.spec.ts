@@ -892,6 +892,60 @@ test('paste draws a copy in as one edit: fresh ids for taken ones, centred where
   expect(study.paste({ yaml, into: 'Other' }), 'a task holds nothing').toMatchObject({ ok: false });
 });
 
+test('pasteImage draws a PNG as one edit, centred, in its own shape; only a .studyflow.png\'s text and bytes keep it', async () => {
+  const study = Study.of(studyModel(CLIPBOARD));
+  const before = study.toYaml();
+  const beforeXml = await study.toXml();
+  const png = (width: number, height: number, mark: number): Uint8Array => {
+    const bytes = new Uint8Array(33);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    new DataView(bytes.buffer).setUint32(16, width);
+    new DataView(bytes.buffer).setUint32(20, height);
+    bytes[32] = mark;
+    return bytes;
+  };
+
+  const pasted = await study.pasteImage({ png: png(1280, 320, 1), at: { x: 700, y: 500 } });
+  expect(pasted).toMatchObject({ ok: true, changed: [], removed: [] });
+  const id = pasted.id!;
+  expect(pasted.added).toEqual([id]);
+  expect(study.get(id)!.bounds, 'no side over 640, its shape kept, centred').toEqual({ x: 380, y: 420, width: 640, height: 160 });
+  // A small one at its own size, and over what holds no annotation, where it was pasted all the same.
+  const ask = study.get('Ask')!.bounds!;
+  const over = { x: ask.x + ask.width / 2, y: ask.y + ask.height / 2 };
+  const small = await study.pasteImage({ png: png(40, 20, 2), at: over });
+  expect(study.get(small.id!)!.bounds).toEqual({ x: Math.round(over.x - 20), y: Math.round(over.y - 10), width: 40, height: 20 });
+
+  // Every file but a PNG's text leaves it out, the drawing with it.
+  expect(study.toYaml()).toBe(before);
+  expect(await study.toXml()).toBe(beforeXml);
+  const kept = study.toYaml({ pastedImages: true });
+  expect(kept).toContain('textFormat: image/png');
+  expect(study.pastedImages().size).toBe(2);
+
+  // Its text is its bytes' id: there is nothing to retype.
+  expect(study.rename({ id, name: 'Words' })).toMatchObject({ ok: false });
+
+  // One undo takes it back, and the redo draws it again.
+  study.undo();
+  expect(study.pastedImages().size, 'what the study no longer draws is no part of its file').toBe(1);
+  study.undo();
+  expect(study.toYaml({ pastedImages: true })).toBe(before);
+  study.redo();
+  expect(study.get(id)!.bounds!.width).toBe(640);
+  expect(study.pastedImages().size).toBe(1);
+
+  // Opened again, from what a PNG holds.
+  const reopened = Study.of(studyModel(before));
+  await reopened.load(kept, study.pastedImages());
+  expect(reopened.get(id)!.bounds!.width).toBe(640);
+  expect(reopened.pastedImages().size).toBe(1);
+  await reopened.load(before);
+  expect(reopened.pastedImages().size, 'a load puts another document in place, images and all').toBe(0);
+
+  expect(await study.pasteImage({ png: new TextEncoder().encode('not a PNG, though it says so') })).toMatchObject({ ok: false, reason: 'not a PNG' });
+});
+
 test('a caption keeps up with what it names, in a study no view draws', () => {
   const study = open();
   study.add({ type: 'bpmn:StartEvent', id: 'Go', name: 'go', at: { x: 100, y: 400 } });

@@ -102,6 +102,8 @@ export interface Scene {
   elementsById: Map<string, SceneElement>;
   /** Bumped on every committed edit. */
   revision: number;
+  /** The images pasted on the study, by the id each names, as the data URLs it draws. */
+  pastedImages?: ReadonlyMap<string, string>;
 }
 
 export function isRootElement(value: unknown): value is RootElement {

@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 
-import { embedStudyflowIntoPng, replaceStudyflowInSvg } from '@core/document';
+import { embedPastedImagesIntoPng, embedStudyflowIntoPng, replaceStudyflowInSvg } from '@core/document';
 import { asXml, asYaml, readSource, type StudyflowSource } from '@cli/studyfile';
 
 /* `studyflow convert`: between .studyflow(.yaml), .bpmn/.xml, .studyflow.png and .studyflow.svg, the format told by the extension. */
@@ -127,25 +127,28 @@ export async function convert(input: string, output: string, options: ConvertOpt
   const warnings: string[] = [];
   const onWarning = (warning: string) => { warnings.push(warning); };
   const drawnAs = options.modeler && (format === 'png' || format === 'svg') ? format : undefined;
+  // Only a PNG keeps the images pasted on a study, and only one this command embeds into rather than one the modeler draws.
+  const keeps = format === 'png' && !drawnAs;
+  const left = keeps || source.pastedImages.size === 0 ? '' : ` The ${source.pastedImages.size} image(s) pasted on it stay in ${input}.`;
   // The modeler draws from the YAML, which a PNG carries too; an SVG carries the XML.
-  const text = !drawnAs && (format === 'xml' || format === 'svg') ? await asXml(source, onWarning) : await asYaml(source, onWarning);
+  const text = !drawnAs && (format === 'xml' || format === 'svg') ? await asXml(source, onWarning) : await asYaml(source, onWarning, { pastedImages: keeps });
   for (const warning of warnings) console.warn(`warning: ${warning}`);
   if (options.strict && warnings.length > 0) throw new Error(`Nothing written to ${output}: reading ${input} raised warnings (--strict).`);
 
   if (format === 'yaml') {
     await writeFile(output, text, 'utf8');
-    return `Wrote ${output} (studyflow YAML).`;
+    return `Wrote ${output} (studyflow YAML).${left}`;
   }
 
   if (format === 'xml') {
     await writeFile(output, text, 'utf8');
-    return `Wrote ${output} (BPMN XML).`;
+    return `Wrote ${output} (BPMN XML).${left}`;
   }
 
   if (drawnAs) {
     const image = await renderImage(input, text, options.origin ?? 'http://127.0.0.1:4175', drawnAs);
     await writeFile(output, image);
-    return `Wrote ${output} (rendered by the modeler).`;
+    return `Wrote ${output} (rendered by the modeler).${left}`;
   }
 
   // An image without --modeler: embed the studyflow into an existing image of that kind.
@@ -157,7 +160,7 @@ export async function convert(input: string, output: string, options: ConvertOpt
     );
   }
   await writeFile(output, format === 'png'
-    ? embedStudyflowIntoPng(new Uint8Array(await readFile(basePath)), text)
+    ? embedPastedImagesIntoPng(embedStudyflowIntoPng(new Uint8Array(await readFile(basePath)), text), source.pastedImages)
     : replaceStudyflowInSvg(await readFile(basePath, 'utf8'), text));
-  return `Wrote ${output} (embedded studyflow into ${basePath === output ? 'the existing image' : basePath}).`;
+  return `Wrote ${output} (embedded studyflow into ${basePath === output ? 'the existing image' : basePath}).${left}`;
 }

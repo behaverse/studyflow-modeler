@@ -1,7 +1,8 @@
 import { exportDiagramName } from '@modeler/diagram/name';
-import { carriesDiagram, exportFilename, getExportFormat, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/diagram/formats';
+import { carriesDiagram, exportFilename, getExportFormat, keepsPastedImages, type DiagramFormatId, type EncodeContext, type ExportFormat, type ExportFormatId } from '@modeler/diagram/formats';
 import { buildExportModel } from '@modeler/export/model';
-import { dataUrlToBytes, embedStudyflowIntoPng } from '@core/document/png';
+import { dataUrlToBytes, embedPastedImagesIntoPng, embedStudyflowIntoPng } from '@core/document/png';
+import { notify } from '@modeler/app/noticeStore';
 import { dropUnresolvedIcons, embedBpmnIntoSvg, exportToPng } from '@modeler/export/svgEmbedding';
 import { stampTrailForExport } from '@modeler/provenance/trail';
 import { getStoredUserEmail } from '@modeler/settings/store';
@@ -24,6 +25,9 @@ function toStudyflow(modeler: Editor): string {
   return modeler.study.toYaml();
 }
 
+/** `svg`, without the XML prolog's comments and the icons nothing resolved. */
+const cleanedSvg = (svg: string): string => dropUnresolvedIcons(svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1'));
+
 /**
  * The diagram as a self-contained SVG, plus the `.studyflow.yaml` text it carries.
  *
@@ -31,10 +35,16 @@ function toStudyflow(modeler: Editor): string {
  * real `<svg>` body, so what `toSvg` draws is already what the export carries.
  */
 async function renderSvg(modeler: Editor): Promise<{ svg: string; studyflow: string }> {
-  const svg = modeler.toSvg();
-  const studyflow = toStudyflow(modeler);
-  const cleaned = dropUnresolvedIcons(svg.replace(/^(\s*<\?xml[^>]*>\s*)?(?:\s*<!--[\s\S]*?-->\s*)+/i, '$1'));
-  return { svg: cleaned, studyflow };
+  return { svg: cleanedSvg(modeler.toSvg()), studyflow: toStudyflow(modeler) };
+}
+
+/**
+ * The diagram as an image, and all a reader needs to open it again: the study's text and the bytes of the images
+ * pasted on it, each in a PNG chunk of its own. Drawing it anew leaves no pasted image any the worse for the last save.
+ */
+async function toPng(modeler: Editor): Promise<Uint8Array> {
+  const drawn = dataUrlToBytes(await exportToPng(cleanedSvg(modeler.toSvg({ pastedImages: true }))));
+  return embedPastedImagesIntoPng(embedStudyflowIntoPng(drawn, modeler.study.toYaml({ pastedImages: true })), modeler.study.pastedImages());
 }
 
 const ENCODERS: Record<DiagramFormatId, (ctx: EncodeContext) => Promise<BlobPart> | BlobPart> = {
@@ -48,11 +58,8 @@ const ENCODERS: Record<DiagramFormatId, (ctx: EncodeContext) => Promise<BlobPart
     return embedBpmnIntoSvg(svg, await toBpmn(modeler));
   },
 
-  // The payload lands in its own PNG chunk, at the offset its reader scans; the image is untouched.
-  png: async ({ renderSvg }) => {
-    const { svg, studyflow } = await renderSvg();
-    return embedStudyflowIntoPng(dataUrlToBytes(await exportToPng(svg)), studyflow) as BlobPart;
-  },
+  // The payload lands in its own PNG chunks, at the offset their reader scans; the image is untouched.
+  png: async ({ png }) => await png() as BlobPart,
 };
 
 /**
@@ -71,6 +78,13 @@ export function stampProvenance(modeler: Editor, format: ExportFormat): void {
   });
 }
 
+/** Say so when a file written at someone's asking leaves out the images pasted on the canvas. */
+export function sayPastedImagesLeftOut(modeler: Editor, format: ExportFormat): void {
+  const count = modeler.study.pastedImages().size;
+  if (count === 0 || keepsPastedImages(format)) return;
+  notify('warning', `${format.extension} leaves out ${count === 1 ? 'the image' : `the ${count} images`} pasted on the canvas: only a .studyflow.png keeps them.`);
+}
+
 /** The bytes of the diagram in one format. Shared with saving, which writes them straight to disk. */
 export function encodeDiagram(
   modeler: Editor,
@@ -81,6 +95,7 @@ export function encodeDiagram(
   return encode({
     modeler,
     renderSvg: () => renderSvg(modeler),
+    png: () => toPng(modeler),
     bpmn: () => toBpmn(modeler),
     exportModel: () => buildExportModel(modeler),
   });
@@ -90,6 +105,7 @@ export async function runExportDiagram(modeler: Editor, command: ExportDiagramCo
   const format = getExportFormat(command.format ?? 'studyflow');
 
   stampProvenance(modeler, format);
+  sayPastedImagesLeftOut(modeler, format);
 
   const filename = command.filename ?? exportFilename(exportDiagramName(modeler), format);
   const payload = await encodeDiagram(modeler, format);

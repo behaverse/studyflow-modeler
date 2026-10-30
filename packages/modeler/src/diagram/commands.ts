@@ -3,7 +3,7 @@ import { looksLikeXml } from '@core/document';
 import { filenameStem } from '@modeler/diagram/file';
 import { markOpened, unlinkFile } from '@modeler/diagram/fileHandle';
 import { importableFormatFor, openerFor } from '@modeler/diagram/formats';
-import { extractStudyflowFromPng } from '@core/document/png';
+import { extractPastedImagesFromPng, extractStudyflowFromPng } from '@core/document/png';
 import { extractStudyflowFromSvg } from '@core/document/svg';
 import { notify } from '@modeler/app/noticeStore';
 import { resetTrailStamping } from '@modeler/provenance/trail';
@@ -38,14 +38,19 @@ export async function runNewDiagram(modeler: Editor, _command: NewDiagramCommand
   modeler.canvas.zoom('fit');
 }
 
-/** Put the study `text` spells on the canvas; `onWarning` hears what reading it could not place. */
-async function openText(modeler: Editor, text: string, onWarning?: (message: string) => void): Promise<void> {
+/** Put the study `text` spells on the canvas; `onWarning` hears what reading it could not place, and `pastedImages` are the bytes of the images it names. */
+async function openText(
+  modeler: Editor,
+  text: string,
+  onWarning?: (message: string) => void,
+  pastedImages?: ReadonlyMap<string, Uint8Array>,
+): Promise<void> {
   // Whatever was linked described the canvas being replaced. Carrying the link across would point
   // auto-save at that file and overwrite it with an unrelated diagram; `runOpenDiagram` links
   // again once it knows which file the new canvas actually came from.
   unlinkFile();
 
-  await modeler.open(text, onWarning);
+  await modeler.open(text, onWarning, pastedImages);
   // `open` starts the undo history over, so the trail bookkeeping restarts with it.
   resetTrailStamping(modeler);
   // The canvas is now exactly what was opened, whichever path got here. `runOpenDiagram` marks
@@ -90,7 +95,10 @@ function studyText(modeler: Editor, filename: string, content: string | ArrayBuf
 export async function runOpenDiagram(modeler: Editor, command: OpenDiagramCommand): Promise<void> {
   // What reading could not place is gone from the next save, so say what it met, as `studyflow validate` does.
   const warnings: string[] = [];
-  await openText(modeler, studyText(modeler, command.filename, command.content), (message) => { warnings.push(message); });
+  const pastedImages = importableFormatFor(command.filename)?.id === 'png' && typeof command.content !== 'string'
+    ? extractPastedImagesFromPng(command.content)
+    : undefined;
+  await openText(modeler, studyText(modeler, command.filename, command.content), (message) => { warnings.push(message); }, pastedImages);
   if (warnings.length > 0) {
     notify('warning', [`Reading ${command.filename} raised warnings:`, ...warnings].join('\n'), { keep: true });
   }

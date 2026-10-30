@@ -81,6 +81,19 @@ const swap = (from: string, to: string) => (text: string): string => {
 
 const digest = async (text: string): Promise<string> => protocolDigest(studyModel(text));
 
+/** Artifacts beside the flow: a note, or an image pasted on the canvas, each linked to a step. */
+const ARTIFACT = (attributes: string) => swap('  flowElements:\n    Start:', `  artifacts:
+    Beside:
+      type: TextAnnotation
+${attributes}
+      bounds: 500 20 80 40
+    Beside_Link:
+      type: Association
+      sourceRef: Beside
+      targetRef: Play
+  flowElements:
+    Start:`);
+
 /** What a run leaves: its state (on a Study extension the file did not have), and a record on each element it ran. */
 const RUN = (text: string): string => [
   swap('      documentation: Thirty', '      extensionElements:\n        - type: prov:Activity\n          action: executed\n          run: r1\n      documentation: Thirty'),
@@ -107,6 +120,8 @@ test('the drawing, the run state and the run records leave the digest alone; the
     // The canvas files a shape into the lane it is dropped in.
     ['a shape moves into another lane', (text) => swap('[Gate, Done, Retry]', '[Play, Gate, Done, Retry]')(swap('[Start, Play]', '[Start]')(text)), false],
     ['a run stamps state and per-element records', RUN, false],
+    ['an image pasted on the canvas, linked to a step', ARTIFACT('      textFormat: image/png\n      text: sha256-0123456789abcdef'), false],
+    ['a note, which the protocol says', ARTIFACT('      text: Ask them twice'), true],
     // An audit after the run: a checklist item ticked off, a Schedule view progress filled in.
     ['a checklist item ticked', swap('- [ ] Settings wired in', '- [x] Settings wired in'), false],
     ['a progress', swap('name: Play the task', 'name: Play the task\n      progress: done'), false],
