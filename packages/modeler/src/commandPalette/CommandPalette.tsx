@@ -14,6 +14,7 @@ import {
 } from 'react';
 import { ReplayContext, SettingsViewContext } from '@modeler/app/contexts';
 import { useModeler } from '@modeler/app/useModeler';
+import type { Editor } from '@modeler/editor/port';
 import { useIsSimulating } from '@modeler/simulation/useIsSimulating';
 import { MOD_LABEL, URLS } from '@modeler/constants';
 import { getLinkedFileName, subscribeLink } from '@modeler/diagram/fileHandle';
@@ -59,6 +60,16 @@ function isBareKey(e: KeyPress, key: string): boolean {
 function isTyping(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+}
+
+/** A field writes what is typed in it as it loses the focus, so a save by key takes the focus and gives it back, or the
+ * file goes without that text. The blur closes a canvas name's editor, which leaves the canvas the focus. */
+function commitTyping(modeler: Editor): void {
+  const field = document.activeElement as HTMLElement | null;
+  if (!field || !isTyping(field)) return;
+  field.blur();
+  if (field.isConnected) field.focus();
+  else modeler.canvas.focus();
 }
 
 export const OPEN_PALETTE_SHORTCUT_LABEL = `${MOD_LABEL}K`;
@@ -137,6 +148,7 @@ export function CommandPalette({ ref }: Props) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         // Chrome's own "save page" would fire otherwise, and it saves the wrong thing entirely.
         e.preventDefault();
+        commitTyping(modeler);
         if (isOpen) close();
         // The quick write only exists once there is a file to write; without one — or with Shift,
         // to reach the format and destination controls — this is the dialog's job.

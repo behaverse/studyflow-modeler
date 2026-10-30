@@ -147,7 +147,6 @@ async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean): Pr
     return 'skipped';
   }
 
-  markSaving();
   try {
     // Auto-save deliberately leaves no stamp. `stampTrailForExport` appends once per edit burst,
     // which at this cadence would turn the provenance trail into a keystroke log; an explicit
@@ -156,6 +155,8 @@ async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean): Pr
       stampProvenance(modeler, file.format);
       sayPastedImagesLeftOut(modeler, file.format);
     }
+    // After the stamp, which is an edit: this write carries it, so it must not read as unsaved after.
+    markSaving();
     const payload = await encodeDiagram(modeler, file.format);
     markSaved(await writeToFile(file.handle, payload));
     reportedConflictFor = undefined;

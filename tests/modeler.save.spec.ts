@@ -3,7 +3,7 @@ import { expect, test } from './e2e';
 
 import { embedStudyflowIntoPng, extractStudyflowFromPng } from '@core/document/png';
 
-import { browseForDiagram, diagramTitle, exampleText, gotoModeler, runPaletteCommand } from './utils';
+import { browseForDiagram, diagramTitle, exampleText, gotoModeler, runPaletteCommand, setSelectedElementName } from './utils';
 
 /** A BPMN file of one start event. */
 const DIAGRAM = `<?xml version="1.0" encoding="UTF-8"?>
@@ -189,6 +189,23 @@ test.describe('Saving back into the opened file', () => {
 
     await page.keyboard.press('ControlOrMeta+s');
     await expect.poll(async () => (await disk(page)).writes).toBe(1);
+    // The stamp that save adds is in the file it wrote, so nothing is left unsaved.
+    await expect(page.getByTestId('file-status')).toHaveAttribute('data-file-state', 'clean');
+  });
+
+  test('a save by key carries what is still being typed, and leaves the field in focus', async ({ page }) => {
+    // An image link, so no auto-save can write the text a moment later and hide a save that went without it.
+    await installFakeDisk(page, 'demo.studyflow.png', DIAGRAM_PNG_B64);
+    await gotoModeler(page, { pickers: true });
+    await browseForDiagram(page);
+    await expect(page.getByTestId('file-status')).toContainText('demo.studyflow.png');
+
+    await setSelectedElementName(page, 'still typing');
+    await page.keyboard.press('ControlOrMeta+s');
+
+    await expect.poll(async () => (await disk(page)).writes).toBe(1);
+    expect(extractStudyflowFromPng(Buffer.from((await disk(page)).content, 'base64'))).toContain('still typing');
+    await expect(page.locator('input[name="bpmn:name"]')).toBeFocused();
   });
 
   test('the file `studyflow edit` opens is saved back into, as the format it is, with no picker', async ({ page }) => {
