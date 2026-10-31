@@ -171,6 +171,7 @@ export class Canvas {
       viewport: this.viewport,
       rename: (element, band, text) => this.study.rename({ id: element.id, name: text, ...(band === 'name' ? {} : { band }) }).ok,
       model: () => this.study.model,
+      glyphReach: (node) => this.renderer.glyphReach(node),
       restoreFocus: () => this.focus(),
       // While its text is edited in place, an element drops its outline and its drawn text: the caption, else its own.
       onEditing: (element, editing) => {

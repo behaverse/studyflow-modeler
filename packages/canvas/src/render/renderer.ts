@@ -28,6 +28,8 @@ import {
   drawBandText,
   drawInternalLabel,
   drawLabel,
+  isOneRow,
+  type GlyphReach,
   NOTE_FONT,
   styled,
   textLine,
@@ -73,10 +75,14 @@ function footRoom(node: SceneNode): number {
 
 /** The type glyph, tucked into the top-left corner; its row is what `CHROME.head` keeps clear. */
 const TYPE_ICON = { x: 3, y: 3, size: 24 };
+/** How far in the type glyph's ink reaches: a glyph stops short of its box. */
+const TYPE_ICON_REACH = 24;
 const MARKER_SIZE = 16;
 /** The gap the pool's title-band marker keeps from the band's foot, and from the name above it. */
 const BAND_MARKER_GAP = 6;
 const OVERLAY_ICON_SIZE = 16;
+const OVERLAY_ICON_INSET = 6;
+const OVERLAY_ICON_GAP = 4;
 /** Badges share the glyph row's centre line. */
 const OVERLAY_ICON_Y = TYPE_ICON.y + (TYPE_ICON.size - OVERLAY_ICON_SIZE) / 2;
 const EVENT_ICON_SIZE = 20;
@@ -289,12 +295,7 @@ export class Renderer {
       }
       case 'task': {
         drawTask(g, node.width, node.height, style, THICK_ACTIVITY.has(node.type));
-        const glyph = iconGlyph(this.model, node.element);
-        this.drawTypeIcon(g, node, iconColor);
-        drawIconText(g, glyph, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
-        this.drawMarkers(g, node, iconColor);
-        this.drawOverlayIcons(g, node, iconColor);
-        drawInternalLabel(g, node, name, INK.text);
+        this.drawGlyphsAndName(g, node, name, iconColor, style.stroke);
         break;
       }
       case 'gateway':
@@ -309,23 +310,20 @@ export class Renderer {
         this.drawOverlayIcons(g, node, iconColor);
         break;
       case 'choreography': {
-        const glyph = iconGlyph(this.model, node.element);
-        const typed = isTypedChoreography(this.model, node.element);
-        if (!typed || idsIn(node.element.participantRef).length > 0) {
+        if (this.drawsBands(node)) {
           // Bands name the parties; the type glyph sits in the middle band, where the task's own name is.
           this.drawChoreography(g, node, style, name);
-          const inner = append(g, group(0, choreographyBandHeight(node.height)));
-          this.drawTypeIcon(inner, node, iconColor);
-          drawIconText(inner, glyph, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
+          const band = choreographyBandHeight(node.height);
+          const middle = { ...node, height: node.height - 2 * band } as SceneNode;
+          const inner = append(g, group(0, band));
+          this.drawTypeGlyph(inner, middle, iconColor, style.stroke, isOneRow(middle, name, this.glyphReach(node)));
+          this.drawOverlayIcons(g, node, iconColor);
         } else {
           // A typed one (a cognitive task) naming no party: the study's own participant takes it, and it is drawn
           // as the plain task it reads as. A plain choreography task keeps its default bands, which are its point.
           drawTask(g, node.width, node.height, style, false);
-          this.drawTypeIcon(g, node, iconColor);
-          drawIconText(g, glyph, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, style.stroke);
-          drawInternalLabel(g, node, name, INK.text);
+          this.drawGlyphsAndName(g, node, name, iconColor, style.stroke);
         }
-        this.drawOverlayIcons(g, node, iconColor);
         break;
       }
       case 'group':
@@ -434,12 +432,44 @@ export class Renderer {
     return g;
   }
 
-  private drawTypeIcon(g: SVGGElement, node: SceneNode, color: string): void {
+  /** A task's glyphs and name: the glyphs in their corners and at its foot, or level with the name when it is too short for that. */
+  private drawGlyphsAndName(g: SVGGElement, node: SceneNode, name: string, iconColor: string, stroke: string): void {
+    const reach = this.glyphReach(node);
+    const row = isOneRow(node, name, reach);
+    this.drawTypeGlyph(g, node, iconColor, stroke, row);
+    this.drawMarkers(g, node, iconColor, row);
+    this.drawOverlayIcons(g, node, iconColor, OVERLAY_ICON_INSET, row ? (node.height - OVERLAY_ICON_SIZE) / 2 : OVERLAY_ICON_Y);
+    drawInternalLabel(g, node, name, INK.text, reach);
+  }
+
+  /** The type glyph and the lettering over it, in the top-left corner or, on one `row` with the name, level with it. */
+  private drawTypeGlyph(g: SVGGElement, node: SceneNode, color: string, stroke: string, row: boolean): void {
+    const y = row ? (node.height - TYPE_ICON.size) / 2 : TYPE_ICON.y;
     const key = toLocalName(node.type);
-    if (!key) return;
-    // A plain task has no glyph of its own; it only gets one when the host names one.
-    if (key === 'Task' && !this.iconResolver?.(key, node.element)) return;
-    drawIcon(g, key, TYPE_ICON.x, TYPE_ICON.y, TYPE_ICON.size, color, this.iconResolver, node.element);
+    if (key) drawIcon(g, key, TYPE_ICON.x, y, TYPE_ICON.size, color, this.iconResolver, node.element);
+    drawIconText(g, iconGlyph(this.model, node.element), TYPE_ICON.x, y, TYPE_ICON.size, stroke);
+  }
+
+  /** Whether a choreography task draws its participant bands: a typed one naming no party reads as a plain task. */
+  private drawsBands(node: SceneNode): boolean {
+    return !isTypedChoreography(this.model, node.element) || idsIn(node.element.participantRef).length > 0;
+  }
+
+  /**
+   * How far the glyphs a task draws around its name reach in from the sides of its shape. A choreography task's badges
+   * sit up in its top band, away from its name, and it draws no markers.
+   */
+  glyphReach(node: SceneNode): GlyphReach {
+    const key = toLocalName(node.type);
+    const typed = (key && this.iconResolver?.(key, node.element)) || iconGlyph(this.model, node.element);
+    const resolver = this.iconResolver;
+    const inBand = categoryOf(node.type) === 'choreography' && this.drawsBands(node);
+    const badges = resolver && !inBand ? overlayIconsOf(this.model, node.element).filter((badge) => resolver(badge)).length : 0;
+    const run = (count: number, size: number): number => count * size + (count - 1) * OVERLAY_ICON_GAP;
+    const right = badges > 0 ? OVERLAY_ICON_INSET + run(badges, OVERLAY_ICON_SIZE) : 0;
+    const markers = activityMarkers(node).length;
+    const row = markers > 0 ? (right > 0 ? right + OVERLAY_ICON_GAP : OVERLAY_ICON_INSET) + run(markers, MARKER_SIZE) : right;
+    return { left: typed ? TYPE_ICON_REACH : 0, right, row };
   }
 
   private drawEventIcons(g: SVGGElement, node: SceneNode, color: string, kind?: string): void {
@@ -474,14 +504,14 @@ export class Renderer {
   }
 
   /** Schema-attribute badges in the top-right corner, stacking leftward. */
-  private drawOverlayIcons(g: SVGGElement, node: SceneNode, color: string, inset = 6, y = OVERLAY_ICON_Y): void {
+  private drawOverlayIcons(g: SVGGElement, node: SceneNode, color: string, inset = OVERLAY_ICON_INSET, y = OVERLAY_ICON_Y): void {
     const resolver = this.iconResolver;
     if (!resolver) return;
     let x = node.width - OVERLAY_ICON_SIZE - inset;
     for (const key of overlayIconsOf(this.model, node.element)) {
       if (!resolver(key)) continue;
       drawIcon(g, key, x, y, OVERLAY_ICON_SIZE, color, resolver);
-      x -= OVERLAY_ICON_SIZE + 4;
+      x -= OVERLAY_ICON_SIZE + OVERLAY_ICON_GAP;
     }
   }
 
@@ -533,13 +563,13 @@ export class Renderer {
     }
   }
 
-  /** Bottom-centre activity markers, in the row `CHROME.foot` keeps clear. */
-  private drawMarkers(g: SVGGElement, node: SceneNode, color: string): void {
+  /** Bottom-centre activity markers, in the row `CHROME.foot` keeps clear; on one `row` with the name, at its right end, left of the badges. */
+  private drawMarkers(g: SVGGElement, node: SceneNode, color: string, row: boolean): void {
     const markers = activityMarkers(node);
     if (markers.length === 0) return;
     const gap = 4;
-    const y = node.height - MARKER_SIZE - 4;
-    const startX = (node.width - markers.length * MARKER_SIZE - (markers.length - 1) * gap) / 2;
+    const y = row ? (node.height - MARKER_SIZE) / 2 : node.height - MARKER_SIZE - 4;
+    const startX = row ? node.width - this.glyphReach(node).row : (node.width - markers.length * MARKER_SIZE - (markers.length - 1) * gap) / 2;
     markers.forEach((marker, i) => {
       drawIcon(g, marker, startX + i * (MARKER_SIZE + gap), y, MARKER_SIZE, color, this.iconResolver, node.element);
     });
@@ -629,7 +659,7 @@ export class Renderer {
     drawBandText(g, bands.bottom, width / 2, height - bandHeight / 2, width, INK.text, FONT.band, WEIGHT.external, node.font);
     if (name) {
       const inner = append(g, group(0, bandHeight));
-      drawInternalLabel(inner, { ...node, height: height - 2 * bandHeight } as SceneNode, name, INK.text);
+      drawInternalLabel(inner, { ...node, height: height - 2 * bandHeight } as SceneNode, name, INK.text, this.glyphReach(node));
     }
   }
 }

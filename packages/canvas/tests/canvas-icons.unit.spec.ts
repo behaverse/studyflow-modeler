@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 import { renderSvg, type Canvas, type IconDef } from '@canvas/index.ts';
+import { canvasInternals } from '@canvas/Canvas.ts';
+import { CHROME } from '@canvas/render/labels.ts';
+import { LINE_HEIGHT } from '@canvas/study/text.ts';
 import { INK } from '@canvas/view/theme.ts';
 import { xmlToStudy } from '@core/document';
 import { extensionTypeOf, type Element as StudyElement } from '@core/model/index';
@@ -96,6 +99,103 @@ test('a marker glyph goes through the same resolver, stamped with its key, in th
   expect(path.namespaceURI).toBe('http://www.w3.org/2000/svg');
   expect(path.getAttribute('fill')).toBe(INK.muted);
   expect(renderSvg(canvas.study, { iconResolver: () => GLYPH_DEF })).not.toContain('currentColor');
+});
+
+// --- a name among the glyphs -------------------------------------------------------
+
+const NAMES_YAML = `id: Defs_N
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_N:
+  type: Process
+  flowElements:
+    Bare:
+      type: Task
+      name: Rate the stimulus shown on the screen
+      bounds: 0 0 110 80
+    Short:
+      type: UserTask
+      name: Rate
+      bounds: 0 100 110 80
+    Beside:
+      type: UserTask
+      name: Rate the stimulus shown on the screen
+      bounds: 0 200 110 80
+    Marked:
+      type: Task
+      name: Rate
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+      bounds: 0 300 110 80
+    Wide:
+      type: UserTask
+      name: Rate every stimulus shown on the screen
+      bounds: 0 400 110 80
+    Aligned:
+      type: UserTask
+      name: Rate the stimulus shown on the screen
+      font: left
+      bounds: 0 500 110 80
+`;
+
+test('a name sits centred on its task, and goes under the glyph only when a line would run into it', async () => {
+  const { canvas } = loadYaml(NAMES_YAML, { iconResolver: (key) => (key === 'Task' ? null : GLYPH_DEF) });
+  const CASES: [id: string, under: boolean][] = [
+    ['Bare', false],
+    ['Short', false],
+    ['Beside', false],
+    ['Marked', false],
+    ['Wide', true],
+    ['Aligned', true],
+  ];
+  for (const [id, under] of CASES) {
+    const lines = [...graphics(canvas, id).querySelectorAll('text')].map((text) => Number(text.getAttribute('y')));
+    const first = lines[0] - LINE_HEIGHT / 2;
+    const centre = (lines[0] + lines[lines.length - 1]) / 2;
+    if (under) expect(first, id).toBeGreaterThanOrEqual(CHROME.head);
+    else expect(centre, id).toBe(node(canvas, id).height / 2);
+    // The editor opens on the name where it is drawn, so the text holds still.
+    const { labelEditing } = canvasInternals(canvas);
+    labelEditing.activate(node(canvas, id));
+    const { bounds } = labelEditing.getSession()!;
+    expect(bounds.y + bounds.height / 2 - node(canvas, id).y, id).toBe(centre);
+    labelEditing.cancel();
+  }
+});
+
+test('an activity too short for a line under its glyph stands its glyph, name and markers on one row', async () => {
+  const { canvas } = loadYaml(`id: Defs_R
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Process_R:
+  type: Process
+  flowElements:
+    Short:
+      type: UserTask
+      name: Rate the stimulus shown on the screen
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+      bounds: 0 0 160 30
+`, { iconResolver: () => GLYPH_DEF });
+  const y = (el: Element): number => Number(el.getAttribute('y'));
+  const x = (el: Element): number => Number(el.getAttribute('x'));
+  const g = graphics(canvas, 'Short');
+  const [line, ...others] = [...g.querySelectorAll('text')];
+  const icon = g.querySelector('[data-icon-key="UserTask"]')!;
+  const marker = g.querySelector('[data-icon-key="loop"]')!;
+  expect(others).toEqual([]);
+  expect(y(line)).toBe(15);
+  expect(y(icon) + 12).toBe(15);
+  expect(y(marker) + 8).toBe(15);
+  expect(line.getAttribute('text-anchor')).toBe('start');
+  expect(x(line)).toBeGreaterThanOrEqual(x(icon) + 24);
+  expect(x(marker)).toBeGreaterThan(x(line) + line.textContent!.length * 12 * 0.58);
+  // The editor opens where the name stands, set the way it is drawn.
+  const { labelEditing } = canvasInternals(canvas);
+  labelEditing.activate(node(canvas, 'Short'));
+  const { bounds } = labelEditing.getSession()!;
+  expect([bounds.x, bounds.align]).toEqual([x(line), 'left']);
+  labelEditing.cancel();
 });
 
 // --- `meta.glyph` ----------------------------------------------------------------

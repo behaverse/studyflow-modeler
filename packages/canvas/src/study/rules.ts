@@ -138,8 +138,9 @@ const MIN_SIZES: ReadonlyArray<readonly [string, Size]> = [
   ['bpmn:Lane', { width: 300, height: 60 }],
   ['bpmn:TextAnnotation', { width: 50, height: 30 }],
   ['bpmn:Group', { width: 60, height: 40 }],
-  ['bpmn:ChoreographyActivity', { width: 100, height: 80 }],
-  ['bpmn:Activity', { width: 100, height: 80 }],
+  // A glyph's height, 24 and its margins, with its name beside it (`render/labels.ts`); a choreography task's bands above and below.
+  ['bpmn:ChoreographyActivity', { width: 60, height: 70 }],
+  ['bpmn:Activity', { width: 60, height: 30 }],
 ];
 
 function minSizeFor(type: string): Size {

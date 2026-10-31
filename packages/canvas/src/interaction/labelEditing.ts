@@ -10,9 +10,9 @@ import { bandsOf, isChoreographyTask, participantRefs } from '@canvas/study/chor
 import type { StudyModel } from '@core/model/index.ts';
 import { hasExternalLabel } from '@canvas/study/labels.ts';
 import { nameOf } from '@canvas/study/elements.ts';
-import type { Bounds, Point, SceneEdge, SceneElement, SceneNode } from '@canvas/study/scene.ts';
-import { edgeLabelBox, FONT, LINE_HEIGHT, nodeLabelBox, textWidth } from '@canvas/study/text.ts';
-import { familyOf, internalLabelRegion, LABEL_FONT, WEIGHT } from '@canvas/render/labels.ts';
+import type { Bounds, Point, SceneEdge, SceneElement, SceneNode, TextAlign } from '@canvas/study/scene.ts';
+import { edgeLabelBox, FONT, LINE_HEIGHT, nodeLabelBox, textWidth, wrap } from '@canvas/study/text.ts';
+import { familyOf, internalLabelRegion, LABEL_FONT, NO_GLYPHS, WEIGHT, type GlyphReach } from '@canvas/render/labels.ts';
 import { choreographyBandHeight } from '@core/document/outline.ts';
 import type { Viewport } from '@canvas/view/viewport.ts';
 
@@ -27,6 +27,8 @@ export interface LabelEditingOptions {
   rename: (element: SceneNode | SceneEdge, band: LabelBand, text: string) => boolean;
   /** The study model the edited elements are in, which says what a band shows. */
   model: () => StudyModel;
+  /** How far the glyphs beside a shape's name reach in, as it is drawn (`Renderer.glyphReach`). */
+  glyphReach: (node: SceneNode) => GlyphReach;
   restoreFocus?: () => void;
   /** An edit opened or closed on `element`: the host hides its drawn text while the transparent editor stands in for it. */
   onEditing?: (element: SceneNode | SceneEdge, editing: boolean) => void;
@@ -36,12 +38,17 @@ export interface LabelEditingSession {
   element: SceneNode | SceneEdge;
   band: LabelBand;
   initial: string;
-  bounds: Bounds;
+  bounds: LabelBounds;
 }
+
+/** Where a label's text is, and how a name inside its shape is aligned there. */
+type LabelBounds = Bounds & { align?: TextAlign };
 
 const MIN_INTERNAL_PX = { width: 40, height: 16 };
 const MIN_EXTERNAL_PX = { width: 14, height: 14 };
 const EMPTY_EXTERNAL_WIDTH = 90;
+/** The two sides of `.sf-label-editor-internal`'s padding (`view/theme.ts`). */
+const EDITOR_SIDE_PADDING = 8;
 
 function labelPlacement(element: SceneNode | SceneEdge): LabelPlacement {
   if (element.kind === 'node' && isChoreographyTask(element)) return 'internal';
@@ -56,8 +63,8 @@ function choreographyBandAt(node: SceneNode, point: Point): LabelBand {
   return 'name';
 }
 
-/** The diagram-space region the text of `band` occupies. */
-export function labelBounds(element: SceneNode | SceneEdge, band: LabelBand): Bounds {
+/** The diagram-space region the text of `band` occupies; `reach` is how far the glyphs around the name reach in. */
+export function labelBounds(element: SceneNode | SceneEdge, band: LabelBand, reach = NO_GLYPHS): LabelBounds {
   if (element.kind === 'edge') return element.label ?? edgeLabelBox(element, nameOf(element.element) || 'x');
   const node = element;
   if (isChoreographyTask(node)) {
@@ -67,12 +74,12 @@ export function labelBounds(element: SceneNode | SceneEdge, band: LabelBand): Bo
     // The name is captioned inside the middle band, laid out like a task's (`renderer.ts drawChoreography`);
     // a typed one naming no party is drawn as a plain task and captions the whole box.
     const plain = extensionTypeOf(node.element) !== undefined && participantRefs(node.element).length === 0;
-    const region = internalLabelRegion(plain ? node : { ...node, height: node.height - 2 * h }, nameOf(node.element));
-    return { x: node.x + region.x, y: node.y + (plain ? 0 : h) + region.y, width: region.width, height: region.height };
+    const region = internalLabelRegion(plain ? node : { ...node, height: node.height - 2 * h }, nameOf(node.element), reach);
+    return { ...region, x: node.x + region.x, y: node.y + (plain ? 0 : h) + region.y };
   }
   if (hasExternalLabel(node)) return node.label ?? nodeLabelBox(node, nameOf(node.element) || 'x');
-  const region = internalLabelRegion(node, nameOf(node.element));
-  return { x: node.x + region.x, y: node.y + region.y, width: region.width, height: region.height };
+  const region = internalLabelRegion(node, nameOf(node.element), reach);
+  return { ...region, x: node.x + region.x, y: node.y + region.y };
 }
 
 function fontSizeFor(element: SceneNode | SceneEdge, band: LabelBand): number {
@@ -134,7 +141,8 @@ export class LabelEditing {
       ? (options.band ?? (options.at ? choreographyBandAt(element, options.at) : 'name'))
       : 'name';
     const initial = this.textOf(element, band);
-    const session: LabelEditingSession = { element, band, initial, bounds: labelBounds(element, band) };
+    const reach = element.kind === 'node' ? this.options.glyphReach(element) : NO_GLYPHS;
+    const session: LabelEditingSession = { element, band, initial, bounds: labelBounds(element, band, reach) };
     this.session = session;
     this.options.onEditing?.(element, true);
     this.input = this.createInput(session);
@@ -201,7 +209,7 @@ export class LabelEditing {
       fontSize: `${fontSizeFor(session.element, session.band) * this.scale()}px`,
       fontWeight: font?.bold ? '700' : placement === 'internal' ? WEIGHT.internal : WEIGHT.external,
       fontStyle: font?.italic ? 'italic' : '',
-      textAlign: font?.align ?? '',
+      textAlign: session.bounds.align ?? font?.align ?? '',
       color: font?.color ?? '',
     });
     this.place(input, session, session.initial);
@@ -230,13 +238,14 @@ export class LabelEditing {
       top: `${box.y - host.top + (box.height - height) / 2}px`,
       width: `${width}px`,
       height: `${height}px`,
-      ...(placement === 'internal' ? { paddingTop: `${this.centeringPad(input, text, height)}px` } : {}),
+      ...(placement === 'internal' ? { paddingTop: `${this.centeringPad(input, text, width, height)}px` } : {}),
     });
   }
 
-  private centeringPad(input: HTMLTextAreaElement, text: string, height: number): number {
+  /** The top padding that centres `text` as the editor wraps it, so a name of several lines holds still when it opens. */
+  private centeringPad(input: HTMLTextAreaElement, text: string, width: number, height: number): number {
     const fontSize = parseFloat(input.style.fontSize) || 12;
-    const lines = Math.max(1, text.split(/\r?\n/).length);
+    const lines = text.split(/\r?\n/).reduce((count, line) => count + Math.max(1, wrap(line, width - EDITOR_SIDE_PADDING, fontSize, Infinity).length), 0);
     return Math.max(6, (height - lines * fontSize * 1.2) / 2);
   }
 
