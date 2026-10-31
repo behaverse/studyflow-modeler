@@ -245,6 +245,17 @@ test('a choreography task draws its name in the MIDDLE band, and shades the band
   expect(bandFills('Round'), 'Experimenter, below, initiates').toEqual([INK.band, INK.fill]);
 });
 
+test('a coloured choreography task shades its receiving band deeper in its own hue, not towards grey', async () => {
+  const canvas = await render('choreography_demo');
+  const fill = '#f1d0cd';
+  canvas.study.style({ ids: ['Consent'], fill });
+  const band = graphicsOf(canvas, 'Consent')!.querySelector('path[data-band="bottom"]')!.getAttribute('fill')!;
+  const channels = (hex: string) => [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16));
+  const spread = (values: number[]) => Math.max(...values) - Math.min(...values);
+  expect(Math.max(...channels(band)), 'darker').toBeLessThan(Math.max(...channels(fill)));
+  expect(spread(channels(band)), 'more colour, not less').toBeGreaterThan(spread(channels(fill)));
+});
+
 test('a choreography task\'s font colours the names on its bands as it does its own', async () => {
   const canvas = await render('choreography_demo');
   canvas.study.style({ ids: ['Consent'], font: { color: '#4a6f9c' } });

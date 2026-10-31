@@ -142,7 +142,11 @@ function eventKind(node: SceneNode): EventKind {
   }
 }
 
-function darken(color: string, amount = 0.12): string {
+/**
+ * A deeper shade of `color` in its own hue: lightness down by `amount` at the same HSL saturation, so a pale red
+ * deepens to a red rather than greying.
+ */
+function shade(color: string, amount = 0.08): string {
   let hex: string | undefined;
   try {
     hex = normalizeColor(color);
@@ -151,9 +155,14 @@ function darken(color: string, amount = 0.12): string {
   }
   if (!hex) return color;
   const value = Number.parseInt(hex.slice(1), 16);
-  const channels = [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff]
-    .map((c) => Math.max(0, Math.min(255, Math.round(c * (1 - amount)))));
-  return `#${channels.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+  const channels = [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff].map((c) => c / 255);
+  const lightness = (Math.max(...channels) + Math.min(...channels)) / 2;
+  const deeper = Math.max(0, lightness - amount);
+  // The spread between channels that full saturation allows at a lightness; scaling by it holds the saturation.
+  const spread = (l: number): number => 1 - Math.abs(2 * l - 1);
+  const scale = spread(lightness) > 0 ? spread(deeper) / spread(lightness) : 0;
+  const shaded = channels.map((c) => Math.round(Math.max(0, Math.min(1, deeper + (c - lightness) * scale)) * 255));
+  return `#${shaded.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
 }
 
 export interface RendererOptions {
@@ -641,7 +650,7 @@ export class Renderer {
     const bandHeight = choreographyBandHeight(height);
     const { stroke, fill } = style;
     const bands = bandsOf(this.model, node.element);
-    const receivingFill = node.fill ? darken(node.fill) : INK.band;
+    const receivingFill = node.fill ? shade(node.fill) : INK.band;
     const topFill = bands.initiator === 'top' ? INK.fill : receivingFill;
     const bottomFill = bands.initiator === 'bottom' ? INK.fill : receivingFill;
 
