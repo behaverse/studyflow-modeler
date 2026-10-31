@@ -129,13 +129,19 @@ Process_N:
       bounds: 0 300 110 80
     Wide:
       type: UserTask
-      name: Rate every stimulus shown on the screen
+      name: Stimulus shown on the screen and rated
       bounds: 0 400 110 80
     Aligned:
       type: UserTask
       name: Rate the stimulus shown on the screen
       font: left
       bounds: 0 500 110 80
+    Tight:
+      type: UserTask
+      name: Accuracy per agent and condition
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+      bounds: 0 600 120 84
 `;
 
 test('a name sits centred on its task, and goes under the glyph only when a line would run into it', async () => {
@@ -161,6 +167,8 @@ test('a name sits centred on its task, and goes under the glyph only when a line
     expect(bounds.y + bounds.height / 2 - node(canvas, id).y, id).toBe(centre);
     labelEditing.cancel();
   }
+  // A line short enough to stand beside the glyph does, rather than the name being cut to fit under it.
+  expect([...graphics(canvas, 'Tight').querySelectorAll('text')].map((text) => text.textContent).join(' ')).toBe('Accuracy per agent and condition');
 });
 
 test('an activity too short for a line under its glyph stands its glyph, name and markers on one row', async () => {
@@ -176,6 +184,15 @@ Process_R:
       loopCharacteristics:
         type: StandardLoopCharacteristics
       bounds: 0 0 160 30
+    Nameless:
+      type: UserTask
+      loopCharacteristics:
+        type: StandardLoopCharacteristics
+      bounds: 0 100 160 30
+    Wrapped:
+      type: UserTask
+      name: Returns for session 2 (n=48)
+      bounds: 0 200 145 40
 `, { iconResolver: () => GLYPH_DEF });
   const y = (el: Element): number => Number(el.getAttribute('y'));
   const x = (el: Element): number => Number(el.getAttribute('x'));
@@ -189,13 +206,17 @@ Process_R:
   expect(y(marker) + 8).toBe(15);
   expect(line.getAttribute('text-anchor')).toBe('start');
   expect(x(line)).toBeGreaterThanOrEqual(x(icon) + 24);
-  expect(x(marker)).toBeGreaterThan(x(line) + line.textContent!.length * 12 * 0.58);
+  expect(x(marker)).toBeGreaterThan(x(line) + line.textContent!.length * 12 * 0.5);
   // The editor opens where the name stands, set the way it is drawn.
   const { labelEditing } = canvasInternals(canvas);
   labelEditing.activate(node(canvas, 'Short'));
   const { bounds } = labelEditing.getSession()!;
   expect([bounds.x, bounds.align]).toEqual([x(line), 'left']);
   labelEditing.cancel();
+  // Beside the glyph, a name wraps by what its letters take: nothing here needs cutting.
+  expect([...graphics(canvas, 'Wrapped').querySelectorAll('text')].map((text) => text.textContent).join(' ')).toBe('Returns for session 2 (n=48)');
+  // With no name to stand beside, a marker stays at the foot's centre.
+  expect(x(graphics(canvas, 'Nameless').querySelector('[data-icon-key="loop"]')!)).toBe((160 - 16) / 2);
 });
 
 // --- `meta.glyph` ----------------------------------------------------------------

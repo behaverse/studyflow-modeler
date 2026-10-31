@@ -5,7 +5,7 @@
 
 import type { Font, TextAlign } from '@canvas/study/font.ts';
 import type { Bounds, SceneLabel, SceneNode } from '@canvas/study/scene.ts';
-import { fit, FONT, LINE_HEIGHT, wrap } from '@canvas/study/text.ts';
+import { CHAR_WIDTH, fit, FONT, LINE_HEIGHT, wrap } from '@canvas/study/text.ts';
 import { categoryOf } from '@core/document/outline.ts';
 import { activityMarkers } from '@canvas/render/shapes.ts';
 import { append, create } from '@canvas/render/svg.ts';
@@ -92,6 +92,8 @@ function drawLines(
 
 /** The most lines of a name, however tall its shape. */
 const MAX_LINES = 4;
+/** What a name's letters take on average, in ems: less than the room `wrap` keeps for them, which would cut a name that stands clear of a glyph. */
+const LETTER_WIDTH = 0.5;
 
 /** The gap a name on one row keeps from the glyphs on it, and from the shape's top and bottom. */
 const ROW_GAP = 6;
@@ -131,8 +133,8 @@ function floorOf(node: SceneNode): number {
  * Set `name` centred on the shape, so names line up across a row of shapes whatever each one draws, and moved up only
  * as far as a marker row asks. A line that falls in the glyphs' row stays when it stands clear between them; else the
  * name goes under them, cut short if the room there is too little. Where that room is one line or less, the glyphs
- * stand level with the name, which wraps beside them as far as the height lets it. An expanded container captions its
- * top strip, between the glyphs.
+ * stand level with the name, which wraps beside them as far as the height lets it; a shape with no name keeps its
+ * glyphs where they are. An expanded container captions its top strip, between the glyphs.
  */
 function captionOf(node: SceneNode, name: string, reach: GlyphReach): Caption {
   const { width, height } = node;
@@ -147,19 +149,20 @@ function captionOf(node: SceneNode, name: string, reach: GlyphReach): Caption {
   const oneRow = (): Caption => {
     const x = reach.left > 0 ? reach.left + ROW_GAP : 2;
     const span = Math.max(0, width - (reach.row > 0 ? reach.row + ROW_GAP : 2) - x);
-    const beside = wrap(name, span, FONT.internal, rows(height - 2 * ROW_MARGIN));
+    // Room is scarce here: wrapped by what its letters take, so a line that fits is not cut.
+    const beside = wrap(name, (span * CHAR_WIDTH) / LETTER_WIDTH, FONT.internal, rows(height - 2 * ROW_MARGIN));
     const set = node.font?.align ?? (reach.left > 0 ? 'left' : 'center');
     return { lines: beside, top: (height - beside.length * LINE_HEIGHT) / 2, x, width: span, align: set, row: true };
   };
   const floor = floorOf(node);
   const head = aside > 0 ? CHROME.head : 0;
-  if (floor - head < LINE_HEIGHT) return oneRow();
+  if (name && floor - head < LINE_HEIGHT) return oneRow();
   const centred = (count: number): number => Math.max(0, Math.min((height - count * LINE_HEIGHT) / 2, floor - count * LINE_HEIGHT));
   const lines = wrap(name, room, FONT.internal, rows(floor));
   const top = centred(lines.length);
   // A line set to one side runs along the glyph on that side, however short it is.
   const between = align === 'center' ? width - 2 * aside : 0;
-  const clear = aside === 0 || lines.every((line, i) => top + i * LINE_HEIGHT >= CHROME.head || fit(line, between, FONT.internal) === line);
+  const clear = aside === 0 || lines.every((line, i) => top + i * LINE_HEIGHT >= CHROME.head || line.length * FONT.internal * LETTER_WIDTH <= between);
   if (clear) return { lines, top, x: 2, width: room, align, row: false };
   if (floor - head < 2 * LINE_HEIGHT) return oneRow();
   const under = wrap(name, room, FONT.internal, rows(floor - head));

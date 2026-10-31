@@ -9,7 +9,7 @@ import type { Bounds, Point, SceneEdge, SceneNode } from '@canvas/study/scene.ts
 export const LINE_HEIGHT = 15;
 export const FONT = { internal: 12, external: 11, band: 11, annotation: 12 } as const;
 
-const CHAR_WIDTH = 0.58;
+export const CHAR_WIDTH = 0.58;
 const PAD = 2;
 const ELLIPSIS = '…';
 
