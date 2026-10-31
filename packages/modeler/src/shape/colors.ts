@@ -24,6 +24,9 @@ export const ELEMENT_COLORS: ElementColor[] = [
   { label: 'Purple',  fill: '#DFD5E6', stroke: '#9174A3' },
 ];
 
+/** The canvas's stock ink, for text set black on a coloured element, whose text otherwise takes its stroke. */
+export const BLACK_TEXT = '#1c1917';
+
 /** What "Default" looks like in a swatch: the stock BPMN shape colours. */
 export const DEFAULT_FILL = 'white';
 export const DEFAULT_STROKE = 'rgb(34, 36, 42)';

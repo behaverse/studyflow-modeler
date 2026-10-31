@@ -5,7 +5,7 @@ import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { APPEND_MENU, COLOR_MENU, CREATE_MENU, REPLACE_MENU, registerPopupMenu, type PopupOptions, type PopupPosition } from '@modeler/editor/popupMenus';
 import { ICONS } from '@modeler/icons';
-import { ELEMENT_COLORS, DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
+import { BLACK_TEXT, ELEMENT_COLORS, DEFAULT_FILL, DEFAULT_STROKE } from '@modeler/shape/colors';
 import { buildElementEntries } from '@modeler/popup/entries';
 import { mustDragToAppend } from '@modeler/popup/commands';
 import { PopupMenu, type PopupMenuModel, type PopupMenuItem } from '@modeler/popup/PopupMenu';
@@ -18,9 +18,9 @@ const ALIGNMENTS: { align: TextAlign; glyph: string; label: string }[] = [
   { align: 'right', glyph: ICONS.alignRight, label: 'Align right' },
 ];
 
-/** A caption's ink: the element palette's own strokes, plus the stock ink to clear back to. */
-const INKS: { label: string; color: string | undefined }[] = [
-  { label: 'Default', color: undefined },
+/** A caption's ink: black and the element palette's own strokes. With none picked, text takes the element's stroke. */
+const INKS: { label: string; color: string }[] = [
+  { label: 'Black', color: BLACK_TEXT },
   ...ELEMENT_COLORS.flatMap((color) => (color.stroke ? [{ label: color.label, color: color.stroke }] : [])),
 ];
 
@@ -162,10 +162,11 @@ export function PopupMenus() {
             items: INKS.map(({ label, color }): PopupMenuItem => ({
               id: `${label.toLowerCase()}-text-color`,
               label,
-              swatch: { fill: color ?? 'var(--sf-ink-text)', stroke: color ?? 'var(--sf-ink-text)' },
-              pressed: (font?.color ?? undefined) === color?.toLowerCase(),
+              swatch: { fill: color, stroke: color },
+              pressed: font?.color === color.toLowerCase(),
               keepOpen: true,
-              onSelect: () => setFont({ color: color ?? null }),
+              // Picking the ink it already has puts it back to the element's stroke.
+              onSelect: () => setFont({ color: font?.color === color.toLowerCase() ? null : color }),
             })),
           },
         ],

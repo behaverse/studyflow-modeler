@@ -89,6 +89,11 @@ const EVENT_ICON_SIZE = 20;
 const DATA_ICON_SIZE = 20;
 const ANNOTATION_PADDING = 7;
 
+/** The ink of the text a shape draws: its stroke when it is coloured, as a caption beside it takes; its `font` may say otherwise. */
+function inkOf(node: SceneNode): string {
+  return node.stroke ?? INK.text;
+}
+
 /** The schema type `element` is an instance of: its extension type, else its BPMN type. */
 function schemaTypeOf(model: StudyModel, element: Element): string {
   return model.extensionType(element) ?? model.host(element);
@@ -337,7 +342,7 @@ export class Renderer {
       }
       case 'group':
         drawGroup(g, node.width, node.height, style);
-        this.drawGroupLabel(g, node, INK.muted);
+        this.drawGroupLabel(g, node, node.stroke ?? INK.muted);
         break;
       case 'annotation': {
         const pasted = isPastedImage(node.element);
@@ -348,7 +353,7 @@ export class Renderer {
         }
         drawTextAnnotation(g, node.width, node.height, style);
         const text = pasted ? 'an image this file does not hold' : node.element.text;
-        this.drawAnnotationText(g, node, (typeof text === 'string' && text) || name, INK.text);
+        this.drawAnnotationText(g, node, (typeof text === 'string' && text) || name, inkOf(node));
         break;
       }
       case 'participant': {
@@ -356,17 +361,17 @@ export class Renderer {
           // A pool drawn closed is BPMN's black box: a strip with the name across it, no band, nothing inside.
           drawParticipant(g, node.width, node.height, style, true);
           this.drawPoolMarker(g, node, iconColor);
-          drawInternalLabel(g, node, name, INK.text);
+          drawInternalLabel(g, node, name, inkOf(node));
           break;
         }
         // A lane is painted after the container it divides, so it stops above that container's marker row.
         drawParticipant(g, node.width, node.height - footRoom(node), style);
-        this.drawParticipantLabel(g, node, name, INK.text, this.drawBandMarker(g, node, iconColor));
+        this.drawParticipantLabel(g, node, name, inkOf(node), this.drawBandMarker(g, node, iconColor));
         break;
       }
       default:
         drawTask(g, node.width, node.height, { ...style, fill: 'none' });
-        drawInternalLabel(g, node, name, INK.text);
+        drawInternalLabel(g, node, name, inkOf(node));
         break;
     }
     return g;
@@ -448,7 +453,7 @@ export class Renderer {
     this.drawTypeGlyph(g, node, iconColor, stroke, row);
     this.drawMarkers(g, node, iconColor, row);
     this.drawOverlayIcons(g, node, iconColor, OVERLAY_ICON_INSET, row ? (node.height - OVERLAY_ICON_SIZE) / 2 : OVERLAY_ICON_Y);
-    drawInternalLabel(g, node, name, INK.text, reach);
+    drawInternalLabel(g, node, name, inkOf(node), reach);
   }
 
   /** The type glyph and the lettering over it, in the top-left corner or, on one `row` with the name, level with it. */
@@ -599,7 +604,7 @@ export class Renderer {
     const y = node.height - MARKER_SIZE - LINE_HEIGHT - BAND_MARKER_GAP;
     drawIcon(g, 'parallel', centre - MARKER_SIZE / 2, y, MARKER_SIZE, color, this.iconResolver, node.element);
     append(g, textLine(`×${instances}`, centre, y + MARKER_SIZE + LINE_HEIGHT / 2,
-      { fontSize: FONT.band, color: INK.text, weight: WEIGHT.internal }));
+      { fontSize: FONT.band, color: inkOf(node), weight: WEIGHT.internal }));
     return MARKER_SIZE + LINE_HEIGHT + 2 * BAND_MARKER_GAP;
   }
 
@@ -613,7 +618,7 @@ export class Renderer {
     const y = node.height - MARKER_SIZE - BAND_MARKER_GAP;
     drawIcon(g, 'parallel', x, y, MARKER_SIZE, color, this.iconResolver, node.element);
     append(g, textLine(count, x + width - textWidth(count, FONT.band) / 2, y + MARKER_SIZE / 2,
-      { fontSize: FONT.band, color: INK.text, weight: WEIGHT.internal }));
+      { fontSize: FONT.band, color: inkOf(node), weight: WEIGHT.internal }));
   }
 
   /** A group's caption lives on its `bpmn:CategoryValue`, centred on the top edge. */
@@ -663,12 +668,12 @@ export class Renderer {
     append(g, create('rect', {
       x: 0, y: 0, rx: CORNER_RADIUS, ry: CORNER_RADIUS, width, height, fill: 'none', stroke, 'stroke-width': STROKE_WIDTH,
     }));
-    // The names on the bands are the task's text too, so its font paints them as it paints its name.
-    drawBandText(g, bands.top, width / 2, bandHeight / 2, width, INK.text, FONT.band, WEIGHT.external, node.font);
-    drawBandText(g, bands.bottom, width / 2, height - bandHeight / 2, width, INK.text, FONT.band, WEIGHT.external, node.font);
+    // The names on the bands are the task's text too, so its stroke and font paint them as they paint its name.
+    drawBandText(g, bands.top, width / 2, bandHeight / 2, width, inkOf(node), FONT.band, WEIGHT.external, node.font);
+    drawBandText(g, bands.bottom, width / 2, height - bandHeight / 2, width, inkOf(node), FONT.band, WEIGHT.external, node.font);
     if (name) {
       const inner = append(g, group(0, bandHeight));
-      drawInternalLabel(inner, { ...node, height: height - 2 * bandHeight } as SceneNode, name, INK.text, this.glyphReach(node));
+      drawInternalLabel(inner, { ...node, height: height - 2 * bandHeight } as SceneNode, name, inkOf(node), this.glyphReach(node));
     }
   }
 }

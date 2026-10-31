@@ -256,12 +256,15 @@ test('a coloured choreography task shades its receiving band deeper in its own h
   expect(spread(channels(band)), 'more colour, not less').toBeGreaterThan(spread(channels(fill)));
 });
 
-test('a choreography task\'s font colours the names on its bands as it does its own', async () => {
+test('a choreography task\'s stroke colours its name and the names on its bands, and its font over that', async () => {
   const canvas = await render('choreography_demo');
+  const inks = () => ['Subject', 'Give consent', 'Experimenter'].map((text) => textAt(canvas, 'Consent', text).getAttribute('fill'));
+  canvas.study.style({ ids: ['Consent'], stroke: '#ac5a54' });
+  expect(inks()).toEqual(['#ac5a54', '#ac5a54', '#ac5a54']);
   canvas.study.style({ ids: ['Consent'], font: { color: '#4a6f9c' } });
-  for (const text of ['Subject', 'Give consent', 'Experimenter']) {
-    expect(textAt(canvas, 'Consent', text).getAttribute('fill'), text).toBe('#4a6f9c');
-  }
+  expect(inks()).toEqual(['#4a6f9c', '#4a6f9c', '#4a6f9c']);
+  canvas.study.style({ ids: ['Consent'], stroke: null, font: { color: null } });
+  expect(inks()).toEqual([INK.text, INK.text, INK.text]);
 });
 
 // --- edges ---------------------------------------------------------------------

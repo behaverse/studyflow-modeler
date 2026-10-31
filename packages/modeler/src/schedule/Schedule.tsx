@@ -138,7 +138,7 @@ export function ScheduleDialog({ isOpen, onClose }: Props) {
                                 fontSize: r.external ? 11 : 12,
                                 fontWeight: r.font?.bold ? 700 : r.external ? 400 : 500,
                                 fontStyle: r.font?.italic ? 'italic' : undefined,
-                                color: r.font?.color ?? 'var(--sf-ink-text)',
+                                color: r.font?.color ?? r.stroke ?? 'var(--sf-ink-text)',
                               }}
                               className="flex h-full items-center leading-4"
                             >

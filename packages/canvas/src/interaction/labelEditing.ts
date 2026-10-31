@@ -210,7 +210,7 @@ export class LabelEditing {
       fontWeight: font?.bold ? '700' : placement === 'internal' ? WEIGHT.internal : WEIGHT.external,
       fontStyle: font?.italic ? 'italic' : '',
       textAlign: session.bounds.align ?? font?.align ?? '',
-      color: font?.color ?? '',
+      color: session.element.font?.color ?? session.element.stroke ?? '',
     });
     this.place(input, session, session.initial);
     input.addEventListener('keydown', this.onKeyDown);

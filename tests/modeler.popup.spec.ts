@@ -102,6 +102,9 @@ test.describe('App popup menus', () => {
     // Clicking the alignment it already has puts back the element's own default.
     await menu.getByTestId('popup-menu-entry-align-right').click();
     await expect(text).toHaveAttribute('text-anchor', 'middle');
+    // Clicking the ink it already has puts back the element's stroke.
+    await menu.getByTestId('popup-menu-entry-red-text-color').click();
+    await expect(text).toHaveAttribute('fill', swatch('Blue', 'stroke'));
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
 
