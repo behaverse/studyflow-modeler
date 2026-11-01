@@ -29,8 +29,10 @@ export type Row = TimingAttrs & {
   parent?: string;
   /** A container with rows inside it: what it states none of (onset, duration, progress) is summarized from them. */
   group?: boolean;
-  /** Best-effort parse of `onset` as minutes-since-epoch-or-T0. */
+  /** Best-effort parse of `onset` as minutes-since-epoch-or-T0; for a row that states none, the latest end of what it waits on. */
   onsetMin?: number;
+  /** The onset was not stated but taken from the rows this one waits on. */
+  onsetInferred?: boolean;
   durationMin?: number;
   progressPct?: number;
   /** The figure the bar shows when it has room: `60%`, or `3/5` from a checklist. */
@@ -203,6 +205,32 @@ function predecessorsOf(record: ElementRecord, scheduled: Set<string>, byId: Rea
   return found;
 }
 
+/**
+ * An onset for every row that states none but waits on rows that have one: the latest end among them, so steps follow
+ * one another along the flow (a rest after the sessions, a return after the rest). A container's own onset is its
+ * children's to summarize, so only the rows with none inside them are placed here. Placed rows place the rows after
+ * them in turn, in passes until nothing moves; a loop in the flow is cut off after as many passes as there are rows.
+ */
+function inferOnsets(rows: ReadonlyMap<string, Row>): void {
+  const containers = new Set([...rows.values()].map((row) => row.parent));
+  for (let pass = 0, moved = true; moved && pass < rows.size; pass++) {
+    moved = false;
+    for (const row of rows.values()) {
+      if (containers.has(row.id) || (row.onsetMin !== undefined && !row.onsetInferred)) continue;
+      const ends = row.after
+        .map((id) => rows.get(id))
+        .filter((before): before is Row => before?.onsetMin !== undefined)
+        .map((before) => before.onsetMin! + (before.durationMin ?? 0));
+      if (ends.length === 0) continue;
+      const onset = Math.max(...ends);
+      if (onset === row.onsetMin) continue;
+      row.onsetMin = onset;
+      row.onsetInferred = true;
+      moved = true;
+    }
+  }
+}
+
 /** A group's onset, span and progress from its children's, for what it does not state itself. */
 function summarize(group: Row, children: Row[]): void {
   const onsets = children.map((r) => r.onsetMin).filter((v): v is number => v !== undefined);
@@ -220,7 +248,8 @@ function summarize(group: Row, children: Row[]): void {
 
 /**
  * One row per element carrying a timing attribute, and one per container (sub-process, lane, pool) holding
- * any, in tree order: a container's rows follow it. Onsets are relative to a single shared anchor.
+ * any, in tree order: a container's rows follow it. Onsets are relative to a single shared anchor; a row that states
+ * none starts where the rows it waits on end.
  */
 export function collectScheduleRows(modeler: Editor): Row[] {
   const { study } = modeler;
@@ -243,6 +272,7 @@ export function collectScheduleRows(modeler: Editor): Row[] {
   };
   records.forEach((record) => add(record, false));
   for (const row of rows.values()) row.after = predecessorsOf(byId.get(row.id)!, new Set(rows.keys()), byId);
+  inferOnsets(rows);
 
   const childrenOf = new Map<string | undefined, Row[]>();
   for (const row of rows.values()) childrenOf.set(row.parent, [...(childrenOf.get(row.parent) ?? []), row]);

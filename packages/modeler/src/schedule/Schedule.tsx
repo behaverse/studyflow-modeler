@@ -73,7 +73,7 @@ export function ScheduleDialog({ isOpen, onClose }: Props) {
       title="Schedule View"
       size="lg"
       help={<DialogHelp>
-                Every element carrying an <code>onset</code>, <code>duration</code>, or <code>progress</code>, laid out on one schedule.
+                Every element carrying an <code>onset</code>, <code>duration</code>, or <code>progress</code>, laid out on one schedule; one that states no onset starts where the steps before it end.
                 An arrow joins two scheduled elements a sequence or message flow connects, through any unscheduled ones between them.
                 A pool, lane or sub-process holding scheduled elements is a group: fold it to a bar whose onset, duration and progress are summarized from theirs.
               </DialogHelp>}

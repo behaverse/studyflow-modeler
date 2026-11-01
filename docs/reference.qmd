@@ -224,7 +224,7 @@ Trial_Item:
 
 | Attribute | On | Values |
 |:--|:--|:--|
-| `onset` | any activity or event | a timestamp, an offset such as `T0+30min`, or a label |
+| `onset` | any activity or event | a timestamp, an offset such as `T0+30min`, or a label; left out, the Schedule view starts the element where the steps it waits on end |
 | `duration` | any activity or event | `30min`, or an ISO 8601 duration; on a timer event, the timer's own delay is its duration, which the Schedule view reads there, so the two are never written twice |
 | `progress` | any activity or event | a percentage, or `done`, `blocked`, `in progress` |
 | `timeCycle`, under `timer` | a timer start event | a five-field cron expression, or a repeating ISO 8601 interval (`R3/PT10M`); a run waits for an interval's first firing, and passes a cron schedule at once |

@@ -241,3 +241,50 @@ test('an arrow leaves the end of its bar, lands on the waiting bar, and turns ba
   expect(straight.at(-1)![0]).toBe(100);
   expect(straight.every(([x]) => x === 100)).toBe(true);
 });
+
+test('a row that states no onset starts where the rows it waits on end, and places the rows after it in turn', () => {
+  const { study } = loadYaml(`id: Defs_Wait
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+Process_Wait:
+  type: Process
+  studyflow:Study: {}
+  elements:
+    Session_1:
+      type: SubProcess
+      name: Session 1
+      onset: T0+5min
+      duration: 10min
+      elements: {}
+    Rest:
+      type: IntermediateCatchEvent
+      name: Rest
+      timer: PT5M
+    Debrief:
+      type: Task
+      name: Debrief
+      progress: todo
+    Return:
+      type: Task
+      name: Return
+      onset: T0+20min
+      duration: 10min
+    F1: {source: $Session_1, target: $Rest}
+    F2: {source: $Rest, target: $Debrief}
+    F3: {source: $Debrief, target: $Return}
+layout:
+  Session_1: {bounds: 100 100 150 64, expanded: false}
+  Rest: 300 114 36 36
+  Debrief: 380 100 100 64
+  Return: 520 100 100 64
+`).canvas;
+  const rows = collectScheduleRows({ study } as any);
+  const row = (id: string) => rows.find((r) => r.id === id)!;
+  // The rest lasts its timer's five minutes from the end of the session; the debrief, with no duration of its own, starts when the rest ends.
+  expect(row('Rest')).toMatchObject({ onsetMin: 15, durationMin: 5, onsetInferred: true, after: ['Session_1'] });
+  expect(row('Debrief')).toMatchObject({ onsetMin: 20, onsetInferred: true, after: ['Rest'] });
+  // A stated onset stays as written.
+  expect(row('Return')).toMatchObject({ onsetMin: 20, after: ['Debrief'] });
+  expect(row('Return').onsetInferred).toBeUndefined();
+  expect(row('Session_1').onsetInferred).toBeUndefined();
+});
