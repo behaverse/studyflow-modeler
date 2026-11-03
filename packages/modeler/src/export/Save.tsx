@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@headlessui/react';
 import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
@@ -11,8 +11,7 @@ import {
   getExportFormat,
   type ExportFormatId,
 } from '@modeler/diagram/formats';
-import { defaultPrintSize, figureSize } from '@modeler/export/commands';
-import { pixelsAcross, type PrintSize } from '@modeler/export/printSize';
+import { PrintSizeFields, usePrintSize } from '@modeler/export/PrintSizeFields';
 import { saveDialog as s } from '@modeler/export/styles';
 import { SKILL_SAVE_DESTINATIONS } from '@modeler/skillModules';
 import { ICONS } from '@modeler/icons';
@@ -51,17 +50,8 @@ export function SaveDialog({ isOpen, onClose }: Props) {
   const format = getExportFormat(formatId);
   const filename = saveFilename(diagramName, format);
 
-  // A TIFF is asked its size on paper: the figure's own width at the modeler's unit, at 300 dpi, unless typed over.
-  // What was typed holds for the size it was typed over, so each opening offers the size afresh.
-  const figure = useMemo(() => (isOpen && formatId === 'tif' ? figureSize(modeler) : undefined), [isOpen, formatId, modeler]);
-  const offered = useMemo(() => (figure ? defaultPrintSize(modeler, figure) : undefined), [figure, modeler]);
-  const [typed, setTyped] = useState<{ over: PrintSize; widthMm: string; dpi: string } | undefined>();
-  const fields = typed?.over === offered ? typed : offered && { over: offered, widthMm: String(offered.widthMm), dpi: String(offered.dpi) };
-  const print: PrintSize | undefined = fields && { widthMm: Number(fields.widthMm), dpi: Number(fields.dpi) };
-  const printable = !print || (print.widthMm > 0 && print.dpi > 0);
-  const pixels = figure && print && printable
-    ? { width: pixelsAcross(print.widthMm, print.dpi), height: Math.max(1, Math.round((pixelsAcross(print.widthMm, print.dpi) * figure.height) / figure.width)) }
-    : undefined;
+  // A TIFF is asked its size on paper.
+  const size = usePrintSize(modeler, isOpen && formatId === 'tif');
   // A skill's destination asks what it needs and sends the study itself.
   const Panel = SKILL_SAVE_DESTINATIONS.find((option) => option.id === destination)?.Panel;
 
@@ -71,7 +61,7 @@ export function SaveDialog({ isOpen, onClose }: Props) {
     try {
       // `SaveDiagram` picks the mechanism: a file the user places where the browser has a picker,
       // and a download where it does not. A diagram format also links, so later saves go back to it.
-      const outcome = await executeCommand(modeler, { type: 'SaveDiagram', saveAs: true, format: formatId, print: formatId === 'tif' ? print : undefined });
+      const outcome = await executeCommand(modeler, { type: 'SaveDiagram', saveAs: true, format: formatId, print: formatId === 'tif' ? size.print : undefined });
       // A closed picker leaves the dialog up, so the user is not sent back through the menu.
       if (outcome !== 'skipped') onClose();
     } catch (err: any) {
@@ -130,43 +120,16 @@ export function SaveDialog({ isOpen, onClose }: Props) {
             </div>
           </div>
 
-          {formatId === 'tif' && fields && (
+          {formatId === 'tif' && size.fields && (
             <div className={`${s.row} mt-3`}>
               <label htmlFor="export-print-width" className={s.rowLabel}>Print</label>
-              <div className={s.inline}>
-                <input
-                  id="export-print-width"
-                  type="number"
-                  min="1"
-                  step="0.1"
-                  inputMode="decimal"
-                  data-testid="export-print-width"
-                  data-units={figure?.width}
-                  value={fields.widthMm}
-                  onChange={(e) => setTyped({ ...fields, widthMm: e.target.value })}
-                  className={s.numberField}
-                />
-                <span>mm wide, at</span>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  inputMode="numeric"
-                  aria-label="Dots per inch"
-                  data-testid="export-print-dpi"
-                  value={fields.dpi}
-                  onChange={(e) => setTyped({ ...fields, dpi: e.target.value })}
-                  className={s.numberField}
-                />
-                <span>dpi</span>
-                {pixels && <span className="text-stone-500" data-testid="export-print-pixels">{pixels.width} × {pixels.height} px</span>}
-              </div>
+              <PrintSizeFields size={size} />
             </div>
           )}
 
           <div className={s.footer}>
             <span className={s.filename} data-testid="export-filename">{filename}</span>
-            <Button type="button" onClick={runLocal} disabled={busy || !printable} data-testid="save-submit" className={s.primaryBtn}>
+            <Button type="button" onClick={runLocal} disabled={busy || !size.printable} data-testid="save-submit" className={s.primaryBtn}>
               <i className={localIcon}></i>
               {busy ? 'Working...' : localAction}
             </Button>

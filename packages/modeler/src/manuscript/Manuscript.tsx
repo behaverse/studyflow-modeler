@@ -3,6 +3,7 @@ import { Modal } from '@modeler/ui/Modal';
 import { useModeler } from '@modeler/app/useModeler';
 import { executeCommand } from '@modeler/commandBus';
 import { MANUSCRIPT_FORMATS } from '@modeler/diagram/formats';
+import { PrintSizeFields, usePrintSize } from '@modeler/export/PrintSizeFields';
 import { dropUnresolvedIcons, padSvg } from '@modeler/export/svgEmbedding';
 import { dialog as d } from '@modeler/ui/styles';
 import { DialogHelp } from '@modeler/ui/DialogHelp';
@@ -19,6 +20,8 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
   const modeler = useModeler();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The TIFF prints at a size the view asks; the other figures are a pixel a unit, or vectors.
+  const size = usePrintSize(modeler, isOpen);
 
   // An `<img>`, not inlined markup: the figure carries its own ids, and this keeps them out of the page.
   // A data URL rather than an object URL: nothing to revoke, so nothing to get the lifetime wrong.
@@ -30,7 +33,7 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
     setBusy(id);
     setError(null);
     try {
-      await executeCommand(modeler, { type: 'ExportDiagram', format: id });
+      await executeCommand(modeler, { type: 'ExportDiagram', format: id, print: size.print });
     } catch (err: any) {
       console.error(err);
       setError(err?.message || 'The figure could not be written.');
@@ -49,27 +52,33 @@ export function ManuscriptDialog({ isOpen, onClose }: Props) {
       help={<DialogHelp>
               The diagram as a manuscript figure. Each image carries the study it shows, so the modeler
               reopens it; the editable SVG also carries the draw.io file that redraws it, so a figure can
-              be finished in draw.io.
+              be finished in draw.io. The TIFF prints at the width and resolution set here.
             </DialogHelp>}
     >
       {/* The figure is scaled to fit, not scrolled: the point of the view is seeing the whole page at once. */}
       <div className="flex-1 min-h-0 flex items-center justify-center bg-white/40 border border-black/[0.06] rounded-lg p-3">
         {src && <img src={src} alt="The diagram as a figure" className="max-h-[60vh] max-w-full object-contain" />}
       </div>
-      <div className="mt-4 pt-4 border-t border-black/[0.06] flex items-center justify-end gap-2">
-        {MANUSCRIPT_FORMATS.map((format) => (
-          <button
-            key={format.id}
-            type="button"
-            disabled={busy !== null}
-            onClick={() => void write(format.id)}
-            data-testid={`manuscript-${format.id}`}
-            className={`inline-flex items-center gap-2 ${d.primaryBtn} disabled:opacity-50`}
-          >
-            <i className={ICONS.download}></i>
-            {busy === format.id ? 'Working...' : format.label}
-          </button>
-        ))}
+      <div className="mt-4 pt-4 border-t border-black/[0.06] flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[13px] text-stone-700">
+          <label htmlFor="export-print-width" className="font-medium shrink-0">TIFF</label>
+          <PrintSizeFields size={size} />
+        </div>
+        <div className="flex items-center gap-2">
+          {MANUSCRIPT_FORMATS.map((format) => (
+            <button
+              key={format.id}
+              type="button"
+              disabled={busy !== null || (format.id === 'figure-tif' && !size.printable)}
+              onClick={() => void write(format.id)}
+              data-testid={`manuscript-${format.id}`}
+              className={`inline-flex items-center gap-2 ${d.primaryBtn} disabled:opacity-50`}
+            >
+              <i className={ICONS.download}></i>
+              {busy === format.id ? 'Working...' : format.label}
+            </button>
+          ))}
+        </div>
       </div>
       {error && <p className="text-[12px] text-red-500 mt-2">{error}</p>}
     </Modal>

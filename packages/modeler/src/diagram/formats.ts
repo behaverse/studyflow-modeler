@@ -101,6 +101,16 @@ const EXPORT_FORMATS: ExportFormat[] = [
     // The figure carries its study, as the `.studyflow.png` in Save does: a reader holding the figure can reopen it.
     encode: async ({ png }) => await png() as BlobPart,
   },
+  {
+    id: 'figure-tif',
+    group: 'Manuscript',
+    label: 'TIFF',
+    extension: '.tif',
+    mimeType: 'image/tiff',
+    embeddable: true,
+    // The figure as a journal takes it, at the size on paper the view asks, the study inside as in a `.studyflow.tif`.
+    encode: async ({ tiff }) => await tiff() as BlobPart,
+  },
   // A projection, a document derived for another tool, carries its descriptor and its encoder: the modeler's own
   // (formats/), then a skill's `modeler.ts`.
   ...DRAWIO_FORMATS,

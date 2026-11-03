@@ -1,10 +1,12 @@
 import { expect, test } from './e2e';
 
-import { extractStudyflowFromPng } from '@core/document/png';
+import { extractStudyflowFromPng, pngSize } from '@core/document/png';
+import { extractStudyflowFromTiff, isTiff, tiffResolution, tiffSize } from '@core/document/tiff';
+import { pixelsAcross, widthOnPaper } from '@modeler/export/printSize';
 
 import { gotoModeler, readDownload, readDownloadText, runPaletteCommand } from './utils';
 
-test('the Manuscript view writes the figure: an editable SVG draw.io reopens, and a PNG, each carrying the study', async ({ page }) => {
+test('the Manuscript view writes the figure: an editable SVG draw.io reopens, a PNG, and a TIFF at the size on paper it asks, each carrying the study', async ({ page }) => {
   await gotoModeler(page);
   await runPaletteCommand(page, /^View as Manuscript/);
   const dialog = page.getByTestId('manuscript-dialog');
@@ -30,4 +32,19 @@ test('the Manuscript view writes the figure: an editable SVG draw.io reopens, an
   expect(bytes.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   // The study rides along, in the chunk a `.studyflow.png` keeps it in, so the figure reopens.
   expect(extractStudyflowFromPng(new Uint8Array(bytes))).toContain('schemas:');
+
+  // The TIFF is offered the figure's width at 0.2 mm a unit, at 300 dpi; the figure is the PNG, a pixel a unit.
+  const width = page.getByTestId('export-print-width');
+  expect(Number(await width.getAttribute('data-units'))).toBe(pngSize(new Uint8Array(bytes)).width);
+  await expect(page.getByTestId('export-print-dpi')).toHaveValue('300');
+  await page.getByTestId('export-print-dpi').fill('72');
+  const tifDownload = page.waitForEvent('download');
+  await page.getByTestId('manuscript-figure-tif').click();
+  const tif = await tifDownload;
+  expect(tif.suggestedFilename()).toBe('diagram.tif');
+  const tifBytes = new Uint8Array(await readDownload(tif));
+  expect(isTiff(tifBytes)).toBe(true);
+  expect(tiffResolution(tifBytes)).toEqual({ x: 72, y: 72 });
+  expect(tiffSize(tifBytes).width).toBe(pixelsAcross(widthOnPaper(pngSize(new Uint8Array(bytes)).width), 72));
+  expect(extractStudyflowFromTiff(tifBytes)).toContain('schemas:');
 });

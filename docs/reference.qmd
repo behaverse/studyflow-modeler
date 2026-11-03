@@ -292,10 +292,10 @@ A model takes part as an actor, never as a setting on a step. It is a pool of it
 | `.studyflow.png` | the full image, the study's `.studyflow.yaml` embedded in it, and any image pasted on the canvas |
 | `.studyflow.tif` | the same as the TIFF a journal asks for: LZW, its size on paper declared (the modeler asks the width in mm and the dpi), the `.studyflow.yaml` in its XMP packet, and any pasted image in a tag of its own |
 | `.studyflow.svg` | a picture, and the study's BPMN XML nested in its metadata |
-| `.svg`, `.png` (Manuscript view) | the figure, carrying the `.studyflow.yaml` and editable draw.io image |
+| `.svg`, `.png`, `.tif` (Manuscript view) | the figure, carrying the `.studyflow.yaml` and editable draw.io image; the TIFF at the width and resolution the view asks |
 | `.drawio`, `.linkml.yaml`, `.nidm.ttl`, `.artemis.json`, `.json` (jsPsych timeline) | exported formats, non-reversible, for the tools that read them |
 
-A PNG pasted on the canvas is part of the drawing, not of the study. Only a `.studyflow.png` or a `.studyflow.tif` (and the Manuscript view's `.png`) keeps it: the image shows in the picture, its YAML holds a `TextAnnotation` with `textFormat: image/png` whose `text` names the image, and the image's own bytes ride in a PNG chunk, or a TIFF tag, of their own, so it comes back as it was pasted however many times the file is saved. Every other format leaves it out and says so, and the protocol digest does not read it.
+A PNG pasted on the canvas is part of the drawing, not of the study. Only a `.studyflow.png` or a `.studyflow.tif` (and the Manuscript view's `.png` and `.tif`) keeps it: the image shows in the picture, its YAML holds a `TextAnnotation` with `textFormat: image/png` whose `text` names the image, and the image's own bytes ride in a PNG chunk, or a TIFF tag, of their own, so it comes back as it was pasted however many times the file is saved. Every other format leaves it out and says so, and the protocol digest does not read it.
 
 The YAML format is the canonical one, and can be losslessly converted into BPMN XML and back. Here is a complete, runnable study:
 
