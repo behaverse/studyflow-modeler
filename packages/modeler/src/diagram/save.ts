@@ -26,6 +26,7 @@ import {
 } from '@modeler/diagram/fileHandle';
 import { exportDiagramName } from '@modeler/diagram/name';
 import { encodeDiagram, runExportDiagram, sayPastedImagesLeftOut, stampProvenance } from '@modeler/export/commands';
+import type { PrintSize } from '@modeler/export/printSize';
 import {
   autoSavable,
   carriesDiagram,
@@ -44,6 +45,8 @@ export type SaveDiagramCommand = {
   format?: ExportFormatId;
   /** The auto-save write-through: never prompts, never opens a picker, gives up quietly. */
   auto?: boolean;
+  /** For a TIFF: the size on paper the Save dialog asked for. */
+  print?: PrintSize;
 };
 
 export type SaveOutcome =
@@ -68,10 +71,10 @@ export async function runSaveDiagram(modeler: Editor, command: SaveDiagramComman
   if (command.saveAs || !file) {
     // Auto-save never opens a picker: a dialog nobody asked for is worse than not saving.
     if (command.auto) return 'skipped';
-    return saveToNewFile(modeler, command.format ? getExportFormat(command.format) : defaultSaveFormat());
+    return saveToNewFile(modeler, command.format ? getExportFormat(command.format) : defaultSaveFormat(), command.print);
   }
 
-  return saveInPlace(modeler, file, command.auto === true);
+  return saveInPlace(modeler, file, command.auto === true, command.print);
 }
 
 /** The format a save writes when none is asked for: the linked file's, then the opened file's, then studyflow. */
@@ -85,12 +88,12 @@ export function saveFilename(diagramName: string, format: ExportFormat): string 
   return opened?.format.id === format.id ? opened.name : exportFilename(diagramName, format);
 }
 
-async function saveToNewFile(modeler: Editor, format: ExportFormat): Promise<SaveOutcome> {
+async function saveToNewFile(modeler: Editor, format: ExportFormat, print?: PrintSize): Promise<SaveOutcome> {
   const filename = saveFilename(exportDiagramName(modeler), format);
 
   // No picker in this browser: the downloads folder is the only place a page may put a file.
   if (!supportsFileSystemAccess()) {
-    await runExportDiagram(modeler, { type: 'ExportDiagram', format: format.id, filename });
+    await runExportDiagram(modeler, { type: 'ExportDiagram', format: format.id, filename, print });
     return 'downloaded';
   }
 
@@ -98,9 +101,9 @@ async function saveToNewFile(modeler: Editor, format: ExportFormat): Promise<Sav
   if (!handle) return 'skipped';
 
   // A derived document is written once and let go; only a format we can read back is worth linking.
-  if (!carriesDiagram(format)) return writeOnce(modeler, handle, format);
+  if (!carriesDiagram(format)) return writeOnce(modeler, handle, format, print);
 
-  return saveInPlace(modeler, linkFile(handle, format), false);
+  return saveInPlace(modeler, linkFile(handle, format), false, print);
 }
 
 /** Written where the user asked, then forgotten. Edits do not follow it. */
@@ -108,10 +111,11 @@ async function writeOnce(
   modeler: Editor,
   handle: FileSystemFileHandle,
   format: ExportFormat,
+  print?: PrintSize,
 ): Promise<SaveOutcome> {
   try {
     sayPastedImagesLeftOut(modeler, format);
-    await writeToFile(handle, await encodeDiagram(modeler, format));
+    await writeToFile(handle, await encodeDiagram(modeler, format, { print }));
     return 'saved';
   } catch (err) {
     // Deliberately not `markError`: a different file may be linked, and this is not it.
@@ -123,7 +127,7 @@ async function writeOnce(
 /** Set while a conflict stands, so a debounced auto-save reports it once rather than every tick. */
 let reportedConflictFor: FileSystemFileHandle | undefined;
 
-async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean): Promise<SaveOutcome> {
+async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean, print?: PrintSize): Promise<SaveOutcome> {
   // Rendering an image costs seconds, which is no way to spend a debounce tick; those files wait
   // for a save the user asked for, and the chip goes on saying there are unsaved edits until then.
   if (auto && !autoSavable(file.format)) return 'skipped';
@@ -157,7 +161,7 @@ async function saveInPlace(modeler: Editor, file: LinkedFile, auto: boolean): Pr
     }
     // After the stamp, which is an edit: this write carries it, so it must not read as unsaved after.
     markSaving();
-    const payload = await encodeDiagram(modeler, file.format);
+    const payload = await encodeDiagram(modeler, file.format, { print });
     markSaved(await writeToFile(file.handle, payload));
     reportedConflictFor = undefined;
     return 'saved';

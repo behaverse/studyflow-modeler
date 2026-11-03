@@ -38,12 +38,13 @@ A local run (`studyflow run --runtime local`) needs [`uv`](https://docs.astral.s
 
 ## The same study in three formats
 
-A studyflow diagram can be stored as YAML (the canonical format), as BPMN 2.0 XML (what other BPMN tools read), or as a PNG or SVG with the diagram embedded in it. Conversion between the three is lossless:
+A studyflow diagram can be stored as YAML (the canonical format), as BPMN 2.0 XML (what other BPMN tools read), or as a PNG, SVG or TIFF with the diagram embedded in it. Conversion between them is lossless:
 
 ```bash
 studyflow validate study.studyflow.yaml --strict
 studyflow convert study.studyflow.yaml study.bpmn
 studyflow convert study.studyflow.yaml study.studyflow.png   # into that picture; --modeler draws a new one (in a checkout)
+studyflow convert study.studyflow.png study.studyflow.tif    # the PNG's pixels as the LZW TIFF a journal takes, at its print size (--dpi for another), the study inside
 studyflow info study.studyflow.yaml --json
 studyflow edit study.studyflow.png              # the desktop app: the modeler served from this machine, opened on that file
 ```

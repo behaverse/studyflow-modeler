@@ -3,19 +3,16 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { embedStudyflowIntoPng, protocolDigest, replaceStudyflowInSvg } from '@core/document';
+import { embedStudyflowIntoPng, embedStudyflowIntoTiff, protocolDigest, replaceStudyflowInSvg } from '@core/document';
 import { planChecks } from '@core/checks';
 import { checkMaterials } from '@core/checks/materials';
 import { executedText } from '@core/model/executed';
 import type { StudyModel } from '@core/model/index';
 import { materialReader } from '@cli/materials';
-import { parseSource, readSource, sourceOf, studySource } from '@cli/studyfile';
+import { parseSource, readSource, sourceOf, studySource, tiffAbout, TOOL } from '@cli/studyfile';
 import { runLocal, type LocalRun } from '@runtime-local/run';
 
 /* `studyflow run`: hand the study to the runtime it declares; this CLI hosts `local` itself (packages/runtime-local). */
-
-/** What the run record names as the tool that ran it (`with`). */
-const TOOL = `studyflow-cli/${import.meta.env?.APP_VERSION ?? 'dev'}`;
 
 export type RunOptions = Pick<LocalRun, 'author' | 'repo' | 'dataOutsideHistory' | 'inputs' | 'from' | 'fresh' | 'concurrency' | 'quiet' | 'debug' | 'stepTimeout' | 'startTimeout'> & {
   runtime?: string;
@@ -60,9 +57,11 @@ async function runLocally(input: string, source: Awaited<ReturnType<typeof readS
     }
     if (source.container === 'text') return writeFile(target, await studySource(study, source.kind), 'utf8');
     const base = existsSync(target) ? target : input;
+    if (source.container === 'svg') return writeFile(target, replaceStudyflowInSvg(await readFile(base, 'utf8'), await studySource(study, 'xml')));
+    const bytes = new Uint8Array(await readFile(base));
     await writeFile(target, source.container === 'png'
-      ? embedStudyflowIntoPng(new Uint8Array(await readFile(base)), await studySource(study, 'yaml'))
-      : replaceStudyflowInSvg(await readFile(base, 'utf8'), await studySource(study, 'xml')));
+      ? embedStudyflowIntoPng(bytes, await studySource(study, 'yaml'))
+      : embedStudyflowIntoTiff(bytes, await studySource(study, 'yaml'), await tiffAbout(study)));
   };
   return runLocal({
     input,

@@ -3,7 +3,12 @@ import { documentationOf, isElement, type Element, type Value } from '@core/mode
 import { parseSource, readSource, type StudyflowSource } from '@cli/studyfile';
 
 export type StudyInfo = {
-  file: { container: StudyflowSource['container']; kind: StudyflowSource['kind'] };
+  file: {
+    container: StudyflowSource['container'];
+    kind: StudyflowSource['kind'];
+    /** A raster image's size in pixels and, when it declares a resolution, in millimetres on paper. */
+    image?: { width: number; height: number; dpi?: number; widthMm?: number; heightMm?: number };
+  };
   study: { id?: string; name?: string; version?: string; documentation?: string };
   /** The protocol digest a run records as its `plan` (`sha256:…`). */
   protocol: string;
@@ -33,8 +38,12 @@ export async function info(input: string): Promise<StudyInfo> {
   const processes = model.study.roots.filter((element) => model.host(element) === 'bpmn:Process');
   for (const process of processes.length > 0 ? processes : [root]) count(process);
 
+  const { image } = source;
+  // On paper to a hundredth of a millimetre, as far as a print size is set.
+  const mm = (pixels: number, dots: number) => Math.round((pixels / dots) * 2540) / 100;
+  const printed = image?.resolution && { dpi: image.resolution.x, widthMm: mm(image.width, image.resolution.x), heightMm: mm(image.height, image.resolution.y) };
   return {
-    file: { container: source.container, kind: source.kind },
+    file: { container: source.container, kind: source.kind, ...(image && { image: { width: image.width, height: image.height, ...printed } }) },
     study: {
       id: root?.id,
       name: text(root?.name),

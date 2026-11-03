@@ -10,6 +10,10 @@ export const saveDialog = {
            border border-black/[0.08] bg-cream-100 text-[13px] text-stone-900
            focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400 cursor-pointer`,
   selectChevron: `${ICONS.caretDown} pointer-events-none absolute top-2.5 right-2.5 text-stone-500 text-[12px]`,
+  /** A number among words: the TIFF's width on paper, and its dots per inch. */
+  numberField: `w-20 px-2 py-1 ${radius.field} border border-black/[0.08] bg-cream-100 text-[13px] text-stone-900 text-right
+                focus:outline-2 focus:-outline-offset-2 focus:outline-cream-400`,
+  inline: 'flex-1 flex flex-wrap items-center gap-2 text-[13px] text-stone-700',
 
   segmented: `flex-1 flex gap-1 p-1 ${radius.field} bg-cream-200`,
   segment: `flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1 ${radius.field}

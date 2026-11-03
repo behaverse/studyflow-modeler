@@ -55,7 +55,7 @@ File_Format:
 
     Png:
       type: DataObjectReference
-      name: .studyflow.png, carrying the YAML
+      name: .studyflow.png or .tif, carrying the YAML
 
     Svg:
       type: DataObjectReference
@@ -111,7 +111,7 @@ layout:
   In_Render: 128,160 128,325 190,325
   Out_Png: 330,310 370,310 370,295 400,295
   Out_Svg: 330,340 370,340 370,375 400,375
-  Png: {bounds: 400 270 36 50, label: 444 280 120 30}
+  Png: {bounds: 400 270 36 50, label: 444 280 120 45}
   Svg: {bounds: 400 350 36 50, label: 444 360 120 45}
   Reopen: 590 290 170 70
   In_Reopen_Png: 418,270 418,255 630,255 630,290

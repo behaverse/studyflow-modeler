@@ -16,6 +16,8 @@ const MIME: Record<string, string> = {
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
+  '.tif': 'image/tiff',
+  '.tiff': 'image/tiff',
   '.ico': 'image/x-icon',
   '.webp': 'image/webp',
   '.wasm': 'application/wasm',

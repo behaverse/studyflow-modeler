@@ -7,7 +7,7 @@ import { readRecord } from '@cli/record';
 import { TRACES, crateOf, type CrateFile } from '@runtime-local/rocrate';
 
 /** What a study file is named, as `studyflow run` takes one. */
-const STUDY = /\.(studyflow(\.yaml|\.png|\.svg)?|bpmn|xml)$/i;
+const STUDY = /\.(studyflow(\.yaml|\.png|\.svg|\.tif|\.tiff)?|bpmn|xml)$/i;
 
 /** The study as run in a run directory: the one study file there that no step made or was given. */
 function studyIn(dir: string, data: string[]): string {

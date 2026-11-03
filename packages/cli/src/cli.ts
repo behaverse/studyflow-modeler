@@ -18,16 +18,24 @@ program
   .description('Work with studyflow files: convert between formats, validate, inspect.')
   .version(import.meta.env?.APP_VERSION ?? 'dev');
 
+const positive = (what: string) => (value: string): number => {
+  const n = Number(value);
+  if (!(n > 0)) throw new InvalidArgumentError(`${what} is a number above zero`);
+  return n;
+};
+
 program
   .command('convert')
-  .description('Convert between .studyflow YAML, BPMN XML, .studyflow.png and .studyflow.svg (extract, re-embed, or render).')
-  .argument('<input>', 'source file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
-  .argument('<output>', 'target file; its extension picks the format')
-  .option('--into <image>', 'for a PNG or SVG target: the image to embed into')
-  .option('--modeler', 'for a PNG or SVG target: draw the image by driving the modeler (repo workspace only)')
+  .description('Convert between .studyflow YAML, BPMN XML, .studyflow.png, .studyflow.svg and .studyflow.tif (extract, re-embed, re-encode, or render).')
+  .argument('<input>', 'source file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png, .studyflow.svg or .studyflow.tif')
+  .argument('<output>', 'target file; its extension picks the format. A .studyflow.tif from a .studyflow.png re-encodes its pixels as an LZW TIFF at the PNG\'s print size, the study and the pasted images carried over')
+  .option('--into <image>', 'for a PNG, SVG or TIFF target: the image to embed into')
+  .option('--modeler', 'for a PNG, SVG or TIFF target: draw the image by driving the modeler (repo workspace only)')
   .option('--origin <origin>', 'modeler dev server for --modeler (started if not up)', 'http://127.0.0.1:4175')
+  .option('--dpi <dots>', 'for a TIFF target: its print size in dots per inch (default: the PNG\'s own when re-encoding one, else 300)', positive('--dpi'))
+  .option('--mm-per-unit <mm>', 'for a TIFF the modeler draws: what a unit of the diagram is on paper, in mm (default 0.2, so a 36-unit event is 7.2 mm across)', positive('--mm-per-unit'))
   .option('--strict', 'write nothing and exit non-zero on reader warnings')
-  .action(async (input: string, output: string, options: { into?: string; modeler?: boolean; origin?: string; strict?: boolean }) => {
+  .action(async (input: string, output: string, options: { into?: string; modeler?: boolean; origin?: string; dpi?: number; mmPerUnit?: number; strict?: boolean }) => {
     console.log(await convert(input, output, options));
   });
 
@@ -119,7 +127,7 @@ const collect = (value: string, all: string[] = []): string[] => [...all, value]
 program
   .command('run')
   .description('Execute a studyflow in the runtime it declares (or --runtime). `local` walks it on this machine (packages/runtime-local), once the plan passes the checks `validate` applies to it, and hands each element to the skill that claims it.')
-  .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg')
+  .argument('<input>', 'studyflow file: .studyflow(.yaml), .bpmn/.xml, .studyflow.png, .studyflow.svg or .studyflow.tif')
   .option('--runtime <runtime>', 'override the document: local | browser')
   .option('--author <name>', 'who runs the study, as git writes an author (\'Name <email>\', the email optional): the run\'s commits and its record name them. Without it they name no one (studyflow-runner), never this machine\'s user')
   .option('--repo <dir>', 'the run repository to write into, its name being the run id (default: the study\'s own directory when it already lives in one, else a fresh ~/.studyflow/runs/<YYMMDD+codename>)')
@@ -154,7 +162,7 @@ const serveOptions = (command: Command): Command => command
 serveOptions(program
   .command('edit')
   .description('Open a studyflow in the desktop app: the modeler served from this machine, no network needed, in a window of its own (needs a Chromium: Chrome, Chromium, Brave or Edge; else the default browser).')
-  .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, .studyflow.png or .studyflow.svg'))
+  .argument('[file]', 'studyflow to open: .studyflow(.yaml), .bpmn/.xml, .studyflow.png, .studyflow.svg or .studyflow.tif'))
   .action(async (file: string | undefined, options: ServeOptions) => {
     await edit(file, { port: Number(options.port), host: options.host, open: options.open, installed: installedSchemas() });
   });
@@ -183,7 +191,12 @@ program
     console.log(`  protocol: ${protocol}`);
     console.log(`  protocol for any actor: ${protocolForAnyActor}`);
     if (study.documentation) console.log(`  ${study.documentation.split('\n')[0]}`);
-    console.log(`  source: ${file.kind}${file.container === 'text' ? '' : ` (embedded in ${file.container.toUpperCase()})`}`);
+    console.log(`  source: ${file.kind}${file.container === 'text' ? '' : ` (embedded in ${file.container === 'tif' ? 'TIFF' : file.container.toUpperCase()})`}`);
+    if (file.image) {
+      const { width, height, dpi, widthMm, heightMm } = file.image;
+      const mm = (value: number) => (Math.round(value * 10) / 10).toString();
+      console.log(`  image: ${width} × ${height} px${dpi ? `, ${mm(widthMm!)} × ${mm(heightMm!)} mm at ${mm(dpi)} dpi` : ''}`);
+    }
     const total = Object.values(elements).reduce((sum, n) => sum + n, 0);
     console.log(`  elements: ${total}`);
     for (const [type, n] of Object.entries(elements).sort((a, b) => b[1] - a[1])) {

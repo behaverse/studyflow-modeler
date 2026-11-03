@@ -51,7 +51,7 @@ const MEDIA_TYPES: Record<string, string> = {
   '.studyflow': 'application/yaml', '.yaml': 'application/yaml', '.yml': 'application/yaml', '.json': 'application/json',
   '.csv': 'text/csv', '.tsv': 'text/tab-separated-values', '.txt': 'text/plain', '.log': 'text/plain', '.md': 'text/markdown',
   '.html': 'text/html', '.xml': 'application/xml', '.bpmn': 'application/xml', '.ttl': 'text/turtle',
-  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.pdf': 'application/pdf',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.tif': 'image/tiff', '.tiff': 'image/tiff', '.pdf': 'application/pdf',
 };
 /** JSON Lines has no media type: its format is the page that specifies it. */
 const JSON_LINES = { '@id': 'https://jsonlines.org/', '@type': 'WebSite', name: 'JSON Lines' };

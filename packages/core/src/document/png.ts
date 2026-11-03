@@ -53,6 +53,21 @@ export function pngSize(png: Uint8Array): { width: number; height: number } {
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
+/** A PNG's print size in dots per inch, from its pHYs chunk, when that gives one in pixels per metre. */
+export function pngResolution(png: Uint8Array): { x: number; y: number } | undefined {
+  assertPngSignature(png);
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  for (const { type, offset, dataLength } of pngChunks(png)) {
+    if (type !== 'pHYs' || dataLength < 9) continue;
+    // The unit is the metre (1), or unknown (0): a ratio of the axes, no size.
+    if (png[offset + 16] !== 1) return undefined;
+    const x = view.getUint32(offset + 8);
+    const y = view.getUint32(offset + 12);
+    return x > 0 && y > 0 ? { x: x * 0.0254, y: y * 0.0254 } : undefined;
+  }
+  return undefined;
+}
+
 /** A PNG's bytes as a data URL, a stretch at a time: an argument list cannot hold a whole image. */
 export function pngToDataUrl(png: Uint8Array): string {
   const STRETCH = 0x8000;

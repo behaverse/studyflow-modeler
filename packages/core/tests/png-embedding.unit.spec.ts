@@ -6,6 +6,7 @@ import {
   extractPastedImagesFromPng,
   extractStudyflowFromPng,
   isPng,
+  pngResolution,
   pngSize,
   pngToDataUrl,
   dataUrlToBytes,
@@ -105,6 +106,18 @@ test.describe('PNG studyflow embedding', () => {
     expect(isPng(png)).toBe(true);
     expect(isPng(new TextEncoder().encode('not a png at all'))).toBe(false);
     expect(pngSize(png)).toEqual({ width: 1200, height: 300 });
+
+    // The print size is in the pHYs chunk, in pixels a metre; a chunk in no unit gives an aspect ratio, not a size.
+    const physical = (unit: number) => {
+      const data = new Uint8Array(9);
+      new DataView(data.buffer).setUint32(0, 11811);
+      new DataView(data.buffer).setUint32(4, 11811);
+      data[8] = unit;
+      return concat([new Uint8Array(PNG_SIGNATURE), pngChunk('IHDR', header), pngChunk('pHYs', data), pngChunk('IEND', new Uint8Array(0))]);
+    };
+    expect(pngResolution(png)).toBeUndefined();
+    expect(pngResolution(physical(0))).toBeUndefined();
+    expect(pngResolution(physical(1))).toEqual({ x: 299.9994, y: 299.9994 });
 
     // More bytes than an argument list holds, as a screenshot has.
     const large = concat([png, new Uint8Array(300_000).fill(7)]);

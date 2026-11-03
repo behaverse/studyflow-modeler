@@ -11,7 +11,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 // What reaches moddle: the library itself, and core/document's modules but its surface (the barrel, the images, the
 // digest, the schema body, the outline geometry).
 const MODDLE = {
-  selector: 'ImportDeclaration[source.value=/^(bpmn-moddle|@core\\/document\\/(?!(index|png|svg|digest|schema-body|outline)(\\.ts)?$).*)$/]',
+  selector: 'ImportDeclaration[source.value=/^(bpmn-moddle|@core\\/document\\/(?!(index|png|svg|tiff|digest|schema-body|outline)(\\.ts)?$).*)$/]',
   message: 'moddle is core/document\'s: read and write a study through the study model, and BPMN XML through @core/document.',
 };
 // The bpmn-js services core/ may not name, even as `any`.

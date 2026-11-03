@@ -12,7 +12,7 @@ import {
   rememberOpenedFile,
   supportsFileSystemAccess,
 } from '@modeler/diagram/fileHandle';
-import { IMPORTABLE_FORMATS, OPENABLE_EXTENSIONS, OPENERS } from '@modeler/diagram/formats';
+import { IMPORTABLE_FORMATS, OPENABLE_EXTENSIONS, OPENERS, importableFormatFor } from '@modeler/diagram/formats';
 import type { Editor } from '@modeler/editor/port';
 
 const OPEN_INVALID_MESSAGE = `Choose a ${[
@@ -26,8 +26,11 @@ const OPEN_FAILURE_MESSAGE =
 const isOpenable = (filename: string): boolean =>
   OPENABLE_EXTENSIONS.some((extension) => filename.toLowerCase().endsWith(extension));
 
-/** Only the PNG carries its diagram in bytes; everything else this opens is text. */
-const isBinaryDiagram = (filename: string): boolean => filename.toLowerCase().endsWith('.png');
+/** A PNG or a TIFF carries its diagram in bytes; everything else this opens is text. */
+const isBinaryDiagram = (filename: string): boolean => {
+  const format = importableFormatFor(filename);
+  return format?.mimeType === 'image/png' || format?.mimeType === 'image/tiff';
+};
 
 /**
  * Reads one file onto the canvas. A `handle` — which a pick or a drop can carry, but the

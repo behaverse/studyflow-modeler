@@ -3,7 +3,22 @@ import { extname } from 'node:path';
 
 import { installedSkills } from '@cli/skills';
 
-import { looksLikeXml, extractPastedImagesFromPng, extractStudyflowFromPng, extractStudyflowFromSvg, parseStudy, studyToXml } from '@core/document';
+import {
+  extractPastedImagesFromPng,
+  extractPastedImagesFromTiff,
+  extractStudyflowFromPng,
+  extractStudyflowFromSvg,
+  extractStudyflowFromTiff,
+  looksLikeXml,
+  parseStudy,
+  pngResolution,
+  pngSize,
+  protocolDigest,
+  studyToXml,
+  tiffResolution,
+  tiffSize,
+  type StudyflowTiffAbout,
+} from '@core/document';
 import type { StudyModel } from '@core/model/index';
 import type { Metamodel } from '@core/model/metamodel';
 import { metamodelOf } from '@core/model/packages';
@@ -14,14 +29,19 @@ import { loadAllSchemas } from '@core/notation/loader';
 export type SourceKind = 'yaml' | 'xml';
 
 export type StudyflowSource = {
-  /** The studyflow as text: YAML (what a `.studyflow.png` embeds), or BPMN XML (what a `.studyflow.svg` does). */
+  /** The studyflow as text: YAML (what a `.studyflow.png` or `.studyflow.tif` embeds), or BPMN XML (what a `.studyflow.svg` does). */
   text: string;
   kind: SourceKind;
-  /** Where the text came from; `png` and `svg` mean it was extracted from an image. */
-  container: 'text' | 'png' | 'svg';
-  /** The bytes of the images pasted on the study, by the id each names, which only a PNG holds. */
+  /** Where the text came from; `png`, `tif` and `svg` mean it was extracted from an image. */
+  container: 'text' | 'png' | 'tif' | 'svg';
+  /** The bytes of the images pasted on the study, by the id each names, which only a PNG or a TIFF holds. */
   pastedImages: ReadonlyMap<string, Uint8Array>;
+  /** A raster image's size in pixels and, when it says, its print size in dots per inch. */
+  image?: { width: number; height: number; resolution?: { x: number; y: number } };
 };
+
+/** This CLI, as a run's record names what ran it (`with`) and a TIFF what wrote it. */
+export const TOOL = `studyflow-cli/${import.meta.env?.APP_VERSION ?? 'dev'}`;
 
 let metamodelPromise: Promise<Metamodel> | undefined;
 
@@ -31,19 +51,39 @@ export function schemaMetamodel(): Promise<Metamodel> {
   return metamodelPromise;
 }
 
-export async function readSource(path: string): Promise<StudyflowSource> {
+/** The container a file's extension says it is: an image carrying the study, or the study's own text. */
+export function containerOf(path: string): StudyflowSource['container'] {
   const extension = extname(path).toLowerCase();
-  return sourceOf(await readFile(path), extension === '.png' ? 'png' : extension === '.svg' ? 'svg' : 'text');
+  if (extension === '.png') return 'png';
+  if (extension === '.tif' || extension === '.tiff') return 'tif';
+  if (extension === '.svg') return 'svg';
+  return 'text';
+}
+
+export async function readSource(path: string): Promise<StudyflowSource> {
+  return sourceOf(await readFile(path), containerOf(path));
 }
 
 /** A file's bytes as a source: the studyflow text, taken out of the image when the file is one. */
 export function sourceOf(bytes: Uint8Array, container: StudyflowSource['container']): StudyflowSource {
   const text = container === 'png'
     ? extractStudyflowFromPng(bytes)
-    : container === 'svg'
-      ? extractStudyflowFromSvg(new TextDecoder().decode(bytes))
-      : new TextDecoder().decode(bytes);
-  return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container, pastedImages: container === 'png' ? extractPastedImagesFromPng(bytes) : new Map() };
+    : container === 'tif'
+      ? extractStudyflowFromTiff(bytes)
+      : container === 'svg'
+        ? extractStudyflowFromSvg(new TextDecoder().decode(bytes))
+        : new TextDecoder().decode(bytes);
+  const pastedImages = container === 'png' ? extractPastedImagesFromPng(bytes) : container === 'tif' ? extractPastedImagesFromTiff(bytes) : new Map<string, Uint8Array>();
+  const image = container === 'png'
+    ? { ...pngSize(bytes), resolution: pngResolution(bytes) }
+    : container === 'tif' ? { ...tiffSize(bytes), resolution: tiffResolution(bytes) } : undefined;
+  return { text, kind: looksLikeXml(text) ? 'xml' : 'yaml', container, pastedImages, image };
+}
+
+/** What a `.studyflow.tif` says of the study it carries, beside the text: its id and name, its protocol digest, this CLI. */
+export async function tiffAbout(model: StudyModel): Promise<StudyflowTiffAbout> {
+  const root = model.primaryRoot();
+  return { id: root?.id, name: typeof root?.name === 'string' && root.name.trim() ? root.name : undefined, digest: await protocolDigest(model), creatorTool: TOOL };
 }
 
 /** The source as BPMN XML, whatever it arrived as. XML is passed through unread, so only YAML can warn. */

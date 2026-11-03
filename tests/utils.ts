@@ -106,10 +106,12 @@ export async function browseForDiagram(page: Page): Promise<void> {
   await page.getByTestId('open-dropzone').click();
 }
 
-export async function exportDiagram(page: Page, format: string): Promise<Download> {
+/** Save As `format`, as a download; `before` has the dialog with the format chosen, for what it asks of that format. */
+export async function exportDiagram(page: Page, format: string, before?: () => Promise<void>): Promise<Download> {
   await runPaletteCommand(page, /^Save As/);
   await expect(page.getByTestId('save-dialog')).toBeVisible();
   await page.getByTestId('export-format').selectOption(format);
+  await before?.();
 
   const downloadPromise = page.waitForEvent('download');
   await page.getByTestId('save-submit').click();

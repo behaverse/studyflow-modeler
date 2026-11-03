@@ -67,7 +67,7 @@ export function buildPaletteCommands(deps: PaletteCommandDeps): PaletteCommand[]
       label: 'Save As...',
       icon: ICONS.save,
       hint: `${MOD_LABEL}⇧S`,
-      keywords: 'export download publish png svg yaml bpmn copy',
+      keywords: 'export download publish png svg tiff yaml bpmn copy',
       action: () => openDialog('save'),
     },
     // Not a file command, but it shares the tile row up top, and the row is one group.

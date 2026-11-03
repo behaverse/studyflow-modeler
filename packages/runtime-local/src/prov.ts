@@ -132,7 +132,7 @@ export function stampElement(element: Element, stamp: Stamp, replace?: string): 
 export class RunRepo {
   /** An inherited GIT_DIR would aim every command at the caller's repository instead of this one. */
   private static readonly SCRUBBED = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
-  private static readonly LFS_PATTERNS = ['*.joblib', '*.parquet', '*.png', '*.svg', '*.pdf'];
+  private static readonly LFS_PATTERNS = ['*.joblib', '*.parquet', '*.png', '*.svg', '*.tif', '*.tiff', '*.pdf'];
   /** What every run writes about itself: its record (`events.jsonl`) and its log. */
   private static readonly ACCOUNTS = ['events.jsonl', 'studyflow.log'];
   /**

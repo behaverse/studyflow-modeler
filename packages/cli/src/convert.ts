@@ -3,28 +3,44 @@ import { existsSync, readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename, extname } from 'node:path';
 
-import { embedPastedImagesIntoPng, embedStudyflowIntoPng, replaceStudyflowInSvg } from '@core/document';
-import { asXml, asYaml, readSource, type StudyflowSource } from '@cli/studyfile';
+import { embedPastedImagesIntoPng, embedPastedImagesIntoTiff, embedStudyflowIntoPng, embedStudyflowIntoTiff, encodeTiff, replaceStudyflowInSvg } from '@core/document';
+import { pngRaster } from '@cli/pixels';
+import { asXml, asYaml, parseSource, readSource, tiffAbout, type StudyflowSource } from '@cli/studyfile';
 
-/* `studyflow convert`: between .studyflow(.yaml), .bpmn/.xml, .studyflow.png and .studyflow.svg, the format told by the extension. */
+/* `studyflow convert`: between .studyflow(.yaml), .bpmn/.xml, .studyflow.png, .studyflow.svg and .studyflow.tif, the format told by the extension. */
 
-type TargetFormat = 'yaml' | 'xml' | 'png' | 'svg';
+type TargetFormat = 'yaml' | 'xml' | 'png' | 'svg' | 'tif';
+type ImageFormat = Extract<TargetFormat, 'png' | 'svg' | 'tif'>;
+
+const IMAGES = new Set<TargetFormat>(['png', 'svg', 'tif']);
 
 function targetFormat(path: string): TargetFormat {
   const ext = extname(path).toLowerCase();
   if (ext === '.png') return 'png';
   if (ext === '.svg') return 'svg';
+  if (ext === '.tif' || ext === '.tiff') return 'tif';
   if (ext === '.xml' || ext === '.bpmn') return 'xml';
   if (ext === '.yaml' || ext === '.yml' || ext === '.studyflow') return 'yaml';
-  throw new Error(`Cannot tell the target format from "${path}" — use .studyflow/.yaml, .bpmn/.xml, .studyflow.png or .studyflow.svg.`);
+  throw new Error(`Cannot tell the target format from "${path}" — use .studyflow/.yaml, .bpmn/.xml, .studyflow.png, .studyflow.svg or .studyflow.tif.`);
 }
+
+/** A print size, as a TIFF declares one. */
+type PrintSize = { dpi: number; mmPerUnit?: number };
+
+/** What a unit of the diagram is on paper unless `--mm-per-unit` says otherwise: the modeler's own default. */
+const MM_PER_UNIT = 0.2;
+const DPI = 300;
 
 export type ConvertOptions = {
   /** For an image target: the image to embed into (defaults to the output file itself, or the input if it is one of that kind). */
   into?: string;
-  /** For a PNG or SVG target: draw the image by driving the modeler instead of reusing one. */
+  /** For an image target: draw the image by driving the modeler instead of reusing one. */
   modeler?: boolean;
   origin?: string;
+  /** For a TIFF target: its print size in dots per inch; a PNG's own when re-encoding one, else 300, unless given. */
+  dpi?: number;
+  /** For a TIFF the modeler draws: what a unit of the diagram is on paper, in mm (0.2 unless given). */
+  mmPerUnit?: number;
   /** Write nothing when reading the input raised a warning. */
   strict?: boolean;
 };
@@ -74,18 +90,27 @@ async function openStudyflow(page: any, origin: string, name: string, studyflow:
 }
 
 /** Export the open diagram as `format` (its studyflow always embedded) and return the bytes. */
-async function exportImage(page: any, format: 'png' | 'svg'): Promise<Buffer> {
+async function exportImage(page: any, format: ImageFormat, print: PrintSize): Promise<Buffer> {
   await page.getByRole('button', { name: 'Open command palette' }).click();
   await page.getByRole('dialog').getByText('Save As...', { exact: true }).click();
   await page.getByTestId('save-dialog').waitFor();
   await page.getByTestId('export-format').selectOption(format);
+  if (format === 'tif') {
+    // The Save dialog asks the print width; it offers the diagram's own at the modeler's unit, and says how many units it is.
+    const width = page.getByTestId('export-print-width');
+    if (print.mmPerUnit !== undefined) {
+      const units = Number(await width.getAttribute('data-units'));
+      await width.fill(String(Math.round(units * print.mmPerUnit * 10) / 10));
+    }
+    await page.getByTestId('export-print-dpi').fill(String(print.dpi));
+  }
 
   const download = page.waitForEvent('download');
   await page.getByTestId('save-submit').click();
   return readFileSync(await (await download).path());
 }
 
-async function renderImage(input: string, studyflow: string, origin: string, format: 'png' | 'svg'): Promise<Buffer> {
+async function renderImage(input: string, studyflow: string, origin: string, format: ImageFormat, print: PrintSize): Promise<Buffer> {
   let chromium: any;
   try {
     ({ chromium } = await import('@playwright/test'));
@@ -112,11 +137,27 @@ async function renderImage(input: string, studyflow: string, origin: string, for
       }
     });
     await openStudyflow(page, origin, `${basename(input).replace(/\..*$/, '')}.studyflow.yaml`, studyflow);
-    return await exportImage(page, format);
+    return await exportImage(page, format, print);
   } finally {
     await browser.close();
     stopServer();
   }
+}
+
+/** The print size a re-encoded TIFF declares, and how to say it: `--dpi`, else the PNG's own, else {@link DPI}. */
+function printSize(source: StudyflowSource, options: ConvertOptions): { dpi: { x: number; y: number }; said: string } {
+  if (options.dpi !== undefined) return { dpi: { x: options.dpi, y: options.dpi }, said: `at ${options.dpi} dpi` };
+  const own = source.image?.resolution;
+  if (own) return { dpi: own, said: `at its own ${Math.round(own.x * 10) / 10} dpi` };
+  return { dpi: { x: DPI, y: DPI }, said: `at ${DPI} dpi, as the PNG declares no print size` };
+}
+
+/** `text` and the pasted images in the image `base` holds, or in the PNG's pixels re-encoded as a TIFF. */
+async function imageWith(source: StudyflowSource, format: ImageFormat, text: string, base: Uint8Array | string): Promise<Uint8Array | string> {
+  if (format === 'svg') return replaceStudyflowInSvg(base as string, text);
+  if (format === 'png') return embedPastedImagesIntoPng(embedStudyflowIntoPng(base as Uint8Array, text), source.pastedImages);
+  const about = await tiffAbout((await parseSource(source)).model);
+  return embedPastedImagesIntoTiff(embedStudyflowIntoTiff(base as Uint8Array, text, about), source.pastedImages);
 }
 
 export async function convert(input: string, output: string, options: ConvertOptions): Promise<string> {
@@ -126,11 +167,12 @@ export async function convert(input: string, output: string, options: ConvertOpt
   // Reading drops what no loaded schema declares, so say what the reader met, as `validate` does.
   const warnings: string[] = [];
   const onWarning = (warning: string) => { warnings.push(warning); };
-  const drawnAs = options.modeler && (format === 'png' || format === 'svg') ? format : undefined;
-  // Only a PNG keeps the images pasted on a study, and only one this command embeds into rather than one the modeler draws.
-  const keeps = format === 'png' && !drawnAs;
+  const drawnAs = options.modeler && IMAGES.has(format) ? format as ImageFormat : undefined;
+  // Only a PNG or a TIFF keeps the images pasted on a study, and only one this command embeds into or re-encodes
+  // rather than one the modeler draws from the text alone.
+  const keeps = (format === 'png' || format === 'tif') && !drawnAs;
   const left = keeps || source.pastedImages.size === 0 ? '' : ` The ${source.pastedImages.size} image(s) pasted on it stay in ${input}.`;
-  // The modeler draws from the YAML, which a PNG carries too; an SVG carries the XML.
+  // The modeler draws from the YAML, which a PNG and a TIFF carry too; an SVG carries the XML.
   const text = !drawnAs && (format === 'xml' || format === 'svg') ? await asXml(source, onWarning) : await asYaml(source, onWarning, { pastedImages: keeps });
   for (const warning of warnings) console.warn(`warning: ${warning}`);
   if (options.strict && warnings.length > 0) throw new Error(`Nothing written to ${output}: reading ${input} raised warnings (--strict).`);
@@ -146,21 +188,32 @@ export async function convert(input: string, output: string, options: ConvertOpt
   }
 
   if (drawnAs) {
-    const image = await renderImage(input, text, options.origin ?? 'http://127.0.0.1:4175', drawnAs);
+    const print = { dpi: options.dpi ?? DPI, mmPerUnit: options.mmPerUnit };
+    const image = await renderImage(input, text, options.origin ?? 'http://127.0.0.1:4175', drawnAs, print);
     await writeFile(output, image);
-    return `Wrote ${output} (rendered by the modeler).${left}`;
+    const sized = drawnAs === 'tif' ? ` at ${print.dpi} dpi, ${print.mmPerUnit ?? MM_PER_UNIT} mm a unit` : '';
+    return `Wrote ${output} (rendered by the modeler${sized}).${left}`;
+  }
+
+  // A TIFF from a PNG, without an image to embed into: the PNG's pixels, re-encoded.
+  if (format === 'tif' && !options.into && source.container === 'png') {
+    const { dpi, said } = printSize(source, options);
+    const raster = pngRaster(new Uint8Array(await readFile(input)));
+    await writeFile(output, await imageWith(source, format, text, encodeTiff(raster, dpi)));
+    const mm = (pixels: number, dots: number) => Math.round((pixels / dots) * 254) / 10;
+    return `Wrote ${output} (the pixels of ${input} as an LZW TIFF, ${raster.width} × ${raster.height} px, ${mm(raster.width, dpi.x)} × ${mm(raster.height, dpi.y)} mm ${said}).${left}`;
   }
 
   // An image without --modeler: embed the studyflow into an existing image of that kind.
   const basePath = options.into
     ?? (existsSync(output) ? output : source.container === format ? input : undefined);
   if (!basePath) {
+    const from = format === 'tif' ? ', or convert a .studyflow.png, whose pixels it re-encodes' : '';
     throw new Error(
-      `A .studyflow.${format} target needs an image: pass --modeler to draw one, or --into <${format}> to embed into an existing image.`,
+      `A .studyflow.${format} target needs an image: pass --modeler to draw one, or --into <${format}> to embed into an existing image${from}.`,
     );
   }
-  await writeFile(output, format === 'png'
-    ? embedPastedImagesIntoPng(embedStudyflowIntoPng(new Uint8Array(await readFile(basePath)), text), source.pastedImages)
-    : replaceStudyflowInSvg(await readFile(basePath, 'utf8'), text));
+  const base = format === 'svg' ? await readFile(basePath, 'utf8') : new Uint8Array(await readFile(basePath));
+  await writeFile(output, await imageWith(source, format, text, base));
   return `Wrote ${output} (embedded studyflow into ${basePath === output ? 'the existing image' : basePath}).${left}`;
 }

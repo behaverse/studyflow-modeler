@@ -1,6 +1,6 @@
 # @behaverse/studyflow-cli
 
-`studyflow` is the command-line tool for studyflow diagrams: convert between `.studyflow.yaml`, BPMN XML, PNG and SVG; validate; inspect; execute; and open the offline modeler app.
+`studyflow` is the command-line tool for studyflow diagrams: convert between `.studyflow.yaml`, BPMN XML, PNG, SVG and TIFF; validate; inspect; execute; and open the offline modeler app.
 
 ## Install
 
@@ -22,6 +22,7 @@ node packages/cli/dist/studyflow.mjs --help
 ```bash
 studyflow validate study.studyflow.yaml --strict
 studyflow convert study.studyflow.yaml study.studyflow.png   # into that picture; --modeler draws a new one (in a checkout)
+studyflow convert study.studyflow.png study.studyflow.tif    # the PNG's pixels as the LZW TIFF a journal takes, at its print size (--dpi for another), the study inside
 studyflow info study.studyflow.yaml --json
 studyflow edit study.studyflow.png              # the desktop app on that file; `studyflow ui` for a blank canvas
 studyflow run skills/python/examples/sklearn_pipeline.studyflow.yaml   # the run folder keeps the study as YAML, stamped

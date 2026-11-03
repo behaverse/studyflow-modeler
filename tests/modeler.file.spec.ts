@@ -3,9 +3,11 @@ import path from 'node:path';
 
 import { expect, test } from './e2e';
 
-import { diagramTitle, exportDiagram, gotoModeler, readDownload, readDownloadText } from './utils';
+import { extractStudyflowFromTiff, pngSize, tiffResolution, tiffSize } from '@core/document';
 
-test('exports YAML, PNG, SVG and LinkML; opens a layout-less file, a jsPsych timeline, the exports again, and says what a file\'s reading could not place', async ({ page }) => {
+import { diagramTitle, exportDiagram, gotoModeler, readDownload, readDownloadText, runPaletteCommand } from './utils';
+
+test('exports YAML, PNG, SVG, TIFF and LinkML; opens a layout-less file, a jsPsych timeline, the exports again, and says what a file\'s reading could not place', async ({ page }) => {
   // A clock the test runs forward, installed before the page loads, for the warning at the end.
   await page.clock.install();
   await gotoModeler(page);
@@ -23,6 +25,22 @@ test('exports YAML, PNG, SVG and LinkML; opens a layout-less file, a jsPsych tim
   const svg = await exportDiagram(page, 'svg');
   expect(svg.suggestedFilename()).toBe('diagram.studyflow.svg');
   const svgText = await readDownloadText(svg);
+  // A TIFF is asked its size on paper: the figure's own width at 0.2 mm a unit, at 300 dpi, unless typed over.
+  const tif = await exportDiagram(page, 'tif', async () => {
+    const width = page.getByTestId('export-print-width');
+    const units = Number(await width.getAttribute('data-units'));
+    expect(units).toBe(pngSize(pngBytes).width);
+    expect(Number(await width.inputValue())).toBeCloseTo(units * 0.2, 1);
+    await expect(page.getByTestId('export-print-dpi')).toHaveValue('300');
+    await width.fill('50');
+    await page.getByTestId('export-print-dpi').fill('100');
+    await expect(page.getByTestId('export-print-pixels')).toHaveText(/^197 × \d+ px$/);
+  });
+  expect(tif.suggestedFilename()).toBe('diagram.studyflow.tif');
+  const tifBytes = new Uint8Array(await readDownload(tif));
+  expect(tiffSize(tifBytes).width).toBe(197);
+  expect(tiffResolution(tifBytes)).toEqual({ x: 100, y: 100 });
+  expect(extractStudyflowFromTiff(tifBytes)).toContain('schemas:');
   // A skill's export is one more format in Save As; the figures a manuscript takes are in its own view.
   const linkml = await exportDiagram(page, 'linkml');
   expect(linkml.suggestedFilename()).toBe('diagram.linkml.yaml');
@@ -58,6 +76,15 @@ test('exports YAML, PNG, SVG and LinkML; opens a layout-less file, a jsPsych tim
   await open.setInputFiles({ name: 'as-svg.studyflow.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(svgText, 'utf8') });
   await expect(title).toHaveText('as-svg');
   await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
+  await open.setInputFiles({ name: 'as-tif.studyflow.tif', mimeType: 'image/tiff', buffer: Buffer.from(tifBytes) });
+  await expect(title).toHaveText('as-tif');
+  await expect(page.locator('[data-element-id="StartEvent_1"]')).toBeVisible();
+  // Saved again as a TIFF, it is offered the size it was opened at.
+  await runPaletteCommand(page, /^Save As/);
+  await page.getByTestId('export-format').selectOption('tif');
+  await expect(page.getByTestId('export-print-width')).toHaveValue('50');
+  await expect(page.getByTestId('export-print-dpi')).toHaveValue('100');
+  await page.keyboard.press('Escape');
 
   // No schema declares `studyflow:retired`: the reader drops it, so the next save would too.
   await open.setInputFiles({

@@ -5,7 +5,7 @@ import { DRAWIO_FORMATS } from '@modeler/formats/drawio';
 import { LINKML_FORMATS } from '@modeler/formats/linkml';
 
 /** The formats that carry the diagram itself, encoded by `export/commands.ts`. */
-export type DiagramFormatId = 'studyflow' | 'bpmn' | 'svg' | 'png';
+export type DiagramFormatId = 'studyflow' | 'bpmn' | 'svg' | 'png' | 'tif';
 
 /** A projection names its own id. */
 export type ExportFormatId = DiagramFormatId | (string & {});
@@ -15,6 +15,8 @@ export type EncodeContext = {
   renderSvg: () => Promise<{ svg: string; studyflow: string }>;
   /** The diagram as an image that carries it: the study, and the bytes of the images pasted on it. */
   png: () => Promise<Uint8Array>;
+  /** The same as a TIFF, at the print size asked for, which it declares. */
+  tiff: () => Promise<Uint8Array>;
   /** The diagram as standard BPMN XML, for a projection that carries its source. */
   bpmn: () => Promise<string>;
   /** The semantic view of the diagram, built on demand; only projections read it. */
@@ -80,6 +82,16 @@ const EXPORT_FORMATS: ExportFormat[] = [
     alsoReads: ['.png'],
   },
   {
+    id: 'tif',
+    group: 'Image',
+    label: 'TIFF',
+    extension: '.studyflow.tif',
+    mimeType: 'image/tiff',
+    embeddable: true,
+    importable: true,
+    alsoReads: ['.studyflow.tiff', '.tif', '.tiff'],
+  },
+  {
     id: 'figure-png',
     group: 'Manuscript',
     label: 'PNG',
@@ -115,7 +127,7 @@ export const extensionsOf = (format: ExportFormat): string[] =>
 
 /** Every compound extension the catalog declares, longest first so the longest match wins. */
 export const COMPOUND_EXTENSIONS: string[] = EXPORT_FORMATS
-  .map((format) => format.extension)
+  .flatMap((format) => [format.extension, ...(format.alsoReads ?? [])])
   .filter((extension) => extension.split('.').length > 2)
   .sort((a, b) => b.length - a.length);
 
@@ -141,8 +153,8 @@ export function openerFor(filename: string): Opener | undefined {
   return OPENERS.find((opener) => lower.endsWith(opener.extension.toLowerCase()));
 }
 
-/** Whether the file keeps the images pasted on the canvas: only a PNG can hold them. */
-export const keepsPastedImages = (format: ExportFormat): boolean => format.mimeType === 'image/png';
+/** Whether the file keeps the images pasted on the canvas: a PNG or a TIFF, in a chunk or a tag of their own. */
+export const keepsPastedImages = (format: ExportFormat): boolean => format.mimeType === 'image/png' || format.mimeType === 'image/tiff';
 
 /** Whether the file carries the diagram itself, rather than being a document derived from it. */
 export const carriesDiagram = (format: ExportFormat): boolean =>

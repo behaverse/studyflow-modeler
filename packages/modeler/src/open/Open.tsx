@@ -95,7 +95,7 @@ export function OpenDialog({ isOpen, onClose, onBrowse }: Props) {
           ))}
         </ul>
         <p className={s.note}>
-          An SVG or PNG opens only if studyflow is embedded in it.
+          An SVG, PNG or TIFF opens only if studyflow is embedded in it.
         </p>
       </div>
     </Modal>

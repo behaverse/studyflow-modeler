@@ -1,3 +1,5 @@
+import type { Raster } from '@core/document';
+
 /**
  * `svg` carrying the diagram's BPMN XML, its `<definitions>` nested in `<metadata>` as elements:
  * YAML there would be text whose indentation an editor reformatting the SVG could break.
@@ -82,13 +84,13 @@ function loadSvgImage(svg: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Rasterize the diagram SVG to a PNG data URL, natively: the browser already knows
+ * Rasterize the diagram SVG onto a 2d canvas, `scale` pixels a unit, natively: the browser already knows
  * how to draw an SVG image, so the document goes through a blob URL into an `<img>`
- * and onto a 2d canvas. This replaced Canvg, which existed to
+ * and onto the canvas. This replaced Canvg, which existed to
  * paint icons the browser could not, back when they were `foreignObject`s; the
  * renderer now draws real glyphs, so plain `drawImage` covers the whole document.
  */
-export async function exportToPng(svg: string): Promise<string> {
+async function rasterize(svg: string, scale: number): Promise<HTMLCanvasElement> {
   const padded = padSvg(svg);
   const image = await loadSvgImage(padded);
 
@@ -98,8 +100,8 @@ export async function exportToPng(svg: string): Promise<string> {
     ?? (image.naturalWidth > 0 ? { width: image.naturalWidth, height: image.naturalHeight } : undefined);
 
   const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(size?.width ?? image.width));
-  canvas.height = Math.max(1, Math.round(size?.height ?? image.height));
+  canvas.width = Math.max(1, Math.round((size?.width ?? image.width) * scale));
+  canvas.height = Math.max(1, Math.round((size?.height ?? image.height) * scale));
 
   const context = canvas.getContext('2d')!;
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -109,5 +111,23 @@ export async function exportToPng(svg: string): Promise<string> {
   context.fillStyle = 'white';
   context.fillRect(0, 0, canvas.width, canvas.height);
 
-  return canvas.toDataURL('image/png');
+  return canvas;
+}
+
+/** The diagram SVG as a PNG data URL, a pixel a unit. */
+export async function exportToPng(svg: string): Promise<string> {
+  return (await rasterize(svg, 1)).toDataURL('image/png');
+}
+
+/** The size the exported figure has in the diagram's units, its padding included: what a width on paper is set against. */
+export function exportSize(svg: string): { width: number; height: number } | undefined {
+  return svgSize(padSvg(svg));
+}
+
+/** The diagram SVG drawn `width` pixels across, as the pixels a TIFF is written from. */
+export async function exportToRaster(svg: string, width: number): Promise<Raster> {
+  const size = exportSize(svg);
+  const canvas = await rasterize(svg, size ? width / size.width : 1);
+  const { data } = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
+  return { width: canvas.width, height: canvas.height, channels: 4, pixels: new Uint8Array(data.buffer, data.byteOffset, data.byteLength) };
 }
