@@ -8,15 +8,33 @@ import { VirtualClock } from '@runtime-local/clock';
 const DAY = 86_400_000;
 const turn = (): Promise<void> => new Promise((resolve) => { setImmediate(resolve); });
 
+/**
+ * `set`, with the machine's clock held still: the timers it sets are set at one moment, however slow the machine. A
+ * timer reads the clock for its due time, and on a slow runner the millisecond ticks between two set in a row, which
+ * puts them due a millisecond apart, a jump of its own for the second.
+ */
+function atOneMoment<T>(set: () => T): T {
+  const real = Date.now;
+  const moment = real();
+  Date.now = () => moment;
+  try {
+    return set();
+  } finally {
+    Date.now = real;
+  }
+}
+
 test('when nothing else can happen, the clock jumps to the earliest timer, and timers due at one moment run out in the order they were set', async () => {
   const jumps: [string, number][] = [];
   const clock = new VirtualClock((at, by) => jumps.push([at, by]));
   const started = clock.now();
   const rang: string[] = [];
   const never = new AbortController();
-  const late = clock.wait(7 * DAY, never.signal, 'Late').then(() => rang.push('Late'));
-  const first = clock.wait(DAY, never.signal, 'First').then(() => rang.push('First'));
-  const twin = clock.wait(DAY, never.signal, 'Twin').then(() => rang.push('Twin'));
+  const [late, first, twin] = atOneMoment(() => [
+    clock.wait(7 * DAY, never.signal, 'Late').then(() => rang.push('Late')),
+    clock.wait(DAY, never.signal, 'First').then(() => rang.push('First')),
+    clock.wait(DAY, never.signal, 'Twin').then(() => rang.push('Twin')),
+  ]);
   await Promise.all([first, twin]);
   expect(rang).toEqual(['First', 'Twin']);
   await late;
