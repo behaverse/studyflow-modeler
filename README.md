@@ -1,10 +1,10 @@
 # Behaverse Studyflow
 
-[Studyflow](https://behaverse.org/studyflow-modeler) is a BPMN-based visual notation for coordinating experiments, for machines and humans. One diagram is the protocol, the runnable experiment, the analysis specification, and the publication figure.
+[Studyflow](https://behaverse.org/projects/studyflow.html) is a BPMN-based visual notation for coordinating experiments, for machines and humans. One diagram is the protocol, the runnable experiment, the analysis specification, and the publication figure.
 
 ## Use
 
-- **Webapp**: [behaverse.org/studyflow-modeler](https://behaverse.org/studyflow-modeler). Author, validate, simulate, export, and run diagrams in the browser.
+- **Webapp**: [behaverse.org/studyflow-modeler/app](https://behaverse.org/studyflow-modeler/app). Author, validate, simulate, export, and run diagrams in the browser.
 - **CLI**: `studyflow` manage and run diagrams locally. `studyflow ui`, or `studyflow edit <file>`, serves the modeler from your machine.
 
 ```bash

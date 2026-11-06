@@ -10,6 +10,7 @@ import { useDiagramName } from '@modeler/navBar/useDiagramName';
 import { FileStatus } from '@modeler/navBar/FileStatus';
 import { surface, shadow, border, text, radius, button } from '@modeler/ui/styles';
 import { ICONS } from '@modeler/icons';
+import { URLS } from '@modeler/constants';
 
 const navbar = {
   brand: 'fixed top-2 left-0 z-50 flex items-center gap-2.5 px-1.5 h-12 select-none',
@@ -114,7 +115,7 @@ export function NavBar() {
 
   return (
     <>
-        <a href="../" target="_blank" className={navbar.brand} data-covers="top">
+        <a href={URLS.home} target="_blank" className={navbar.brand} data-covers="top">
           <img src={logo_image} className={navbar.brandImage} alt="Studyflow Modeler" title="Studyflow Modeler" />
           <span className={navbar.brandWordmark}>
             <span className={navbar.brandWordmarkLight}>Studyflow</span>

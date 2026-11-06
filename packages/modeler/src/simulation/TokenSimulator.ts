@@ -193,7 +193,8 @@ export default class TokenSimulator {
     if (!target?.bounds) return Promise.resolve();
     const anchor = tokenAnchor(target);
     let token = run.tokens.get(pool);
-    if (!token) {
+    // A pool's next instance takes a token of its own: the last one's may still be popping at its end event.
+    if (!token || token.done) {
       token = this.createToken(run.color, anchor, to);
       run.tokens.set(pool, token);
       return Promise.resolve();

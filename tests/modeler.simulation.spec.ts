@@ -63,6 +63,63 @@ P_Stops:
     F_3: Again -> Stuck
 `;
 
+/** A pool of two instances, and a pool that starts on the message the first sends once both have ended. */
+const COHORT_THEN_ONCE = `id: Defs_Cohort
+schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+C:
+  type: Collaboration
+  participants:
+    Each:
+      name: Each
+      multiplicity:
+        maximum: 2
+      process: $P_Each
+    Once:
+      name: Once
+      process: $P_Once
+  messageFlows:
+    M_All:
+      source: $Each
+      target: $All
+      message: $Ended
+Ended:
+  type: Message
+P_Each:
+  type: Process
+  elements:
+    Arrive:
+      type: StartEvent
+    Leave:
+      type: EndEvent
+    F_1:
+      source: $Arrive
+      target: $Leave
+P_Once:
+  type: Process
+  elements:
+    All:
+      type: StartEvent
+      eventDefinitions:
+        - type: MessageEventDefinition
+          message: $Ended
+    Finish:
+      type: EndEvent
+    F_2:
+      source: $All
+      target: $Finish
+layout:
+  Each: {bounds: 100 50 600 150}
+  Once: {bounds: 100 250 600 150}
+  M_All: {waypoint: "300,200 300,307"}
+  Arrive: {bounds: 170 107 36 36}
+  Leave: {bounds: 420 107 36 36}
+  All: {bounds: 282 307 36 36}
+  Finish: {bounds: 520 307 36 36}
+  F_1: 206,125 420,125
+  F_2: 318,325 520,325
+`;
+
 const shape = (page: Page, id: string) => page.locator(`g[data-element-id="${id}"]`);
 const drilldown = (page: Page, id: string) => shape(page, id).click({ position: { x: 12, y: 12 } })
   .then(() => page.getByTestId('context-pad-drilldown').click());
@@ -130,6 +187,14 @@ test.describe('token simulation', () => {
       { intervals: [50], timeout: 10_000 }).toBe(true);
     await expect.poll(async () => (await tokenStyles(page)).some((t) => t.animation === 'token-bounce' && inside(t, stuck, 12)),
       { timeout: 10_000 }).toBe(true);
+
+    // A pool of several instances walks each on a token of its own and sends its message once the last has ended, so
+    // the pool that message starts runs to its end.
+    await page.getByTestId('open-file-input').setInputFiles({ name: 'cohort.studyflow.yaml', mimeType: 'text/yaml', buffer: Buffer.from(COHORT_THEN_ONCE) });
+    await expect(shape(page, 'Finish')).toBeVisible();
+    const finish = await box(shape(page, 'Finish'));
+    await expect.poll(async () => (await tokenStyles(page)).some((t) => t.animation === 'token-pop' && inside(t, finish)),
+      { intervals: [50], timeout: 15_000 }).toBe(true);
   });
 });
 

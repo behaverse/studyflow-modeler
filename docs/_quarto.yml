@@ -29,6 +29,10 @@ website:
       - text: Developers
         href: developers.qmd
       - "---"
+      - text: Studyflow
+        href: https://behaverse.org/projects/studyflow.html
+        icon: house
+        target: _blank
       - text: Modeler
         href: https://behaverse.org/studyflow-modeler/app.html
         icon: box-arrow-up-right
