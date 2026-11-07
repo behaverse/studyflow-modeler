@@ -1,0 +1,118 @@
+id: white2011_flanker
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+White2011:
+  type: Process
+  name: Flanker (White et al. 2011, Experiment 1)
+  studyflow:Study:
+    authors:
+      - White CN
+      - Ratcliff R
+      - Starns JJ
+  documentation: >-
+    White, Ratcliff and Starns (2011), Diffusion models of the flanker task: Discrete versus gradual attentional
+    selection, Experiment 1, the flanker task only, encoded from the article alone, without its supplements, code, or
+    the papers it cites. Every value is taken from the article; a value it does not state is written `unstated`.
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (25)
+      documentation: Ohio State undergraduates, taking part for credit in an introductory psychology course.
+
+    Flanker:
+      type: Task
+      name: Flanker task
+      documentation: >-
+        One session of about 40 minutes. Participants decided whether the central arrow faced left or right, quickly
+        and accurately, and were told that the surrounding arrows might face the same or the opposite way but to base
+        their response on the target only.
+      cognitive:CognitiveTask:
+        construct: visual selective attention
+        platform: unstated
+      inputs:
+        In_Flanker_Settings:
+          source: $Flanker_Settings
+
+    Flanker_Settings:
+      type: DataObjectReference
+      name: Flanker settings
+      studyflow:Parameters:
+        values:
+          stimuli: five arrows in a vertical column, the target at the center of the screen, each 0.7 deg with 0.4 deg between arrows
+          conditions:
+            - congruent (flankers face the target's direction)
+            - incongruent (flankers face the opposite direction)
+          congruentProportion: 0.5
+          trials: 768
+          blocks: 8 blocks of 96 trials
+          practice: 48
+          trialOrder: unstated
+          randomSeed: unstated
+          fixation: none (stimulus uncued, after 0.35 s of blank screen)
+          stimulusDuration: until response
+          responseDeadline: none (stimulus until response)
+          interTrialInterval: 0.35
+          responseMapping: '"/" for a right-facing target, "z" for a left-facing target (no counterbalancing mentioned)'
+          feedback: no error feedback (block feedback not mentioned)
+          missedResponse: cannot be missed (stimulus until response, no deadline)
+          trialsPerCondition: 384
+          targetDirections: left and right, equal numbers in each block
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: Kept for analysis? (rule unstated)
+      default: $Flow_Excluded
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - unstated
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (count unstated)
+
+    Select_Trials:
+      type: ServiceTask
+      name: Drop RTs below 0.3 s or above 1.5 s
+      documentation: >-
+        Less than 0.9% of the data. Error responses stay in, since the models are fit to the RT quantiles of correct and
+        error responses.
+
+    Analysis:
+      type: ServiceTask
+      name: Fit the spotlight, dual process and DSTP diffusion models by SIMPLEX chi-square minimization
+      documentation: >-
+        Fit to group and individual data, using accuracy, the .1, .3, .5, .7 and .9 RT quantiles of correct and error
+        responses, and the number of observations per condition, with 50,000 simulated trials per condition in 1 ms
+        steps. The models are compared by chi-square and approximate BIC. The article names no software for it.
+      implementation: unstated://analysis
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (count unstated)
+
+    F_0:
+      source: $Enroll
+      target: $Flanker
+
+    F_1:
+      source: $Flanker
+      target: $Exclusion
+
+    Flow_Kept:
+      condition: not(excluded)
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_2:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_3:
+      source: $Analysis
+      target: $Analyzed

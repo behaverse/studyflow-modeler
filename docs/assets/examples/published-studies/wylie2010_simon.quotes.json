@@ -1,0 +1,171 @@
+{
+ "file": "wylie2010_simon",
+ "pmc": "PMC2923490",
+ "encoded": "The one experiment, the Simon task with Parkinson's disease patients and healthy controls",
+ "bibtex": "@article{wylie2010parkinson, title = {The effect of {Parkinson's} disease on the dynamics of on-line and proactive cognitive control during action selection}, author = {Wylie, Scott A. and Ridderinkhof, K. Richard and Bashore, Theodore R. and van den Wildenberg, Wery P. M.}, journal = {Journal of Cognitive Neuroscience}, volume = {22}, number = {9}, pages = {2058--2073}, year = {2010}, doi = {10.1162/jocn.2009.21326}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "blue or green circle, 2.1 cm (1.20 deg) in diameter, 0.6 cm (0.34 deg) left or right of a small square fixation point, on a white background",
+   "quote": "Stimuli consisted of a small square fixation point and blue- or green-colored circles against a white background.",
+   "where": "Method",
+   "note": "Size and position: 'a blue or green circle appeared 0.6 cm (0.34° visual angle) to the left or to the right of the fixation point' and 'The circle diameter was 2.1 cm (visual angle = 1.20°).'"
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": [
+    "corresponding",
+    "noncorresponding"
+   ],
+   "quote": "Two trial types were defined by the correspondence between the spatial location of the circle and the response signaled by its color.",
+   "where": "Method",
+   "note": "The analysis also classes each trial by the preceding trial (corresponding or noncorresponding) and by the preceding response (accurate or error); these are partitions of the same trials, not added conditions."
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": 0.5,
+   "quote": "Within each block of trials, corresponding and noncorresponding trial types were presented randomly, but equiprobably.",
+   "where": "Method",
+   "note": "Also 'Participants completed 150 corresponding and 150 noncorresponding trials.'"
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": 300,
+   "quote": "Participants completed 150 corresponding and 150 noncorresponding trials.",
+   "where": "Method"
+  },
+  {
+   "item": "blocks",
+   "status": "stated",
+   "value": "5 blocks of 60 trials",
+   "quote": "Five blocks of 60 experimental trials were then performed.",
+   "where": "Method"
+  },
+  {
+   "item": "practice",
+   "status": "stated",
+   "value": "100 trials with the circle at fixation, then 60 trials with the circle left or right",
+   "quote": "participants first completed a block of 100 practice trials in which the circle appeared in the same center location as the fixation point",
+   "where": "Method",
+   "note": "Then 'a block of 60 practice trials was completed in which circles were displaced to the right or left of fixation as described above.'"
+  },
+  {
+   "item": "trialOrder",
+   "status": "stated",
+   "value": "random within each block, with roughly equal numbers of trials preceded by corresponding and by noncorresponding trials",
+   "quote": "Trial sequence was mixed randomly within a block of trials, with the constraint that roughly equal numbers of trials were preceded by corresponding or noncorresponding trials.",
+   "where": "Method",
+   "note": "'roughly' is not quantified. The Discussion adds 'we did not design our task to balance trial sequence repetitions, alternations, and feature overlaps'."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "No seed or fixed sequence is given."
+  },
+  {
+   "item": "fixation",
+   "status": "stated",
+   "value": "small square fixation point, always on screen, for 1.75 to 2.25 s before the circle",
+   "quote": "After a variable duration ranging from 1750 to 2250 msec, a blue or green circle appeared",
+   "where": "Method",
+   "note": "'Each trial began with the presentation of a fixation point shown in the center of the computer screen', and 'The fixation point remained on the screen at all times.' How the 1750 to 2250 ms duration was drawn (uniformly, in steps) is not given."
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "stated",
+   "value": "until response, at most 1.5 s",
+   "quote": "remained on the screen until the participant either made a response or 1500 msec elapsed",
+   "where": "Method"
+  },
+  {
+   "item": "responseDeadline",
+   "status": "stated",
+   "value": 1.5,
+   "quote": "remained on the screen until the participant either made a response or 1500 msec elapsed",
+   "where": "Method",
+   "note": "The article gives 1500 ms as the limit on the circle's time on screen; we read it as the response window. It does not say whether a response after the circle disappears would be recorded."
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "stated",
+   "value": "1.75 to 2.25 s from the response to the next circle",
+   "quote": "After a response, the circle disappeared and the next trial began.",
+   "where": "Method",
+   "note": "Each trial begins with the 1750 to 2250 ms fixation interval, so the response-to-stimulus interval is 1.75 to 2.25 s. What follows a trial with no response within 1.5 s is not described."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "left and right thumb buttons on handheld grips; circle color to response side (e.g. green right, blue left) counterbalanced across participants",
+   "quote": "The mappings between circle color and response side were counter-balanced across participants.",
+   "where": "Method",
+   "note": "'Responses to the imperative stimuli, the colored circles, were registered via right- and left-thumb button presses using handheld grips', with the example 'green circle, right-thumb press; blue circle, left-thumb press'."
+  },
+  {
+   "item": "feedback",
+   "status": "unstated",
+   "note": "No feedback is mentioned, for the practice or the test trials."
+  },
+  {
+   "item": "missedResponse",
+   "status": "unstated",
+   "note": "The circle disappears after 1500 ms without a response; whether such a trial counts as an error, is dropped, or is repeated is not said."
+  },
+  {
+   "item": "platform",
+   "status": "unstated",
+   "note": "'Control of the Simon task was accomplished using an IBM-compatible computer.' No software is named."
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (82: 52 PD, 30 HC); Analyzed (82: 52 PD, 30 HC)",
+   "quote": "Fifty-two individuals diagnosed with PD and 30 HCs similar in age, education, and sex ratio (ps > .10) participated in this study.",
+   "where": "Method",
+   "note": "All 82 enter the main analyses: the Abstract reports 'PD (n = 52) and healthy control (n = 30) groups', Table 1 gives the same sizes, and the group tests have F(1, 80). The post-error analysis keeps 43 PD and 27 HC."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "unstated",
+   "note": "No rule for excluding participants from the analysis is stated, and none were excluded from the main analyses (F(1, 80) for 82 participants), so the diagram's end event reads Excluded (0). The post-error analysis leaves out participants who 'did not make enough errors to permit a comparison of corresponding and noncorresponding trial types on the subsequent trial' (PD n = 43, HC n = 27), with no threshold. The 'Exclusion criteria for all participants' in the Participants section are recruitment criteria, encoded on the eligibility gateway."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "stated",
+   "value": "Drop RTs beyond 3 SD of the mean, confirmed by visual inspection, and RTs below 0.1 s",
+   "quote": "Extreme RT values, either excessively fast or slow, were removed from the analysis using a conservative trim procedure (RT values > 3 standard deviations above or below the mean)",
+   "where": "Method",
+   "note": "Outliers were confirmed 'after visual inspection of each trial within an experimental cell', and 'Anticipatory responses faster than 100 msec were also eliminated from analyses'. Whether error trials enter the RT analyses is not said."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "unstated",
+   "note": "Repeated-measures ANOVAs of RT and square-rooted accuracy, conditional accuracy functions and delta plots over septiles are described; no software is named."
+  }
+ ],
+ "extra": [
+  {
+   "item": "medicationState",
+   "status": "stated",
+   "value": "51 of 52 patients on dopaminergic medication, tested in the optimal on state",
+   "quote": "Fifty-one of the 52 PD patients were taking medications to improve dopaminergic function and were tested during the optimal “on” state of their medication cycle.",
+   "where": "Method",
+   "note": "Written in the documentation of the task."
+  },
+  {
+   "item": "testingDay",
+   "status": "stated",
+   "value": "on the day of or within a few weeks of a regular clinic visit",
+   "quote": "They voluntarily completed the study on the same day or within a few weeks of their regularly scheduled Movement Disorders Clinic visit.",
+   "where": "Method",
+   "note": "Written in the documentation of the task; patients tested on a clinic day 'were screened for adverse clinical events', encoded as an inclusion criterion."
+  }
+ ],
+ "states": "82 recruited (52 PD, 30 HC), all 82 analyzed; recruitment criteria for both groups; 300 trials (150 per condition) in five blocks of 60, after 100 central and 60 lateralized practice trials; random order within blocks, roughly balanced for the preceding trial type; fixation 1750 to 2250 ms; circle until response or 1500 ms; next trial right after the response; thumb buttons, color mapping counterbalanced; circle size and offset in cm and deg at about 1 m; RTs beyond 3 SD (confirmed by eye) and below 100 ms dropped",
+ "unstated": "seed of the trial order, feedback, handling of a missed response, presentation software, participant exclusion rule, analysis software",
+ "notes": "Patients and controls are recruited groups, named on the start event and in the eligibility criteria, with no allocation gateway. The \"Exclusion criteria for all participants\" of the Participants section (other neurological condition, mood and psychiatric disorders, medical conditions affecting cognition) are recruitment criteria and sit as exclusionCriteria on the eligibility gateway, not on the analysis Exclusion gateway, whose rule is unstated. \"All participants had corrected-to-normal vision\" is read as an inclusion criterion; the Hoehn and Yahr stage (III or less) is a description of the sample and is kept in the documentation. The 1500 ms limit is stated as the circle's time on screen; it is read as the response deadline as well (stated), but the fate of a trial without a response is unstated. The inter-trial interval is computed: the next trial starts at the response, with a 1750 to 2250 ms fixation interval before the circle. Participant exclusion: no rule is stated and all 82 enter the main analyses, so the end event reads Excluded (0); the post-error analysis drops participants with too few errors (no threshold) and is noted on the gateway. Two tests report F(1, 70) where the rest report F(1, 80); the article does not explain them. The bibtex key follows the existing references.bib entry (wylie2010parkinson)."
+}

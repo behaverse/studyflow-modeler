@@ -1,0 +1,167 @@
+id: gonthier2016_stroop
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Gonthier2016:
+  type: Process
+  name: Picture-word Stroop (Gonthier et al. 2016, Experiment 1a)
+  studyflow:Study:
+    authors:
+      - Gonthier C
+      - Braver TS
+      - Bugg JM
+  documentation: >-
+    Gonthier, Braver and Bugg (2016), Dissociating proactive and reactive control in the Stroop task, Experiment 1a, the
+    picture-word Stroop task only, encoded from the article alone, without its supplements, code, or the papers it
+    cites. Every value is taken from the article; a value it does not state is written `unstated`. The article's second
+    sample, Experiment 1b (58 community participants), ran the same materials in a single session with the blocks in
+    another order (LWmc, LWmi, IS), so only Experiment 1a, the first sample, is encoded; the analyses pool the two.
+  properties:
+    P_Session_Interval:
+      name: sessionInterval
+      value: at most 1 week
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (35)
+      documentation: >-
+        Experiment 1a: undergraduates at Washington University in Saint Louis (12 males, mean age 20.9 years), paid
+        $10.00 an hour, all native English speakers with normal or corrected-to-normal vision, none of whom had done the
+        picture-word Stroop task before; informed consent. Experiment 1b (58 community participants) is not encoded.
+
+    Session_1:
+      type: Task
+      name: Picture-word Stroop, session 1 (LWmc block)
+      documentation: >-
+        Tested individually, with an experimenter present throughout; instructed to name the animal in each picture as
+        quickly and as accurately as possible. Each task block lasted about 20 minutes.
+      cognitive:CognitiveTask:
+        construct: proactive and reactive control
+        platform: eprime
+      inputs:
+        In_Stroop_Settings:
+          source: $Stroop_Settings
+
+    Stroop_Settings:
+      type: DataObjectReference
+      name: Stroop settings
+      studyflow:Parameters:
+        values:
+          stimuli: >-
+            a black-and-white drawing of an animal with an animal name superimposed, at the center of a 17-inch screen;
+            eight animals, cat, dog, bird and fish for the biased items and frog, cow, pig and seal for the PC-50 items;
+            an incongruent word names another animal of the same set; sizes not given
+          conditions:
+            - congruent and incongruent trials
+            - 'item types: PC-75 and PC-25 (biased), PC-50 (unbiased)'
+            - 'task blocks: LWmc (PC-75 and PC-50 items), LWmi (PC-25 and PC-50), IS (PC-75, PC-25 and PC-50)'
+          congruentProportion: >-
+            by item type PC-75 0.75, PC-25 0.25, PC-50 0.5; by block LWmc 264/384 (0.6875), LWmi 120/384 (0.3125),
+            IS 216/432 (0.5)
+          trials: >-
+            1200: LWmc 384 (288 PC-75, 96 PC-50), LWmi 384 (288 PC-25, 96 PC-50), IS 432 (192 PC-75, 192 PC-25, and 48
+            PC-50 in its second half only); counts per picture-word pair in Table 1
+          blocks: 3 task blocks of 384 (LWmc), 384 (LWmi) and 432 (IS) trials, each with a short break halfway
+          practice: 22 trials before each task block, with that block's proportion congruencies
+          trialOrder: unstated
+          randomSeed: unstated
+          fixation: unstated
+          stimulusDuration: until the voice key detected an answer
+          responseDeadline: none (stimulus until the voice key detected an answer)
+          interTrialInterval: 1 s, starting when the experimenter coded the answer
+          responseMapping: >-
+            vocal: name the animal in the picture; onset timed by a voice key (E-Prime SRBOX), the answer coded on a
+            keyboard by the experimenter
+          feedback: unstated
+          missedResponse: >-
+            cannot be missed (stimulus until the voice key detected an answer, no deadline); an unclear answer or a
+            voice key not tripped by the answer coded as a scratch trial
+          blockOrder: LWmc in session 1; IS then LWmi in session 2
+          itemAssignment: >-
+            in the IS block, which two biased animals are PC-75 and which two PC-25 counterbalanced across participants
+
+    Gap:
+      type: IntermediateCatchEvent
+      name: At most one week
+      documentation: The article gives the two sessions as at most 1 week apart, not the interval for each participant.
+      timer:
+        id: Gap_Timer
+        timeDuration: "{sessionInterval}"
+
+    Session_2:
+      type: Task
+      name: Picture-word Stroop, session 2 (IS then LWmi blocks)
+      documentation: As in session 1, with the IS and then the LWmi task block.
+      cognitive:CognitiveTask:
+        construct: proactive and reactive control
+        platform: eprime
+      inputs:
+        In_Stroop_Settings_2:
+          source: $Stroop_Settings
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: Stroop effect within 3 SD of the mean in every condition?
+      default: $Flow_Excluded
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - Stroop effect more than three standard deviations from the mean in a condition
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (1)
+      documentation: One in this sample and three in Experiment 1b (the article's "Experiment 1" and "Experiment 2").
+
+    Select_Trials:
+      type: ServiceTask
+      name: Drop RTs below 0.2 s or above 3 s; mean RTs on correct trials only
+      documentation: >-
+        The RT cutoffs removed less than 1% of trials in every condition. The article does not say what happened to
+        scratch trials.
+
+    Analysis:
+      type: ServiceTask
+      name: Stroop effects by task block and item type; ANOVAs, t tests and correlations, both samples pooled
+      documentation: >-
+        Accuracy and mean correct RT per condition. Preliminary analyses tested each effect's interaction with the
+        sample (Experiment 1a or 1b); none was significant, so the two samples were pooled. A footnote says the analyses
+        were done in R, without naming packages.
+      implementation: r://
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (34; 89 pooled with Experiment 1b)
+
+    F_0:
+      source: $Enroll
+      target: $Session_1
+
+    F_1:
+      source: $Session_1
+      target: $Gap
+
+    F_2:
+      source: $Gap
+      target: $Session_2
+
+    F_3:
+      source: $Session_2
+      target: $Exclusion
+
+    Flow_Kept:
+      condition: max_abs_stroop_z <= 3
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_4:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_5:
+      source: $Analysis
+      target: $Analyzed

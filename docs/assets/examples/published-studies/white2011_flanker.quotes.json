@@ -1,0 +1,193 @@
+{
+ "file": "white2011_flanker",
+ "pmc": "PMC3195995",
+ "encoded": "Experiment 1, the arrow flanker task",
+ "bibtex": "@article{white2011diffusion, title = {Diffusion models of the flanker task: Discrete versus gradual attentional selection}, author = {White, Corey N. and Ratcliff, Roger and Starns, Jeffrey J.}, journal = {Cognitive Psychology}, volume = {63}, number = {4}, pages = {210--238}, year = {2011}, doi = {10.1016/j.cogpsych.2011.08.001}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "five arrows in a vertical column, the target at the center of the screen, each 0.7 deg with 0.4 deg between arrows",
+   "quote": "Each stimulus array contained five arrows (>) displayed vertically, with the central (target) arrow in the center of the screen.",
+   "where": "Method",
+   "quote2": "each arrow subtended .7 degree of visual angle, with .4 degree separation between the arrows"
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": "congruent (flankers face the target's direction), incongruent (flankers face the opposite direction)",
+   "quote": "For congruent trials, the flankers faced the same direction as the target, whereas for incongruent trials the flankers faced the opposite direction.",
+   "where": "Method"
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": "0.5",
+   "quote": "Each block of trials had an equal number of left and right targets, and congruent and incongruent stimuli.",
+   "where": "Method"
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": "768",
+   "quote": "Participants completed 48 practice trials followed by 8 blocks of 96 trials.",
+   "where": "Method",
+   "note": "8 x 96 = 768; 384 per condition, as half of each block is congruent."
+  },
+  {
+   "item": "blocks",
+   "status": "stated",
+   "value": "8 blocks of 96 trials",
+   "quote": "Participants completed 48 practice trials followed by 8 blocks of 96 trials.",
+   "where": "Method"
+  },
+  {
+   "item": "practice",
+   "status": "stated",
+   "value": "48",
+   "quote": "Participants completed 48 practice trials followed by 8 blocks of 96 trials.",
+   "where": "Method"
+  },
+  {
+   "item": "trialOrder",
+   "status": "unstated",
+   "note": "Each block had equal numbers of left and right targets and of congruent and incongruent stimuli; the order of trials is not described. 'In random order' in Experiments 2 and 3 refers to the order of block types, not trials."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "No order, seed, or sequence is described."
+  },
+  {
+   "item": "fixation",
+   "status": "stated",
+   "value": "none (stimulus uncued, after 0.35 s of blank screen)",
+   "quote": "The stimuli were presented uncued in the center of the computer screen and remained on screen until a response was given, followed by 350 ms of blank screen until the next trial.",
+   "where": "Method",
+   "note": "Judgment: read as no fixation or cue, the next stimulus following 350 ms of blank screen. No fixation point is mentioned anywhere for this task."
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "stated",
+   "value": "until response",
+   "quote": "remained on screen until a response was given",
+   "where": "Method"
+  },
+  {
+   "item": "responseDeadline",
+   "status": "stated",
+   "value": "none (stimulus until response)",
+   "quote": "remained on screen until a response was given",
+   "where": "Method",
+   "note": "Judgment: a stimulus shown until a response is given leaves no deadline. The 850 ms TOO SLOW message and the 120 ms stimulus belong to Experiment 5 only."
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "stated",
+   "value": "0.35",
+   "quote": "followed by 350 ms of blank screen until the next trial",
+   "where": "Method",
+   "note": "From the response, which ends the stimulus, to the next trial."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "\"/\" for a right-facing target, \"z\" for a left-facing target (no counterbalancing mentioned)",
+   "quote": "Responses were collected from the keyboard, with the “/” key indicating a right-facing target, and the “z” key indicating a left-facing target.",
+   "where": "Method"
+  },
+  {
+   "item": "feedback",
+   "status": "stated",
+   "value": "no error feedback (block feedback not mentioned)",
+   "quote": "No error feedback was provided.",
+   "where": "Method"
+  },
+  {
+   "item": "missedResponse",
+   "status": "stated",
+   "value": "cannot be missed (stimulus until response, no deadline)",
+   "quote": "remained on screen until a response was given",
+   "where": "Method"
+  },
+  {
+   "item": "platform",
+   "status": "unstated",
+   "note": "'Responses were collected from the keyboard'; no presentation software is named."
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (25); Analyzed (count unstated)",
+   "quote": "Twenty-five Ohio State undergraduates participated for credit in an introductory psychology course.",
+   "where": "Method",
+   "note": "The number analyzed is not stated. Table 1 lists 9,486 congruent and 9,471 incongruent observations (18,957), fewer than 25 x 768 = 19,200 trials less the 'less than .9%' trimmed (at least 19,027), so the counts do not settle whether all 25 were analyzed."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "unstated",
+   "note": "No rule for excluding participants is given, and no exclusion is reported; the bootstrap draws 'a sample of size N ... (where N is the number of participants in the experiment)'."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "stated",
+   "value": "Drop RTs below 0.3 s or above 1.5 s",
+   "quote": "Responses shorter than 300 ms or longer than 1500 ms were excluded from analyses (less than .9% of the data).",
+   "where": "Results",
+   "note": "Stated only in the Results. Error responses stay in: the fits use the RT quantiles of correct and error responses."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "unstated",
+   "note": "'Each model was fit to the data using a SIMPLEX routine for χ2 minimization', with simulated random walks; no software or language is named."
+  }
+ ],
+ "extra": [
+  {
+   "item": "sessions",
+   "status": "stated",
+   "value": "one session of about 40 minutes (task documentation)",
+   "quote": "The entire experiment lasted approximately 40 minutes.",
+   "where": "Method"
+  },
+  {
+   "item": "trialsPerCondition",
+   "status": "stated",
+   "value": "384",
+   "quote": "Each block of trials had an equal number of left and right targets, and congruent and incongruent stimuli.",
+   "where": "Method",
+   "note": "Follows from 8 blocks of 96 trials, half congruent."
+  },
+  {
+   "item": "targetDirections",
+   "status": "stated",
+   "value": "left and right, equal numbers in each block",
+   "quote": "Each block of trials had an equal number of left and right targets, and congruent and incongruent stimuli.",
+   "where": "Method"
+  },
+  {
+   "item": "instructions",
+   "status": "stated",
+   "value": "decide the central arrow's direction, quickly and accurately, on the target only (task documentation)",
+   "quote": "Participants were instructed to decide if the central arrow in a display of five arrows faced left or right, and to respond quickly and accurately.",
+   "where": "Method"
+  },
+  {
+   "item": "construct",
+   "status": "stated",
+   "value": "visual selective attention",
+   "quote": "The task has been discussed primarily in terms of understanding the mechanisms involved in visual/selective attention",
+   "where": "Other"
+  },
+  {
+   "item": "analysis",
+   "status": "stated",
+   "value": "spotlight, dual process and DSTP diffusion models fit by SIMPLEX chi-square minimization (Analysis name)",
+   "quote": "Each model was fit to the data using a SIMPLEX routine for χ2 minimization.",
+   "where": "Results"
+  }
+ ],
+ "states": "25 recruited; one session of about 40 min; five arrows in a vertical column, each 0.7 deg and 0.4 deg apart, at about 25 inches; congruent and incongruent, equal in each block; 48 practice trials, then 8 blocks of 96 (768); stimulus uncued and until response, no deadline, 350 ms blank screen before the next trial; / and z keys; no error feedback; RTs below 300 ms or above 1500 ms dropped; diffusion models fit by SIMPLEX chi-square minimization",
+ "unstated": "trial order and its seed, the presentation software, a rule for excluding participants (and the number analyzed), the analysis software",
+ "notes": "Experiment 1's own Method (5.1.1: Procedure, Stimuli, Participants) holds every stated value except the RT cutoffs, which are in its Results; later experiments refer back to it, not the reverse. PMC's text marks its paragraphs as introduction, but they sit under '5.1.1 Method'. Judgment calls: (1) fixation is read as stated (none) from 'presented uncued ... followed by 350 ms of blank screen until the next trial'; if 'uncued' is not taken to rule out a fixation point, it becomes unstated. (2) responseDeadline and missedResponse are read as stated from 'remained on screen until a response was given'. (3) The number analyzed is not stated (Analyzed (count unstated)), and the observation counts in Table 1 do not settle it. (4) feedback: no error feedback is stated; block feedback is not mentioned. Bibliographic metadata: the PMC record of this author manuscript gives the year as 2012 and the third author as 'Jeffrey S.'; the bibtex uses 2011 (Cognitive Psychology 63(4), as in the paper's references.bib) and 'Jeffrey J.'; the journal name is not in the article text and comes from the DOI."
+}

@@ -1,0 +1,237 @@
+{
+ "file": "hedge2018_flanker",
+ "pmc": "PMC5990556",
+ "encoded": "Study 1, the Eriksen flanker task (arrows)",
+ "bibtex": "@article{hedge2018reliability, title = {The reliability paradox: Why robust cognitive tasks do not produce reliable individual differences}, author = {Hedge, Craig and Powell, Georgina and Sumner, Petroc}, journal = {Behavior Research Methods}, volume = {50}, number = {3}, pages = {1166--1186}, year = {2018}, doi = {10.3758/s13428-017-0935-1}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "central arrow (1 cm x 1 cm), left or right, flanked above and below by two other symbols separated by 0.75 cm",
+   "quote": "On each trial, the central arrow (1 cm × 1 cm) was flanked above and below by two other symbols separated by 0.75 cm",
+   "where": "Method",
+   "note": "'Two other symbols' leaves open whether there is one symbol on each side or two; the encoding keeps the article's words."
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": "congruent (flanking arrows point the same way), neutral (straight lines), incongruent (flanking arrows point the opposite way)",
+   "quote": "Flanking stimuli were arrows pointing in the same direction as the central arrow (congruent condition), straight lines (neutral condition), or arrows pointing in the opposite direction to the central arrow (congruent condition).",
+   "where": "Method",
+   "note": "The article labels the opposite-direction condition '(congruent condition)', a slip: the RT cost '(incongruent RT – congruent RT)' in the same paragraph makes it the incongruent condition."
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": "1/3 (each condition 1/3)",
+   "quote": "Participants completed 240 trials in each condition (720 in total).",
+   "where": "Method",
+   "note": "Follows from 240 trials in each of three conditions."
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": "720",
+   "quote": "Participants completed 240 trials in each condition (720 in total).",
+   "where": "Method",
+   "note": "240 per condition, kept in the settings as trialsPerCondition."
+  },
+  {
+   "item": "blocks",
+   "status": "stated",
+   "value": "5 blocks of about 4 min each (trials per block not given)",
+   "quote": "Each task in Studies 1 and 2 consisted of five blocks of approximately 4 min each",
+   "where": "Method",
+   "note": "The number of trials per block is not given; it is 144 only if the five blocks are equal. Counted as stated because the division into blocks is given."
+  },
+  {
+   "item": "practice",
+   "status": "unstated",
+   "note": "No practice trials are mentioned; participants 'were given written and verbal instructions before each task'."
+  },
+  {
+   "item": "trialOrder",
+   "status": "stated",
+   "value": "conditions intermixed in a randomized order",
+   "quote": "Trials were presented intermixed in a randomized order.",
+   "where": "Figure",
+   "note": "Figure 1 caption, which the Method cites ('Figure 1 displays the format of the tasks used.'). The earlier encoding had it unstated."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "Only 'Trials were presented intermixed in a randomized order' (Figure 1 caption); no seed, sequence, or constraint is given."
+  },
+  {
+   "item": "fixation",
+   "status": "stated",
+   "value": "none, a blank screen between trials (Figure 1)",
+   "quote": "Figure 1 displays the format of the tasks used.",
+   "where": "Figure",
+   "figure": "13428_2017_935_Fig1_HTML.jpg (Figure 1), the Eriksen flanker panel, read from the image: each stimulus until response, then a black screen for 750 ms, then the next stimulus; no fixation point."
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "stated",
+   "value": "until response",
+   "quote": "Stimuli were presented until a response was given.",
+   "where": "Method"
+  },
+  {
+   "item": "responseDeadline",
+   "status": "stated",
+   "value": "none (stimulus until response)",
+   "quote": "Stimuli were presented until a response was given.",
+   "where": "Method",
+   "note": "Judgment: a stimulus shown until a response is given leaves no deadline at which a trial could end without one, and no deadline is mentioned. The earlier encoding had it unstated."
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "stated",
+   "value": "0.75",
+   "quote": "An Inter-Stimulus Interval (ISI) of 750 ms was used for all tasks.",
+   "where": "Method",
+   "note": "Given as an ISI; because the stimulus stays until the response, it runs from the response to the next stimulus. Repeated in the Figure 1 caption."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "\\ and / keys for left and right arrows (paired by order of mention; no counterbalancing mentioned)",
+   "quote": "Participants responded to the direction of a centrally presented arrow (left or right) using the \\ and / keys.",
+   "where": "Method",
+   "note": "The keys are named in the same order as the directions, without 'respectively'; counted as stated."
+  },
+  {
+   "item": "feedback",
+   "status": "stated",
+   "value": "mean RT and error rate after each block (trial feedback not mentioned)",
+   "quote": "participants received feedback about their average reaction times (RTs) and error rates after each block",
+   "where": "Method",
+   "note": "No trial-level feedback is mentioned for the flanker task, while it is stated for the SNARC and Navon tasks."
+  },
+  {
+   "item": "missedResponse",
+   "status": "stated",
+   "value": "cannot be missed (stimulus until response, no deadline)",
+   "quote": "Stimuli were presented until a response was given.",
+   "where": "Method",
+   "note": "Same reading as responseDeadline. The earlier encoding had it unstated."
+  },
+  {
+   "item": "platform",
+   "status": "stated",
+   "value": "psychopy",
+   "quote": "all other tasks were implemented in PsychoPy",
+   "where": "Method",
+   "note": "No version is given. 'All other tasks' are those other than the stop-signal task, which used STOP-IT; the flanker task is among them."
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (50); Analyzed (47)",
+   "quote": "Participants in Study 1 were 50 (three male) undergraduate students aged 18–21 years",
+   "where": "Method",
+   "quote2": "After these exclusions, 47 and 57 participants remained for the flanker and go/no-go tasks in Study 1 and 2, respectively",
+   "note": "The 47 analyzed for the flanker task in Study 1 are given in the Data analysis section, which is part of the Method."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "stated",
+   "value": "Accuracy below 60% in either session, over all flanker trials; Below the compliance criteria in two or more tasks within one session (all of their data removed)",
+   "quote": "Participants' data were not analysed for a given task if they show very low compliance, defined as: accuracy below 60% in either session for overall performance in the flanker, Stroop, Navon, and SNARC tasks",
+   "where": "Method",
+   "quote2": "A participant’s data was removed entirely if they fell below these criteria for two or more tasks within a single session, otherwise data were only excluded for the individual task.",
+   "note": "Participants who did not return for the second session (3 in Study 1) are dropped before this gateway, at their own end event."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "stated",
+   "value": "Drop RTs below 0.1 s or greater than 3 x the participant's MAD",
+   "quote": "The calculation of mean RTs excluded RTs below 100 ms and greater than three times the each individual’s median absolute deviation",
+   "where": "Method",
+   "note": "The article does not name the point the median absolute deviation is counted from (Leys et al. are cited) and does not say whether error trials enter the mean RTs. The earlier name said 'above 3 MAD over the median'."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "unstated",
+   "note": "No software is named for the ICCs ('a two-way random effects model for absolute agreement', ICC(2,1)). The Conclusions say this ANOVA-based approach is 'produced by popular packages such as SPSS', which does not say SPSS was used; G*Power is named only for the power calculations of Table 5. The earlier encoding's python://pingouin.intraclass_corr is not in the article."
+  }
+ ],
+ "extra": [
+  {
+   "item": "sessions",
+   "status": "stated",
+   "value": "2 sessions of 90 min",
+   "quote": "Participants completed the tasks (four in Studies 1 and 2, three in Study 3) in each of two 90-min sessions taking place 3 weeks apart, at the same time of day.",
+   "where": "Method"
+  },
+  {
+   "item": "sessionInterval",
+   "status": "stated",
+   "value": "P21D (3 weeks, same time of day; 7 participants rescheduled to 20 to 28 days)",
+   "quote": "in each of two 90-min sessions taking place 3 weeks apart, at the same time of day",
+   "quote2": "Seven participants in Study 1 and five participants in Study 2 were unable to attend their second session exactly 3 weeks later, and were rescheduled to between 20 and 28 days following their first session.",
+   "where": "Method"
+  },
+  {
+   "item": "taskOrder",
+   "status": "stated",
+   "value": "same order in both sessions, counterbalanced across participants with a Latin square (Session documentation)",
+   "quote": "Each participant completed the tasks in the same order in both of their sessions (in order not to introduce between-session variance associated with order), and the order of tasks was counterbalanced across participants using a Latin square.",
+   "where": "Method"
+  },
+  {
+   "item": "notReturned",
+   "status": "stated",
+   "value": "Did not return (3)",
+   "quote": "Data were not included if participants did not return for the follow-up session (3,2,2 for the three studies respectively).",
+   "where": "Method"
+  },
+  {
+   "item": "excludedCount",
+   "status": "stated",
+   "value": "Excluded (0)",
+   "quote": "After these exclusions, 47 and 57 participants remained for the flanker and go/no-go tasks in Study 1 and 2, respectively",
+   "where": "Method",
+   "note": "Follows arithmetically: 50 recruited, 3 did not return, 47 analyzed, so no participant was excluded from the flanker task by the compliance criteria in Study 1."
+  },
+  {
+   "item": "trialsPerCondition",
+   "status": "stated",
+   "value": "240",
+   "quote": "Participants completed 240 trials in each condition (720 in total).",
+   "where": "Method"
+  },
+  {
+   "item": "instructions",
+   "status": "stated",
+   "value": "as fast and as accurately as possible, written and verbal instructions before each task (task documentation)",
+   "quote": "Participants were instructed to be as fast and as accurate as possible in all tasks, and were given written and verbal instructions before each task.",
+   "where": "Method"
+  },
+  {
+   "item": "testingSetting",
+   "status": "stated",
+   "value": "groups of up to nine at separate stations, experimenter present (Session documentation)",
+   "quote": "Participants were tested in groups of up to nine, at separate stations in a multi-station lab, separated by dividers.",
+   "where": "Method"
+  },
+  {
+   "item": "construct",
+   "status": "stated",
+   "value": "response control",
+   "quote": "we examine the correlations between the four response control tasks administered in Studies 1 and 2",
+   "where": "Results"
+  },
+  {
+   "item": "analysis",
+   "status": "stated",
+   "value": "ICC(2,1) and SEM of the RT cost and the error rate cost across sessions (Analysis name)",
+   "quote": "Reliabilities were calculated using Intraclass Correlation Coefficients (ICC) using a two-way random effects model for absolute agreement.",
+   "where": "Method"
+  }
+ ],
+ "states": "50 recruited, 3 did not return, 47 analyzed; two 90-min sessions three weeks apart; PsychoPy; central arrow 1 cm, flanking symbols 0.75 cm apart; congruent, neutral and incongruent, 240 trials each (720), in five blocks of about 4 min, intermixed in random order; no fixation point, a blank screen between trials (Figure 1); stimulus until response, no deadline; ISI 750 ms; \\ and / keys; mean RT and error rate after each block; exclusion below 60% accuracy in either session; RTs below 100 ms or beyond three MADs dropped; ICC(2,1)",
+ "unstated": "practice trials, the seed of the trial order, the analysis software",
+ "notes": "Re-audit of the earlier encoding. Judgment calls: (1) responseDeadline and missedResponse are read as stated from 'Stimuli were presented until a response was given' (no deadline is mentioned, and no trial can end without a response); if the appendix reads 'until response' as fixing only the stimulus duration, both become unstated (15 stated). (2) trialOrder is stated only in the Figure 1 caption, which the Method cites, and fixation (none, a blank screen between trials) only in the figure's image. (3) blocks is counted as stated though the trials per block are not given (144 only if the blocks are equal). (4) responseMapping pairs the keys with the directions only by order of mention. (5) feedback: block feedback is stated, trial-level feedback is not mentioned. (6) The 3 who did not return for the second session were the earlier encoding's 'Excluded (3)' at the accuracy gateway; they are now their own end event, and the accuracy gateway excluded 0 (50 - 3 - 47). (7) The article's second compliance rule (below criteria in two or more tasks within one session) is added to the exclusion criteria. (8) The analysis software is unstated; SPSS is mentioned only as a package that produces the ANOVA-based ICC, and pingouin is not named. (9) 'Two other symbols' above and below may mean one or two on each side. The journal name comes from the DOI prefix (Behavior Research Methods), volume, issue and pages from the PMC record; they are not in the article text."
+}

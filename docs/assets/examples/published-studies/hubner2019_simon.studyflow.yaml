@@ -1,0 +1,155 @@
+id: hubner2019_simon
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Hubner2019:
+  type: Process
+  name: Simon task (Hubner and Tobel 2019, Experiment 3)
+  studyflow:Study:
+    authors:
+      - Hubner R
+      - Tobel L
+  documentation: >-
+    Hubner and Tobel (2019), Conflict resolution in the Eriksen flanker task: Similarities and differences to the Simon
+    task, Experiment 3, the Simon task only, encoded from the article alone, without its supplements, code, or the
+    papers it cites. Every value is taken from the article; a value it does not state is written `unstated`.
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (21)
+      documentation: >-
+        Students of the Universitat Konstanz, all with normal or corrected-to-normal vision, paid 5 EUR for one
+        half-hour session; 11 in the HPC group and 10 in the LPC group.
+
+    Group:
+      type: ExclusiveGateway
+      name: HPC or LPC group? (assignment unstated)
+      default: $Flow_LPC
+      documentation: >-
+        The proportion of congruent trials varies between participants, high (HPC, 11 participants) or low (LPC, 10
+        participants). The article does not say how participants were assigned to a group.
+
+    Simon_HPC:
+      type: Task
+      name: Simon task, HPC group (11)
+      documentation: Blocks with 75% congruent trials.
+      cognitive:CognitiveTask:
+        construct: interference control
+        platform: Presentation 14.7 Build 11.10.10
+      inputs:
+        In_Simon_Settings_HPC:
+          source: $Simon_Settings
+
+    Simon_LPC:
+      type: Task
+      name: Simon task, LPC group (10)
+      documentation: Blocks with 25% congruent trials.
+      cognitive:CognitiveTask:
+        construct: interference control
+        platform: Presentation 14.7 Build 11.10.10
+      inputs:
+        In_Simon_Settings_LPC:
+          source: $Simon_Settings
+
+    Simon_Settings:
+      type: DataObjectReference
+      name: Simon settings
+      documentation: >-
+        Experiment 3 says that its apparatus was the same as in the other experiments, so the software and the display
+        are taken from Experiment 1's Method. A block of 64 trials holds 48 congruent and 16
+        incongruent trials in the HPC group and the reverse in the LPC group. The article mentions one practice block
+        without its length. It says only that the square's side was random, not how the trials of a block were
+        ordered, and gives no seed.
+      studyflow:Parameters:
+        values:
+          stimuli: red or blue square, 2.2 x 2.2 cm, on a black background, 2.1 deg left or right of fixation
+          conditions:
+            - congruent
+            - incongruent
+          congruentProportion: 0.75 in the HPC group, 0.25 in the LPC group
+          trials: 640
+          blocks: 10 blocks of 64 trials
+          practice: unstated
+          trialOrder: unstated
+          randomSeed: unstated
+          fixation: fixation cross 0.4 s, then blank screen 0.4 s
+          stimulusDuration: 0.165
+          responseDeadline: none (the screen stays blank until the response)
+          interTrialInterval: 1
+          responseMapping: left mouse button for blue (right index finger), right button for red (right middle finger)
+          feedback: a beep after an error (block feedback not mentioned)
+          missedResponse: cannot be missed (blank screen until the response, no deadline)
+          display: 19-inch monitor, 1280 x 1024 pixels
+          instructions: respond as fast as possible without making many errors
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: Excluded? (rule unstated)
+      default: $Flow_Excluded
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - unstated
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (0)
+      documentation: No rule is stated; the degrees of freedom (F(1, 19), and t(10) and t(9) by group) show that all 21 were analyzed.
+
+    Select_Trials:
+      type: ServiceTask
+      name: Drop RTs below 0.1 s or above 1.2 s; correct responses only for RT analyses
+      implementation: r://
+
+    Analysis:
+      type: ServiceTask
+      name: ANOVAs of correct RTs and error rates, congruency by proportion; delta functions and CAFs
+      documentation: >-
+        Mixed ANOVAs with congruency within and proportion between participants. Delta functions at the quantiles .1,
+        .3, .5, .7 and .9, computed as in the previous experiments, with slopes by linear regression (HPC) or a degree-2
+        polynomial (LPC); CAFs in five 20% bins, as in Experiment 1. The article says at the start of Experiment 1's Results that
+        data were analyzed with R, and names no package. The DMC and DSTP fits (PRAXIS routine, G2) are not encoded;
+        the article names no software for them.
+      implementation: r://
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (21)
+
+    F_0:
+      source: $Enroll
+      target: $Group
+
+    Flow_HPC:
+      condition: group = "HPC"
+      source: $Group
+      target: $Simon_HPC
+
+    Flow_LPC:
+      source: $Group
+      target: $Simon_LPC
+
+    F_1:
+      source: $Simon_HPC
+      target: $Exclusion
+
+    F_2:
+      source: $Simon_LPC
+      target: $Exclusion
+
+    Flow_Kept:
+      condition: not(excluded)
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_3:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_4:
+      source: $Analysis
+      target: $Analyzed

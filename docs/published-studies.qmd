@@ -1,0 +1,49 @@
+---
+title: "Published studies as diagrams"
+description: "Ten published interference-control studies written as Studyflow diagrams from their articles alone, with each value an article does not state written as unstated."
+---
+
+Writing a study as a Studyflow diagram gives each of its decisions a place, so a decision that a description leaves out becomes visible. To see what this looks like for single studies, we rewrote ten published interference-control studies as Studyflow diagrams from their articles alone, without their supplements, code, or the papers they cite. Five used the Flanker task[^eriksen], four the Simon task[^simon], and one the Stroop task[^stroop]. They were published between 2010 and 2023 and include laboratory and online studies, a comparison of patients with healthy controls, a standardized test battery, a preregistered experiment, and studies of test-retest reliability (@tbl-encoded). Each diagram holds the same 20 values that a replication needs. Fifteen are settings of the task, such as the order of trials, the timing of a trial, and what happens when no response comes in time. The other five are the software that presented the task, the sample, the rules that excluded participants and trials, and the software of the analysis. Each value a diagram states is taken from the article, and each value the article does not state is written unstated, so the diagram is complete in form while its gaps stay visible. The passage of the article behind each stated value is recorded beside its diagram ([Files](#files)). All ten diagrams pass `studyflow validate` (release 26.11.2).
+
+The articles stated between 10 and 17 of the 20 values (median 15.5). None stated the random seed of its trial order, seven did not name the software of the analysis, and five did not state a rule for excluding participants. Each is a decision a replication has to make again. The values that the articles did state were also spread across the text. Five articles gave the rule for selecting trials only in their Results, and two showed parts of a trial only in a figure.
+
+Some of the unstated values may be stated in supplements, code, or an instrument's manual that we did not consult, so the diagrams measure what the articles alone specify. Audited the same way, the diagram of the example study of the Studyflow paper states all 20 values.
+
+| Study | Task and design | Stated, of 20 | Values a replication needs that the article does not state |
+|:----------|:--------------|:---:|:--------------------|
+| [White et al. (2011)](https://doi.org/10.1016/j.cogpsych.2011.08.001), Experiment 1 | Flanker (arrows); one session; 25 tested | 15 | the trial order and its seed, the presentation software, a rule for excluding participants, the analysis software |
+| [Crump et al. (2013)](https://doi.org/10.1371/journal.pone.0057410), Experiment 3 | Flanker (letters), online; one session; 52 analyzed | 14 | the blocks, practice trials, the seed of the trial order, a rule for excluding participants, the rule for excluding outlier trials, the analysis software |
+| [Burle et al. (2014)](https://doi.org/10.3758/s13423-013-0561-6) | Flanker (letters), with recorded muscle activity; two sessions, one with accuracy and one with speed instructions; 16 tested | 10 | practice trials, the seed of the trial order, what precedes the stimulus, the stimulus duration, the response deadline, the interval between trials, feedback, what happens to a missed response, the presentation software, the analysis software; outside the 20, the interval between the sessions |
+| [Zelazo et al. (2014)](https://doi.org/10.1017/S1355617714000472) | Flanker (fish and arrows) in a standardized test battery; 237 of 268 analyzed, 89 retested 7 to 21 days later | 16 | the seed of the trial order, feedback, what happens to a missed response, the analysis software; the instrument may fix some of these |
+| [Hedge et al. (2018)](https://doi.org/10.3758/s13428-017-0935-1), Study 1 | Flanker (arrows); two sessions three weeks apart; 47 of 50 analyzed | 17 | practice trials, the seed of the trial order, the analysis software |
+| [Wylie et al. (2010)](https://doi.org/10.1162/jocn.2009.21326) | Simon; patients with Parkinson's disease and healthy controls; 82 tested | 14 | the seed of the trial order, feedback, what happens to a missed response, the presentation software, a rule for excluding participants, the analysis software |
+| [Hübner and Töbel (2019)](https://doi.org/10.1371/journal.pone.0214203), Experiment 3 | Simon, with 75% or 25% congruent trials in two groups; 21 tested | 16 | the trial order and its seed, practice trials, a rule for excluding participants; outside the 20, how participants were assigned to the groups |
+| [Mittelstädt et al. (2022)](https://doi.org/10.3758/s13423-021-02003-x), preregistered experiment | Simon, in blocks alternating with a Flanker task, with speed or accuracy instructions; 32 tested | 17 | the seed of the trial order, a rule for excluding participants, the software of the statistical tests |
+| [Kucina et al. (2023)](https://doi.org/10.1038/s41467-023-37777-2), final experiment, double-shot Simon | Simon, as a game played online; random assignment to one of six conditions; two sessions 10 minutes apart; 30 analyzed in this condition | 15 | the proportion of congruent trials, the seed of the trial order, what precedes the stimulus, the stimulus duration, the interval between trials; outside the 20, the allocation ratio |
+| [Gonthier et al. (2016)](https://doi.org/10.3758/s13421-016-0591-1), Experiment 1a | Stroop (pictures and words), spoken responses; two sessions at most a week apart; 34 of 35 analyzed | 16 | the trial order and its seed, what precedes the stimulus, feedback |
+| The example study of the Studyflow paper, as its diagram | Flanker and Simon; two groups, two sessions; 48 agents per cohort | 20 | none; outside the 20, the instruction screens a person would see, held by the task software, and a language-model actor's sampling settings, left to the server's defaults and recorded with every exchange |
+
+: Ten published interference-control studies written as Studyflow diagrams from their articles alone, and the example study of the Studyflow paper audited the same way. Each diagram holds the same 20 values that a replication needs, and each value that an article does not state is written `unstated`. {#tbl-encoded}
+
+Taken together, these studies suggest that the gaps follow less from careless authors than from describing a process in prose, where nothing marks a decision as missing and nothing keeps the copies of a decision in agreement. Studyflow gives each decision a place in one diagram, which makes a missing value easy to see, and every view reads that one diagram.
+
+## Files
+
+Each study has a diagram and a quote record. The quote record gives, for each of the 20 values, the words of the article it was read from and where they stand, or why the value is unstated. [`check_encodings.py`](assets/examples/published-studies/check_encodings.py) checks every quote against the article's text on PubMed Central and each diagram against its record, and counts what the articles state.
+
+- White et al. (2011): [diagram](assets/examples/published-studies/white2011_flanker.studyflow.yaml), [quote record](assets/examples/published-studies/white2011_flanker.quotes.json)
+- Crump et al. (2013): [diagram](assets/examples/published-studies/crump2013_flanker.studyflow.yaml), [quote record](assets/examples/published-studies/crump2013_flanker.quotes.json)
+- Burle et al. (2014): [diagram](assets/examples/published-studies/burle2014_flanker.studyflow.yaml), [quote record](assets/examples/published-studies/burle2014_flanker.quotes.json)
+- Zelazo et al. (2014): [diagram](assets/examples/published-studies/zelazo2014_flanker.studyflow.yaml), [quote record](assets/examples/published-studies/zelazo2014_flanker.quotes.json)
+- Hedge et al. (2018): [diagram](assets/examples/published-studies/hedge2018_flanker.studyflow.yaml), [quote record](assets/examples/published-studies/hedge2018_flanker.quotes.json)
+- Wylie et al. (2010): [diagram](assets/examples/published-studies/wylie2010_simon.studyflow.yaml), [quote record](assets/examples/published-studies/wylie2010_simon.quotes.json)
+- Hübner and Töbel (2019): [diagram](assets/examples/published-studies/hubner2019_simon.studyflow.yaml), [quote record](assets/examples/published-studies/hubner2019_simon.quotes.json)
+- Mittelstädt et al. (2022): [diagram](assets/examples/published-studies/mittelstadt2022_simon.studyflow.yaml), [quote record](assets/examples/published-studies/mittelstadt2022_simon.quotes.json)
+- Kucina et al. (2023): [diagram](assets/examples/published-studies/kucina2023_simon.studyflow.yaml), [quote record](assets/examples/published-studies/kucina2023_simon.quotes.json)
+- Gonthier et al. (2016): [diagram](assets/examples/published-studies/gonthier2016_stroop.studyflow.yaml), [quote record](assets/examples/published-studies/gonthier2016_stroop.quotes.json)
+
+[^eriksen]: Eriksen, B. A., & Eriksen, C. W. (1974). Effects of noise letters upon the identification of a target letter in a nonsearch task. *Perception & Psychophysics*, 16(1), 143-149.
+
+[^simon]: Simon, J. R. (1969). Reactions toward the source of stimulation. *Journal of Experimental Psychology*, 81(1), 174-176.
+
+[^stroop]: Stroop, J. R. (1935). Studies of interference in serial verbal reactions. *Journal of Experimental Psychology*, 18(6), 643-662.

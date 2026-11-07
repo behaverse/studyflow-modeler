@@ -1,0 +1,165 @@
+id: burle2014_flanker
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Burle2014:
+  type: Process
+  name: Eriksen flanker (Burle et al. 2014, single experiment)
+  studyflow:Study:
+    authors:
+      - Burle B
+      - Spieser L
+      - Servant M
+      - Hasbroucq T
+  documentation: >-
+    Burle, Spieser, Servant and Hasbroucq (2014), Distributional reaction time properties in the Eriksen task: marked
+    differences or hidden similarities with the Simon task?, its single experiment, the Eriksen flanker task only,
+    encoded from the article alone, without its supplements, code, or the papers it cites. Every value is taken from the
+    article; a value it does not state is written `unstated`.
+  properties:
+    P_Session_Interval:
+      name: sessionInterval
+      value: unstated
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (16)
+      documentation: >-
+        Five women and 11 men, 18 to 50 years of age, all with normal or corrected-to-normal vision; informed consent.
+
+    Session_1:
+      type: Task
+      name: Eriksen flanker, session 1 (ACC or SPD)
+      documentation: >-
+        Participants sat in a dark room facing the display and responded with the thumbs. The EMG of the flexor pollicis
+        brevis of both hands was recorded (two electrodes 2 cm apart on the thenar eminences, 10 Hz to 1 kHz, sampled at
+        2 kHz) and watched by the experimenter, who asked the participant to relax when it became noisy. EMG onsets were
+        later hand-scored, blind to the trial type, to sort correct trials into pure-correct, partial-error and other
+        trials.
+      cognitive:CognitiveTask:
+        construct: online executive control
+        platform: unstated
+      inputs:
+        In_Flanker_Settings:
+          source: $Flanker_Settings
+
+    Flanker_Settings:
+      type: DataObjectReference
+      name: Flanker settings
+      studyflow:Parameters:
+        values:
+          stimuli: >-
+            a target letter (H or S) on the central one of a panel of five seven-segment LED digit displays (LTS-3401LP
+            LITE ON), the four flanking displays showing distractor letters; whole display 1.4 deg of visual angle
+          conditions:
+            - compatible (HHHHH, SSSSS)
+            - incompatible (HHSHH, SSHSS)
+          congruentProportion: 0.5 (the four stimuli equiprobable)
+          trials: 640 per session (10 blocks x 64), 1280 in all
+          blocks: 10 blocks of 64 trials per session
+          practice: unstated
+          trialOrder: first-order trial-to-trial transitions balanced
+          randomSeed: unstated
+          fixation: unstated
+          stimulusDuration: unstated
+          responseDeadline: unstated
+          interTrialInterval: unstated
+          responseMapping: >-
+            left or right thumb keypress, one per target letter (H or S); the letter-to-button mapping counterbalanced
+            across participants
+          feedback: unstated
+          missedResponse: unstated
+          instruction: >-
+            ACC (respond very accurately) in one session and SPD (respond very quickly) in the other; within each
+            letter-to-button mapping, half of the participants had ACC first and half SPD first
+
+    Gap:
+      type: IntermediateCatchEvent
+      name: Between sessions (interval unstated)
+      timer:
+        id: Gap_Timer
+        timeDuration: "{sessionInterval}"
+
+    Session_2:
+      type: Task
+      name: Eriksen flanker, session 2 (the other instruction)
+      documentation: As in session 1, under the instruction not given in session 1.
+      cognitive:CognitiveTask:
+        construct: online executive control
+        platform: unstated
+      inputs:
+        In_Flanker_Settings_2:
+          source: $Flanker_Settings
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: At least ten partial errors in every condition?
+      default: $Flow_Excluded
+      documentation: >-
+        Applies to the correction-ratio and delta-plot analyses. The RT and error analyses (Table 1) report all 16
+        participants.
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - Fewer than ten partial errors in at least one condition
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (4)
+      documentation: From the correction-ratio and delta-plot analyses only.
+
+    Select_Trials:
+      type: ServiceTask
+      name: Keep correct trials classed by EMG as pure-correct or partial-error; drop the other trials (about 8%)
+      documentation: >-
+        Pure-correct trials show a single EMG activation; partial-error trials show an incorrect activation at least
+        10 ms before the correct one; other trials were discarded. The RT distributions are of correct RTs. No RT
+        cutoff is stated.
+
+    Analysis:
+      type: ServiceTask
+      name: Repeated-measures ANOVAs on RT, error rates, correction ratio and delta plots
+      documentation: >-
+        Planned comparisons followed the ANOVAs; overt and partial error rates were arcsine-transformed. The correction
+        ratio is partial errors over partial plus overt errors. Delta plots come from RT distributions Vincentized into
+        five bins of 20%, separately for pure-correct and partial-error trials, and their shape was tested with
+        orthogonal polynomial contrasts. The article names no software.
+      implementation: unstated://analysis
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (12)
+      documentation: 12 in the correction-ratio and delta-plot analyses; the RT and error analyses report all 16.
+
+    F_0:
+      source: $Enroll
+      target: $Session_1
+
+    F_1:
+      source: $Session_1
+      target: $Gap
+
+    F_2:
+      source: $Gap
+      target: $Session_2
+
+    F_3:
+      source: $Session_2
+      target: $Exclusion
+
+    Flow_Kept:
+      condition: min_partial_errors_per_condition >= 10
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_4:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_5:
+      source: $Analysis
+      target: $Analyzed

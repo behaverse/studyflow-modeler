@@ -1,0 +1,235 @@
+{
+ "file": "crump2013_flanker",
+ "pmc": "PMC3596391",
+ "encoded": "Experiment 3, the letter flanker task, run online through Amazon Mechanical Turk",
+ "bibtex": "@article{crump2013mturk, title = {Evaluating {Amazon's Mechanical Turk} as a tool for experimental behavioral research}, author = {Crump, Matthew J. C. and McDonnell, John V. and Gureckis, Todd M.}, journal = {PLOS ONE}, volume = {8}, number = {3}, pages = {e57410}, year = {2013}, doi = {10.1371/journal.pone.0057410}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "fffff, hhhhh, ffhff or hhfhh in white 50-pt lowercase letters, centered on a black webpage",
+   "quote": "Flanker stimuli were presented in white on a black webpage background in 50-pt font.",
+   "where": "Method",
+   "quote2": "There were two compatible items (‘fffff’, ‘hhhhh’) and two incompatible trials (‘ffhff’, ‘hhfhh’).",
+   "note": "Centered through 'The display parameters were the same as the Stroop experiment', whose words 'were presented in 50-pt font in the center of the webpage'. The font and the spacing of the letters are not given, and the sizes are in points only, on each worker's own screen."
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": "compatible (fffff, hhhhh), incompatible (ffhff, hhfhh)",
+   "quote": "There were two compatible items (‘fffff’, ‘hhhhh’) and two incompatible trials (‘ffhff’, ‘hhfhh’).",
+   "where": "Method",
+   "note": "The article calls the conditions compatible and incompatible."
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": "0.5",
+   "quote": "There were a total of 100 trials, with 50% compatible and incompatible items.",
+   "where": "Method",
+   "note": "Each trial's item was drawn by 'a random procedure', so whether the 50% is exact for each worker or holds only on average is not said."
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": "100",
+   "quote": "There were a total of 100 trials, with 50% compatible and incompatible items.",
+   "where": "Method",
+   "note": "The Participants paragraph says the 52 workers 'completed all 96 trials', which conflicts with the design's 100. 96 is the trial count of Experiments 1 and 2, and the same phrase recurs in the Participants paragraphs of Experiments 4, 5 and 6, while the designs of Experiments 4 and 6 give 100 and 80 trials, so it reads as a carry-over; the design's 100 is encoded. The Section 1 introduction says the tasks involve 'approximately 100 trials'."
+  },
+  {
+   "item": "blocks",
+   "status": "unstated",
+   "note": "No blocks or breaks are mentioned. Each trial started the next automatically ('The next trial was triggered automatically with a delay of 500 ms'), and the general webpage showed a counter of the trials done and left; one run of 100 trials is likely but not stated."
+  },
+  {
+   "item": "practice",
+   "status": "unstated",
+   "note": "The general web-based procedure of Experiment 1, which Experiment 3 used, says 'Workers could view example trials so they could decide whether the task was of interest before accepting the HIT by pressing a button'; their number, and whether they count as practice, is not given."
+  },
+  {
+   "item": "trialOrder",
+   "status": "stated",
+   "value": "random, the item on each trial drawn by a random procedure, a different sequence for each subject",
+   "quote": "On each trial a random procedure was used to determine which of the four items was presented, and the random trial sequence was different for each subject.",
+   "where": "Method",
+   "note": "Whether each item was drawn independently or a list of 50 compatible and 50 incompatible trials was shuffled is not said."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "Only that 'the random trial sequence was different for each subject'; no seed, generator or sequence is given."
+  },
+  {
+   "item": "fixation",
+   "status": "stated",
+   "value": "fixation point for 0.5 s, the stimulus immediately after",
+   "quote": "Each trial began with a fixation point displayed for 500 ms, followed immediately by a Flanker stimulus that remained onscreen until the response.",
+   "where": "Method"
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "stated",
+   "value": "until response",
+   "quote": "followed immediately by a Flanker stimulus that remained onscreen until the response",
+   "where": "Method"
+  },
+  {
+   "item": "responseDeadline",
+   "status": "stated",
+   "value": "none (stimulus until response)",
+   "quote": "followed immediately by a Flanker stimulus that remained onscreen until the response",
+   "where": "Method",
+   "note": "Judgment, as in the other encodings: a stimulus that stays until the response leaves no deadline at which a trial could end without one, and none is mentioned (a 'respond faster' warning is described only for Experiment 5)."
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "stated",
+   "value": "0.5",
+   "quote": "The next trial was triggered automatically with a delay of 500 ms.",
+   "where": "Method",
+   "note": "From the response, which immediately replaced the stimulus with feedback, to the start of the next trial; with that trial's 500 ms fixation point, the next stimulus came 1 s after the response."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "F key for the target f, H key for the target h",
+   "quote": "The keyboard responses ‘F’ and ‘H’ were used to identify the targets.",
+   "where": "Method",
+   "quote2": "Subjects made their response by pressing the ‘F’ or ‘H’ key as quickly and accurately as possible.",
+   "note": "Each key is the letter of its target; no counterbalancing is mentioned or needed."
+  },
+  {
+   "item": "feedback",
+   "status": "stated",
+   "value": "correct or incorrect, replacing the stimulus at each response, in white 50-pt font",
+   "quote": "This button press immediately replaced the Flanker stimulus with feedback indicating whether the response was correct or incorrect.",
+   "where": "Method",
+   "quote2": "Feedback for correct and incorrect trials was presented in white using 50-pt font.",
+   "note": "Its duration is not given separately; it presumably stayed until the next trial began 500 ms later (in Experiment 1, feedback 'was presented on screen for 500 ms and was removed at the beginning of the next trial'). Block feedback is not mentioned (no blocks are)."
+  },
+  {
+   "item": "missedResponse",
+   "status": "stated",
+   "value": "cannot be missed (stimulus until response, no deadline)",
+   "quote": "followed immediately by a Flanker stimulus that remained onscreen until the response",
+   "where": "Method",
+   "note": "Same reading as responseDeadline. A worker could still end the whole task early with the submit button ('Workers could press the submit button at any time during the experiment')."
+  },
+  {
+   "item": "platform",
+   "status": "stated",
+   "value": "HTML and JavaScript (the authors' own code) in the worker's web browser",
+   "quote": "The experiment was again presented to workers as an HTML webpage with task flow controlled by JavaScript code running locally in each worker's web browser.",
+   "where": "Method",
+   "note": "No software package, browser or version is named. 'The experiments in the first and second series were coded together by the first author' (introduction). PsiTurk, and the exclusion of Internet Explorer, are named only for Experiment 8, in the third series, which the second and last authors coded."
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (52); Analyzed (52)",
+   "quote": "Fifty-two unique workers completed all 96 trials.",
+   "where": "Method",
+   "quote2": "F(1,51) = 65.78",
+   "note": "One HIT with 60 assignments; the article reports only the 52 who completed all the trials, not how many accepted the HIT, failed the typing check or stopped early (the Section 1 introduction: 'it is common for some proportion of the requested HITs to be returned incomplete'). The 52 analyzed follow from the ANOVAs' F(1,51) in the Results; no analyzed count is stated as such. On '96 trials', see trials."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "unstated",
+   "note": "No rule is given for Experiment 3. In effect none was excluded: 52 completed and the ANOVAs' F(1,51) imply 52 analyzed (Excluded (0)). The General Discussion says the authors 'considered various ways to exclude suspicious or odd behavior' but 'ultimately chose not to report these analyses'; that passage echoes Experiment 8's and is not tied to Experiment 3, so it is not read as this experiment's rule. Read as a stated rule of none, this item becomes stated (15 of 22)."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "unstated",
+   "note": "'The same outlier analyses applied in Experiments 1 and 2 resulted in removal 3% of the data from each condition'; the outlier rule itself is given nowhere (Experiment 1: 'an outlier analysis, which removed 3% of the observations'). Whether error trials were dropped from the mean RTs is not said for Experiment 3 (Experiment 1 analyzed 'only correct trials')."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "unstated",
+   "note": "The analysis is 'separate one-way repeated measures ANOVAs with compatibility (compatible vs. incompatible) as the single factor' (Results); no software is named."
+  }
+ ],
+ "extra": [
+  {
+   "item": "recruitment",
+   "status": "stated",
+   "value": "one HIT with 60 assignments on Amazon Mechanical Turk (Enroll documentation)",
+   "quote": "One HIT with 60 assignments was submitted to AMT.",
+   "where": "Method"
+  },
+  {
+   "item": "payment",
+   "status": "stated",
+   "value": "$0.10 for a task of about 5 min (Enroll documentation)",
+   "quote": "Workers were paid $0.10 to complete the task which lasted approximately 5 min.",
+   "where": "Method"
+  },
+  {
+   "item": "demographics",
+   "status": "stated",
+   "value": "not collected; workers anonymous (Enroll documentation)",
+   "quote": "Demographic information was not collected and workers remained completely anonymous.",
+   "where": "Method"
+  },
+  {
+   "item": "consent",
+   "status": "stated",
+   "value": "instructions and informed consent on the HIT page, consent signed electronically (Enroll documentation)",
+   "quote": "For all experiments in section one, participants electronically signed consent forms.",
+   "where": "Other",
+   "quote2": "When viewing the experiment “ad” workers were presented with a webpage containing task instructions and informed consent.",
+   "note": "The first quote is in the Section 1 introduction; the second in the general procedure of Experiment 1."
+  },
+  {
+   "item": "inclusionCriteria",
+   "status": "stated",
+   "value": "Copied the sentence faster than 40 words/min (eligibility gateway)",
+   "quote": "If the sentence was typed faster than 40 words/min, the worker continued to the main task.",
+   "where": "Method",
+   "quote2": "Next, they viewed a verification screen and were asked to type the sentence as quickly and accurately as possible (described above).",
+   "note": "Stated in Experiment 1's Participants and Procedure. It applies to Experiment 3 through 'The same general web-based procedure used in Experiments 1 and 2 was employed here', and Experiment 5 refers to 'The same screening procedure and webpage used in Experiments 1–4'. The number who failed it is not given (Not eligible (count unstated))."
+  },
+  {
+   "item": "excludedCount",
+   "status": "stated",
+   "value": "Excluded (0)",
+   "quote": "Fifty-two unique workers completed all 96 trials.",
+   "where": "Method",
+   "quote2": "F(1,51) = 10.33",
+   "note": "Follows arithmetically from 52 completers and the ANOVAs' F(1,51) (Results)."
+  },
+  {
+   "item": "taskWebpage",
+   "status": "stated",
+   "value": "resizable black webpage with a submit button usable at any time, an instructions button and a counter of the trials done and left (Flanker documentation)",
+   "quote": "The main task consisted of a resizable webpage with a black background.",
+   "where": "Method",
+   "quote2": "Workers could press the submit button at any time during the experiment.",
+   "note": "Experiment 1's Procedure, by 'the same general web-based procedure'."
+  },
+  {
+   "item": "instructions",
+   "status": "stated",
+   "value": "respond as quickly and accurately as possible (Flanker documentation)",
+   "quote": "Subjects made their response by pressing the ‘F’ or ‘H’ key as quickly and accurately as possible.",
+   "where": "Method"
+  },
+  {
+   "item": "construct",
+   "status": "stated",
+   "value": "spatial attention",
+   "quote": "The Flanker task measures participants' spatial attention in a task requiring them to select relevant from irrelevant information.",
+   "where": "Method"
+  },
+  {
+   "item": "analysis",
+   "status": "stated",
+   "value": "separate one-way repeated-measures ANOVAs of mean RT and error rate, compatibility as the factor (Analysis name)",
+   "quote": "Mean RTs and error rates for each subject in each condition were submitted to separate one-way repeated measures ANOVAs with compatibility (compatible vs. incompatible) as the single factor.",
+   "where": "Results"
+  }
+ ],
+ "states": "52 of a 60-assignment HIT completed and were analyzed (52 from the ANOVAs' df); $0.10 for about 5 min; a typing check above 40 words/min; HTML and JavaScript in the worker's browser; fffff, hhhhh, ffhff and hhfhh in white 50-pt letters on black; 100 trials, 50% compatible, in random order, a different sequence for each worker; fixation point 500 ms, stimulus until response, no deadline; next trial 500 ms after the response; F and H keys; correct or incorrect after each response; one-way repeated-measures ANOVAs on mean RT and error rate",
+ "unstated": "blocks, practice trials, the seed of the trial order, a rule for excluding participants, the outlier rule for trials, the analysis software",
+ "notes": "General passages used: (a) the Section 1 introduction (tasks of approximately 100 trials; each experiment one HIT with 60 assignments; HITs returned incomplete; consent signed electronically); (b) Experiment 1's Procedure, the 'general web-based procedure' Experiment 3 says it used (the HIT page with instructions, informed consent and example trials, the typing verification screen, and the task webpage with its submit button, instructions button and trial counter), with the 40 words/min criterion from Experiment 1's Participants paragraph and Experiment 5's 'The same screening procedure and webpage used in Experiments 1–4' as confirmation; (c) Experiment 1's display, through 'The display parameters were the same as the Stroop experiment' (50-pt font in the center of a black page); (d) the paragraph saying the first and second series were coded by the first author, for the platform. Not used: PsiTurk and the Internet Explorer exclusion (Experiment 8, third series, coded by the other authors), and the General Discussion's remarks on excluding participants. Judgment calls: (1) trials is the design's 100, against the Participants paragraph's 'completed all 96 trials'. (2) responseDeadline and missedResponse are read as stated from 'remained onscreen until the response', as in the other encodings; read the other way, the count is 12. (3) The typing check is the eligibility gateway after Recruited (52); the 52 are the workers who completed all the trials, and the numbers who failed the check or stopped early are not given. (4) participantExclusion is unstated: no rule is given, though the counts show none was excluded (Excluded (0)); read as a stated 'none', the count is 15. (5) Analyzed (52) follows from F(1,51) in the Results. (6) trialExclusion is unstated: an outlier analysis removed 3% of the data by a rule the article never gives. (7) congruentProportion and trialOrder: 50% compatible, each trial's item drawn by a random procedure; whether the 50% is exact for each worker is not said. (8) interTrialInterval is 0.5 s from the response to the next trial, whose 0.5 s fixation follows; the feedback is shown in between. Bibliographic metadata: the journal, volume, issue and pages are not in the article text and come from the DOI and the PMC record; the key and fields match the paper's references.bib entry crump2013mturk."
+}

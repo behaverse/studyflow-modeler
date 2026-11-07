@@ -1,0 +1,286 @@
+{
+ "file": "zelazo2014_flanker",
+ "pmc": "PMC4601803",
+ "encoded": "the adult validation sample (ages 20 to 85) with its retest subsample, the NIH Toolbox Flanker Inhibitory Control and Attention Test only",
+ "bibtex": "@article{zelazo2014toolbox, title = {{NIH Toolbox Cognition Battery (CB)}: Validation of executive function measures in adults}, author = {Zelazo, Philip David and Anderson, Jacob E. and Richler, Jennifer and Wallner-Allen, Kathleen and Beaumont, Jennifer L. and Conway, Kevin P. and Gershon, Richard and Weintraub, Sandra}, journal = {Journal of the International Neuropsychological Society}, volume = {20}, number = {6}, pages = {620--629}, year = {2014}, doi = {10.1017/S1355617714000472}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "a middle fish (fish block) or arrow (arrows block) facing left or right, between four flanking fish or arrows, which appear 0.1 s before it, after the word middle (Figure 2); size and spacing not given",
+   "quote": "In the arrows block, the stimuli consisted of arrows instead of fish",
+   "where": "Method",
+   "quote2": "For all trials, the word “middle” was presented visually on each trial, to remind participants to attend to the middle stimulus.",
+   "note": "Counted as stated for the items shown; the number, size and spacing of the flankers are not given, and the instrument holds them (the introduction says only that the instrument's 'font sizes, image sizes' were designed for accessibility, and that flankers are 'typically two on either side' in flanker tasks generally).",
+   "figure": "nihms702091f2.jpg (Figure 2, the fish block), read from the image: Inter-trial Interval 800 ms; Fixation 1,000-1,500 ms; Cue (the word Middle) 1,000 ms; Flankers 100 ms; Test Stimulus 10,000 ms."
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": "congruent (flankers face the same way as the middle stimulus), incongruent (flankers face the other way)",
+   "quote": "a block of 25 fish trials (16 congruent and 9 incongruent trials)",
+   "where": "Method",
+   "quote2": "On some trials, the orientation of the flanking stimuli is congruent with the orientation of the central stimulus, and on others it is incongruent.",
+   "note": "The second quote, defining the conditions, is in the introduction. The fish and arrows blocks are under blocks."
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": "0.64",
+   "quote": "a block of 25 fish trials (16 congruent and 9 incongruent trials)",
+   "where": "Method",
+   "note": "16 of 25 in each test block, by arithmetic; the practice block is 2 of 4."
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": "50, 25 per block (16 congruent and 9 incongruent in each)",
+   "quote": "In the arrows block, the stimuli consisted of arrows instead of fish, but the structure of this block was otherwise identical to the fish block (25 trials, with 16 congruent and 9 incongruent).",
+   "where": "Method",
+   "note": "50 for a participant who reached the arrows block, 25 for one who did not (arrowsBlockCriterion). Only the first 20 trials of each block are scored."
+  },
+  {
+   "item": "blocks",
+   "status": "stated",
+   "value": "a fish block, then an arrows block, 25 trials each",
+   "quote": "The flanker task consisted of a practice block, a fish block, and an arrows block.",
+   "where": "Method",
+   "quote2": "Participants who responded correctly to 5 or more of the 9 incongruent trials proceeded to the arrows block.",
+   "note": "The arrows block follows only with at least 5 of the 9 incongruent fish trials correct (arrowsBlockCriterion in the settings)."
+  },
+  {
+   "item": "practice",
+   "status": "stated",
+   "value": "4 fish trials (2 congruent, 2 incongruent), at least 3 correct to go on, with up to two more series of practice trials",
+   "quote": "Participants were given 4 trials (2 congruent and 2 incongruent) and were required to respond correctly on at least 3 out of the 4 to advance to the test trials.",
+   "where": "Method",
+   "quote2": "If they did not meet this criterion, they could receive up to two additional series of practice trials.",
+   "note": "'No participants failed to meet the practice criterion', though the Participants paragraph gives 'failing to reach criterion during practice trials' as an example of why data were missing or excluded (across the measures). Feedback during practice is not mentioned for the Flanker (for the DCCS it is given in practice only)."
+  },
+  {
+   "item": "trialOrder",
+   "status": "stated",
+   "value": "pseudorandom, 1 to 3 congruent trials before each incongruent trial",
+   "quote": "presented in a pseudorandom order (with 1–3 congruent trials preceding each incongruent trial)",
+   "where": "Method",
+   "note": "Whether the sequence is fixed in the instrument or drawn anew for each participant is not said."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "The pseudorandom sequence itself, or a seed, is not given. The instrument holds it."
+  },
+  {
+   "item": "fixation",
+   "status": "stated",
+   "value": "a star for 1 to 1.5 s, then the word middle for 1 s (Figure 2)",
+   "quote": "see Figure 2 for the trial structure and the timing of each stimulus",
+   "where": "Figure",
+   "figure": "nihms702091f2.jpg (Figure 2, the fish block), read from the image: Inter-trial Interval 800 ms; Fixation 1,000-1,500 ms; Cue (the word Middle) 1,000 ms; Flankers 100 ms; Test Stimulus 10,000 ms."
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "stated",
+   "value": "up to 10 s (Figure 2)",
+   "quote": "see Figure 2 for the trial structure and the timing of each stimulus",
+   "where": "Figure",
+   "figure": "nihms702091f2.jpg (Figure 2, the fish block), read from the image: Inter-trial Interval 800 ms; Fixation 1,000-1,500 ms; Cue (the word Middle) 1,000 ms; Flankers 100 ms; Test Stimulus 10,000 ms."
+  },
+  {
+   "item": "responseDeadline",
+   "status": "stated",
+   "value": "10 s, the stimulus's time on screen (Figure 2)",
+   "quote": "see Figure 2 for the trial structure and the timing of each stimulus",
+   "where": "Figure",
+   "figure": "nihms702091f2.jpg (Figure 2, the fish block), read from the image: Inter-trial Interval 800 ms; Fixation 1,000-1,500 ms; Cue (the word Middle) 1,000 ms; Flankers 100 ms; Test Stimulus 10,000 ms."
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "stated",
+   "value": 0.8,
+   "quote": "see Figure 2 for the trial structure and the timing of each stimulus",
+   "where": "Figure",
+   "figure": "nihms702091f2.jpg (Figure 2, the fish block), read from the image: Inter-trial Interval 800 ms; Fixation 1,000-1,500 ms; Cue (the word Middle) 1,000 ms; Flankers 100 ms; Test Stimulus 10,000 ms."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "one of two arrow buttons, left or right on the touch screen, for the way the middle stimulus faces",
+   "quote": "participants were instructed to press one of two laterally presented arrow “buttons” on the touch screen, each corresponding to the direction a middle fish was pointing",
+   "where": "Method",
+   "note": "Described for the practice block; the test blocks share its trial structure, the arrows block with arrows instead of fish. Each button matches a direction, so no counterbalancing applies."
+  },
+  {
+   "item": "feedback",
+   "status": "unstated",
+   "note": "Nothing is said about feedback for the Flanker, on trials or blocks. The instrument holds it. (For the DCCS, feedback was given during practice only.)"
+  },
+  {
+   "item": "missedResponse",
+   "status": "unstated",
+   "note": "Not mentioned. The instrument holds it."
+  },
+  {
+   "item": "platform",
+   "status": "stated",
+   "value": "NIH Toolbox Flanker Inhibitory Control and Attention Test, NIH Toolbox Cognition Battery (version unstated)",
+   "quote": "NIH Toolbox Flanker Inhibitory Control and Attention Test",
+   "where": "Method",
+   "quote2": "participants were instructed to press one of two laterally presented arrow “buttons” on the touch screen",
+   "note": "The name is the Method's subsection heading. No version is given: the figure captions date the materials '©2012 Northwestern University and the National Institutes of Health', and the DCCS paragraph says 'the key press will be employed in newer versions of NIH Toolbox instruments', so this version took touch responses. Computer-administered on a touch screen; the computer is not described."
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (268); Analyzed (237; 73 in the test-retest analysis)",
+   "quote": "Briefly, there were 268 adults ages 20 to 85 years in this sample",
+   "where": "Method",
+   "quote2": "leaving a final sample for this measure of n = 237",
+   "note": "The 268 include the 89 randomly selected for the retest; the Flanker's test-retest correlations rest on 73 (Table 1), with no reason given for the other 16. The site counts (62 from the registry; 25, 92, 67 and 12 from the four sites) sum to 258, not 268."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "stated",
+   "value": "Data judged invalid from the examiner's notes; Fewer than two correct trials to base an RT score on",
+   "quote": "For the NIH Toolbox Flanker, 27 adults did not complete the task, data from 2 adults were judged to be invalid based on the examiner’s notes, and 2 adults had too few correct trials upon which to base RT scores (i.e., fewer than two correct trials), leaving a final sample for this measure of n = 237.",
+   "where": "Method",
+   "note": "The 27 who did not complete the task leave at their own end event (Did not complete (27)) before this gateway, which excludes 4 (2 + 2). Four more, with scores below 4, were flagged as outliers but kept ('results based on the larger sample size (with outliers) are reported here'). 'Invalid based on the examiner's notes' is a judgment (for the DCCS: 'e.g., stopping mid task, etc.')."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "stated",
+   "value": "Score the first 20 of the 25 trials in each block; drop RTs below 0.1 s or more than 3 SD from the participant's mean",
+   "quote": "scoring was based on the first 20 (out of 25) trials in each block (fish/arrows)",
+   "where": "Method",
+   "quote2": "First, RTs lower than 100 milliseconds (ms) or greater than 3 standard deviations (SDs) from each participant’s mean RT were discarded as outliers",
+   "note": "The RT rule is stated for the DCCS and applies to the Flanker through 'RT data were scored in the same way as in the NIH Toolbox DCCS'. For the DCCS the median RT is taken 'on correct non-dominant trials'; the article does not say which correct trials enter the Flanker's median RT (all, or the incongruent only). Counted as stated because the scored trials and the RT trimming are given."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "unstated",
+   "note": "No software is named for the scaled scores, ICCs, correlations, t tests or ANOVAs, nor for the two-vector scoring."
+  }
+ ],
+ "extra": [
+  {
+   "item": "inclusionCriteria",
+   "status": "stated",
+   "value": "Age 20 to 85 years; Self-described healthy, no further health screening (eligibility gateway)",
+   "quote": "The flyers advertised for healthy volunteers but no further health screening or exclusions were applied.",
+   "where": "Method",
+   "quote2": "A total of 268 self-described healthy adults were recruited at four university-based sites",
+   "note": "The second quote is in the Abstract."
+  },
+  {
+   "item": "recruitment",
+   "status": "stated",
+   "value": "a registry of healthy older individuals (62) and community flyers around four university-based sites, with stratified sampling guidelines (Enroll documentation)",
+   "quote": "Stratified sampling guidelines were used to enhance demographic variability",
+   "where": "Method"
+  },
+  {
+   "item": "retestSelection",
+   "status": "stated",
+   "value": "89 of the 268 randomly selected; allocationRatio 89:179, retest first (Retest gateway)",
+   "quote": "To assess test–retest reliability, 89 participants (approximately 33% of the adult sample) were randomly selected to be retested after 7 to 21 days (mean interval = 15.5 days, SD = 4.8).",
+   "where": "Method",
+   "note": "The ratio is the realized split (89 retested, 268 - 89 = 179 not); how the random selection was made (a fixed count, or a probability per participant) is not said."
+  },
+  {
+   "item": "retestInterval",
+   "status": "stated",
+   "value": "7 to 21 days (mean 15.5, SD 4.8), the retestInterval property read by the timer",
+   "quote": "To assess test–retest reliability, 89 participants (approximately 33% of the adult sample) were randomly selected to be retested after 7 to 21 days (mean interval = 15.5 days, SD = 4.8).",
+   "where": "Method"
+  },
+  {
+   "item": "notCompleted",
+   "status": "stated",
+   "value": "Did not complete (27)",
+   "quote": "For the NIH Toolbox Flanker, 27 adults did not complete the task",
+   "where": "Method"
+  },
+  {
+   "item": "excludedCount",
+   "status": "stated",
+   "value": "Excluded (4)",
+   "quote": "data from 2 adults were judged to be invalid based on the examiner’s notes, and 2 adults had too few correct trials upon which to base RT scores (i.e., fewer than two correct trials)",
+   "where": "Method",
+   "note": "2 + 2; 268 - 27 - 4 = 237."
+  },
+  {
+   "item": "outliersKept",
+   "status": "stated",
+   "value": "4 flagged as outliers (scores below 4) and kept (Excluded documentation)",
+   "quote": "An additional 4 adults were flagged as outliers based on scores that were less than 4 points (see below).",
+   "where": "Method"
+  },
+  {
+   "item": "retestAnalyzed",
+   "status": "stated",
+   "value": "73 in the test-retest analysis (Analyzed name)",
+   "quote": "Toolbox Flanker −.54** (237) .10 (60) −.55** (201) .85, .83 (73, .74–.89)",
+   "where": "Table",
+   "note": "Table 1, test-retest r, ICC (n, 95% CI) for the Toolbox Flanker."
+  },
+  {
+   "item": "practiceCriterion",
+   "status": "stated",
+   "value": "at least 3 of 4 correct within three series of practice trials, else testing ends (settings)",
+   "quote": "Testing was terminated if the participant failed to meet criterion by the third practice trial set.",
+   "where": "Method"
+  },
+  {
+   "item": "arrowsBlockCriterion",
+   "status": "stated",
+   "value": "at least 5 of the 9 incongruent fish trials correct (settings)",
+   "quote": "Participants who responded correctly to 5 or more of the 9 incongruent trials proceeded to the arrows block.",
+   "where": "Method"
+  },
+  {
+   "item": "scoring",
+   "status": "stated",
+   "value": "two-vector score: accuracy 0 to 5, plus RT 0 to 5 at 80% accuracy or better (Score task)",
+   "quote": "That is, a two-vector method incorporated accuracy and, for participants who maintained a high level of accuracy (> 80% correct), RT.",
+   "where": "Method",
+   "quote2": "RT scores were added to the accuracy scores for participants who achieved an accuracy level of 80% or better.",
+   "note": "The criterion is given both as more than 80% and as 80% or better. Accuracy uses the DCCS's Equation 1, whose formula PMC's text does not reproduce ('Expressed as an equation:' ends the paragraph) but whose words give 0.125 points (5 points over 40 trials) per correct response; the Flanker scores 40 trials (the first 20 of each block). The RT score is the DCCS's: log10 of the median RT, truncated to 500 to 3000 ms, rescaled to 0 to 5 and reversed."
+  },
+  {
+   "item": "scoringImplementation",
+   "status": "unstated",
+   "note": "unstated://scoring on the Score task. The article does not say what computes the scores ('It is also possible, using the NIH Toolbox, to examine RT and accuracy data separately')."
+  },
+  {
+   "item": "otherMeasures",
+   "status": "stated",
+   "value": "the DCCS, the D-KEFS Color-Word Interference test, the PPVT-4 and sociodemographic questionnaires in the same visit (Flanker documentation)",
+   "quote": "Participants completed the NIHTB-CB, corresponding gold standard convergent and discriminant measures, and sociodemographic questionnaires.",
+   "where": "Other",
+   "note": "In the Abstract; the measures are described in the Method."
+  },
+  {
+   "item": "taskOrder",
+   "status": "unstated",
+   "note": "The order of the Flanker among the battery and the validation measures is not given (Flanker documentation)."
+  },
+  {
+   "item": "construct",
+   "status": "stated",
+   "value": "inhibitory control and selective attention",
+   "quote": "a flanker task (a measure of inhibitory control and selective attention)",
+   "where": "Other",
+   "note": "In the Abstract."
+  },
+  {
+   "item": "analysis",
+   "status": "stated",
+   "value": "scaled scores; test-retest ICC and Pearson r with 95% CIs; paired t tests; correlations with age, the DCCS, D-KEFS Inhibition and PPVT-4; ANOVAs by demographics (Analysis name)",
+   "quote": "Both Pearson and intraclass correlation coefficients (ICC) with 95% confidence intervals were calculated to evaluate test–retest reliability.",
+   "where": "Method"
+  }
+ ],
+ "states": "268 recruited (self-described healthy adults aged 20 to 85), 27 did not complete the Flanker, 4 excluded (invalid, or fewer than two correct trials), 237 analyzed; 89 randomly selected for a retest 7 to 21 days later, 73 in the test-retest analysis; the NIH Toolbox Flanker on a touch screen; 4 practice trials, 3 correct to go on, up to three series; a fish block then an arrows block (5 of 9 incongruent correct to go on), 25 trials each, 16 congruent and 9 incongruent, pseudorandom with 1 to 3 congruent trials before each incongruent; a star for 1 to 1.5 s and the word middle for 1 s before each stimulus, the flankers 0.1 s before the middle one, the stimulus up to 10 s, 0.8 s between trials (Figure 2); arrow buttons for the middle stimulus's direction; first 20 trials of each block scored, RTs below 100 ms or beyond 3 SD dropped; two-vector score; ICC and Pearson r, paired t tests, correlations, ANOVAs",
+ "unstated": "the trial sequence's seed, feedback, the handling of a missed response, the analysis software (the instrument holds all but the last)",
+ "notes": "Judgment calls: (1) Figure 2. The Method sends the reader to Figure 2 'for the trial structure and the timing of each stimulus'; its caption gives no timings, but the figure's image does (800 ms between trials, a fixation of 1,000 to 1,500 ms, the word middle for 1,000 ms, the flankers 100 ms before the target, the stimulus for up to 10,000 ms), so fixation, stimulusDuration, responseDeadline and interTrialInterval are stated from it (Figure). (2) The Flanker is a standardized instrument: values the article leaves to it (the seed of the trial sequence, feedback, missed responses, sizes) are unstated, each with a note that the instrument holds it; the platform is the instrument's name, with no version given. (3) stimuli is counted as stated for the items shown (fish or arrows, the word middle), though the number, size and spacing of the flankers are not given. (4) trialExclusion is counted as stated: the first 20 of 25 trials per block are scored, and the RT trimming (below 100 ms, beyond 3 SD of the mean) is stated for the DCCS and applied to the Flanker by reference; which correct trials enter the Flanker's median RT is not said. (5) The 27 who did not complete the Flanker have their own end event before the exclusion gateway, which excludes 4 (2 invalid, 2 with fewer than two correct trials); 4 outliers were flagged and kept. (6) The retest is a random gateway with the realized split 89:179 as its allocation ratio, then a timer of 7 to 21 days through the retestInterval property and the same Flanker settings; 73 of the 89 enter the Flanker's test-retest analysis (Table 1), without a stated reason. (7) Eligibility is ages 20 to 85 and self-described health, with no further health screening; the number turned away is not given. (8) The two-vector scoring is a Score service task (unstated://scoring) between Select_Trials and Analysis. (9) Inconsistencies in the article: the site counts sum to 258, not 268; 'No participants failed to meet the practice criterion', yet the Participants paragraph gives failing practice as an example of missing or excluded data; the RT-score criterion is both more than 80% and 80% or better. Bibliographic metadata: the journal name is not in the article text and comes from the DOI (Journal of the International Neuropsychological Society), and volume, issue and pages from the PMC record; the key and fields match the paper's references.bib entry zelazo2014toolbox."
+}

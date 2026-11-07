@@ -1,0 +1,188 @@
+id: hedge2018_flanker
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Hedge2018:
+  type: Process
+  name: Flanker (Hedge et al. 2018, Study 1)
+  studyflow:Study:
+    authors:
+      - Hedge C
+      - Powell G
+      - Sumner P
+  documentation: >-
+    Hedge, Powell and Sumner (2018), The reliability paradox: Why robust cognitive tasks do not produce reliable
+    individual differences, Study 1, the flanker task only, encoded from the article alone, without its supplements,
+    code, or the papers it cites. Every value is taken from the article; a value it does not state is written
+    `unstated`.
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (50)
+      documentation: Undergraduate students aged 18 to 21.
+
+    Session:
+      type: SubProcess
+      name: One session
+      documentation: >-
+        Two 90-min sessions three weeks apart at the same time of day. Each session ran four tasks (flanker, Stroop,
+        go/no-go, stop-signal) in an order counterbalanced across participants with a Latin square and kept the same in
+        both sessions, then the UPPS-P; only the flanker task is encoded. Participants were tested in groups of up to
+        nine at separate stations, with the experimenter present.
+      elements:
+        S_Start:
+          type: StartEvent
+
+        Flanker:
+          type: Task
+          name: Flanker task
+          documentation: >-
+            Participants responded to the direction of the central arrow, as fast and as accurately as possible, after
+            written and verbal instructions.
+          cognitive:CognitiveTask:
+            construct: response control
+            platform: psychopy
+          inputs:
+            In_Flanker_Settings:
+              source: $Flanker_Settings
+
+        Flanker_Settings:
+          type: DataObjectReference
+          name: Flanker settings
+          studyflow:Parameters:
+            values:
+              stimuli: central arrow (1 cm x 1 cm), left or right, flanked above and below by two other symbols separated by 0.75 cm
+              conditions:
+                - congruent (flanking arrows point the same way)
+                - neutral (straight lines)
+                - incongruent (flanking arrows point the opposite way)
+              congruentProportion: 1/3 (each condition 1/3)
+              trials: 720
+              blocks: 5 blocks of about 4 min each (trials per block not given)
+              practice: unstated
+              trialOrder: conditions intermixed in a randomized order
+              randomSeed: unstated
+              fixation: none, a blank screen between trials (Figure 1)
+              stimulusDuration: until response
+              responseDeadline: none (stimulus until response)
+              interTrialInterval: 0.75
+              responseMapping: '\ and / keys for left and right arrows (paired by order of mention; no counterbalancing mentioned)'
+              feedback: mean RT and error rate after each block (trial feedback not mentioned)
+              missedResponse: cannot be missed (stimulus until response, no deadline)
+              trialsPerCondition: 240
+
+        S_End:
+          type: EndEvent
+
+        SF_0:
+          source: $S_Start
+          target: $Flanker
+
+        SF_1:
+          source: $Flanker
+          target: $S_End
+
+    Retest:
+      type: ExclusiveGateway
+      name: Second session done?
+      default: $Flow_Again
+
+    Retest_Gap:
+      type: IntermediateCatchEvent
+      name: Three weeks
+      documentation: >-
+        At the same time of day. Seven participants who could not attend exactly three weeks later were rescheduled to
+        20 to 28 days after their first session.
+      timer:
+        id: Gap_Timer
+        timeDuration: P21D
+
+    Returned:
+      type: ExclusiveGateway
+      name: Returned for the second session?
+      default: $Flow_Not_Returned
+
+    Not_Returned:
+      type: EndEvent
+      name: Did not return (3)
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: At least 60% correct in both sessions?
+      default: $Flow_Excluded
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - Accuracy below 60% in either session, over all flanker trials
+          - Below the compliance criteria in two or more tasks within one session (all of their data removed)
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (0)
+      documentation: None for the flanker task in Study 1, by the article's counts (50 recruited, 3 did not return, 47 analyzed).
+
+    Select_Trials:
+      type: ServiceTask
+      name: Drop RTs below 0.1 s or greater than 3 x the participant's MAD
+      documentation: >-
+        Applied when computing mean RTs. The article does not name the point the median absolute deviation is counted
+        from, and does not say whether error trials enter the mean RTs.
+
+    Analysis:
+      type: ServiceTask
+      name: ICC(2,1) and SEM of the RT cost and the error rate cost across sessions
+      documentation: >-
+        Two-way random effects model for absolute agreement. The RT cost is incongruent minus congruent RT. The article
+        names no software for this analysis.
+      implementation: unstated://analysis
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (47)
+
+    F_0:
+      source: $Enroll
+      target: $Session
+
+    F_1:
+      source: $Session
+      target: $Retest
+
+    Flow_Done:
+      condition: state._meta.reached.Session >= 2
+      source: $Retest
+      target: $Exclusion
+
+    Flow_Again:
+      source: $Retest
+      target: $Retest_Gap
+
+    F_2:
+      source: $Retest_Gap
+      target: $Returned
+
+    Flow_Returned:
+      condition: returned
+      source: $Returned
+      target: $Session
+
+    Flow_Not_Returned:
+      source: $Returned
+      target: $Not_Returned
+
+    Flow_Kept:
+      condition: accuracy_session_1 >= 0.6 and accuracy_session_2 >= 0.6 and max_tasks_failed_in_a_session < 2
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_3:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_4:
+      source: $Analysis
+      target: $Analyzed

@@ -1,0 +1,230 @@
+{
+ "file": "gonthier2016_stroop",
+ "pmc": "PMC4942492",
+ "encoded": "Experiment 1a (the first of two samples), the picture-word Stroop task with list-wide and item-specific proportion congruency",
+ "bibtex": "@article{gonthier2016dissociating, title = {Dissociating proactive and reactive control in the {Stroop} task}, author = {Gonthier, Corentin and Braver, Todd S. and Bugg, Julie M.}, journal = {Memory \\& Cognition}, volume = {44}, number = {5}, pages = {778--788}, year = {2016}, doi = {10.3758/s13421-016-0591-1}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "a black-and-white drawing of an animal with an animal name superimposed, at the center of a 17-inch screen; eight animals, cat, dog, bird and fish for the biased items and frog, cow, pig and seal for the PC-50 items; an incongruent word names another animal of the same set; sizes not given",
+   "quote": "Eight black-and-white drawings of animals were used as stimuli",
+   "where": "Method",
+   "quote2": "A word corresponding to an animal name was superimposed on each drawing.",
+   "note": "The two sets of four animals are named in the same paragraph, the incongruent words in the next ('the name of one of the other three animals from the same set'), and the 17-inch screen in the Procedure. Drawing and word sizes are not given; the article refers to Bugg, Jacoby, et al. 'for a detailed description of the stimuli'."
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": "congruent and incongruent trials; item types: PC-75 and PC-25 (biased), PC-50 (unbiased); task blocks: LWmc (PC-75 and PC-50 items), LWmi (PC-25 and PC-50), IS (PC-75, PC-25 and PC-50)",
+   "quote": "For each item type within each task block, trials could be either congruent or incongruent.",
+   "where": "Method",
+   "note": "The list types (LWmc, LWmi and IS task blocks) and item types (PC-75, PC-25, PC-50) are within-participant manipulations and stay in the settings."
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": "by item type PC-75 0.75, PC-25 0.25, PC-50 0.5; by block LWmc 264/384 (0.6875), LWmi 120/384 (0.3125), IS 216/432 (0.5)",
+   "quote": "these items all had PC-75 in the LWmc block and PC-25 in the LWmi block",
+   "where": "Method",
+   "quote2": "the list-wide PC was 50% in this task block",
+   "note": "PC is 'the proportion of congruent items' (Introduction), so PC-75, PC-25 and PC-50 items are 75%, 25% and 50% congruent. The per-block shares follow from the trial counts and Table 1: LWmc 216 + 48 congruent of 384, LWmi 72 + 48 of 384, IS 144 + 48 + 24 of 432. The Discussion calls the LWmc and LWmi blocks 75% and 25% list-wide PC, counting the biased items only; with the PC-50 items they are 0.6875 and 0.3125. The IS block's 50% is also stated in the Introduction."
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": "1200: LWmc 384 (288 PC-75, 96 PC-50), LWmi 384 (288 PC-25, 96 PC-50), IS 432 (192 PC-75, 192 PC-25, and 48 PC-50 in its second half only); counts per picture-word pair in Table 1",
+   "quote": "Participants performed 384 trials in the LWmc task block (96 PC-50 trials and 288 PC-75 trials), 384 trials in the LWmi task block (96 PC-50 trials and 288 PC-25 trials), and 432 trials in the IS task block (192 PC-75 trials, 192 PC-5 trials, and 48 PC-50 trials appearing only in the second half of the block3).",
+   "where": "Method",
+   "note": "'192 PC-5 trials' is read as PC-25 (Table 1, and footnote 4: '192 biased trials of each type and 48 PC-50 trials in the IS block'); 'block3' carries the marker of footnote 3. 1,200 is the sum."
+  },
+  {
+   "item": "blocks",
+   "status": "stated",
+   "value": "3 task blocks of 384 (LWmc), 384 (LWmi) and 432 (IS) trials, each with a short break halfway",
+   "quote": "Participants received a short break halfway through each task block.",
+   "where": "Method",
+   "note": "Three task blocks, with their trial counts in the preceding sentence; the length of the break is not given."
+  },
+  {
+   "item": "practice",
+   "status": "stated",
+   "value": "22 trials before each task block, with that block's proportion congruencies",
+   "quote": "Before each task block, participants performed a series of 22 practice trials with the same list-wide and item-specific proportion congruencies as the following experimental trials.",
+   "where": "Method"
+  },
+  {
+   "item": "trialOrder",
+   "status": "unstated",
+   "note": "The order of the task blocks is given (extra: blockOrder), and in the IS block the 48 PC-50 trials appeared 'only in the second half of the block' among 'intermixed PC-75 and PC-25 items'; how the trials were ordered within a block (random, pseudorandom or fixed) is not stated."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "No order, seed, or sequence is given."
+  },
+  {
+   "item": "fixation",
+   "status": "unstated",
+   "note": "Nothing is said about what precedes the picture; the 1,000 ms interval is given without what the screen shows during it."
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "stated",
+   "value": "until the voice key detected an answer",
+   "quote": "remained on screen until the voice-key detected an answer",
+   "where": "Method"
+  },
+  {
+   "item": "responseDeadline",
+   "status": "stated",
+   "value": "none (stimulus until the voice key detected an answer)",
+   "quote": "remained on screen until the voice-key detected an answer",
+   "where": "Method",
+   "note": "Judgment, as in the other encodings: a stimulus shown until the voice key detects an answer leaves no deadline, and none is mentioned; RTs above 3,000 ms were dropped at analysis, not cut off during the task."
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "stated",
+   "value": "1 s, starting when the experimenter coded the answer",
+   "quote": "Trials were separated by a 1,000 ms interstimulus interval, which started as soon as the experimenter coded the participant’s answer.",
+   "where": "Method",
+   "note": "The interval starts at the experimenter's coding, not at the voice onset, so the time from response to next stimulus is 1 s plus the coding time, which is not given."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "vocal: name the animal in the picture; onset timed by a voice key (E-Prime SRBOX), the answer coded on a keyboard by the experimenter",
+   "quote": "received the instruction to name the animals in the pictures as quickly and as accurately as possible. The participant’s responses were timed with a voice key",
+   "where": "Method",
+   "quote2": "An experimenter was present throughout the testing session and manually coded the participant’s answers on a keyboard.",
+   "note": "Vocal naming; the voice key is an 'E-prime SRBOX device'. No response is mapped to a key, so there is nothing to counterbalance."
+  },
+  {
+   "item": "feedback",
+   "status": "unstated",
+   "note": "No feedback is mentioned; the experimenter coded each answer."
+  },
+  {
+   "item": "missedResponse",
+   "status": "stated",
+   "value": "cannot be missed (stimulus until the voice key detected an answer, no deadline); an unclear answer or a voice key not tripped by the answer coded as a scratch trial",
+   "quote": "The experimenter coded a scratch trial when the participant provided an unclear answer, or when the voice-key was not tripped by the onset of the participant’s answer.",
+   "where": "Method",
+   "quote2": "remained on screen until the voice-key detected an answer",
+   "note": "Same reading as responseDeadline. What happened to scratch trials in the analysis is not said."
+  },
+  {
+   "item": "platform",
+   "status": "stated",
+   "value": "eprime",
+   "quote": "E-prime SRBOX device",
+   "where": "Method",
+   "note": "Judgment: E-Prime is named through the voice key, 'a voice key (E-prime SRBOX device; Schneider, Eschman, & Zuccolotto,)', the E-Prime response box that timed the responses; the article does not otherwise say that E-Prime presented the task, and gives no version. If naming the device is not taken to name the presentation software, it becomes unstated (15 stated)."
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (35); Analyzed (34; 89 pooled with Experiment 1b)",
+   "quote": "Participants in Experiment 1a were 35 undergraduates at Washington University in Saint Louis (12 males, mean age = 20.9 years).",
+   "where": "Method",
+   "quote2": "The total sample size comprised 89 participants.",
+   "note": "34 follows from the one participant of this sample excluded (35 - 1); the 89 analyzed pool both samples (35 - 1 + 58 - 3), as stated in the Results."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "stated",
+   "value": "Stroop effect more than three standard deviations from the mean in a condition",
+   "quote": "Participants with a Stroop effect more than three standard deviations from the mean in a condition were also excluded from further analyses",
+   "where": "Results",
+   "note": "Stated only in the Results; whether the mean is taken within each sample or over both is not said. The counts are given as 'one participant in Experiment 1 and three participants in Experiment 2', read as Experiments 1a and 1b."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "stated",
+   "value": "Drop RTs below 0.2 s or above 3 s; mean RTs on correct trials only",
+   "quote": "with average RTs computed on correct trials only. All trials with RTs lower than 200 ms or higher than 3,000 ms were dropped from the analysis",
+   "where": "Results",
+   "note": "Stated only in the Results; the cutoffs removed less than 1% of trials in every condition. What happened to scratch trials is not said."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "stated",
+   "value": "r://",
+   "quote": "a summary document detailing all of the analyses conducted for the manuscript, using the R statistical language",
+   "where": "Other",
+   "note": "Footnote 2, attached to the Method heading (it sits at the end of PMC's text): the OSF repository's summary document details all of the analyses in R and 'should provide the code needed to reproduce the relevant results'. No package or version is named, so r:// with nothing after it."
+  }
+ ],
+ "extra": [
+  {
+   "item": "sessions",
+   "status": "stated",
+   "value": "two sessions (Experiment 1a), each task block about 20 minutes",
+   "where": "Method",
+   "quote": "Experiment 1a was broken down into two sessions performed at most 1 week apart."
+  },
+  {
+   "item": "sessionInterval",
+   "status": "stated",
+   "value": "at most 1 week (timer {sessionInterval})",
+   "where": "Method",
+   "quote": "Experiment 1a was broken down into two sessions performed at most 1 week apart."
+  },
+  {
+   "item": "blockOrder",
+   "status": "stated",
+   "value": "LWmc in session 1; IS then LWmi in session 2",
+   "where": "Method",
+   "quote": "All participants performed the LWmc task block in a first session and the IS and LWmi task blocks in a second session",
+   "quote2": "the order of task blocks was changed in Experiment 1b: participants completed the LWmc block, the LWmi block and the IS block, in order.",
+   "note": "IS before LWmi in session 2 follows from the order in which they are listed and from Experiment 1b changing the order to LWmc, LWmi, IS."
+  },
+  {
+   "item": "itemAssignment",
+   "status": "stated",
+   "value": "in the IS block, which two biased animals are PC-75 and which two PC-25 counterbalanced across participants",
+   "where": "Method",
+   "quote": "two animal pictures in the set (e.g. bird, cat) were used for PC-75 items and the other two animal pictures (e.g. dog, fish) were used for PC-25 items (counterbalanced across participants)"
+  },
+  {
+   "item": "secondSample",
+   "status": "stated",
+   "value": "Experiment 1b, 58 community participants in one session, blocks LWmc, LWmi, IS; not encoded (process documentation)",
+   "where": "Method",
+   "quote": "Participants in Experiment 1b were 58 individuals (15 males, mean age = 26.0 years) recruited from the community through a participant registry",
+   "quote2": "the experiment was completed in a single session lasting approximately 1 hour"
+  },
+  {
+   "item": "excludedCount",
+   "status": "stated",
+   "value": "Excluded (1)",
+   "where": "Results",
+   "quote": "four participants were excluded for this reason (one participant in Experiment 1 and three participants in Experiment 2)"
+  },
+  {
+   "item": "payment",
+   "status": "stated",
+   "value": "$10.00 an hour (Enroll documentation)",
+   "where": "Method",
+   "quote": "All participants completed the study for payment ($10.00 an hour)."
+  },
+  {
+   "item": "construct",
+   "status": "stated",
+   "value": "proactive and reactive control",
+   "where": "Other",
+   "quote": "we use this task to assess the independence of proactive and reactive control"
+  },
+  {
+   "item": "analysis",
+   "status": "stated",
+   "value": "Stroop effects by task block and item type; ANOVAs, t tests and correlations, both samples pooled (Analysis name)",
+   "where": "Results",
+   "quote": "the data for the two subexperiments were combined for all subsequent analyses"
+  }
+ ],
+ "states": "35 recruited (Experiment 1a), 1 excluded, 34 analyzed within 89 pooled with Experiment 1b; two sessions at most a week apart, the LWmc block then the IS and LWmi blocks; E-Prime (its SRBOX voice key); black-and-white animal drawings with superimposed animal names on a 17-inch screen; congruent and incongruent PC-75, PC-25 and PC-50 items, counts per picture-word pair in Table 1; 1,200 trials in blocks of 384, 384 and 432, a break halfway through each; 22 practice trials before each block; picture until the voice key detected an answer, no deadline; 1,000 ms interval from the experimenter's coding of the answer; vocal naming coded by the experimenter, unclear answers as scratch trials; RTs below 200 ms or above 3,000 ms dropped; a Stroop effect beyond 3 SD in a condition excludes; analyses in R",
+ "unstated": "trial order and its seed, what precedes the stimulus, feedback",
+ "notes": "Two samples: Experiment 1a (35 undergraduates, two sessions at most a week apart, LWmc in the first, IS and LWmi in the second) and Experiment 1b (58 community participants, one session of about an hour, blocks in the order LWmc, LWmi, IS). The procedures differ in sessions and block order, so only Experiment 1a is encoded, and the documentation says so; the analyses pool both (89). Judgment calls: (1) platform is counted as stated from 'E-prime SRBOX device', the voice key that timed the responses; if naming the device does not count as naming the presentation software, it becomes unstated (15 stated). (2) responseDeadline (none) and missedResponse (cannot be missed; unclear answers and voice-key failures coded as scratch trials) are read from 'remained on screen until the voice-key detected an answer', as in the other encodings. (3) trialOrder is unstated: only the block order, the intermixing of PC-75 and PC-25 items in the IS block, and its PC-50 trials coming in its second half are given. (4) congruentProportion per block is computed from Table 1 (LWmc 0.6875, LWmi 0.3125, IS 0.5); the article's own '75%' and '25%' list-wide PC count the biased items only. (5) The Method's '192 PC-5 trials' is read as PC-25. (6) The exclusion counts name 'Experiment 1' and 'Experiment 2', read as 1a and 1b (35 - 1 + 58 - 3 = 89); Analyzed (34) is 35 - 1. (7) The order IS then LWmi in session 2 follows from the listing and from Experiment 1b's changed order. (8) The analysis software (R) is stated only in footnote 2, attached to the Method heading, recorded as Other; no package is named. (9) Native English, normal vision and no prior picture-word Stroop are stated as facts about all participants, not as a screening step, so they are in the Enroll documentation rather than an eligibility gateway. (10) The list types and item types are within-participant manipulations, kept in the settings; the two sessions are two task elements sharing one settings object. The journal name is not in the article text and comes from the DOI prefix (Memory & Cognition); volume, issue, pages and DOI are from the PMC record's front matter."
+}

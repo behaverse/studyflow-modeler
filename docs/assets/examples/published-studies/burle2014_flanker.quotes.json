@@ -1,0 +1,188 @@
+{
+ "file": "burle2014_flanker",
+ "pmc": "PMC4104006",
+ "encoded": "the single experiment, the Eriksen flanker task (letters H and S)",
+ "bibtex": "@article{burle2014distributional, title = {Distributional reaction time properties in the {Eriksen} task: marked differences or hidden similarities with the {Simon} task?}, author = {Burle, Borís and Spieser, Laure and Servant, Mathieu and Hasbroucq, Thierry}, journal = {Psychonomic Bulletin \\& Review}, volume = {21}, number = {4}, pages = {1003--1010}, year = {2014}, doi = {10.3758/s13423-013-0561-6}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "a target letter (H or S) on the central one of a panel of five seven-segment LED digit displays (LTS-3401LP LITE ON), the four flanking displays showing distractor letters; whole display 1.4 deg of visual angle",
+   "quote": "facing a panel made of five digit presentation devices (Model No. LTS-3401LP LITE ON) composed of seven-segment light-emitting diodes (to ensure submillisecond accuracy) on which the response signal (the letter H or S ) was presented. The whole display subtended 1.4º of visual angle.",
+   "where": "Method",
+   "quote2": "The central digit presentation device (the target) conveyed the response signal (H or S). The four other devices, flanking the target, were distractors.",
+   "note": "The size of the whole display is given in visual angle; the size of a letter and the spacing between displays are not given."
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": "compatible (HHHHH, SSSSS); incompatible (HHSHH, SSHSS)",
+   "quote": "They could be a replication of the target (HHHHH or SSSSS; compatible trials ) or a replication of the alternative response signal (HHSHH or SSHSS; incompatible trials).",
+   "where": "Method",
+   "note": "The ACC and SPD instructions, one per session, are a within-participant manipulation and are kept in the settings as instruction."
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": "0.5 (the four stimuli equiprobable)",
+   "quote": "The four types of stimuli were equiprobable",
+   "where": "Method",
+   "note": "Follows from four equiprobable stimuli, two of them compatible."
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": "640 per session (10 blocks x 64), 1280 in all",
+   "quote": "All of the participants ran in two experimental sessions that comprised ten blocks of 64 trials.",
+   "where": "Method",
+   "note": "Judgment: read as ten blocks of 64 in each session, each session running one instruction. If the ten blocks are over both sessions, it is 320 trials per session and 640 in all."
+  },
+  {
+   "item": "blocks",
+   "status": "stated",
+   "value": "10 blocks of 64 trials per session",
+   "quote": "All of the participants ran in two experimental sessions that comprised ten blocks of 64 trials.",
+   "where": "Method",
+   "note": "Same reading as trials (five blocks per session if the ten are over both sessions)."
+  },
+  {
+   "item": "practice",
+   "status": "unstated",
+   "note": "No practice trials are mentioned."
+  },
+  {
+   "item": "trialOrder",
+   "status": "stated",
+   "value": "first-order trial-to-trial transitions balanced",
+   "quote": "the first-order sequential effects for the trial-to-trial transitions were balanced",
+   "where": "Method",
+   "note": "Judgment: the constraint on the sequence is stated, not whether the sequences were otherwise random or fixed. If only a statement of how the order was drawn counts, it becomes unstated."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "Only the balanced first-order transitions are given; no seed or sequence."
+  },
+  {
+   "item": "fixation",
+   "status": "unstated",
+   "note": "Nothing is said about what precedes the letters; a fixation point appears only in the Introduction's description of the Simon task."
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "unstated",
+   "note": "Not given; the article does not say how long the letters stayed lit."
+  },
+  {
+   "item": "responseDeadline",
+   "status": "unstated",
+   "note": "Not given, and with no stimulus duration stated the until-response reading does not apply."
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "unstated",
+   "note": "No interval between a response and the next stimulus is given."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "left or right thumb keypress, one per target letter (H or S); the letter-to-button mapping counterbalanced across participants",
+   "quote": "The mappings between the target letter and the button were counterbalanced across participants",
+   "where": "Method",
+   "quote2": "The response was a right or a left thumb keypress.",
+   "note": "The thumb keypress is in the Apparatus paragraph, the counterbalancing of the letter-to-button mapping in the Procedure."
+  },
+  {
+   "item": "feedback",
+   "status": "unstated",
+   "note": "No feedback is mentioned."
+  },
+  {
+   "item": "missedResponse",
+   "status": "unstated",
+   "note": "Not given; neither a deadline nor a stimulus duration is stated."
+  },
+  {
+   "item": "platform",
+   "status": "unstated",
+   "note": "No software or computer is named; the letters were shown on a panel of LED digit displays."
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (16); Analyzed (12)",
+   "quote": "A group of 16 participants (five women, 11 men, 18–50 years of age) participated in this experiment.",
+   "where": "Method",
+   "quote2": "The analysis was thus conducted on 12 participants",
+   "note": "The 12 are those of the correction-ratio and delta-plot analyses (Results); the RT and error analyses report all 16 (F(1, 15))."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "stated",
+   "value": "Fewer than ten partial errors in at least one condition",
+   "quote": "Four participants among the 16 had fewer than ten partial errors in at least one condition, and were hence discarded.",
+   "where": "Results",
+   "note": "Stated only in the Results, for the correction-ratio and delta-plot analyses, for which 'one needs a minimum number of partial errors'."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "stated",
+   "value": "Keep correct trials classed by EMG as pure-correct or partial-error; drop the other trials (about 8%)",
+   "quote": "“Other” trials (about 8%) were discarded from the analysis.",
+   "where": "Method",
+   "quote2": "for the whole distributions of correct RTs",
+   "note": "Correct trials were sorted by their EMG into pure-correct, partial-error and 'other' trials, and the 'other' trials discarded (Method); the RT distributions are of correct RTs (Figure 2 caption). No RT cutoff is stated."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "unstated",
+   "note": "The methods are named ('repeated measures canonical analyses of variance (ANOVAs)', planned comparisons, arcsine transforms, Vincentized distributions, orthogonal polynomial contrasts) but no software."
+  }
+ ],
+ "extra": [
+  {
+   "item": "sessions",
+   "status": "stated",
+   "value": "two sessions, one instruction (ACC or SPD) each",
+   "where": "Method",
+   "quote": "On each session, the participants were asked either to respond very accurately (with the cost of RT lengthening; “ACC” instruction) or to respond very quickly (with the cost of more errors; “SPD” instruction)."
+  },
+  {
+   "item": "sessionInterval",
+   "status": "unstated",
+   "value": "unstated",
+   "note": "Two sessions; the interval between them is not given (the timer reads {sessionInterval}, unstated)."
+  },
+  {
+   "item": "instructionOrder",
+   "status": "stated",
+   "value": "within each mapping subgroup, half ACC first and half SPD first (settings: instruction)",
+   "quote": "in each subgroup, half of the participants received the ACC instruction during the first session, whereas the other half received the SPD instruction during the first session.",
+   "where": "Method"
+  },
+  {
+   "item": "excludedCount",
+   "status": "stated",
+   "value": "Excluded (4)",
+   "where": "Results",
+   "quote": "Four participants among the 16 had fewer than ten partial errors in at least one condition, and were hence discarded."
+  },
+  {
+   "item": "construct",
+   "status": "stated",
+   "value": "online executive control",
+   "where": "Method",
+   "quote": "to better evaluate the impact of time pressure on online executive control"
+  },
+  {
+   "item": "analysis",
+   "status": "stated",
+   "value": "Repeated-measures ANOVAs on RT, error rates, correction ratio and delta plots (Analysis name)",
+   "quote": "all statistical analyses were performed by means of repeated measures canonical analyses of variance (ANOVAs)",
+   "where": "Results"
+  }
+ ],
+ "states": "16 recruited, 4 excluded, 12 in the correction-ratio and delta-plot analyses (all 16 in the RT and error analyses); two sessions, accuracy (ACC) instruction in one and speed (SPD) in the other, order counterbalanced; target letter H or S flanked by four letters on LED digit displays, 1.4 deg in all; compatible and incompatible, the four stimuli equiprobable, first-order transitions balanced; ten blocks of 64 trials per session; left or right thumb keypress, mapping counterbalanced; EMG-classed 'other' trials (about 8%) discarded; fewer than ten partial errors in a condition excludes; repeated-measures ANOVAs",
+ "unstated": "practice trials, the seed of the trial order, what precedes the stimulus, the stimulus duration, the response deadline, the interval between trials, feedback, what happens to a missed response, the presentation software, the analysis software",
+ "notes": "The article reports one experiment. Judgment calls: (1) 'two experimental sessions that comprised ten blocks of 64 trials' is read as ten blocks per session (640 per session, 1,280 in all); read as ten blocks over both sessions, trials and blocks halve, and both stay stated. (2) trialOrder is counted as stated from the balanced first-order trial-to-trial transitions, a stated constraint on the sequence, though randomness is not mentioned. (3) The participant exclusion (fewer than ten partial errors in a condition) applies to the correction-ratio and delta-plot analyses only; the RT and error analyses (Table 1, F(1, 15)) include all 16; the diagram ends at Analyzed (12) and says so in its documentation. (4) The ACC and SPD instructions are a within-participant manipulation, one per session in counterbalanced order, kept as the instruction setting; the two sessions are two task elements sharing one settings object, with an unstated interval. (5) The vision and consent statement describes the sample rather than a screening step, so there is no eligibility gateway; it is in the Enroll documentation. (6) The EMG recording is named in the task documentation only. (7) The trial selection keeps correct trials classed as pure-correct or partial-error; no RT cutoff is stated. The journal name is not in the article text and comes from the DOI prefix (Psychonomic Bulletin & Review); volume, issue, pages and DOI are from the PMC record's front matter."
+}

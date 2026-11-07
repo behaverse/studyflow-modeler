@@ -1,0 +1,167 @@
+{
+ "file": "hubner2019_simon",
+ "pmc": "PMC6438467",
+ "encoded": "Experiment 3, the Simon task (75% or 25% congruent trials, between two groups)",
+ "bibtex": "@article{hubner2019conflict, title = {Conflict resolution in the {Eriksen} flanker task: Similarities and differences to the {Simon} task}, author = {H{\\\"u}bner, Ronald and T{\\\"o}bel, Lisa}, journal = {PLOS ONE}, volume = {14}, number = {3}, pages = {e0214203}, year = {2019}, doi = {10.1371/journal.pone.0214203}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "red or blue square, 2.2 x 2.2 cm, on a black background, 2.1 deg left or right of fixation",
+   "quote": "Stimuli were red and blue squares of 2.2×2.2 cm presented against a black background. The squares appeared randomly at 2.1° left or right of fixation.",
+   "where": "Method"
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": "congruent, incongruent",
+   "quote": "HPC and LPC blocks contained 75% and 25% congruent trials, respectively.",
+   "where": "Method",
+   "note": "The Method names congruent trials; with the square on the left or right and a left or right button, every other trial is incongruent. The Results name both levels: \"the within-participant factor congruency (congruent, or incongruent)\"."
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": "0.75 in the HPC group, 0.25 in the LPC group",
+   "quote": "HPC and LPC blocks contained 75% and 25% congruent trials, respectively.",
+   "where": "Method",
+   "note": "Between participants: \"The HPC and LPC conditions were administered to a group of 11 participants (mean age of 23 years; 1 male), and a group of 10 students (mean age of 21 years; 2 male), respectively.\""
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": 640,
+   "quote": "In addition to a practice block, there were 10 experimental blocks of 64 trials.",
+   "where": "Method",
+   "note": "10 x 64 = 640 per participant; at 75% or 25% congruent per block, 480 congruent and 160 incongruent in the HPC group, the reverse in the LPC group."
+  },
+  {
+   "item": "blocks",
+   "status": "stated",
+   "value": "10 blocks of 64 trials",
+   "quote": "In addition to a practice block, there were 10 experimental blocks of 64 trials.",
+   "where": "Method"
+  },
+  {
+   "item": "practice",
+   "status": "unstated",
+   "note": "The Method mentions \"a practice block\" (\"In addition to a practice block, there were 10 experimental blocks of 64 trials.\") but not its number of trials. Experiment 1's 32 practice trials belong to its own procedure, which Experiment 3 does not refer to."
+  },
+  {
+   "item": "trialOrder",
+   "status": "unstated",
+   "note": "Only the side is said to be random (\"The squares appeared randomly at 2.1° left or right of fixation.\"). With 75% or 25% congruent trials fixed per block, the side cannot be drawn freely, and the article does not say how the trials of a block were ordered."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "No seed or fixed sequence is given for the random side."
+  },
+  {
+   "item": "fixation",
+   "status": "stated",
+   "value": "fixation cross 0.4 s, then blank screen 0.4 s",
+   "quote": "Each trial started with the presentation of a fixation cross at the center of the screen for 400 ms, followed by a blank screen for 400 ms.",
+   "where": "Method"
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "stated",
+   "value": 0.165,
+   "quote": "Then the target square appeared for 165 ms.",
+   "where": "Method"
+  },
+  {
+   "item": "responseDeadline",
+   "status": "stated",
+   "value": "none (the screen stays blank until the response)",
+   "quote": "The screen remained blank until response.",
+   "where": "Method"
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "stated",
+   "value": 1,
+   "quote": "After the response, a blank screen was shown for 1000 ms before the next trial started.",
+   "where": "Method",
+   "note": "From the response to the next square, 1 + 0.4 + 0.4 = 1.8 s."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "left mouse button for blue (right index finger), right button for red (right middle finger)",
+   "quote": "The task was to indicate the color of the square by pressing one of the two mouse buttons (left button for blue; right button for red) with the index or middle finger of the right hand, respectively.",
+   "where": "Method",
+   "note": "No counterbalancing of the mapping is mentioned."
+  },
+  {
+   "item": "feedback",
+   "status": "stated",
+   "value": "a beep after an error (block feedback not mentioned)",
+   "quote": "Errors were signaled by a beep.",
+   "where": "Method",
+   "note": "Experiment 1's instruction to respond more accurately after more than 15% errors in a block belongs to its own procedure, which Experiment 3 does not refer to."
+  },
+  {
+   "item": "missedResponse",
+   "status": "stated",
+   "value": "cannot be missed (blank screen until the response, no deadline)",
+   "quote": "The screen remained blank until response.",
+   "where": "Method"
+  },
+  {
+   "item": "platform",
+   "status": "stated",
+   "value": "Presentation 14.7 Build 11.10.10",
+   "quote": "The software Presentation (Version 14.7 Build 11.10.10, www.neurobs.com) was used for programming and running the experiment.",
+   "where": "Method",
+   "note": "Experiment 1's Apparatus paragraph, which Experiment 3 refers to: \"The apparatus was the same as in the other experiments.\""
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (21); Analyzed (21)",
+   "quote": "The HPC and LPC conditions were administered to a group of 11 participants (mean age of 23 years; 1 male), and a group of 10 students (mean age of 21 years; 2 male), respectively.",
+   "where": "Method",
+   "note": "11 + 10 = 21. The number analyzed follows from the degrees of freedom in the Results: F(1, 19) with two groups, and t(10) and t(9) for the HPC and LPC slopes."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "unstated",
+   "note": "No rule for excluding participants is given. The degrees of freedom show that all 21 were analyzed, so the diagram writes Excluded (0)."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "stated",
+   "value": "Drop RTs below 0.1 s or above 1.2 s; correct responses only for RT analyses",
+   "quote": "Responses faster than 100 ms or slower than 1200 ms were excluded from analysis (< 0.8% of all data).",
+   "where": "Results",
+   "note": "RT analyses use correct responses: \"The RTs of correct responses were subjected to an ANOVA\"."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "stated",
+   "value": "r://",
+   "quote": "Data were analyzed and visualized with R.",
+   "where": "Results",
+   "note": "Judgment call: stated once, at the start of Experiment 1's Results, for the article's data; Experiment 3's delta functions and CAFs are computed as in the previous experiments. No package or version is named, and no software is named for the DMC and DSTP fits."
+  }
+ ],
+ "extra": [
+  {
+   "item": "groupAssignment",
+   "status": "unstated",
+   "note": "How participants were assigned to the HPC or the LPC group. The diagram's Group gateway is a plain exclusive gateway on `group`, not a random one."
+  },
+  {
+   "item": "groupSizes",
+   "status": "stated",
+   "value": "11 HPC, 10 LPC",
+   "quote": "The HPC and LPC conditions were administered to a group of 11 participants (mean age of 23 years; 1 male), and a group of 10 students (mean age of 21 years; 2 male), respectively.",
+   "where": "Method"
+  }
+ ],
+ "states": "21 recruited and analyzed, 11 in a group with 75% congruent trials and 10 with 25%; one half-hour session; 640 trials in 10 blocks of 64, the side at random; fixation 400 ms and blank 400 ms, square for 165 ms, blank until response, 1000 ms after the response; mouse button by color; error beep; Presentation 14.7 from Experiment 1; RTs below 100 ms or above 1200 ms dropped; R",
+ "unstated": "how participants were assigned to the two groups, the trial order, practice trials, the seed of the trial order, a rule for excluding participants",
+ "notes": "Experiment 3 refers back only for its apparatus (\"The apparatus was the same as in the other experiments.\"), so Experiment 1's Apparatus paragraph (Presentation 14.7 Build 11.10.10; 19-inch monitor, 1280×1024) is counted for it; Experiment 1's procedure (32 practice trials, the block-wise accuracy reminder) is not, since Experiment 3 describes its own. The R of Experiment 1's Results (\"Data were analyzed and visualized with R.\") is counted for the analysis. Judgment calls: trialOrder is unstated, because \"appeared randomly ... left or right\" concerns the side only; practice is unstated because the practice block's length is not given; the number analyzed (21) and Excluded (0) follow from the degrees of freedom. The proportion of congruent trials is a between-participants factor, so the diagram splits at a Group gateway (assignment unstated, listed under extra) into two Simon tasks that share one settings object, whose congruentProportion names both values. The DMC and DSTP fits are not encoded. The process is named \"Hubner and Tobel 2019\" (two authors) rather than \"et al.\". PMC's text has no journal metadata; volume, issue, e-location and DOI come from the PMC record's front matter, and the bibtex entry and key match elife/references.bib."
+}

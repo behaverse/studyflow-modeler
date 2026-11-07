@@ -1,0 +1,241 @@
+id: zelazo2014_flanker
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Zelazo2014:
+  type: Process
+  name: Flanker (Zelazo et al. 2014, adult validation study)
+  studyflow:Study:
+    authors:
+      - Zelazo PD
+      - Anderson JE
+      - Richler J
+      - Wallner-Allen K
+      - Beaumont JL
+      - Conway KP
+      - Gershon R
+      - Weintraub S
+  documentation: >-
+    Zelazo et al. (2014), NIH Toolbox Cognition Battery (CB): Validation of executive function measures in adults, the
+    adult validation sample with its retest subsample, the NIH Toolbox Flanker Inhibitory Control and Attention Test
+    only, encoded from the article alone, without its supplements, code, or the papers it cites. Every value is taken
+    from the article; a value it does not state is written `unstated`. The Flanker is a standardized instrument, and a
+    value the article leaves to the instrument is `unstated`, with a note in the record that the instrument holds it.
+  properties:
+    P_Retest_Interval:
+      name: retestInterval
+      value: 7 to 21 days (mean 15.5, SD 4.8)
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (268)
+      documentation: >-
+        Adults aged 20 to 85, recruited through a registry of healthy older individuals at Northwestern University's
+        Cognitive Neurology and Alzheimer's Disease Center (62) and through community flyers around four
+        university-based testing sites, with stratified sampling guidelines to enhance demographic variability; consent
+        approved by the relevant review boards. The site counts given (62, 25, 92, 67 and 12) sum to 258, not 268.
+
+    Eligible:
+      type: ExclusiveGateway
+      name: Healthy adult aged 20 to 85?
+      default: $Flow_Ineligible
+      cognitive:EligibilityGateway:
+        inclusionCriteria:
+          - Age 20 to 85 years
+          - Self-described healthy (the flyers asked for healthy volunteers; no further health screening)
+
+    Ineligible:
+      type: EndEvent
+      name: Not eligible (count unstated)
+
+    Flanker:
+      type: Task
+      name: NIH Toolbox Flanker, first session
+      documentation: >-
+        Computer-administered on a touch screen, within the NIH Toolbox Cognition Battery, alongside the battery's
+        other measures, the D-KEFS Color-Word Interference test, the PPVT-4 and sociodemographic questionnaires, in an
+        order the article does not give (only the Flanker is encoded). The instrument runs a practice block of fish
+        trials, a fish block and, by its criterion, an arrows block. The Method refers to its Figure 2 for the trial
+        structure and the timing of each stimulus; the caption gives no timings, so they are read from the figure.
+      cognitive:CognitiveTask:
+        construct: inhibitory control and selective attention
+        platform: NIH Toolbox Flanker Inhibitory Control and Attention Test, NIH Toolbox Cognition Battery (version unstated)
+      inputs:
+        In_Flanker_Settings:
+          source: $Flanker_Settings
+
+    Flanker_Settings:
+      type: DataObjectReference
+      name: Flanker settings
+      studyflow:Parameters:
+        values:
+          stimuli: >-
+            a middle fish (fish block) or arrow (arrows block) facing left or right, between four flanking fish or
+            arrows, which appear 0.1 s before it, after the word middle (Figure 2); size and spacing not given
+          conditions:
+            - congruent (flankers face the same way as the middle stimulus)
+            - incongruent (flankers face the other way)
+          congruentProportion: 0.64
+          trials: 50, 25 per block (16 congruent and 9 incongruent in each)
+          blocks: a fish block, then an arrows block, 25 trials each
+          practice: >-
+            4 fish trials (2 congruent, 2 incongruent), at least 3 correct to go on, with up to two more series of
+            practice trials
+          trialOrder: pseudorandom, 1 to 3 congruent trials before each incongruent trial
+          randomSeed: unstated
+          fixation: a star for 1 to 1.5 s, then the word middle for 1 s (Figure 2)
+          stimulusDuration: up to 10 s (Figure 2)
+          responseDeadline: 10 s, the stimulus's time on screen (Figure 2)
+          interTrialInterval: 0.8
+          responseMapping: one of two arrow buttons, left or right on the touch screen, for the way the middle stimulus faces
+          feedback: unstated
+          missedResponse: unstated
+          practiceCriterion: at least 3 of 4 correct within three series of practice trials, else testing ends
+          arrowsBlockCriterion: at least 5 of the 9 incongruent fish trials correct
+
+    Retest:
+      type: ExclusiveGateway
+      name: Randomly selected for the retest?
+      documentation: >-
+        89 of the 268 adults (approximately 33%) were randomly selected to be retested; the allocation ratio is that
+        split (89 retested, 179 not), retest first. How the selection was drawn is not said.
+      cognitive:RandomGateway:
+        allocationRatio: '89:179'
+
+    Retest_Gap:
+      type: IntermediateCatchEvent
+      name: 7 to 21 days (mean 15.5)
+      timer:
+        id: Gap_Timer
+        timeDuration: "{retestInterval}"
+
+    Flanker_Retest:
+      type: Task
+      name: NIH Toolbox Flanker, retest
+      cognitive:CognitiveTask:
+        construct: inhibitory control and selective attention
+        platform: NIH Toolbox Flanker Inhibitory Control and Attention Test, NIH Toolbox Cognition Battery (version unstated)
+      inputs:
+        In_Flanker_Settings_2:
+          source: $Flanker_Settings
+
+    Complete:
+      type: ExclusiveGateway
+      name: Completed the Flanker?
+      default: $Flow_Incomplete
+
+    Incomplete:
+      type: EndEvent
+      name: Did not complete (27)
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: Valid data, with enough correct trials for an RT score?
+      default: $Flow_Excluded
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - Data judged invalid from the examiner's notes
+          - Fewer than two correct trials to base an RT score on
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (4)
+      documentation: >-
+        2 invalid and 2 with too few correct trials. Four more, with scores below 4, were flagged as outliers but kept;
+        the article reports that results without them were similar.
+
+    Select_Trials:
+      type: ServiceTask
+      name: Score the first 20 of the 25 trials in each block; drop RTs below 0.1 s or more than 3 SD from the participant's mean
+      documentation: >-
+        The RT rule is the DCCS's, which the Flanker's RT scoring follows. For the DCCS the RT score uses correct trials
+        of one type (non-dominant); the article does not say which trials enter the Flanker's median RT.
+
+    Score:
+      type: ServiceTask
+      name: Two-vector score, accuracy (0 to 5) plus, at 80% accuracy or better, RT (0 to 5)
+      documentation: >-
+        Accuracy, from congruent and incongruent trials, by the DCCS's Equation 1, 0.125 points (5 points over the 40
+        scored trials) per correct response. RT, the log (base 10) of the median RT, truncated to 0.5 to 3 s, rescaled
+        to 0 to 5 and reversed. The paragraph gives the accuracy criterion both as more than 80% correct and as 80% or
+        better. The article does not say what computes the score.
+      implementation: unstated://scoring
+
+    Analysis:
+      type: ServiceTask
+      name: >-
+        Test-retest ICC and Pearson r, practice effects by paired t tests, correlations with age, the DCCS, D-KEFS
+        Inhibition and PPVT-4, ANOVAs by gender, race/ethnicity and education
+      documentation: >-
+        On scaled scores, the ranks of the raw scores of all participants aged 20 to 85 normalized and rescaled to a
+        mean of 10 and an SD of 3, not adjusted for age; ICC and Pearson r with 95% confidence intervals; the ANOVAs
+        adjusted for age and other covariates. The article names no software for the analysis.
+      implementation: unstated://analysis
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (237; 73 in the test-retest analysis)
+
+    F_0:
+      source: $Enroll
+      target: $Eligible
+
+    Flow_Eligible:
+      condition: age >= 20 and age <= 85 and healthy
+      source: $Eligible
+      target: $Flanker
+
+    Flow_Ineligible:
+      source: $Eligible
+      target: $Ineligible
+
+    F_1:
+      source: $Flanker
+      target: $Retest
+
+    Flow_Retest:
+      source: $Retest
+      target: $Retest_Gap
+
+    Flow_No_Retest:
+      source: $Retest
+      target: $Complete
+
+    F_2:
+      source: $Retest_Gap
+      target: $Flanker_Retest
+
+    F_3:
+      source: $Flanker_Retest
+      target: $Complete
+
+    Flow_Completed:
+      condition: completed
+      source: $Complete
+      target: $Exclusion
+
+    Flow_Incomplete:
+      source: $Complete
+      target: $Incomplete
+
+    Flow_Kept:
+      condition: valid and correct_trials >= 2
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_4:
+      source: $Select_Trials
+      target: $Score
+
+    F_5:
+      source: $Score
+      target: $Analysis
+
+    F_6:
+      source: $Analysis
+      target: $Analyzed

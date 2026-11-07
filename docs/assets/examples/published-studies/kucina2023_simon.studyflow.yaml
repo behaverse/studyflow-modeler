@@ -1,0 +1,282 @@
+id: kucina2023_simon
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Kucina2023:
+  type: Process
+  name: Double-shot Simon (Kucina et al. 2023, final experiment, gamified)
+  studyflow:Study:
+    authors:
+      - Kucina T
+      - Wells L
+      - Lewis I
+      - de Salas K
+      - Kohl A
+      - Palmer MA
+      - Sauer JD
+      - Matzke D
+      - Aidman E
+      - Heathcote A
+  documentation: >-
+    Kucina et al. (2023), Calibration of cognitive tests to address the reliability paradox for decision-conflict tasks,
+    the final (gamified) experiment, the double-shot Simon condition (Simon2) only, encoded from the article alone,
+    without its supplements, code, or the papers it cites. Every value is taken from the article; a value it does not
+    state is written `unstated`.
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (256, all six conditions)
+      documentation: >-
+        256 MTurk workers attempted the experiment across the six conditions; the article does not say how many were
+        assigned to Simon2. Each was paid $1.00 for attempting, $9.00 more for completing both sessions, and a bonus of
+        up to $0.20 per block. Informed consent was obtained; the form is not given.
+
+    Eligibility:
+      type: Task
+      name: Vision and English check
+      exchange: true
+      cognitive:Questionnaire:
+        instrument: normal vision checkbox and two English proficiency items
+
+    Eligible:
+      type: ExclusiveGateway
+      name: Eligible?
+      default: $Flow_Ineligible
+      cognitive:EligibilityGateway:
+        inclusionCriteria:
+          - Aged over 18
+          - MTurk HIT approval rate above 95%
+          - Normal or corrected-to-normal vision (checkbox)
+          - Both English proficiency items correct
+
+    Ineligible:
+      type: EndEvent
+      name: Not eligible (count unstated)
+
+    Assign:
+      type: ExclusiveGateway
+      name: Which condition? (six; Simon2 drawn)
+      default: $Flow_Simon2
+      documentation: >-
+        Random allocation to one of six between-subjects conditions (Flanker, Flanker2, Stroopon, Stroopon2, Simon2,
+        Stroop2), with a sampling target of 30 per condition. Only the Simon2 branch is drawn.
+      cognitive:RandomGateway:
+        allocationRatio: unstated
+
+    Tutorial:
+      type: Task
+      name: Tutorial
+      cognitive:Instruction:
+        content: >-
+          Each component of the task is introduced with prompts, then completed unprompted, in blocks of four trials
+          with both congruent and incongruent stimuli; an error must be corrected to continue.
+
+    Qualify:
+      type: SubProcess
+      name: Four unprompted trials of each component without error
+      loopCharacteristics:
+        while: not(passed)
+        maximum: 8
+      elements:
+        Q_Start:
+          type: StartEvent
+
+        Q_Trials:
+          type: Task
+          name: Four unprompted trials of each component
+
+        Q_End:
+          type: EndEvent
+
+        QF_0:
+          source: $Q_Start
+          target: $Q_Trials
+
+        QF_1:
+          source: $Q_Trials
+          target: $Q_End
+
+    Qualified:
+      type: ExclusiveGateway
+      name: Passed within eight chances?
+      default: $Flow_Failed
+
+    Failed_Tutorial:
+      type: EndEvent
+      name: Failed the tutorial (61, all six conditions)
+      documentation: Asked to exit the study and paid for their time.
+
+    Session_1:
+      type: Task
+      name: Double-shot Simon, session 1 (16 blocks)
+      cognitive:CognitiveTask:
+        construct: interference control
+        platform: Unity, through PlayUR in a web browser
+      inputs:
+        In_Simon_Settings:
+          source: $Simon_Settings
+
+    Simon_Settings:
+      type: DataObjectReference
+      name: Double-shot Simon settings
+      studyflow:Parameters:
+        values:
+          stimuli: blue or orange rectangle at the far left or right of the screen, in the display at the top; size unstated
+          conditions:
+            - congruent
+            - incongruent
+          congruentProportion: unstated
+          trials: 432
+          blocks: 36 blocks of 12 trials, 16 in session 1 and 20 in session 2
+          practice: >-
+            tutorial of four prompted then four unprompted trials per component, errors corrected to continue; then up
+            to eight attempts at four unprompted trials of each component without error
+          trialOrder: congruent and incongruent randomly intermixed; double shots on a random 1/3 of trials
+          randomSeed: unstated
+          fixation: unstated
+          stimulusDuration: unstated
+          responseDeadline: 'none; a "Hurry up!!" message after 2 s'
+          interTrialInterval: unstated
+          responseMapping: >-
+            Z and / keys, Z for blue and / for orange or the reverse, counterbalanced across participants; on
+            double-shot trials a second response by the stimulus location
+          feedback: >-
+            per trial, auditory feedback on accuracy and speed, points, and the enemy shown with the correct key named;
+            per block, accuracy and the bonus earned
+          missedResponse: cannot be missed (no time limit on trials)
+          secondResponse: >-
+            on a random 1/3 of trials, after a correct first response, the enemy appears behind a yellow shield and a
+            second response by the stimulus location is required
+
+    Gap:
+      type: IntermediateCatchEvent
+      name: Compulsory 10 min break (longer if desired)
+      timer:
+        id: Gap_Timer
+        timeDuration: PT10M
+
+    Session_2:
+      type: Task
+      name: Double-shot Simon, session 2 (20 blocks)
+      cognitive:CognitiveTask:
+        construct: interference control
+        platform: Unity, through PlayUR in a web browser
+      inputs:
+        In_Simon_Settings_2:
+          source: $Simon_Settings
+
+    Complete:
+      type: ExclusiveGateway
+      name: Complete data?
+      default: $Flow_Incomplete
+
+    Incomplete:
+      type: EndEvent
+      name: Incomplete data (9, all six conditions)
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: Performance criteria met?
+      default: $Flow_Excluded
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - Accuracy below 60% overall
+          - More than 10% of trials with RT below 0.1 s
+          - More than 10% of trials not completed within 4 s
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (5, all six conditions)
+
+    Select_Trials:
+      type: ServiceTask
+      name: Drop RTs below 0.25 s
+      documentation: The article does not say whether error trials enter the analysis.
+      implementation: r://
+
+    Analysis:
+      type: ServiceTask
+      name: Bayesian linear mixed models of log(RT - 0.2) on the first 4, 8, ..., 36 blocks; trait precision and reliability
+      documentation: R 3.6.0 with BayesFactor 0.9.12-4.2, coda, Matrix and stringr, and custom code.
+      implementation: r://BayesFactor@0.9.12-4.2
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (30)
+
+    F_0:
+      source: $Enroll
+      target: $Eligibility
+
+    F_1:
+      source: $Eligibility
+      target: $Eligible
+
+    Flow_Eligible:
+      condition: age > 18 and hit_approval_rate > 0.95 and vision and english_items = 2
+      source: $Eligible
+      target: $Assign
+
+    Flow_Ineligible:
+      source: $Eligible
+      target: $Ineligible
+
+    Flow_Simon2:
+      source: $Assign
+      target: $Tutorial
+
+    F_2:
+      source: $Tutorial
+      target: $Qualify
+
+    F_3:
+      source: $Qualify
+      target: $Qualified
+
+    Flow_Passed:
+      condition: passed
+      source: $Qualified
+      target: $Session_1
+
+    Flow_Failed:
+      source: $Qualified
+      target: $Failed_Tutorial
+
+    F_4:
+      source: $Session_1
+      target: $Gap
+
+    F_5:
+      source: $Gap
+      target: $Session_2
+
+    F_6:
+      source: $Session_2
+      target: $Complete
+
+    Flow_Complete:
+      condition: sessions_completed = 2
+      source: $Complete
+      target: $Exclusion
+
+    Flow_Incomplete:
+      source: $Complete
+      target: $Incomplete
+
+    Flow_Kept:
+      condition: accuracy >= 0.6 and anticipation_rate <= 0.1 and nonresponse_rate <= 0.1
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_7:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_8:
+      source: $Analysis
+      target: $Analyzed

@@ -1,0 +1,154 @@
+id: crump2013_flanker
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Crump2013:
+  type: Process
+  name: Flanker (Crump et al. 2013, Experiment 3)
+  studyflow:Study:
+    authors:
+      - Crump MJC
+      - McDonnell JV
+      - Gureckis TM
+  documentation: >-
+    Crump, McDonnell and Gureckis (2013), Evaluating Amazon's Mechanical Turk as a tool for experimental behavioral
+    research, Experiment 3, the flanker task only, encoded from the article alone, without its supplements, code, or
+    the papers it cites. Every value is taken from the article; a value it does not state is written `unstated`.
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (52)
+      documentation: >-
+        Workers on Amazon Mechanical Turk, through one HIT with 60 assignments, paid $0.10 for a task of about 5 min; no
+        demographic information was collected and workers stayed anonymous. Workers found the HIT by browsing, read the
+        task instructions and an informed consent form on its page, could view example trials before accepting it, and
+        signed consent electronically. Fifty-two unique workers completed all the trials; the article does not say how
+        many accepted the HIT, failed the typing check, or stopped before the end.
+
+    Typing_Check:
+      type: Task
+      name: Copy a sentence as quickly and accurately as possible
+      documentation: >-
+        The verification screen of the general web-based procedure of Experiment 1, which Experiment 3 says it used;
+        Experiment 5 calls it the screening procedure of Experiments 1 to 4.
+
+    Eligible:
+      type: ExclusiveGateway
+      name: Typed faster than 40 words/min?
+      default: $Flow_Ineligible
+      cognitive:EligibilityGateway:
+        inclusionCriteria:
+          - Copied the sentence faster than 40 words/min
+
+    Ineligible:
+      type: EndEvent
+      name: Not eligible (count unstated)
+
+    Flanker:
+      type: Task
+      name: Letter flanker task
+      documentation: >-
+        Workers identified the central letter with the F or H key, as quickly and accurately as possible, on a
+        resizable black webpage that also held a submit button (which could be pressed at any time), an instructions
+        button, and a counter of the trials done and left.
+      cognitive:CognitiveTask:
+        construct: spatial attention
+        platform: HTML and JavaScript (the authors' own code) in the worker's web browser
+      inputs:
+        In_Flanker_Settings:
+          source: $Flanker_Settings
+
+    Flanker_Settings:
+      type: DataObjectReference
+      name: Flanker settings
+      studyflow:Parameters:
+        values:
+          stimuli: fffff, hhhhh, ffhff or hhfhh in white 50-pt lowercase letters, centered on a black webpage
+          conditions:
+            - compatible (fffff, hhhhh)
+            - incompatible (ffhff, hhfhh)
+          congruentProportion: 0.5
+          trials: 100
+          blocks: unstated
+          practice: unstated
+          trialOrder: random, the item on each trial drawn by a random procedure, a different sequence for each subject
+          randomSeed: unstated
+          fixation: fixation point for 0.5 s, the stimulus immediately after
+          stimulusDuration: until response
+          responseDeadline: none (stimulus until response)
+          interTrialInterval: 0.5
+          responseMapping: F key for the target f, H key for the target h
+          feedback: correct or incorrect, replacing the stimulus at each response, in white 50-pt font
+          missedResponse: cannot be missed (stimulus until response, no deadline)
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: Kept for analysis? (rule unstated)
+      default: $Flow_Excluded
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - unstated
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (0)
+      documentation: >-
+        None, by the article's counts: 52 workers completed all the trials, and the ANOVAs' F(1,51) imply 52 analyzed.
+
+    Select_Trials:
+      type: ServiceTask
+      name: Select trials (rule unstated)
+      documentation: >-
+        The same outlier analyses as in Experiments 1 and 2 removed 3% of the data from each condition; the article
+        gives the outlier rule nowhere, and does not say whether error trials enter the mean RTs (Experiment 1 analyzed
+        only correct trials).
+
+    Analysis:
+      type: ServiceTask
+      name: Separate one-way repeated-measures ANOVAs of mean RT and error rate, compatibility as the factor
+      documentation: The article names no software for the analysis.
+      implementation: unstated://analysis
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (52)
+      documentation: From the degrees of freedom of the ANOVAs, F(1,51).
+
+    F_0:
+      source: $Enroll
+      target: $Typing_Check
+
+    F_1:
+      source: $Typing_Check
+      target: $Eligible
+
+    Flow_Eligible:
+      condition: words_per_minute > 40
+      source: $Eligible
+      target: $Flanker
+
+    Flow_Ineligible:
+      source: $Eligible
+      target: $Ineligible
+
+    F_2:
+      source: $Flanker
+      target: $Exclusion
+
+    Flow_Kept:
+      condition: not(excluded)
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_3:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_4:
+      source: $Analysis
+      target: $Analyzed

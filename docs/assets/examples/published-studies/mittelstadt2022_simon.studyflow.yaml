@@ -1,0 +1,152 @@
+id: mittelstadt2022_simon
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Mittelstadt2022:
+  type: Process
+  name: Simon task (Mittelstadt et al. 2022, main experiment)
+  studyflow:Study:
+    authors:
+      - Mittelstadt V
+      - Miller J
+      - Leuthold H
+      - Mackenzie IG
+      - Ulrich R
+    registration: https://osf.io/g8uk6
+  documentation: >-
+    Mittelstadt, Miller, Leuthold, Mackenzie and Ulrich (2022), The time-course of distractor-based activation modulates
+    effects of speed-accuracy tradeoffs in conflict tasks, the preregistered main experiment, the Simon task only,
+    encoded from the article alone, without its supplements, code, or the papers it cites. Every value is taken from
+    the article; a value it does not state is written `unstated`.
+  elements:
+    Enroll:
+      type: StartEvent
+      name: Recruited (32)
+      documentation: >-
+        Tested at the University of Tubingen in one session of about 45 min, after giving informed consent; 25 women, 18
+        to 36 years of age, 25 right-handed; paid in course credit or 10 EUR.
+
+    Simon:
+      type: Task
+      name: Simon task, speed and accuracy blocks
+      documentation: >-
+        The Simon blocks alternate with Eriksen flanker blocks, which are not encoded. Speed (SP) or accuracy (AC)
+        emphasis is constant within a block and varies across blocks, within participants. An instruction screen at
+        the start of each block reminds the participant of the mapping, the task, and the emphasis.
+      cognitive:CognitiveTask:
+        construct: interference control
+        platform: E-Prime 2
+      inputs:
+        In_Simon_Settings:
+          source: $Simon_Settings
+
+    Simon_Settings:
+      type: DataObjectReference
+      name: Simon settings
+      documentation: >-
+        The experiment has 28 blocks of 32 trials. The encoding reads "the first four practice blocks" as the first
+        four of the 28, one of each block type, so the Simon task has 2 practice and 12 test blocks, and 96 test trials
+        in each cell of congruency by emphasis. Each block holds eight presentations of each of the four Simon displays
+        (two letters by two locations), so half the trials are congruent. The RT deadline only sets the "too slow!"
+        feedback, since the stimulus stays until the response. The trials are randomly ordered, but no seed is given.
+      studyflow:Parameters:
+        values:
+          stimuli: letter H or S (about 1.4 deg, monospaced, white on black), about 5.3 deg left or right of center
+          conditions:
+            - congruent
+            - incongruent
+          congruentProportion: 0.5
+          trials: 384
+          blocks: 12 blocks of 32 trials (6 speed, 6 accuracy), alternating with Eriksen blocks
+          practice: 2 blocks of 32 trials (one speed, one accuracy), among the first four blocks
+          trialOrder: random within a block
+          randomSeed: unstated
+          fixation: white plus sign, 0.5 s
+          stimulusDuration: until response
+          responseDeadline: >-
+            none (stimulus until response); "too slow!" after 0.5 s in speed blocks and 2.5 s in accuracy blocks
+            (0.75 s and 2.75 s in practice)
+          interTrialInterval: >-
+            the feedback, 1 s, or 2.5 s after a missed deadline in a speed block or an error in an accuracy block
+          responseMapping: >-
+            Y and - keys of a QWERTZ keyboard, left and right index fingers; H and S assigned to the hands at random for
+            each participant
+          feedback: >-
+            after each response "correct!", "error", "too slow!", or "too fast" (RT below 0.1 s); after a block, the
+            mean RT (speed) or the number correct (accuracy), and a warning after more than ten errors in a speed block
+          missedResponse: cannot be missed (stimulus until response); a late response gets "too slow!"
+          emphasis: speed (SP) or accuracy (AC), constant within a block, two successive blocks per emphasis
+          blockOrder: >-
+            loops of the four block types (Simon-SP, Eriksen-SP, Simon-AC, Eriksen-AC), task order and emphasis order
+            counterbalanced across participants (four orders)
+          instructions: >-
+            SP, emphasize speed and be less concerned about errors; AC, respond accurately without losing too much
+            speed
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: Excluded? (rule unstated)
+      default: $Flow_Excluded
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - unstated
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (0)
+      documentation: No rule is stated; the degrees of freedom (F(1, 31)) show that all 32 were analyzed.
+
+    Select_Trials:
+      type: ServiceTask
+      name: Drop the four practice blocks; drop error trials from RT analyses
+      implementation: unstated://trial-selection
+
+    Analysis:
+      type: ServiceTask
+      name: Repeated-measures ANOVAs of mean RT and error rate, emphasis by congruency by task; delta-plot slopes
+      documentation: >-
+        The tests of the study's claims. RT percentiles 10% to 90% per participant and condition; delta-plot slopes by
+        linear regression. The article names no software for these analyses.
+      implementation: unstated://anova
+
+    Model_Fit:
+      type: ServiceTask
+      name: DMC fits per participant and condition, minimizing the RMSE
+      documentation: >-
+        Fitted to each participant's errors and RT distributions in the four conditions (Simon or Eriksen, speed or
+        accuracy) with DEoptim within the R package DMCfun; step size 1 ms, diffusion constant fixed at 4.
+      implementation: r://DMCfun
+
+    Analyzed:
+      type: EndEvent
+      name: Analyzed (32)
+
+    F_0:
+      source: $Enroll
+      target: $Simon
+
+    F_1:
+      source: $Simon
+      target: $Exclusion
+
+    Flow_Kept:
+      condition: not(excluded)
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_2:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_3:
+      source: $Analysis
+      target: $Model_Fit
+
+    F_4:
+      source: $Model_Fit
+      target: $Analyzed

@@ -1,0 +1,177 @@
+{
+ "file": "mittelstadt2022_simon",
+ "pmc": "PMC9166868",
+ "encoded": "the preregistered main experiment, the Simon task (speed or accuracy emphasis by block, within participants)",
+ "bibtex": "@article{mittelstadt2022timecourse, title = {The time-course of distractor-based activation modulates effects of speed-accuracy tradeoffs in conflict tasks}, author = {Mittelst{\\\"a}dt, Victor and Miller, Jeff and Leuthold, Hartmut and Mackenzie, Ian Grant and Ulrich, Rolf}, journal = {Psychonomic Bulletin \\& Review}, volume = {29}, number = {3}, pages = {837--854}, year = {2022}, doi = {10.3758/s13423-021-02003-x}}",
+ "items": [
+  {
+   "item": "stimuli",
+   "status": "stated",
+   "value": "letter H or S (about 1.4 deg, monospaced, white on black), about 5.3 deg left or right of center",
+   "quote": "The stimuli were letters (i.e., H and S) that subtended approximately 1.4° with a monospaced font. For each participant, the two stimulus letters were randomly assigned to left- and right-hand responses. In Simon task blocks, the target letter appeared approximately 5.3o to the left or right of the center of the screen (measured to the center of the letter).",
+   "where": "Method",
+   "note": "White on black: \"All visual stimuli were presented in a white font on a black background\". The article's text has \"5.3o\" for 5.3 degrees."
+  },
+  {
+   "item": "conditions",
+   "status": "stated",
+   "value": "congruent, incongruent",
+   "quote": "and in the Simon task (i.e., two possible target letters × two locations)",
+   "where": "Method",
+   "note": "With each letter assigned to one hand, a letter on that hand's side is congruent and on the other side incongruent; the labels appear in the Results (\"congruency (congruent, incongruent)\"). Speed versus accuracy emphasis varies by block, within participants, and is kept in the settings as `emphasis`."
+  },
+  {
+   "item": "congruentProportion",
+   "status": "stated",
+   "value": 0.5,
+   "quote": "Each of the 28 blocks consisted of 32 randomly ordered trials, with eight presentations of each of the four possible stimulus displays in the Eriksen task (i.e., two possible target letters × two flanker letters) and in the Simon task (i.e., two possible target letters × two locations).",
+   "where": "Method",
+   "note": "Eight presentations of each of the four Simon displays per block: 16 congruent and 16 incongruent trials."
+  },
+  {
+   "item": "trials",
+   "status": "stated",
+   "value": 384,
+   "quote": "Each of the 28 blocks consisted of 32 randomly ordered trials",
+   "where": "Method",
+   "note": "Judgment call: the 28 blocks are read as including \"the first four practice blocks\" (one loop of the four block types), leaving 24 test blocks, 12 of them Simon blocks since tasks alternate: 12 x 32 = 384, 96 per cell of congruency by emphasis. If the practice blocks came on top of the 28, it would be 448."
+  },
+  {
+   "item": "blocks",
+   "status": "stated",
+   "value": "12 blocks of 32 trials (6 speed, 6 accuracy), alternating with Eriksen blocks",
+   "quote": "Thus, all participants always performed two successive blocks of one speed-accuracy condition and tasks alternated blockwise.",
+   "where": "Method",
+   "note": "From the 28 blocks of 32 trials, less the four practice blocks, as for trials."
+  },
+  {
+   "item": "practice",
+   "status": "stated",
+   "value": "2 blocks of 32 trials (one speed, one accuracy), among the first four blocks",
+   "quote": "After the first four practice blocks, the experimenter further encouraged participants to follow the SP and AC instruction.",
+   "where": "Method",
+   "note": "The first four blocks are one loop of the four block types, so two of them are Simon blocks, with longer RT deadlines (0.75 s and 2.75 s)."
+  },
+  {
+   "item": "trialOrder",
+   "status": "stated",
+   "value": "random within a block",
+   "quote": "Each of the 28 blocks consisted of 32 randomly ordered trials",
+   "where": "Method",
+   "note": "Blocks follow a fixed loop of the four block types, its order counterbalanced across participants (four orders; in the settings as `blockOrder`). How participants were assigned to an order is not stated."
+  },
+  {
+   "item": "randomSeed",
+   "status": "unstated",
+   "note": "The trials are \"randomly ordered\" and the letters \"randomly assigned\" to the hands, without a seed or a stated sequence."
+  },
+  {
+   "item": "fixation",
+   "status": "stated",
+   "value": "white plus sign, 0.5 s",
+   "quote": "At the beginning of each trial, the fixation cross appeared on the screen for 500 ms.",
+   "where": "Method",
+   "note": "\"A centrally positioned white plus sign (+) served as the fixation point.\" The stimulus follows the fixation cross's offset, with no blank."
+  },
+  {
+   "item": "stimulusDuration",
+   "status": "stated",
+   "value": "until response",
+   "quote": "The stimulus or stimuli remained on the screen until participants responded.",
+   "where": "Method"
+  },
+  {
+   "item": "responseDeadline",
+   "status": "stated",
+   "value": "none (stimulus until response); \"too slow!\" after 0.5 s in speed blocks and 2.5 s in accuracy blocks (0.75 s and 2.75 s in practice)",
+   "quote": "Each block of trials used a fixed RT deadline to calculate “too slow!” feedback, which depended on the specific speed-accuracy block type condition. For Simon-SP and Eriksen-SP blocks, the RT deadlines were set to 500 ms (750 ms in practice blocks). For Simon-AC and Eriksen-AC blocks, the RT deadlines were set to 2.5 s (2.75 s in practice blocks).",
+   "where": "Method",
+   "note": "The stimulus stays until the response, so the deadline only sets the feedback; Appendix A contrasts this implicit deadline with the pilot's explicit one."
+  },
+  {
+   "item": "interTrialInterval",
+   "status": "stated",
+   "value": "the feedback, 1 s, or 2.5 s after a missed deadline in a speed block or an error in an accuracy block",
+   "quote": "Feedback was displayed in white or red font for either 1 s or for 2.5 s depending on speed-accuracy requirements.",
+   "where": "Method",
+   "note": "Judgment call: the feedback follows each response and the next trial starts with its 0.5 s fixation; the article mentions no other interval, so the next stimulus comes 1.5 s or 3 s after the response."
+  },
+  {
+   "item": "responseMapping",
+   "status": "stated",
+   "value": "Y and - keys of a QWERTZ keyboard, left and right index fingers; H and S assigned to the hands at random for each participant",
+   "quote": "Responses were key presses with the left and right index fingers on the “Y” and “-” keys of a QWERTZ computer keyboard.",
+   "where": "Method",
+   "note": "Counterbalancing: \"For each participant, the two stimulus letters were randomly assigned to left- and right-hand responses.\""
+  },
+  {
+   "item": "feedback",
+   "status": "stated",
+   "value": "after each response \"correct!\", \"error\", \"too slow!\", or \"too fast\" (RT below 0.1 s); after a block, the mean RT (speed) or the number correct (accuracy), and a warning after more than ten errors in a speed block",
+   "quote": "After each response, feedback indicated whether the response was (1) “correct!” (2) “error,” (3) “too slow!” or (4) “too fast” (if RT < 100 ms).",
+   "where": "Method",
+   "note": "Block feedback: \"they only received feedback about their mean RT after performing SP blocks\", an additional message after SP blocks with more than ten errors, and \"feedback about their number of correct trials after performing AC blocks\"."
+  },
+  {
+   "item": "missedResponse",
+   "status": "stated",
+   "value": "cannot be missed (stimulus until response); a late response gets \"too slow!\"",
+   "quote": "The stimulus or stimuli remained on the screen until participants responded.",
+   "where": "Method"
+  },
+  {
+   "item": "platform",
+   "status": "stated",
+   "value": "E-Prime 2",
+   "quote": "Stimulus presentation and recording of responses were controlled by E-Prime 2.",
+   "where": "Method"
+  },
+  {
+   "item": "sample",
+   "status": "stated",
+   "value": "Recruited (32); Analyzed (32)",
+   "quote": "Thirty-two people (25 women) were tested at the University of Tübingen.",
+   "where": "Method",
+   "note": "The number analyzed follows from the degrees of freedom in the Results, F(1, 31)."
+  },
+  {
+   "item": "participantExclusion",
+   "status": "unstated",
+   "note": "No rule for excluding participants is given. The degrees of freedom show that all 32 were analyzed, so the diagram writes Excluded (0)."
+  },
+  {
+   "item": "trialExclusion",
+   "status": "stated",
+   "value": "Drop the four practice blocks; drop error trials from RT analyses",
+   "quote": "The first four practice blocks were excluded from any analyses. For RT analyses, we excluded choice error trials (10.2%).",
+   "where": "Results",
+   "note": "No RT cutoffs are applied; \"too fast\" trials are not said to be excluded (the pilot of Appendix A excluded too-fast and too-slow trials)."
+  },
+  {
+   "item": "analysisImplementation",
+   "status": "unstated",
+   "note": "The tests of the claims, the repeated-measures ANOVAs and delta-plot slopes (service task Analysis), name no software. The DMC fits name R's DMCfun (see extra)."
+  }
+ ],
+ "extra": [
+  {
+   "item": "registration",
+   "status": "stated",
+   "value": "https://osf.io/g8uk6",
+   "quote": "Preregistration including sample size rationale based on the effect size of a pilot experiment (see Appendix A) is available via the OSF at: https://osf.io/g8uk6.",
+   "where": "Other",
+   "note": "A footnote; written as the study's registration attribute. The preregistration itself was not read."
+  },
+  {
+   "item": "modelFitImplementation",
+   "status": "stated",
+   "value": "r://DMCfun",
+   "quote": "by using the R-package DMCfun",
+   "where": "Results",
+   "note": "The DMC fits (service task Model_Fit), a further analysis after the tests of the claims."
+  }
+ ],
+ "states": "32 recruited and analyzed; one session of about 45 min, Simon blocks alternating with Eriksen blocks and speed or accuracy emphasis by block in a counterbalanced loop; 384 test trials in 12 blocks of 32 after 2 practice blocks, half congruent, randomly ordered; fixation 500 ms, stimulus until response, feedback for 1 s or 2.5 s; too-slow feedback after 500 ms or 2.5 s; letters assigned to hands at random; E-Prime 2; practice blocks and errors dropped; repeated-measures ANOVAs and delta-plot slopes; DMC fits with R DMCfun; preregistered",
+ "unstated": "the seed of the trial order, a rule for excluding participants, the software of the ANOVAs that test the claims (the model fits name DMCfun)",
+ "notes": "Encoded from the main text and its own appendices' wording only; the pilot of Appendix A is not encoded, and the OSF preregistration was not read. Judgment calls: the 28 blocks are read as including \"the first four practice blocks\", which gives 2 Simon practice and 12 Simon test blocks (384 test trials; 448 if the practice blocks were extra); the RT deadlines only set the \"too slow!\" feedback, so responseDeadline is none and a response cannot be missed; the interval to the next trial is the feedback's 1 s or 2.5 s, as the article mentions no other interval; the conditions follow from the Method's two letters by two locations and the letter-to-hand assignment, with the labels in the Results; the Analysis is the tests of the claims (the ANOVAs and delta-plot slopes), whose software is not stated (unstated://anova), and the DMC fits are a further service task (Model_Fit, r://DMCfun, under extra); the number analyzed (32) and Excluded (0) follow from the degrees of freedom. Speed versus accuracy emphasis, the counterbalanced block loop, and the instructions follow the 17 checklist keys in the settings (emphasis, blockOrder, instructions); how participants were assigned to the four block orders is not stated. The Eriksen blocks are not encoded. PMC's text has no journal metadata; volume, issue, pages and DOI come from the PMC record's front matter, and the bibtex entry and key (mittelstadt2022timecourse) match elife/references.bib."
+}

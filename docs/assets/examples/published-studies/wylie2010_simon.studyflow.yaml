@@ -1,0 +1,154 @@
+id: wylie2010_simon
+schemas:
+  cognitive: http://behaverse.org/schemas/studyflow/cognitive
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+Wylie2010:
+  type: Process
+  name: Simon (Wylie et al. 2010, Parkinson's disease patients and healthy controls)
+  studyflow:Study:
+    authors:
+      - Wylie SA
+      - Ridderinkhof KR
+      - Bashore TR
+      - van den Wildenberg WPM
+  documentation: >-
+    Wylie, Ridderinkhof, Bashore and van den Wildenberg (2010), The effect of Parkinson's disease on the dynamics of
+    on-line and proactive cognitive control during action selection, its one experiment, the Simon task with patients
+    with Parkinson's disease and healthy controls, encoded from the article alone, without its supplements, code, or
+    the papers it cites. Every value is taken from the article; a value it does not state is written `unstated`.
+  elements:
+    Enroll:
+      type: StartEvent
+      name: "Recruited (82: 52 PD, 30 HC)"
+      documentation: >-
+        Patients with Parkinson's disease (PD) from the Movement Disorders Clinic at the University of Virginia, and
+        healthy controls (HC) similar to them in age, education, and sex ratio. All patients were at Hoehn and Yahr
+        stage III or less (mean 2.1). Informed consent was obtained; the form is not given.
+
+    Eligible:
+      type: ExclusiveGateway
+      name: Eligible?
+      default: $Flow_Ineligible
+      cognitive:EligibilityGateway:
+        inclusionCriteria:
+          - "PD group: idiopathic PD, diagnosed by a neurologist specializing in movement disorders"
+          - "HC group: healthy; occasionally family members of patients, or recruited from the local community by advertisement"
+          - Corrected-to-normal vision
+          - "Patients tested on the day of a clinic visit: screened for adverse clinical events (e.g. fatigue, stress, concerns about poor symptom control)"
+        exclusionCriteria:
+          - History of other neurological condition
+          - Untreated or unstable mood disorder
+          - History of bipolar affective disorder, schizophrenia, or other psychiatric condition known to compromise executive cognition
+          - Untreated or unstable medical condition known to interfere with cognition (e.g. diabetes, pulmonary disease)
+
+    Ineligible:
+      type: EndEvent
+      name: Not eligible (count unstated)
+
+    Simon:
+      type: Task
+      name: Simon task
+      documentation: >-
+        51 of the 52 patients took dopaminergic medication and were tested in the optimal "on" state of their
+        medication cycle, on the day of or within a few weeks of a regular clinic visit.
+      cognitive:CognitiveTask:
+        construct: on-line and proactive control of response interference
+        platform: unstated
+      inputs:
+        In_Simon_Settings:
+          source: $Simon_Settings
+
+    Simon_Settings:
+      type: DataObjectReference
+      name: Simon settings
+      studyflow:Parameters:
+        values:
+          stimuli: >-
+            blue or green circle, 2.1 cm (1.20 deg) in diameter, 0.6 cm (0.34 deg) left or right of a small square
+            fixation point, on a white background
+          conditions:
+            - corresponding
+            - noncorresponding
+          congruentProportion: 0.5
+          trials: 300
+          blocks: 5 blocks of 60 trials
+          practice: 100 trials with the circle at fixation, then 60 trials with the circle left or right
+          trialOrder: >-
+            random within each block, with roughly equal numbers of trials preceded by corresponding and by
+            noncorresponding trials
+          randomSeed: unstated
+          fixation: small square fixation point, always on screen, for 1.75 to 2.25 s before the circle
+          stimulusDuration: until response, at most 1.5 s
+          responseDeadline: 1.5
+          interTrialInterval: 1.75 to 2.25 s from the response to the next circle
+          responseMapping: >-
+            left and right thumb buttons on handheld grips; circle color to response side (e.g. green right, blue left)
+            counterbalanced across participants
+          feedback: unstated
+          missedResponse: unstated
+          display: 17-in. monitor, IBM-compatible computer
+
+    Exclusion:
+      type: ExclusiveGateway
+      name: Excluded from the analysis?
+      default: $Flow_Excluded
+      documentation: >-
+        No rule is stated. All 82 enter the main analyses (F(1, 80)). The post-error analysis keeps 43 patients and 27
+        controls, leaving out those who did not make enough errors to compare the trial types after an error.
+      cognitive:EligibilityGateway:
+        exclusionCriteria:
+          - unstated
+
+    Excluded:
+      type: EndEvent
+      name: Excluded (0)
+
+    Select_Trials:
+      type: ServiceTask
+      name: Drop RTs beyond 3 SD of the mean, confirmed by visual inspection, and RTs below 0.1 s
+      documentation: The article does not say whether error trials enter the RT analyses.
+      implementation: unstated://trial-selection
+
+    Analysis:
+      type: ServiceTask
+      name: Repeated-measures ANOVAs of mean RT and square-rooted accuracy; conditional accuracy functions and delta plots over septiles
+      implementation: unstated://analysis
+
+    Analyzed:
+      type: EndEvent
+      name: "Analyzed (82: 52 PD, 30 HC)"
+
+    F_0:
+      source: $Enroll
+      target: $Eligible
+
+    Flow_Eligible:
+      condition: 'corrected_vision and not(exclusion_condition) and (group = "HC" or idiopathic_pd)'
+      source: $Eligible
+      target: $Simon
+
+    Flow_Ineligible:
+      source: $Eligible
+      target: $Ineligible
+
+    F_1:
+      source: $Simon
+      target: $Exclusion
+
+    Flow_Kept:
+      condition: not(excluded)
+      source: $Exclusion
+      target: $Select_Trials
+
+    Flow_Excluded:
+      source: $Exclusion
+      target: $Excluded
+
+    F_2:
+      source: $Select_Trials
+      target: $Analysis
+
+    F_3:
+      source: $Analysis
+      target: $Analyzed
