@@ -53,10 +53,16 @@ def dig(value: Any, fields: list[str]) -> Any:
     return value
 
 
+def stores(plan: dict[str, Any]) -> dict[str, str]:
+    """The data stores, by name to id: each one value for the whole study, under its id in the state."""
+    return {e.get("name") or eid: eid for eid, e in (plan.get("elements") or {}).items() if e.get("type") == "dataStore"}
+
+
 def resolve(path: str, element_id: str, values: dict[str, Any], plan: dict[str, Any]) -> Any:
     """The placeholder rule (docs/reference.qmd, "Placeholders"): `state` from its root; then, from the element
-    outward, what each scope holds under the name; then an element's result, by id or unique name; then, for a lone
-    `{reached}`, the element's own counter, 0 when no run reached it. `None` when nothing holds the name."""
+    outward, what each scope holds under the name; then the data store of that name; then an element's result, by id
+    or unique name; then, for a lone `{reached}`, the element's own counter, 0 when no run reached it. `None` when
+    nothing holds the name."""
     head, *fields = path.split(".")
     tree = values.get("state") or {}
     if head == "state":
@@ -68,6 +74,9 @@ def resolve(path: str, element_id: str, values: dict[str, Any], plan: dict[str, 
         if found is not None:
             return found
         scope = (elements.get(scope) or {}).get("parent")
+    store = stores(plan).get(head)
+    if store is not None and (found := dig(tree.get(store), fields)) is not None:
+        return found
     ids = {name: eid for eid, name in (plan.get("names") or {}).items()}
     found = dig(values.get(head, values.get(ids.get(head, ""))), fields)
     if found is None and head == "reached" and not fields:
@@ -151,20 +160,22 @@ class Step:
                 self.bind(binding["target"], narrowed)
 
     def in_scope(self) -> dict[str, Any]:
-        """The properties in scope of the step, by name, an inner scope shadowing an outer one: what its expressions read."""
+        """The data stores and the properties in scope of the step, by name, an inner scope shadowing an outer one:
+        what its expressions read."""
         tree = self.values.get("state") or {}
         chain: list[str] = []
         scope = self.id
         while scope:
             chain.append(scope)
             scope = str((self.elements.get(scope) or {}).get("parent") or "")
-        held: dict[str, Any] = {}
+        held: dict[str, Any] = {name: tree[store] for name, store in stores(self.plan).items() if store in tree}
         for each in reversed(chain):
             held.update(tree.get(each) or {})
         return held
 
     def write(self, scope: str, name: str, value: Any) -> None:
-        """A property of a scope: `state.<scope>.<name>`."""
+        """A property of a scope: `state.<scope>.<name>`. A data store is written by binding its value under the id of
+        a reference to it, or its own."""
         self.written.setdefault(scope, {})[name] = value
 
     def no_reply(self) -> None:

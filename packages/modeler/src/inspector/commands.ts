@@ -1,8 +1,8 @@
 import { setParticipantKind } from '@core/model/choreography';
-import { isElement, type Element, type StudyModel, type Value } from '@core/model/index';
+import { idOf, isElement, type Element, type StudyModel, type Value } from '@core/model/index';
 import { setItemSubjectIn, setMessageItemIn } from '@core/model/items';
 import { isReservedStateKey } from '@core/model/state';
-import { declaredProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
+import { dataStoresOf, declaredProperties, nextPropertyId, scopeOf } from '@modeler/inspector/stateProperties';
 import type { Editor } from '@modeler/editor/port';
 
 /* The inspector's edits. Each names the element it is about (`element`, as the inspector showed it) and changes the
@@ -168,6 +168,66 @@ export function runUpdateStateProperties(modeler: Editor, command: UpdateStatePr
 
     setItemSubjectIn(model, ids, target, command.itemType);
   }, command.action === 'rename' ? `property:${command.propertyId}` : undefined);
+}
+
+
+export type UpdateDataStoresCommand = {
+  type: 'UpdateDataStores';
+  /** The study's root, whose inspector lists them. */
+  element: Element;
+} & (
+  | { action: 'add' }
+  | { action: 'remove'; storeId: string }
+  | { action: 'rename'; storeId: string; name: string }
+  | { action: 'retype'; storeId: string; itemType: string }
+);
+
+/** The study's data stores, root elements of the file. A store removed leaves the references that showed it naming none. */
+export function runUpdateDataStores(modeler: Editor, command: UpdateDataStoresCommand): void {
+  modeler.study.revise(String(command.element.id), (_root, model, ids) => {
+    if (command.action === 'add') {
+      model.study.roots.push({ type: 'bpmn:DataStore', id: nextPropertyId((candidate) => model.get(candidate) !== undefined, 'DataStore'), name: '' });
+      return;
+    }
+    const store = dataStoresOf(model).find((candidate) => candidate.id === command.storeId);
+    if (!store) return;
+    if (command.action === 'remove') {
+      model.study.roots = model.study.roots.filter((root) => root !== store);
+      for (const reference of model.all()) if (idOf(reference.dataStoreRef) === store.id) delete reference.dataStoreRef;
+      return;
+    }
+    if (command.action === 'rename') {
+      if (!isReservedStateKey(command.name)) store.name = command.name;
+      return;
+    }
+    setItemSubjectIn(model, ids, store, command.itemType);
+  }, command.action === 'rename' ? `store:${command.storeId}` : undefined);
+}
+
+
+export type SetDataStoreCommand = {
+  type: 'SetDataStore';
+  /** A data store reference. */
+  element: Element;
+  /** The name of the store it shows: one the study declares, else a new one declared so; '' shows none. */
+  name: string;
+};
+
+export function runSetDataStore(modeler: Editor, command: SetDataStoreCommand): void {
+  const name = command.name.trim();
+  if (isReservedStateKey(name)) return;
+  modeler.study.revise(String(command.element.id), (reference, model) => {
+    if (!name) {
+      delete reference.dataStoreRef;
+      return;
+    }
+    let store = dataStoresOf(model).find((candidate) => (candidate.name || candidate.id) === name);
+    if (!store) {
+      store = { type: 'bpmn:DataStore', id: nextPropertyId((candidate) => model.get(candidate) !== undefined, 'DataStore'), name };
+      model.study.roots.push(store);
+    }
+    reference.dataStoreRef = store.id!;
+  });
 }
 
 

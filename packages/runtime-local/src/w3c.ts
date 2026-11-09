@@ -12,8 +12,8 @@
  *   it used.
  *
  * What PROV has no term for keeps a term of Studyflow's (`sf:`): a step's status, the flow a gateway took, the flow a
- * message went along, the property a value was written to. The counts are the study's state, not provenance, and
- * are left out.
+ * message went along, the property or data store a value was written to. The counts are the study's state, not
+ * provenance, and are left out.
  */
 import type { RunEvent } from '@core/engine';
 
@@ -101,11 +101,15 @@ export function provOf(events: readonly RunEvent[]): string {
           `  prov:wasInfluencedBy ${earlier} ;`, ...(happened.flow ? [`  sf:took ${iri(`${plan}#${happened.flow}`)} ;`] : [])]);
         break;
       }
-      case 'wrote':
-        out.push([`${node('value')} a prov:Entity ;`, `  rdfs:label ${literal(happened.name)} ;`,
-          `  sf:property ${iri(`${plan}#${happened.scope}`)} ;`, ...('value' in happened ? [`  prov:value ${json(happened.value)} ;`] : []),
+      case 'wrote': {
+        // A property is named in the scope that declares it; a data store is its own element.
+        const where = 'store' in happened
+          ? [`  rdfs:label ${literal(happened.store)} ;`, `  sf:element ${iri(`${plan}#${happened.store}`)} ;`]
+          : [`  rdfs:label ${literal(happened.name)} ;`, `  sf:property ${iri(`${plan}#${happened.scope}`)} ;`];
+        out.push([`${node('value')} a prov:Entity ;`, ...where, ...('value' in happened ? [`  prov:value ${json(happened.value)} ;`] : []),
           `  prov:generatedAtTime ${time(happened.at)} ;`, `  prov:wasGeneratedBy ${iri(run)} .`].join('\n') + '\n');
         break;
+      }
       case 'sent': {
         const { message } = happened;
         out.push([`${iri(`${run}/message/${message.id}`)} a prov:Entity ;`, `  sf:flow ${iri(`${plan}#${message.flow}`)} ;`,

@@ -81,12 +81,18 @@ class Plan:
     def seed(self) -> str | None:
         return self.study.get("seed")
 
+    def datum(self, element_id: str) -> str:
+        """The data an element holds: the data store a reference names, else the element itself."""
+        store = ((self.elements.get(element_id) or {}).get("attributes") or {}).get("dataStoreRef")
+        return store if (self.elements.get(store) or {}).get("type") == "dataStore" else element_id
+
     def artifact(self, element_id: str) -> tuple[str | None, str | None]:
         element = self.elements.get(element_id)
         if element is None or element.get("type") not in DATA_ELEMENT_TAGS:
             return None, None
         attributes = element.get("attributes") or {}
-        return attributes.get("uri"), attributes.get("format")
+        held = (self.elements.get(self.datum(element_id)) or {}).get("attributes") or {}
+        return attributes.get("uri") or held.get("uri"), attributes.get("format") or held.get("format")
 
     def log(self, element_id: str, fmt: str) -> bool:
         """Whether the element is a log: a `.jsonl` data store, which grows a line at a time."""
@@ -97,8 +103,10 @@ class Plan:
         return self.log(element_id, fmt) and isinstance(value, dict)
 
     def written(self, element_id: str) -> bool:
-        """Whether a step of the study writes the element, so it is never a boundary input."""
-        return any(output.get("target") == element_id for element in self.elements.values() for output in element.get("outputs") or [])
+        """Whether a step of the study writes the element, or the data store it shows, so it is never a boundary input."""
+        held = self.datum(element_id)
+        return any(output.get("target") and self.datum(output["target"]) == held
+                   for element in self.elements.values() for output in element.get("outputs") or [])
 
     def schema_columns(self, element_id: str) -> list[dict[str, Any]]:
         """The columns the schema bound to a data element declares, each as written: its `schema`, a `studyflow:Schema`
@@ -288,6 +296,9 @@ class Run:
     def value_of(self, element_id: str) -> Any:
         if element_id in self.values:
             return self.values[element_id]
+        key = self.studyflow.datum(element_id)
+        if key in self.values:
+            return self.values[key]
         uri, declared = self.studyflow.artifact(element_id)
         if uri:
             path = self.repo / uri
@@ -304,7 +315,7 @@ class Run:
                     value = self.studyflow.with_lists(element_id, value)
             self.values[element_id] = value
             return value
-        spilled = self.spill / f"{element_id}.joblib"
+        spilled = self.spill / f"{key}.joblib"
         if spilled.exists():
             import joblib
             value = joblib.load(spilled)
@@ -436,7 +447,7 @@ class Run:
                 append_record(bound, self.repo / uri)
                 print(f"appended a line to {uri}")
                 continue
-            self.values[target_id] = bound
+            self.values[target_id] = self.values[self.studyflow.datum(target_id)] = bound
             if jsonable(bound):
                 self.bound[target_id] = bound
             if uri:
@@ -446,7 +457,7 @@ class Run:
             elif not jsonable(bound):
                 import joblib
                 self.spill.mkdir(parents=True, exist_ok=True)
-                joblib.dump(bound, self.spill / f"{target_id}.joblib")
+                joblib.dump(bound, self.spill / f"{self.studyflow.datum(target_id)}.joblib")
         return result
 
 

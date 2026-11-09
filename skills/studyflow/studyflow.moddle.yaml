@@ -306,14 +306,16 @@ types:
         description: The standard BPMN form of the same, written on export.
         type: bpmn:InputOutputSpecification
 
-  - name: PropertyValue
-    description: The initial value of a declared property; names starting with `_` are reserved for the runner.
+  # A property lives for one instance of what declares it; a data store, for the whole study.
+  - name: InitialValue
+    description: The initial value of a property or a data store; names starting with `_` are reserved for the runner.
     extends:
       - bpmn:Property
+      - bpmn:DataStore
     isAbstract: true
     properties:
       - name: value
-        description: Initial value, as a literal; read when the declaring scope starts.
+        description: Initial value, as a literal; a property takes it when its scope starts, a data store when the study has none.
         isAttr: true
         type: String
   - name: StartEvent

@@ -295,6 +295,26 @@ test('config wired into a task is that task\'s settings alone, and fills no plac
   expect([linked.parameters.overridden, linked.parameters.undeclared]).toEqual([[], ['label']]);
 });
 
+test('a link binds a data store by its name, which fills a placeholder as a property does; without one, the value the file keeps', async () => {
+  const text = `id: stores
+definitions:
+  targetNamespace: http://bpmn.io/schema/bpmn
+Trials:
+  type: bpmn:DataStore
+  name: n_trials
+  value: 20
+Stored:
+  type: bpmn:Process
+  flowElements:
+    Task:
+      type: bpmn:Task
+      name: "{n_trials} trials"
+`;
+  const linked = await parseStudyflow(text, freshPackages(), { n_trials: '40' });
+  expect([linked.flowNodes.get('Task')?.element.name, linked.parameters.values, linked.parameters.undeclared]).toEqual(['40 trials', { n_trials: '40' }, []]);
+  expect((await parseStudyflow(`${text}state:\n  Trials: 30\n`, freshPackages(), {})).flowNodes.get('Task')?.element.name).toBe('30 trials');
+});
+
 /** `{COMPLETION_CODE}` belongs to the end event and `{count}` to the run state: neither is asked of the link. */
 test('a placeholder that names no declared parameter is left as written, not demanded', async () => {
   const study = await parseStudyflow(`id: redirects

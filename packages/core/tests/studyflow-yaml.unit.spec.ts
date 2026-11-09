@@ -339,6 +339,40 @@ R:
     expect(back).toContain('Trial_Item:\n  type: ItemDefinition\n  structure: cognitive:Trial\n');
   });
 
+  test('a data store, its initial value and a reference to it keep their spelling through a round trip', async () => {
+    const text = `schemas:
+  studyflow: http://behaverse.org/schemas/studyflow/v1
+
+S:
+  type: Process
+  elements:
+    Tally_Ref:
+      type: DataStoreReference
+      dataStore: $Tally
+
+    Count:
+      type: Task
+      outputs:
+        Out_Tally:
+          target: $Tally_Ref
+          transformation: tally + 1
+
+Tally:
+  type: DataStore
+  name: tally
+  item: $Item_Count
+  value: 0
+
+Item_Count:
+  type: ItemDefinition
+  structure: integer
+`;
+    const xml = await xmlOf(text);
+    expect(xml).toContain('<bpmn:dataStoreReference id="Tally_Ref" dataStoreRef="Tally" />');
+    expect(xml).toContain('<bpmn:dataStore id="Tally" itemSubjectRef="Item_Count" name="tally" studyflow:value="0" />');
+    expect(await yamlOf(xml)).toBe(text);
+  });
+
   test('a conditional boundary event and the loop markers keep their spelling through a round trip', async () => {
     // All are BPMN's own: the boundary's `condition` says when the walk leaves a finished step, and a marker's
     // `cardinality` how many instances of it run. An expression is a string, so an integer cardinality is quoted;

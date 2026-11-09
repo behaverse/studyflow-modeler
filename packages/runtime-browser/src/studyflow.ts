@@ -108,13 +108,24 @@ async function sha256Hex(text: string): Promise<string> {
     .join('');
 }
 
-/** A `bpmn:Property` a container declares. */
+/** A `bpmn:Property` a container declares, or a `bpmn:DataStore` the study does. */
 type PropertyDecl = { id: string; name: string; itemType?: string; dataState?: string; value?: unknown };
 
 function readProperties(model: StudyModel, container: Element): PropertyDecl[] {
+  return declarations(model, elementsIn(container.properties).filter((p) => model.host(p) === BPMN.Property));
+}
+
+/** The study's data stores, each with the value the file's state keeps for it, else the one it declares. */
+function readStores(model: StudyModel): PropertyDecl[] {
+  const state = model.study.state ?? {};
+  return declarations(model, model.study.roots.filter((root) => model.host(root) === BPMN.DataStore))
+    .map((store) => (store.id in state ? { ...store, value: state[store.id] } : store));
+}
+
+function declarations(model: StudyModel, declared: Element[]): PropertyDecl[] {
   const text = (value: Value | undefined): string | undefined => (typeof value === 'string' ? value : undefined);
-  return elementsIn(container.properties)
-    .filter((p) => model.host(p) === BPMN.Property && typeof p.id === 'string')
+  return declared
+    .filter((p) => typeof p.id === 'string')
     .map((p) => ({
       id: p.id!,
       name: typeof p.name === 'string' && p.name.length > 0 ? p.name : p.id!,
@@ -200,7 +211,7 @@ export type BoundParameters = {
   values: Record<string, unknown>;
   /** Names the link supplied that the study already carried a value for. */
   overridden: string[];
-  /** Supplied, but declared by no `studyflow:Parameters` wired into a step, `bpmn:Property`, or attribute of the study. */
+  /** Supplied, but declared by no `studyflow:Parameters` wired into a step, `bpmn:Property`, `bpmn:DataStore`, or attribute of the study. */
   undeclared: string[];
   /** Declared names a `{name}` reference needs and nothing has bound; the study cannot run until they are given. */
   unbound: string[];
@@ -261,10 +272,10 @@ function wiredSources(container: Element): Set<string> {
   return ids;
 }
 
-/** Every name the study declares a value for, at any depth: `bpmn:Property` names, the keys of the Parameters wired
- * into a sub-process (its properties too), study attributes. */
+/** Every name the study declares a value for, at any depth: `bpmn:Property` and `bpmn:DataStore` names, the keys of
+ * the Parameters wired into a sub-process (its properties too), study attributes. */
 function declaredNames(model: StudyModel, container: Element, attributes: Map<string, unknown>): Set<string> {
-  const names = new Set<string>(attributes.keys());
+  const names = new Set<string>([...attributes.keys(), ...readStores(model).map((store) => store.name)]);
   const objects = new Map<string, Record<string, unknown>>();
   const gather = (node: Element): void => {
     for (const [id, values] of readParameterObjects(model, node)) objects.set(id, values);
@@ -287,7 +298,11 @@ function declaredNames(model: StudyModel, container: Element, attributes: Map<st
 
 /** The values a container's properties declare, by name. */
 function declaredValues(model: StudyModel, container: Element): Record<string, unknown> {
-  return Object.fromEntries(readProperties(model, container).filter((p) => p.value !== undefined).map((p) => [p.name, p.value]));
+  return valuesOf(readProperties(model, container));
+}
+
+function valuesOf(declared: PropertyDecl[]): Record<string, unknown> {
+  return Object.fromEntries(declared.filter((p) => p.value !== undefined).map((p) => [p.name, p.value]));
 }
 
 /** Binds what a run was launched with to what the study declares, then substitutes `{name}` wherever it is written. */
@@ -299,7 +314,8 @@ function bindParameters(
 ): BoundParameters & { wired: Map<string, Record<string, unknown>> } {
   const wired = wiredSources(process);
   const objects = readParameterObjects(model, process);
-  const properties = new Map(readProperties(model, process).map((p) => [p.name, p.itemType]));
+  // A link binds the study's data stores and its process's properties, a property hiding a store of its name.
+  const properties = new Map([...readStores(model), ...readProperties(model, process)].map((p) => [p.name, p.itemType]));
   // The Study's one attribute a run is launched with; its others (`runtime`, `version`) are about the study, not run values.
   const attributes = new Map<string, string | undefined>([['seed', model.metamodel.property(STUDY, 'seed')?.type]]);
 
@@ -405,8 +421,8 @@ function bindParameters(
     }
   };
 
-  // The study's own properties, a link's values over their declared ones.
-  const rootScope = { ...declaredValues(model, process), ...ambient };
+  // The study's data stores and its process's properties, a link's values over the file's.
+  const rootScope = { ...valuesOf(readStores(model)), ...declaredValues(model, process), ...ambient };
   bindContainer(process, rootScope, new Map());
 
   const seen = new Set<Element>([process]);

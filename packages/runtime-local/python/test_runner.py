@@ -23,6 +23,11 @@ assert runner.resolve("count", "Step", nested, inner) == 2
 assert runner.resolve("reached", "Round", nested, inner) == 3
 assert runner.resolve("reached", "Step", nested, inner) == 0  # inside Round, but no run reached Step itself
 assert runner.resolve("reached", "Step", {}, inner) == 0  # and 0 in a file no run has touched
+# A data store is read by its name from anywhere, after the scopes around the step, and its expressions read it too.
+stored = {"elements": {**inner["elements"], "Tally": {"type": "dataStore", "name": "tally"}}}
+kept = {"state": {**nested["state"], "Tally": {"n": 4}}}
+assert runner.resolve("tally.n", "Step", kept, stored) == 4 and runner.resolve("count", "Step", kept, stored) == 2
+assert runner.Step("Step", stored, kept).in_scope() == {"tally": {"n": 4}, "count": 2}
 # What a step hands back: its result, what it bound, wrote and ran with; nothing it did not say.
 step = runner.Step("Step", inner, nested)
 step.bind("Out", [1]); step.write("Round", "count", 3); step.note(version="1.0")

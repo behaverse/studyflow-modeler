@@ -4,7 +4,7 @@ import type { Entry } from '@core/engine/steps';
 /**
  * What happened in a run, in order: its one record. The walk tells its host each event as it happens, and the host
  * keeps them (the local runtime's `events.jsonl`, a browser session's record); every other account of the run is read
- * off them: the counts and the properties in the state the study keeps ({@link stateOf}), the records stamped on its
+ * off them: the counts, properties and data stores in the state the study keeps ({@link stateOf}), the records stamped on its
  * elements ({@link recordOf}), a run repository's commits.
  */
 export type RunEvent = {
@@ -21,6 +21,8 @@ export type RunEvent = {
   | { event: 'instance'; id: string; instance: number }
   /** A property of a scope was written, or cleared when there is no `value`. */
   | { event: 'wrote'; scope: string; name: string; value?: unknown }
+  /** A data store was written, or cleared when there is no `value`: `state.<store>`. */
+  | { event: 'wrote'; store: string; value?: unknown }
   /** A step ran, an event was passed, or a gateway took `flow`; `entry` is its record entry. */
   | { event: 'executed'; id: string; flow?: string; entry?: Entry }
   | { event: 'failed'; id: string; entry: Entry }
@@ -60,6 +62,11 @@ export function stateOf(events: readonly RunEvent[], start: StateTree = {}): Sta
         meta('instance')[happened.id] = happened.instance;
         break;
       case 'wrote': {
+        if ('store' in happened) {
+          if ('value' in happened) state[happened.store] = structuredClone(happened.value);
+          else delete state[happened.store];
+          break;
+        }
         const scope = (state[happened.scope] ??= {});
         if ('value' in happened) scope[happened.name] = structuredClone(happened.value);
         else delete scope[happened.name];

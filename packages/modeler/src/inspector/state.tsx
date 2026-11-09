@@ -1,4 +1,5 @@
-/** The state section: the `bpmn:Property` declarations of a scope, each with its item type. Pure helpers in `stateProperties.ts`. */
+/** The state sections: the `bpmn:Property` declarations of a scope, the study's `bpmn:DataStore`s, each with its item
+ * type, and the store a data store reference shows. Pure helpers in `stateProperties.ts`. */
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions, Input } from '@headlessui/react';
 import { useState, type ChangeEvent } from 'react';
 import { ICONS } from '@modeler/icons';
@@ -7,11 +8,14 @@ import { executeCommand } from '@modeler/commandBus';
 import { useModeler } from '@modeler/app/useModeler';
 import { useInspectedElement, useInspectedModel } from '@modeler/inspector/hooks';
 import { HelpTooltip } from '@modeler/inspector/widgets';
-import { getStateProperties, isScopeContainer, itemTypeOptions } from '@modeler/inspector/stateProperties';
+import { getDataStores, getStateProperties, isScopeContainer, itemTypeOptions, storeOf } from '@modeler/inspector/stateProperties';
 import { field as s } from '@modeler/inspector/styles';
 
 const SCOPE_DESCRIPTION =
   'This element opens a scope and values declared here live for one instance of it';
+
+const STORES_DESCRIPTION =
+  'Values the study keeps for all its participants and from run to run; a step reads and writes one through a data store reference';
 
 export function StateSection() {
   const element = useInspectedElement();
@@ -112,14 +116,144 @@ export function StateSection() {
   );
 }
 
+/** The study's data stores: on its root, beside the properties of its process. */
+export function DataStoresSection() {
+  const element = useInspectedElement();
+  const model = useInspectedModel();
+  const modeler = useModeler();
+
+  if (!element || element.id !== model.primaryRoot()?.id) return null;
+
+  const stores = getDataStores(model);
+  const types = itemTypeOptions(model);
+  const dispatch = (command: any) =>
+    executeCommand(modeler, { type: 'UpdateDataStores', element, ...command });
+
+  return (
+    <div data-testid="data-stores-section">
+      <div className={s.field}>
+        <div className={s.label}>
+          Data stores
+          <span className={s.labelActions}>
+            <button
+              type="button"
+              data-testid="add-data-store"
+              aria-label="Add a data store"
+              title="Add a data store"
+              onClick={() => dispatch({ action: 'add' })}
+              className={s.labelAddBtn}
+            >
+              <i className={`${ICONS.plus} text-base`} />
+            </button>
+            <HelpTooltip testId="data-stores-help" name="bpmn:DataStore" description={STORES_DESCRIPTION} />
+          </span>
+        </div>
+
+        {stores.length > 0 && (
+        <div className={s.arrayList}>
+          {stores.map((store) => (
+            <div key={store.id} className={s.stateRow}>
+              <Input
+                name={`store-${store.id}`}
+                aria-label={`Data store name (${store.id})`}
+                type="text"
+                placeholder="name"
+                value={store.name}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                  dispatch({ action: 'rename', storeId: store.id, name: e.target.value })}
+                className={s.stateNameInput}
+              />
+              <ItemTypeField
+                testId={`store-type-${store.id}`}
+                propertyId={store.id}
+                value={store.itemType}
+                options={types}
+                onCommit={(itemType) => dispatch({ action: 'retype', storeId: store.id, itemType })}
+              />
+              <button
+                type="button"
+                aria-label={`Remove ${store.name || store.id}`}
+                onClick={() => dispatch({ action: 'remove', storeId: store.id })}
+                className={s.stateRemoveBtn}
+              >
+                <i className={`${ICONS.closeSmall} text-sm`} />
+              </button>
+            </div>
+          ))}
+        </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The data store a reference shows: one the study declares, or a name typed to declare one. */
+export function DataStoreReferenceSection() {
+  const element = useInspectedElement();
+  const model = useInspectedModel();
+  const modeler = useModeler();
+
+  if (!element || !model.isA(element, 'bpmn:DataStoreReference')) return null;
+
+  const store = storeOf(model, element);
+  const names = getDataStores(model).map((declared) => declared.name || declared.id);
+
+  return (
+    <div data-testid="data-store-field" className={s.field}>
+      <div className={s.label}>Data store</div>
+      <div className={s.stateRow}>
+        <SuggestField
+          testId="data-store-name"
+          label="Data store"
+          placeholder="none"
+          none="none"
+          value={store ? String(store.name || store.id) : ''}
+          options={names}
+          onCommit={(name) => executeCommand(modeler, { type: 'SetDataStore', element, name })}
+          wide
+        />
+      </div>
+    </div>
+  );
+}
+
 type ItemTypeFieldProps = {
   propertyId: string;
   value: string;
   options: string[];
   onCommit: (itemType: string) => void;
+  testId?: string;
 };
 
-function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldProps) {
+function ItemTypeField({ propertyId, value, options, onCommit, testId }: ItemTypeFieldProps) {
+  return (
+    <SuggestField
+      testId={testId ?? `property-type-${propertyId}`}
+      label={`Item type (${propertyId})`}
+      placeholder="untyped"
+      none="untyped"
+      value={value}
+      options={options}
+      onCommit={onCommit}
+    />
+  );
+}
+
+type SuggestFieldProps = {
+  testId: string;
+  label: string;
+  placeholder: string;
+  /** What the empty choice reads. */
+  none: string;
+  value: string;
+  options: string[];
+  onCommit: (next: string) => void;
+  /** Fills its row, rather than sitting beside a name. */
+  wide?: boolean;
+};
+
+/** A text field that suggests `options` and takes any text typed, which then is new. */
+function SuggestField({ testId, label, placeholder, none, value, options, onCommit, wide }: SuggestFieldProps) {
   const [query, setQuery] = useState('');
 
   const q = query.trim().toLowerCase();
@@ -132,7 +266,7 @@ function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldPr
   };
 
   return (
-    <div className={s.stateTypeField}>
+    <div className={wide ? s.stateSuggestWide : s.stateTypeField}>
       <Combobox
         immediate
         value={value}
@@ -143,16 +277,16 @@ function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldPr
         onClose={() => setQuery('')}
       >
         <ComboboxInput
-          data-testid={`property-type-${propertyId}`}
-          aria-label={`Item type (${propertyId})`}
-          placeholder="untyped"
+          data-testid={testId}
+          aria-label={label}
+          placeholder={placeholder}
           title={value}
           className={s.stateTypeInput}
           displayValue={(type: string | null) => type ?? ''}
           onChange={(event) => setQuery(event.target.value)}
           onBlur={(event) => commit(event.target.value)}
         />
-        <ComboboxButton className={s.stateTypeChevronBtn} aria-label={`Type suggestions (${propertyId})`}>
+        <ComboboxButton className={s.stateTypeChevronBtn} aria-label={`Suggestions (${label})`}>
           <i className={s.stateTypeChevron} aria-hidden="true" />
         </ComboboxButton>
         <ComboboxOptions anchor="bottom end" className={s.stateTypeOptions}>
@@ -163,7 +297,7 @@ function ItemTypeField({ propertyId, value, options, onCommit }: ItemTypeFieldPr
           )}
           {!q && (
             <ComboboxOption value="" className={s.stateTypeOption}>
-              <span className={s.stateTypeUntyped}>untyped</span>
+              <span className={s.stateTypeUntyped}>{none}</span>
             </ComboboxOption>
           )}
           {matches.map((type) => (

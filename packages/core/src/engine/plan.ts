@@ -322,7 +322,7 @@ export function modelIndexOf(model: StudyModel): ModelIndex {
 
   const others = roots.flatMap((definition) => {
     const host = model.host(definition);
-    if (host === 'bpmn:Message' || host === 'bpmn:ItemDefinition') return definition.id ? [definition] : [];
+    if (host === 'bpmn:Message' || host === 'bpmn:ItemDefinition' || host === 'bpmn:DataStore') return definition.id ? [definition] : [];
     if (host !== 'bpmn:Collaboration') return [];
     return [...listIn(definition.participants), ...listIn(definition.messageFlows)].filter((child): child is Element => isElement(child) && !!child.id);
   });

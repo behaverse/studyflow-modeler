@@ -104,10 +104,29 @@ export function getPropertiesInScope(model: StudyModel, element: Element): Scope
   return out;
 }
 
-/** The first `Property_N` no element holds: ids are document-wide, so `taken` answers for the whole document. */
-export function nextPropertyId(taken: (id: string) => boolean): string {
+/** The first `<prefix>_N` no element holds: ids are document-wide, so `taken` answers for the whole document. */
+export function nextPropertyId(taken: (id: string) => boolean, prefix = 'Property'): string {
   for (let i = 1; ; i += 1) {
-    const candidate = `Property_${i}`;
+    const candidate = `${prefix}_${i}`;
     if (!taken(candidate)) return candidate;
   }
+}
+
+/** The data stores the study declares: root elements, each one value it keeps for all its participants. */
+export function dataStoresOf(model: StudyModel): Element[] {
+  return model.study.roots.filter((root) => model.host(root) === 'bpmn:DataStore');
+}
+
+export function getDataStores(model: StudyModel): StateProperty[] {
+  return dataStoresOf(model).map((store) => ({
+    id: String(store.id),
+    name: typeof store.name === 'string' ? store.name : '',
+    itemType: structureOf(model, store.itemSubjectRef),
+  }));
+}
+
+/** The data store a reference shows, if it names one. */
+export function storeOf(model: StudyModel, reference: Element): Element | undefined {
+  const store = model.get(idOf(reference.dataStoreRef) ?? undefined);
+  return store && model.host(store) === 'bpmn:DataStore' ? store : undefined;
 }
